@@ -1,0 +1,7 @@
+{
+  "CanRent.can": "92ae906083f5a7c180cbba518731aac41bebe084b2bfcf9d94a9311994c4e697",
+  "CanRent.mjs": "d23d44a1d357caf4656b05ee65cb7250d194d79268804e91f63188a8d03f53d2",
+  "capture_sites": 52,
+  "initial_inventory_sites": 55,
+  "note": "Read after coordinator local coalescing; mechanism extracts are not installed app files."
+}

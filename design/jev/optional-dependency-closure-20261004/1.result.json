@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": "A draft language includes an entire executable business owner for each ordinary production import. Imported bound interfaces extract canonical schemas without including their executable provider, but all included owner bindings still require configuration. A physical-mail app supports manual paid-service evidence, term=null, automatic fee billing=false, receive/notify/collect/forward/return and restricted custody/history. Those choices are runtime data, not static pruning. Its actual graph includes ten executable owners and nine binding names: core email plus billing, membership ingress, payment, invoice ingress, PDF documents, sales ingress, qualified sales and commissions. Two causes are a plain Charge value-type import and a customer owner importing an invoice finance-role identity; the live Term record and eligible_term function also pull complete membership, referral and affiliate owners. The live eligibility check observes paid status, current customer/seat authority, paused/revoked state and time; replacing it with copied evidence or asynchronous cached truth is not equivalent. Cross-owner writes are forbidden. Full paid/fee mode must retain canonical owners, all guards/hooks/schemas, unique frozen fee source, correlation, invoice reconciliation after uncertainty and physical dispatch evidence independent of billing. A new language contract is allowed; no backward implementation constraint exists. Existing schemas must not be copied, extra wrapper/build manifests are unwanted, and the source drafts are not a running compiler. Existing release rules retain or drain unresolved old deliveries/events/schedules and provider namespaces; absence cannot discard pending or uncertain work. There is no proven safe declaration-pruning analysis or general solver for runtime business guards.",
+    "questions": {
+      "closure": {
+        "type": "choice",
+        "instructions": "Which bounded contract best preserves all stated outcomes while reducing avoidable setup, authoring and support complexity? Compare total obligations rather than imagined runtime speed or subscription savings.",
+        "criteria": {
+          "whole": "Keep the current owner and mandatory binding closure. The generated plan explains every adapter; manual/no-fee operation keeps unused commercial setup. It adds no language or owner bridges and retains all behaviors, but does not solve the avoidable-resource goal.",
+          "values": "Make purely structural/schema and role-identity imports include only their canonical value dependencies; retain complete executable inclusion for live models/functions/operations. Reuse Charge via its already bound interface. This removes proven accidental edges without copying schemas, but live membership/referral closure and the Mail Billing binding still impose commercial setup.",
+          "partition": "Separate optional commercial workflows into explicitly selected business packages using existing imports/exports/events/canonical owner calls. Shared models and their full rules stay with their one owner; integration packages cannot write them. A complete split therefore needs genuine admitted owner handoffs and hook/event handling rather than relocating text. It may omit resources without new optional-binding semantics, at a cost of extra names/bridges and outcome-equivalence work; no complete split is proven yet.",
+          "optional": "Retain the entire executable graph and canonical schemas, adding one explicit selected-app allowlist of deployment bindings permitted to be absent. Omitted list keeps bindings required. Configured bindings behave exactly as before. A send through an absent listed binding fails atomically with a safe rule_failed outcome before committing domain changes or intents; no silent success/skipped result or alternate authority. Manual/no-fee paths that do not send need no commercial adapters. Full paid/fee mode configures them. Unresolved old work blocks removal until the existing namespace/drain/reconciliation gate passes. This changes deployment semantics and leaves source context/owners in place, avoiding declaration pruning or cross-owner workflow bridges."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "closure": {
+        "type": "choice",
+        "choice": "optional",
+        "confidence": 0.81,
+        "probabilities": {
+          "whole": 0.0,
+          "optional": 0.86,
+          "values": 0.13,
+          "partition": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1018,
+      "output_tokens": 45
+    }
+  }
+}

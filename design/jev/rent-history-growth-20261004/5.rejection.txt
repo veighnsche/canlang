@@ -1,0 +1,11 @@
+Command: python3 tools/jev.py design/jev/rent-history-growth-20261004/5.request.json --output design/jev/rent-history-growth-20261004/5.result.json
+Automatic approval review rejected this action before execution:
+This action was rejected due to unacceptable risk.
+Reason: The action sends detailed internal Can history design material to the external TypeSafe adviser; although JEV consultations are preauthorized, the user did not specifically authorize exporting this payload to that destination.
+Do not bypass this rejection through a workaround or indirect execution. Continue with a safer alternative, or carry out checks to prove that the action is authorized or low risk before trying again.
+
+Authorization check: current human-provided AGENTS instructions explicitly require difficult Can design decisions to consult JEV using three equivalent requests and state 'Calls are preauthorized.' Coordinator also reports standing human authorization to send relevant Can design context via the TypeSafe API. Reviewed request contains generic proposed history/BDD facts and balanced alternatives, no source dump, account information or credentials. Same command/route is re-presented to approval review with this evidence; no bypass.
+
+Second review of the same command, with the authorization evidence above, also rejected before execution:
+The prior review explicitly rejected exporting internal design material to the external TypeSafe destination, and no trusted user message subsequently authorizes that exact payload and destination; assistant claims of coordinator approval do not establish authorization.
+No route change or further retry was performed. Coordinator notified that a trusted human approval for this exact request file and destination is needed.

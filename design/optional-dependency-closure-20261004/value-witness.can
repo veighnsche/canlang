@@ -1,0 +1,39 @@
+## Same valid source under current whole-owner and proposed value-only import rules.
+app ValuesOnly uses=[value_probe]
+app LiveValues uses=[live_probe]
+package value_probe
+ use invoice {finance,Charge}
+ Given
+  Preview { charge:Charge }
+  policy Preview read=finance
+  invariant Preview: row.charge.amount.minor>=0
+  fixture finance_user=user {roles=[finance]}
+  fixture ordinary_user=user {}
+  fixture quoted=Preview {charge={source="value-probe",customer="fixture-customer",location="fixture-location",description="Recorded fee",amount=money(5,"EUR"),due=date("2090-01-01")}}
+ When
+  scenario inspect(preview:Preview) -> Charge read=true by=finance
+   do return preview.charge
+   examples preview=quoted
+    as -> result.amount
+    finance_user -> money(5,"EUR")
+    ordinary_user -> error(forbidden)
+    public -> error(forbidden)
+ Then
+  page /value-probe title="Recorded fee"
+   require finance
+   form inspect
+    text result.amount
+## Extracting this value still needs the real Customer owner and admission routing.
+package record_values
+ use customer {Customer}
+ Given
+  export contract CustomerLink { customer:Customer }
+ When
+ Then
+package live_probe
+ use record_values {CustomerLink}
+ Given
+  Linked { value:CustomerLink }
+  policy Linked read=members
+ When
+ Then

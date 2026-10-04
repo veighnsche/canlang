@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "This is a design-only choice for a reservation app, with no existing runtime API to preserve. The authored history row stores active/capacity/pooled/timezone and full arrays of windows, downtime, bookings and venues; rows are locked and timestamped at the fixed invocation time with resource-local increasing sequence. There are 55 source creation sites. An accepted quote can create two such rows in one transaction around its booking status update. The historical report picks the latest eligible sequence, segments at calendar/policy/service/occupancy boundaries and computes booked, actual occupied, saleable and excluded minutes. Location opening snapshots and timezone/DST rules remain separate inputs; unclosed occupancy is provisional and absent initial evidence makes the result partial. Only current scoped reservation managers may run the privileged report. History has no declared expiration. At least one cumulative booking copy per creation produces B(B+1)/2 retained booking values, without demonstrating runtime cost. Dropping intermediate same-clock rows is safe only if their values are not consumed by any intervening code or emitted identity. UI audit versions are not currently a queryable historical model. Ordinary typed records can instead hold explicit small entity revisions, but completeness requires correct captures for all changed or absent entities, deterministic ordering and boundaries. All candidates must preserve the same old utilization and privacy behavior, including capacity edits, cancellations, late departure, daylight-saving intervals and missing-evidence handling; payment/currency/reversal logic is outside the change. No undeclared retention reduction or current-state reconstruction is allowed.",
+    "questions": {
+      "history": {
+        "type": "choice",
+        "instructions": "Select the most appropriate bounded design under these verified constraints.",
+        "criteria": {
+          "explicit_facts": "Split saved resource state into bounded scalar policy captures and immutable revisions of each identifiable booking, venue, window and downtime item. Existing models and queries select the last revision for each item at a capture, with explicit starting coverage and removal state. Authors still maintain all affected capture sites and joins, but a change no longer copies unrelated entities.",
+          "version_query": "Add a language contract for querying transaction-final historical field versions rather than app-authored copies. Define what is captured, as-of ordering, privacy, lifecycle and incomplete ranges; use that for the report. This shifts recurring capture logic to the compiler/runtime while expanding the language beyond the currently specified audit viewer.",
+          "full_coalesced": "Continue storing each entire report snapshot after relevant transactions, while eliminating only intermediate writes shown to have no observer in the same transaction. The existing report remains direct and complete. This reduces some duplicate writes but leaves cross-transaction cumulative copies and their company storage/work budget."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "history": {
+        "type": "choice",
+        "choice": "explicit_facts",
+        "confidence": 0.73,
+        "probabilities": {
+          "full_coalesced": 0.17,
+          "explicit_facts": 0.82,
+          "version_query": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 821,
+      "output_tokens": 46
+    }
+  }
+}

@@ -1,0 +1,332 @@
+[
+  {
+    "line": 215,
+    "scenario": "snapshot_Resource_create",
+    "parent": "resource",
+    "changed": "scalar"
+  },
+  {
+    "line": 219,
+    "scenario": "snapshot_Resource_update",
+    "parent": "resource",
+    "changed": "scalar"
+  },
+  {
+    "line": 223,
+    "scenario": "snapshot_Window_create",
+    "parent": "resource",
+    "changed": "window"
+  },
+  {
+    "line": 227,
+    "scenario": "snapshot_Window_update",
+    "parent": "resource",
+    "changed": "window"
+  },
+  {
+    "line": 231,
+    "scenario": "snapshot_DayCalendar_create",
+    "parent": "resource",
+    "changed": "scalar"
+  },
+  {
+    "line": 235,
+    "scenario": "snapshot_DayCalendar_update",
+    "parent": "resource",
+    "changed": "scalar"
+  },
+  {
+    "line": 300,
+    "scenario": "hold",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 328,
+    "scenario": "hold_days",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 340,
+    "scenario": "move",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 352,
+    "scenario": "move_days",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 435,
+    "scenario": "movement_result",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 438,
+    "scenario": "movement_result",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 441,
+    "scenario": "movement_result",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 448,
+    "scenario": "movement_result",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 541,
+    "scenario": "block",
+    "parent": "downtime.parent",
+    "changed": "downtime"
+  },
+  {
+    "line": 549,
+    "scenario": "restore",
+    "parent": "downtime.parent",
+    "changed": "downtime"
+  },
+  {
+    "line": 557,
+    "scenario": "prepare",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 561,
+    "scenario": "prepare",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 569,
+    "scenario": "arrive",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 585,
+    "scenario": "depart",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 593,
+    "scenario": "cancel_booking",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 617,
+    "scenario": "venue_move",
+    "parent": "venue.parent",
+    "changed": "venue"
+  },
+  {
+    "line": 639,
+    "scenario": "requested_downtime",
+    "parent": "downtime.parent",
+    "changed": "downtime"
+  },
+  {
+    "line": 656,
+    "scenario": "requested_restore",
+    "parent": "downtime.parent",
+    "changed": "downtime"
+  },
+  {
+    "line": 668,
+    "scenario": "venue_hold",
+    "parent": "venue.parent",
+    "changed": "venue"
+  },
+  {
+    "line": 680,
+    "scenario": "venue_stage",
+    "parent": "venue.parent",
+    "changed": "venue"
+  },
+  {
+    "line": 689,
+    "scenario": "venue_confirm",
+    "parent": "venue.parent",
+    "changed": "venue"
+  },
+  {
+    "line": 702,
+    "scenario": "venue_release",
+    "parent": "venue.parent",
+    "changed": "venue"
+  },
+  {
+    "line": 714,
+    "scenario": "venue_expire",
+    "parent": "event.venue.parent",
+    "changed": "venue"
+  },
+  {
+    "line": 749,
+    "scenario": "quote_accept",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 753,
+    "scenario": "quote_accept",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 790,
+    "scenario": "revise_capacity",
+    "parent": "resource",
+    "changed": "scalar"
+  },
+  {
+    "line": 808,
+    "scenario": "fulfill_free",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 823,
+    "scenario": "confirm_account",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 830,
+    "scenario": "confirm_account",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 834,
+    "scenario": "confirm_account",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 847,
+    "scenario": "charge_result",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 854,
+    "scenario": "no_show",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 894,
+    "scenario": "adjustment_money",
+    "parent": "adjustment.parent.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 922,
+    "scenario": "refund_review",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1008,
+    "scenario": "allowance_result",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1039,
+    "scenario": "allowance_snapshot",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1062,
+    "scenario": "allowance_snapshot",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1065,
+    "scenario": "allowance_snapshot",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1071,
+    "scenario": "allowance_snapshot",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1076,
+    "scenario": "allowance_snapshot",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1081,
+    "scenario": "allowance_snapshot",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1114,
+    "scenario": "money",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1120,
+    "scenario": "money",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1125,
+    "scenario": "money",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1129,
+    "scenario": "money",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1132,
+    "scenario": "money",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1141,
+    "scenario": "money",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1164,
+    "scenario": "consumption",
+    "parent": "booking.parent",
+    "changed": "booking"
+  },
+  {
+    "line": 1189,
+    "scenario": "expire",
+    "parent": "event.booking.parent",
+    "changed": "booking"
+  }
+]
