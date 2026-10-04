@@ -1,0 +1,122 @@
+{
+  "attempt": "packages_initial",
+  "status": "reviewable_draft_with_recorded_example_gap",
+  "requested_model": "gpt-6.1-sol",
+  "requested_reasoning_effort": "medium",
+  "actual_model_identifier": null,
+  "actual_reasoning_effort": null,
+  "billing_tokens": null,
+  "input_tokens": null,
+  "output_tokens": null,
+  "usage": null,
+  "actual_started_at_utc": null,
+  "first_recorded_timestamp_utc": "2026-10-04T05:44:32Z",
+  "ended_at_utc": "2026-10-04T05:50:21.074183+00:00",
+  "elapsed_seconds_since_first_recorded_timestamp": 349.074183,
+  "timing_note": "Initial instructions read preceded first recorded timestamp; exact actual start and usage unavailable. Tool wall times rounded as returned.",
+  "retrievals": [
+    {
+      "label": "Initial instructions/inventory",
+      "command": "cat AGENTS.md; cat design/evaluation/evidence/adoption/experiments/layout/brief.md; rg --files design/evaluation/evidence/adoption/experiments/layout/packages/before/",
+      "stdout_bytes": 4272,
+      "stdout_sha256": "32252041c39bb6ae0eeab968141b54e9b5384b1a13e6d8cd78e80b6b960a0165",
+      "tool_reported_original_token_count": 1068,
+      "display_truncated": false,
+      "visible_output_bytes": 4272,
+      "initial_call_wall_seconds": 0.1
+    },
+    {
+      "label": "Owning-workflow search and initial grammar search",
+      "command": "date -u '+%Y-%m-%dT%H:%M:%SZ'; rg -n 'expense|Expense|review|approve|reimburs|example|receipt|correction' design/evaluation/evidence/adoption/experiments/layout/packages/before/CanExpense.can; wc -c design/evaluation/evidence/adoption/experiments/layout/packages/before/*.can; rg -n 'expect|example|action|transaction|stale|guard|require|permission|atomic|enum' design/evaluation/baseline-20261004T041647Z/snapshot/GRAMMAR.md",
+      "stdout_bytes": 43427,
+      "stdout_sha256": "d683798a58793ab3409d64c9c135a05b67cb4b130efe993fe4515945555def71",
+      "tool_reported_original_token_count": 10857,
+      "display_truncated": true,
+      "visible_output_bytes": null,
+      "initial_call_wall_seconds": 0.1
+    },
+    {
+      "label": "Source, dependency, broad design search",
+      "command": "sed -n '1,125p' design/evaluation/evidence/adoption/experiments/layout/packages/before/CanExpense.can; cat design/evaluation/evidence/adoption/experiments/layout/packages/before/Employees.can; rg -n 'fixture|role|derive can_work|export|currency' design/evaluation/evidence/adoption/experiments/layout/packages/before/Locations.can; rg -n '\u00a75|5.1|seed|stale|version|MCP|canonical|money|minor|examples' design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md",
+      "stdout_bytes": 119448,
+      "stdout_sha256": "fc1fe7de1db2c0651c444c4b0107d12ccd9c7ce5f09972505d97fa68883f9586",
+      "tool_reported_original_token_count": 29862,
+      "display_truncated": true,
+      "visible_output_bytes": null,
+      "initial_call_wall_seconds": 0.1
+    },
+    {
+      "label": "Bounded design/fixture locator",
+      "command": "rg -n '^### 5.1|^## 5|^## 9|^## 10|^### 3|stale|money\\(major|money\\(' design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md; sed -n '25,29p' design/evaluation/evidence/adoption/experiments/layout/packages/before/Locations.can",
+      "stdout_bytes": 4928,
+      "stdout_sha256": "45fd79a714869fd6baf609f2a9f7528411b4c8b31feecbb259dcad724398eeb1",
+      "tool_reported_original_token_count": 1232,
+      "display_truncated": false,
+      "visible_output_bytes": 4928,
+      "initial_call_wall_seconds": 0.1
+    },
+    {
+      "label": "Operations, examples, presentation and MCP semantics",
+      "command": "sed -n '349,385p' design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md; sed -n '305,347p' design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md; sed -n '559,578p' design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md; sed -n '727,735p' design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md",
+      "stdout_bytes": 20054,
+      "stdout_sha256": "a2e2f0c3cb1f0435b98e5760a2d4cfe92618e64ab4dd3a283faa94722c5849c8",
+      "tool_reported_original_token_count": 5014,
+      "display_truncated": false,
+      "visible_output_bytes": 20054,
+      "initial_call_wall_seconds": 0.1
+    },
+    {
+      "label": "Money, presentation scope, declaration and example grammar",
+      "command": "sed -n '196,223p' design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md; sed -n '583,600p' design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md; sed -n '155,170p' design/evaluation/baseline-20261004T041647Z/snapshot/GRAMMAR.md; sed -n '343,357p' design/evaluation/baseline-20261004T041647Z/snapshot/GRAMMAR.md",
+      "stdout_bytes": 17703,
+      "stdout_sha256": "438a1a2f9fc704b480a48fac2df74cf18c5df549d10fc005b6f0546f9184d3da",
+      "tool_reported_original_token_count": 4426,
+      "display_truncated": false,
+      "visible_output_bytes": 17703,
+      "initial_call_wall_seconds": 0.1
+    }
+  ],
+  "input_source_bytes": {
+    "Locations.can": 11063,
+    "CanExpense.can": 13335,
+    "Employees.can": 3073
+  },
+  "output_source_bytes": {
+    "Locations.can": 11063,
+    "CanExpense.can": 19777,
+    "Employees.can": 3073
+  },
+  "delegation": false,
+  "jev_calls": 0,
+  "independent_attempts": 1,
+  "self_check_repairs": 1,
+  "checks": {
+    "textual_preservation": "pass",
+    "old_example_blocks_preserved": 4,
+    "draft_example_rows_arity_checked": 30,
+    "parser": null,
+    "typechecker": null,
+    "runtime": null,
+    "inline_examples_execution": null
+  },
+  "self_check_repair_note": "Used positive stale version 2 against fixture version 1, avoiding uncertainty about version-zero envelope validity.",
+  "accessed_input_file_bytes": {
+    "AGENTS.md": 1299,
+    "design/evaluation/evidence/adoption/experiments/layout/brief.md": 2717,
+    "design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md": 192381,
+    "design/evaluation/baseline-20261004T041647Z/snapshot/GRAMMAR.md": 54465,
+    "design/evaluation/evidence/adoption/experiments/layout/packages/before/Locations.can": 11063,
+    "design/evaluation/evidence/adoption/experiments/layout/packages/before/CanExpense.can": 13335,
+    "design/evaluation/evidence/adoption/experiments/layout/packages/before/Employees.can": 3073
+  },
+  "before_source_sha256": {
+    "Locations.can": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+    "CanExpense.can": "71f89e2f253c7d7bfabd3d896ea0d8bf7512ba98928d38fe02dba2dbd5aed666",
+    "Employees.can": "5af7826104ec480d11e55b0970408947ceb7ba00ca7f3abdaca4f0a1a0d63970"
+  },
+  "after_source_sha256": {
+    "Locations.can": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+    "CanExpense.can": "e3b8e3e4eae3e9860b3fe1b61fb5216b54ea600beb113f00b0ac5021087afdde",
+    "Employees.can": "5af7826104ec480d11e55b0970408947ceb7ba00ca7f3abdaca4f0a1a0d63970"
+  }
+}

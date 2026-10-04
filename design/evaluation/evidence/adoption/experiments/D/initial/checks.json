@@ -1,0 +1,19 @@
+{
+  "python_ast": {
+    "files": 10,
+    "result": "passed",
+    "runtime": false
+  },
+  "dependencies_available": {
+    "django": false,
+    "mcp": false
+  },
+  "django_tests": {
+    "executed": false,
+    "reason": "dependencies unavailable; no installation requested"
+  },
+  "framework_runtime": null,
+  "browser_runtime": null,
+  "postgres_concurrency": null,
+  "mcp_handshake": null
+}

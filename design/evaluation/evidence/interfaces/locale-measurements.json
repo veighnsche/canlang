@@ -1,0 +1,35 @@
+{
+  "method": "Bounded handcrafted draft edit, tiktoken 0.12.0 two reference encodings; not actual GPT-6 usage. No compiler or runtime executed. Shared DE catalog/coverage is a platform obligation, not asserted translated here.",
+  "baseline": "design/evaluation/baseline-20261004T041647Z/snapshot/examples/TeamTasks.can",
+  "baseline_sha256": "89f28215fe6a825083581dedccd0268433581c4000a03e1971dfa2dccccc92fa",
+  "asset_sites_added": 27,
+  "unique_complete_translations": 27,
+  "baseline_measure": {
+    "utf8_bytes": 2936,
+    "lines": 51,
+    "tokens": {
+      "o200k_base": 817,
+      "cl100k_base": 824
+    }
+  },
+  "added_locale_measure": {
+    "utf8_bytes": 3734,
+    "lines": 51,
+    "tokens": {
+      "o200k_base": 1053,
+      "cl100k_base": 1096
+    }
+  },
+  "edited_message_measure": {
+    "utf8_bytes": 3786,
+    "lines": 51,
+    "tokens": {
+      "o200k_base": 1060,
+      "cl100k_base": 1108
+    }
+  },
+  "locale_diff_added_lines": 21,
+  "message_diff_changed_lines": 2,
+  "parameter_contract": "task_count(n:int), n bound explicitly; unchanged from baseline",
+  "no_new_locale_file_or_alignment_required": true
+}

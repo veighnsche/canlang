@@ -1,0 +1,81 @@
+{
+  "attempt": 1,
+  "layout": "single",
+  "assigned_model": "gpt-6.1-sol",
+  "assigned_reasoning_effort": "medium",
+  "runtime_model_verified": null,
+  "runtime_effort_verified": null,
+  "first_measured_time_utc": "2026-10-04 05:39:12 UTC",
+  "finished_time_utc": "2026-10-04 05:43:29 UTC",
+  "elapsed_from_first_measurement_seconds": 257,
+  "actual_start_time_utc": null,
+  "actual_usage_tokens": null,
+  "billing_tokens": null,
+  "visible_context_tokens": null,
+  "retrieval_payload_utf8_bytes": 163346,
+  "retrieval_original_token_counts": [
+    2884,
+    1027,
+    3389,
+    3279,
+    23700,
+    3173,
+    1179,
+    5023,
+    2034,
+    2077,
+    1870,
+    4060,
+    817
+  ],
+  "context_visibility_limit": "Combined output clipped at render; raw per-command outputs logged. Counts are tool estimates, not billing or full visible-context counts.",
+  "checks": {
+    "structural": "passed",
+    "example_tables": 11,
+    "example_rows": 30,
+    "parser": null,
+    "semantic_checker": null,
+    "executable_examples": null
+  },
+  "before_preserved": true,
+  "dependent_owners_unchanged": true,
+  "initial_attempt_self_corrections": [
+    "Added seeded matching first-decision fixtures to isolate claimant and first-reviewer finance denial.",
+    "Replaced unavailable TextEncoder in recording script; repeated initial capture."
+  ],
+  "unmet_outcomes": [
+    "Successful three-distinct-actor finance decision inline example",
+    "Finance rejection followed by correction with valid three-account historical evidence",
+    "Successful high-EUR reimbursement with valid three-account finance evidence"
+  ],
+  "delegation": false,
+  "jev": false,
+  "retrieved_source_paths": [
+    {
+      "path": "/Users/vince/Projects/canlang/AGENTS.md",
+      "file_bytes": 1299
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/layout/brief.md",
+      "file_bytes": 2717
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/layout/single/before/ExpenseWorkspace.can",
+      "file_bytes": 27473
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md",
+      "file_bytes": 192381
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/GRAMMAR.md",
+      "file_bytes": 54465
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/REQUIREMENTS.md",
+      "file_bytes": 40223
+    }
+  ],
+  "before_sha256": "3d46217989ee84bf00552d5b6fdc0e6828b0ca1ee0ddc6c95ec8bdb415393a94",
+  "after_sha256": "5bad6dc2b616a0dc9b1b772cd74a869fa9faa477d905f9da6bf34acf0cfdec6d"
+}

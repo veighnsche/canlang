@@ -1,0 +1,447 @@
+{
+  "method": "Static text inventory; patterns count written declarations, not validated meanings. No runtime or token claim.",
+  "can_files": 44,
+  "app_requirement_pairs": 39,
+  "desired_mjs": 21,
+  "counts": {
+    "apps": 50,
+    "packages": 50,
+    "given": 52,
+    "when": 52,
+    "then": 52,
+    "crud": 100,
+    "scenarios": 585,
+    "examples": 305,
+    "fixtures": 235,
+    "imports": 221,
+    "bound_imports": 65,
+    "retention": 12,
+    "for_limits": 214
+  },
+  "files": {
+    "draft/CanAffiliate.can": {
+      "lines": 257,
+      "bytes": 25571,
+      "max_line_characters": 1299
+    },
+    "draft/CanApprove.can": {
+      "lines": 151,
+      "bytes": 14021,
+      "max_line_characters": 726
+    },
+    "draft/CanBoard.can": {
+      "lines": 167,
+      "bytes": 14504,
+      "max_line_characters": 466
+    },
+    "draft/CanBook.can": {
+      "lines": 351,
+      "bytes": 30231,
+      "max_line_characters": 1359
+    },
+    "draft/CanCRM.can": {
+      "lines": 211,
+      "bytes": 19396,
+      "max_line_characters": 1027
+    },
+    "draft/CanCatch.can": {
+      "lines": 192,
+      "bytes": 16655,
+      "max_line_characters": 665
+    },
+    "draft/CanCheck.can": {
+      "lines": 167,
+      "bytes": 13080,
+      "max_line_characters": 1099
+    },
+    "draft/CanContract.can": {
+      "lines": 173,
+      "bytes": 16051,
+      "max_line_characters": 652
+    },
+    "draft/CanCustomer.can": {
+      "lines": 256,
+      "bytes": 22307,
+      "max_line_characters": 630
+    },
+    "draft/CanDesk.can": {
+      "lines": 227,
+      "bytes": 22211,
+      "max_line_characters": 1226
+    },
+    "draft/CanDo.can": {
+      "lines": 162,
+      "bytes": 15690,
+      "max_line_characters": 765
+    },
+    "draft/CanEvent.can": {
+      "lines": 510,
+      "bytes": 55946,
+      "max_line_characters": 3739
+    },
+    "draft/CanExpense.can": {
+      "lines": 122,
+      "bytes": 13335,
+      "max_line_characters": 1038
+    },
+    "draft/CanFeedback.can": {
+      "lines": 166,
+      "bytes": 13402,
+      "max_line_characters": 714
+    },
+    "draft/CanField.can": {
+      "lines": 224,
+      "bytes": 22137,
+      "max_line_characters": 1141
+    },
+    "draft/CanGrant.can": {
+      "lines": 190,
+      "bytes": 20645,
+      "max_line_characters": 1126
+    },
+    "draft/CanHire.can": {
+      "lines": 331,
+      "bytes": 28436,
+      "max_line_characters": 1625
+    },
+    "draft/CanInvoice.can": {
+      "lines": 703,
+      "bytes": 67797,
+      "max_line_characters": 1260
+    },
+    "draft/CanLearn.can": {
+      "lines": 133,
+      "bytes": 11014,
+      "max_line_characters": 342
+    },
+    "draft/CanLeave.can": {
+      "lines": 250,
+      "bytes": 21020,
+      "max_line_characters": 1585
+    },
+    "draft/CanLoyalty.can": {
+      "lines": 266,
+      "bytes": 24163,
+      "max_line_characters": 648
+    },
+    "draft/CanMail.can": {
+      "lines": 293,
+      "bytes": 32108,
+      "max_line_characters": 1612
+    },
+    "draft/CanMaintain.can": {
+      "lines": 307,
+      "bytes": 31753,
+      "max_line_characters": 2698
+    },
+    "draft/CanMember.can": {
+      "lines": 689,
+      "bytes": 64886,
+      "max_line_characters": 1979
+    },
+    "draft/CanOnboard.can": {
+      "lines": 115,
+      "bytes": 10352,
+      "max_line_characters": 472
+    },
+    "draft/CanPropose.can": {
+      "lines": 314,
+      "bytes": 32943,
+      "max_line_characters": 3984
+    },
+    "draft/CanPurchase.can": {
+      "lines": 343,
+      "bytes": 32039,
+      "max_line_characters": 816
+    },
+    "draft/CanReception.can": {
+      "lines": 346,
+      "bytes": 32940,
+      "max_line_characters": 1348
+    },
+    "draft/CanRefer.can": {
+      "lines": 234,
+      "bytes": 24027,
+      "max_line_characters": 606
+    },
+    "draft/CanRent.can": {
+      "lines": 1351,
+      "bytes": 155261,
+      "max_line_characters": 5272
+    },
+    "draft/CanReport.can": {
+      "lines": 88,
+      "bytes": 10249,
+      "max_line_characters": 1062
+    },
+    "draft/CanShift.can": {
+      "lines": 327,
+      "bytes": 37419,
+      "max_line_characters": 985
+    },
+    "draft/CanStats.can": {
+      "lines": 181,
+      "bytes": 18410,
+      "max_line_characters": 1095
+    },
+    "draft/CanStock.can": {
+      "lines": 193,
+      "bytes": 16669,
+      "max_line_characters": 376
+    },
+    "draft/CanSuccess.can": {
+      "lines": 189,
+      "bytes": 16537,
+      "max_line_characters": 813
+    },
+    "draft/CanTable.can": {
+      "lines": 165,
+      "bytes": 14755,
+      "max_line_characters": 1099
+    },
+    "draft/CanTime.can": {
+      "lines": 258,
+      "bytes": 25075,
+      "max_line_characters": 832
+    },
+    "draft/CanTrade.can": {
+      "lines": 104,
+      "bytes": 8868,
+      "max_line_characters": 874
+    },
+    "draft/CanVolunteer.can": {
+      "lines": 219,
+      "bytes": 21469,
+      "max_line_characters": 629
+    },
+    "draft/shared/Employees.can": {
+      "lines": 26,
+      "bytes": 3073,
+      "max_line_characters": 721
+    },
+    "draft/shared/Locations.can": {
+      "lines": 65,
+      "bytes": 11063,
+      "max_line_characters": 966
+    },
+    "draft/shared/Suppliers.can": {
+      "lines": 13,
+      "bytes": 1044,
+      "max_line_characters": 216
+    },
+    "examples/ExpenseFlow.can": {
+      "lines": 75,
+      "bytes": 5019,
+      "max_line_characters": 245
+    },
+    "examples/TeamTasks.can": {
+      "lines": 51,
+      "bytes": 2936,
+      "max_line_characters": 277
+    }
+  },
+  "lines_over_1000_chars": [
+    {
+      "file": "draft/CanAffiliate.can",
+      "line": 12,
+      "characters": 1133
+    },
+    {
+      "file": "draft/CanAffiliate.can",
+      "line": 23,
+      "characters": 1274
+    },
+    {
+      "file": "draft/CanAffiliate.can",
+      "line": 29,
+      "characters": 1299
+    },
+    {
+      "file": "draft/CanBook.can",
+      "line": 17,
+      "characters": 1359
+    },
+    {
+      "file": "draft/CanBook.can",
+      "line": 20,
+      "characters": 1117
+    },
+    {
+      "file": "draft/CanCRM.can",
+      "line": 17,
+      "characters": 1027
+    },
+    {
+      "file": "draft/CanCheck.can",
+      "line": 15,
+      "characters": 1099
+    },
+    {
+      "file": "draft/CanDesk.can",
+      "line": 20,
+      "characters": 1226
+    },
+    {
+      "file": "draft/CanEvent.can",
+      "line": 21,
+      "characters": 3739
+    },
+    {
+      "file": "draft/CanEvent.can",
+      "line": 23,
+      "characters": 2417
+    },
+    {
+      "file": "draft/CanExpense.can",
+      "line": 11,
+      "characters": 1038
+    },
+    {
+      "file": "draft/CanField.can",
+      "line": 26,
+      "characters": 1141
+    },
+    {
+      "file": "draft/CanGrant.can",
+      "line": 23,
+      "characters": 1126
+    },
+    {
+      "file": "draft/CanHire.can",
+      "line": 29,
+      "characters": 1625
+    },
+    {
+      "file": "draft/CanInvoice.can",
+      "line": 86,
+      "characters": 1141
+    },
+    {
+      "file": "draft/CanInvoice.can",
+      "line": 104,
+      "characters": 1260
+    },
+    {
+      "file": "draft/CanLeave.can",
+      "line": 26,
+      "characters": 1585
+    },
+    {
+      "file": "draft/CanMail.can",
+      "line": 27,
+      "characters": 1612
+    },
+    {
+      "file": "draft/CanMail.can",
+      "line": 29,
+      "characters": 1103
+    },
+    {
+      "file": "draft/CanMaintain.can",
+      "line": 28,
+      "characters": 1170
+    },
+    {
+      "file": "draft/CanMaintain.can",
+      "line": 29,
+      "characters": 2698
+    },
+    {
+      "file": "draft/CanMember.can",
+      "line": 101,
+      "characters": 1979
+    },
+    {
+      "file": "draft/CanPropose.can",
+      "line": 39,
+      "characters": 3984
+    },
+    {
+      "file": "draft/CanReception.can",
+      "line": 36,
+      "characters": 1348
+    },
+    {
+      "file": "draft/CanReception.can",
+      "line": 41,
+      "characters": 1130
+    },
+    {
+      "file": "draft/CanRent.can",
+      "line": 102,
+      "characters": 1713
+    },
+    {
+      "file": "draft/CanRent.can",
+      "line": 105,
+      "characters": 5272
+    },
+    {
+      "file": "draft/CanRent.can",
+      "line": 137,
+      "characters": 1735
+    },
+    {
+      "file": "draft/CanRent.can",
+      "line": 156,
+      "characters": 2523
+    },
+    {
+      "file": "draft/CanRent.can",
+      "line": 299,
+      "characters": 1025
+    },
+    {
+      "file": "draft/CanRent.can",
+      "line": 327,
+      "characters": 1190
+    },
+    {
+      "file": "draft/CanRent.can",
+      "line": 748,
+      "characters": 1827
+    },
+    {
+      "file": "draft/CanReport.can",
+      "line": 22,
+      "characters": 1062
+    },
+    {
+      "file": "draft/CanStats.can",
+      "line": 135,
+      "characters": 1095
+    },
+    {
+      "file": "draft/CanTable.can",
+      "line": 17,
+      "characters": 1099
+    }
+  ],
+  "periodic_handlers": [
+    {
+      "file": "draft/CanBook.can",
+      "line": 239,
+      "source": "scenario ready on=every(1m)"
+    },
+    {
+      "file": "draft/CanBook.can",
+      "line": 261,
+      "source": "scenario cleanup on=every(1m)"
+    },
+    {
+      "file": "draft/CanField.can",
+      "line": 167,
+      "source": "scenario cleanup on=every(1m)"
+    },
+    {
+      "file": "draft/CanPropose.can",
+      "line": 253,
+      "source": "scenario expire_holds on=every(1m)"
+    },
+    {
+      "file": "draft/CanPurchase.can",
+      "line": 241,
+      "source": "scenario reconcile_stock on=every(5m)"
+    }
+  ]
+}

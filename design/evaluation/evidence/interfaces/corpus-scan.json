@@ -1,0 +1,852 @@
+{
+  "date": "2026-10-04",
+  "baseline": "design/evaluation/baseline-20261004T041647Z/snapshot",
+  "method": "Python text inventory + node --check only; never import or execute proposed targets",
+  "target_count": 21,
+  "targets": [
+    {
+      "app": "CanApprove",
+      "source_lines": 151,
+      "target_lines": 994,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs"
+      ],
+      "source_user_scenarios": [
+        "submit",
+        "assign",
+        "decide",
+        "withdraw"
+      ],
+      "source_trusted_scenarios": [
+        "remind",
+        "notify",
+        "delivered"
+      ],
+      "source_crud_models": [
+        "Document"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanBoard",
+      "source_lines": 167,
+      "target_lines": 1249,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./rent_catalog.mjs"
+      ],
+      "source_user_scenarios": [
+        "decide",
+        "finalize",
+        "finalized_record",
+        "complete",
+        "origin",
+        "work",
+        "work_detail"
+      ],
+      "source_trusted_scenarios": [],
+      "source_crud_models": [
+        "Meeting",
+        "Agenda",
+        "Resolution",
+        "Amendment",
+        "Action"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanCRM",
+      "source_lines": 211,
+      "target_lines": 1461,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./appointments.mjs",
+        "./customer.mjs",
+        "./employee.mjs",
+        "./member_terms.mjs",
+        "./propose.mjs",
+        "./rent_catalog.mjs",
+        "./rent_reservations.mjs"
+      ],
+      "source_user_scenarios": [
+        "advance",
+        "record_link",
+        "record_tour",
+        "record_quote",
+        "win",
+        "lose",
+        "reopen",
+        "pipeline"
+      ],
+      "source_trusted_scenarios": [],
+      "source_crud_models": [
+        "Deal",
+        "Activity"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanCheck",
+      "source_lines": 167,
+      "target_lines": 932,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs"
+      ],
+      "source_user_scenarios": [
+        "pause",
+        "resume"
+      ],
+      "source_trusted_scenarios": [
+        "ping",
+        "initial",
+        "configured",
+        "deadline",
+        "delivered"
+      ],
+      "source_crud_models": [],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanExpense",
+      "source_lines": 122,
+      "target_lines": 1030,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs"
+      ],
+      "source_user_scenarios": [
+        "submit",
+        "decide",
+        "correct",
+        "reimburse"
+      ],
+      "source_trusted_scenarios": [],
+      "source_crud_models": [
+        "Expense"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanFeedback",
+      "source_lines": 166,
+      "target_lines": 1087,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs",
+        "./desk.mjs"
+      ],
+      "source_user_scenarios": [
+        "vote",
+        "unvote",
+        "roadmap",
+        "moderate",
+        "published"
+      ],
+      "source_trusted_scenarios": [
+        "contribution_limit",
+        "review_edited"
+      ],
+      "source_crud_models": [
+        "Product",
+        "Suggestion",
+        "Vote"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanGrant",
+      "source_lines": 190,
+      "target_lines": 1483,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs"
+      ],
+      "source_user_scenarios": [
+        "apply",
+        "correct",
+        "submit",
+        "intake",
+        "external",
+        "decide",
+        "withdraw",
+        "award_export"
+      ],
+      "source_trusted_scenarios": [],
+      "source_crud_models": [
+        "Grant",
+        "Comment",
+        "Application"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanHire",
+      "source_lines": 331,
+      "target_lines": 1670,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs",
+        "./onboard.mjs",
+        "./shift.mjs"
+      ],
+      "source_user_scenarios": [
+        "close",
+        "reopen_vacancy",
+        "apply",
+        "intake",
+        "schedule",
+        "reschedule",
+        "cancel_interview",
+        "retry_release",
+        "feedback",
+        "decide",
+        "reopen_application",
+        "handoff",
+        "withdraw"
+      ],
+      "source_trusted_scenarios": [
+        "reservation",
+        "replacement_reserved",
+        "reservation_changed",
+        "accept_interview",
+        "released",
+        "remind",
+        "reminder_result"
+      ],
+      "source_crud_models": [
+        "Vacancy"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanLeave",
+      "source_lines": 250,
+      "target_lines": 1495,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs",
+        "./shift.mjs"
+      ],
+      "source_user_scenarios": [
+        "preview",
+        "request",
+        "decide",
+        "withdraw",
+        "cancel",
+        "retry_release"
+      ],
+      "source_trusted_scenarios": [
+        "calendar_changed",
+        "day_created",
+        "day_changed",
+        "category_created",
+        "category_changed",
+        "schedule_result",
+        "reserve_result",
+        "release_result"
+      ],
+      "source_crud_models": [
+        "Calendar",
+        "Category",
+        "Day",
+        "Allowance"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanLoyalty",
+      "source_lines": 266,
+      "target_lines": 1864,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./customer.mjs",
+        "./employee.mjs",
+        "./rent_catalog.mjs"
+      ],
+      "source_user_scenarios": [
+        "redeem",
+        "fulfill",
+        "cancel",
+        "adjust",
+        "reverse"
+      ],
+      "source_trusted_scenarios": [
+        "earning",
+        "notification"
+      ],
+      "source_crud_models": [
+        "Program",
+        "Tier",
+        "Reward",
+        "Account"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanMail",
+      "source_lines": 293,
+      "target_lines": 2054,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./customer.mjs",
+        "./employee.mjs",
+        "./member_terms.mjs",
+        "./invoice.mjs",
+        "./rent_catalog.mjs"
+      ],
+      "source_user_scenarios": [
+        "configure",
+        "service_status",
+        "instructions",
+        "receive",
+        "match",
+        "collect",
+        "forward",
+        "dispatched",
+        "uncertain",
+        "return_item",
+        "incident",
+        "retry_fee"
+      ],
+      "source_trusted_scenarios": [
+        "fee_result",
+        "fee_reconciled",
+        "remind",
+        "notice_result"
+      ],
+      "source_crud_models": [
+        "Delegate"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanMaintain",
+      "source_lines": 307,
+      "target_lines": 1969,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs",
+        "./supplier.mjs",
+        "./rent_reservations.mjs",
+        "./field.mjs"
+      ],
+      "source_user_scenarios": [
+        "report",
+        "assign",
+        "retry_notice",
+        "start",
+        "block",
+        "finish",
+        "verify",
+        "reopen",
+        "inspect",
+        "retry_availability",
+        "affected_bookings",
+        "work",
+        "work_detail"
+      ],
+      "source_trusted_scenarios": [
+        "activate_plan",
+        "revise_plan",
+        "retire_asset",
+        "notice_result",
+        "visit_report",
+        "generate",
+        "remind",
+        "downtime_result",
+        "restore_result",
+        "affected_result",
+        "availability_changed"
+      ],
+      "source_crud_models": [
+        "Asset",
+        "Plan",
+        "Repair"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanOnboard",
+      "source_lines": 115,
+      "target_lines": 891,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs"
+      ],
+      "source_user_scenarios": [
+        "start",
+        "complete",
+        "reopen",
+        "work",
+        "work_detail"
+      ],
+      "source_trusted_scenarios": [
+        "template_changed",
+        "template_step_created",
+        "template_step_changed",
+        "template_step_removed"
+      ],
+      "source_crud_models": [
+        "Template",
+        "TemplateStep",
+        "Step"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanPurchase",
+      "source_lines": 343,
+      "target_lines": 2188,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs",
+        "./stock.mjs",
+        "./supplier.mjs"
+      ],
+      "source_user_scenarios": [
+        "submit",
+        "decide",
+        "order",
+        "increase",
+        "amend",
+        "receive",
+        "return_goods",
+        "close",
+        "cancel",
+        "record_payable",
+        "export_payable",
+        "adjust",
+        "retry_stock",
+        "retry_return"
+      ],
+      "source_trusted_scenarios": [
+        "reconcile_stock",
+        "stock_result",
+        "stock_changed",
+        "payable_result"
+      ],
+      "source_crud_models": [
+        "Budget",
+        "Request",
+        "Line"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanRefer",
+      "source_lines": 234,
+      "target_lines": 1514,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs",
+        "./customer.mjs",
+        "./affiliate.mjs"
+      ],
+      "source_user_scenarios": [
+        "join",
+        "settle",
+        "reject_source",
+        "capture"
+      ],
+      "source_trusted_scenarios": [
+        "qualify"
+      ],
+      "source_crud_models": [
+        "Program"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanRent",
+      "source_lines": 1351,
+      "target_lines": 8885,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./customer.mjs",
+        "./deployment.billing.mjs",
+        "./deployment.membership.mjs",
+        "./employee.mjs",
+        "./propose.mjs",
+        "./rent_catalog.mjs",
+        "./sales_attribution.mjs",
+        "./report.mjs"
+      ],
+      "source_user_scenarios": [
+        "resource_report",
+        "available",
+        "available_days",
+        "hold",
+        "hold_days",
+        "move",
+        "move_days",
+        "move_membership",
+        "move_membership_days",
+        "refund_movement_credit",
+        "abandon_movement",
+        "retry_movement_cleanup",
+        "reconcile_movement",
+        "block",
+        "restore",
+        "prepare",
+        "arrive",
+        "depart",
+        "cancel_booking",
+        "revise_capacity",
+        "assign_desk",
+        "fulfill_free",
+        "confirm_account",
+        "no_show",
+        "adjust",
+        "extend",
+        "refund_adjustment",
+        "refund_review",
+        "resolve_conflict",
+        "resend_notice",
+        "reconcile_allowance",
+        "reconcile_booking",
+        "request",
+        "check_in",
+        "check_out",
+        "cancel"
+      ],
+      "source_trusted_scenarios": [
+        "snapshot_Resource_create",
+        "snapshot_Resource_update",
+        "snapshot_Window_create",
+        "snapshot_Window_update",
+        "snapshot_DayCalendar_create",
+        "snapshot_DayCalendar_update",
+        "movement_reserved",
+        "movement_committed",
+        "movement_changed",
+        "movement_result",
+        "movement_money",
+        "movement_credit_result",
+        "movement_credit_money",
+        "movement_expire",
+        "movement_released",
+        "movement_cancellation",
+        "movement_reconciled",
+        "overdue_occupancy",
+        "venue_move",
+        "requested_affected",
+        "requested_downtime",
+        "requested_restore",
+        "venue_hold",
+        "venue_stage",
+        "venue_confirm",
+        "venue_release",
+        "venue_expire",
+        "quote_hold",
+        "quote_accept",
+        "quote_release",
+        "quote_changed",
+        "quote_expire",
+        "charge_result",
+        "adjustment_money",
+        "extension_expire",
+        "commercial_changed",
+        "commercial_check",
+        "correspondence",
+        "remind",
+        "notice_result",
+        "allowance_result",
+        "allowance_reconciled",
+        "allowance_changed",
+        "allowance_snapshot",
+        "settlement_received",
+        "reconciled",
+        "money",
+        "consumption",
+        "released",
+        "refund_result",
+        "expire"
+      ],
+      "source_crud_models": [
+        "Resource",
+        "DayCalendar",
+        "Window",
+        "Desk"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanShift",
+      "source_lines": 327,
+      "target_lines": 2277,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs"
+      ],
+      "source_user_scenarios": [
+        "assign",
+        "publish",
+        "request_swap",
+        "accept",
+        "decline",
+        "cancel",
+        "reconcile"
+      ],
+      "source_trusted_scenarios": [
+        "employee_changed",
+        "member_removed",
+        "availability_changed",
+        "availability_created",
+        "duty_notice",
+        "notice_result",
+        "reserve_connected",
+        "stage_connected",
+        "release_connected"
+      ],
+      "source_crud_models": [
+        "Roster",
+        "Availability",
+        "Coverage"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanStock",
+      "source_lines": 193,
+      "target_lines": 1149,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs"
+      ],
+      "source_user_scenarios": [
+        "adjust",
+        "transfer",
+        "reverse",
+        "retry",
+        "balance"
+      ],
+      "source_trusted_scenarios": [
+        "post",
+        "apply_projection"
+      ],
+      "source_crud_models": [
+        "Item",
+        "Threshold"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanTable",
+      "source_lines": 165,
+      "target_lines": 1200,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs"
+      ],
+      "source_user_scenarios": [
+        "reserve",
+        "seat",
+        "clear",
+        "cancel"
+      ],
+      "source_trusted_scenarios": [],
+      "source_crud_models": [
+        "Cafe",
+        "Table",
+        "Booking"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanTime",
+      "source_lines": 258,
+      "target_lines": 1583,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./customer.mjs",
+        "./employee.mjs",
+        "./field.mjs",
+        "./invoice.mjs",
+        "./rent_catalog.mjs"
+      ],
+      "source_user_scenarios": [
+        "start",
+        "stop",
+        "manual",
+        "revise",
+        "submit",
+        "decide",
+        "withdraw",
+        "correct",
+        "bill",
+        "retry_cancel",
+        "reconcile",
+        "refund"
+      ],
+      "source_trusted_scenarios": [
+        "cancelled",
+        "refunded",
+        "reconciled",
+        "settled"
+      ],
+      "source_crud_models": [
+        "Project"
+      ],
+      "target_bad_alias_patterns": []
+    },
+    {
+      "app": "CanVolunteer",
+      "source_lines": 219,
+      "target_lines": 1463,
+      "node_syntax_exit": 0,
+      "node_syntax_output": "",
+      "appDefinition": 1,
+      "canApp_factory": 1,
+      "imports": [
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "./employee.mjs",
+        "./rent_catalog.mjs",
+        "./rent_reservations.mjs"
+      ],
+      "source_user_scenarios": [
+        "publish",
+        "signup",
+        "confirm",
+        "withdraw",
+        "complete",
+        "attendance",
+        "availability",
+        "reactivate",
+        "reconfirm",
+        "link_venue",
+        "reschedule",
+        "cancel",
+        "work",
+        "work_detail"
+      ],
+      "source_trusted_scenarios": [
+        "opportunity_changed",
+        "venue_changed",
+        "remind"
+      ],
+      "source_crud_models": [
+        "Community",
+        "Opportunity",
+        "Task"
+      ],
+      "target_bad_alias_patterns": []
+    }
+  ]
+}

@@ -1,0 +1,253 @@
+{
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "attempt": "one later-change attempt; no initial repair or independent-review repair",
+  "start_observed_utc": "2026-10-04 05:33:32 UTC",
+  "end_observed_utc": "2026-10-04 05:37:34 UTC",
+  "elapsed_observed_seconds": 242,
+  "timing_boundary": "Brief lookup through source checks and transition/notes writing; final evidence packaging excluded. No distinct clock observations surround each change, so individual step durations are null.",
+  "read_sources": [
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/changes-brief.md",
+      "source_bytes": 3344,
+      "source_sha256": "c98de8416b0ac9caca7a29f12a4991fa7f498cf65d91b897b31df5098d6255e0",
+      "version": "preserved initial/pinned later-change evidence",
+      "read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 11,
+          "bytes": 3344,
+          "sha256": "c98de8416b0ac9caca7a29f12a4991fa7f498cf65d91b897b31df5098d6255e0"
+        }
+      ]
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/initial.can",
+      "source_bytes": 5425,
+      "source_sha256": "11e3d7456ff056d2c1b4875d701ec130e2a51e8c36b3b65ecbe0a52f8efbea01",
+      "version": "preserved initial/pinned later-change evidence",
+      "read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 80,
+          "bytes": 5425,
+          "sha256": "11e3d7456ff056d2c1b4875d701ec130e2a51e8c36b3b65ecbe0a52f8efbea01"
+        }
+      ]
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/assumptions.md",
+      "source_bytes": 8988,
+      "source_sha256": "ab772aac9c520e3b8bee9841f52a6735596a7fe3e01ef85f6d3bab9165e9f88c",
+      "version": "preserved initial/pinned later-change evidence",
+      "read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 44,
+          "bytes": 8988,
+          "sha256": "ab772aac9c520e3b8bee9841f52a6735596a7fe3e01ef85f6d3bab9165e9f88c"
+        }
+      ]
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md",
+      "source_bytes": 192381,
+      "source_sha256": "5e0fbb7b13ddcf95f75cfce66bae9df6778b9c106534d3030278f269f7b0aab9",
+      "version": "frozen baseline 20261004T041647Z",
+      "read_ranges": [
+        {
+          "start_line": 101,
+          "end_line": 104,
+          "bytes": 1195,
+          "sha256": "cc80fc125a2dc9adfa768dc95526fda2f61ffce13ab5de5ab17924e6a8409d87"
+        },
+        {
+          "start_line": 280,
+          "end_line": 299,
+          "bytes": 4301,
+          "sha256": "86dafbf3015b4d6a1462f49cfa73e96a4baf4afc596d58fbaf622b94080cc411"
+        },
+        {
+          "start_line": 299,
+          "end_line": 350,
+          "bytes": 9534,
+          "sha256": "7a9309af8808277fde35e971489a078b005fede183a71ffcda9cb139516f25aa"
+        },
+        {
+          "start_line": 743,
+          "end_line": 773,
+          "bytes": 6450,
+          "sha256": "2cbf861ae5cee18fe6c2b1640eb351e8553109a193bfd45cfecfb1ff8aff4d58"
+        },
+        {
+          "start_line": 774,
+          "end_line": 805,
+          "bytes": 6587,
+          "sha256": "2d6e17b86eded2843c9795ba63e46db33756a121bde0aaee88d7fb73d5553a06"
+        }
+      ]
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/GRAMMAR.md",
+      "source_bytes": 54465,
+      "source_sha256": "6e704489c6342df41435089845e4c75e1983f965b6f20059bc474c535c612bc5",
+      "version": "frozen baseline 20261004T041647Z",
+      "read_ranges": [
+        {
+          "start_line": 165,
+          "end_line": 192,
+          "bytes": 4033,
+          "sha256": "fd93edf382573bf485f36fb7f0da3cab03bf3b124861830f5f954fdc0eeafc62"
+        },
+        {
+          "start_line": 410,
+          "end_line": 450,
+          "bytes": 6691,
+          "sha256": "9363237a78b938532848ba71a2200ddf653b4dfc7352acf2633ef626e157f1dc"
+        }
+      ]
+    }
+  ],
+  "successive_versions": [
+    {
+      "change": 1,
+      "predecessor_artifact": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/initial.can",
+      "predecessor_sha256": "11e3d7456ff056d2c1b4875d701ec130e2a51e8c36b3b65ecbe0a52f8efbea01",
+      "source": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/change-1/app.can",
+      "source_bytes": 6447,
+      "source_sha256": "67b73f4fccf5a721425e92bac19f100306d8c2c65a67339774d53744a7bae0ee",
+      "touched_declarations": [
+        "Request.title caption",
+        "Request.archive_reason",
+        "Request archive invariant/lock",
+        "archive scenario/examples",
+        "reasonless delete expectation",
+        "request detail/action"
+      ],
+      "separate_step_elapsed_seconds": null,
+      "check_result": {
+        "kind": "existing structural syntax prototype",
+        "exit_code": 1,
+        "diagnostic": "app.can:78:24: syntax: unsupported attribute import",
+        "semantic_or_runtime_execution": false
+      }
+    },
+    {
+      "change": 2,
+      "predecessor_artifact": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/change-1/app.can",
+      "predecessor_sha256": "67b73f4fccf5a721425e92bac19f100306d8c2c65a67339774d53744a7bae0ee",
+      "source": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/change-2/app.can",
+      "source_bytes": 6935,
+      "source_sha256": "2c80bce8ea85cb93cd0a6b7995f4b879d66eecdf7bb770961c6cde06a4f54af1",
+      "touched_declarations": [
+        "Request.details preserving note rename",
+        "Request.cost_centre",
+        "Request.title max120",
+        "CRUD/duplicate/read/presentation/test bindings",
+        "transition description"
+      ],
+      "separate_step_elapsed_seconds": null,
+      "check_result": {
+        "kind": "existing structural syntax prototype",
+        "exit_code": 1,
+        "diagnostic": "app.can:83:24: syntax: unsupported attribute import",
+        "semantic_or_runtime_execution": false
+      }
+    },
+    {
+      "change": 3,
+      "predecessor_artifact": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/change-2/app.can",
+      "predecessor_sha256": "2c80bce8ea85cb93cd0a6b7995f4b879d66eecdf7bb770961c6cde06a4f54af1",
+      "source": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/change-3/app.can",
+      "source_bytes": 9898,
+      "source_sha256": "c8483b7d453140777bbb7aff7f4ad53cf244b344060b517df51fd771295e8181",
+      "touched_declarations": [
+        "steward role",
+        "ReviewGrant schema/policy/locks/invariant",
+        "Request read-policy temporary A clause",
+        "grant_review/revoke_review",
+        "expiry/revocation/read/denied mutation examples",
+        "review-access page"
+      ],
+      "separate_step_elapsed_seconds": null,
+      "check_result": {
+        "kind": "existing structural syntax prototype",
+        "exit_code": 1,
+        "diagnostic": "app.can:116:24: syntax: unsupported attribute import",
+        "semantic_or_runtime_execution": false
+      }
+    }
+  ],
+  "artifacts": {
+    "change-1/app.can": {
+      "bytes": 6447,
+      "sha256": "67b73f4fccf5a721425e92bac19f100306d8c2c65a67339774d53744a7bae0ee"
+    },
+    "change-1/notes.md": {
+      "bytes": 135,
+      "sha256": "2001cdc1a55536cb91561b09250117d738f417efbebb93e9d1be50bb9e7fe316"
+    },
+    "change-1/source.diff": {
+      "bytes": 4634,
+      "sha256": "6158f4e0749c24af2a06210ebbe4e451a506a22425852ae5324a96a58416edaf"
+    },
+    "change-2/app.can": {
+      "bytes": 6935,
+      "sha256": "2c80bce8ea85cb93cd0a6b7995f4b879d66eecdf7bb770961c6cde06a4f54af1"
+    },
+    "change-2/notes.md": {
+      "bytes": 178,
+      "sha256": "63c811ccf4721ead52491b42c252dc31059d6a481335c18e5b077ed0132d9930"
+    },
+    "change-2/source.diff": {
+      "bytes": 5389,
+      "sha256": "0d61458eb9e285f98ff271c130daeca169c3f7d9d67f4956f92d26c4a2ec854f"
+    },
+    "change-2/transition.md": {
+      "bytes": 3765,
+      "sha256": "fd2803efa269aeb29f4c7fe207ad937b91ea1e0e14fe42117d91fee88f3e704b"
+    },
+    "change-3/app.can": {
+      "bytes": 9898,
+      "sha256": "c8483b7d453140777bbb7aff7f4ad53cf244b344060b517df51fd771295e8181"
+    },
+    "change-3/notes.md": {
+      "bytes": 147,
+      "sha256": "dfb58c4f56f0297821935f17b0578ad6106b7eb9d04f339653dd386f9ef0b4a3"
+    },
+    "change-3/source.diff": {
+      "bytes": 6661,
+      "sha256": "502f301c172f1053e371f75f8071fdd3a702b65194cb69d6dc427bcb4f1ec3b1"
+    },
+    "changes-context.md": {
+      "bytes": 58549,
+      "sha256": "a1f7c23a704697895a766ca2a83fb5f065bf98ab53b469bfe9149e15c13f055e"
+    },
+    "changes-notes.md": {
+      "bytes": 7485,
+      "sha256": "88d509b0f6838cc9b53bd2e31918ab163af61ed1db3d976a166cffdccdeaa029"
+    }
+  },
+  "usage": {
+    "input_tokens": null,
+    "output_tokens": null,
+    "reasoning_tokens": null,
+    "cached_tokens": null,
+    "billing_total": null,
+    "hidden_context_tokens": null,
+    "visible_prompt_source_tokens": null
+  },
+  "usage_unavailable_reason": "Tools return no actual subject token/billing measurement; shell original_token_count is not a subject usage field.",
+  "limits": [
+    "No executable semantic/runtime/CSV/export/migration verification",
+    "Prototype fails normative CSV import attributes",
+    "Compiler-installed snapshot and actual population unknown",
+    "Archived titles over120 cannot be corrected through old contract; activation stays blocked if present",
+    "Historical archive-reason backfill not fabricated",
+    "Fixture server overrides, exact validation/invariant error catalogue, and now in example-cell clock context remain unverified"
+  ],
+  "initial_source_unchanged_sha256": "11e3d7456ff056d2c1b4875d701ec130e2a51e8c36b3b65ecbe0a52f8efbea01",
+  "no_live_source_edits": true,
+  "jev_calls": 0,
+  "delegates": 0
+}

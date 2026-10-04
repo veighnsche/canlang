@@ -1,0 +1,2343 @@
+{
+  "baseline": "baseline-20261004T041647Z",
+  "manifest_sha256": "3d853e5a13a3c3eac7f150dfa742e26e0d9bf6c652b20fb05da4aa0b2b576106",
+  "snapshot_hash_mismatches": [],
+  "tiktoken_version": "0.12.0",
+  "encodings": [
+    "o200k_base",
+    "cl100k_base"
+  ],
+  "not_actual_gpt6_usage": true,
+  "groups": {
+    "design_or_support_md": {
+      "files": 11,
+      "bytes": 529473,
+      "lines": 3103,
+      "tokens": {
+        "o200k_base": 100633,
+        "cl100k_base": 100700
+      },
+      "can_token_partition": {}
+    },
+    "app_can": {
+      "files": 39,
+      "bytes": 1073372,
+      "lines": 10925,
+      "tokens": {
+        "o200k_base": 252801,
+        "cl100k_base": 256377
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 171237,
+          "description": 8234,
+          "translation": 34885,
+          "bdd": 38048,
+          "comment": 397
+        },
+        "cl100k_base": {
+          "production": 169949,
+          "description": 8245,
+          "translation": 39763,
+          "bdd": 38019,
+          "comment": 401
+        }
+      }
+    },
+    "app_requirements_md": {
+      "files": 39,
+      "bytes": 480331,
+      "lines": 3403,
+      "tokens": {
+        "o200k_base": 83060,
+        "cl100k_base": 83428
+      },
+      "can_token_partition": {}
+    },
+    "handwritten_mjs": {
+      "files": 21,
+      "bytes": 1369257,
+      "lines": 38438,
+      "tokens": {
+        "o200k_base": 309009,
+        "cl100k_base": 311877
+      },
+      "can_token_partition": {}
+    },
+    "shared_can": {
+      "files": 3,
+      "bytes": 15180,
+      "lines": 104,
+      "tokens": {
+        "o200k_base": 3788,
+        "cl100k_base": 3771
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 3097,
+          "description": 61,
+          "translation": 412,
+          "bdd": 218,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 3032,
+          "description": 61,
+          "translation": 460,
+          "bdd": 218,
+          "comment": 0
+        }
+      }
+    },
+    "example_can": {
+      "files": 2,
+      "bytes": 7955,
+      "lines": 126,
+      "tokens": {
+        "o200k_base": 2074,
+        "cl100k_base": 2109
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 1080,
+          "description": 153,
+          "translation": 609,
+          "bdd": 232,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 1065,
+          "description": 154,
+          "translation": 658,
+          "bdd": 232,
+          "comment": 0
+        }
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "group": "design_or_support_md",
+      "bytes": 6521,
+      "lines": 38,
+      "sha256": "503025c141ee4b80f92c1ed04fb0e71b98e50c2f4aab6144c3747bc181f01882",
+      "tokens": {
+        "o200k_base": 1149,
+        "cl100k_base": 1155
+      }
+    },
+    {
+      "path": "DECISIONS.md",
+      "group": "design_or_support_md",
+      "bytes": 74151,
+      "lines": 717,
+      "sha256": "874986c4053efa2ea5fc1e52df49ec8fddcbb76901fda90227861e51612b802e",
+      "tokens": {
+        "o200k_base": 14792,
+        "cl100k_base": 14825
+      }
+    },
+    {
+      "path": "DESIGN.md",
+      "group": "design_or_support_md",
+      "bytes": 192381,
+      "lines": 861,
+      "sha256": "5e0fbb7b13ddcf95f75cfce66bae9df6778b9c106534d3030278f269f7b0aab9",
+      "tokens": {
+        "o200k_base": 36667,
+        "cl100k_base": 36633
+      }
+    },
+    {
+      "path": "EVALUATION.md",
+      "group": "design_or_support_md",
+      "bytes": 45075,
+      "lines": 237,
+      "sha256": "ef19fd96278085128f5dc053166ef5be8b2a1f0c709465d585c465d1269b9a5b",
+      "tokens": {
+        "o200k_base": 8041,
+        "cl100k_base": 8048
+      }
+    },
+    {
+      "path": "GRAMMAR.md",
+      "group": "design_or_support_md",
+      "bytes": 54465,
+      "lines": 451,
+      "sha256": "6e704489c6342df41435089845e4c75e1983f965b6f20059bc474c535c612bc5",
+      "tokens": {
+        "o200k_base": 11560,
+        "cl100k_base": 11505
+      }
+    },
+    {
+      "path": "REQUIREMENTS.md",
+      "group": "design_or_support_md",
+      "bytes": 40223,
+      "lines": 210,
+      "sha256": "ebc28650fb0308cf46fb927428b8ec68df04d423eb0f3c289f83ba0ad445259a",
+      "tokens": {
+        "o200k_base": 7267,
+        "cl100k_base": 7274
+      }
+    },
+    {
+      "path": "draft/ADMIN_SURFACES.md",
+      "group": "design_or_support_md",
+      "bytes": 9292,
+      "lines": 72,
+      "sha256": "c4effdfb4a090c71731b798314a2a6f84a779705627dd9034128a9b1f58403c0",
+      "tokens": {
+        "o200k_base": 1799,
+        "cl100k_base": 1823
+      }
+    },
+    {
+      "path": "draft/CanAffiliate.can",
+      "group": "app_can",
+      "bytes": 25571,
+      "lines": 257,
+      "sha256": "e41ba40e0acc9134055215e0ec9bdca6dc827646c5be0c20704ed9a26b0e287e",
+      "tokens": {
+        "o200k_base": 5894,
+        "cl100k_base": 5863
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 4164,
+          "description": 149,
+          "translation": 721,
+          "bdd": 860,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 4070,
+          "description": 150,
+          "translation": 782,
+          "bdd": 861,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanAffiliate.md",
+      "group": "app_requirements_md",
+      "bytes": 12328,
+      "lines": 89,
+      "sha256": "4d3d11ea092054cf92034dc3a3346230f38b707423c4956b4a62b9e1349e6fec",
+      "tokens": {
+        "o200k_base": 2081,
+        "cl100k_base": 2100
+      }
+    },
+    {
+      "path": "draft/CanApprove.can",
+      "group": "app_can",
+      "bytes": 14021,
+      "lines": 151,
+      "sha256": "823a344ecde6949b137526c831c18f89a265dbb56fb0e401a7042af3c170917a",
+      "tokens": {
+        "o200k_base": 3270,
+        "cl100k_base": 3308
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 1813,
+          "description": 127,
+          "translation": 577,
+          "bdd": 753,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 1794,
+          "description": 127,
+          "translation": 634,
+          "bdd": 753,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanApprove.md",
+      "group": "app_requirements_md",
+      "bytes": 8067,
+      "lines": 77,
+      "sha256": "5328465aa629eb20fd13848312db121874137c7a5e67290ca9dc921e671fc9ab",
+      "tokens": {
+        "o200k_base": 1405,
+        "cl100k_base": 1410
+      }
+    },
+    {
+      "path": "draft/CanApprove.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 34475,
+      "lines": 994,
+      "sha256": "d6b27951a213a19bcfb5a692d00470d273b1a5eb46b017f8d2520d6db7998067",
+      "tokens": {
+        "o200k_base": 7938,
+        "cl100k_base": 8035
+      }
+    },
+    {
+      "path": "draft/CanBoard.can",
+      "group": "app_can",
+      "bytes": 14504,
+      "lines": 167,
+      "sha256": "311035167024d90f662edb6800f35c228b7e4ec388b4790415068a07e61459fa",
+      "tokens": {
+        "o200k_base": 3390,
+        "cl100k_base": 3477
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 1679,
+          "description": 181,
+          "translation": 658,
+          "bdd": 872,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 1655,
+          "description": 181,
+          "translation": 760,
+          "bdd": 881,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanBoard.md",
+      "group": "app_requirements_md",
+      "bytes": 7773,
+      "lines": 73,
+      "sha256": "827a04cd3f9ee07ebf2cb12434cebb90b2c2e421389e4f5306bdf53c33801289",
+      "tokens": {
+        "o200k_base": 1339,
+        "cl100k_base": 1339
+      }
+    },
+    {
+      "path": "draft/CanBoard.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 43319,
+      "lines": 1249,
+      "sha256": "1ee0eadf23e0fc42d1ae484b19da573dda78e6002792b9771a3ee0474ec5ecf8",
+      "tokens": {
+        "o200k_base": 9896,
+        "cl100k_base": 10009
+      }
+    },
+    {
+      "path": "draft/CanBook.can",
+      "group": "app_can",
+      "bytes": 30231,
+      "lines": 351,
+      "sha256": "cd4520fc0ab89ac253fc884d4a378eb61287c6eff4514fa0177a5b4b012588cf",
+      "tokens": {
+        "o200k_base": 7141,
+        "cl100k_base": 7230
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 5266,
+          "description": 149,
+          "translation": 815,
+          "bdd": 911,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 5218,
+          "description": 150,
+          "translation": 950,
+          "bdd": 912,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanBook.md",
+      "group": "app_requirements_md",
+      "bytes": 11220,
+      "lines": 88,
+      "sha256": "a8dee09cf1a751d4cbe68d4be8c0309f737922d4650b09cba4621767517c3bc9",
+      "tokens": {
+        "o200k_base": 1885,
+        "cl100k_base": 1896
+      }
+    },
+    {
+      "path": "draft/CanCRM.can",
+      "group": "app_can",
+      "bytes": 19396,
+      "lines": 211,
+      "sha256": "8cd05762ab486f929591fe381a360d4daee4dd73d98f6a8ab1deed990d42c689",
+      "tokens": {
+        "o200k_base": 4634,
+        "cl100k_base": 4775
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 2795,
+          "description": 159,
+          "translation": 738,
+          "bdd": 896,
+          "comment": 46
+        },
+        "cl100k_base": {
+          "production": 2792,
+          "description": 159,
+          "translation": 864,
+          "bdd": 913,
+          "comment": 47
+        }
+      }
+    },
+    {
+      "path": "draft/CanCRM.md",
+      "group": "app_requirements_md",
+      "bytes": 12931,
+      "lines": 97,
+      "sha256": "3d70b36a9ff161d12293bfc118823fcb118a25dfc6e5231e54ab314da59cb39f",
+      "tokens": {
+        "o200k_base": 2296,
+        "cl100k_base": 2307
+      }
+    },
+    {
+      "path": "draft/CanCRM.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 51678,
+      "lines": 1461,
+      "sha256": "eedbf666c4e656c926d27cf273fd0dd39e6b728f247ee3df7edb8941edcb3e91",
+      "tokens": {
+        "o200k_base": 11333,
+        "cl100k_base": 11526
+      }
+    },
+    {
+      "path": "draft/CanCatch.can",
+      "group": "app_can",
+      "bytes": 16655,
+      "lines": 192,
+      "sha256": "51d6bb680edeae39e74e270e7e622e5e3ebcada7c0a8e4bb018ff7281fb87e83",
+      "tokens": {
+        "o200k_base": 4118,
+        "cl100k_base": 4126
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 2652,
+          "description": 106,
+          "translation": 672,
+          "bdd": 688,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 2605,
+          "description": 103,
+          "translation": 727,
+          "bdd": 691,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanCatch.md",
+      "group": "app_requirements_md",
+      "bytes": 14137,
+      "lines": 91,
+      "sha256": "09ad1d048b7a332d87a9b9929b8b70d2b1a941e604d7b9d198735ac38e0bcfcd",
+      "tokens": {
+        "o200k_base": 2527,
+        "cl100k_base": 2514
+      }
+    },
+    {
+      "path": "draft/CanCheck.can",
+      "group": "app_can",
+      "bytes": 13080,
+      "lines": 167,
+      "sha256": "34ff46b909617ca35e0168518a3359d33e548187b0258a4149450464fd35184c",
+      "tokens": {
+        "o200k_base": 3194,
+        "cl100k_base": 3213
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 1901,
+          "description": 85,
+          "translation": 411,
+          "bdd": 768,
+          "comment": 29
+        },
+        "cl100k_base": {
+          "production": 1874,
+          "description": 85,
+          "translation": 457,
+          "bdd": 768,
+          "comment": 29
+        }
+      }
+    },
+    {
+      "path": "draft/CanCheck.md",
+      "group": "app_requirements_md",
+      "bytes": 10014,
+      "lines": 71,
+      "sha256": "97a1d62bb27281be8f91303cf9f6dd846d71768d8749c32dd08b9d5ca041dcbc",
+      "tokens": {
+        "o200k_base": 1769,
+        "cl100k_base": 1770
+      }
+    },
+    {
+      "path": "draft/CanCheck.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 32267,
+      "lines": 932,
+      "sha256": "325262fa44358f576f6ff385c6a6d6fee36b6d79b675aa5752f653407d25089f",
+      "tokens": {
+        "o200k_base": 7524,
+        "cl100k_base": 7601
+      }
+    },
+    {
+      "path": "draft/CanContract.can",
+      "group": "app_can",
+      "bytes": 16051,
+      "lines": 173,
+      "sha256": "17ab43f3836795580624c4462cc88226664c635bef24bd63785158beafc34fe6",
+      "tokens": {
+        "o200k_base": 3924,
+        "cl100k_base": 4021
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 2683,
+          "description": 113,
+          "translation": 595,
+          "bdd": 533,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 2683,
+          "description": 113,
+          "translation": 693,
+          "bdd": 532,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanContract.md",
+      "group": "app_requirements_md",
+      "bytes": 8053,
+      "lines": 77,
+      "sha256": "5d08a0f64d947c0cb41f92f268d952fb8020e5d8931cdce4b9d43c45e6975422",
+      "tokens": {
+        "o200k_base": 1390,
+        "cl100k_base": 1402
+      }
+    },
+    {
+      "path": "draft/CanCustomer.can",
+      "group": "app_can",
+      "bytes": 22307,
+      "lines": 256,
+      "sha256": "210c67a624d5faecf203ab1ac0c37d26923097fd3db7a1691ca0fe47331cde93",
+      "tokens": {
+        "o200k_base": 5068,
+        "cl100k_base": 5158
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 3380,
+          "description": 239,
+          "translation": 956,
+          "bdd": 469,
+          "comment": 24
+        },
+        "cl100k_base": {
+          "production": 3339,
+          "description": 240,
+          "translation": 1086,
+          "bdd": 468,
+          "comment": 25
+        }
+      }
+    },
+    {
+      "path": "draft/CanCustomer.md",
+      "group": "app_requirements_md",
+      "bytes": 11693,
+      "lines": 80,
+      "sha256": "0512b503da271abea62d57c8d3737c71f1d6f14392f0048157c04ba74d0f8ed8",
+      "tokens": {
+        "o200k_base": 1956,
+        "cl100k_base": 1960
+      }
+    },
+    {
+      "path": "draft/CanDesk.can",
+      "group": "app_can",
+      "bytes": 22211,
+      "lines": 227,
+      "sha256": "f7a2383419088f0a241d8dc1f470732015a12eb3ac234ce995d79d3f9b462492",
+      "tokens": {
+        "o200k_base": 5332,
+        "cl100k_base": 5363
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 2861,
+          "description": 242,
+          "translation": 911,
+          "bdd": 1318,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 2805,
+          "description": 243,
+          "translation": 991,
+          "bdd": 1324,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanDesk.md",
+      "group": "app_requirements_md",
+      "bytes": 12873,
+      "lines": 91,
+      "sha256": "51575d2e5ee87a18b04de99fd4fcce1d4da7be3db13a0e8b50dfe0d73a2f824d",
+      "tokens": {
+        "o200k_base": 2252,
+        "cl100k_base": 2255
+      }
+    },
+    {
+      "path": "draft/CanDo.can",
+      "group": "app_can",
+      "bytes": 15690,
+      "lines": 162,
+      "sha256": "93247e530d32937661367556bd283a036d35b149f938a42e29c4c76953560d4d",
+      "tokens": {
+        "o200k_base": 3871,
+        "cl100k_base": 3895
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 2393,
+          "description": 159,
+          "translation": 714,
+          "bdd": 605,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 2365,
+          "description": 159,
+          "translation": 766,
+          "bdd": 605,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanDo.md",
+      "group": "app_requirements_md",
+      "bytes": 10336,
+      "lines": 82,
+      "sha256": "a81a9dd95c815d1ef51bb224452a738487b23c9f29d0e5ca00cc5e3b6402f41c",
+      "tokens": {
+        "o200k_base": 1818,
+        "cl100k_base": 1827
+      }
+    },
+    {
+      "path": "draft/CanEvent.can",
+      "group": "app_can",
+      "bytes": 55946,
+      "lines": 510,
+      "sha256": "65c03703f0a334018559b5edc4140794b60ab3a504a95403054a9b842da008e3",
+      "tokens": {
+        "o200k_base": 12920,
+        "cl100k_base": 13292
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 7759,
+          "description": 575,
+          "translation": 2153,
+          "bdd": 2433,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 7679,
+          "description": 576,
+          "translation": 2611,
+          "bdd": 2426,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanEvent.md",
+      "group": "app_requirements_md",
+      "bytes": 16307,
+      "lines": 107,
+      "sha256": "cb282120051aa9a5a8186279f5705d95641ec340d6b01dd017e688e689922287",
+      "tokens": {
+        "o200k_base": 2852,
+        "cl100k_base": 2871
+      }
+    },
+    {
+      "path": "draft/CanExpense.can",
+      "group": "app_can",
+      "bytes": 13335,
+      "lines": 122,
+      "sha256": "71f89e2f253c7d7bfabd3d896ea0d8bf7512ba98928d38fe02dba2dbd5aed666",
+      "tokens": {
+        "o200k_base": 3193,
+        "cl100k_base": 3246
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 1619,
+          "description": 124,
+          "translation": 478,
+          "bdd": 972,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 1618,
+          "description": 124,
+          "translation": 548,
+          "bdd": 956,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanExpense.md",
+      "group": "app_requirements_md",
+      "bytes": 7718,
+      "lines": 69,
+      "sha256": "037d1637f6dfcff465b8f43e1efd08af925d9f1fa1533f3f770d0ff58e8b17c3",
+      "tokens": {
+        "o200k_base": 1331,
+        "cl100k_base": 1343
+      }
+    },
+    {
+      "path": "draft/CanExpense.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 33985,
+      "lines": 1030,
+      "sha256": "94a0d871d664cf3d858bd35c9b5b39f18fe452cd82275c85e7076222a616116d",
+      "tokens": {
+        "o200k_base": 7649,
+        "cl100k_base": 7778
+      }
+    },
+    {
+      "path": "draft/CanFeedback.can",
+      "group": "app_can",
+      "bytes": 13402,
+      "lines": 166,
+      "sha256": "bc3464d43b3693c62c9034cf2093b96446a45088867aef5b4cdc56581df5d5ef",
+      "tokens": {
+        "o200k_base": 3052,
+        "cl100k_base": 3134
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 1371,
+          "description": 150,
+          "translation": 550,
+          "bdd": 944,
+          "comment": 37
+        },
+        "cl100k_base": {
+          "production": 1359,
+          "description": 150,
+          "translation": 627,
+          "bdd": 961,
+          "comment": 37
+        }
+      }
+    },
+    {
+      "path": "draft/CanFeedback.md",
+      "group": "app_requirements_md",
+      "bytes": 11632,
+      "lines": 89,
+      "sha256": "297c9ffd7026b52a416325a0f9a6dfd6e90638585d192746ff505dbba6174968",
+      "tokens": {
+        "o200k_base": 2049,
+        "cl100k_base": 2055
+      }
+    },
+    {
+      "path": "draft/CanFeedback.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 37358,
+      "lines": 1087,
+      "sha256": "f4fc3b309986a31c48f8cad31f4f9a756407b55f7adc8d0dd003240b13872f8c",
+      "tokens": {
+        "o200k_base": 8516,
+        "cl100k_base": 8661
+      }
+    },
+    {
+      "path": "draft/CanField.can",
+      "group": "app_can",
+      "bytes": 22137,
+      "lines": 224,
+      "sha256": "73aea8ae8f046160e42e0c1d3bbaf5c4ff7dacab4ce3d4287f2e41ad7cde7553",
+      "tokens": {
+        "o200k_base": 5103,
+        "cl100k_base": 5194
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 3780,
+          "description": 201,
+          "translation": 704,
+          "bdd": 399,
+          "comment": 19
+        },
+        "cl100k_base": {
+          "production": 3777,
+          "description": 201,
+          "translation": 789,
+          "bdd": 408,
+          "comment": 19
+        }
+      }
+    },
+    {
+      "path": "draft/CanField.md",
+      "group": "app_requirements_md",
+      "bytes": 10269,
+      "lines": 84,
+      "sha256": "0819e7cd196532257f51521a44d0e0f2e5b5ecafa7d1cd40e89ef69a304914db",
+      "tokens": {
+        "o200k_base": 1746,
+        "cl100k_base": 1757
+      }
+    },
+    {
+      "path": "draft/CanGrant.can",
+      "group": "app_can",
+      "bytes": 20645,
+      "lines": 190,
+      "sha256": "47404d22b6031aedd95c38198a2118e007e62021dc68ef1408a30f58a8221a0a",
+      "tokens": {
+        "o200k_base": 4808,
+        "cl100k_base": 4872
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 2567,
+          "description": 194,
+          "translation": 723,
+          "bdd": 1324,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 2531,
+          "description": 191,
+          "translation": 854,
+          "bdd": 1296,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanGrant.md",
+      "group": "app_requirements_md",
+      "bytes": 10760,
+      "lines": 78,
+      "sha256": "2410d646cd56913a574a8dfd31ff774bbb53723689629ec758f48a94d455c036",
+      "tokens": {
+        "o200k_base": 1862,
+        "cl100k_base": 1862
+      }
+    },
+    {
+      "path": "draft/CanGrant.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 50404,
+      "lines": 1483,
+      "sha256": "77eaec9c8be488193b895a499033235b64f0bf860a297eb0a811a4a6078ea330",
+      "tokens": {
+        "o200k_base": 11350,
+        "cl100k_base": 11523
+      }
+    },
+    {
+      "path": "draft/CanHire.can",
+      "group": "app_can",
+      "bytes": 28436,
+      "lines": 331,
+      "sha256": "f3e8f9ddb2bad5f45fa9f3cd7752dd301fb521bd7b4c85ad0d88c7f8bb177e00",
+      "tokens": {
+        "o200k_base": 6624,
+        "cl100k_base": 6732
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 4274,
+          "description": 307,
+          "translation": 1143,
+          "bdd": 900,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 4251,
+          "description": 309,
+          "translation": 1280,
+          "bdd": 892,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanHire.md",
+      "group": "app_requirements_md",
+      "bytes": 10615,
+      "lines": 81,
+      "sha256": "87e9ad8ebe49929ebae4ab08696b399e3cc5d2c3d16146efa9f6bc8b1f286c82",
+      "tokens": {
+        "o200k_base": 1793,
+        "cl100k_base": 1809
+      }
+    },
+    {
+      "path": "draft/CanHire.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 62484,
+      "lines": 1670,
+      "sha256": "13820774728b3e2873283891a5f2f551172366a49992e522a11a018069ef1c45",
+      "tokens": {
+        "o200k_base": 14250,
+        "cl100k_base": 14475
+      }
+    },
+    {
+      "path": "draft/CanInvoice.can",
+      "group": "app_can",
+      "bytes": 67797,
+      "lines": 703,
+      "sha256": "766a19a53a071ed4566ea28906081346b4b53c708b862bc34bac3bad869cda8b",
+      "tokens": {
+        "o200k_base": 15501,
+        "cl100k_base": 15652
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 11744,
+          "description": 269,
+          "translation": 1211,
+          "bdd": 2277,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 11746,
+          "description": 269,
+          "translation": 1372,
+          "bdd": 2265,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanInvoice.md",
+      "group": "app_requirements_md",
+      "bytes": 25314,
+      "lines": 133,
+      "sha256": "05b7e0fe19911a1194d684286989be41c102145ef8b56af0b2961ea5c1f9d20f",
+      "tokens": {
+        "o200k_base": 4394,
+        "cl100k_base": 4418
+      }
+    },
+    {
+      "path": "draft/CanLearn.can",
+      "group": "app_can",
+      "bytes": 11014,
+      "lines": 133,
+      "sha256": "5598e5206bd402745351bc1ce39216f98d5ca6611c6742f39e5c670598786e4a",
+      "tokens": {
+        "o200k_base": 2514,
+        "cl100k_base": 2560
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 1615,
+          "description": 142,
+          "translation": 475,
+          "bdd": 282,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 1604,
+          "description": 141,
+          "translation": 530,
+          "bdd": 285,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanLearn.md",
+      "group": "app_requirements_md",
+      "bytes": 8270,
+      "lines": 76,
+      "sha256": "dd5cb7a191d10da5938c374e337561799822c257dc6b60c4cb0c84351b1fc224",
+      "tokens": {
+        "o200k_base": 1384,
+        "cl100k_base": 1390
+      }
+    },
+    {
+      "path": "draft/CanLeave.can",
+      "group": "app_can",
+      "bytes": 21020,
+      "lines": 250,
+      "sha256": "d3f4a24502e97389c84682451a4e90d138488d49eff315a8031b57c0059c45ab",
+      "tokens": {
+        "o200k_base": 5060,
+        "cl100k_base": 5139
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 3079,
+          "description": 177,
+          "translation": 751,
+          "bdd": 1033,
+          "comment": 20
+        },
+        "cl100k_base": {
+          "production": 3048,
+          "description": 177,
+          "translation": 855,
+          "bdd": 1039,
+          "comment": 20
+        }
+      }
+    },
+    {
+      "path": "draft/CanLeave.md",
+      "group": "app_requirements_md",
+      "bytes": 9359,
+      "lines": 76,
+      "sha256": "331b5ef5656dabf2c28edddf3c16bea1ccfedc4f8062e2da5c172512fa88d255",
+      "tokens": {
+        "o200k_base": 1597,
+        "cl100k_base": 1603
+      }
+    },
+    {
+      "path": "draft/CanLeave.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 51866,
+      "lines": 1495,
+      "sha256": "1003bb5e9443b089488fc35073a282c2ffb0e96e1828d14e8032b0812e770969",
+      "tokens": {
+        "o200k_base": 12105,
+        "cl100k_base": 12282
+      }
+    },
+    {
+      "path": "draft/CanLoyalty.can",
+      "group": "app_can",
+      "bytes": 24163,
+      "lines": 266,
+      "sha256": "45bbfc89545df6cd4c445dbfa9e4004de0802fd0b948644fb459773dda29b14e",
+      "tokens": {
+        "o200k_base": 5802,
+        "cl100k_base": 5870
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 2878,
+          "description": 180,
+          "translation": 628,
+          "bdd": 2116,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 2878,
+          "description": 180,
+          "translation": 698,
+          "bdd": 2114,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanLoyalty.md",
+      "group": "app_requirements_md",
+      "bytes": 12161,
+      "lines": 82,
+      "sha256": "ffd0befc22119a162b5b7b2ee4db650f5739b344bfb12ba0a4595ef7729871f9",
+      "tokens": {
+        "o200k_base": 2103,
+        "cl100k_base": 2115
+      }
+    },
+    {
+      "path": "draft/CanLoyalty.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 64413,
+      "lines": 1864,
+      "sha256": "69cf3ad3af19a70299e6d37d7e59b6398c677851c0cbab161dd4b65d338d5cee",
+      "tokens": {
+        "o200k_base": 15283,
+        "cl100k_base": 15220
+      }
+    },
+    {
+      "path": "draft/CanMail.can",
+      "group": "app_can",
+      "bytes": 32108,
+      "lines": 293,
+      "sha256": "383a76255b370698b5d0e7db108379f389c32a3bb4c202ff64fbbe94c83d576d",
+      "tokens": {
+        "o200k_base": 7557,
+        "cl100k_base": 7725
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 4707,
+          "description": 276,
+          "translation": 1267,
+          "bdd": 1307,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 4706,
+          "description": 276,
+          "translation": 1437,
+          "bdd": 1306,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanMail.md",
+      "group": "app_requirements_md",
+      "bytes": 13004,
+      "lines": 82,
+      "sha256": "748b9d1b503b7dac69f66908b4f33edb1699c283cc069011999031264deb4121",
+      "tokens": {
+        "o200k_base": 2226,
+        "cl100k_base": 2230
+      }
+    },
+    {
+      "path": "draft/CanMail.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 72744,
+      "lines": 2054,
+      "sha256": "f01798c84d78e18e4d6704b604c05e4cf608b191b10f7d382a79bdfd79a26b02",
+      "tokens": {
+        "o200k_base": 16476,
+        "cl100k_base": 16740
+      }
+    },
+    {
+      "path": "draft/CanMaintain.can",
+      "group": "app_can",
+      "bytes": 31753,
+      "lines": 307,
+      "sha256": "2a08c3943295b4c2fb8476df8862ea6cffdc098233de277c2000906583490fc6",
+      "tokens": {
+        "o200k_base": 7426,
+        "cl100k_base": 7550
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 5103,
+          "description": 274,
+          "translation": 1335,
+          "bdd": 657,
+          "comment": 57
+        },
+        "cl100k_base": {
+          "production": 5086,
+          "description": 274,
+          "translation": 1474,
+          "bdd": 657,
+          "comment": 59
+        }
+      }
+    },
+    {
+      "path": "draft/CanMaintain.md",
+      "group": "app_requirements_md",
+      "bytes": 15279,
+      "lines": 105,
+      "sha256": "5b8dbd3c542aac2aa8e03f651266c2425b866a4c1f328fb51f481316176913d7",
+      "tokens": {
+        "o200k_base": 2613,
+        "cl100k_base": 2619
+      }
+    },
+    {
+      "path": "draft/CanMaintain.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 71745,
+      "lines": 1969,
+      "sha256": "20fa5b4efc577d3c8291aa62e231e8a75c8260580d1b98847db69633468e6570",
+      "tokens": {
+        "o200k_base": 15811,
+        "cl100k_base": 16066
+      }
+    },
+    {
+      "path": "draft/CanMember.can",
+      "group": "app_can",
+      "bytes": 64886,
+      "lines": 689,
+      "sha256": "f92fabad5eb0beb2210d25233ad3f2a728931b2cc685c9ca2eb90fd0555a110c",
+      "tokens": {
+        "o200k_base": 15699,
+        "cl100k_base": 15948
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 11358,
+          "description": 463,
+          "translation": 1809,
+          "bdd": 2069,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 11328,
+          "description": 465,
+          "translation": 2097,
+          "bdd": 2058,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanMember.md",
+      "group": "app_requirements_md",
+      "bytes": 28644,
+      "lines": 152,
+      "sha256": "79b87501878d5152f48771a1855a9333c19a868eceb4773a5c27b213ca0cfad6",
+      "tokens": {
+        "o200k_base": 5005,
+        "cl100k_base": 5046
+      }
+    },
+    {
+      "path": "draft/CanOnboard.can",
+      "group": "app_can",
+      "bytes": 10352,
+      "lines": 115,
+      "sha256": "58cfd31cafbcb64c522640965ff2b6c58559061a3040e9db8a45cb6e4f180d80",
+      "tokens": {
+        "o200k_base": 2498,
+        "cl100k_base": 2528
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 1558,
+          "description": 139,
+          "translation": 517,
+          "bdd": 284,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 1546,
+          "description": 140,
+          "translation": 557,
+          "bdd": 285,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanOnboard.md",
+      "group": "app_requirements_md",
+      "bytes": 10163,
+      "lines": 83,
+      "sha256": "f82d09ab2901f974a5bc9fcc4e8120c7f363b6ba31b0bbd16bf1f28b74161aa4",
+      "tokens": {
+        "o200k_base": 1757,
+        "cl100k_base": 1761
+      }
+    },
+    {
+      "path": "draft/CanOnboard.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 30413,
+      "lines": 891,
+      "sha256": "30dc609e0b2ada522f03fe83f8901f4c00c0bc06012806e9313b41305f3869c2",
+      "tokens": {
+        "o200k_base": 7154,
+        "cl100k_base": 7243
+      }
+    },
+    {
+      "path": "draft/CanPropose.can",
+      "group": "app_can",
+      "bytes": 32943,
+      "lines": 314,
+      "sha256": "0fa46b03b04ec5cd421e468b5bf0c14b6c7fbdd028ec840c0decd6223e2b0647",
+      "tokens": {
+        "o200k_base": 7989,
+        "cl100k_base": 8050
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 5300,
+          "description": 179,
+          "translation": 1330,
+          "bdd": 1180,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 5240,
+          "description": 178,
+          "translation": 1438,
+          "bdd": 1194,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanPropose.md",
+      "group": "app_requirements_md",
+      "bytes": 13272,
+      "lines": 87,
+      "sha256": "a65226da7fcc7be2bff1d4d4ab0f45699008fbac9be563e734cb13f066954a07",
+      "tokens": {
+        "o200k_base": 2316,
+        "cl100k_base": 2321
+      }
+    },
+    {
+      "path": "draft/CanPurchase.can",
+      "group": "app_can",
+      "bytes": 32039,
+      "lines": 343,
+      "sha256": "3993afd69deb9c3a90308e4d5f6ff792d497b8fe99f617a7ffed7e0d7155aea7",
+      "tokens": {
+        "o200k_base": 7498,
+        "cl100k_base": 7605
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 5053,
+          "description": 286,
+          "translation": 950,
+          "bdd": 1171,
+          "comment": 38
+        },
+        "cl100k_base": {
+          "production": 5014,
+          "description": 286,
+          "translation": 1110,
+          "bdd": 1157,
+          "comment": 38
+        }
+      }
+    },
+    {
+      "path": "draft/CanPurchase.md",
+      "group": "app_requirements_md",
+      "bytes": 12563,
+      "lines": 86,
+      "sha256": "00639e08cc40e5e2b7e738af762efa2c2f3ef2fbbb689f39cc2e111d9bba1329",
+      "tokens": {
+        "o200k_base": 2129,
+        "cl100k_base": 2128
+      }
+    },
+    {
+      "path": "draft/CanPurchase.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 76822,
+      "lines": 2188,
+      "sha256": "e7755f792176ba1a480e350e93bd45d97d23605dc32adafbc56fedac697f5656",
+      "tokens": {
+        "o200k_base": 17411,
+        "cl100k_base": 17616
+      }
+    },
+    {
+      "path": "draft/CanReception.can",
+      "group": "app_can",
+      "bytes": 32940,
+      "lines": 346,
+      "sha256": "b36be92013a152dd62729a9e5e2836b02b6bd9e861d31e84cac264060f3c8cab",
+      "tokens": {
+        "o200k_base": 8003,
+        "cl100k_base": 8234
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 5882,
+          "description": 300,
+          "translation": 1163,
+          "bdd": 658,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 5866,
+          "description": 302,
+          "translation": 1408,
+          "bdd": 658,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanReception.md",
+      "group": "app_requirements_md",
+      "bytes": 11508,
+      "lines": 79,
+      "sha256": "95e52693f8ef807aef3d01bde3ae70c04e842288c8f3dcbecdc66efec4014eef",
+      "tokens": {
+        "o200k_base": 1968,
+        "cl100k_base": 1988
+      }
+    },
+    {
+      "path": "draft/CanRefer.can",
+      "group": "app_can",
+      "bytes": 24027,
+      "lines": 234,
+      "sha256": "7b04d2ce9ca2180ec6b1549a88b175db14aae5061114cb4fd3c276f6b82ec19c",
+      "tokens": {
+        "o200k_base": 5688,
+        "cl100k_base": 5759
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 3316,
+          "description": 177,
+          "translation": 764,
+          "bdd": 1431,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 3291,
+          "description": 176,
+          "translation": 861,
+          "bdd": 1431,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanRefer.md",
+      "group": "app_requirements_md",
+      "bytes": 12083,
+      "lines": 85,
+      "sha256": "21101bd80ef1e252356044a8fb68bfc9c9ea43c422b18cc1e785d83b7ac25f95",
+      "tokens": {
+        "o200k_base": 2066,
+        "cl100k_base": 2074
+      }
+    },
+    {
+      "path": "draft/CanRefer.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 53704,
+      "lines": 1514,
+      "sha256": "98cb5d6cadd46b822b3009192bcf62ac00efb50289873b6139e0f05a6579d5c8",
+      "tokens": {
+        "o200k_base": 12350,
+        "cl100k_base": 12496
+      }
+    },
+    {
+      "path": "draft/CanRent.can",
+      "group": "app_can",
+      "bytes": 155261,
+      "lines": 1351,
+      "sha256": "cfdd79613941b6e8aa67959f7f3c69126e0f64d591f249c0f3002d2df2ece288",
+      "tokens": {
+        "o200k_base": 35831,
+        "cl100k_base": 36048
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 29003,
+          "description": 627,
+          "translation": 3364,
+          "bdd": 2818,
+          "comment": 19
+        },
+        "cl100k_base": {
+          "production": 28751,
+          "description": 632,
+          "translation": 3831,
+          "bdd": 2815,
+          "comment": 19
+        }
+      }
+    },
+    {
+      "path": "draft/CanRent.md",
+      "group": "app_requirements_md",
+      "bytes": 28352,
+      "lines": 130,
+      "sha256": "6c8d7570c1abdebd2e38253d217f24e44f06cac275ee3a75e048f544bbb17f88",
+      "tokens": {
+        "o200k_base": 4876,
+        "cl100k_base": 4888
+      }
+    },
+    {
+      "path": "draft/CanRent.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 332359,
+      "lines": 8885,
+      "sha256": "b858b2679ad651e3c72eedfc6daf50c18eb7c2cdfadf4a41151a46dc5e6db761",
+      "tokens": {
+        "o200k_base": 72951,
+        "cl100k_base": 72735
+      }
+    },
+    {
+      "path": "draft/CanReport.can",
+      "group": "app_can",
+      "bytes": 10249,
+      "lines": 88,
+      "sha256": "3fce4b0b89ee9d975bf02c960aa300e7520b022e09a79c075e381bf3cdcb72db",
+      "tokens": {
+        "o200k_base": 2451,
+        "cl100k_base": 2492
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 1672,
+          "description": 82,
+          "translation": 556,
+          "bdd": 141,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 1664,
+          "description": 81,
+          "translation": 606,
+          "bdd": 141,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanReport.md",
+      "group": "app_requirements_md",
+      "bytes": 8150,
+      "lines": 65,
+      "sha256": "e7ab6b3894975ad441fb8790f80e5d229db7bceb6bb003596ec87d4648562187",
+      "tokens": {
+        "o200k_base": 1416,
+        "cl100k_base": 1427
+      }
+    },
+    {
+      "path": "draft/CanShift.can",
+      "group": "app_can",
+      "bytes": 37419,
+      "lines": 327,
+      "sha256": "d129e12ef679415739c1f2bbbb5d416bbc01d09a38bb7203d289e4b00624e947",
+      "tokens": {
+        "o200k_base": 8721,
+        "cl100k_base": 8724
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 6917,
+          "description": 184,
+          "translation": 869,
+          "bdd": 735,
+          "comment": 16
+        },
+        "cl100k_base": {
+          "production": 6815,
+          "description": 184,
+          "translation": 973,
+          "bdd": 736,
+          "comment": 16
+        }
+      }
+    },
+    {
+      "path": "draft/CanShift.md",
+      "group": "app_requirements_md",
+      "bytes": 11683,
+      "lines": 85,
+      "sha256": "448c3f2796249f6be8ef5fbcad54805b22d67d8c94331e6e9119722e428a3183",
+      "tokens": {
+        "o200k_base": 1965,
+        "cl100k_base": 1976
+      }
+    },
+    {
+      "path": "draft/CanShift.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 78774,
+      "lines": 2277,
+      "sha256": "c4f8b8719c8b8948a0eb09e5d1308bb4432de23aedd620770ede26bf9d21f2a9",
+      "tokens": {
+        "o200k_base": 17567,
+        "cl100k_base": 17750
+      }
+    },
+    {
+      "path": "draft/CanStats.can",
+      "group": "app_can",
+      "bytes": 18410,
+      "lines": 181,
+      "sha256": "dd616104b328e5323561c21a690de017b38a380beb68bc54f0609ee9c2879eb2",
+      "tokens": {
+        "o200k_base": 4578,
+        "cl100k_base": 4570
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 3141,
+          "description": 82,
+          "translation": 597,
+          "bdd": 758,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 3082,
+          "description": 84,
+          "translation": 660,
+          "bdd": 744,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanStats.md",
+      "group": "app_requirements_md",
+      "bytes": 14685,
+      "lines": 93,
+      "sha256": "2ed5b6127439667192180ff6eecb08c4bcbac036d0cd5079678dd911f2ac90c8",
+      "tokens": {
+        "o200k_base": 2587,
+        "cl100k_base": 2598
+      }
+    },
+    {
+      "path": "draft/CanStock.can",
+      "group": "app_can",
+      "bytes": 16669,
+      "lines": 193,
+      "sha256": "31849b089e5111ed64e09f39272b701cabbbdaf2528c03af9c952d66ee0020e4",
+      "tokens": {
+        "o200k_base": 3826,
+        "cl100k_base": 3954
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 2527,
+          "description": 168,
+          "translation": 497,
+          "bdd": 542,
+          "comment": 92
+        },
+        "cl100k_base": {
+          "production": 2535,
+          "description": 170,
+          "translation": 607,
+          "bdd": 550,
+          "comment": 92
+        }
+      }
+    },
+    {
+      "path": "draft/CanStock.md",
+      "group": "app_requirements_md",
+      "bytes": 10058,
+      "lines": 83,
+      "sha256": "e7b46d6e464e2b1f64f5bd1cc65e041af00c0b31486baf21c63f1a545c1843a9",
+      "tokens": {
+        "o200k_base": 1760,
+        "cl100k_base": 1776
+      }
+    },
+    {
+      "path": "draft/CanStock.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 40172,
+      "lines": 1149,
+      "sha256": "912f5ce4eafc02a3cc0eeafc74706510b80ff55b7318c1635aae2ca08a58831c",
+      "tokens": {
+        "o200k_base": 9001,
+        "cl100k_base": 9170
+      }
+    },
+    {
+      "path": "draft/CanSuccess.can",
+      "group": "app_can",
+      "bytes": 16537,
+      "lines": 189,
+      "sha256": "c1a5f6107216d3e7fb6f01b1094f09f8704f52d1a33f53eb13c05fe4cabb30fb",
+      "tokens": {
+        "o200k_base": 4028,
+        "cl100k_base": 4065
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 2968,
+          "description": 169,
+          "translation": 725,
+          "bdd": 166,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 2908,
+          "description": 171,
+          "translation": 819,
+          "bdd": 167,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanSuccess.md",
+      "group": "app_requirements_md",
+      "bytes": 9507,
+      "lines": 83,
+      "sha256": "a81de9d8285b7025a65b02a059f5d90a87fc95235751d05a129c338e4dd13066",
+      "tokens": {
+        "o200k_base": 1645,
+        "cl100k_base": 1655
+      }
+    },
+    {
+      "path": "draft/CanTable.can",
+      "group": "app_can",
+      "bytes": 14755,
+      "lines": 165,
+      "sha256": "6370744eec556ba76633d128855cb50013a06ecf327d909f1aa931d775f3415f",
+      "tokens": {
+        "o200k_base": 3775,
+        "cl100k_base": 3856
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 1815,
+          "description": 118,
+          "translation": 562,
+          "bdd": 1280,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 1808,
+          "description": 117,
+          "translation": 650,
+          "bdd": 1281,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanTable.md",
+      "group": "app_requirements_md",
+      "bytes": 7969,
+      "lines": 67,
+      "sha256": "ac4083c08c909e7f0b3c61e7f9e01cbe2bac52342ef1acdfae4b9da57635e91a",
+      "tokens": {
+        "o200k_base": 1407,
+        "cl100k_base": 1417
+      }
+    },
+    {
+      "path": "draft/CanTable.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 42937,
+      "lines": 1200,
+      "sha256": "c10567158f605b09d17fba73079bea9ddd8d5dbfe5c17a2e691521ea48eeb133",
+      "tokens": {
+        "o200k_base": 10274,
+        "cl100k_base": 10408
+      }
+    },
+    {
+      "path": "draft/CanTime.can",
+      "group": "app_can",
+      "bytes": 25075,
+      "lines": 258,
+      "sha256": "362c6fad8df72004fe843daf8eff63023d5fd701a2bbdb1670ab20657adabfe0",
+      "tokens": {
+        "o200k_base": 5909,
+        "cl100k_base": 5978
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 4036,
+          "description": 292,
+          "translation": 646,
+          "bdd": 935,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 3995,
+          "description": 292,
+          "translation": 769,
+          "bdd": 922,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanTime.md",
+      "group": "app_requirements_md",
+      "bytes": 13350,
+      "lines": 89,
+      "sha256": "bb7bac6ccac3eb9289dc3c305aadca2335e88eef48dc0d3488eb36dfac22cdcd",
+      "tokens": {
+        "o200k_base": 2420,
+        "cl100k_base": 2429
+      }
+    },
+    {
+      "path": "draft/CanTime.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 55539,
+      "lines": 1583,
+      "sha256": "e36f6ce7da28e8bbe76a18953d7328e28a7c6209b9ed88cebd0336465a5e2962",
+      "tokens": {
+        "o200k_base": 12822,
+        "cl100k_base": 12953
+      }
+    },
+    {
+      "path": "draft/CanTrade.can",
+      "group": "app_can",
+      "bytes": 8868,
+      "lines": 104,
+      "sha256": "c0e470c87e7b48cb1846f19c43db6ec1f97921c419c54bfcaf2af30224749dce",
+      "tokens": {
+        "o200k_base": 2065,
+        "cl100k_base": 2142
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 1286,
+          "description": 119,
+          "translation": 488,
+          "bdd": 172,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 1296,
+          "description": 118,
+          "translation": 554,
+          "bdd": 174,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanTrade.md",
+      "group": "app_requirements_md",
+      "bytes": 9616,
+      "lines": 83,
+      "sha256": "ac541d4c5a0a5687d7d2bb2bef5fb3091b7924cdf3ea2d269edee1ce3aa06cc2",
+      "tokens": {
+        "o200k_base": 1617,
+        "cl100k_base": 1624
+      }
+    },
+    {
+      "path": "draft/CanVolunteer.can",
+      "group": "app_can",
+      "bytes": 21469,
+      "lines": 219,
+      "sha256": "4d655726361f387c8be8c5fef940ebdc4e15a1dff44c17fcd8c19d4eaf5183ba",
+      "tokens": {
+        "o200k_base": 4846,
+        "cl100k_base": 5029
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 3322,
+          "description": 271,
+          "translation": 862,
+          "bdd": 391,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 3327,
+          "description": 271,
+          "translation": 1038,
+          "bdd": 393,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/CanVolunteer.md",
+      "group": "app_requirements_md",
+      "bytes": 8615,
+      "lines": 75,
+      "sha256": "0b6021a531b25de4c25f67702e5d383a6ec12c0f0bdd2f353de7249e458c2f58",
+      "tokens": {
+        "o200k_base": 1458,
+        "cl100k_base": 1468
+      }
+    },
+    {
+      "path": "draft/CanVolunteer.mjs",
+      "group": "handwritten_mjs",
+      "bytes": 51799,
+      "lines": 1463,
+      "sha256": "6c241b6ceced440ee1f457a17dfb958a34713e7546c3ffd43691f1298c0cd625",
+      "tokens": {
+        "o200k_base": 11348,
+        "cl100k_base": 11590
+      }
+    },
+    {
+      "path": "draft/MIGRATION.md",
+      "group": "design_or_support_md",
+      "bytes": 58611,
+      "lines": 230,
+      "sha256": "b3df9a611698c172bf2d9ae51c632e8ece733cd60f696cae49d12db77c640277",
+      "tokens": {
+        "o200k_base": 10478,
+        "cl100k_base": 10499
+      }
+    },
+    {
+      "path": "draft/PORTFOLIO.md",
+      "group": "design_or_support_md",
+      "bytes": 13479,
+      "lines": 89,
+      "sha256": "1b96d49e8c7d271b32ba174dcc1fcc373dd75b151043b531bad6a25ed69876be",
+      "tokens": {
+        "o200k_base": 2488,
+        "cl100k_base": 2510
+      }
+    },
+    {
+      "path": "draft/README.md",
+      "group": "design_or_support_md",
+      "bytes": 12522,
+      "lines": 72,
+      "sha256": "12c5341813ab8694f6a8bf270f1f1c9c0690508c5f53b29b473eaed528c4e69c",
+      "tokens": {
+        "o200k_base": 2378,
+        "cl100k_base": 2396
+      }
+    },
+    {
+      "path": "draft/WORKSPACE_OPERATOR.md",
+      "group": "design_or_support_md",
+      "bytes": 22753,
+      "lines": 126,
+      "sha256": "ed621e701aa888ba1b8971f2d7bacd20839a7e9f300d3a8cb2019d0570a18e8b",
+      "tokens": {
+        "o200k_base": 4014,
+        "cl100k_base": 4032
+      }
+    },
+    {
+      "path": "draft/shared/Employees.can",
+      "group": "shared_can",
+      "bytes": 3073,
+      "lines": 26,
+      "sha256": "5af7826104ec480d11e55b0970408947ceb7ba00ca7f3abdaca4f0a1a0d63970",
+      "tokens": {
+        "o200k_base": 732,
+        "cl100k_base": 758
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 484,
+          "description": 33,
+          "translation": 181,
+          "bdd": 34,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 481,
+          "description": 33,
+          "translation": 210,
+          "bdd": 34,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/shared/Locations.can",
+      "group": "shared_can",
+      "bytes": 11063,
+      "lines": 65,
+      "sha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+      "tokens": {
+        "o200k_base": 2810,
+        "cl100k_base": 2755
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 2450,
+          "description": 12,
+          "translation": 164,
+          "bdd": 184,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 2388,
+          "description": 12,
+          "translation": 171,
+          "bdd": 184,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "draft/shared/Suppliers.can",
+      "group": "shared_can",
+      "bytes": 1044,
+      "lines": 13,
+      "sha256": "828931c2fed61c24b269e5653c871f8576d7f798722da58635141645aaaa7878",
+      "tokens": {
+        "o200k_base": 246,
+        "cl100k_base": 258
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 163,
+          "description": 16,
+          "translation": 67,
+          "bdd": 0,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 163,
+          "description": 16,
+          "translation": 79,
+          "bdd": 0,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "examples/ExpenseFlow.can",
+      "group": "example_can",
+      "bytes": 5019,
+      "lines": 75,
+      "sha256": "772b05ce0d71383cb98f7dd3782e09de2a39b84c2fbb21f1ab4e34c9902862bd",
+      "tokens": {
+        "o200k_base": 1257,
+        "cl100k_base": 1285
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 657,
+          "description": 101,
+          "translation": 339,
+          "bdd": 160,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 652,
+          "description": 101,
+          "translation": 372,
+          "bdd": 160,
+          "comment": 0
+        }
+      }
+    },
+    {
+      "path": "examples/TeamTasks.can",
+      "group": "example_can",
+      "bytes": 2936,
+      "lines": 51,
+      "sha256": "89f28215fe6a825083581dedccd0268433581c4000a03e1971dfa2dccccc92fa",
+      "tokens": {
+        "o200k_base": 817,
+        "cl100k_base": 824
+      },
+      "can_token_partition": {
+        "o200k_base": {
+          "production": 423,
+          "description": 52,
+          "translation": 270,
+          "bdd": 72,
+          "comment": 0
+        },
+        "cl100k_base": {
+          "production": 413,
+          "description": 53,
+          "translation": 286,
+          "bdd": 72,
+          "comment": 0
+        }
+      }
+    }
+  ],
+  "source_target_pairs": [
+    {
+      "app": "CanApprove",
+      "can_tokens": {
+        "o200k_base": 3270,
+        "cl100k_base": 3308
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 7938,
+        "cl100k_base": 8035
+      },
+      "o200k_mjs_over_can": 2.4275
+    },
+    {
+      "app": "CanBoard",
+      "can_tokens": {
+        "o200k_base": 3390,
+        "cl100k_base": 3477
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 9896,
+        "cl100k_base": 10009
+      },
+      "o200k_mjs_over_can": 2.9192
+    },
+    {
+      "app": "CanCRM",
+      "can_tokens": {
+        "o200k_base": 4634,
+        "cl100k_base": 4775
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 11333,
+        "cl100k_base": 11526
+      },
+      "o200k_mjs_over_can": 2.4456
+    },
+    {
+      "app": "CanCheck",
+      "can_tokens": {
+        "o200k_base": 3194,
+        "cl100k_base": 3213
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 7524,
+        "cl100k_base": 7601
+      },
+      "o200k_mjs_over_can": 2.3557
+    },
+    {
+      "app": "CanExpense",
+      "can_tokens": {
+        "o200k_base": 3193,
+        "cl100k_base": 3246
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 7649,
+        "cl100k_base": 7778
+      },
+      "o200k_mjs_over_can": 2.3956
+    },
+    {
+      "app": "CanFeedback",
+      "can_tokens": {
+        "o200k_base": 3052,
+        "cl100k_base": 3134
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 8516,
+        "cl100k_base": 8661
+      },
+      "o200k_mjs_over_can": 2.7903
+    },
+    {
+      "app": "CanGrant",
+      "can_tokens": {
+        "o200k_base": 4808,
+        "cl100k_base": 4872
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 11350,
+        "cl100k_base": 11523
+      },
+      "o200k_mjs_over_can": 2.3606
+    },
+    {
+      "app": "CanHire",
+      "can_tokens": {
+        "o200k_base": 6624,
+        "cl100k_base": 6732
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 14250,
+        "cl100k_base": 14475
+      },
+      "o200k_mjs_over_can": 2.1513
+    },
+    {
+      "app": "CanLeave",
+      "can_tokens": {
+        "o200k_base": 5060,
+        "cl100k_base": 5139
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 12105,
+        "cl100k_base": 12282
+      },
+      "o200k_mjs_over_can": 2.3923
+    },
+    {
+      "app": "CanLoyalty",
+      "can_tokens": {
+        "o200k_base": 5802,
+        "cl100k_base": 5870
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 15283,
+        "cl100k_base": 15220
+      },
+      "o200k_mjs_over_can": 2.6341
+    },
+    {
+      "app": "CanMail",
+      "can_tokens": {
+        "o200k_base": 7557,
+        "cl100k_base": 7725
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 16476,
+        "cl100k_base": 16740
+      },
+      "o200k_mjs_over_can": 2.1802
+    },
+    {
+      "app": "CanMaintain",
+      "can_tokens": {
+        "o200k_base": 7426,
+        "cl100k_base": 7550
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 15811,
+        "cl100k_base": 16066
+      },
+      "o200k_mjs_over_can": 2.1291
+    },
+    {
+      "app": "CanOnboard",
+      "can_tokens": {
+        "o200k_base": 2498,
+        "cl100k_base": 2528
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 7154,
+        "cl100k_base": 7243
+      },
+      "o200k_mjs_over_can": 2.8639
+    },
+    {
+      "app": "CanPurchase",
+      "can_tokens": {
+        "o200k_base": 7498,
+        "cl100k_base": 7605
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 17411,
+        "cl100k_base": 17616
+      },
+      "o200k_mjs_over_can": 2.3221
+    },
+    {
+      "app": "CanRefer",
+      "can_tokens": {
+        "o200k_base": 5688,
+        "cl100k_base": 5759
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 12350,
+        "cl100k_base": 12496
+      },
+      "o200k_mjs_over_can": 2.1712
+    },
+    {
+      "app": "CanRent",
+      "can_tokens": {
+        "o200k_base": 35831,
+        "cl100k_base": 36048
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 72951,
+        "cl100k_base": 72735
+      },
+      "o200k_mjs_over_can": 2.036
+    },
+    {
+      "app": "CanShift",
+      "can_tokens": {
+        "o200k_base": 8721,
+        "cl100k_base": 8724
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 17567,
+        "cl100k_base": 17750
+      },
+      "o200k_mjs_over_can": 2.0143
+    },
+    {
+      "app": "CanStock",
+      "can_tokens": {
+        "o200k_base": 3826,
+        "cl100k_base": 3954
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 9001,
+        "cl100k_base": 9170
+      },
+      "o200k_mjs_over_can": 2.3526
+    },
+    {
+      "app": "CanTable",
+      "can_tokens": {
+        "o200k_base": 3775,
+        "cl100k_base": 3856
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 10274,
+        "cl100k_base": 10408
+      },
+      "o200k_mjs_over_can": 2.7216
+    },
+    {
+      "app": "CanTime",
+      "can_tokens": {
+        "o200k_base": 5909,
+        "cl100k_base": 5978
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 12822,
+        "cl100k_base": 12953
+      },
+      "o200k_mjs_over_can": 2.1699
+    },
+    {
+      "app": "CanVolunteer",
+      "can_tokens": {
+        "o200k_base": 4846,
+        "cl100k_base": 5029
+      },
+      "handwritten_mjs_tokens": {
+        "o200k_base": 11348,
+        "cl100k_base": 11590
+      },
+      "o200k_mjs_over_can": 2.3417
+    }
+  ]
+}

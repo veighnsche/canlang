@@ -1,0 +1,17 @@
+# Reviewer selection design advice — three actual JEV calls
+
+2026-10-04, owner C. The three requests and full raw responses are saved here. Existing `tools/jev.py` called `jev-latest`; all successful responses report **jev-1.13.0**. The first restricted-network attempt failed before a response; the authorized network call then succeeded. No failed-attempt probability was invented. No secrets were printed.
+
+| Whole request | opaque_ids | employee_reference | bounded_directory | unresolved | Returned choice | Returned confidence | Input/output usage |
+| --- | ---: | ---: | ---: | ---: | --- | ---: | --- |
+| [1](request-1.json) / [raw response](response-1.json) | .15 | .25 | .44 | .16 | bounded_directory | .24 | 902 / 55 |
+| [2](request-2.json) / [raw response](response-2.json) | .30 | .15 | .22 | .33 | unresolved | .11 | 870 / 57 |
+| [3](request-3.json) / [raw response](response-3.json) | .09 | .44 | .19 | .28 | employee_reference | .25 | 881 / 55 |
+
+Prompt audit: every state, question instruction and alternative was freshly reworded, while retaining the same 25-person P task, exact source anchors, missing directory-grant definition, privacy boundary, immutable actor evidence, distinct names/IDs, equal reviewer-role remediation and four options. There is no preferred choice, earlier vote, free engineering/support assumption, invented usability measurement, or absent-implementation penalty. Choice is appropriate because alternatives differ in responsibility and migration; unresolved remains an explicit option. Requests were produced by [requests.py](requests.py) and inspected before calls. Equivalent wording is a manual audit, not a proven classifier invariance.
+
+The advice is strongly wording-sensitive: three different winners, low returned confidence, and no majority. Averaging would conceal the disagreement. JEV did not provide prose reasoning; none is attributed to it.
+
+Investigation against the frozen evidence: DESIGN:587 does **not** grant an account directory merely from a `user` input; :654–656 permits only readable label fields and full opaque identity. `Employee` exports authorized work attributes but no name/title (shared/Employees.can:6–11). `Expense.reviewer:user` and its create form are present (CanExpense.can:11,93). Current opaque identity avoids incidental disclosure and could work with a steward-provided authorized roster. Adding a business-readable Employee name and using an existing typed record reference is possible without a new primitive, but changes stored/reference/version meaning and needs an explicit data transition and preserved historic user attribution. A shared bounded user directory may help repeated assignments, but that repetition and its disclosure source have not been demonstrated. Source alone cannot decide actual staff recognition time/error rate or prove either fix necessary.
+
+Recommendation: clarify the existing meaning of an explicit directory grant and conduct the same bounded selection exercise for current authorized IDs and existing Employee-reference labels. Observe whether a claimant identifies the correct eligible person, what data is disclosed, mistaken/stale choices, browser/MCP steps, and steward maintenance; preserve full identity, current grants and immutable evidence in both. Do not add a global directory, pick a new primitive by plurality, or count uncertainty as adoption rejection. This unresolved treatment is C's reasoned recommendation, **not** a JEV consensus. Role/revocation correctness remains B's separate finding.

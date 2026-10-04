@@ -1,0 +1,67 @@
+{
+  "request": {
+    "state": "Assess a proposed business-app language at its draft stage. Evidence consists of .can/.md and handwritten desired MJS; no compiler/runtime execution exists, and absence of implementation is not an adverse design fact. Advice concerns a next bounded correction comparison, not deployment approval. Company W is a hypothetical two-location workspace with 12 staff,120 customer organizations,600 member accounts,30 rooms and 100 desks;3,000 bookings/month,500 invoices/month,300 physical mail items/month. Staff use browser or authorized chatbot with a technical steward. Required results include original customer/record authority, permissions, reliable mail intake/collection/forwarding, historical utilization, reports and recovery. Multiple modules may share one deployment; no requirement for unused suite features. A consolidated evidence handoff identifies two design tradeoffs.\n\nComposition: DESIGN:81/89 defines local production-symbol import as whole executable-package inclusion, including handlers/resources, while bound import extracts owner interface schemas only. Export grants visibility, never authority. No pruning or optional binding is promised. Mail.can imports local member_terms {Term,eligible_term,...}, local invoice {Charge}, bound BillingV1 from deployment.billing and EmailV1 from deployment.mail. Service allows term=null with paid_evidence and billing=false. Its receive(location,...,service?) by=mail_staff requires can_work(actor,location) and live(service) if set; collect(item,collector,evidence) by=mail_staff requires current can_work, eligible physical state, and permitted_collector. Forward(item,fee?,destination_verified) by=mail_staff requires current service, no previous dispatch, verified destination and same-currency fee; it sends Billing.charge only when frozen dispatch.charge!=null. Thus no-fee/manual-evidence operation still has unconditional provider/dependency obligations. Changing import semantics must preserve policies, invariants, hooks and trusted handlers owning actual imported models; hiding a provider behind false runtime branch is not optional deployment. Whole-package inclusion makes those effects discoverable; partitioning adds authored boundaries and may require owner-operation design. Rent additionally locally imports proposal value contracts and a pure helper, so closure includes proposal workflows/adapters. Shared providers are counted once. C primary-doc inputs put shared Workers minimum at $5/month and illustrative W outbound email at $9.45/month overage; total setup/support, backups/platform costs dominate A scenarios and remain uncertain. No measured provider saving is attributed to a split.\n\nHistory: Rent.can:159–165 defines immutable ResourcePolicy value containing every current Booking and VenueReservation plus opening/downtime data. Many booking changes append it; quote_accept:749/753 does so twice within the same atomic operation. All reads in that operation use fixed now, and reports select the newest sequence effective at each boundary. Historical resource_report(resource,from,until) read=true scope=authority -> ReportBatch by=reservation_manager requires current can_work; it uses all policies and emits explicit source revision/completeness. This preserves as-of capacity/booked/occupied denominators and avoids claiming current mutable facts are historical. C confirms target full-array materialization and 55 snapshot call sites, not runtime performance. With B sequential retained nonarchived bookings and just one snapshot each, logical booking copies sum to B(B+1)/2:5,050 at 100 and 500,500 at 1,000, before other transitions. Actual byte volume, compiler optimization and latency are unmeasured. No ResourcePolicy lifetime is authored. A solution must preserve late checkout, cancellation/capacity changes, source completeness, timezone boundaries and privileged-report disclosure. Narrower facts or checkpoints require explicit reconstruction and correction semantics; no alternative is already demonstrated correct. Do not assume adding syntax creates free runtime machinery.",
+    "questions": {
+      "composition": {
+        "type": "choice",
+        "instructions": "Which next bounded design comparison best serves both focused manual-evidence mail and the full W composition? Weigh complete stated outcomes, one owner/permission continuity, agent context and authoring, shared-platform versus per-company setup/support, and migration/version costs. Distinguish hypotheses from observed closure; choose undecided if these facts do not rank the options.",
+        "criteria": {
+          "retain": "Retain whole-package imports and clarify mandatory bindings in the generated installation plan. It keeps one well-defined inclusion rule and no new authoring, but standalone manual-evidence mail still bears unused provider setup and context.",
+          "default": "Change the default to declaration-level reachable inclusion, with explicit retention of mandatory owner policies/hooks/handlers. It may remove unrelated runtime dependencies automatically; it adds nontrivial closure/effect semantics and risks missed owner behavior or hard-to-predict inclusion.",
+          "partition": "Use existing package/export/use boundaries to isolate coherent value contracts and optional integration workflows while keeping each model and canonical operation with one owner. It can make selection explicit and needs no new primitive; it adds imports/packages, possible wrapper pressure and refactoring/migration work whose feasibility must be shown.",
+          "optional": "Add a narrow explicit optional-connection contract to the existing bound import. It could retain one concise app and conditionally omit provider setup; it needs type checking for unavailable operations, deterministic interface exposure, version/configuration rules and safe failure behavior, and does not automatically solve local executable closure.",
+          "scope": "Keep current contracts and limit standalone Mail to companies installing the full declared integration set; evaluate manual-evidence-only users as outside that package variant. It avoids new language/refactoring work but loses a stated focused use case and possible adopters without reducing their required outcomes.",
+          "undecided": "Withhold ranking pending a small equal-outcome source/dependency comparison. This avoids committing on incomplete alternatives but delays reduction of demonstrated setup friction."
+        }
+      },
+      "history": {
+        "type": "choice",
+        "instructions": "Which history correction should be investigated first under the same historical reporting and booked-work outcomes? Compare retained-data and owner-work growth, source/replay/retention exactness, ease of AI change, reconstruction complexity and verification/support costs. Missing implementation is neutral; no option earns an unmeasured latency claim.",
+        "criteria": {
+          "retain": "Keep full immutable snapshots, document the supported retained history and workload bounds. Reports remain straightforward and faithful to the current evidence model; cumulative copies remain quadratic while retained bookings grow, and a shorter supported horizon may not meet W needs.",
+          "default": "Coalesce snapshots of the same resource within one atomic operation to its final state as an explicit existing-app rule. It can remove potentially invisible same-admission intermediates with small source change, but cross-operation quadratic growth remains and same-time report selection must be checked.",
+          "facts": "Represent resource-policy changes and individual booking/occupancy changes as narrower immutable typed facts using current models/events, with periodic bounded checkpoints if needed. It may reduce duplicated history materially; reconstruction, late corrections, retention and as-of tests become more involved and must preserve current reports.",
+          "primitive": "Introduce a narrow versioned history/checkpoint primitive that derives needed evidence from owning declarations. It could share repeated mechanics and compact source, but adds a substantial semantic/runtime surface, must define dependency/retention/order/disclosure, and does not remove reconstruction cost.",
+          "scope": "Remove retrospective utilization from this package variant and retain an external reporting/archive service for W. It reduces source obligations while preserving the company outcome externally; it gives up some subscription savings and source-owned reporting, requiring integration/support.",
+          "undecided": "Gather a bounded 100/1,000/10,000-booking logical-history comparison before ranking representations. This protects against an unsupported redesign but leaves the current copying cost until evidence arrives."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "composition": {
+        "type": "choice",
+        "choice": "partition",
+        "confidence": 0.48,
+        "probabilities": {
+          "partition": 0.5599999999999999,
+          "scope": 0.01,
+          "retain": 0.13,
+          "undecided": 0.18,
+          "default": 0.01,
+          "optional": 0.11
+        }
+      },
+      "history": {
+        "type": "choice",
+        "choice": "default",
+        "confidence": 0.49,
+        "probabilities": {
+          "scope": 0.0,
+          "retain": 0.03,
+          "undecided": 0.07,
+          "primitive": 0.01,
+          "default": 0.58,
+          "facts": 0.31
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 2016,
+      "output_tokens": 119
+    }
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "variant": "D",
+  "attempt": "initial",
+  "stage": "draft authoring and static syntax review",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "start_observed_utc": "2026-10-04 05:20:02 UTC",
+  "end_observed_utc": "2026-10-04 05:30:23 UTC",
+  "wall_seconds_between_observations": 621,
+  "timing_note": "First and final clock observations; dispatch time before first observation is unavailable.",
+  "usage": {
+    "input_tokens": null,
+    "output_tokens": null,
+    "reasoning_tokens": null,
+    "cached_tokens": null,
+    "total_tokens": null,
+    "billing_usd": null,
+    "hidden_dispatch_context_tokens": null,
+    "visible_saved_prompt_tokens": null,
+    "source_tokens": null
+  },
+  "usage_note": "Tooling did not return usage/billing; no tokenizer installed or estimate substituted.",
+  "observed_sizes": {
+    "artifact_files_excluding_metadata": 25,
+    "artifact_bytes_excluding_metadata": 61654,
+    "python_html_files": 18,
+    "python_html_bytes": 39140
+  },
+  "checks_actually_used": [
+    {
+      "name": "Python AST parse",
+      "result": "passed",
+      "files": 10,
+      "establishes": "Python syntax only"
+    },
+    {
+      "name": "importlib.util.find_spec dependency availability",
+      "result": {
+        "django": false,
+        "mcp": false
+      },
+      "establishes": "Available default python3 environment lacks these dependencies"
+    }
+  ],
+  "tests_supplied": 13,
+  "tests_executed": 0,
+  "limitations": [
+    "No framework execution, migration, browser/assistive-technology audit, MCP handshake or PostgreSQL lock test.",
+    "Production locking requires PostgreSQL; test settings use SQLite for sequential tests.",
+    "Company chatbot selection/protected credential setup is external wiring; stdio adapter/auth token are supplied, no turnkey chatbot/OAuth flow claimed.",
+    "context.md preserves selected source paraphrases and provenance ranges; complete raw web bodies were not retained."
+  ],
+  "artifact_hash_algorithm": "SHA-256",
+  "artifact_hashes": [
+    {
+      "path": "assumptions.md",
+      "bytes": 4441,
+      "sha256": "b351845e897d6cfd94c320dbb969cd4175118fc60784ac4e611a732f9e1f8820"
+    },
+    {
+      "path": "context.md",
+      "bytes": 4613,
+      "sha256": "03ac175c102a8225bc8e3d48acd2069e1bfa11a9c17674cbfd447196b5200413"
+    },
+    {
+      "path": "initial/behavior.md",
+      "bytes": 2566,
+      "sha256": "7a854cf48e6dfac1155ed31ae8559b4e81aa757b9e1bb1397392409266809998"
+    },
+    {
+      "path": "initial/checks.json",
+      "bytes": 390,
+      "sha256": "84effe68e0cb200caf4d487bb6714666e635aa470365d9bcfbba59d5170cbc03"
+    },
+    {
+      "path": "initial/equipment/__init__.py",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "initial/equipment/chat_auth.py",
+      "bytes": 916,
+      "sha256": "b7e687764934438eb39bdb06510fd249f7c3b3e3d049a8701568039dfb66cb3c"
+    },
+    {
+      "path": "initial/equipment/forms.py",
+      "bytes": 915,
+      "sha256": "6620b8878bcef95eb8b5bb8cae15b839e653a23b92c1e24db12180bb3631f017"
+    },
+    {
+      "path": "initial/equipment/mcp_server.py",
+      "bytes": 2623,
+      "sha256": "b1ee5c491024a8a6e87a226e22b85059fe03c649ed12e26130ad3f5ea94dc953"
+    },
+    {
+      "path": "initial/equipment/models.py",
+      "bytes": 2367,
+      "sha256": "d5e76b4884d2521218d71b455a19730bf0b1cfe4957b1976f78c7793be36f8fd"
+    },
+    {
+      "path": "initial/equipment/service.py",
+      "bytes": 10553,
+      "sha256": "04780581597754d0ad314793ed83e4211251c5cf38a739d1abb2314960e8e6ca"
+    },
+    {
+      "path": "initial/equipment/templates/equipment/base.html",
+      "bytes": 1261,
+      "sha256": "53006c22e583656dfd23eb6518a234f841c95c2e5406b97282d6c86ab5a44237"
+    },
+    {
+      "path": "initial/equipment/templates/equipment/error.html",
+      "bytes": 228,
+      "sha256": "832f36500af6172a1df9866ccca5ed22d4ad6edcc1097273130179288df400d9"
+    },
+    {
+      "path": "initial/equipment/templates/equipment/form.html",
+      "bytes": 209,
+      "sha256": "f491f3d0b7ec57640a97cb1816530c879367479b8eddb81cd59f1732daac9a89"
+    },
+    {
+      "path": "initial/equipment/templates/equipment/intake.html",
+      "bytes": 1221,
+      "sha256": "1443f19de755ac3ac8bcd7de3e641dc80bb632f3961b62424305e0afab804a57"
+    },
+    {
+      "path": "initial/equipment/templates/equipment/list.html",
+      "bytes": 2118,
+      "sha256": "6b7c88c2e570c7cfaaf180828ca246643547f4bede01cd0134de7504352cd0cb"
+    },
+    {
+      "path": "initial/equipment/templates/equipment/token.html",
+      "bytes": 549,
+      "sha256": "d3a8ca02eb42d9822351ebe38829bf6f1ddcf20908322a93f15df17f168b5794"
+    },
+    {
+      "path": "initial/equipment/templates/equipment/upload.html",
+      "bytes": 369,
+      "sha256": "ea5d0fff0423346f1d883a0df3b4e3751c9666ddd7c7ee7eac10846644f22caa"
+    },
+    {
+      "path": "initial/equipment/templates/registration/login.html",
+      "bytes": 274,
+      "sha256": "184d735e851386c4c5228f3d2bf699b74751de4e3e52c9f9fc8e0bff959b22a7"
+    },
+    {
+      "path": "initial/equipment/tests.py",
+      "bytes": 8021,
+      "sha256": "876ee65a02b1e844ac679b83c95bb3c4364264de3d6f5b4a8fcfc05975dab57d"
+    },
+    {
+      "path": "initial/equipment/urls.py",
+      "bytes": 864,
+      "sha256": "c3eab97c120255952e671aab8e02971fcb64a9be25adf2d9d38166512e0ce42d"
+    },
+    {
+      "path": "initial/equipment/views.py",
+      "bytes": 5557,
+      "sha256": "5c9c5c82db35e4223a931d6b68e1d1619f978507f60923495f48039abad64d62"
+    },
+    {
+      "path": "initial/requirements.txt",
+      "bytes": 29,
+      "sha256": "71a869dc7a127ac16fc45a960a7da8f3d0dde2fef2d4125e7c3100cdc040cffc"
+    },
+    {
+      "path": "initial/test_settings.py",
+      "bytes": 1095,
+      "sha256": "840b994719dd90c93412f24e1b2f321bc29e4676966e31afe4adde57da2f4aeb"
+    },
+    {
+      "path": "initial/wiring.md",
+      "bytes": 3376,
+      "sha256": "78b99b37f06fb0341fc98e5788ec5c1d37a8f1875d7ba4b5a4347bedb2448b7a"
+    },
+    {
+      "path": "supplied-docs.json",
+      "bytes": 7099,
+      "sha256": "35e4dfffcc02d9acfef1f8136e8aeb426ca3808760ecdd6f9e15c00c1a7da2b3"
+    }
+  ],
+  "metadata_self_hash": null,
+  "isolation": "Read only pinned request and AGENTS.md plus official Django/MCP documentation; no Can outputs, findings, remediation, JEV or subagents."
+}

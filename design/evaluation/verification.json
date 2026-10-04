@@ -1,0 +1,223 @@
+{
+  "completed_at_utc": "2026-10-04T06:06:49.530640+00:00",
+  "scope": "Completed draft-only product-design evaluation; not implementation, execution certification or universal adoption proof.",
+  "checklist": {
+    "path": "EVALUATION.md",
+    "assessed": 120,
+    "unchecked": 0,
+    "missing": [],
+    "duplicate_ownership": [],
+    "sha256": "fa5399ba5ec8b7d11444f1c4220a8caa7ffae574c4713a8c7c49c5ed7c7c31ba"
+  },
+  "reports": {
+    "ADOPTION": {
+      "count": 34,
+      "ids": [
+        "E001",
+        "E002",
+        "E003",
+        "E004",
+        "E005",
+        "E006",
+        "E008",
+        "E010",
+        "E011",
+        "E012",
+        "E013",
+        "E014",
+        "E015",
+        "E016",
+        "E017",
+        "E018",
+        "E019",
+        "E020",
+        "E021",
+        "E022",
+        "E023",
+        "E024",
+        "E025",
+        "E098",
+        "E099",
+        "E100",
+        "E101",
+        "E103",
+        "E104",
+        "E105",
+        "F001",
+        "F002",
+        "F003",
+        "F015"
+      ],
+      "sha256": "1b290caee4672754c0544fa26254c54905cd2767043d510fb1cfeceba7cfd6ed",
+      "report": "design/evaluation/ADOPTION.md"
+    },
+    "LANGUAGE": {
+      "count": 47,
+      "ids": [
+        "E007",
+        "E009",
+        "E026",
+        "E027",
+        "E028",
+        "E029",
+        "E030",
+        "E031",
+        "E032",
+        "E033",
+        "E034",
+        "E035",
+        "E036",
+        "E037",
+        "E038",
+        "E039",
+        "E040",
+        "E041",
+        "E042",
+        "E043",
+        "E044",
+        "E045",
+        "E046",
+        "E047",
+        "E048",
+        "E049",
+        "E050",
+        "E051",
+        "E052",
+        "E053",
+        "E054",
+        "E055",
+        "E056",
+        "E057",
+        "E058",
+        "E059",
+        "E060",
+        "E086",
+        "E087",
+        "E088",
+        "E089",
+        "E090",
+        "E102",
+        "F004",
+        "F005",
+        "F006",
+        "F008"
+      ],
+      "sha256": "8e73de3742ff52a37ee37ad3133507bab22ff9ce64f248b1678e8adc0cd0a90b",
+      "report": "design/evaluation/LANGUAGE.md"
+    },
+    "INTERFACES": {
+      "count": 39,
+      "ids": [
+        "E061",
+        "E062",
+        "E063",
+        "E064",
+        "E065",
+        "E066",
+        "E067",
+        "E068",
+        "E069",
+        "E070",
+        "E071",
+        "E072",
+        "E073",
+        "E074",
+        "E075",
+        "E076",
+        "E077",
+        "E078",
+        "E079",
+        "E080",
+        "E081",
+        "E082",
+        "E083",
+        "E084",
+        "E085",
+        "E091",
+        "E092",
+        "E093",
+        "E094",
+        "E095",
+        "E096",
+        "E097",
+        "F007",
+        "F009",
+        "F010",
+        "F011",
+        "F012",
+        "F013",
+        "F014"
+      ],
+      "sha256": "08aa73da9556da65d39138d9e40a662843282052699bd09e10894fb3a4867fa1",
+      "report": "design/evaluation/INTERFACES.md"
+    }
+  },
+  "report_relative_links_checked": 95,
+  "baseline": {
+    "id": "baseline-20261004T041647Z",
+    "files_verified": 115,
+    "sha256_mismatches": 0,
+    "manifest_sha256": "3d853e5a13a3c3eac7f150dfa742e26e0d9bf6c652b20fb05da4aa0b2b576106"
+  },
+  "live_baseline_differences": {
+    "paths": [
+      "AGENTS.md",
+      "EVALUATION.md"
+    ],
+    "note": "EVALUATION.md records this completed evaluation. AGENTS.md already differed at the resumed integrity checks and was not edited by the evaluation coordinator. Captured language, app, requirements, supporting design and desired-target files match."
+  },
+  "jev": {
+    "adoption": {
+      "raw_responses": 3,
+      "classified_questions": 9,
+      "paths": [
+        "design/evaluation/evidence/adoption/jev/mock-1.result.json",
+        "design/evaluation/evidence/adoption/jev/mock-2.result.json",
+        "design/evaluation/evidence/adoption/jev/mock-3.result.json"
+      ]
+    },
+    "language": {
+      "raw_responses": 3,
+      "classified_questions": 6,
+      "paths": [
+        "design/evaluation/evidence/language/jev/e102-a.result.json",
+        "design/evaluation/evidence/language/jev/e102-b.result.json",
+        "design/evaluation/evidence/language/jev/e102-c.result.json"
+      ]
+    },
+    "interfaces": {
+      "raw_responses": 3,
+      "classified_questions": 3,
+      "paths": [
+        "design/evaluation/evidence/interfaces/jev/response-1.json",
+        "design/evaluation/evidence/interfaces/jev/response-2.json",
+        "design/evaluation/evidence/interfaces/jev/response-3.json"
+      ]
+    }
+  },
+  "bounded_experiments": {
+    "initial_apps": 2,
+    "ordinary_changes_per_app": 3,
+    "layout_variants": 2,
+    "provider_mapping_exercise": 1,
+    "locale_and_caption_exercises": "C-owned saved evidence",
+    "independent_mandatory_repairs_requested": 0,
+    "independent_final_review": "design/evaluation/evidence/language/experiment-final-review.md"
+  },
+  "verification_limits": [
+    "Report coverage/link/hash checks establish artifact integrity, not business correctness.",
+    "Independent manual source reviews are bounded to pinned journeys and changed paths.",
+    "Can workflows, migrations, frontend behavior and handwritten desired JavaScript were not executed.",
+    "Conventional app Python AST was checked; supplied tests were not executed.",
+    "Reference token counts and observation intervals do not establish equal-behavior or total-task cost superiority.",
+    "Economic assumptions and JEV mock-company advice are not customer evidence or realized savings."
+  ],
+  "remaining_evaluation_deliverables": [],
+  "proposed_future_corrections": {
+    "consolidated_causes": 12,
+    "priority_groups": 6,
+    "plan": "design/evaluation/ADOPTION.md#finite-next-correction-pass",
+    "not_applied": true
+  },
+  "verification_note": "Final record refreshed after the adoption owner saved its last completed-review cross-references; ownership and report links rechecked against the final bytes."
+}

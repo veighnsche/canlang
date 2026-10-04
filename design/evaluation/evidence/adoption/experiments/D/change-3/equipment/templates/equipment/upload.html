@@ -1,0 +1,1 @@
+{% extends 'equipment/base.html' %}{% block content %}<h2>CSV intake</h2><p>Creates requests owned by you in your current department. No ownership or department fields are accepted. Export is an evidence report, not an intake file.</p><form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_div }}<button>Preview rows</button></form>{% endblock %}

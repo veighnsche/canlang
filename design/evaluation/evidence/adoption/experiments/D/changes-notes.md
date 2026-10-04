@@ -1,0 +1,23 @@
+# Bounded later-change attempt — Variant D
+
+Same generation subject: gpt-6.1-sol, medium. Three successive complete draft snapshots preserve initial source and original evidence. Initial independent review requested no mandatory repair; no initial repair was performed. Ordinary self-check corrections occurred inside this one change attempt (caption assertions, historic intake disclosure projection, positive revoke id validation); they are included in the final saved snapshots, not hidden post-review repairs.
+
+## Change 1
+
+Caption title as Request in model-derived form labels, browser table, MCP disclosure labels/tool description and export. The machine title name remains unchanged. Add server-owned archive_reason and a required archive reason browser input/MCP argument. The same mutate archive branch verifies owned row/version/open, trims/requires reason, then records immutable-under-app-contract evidence and archived claims. Other update inputs cannot set archive_reason; archived rows cannot change/reopen. No archive/delete alternative is added. Expected blank reason rejection and preserved evidence appear in behavior.md and draft tests. Schema predecessor remains prospective; legacy archived rows cannot receive invented reasons.
+
+## Change 2
+
+Rename note→details in models/forms/service/browser/MCP/CSV and tests, add optional cost_centre40, narrow Request max160→120. Duplicate policy still uses the initial title/details/private signature; cost centre does not silently change deduplication. Exact Django transition operations use historical models and DB alias: preflight blocks long Request titles, adapts active Intake JSON keys without text normalization and advances preview versions; separate schema RenameField/AddField/AlterField follows. Immutable stored Evidence and completed Intake outcomes retain their historical keys; current outcome disclosure projects copied claims to details/cost_centre. This preserves evidence and current API bindings.
+
+No installed migration graph/population/schema/hash is invented. Transition operations are an explicit list for insertion into correctly generated migrations once actual dependencies are pinned; they are not a runnable deployed Migration history. Stop browser/MCP writers across preflight and schema activation. Preserve real installed nullability if discovered; the prior draft itself has null=False. Existing titles>120 block without truncation. Open records can be explicitly corrected under change1's old versioned contract; archived long titles cannot be corrected under the inherited immutable-archive rule. That is a precise unresolved activation contract requiring business-authorized historical correction, not an assumed exception.
+
+## Change 3
+
+Add explicit company owner/stewards and attributed ReviewGrant, fixed department A, explicit aware expiry and revocation fields. Only current owner/steward authority grants/revokes current member access; no admin/staff/superuser automatic grant. Setup assignments are operator-owned missing deployment input. Review access only extends nonprivate A reads. The one scoped query applies current user/membership, nonrevoked and expires_at>now predicates to list/search/details/export/MCP. Existing owner/manager scopes remain additive; write/archive still query owned requests. Browser and MCP grant/revoke route to canonical services; no interface-specific policy copy. Retained grantor/time and first revoker/time survive revocation. Tests express before/exact expiry, revoked, private/other department exclusion, denied writes, authority, membership and timestamp validity.
+
+Multiple grants remain additive: revoke removes the selected grant, and other independently effective grants still apply. Owners/stewards inspect all company grant metadata and can revoke each; they do not gain broad equipment-request access. New admissions recheck state; already-admitted downloads/in-flight reads are not canceled or clawed back.
+
+## Verification and limits
+
+Python AST parsed all10 files in change1, all11 in change2, all11 in change3. Draft tests14/15/17 were supplied, none executed. Original manifest verification matched25 saved initial evidence artifacts. Django and MCP remain absent, with no installation attempted. No model/form/template runtime, framework test, migration execution, PostgreSQL race/lock test, browser/accessibility or MCP handshake was verified. Initial stdio client/credential setup and PostgreSQL production assumptions remain. Hidden usage/billing/tokens are null; source-byte and file counts are observed. These are reviewable draft changes, not application execution proof.

@@ -1,0 +1,62 @@
+{
+  "variant": "C",
+  "attempt": "initial",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "start_observed_utc": "2026-10-04 05:14:34 UTC",
+  "end_observed_utc": "2026-10-04 05:18:39 UTC",
+  "elapsed_observed_seconds": 245,
+  "artifacts": {
+    "initial.can": {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/initial.can",
+      "bytes": 5425,
+      "sha256": "11e3d7456ff056d2c1b4875d701ec130e2a51e8c36b3b65ecbe0a52f8efbea01"
+    },
+    "assumptions.md": {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/assumptions.md",
+      "bytes": 8988,
+      "sha256": "ab772aac9c520e3b8bee9841f52a6735596a7fe3e01ef85f6d3bab9165e9f88c"
+    },
+    "context.md": {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/context.md",
+      "bytes": 127484,
+      "sha256": "e811c0f8f2440cdf3bd36d4e12d7e19d7ec09f69b8b650a9d0acc024f3196297"
+    },
+    "supplied-docs.json": {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/supplied-docs.json",
+      "bytes": 6660,
+      "sha256": "e14cf867fd6bab7a9b098dc3e173207164c1babd09e83fce55ca6bbaa7dcf347"
+    }
+  },
+  "checks": [
+    {
+      "command": "python3 tools/can_parser.py design/evaluation/evidence/adoption/experiments/C/initial.can",
+      "runs": 2,
+      "exit_code": 1,
+      "result": "initial.can:64:24: syntax: unsupported attribute import",
+      "scope": "structural syntax prototype only; frozen grammar documents unsupported CSV attributes",
+      "execution_claim": false
+    },
+    {
+      "name": "manual source self-check",
+      "scope": "business brief and selected frozen contract; removed enum-valued search selector during initial attempt",
+      "execution_claim": false
+    }
+  ],
+  "usage": {
+    "input_tokens": null,
+    "output_tokens": null,
+    "reasoning_tokens": null,
+    "cached_tokens": null,
+    "billing_total": null,
+    "hidden_dispatcher_context_tokens": null,
+    "visible_prompt_source_tokens": null
+  },
+  "usage_unavailable_reason": "No per-agent usage/billing measurements returned; token totals are not inferred from shell output token counts.",
+  "wall_time_boundary": "First observed UTC after instruction/protocol read through final check observation; excludes dispatcher/startup and final evidence-file writing.",
+  "external_live_data_access": false,
+  "review_received": false,
+  "separate_post_review_repair": false,
+  "jev_consulted": false,
+  "subagents_spawned": false
+}

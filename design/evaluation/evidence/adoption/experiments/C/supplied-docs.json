@@ -1,0 +1,181 @@
+{
+  "variant": "C",
+  "attempt": "initial",
+  "context_boundary": "Selected ranges below were observed; full-source byte sizes and hashes identify versions and do not claim unread full-file context. Broad cat/sed/rg outputs sometimes truncated. Preserve selected reproducible excerpts in context.md.",
+  "documents": [
+    {
+      "path": "/Users/vince/Projects/canlang/AGENTS.md",
+      "version": "workspace version observed 2026-10-04",
+      "source_sha256": "58c76f42e3129422a6f45e35803d91eb90b9e7656bd6b60e813de2e342b691aa",
+      "source_bytes": 1299,
+      "selected_read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 9,
+          "bytes": 1299,
+          "sha256": "58c76f42e3129422a6f45e35803d91eb90b9e7656bd6b60e813de2e342b691aa"
+        }
+      ]
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiment-protocol.md",
+      "version": "pinned 2026-10-04 protocol",
+      "source_sha256": "0cf84218a94c58c2271b3c976bdba306d0a2b47689fda29173b32e4aca7ddcb9",
+      "source_bytes": 6272,
+      "selected_read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 29,
+          "bytes": 6272,
+          "sha256": "0cf84218a94c58c2271b3c976bdba306d0a2b47689fda29173b32e4aca7ddcb9"
+        }
+      ]
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/language/rules.md",
+      "version": "workspace version observed 2026-10-04",
+      "source_sha256": "13706ed56b05c5c2bea1d8438e32113df0b6375c88997b2cd12b94496cc47a5c",
+      "source_bytes": 5403,
+      "selected_read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 27,
+          "bytes": 5403,
+          "sha256": "13706ed56b05c5c2bea1d8438e32113df0b6375c88997b2cd12b94496cc47a5c"
+        }
+      ]
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/examples/TeamTasks.can",
+      "version": "frozen baseline 20261004T041647Z",
+      "source_sha256": "89f28215fe6a825083581dedccd0268433581c4000a03e1971dfa2dccccc92fa",
+      "source_bytes": 2936,
+      "selected_read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 51,
+          "bytes": 2936,
+          "sha256": "89f28215fe6a825083581dedccd0268433581c4000a03e1971dfa2dccccc92fa"
+        }
+      ]
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/REQUIREMENTS.md",
+      "version": "frozen baseline 20261004T041647Z",
+      "source_sha256": "ebc28650fb0308cf46fb927428b8ec68df04d423eb0f3c289f83ba0ad445259a",
+      "source_bytes": 40223,
+      "selected_read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 120,
+          "bytes": 19663,
+          "sha256": "734ea5475e4764bd440d31d56c56dac04c6875545d10ea348b6ee43f1290f8bb"
+        }
+      ]
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md",
+      "version": "frozen baseline 20261004T041647Z",
+      "source_sha256": "5e0fbb7b13ddcf95f75cfce66bae9df6778b9c106534d3030278f269f7b0aab9",
+      "source_bytes": 192381,
+      "selected_read_ranges": [
+        {
+          "start_line": 15,
+          "end_line": 45,
+          "bytes": 5627,
+          "sha256": "9b1cc42c89f9973306ebf438d64861d029b8bdeb1c6efa7150377caf58f6dc59"
+        },
+        {
+          "start_line": 95,
+          "end_line": 135,
+          "bytes": 8032,
+          "sha256": "c1016832e6bed58a0baa6dad6c64e2835c3a06df7e7c0b2c0714cca1e826697f"
+        },
+        {
+          "start_line": 150,
+          "end_line": 178,
+          "bytes": 7082,
+          "sha256": "3008b6d2a9ef27e308a836c0b2e5ad1e143cc908ccb55d503b9406930d67d92b"
+        },
+        {
+          "start_line": 270,
+          "end_line": 393,
+          "bytes": 24574,
+          "sha256": "4daa6e5bfc630a7b8ad2a39213bf6d23c740e2e63aa436f436252870abfd3512"
+        },
+        {
+          "start_line": 599,
+          "end_line": 617,
+          "bytes": 9946,
+          "sha256": "1478fe44dc30f85f5ca950863379a7382ba34c16d1b9bf22d86ee63553192162"
+        },
+        {
+          "start_line": 729,
+          "end_line": 741,
+          "bytes": 5287,
+          "sha256": "7781d39acfad72ff99172e8673583e3ebf445cae57be9afd0123b86737d1c3da"
+        }
+      ]
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/GRAMMAR.md",
+      "version": "frozen baseline 20261004T041647Z",
+      "source_sha256": "6e704489c6342df41435089845e4c75e1983f965b6f20059bc474c535c612bc5",
+      "source_bytes": 54465,
+      "selected_read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 40,
+          "bytes": 4495,
+          "sha256": "4556968f4c9eb2c93de78e738161aa43dafcdb8fa96aca8208c550a06f8d07ef"
+        },
+        {
+          "start_line": 99,
+          "end_line": 150,
+          "bytes": 5689,
+          "sha256": "c323745f053632ade776b5323235b49b44c377434fc8c22eac5a8f2c575ae9c7"
+        },
+        {
+          "start_line": 165,
+          "end_line": 235,
+          "bytes": 7405,
+          "sha256": "2a3ee54cff42093ef566d946cbd012906e531c2f359dbd5720e0caab1d8f9b42"
+        },
+        {
+          "start_line": 261,
+          "end_line": 340,
+          "bytes": 9201,
+          "sha256": "7ecce29483aaf86d1a61619b0eece393fa4c2c4bfab53d4454641b38d1cb9bad"
+        }
+      ]
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/tools/can_parser.py",
+      "version": "workspace version observed 2026-10-04",
+      "source_sha256": "5e9f2ef954e6af2ac34a73e551e487496704c9f8457786173564c163716a7a32",
+      "source_bytes": 67112,
+      "selected_read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 90,
+          "bytes": 2792,
+          "sha256": "64b3ac301b279ab4b0e3985043bdf573289edb21e17b1bf2944db9900d732825"
+        }
+      ]
+    }
+  ],
+  "other_observed_tool_context": [
+    {
+      "path": "/Users/vince/Projects/canlang/tools/can_parser.py",
+      "range": "last 65 lines (CLI invocation discovery)",
+      "full_file_context": false
+    }
+  ],
+  "acquisition_notes": [
+    "Baseline file inventory read only to locate the mandated files.",
+    "A broad DESIGN heading/keyword search returned truncated output.",
+    "Full GRAMMAR retrieval and combined REQUIREMENTS/DESIGN retrieval returned truncated output.",
+    "Targeted line-range reads supplied the selected context; section 599\u2013617 supplied CSV contract and section 729\u2013741 supplied error codes.",
+    "The tool parser implementation was consulted only for CLI invocation, not treated as design authority."
+  ]
+}

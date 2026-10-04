@@ -1,0 +1,20 @@
+{
+  "method": "Identical intact package declarations in both layouts. Single concatenates complete CanExpense, Employees and Locations with one newline separator; packaged preserves existing file placement names. No declaration split, semantic or identity edits. Whole-owner dependency closure is the same.",
+  "source_files": [
+    {
+      "source": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanExpense.can",
+      "bytes": 13335,
+      "sha256": "71f89e2f253c7d7bfabd3d896ea0d8bf7512ba98928d38fe02dba2dbd5aed666"
+    },
+    {
+      "source": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/shared/Employees.can",
+      "bytes": 3073,
+      "sha256": "5af7826104ec480d11e55b0970408947ceb7ba00ca7f3abdaca4f0a1a0d63970"
+    },
+    {
+      "source": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/shared/Locations.can",
+      "bytes": 11063,
+      "sha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a"
+    }
+  ]
+}
