@@ -30,7 +30,7 @@ jobs:
           node-version: 24
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.4.2"
       - name: Guard owned-contract imports
         run: |
           # Lane-05 sources may import only the lane-05-owned contract file until

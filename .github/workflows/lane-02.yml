@@ -25,7 +25,7 @@ jobs:
           node-version: "22"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.4.2"
       # Root install: the single lane-07-owned bun.lock covers every
       # workspace member. Run steps stay in the member dir; `bun run test`
       # (never bare `bun test`) executes the package's own node:test script.
