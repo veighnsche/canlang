@@ -15,6 +15,7 @@ import {
   WORK_SUPERSESSION_MODEL,
   dispatchByOriginQuery,
   dispatchByStateQuery,
+  everySlotRowId,
   newDispatchRow,
   newEverySlotRow,
   newOccurrenceRow,
@@ -76,6 +77,7 @@ describe('kernel tables: dispatch rows', () => {
       errorMessage: null,
       availableAtMs: null,
       firstAttemptAtMs: null,
+      retryClass: null,
     });
   });
 
@@ -106,6 +108,25 @@ describe('kernel tables: dispatch rows', () => {
     );
     assert.throws(
       () => readDispatchRow(rowWithData({ ...base, claimedAtMs: Number.NaN })),
+      KernelTableError,
+    );
+  });
+
+  it('defaults retryClass to null and rejects unknown classes', () => {
+    const row = newDispatchRow(
+      {
+        intentId: 'op_1#0',
+        operationId: 'op_1',
+        source: 's',
+        occurrenceIndex: 0,
+        originOccurrence: null,
+      },
+      META,
+    );
+    assert.equal(readDispatchRow(row).retryClass, null);
+    const base = readDispatchRow(row);
+    assert.throws(
+      () => readDispatchRow(rowWithData({ ...base, retryClass: 'sometimes' })),
       KernelTableError,
     );
   });
@@ -158,6 +179,7 @@ describe('kernel tables: schedule rows', () => {
         at: META.nowMs,
         event: 'expense.remind',
         payload: { n: 1 },
+        replaces: 'occ_2',
         state: 'pending',
       },
       META,
@@ -185,6 +207,7 @@ describe('kernel tables: schedule rows', () => {
             at: 1,
             event: 'e',
             payload: [1],
+            replaces: null,
             state: 'pending',
           }),
         ),
@@ -202,8 +225,51 @@ describe('kernel tables: schedule rows', () => {
             at: 1,
             event: 'e',
             payload: {},
+            replaces: null,
             state: 'due',
           }),
+        ),
+      KernelTableError,
+    );
+  });
+
+  it('round-trips the replaces lineage link', () => {
+    const row = newScheduleRow(
+      {
+        occurrenceId: 'occ_10',
+        key: 'reminder',
+        scopeApp: 'CanExpense',
+        scopeOwner: 'team_1',
+        scopeOwnerPackage: 'expense',
+        at: META.nowMs,
+        event: 'expense.remind',
+        payload: {},
+        replaces: 'occ_9',
+        state: 'pending',
+      },
+      META,
+    );
+    assert.equal(readScheduleRow(row).replaces, 'occ_9');
+    const fresh = newScheduleRow(
+      {
+        occurrenceId: 'occ_1',
+        key: 'reminder',
+        scopeApp: 'CanExpense',
+        scopeOwner: 'team_1',
+        scopeOwnerPackage: 'expense',
+        at: META.nowMs,
+        event: 'expense.remind',
+        payload: {},
+        replaces: null,
+        state: 'pending',
+      },
+      META,
+    );
+    assert.equal(readScheduleRow(fresh).replaces, null);
+    assert.throws(
+      () =>
+        readScheduleRow(
+          rowWithData({ ...readScheduleRow(row), replaces: 7 }),
         ),
       KernelTableError,
     );
@@ -211,7 +277,7 @@ describe('kernel tables: schedule rows', () => {
 });
 
 describe('kernel tables: every-slot and supersession rows', () => {
-  it('round-trips slot trackers keyed by scope key', () => {
+  it('round-trips slot trackers keyed by app, handler and scope', () => {
     const row = newEverySlotRow(
       {
         scopeKey: 'team:team_1',
@@ -223,7 +289,10 @@ describe('kernel tables: every-slot and supersession rows', () => {
       },
       META,
     );
-    assert.equal(row.id, 'team:team_1');
+    assert.equal(
+      row.id,
+      everySlotRowId('CanTasks', 'TeamTasks.tick', 'team', 'team_1'),
+    );
     assert.deepEqual(readEverySlotRow(row).slot, 42);
     assert.throws(
       () =>
@@ -239,6 +308,33 @@ describe('kernel tables: every-slot and supersession rows', () => {
         ),
       KernelTableError,
     );
+  });
+
+  it('keys tracker ids per app and handler', () => {
+    const first = newEverySlotRow(
+      {
+        scopeKey: 'team:team_1',
+        app: 'CanTasks',
+        handler: 'A.tick',
+        scope: 'team',
+        owner: 'team_1',
+        slot: 1,
+      },
+      META,
+    );
+    const second = newEverySlotRow(
+      {
+        scopeKey: 'team:team_1',
+        app: 'CanTasks',
+        handler: 'B.tick',
+        scope: 'team',
+        owner: 'team_1',
+        slot: 1,
+      },
+      META,
+    );
+    assert.notEqual(first.id, second.id);
+    assert.equal(readEverySlotRow(first).scopeKey, 'team:team_1');
   });
 
   it('round-trips supersession marks', () => {
@@ -307,12 +403,38 @@ describe('kernel tables: updates and queries', () => {
             at: 1,
             event: 'e',
             payload: { bad: 7n } as unknown as Record<string, unknown>,
+            replaces: null,
             state: 'pending',
           },
           META,
         ),
       KernelTableError,
     );
+  });
+
+  it('builders deep-isolate nested staged data', () => {
+    const payload = { nested: { n: 1 } };
+    const row = newScheduleRow(
+      {
+        occurrenceId: 'occ_1',
+        key: 'reminder',
+        scopeApp: 'a',
+        scopeOwner: 't',
+        scopeOwnerPackage: 'p',
+        at: META.nowMs,
+        event: 'e',
+        payload,
+        replaces: null,
+        state: 'pending',
+      },
+      META,
+    );
+    payload.nested.n = 2;
+    assert.deepEqual(readScheduleRow(row).payload, { nested: { n: 1 } });
+    const data = readScheduleRow(row);
+    const next = withRowData(row, { ...data }, META, 'work.schedule');
+    (data.payload['nested'] as Record<string, unknown>)['n'] = 3;
+    assert.deepEqual(readScheduleRow(next).payload, { nested: { n: 1 } });
   });
 
   it('query builders address flat fields on the owned models', () => {

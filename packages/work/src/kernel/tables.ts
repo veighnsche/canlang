@@ -13,8 +13,11 @@
  *   `OccurrenceReceipt` put-if-absent.
  * - `work.schedule` (id = occurrence id): keyed schedule lineage, mirroring
  *   `ScheduledOccurrence` with the scope flattened for querying.
- * - `work.every_slot` (id = scope key): last admitted `every` slot per
- *   fanout scope, backing `admitEveryTick` coalescing durably.
+ * - `work.every_slot` (id = app/handler/scope/owner tuple): last
+ *   admitted `every` slot per fanout scope, backing `admitEveryTick`
+ *   coalescing durably. `admitEveryTick` scopes its `previousSlots`
+ *   map per (app, handler) call, so the durable id qualifies the
+ *   scope key with both; the `scopeKey` field keeps the map key.
  * - `work.supersession` (id = outbox id): superseded delivery intents,
  *   mirroring `SupersessionPort`.
  *
@@ -42,6 +45,7 @@ import type {
   OutboxId,
   OutboxItemState,
   RecurringScope,
+  RetryClass,
   ScheduledOccurrenceState,
   WorkScope,
 } from '../../../contracts/src/work.js';
@@ -83,6 +87,13 @@ export interface DispatchRowData {
   readonly availableAtMs: number | null;
   /** First provider-attempt start (claim time), for horizon checks. */
   readonly firstAttemptAtMs: number | null;
+  /**
+   * Failure classification from `record-attempt`, mirroring
+   * `classifyFailure`. Only `failed` rows carry one; `requeue` retries
+   * transient failures and refuses terminal (or unclassified) ones, so
+   * a sweeper can never resurrect a terminal business failure.
+   */
+  readonly retryClass: RetryClass | null;
 }
 
 /** Execution receipt per admitted occurrence. */
@@ -105,6 +116,12 @@ export interface ScheduleRowData {
   readonly at: number;
   readonly event: string;
   readonly payload: Readonly<Record<string, unknown>>;
+  /**
+   * Previous lineage head this entry observed, if any. Occurrence ids
+   * are opaque (`OccurrenceIdPort` promises no ordering), so the head
+   * resolves through this backward link — never by id comparison.
+   */
+  readonly replaces: OccurrenceId | null;
   readonly state: ScheduledOccurrenceState;
 }
 
@@ -261,6 +278,12 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
   if (guardVerdict !== null && typeof guardVerdict !== 'boolean') {
     throw new KernelTableError('work.dispatch.guardVerdict must be boolean or null.');
   }
+  const retryClass = data['retryClass'];
+  if (retryClass !== null && retryClass !== 'transient' && retryClass !== 'terminal') {
+    throw new KernelTableError(
+      'work.dispatch.retryClass must be transient, terminal or null.',
+    );
+  }
   return {
     intentId: checkString(data, 'intentId', 'work.dispatch'),
     operationId: checkString(data, 'operationId', 'work.dispatch'),
@@ -277,6 +300,7 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
     errorMessage: checkNullableString(data, 'errorMessage', 'work.dispatch'),
     availableAtMs: checkNullableInstant(data, 'availableAtMs', 'work.dispatch'),
     firstAttemptAtMs: checkNullableInstant(data, 'firstAttemptAtMs', 'work.dispatch'),
+    retryClass: retryClass as RetryClass | null,
   };
 }
 
@@ -315,6 +339,7 @@ export function readScheduleRow(row: StoredRow): ScheduleRowData {
     at: checkInstant(data, 'at', 'work.schedule'),
     event: checkString(data, 'event', 'work.schedule'),
     payload: checkRecord(data['payload'], 'work.schedule.payload'),
+    replaces: checkNullableString(data, 'replaces', 'work.schedule') as OccurrenceId | null,
     state: state as ScheduledOccurrenceState,
   };
 }
@@ -386,7 +411,8 @@ function newRow(
     updatedBy: meta.actor,
     archivedAt: null,
     parent: null,
-    data: { ...data },
+    // Deep clone: staged rows must not alias caller-owned nested data.
+    data: structuredClone(data),
   };
 }
 
@@ -412,7 +438,8 @@ export function withRowData(
     version: (row.version + 1) as RecordVersion,
     updated: meta.nowMs,
     updatedBy: meta.actor,
-    data: { ...data },
+    // Deep clone: staged rows must not alias caller-owned nested data.
+    data: structuredClone(data),
   };
 }
 
@@ -436,6 +463,7 @@ export function newDispatchRow(
     errorMessage: null,
     availableAtMs: null,
     firstAttemptAtMs: null,
+    retryClass: null,
   };
   return newRow(input.intentId, data as unknown as Record<string, unknown>, meta, 'work.dispatch');
 }
@@ -466,13 +494,28 @@ export function newScheduleRow(
   );
 }
 
-/** Every-slot tracker row (id = scope key). */
+/**
+ * Durable every-slot tracker id. Qualified by app and handler because
+ * `admitEveryTick` coalesces per (app, handler, scope, owner): two
+ * handlers sharing a team owner must never share one tracker row.
+ * Components are encoded so `/` separators stay unambiguous.
+ */
+export function everySlotRowId(
+  app: string,
+  handler: string,
+  scope: RecurringScope,
+  owner: string,
+): string {
+  return `every/v1/${encodeURIComponent(app)}/${encodeURIComponent(handler)}/${scope}/${encodeURIComponent(owner)}`;
+}
+
+/** Every-slot tracker row (id = app/handler/scope/owner tuple). */
 export function newEverySlotRow(
   input: EverySlotRowData,
   meta: NewRowMeta,
 ): StoredRow {
   return newRow(
-    input.scopeKey,
+    everySlotRowId(input.app, input.handler, input.scope, input.owner),
     input as unknown as Record<string, unknown>,
     meta,
     'work.every_slot',

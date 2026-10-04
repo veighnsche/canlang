@@ -244,6 +244,27 @@ describe('kernel commands: dispatch.claim', () => {
     assert.equal(staged.writes, undefined);
   });
 
+  it('reports settled before guard-false on terminal rows', async () => {
+    const row = dispatchRow('op_1#0', { state: 'failed', guardVerdict: false });
+    const ctx = fakeCtx(seed([{ model: WORK_DISPATCH_MODEL, row }]));
+    const staged = await workDispatchClaimCommand.stage(
+      {
+        intentId: 'op_1#0',
+        claimId: 'claim_1',
+        claimedAtMs: NOW,
+        maxClaimAgeMs: MAX_AGE,
+      },
+      ctx,
+    );
+    assert.deepEqual(staged.result, {
+      claimed: false,
+      reason: 'settled',
+      intentId: 'op_1#0',
+      state: 'failed',
+    });
+    assert.equal(staged.writes, undefined);
+  });
+
   it('throws loudly on missing rows and bad args', async () => {
     const ctx = fakeCtx(seed([]));
     await assert.rejects(
@@ -371,6 +392,42 @@ describe('kernel commands: dispatch.record-attempt', () => {
     assert.deepEqual(skipped.outboxAck, ['op_1#1']);
   });
 
+  it('requires a retry class on failed outcomes and stores it', async () => {
+    const row = dispatchRow('op_1#0', {
+      state: 'claimed',
+      claimId: 'claim_1',
+      claimedAtMs: NOW,
+    });
+    const ctx = fakeCtx(seed([{ model: WORK_DISPATCH_MODEL, row }]));
+    await assert.rejects(
+      runStage(
+        workDispatchRecordAttemptCommand.stage,
+        {
+          intentId: 'op_1#0',
+          claimId: 'claim_1',
+          outcome: { state: 'failed', errorCode: 'boom' },
+          ack: false,
+        },
+        ctx,
+      ),
+      /retryClass must be transient or terminal/,
+    );
+    const staged = await workDispatchRecordAttemptCommand.stage(
+      {
+        intentId: 'op_1#0',
+        claimId: 'claim_1',
+        outcome: { state: 'failed', retryClass: 'transient', errorCode: 'boom' },
+        ack: false,
+      },
+      ctx,
+    );
+    const write = staged.writes?.[0];
+    assert.equal(write?.kind, 'update');
+    if (write?.kind === 'update') {
+      assert.equal(readDispatchRow(write.row).retryClass, 'transient');
+    }
+  });
+
   it('rejects rival claims, unclaimed rows and malformed outcomes', async () => {
     const row = dispatchRow('op_1#0', {
       state: 'claimed',
@@ -457,6 +514,7 @@ describe('kernel commands: dispatch.requeue', () => {
       state: 'failed',
       attempts: 2,
       firstAttemptAtMs: NOW - 500,
+      retryClass: 'transient',
       deliveryId: null,
       errorCode: 'provider_rejected',
       errorMessage: 'no',
@@ -470,7 +528,7 @@ describe('kernel commands: dispatch.requeue', () => {
     );
     for (const intentId of ['op_1#0', 'op_1#1']) {
       const staged = await workDispatchRequeueCommand.stage(
-        { intentId, maxAttempts: 8, horizonMs: 3_600_000 },
+        { intentId, maxAttempts: 8, horizonMs: 3_600_000, notFound: true },
         ctx,
       );
       assert.deepEqual(staged.result, {
@@ -488,10 +546,67 @@ describe('kernel commands: dispatch.requeue', () => {
         assert.equal(data.errorCode, null);
         assert.equal(data.errorMessage, null);
         assert.equal(data.availableAtMs, null);
+        assert.equal(data.retryClass, null);
         // Horizon anchor survives across attempts.
         assert.equal(data.firstAttemptAtMs, NOW - 500);
       }
     }
+  });
+
+  it('refuses terminal failures and evidence-less uncertain rows', async () => {
+    const terminal = dispatchRow('op_1#0', {
+      state: 'failed',
+      attempts: 1,
+      firstAttemptAtMs: NOW - 500,
+      retryClass: 'terminal',
+      errorCode: 'require-false',
+      availableAtMs: null,
+    });
+    const unclassified = dispatchRow('op_1#1', {
+      state: 'failed',
+      attempts: 1,
+      firstAttemptAtMs: NOW - 500,
+      errorCode: 'boom',
+      availableAtMs: null,
+    });
+    const unknown = dispatchRow('op_1#2', {
+      state: 'uncertain',
+      attempts: 1,
+      firstAttemptAtMs: NOW - 500,
+      availableAtMs: null,
+    });
+    const ctx = fakeCtx(
+      seed([
+        { model: WORK_DISPATCH_MODEL, row: terminal },
+        { model: WORK_DISPATCH_MODEL, row: unclassified },
+        { model: WORK_DISPATCH_MODEL, row: unknown },
+      ]),
+    );
+    for (const intentId of ['op_1#0', 'op_1#1']) {
+      const refused = await workDispatchRequeueCommand.stage(
+        { intentId, maxAttempts: 8, horizonMs: 3_600_000 },
+        ctx,
+      );
+      assert.deepEqual(refused.result, {
+        requeued: false,
+        dead: false,
+        intentId,
+        reason: 'terminal',
+        state: 'failed',
+      });
+      assert.equal(refused.writes, undefined);
+    }
+    const needsEvidence = await workDispatchRequeueCommand.stage(
+      { intentId: 'op_1#2', maxAttempts: 8, horizonMs: 3_600_000 },
+      ctx,
+    );
+    assert.deepEqual(needsEvidence.result, {
+      requeued: false,
+      dead: false,
+      intentId: 'op_1#2',
+      reason: 'needs-evidence',
+    });
+    assert.equal(needsEvidence.writes, undefined);
   });
 
   it('holds deferred rows and dead-letters exhausted ones', async () => {
@@ -505,6 +620,7 @@ describe('kernel commands: dispatch.requeue', () => {
       state: 'failed',
       attempts: 8,
       firstAttemptAtMs: NOW - 500,
+      retryClass: 'transient',
     });
     const timedOut = dispatchRow('op_1#2', {
       state: 'uncertain',
@@ -519,7 +635,7 @@ describe('kernel commands: dispatch.requeue', () => {
       ]),
     );
     const held = await workDispatchRequeueCommand.stage(
-      { intentId: 'op_1#0', maxAttempts: 8, horizonMs: 3_600_000 },
+      { intentId: 'op_1#0', maxAttempts: 8, horizonMs: 3_600_000, notFound: true },
       ctx,
     );
     assert.deepEqual(held.result, {
@@ -532,7 +648,7 @@ describe('kernel commands: dispatch.requeue', () => {
     assert.equal(held.writes, undefined);
     for (const intentId of ['op_1#1', 'op_1#2']) {
       const dead = await workDispatchRequeueCommand.stage(
-        { intentId, maxAttempts: 8, horizonMs: 3_600_000 },
+        { intentId, maxAttempts: 8, horizonMs: 3_600_000, notFound: true },
         ctx,
       );
       assert.deepEqual(dead.result, {
@@ -752,6 +868,7 @@ function scheduleRow(
       at: NOW + 1000,
       event: 'expense.remind',
       payload: {},
+      replaces: null,
       state: 'pending',
       ...over,
     },
@@ -776,6 +893,7 @@ describe('kernel commands: schedule.put', () => {
     assert.deepEqual(staged.result, {
       admitted: 'occ_1',
       supersededId: null,
+      supersededIds: [],
       affectedOutboxIds: [],
     });
     assert.equal(staged.writes?.length, 1);
@@ -815,12 +933,73 @@ describe('kernel commands: schedule.put', () => {
     assert.deepEqual(staged.result, {
       admitted: 'occ_2',
       supersededId: 'occ_1',
+      supersededIds: ['occ_1'],
       affectedOutboxIds: ['op_1#0'],
     });
     // Supersede update + lineage insert + supersession mark.
     assert.equal(staged.writes?.length, 3);
     const kinds = staged.writes?.map((write) => write.kind);
     assert.deepEqual(kinds, ['update', 'insert', 'insert']);
+  });
+
+  it('follows replaces linkage past lexicographic order', async () => {
+    const old = scheduleRow('occ_9', { state: 'superseded' });
+    const head = scheduleRow('occ_10', { replaces: 'occ_9' });
+    const ctx = fakeCtx(
+      seed([
+        { model: WORK_SCHEDULE_MODEL, row: old },
+        { model: WORK_SCHEDULE_MODEL, row: head },
+      ]),
+    );
+    const staged = await workSchedulePutCommand.stage(
+      {
+        key: 'reminder',
+        scope: SCOPE,
+        at: NOW + 2000,
+        event: 'expense.remind',
+        payload: {},
+        occurrenceId: 'occ_11',
+      },
+      ctx,
+    );
+    assert.deepEqual(staged.result, {
+      admitted: 'occ_11',
+      supersededId: 'occ_10',
+      supersededIds: ['occ_10'],
+      affectedOutboxIds: [],
+    });
+  });
+
+  it('converges racing twin heads on the next put', async () => {
+    const old = scheduleRow('occ_9', { state: 'superseded' });
+    const twinA = scheduleRow('occ_10', { replaces: 'occ_9' });
+    const twinB = scheduleRow('occ_11', { replaces: 'occ_9' });
+    const ctx = fakeCtx(
+      seed([
+        { model: WORK_SCHEDULE_MODEL, row: old },
+        { model: WORK_SCHEDULE_MODEL, row: twinA },
+        { model: WORK_SCHEDULE_MODEL, row: twinB },
+      ]),
+    );
+    const staged = await workSchedulePutCommand.stage(
+      {
+        key: 'reminder',
+        scope: SCOPE,
+        at: NOW + 2000,
+        event: 'expense.remind',
+        payload: {},
+        occurrenceId: 'occ_12',
+      },
+      ctx,
+    );
+    assert.deepEqual(staged.result, {
+      admitted: 'occ_12',
+      supersededId: 'occ_11',
+      supersededIds: ['occ_11', 'occ_10'],
+      affectedOutboxIds: [],
+    });
+    // Two supersede updates + the lineage insert.
+    assert.equal(staged.writes?.length, 3);
   });
 
   it('leaves non-pending predecessors to complete and rejects bad payloads', async () => {
@@ -840,6 +1019,7 @@ describe('kernel commands: schedule.put', () => {
     assert.deepEqual(staged.result, {
       admitted: 'occ_2',
       supersededId: null,
+      supersededIds: [],
       affectedOutboxIds: [],
     });
     assert.equal(staged.writes?.length, 1);
@@ -877,10 +1057,54 @@ describe('kernel commands: schedule.cancel', () => {
     );
     assert.deepEqual(staged.result, {
       cancelled: 'occ_1',
+      cancelledIds: ['occ_1'],
       affectedOutboxIds: ['op_1#0'],
     });
     assert.equal(staged.writes?.length, 2);
     assert.deepEqual(staged.schedules, [{ op: 'cancel', key: 'reminder' }]);
+  });
+
+  it('cancels the linked head past lexicographic order', async () => {
+    const old = scheduleRow('occ_9', { state: 'superseded' });
+    const head = scheduleRow('occ_10', { replaces: 'occ_9' });
+    const ctx = fakeCtx(
+      seed([
+        { model: WORK_SCHEDULE_MODEL, row: old },
+        { model: WORK_SCHEDULE_MODEL, row: head },
+      ]),
+    );
+    const staged = await workScheduleCancelCommand.stage(
+      { key: 'reminder', scope: SCOPE },
+      ctx,
+    );
+    assert.deepEqual(staged.result, {
+      cancelled: 'occ_10',
+      cancelledIds: ['occ_10'],
+      affectedOutboxIds: [],
+    });
+  });
+
+  it('cancels every live head on a raced key', async () => {
+    const old = scheduleRow('occ_9', { state: 'superseded' });
+    const twinA = scheduleRow('occ_10', { replaces: 'occ_9' });
+    const twinB = scheduleRow('occ_11', { replaces: 'occ_9' });
+    const ctx = fakeCtx(
+      seed([
+        { model: WORK_SCHEDULE_MODEL, row: old },
+        { model: WORK_SCHEDULE_MODEL, row: twinA },
+        { model: WORK_SCHEDULE_MODEL, row: twinB },
+      ]),
+    );
+    const staged = await workScheduleCancelCommand.stage(
+      { key: 'reminder', scope: SCOPE },
+      ctx,
+    );
+    assert.deepEqual(staged.result, {
+      cancelled: 'occ_11',
+      cancelledIds: ['occ_11', 'occ_10'],
+      affectedOutboxIds: [],
+    });
+    assert.equal(staged.writes?.length, 2);
   });
 
   it('no-ops on missing and terminal keys', async () => {
@@ -892,7 +1116,7 @@ describe('kernel commands: schedule.cancel', () => {
           missing,
         )
       ).result,
-      { cancelled: null, affectedOutboxIds: [] },
+      { cancelled: null, cancelledIds: [], affectedOutboxIds: [] },
     );
     const terminal = fakeCtx(
       seed([
@@ -908,6 +1132,7 @@ describe('kernel commands: schedule.cancel', () => {
     );
     assert.deepEqual(staged.result, {
       cancelled: 'occ_1',
+      cancelledIds: [],
       affectedOutboxIds: [],
     });
     assert.equal(staged.writes, undefined);
@@ -978,6 +1203,41 @@ describe('kernel commands: every.advance-slot', () => {
       slot: 43,
     });
     assert.equal(advanced.writes?.length, 1);
+  });
+
+  it('tracks slots independently per app and handler', async () => {
+    const empty = fakeCtx(seed([]));
+    const first = await workEveryAdvanceSlotCommand.stage(
+      {
+        app: 'CanTasks',
+        handler: 'A.tick',
+        scope: 'team',
+        owner: 'team_1',
+        slot: 42,
+      },
+      empty,
+    );
+    const write = first.writes?.[0];
+    assert.equal(write?.kind, 'insert');
+    if (write?.kind !== 'insert') {
+      assert.fail('expected the initializing advance to stage an insert');
+    }
+    const ctx = fakeCtx(seed([{ model: WORK_EVERY_SLOT_MODEL, row: write.row }]));
+    const second = await workEveryAdvanceSlotCommand.stage(
+      {
+        app: 'CanTasks',
+        handler: 'B.tick',
+        scope: 'team',
+        owner: 'team_1',
+        slot: 42,
+      },
+      ctx,
+    );
+    assert.deepEqual(second.result, {
+      advanced: true,
+      previous: null,
+      slot: 42,
+    });
   });
 
   it('rejects root scopes exactly like admission', async () => {

@@ -41,6 +41,7 @@ import type {
   OccurrenceId,
   OutboxId,
   OutboxItemState,
+  RetryClass,
   WorkScope,
 } from '../../../contracts/src/work.js';
 import {
@@ -51,6 +52,7 @@ import {
   WORK_SCHEDULE_MODEL,
   WORK_SUPERSESSION_MODEL,
   dispatchByOriginQuery,
+  everySlotRowId,
   newEverySlotRow,
   newOccurrenceRow,
   newScheduleRow,
@@ -196,10 +198,12 @@ export const workDispatchClaimCommand: SystemCommandDef = {
     if (superseded !== null) {
       return { result: { claimed: false, reason: 'superseded', intentId } };
     }
-    if (data.guardVerdict === false) {
-      return { result: { claimed: false, reason: 'guard-false', intentId } };
-    }
     if (data.state === 'pending') {
+      // Guard pins are pending-row business: settled rows report
+      // `settled` below even when they recorded a false verdict.
+      if (data.guardVerdict === false) {
+        return { result: { claimed: false, reason: 'guard-false', intentId } };
+      }
       // Defensive: pending rows normally carry no deferral (requeue
       // clears it), but a future path must never jump the backoff.
       if (data.availableAtMs !== null && data.availableAtMs > ctx.now) {
@@ -272,6 +276,8 @@ const TERMINAL_ATTEMPT_STATES: ReadonlySet<string> = new Set([
  * one completed provider attempt (or a guard-false skip) under the holding
  * claim. Attempts increment only for provider attempts, never for skips.
  * `ack` marks the L3 intent dispatched when no further attempts follow.
+ * Failed outcomes must carry `retryClass` (transient/terminal, mirroring
+ * `classifyFailure`); `requeue` retries transient failures only.
  */
 export const workDispatchRecordAttemptCommand: SystemCommandDef = {
   name: 'work.dispatch.record-attempt',
@@ -319,6 +325,20 @@ export const workDispatchRecordAttemptCommand: SystemCommandDef = {
           `${what}: outcome.state must be pending, delivered, failed, uncertain or dead.`,
         );
       }
+      // Failed outcomes must classify the failure: `requeue` retries
+      // transient failures and refuses terminal ones, so an
+      // unclassified failure could never retry safely. Non-failed
+      // outcomes carry no classification.
+      let retryClass: RetryClass | null = null;
+      if (stateValue === 'failed') {
+        const retryValue = outcome['retryClass'];
+        if (retryValue !== 'transient' && retryValue !== 'terminal') {
+          throw new KernelTableError(
+            `${what}: outcome.retryClass must be transient or terminal.`,
+          );
+        }
+        retryClass = retryValue;
+      }
       next = {
         ...data,
         state: stateValue as OutboxItemState,
@@ -327,6 +347,7 @@ export const workDispatchRecordAttemptCommand: SystemCommandDef = {
         firstAttemptAtMs: data.firstAttemptAtMs ?? data.claimedAtMs ?? ctx.now,
         claimId: null,
         claimedAtMs: null,
+        retryClass,
         ...(guardVerdict !== undefined ? { guardVerdict } : {}),
         deliveryId: argNullableString(outcome, 'deliveryId', what),
         errorCode: argNullableString(outcome, 'errorCode', what),
@@ -346,12 +367,21 @@ export const workDispatchRecordAttemptCommand: SystemCommandDef = {
 };
 
 /**
- * `work.dispatch.requeue {intentId, maxAttempts, horizonMs}`: return an
- * uncertain/failed row to pending for its next attempt, or dead-letter
- * it when the retry budget is exhausted. Exhaustion mirrors
- * `computeBackoff` exactly (attempt cap OR horizon reached); deferrals
- * hold until `availableAtMs`. Dead-lettering here keeps `dead` a
- * visible fenced outcome rather than dispatcher-side mutation.
+ * `work.dispatch.requeue {intentId, maxAttempts, horizonMs, notFound?}`:
+ * return a retryable row to pending for its next attempt, or
+ * dead-letter it when the retry budget is exhausted. Exhaustion
+ * mirrors `computeBackoff` exactly (attempt cap OR horizon reached);
+ * deferrals hold until `availableAtMs`. Dead-lettering here keeps
+ * `dead` a visible fenced outcome rather than dispatcher-side
+ * mutation.
+ *
+ * Sweeper rule, mirroring `recordOutcome`/`reconcileUncertain`:
+ * terminal (or unclassified) failures never retry — only rows whose
+ * recorded `retryClass` is transient return to pending. Uncertain
+ * rows retry only when the caller attests `notFound: true`, i.e. it
+ * reconciled against the provider and found no trace of the attempt
+ * (the fenced equivalent of not-found evidence); unknown stays
+ * unknown until that authoritative evidence arrives.
  */
 export const workDispatchRequeueCommand: SystemCommandDef = {
   name: 'work.dispatch.requeue',
@@ -368,6 +398,10 @@ export const workDispatchRequeueCommand: SystemCommandDef = {
       throw new KernelTableError(`${what}: maxAttempts must be an integer >= 1.`);
     }
     const horizonMs = argInstant(args, 'horizonMs', what);
+    const notFoundValue = args['notFound'];
+    if (notFoundValue !== undefined && typeof notFoundValue !== 'boolean') {
+      throw new KernelTableError(`${what}: notFound must be a boolean.`);
+    }
     const { row, data } = await loadDispatchRow(ctx, intentId, what);
     if (data.state !== 'uncertain' && data.state !== 'failed') {
       return {
@@ -377,6 +411,31 @@ export const workDispatchRequeueCommand: SystemCommandDef = {
           intentId,
           reason: 'not-retryable',
           state: data.state,
+        },
+      };
+    }
+    if (data.state === 'failed' && data.retryClass !== 'transient') {
+      // Terminal business failures (and unclassified legacy rows) are
+      // final: refusing here keeps the sweeper from resurrecting them.
+      return {
+        result: {
+          requeued: false,
+          dead: false,
+          intentId,
+          reason: 'terminal',
+          state: data.state,
+        },
+      };
+    }
+    if (data.state === 'uncertain' && notFoundValue !== true) {
+      // Unknown stays unknown until the reconciling sweeper attests
+      // it found no trace of the attempt at the provider.
+      return {
+        result: {
+          requeued: false,
+          dead: false,
+          intentId,
+          reason: 'needs-evidence',
         },
       };
     }
@@ -420,6 +479,8 @@ export const workDispatchRequeueCommand: SystemCommandDef = {
             errorCode: null,
             errorMessage: null,
             availableAtMs: null,
+            // Fresh attempt: the next failure classifies itself.
+            retryClass: null,
           },
           ctx,
           WORK_DISPATCH_MODEL,
@@ -606,18 +667,24 @@ function argScope(
   };
 }
 
+interface KeyedSchedule {
+  row: StoredRow;
+  data: ScheduleRowData;
+}
+
 /**
- * Current keyed entry: exact scope+key re-filter over the query rows,
- * newest occurrence wins ties (replacements mint fresh ids; at-equal
- * rows cannot share one key within a scope).
+ * Every lineage entry under one key within one scope, exactly
+ * re-filtered. Occurrence ids are opaque, so the head resolves
+ * through `replaces` linkage (see `selectScheduleHead`) — never by
+ * id comparison.
  */
-async function loadKeyedSchedule(
+async function loadKeyedSchedules(
   ctx: StageContext,
   scope: WorkScope,
   key: string,
-): Promise<{ row: StoredRow; data: ScheduleRowData } | null> {
+): Promise<KeyedSchedule[]> {
   const rows = await ctx.query(scheduleByKeyQuery(scope, key));
-  let current: { row: StoredRow; data: ScheduleRowData } | null = null;
+  const found: KeyedSchedule[] = [];
   for (const row of rows) {
     const data = readScheduleRow(row);
     if (
@@ -628,18 +695,52 @@ async function loadKeyedSchedule(
     ) {
       continue;
     }
-    if (current === null || data.occurrenceId > current.data.occurrenceId) {
-      current = { row, data };
+    found.push({ row, data });
+  }
+  return found;
+}
+
+/**
+ * Lineage head: the entry no other entry replaces. Concurrent puts
+ * can race twin heads (both observed the same predecessor); the
+ * deterministic id tiebreak picks one, and the next put/cancel
+ * converges the twins, so no pending entry is ever stranded. The
+ * no-head fallback is defensive only: `replaces` always points at a
+ * row that predates the insert, so cycles cannot form.
+ */
+function selectScheduleHead(entries: readonly KeyedSchedule[]): KeyedSchedule | null {
+  if (entries.length === 0) return null;
+  const replaced = new Set<string>();
+  for (const entry of entries) {
+    if (entry.data.replaces !== null) replaced.add(entry.data.replaces);
+  }
+  const heads = entries.filter((entry) => !replaced.has(entry.data.occurrenceId));
+  const candidates = heads.length > 0 ? heads : entries;
+  let head: KeyedSchedule | null = null;
+  for (const entry of candidates) {
+    if (head === null || entry.data.occurrenceId > head.data.occurrenceId) {
+      head = entry;
     }
   }
-  return current;
+  return head;
+}
+
+function compareIds(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** Move `first` to the front, keeping the rest id-sorted. */
+function headFirst(ids: OccurrenceId[], first: OccurrenceId): OccurrenceId[] {
+  return [first, ...ids.filter((id) => id !== first).sort(compareIds)];
 }
 
 /**
  * `work.schedule.put {key, scope, at, event, payload, occurrenceId}`:
  * insert-or-replace one keyed occurrence. Mirrors `putSchedule`: a
  * pending predecessor is superseded with its undispatched intents;
- * anything else stays to complete while the key moves on. Stages the
+ * anything else stays to complete while the key moves on. Every
+ * still-pending entry is superseded, not just the head, so racing
+ * twin heads converge here instead of stranding a twin. Stages the
  * lineage row AND the L3 `ScheduleOp` in one fenced batch.
  */
 export const workSchedulePutCommand: SystemCommandDef = {
@@ -653,29 +754,41 @@ export const workSchedulePutCommand: SystemCommandDef = {
     const event = argString(args, 'event', what);
     const payload = argRecord(args, 'payload', what);
     const occurrenceId = argString(args, 'occurrenceId', what);
-    const previous = await loadKeyedSchedule(ctx, scope, key);
+    const entries = await loadKeyedSchedules(ctx, scope, key);
+    const previous = selectScheduleHead(entries);
     const writes: DomainWrite[] = [];
-    let supersededId: OccurrenceId | null = null;
     let affectedOutboxIds: OutboxId[] = [];
-    if (previous !== null && previous.data.state === 'pending') {
+    let supersededIds: OccurrenceId[] = [];
+    const pending = entries
+      .filter((entry) => entry.data.state === 'pending')
+      .sort((a, b) => compareIds(a.data.occurrenceId, b.data.occurrenceId));
+    for (const entry of pending) {
       writes.push(
         updateWrite(
-          previous.row,
-          { ...previous.data, state: 'superseded' },
+          entry.row,
+          { ...entry.data, state: 'superseded' },
           ctx,
           WORK_SCHEDULE_MODEL,
           what,
         ),
       );
-      supersededId = previous.data.occurrenceId;
       const marked = await markOriginSuperseded(
         ctx,
-        previous.data.occurrenceId,
+        entry.data.occurrenceId,
         occurrenceId as OccurrenceId,
         what,
       );
       writes.push(...marked.writes);
-      affectedOutboxIds = marked.superseded;
+      affectedOutboxIds = affectedOutboxIds.concat(marked.superseded);
+      supersededIds.push(entry.data.occurrenceId);
+    }
+    affectedOutboxIds.sort(compareIds);
+    const supersededId =
+      previous !== null && previous.data.state === 'pending'
+        ? previous.data.occurrenceId
+        : null;
+    if (supersededId !== null) {
+      supersededIds = headFirst(supersededIds, supersededId);
     }
     writes.push({
       kind: 'insert',
@@ -690,6 +803,7 @@ export const workSchedulePutCommand: SystemCommandDef = {
           at,
           event,
           payload,
+          replaces: previous?.data.occurrenceId ?? null,
           state: 'pending',
         },
         { nowMs: ctx.now, actor: ctx.actor },
@@ -707,7 +821,7 @@ export const workSchedulePutCommand: SystemCommandDef = {
     return {
       writes,
       schedules: [replace],
-      result: { admitted: occurrenceId, supersededId, affectedOutboxIds },
+      result: { admitted: occurrenceId, supersededId, supersededIds, affectedOutboxIds },
     };
   },
 };
@@ -715,7 +829,9 @@ export const workSchedulePutCommand: SystemCommandDef = {
 /**
  * `work.schedule.cancel {key, scope}`: cancel the keyed occurrence.
  * Mirrors `cancelSchedule`: pending/admitted entries cancel with their
- * undispatched intents superseded; missing/terminal keys no-op.
+ * undispatched intents superseded; missing/terminal keys no-op. Every
+ * live entry cancels, not just the head, so racing twin heads
+ * converge here instead of stranding a twin.
  */
 export const workScheduleCancelCommand: SystemCommandDef = {
   name: 'work.schedule.cancel',
@@ -724,43 +840,60 @@ export const workScheduleCancelCommand: SystemCommandDef = {
     checkArgs(args, what);
     const key = argString(args, 'key', what);
     const scope = argScope(args, what);
-    const previous = await loadKeyedSchedule(ctx, scope, key);
-    if (
-      previous === null ||
-      previous.data.state === 'superseded' ||
-      previous.data.state === 'cancelled'
-    ) {
+    const entries = await loadKeyedSchedules(ctx, scope, key);
+    const previous = selectScheduleHead(entries);
+    const live = entries
+      .filter(
+        (entry) =>
+          entry.data.state === 'pending' || entry.data.state === 'admitted',
+      )
+      .sort((a, b) => compareIds(a.data.occurrenceId, b.data.occurrenceId));
+    if (live.length === 0) {
       return {
         result: {
           cancelled: previous?.data.occurrenceId ?? null,
+          cancelledIds: [],
           affectedOutboxIds: [],
         },
       };
     }
-    const writes: DomainWrite[] = [
-      updateWrite(
-        previous.row,
-        { ...previous.data, state: 'cancelled' },
+    const writes: DomainWrite[] = [];
+    let affectedOutboxIds: OutboxId[] = [];
+    let cancelledIds: OccurrenceId[] = [];
+    for (const entry of live) {
+      writes.push(
+        updateWrite(
+          entry.row,
+          { ...entry.data, state: 'cancelled' },
+          ctx,
+          WORK_SCHEDULE_MODEL,
+          what,
+        ),
+      );
+      const marked = await markOriginSuperseded(
         ctx,
-        WORK_SCHEDULE_MODEL,
+        entry.data.occurrenceId,
+        null,
         what,
-      ),
-    ];
-    const marked = await markOriginSuperseded(
-      ctx,
-      previous.data.occurrenceId,
-      null,
-      what,
-    );
-    writes.push(...marked.writes);
+      );
+      writes.push(...marked.writes);
+      affectedOutboxIds = affectedOutboxIds.concat(marked.superseded);
+      cancelledIds.push(entry.data.occurrenceId);
+    }
+    affectedOutboxIds.sort(compareIds);
+    const cancelled =
+      previous !== null &&
+      (previous.data.state === 'pending' || previous.data.state === 'admitted')
+        ? previous.data.occurrenceId
+        : null;
+    if (cancelled !== null) {
+      cancelledIds = headFirst(cancelledIds, cancelled);
+    }
     const cancel: ScheduleOp = { op: 'cancel', key };
     return {
       writes,
       schedules: [cancel],
-      result: {
-        cancelled: previous.data.occurrenceId,
-        affectedOutboxIds: marked.superseded,
-      },
+      result: { cancelled, cancelledIds, affectedOutboxIds },
     };
   },
 };
@@ -770,7 +903,8 @@ export const workScheduleCancelCommand: SystemCommandDef = {
  * conditional slot advance for one fanout scope. Absent rows initialize
  * (new scopes admit nothing until the next slot, per `admitEveryTick`);
  * older slots advance; current-or-newer slots no-op. Root scopes throw
- * exactly like admission.
+ * exactly like admission. The tracker id qualifies the scope key with
+ * app and handler, matching `admitEveryTick`'s per-pair coalescing.
  */
 export const workEveryAdvanceSlotCommand: SystemCommandDef = {
   name: 'work.every.advance-slot',
@@ -790,7 +924,8 @@ export const workEveryAdvanceSlotCommand: SystemCommandDef = {
       throw new KernelTableError(`${what}: slot must be an integer >= 0.`);
     }
     const scopeKey = everyScopeKey(scope, owner);
-    const existing = await ctx.load(WORK_EVERY_SLOT_MODEL, scopeKey as RecordId);
+    const trackerId = everySlotRowId(app, handler, scope, owner);
+    const existing = await ctx.load(WORK_EVERY_SLOT_MODEL, trackerId as RecordId);
     if (existing === null) {
       const writes: DomainWrite[] = [
         {
