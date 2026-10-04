@@ -68,7 +68,6 @@ import {
   collapse,
   content,
   copy,
-  details,
   divider,
   dropdown,
   edit,

@@ -1803,6 +1803,7 @@ package rent_fulfillment label="Workspace fulfillment"@{nl="Werkplekuitvoering"}
         fieldset
          input until
          textarea reason
+         ## proposed: money as input's "appropriate scalar"; checker confirms.
          input amount
      modal "Cancel booking"@{nl="Reservering annuleren"} id=booking_cancel
       slot content
