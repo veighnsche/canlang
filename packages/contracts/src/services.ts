@@ -303,3 +303,80 @@ export interface ModelRunSnapshot {
   /** Cumulative user-visible content; provider thinking stays separate. */
   content: string;
 }
+
+/**
+ * Provider-owned `ai.SystemOneV1` judgment question. Wire shape follows
+ * the System One API (`tools/jev.py` plus documented answer shapes):
+ * questions ride as `{id: {type, instructions, criteria}}` with choice
+ * criteria as an option map and score criteria as an ordered level
+ * list. Thresholds and routing stay authored business policy; the
+ * adapter preserves distributions and never thresholds.
+ */
+export type JudgmentQuestion =
+  | { kind: 'noul'; id: string; instructions: string }
+  | {
+      kind: 'choice';
+      id: string;
+      instructions: string;
+      /** Option id to description; 1..provider-max entries. */
+      options: Record<string, string>;
+    }
+  | {
+      kind: 'score';
+      id: string;
+      instructions: string;
+      /** Ordered level descriptions, lowest first. */
+      levels: string[];
+    };
+
+/** Provider-owned `ai.SystemOneV1` batch inputs. */
+export interface JudgmentBatchInput {
+  /** Bound model id/alias; validated against the deployment allowlist. */
+  model: string;
+  /** App-typed minimized state, serialized once; must be JSON-serializable. */
+  state: Record<string, unknown>;
+  /** Non-empty; ids must be unique. */
+  questions: JudgmentQuestion[];
+}
+
+/** Noul answer: probability of yes. No confidence field exists. */
+export interface NoulAnswer {
+  probability: number;
+}
+
+/** Choice answer: selected label, full distribution, confidence. */
+export interface ChoiceAnswer {
+  choice: string;
+  probabilities: Record<string, number>;
+  confidence: number;
+}
+
+/** One ordered score level with its legend description and probability. */
+export interface ScoreLevel {
+  index: number;
+  description: string;
+  probability: number;
+}
+
+/** Score answer: probability-weighted index, ordered levels, confidence. */
+export interface ScoreAnswer {
+  score: number;
+  levels: ScoreLevel[];
+  confidence: number;
+}
+
+/** One normalized typed answer, keyed by the requested question id. */
+export type JudgmentAnswer =
+  | { kind: 'noul'; id: string; answer: NoulAnswer }
+  | { kind: 'choice'; id: string; answer: ChoiceAnswer }
+  | { kind: 'score'; id: string; answer: ScoreAnswer };
+
+/** Provider-owned `ai.SystemOneV1` batch result, in request order. */
+export interface JudgmentBatchResult {
+  /** Actual answering model (aliases resolve server-side). */
+  model: string;
+  /** One answer per requested question, in request order. */
+  answers: JudgmentAnswer[];
+  inputTokens: number | null;
+  outputTokens: number | null;
+}

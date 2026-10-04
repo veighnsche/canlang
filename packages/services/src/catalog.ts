@@ -32,5 +32,10 @@ export const SERVICES_CATALOG: ServiceCatalog = {
       capabilityVersion: 1,
       operations: ['generate'],
     },
+    {
+      capability: 'ai.SystemOneV1',
+      capabilityVersion: 1,
+      operations: ['evaluate'],
+    },
   ],
 };

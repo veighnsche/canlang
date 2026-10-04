@@ -18,6 +18,8 @@ import type {
   CapabilityCompletion,
   EmailAccepted,
   EmailSendInput,
+  JudgmentBatchInput,
+  JudgmentBatchResult,
   ModelChatInput,
   ModelChatReply,
   ModelRunSnapshot,
@@ -93,6 +95,24 @@ export interface ModelChatPort {
    * Providers without a documented run lookup honestly stay `unknown`.
    */
   reconcile(deliveryId: string): Promise<CapabilityCompletion<ModelChatReply>>;
+}
+
+export interface JudgmentPort {
+  /**
+   * Evaluate one typed batch. The runtime always supplies its own
+   * stable delivery id; the adapter never mints identity.
+   */
+  evaluate(
+    input: JudgmentBatchInput,
+    options: { readonly deliveryId: string },
+  ): Promise<CapabilityCompletion<JudgmentBatchResult>>;
+  /**
+   * Reconcile an uncertain batch through its original identity.
+   * Providers without a documented batch lookup honestly stay `unknown`.
+   */
+  reconcile(
+    deliveryId: string,
+  ): Promise<CapabilityCompletion<JudgmentBatchResult>>;
 }
 
 export function systemClock(): Clock {
