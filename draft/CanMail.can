@@ -24,9 +24,13 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
   role mail_staff label="Mailroom staff"@{nl="Postmedewerker"}
   Service in Customer { location:Location, recipient:Contact label=label_Service_recipient, from:datetime label="Start"@{nl="Begin"}, until:datetime label="End"@{nl="Einde"}, instructions:text, forwarding:text? label="Forwarding instructions"@{nl="Doorzendinstructies"}, revision:int=1, verified:bool=false label="Verified"@{nl="Geverifieerd"}, source:text unique label=label_Service_source, term:Term? label="Purchased paid term"@{nl="Gekochte betaalde termijn"}, paid_evidence:text? label="Paid-service evidence"@{nl="Bewijs betaalde dienst"}, currency:currency, billing:bool=false label="Invoice handling fees"@{nl="Afhandelingskosten factureren"}, active:bool=true } label="Mail service"@{nl="Postdienst"}
   Delegate in Service { contact:Contact label="Nominated contact"@{nl="Genomineerde contactpersoon"}, account:user label=label_Delegate_account, active:bool=true } label="Collection delegate"@{nl="Afhaalgemachtigde"}
-  Item { location:Location, service:Service?, recipient:Contact? label=label_Service_recipient, source:text unique label=label_Service_source, kind:enum(letter,parcel) label={text=label_Item_kind,values={letter="Letter"@{nl="Brief"},parcel="Parcel"@{nl="Pakket"}}}, storage:text label=label_Item_storage, photo:file? label=label_Item_photo, state:enum(unmatched,received,notified,collection_ready,collected,forward_pending,forwarded,returned)=unmatched label={text="State"@{nl="Status"},values={unmatched="Unmatched"@{nl="Niet gekoppeld"},received="Received"@{nl="Ontvangen"},notified="Notified"@{nl="Gemeld"},collection_ready="Ready for collection"@{nl="Klaar om af te halen"},collected="Collected"@{nl="Afgehaald"},forward_pending="Forwarding pending"@{nl="Doorzending in afwachting"},forwarded="Forwarded"@{nl="Doorgestuurd"},returned="Returned"@{nl="Geretourneerd"}}}, notification:delivery(Mail.send)? label="Notification reference"@{nl="Meldingsreferentie"}, reminders:int=0, reminder_delay:duration=7d, reminder_limit:int=2 min=0 max=5, history_days:int=180 min=1, retention_until:datetime?, dispatch:Dispatch?, completed:datetime? label="Completed at"@{nl="Afgerond op"}, incident:text? label=label_Item_incident } label="Mail item"@{nl="Poststuk"}
+  Item { location:Location, service:Service?, recipient:Contact? label=label_Service_recipient, source:text unique label=label_Service_source, kind:enum(letter,parcel) label={text=label_Item_kind,values={letter="Letter"@{nl="Brief"},parcel="Parcel"@{nl="Pakket"}}}, storage:text label=label_Item_storage, photo:file? label=label_Item_photo, state:enum(unmatched,received,notified,collection_ready,collected,forward_pending,forwarded,returned)=unmatched label={text="State"@{nl="Status"},values={unmatched="Unmatched"@{nl="Niet gekoppeld"},received="Received"@{nl="Ontvangen"},notified="Notified"@{nl="Gemeld"},collection_ready="Ready for collection"@{nl="Klaar om af te halen"},collected="Collected"@{nl="Afgehaald"},forward_pending="Forwarding pending"@{nl="Doorzending in afwachting"},forwarded="Forwarded"@{nl="Doorgestuurd"},returned="Returned"@{nl="Geretourneerd"}}}, notification:delivery(Mail.send)? label="Notification reference"@{nl="Meldingsreferentie"}, notice:Notice?, reminders:int=0, reminder_delay:duration=7d, reminder_limit:int=2 min=0 max=5, history_days:int=180 min=1, retention_until:datetime?, dispatch:Dispatch?, completed:datetime? label="Completed at"@{nl="Afgerond op"}, incident:text? label=label_Item_incident } label="Mail item"@{nl="Poststuk"}
   Handling in Item { kind:enum(collection,forward,return,correction) label={text=label_Item_kind,values={collection="Collection"@{nl="Afhalen"},forward="Forwarding"@{nl="Doorzending"},return="Return"@{nl="Retour"},correction="Correction"@{nl="Correctie"}}}, account:user? label=label_Delegate_account, instruction:text label="Recorded instruction"@{nl="Vastgelegde instructie"}, destination:text? label="Destination"@{nl="Bestemming"}, evidence:text, carrier:text? label=label_Handling_carrier, fee:money? label=label_Handling_fee, source:text unique label=label_Service_source, revision:int, dispatch:Dispatch?, author:user server=actor label="Author"@{nl="Auteur"} } label="Handling record"@{nl="Afhandelingsregistratie"}
   Dispatch in Item { source:text unique, instruction:text, instruction_revision:int label="Instruction version"@{nl="Instructieversie"}, destination:text label="Frozen postal destination"@{nl="Vastgelegde postbestemming"}, fee:money? label=label_Handling_fee, charge:Charge?, state:enum(pending,unknown,dispatched,cancelled)=pending label={text="Dispatch"@{nl="Verzending"},values={pending="Pending"@{nl="In afwachting"},unknown="Uncertain"@{nl="Onzeker"},dispatched="Evidenced dispatch"@{nl="Verzending met bewijs"},cancelled="No dispatch recorded"@{nl="Geen verzending vastgelegd"}}}, charge_state:enum(none,pending,confirmed,failed,unknown)=none label={text="Fee invoice"@{nl="Kostenfactuur"},values={none="No invoice requested"@{nl="Geen factuur aangevraagd"},pending="Invoice requested"@{nl="Factuur aangevraagd"},confirmed="Invoice created"@{nl="Factuur aangemaakt"},failed="Invoice failed"@{nl="Factuur mislukt"},unknown="Invoice uncertain"@{nl="Factuur onzeker"}}}, charge_delivery:text?, reconcile_delivery:text?, invoice:text?, revision:int=1 } label="Forwarding attempt"@{nl="Doorzendpoging"}
+  ## Immutable staff-only notice history; one row per admitted notice intent.
+  Notice in Item { account:user label="Frozen account", address:text label="Frozen address", subject:text, body:text, receipt:delivery(Mail.send)? label="Notice receipt", kind:enum(initial,reminder,additional), number:int, predecessor:Notice?, reason:text?, acknowledged:bool=false label="Possible duplicate accepted", author:user server=actor label="Author" } label="Notice attempt"
+  policy Notice read=mail_staff and can_work(actor,row.parent.location)
+  lock Notice fields=account,address,subject,body,receipt,kind,number,predecessor,reason,acknowledged,author
   event Reminder { item:Item, number:int }
   derive recipient(person:user,service:Service):bool = service.parent.active and service.parent.archived_at==null and service.recipient.archived_at==null and service.recipient.verified and service.recipient.account!=null and service.recipient.account==person
   derive manage(person:user,service:Service):bool = recipient(person,service) or has_role(person,service.parent,administrator)
@@ -38,6 +42,7 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
   policy Service read=authenticated where=manage(actor,row)
   policy Delegate read=authenticated where=row.account==actor or manage(actor,row.parent)
   derive Item.notice_state:DeliveryResult.status? = row.notification?.status label={text="Notification"@{nl="Melding"},values={pending="Sending"@{nl="Wordt verzonden"},succeeded="Accepted"@{nl="Geaccepteerd"},failed="Failed"@{nl="Mislukt"},unknown="Uncertain"@{nl="Onzeker"},skipped="Skipped"@{nl="Overgeslagen"}}}
+  ## Item.notice:Notice? — staff-only current attempt; Item.notification keeps the existing status-only recipient projection.
   policy Item read=mail_staff and can_work(actor,row.location)
   policy Item read=authenticated where=row.service!=null and recipient(actor,row.service) fields=service,recipient,kind,state,notice_state,notification.status,completed,created
   policy Handling read=mail_staff and can_work(actor,row.parent.location)
@@ -110,8 +115,11 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
     create Item {location,source,kind,storage,photo} as item
     if service!=null
      set item {service,recipient=service.recipient,state=received}
-     send Mail.send {to=service.recipient.email,subject=format("Mail received"@{nl="Post ontvangen"},locale=null),body=format("An item is available for authorized collection."@{nl="Er ligt een item klaar dat door een bevoegde persoon kan worden afgehaald."},locale=null)} when=item.state in [received,notified,collection_ready] and recipient(service.recipient.account,service) as notice
-     set item {notification=notice}
+     let subject=format("Mail received"@{nl="Post ontvangen"},locale=null)
+     let body=format("An item is available for authorized collection."@{nl="Er ligt een item klaar dat door een bevoegde persoon kan worden afgehaald."},locale=null)
+     send Mail.send {to=service.recipient.email,subject=subject,body=body} when=item.state in [received,notified,collection_ready] and recipient(service.recipient.account,service) as delivery
+     create Notice {parent=item,account=service.recipient.account,address=service.recipient.email,subject=subject,body=body,receipt=delivery,kind=initial,number=0} as frozen
+     set item {notification=delivery,notice=frozen}
      schedule format("mail-reminder-{item}",{item=item.id}) at=now+item.reminder_delay event=Reminder {item,number=1}
    examples seed=[test_worker,test_admin,allocated] location=test_site source="new-receipt" kind=parcel storage="Shelf A" service=service photo=null
     as,paid_term.mail,paid_term.paid,service.paid_evidence -> count(Item as item where item.source=="new-receipt")
@@ -164,8 +172,11 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
    require can_work(actor,item.location) and item.state==unmatched and service.location==item.location and live(service)
    do
     set item {service,recipient=service.recipient,state=received}
-    send Mail.send {to=service.recipient.email,subject=format("Mail received"@{nl="Post ontvangen"},locale=null),body=format("An item is available for authorized collection."@{nl="Er ligt een item klaar dat door een bevoegde persoon kan worden afgehaald."},locale=null)} when=item.state in [received,notified,collection_ready] and recipient(service.recipient.account,service) as notice
-    set item {notification=notice}
+    let subject=format("Mail received"@{nl="Post ontvangen"},locale=null)
+    let body=format("An item is available for authorized collection."@{nl="Er ligt een item klaar dat door een bevoegde persoon kan worden afgehaald."},locale=null)
+    send Mail.send {to=service.recipient.email,subject=subject,body=body} when=item.state in [received,notified,collection_ready] and recipient(service.recipient.account,service) as delivery
+    create Notice {parent=item,account=service.recipient.account,address=service.recipient.email,subject=subject,body=body,receipt=delivery,kind=initial,number=0} as frozen
+    set item {notification=delivery,notice=frozen}
     schedule format("mail-reminder-{item}",{item=item.id}) at=now+item.reminder_delay event=Reminder {item,number=1}
   # Record one evidenced collection by the currently verified recipient or delegate, including after service expiry. @{nl="Registreer één bewezen afhaling door de huidige geverifieerde ontvanger of gemachtigde, ook na het verlopen van de dienst."}
   scenario collect(item:Item,collector:user label="Collector"@{nl="Afhaler"},evidence:text) by=mail_staff label="Record collection"@{nl="Afhaling registreren"}
@@ -289,8 +300,11 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
    do
     let item=event.item
     if item.state in [received,notified,collection_ready] and item.service!=null and event.number==item.reminders+1 and event.number<=item.reminder_limit and recipient(item.service.recipient.account,item.service)
-     send Mail.send {to=item.service.recipient.email,subject=format("Mail awaiting collection"@{nl="Post wacht op afhaling"},locale=null),body=format("Please arrange authorized collection of your item."@{nl="Regel bevoegde afhaling van je poststuk."},locale=null)} when=item.state in [received,notified,collection_ready] and recipient(item.service.recipient.account,item.service) as notice
-     set item {notification=notice,reminders=event.number}
+     let subject=format("Mail awaiting collection"@{nl="Post wacht op afhaling"},locale=null)
+     let body=format("Please arrange authorized collection of your item."@{nl="Regel bevoegde afhaling van je poststuk."},locale=null)
+     send Mail.send {to=item.service.recipient.email,subject=subject,body=body} when=item.state in [received,notified,collection_ready] and recipient(item.service.recipient.account,item.service) as delivery
+     create Notice {parent=item,account=item.service.recipient.account,address=item.service.recipient.email,subject=subject,body=body,receipt=delivery,kind=reminder,number=event.number} as frozen
+     set item {notification=delivery,notice=frozen,reminders=event.number}
      if item.reminders<item.reminder_limit
       schedule format("mail-reminder-{item}",{item=item.id}) at=now+item.reminder_delay event=Reminder {item,number=item.reminders+1}
    examples event={item=parcel,number=1}
@@ -298,6 +312,23 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
     collection_ready,0 -> collection_ready,1,null
     collected,0 -> collected,0,null
     collection_ready,2 -> collection_ready,2,null
+  # Send one additional frozen notice after a failed, uncertain or skipped attempt, keeping the old outcome. @{nl="Verzend één extra bevroren melding na een mislukte, onzekere of overgeslagen poging, met behoud van de oude uitkomst."}
+  scenario send_another_notice(item:Item, reason:text, acknowledged:bool=false) by=mail_staff label="Send another notice"@{nl="Nog een melding verzenden"}
+   require can_work(actor,item.location) and item.service!=null and item.state in [received,notified,collection_ready] and item.notice!=null and trim(reason)!=""
+   require item.notice.receipt!=null and item.notice.receipt.status in [failed,unknown,skipped]
+   require item.notice.receipt.status==skipped or acknowledged
+   require recipient(item.service.recipient.account,item.service)
+   ## Both frozen comparisons: account AND address must still match current verified contact.
+   require item.notice.account==item.service.recipient.account and item.notice.address==item.service.recipient.email
+   do
+    send Mail.send {to=item.notice.address,subject=item.notice.subject,body=item.notice.body} when=item.state in [received,notified,collection_ready] and recipient(item.service.recipient.account,item.service) as delivery
+    create Notice {parent=item,account=item.notice.account,address=item.notice.address,subject=item.notice.subject,body=item.notice.body,receipt=delivery,kind=additional,number=item.notice.number,predecessor=item.notice,reason,acknowledged} as next
+    set item {notification=delivery,notice=next}
+  # Reapply the current accepted notice outcome when its callback was missed. @{nl="Pas de huidige geaccepteerde meldingsuitkomst opnieuw toe als de callback is gemist."}
+  scenario apply_notice_success(item:Item) by=mail_staff label="Apply accepted notice"@{nl="Geaccepteerde melding toepassen"}
+   require can_work(actor,item.location) and item.state==received and item.notice!=null and item.notice.receipt!=null and item.notice.receipt.status==succeeded and item.notice.receipt.result!=null
+   do
+    set item {state=notified}
   scenario notice_result on=Mail.send.completed
    do
     for item in Item as row where row.notification?.id==event.delivery_id limit=1
