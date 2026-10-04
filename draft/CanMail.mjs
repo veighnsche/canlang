@@ -39,7 +39,7 @@ import {
 import { Contact, Customer, owns, has_role } from "./customer.mjs";
 import { can_work } from "./employee.mjs";
 import { Term, eligible_term } from "./member_terms.mjs";
-import { Charge } from "./invoice.mjs";
+import { Charge } from "./deployment.billing.mjs";
 import { Location } from "./rent_catalog.mjs";
 
 /* Handwritten desired target; every import is a proposed, unimplemented contract.

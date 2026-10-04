@@ -105,3 +105,7 @@ Manual correspondence: `customer.remove` deactivates the exact grant; the commit
 Syntax verification parses the supported declarations and all table examples after omitting attached sequence bodies and existing CSV form attributes. Full parsing still rejects the settled examples/do extension; Customer's CSV form attributes also exceed the initial parser. These are source contracts and manual owner traces, not executed reconciliation. There are no existing matching generated MJS files for these three owners; none are added.
 
 Invitation expiry scheduling belongs to `invite` beside its sole Invitation creation, committing with the invitation and its outbound intent. It does not depend on an unavailable Invitation CRUD hook; acceptance still rechecks expiry and current inviter authority.
+
+### C3 dependency witness (A05)
+
+Customer keeps its plain production import `use invoice {finance}` (`CanCustomer.can:11`): under DESIGN §1 the invoice executable package is included and `finance` keeps its actual role, employee/location checks and attributed decisions. The finance-guarded Billing approvals page (`CanCustomer.can:248-252`) is untouched; the canonical `invoice.finance` role is not copied, relocated or renamed. No deployment-key reduction follows from Mail's grouped bound import while this import stands.

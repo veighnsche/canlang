@@ -116,3 +116,39 @@ The recipient grant explicitly permits only notification.status as the readable 
 Initial whole status/result/error selectors are validated together before receipt provisioning; no ID, principal, target or request is editable. The seven completion rows retain independent expectations and typed verified event envelopes. Their event and initial-recipe status/result/error cells still repeat the same envelope explicitly; this reduction adds no structural fixture constructor or event derivation syntax. Current success, different current pending ID, null association, failed/unknown/skipped delivery and collected custody remain distinct.
 
 Normalization alone changes Can source from 38,700 to 38,382 UTF-8 bytes (318 bytes fewer). All 47 table expectations and the actual custody sequence remain unchanged, with production Can/JavaScript byte-preservation and source/target table correspondence checks. Node syntax and descriptor dependency/direct-selector closure checks pass. The structural parser projection substitutes the settled delivery type, omits the sequence and reduces only the unsupported derived enum-label record to its scalar caption; it does not validate those proposed semantics. No provider, fixture planner, custody runner or privacy enforcement executed.
+
+## C3 dependency application (A05)
+
+Mail imports the invoice interface as one grouped bound import (`CanMail.can:8`): `use invoice {BillingV1 as Billing,Charge} from=deployment.billing`. Under DESIGN §1 this resolves only the versioned `invoice.BillingV1` interface and its reachable value types through `deployment.billing`; Mail's direct executable edge to the invoice package is gone. Customer's plain production import (`use invoice {finance}`) still includes the invoice executable package, so this application makes no deployment-key reduction. `deployment.mail` and `deployment.billing` stay required bindings. `Service.billing=false` and `Service.term=null` do not alter deployment requirements. The desired-JS counterpart imports `Charge` from `./deployment.billing.mjs` (`CanMail.mjs:42`, CanRent convention); the `mailroom.Billing` binding descriptor is unchanged.
+
+Import:
+
+- Given the Customer package imports `invoice {finance}` as a plain production import, when deployment resolves Customer, then the invoice executable package is included and `finance` keeps its actual role, employee/location checks and attributed decisions.
+- Given Mail uses the grouped bound import, when deployment resolves Mail, then only the versioned `invoice.BillingV1` interface and its reachable value types resolve through `deployment.billing`.
+
+Visibility (existing grants only):
+
+- Given a prepared `Dispatch` with any `charge_state`, when mail staff opens the staff index, then the frozen destination, fee, `charge_state` and invoice reference remain visible (`CanMail.can:45,333`); custody, notice outcome and fee-invoice outcome stay separate.
+- Given the same dispatch, when the verified recipient opens My mail, then no fee, charge or provider payload is exposed (`CanMail.can:42`); the recipient sees only its existing safe notice-state projection.
+
+Entitlement (manual versus automatic fees; `derive fee_charge`, `CanMail.can:34`):
+
+| service.billing | fee | frozen Charge | Billing.charge send |
+| --- | --- | --- | --- |
+| false | money(5,"EUR") | none | none |
+| true | money(5,"EUR") | frozen, source `mail-forward-{item}` | one send, `charge_state=pending` |
+| true | money(0,"EUR") | none | none |
+| true | null | none | none |
+
+- Given `billing=false`, when staff prepares forwarding with a positive fee, then a manual handling fee is recorded without an invoice request and `charge_state` stays `none`; `deployment.billing` remains a required binding.
+- Given `billing=true` with `term=null` and reviewed nonblank paid evidence, when staff prepares forwarding with a positive same-currency fee, then the identical frozen Charge is created; a denied linked term still cannot fall back to manual paid evidence.
+
+Deactivation preserving pending/unknown fee and physical state:
+
+- Given a `forward_pending` dispatch with `charge_state` in {pending, unknown, failed}, when staff runs `service_status` with `active=false`, then the service becomes inactive and `live=false`, while the dispatch keeps its state, frozen fee/charge and `charge_state`; held items stay available for explicit collection/return resolution.
+- Given the same deactivated service, when staff runs `retry_fee` on a dispatch with `charge_state` in {failed, unknown}, then reconciliation reuses the original frozen source (`CanMail.can:250-254`); provider failure never mints a fresh logical charge.
+
+Confirmation of a prepared dispatch after deactivation:
+
+- Given a `forward_pending` dispatch on a deactivated service, when staff runs `dispatched` with the current revision, carrier and evidence, then the item becomes `forwarded` with immutable Handling carrying the frozen snapshot (`CanMail.can:210-215` requires no `live(service)` check); the outcome is independent of `charge_state`.
+- Given `charge_state=failed` on that dispatch, when staff records dispatch evidence, then physical dispatch is still recorded: billing failed/unknown/pending never prevents recording actual dispatch evidence, and billing settlement cannot prove physical dispatch.
