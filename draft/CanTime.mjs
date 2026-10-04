@@ -28,20 +28,34 @@ import {
   subtractMoney,
   sum,
 } from "@canlang/stdlib";
+/* Desired, unimplemented @canlang/ui contracts. Every factory below is proposed;
+ * none is an installed export and this file never runs. See file header. */
 import {
   action,
   actions,
+  alert,
+  breadcrumbs,
+  button,
   card,
-  details,
+  collapse,
   edit,
+  fieldset,
   form,
   history,
+  input,
   list,
   message,
-  metrics,
+  modal,
+  pagination,
   renderPage,
+  select,
+  slot,
+  stat,
+  status,
   table,
   text,
+  textarea,
+  toggle,
 } from "@canlang/ui";
 import { Customer } from "./customer.mjs";
 import { can_work, Employee } from "./employee.mjs";
@@ -51,7 +65,15 @@ import { Location } from "./rent_catalog.mjs";
 /* Handwritten desired target. All imports are proposed unimplemented contracts.
  * DESIGN §13 defines the one registry/query/scalar/UI/test representation.
  * Owner admission supplies atomic D1 writes, versions, replay and staged rules.
- * No compiler, stdlib, adapter, renderer or example runner is implemented here. */
+ * No compiler, stdlib, adapter, renderer or example runner is implemented here.
+ * UI sections mirror the replanned CanTime.can Then: breadcrumbs, intake
+ * fieldsets with typed controls, running-duration stat with stop button,
+ * billable status, evidence collapses, currency-grouped stats, rejected-only
+ * alerts, decide modal, and paginated tables. stat/collapse replace
+ * metrics/details under their shared contracts. Lowercase UI factories take
+ * one props object; slots are prop arrays. All UI imports and calls are
+ * desired/unimplemented. This file passes node --check (syntax only) and
+ * never runs. */
 const projectCaption = message("Time project", { nl: "Tijdregistratieproject" });
 const fromCaption = message("Started at", { nl: "Gestart op" });
 const untilCaption = message("Stopped at", { nl: "Gestopt op" });
@@ -1010,14 +1032,56 @@ export async function minePage(c, bindings) {
     c,
     minePageDescriptor,
     async () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Timer and manual time intake", { nl: "Timer- en handmatige tijdinvoer" }),
         layout: "columns",
         children: [
-          form({ context: c, operation: "time.start", display: "inline" }),
-          form({ context: c, operation: "time.manual" }),
-          form({ context: c, operation: "time.submit" }),
+          form({
+            context: c,
+            operation: "time.start",
+            display: "inline",
+            /* desired-unimplemented: fieldset groups explicitly placed controls. */
+            children: [
+              fieldset({
+                context: c,
+                caption: message("Start timer", { nl: "Timer starten" }),
+                children: [
+                  /* desired-unimplemented: select/textarea/toggle place generated controls. */
+                  select({ context: c, field: "employee" }),
+                  select({ context: c, field: "project" }),
+                  textarea({ context: c, field: "description" }),
+                  toggle({ context: c, field: "billable" }),
+                ],
+              }),
+            ],
+          }),
+          form({
+            context: c,
+            operation: "time.manual",
+            children: [
+              fieldset({
+                context: c,
+                caption: message("Manual entry", { nl: "Handmatige registratie" }),
+                children: [
+                  /* desired-unimplemented: select/textarea/toggle place generated controls. */
+                  select({ context: c, field: "employee" }),
+                  select({ context: c, field: "project" }),
+                  textarea({ context: c, field: "description" }),
+                  toggle({ context: c, field: "billable" }),
+                  textarea({ context: c, field: "reason" }),
+                ],
+              }),
+            ],
+          }),
+          form({
+            context: c,
+            operation: "time.submit",
+            /* desired-unimplemented: placed select moves the generated control. */
+            children: [select({ context: c, field: "employee" })],
+          }),
         ],
       }),
       list({
@@ -1026,8 +1090,11 @@ export async function minePage(c, bindings) {
           where: (entry) => same(entry.parent.user, c.actor) && entry.until === null,
         }),
         renderRow: (entry, view) => [
-          text({ context: view, values: [entry.project, entry.from, entry.duration] }),
-          action({ context: view, operation: "time.stop", boundArgs: { entry } }),
+          /* desired-unimplemented: stat shares the metric contract. */
+          stat({ context: view, values: [entry.duration] }),
+          text({ context: view, values: [entry.project, entry.from] }),
+          /* desired-unimplemented: button action lowers to the canonical binding. */
+          button({ context: view, action: "time.stop", arguments: { entry } }),
         ],
       }),
       table({
@@ -1064,12 +1131,16 @@ export async function minePage(c, bindings) {
         order: ["-from"],
         display: "split",
         renderRow: (entry, view) => [
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: view }),
           actions({
             context: view,
             operations: ["time.stop", "time.revise"],
             boundArgs: { entry },
           }),
-          details({
+          /* desired-unimplemented: status presents a readable typed value. */
+          status({ context: view, value: entry.billable }),
+          collapse({
             context: view,
             caption: message("Observed, entered and review evidence", {
               nl: "Gemeten, ingevoerd en beoordelingsbewijs",
@@ -1079,7 +1150,6 @@ export async function minePage(c, bindings) {
                 context: view,
                 values: [
                   entry.author,
-                  entry.billable,
                   entry.reason,
                   entry.overlap_reason,
                   entry.overlap_author,
@@ -1117,7 +1187,8 @@ export async function minePage(c, bindings) {
           (entry) => entry.rate.currency,
         ),
         renderRow: async (row, view) =>
-          metrics({
+          /* desired-unimplemented: stat shares the metric contract. */
+          stat({
             context: view,
             values: [
               row.key,
@@ -1133,7 +1204,19 @@ export async function minePage(c, bindings) {
         }),
         columns: ["from", "until", "state", "reason"],
         renderRow: (review, view) => [
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: view }),
           action({ context: view, operation: "time.withdraw", boundArgs: { review } }),
+          /* The require gate renders the alert only for rejected reviews. */
+          ...(review.state === "rejected"
+            ? [
+                /* desired-unimplemented: alert carries readable content. */
+                alert({
+                  context: view,
+                  children: [text({ context: view, values: [review.reason] })],
+                }),
+              ]
+            : []),
           history({ context: view, record: review }),
         ],
       }),
@@ -1145,17 +1228,38 @@ export async function reviewPage(c, bindings) {
     c,
     reviewPageDescriptor,
     async () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Project rates", { nl: "Projecttarieven" }),
         children: [
-          form({ context: c, operation: "time.Project.create" }),
+          form({
+            context: c,
+            operation: "time.Project.create",
+            /* desired-unimplemented: fieldset groups explicitly placed controls. */
+            children: [
+              fieldset({
+                context: c,
+                caption: message("New project", { nl: "Nieuw project" }),
+                children: [
+                  /* desired-unimplemented: input/select place generated controls. */
+                  input({ context: c, field: "name" }),
+                  select({ context: c, field: "location" }),
+                  select({ context: c, field: "customer" }),
+                ],
+              }),
+            ],
+          }),
           table({
             context: c,
             model: "time.Project",
             columns: ["name", "location", "customer", "rate", "active"],
-            renderRow: (row, view) =>
+            renderRow: (row, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
               edit({ context: view, operation: "time.Project.update", record: row }),
+            ],
           }),
         ],
       }),
@@ -1167,11 +1271,50 @@ export async function reviewPage(c, bindings) {
         order: ["-from"],
         display: "split",
         renderRow: (review, view) => [
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: view }),
           actions({
             context: view,
-            operations: ["time.decide", "time.withdraw"],
+            operations: ["time.withdraw"],
             boundArgs: { review },
           }),
+          /* desired-unimplemented: button opens activates the local modal. */
+          button({ context: view, opens: "decide_dialog" }),
+          /* desired-unimplemented: modal declares the local activation identity. */
+          modal({
+            context: view,
+            caption: message("Decide period", { nl: "Periode beoordelen" }),
+            id: "decide_dialog",
+            children: [
+              slot({
+                context: view,
+                name: "content",
+                children: [
+                  form({
+                    context: view,
+                    operation: "time.decide",
+                    arguments: { review },
+                    display: "inline",
+                    /* desired-unimplemented: toggle/textarea place generated controls. */
+                    children: [
+                      toggle({ context: view, field: "approve" }),
+                      textarea({ context: view, field: "reason" }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+          /* The require gate renders the alert only for rejected reviews. */
+          ...(review.state === "rejected"
+            ? [
+                /* desired-unimplemented: alert carries readable content. */
+                alert({
+                  context: view,
+                  children: [text({ context: view, values: [review.reason] })],
+                }),
+              ]
+            : []),
           table({
             context: view,
             query: review.entries,
@@ -1184,6 +1327,10 @@ export async function reviewPage(c, bindings) {
               "overlap_reason",
               "overlap_author",
               "state",
+            ],
+            renderRow: (entry, w) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: w }),
             ],
           }),
           history({ context: view, record: review }),
@@ -1205,12 +1352,14 @@ export async function reviewPage(c, bindings) {
         order: ["-from"],
         display: "split",
         renderRow: (entry, view) => [
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: view }),
           actions({
             context: view,
             operations: ["time.correct", "time.bill"],
             boundArgs: { entry },
           }),
-          details({
+          collapse({
             context: view,
             caption: message("Correction and billing evidence", {
               nl: "Correctie- en facturatiebewijs",
@@ -1246,12 +1395,15 @@ export async function reviewPage(c, bindings) {
                   "reconcile_status",
                   "ready",
                 ],
-                renderRow: (correction, v) =>
+                renderRow: (correction, v) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: v }),
                   actions({
                     context: v,
                     operations: ["time.retry_cancel", "time.reconcile", "time.refund"],
                     boundArgs: { correction },
                   }),
+                ],
               }),
             ],
           }),
@@ -1273,7 +1425,8 @@ export async function reviewPage(c, bindings) {
           (entry) => entry.rate.currency,
         ),
         renderRow: async (row, view) => [
-          metrics({
+          /* desired-unimplemented: stat shares the metric contract. */
+          stat({
             context: view,
             values: [row.key, await sum(row.items, (entry) => entry.amount, row.key)],
           }),
@@ -1281,8 +1434,11 @@ export async function reviewPage(c, bindings) {
             context: view,
             query: row.items,
             columns: ["parent", "project", "duration", "rate", "amount", "state"],
-            renderRow: (entry, v) =>
+            renderRow: (entry, v) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: v }),
               action({ context: v, operation: "time.bill", boundArgs: { entry } }),
+            ],
           }),
         ],
       }),

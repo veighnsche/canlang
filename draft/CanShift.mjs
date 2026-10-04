@@ -27,18 +27,31 @@ import {
   set,
   subtractDuration,
 } from "@canlang/stdlib";
+/* Desired, unimplemented @canlang/ui contracts. Every factory below is proposed;
+ * none is an installed export and this file never runs. See file header. */
 import {
   actions,
+  badge,
+  breadcrumbs,
+  button,
   calendar,
   card,
   edit,
+  fieldset,
   form,
   history,
+  input,
   list,
   message,
+  modal,
+  pagination,
   renderPage,
+  select,
+  slot,
+  status,
   table,
   text,
+  toggle,
 } from "@canlang/ui";
 import { can_work, Employee, EmployeeChanged } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -52,6 +65,12 @@ import { Location } from "./rent_catalog.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * UI sections mirror the replanned CanShift.can Then: breadcrumbs, assignment
+ * and coverage fieldsets with typed controls, skill badge, conflict/published/
+ * available/met/state statuses, publish modal with override-reason input, and
+ * paginated notice tables. Lowercase UI factories take one props object; slots
+ * are prop arrays. All UI imports and calls are desired/unimplemented. This
+ * file passes node --check (syntax only) and never runs.
  */
 
 const rosterCaption = message("Staff roster", { nl: "Personeelsrooster" });
@@ -1759,6 +1778,8 @@ export async function rosterPage(c, bindings) {
     c,
     rosterPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       form({ context: c, operation: "shift.Roster.create" }),
       list({
         context: c,
@@ -1767,7 +1788,27 @@ export async function rosterPage(c, bindings) {
           card({
             context: v,
             title: message("Roster assignment", { nl: "Roostertoewijzing" }),
-            children: [form({ context: v, operation: "shift.assign", arguments: { roster } })],
+            children: [
+              form({
+                context: v,
+                operation: "shift.assign",
+                arguments: { roster },
+                /* desired-unimplemented: fieldset groups explicitly placed controls. */
+                children: [
+                  fieldset({
+                    context: v,
+                    caption: message("Assignment", { nl: "Toewijzing" }),
+                    children: [
+                      /* desired-unimplemented: select/input place generated controls. */
+                      select({ context: v, field: "employee" }),
+                      select({ context: v, field: "location" }),
+                      input({ context: v, field: "role" }),
+                      input({ context: v, field: "skill" }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
           }),
           card({
             context: v,
@@ -1782,14 +1823,12 @@ export async function rosterPage(c, bindings) {
                 filter: ["location", "kind", "conflict"],
                 defaults: { location: c.preferences.shift.location },
                 renderRow: (commitment, cv) => [
+                  /* desired-unimplemented: badge/status present readable typed values. */
+                  badge({ context: cv, value: commitment.skill }),
+                  status({ context: cv, value: commitment.conflict }),
                   text({
                     context: cv,
-                    values: [
-                      commitment.employee,
-                      commitment.skill,
-                      commitment.active,
-                      commitment.conflict,
-                    ],
+                    values: [commitment.employee, commitment.active],
                   }),
                   actions({ context: cv, operations: ["shift.recover_commitment"], boundArgs: { commitment } }),
                   list({
@@ -1797,6 +1836,8 @@ export async function rosterPage(c, bindings) {
                     model: "shift.Duty",
                     parent: commitment,
                     renderRow: (duty, dv) => [
+                      /* desired-unimplemented: status presents a readable typed value. */
+                      status({ context: dv, value: duty.published }),
                       text({
                         context: dv,
                         values: [
@@ -1808,8 +1849,32 @@ export async function rosterPage(c, bindings) {
                       }),
                       actions({
                         context: dv,
-                        operations: ["shift.publish", "shift.cancel", "shift.reconcile"],
+                        operations: ["shift.cancel", "shift.reconcile"],
                         boundArgs: { duty },
+                      }),
+                      /* desired-unimplemented: button opens activates the local modal. */
+                      button({ context: dv, opens: "publish_dialog" }),
+                      /* desired-unimplemented: modal declares the local activation identity. */
+                      modal({
+                        context: dv,
+                        caption: message("Publish duty", { nl: "Dienst publiceren" }),
+                        id: "publish_dialog",
+                        children: [
+                          slot({
+                            context: dv,
+                            name: "content",
+                            children: [
+                              form({
+                                context: dv,
+                                operation: "shift.publish",
+                                arguments: { duty },
+                                display: "inline",
+                                /* desired-unimplemented: placed input moves the generated control. */
+                                children: [input({ context: dv, field: "override_reason" })],
+                              }),
+                            ],
+                          }),
+                        ],
                       }),
                       history({ context: dv, record: duty }),
                       table({
@@ -1817,6 +1882,10 @@ export async function rosterPage(c, bindings) {
                         model: "shift.Notice",
                         parent: duty,
                         columns: ["kind", "revision", "state"],
+                        renderRow: (notice, w) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: w }),
+                        ],
                       }),
                     ],
                   }),
@@ -1832,16 +1901,31 @@ export async function rosterPage(c, bindings) {
                 context: v,
                 operation: "shift.Coverage.create",
                 arguments: { parent: roster },
+                /* desired-unimplemented: fieldset groups explicitly placed controls. */
+                children: [
+                  fieldset({
+                    context: v,
+                    caption: message("Coverage window", { nl: "Bezettingstijdvak" }),
+                    children: [
+                      /* desired-unimplemented: select/input place generated controls. */
+                      select({ context: v, field: "location" }),
+                      input({ context: v, field: "role" }),
+                    ],
+                  }),
+                ],
               }),
               table({
                 context: v,
                 model: "shift.Coverage",
                 parent: roster,
-                columns: ["location", "role", "from", "until", "minimum", "met"],
+                columns: ["location", "role", "from", "until", "minimum"],
                 filter: ["location"],
                 defaults: { location: c.preferences.shift.location },
-                renderRow: (coverage, cv) =>
+                renderRow: (coverage, cv) => [
                   edit({ context: cv, operation: "shift.Coverage.update", record: coverage }),
+                  /* desired-unimplemented: status presents a readable typed value. */
+                  status({ context: cv, value: coverage.met }),
+                ],
               }),
             ],
           }),
@@ -1856,18 +1940,30 @@ export async function minePage(c, bindings) {
     c,
     minePageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Your availability", { nl: "Jouw beschikbaarheid" }),
         children: [
-          form({ context: c, operation: "shift.Availability.create" }),
+          form({
+            context: c,
+            operation: "shift.Availability.create",
+            /* desired-unimplemented: placed select/toggle move the generated controls. */
+            children: [
+              select({ context: c, field: "employee" }),
+              toggle({ context: c, field: "available" }),
+            ],
+          }),
           list({
             context: c,
             model: "shift.Availability",
             renderRow: (availability, v) => [
+              /* desired-unimplemented: status presents a readable typed value. */
+              status({ context: v, value: availability.available }),
               text({
                 context: v,
-                values: [availability.from, availability.until, availability.available],
+                values: [availability.from, availability.until],
               }),
               edit({ context: v, operation: "shift.Availability.update", record: availability }),
             ],
@@ -1885,6 +1981,8 @@ export async function minePage(c, bindings) {
             model: "shift.Duty",
             display: "split",
             renderRow: (duty, v) => [
+              /* desired-unimplemented: status presents a readable typed value. */
+              status({ context: v, value: duty.published }),
               text({
                 context: v,
                 values: [
@@ -1893,7 +1991,6 @@ export async function minePage(c, bindings) {
                   duty.parent.until,
                   duty.parent.skill,
                   duty.role,
-                  duty.published,
                   duty.published_revision,
                   duty.parent.before,
                   duty.parent.after,
@@ -1906,14 +2003,26 @@ export async function minePage(c, bindings) {
                 model: "shift.Notice",
                 parent: duty,
                 columns: ["kind", "revision", "state"],
+                renderRow: (notice, w) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: w }),
+                ],
               }),
-              form({ context: v, operation: "shift.request_swap", arguments: { duty } }),
+              form({
+                context: v,
+                operation: "shift.request_swap",
+                arguments: { duty },
+                /* desired-unimplemented: placed select moves the generated control. */
+                children: [select({ context: v, field: "substitute" })],
+              }),
               list({
                 context: v,
                 model: "shift.Swap",
                 parent: duty,
                 renderRow: (swap, sv) => [
-                  text({ context: sv, values: [swap.substitute, swap.original, swap.state] }),
+                  /* desired-unimplemented: status presents a readable typed value. */
+                  status({ context: sv, value: swap.state }),
+                  text({ context: sv, values: [swap.substitute, swap.original] }),
                   actions({
                     context: sv,
                     operations: ["shift.accept", "shift.decline"],
