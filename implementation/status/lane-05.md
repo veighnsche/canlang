@@ -161,8 +161,19 @@ cadence (default 2), no polling.
       Shared worker specs: renderTextValue(value, context)->escaped HTML and
       rowHeading(row, modelCaption, context)->escaped text exported from
       components.ts; resolveCaption/formatScalar from messages.ts.
-- [ ] S4 forms: forms.ts (form/edit/delete/action/actions, bindings, errors, conflict/pending), version hidden
-      fields, datetime-zone controls. Branch: muse/lane-05-ui/s4-forms.
+- [x] S4 forms (branch muse/lane-05-ui/s4-forms, PR pending): contract v0.4.0
+      (FormProps/EditProps/DeleteProps/ActionProps/ActionsProps, FormFieldDef,
+      FormOutcome, DeliveryReceiptView; reuses wire FieldError/BusinessError/
+      MutationRef/SealedActionHandle + services DeliveryStatus via type imports).
+      Field-encoding proposal (L6 ack): urlencoded POST to dispatcher action URL;
+      hidden operation/operation_id/CSRF/timezone (+record/action_handle);
+      `inputs[root][key]` brackets (update roots at inputs[changes]); error
+      pointers map to bracket names; action_handle as opaque hidden JSON.
+      W-F delivered src/forms.ts + test/forms.test.ts (74 tests); coordinator
+      reconciled: timezone always declared (UTC default), conflict.current as
+      L3 CurrentRow projection, gap-2 allowlist, separator-adversarial routing
+      regression test. Suite 257/257 green. Read-only review closed (0 real
+      defects; drawer finding false-positive; A1 fail-closed verified).
 - [ ] S5 interaction: htmx.ts (fragments, swap/error config, poll/refresh), collections.ts (search/filter/order/
       pagination/empty/export/print), DOM harness decision + unsaved-state/focus tests. Two workers allowed:
       W-A htmx.ts+tests, W-B collections.ts+tests. Branch: muse/lane-05-ui/s5-interaction.
@@ -304,7 +315,10 @@ N5 cell bidi isolation (rowHeading deliberately unisolated, no double-wrap);
 N6 catalog arity pins; N7 th scope=col; T1 forbidden-field test, T2 caption
 money test, T3 enum: badge test, T4 no-match/validation/conflict/pending
 documented as S4/S5 extensions. Literal bidi marks converted to \u escapes.
-Merge: (to be filled) reviewed head sha, checks, squash merge result.
+Merge: squash-merged as f5f2b5e (PR #16); reviewed head 4f7d049 unchanged,
+lane-05 check x2 green, CodeRabbit pass; `workspace` red for lane 03's
+unsynced miniflare dep (pre-existing on main, not required — five PRs merged
+with it red). N1-N8 + gaps fixed in-branch (183/183).
 
 Note (S3): L7's new integration check runs `npm ci`, so the lane-05 daisyUI
 devDep required a root-lock sync to merge. Applied mechanically via

@@ -41,6 +41,11 @@ describe("component catalog", () => {
     const arities: Record<string, number> = {
       renderPage: 4,
       buildNavigation: 3,
+      form: 1,
+      edit: 1,
+      deleteRecord: 1,
+      action: 1,
+      actions: 1,
       card: 1,
       title: 1,
       text: 1,

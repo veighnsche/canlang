@@ -6,13 +6,24 @@
  * dispatch (lane 6). This file is types and wire shapes only: no execution engine,
  * no second CRUD/policy engine, no browser business-state store.
  *
- * B0 note: packages/contracts assembly (package.json, index.ts) is lane 7 owned and
- * does not exist yet. Until it lands, packages/ui imports this file via an explicit
- * relative path, marked temporary B0 wiring in the ui README. No duplicate
+ * Member TS imports this module directly (workspace-wide pattern); the L7
+ * contracts index re-exports it for external consumers. No duplicate
  * definitions: this file is the single source of truth for the shapes below.
  */
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.3.0";
+import type {
+  BusinessError,
+  FieldError,
+  MutationRef,
+  SealedActionHandle,
+} from "./wire.js";
+import type { DeliveryStatus } from "./services.js";
+
+/** Reused producer types, re-exported so lane-05 members import one contract file. */
+export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
+export type { DeliveryStatus } from "./services.js";
+
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.4.0";
 
 /**
  * Name of the hidden CSRF field in every canonical POST form. Rendered by
@@ -461,4 +472,119 @@ export interface ComponentCatalog {
   readonly catalog_version: string;
   readonly language_version: string | null;
   readonly entries: ReadonlyArray<ComponentCatalogEntry>;
+}
+
+/**
+ * One form field. `path` is the top-level input key (validated identifier);
+ * the form mode roots it under `inputs` (create/scenario) or
+ * `inputs[changes]` (update). `value` carries the draft (or current) value;
+ * generated code merges drafts over current values before rendering.
+ */
+export interface FormFieldDef {
+  readonly path: string;
+  readonly label: MessageValue;
+  /** Canonical type id (lane 2 CanTypeId vocabulary). */
+  readonly type: string;
+  readonly required: boolean;
+  readonly multiline?: boolean;
+  readonly readonly?: boolean;
+  readonly value?: unknown;
+  /** Caller-supplied opaque options for enum/reference selects. */
+  readonly options?: ReadonlyArray<FormFieldOption>;
+}
+
+export interface FormFieldOption {
+  /** Opaque value (enum case name or reference); never a grant. */
+  readonly value: string;
+  readonly label: MessageValue;
+}
+
+export type FormMode = "create" | "update" | "scenario";
+
+export interface DeliveryReceiptView {
+  readonly id: string;
+  readonly status: DeliveryStatus;
+}
+
+/**
+ * Mutation outcome for form re-render. Pending/conflict/failed/unknown come
+ * from the invocation result; drafts stay in field values and are never
+ * overwritten by current values.
+ */
+export type FormOutcome =
+  | { readonly status: "pending"; readonly deliveries: ReadonlyArray<DeliveryReceiptView> }
+  | {
+      readonly status: "conflict";
+      /** Current authorized values keyed by field path. */
+      readonly current: Record<string, unknown>;
+      readonly message: MessageValue;
+    }
+  | { readonly status: "failed"; readonly error: BusinessError }
+  | { readonly status: "unknown"; readonly operationId: string; readonly message: MessageValue };
+
+export interface FormProps {
+  readonly context: PresentationContext;
+  /** Dispatcher-supplied POST target; lane 05 never invents URLs. */
+  readonly action: string;
+  readonly operation: string;
+  /** Fresh idempotency key rendered per form (replay-safe resubmits). */
+  readonly operationId: string;
+  readonly mode: FormMode;
+  /** Bound record for updates (hidden id/version); required in update mode. */
+  readonly record?: MutationRef;
+  /** Resolved rendering timezone (team adapter or explicit UTC fallback). */
+  readonly timeZone: string;
+  readonly fields: ReadonlyArray<FormFieldDef>;
+  /** Field errors keyed by JSON Pointer into inputs (wire FieldError). */
+  readonly errors?: ReadonlyArray<FieldError>;
+  readonly outcome?: FormOutcome;
+  readonly submit: MessageValue;
+  readonly cancelHref?: string;
+  /** Caller-unique prefix for input ids (deterministic for swaps/tests). */
+  readonly idPrefix: string;
+}
+
+export interface EditProps extends Omit<FormProps, "mode" | "record"> {
+  readonly record: MutationRef;
+}
+
+export interface DeleteProps {
+  readonly context: PresentationContext;
+  readonly action: string;
+  readonly operation: string;
+  readonly operationId: string;
+  readonly record: MutationRef;
+  readonly mode: "archive" | "remove";
+  readonly itemLabel: MessageValue;
+  readonly confirm: MessageValue;
+  readonly cancelHref?: string;
+  readonly idPrefix: string;
+  /** IANA zone for datetime display; always declared on the wire (UTC default). */
+  readonly timeZone?: string;
+}
+
+export interface ActionProps {
+  readonly context: PresentationContext;
+  readonly action: string;
+  readonly operation: string;
+  readonly operationId: string;
+  readonly label: MessageValue;
+  /** Bound record for record actions (hidden id/version). */
+  readonly record?: MutationRef;
+  /** Sealed handle for handle-mode actions (opaque hidden JSON). */
+  readonly actionHandle?: SealedActionHandle;
+  /** Pre-bound non-record scalar inputs (hidden fields). */
+  readonly inputs?: Record<string, string | number | bigint | boolean>;
+  /** Ordinary inputs render a mini form; absent renders a single button. */
+  readonly fields?: ReadonlyArray<FormFieldDef>;
+  readonly timeZone?: string;
+  readonly errors?: ReadonlyArray<FieldError>;
+  readonly confirm?: MessageValue;
+  readonly variant?: "primary" | "danger" | "ghost";
+  readonly idPrefix: string;
+}
+
+export interface ActionsProps {
+  readonly context: PresentationContext;
+  readonly actions: ReadonlyArray<Omit<ActionProps, "context">>;
 }
