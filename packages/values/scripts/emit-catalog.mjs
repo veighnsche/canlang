@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Emits the versioned lane-02 catalog JSON from the single authored definition
-// (src/catalog.ts) and validates its shape. Run after `npm run build`.
-// Export-conformance against runtime implementations activates in PR5.
+// (src/catalog.ts), validates its shape, and asserts export conformance:
+// every implemented entry resolves to a function export of the built dist
+// index. Run after `npm run build`.
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,6 +42,17 @@ for (const entry of CATALOG.entries) {
   const key = `${entry.kind}:${entry.id}`;
   if (seen.has(key)) fail(`duplicate entry ${key}`);
   seen.add(key);
+}
+
+// Export conformance (PR5): every implemented entry must resolve to a
+// function export of the built dist index. Planned/external entries are
+// never required.
+const runtime = await import("../dist/values/src/index.js");
+for (const entry of CATALOG.entries) {
+  if (entry.availability !== "implemented") continue;
+  if (typeof runtime[entry.js] !== "function") {
+    fail(`implemented entry ${entry.kind}:${entry.id} (js ${entry.js}) is not a function export`);
+  }
 }
 
 writeFileSync(outPath, `${JSON.stringify(CATALOG, null, 2)}\n`);
