@@ -171,18 +171,47 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
   derive movement_covers(movement:Movement,point:datetime):bool = any(movement.intervals as interval,interval.from-movement.parent.arrival_buffer<=point and point<interval.until+movement.parent.departure_buffer) and not (busy(movement.parent) and covers(movement.parent,point))
   derive movement_request(movement:Movement):Entitlement = Entitlement {source=movement.source,customer=movement.parent.customer.id,account=movement.parent.account,location=movement.parent.parent.location.id,product="workspace",intervals=movement.intervals,quantity=movement.parent.quantity,unit=movement.parent.benefit_unit,duration=movement.parent.benefit_duration,rate=movement.parent.benefit_rate ?? movement.parent.rate,previous_source=movement.parent.allowance_source ?? movement.parent.source,restore_consumed=true}
   derive next_boundary(points:datetime[],left:datetime,until:datetime):datetime = first(points as point where left<point order=point) ?? until
-  derive saved_rows(resource:Resource,points:datetime[],until:datetime):Contribution[] = flatten(points as left where left<until select flatten(resource.ResourcePolicy as policy where policy==first(resource.ResourcePolicy as candidate where candidate.effective<=left order=-candidate.sequence) select flatten(resource.location.LocationPolicy as opening where opening==first(resource.location.LocationPolicy as candidate where candidate.effective<=left order=-candidate.sequence) select [Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=booked_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum(policy.value.bookings as booking where booking.status in [confirmed,occupied,completed] and saved_service(booking,left) select booking.quantity)+((next_boundary(points,left,until)-left)/1m)*sum(policy.value.venues as venue where venue.status==confirmed and venue.from<=left and left<venue.until select venue.quantity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute"},Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=occupied_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum(policy.value.bookings as booking where booking.checked_in!=null and booking.checked_in<=left and left<(booking.checked_out ?? now) select booking.quantity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute",provisional=any(policy.value.bookings as booking,booking.checked_in!=null and booking.checked_out==null)},Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=saleable_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum([policy.value.capacity] as capacity where saved_saleable(policy,opening,left,next_boundary(points,left,until)) select capacity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute"},Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=excluded_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum([policy.value.capacity] as capacity where not saved_saleable(policy,opening,left,next_boundary(points,left,until)) select capacity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute"}])))
+  derive saved_rows(resource:Resource,points:datetime[],until:datetime):Contribution[] = flatten(points as left where left<until select flatten(resource.ResourcePolicy as policy where policy==first(resource.ResourcePolicy as candidate where candidate.effective<=left order=-candidate.sequence) select flatten(resource.location.LocationPolicy as opening where opening==first(resource.location.LocationPolicy as candidate where candidate.effective<=left order=-candidate.sequence) select [Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=booked_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum(saved_bookings(resource,policy.sequence) as booking where booking.status in [confirmed,occupied,completed] and saved_service(booking,left) select booking.quantity)+((next_boundary(points,left,until)-left)/1m)*sum(saved_venues(resource,policy.sequence) as venue where venue.status==confirmed and venue.from<=left and left<venue.until select venue.quantity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute"},Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=occupied_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum(saved_bookings(resource,policy.sequence) as booking where booking.checked_in!=null and booking.checked_in<=left and left<(booking.checked_out ?? now) select booking.quantity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute",provisional=any(saved_bookings(resource,policy.sequence) as booking,booking.checked_in!=null and booking.checked_out==null)},Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=saleable_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum([policy.value.capacity] as capacity where saved_saleable(policy,opening,left,next_boundary(points,left,until)) select capacity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute"},Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=excluded_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum([policy.value.capacity] as capacity where not saved_saleable(policy,opening,left,next_boundary(points,left,until)) select capacity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute"}])))
   contract ReportWindow { from:datetime,until:datetime,closed:bool }
   contract ReportDowntime { from:datetime,until:datetime?,active:bool }
   contract ReportBooking { from:datetime,until:datetime,intervals:BookingInterval[],quantity:int,status:Booking.status,checked_in:datetime?,checked_out:datetime?,arrival_buffer:duration,departure_buffer:duration }
   contract ReportVenue { from:datetime,until:datetime,quantity:int,status:VenueReservation.status }
-  contract ResourceEvidence { active:bool,capacity:int,pooled:bool,timezone:timezone,windows:ReportWindow[],downtime:ReportDowntime[],bookings:ReportBooking[],venues:ReportVenue[] }
-  ResourcePolicy in Resource { effective:datetime server=now,sequence:int,value:ResourceEvidence }
+  contract ResourceEvidence { active:bool,capacity:int,pooled:bool,timezone:timezone }
+  ResourcePolicy in Resource { effective:datetime server=now,sequence:int,baseline:bool=false,value:ResourceEvidence }
+  unique ResourcePolicy fields=sequence
   policy ResourcePolicy read=reservation_manager and can_work(actor,row.parent.location)
-  lock ResourcePolicy fields=effective,sequence,value
-  derive resource_evidence(resource:Resource):ResourceEvidence = ResourceEvidence {active=resource.active,capacity=resource.capacity,pooled=resource.pooled,timezone=resource.timezone,windows=resource.Window as window select ReportWindow {from=window.from,until=window.until,closed=window.closed},downtime=resource.Downtime as downtime select ReportDowntime {from=downtime.from,until=downtime.until,active=downtime.active},bookings=resource.Booking as booking select ReportBooking {from=booking.from,until=booking.until,intervals=booking.intervals,quantity=booking.quantity,status=booking.status,checked_in=booking.checked_in,checked_out=booking.checked_out,arrival_buffer=booking.arrival_buffer,departure_buffer=booking.departure_buffer},venues=resource.VenueReservation as venue select ReportVenue {from=venue.from,until=venue.until,quantity=venue.quantity,status=venue.status}}
+  lock ResourcePolicy fields=effective,sequence,baseline,value
+  BookingEvidence in Resource { sequence:int,key:text,value:ReportBooking? }
+  VenueEvidence in Resource { sequence:int,key:text,value:ReportVenue? }
+  WindowEvidence in Resource { sequence:int,key:text,value:ReportWindow? }
+  DowntimeEvidence in Resource { sequence:int,key:text,value:ReportDowntime? }
+  unique BookingEvidence fields=sequence,key
+  unique VenueEvidence fields=sequence,key
+  unique WindowEvidence fields=sequence,key
+  unique DowntimeEvidence fields=sequence,key
+  lock BookingEvidence fields=sequence,key,value
+  lock VenueEvidence fields=sequence,key,value
+  lock WindowEvidence fields=sequence,key,value
+  lock DowntimeEvidence fields=sequence,key,value
+  policy BookingEvidence read=reservation_manager and can_work(actor,row.parent.location)
+  policy VenueEvidence read=reservation_manager and can_work(actor,row.parent.location)
+  policy WindowEvidence read=reservation_manager and can_work(actor,row.parent.location)
+  policy DowntimeEvidence read=reservation_manager and can_work(actor,row.parent.location)
+  invariant BookingEvidence: any(row.parent.ResourcePolicy as capture,capture.sequence==row.sequence)
+  invariant VenueEvidence: any(row.parent.ResourcePolicy as capture,capture.sequence==row.sequence)
+  invariant WindowEvidence: any(row.parent.ResourcePolicy as capture,capture.sequence==row.sequence)
+  invariant DowntimeEvidence: any(row.parent.ResourcePolicy as capture,capture.sequence==row.sequence)
+  derive resource_evidence(resource:Resource):ResourceEvidence = ResourceEvidence {active=resource.active,capacity=resource.capacity,pooled=resource.pooled,timezone=resource.timezone}
+  derive report_booking(booking:Booking):ReportBooking = ReportBooking {from=booking.from,until=booking.until,intervals=booking.intervals,quantity=booking.quantity,status=booking.status,checked_in=booking.checked_in,checked_out=booking.checked_out,arrival_buffer=booking.arrival_buffer,departure_buffer=booking.departure_buffer}
+  derive report_venue(venue:VenueReservation):ReportVenue = ReportVenue {from=venue.from,until=venue.until,quantity=venue.quantity,status=venue.status}
+  derive report_window(window:Window):ReportWindow = ReportWindow {from=window.from,until=window.until,closed=window.closed}
+  derive report_downtime(downtime:Downtime):ReportDowntime = ReportDowntime {from=downtime.from,until=downtime.until,active=downtime.active}
+  derive saved_bookings(resource:Resource,sequence:int):ReportBooking[] = flatten(group(resource.BookingEvidence as fact where fact.sequence<=sequence,fact.key) as item select (item.items as fact where fact==first(item.items as latest order=-latest.sequence) and fact.value!=null select fact.value))
+  derive saved_venues(resource:Resource,sequence:int):ReportVenue[] = flatten(group(resource.VenueEvidence as fact where fact.sequence<=sequence,fact.key) as item select (item.items as fact where fact==first(item.items as latest order=-latest.sequence) and fact.value!=null select fact.value))
+  derive saved_windows(resource:Resource,sequence:int):ReportWindow[] = flatten(group(resource.WindowEvidence as fact where fact.sequence<=sequence,fact.key) as item select (item.items as fact where fact==first(item.items as latest order=-latest.sequence) and fact.value!=null select fact.value))
+  derive saved_downtime(resource:Resource,sequence:int):ReportDowntime[] = flatten(group(resource.DowntimeEvidence as fact where fact.sequence<=sequence,fact.key) as item select (item.items as fact where fact==first(item.items as latest order=-latest.sequence) and fact.value!=null select fact.value))
   derive saved_service(booking:ReportBooking,point:datetime):bool = (count(booking.intervals)==0 and booking.from<=point and point<booking.until) or any(booking.intervals as interval,interval.from+booking.arrival_buffer<=point and point<interval.until-booking.departure_buffer)
-  derive saved_saleable(policy:ResourcePolicy,opening:LocationPolicy,left:datetime,right:datetime):bool = policy.value.active and policy_open(opening,left,right) and any(policy.value.windows as window,not window.closed and window.from<=left and right<=window.until) and not any(policy.value.windows as window,window.closed and overlaps(left,right,window.from,window.until)) and not any(policy.value.downtime as downtime,downtime.active and downtime.from<right and (downtime.until==null or left<downtime.until))
+  derive saved_saleable(policy:ResourcePolicy,opening:LocationPolicy,left:datetime,right:datetime):bool = policy.value.active and policy_open(opening,left,right) and any(saved_windows(policy.parent,policy.sequence) as window,not window.closed and window.from<=left and right<=window.until) and not any(saved_windows(policy.parent,policy.sequence) as window,window.closed and overlaps(left,right,window.from,window.until)) and not any(saved_downtime(policy.parent,policy.sequence) as downtime,downtime.active and downtime.from<right and (downtime.until==null or left<downtime.until))
   policy Resource read=public fields=location,name,pooled,capacity,active,timezone,currency,hourly,increment,minimum,terms,refund_notice,amenities,accessibility,party_limit,kind,hold_for,daily,price_unit,tax_rate,discount_rate,cancellation_fee
   policy Resource read=catalog_owner and can_work(actor,row.location)
   policy Resource read=reservation_manager and can_work(actor,row.location)
@@ -217,7 +246,11 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
   invariant Booking: row.from<row.until and row.reserved_from<=row.from and row.until<=row.reserved_until and row.total.currency==row.parent.currency and row.total.minor>=0 and row.total==row.subtotal-row.discount+row.tax and row.tax.minor>=0 and row.discount.minor>=0 and row.discount<=row.subtotal+row.tax and row.refund_amount.currency==row.total.currency and row.refund_amount.minor>=0 and row.refund_amount<=row.total and all(row.intervals as interval,interval.from<interval.until and row.reserved_from<=interval.from and interval.until<=row.reserved_until)
   lock Booking fields=billing_location,sale_product,purchased_at,attribution,exclusive_program,attributed_at,attribution_window,customer,account,rate,tax_fraction,discount_fraction,subtotal,tax,discount,total,refund_amount,terms,refund_before,source,departure_buffer,arrival_buffer,benefit_intervals,benefit_rate,benefit_unit,benefit_duration,original_intervals,quote
   lock Booking fields=monetary_due when=row.monetary_due!=null
-  fixture recorded_resource=ResourcePolicy {parent=test_room,effective=now-2d,sequence=1,value=ResourceEvidence {active=true,capacity=1,pooled=false,timezone="Europe/Brussels",windows=[ReportWindow {from=now-2d,until=now+2d,closed=false}],downtime=[],bookings=[],venues=[]}}
+  fixture recorded_resource=ResourcePolicy {parent=test_room,effective=now-2d,sequence=1,baseline=true,value=ResourceEvidence {active=true,capacity=1,pooled=false,timezone="Europe/Brussels"}}
+  fixture recorded_window=WindowEvidence {parent=test_room,sequence=1,key=test_window.id,value=ReportWindow {from=now-2d,until=now+2d,closed=false}}
+  fixture recorded_followup=ResourcePolicy {parent=test_room,effective=now-1d,sequence=2,value=ResourceEvidence {active=true,capacity=1,pooled=false,timezone="Europe/Brussels"}}
+  fixture recorded_booking_old=BookingEvidence {parent=test_room,sequence=1,key="seeded-booking",value=ReportBooking {from=now-1d,until=now+1d,intervals=[],quantity=1,status=confirmed,checked_in=null,checked_out=null,arrival_buffer=0m,departure_buffer=0m}}
+  fixture recorded_booking_absent=BookingEvidence {parent=test_room,sequence=2,key="seeded-booking",value=null}
   fixture test_room=Resource {location=test_site,name="Room",timezone="Europe/Brussels",currency="EUR",hourly=money(1000,"EUR"),terms="Full balance before admission",refund_notice=1d,accessibility="Step-free"}
   fixture test_window=Window {parent=test_room,from=datetime("2026-10-01T00:00:00Z"),until=datetime("2026-11-01T00:00:00Z")}
   fixture test_sale=CommercialSale {parent=test_hold}
@@ -269,7 +302,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
   scenario snapshot_Resource_create on=Resource.create
    do
     let resource=event.after
-    create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,value=resource_evidence(resource)} as policy_snapshot_1
+    create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,baseline=true,value=resource_evidence(resource)} as policy_snapshot_1
   scenario snapshot_Resource_update on=Resource.update
    do
     let resource=event.after
@@ -278,10 +311,12 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
    do
     let resource=event.after.parent
     create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,value=resource_evidence(resource)} as policy_snapshot_1
+    create WindowEvidence {parent=event.after.parent,sequence=policy_snapshot_1.sequence,key=event.after.id,value=report_window(event.after)} as window_evidence_1
   scenario snapshot_Window_update on=Window.update
    do
     let resource=event.after.parent
     create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,value=resource_evidence(resource)} as policy_snapshot_1
+    create WindowEvidence {parent=event.after.parent,sequence=policy_snapshot_1.sequence,key=event.after.id,value=report_window(event.after)} as window_evidence_1
   scenario snapshot_DayCalendar_create on=DayCalendar.create
    do
     let resource=event.after.parent
@@ -300,25 +335,37 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
     let weekly=flatten(flatten(openings as policy select flatten(days as day select (policy.weekly as hours where weekday(day)==hours.weekday select [local_instant(day,hours.opens,policy.timezone,fold=hours.fold),local_instant(add_days(day,hours.close_after),hours.closes,policy.timezone,fold=hours.fold)]))))
     let dated=flatten(flatten(openings as policy select (policy.dated as hours where not hours.closed select [local_instant(hours.day,hours.opens,policy.timezone,fold=hours.fold),local_instant(add_days(hours.day,hours.close_after),hours.closes,policy.timezone,fold=hours.fold)])))
     let midnight=days as day select local_instant(day,"00:00",resource.timezone,fold=earlier)
-    let windows=flatten(flatten(policies as policy select (policy.value.windows as window select [window.from,window.until])))
-    let downtime=flatten(flatten(policies as policy select (policy.value.downtime as downtime select [downtime.from,downtime.until ?? until])))
-    let service=flatten(flatten(policies as policy select (policy.value.bookings as booking select [booking.from,booking.until,booking.checked_in ?? from,booking.checked_out ?? now])))
-    let access=flatten(flatten(policies as policy select (policy.value.bookings as booking select flatten(booking.intervals as interval select [interval.from+booking.arrival_buffer,interval.until-booking.departure_buffer]))))
-    let venues=flatten(flatten(policies as policy select (policy.value.venues as venue select [venue.from,venue.until])))
+    let windows=flatten(resource.WindowEvidence as fact where fact.value!=null select [fact.value.from,fact.value.until])
+    let downtime=flatten(resource.DowntimeEvidence as fact where fact.value!=null select [fact.value.from,fact.value.until ?? until])
+    let service=flatten(resource.BookingEvidence as fact where fact.value!=null select [fact.value.from,fact.value.until,fact.value.checked_in ?? from,fact.value.checked_out ?? now])
+    let access=flatten(resource.BookingEvidence as fact where fact.value!=null select flatten(fact.value.intervals as interval select [interval.from+fact.value.arrival_buffer,interval.until-fact.value.departure_buffer]))
+    let venues=flatten(resource.VenueEvidence as fact where fact.value!=null select [fact.value.from,fact.value.until])
     let boundaries=[from,until]+weekly+dated+midnight+windows+downtime+service+access+venues+(policies as policy select policy.effective)+(openings as policy select policy.effective)
     let points=group((boundaries as point where from<=point and point<=until) as point,point) as point order=point.key select point.key
-    let complete=any(policies as policy,policy.effective<=from) and any(openings as policy,policy.effective<=from)
-    let stamp=join((policies as policy order=policy.sequence select format("{id}:{sequence}",{id=policy.id,sequence=policy.sequence})),",")+":"+join((openings as policy order=policy.sequence select format("{id}:{sequence}",{id=policy.id,sequence=policy.sequence})),",")
+    let complete=any(policies as policy,policy.effective<=from and policy.baseline) and any(openings as policy,policy.effective<=from)
+    let stamp=join((policies as policy order=policy.sequence select format("{id}:{sequence}",{id=policy.id,sequence=policy.sequence})),",")+":"+join((openings as policy order=policy.sequence select format("{id}:{sequence}",{id=policy.id,sequence=policy.sequence})),",")+":"+join((resource.BookingEvidence as fact order=fact.sequence select format("{id}:{sequence}",{id=fact.id,sequence=fact.sequence})),",")+":"+join((resource.VenueEvidence as fact order=fact.sequence select format("{id}:{sequence}",{id=fact.id,sequence=fact.sequence})),",")+":"+join((resource.WindowEvidence as fact order=fact.sequence select format("{id}:{sequence}",{id=fact.id,sequence=fact.sequence})),",")+":"+join((resource.DowntimeEvidence as fact order=fact.sequence select format("{id}:{sequence}",{id=fact.id,sequence=fact.sequence})),",")
     if complete
      return ReportBatch {checkpoint=Checkpoint {source=resource.id,revision=stamp,generated=now,state=fresh,complete=true},rows=saved_rows(resource,points,until)}
     return ReportBatch {checkpoint=Checkpoint {source=resource.id,revision=stamp,generated=now,state=partial,complete=false},rows=saved_rows(resource,points,until)}
-   examples seed=[recorded_resource,recorded_site] resource=test_room from=local_instant(local_date(now,"Europe/Brussels"),"09:00","Europe/Brussels",fold=earlier) until=local_instant(local_date(now,"Europe/Brussels"),"10:00","Europe/Brussels",fold=earlier)
+   examples seed=[recorded_resource,recorded_window,recorded_site,test_window] resource=test_room from=local_instant(local_date(now,"Europe/Brussels"),"09:00","Europe/Brussels",fold=earlier) until=local_instant(local_date(now,"Europe/Brussels"),"10:00","Europe/Brussels",fold=earlier)
     test_room.active -> result.checkpoint.complete,sum(result.rows as item where item.metric==saleable_minutes select item.quantity)
     true -> true,60
     false -> true,60
-   examples seed=[recorded_resource,recorded_site] resource=test_room
+   examples seed=[recorded_resource,recorded_window,recorded_site,test_window] resource=test_room
     from,until -> result.checkpoint.complete,count(result.rows)
     now-10d,now-10d+1h -> false,0
+   ## A null latest fact removes its entity; an older value is never resurrected.
+   examples seed=[recorded_resource,recorded_followup,recorded_window,recorded_booking_old,recorded_booking_absent,recorded_site,test_window] resource=test_room from=local_instant(local_date(now,"Europe/Brussels"),"09:00","Europe/Brussels",fold=earlier) until=local_instant(local_date(now,"Europe/Brussels"),"10:00","Europe/Brussels",fold=earlier)
+    recorded_booking_absent.value -> result.checkpoint.complete,sum(result.rows as item where item.metric==booked_minutes select item.quantity)
+    null -> true,0
+    recorded_booking_old.value -> true,60
+   ## Saved evidence stays inside reservation-manager work scope.
+   examples seed=[recorded_resource,recorded_window,recorded_site,test_window,history_worker] resource=test_room from=local_instant(local_date(now,"Europe/Brussels"),"09:00","Europe/Brussels",fold=earlier) until=local_instant(local_date(now,"Europe/Brussels"),"10:00","Europe/Brussels",fold=earlier)
+    as,history_worker.active -> result.checkpoint.complete
+    history_user,true -> true
+    history_user,false -> error(rule_failed)
+    members,true -> error(forbidden)
+    public,true -> error(forbidden)
   # Expose this resource's current eligibility and published full price without customer records. @{nl="Toon de huidige geschiktheid en gepubliceerde volledige prijs van deze voorziening zonder klantgegevens."}
   scenario available(resource:Resource,from:datetime,until:datetime,quantity:int=1,attendees:int=1,amenities:text[]=[]) -> WorkspaceAvailability read=true scope=authority by=public label="Check workspace availability"@{nl="Werkplekbeschikbaarheid controleren"}
    require resource.price_unit==hour and now<=from and from<until and quantity>0 and attendees>0
@@ -355,6 +402,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
     let total=subtotal-discount+tax
     create Booking {parent=resource,billing_location=resource.location,sale_product=format("{kind}",{kind=resource.kind}),purchased_at=now,attribution=capture?.code,exclusive_program=capture?.program,attributed_at=capture?.captured,attribution_window=capture?.window,customer,account=account ?? actor,email,from,until,quantity,attendees,rate=resource.hourly,tax_fraction=resource.tax_rate,discount_fraction=resource.discount_rate,subtotal,discount,tax,total,refund_amount=max(money(0,resource.currency),total-(resource.cancellation_fee ?? money(0,resource.currency))),terms=resource.terms,refund_before=from-resource.refund_notice,reserved_from=from-resource.buffer_before,reserved_until=until+resource.buffer_after,expires=now+resource.hold_for,source=operation.id,departure_buffer=resource.buffer_after,arrival_buffer=resource.buffer_before,benefit_unit=resource.price_unit,benefit_duration=resource.increment,benefit_rate=resource.hourly*(resource.increment/1h),benefit_intervals=[BenefitInterval {from,until}]} as booking
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
     if use_allowance
      set booking {allowance=pending}
     schedule booking.id at=booking.expires event=HoldDue {booking}
@@ -383,6 +431,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
     let total=subtotal-discount+tax
     create Booking {parent=resource,billing_location=resource.location,sale_product=format("{kind}",{kind=resource.kind}),purchased_at=now,attribution=capture?.code,exclusive_program=capture?.program,attributed_at=capture?.captured,attribution_window=capture?.window,customer,account=account ?? actor,email,from=first_day.from+resource.buffer_before,until=last_day.until-resource.buffer_after,intervals=access,original_intervals=access,benefit_unit=day,benefit_duration=1d,benefit_rate=resource.daily,benefit_intervals=access as interval select BenefitInterval {from=interval.from+resource.buffer_before,until=interval.until-resource.buffer_after},quantity,attendees,rate=resource.daily,tax_fraction=resource.tax_rate,discount_fraction=resource.discount_rate,subtotal,discount,tax,total,refund_amount=max(money(0,resource.currency),total-(resource.cancellation_fee ?? money(0,resource.currency))),terms=resource.terms,refund_before=first_day.from+resource.buffer_before-resource.refund_notice,reserved_from=first_day.from,reserved_until=last_day.until,expires=now+resource.hold_for,source=operation.id,departure_buffer=resource.buffer_after,arrival_buffer=resource.buffer_before} as booking
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
     if use_allowance
      set booking {allowance=pending}
     schedule booking.id at=booking.expires event=HoldDue {booking}
@@ -396,6 +445,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
    do
     set booking {from,until,reserved_from=from-booking.parent.buffer_before,reserved_until=until+booking.departure_buffer}
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_move
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_move.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_move
     emit ReservationChanged {booking,revision=booking.version+1}
    examples seed=[test_admin,open_site,quote_window] booking=test_hold from=datetime("2099-01-01T11:00:00Z") until=datetime("2099-01-01T12:00:00Z")
     as,test_admin.active,test_admin.locations,test_company.active -> booking.from
@@ -419,6 +469,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
     let last_day=at(access,count(access)-1)
     set booking {intervals=access,from=first_day.from+booking.parent.buffer_before,until=last_day.until-booking.departure_buffer,reserved_from=first_day.from,reserved_until=last_day.until}
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
     emit ReservationChanged {booking,revision=booking.version+1}
    examples seed=[test_admin,open_site,quote_window,quote_day] booking=test_hold start=date("2099-01-01") end=date("2099-01-02")
     as,test_admin.active,test_admin.locations,booking.intervals -> booking.from
@@ -513,6 +564,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       else
        set booking {intervals=[]}
       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+      create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
       set movement {state=adopted,outcome=event.value}
       cancel movement.id
       emit ReservationChanged {booking,revision=booking.version+1}
@@ -520,6 +572,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       set movement {state=review,outcome=event.value}
       set booking {status=review,refund_state=review}
       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_4
+      create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_4.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_4
       emit CommercialCheck {booking}
     if event.value.phase==released and movement.state in [holding,waiting_money,cancelling]
      set movement {state=cancelled,outcome=event.value}
@@ -613,6 +666,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
    do
     create Downtime {parent=resource,source=operation.id,from,until,reason} as downtime
     create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+    create DowntimeEvidence {parent=downtime.parent,sequence=policy_snapshot_1.sequence,key=downtime.id,value=report_downtime(downtime)} as downtime_evidence_1
     for booking in resource.Booking as b where busy(b) and b.reserved_from< (until ?? b.reserved_until) and from<b.reserved_until limit=1000
      create Conflict {parent=resource,booking,reason} as conflict
   # Restore only the specified manager-verified repair block. @{nl="Herstel alleen de opgegeven reparatieblokkade die een beheerder heeft geverifieerd."}
@@ -621,6 +675,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
    do
     set downtime {active=false,verified_by=actor,verification=evidence}
     create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+    create DowntimeEvidence {parent=downtime.parent,sequence=policy_snapshot_1.sequence,key=downtime.id,value=report_downtime(downtime)} as downtime_evidence_1
   # Queue this booking's charge and optional allowance reservation once. @{nl="Zet de kosten en optionele tegoedreservering voor deze reservering eenmalig in de wachtrij."}
   export scenario prepare(booking:Booking,use_allowance:bool=false label=label_hold_use_allowance) by=authenticated or reception label="Request booking fulfillment"@{nl="Reserveringsuitvoering aanvragen"}
    require (booking.account==actor or (reception and can_work(actor,booking.parent.location))) and booking.status==held and booking.billing_delivery==null and now<booking.expires and booking.total.minor>0
@@ -629,10 +684,12 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
      send Membership.reserve {value=benefit_request(booking)} as allocation
      set booking {status=pending,allowance=pending,allowance_delivery=allocation.id}
      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+     create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
     else
      send Billing.charge {value=charge_request(booking,booking.subtotal,booking.discount,booking.tax)} as charge
      set booking {status=pending,payment=pending,billing_delivery=charge.id,monetary_due=booking.total}
      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_2
+     create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_2.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_2
   # Admit a fulfilled booking and retain physical possession beyond its estimated end. @{nl="Laat een voldane reservering toe en behoud werkelijk gebruik na de geschatte eindtijd."}
   export scenario arrive(booking:Booking) by=reception label="Record arrival"@{nl="Aankomst vastleggen"}
    require can_work(actor,booking.parent.location) and booking.status==confirmed and booking.payment in [paid,free,on_account] and booking.allowance in [not_required,consumed]
@@ -641,6 +698,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
    do
     set booking {status=occupied,checked_in=now}
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
     schedule booking.source+":occupancy" at=booking.until event=OccupancyDue {booking}
     emit ReservationChanged {booking,revision=booking.version+1}
   scenario overdue_occupancy on=OccupancyDue
@@ -657,6 +715,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
     cancel booking.source+":occupancy"
     set booking {status=completed,overdue=false,checked_out=now,reserved_until=max(booking.reserved_until,now+booking.departure_buffer)}
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
     emit ReservationChanged {booking,revision=booking.version+1}
   # Disable future admission while retaining physical possession and refund evidence. @{nl="Blokkeer toekomstige toegang en behoud bewijs van werkelijk gebruik en terugbetaling."}
   export scenario cancel_booking(booking:Booking,reason:text) by=authenticated or reception label="Cancel booking"@{nl="Reservering annuleren"}
@@ -665,6 +724,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
     let restore=booking.status in [held,pending] or now<booking.refund_before
     set booking {status=cancelled,cancellation_reason=reason,cancellation_restore=restore}
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
     cancel booking.id
     for movement in booking.Movement as row where row.state in [holding,waiting_money,committing] limit=100
      set movement {state=cancelling,release_restore=restore}
@@ -681,6 +741,12 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
      send Billing.refund {source=booking.source,amount=max(money(0,booking.total.currency),(booking.monetary_due ?? booking.total)-(booking.total-booking.refund_amount)),reason} as refund
      set booking {refund_delivery=refund.id,refund_state=pending,refund_requested=max(money(0,booking.total.currency),(booking.monetary_due ?? booking.total)-(booking.total-booking.refund_amount))}
     emit ReservationChanged {booking,revision=booking.version+1}
+   ## A committed cancellation captures one marker and one fact; rejections commit nothing.
+   examples seed=[test_hold] booking=test_hold reason="Customer request"
+    booking.status,reason -> booking.status,count(test_room.ResourcePolicy),count(test_room.BookingEvidence)
+    held,"Customer request" -> cancelled,1,1
+    cancelled,"Customer request" -> error(rule_failed)
+    held," " -> error(rule_failed)
   scenario venue_move on=RoomsIngressV1.move
    require event.value.price==null and event.value.terms==null and event.value.from>=now and event.value.from<event.value.until
    do
@@ -689,6 +755,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
      require free(venue.parent,event.value.from-venue.parent.buffer_before,event.value.until+venue.parent.buffer_after,venue.quantity,null,venue)
      set venue {from=event.value.from-venue.parent.buffer_before,until=event.value.until+venue.parent.buffer_after}
      create ResourcePolicy {parent=venue.parent,sequence=count(venue.parent.ResourcePolicy)+1,value=resource_evidence(venue.parent)} as policy_snapshot_1
+     create VenueEvidence {parent=venue.parent,sequence=policy_snapshot_1.sequence,key=venue.id,value=report_venue(venue)} as venue_evidence_1
      emit VenueOutcome {value={source=venue.source,revision=venue.version+1,state=confirmed,reference=venue.id,detail="Venue interval moved"}}
   scenario requested_affected on=RoomsIngressV1.affected
    do
@@ -711,6 +778,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       else
        create Downtime {parent=resource,source=event.source,from=event.from,until=event.until,reason="Requested maintenance"} as downtime
        create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+       create DowntimeEvidence {parent=downtime.parent,sequence=policy_snapshot_1.sequence,key=downtime.id,value=report_downtime(downtime)} as downtime_evidence_1
        for booking in resource.Booking as b where busy(b) and b.reserved_from<(event.until ?? b.reserved_until) and event.from<b.reserved_until limit=1000
         create Conflict {parent=resource,booking,downtime,reason="Requested maintenance"} as conflict
        emit VenueOutcome {value={source=event.source,revision=downtime.version,state=confirmed,reference=downtime.id}}
@@ -728,6 +796,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       if downtime.active
        set downtime {active=false,verification=event.evidence}
        create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+       create DowntimeEvidence {parent=downtime.parent,sequence=policy_snapshot_1.sequence,key=downtime.id,value=report_downtime(downtime)} as downtime_evidence_1
        emit VenueOutcome {value={source=event.source,revision=downtime.version+1,state=released,reference=downtime.id,detail=event.evidence}}
       else
        emit VenueOutcome {value={source=event.source,revision=downtime.version,state=released,reference=downtime.id,detail=downtime.verification}}
@@ -740,6 +809,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
      require free(resource,event.value.from-resource.buffer_before,event.value.until+resource.buffer_after,event.value.quantity,null)
      create VenueReservation {parent=resource,source=event.value.source,request_revision=event.value.revision,customer=event.value.customer,account=event.value.account,from=event.value.from-resource.buffer_before,until=event.value.until+resource.buffer_after,quantity=event.value.quantity,expires=now+resource.hold_for} as venue
      create ResourcePolicy {parent=venue.parent,sequence=count(venue.parent.ResourcePolicy)+1,value=resource_evidence(venue.parent)} as policy_snapshot_1
+     create VenueEvidence {parent=venue.parent,sequence=policy_snapshot_1.sequence,key=venue.id,value=report_venue(venue)} as venue_evidence_1
      schedule venue.id at=venue.expires event=VenueDue {venue}
      emit VenueOutcome {value={source=venue.source,revision=venue.version,state=pending,reference=venue.id,detail="Provisional appointment venue",}}
   scenario venue_stage on=RoomsIngressV1.stage
@@ -752,6 +822,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
      require free(previous.parent,event.value.from-previous.parent.buffer_before,event.value.until+previous.parent.buffer_after,event.value.quantity,null,previous)
      create VenueReservation {parent=previous.parent,source=event.value.source,request_revision=event.value.revision,customer=event.value.customer,account=event.value.account,from=event.value.from-previous.parent.buffer_before,until=event.value.until+previous.parent.buffer_after,quantity=event.value.quantity,expires=now+previous.parent.hold_for,status=staged,previous} as venue
      create ResourcePolicy {parent=venue.parent,sequence=count(venue.parent.ResourcePolicy)+1,value=resource_evidence(venue.parent)} as policy_snapshot_1
+     create VenueEvidence {parent=venue.parent,sequence=policy_snapshot_1.sequence,key=venue.id,value=report_venue(venue)} as venue_evidence_1
      schedule venue.id at=venue.expires event=VenueDue {venue}
      emit VenueOutcome {value={source=venue.source,revision=venue.version,state=pending,reference=venue.id,detail="Candidate held; predecessor retained"}}
   scenario venue_confirm on=RoomsIngressV1.confirm
@@ -761,6 +832,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
      require free(venue.parent,venue.from,venue.until,0,null)
      set venue {status=confirmed}
      create ResourcePolicy {parent=venue.parent,sequence=count(venue.parent.ResourcePolicy)+1,value=resource_evidence(venue.parent)} as policy_snapshot_1
+     create VenueEvidence {parent=venue.parent,sequence=policy_snapshot_1.sequence,key=venue.id,value=report_venue(venue)} as venue_evidence_1
      cancel venue.id
      emit VenueOutcome {value={source=venue.source,revision=venue.version+1,state=confirmed,reference=venue.id,detail="Appointment venue confirmed"}}
   scenario venue_release on=RoomsIngressV1.release
@@ -774,6 +846,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       if venue.status in [held,staged,confirmed]
        set venue {status=released,reason=event.reason}
        create ResourcePolicy {parent=venue.parent,sequence=count(venue.parent.ResourcePolicy)+1,value=resource_evidence(venue.parent)} as policy_snapshot_1
+       create VenueEvidence {parent=venue.parent,sequence=policy_snapshot_1.sequence,key=venue.id,value=report_venue(venue)} as venue_evidence_1
        cancel venue.id
        emit VenueOutcome {value={source=venue.source,revision=venue.version+1,state=released,reference=venue.id,detail=event.reason}}
       else
@@ -786,6 +859,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
    do
     set event.venue {status=expired}
     create ResourcePolicy {parent=event.venue.parent,sequence=count(event.venue.parent.ResourcePolicy)+1,value=resource_evidence(event.venue.parent)} as policy_snapshot_1
+    create VenueEvidence {parent=event.venue.parent,sequence=policy_snapshot_1.sequence,key=event.venue.id,value=report_venue(event.venue)} as venue_evidence_1
     emit VenueOutcome {value={source=event.venue.source,revision=event.venue.version+1,state=unavailable,reference=event.venue.id,detail="Venue hold expired"}}
   scenario quote_hold on=RoomsIngressV1.hold_offer
    require event.value.hold_until>now and event.value.hold_until<=event.value.snapshot.expires and event.value.snapshot.resource==event.value.resource and event.value.snapshot.quantity==event.value.quantity and event.value.snapshot.attendees==event.value.attendees and event.value.snapshot.recipient==event.value.recipient and event.value.quantity>0 and event.value.attendees>0
@@ -832,6 +906,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
          send Billing.charge {value={source=booking.source,customer=booking.customer.id,location=resource.location.id,description=event.value.snapshot.title,amount=booking.total,due=local_date(booking.from,resource.timezone),issuer=event.value.snapshot.issuer,terms=event.value.snapshot.terms,items=event.value.snapshot.lines as item select DocumentLine {title=item.title,quantity=item.quantity,price=item.price,tax=item.tax,discount=item.discount,unit=item.unit,from=event.value.snapshot.from,until=event.value.snapshot.until,location=event.value.snapshot.location,reference=event.value.source}}} as charge
          set booking {status=pending,payment=pending,billing_delivery=charge.id,monetary_due=booking.total}
         create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+        create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
         schedule booking.id at=booking.expires event=HoldDue {booking}
         emit OfferOutcome {value={source=booking.source,revision=event.value.revision,kind=ReservationOfferOutcome.kind.booking,version=booking.version,state=pending,reference=booking.id,expires=booking.expires}}
    ## Current authority precedes releasing a hold or creating a monetary obligation.
@@ -910,6 +985,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
    do
     set booking {status=confirmed,payment=free,fulfillment_reason=reason}
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
     cancel booking.id
     emit ReservationChanged {booking,revision=booking.version+1}
   # Confirm only finance-approved invoicing, retaining a real unpaid invoice obligation. @{nl="Bevestig alleen financieel goedgekeurde facturatie en behoud een echte onbetaalde factuurverplichting."}
@@ -925,6 +1001,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
     if booking.allowance==not_required
      set booking {status=confirmed}
      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+     create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
      cancel booking.id
      emit ReservationChanged {booking,revision=booking.version+1}
     else
@@ -932,10 +1009,12 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       send Membership.reserve {value=benefit_request(booking)} as allocation
       set booking {status=pending,allowance_delivery=allocation.id}
       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_2
+      create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_2.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_2
      if booking.allowance==reserved and booking.consume_delivery==null
       send Membership.consume {source=booking.allowance_source ?? booking.source,customer=booking.customer.id} as consume
       set booking {status=pending,consume_delivery=consume.id}
       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_3
+      create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_3.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_3
   scenario charge_result on=Billing.charge.completed
    do
     for booking in Booking as row where row.billing_delivery==event.delivery_id limit=1
@@ -949,6 +1028,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
      if event.status==failed and booking.status in [held,pending]
       set booking {status=review}
       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+      create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
       emit CommercialCheck {booking}
   # Record missed arrival under the frozen terms without asserting physical departure. @{nl="Leg gemiste aankomst vast onder de vastgelegde voorwaarden zonder werkelijk vertrek te veronderstellen."}
   export scenario no_show(booking:Booking,reason:text) by=reception label="Record no-show"@{nl="Niet verschijnen vastleggen"}
@@ -956,6 +1036,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
    do
     set booking {status=no_show,cancellation_reason=reason}
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
     emit ReservationChanged {booking,revision=booking.version+1}
   # Keep overtime or damage charges separate from the original frozen booking price. @{nl="Houd overuren- of schadebedragen gescheiden van de oorspronkelijke vastgelegde reserveringsprijs."}
   scenario adjust(booking:Booking,amount:money,reason:text) by=billing label="Charge booking adjustment"@{nl="Reserveringscorrectie factureren"}
@@ -996,6 +1077,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
         if adjustment.parent.status in [confirmed,occupied] and adjustment.parent.until==adjustment.original_until and free(adjustment.parent.parent,adjustment.parent.reserved_from,adjustment.new_until+adjustment.parent.departure_buffer,adjustment.parent.quantity,adjustment.parent)
          set adjustment.parent {until=adjustment.new_until,reserved_until=adjustment.new_until+adjustment.parent.departure_buffer}
          create ResourcePolicy {parent=adjustment.parent.parent,sequence=count(adjustment.parent.parent.ResourcePolicy)+1,value=resource_evidence(adjustment.parent.parent)} as policy_snapshot_1
+         create BookingEvidence {parent=adjustment.parent.parent,sequence=policy_snapshot_1.sequence,key=adjustment.parent.id,value=report_booking(adjustment.parent)} as booking_evidence_1
          set adjustment {state=paid}
          cancel adjustment.id
          emit ReservationChanged {booking=adjustment.parent,revision=adjustment.parent.version+1}
@@ -1024,6 +1106,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
     let restore=booking.status==expired or now<booking.refund_before
     set booking {status=cancelled,cancellation_reason=reason}
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
     if booking.allowance!=not_required and booking.release_delivery==null
      send Membership.release {source=booking.allowance_source ?? booking.source,customer=booking.customer.id,restore_consumed=restore} as release
      set booking {release_delivery=release.id}
@@ -1106,6 +1189,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
      if event.status==failed and booking.allowance==pending and booking.status in [held,pending,review]
       set booking {allowance=failed,status=review}
       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+      create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
       send Membership.release {source=booking.allowance_source ?? booking.source,customer=booking.customer.id,restore_consumed=false} as release
       set booking {release_delivery=release.id}
       send Billing.cancel {source=booking.source,reason="Allowance unavailable"} as cancellation
@@ -1137,6 +1221,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       if booking.status in [held,pending]
        set booking {status=review}
        create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+       create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
       if booking.release_delivery==null
        send Membership.release {source=booking.allowance_source ?? booking.source,customer=booking.customer.id,restore_consumed=booking.status==expired or now<booking.refund_before} as release
        set booking {release_delivery=release.id}
@@ -1160,25 +1245,30 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
          send Membership.consume {source=booking.allowance_source ?? booking.source,customer=booking.customer.id} as consume
          set booking {status=pending,consume_delivery=consume.id}
          create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_2
+         create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_2.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_2
         else
          set booking {status=review,refund_state=review}
          create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_3
+         create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_3.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_3
     if event.value.phase==consumed and event.value.state==confirmed
      set booking {allowance=consumed}
      if booking.status in [pending,review] and booking.payment in [paid,free,on_account] and booking.release_delivery==null
       if bookable(booking) and (booking.payment!=paid or financial_cover(booking))
        set booking {status=confirmed}
        create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_4
+       create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_4.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_4
        cancel booking.id
        emit CommercialCheck {booking}
       else
        set booking {status=review,refund_state=review}
        create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_5
+       create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_5.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_5
     if event.value.phase==released
      set booking {allowance=released}
      if booking.status in [held,pending,confirmed]
       set booking {status=review}
       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_6
+      create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_6.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_6
     set booking {allowance_revision=event.value.revision}
     emit CommercialCheck {booking}
   scenario settlement_received on=Billing.settled
@@ -1212,24 +1302,29 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
          if booking.allowance in [not_required,consumed]
           set booking {status=confirmed,refund_state=none}
           create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+          create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
           cancel booking.id
          else
           if booking.allowance==reserved and booking.consume_delivery==null
            send Membership.consume {source=booking.allowance_source ?? booking.source,customer=booking.customer.id} as consume
            set booking {status=pending,expires=now+booking.parent.hold_for,consume_delivery=consume.id}
            create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_2
+           create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_2.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_2
            schedule booking.id at=booking.expires event=HoldDue {booking}
           else
            if booking.allowance==pending
             set booking {status=pending,expires=now+booking.parent.hold_for}
             create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_3
+            create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_3.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_3
             schedule booking.id at=booking.expires event=HoldDue {booking}
            else
             set booking {status=review,refund_state=review}
             create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_4
+            create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_4.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_4
         else
          set booking {status=review,refund_state=review}
          create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_5
+         create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_5.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_5
       if booking.refund_requested!=null and event.value.refunded>=booking.refund_requested
        set booking {refund_state=refunded}
        if event.value.refunded>=event.value.collected
@@ -1239,6 +1334,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       if event.value.state in [void_pending,void] and booking.status in [held,pending,confirmed]
        set booking {status=review}
        create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_6
+       create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_6.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_6
       emit ReservationChanged {booking,revision=booking.version+1}
    examples seed=[test_hold] event={value={source="test-hold",invoice="invoice-test",revision=1,amount=money(1000,"EUR"),collected=money(1000,"EUR"),refunded=money(0,"EUR"),collection_pending=false,refund_pending=false,state=issued,recorded_at=datetime("2026-10-04T10:00:00Z")}}
     test_hold.status -> test_hold.status,test_hold.payment
@@ -1262,6 +1358,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
      if event.status in [failed,unknown] and booking.status in [pending,review]
       set booking {status=review,refund_state=review}
       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+      create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
       emit CommercialCheck {booking}
    examples seed=[test_hold] event={delivery_id="consume-test",status=failed,result=null,error={code="rejected",message="Owner rejected consumption"}}
     test_hold.status,test_hold.consume_delivery -> test_hold.status
@@ -1287,6 +1384,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
    do
     set event.booking {status=expired}
     create ResourcePolicy {parent=event.booking.parent,sequence=count(event.booking.parent.ResourcePolicy)+1,value=resource_evidence(event.booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=event.booking.parent,sequence=policy_snapshot_1.sequence,key=event.booking.id,value=report_booking(event.booking)} as booking_evidence_1
     if event.booking.allowance!=not_required and event.booking.release_delivery==null
      send Membership.release {source=event.booking.source,customer=event.booking.customer.id,restore_consumed=true} as release
      set event.booking {release_delivery=release.id}
