@@ -3,6 +3,7 @@ import {
   any,
   all,
   active_member,
+  app_url,
   call,
   count,
   datetime,
@@ -26,16 +27,35 @@ import {
 } from "@canlang/stdlib";
 import {
   actions,
+  badge,
+  breadcrumbs,
+  button,
   card,
+  collapse,
   details,
   edit,
+  fieldset,
+  file_input,
+  filter,
   form,
+  hero,
   history,
+  input,
+  link,
   list,
   message,
+  modal,
+  pagination,
+  radio,
   renderPage,
+  slot,
+  status,
+  steps,
   table,
   text,
+  textarea,
+  toggle,
+  tooltip,
 } from "@canlang/ui";
 import { can_work, Employee, hr } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -51,6 +71,15 @@ import { ScheduleV1 } from "./shift.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * UI sections mirror the replanned CanHire.can Then: breadcrumbs, hero intro,
+ * cross-page links, in-context saved-default filters, fieldset-grouped intake
+ * with typed controls, stage badges, nullable CV download links, annotated
+ * actions, static pipeline steps, retention collapses, published-first edits,
+ * schedule/decide/reopen/reschedule/cancel/feedback modals, interview evidence
+ * drawers with enum badges, empty states and paginated collections. details
+ * keeps its drawer exception. Lowercase UI factories take one props object;
+ * slots are prop arrays. All UI imports and calls are desired/unimplemented.
+ * This file passes node --check (syntax only) and never runs.
  */
 
 const ownOutcomes = message("Own application outcomes", { nl: "Eigen sollicitatieresultaten" });
@@ -1140,7 +1169,40 @@ export async function careersPage(c, bindings) {
   return renderPage(
     c,
     careersPageDescriptor,
-    () =>
+    () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
+      /* desired-unimplemented: hero groups the page intro. */
+      hero({
+        context: c,
+        caption: message("Join our team", { nl: "Kom bij ons werken" }),
+        children: [
+          text({
+            context: c,
+            values: [
+              message("Published openings welcome your application.", {
+                nl: "Gepubliceerde vacatures staan open voor je sollicitatie.",
+              }),
+            ],
+          }),
+        ],
+      }),
+      ...(hasRole(c, "authenticated")
+        ? [
+            card({
+              context: c,
+              title: message("Your applications", { nl: "Je sollicitaties" }),
+              children: [
+                /* desired-unimplemented: link resolves the cross-page address. */
+                link({
+                  context: c,
+                  target: app_url("/careers/mine"),
+                  caption: message("My applications", { nl: "Mijn sollicitaties" }),
+                }),
+              ],
+            }),
+          ]
+        : []),
       card({
         context: c,
         title: message("Published vacancies", { nl: "Gepubliceerde vacatures" }),
@@ -1152,7 +1214,10 @@ export async function careersPage(c, bindings) {
             filter: ["location"],
             search: ["title"],
             defaults: { location: c.preferences.hire.location },
+            empty: message("No open vacancies.", { nl: "Geen open vacatures." }),
             renderRow: (vacancy, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
               text({
                 context: view,
                 values: [
@@ -1163,11 +1228,29 @@ export async function careersPage(c, bindings) {
                   vacancy.skills,
                 ],
               }),
-              form({ context: view, operation: "hire.apply", arguments: { vacancy } }),
+              form({
+                context: view,
+                operation: "hire.apply",
+                arguments: { vacancy },
+                display: "inline",
+                /* desired-unimplemented: placed controls move the generated fields. */
+                children: [
+                  fieldset({
+                    context: view,
+                    caption: message("Your application", { nl: "Je sollicitatie" }),
+                    children: [
+                      input({ context: view, field: "name" }),
+                      textarea({ context: view, field: "application" }),
+                      file_input({ context: view, field: "cv" }),
+                    ],
+                  }),
+                ],
+              }),
             ],
           }),
         ],
       }),
+    ],
   );
 }
 
@@ -1175,7 +1258,11 @@ export async function minePage(c, bindings) {
   return renderPage(
     c,
     minePageDescriptor,
-    () =>
+    () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
+      /* desired-unimplemented: filter edits the owned saved-default preference. */
+      filter({ context: c, preference: "hire.stage" }),
       card({
         context: c,
         title: ownOutcomes,
@@ -1187,24 +1274,48 @@ export async function minePage(c, bindings) {
             columns: ["name", "stage", "reason"],
             filter: ["stage"],
             defaults: { stage: c.preferences.hire.stage },
-            renderRow: (candidate, view) =>
+            search: ["name"],
+            empty: message("No applications yet.", { nl: "Nog geen sollicitaties." }),
+            renderRow: (candidate, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
               details({
                 context: view,
                 caption: ownOutcomes,
                 record: candidate,
                 display: "drawer",
                 children: [
+                  /* desired-unimplemented: badge presents the readable typed value. */
+                  badge({ context: view, value: candidate.stage }),
                   text({ context: view, values: [candidate.application, candidate.cv] }),
-                  actions({
+                  /* desired-unimplemented: nullable target renders the shared
+                   * unavailable presentation when no CV was supplied (05 handoff). */
+                  link({
                     context: view,
-                    operations: ["hire.withdraw"],
-                    boundArgs: { candidate },
+                    target: candidate.cv,
+                    caption: message("Download CV", { nl: "CV downloaden" }),
+                  }),
+                  /* desired-unimplemented: tooltip annotates the canonical action. */
+                  tooltip({
+                    context: view,
+                    caption: message("Withdraws your application and cancels interviews", {
+                      nl: "Trekt je sollicitatie in en annuleert gesprekken",
+                    }),
+                    children: [
+                      actions({
+                        context: view,
+                        operations: ["hire.withdraw"],
+                        boundArgs: { candidate },
+                      }),
+                    ],
                   }),
                 ],
               }),
+            ],
           }),
         ],
       }),
+    ],
   );
 }
 
@@ -1212,12 +1323,42 @@ export async function hiringPage(c, bindings) {
   return renderPage(
     c,
     hiringPageDescriptor,
-    () =>
+    () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
+      /* desired-unimplemented: filter edits the owned saved-default preference. */
+      filter({ context: c, preference: "hire.stage" }),
       card({
         context: c,
         title: message("Vacancy authoring", { nl: "Vacatures beheren" }),
         children: [
-          form({ context: c, operation: "hire.Vacancy.create" }),
+          form({
+            context: c,
+            operation: "hire.Vacancy.create",
+            display: "inline",
+            /* desired-unimplemented: placed controls move the generated fields. */
+            children: [
+              fieldset({
+                context: c,
+                caption: message("Vacancy", { nl: "Vacature" }),
+                children: [
+                  input({ context: c, field: "title" }),
+                  textarea({ context: c, field: "description" }),
+                  input({ context: c, field: "employment" }),
+                ],
+              }),
+            ],
+          }),
+          /* desired-unimplemented: static legend; per-stage highlight proposed. */
+          steps({
+            context: c,
+            items: [
+              [text({ context: c, values: [message("Applied", { nl: "Gesolliciteerd" })] })],
+              [text({ context: c, values: [interviewCaption] })],
+              [text({ context: c, values: [message("Offer", { nl: "Aanbod" })] })],
+              [text({ context: c, values: [message("Hired", { nl: "Aangenomen" })] })],
+            ],
+          }),
           list({
             context: c,
             model: "hire.Vacancy",
@@ -1225,24 +1366,72 @@ export async function hiringPage(c, bindings) {
             search: ["title"],
             defaults: { location: c.preferences.hire.location },
             display: "split",
+            empty: message("No vacancies yet.", { nl: "Nog geen vacatures." }),
             renderRow: (vacancy, view) => [
-              edit({ context: view, operation: "hire.Vacancy.update", record: vacancy }),
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
+              text({ context: view, values: [vacancy.title, vacancy.open, vacancy.published] }),
+              vacancy.retention_until == null
+                ? null
+                : collapse({
+                    context: view,
+                    caption: message("Retention", { nl: "Bewaartermijn" }),
+                    children: [text({ context: view, values: [vacancy.retention_until] })],
+                  }),
+              edit({
+                context: view,
+                operation: "hire.Vacancy.update",
+                record: vacancy,
+                /* desired-unimplemented: placed control moves the generated field. */
+                children: [toggle({ context: view, field: "published" })],
+              }),
               actions({
                 context: view,
                 operations: ["hire.close", "hire.reopen_vacancy"],
                 boundArgs: { vacancy },
               }),
-              form({ context: view, operation: "hire.intake", arguments: { vacancy } }),
+              form({
+                context: view,
+                operation: "hire.intake",
+                arguments: { vacancy },
+                display: "inline",
+                /* desired-unimplemented: placed controls move the generated fields. */
+                children: [
+                  fieldset({
+                    context: view,
+                    caption: message("Record candidate intake", { nl: "Kandidaat registreren" }),
+                    children: [
+                      input({ context: view, field: "name" }),
+                      input({ context: view, field: "email" }),
+                      textarea({ context: view, field: "application" }),
+                      file_input({ context: view, field: "cv" }),
+                      input({ context: view, field: "source" }),
+                    ],
+                  }),
+                ],
+              }),
               list({
                 context: view,
                 model: "hire.Candidate",
                 parent: vacancy,
                 filter: ["stage"],
                 defaults: { stage: c.preferences.hire.stage },
+                empty: message("No candidates.", { nl: "Geen kandidaten." }),
                 renderRow: async (candidate, v) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: v }),
+                  /* desired-unimplemented: badge presents the readable typed value. */
+                  badge({ context: v, value: candidate.stage }),
                   text({
                     context: v,
-                    values: [candidate.name, candidate.application, candidate.cv, candidate.stage],
+                    values: [candidate.name, candidate.application, candidate.cv],
+                  }),
+                  /* desired-unimplemented: nullable target renders the shared
+                   * unavailable presentation when no CV was supplied (05 handoff). */
+                  link({
+                    context: v,
+                    target: candidate.cv,
+                    caption: message("Download CV", { nl: "CV downloaden" }),
                   }),
                   // Only this source card has the recruiter/location guard; surrounding scoped
                   // candidate/interview components retain their original current read grants.
@@ -1254,52 +1443,195 @@ export async function hiringPage(c, bindings) {
                         children: [text({ context: v, values: [candidate.reason] })],
                       })
                     : null,
-                  actions({
+                  /* desired-unimplemented: tooltip annotates the dialog opener. */
+                  tooltip({
                     context: v,
-                    operations: ["hire.schedule", "hire.decide", "hire.reopen_application"],
-                    boundArgs: { candidate },
+                    caption: message("Requests one interviewer reservation", {
+                      nl: "Vraagt één interviewerreservering aan",
+                    }),
+                    children: [button({ context: v, opens: "schedule_interview" })],
+                  }),
+                  /* desired-unimplemented: modal declares the local activation identity. */
+                  modal({
+                    context: v,
+                    caption: message("Schedule interview", { nl: "Gesprek plannen" }),
+                    id: "schedule_interview",
+                    children: [
+                      slot({
+                        context: v,
+                        name: "content",
+                        children: [
+                          form({
+                            context: v,
+                            operation: "hire.schedule",
+                            arguments: { candidate },
+                            display: "inline",
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  button({ context: v, opens: "record_outcome" }),
+                  modal({
+                    context: v,
+                    caption: message("Record decision", { nl: "Besluit vastleggen" }),
+                    id: "record_outcome",
+                    children: [
+                      slot({
+                        context: v,
+                        name: "content",
+                        children: [
+                          form({
+                            context: v,
+                            operation: "hire.decide",
+                            arguments: { candidate },
+                            display: "inline",
+                            /* desired-unimplemented: placed controls move the generated fields. */
+                            children: [
+                              fieldset({
+                                context: v,
+                                caption: message("Hiring outcome", { nl: "Wervingsuitkomst" }),
+                                children: [
+                                  radio({ context: v, field: "stage" }),
+                                  textarea({ context: v, field: "reason" }),
+                                ],
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  button({ context: v, opens: "reopen_case" }),
+                  modal({
+                    context: v,
+                    caption: message("Reopen application", { nl: "Sollicitatie heropenen" }),
+                    id: "reopen_case",
+                    children: [
+                      slot({
+                        context: v,
+                        name: "content",
+                        children: [
+                          form({
+                            context: v,
+                            operation: "hire.reopen_application",
+                            arguments: { candidate },
+                            display: "inline",
+                            /* desired-unimplemented: placed control moves the generated field. */
+                            children: [textarea({ context: v, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
                   list({
                     context: v,
                     model: "hire.Interview",
                     parent: candidate,
                     order: ["from"],
-                    renderRow: (interview, iv) =>
+                    empty: message("No interviews scheduled.", { nl: "Geen gesprekken gepland." }),
+                    renderRow: (interview, iv) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: iv }),
                       details({
                         context: iv,
                         caption: message("Interview evidence", { nl: "Gespreksbewijs" }),
                         record: interview,
                         display: "drawer",
                         children: [
+                          /* desired-unimplemented: enums render as badges; the nullable delivery derive renders as status. */
+                          badge({ context: iv, value: interview.state }),
+                          badge({ context: iv, value: interview.release_state }),
+                          status({ context: iv, value: interview.notice_state }),
                           text({
                             context: iv,
                             values: [
                               interview.from,
                               interview.until,
                               interview.timezone,
-                              interview.state,
                               interview.feedback,
-                              interview.release_state,
-                              interview.notice_state,
+                            ],
+                          }),
+                          /* desired-unimplemented: tooltip annotates the dialog opener. */
+                          tooltip({
+                            context: iv,
+                            caption: message(
+                              "Keeps the confirmed interview until the replacement is accepted",
+                              { nl: "Behoudt het bevestigde gesprek totdat de vervanging is aanvaard" },
+                            ),
+                            children: [button({ context: iv, opens: "reschedule_booking" })],
+                          }),
+                          modal({
+                            context: iv,
+                            caption: message("Reschedule interview", { nl: "Gesprek verplaatsen" }),
+                            id: "reschedule_booking",
+                            children: [
+                              slot({
+                                context: iv,
+                                name: "content",
+                                children: [
+                                  form({
+                                    context: iv,
+                                    operation: "hire.reschedule",
+                                    arguments: { booking: interview },
+                                    display: "inline",
+                                  }),
+                                ],
+                              }),
+                            ],
+                          }),
+                          button({ context: iv, opens: "cancel_booking" }),
+                          modal({
+                            context: iv,
+                            caption: message("Cancel interview", { nl: "Gesprek annuleren" }),
+                            id: "cancel_booking",
+                            children: [
+                              slot({
+                                context: iv,
+                                name: "content",
+                                children: [
+                                  form({
+                                    context: iv,
+                                    operation: "hire.cancel_interview",
+                                    arguments: { interview },
+                                    display: "inline",
+                                    /* desired-unimplemented: placed control moves the generated field. */
+                                    children: [textarea({ context: iv, field: "reason" })],
+                                  }),
+                                ],
+                              }),
                             ],
                           }),
                           actions({
                             context: iv,
-                            operations: ["hire.reschedule"],
-                            boundArgs: { booking: interview },
-                          }),
-                          actions({
-                            context: iv,
-                            operations: ["hire.cancel_interview", "hire.retry_release"],
+                            operations: ["hire.retry_release"],
                             boundArgs: { interview },
                           }),
-                          form({
+                          button({ context: iv, opens: "record_feedback" }),
+                          modal({
                             context: iv,
-                            operation: "hire.feedback",
-                            arguments: { interview },
+                            caption: feedbackCaption,
+                            id: "record_feedback",
+                            children: [
+                              slot({
+                                context: iv,
+                                name: "content",
+                                children: [
+                                  form({
+                                    context: iv,
+                                    operation: "hire.feedback",
+                                    arguments: { interview },
+                                    display: "inline",
+                                    /* desired-unimplemented: placed control moves the generated field. */
+                                    children: [textarea({ context: iv, field: "notes" })],
+                                  }),
+                                ],
+                              }),
+                            ],
                           }),
                         ],
                       }),
+                    ],
                   }),
                   history({ context: v, record: candidate }),
                 ],
@@ -1308,6 +1640,7 @@ export async function hiringPage(c, bindings) {
           }),
         ],
       }),
+    ],
   );
 }
 
@@ -1316,6 +1649,8 @@ export async function handoffPage(c, bindings) {
     c,
     handoffPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Reviewed employee identity", { nl: "Beoordeelde medewerkeridentiteit" }),
@@ -1326,9 +1661,19 @@ export async function handoffPage(c, bindings) {
             model: "hire.Candidate",
             where: (candidate) =>
               candidate.stage === "hired" && candidate.onboarding_reference === null,
+            empty: message("No pending handoffs.", { nl: "Geen openstaande overdrachten." }),
             renderRow: (candidate, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
               text({ context: view, values: [candidate.name, candidate.email, candidate.account] }),
-              form({ context: view, operation: "hire.handoff", arguments: { candidate } }),
+              form({
+                context: view,
+                operation: "hire.handoff",
+                arguments: { candidate },
+                display: "inline",
+                /* desired-unimplemented: placed control moves the generated field. */
+                children: [textarea({ context: view, field: "evidence" })],
+              }),
             ],
           }),
         ],
@@ -1342,6 +1687,8 @@ export async function interviewsPage(c, bindings) {
     c,
     interviewsPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       list({
         context: c,
         model: "hire.Interview",
@@ -1351,7 +1698,10 @@ export async function interviewsPage(c, bindings) {
           (await can_work(c,c.actor,interview.parent.parent.location)) &&
           interview.state === "confirmed",
         order: ["from"],
+        empty: message("No assigned interviews.", { nl: "Geen toegewezen gesprekken." }),
         renderRow: (interview, view) => [
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: view }),
           text({
             context: view,
             values: [
@@ -1364,7 +1714,30 @@ export async function interviewsPage(c, bindings) {
               interview.feedback,
             ],
           }),
-          form({ context: view, operation: "hire.feedback", arguments: { interview } }),
+          /* desired-unimplemented: button opens activates the local modal. */
+          button({ context: view, opens: "record_feedback" }),
+          /* desired-unimplemented: modal declares the local activation identity. */
+          modal({
+            context: view,
+            caption: feedbackCaption,
+            id: "record_feedback",
+            children: [
+              slot({
+                context: view,
+                name: "content",
+                children: [
+                  form({
+                    context: view,
+                    operation: "hire.feedback",
+                    arguments: { interview },
+                    display: "inline",
+                    /* desired-unimplemented: placed control moves the generated field. */
+                    children: [textarea({ context: view, field: "notes" })],
+                  }),
+                ],
+              }),
+            ],
+          }),
         ],
       }),
     ],
