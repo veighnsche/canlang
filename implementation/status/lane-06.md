@@ -355,7 +355,7 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     main's lock + SDK edge re-applied; suites re-verified green;
     merged with lane-06 + workspace CI green (lock sync fixed the
     `npm ci` failure the new dep had introduced).
-- S6 (in progress): branch `muse/lane-06-identity-interfaces/uploads`
+- S6 (MERGED 2026-10-04 as 3819b23, PR #44): branch `muse/lane-06-identity-interfaces/uploads`
   from origin/main (090f7b4). Scope: POST /files/intents, PUT
   /files/content/{id} (append + auto-complete), POST
   /files/finalize/{id} per DESIGN section 8; session+bearer auth,
@@ -396,7 +396,38 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     pins (PUT CSRF, grant-over-cookie precedence, session-as-bearer,
     expired grant, session receiver, garbage content-length); F4
     JSON content-type gate on intent/finalize. After fixes:
-    interfaces 199/199, identity 38/38.
+    interfaces 199/199, identity 38/38. Delta re-review APPROVED
+    (F1 docs decision accepted, all switches/pins verified);
+    merged with lane-06 + workspace CI green, no rebase needed.
+- S7 (in progress): branch `muse/lane-06-identity-interfaces/ingress-trust`
+  from origin/main (3819b23). Scope: provider-ingress auth framework
+  (POST /ingress/{namespace}, L4 `IngressVerifier` port, delegated
+  mapping with actor=null, `IngressSink` port) + OAuth authorization
+  server (metadata, dynamic registration, two-step authorize with
+  session+CSRF consent, PKCE-S256 code exchange minting McpGrant
+  Bearers) + WWW-Authenticate challenges on S5/S6 401s.
+  - No L4 verifier has landed: S7 defines the port, L4 binds at S8.
+    No exchange-step credential: audience decision stands (S6 F1).
+    OAuth v1 limits (documented): public clients only, no refresh
+    tokens, scopes uninterpreted, two-step authorize (GET descriptor
+    + POST consent) so codes are never CSRF-mintable.
+  - Coordinator files: contracts OAuthClient/AuthCode, IdentityStore
+    OAuth methods, ports (ingress + OAuth + HttpDeps.ingress),
+    testing doubles, routes mounts (ingress/oauth/well-known),
+    oauth/metadata.ts, S5/S6 401 challenges, spy/literal updates.
+  - Implementer K owns ingress/{mapping,routes}.ts + ingress.test.ts;
+    L owns identity oauth.ts + memory store methods + oauth.test.ts
+    (identity), interfaces oauth/routes.ts + oauth.test.ts.
+  - Verification: identity 47/47 (9 new), interfaces 230/230 (31 new).
+    Coordinator assembly: identity index export, ports type re-export,
+    HttpDeps/sub-handler literals, grant_type-absent spec fix
+    (invalid_request vs unsupported_grant_type).
+  - PR #51 open at b5d3db6. Independent review APPROVE-WITH-NOTES:
+    F1 empty-team asymmetry fixed (GET normalizes like POST); all
+    T-gaps pinned (401 challenge headers, content-type edges,
+    empty-team, register boundaries, removal-then-exchange,
+    oversized GET state, encoded namespace, method normalization).
+    After notes: interfaces 237/237.
 
 ## Remaining work and cleanup
 
