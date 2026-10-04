@@ -26,7 +26,7 @@ Café, marketplace, loyalty, volunteering, funded grants, broker sales, and mail
 
 [End-user administration scope](ADMIN_SURFACES.md) limits app-specific admin responsibilities to CanCustomer (company roles), CanMember (shared plans/benefits), CanRent (published commercial catalog/booking policy), optional CanLoyalty (reward-program terms), CanFeedback (moderation/operator roadmap) and optional CanTrade (moderation). These are existing-app business views, not six new deployments or a global admin console.
 
-The other 33 modules use their normal workflows. Organizer, instructor, reviewer, finance, dispatch, HR and reception permissions do not require extra admin sections, settings landing pages or management packages. Different user journeys may still have separate ordinary pages. Technical setup is developer database/configuration maintenance, with no UI/tool requirement. Composition does not duplicate canonical account/team controls or give a broad administrator access to every module.
+The other 33 modules use their normal workflows. Organizer, instructor, reviewer, finance, dispatch, HR and reception permissions do not require extra admin sections, settings landing pages or management packages. Different user journeys may still have separate ordinary pages. Technical setup is developer maintenance under the [shared writer fence, provider-switch and composed recovery rules](ADMIN_SURFACES.md#maintenance-provider-changes-and-recovery), with no UI/tool requirement. Composition does not duplicate canonical account/team controls or give a broad administrator access to every module.
 
 ## Internal package boundaries
 
