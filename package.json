@@ -25,6 +25,7 @@
     "@canlang/cloudflare": "0.1.0",
     "@canlang/contracts": "0.1.0",
     "@canlang/testkit": "0.1.0",
+    "@canlang/values": "0.1.0",
     "@playwright/test": "^1.63.0",
     "@types/node": "24.19.1",
     "typescript": "^5.9.3",
