@@ -6,6 +6,7 @@ package appointments
  use customer {Customer,Contact,owns,has_role,test_company,test_contact}
  use rent_catalog {Location,is_open,test_site,open_site}
  use employee {Employee,can_work,test_worker}
+ use std {DeliveryResult}
  use std {EmailV1 as Mail} from=deployment.mail
  use rent_reservations {RoomsV1 as Rooms} from=deployment.rooms
  use shift {ScheduleV1 as StaffSchedule} from=deployment.staff_schedule
