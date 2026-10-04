@@ -39,6 +39,7 @@ describe('work contracts', () => {
 
   it('models a keyed scheduled occurrence with owner scope', () => {
     const occurrence: ScheduledOccurrence = {
+      occurrenceId: 'occ_1',
       key: 'reminder-1',
       scope,
       at: 1791120000000,
@@ -69,6 +70,7 @@ describe('work contracts', () => {
       source: 'Mail.send',
       occurrenceIndex: 0,
       request: { to: 'reviewer@example.test', subject: 'Review' },
+      originOccurrence: null,
       attempts: 0,
       state: 'pending',
     };
