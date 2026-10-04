@@ -285,6 +285,61 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   operationId, absent result->null); reader deep-copy isolation x3;
   bound-deps-win smuggling pin + dead-branch collapse; collation tiebreak
   contract note; historyFor ORDER BY version,seq on all 3. Suite 328/328.
+  S6 merged (160db71, PR #53, head 0d49425, CI state/tools/workspace green).
+  S7 branch `muse/lane-03-state/migrations` from 160db71.
+  S7 JEV (three-rewrite choice, evidence
+  implementation/evidence/jev/lane-03-s7-20261004/): UNANIMOUS A —
+  shadow-table staging + fenced installed-snapshot pointer flip
+  (confidences 0.45/0.50/0.76; B co-located versions runner-up ~0.33 in
+  two rewrites, kept as fallback). Adopted as advice.
+  S7 DECISIONS: per-authority shadow staging tables + `snapshots`
+  installed pointer; staging chunks and activation each one fenced
+  commit; invalidate = outbox status `skipped` (outboxPending unchanged)
+  + outcome records, only inventoried undispatched + pinned-contract
+  match, caller-supplied WorkInventory (L4/L7) for in-flight/accepted/
+  uncertain evidence, missing evidence blocks; history via existing
+  vocabulary (`update` +1 with `migration:<snapshot>` actor for
+  conversions, `remove` for drops, nothing for name-only); interim
+  execution-side plan-intake types + structurally constrained mapper
+  callback until L1 emits/compiles; activation idempotent via pointer
+  check; phase mapping to L7 UpgradeState documented at the join.
+  S7 storage DONE (`9fd86be`+`c9df090`): 7 methods x3 adapters, 12
+  conformance cases x3. Coordinator follow-ups: StagedRow created/
+  createdBy/archivedAt (publish prefers staged); publish claim moves in
+  same batch; flip records actual revision; reset lists clear migration
+  tables. S7 engine DONE (`716ba53`): transition intake, constrained
+  mappers, chunked staging, staged validation, chunked publish with
+  migration history, fenced flip, resume (`src/migration/*` ~2.7k lines,
+  `test/migration/*` ~3k lines). Coordinator self-review fixes F1–F4
+  (`53e6a9e` storage/contracts + engine-side in `716ba53`): F1
+  rename-source disposal (move-not-copy, remove-history chains audit);
+  F2 dropOwner removal flip (nullable snapshot + owner key; publish-start
+  AND flip-time missing-pointer blocks so no silent skip/outcome loss);
+  F3 drop gating (locked rows, retained-live referrers, staged referrers
+  that kept the ref; co-drops and ref-removing staged rows masked); F4
+  staged ref ID-existence against staged-plus-retained-live view
+  (missing/archived-changed block; unchanged legacy refs to archived rows
+  pass). 11 regression tests, all confirmed running green by name.
+  Legs green: npm test 493/493, D1 47/47, DO 45/45; state + contracts
+  typecheck clean (node v24.21.0, TS 5.9.3, miniflare 4.20260730.0).
+  Self-review round 2 (`5307a1b`): activation evidence gate (predecessor
+  re-verified pre-publish incl. rename-from owner + drop from-match;
+  rename-target collision; from==to intake rejection; activate/resume
+  throw on no-op flips — no silent skip/outcome loss, no resume
+  livelock). Loud notes: inventory attestation trust (L4 owes
+  contract→intent mapping), deployer serializes same-owner migrations.
+  6 regression tests; 16 activation tests seed predecessors via real
+  flip. Legs: 499/499 + D1 47/47 + DO 45/45, typechecks clean.
+  Residual: staged rows of completed/abandoned migrations retained (no
+  fenced cleanup writer yet); pure model renames leave target rows
+  without a history entry (name-only silence; source remove chains via
+  preserved recordId + migration operationId).
+  Independent review APPROVE (`28271f5` fixes 4 minors + 3 nits, no third
+  round per reviewer suggestion + coordinator diff self-review): flip-race
+  + flip fence-loss pins, single-owner-store loud note, isExpiredRow
+  drop pre-scan, revision-stability assert, unmapped-model comment fix,
+  unique-swap conflict pin. Legs: 499->505/505, D1 47->48/48, DO
+  45->46/46; typechecks clean.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).

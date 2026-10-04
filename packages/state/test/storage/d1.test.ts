@@ -30,7 +30,18 @@ let mf: Miniflare | undefined;
 let db: D1Database;
 
 /** All data tables; fence/fence_log are reset separately below. */
-const TABLES = ['records', 'history', 'receipts', 'outbox', 'schedules', 'unique_claims'];
+const TABLES = [
+  'records',
+  'history',
+  'receipts',
+  'outbox',
+  'schedules',
+  'unique_claims',
+  'snapshots',
+  'migration_staging',
+  'migration_progress',
+  'migration_outcomes',
+];
 
 async function resetD1(): Promise<void> {
   await db.batch([

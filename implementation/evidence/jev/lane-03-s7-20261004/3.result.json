@@ -1,0 +1,41 @@
+{
+  "request": {
+    "questions": {
+      "approach": {
+        "criteria": {
+          "A": "Isolated staging area plus pointer flip: target state is assembled and checked in staging tables invisible to normal reads, and one fenced write both publishes the rows and records the new installed snapshot.",
+          "B": "In-table dual versions plus pointer flip: every migrated row exists in installed and staged variants in the same tables distinguished by snapshot id, live traffic sees only installed variants until the pointer moves.",
+          "C": "Full dataset copy plus alias flip: the migration copies each row into a new namespace, the copy is validated as a whole, and activation switches per-model aliases to the new namespace under the fence."
+        },
+        "instructions": "The engine team can implement only one migration execution approach now. Weighing resumability, the single-fenced-commit activation rule, protection of installed data during staging, and honest row-version and history semantics, which approach is the strongest choice?",
+        "type": "choice"
+      }
+    },
+    "state": {
+      "brief": "CanLang lane 03 slice S7 must execute owner-local data migrations under the revision fence. See the attached verified brief for the storage model, DESIGN section 11 requirements, L7 upgrade framing, and scale bounds.",
+      "files": {
+        "/tmp/jev-s7-context.md": "# Lane 03 S7 JEV context (verified, 2026-10-04)\n\n## What lane 03 owns and has built (merged, main @ 160db71)\n\n`@canlang/state` (`packages/state`) + `packages/contracts/src/state.ts`:\n- `StoragePort` over three adapters: D1 (real `D1Database` API via miniflare\n  locally), Durable-Object SQLite (`storage.sql`), and a test-only memory\n  adapter. SQL tables: `records`, `receipts`, `history`, `outbox`,\n  `schedules`, `unique_claims`, `fence_log`. 328/328 tests green incl.\n  miniflare D1/DO legs.\n- Fence: every `commit` asserts `expectedRevision` with a LEADING\n  `fence_log(expected+1)` INSERT inside the same atomic batch; dense\n  revisions, never reset. D1 `batch()` rolls back failed sequences, but a\n  multi-batch rollout is NOT atomic. No cross-service / cross-team /\n  cross-DO transactions are promised.\n- Canonical invoke/admission with receipts, viewer policy projection,\n  CRUD pipeline, outbox/schedule staging, transaction/read/system ports.\n- Readers observe committed state only; results are deep copies with\n  deterministic orderings.\n\n## DESIGN §11 requirements the execution engine must satisfy\n\n- `migration Owner from=\"snapshot-id\"`: `from` must identify the EXACT\n  compiler-produced installed owner snapshot. Missing/mismatched\n  predecessor evidence BLOCKS the upgrade. Each old owner is retained,\n  renamed once, or dropped; a target consumes at most one predecessor.\n- Directives: `rename owner`, `drop owner`, `rename before.Model to\n  Model`, `rename before.Model.field to Model.field`, `drop\n  before.Model[.field]`, `backfill Model` (read-only `before` row +\n  partially initialized desired `row`; no queries, no actor/clock/random,\n  no effects), `invalidate before.handler`.\n- Compilation produces a reviewable plan and performs NO data migration.\n  Deployment closes admissions/writers/cleanup/dispatch, fences old\n  runtimes, freezes predecessor input. Runtime prepares COMPLETE target\n  state in RESUMABLE BOUNDED staging, records progress, VALIDATES it,\n  then ACTIVATES it. Preparation failure leaves installed data selected.\n- A logical package may span D1 + several DO authorities:\n  preparation/activation is NOT a transaction across them. Partial\n  activation keeps access closed; resume, never reopen old code on mixed\n  layouts. No zero-downtime or automatic destructive rollback promised.\n- `invalidate` reaches ONLY inventoried undispatched pending\n  occurrences/intents carrying the PINNED predecessor async handler\n  contract (name alone insufficient); records a skipped outcome, retains\n  replay identity. In-flight / provider-accepted / uncertain deliveries\n  need reconciliation; cannot be marked cancelled.\n- History: actual stored-value conversion advances each affected row\n  ONCE with trusted migration attribution; NAME-ONLY changes preserve\n  row versions. Drops subject to locks/references/expiry/replay rules.\n- SQLite schema-alteration restrictions inform generation; D1 tracks\n  applied SQL migrations separately (provider-level, distinct from row\n  evolution). DO class lifecycle config is distinct from row evolution.\n\n## L7 framing (already landed in contracts/deployment.ts)\n\n`UpgradePlan { from: OwnerSnapshotRef[], to: ArtifactIdentity,\npendingWork: PendingWorkDisposition[] }` and `UpgradeState` machine:\nproposed -> admissions-closed -> staging -> staged -> activating ->\nactive (+ staging-failed / activation-failed / recovered-previous).\nL7 orchestrates across owners; L3 executes PER-OWNER staging/validate/\nactivate calls within one authority at a time. L1 has NOT yet emitted a\ncompiled plan format; L3 defines the execution-side intake interim.\n\n## Scale and bounds\n\nOwner-local: one logical package / small app implicit package. Bounded\nstaging chunks with checkpoints (runtime-supplied bounded iteration).\nAdmissions are closed during staging/activation, so no user-write\ncontention; the fence still guards against stale runtimes and lost\nupdates between resume steps. Staged output must never become another\nrow's input; frozen `before` rows throughout.\n"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "approach": {
+        "type": "choice",
+        "choice": "A",
+        "confidence": 0.76,
+        "probabilities": {
+          "C": 0.04,
+          "A": 0.84,
+          "B": 0.12
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1531,
+      "output_tokens": 40
+    }
+  }
+}
