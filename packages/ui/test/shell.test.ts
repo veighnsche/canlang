@@ -5,6 +5,7 @@ import {
   TEAM_FIELD,
 } from "../../contracts/src/presentation.js";
 import type {
+  AdmissionOutcome,
   MessageValue,
   NavigationResult,
   PageDescriptor,
@@ -12,7 +13,9 @@ import type {
   ShellData,
 } from "../../contracts/src/presentation.js";
 import { message } from "../src/messages.js";
+import { buildNavigation, selectDiscoveryCandidates } from "../src/navigation.js";
 import { pageDirection, pageLocale, renderPage } from "../src/shell.js";
+import { EXPENSE_FULL_PAGES, TEAMTASKS_FULL_PAGES } from "./fixtures/descriptors.js";
 
 function makeContext(
   overrides: Partial<PresentationContext> = {},
@@ -567,5 +570,104 @@ describe("pageLocale and pageDirection", () => {
       makeShell(),
     );
     assert.match(html, /<html lang="ar" dir="rtl"/);
+  });
+});
+
+describe("locale fallback", () => {
+  it("renders full pages with an invalid app default (falls back to en)", async () => {
+    const html = await renderPage(
+      makeContext({ appDefaultLocale: "not a tag!!" }),
+      makeDescriptor(),
+      ["<p>hi</p>"],
+      makeShell(),
+    );
+    assert.match(html, /<html lang="en" dir="ltr"/);
+    assert.match(html, /<title>Team tasks — CanApp<\/title>/);
+  });
+});
+
+describe("parameterized captions", () => {
+  it("formats descriptor titles with bound params per locale", async () => {
+    const title = message(
+      "{n, plural, one {# task} other {# tasks}}",
+      { nl: "{n, plural, one {# taak} other {# taken}}" },
+      { n: { type: "int", value: 2n } },
+    );
+    const en = await renderPage(makeContext(), makeDescriptor(title), [], makeShell());
+    assert.match(en, /<title>2 tasks — CanApp<\/title>/);
+    const nl = await renderPage(
+      makeContext({ preferredLocales: ["nl"] }),
+      makeDescriptor(title),
+      [],
+      makeShell(),
+    );
+    assert.match(nl, /<title>2 taken — CanApp<\/title>/);
+  });
+
+  it("keeps plain-string braces verbatim", async () => {
+    const html = await renderPage(makeContext(), makeDescriptor("Use {x} daily"), [], makeShell());
+    assert.match(html, /<title>Use \{x\} daily — CanApp<\/title>/);
+  });
+});
+
+describe("page description", () => {
+  it("emits an escaped meta description when present, none when absent", async () => {
+    const withDescription = { ...makeDescriptor(), description: message('Tasks & "notes"') };
+    const html = await renderPage(makeContext(), withDescription, [], makeShell());
+    assert.match(html, /<meta name="description" content="Tasks &amp; &quot;notes&quot;">/);
+    const plain = await renderPage(makeContext(), makeDescriptor(), [], makeShell());
+    assert.doesNotMatch(plain, /<meta name="description"/);
+  });
+});
+
+describe("account edge cases", () => {
+  it("renders all teams as forms when no current team is selected", async () => {
+    const shell = makeShell();
+    const account = shell.account;
+    const html = await renderPage(makeContext(), makeDescriptor(), [], {
+      ...shell,
+      account: {
+        authenticated: true,
+        userLabel: "Ada",
+        teams: account.teams,
+      },
+    });
+    assert.doesNotMatch(html, /aria-current="true">Red/);
+    assert.match(html, new RegExp(`name="${TEAM_FIELD}" value="t1"`));
+    assert.match(html, new RegExp(`name="${TEAM_FIELD}" value="t2"`));
+  });
+
+  it("renders an empty settings section list", async () => {
+    const shell = makeShell();
+    const html = await renderPage(makeContext(), makeDescriptor(), [], {
+      ...shell,
+      settings: { sections: [] },
+    });
+    assert.match(html, /<section class="can-settings-sidebar"><ul class="menu"><\/ul><\/section>/);
+  });
+});
+
+describe("navigation join", () => {
+  it("renders discovered navigation end to end with highlight and incomplete state", async () => {
+    const declared = [...TEAMTASKS_FULL_PAGES, ...EXPENSE_FULL_PAGES];
+    const candidates = selectDiscoveryCandidates(declared);
+    const outcomes = new Map<PageDescriptor, AdmissionOutcome>(
+      candidates.map((candidate) => [candidate, "admitted"]),
+    );
+    const review = candidates.find((candidate) => candidate.path === "/expenses/review");
+    assert.ok(review !== undefined);
+    outcomes.set(review, "unavailable");
+    const navigation = buildNavigation(candidates, outcomes, {
+      ownerLabels: new Map(),
+      currentPath: "/notes",
+    });
+    const shell = makeShell({ navigation });
+    const notes = candidates.find((candidate) => candidate.path === "/notes");
+    assert.ok(notes !== undefined);
+    const html = await renderPage(makeContext({ path: "/notes" }), notes, ["<p>body</p>"], shell);
+    assert.match(html, /<a href="\/notes" class="active" aria-current="page">/);
+    assert.ok(!html.includes("/expenses/review"));
+    assert.match(html, /<p role="status">Navigation is temporarily incomplete\.<\/p>/);
+    assert.match(html, /<main id="can-main"><p>body<\/p><\/main>/);
   });
 });

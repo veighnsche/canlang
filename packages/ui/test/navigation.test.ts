@@ -35,6 +35,22 @@ function outcomesFor(
   return new Map(descriptors.map((descriptor) => [descriptor, outcome]));
 }
 
+function stubPage(
+  owner: string,
+  path: string,
+  title: string,
+  extra: Partial<PageDescriptor> = {},
+): PageDescriptor {
+  return {
+    owner,
+    path,
+    title: message(title),
+    admit: async () => ({}),
+    render: async () => "",
+    ...extra,
+  };
+}
+
 function entryPaths(pages: readonly PageDescriptor[]): string[] {
   return pages.map((page) => page.path);
 }
@@ -305,5 +321,52 @@ describe("buildNavigation", () => {
       ["/reports", false],
       ["/expenses/review", false],
     ]);
+  });
+
+  it("keeps same-path pages from different owners (dedup negative)", () => {
+    const pages = [stubPage("alpha", "/shared", "Alpha"), stubPage("beta", "/shared", "Beta")];
+    const candidates = selectDiscoveryCandidates(pages);
+    assert.equal(candidates.length, 2);
+    const result = buildNavigation(candidates, outcomesFor(candidates), {
+      ownerLabels: new Map<string, MessageValue>(),
+      currentPath: "/shared",
+    });
+    assert.equal(result.groups.length, 2);
+    assert.deepEqual(
+      result.groups.flatMap((group) => group.entries.map((entry) => entry.active)),
+      [true, true],
+    );
+  });
+
+  it("falls back past an unavailable first-declared page for the group title", () => {
+    const first = stubPage("alpha", "/one", "One");
+    const second = stubPage("alpha", "/two", "Two");
+    const candidates = selectDiscoveryCandidates([first, second]);
+    const outcomes = outcomesFor(candidates);
+    outcomes.set(first, "unavailable");
+    const result = buildNavigation(candidates, outcomes, {
+      ownerLabels: new Map<string, MessageValue>(),
+      currentPath: "/two",
+    });
+    assert.equal(result.incomplete, true);
+    assert.equal(result.groups.length, 1);
+    assert.deepEqual(at(result.groups, 0)?.caption, message("Two"));
+    assert.deepEqual(
+      at(result.groups, 0)?.entries.map((entry) => entry.path),
+      ["/two"],
+    );
+  });
+
+  it("marks nothing active when highlightPath matches no admitted page", () => {
+    const candidates = selectDiscoveryCandidates(TEAMTASKS_FULL_PAGES);
+    const result = buildNavigation(candidates, outcomesFor(candidates), {
+      ownerLabels: new Map<string, MessageValue>(),
+      currentPath: "/",
+      highlightPath: "/invoices/123",
+    });
+    assert.deepEqual(
+      result.groups.flatMap((group) => group.entries.map((entry) => entry.active)),
+      [false, false],
+    );
   });
 });

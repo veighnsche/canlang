@@ -21,7 +21,7 @@ import type {
   ShellData,
 } from "../../contracts/src/presentation.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
-import { message, normalizeTag, resolveMessage } from "./messages.js";
+import { formatMessage, message, normalizeTag } from "./messages.js";
 
 /**
  * Shell chrome wording, en source + nl variants. Seed of the shared runtime
@@ -54,6 +54,15 @@ function validPreferred(context: PresentationContext): string[] {
   return out;
 }
 
+/** App default locale, falling back to "en" when invalid (dispatcher bug). */
+function effectiveDefault(context: PresentationContext): string {
+  try {
+    return normalizeTag(context.appDefaultLocale);
+  } catch {
+    return "en";
+  }
+}
+
 /**
  * Page locale: first valid preferred locale, else the app default. An invalid
  * app default falls back to "en" so the lang attribute is always well-formed.
@@ -64,11 +73,7 @@ export function pageLocale(context: PresentationContext): string {
   if (first !== undefined) {
     return first;
   }
-  try {
-    return normalizeTag(context.appDefaultLocale);
-  } catch {
-    return "en";
-  }
+  return effectiveDefault(context);
 }
 
 /** Writing direction for a locale tag; unknown tags fall back to "ltr". */
@@ -87,11 +92,18 @@ export function pageDirection(locale: string): string {
 }
 
 function resolveText(value: MessageValue, context: PresentationContext): string {
-  const descriptor = typeof value === "string" ? message(value) : value;
-  return resolveMessage(descriptor, {
+  // Plain strings stay verbatim (literal braces are text, not patterns);
+  // descriptors render through the formatter so bound params apply. Caption
+  // datetimes use UTC: team-timezone rendering awaits a PresentationContext
+  // timezone field (L6 join). Money params fail loudly without lane 2 scales.
+  if (typeof value === "string") {
+    return value;
+  }
+  return formatMessage(value, {
     preferredLocales: validPreferred(context),
-    appDefaultLocale: context.appDefaultLocale,
-  }).text;
+    appDefaultLocale: effectiveDefault(context),
+    timeZone: "UTC",
+  });
 }
 
 function renderEntry(
@@ -211,6 +223,10 @@ export const renderPage: RenderPageFn = async (
       ? `${escapeHtml(title)} — ${escapeHtml(brand)}`
       : escapeHtml(title);
   const theme = `can-${context.theme.mode}-${context.theme.accent}`;
+  const metaDescription =
+    descriptor.description === undefined
+      ? ""
+      : `<meta name="description" content="${escapeAttr(resolveText(descriptor.description, context))}">`;
 
   const groups = shell.navigation.groups
     .map((group) => {
@@ -233,6 +249,7 @@ export const renderPage: RenderPageFn = async (
     `<html lang="${escapeAttr(locale)}" dir="${escapeAttr(direction)}" data-theme="${escapeAttr(theme)}">` +
     `<head><meta charset="utf-8">` +
     `<meta name="viewport" content="width=device-width, initial-scale=1">` +
+    metaDescription +
     `<title>${headTitle}</title></head>` +
     `<body class="density-${escapeAttr(context.theme.density)}">` +
     `<div class="drawer lg:drawer-open">` +

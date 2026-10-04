@@ -35,8 +35,9 @@ jobs:
         run: |
           # Lane-05 sources may import only the lane-05-owned contract file until
           # L7 joins presentation.ts into @canlang/contracts.
-          imports=$(grep -rho "contracts/src/[a-z0-9_]*\\.js" packages/ui/src packages/ui/test | sort -u)
+          imports=$(grep -rho "contracts/src/[a-z0-9_]*\\.js" packages/ui/src packages/ui/test | sort -u || true)
           echo "$imports"
+          if [ -z "$imports" ]; then exit 0; fi
           echo "$imports" | grep -v -E 'contracts/src/presentation\.js' && exit 1 || exit 0
       - name: Install workspace
         run: npm install --no-audit --no-fund

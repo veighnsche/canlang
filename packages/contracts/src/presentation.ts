@@ -215,6 +215,7 @@ export interface NavigationEntry {
   readonly owner: string;
   readonly path: string;
   readonly title: MessageValue;
+  /** Carried for future surfaces; S2 nav renders titles only. */
   readonly description?: MessageValue;
   readonly active: boolean;
 }
@@ -274,7 +275,10 @@ export interface ShellData {
   readonly routes: ShellRoutes;
   readonly account: AccountMenuData;
   readonly settings: SettingsFrameData;
-  /** Highlight override for contextual details (parent destination stays lit). */
+  /**
+   * Highlight override for contextual details (parent destination stays lit).
+   * Consumed by buildNavigation via BuildNavigationOptions; renderPage ignores it.
+   */
   readonly highlightPath?: string;
 }
 

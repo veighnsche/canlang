@@ -133,6 +133,15 @@ cadence (default 2), no polling.
       (no files written); respawned as lane05-s2-nav2/shell2 with full
       self-contained briefs. origin/main advanced (lane 04 S2 #5, disjoint files);
       rebase at S2 PR time.
+      Correction (S2 review B3): the "CSS checkbox collapse in S2" pin was wrong —
+      S2 ships mobile overlay (checkbox) + always-open desktop; desktop collapse
+      control + device-local persistence are explicitly deferred to S5 (owned
+      script). Follow-ups recorded: aria-modal/focus containment/return + Escape
+      for drawers/dialogs (S5/S6); panelHtml trust boundary becomes an S6
+      escaping requirement; caption datetimes render in UTC until a
+      PresentationContext timezone field lands (L6 join). License field removal
+      in ui package.json is intentional (matches @canlang/identity precedent,
+      private:true).
 - [ ] S3 core components: components.ts (card/title/text/content/list/table + shared states), catalog.ts seed.
       Branch: muse/lane-05-ui/s3-components.
 - [ ] S4 forms: forms.ts (form/edit/delete/action/actions, bindings, errors, conflict/pending), version hidden
@@ -237,10 +246,18 @@ Workers: W-A navigation (selectDiscoveryCandidates/buildNavigation, 14 tests),
 W-B shell (renderPage/pageLocale/pageDirection, 29 tests); coordinator fix:
 settings dialog close control + aria-labelledby.
 Checks (local, node v24.21.0): workspace `npm test --workspace @canlang/ui`
-91/91 pass (48 carried + 14 navigation + 29 shell).
+101/101 pass (48 S1 + 17 navigation + 36 shell, incl. navigation→shell join).
 L7 joins requested: presentation.ts into contracts index; packages/ui into
 tsconfig.check.json. L6 ack requested: CSRF_FIELD/TEAM_FIELD + ShellRoutes.
-PR: (to be filled) number, reviewed head, review notes, merge result.
+PR #10 (muse/lane-05-ui/s2-shell -> main). Self-review: full diff inspected,
+worker implementations read end to end; fixed dialog close/aria-labelledby.
+Independent read-only review verdict needs-changes: B1 (invalid appDefault
+crash), B2 (raw ICU in parameterized captions), B3 (collapse deferral), all
+fixed in-branch with regression tests + gap tests (dedup negative,
+unavailable-first fallback, non-admitted highlight, unselected teams, empty
+sections, meta description, join); nits (entry description doc, highlightPath
+doc, CI guard empty-import case) fixed.
+Merge: (to be filled) reviewed head sha, checks, squash merge result.
 
 ## Remaining work and cleanup
 
