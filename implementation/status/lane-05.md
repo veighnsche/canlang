@@ -174,9 +174,13 @@ cadence (default 2), no polling.
       L3 CurrentRow projection, gap-2 allowlist, separator-adversarial routing
       regression test. Suite 257/257 green. Read-only review closed (0 real
       defects; drawer finding false-positive; A1 fail-closed verified).
-- [ ] S5 interaction: htmx.ts (fragments, swap/error config, poll/refresh), collections.ts (search/filter/order/
-      pagination/empty/export/print), DOM harness decision + unsaved-state/focus tests. Two workers allowed:
-      W-A htmx.ts+tests, W-B collections.ts+tests. Branch: muse/lane-05-ui/s5-interaction.
+- [x] S5 interaction (branch muse/lane-05-ui/s5-interaction, PR pending): contract v0.5.0
+      (CollectionControls/FilterCondition/OrderSelector, HtmxRequest/StatusSwap/FragmentRegion/Poll/StaleMarker,
+      no-match kind). JEV 3-rewrite: morph-by-default on stable region ids, innerHTML for explicit reset only
+      (evidence/jev/lane-05-s5-20261004/, unanimous A, weak 2/3). Harness: happy-dom 20.14.5 measured pick,
+      linkedom disqualified (activeElement). W-A: src/htmx.ts + test/htmx.test.ts (40 tests). W-B: collections
+      controls + tests (toolbar/pagination/export/print/no-match). Coordinator reconciled: renderState no-match
+      case, harness DOM types, can-region hook, index/catalog wiring. Suite 333/333 green.
 - [ ] S6 settings+panels: settings.ts (preferences sections, locale/appearance, save/conflict), tabs/details/
       drawer/history completion in components.ts, bound-tab preference save. Branch: muse/lane-05-ui/s6-settings.
 - [ ] S7 rich controls: board/calendar/metrics/copy in components.ts, file/media controls, CSV import panel

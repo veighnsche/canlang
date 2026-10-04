@@ -1,0 +1,14 @@
+{
+  "state": "CanLang lane 05 builds @canlang/ui, a server-rendered daisyUI/HTMX presentation library. DESIGN section 9 mandates: mutations re-run authorized page read regions while preserving unrelated unsaved controls and focus; validation keeps submitted values; version conflict presents current authorized values without overwriting drafts; shared controls retain still-authorized unsaved values, validation/conflict state, focus and active details; no partial response may preserve revoked private values merely to preserve a draft; poll rereads read regions only. HTMX 4 offers morph swaps (innerMorph/outerMorph) that preserve DOM state including input values and focus but cannot reset forms, skip markers (hx-morph-skip, hx-preserve) that freeze subtrees during replacement swaps, and plain innerHTML/outerHTML replacement that discards DOM state. The server already re-renders submitted values on validation failure (slice S4). Poll/reread must not clobber in-progress drafts. Revoked values must never survive a swap. Mechanism A: morph-by-default on stable region ids, reserving innerHTML for explicit reset semantics. Mechanism B: innerHTML replacement plus explicit preserve markers on every draft-bearing subtree. Mechanism C: server-side draft echo, where re-rendered regions embed retained draft values and the server retains drafts per session and page.",
+  "questions": {
+    "preservation": {
+      "type": "choice",
+      "instructions": "Which unsaved-state preservation mechanism best satisfies the stated DESIGN mandates (preserve unrelated drafts and focus, never preserve revoked values, validation keeps values, conflict never overwrites) with the least failure surface?",
+      "criteria": {
+        "A": "Morph-by-default on stable region ids; innerHTML only for explicit reset.",
+        "B": "innerHTML replacement with explicit preserve markers on draft-bearing subtrees.",
+        "C": "Server-side draft echo with per-session per-page draft retention."
+      }
+    }
+  }
+}

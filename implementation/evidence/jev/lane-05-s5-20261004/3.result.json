@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Server-rendered CanLang pages update via HTMX partials. Normative rules: mutation-driven re-reads of authorized regions must not disturb unrelated unsaved controls or focus; correctable validation failures retain input; conflicts display current values without overwriting; retained state (values, validation/conflict markers, focus, open details) covers only still-authorized content, and revoked private values must be dropped even at the cost of a draft; poll-triggered rereads touch read regions only. The toolkit contains state-merging swaps (keep live input and focus, cannot reset), subtree freeze markers paired with replacing swaps, plain replacing swaps, and existing server echo of submitted values on failure. Candidate A: merge-based swapping as the norm on stable region ids, replacement reserved for deliberate reset. Candidate B: replacement as the norm with freeze markers maintained on all draft-bearing subtrees. Candidate C: server-kept drafts per session and page merged into each render.",
+    "questions": {
+      "preservation": {
+        "type": "choice",
+        "instructions": "Which candidate most reliably upholds every normative rule above, weighing the cost of a missed marker, a stale morph, and server-held draft state?",
+        "criteria": {
+          "A": "Merging swaps as the norm on stable region ids; replacement only for deliberate reset.",
+          "B": "Replacing swaps as the norm; freeze markers on all draft-bearing subtrees.",
+          "C": "Server-kept per-session per-page drafts merged into each render."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "preservation": {
+        "type": "choice",
+        "choice": "A",
+        "confidence": 0.51,
+        "probabilities": {
+          "A": 0.67,
+          "C": 0.1,
+          "B": 0.23
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 581,
+      "output_tokens": 40
+    }
+  }
+}
