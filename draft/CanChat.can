@@ -185,40 +185,94 @@ package chat
   # Read current authorized snapshots; reconnecting never resubmits a message. @{nl="Lees actuele toegestane momentopnamen; opnieuw verbinden verstuurt nooit opnieuw een bericht."}
   page /chat title="Conversations"@{nl="Gesprekken"} poll=1s
    require members
+   breadcrumbs
    form open
+    input title
+    select profile
    list Conversation as conversation where conversation.active order=-updated empty="No conversations yet"@{nl="Nog geen gesprekken"}
+    pagination
     title row.title
     details "Open conversation"@{nl="Gesprek openen"} display=drawer
      form revoke arguments={conversation=row}
-     list row.Branch order=created
+     list row.Branch order=created empty="No branches yet"@{nl="Nog geen vertakkingen"}
+      pagination
       title row.title
       details "Open branch"@{nl="Vertakking openen"} display=drawer
-       list row.prefix
-        text row.role
-        content row.content
-        text row.attachments
-       list row.Turn order=position
-        text row.role
-        content row.content
-        text row.attachments
+       divider "Earlier messages"@{nl="Eerdere berichten"}
+       list row.prefix empty="No earlier messages"@{nl="Geen eerdere berichten"}
+        pagination
+        chat_bubble
+         slot header
+          text row.role
+         slot content
+          content row.content
+          text row.attachments
+       divider "Messages"@{nl="Berichten"}
+       list row.Turn order=position empty="No messages yet"@{nl="Nog geen berichten"}
+        pagination
+        chat_bubble
+         slot header
+          text row.role
+         slot content
+          content row.content
+          text row.attachments
         form regenerate arguments={turn=row}
-       list row.Run order=created
+         input title
+       divider "Reply generations"@{nl="Antwoordgeneraties"}
+       list row.Run order=created empty="No reply generations yet"@{nl="Nog geen antwoordgeneraties"}
+        pagination
         card "Reply status"@{nl="Antwoordstatus"}
-         text row.state,row.delivery_state,row.stop_requested,row.stop_delivery,row.reconcile_delivery,row.detail,row.reserved,row.used
+         status row.delivery_state
+         status row.stop_delivery
+         status row.reconcile_delivery
+         badge row.state
+         text row.stop_requested,row.detail,row.reserved,row.used
+         ## Null usage renders the catalog-defined unavailable presentation.
+         progress row.used max=row.reserved
+         loading row.unfinished
          content row.partial
          actions stop,reconcile,release_skipped
-       form ask arguments={branch=row} display=inline
-   table Allowance columns=cap,spent,held,running,active
+       tooltip "Send message and reserve tokens"@{nl="Bericht sturen en tokens reserveren"}
+        form ask arguments={branch=row} display=inline
+         textarea prompt
+         ## attachments keeps its generated control: file arrays have no catalog control.
+   table Allowance columns=cap,spent,held,running,active empty="No token allowances"@{nl="Geen tokenbudgetten"}
+    pagination
   page /chat/recovery title="Unresolved usage"@{nl="Onopgelost gebruik"} poll=1s
    require members
-   text "Stopping is a request. Unknown usage stays reserved until the provider confirms it."@{nl="Stoppen is een verzoek. Onbekend gebruik blijft gereserveerd totdat de aanbieder het bevestigt."}
-   table Run as run where run.used==null or run.unfinished columns=state,delivery_state,stop_delivery,reconcile_delivery,reserved,used,detail
+   breadcrumbs
+   alert
+    text "Stopping is a request. Unknown usage stays reserved until the provider confirms it."@{nl="Stoppen is een verzoek. Onbekend gebruik blijft gereserveerd totdat de aanbieder het bevestigt."}
+   table Run as run where run.used==null or run.unfinished columns=state,delivery_state,stop_delivery,reconcile_delivery,reserved,used,detail empty="No unresolved usage"@{nl="Geen onopgelost gebruik"}
+    pagination
+    status row.delivery_state
     actions stop,reconcile,release_skipped
   page /chat/admin title="AI access and limits"@{nl="AI-toegang en limieten"}
    require ai_manager
+   breadcrumbs
    form Profile.create
-   table Profile columns=name,provider_key,policy_revision,input_tokens,output_tokens,duration,active
+    fieldset "Model"@{nl="Model"}
+     input name
+     input provider_key
+     input policy_revision
+     textarea system_prompt
+    fieldset "Limits"@{nl="Limieten"}
+     range input_tokens
+     range output_tokens
+     input duration
+   table Profile columns=name,provider_key,policy_revision,input_tokens,output_tokens,duration,active empty="No model profiles"@{nl="Geen modelprofielen"}
+    pagination
     edit fields=active
+     checkbox active
    form Allowance.create
-   table Allowance columns=account,cap,parallel,spent,held,running,active
+    ## account keeps its generated entry: user references have no catalog picker.
+    input cap
+    range parallel
+   table Allowance columns=account,cap,parallel,spent,held,running,active empty="No token allowances"@{nl="Geen tokenbudgetten"}
+    pagination
     edit fields=cap,parallel,active
+     label cap
+     input cap
+     validator cap
+     range parallel
+     checkbox active

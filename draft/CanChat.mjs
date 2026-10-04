@@ -1,5 +1,8 @@
 import { require as check, hasRole, active_member, same, records, first, count, any, int64, create, set, send, call, delivery,trim } from "@canlang/stdlib";
-import { message, renderPage, list, table, form, actions, card, details, content, text, title, edit } from "@canlang/ui";
+import { message, renderPage, list, table, form, actions, card, details, content, text, title, edit, breadcrumbs, pagination, badge, status, progress, loading, chat_bubble, tooltip, divider, alert, fieldset, input, textarea, select, range, checkbox, label, validator } from "@canlang/ui";
+// Desired lowering: breadcrumbs, pagination, badge, status, progress, loading,
+// chat_bubble, tooltip, divider, alert, fieldset and placed controls are proposed
+// @canlang/ui contracts (desired/unimplemented). details/drawer kept.
 
 /* Handwritten desired JavaScript; DESIGN §13 contracts are unimplemented.
  * Shared TextGenerationV1 owns provider streams, durable correlation, targeted
@@ -137,25 +140,97 @@ export function canApp() {
 }
 export async function conversationsPage(c){
   return renderPage(c,conversationsDescriptor,()=>[
-    form({context:c,operation:"chat.open"}),
-    list({context:c,model:Conversation,where:r=>r.active,order:["-updated"],empty:message("No conversations yet",{nl:"Nog geen gesprekken"}),renderRow:(conversation,cv)=>[
-      title({context:cv,value:conversation.title}),details({context:cv,caption:message("Open conversation",{nl:"Gesprek openen"}),display:"drawer",children:[
+    breadcrumbs({context:c}),
+    form({context:c,operation:"chat.open",children:[
+      input({context:c,field:"title"}),
+      select({context:c,field:"profile"})]}),
+    list({context:c,model:Conversation,where:r=>r.active,order:["-updated"],
+      empty:message("No conversations yet",{nl:"Nog geen gesprekken"}),
+      renderRow:(conversation,cv)=>[
+      pagination({context:cv}),
+      title({context:cv,value:conversation.title}),
+      details({context:cv,caption:message("Open conversation",{nl:"Gesprek openen"}),
+        display:"drawer",children:[
         form({context:cv,operation:"chat.revoke",arguments:{conversation}}),
-        list({context:cv,model:Branch,parent:conversation,order:["created"],renderRow:(branch,bv)=>[
-          title({context:bv,value:branch.title}),details({context:bv,caption:message("Open branch",{nl:"Vertakking openen"}),display:"drawer",children:[
-            list({context:bv,items:branch.prefix,renderRow:(row,rv)=>[text({context:rv,values:[row.role]}),content({context:rv,value:row.content}),text({context:rv,values:[row.attachments]})]}),
-            list({context:bv,model:Turn,parent:branch,order:["position"],renderRow:(turn,tv)=>[text({context:tv,values:[turn.role]}),content({context:tv,value:turn.content}),text({context:tv,values:[turn.attachments]}),form({context:tv,operation:"chat.regenerate",arguments:{turn}})]}),
-            list({context:bv,model:"chat.Run",parent:branch,order:["created"],renderRow:async(run,rv)=>[card({context:rv,title:message("Reply status",{nl:"Antwoordstatus"}),children:[
-              text({context:rv,values:[run.state,(await delivery(rv,{record:run,field:"request"},["status"]))?.status??null,run.stop_requested,(await delivery(rv,{record:run,field:"cancellation"},["status"]))?.status??null,(await delivery(rv,{record:run,field:"reconciliation"},["status"]))?.status??null,run.detail,run.reserved,run.used]}),content({context:rv,value:run.partial}),actions({context:rv,operations:["chat.stop","chat.reconcile","chat.release_skipped"],boundArgs:{run}})]})]}),
-            form({context:bv,operation:ask,arguments:{branch},display:"inline"})
+        list({context:cv,model:Branch,parent:conversation,order:["created"],
+          empty:message("No branches yet",{nl:"Nog geen vertakkingen"}),
+          renderRow:(branch,bv)=>[
+          pagination({context:bv}),
+          title({context:bv,value:branch.title}),
+          details({context:bv,caption:message("Open branch",{nl:"Vertakking openen"}),
+            display:"drawer",children:[
+            divider({context:bv,caption:message("Earlier messages",{nl:"Eerdere berichten"})}),
+            list({context:bv,items:branch.prefix,
+              empty:message("No earlier messages",{nl:"Geen eerdere berichten"}),
+              renderRow:(row,rv)=>[
+              pagination({context:rv}),
+              chat_bubble({context:rv,slots:{
+                header:()=>[text({context:rv,values:[row.role]})],
+                content:()=>[content({context:rv,value:row.content}),
+                  text({context:rv,values:[row.attachments]})]}})]}),
+            divider({context:bv,caption:message("Messages",{nl:"Berichten"})}),
+            list({context:bv,model:Turn,parent:branch,order:["position"],
+              empty:message("No messages yet",{nl:"Nog geen berichten"}),
+              renderRow:(turn,tv)=>[
+              pagination({context:tv}),
+              chat_bubble({context:tv,slots:{
+                header:()=>[text({context:tv,values:[turn.role]})],
+                content:()=>[content({context:tv,value:turn.content}),
+                  text({context:tv,values:[turn.attachments]})]}}),
+              form({context:tv,operation:"chat.regenerate",arguments:{turn},children:[
+                input({context:tv,field:"title"})]})]}),
+            divider({context:bv,caption:message("Reply generations",{nl:"Antwoordgeneraties"})}),
+            list({context:bv,model:"chat.Run",parent:branch,order:["created"],
+              empty:message("No reply generations yet",{nl:"Nog geen antwoordgeneraties"}),
+              renderRow:(run,rv)=>[
+              pagination({context:rv}),
+              card({context:rv,
+              title:message("Reply status",{nl:"Antwoordstatus"}),children:[
+              status({context:rv,value:run.delivery_state}),
+              status({context:rv,value:run.stop_delivery}),
+              status({context:rv,value:run.reconcile_delivery}),
+              badge({context:rv,value:run.state}),
+              text({context:rv,values:[run.stop_requested,run.detail,run.reserved,run.used]}),
+              progress({context:rv,value:run.used,max:run.reserved}),
+              loading({context:rv,value:run.unfinished}),
+              content({context:rv,value:run.partial}),
+              actions({context:rv,operations:["chat.stop","chat.reconcile","chat.release_skipped"],boundArgs:{run}})]})]}),
+            tooltip({context:bv,caption:message("Send message and reserve tokens",
+              {nl:"Bericht sturen en tokens reserveren"}),children:[
+              form({context:bv,operation:ask,arguments:{branch},display:"inline",children:[
+                textarea({context:bv,field:"prompt"})]})]})
           ]})
         ]})
-      ]})
-    ]}),table({context:c,model:"chat.Allowance",columns:["cap","spent","held","running","active"]})
-  ]);
+      ]})]}),
+      table({context:c,model:"chat.Allowance",
+        columns:["cap","spent","held","running","active"],
+        empty:message("No token allowances",{nl:"Geen tokenbudgetten"}),
+        renderRow:(row,rv)=>[pagination({context:rv})]})
+    ]);
 }
-export async function recoveryPage(c){return renderPage(c,recoveryDescriptor,()=>[text({context:c,values:[message("Stopping is a request. Unknown usage stays reserved until the provider confirms it.",{nl:"Stoppen is een verzoek. Onbekend gebruik blijft gereserveerd totdat de aanbieder het bevestigt."})]}),table({context:c,model:"chat.Run",where:r=>r.used===null||r.unfinished,columns:["state","delivery_state","stop_delivery","reconcile_delivery","reserved","used","detail"],renderRow:(run,rv)=>[actions({context:rv,operations:["chat.stop","chat.reconcile","chat.release_skipped"],boundArgs:{run}})]})]);}
-export async function adminPage(c){return renderPage(c,adminDescriptor,()=>[form({context:c,operation:"chat.Profile.create"}),table({context:c,model:"chat.Profile",columns:["name","provider_key","policy_revision","input_tokens","output_tokens","duration","active"],renderRow:(record,rv)=>[edit({context:rv,operation:"chat.Profile.update",record,fields:["active"]})]}),form({context:c,operation:"chat.Allowance.create"}),table({context:c,model:"chat.Allowance",columns:["account","cap","parallel","spent","held","running","active"],renderRow:(record,rv)=>[edit({context:rv,operation:"chat.Allowance.update",record,fields:["cap","parallel","active"]})]})]);}
+export async function recoveryPage(c){return renderPage(c,recoveryDescriptor,()=>[
+  breadcrumbs({context:c}),
+  alert({context:c,children:[text({context:c,values:[message("Stopping is a request. Unknown usage stays reserved until the provider confirms it.",{nl:"Stoppen is een verzoek. Onbekend gebruik blijft gereserveerd totdat de aanbieder het bevestigt."})]})]}),
+  table({context:c,model:"chat.Run",where:r=>r.used===null||r.unfinished,columns:["state","delivery_state","stop_delivery","reconcile_delivery","reserved","used","detail"],empty:message("No unresolved usage",{nl:"Geen onopgelost gebruik"}),renderRow:(run,rv)=>[pagination({context:rv}),status({context:rv,value:run.delivery_state}),actions({context:rv,operations:["chat.stop","chat.reconcile","chat.release_skipped"],boundArgs:{run}})]})
+ ]);}
+export async function adminPage(c){return renderPage(c,adminDescriptor,()=>[
+  breadcrumbs({context:c}),
+  form({context:c,operation:"chat.Profile.create",children:[
+    fieldset({context:c,caption:message("Model",{nl:"Model"}),children:[
+      input({context:c,field:"name"}),
+      input({context:c,field:"provider_key"}),
+      input({context:c,field:"policy_revision"}),
+      textarea({context:c,field:"system_prompt"})]}),
+    fieldset({context:c,caption:message("Limits",{nl:"Limieten"}),children:[
+      range({context:c,field:"input_tokens"}),
+      range({context:c,field:"output_tokens"}),
+      input({context:c,field:"duration"})]})]}),
+  table({context:c,model:"chat.Profile",columns:["name","provider_key","policy_revision","input_tokens","output_tokens","duration","active"],empty:message("No model profiles",{nl:"Geen modelprofielen"}),renderRow:(record,rv)=>[pagination({context:rv}),edit({context:rv,operation:"chat.Profile.update",record,fields:["active"],children:[checkbox({context:rv,field:"active"})]})]}),
+  form({context:c,operation:"chat.Allowance.create",children:[
+    input({context:c,field:"cap"}),
+    range({context:c,field:"parallel"})]}),
+  table({context:c,model:"chat.Allowance",columns:["account","cap","parallel","spent","held","running","active"],empty:message("No token allowances",{nl:"Geen tokenbudgetten"}),renderRow:(record,rv)=>[pagination({context:rv}),edit({context:rv,operation:"chat.Allowance.update",record,fields:["cap","parallel","active"],children:[label({context:rv,field:"cap"}),input({context:rv,field:"cap"}),validator({context:rv,field:"cap"}),range({context:rv,field:"parallel"}),checkbox({context:rv,field:"active"})]})]})
+ ]);}
 
 /* Test-only desired output; recipes are provisioned by the shared future runner. */
 export function exampleFixtures({self,other,imported}){

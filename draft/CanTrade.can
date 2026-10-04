@@ -80,44 +80,82 @@ package trade
  Then
   # Find active community listings and publish only contact details you deliberately choose. @{nl="Vind actieve communityadvertenties en publiceer alleen contactgegevens die je bewust kiest."}
   page /marketplace title="Community marketplace"@{nl="Communitymarktplaats"}
+   breadcrumbs
    card "Publish a listing"@{nl="Een advertentie publiceren"}
     require authenticated and actor.email_verified and eligible(actor,null)
     form Post.create
+     fieldset "Listing details"@{nl="Advertentiegegevens"}
+      radio kind
+      input title
+      textarea description
+      radio visibility
+      select location
+      input category
+      input amount
+      input contact
    tabs preferences.view
    card "Community discovery"@{nl="Communityaanbod ontdekken"}
     require preferences.view==community
-    table Post as post where post.state==active columns=kind,category,location,title,amount,contact filter=kind,category,location defaults={kind=preferences.kind,category=preferences.category,location=preferences.location} search=title display=split
+    table Post as post where post.state==active columns=kind,category,location,title,amount,contact filter=kind,category,location defaults={kind=preferences.kind,category=preferences.category,location=preferences.location} search=title display=split empty="No active listings match."@{nl="Geen actieve advertenties gevonden."}
+     pagination
      badge row.state
      content row.description
      edit
-     action status
-     details "Published contact and reporting"@{nl="Gepubliceerd contact en melden"}
+     ## Closing and reopening keep the owning status operation with its typed open control.
+     button opens=community_listing_status
+     modal "Change listing status"@{nl="Advertentiestatus wijzigen"} id=community_listing_status
+      slot content
+       form status arguments={post=row} display=inline
+        checkbox open
+     collapse "Published contact and reporting"@{nl="Gepubliceerd contact en melden"}
       text row.visibility,row.state
       form Report.create
+       textarea reason
    card "My listings"@{nl="Mijn advertenties"}
     require authenticated and preferences.view==mine
-    table Post as post where post.author==actor columns=kind,title,visibility,state,moderation_reason filter=state display=split
+    table Post as post where post.author==actor columns=kind,title,visibility,state,moderation_reason filter=state display=split empty="No own listings yet."@{nl="Nog geen eigen advertenties."}
+     pagination
      badge row.state
      edit
      delete
-     action status
+     button opens=own_listing_status
+     modal "Change listing status"@{nl="Advertentiestatus wijzigen"} id=own_listing_status
+      slot content
+       form status arguments={post=row} display=inline
+        checkbox open
      history
+
   # Resolve reported listings under a separate moderation grant. @{nl="Behandel gemelde advertenties onder een afzonderlijke moderatiebevoegdheid."}
   page /marketplace/reports title="Listing reports"@{nl="Advertentiemeldingen"}
    require moderator or owner
+   breadcrumbs
    card "Publication audience"@{nl="Publicatiedoelgroep"}
     require owner
     form Audience.create
-    list Audience
+     checkbox allow_public
+    list Audience empty="No audience record yet."@{nl="Nog geen doelgroeprecord."}
+     pagination
      edit
    card "Reported listings"@{nl="Gemelde advertenties"}
     require moderator
-    table Report columns=parent,reason,resolved,decision filter=resolved defaults={resolved=false}
-     badge row.resolved
-     action dismiss
+    ## The queue defaults to unresolved reports; dismissal keeps the original report and decision history.
+    alert "Unresolved reports first; dismissed reports stay readable with their decision."@{nl="Eerst onopgeloste meldingen; afgewezen meldingen blijven leesbaar met hun besluit."}
+    table Report columns=parent,reason,resolved,decision filter=resolved defaults={resolved=false} empty="No reports match this filter."@{nl="Geen meldingen voor dit filter."}
+     pagination
+     text row.resolved
+     button opens=dismiss_report
+     modal "Dismiss report"@{nl="Melding afwijzen"} id=dismiss_report
+      slot content
+       form dismiss arguments={report=row} display=inline
+        textarea reason
    card "Moderation decisions"@{nl="Moderatiebesluiten"}
     require moderator
-    list Post as post where any(post.Report as report,not report.resolved) display=split
+    list Post as post where any(post.Report as report,not report.resolved) display=split empty="No listings awaiting moderation."@{nl="Geen advertenties te beoordelen."}
+     pagination
      badge row.state
-     action moderate
+     button opens=moderate_listing
+     modal "Remove reported listing"@{nl="Gemelde advertentie verwijderen"} id=moderate_listing
+      slot content
+       form moderate arguments={post=row} display=inline
+        textarea reason
      history

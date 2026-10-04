@@ -14,18 +14,34 @@ import {
 } from "@canlang/stdlib";
 import {
   actions,
+  alert,
+  badge,
+  breadcrumbs,
+  button,
+  calendar,
   card,
-  details,
+  checkbox,
+  collapse,
+  content,
   edit,
+  fieldset,
+  file_input,
   form,
   history,
+  input,
   list,
   message,
+  modal,
+  pagination,
   renderPage,
+  slot,
   tab,
   table,
   tabs,
   text,
+  textarea,
+  timeline,
+  tooltip,
 } from "@canlang/ui";
 import { Location } from "./rent_catalog.mjs";
 
@@ -38,6 +54,10 @@ import { Location } from "./rent_catalog.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * Then-replan composition (breadcrumbs, pagination, alert, badge, button, calendar,
+ * checkbox, collapse, content, fieldset, file_input, input, modal, slot, textarea,
+ * timeline, tooltip) is likewise desired: each use site below is marked
+ * desired-unimplemented and never claims to run.
  */
 
 const label_Meeting_finalized = message("Finalized", { nl: "Definitief" });
@@ -665,6 +685,8 @@ export async function boardPage(c, bindings) {
     c,
     boardPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs consume the declared route ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Meeting intake", { nl: "Vergadering aanmaken" }),
@@ -679,8 +701,12 @@ export async function boardPage(c, bindings) {
         defaults: { finalized: c.preferences.board.finalized },
         search: ["title"],
         display: "split",
+        empty: message("No meetings match this filter.", { nl: "Geen vergaderingen voor dit filter." }),
         renderRow: (meeting, v) => [
-          // Desired: badge row.finalized — no verified @canlang/ui badge factory yet; awaits the L5 producer contract.
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: v }),
+          /* desired-unimplemented: text presents the readable bool; badges stay enum-only. */
+          text({ context: v, values: [meeting.finalized] }),
           card({
             context: v,
             title: message("Meeting and attendance", { nl: "Vergadering en aanwezigheid" }),
@@ -697,6 +723,25 @@ export async function boardPage(c, bindings) {
                   meeting.finalized_by,
                 ],
               }),
+              /* desired-unimplemented: alert suite carries the immutability notice. */
+              meeting.finalized
+                ? alert({
+                    context: v,
+                    children: [
+                      text({
+                        context: v,
+                        values: [
+                          message(
+                            "Finalized minutes are immutable; later corrections use amendments.",
+                            {
+                              nl: "Definitieve notulen zijn onveranderlijk; latere correcties gebruiken aanvullingen.",
+                            },
+                          ),
+                        ],
+                      }),
+                    ],
+                  })
+                : null,
               edit({ context: v, operation: "board.Meeting.update", record: meeting }),
               actions({ context: v, operations: ["board.finalize"], boundArgs: { meeting } }),
             ],
@@ -712,6 +757,13 @@ export async function boardPage(c, bindings) {
                     context: v,
                     operation: "board.Agenda.create",
                     arguments: { parent: meeting },
+                    /* desired-unimplemented: placed controls move the generated fields. */
+                    children: [
+                      input({ context: v, field: "title" }),
+                      input({ context: v, field: "position" }),
+                      file_input({ context: v, field: "paper" }),
+                      textarea({ context: v, field: "discussion" }),
+                    ],
                   }),
                   table({
                     context: v,
@@ -719,8 +771,25 @@ export async function boardPage(c, bindings) {
                     parent: meeting,
                     columns: ["position", "title", "paper", "discussion"],
                     order: ["position"],
-                    renderRow: (agenda, av) =>
+                    empty: message("No agenda items yet.", { nl: "Nog geen agendapunten." }),
+                    renderRow: (agenda, av) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: av }),
+                      /* desired-unimplemented: button target opens the authorized file; absent-file presentation awaits the 05 contract. */
+                      agenda.paper !== null
+                        ? card({
+                            context: av,
+                            children: [
+                              button({
+                                context: av,
+                                target: agenda.paper,
+                                caption: message("Open paper", { nl: "Stuk openen" }),
+                              }),
+                            ],
+                          })
+                        : null,
                       edit({ context: av, operation: "board.Agenda.update", record: agenda }),
+                    ],
                   }),
                 ],
               }),
@@ -738,17 +807,60 @@ export async function boardPage(c, bindings) {
                     model: "board.Resolution",
                     parent: meeting,
                     columns: ["title", "outcome", "evidence"],
+                    empty: message("No resolutions yet.", { nl: "Nog geen besluiten." }),
                     renderRow: (resolution, rv) => [
-                      // Desired: badge row.outcome — no verified @canlang/ui badge factory yet; awaits the L5 producer contract.
-                      actions({
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: rv }),
+                      /* desired-unimplemented: badge presents the readable typed value. */
+                      badge({ context: rv, value: resolution.outcome }),
+                      /* desired-unimplemented: button opens activates the local modal. */
+                      button({ context: rv, opens: "decide_resolution" }),
+                      /* desired-unimplemented: modal declares the local activation identity. */
+                      modal({
                         context: rv,
-                        operations: ["board.decide"],
-                        boundArgs: { resolution },
+                        caption: message("Record decision", { nl: "Besluit vastleggen" }),
+                        id: "decide_resolution",
+                        children: [
+                          slot({
+                            context: rv,
+                            name: "content",
+                            children: [
+                              form({
+                                context: rv,
+                                operation: "board.decide",
+                                arguments: { resolution },
+                                display: "inline",
+                                /* desired-unimplemented: placed controls move the generated fields. */
+                                children: [
+                                  fieldset({
+                                    context: rv,
+                                    caption: message("Record decision", { nl: "Besluit vastleggen" }),
+                                    children: [
+                                      checkbox({ context: rv, field: "accept" }),
+                                      textarea({ context: rv, field: "evidence" }),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                            ],
+                          }),
+                        ],
                       }),
                       form({
                         context: rv,
                         operation: "board.Action.create",
                         arguments: { parent: resolution },
+                        /* desired-unimplemented: placed controls move the generated fields. */
+                        children: [
+                          fieldset({
+                            context: rv,
+                            caption: message("Action assignment", { nl: "Actietoewijzing" }),
+                            children: [
+                              input({ context: rv, field: "title" }),
+                              calendar({ context: rv, field: "due" }),
+                            ],
+                          }),
+                        ],
                       }),
                       table({
                         context: rv,
@@ -757,14 +869,25 @@ export async function boardPage(c, bindings) {
                         columns: ["title", "owner", "due", "done"],
                         order: ["due"],
                         filter: ["done"],
+                        empty: message("No actions assigned.", { nl: "Geen acties toegewezen." }),
                         renderRow: (action, av) => [
-                          // Desired: badge row.done — no verified @canlang/ui badge factory yet; awaits the L5 producer contract.
-                          actions({
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: av }),
+                          /* desired-unimplemented: text presents the readable bool; badges stay enum-only. */
+                          text({ context: av, values: [action.done] }),
+                          /* desired-unimplemented: tooltip annotates the canonical action. */
+                          tooltip({
                             context: av,
-                            operations: ["board.complete"],
-                            boundArgs: { action },
+                            caption: message("Complete this action", { nl: "Deze actie afronden" }),
+                            children: [
+                              button({
+                                context: av,
+                                action: "board.complete",
+                                arguments: { action },
+                              }),
+                            ],
                           }),
-                          details({
+                          collapse({
                             context: av,
                             caption: message("Completion evidence", { nl: "Bewijs afronding" }),
                             children: [
@@ -810,28 +933,35 @@ export async function boardPage(c, bindings) {
                         parent: result,
                         columns: ["position", "title", "paper", "discussion"],
                         order: ["position"],
+                        empty: message("No agenda items recorded.", { nl: "Geen agendapunten vastgelegd." }),
+                        /* desired-unimplemented: pagination consumes this collection cursor. */
+                        renderRow: () => [pagination({ context: scope })],
                       }),
                       list({
                         context: scope,
                         model: "board.Resolution",
                         parent: result,
                         columns: ["title", "outcome", "evidence", "decided_by", "decided_at"],
+                        empty: message("No resolutions recorded.", { nl: "Geen besluiten vastgelegd." }),
+                        /* desired-unimplemented: pagination consumes this collection cursor. */
+                        renderRow: () => [pagination({ context: scope })],
                       }),
-                      details({
+                      /* desired-unimplemented: collapse shares the details disclosure contract. */
+                      collapse({
                         context: scope,
                         caption: message("Recorded amendments", { nl: "Vastgelegde aanvullingen" }),
                         open: c.preferences.board.amendments_open,
                         children: [
-                          list({
+                          /* desired-unimplemented: timeline renders one item template per admitted row. */
+                          timeline({
                             context: scope,
                             model: "board.Amendment",
                             parent: result,
-                            renderRow: (amendment, av) =>
-                              // Source now uses content row.text + text row.paper,row.author; text() witness retained until the producer contract confirms a content factory.
-                              text({
-                                context: av,
-                                values: [amendment.text, amendment.paper, amendment.author],
-                              }),
+                            renderItem: (amendment, av) => [
+                              /* desired-unimplemented: content presents the readable long text. */
+                              content({ context: av, value: amendment.text }),
+                              text({ context: av, values: [amendment.paper, amendment.author] }),
+                            ],
                           }),
                         ],
                       }),
@@ -841,6 +971,11 @@ export async function boardPage(c, bindings) {
                     context: v,
                     operation: "board.Amendment.create",
                     arguments: { parent: meeting },
+                    /* desired-unimplemented: placed controls move the generated fields. */
+                    children: [
+                      textarea({ context: v, field: "text" }),
+                      file_input({ context: v, field: "paper" }),
+                    ],
                   }),
                 ],
               }),
@@ -857,7 +992,9 @@ export async function actionsPage(c, bindings) {
   return renderPage(
     c,
     actionsPageDescriptor,
-    () =>
+    () => [
+      /* desired-unimplemented: breadcrumbs consume the declared route ancestry. */
+      breadcrumbs({ context: c }),
       table({
         context: c,
         model: Action,
@@ -865,8 +1002,12 @@ export async function actionsPage(c, bindings) {
         order: ["due"],
         filter: ["done"],
         display: "split",
+        empty: message("No outstanding actions.", { nl: "Geen openstaande acties." }),
         renderRow: (action, v) => [
-          // Desired: badge row.done — no verified @canlang/ui badge factory yet; awaits the L5 producer contract.
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: v }),
+          /* desired-unimplemented: text presents the readable bool; badges stay enum-only. */
+          text({ context: v, values: [action.done] }),
           form({
             context: v,
             operation: "board.origin",
@@ -875,14 +1016,23 @@ export async function actionsPage(c, bindings) {
               text({ context: scope, values: [result.resolution, result.meeting] }),
             ],
           }),
-          actions({ context: v, operations: ["board.complete"], boundArgs: { action } }),
-          details({
+          /* desired-unimplemented: tooltip annotates the canonical action. */
+          tooltip({
+            context: v,
+            caption: message("Complete this action", { nl: "Deze actie afronden" }),
+            children: [
+              button({ context: v, action: "board.complete", arguments: { action } }),
+            ],
+          }),
+          /* desired-unimplemented: collapse shares the details disclosure contract. */
+          collapse({
             context: v,
             caption: message("Action evidence", { nl: "Actiebewijs" }),
             children: [text({ context: v, values: [action.completed_by, action.completed_at] })],
           }),
         ],
       }),
+    ],
   );
 }
 
