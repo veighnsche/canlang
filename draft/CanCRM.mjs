@@ -6,6 +6,8 @@ import {
   create,
   date,
   datetime,
+  equalValue,
+  first,
   hasRole,
   lower,
   money,
@@ -52,6 +54,11 @@ import { Booking } from "./rent_reservations.mjs";
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
  */
 
+export const Deal = "crm.Deal";
+export const ResearchLead = "crm.ResearchLead";
+export const salesperson = "crm.salesperson";
+export const promote_research = "crm.promote_research";
+
 const live = ["lead", "qualified", "proposal"];
 
 const closed = ["won", "lost"];
@@ -94,13 +101,14 @@ export const appDefinition = {
       ),
 
       roles: {
-        salesperson: { id: "crm.salesperson", label: message("Salesperson", { nl: "Verkoper" }) },
+        salesperson: { id: "crm.salesperson", exported: true, label: message("Salesperson", { nl: "Verkoper" }) },
       },
       messages: { label_Deal_stage: stageLabel, label_Deal_outcome_reference: outcomeLabel },
     },
   },
   models: {
     "crm.Deal": {
+      exported: true,
       readGrants: [{ rule: "Deal.read.1" }],
       invariants: ["Deal.require.1"],
       label: message("Sales opportunity", { nl: "Verkoopkans" }),
@@ -171,6 +179,16 @@ export const appDefinition = {
         outcome_reference: { type: "text", nullable: true, default: null, label: outcomeLabel },
       },
     },
+    "crm.ResearchIntake": {
+      label: message("Research promotion evidence", { nl: "Bewijs onderzoeksoverdracht" }),
+      readGrants: [{ rule: "ResearchIntake.read.1" }],
+      locks: ["ResearchIntake.lock.1"],
+      fields: {
+        source: { type: "text", unique: true },
+        input: { type: "crm.ResearchLead" },
+        deal: { type: "crm.Deal" },
+      },
+    },
     "crm.Activity": {
       parent: "crm.Deal",
       invariants: ["Activity.require.1"],
@@ -239,6 +257,14 @@ export const appDefinition = {
     },
   },
   contracts: {
+    "crm.ResearchLead": {
+      exported: true,
+      label: message("Reviewed research lead", { nl: "Beoordeelde onderzoekskans" }),
+      fields: {
+        customer: { type: Customer }, contact: { type: Contact }, location: { type: Location },
+        title: { type: "crm.Deal.title" }, value: { type: "money" }, notes: { type: "text" },
+      },
+    },
     "crm.Pipeline": {
       label: message("Pipeline summary", { nl: "Samenvatting verkoopkansen" }),
       fields: { count: { type: "int" }, total: { type: "money" } },
@@ -266,6 +292,13 @@ export const appDefinition = {
     },
   },
   operations: {
+    "crm.promote_research": {
+      exported: true, handler: "promote_research", by: "crm.salesperson", read: false,
+      result: "crm.Deal",
+      inputs: { source: { type: "text" }, input: { type: "crm.ResearchLead" } },
+      label: message("Promote reviewed research", { nl: "Beoordeeld onderzoek overdragen" }),
+      description: message("Promote reviewed research once under current sales authority; reused identity must preserve the reviewed input.", { nl: "Draag beoordeeld onderzoek eenmaal over met actuele verkooprechten; hergebruikte identiteit moet de beoordeelde invoer behouden." }),
+    },
     "crm.Deal.create": {
       handler: "createDeal",
       kind: "create",
@@ -432,7 +465,7 @@ export const appDefinition = {
     },
   },
   pages: [salesPageDescriptor],
-  disabled: ["crm.Deal.delete", "crm.Activity.update", "crm.Activity.delete"],
+  disabled: ["crm.Deal.delete", "crm.Activity.update", "crm.Activity.delete", "crm.ResearchIntake.create", "crm.ResearchIntake.update", "crm.ResearchIntake.delete"],
 };
 
 export function canApp() {
@@ -450,6 +483,8 @@ export function canApp() {
   return {
     crudWhen,
     read: {
+      "ResearchIntake.read.1": async (c, row) =>
+        hasRole(c, "crm.salesperson") && (await can_work(c, c.actor, row.deal.location)),
       "Deal.read.1": async (c, deal) =>
         hasRole(c, "crm.salesperson") && (await can_work(c, c.actor, deal.location)),
       "Activity.read.1": async (c, row) =>
@@ -479,6 +514,7 @@ export function canApp() {
         (row.booking !== null && row.term === null) || (row.booking === null && row.term !== null),
     },
     locks: {
+      "ResearchIntake.lock.1": { fields: ["source", "input", "deal"] },
       "Activity.lock.1": {
         fields: ["kind", "body", "link", "appointment", "revision", "author", "occurred"],
       },
@@ -497,6 +533,27 @@ export function canApp() {
     async createActivity(c, input) {
       check(hasRole(c, "crm.salesperson"), "forbidden");
       await create(c, "crm.Activity", input, { when: crudWhen.Activity });
+    },
+    async promote_research(c, { source, input }) {
+      check(hasRole(c, "crm.salesperson"), "forbidden");
+      check(source.startsWith("discover:") && source !== "discover:" &&
+        (await can_work(c, c.actor, input.location)) && input.customer.active &&
+        same(input.contact.parent, input.customer) && input.value.minor >= 0n &&
+        input.value.currency === input.location.currency);
+      const existing = await first(records(c, "crm.ResearchIntake", {
+        where: intake => intake.source === source,
+      }));
+      if (existing !== null) {
+        check(equalValue(c, "crm.ResearchLead", existing.input, input) &&
+          (await can_work(c, c.actor, existing.deal.location)));
+        return existing.deal;
+      }
+      const deal = await create(c, "crm.Deal", {
+        customer: input.customer, contact: input.contact, location: input.location,
+        title: input.title, value: input.value, notes: input.notes, source,
+      });
+      const intake = await create(c, "crm.ResearchIntake", { source, input, deal });
+      return deal;
     },
     async advance(c, { deal, stage }) {
       check(hasRole(c, "crm.salesperson"), "forbidden");
@@ -1146,6 +1203,15 @@ export function exampleFixtures({ self, other, imported }) {
       value: money(500n, "EUR"),
     }),
   };
+  const research_intake = {
+    model: "crm.ResearchIntake",
+    dependencies: [prospect, test_company, test_contact, test_site],
+    value: async (c, s) => ({
+      source: "discover:existing", deal: s.prospect,
+      input: { customer: s.test_company, contact: s.test_contact, location: s.test_site,
+        title: "Office", value: money(500n, "EUR"), notes: "Reviewed evidence" },
+    }),
+  };
   const sale_plan = {
     model: "member_plans.Plan",
     dependencies: [test_site],
@@ -1230,9 +1296,42 @@ export function exampleFixtures({ self, other, imported }) {
     prior_sale,
     prospect,
     reviewed_link,
+    research_intake,
     sale_membership,
     sale_plan,
     examples: [
+      {
+        operation: "crm.promote_research", seed: [test_worker],
+        dependencies: [test_company, test_contact, test_site],
+        inputs: async (c, s) => ({ source: "discover:new", input: {
+          customer: s.test_company, contact: s.test_contact, location: s.test_site,
+          title: "Office", value: money(500n, "EUR"), notes: "Reviewed evidence",
+        }}),
+        selectors: ["as", "input.customer.active", "input.value"],
+        observations: [async (c, s) => count(records(c, "crm.ResearchIntake")),
+          async (c, s) => s.result.source, async (c, s) => s.result.stage],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["crm.salesperson", true, money(500n, "EUR")], expected: async (c, s) => [1n, "discover:new", "lead"] },
+          { dependencies: [], values: async (c, s) => ["crm.salesperson", false, money(500n, "EUR")], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["crm.salesperson", true, money(500n, "USD")], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["members", true, money(500n, "EUR")], error: "forbidden" },
+        ],
+      },
+      {
+        operation: "crm.promote_research", seed: [test_worker, research_intake],
+        dependencies: [test_company, test_contact, test_site],
+        inputs: async (c, s) => ({ source: "discover:existing", input: {
+          customer: s.test_company, contact: s.test_contact, location: s.test_site,
+          title: "Office", value: money(500n, "EUR"), notes: "Reviewed evidence",
+        }}),
+        selectors: ["as", "input.title"],
+        observations: [async (c, s) => count(records(c, "crm.ResearchIntake")),
+          async (c, s) => same(s.result, s.prospect)],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["crm.salesperson", "Office"], expected: async (c, s) => [1n, true] },
+          { dependencies: [], values: async (c, s) => ["crm.salesperson", "Different approval"], error: "rule_failed" },
+        ],
+      },
       {
         operation: "crm.Deal.update",
         seed: [colleague, test_worker],
