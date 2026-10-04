@@ -8,7 +8,7 @@ Optionally help workspace community teams organize member volunteers for mentori
 
 ## Users and Permissions
 
-Organizers manage opportunities and assignments. Authenticated volunteers discover open opportunities, manage their own signup, and complete their own assigned tasks. Organizers see their organization's attendance; volunteer contact details and tasks are not a public roster.
+Organizers manage opportunities and assignments. Public visitors discover open opportunities within the selected team. Authenticated volunteers manage their own signup and complete their own assigned tasks; the assignments tab requires authentication without requiring operator-team membership. Organizers see their organization's attendance; volunteer contact details and tasks are not a public roster.
 
 ## Data and Ownership
 

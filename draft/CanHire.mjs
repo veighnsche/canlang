@@ -81,6 +81,83 @@ export const PeopleDevelopment = {
   ),
 };
 
+const careersPageDescriptor = {
+  owner: "hire",
+  path: "/careers",
+  title: message("Careers", { nl: "Vacatures" }),
+  description: message("Find published vacancies and submit your own application.", {
+    nl: "Vind gepubliceerde vacatures en dien je eigen sollicitatie in.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    return {};
+  },
+  render: careersPage,
+};
+
+const minePageDescriptor = {
+  owner: "hire",
+  path: "/careers/mine",
+  title: message("My applications", { nl: "Mijn sollicitaties" }),
+  description: message("Follow your own submission without private interviewer feedback.", {
+    nl: "Volg je eigen sollicitatie zonder private interviewerfeedback.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    check(hasRole(c, "authenticated"), "forbidden");
+    return {};
+  },
+  render: minePage,
+};
+
+const hiringPageDescriptor = {
+  owner: "hire",
+  path: "/hiring",
+  title: message("Hiring", { nl: "Werving" }),
+  description: message("Coordinate private candidates and restricted interview evidence.", {
+    nl: "Coördineer private kandidaten en afgeschermd gespreksbewijs.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "hire.recruiter"), "forbidden");
+    return {};
+  },
+  render: hiringPage,
+};
+
+const handoffPageDescriptor = {
+  owner: "hire",
+  path: "/hiring/handoff",
+  title: message("Hiring handoff", { nl: "Wervingsoverdracht" }),
+  description: message(
+    "Review hired account identity using the canonical HR employee creation and checklist workflow.",
+    {
+      nl: "Beoordeel de aangenomen accountidentiteit via de canonieke HR-medewerker- en checklistworkflow.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, hr), "forbidden");
+    return {};
+  },
+  render: handoffPage,
+};
+
+const interviewsPageDescriptor = {
+  owner: "hire",
+  path: "/hiring/interviews",
+  title: message("My interviews", { nl: "Mijn gesprekken" }),
+  description: message(
+    "Record private feedback only for your own active confirmed interview assignment.",
+    {
+      nl: "Registreer private feedback alleen voor je eigen actieve bevestigde gesprekstoewijzing.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "hire.interviewer"), "forbidden");
+    return {};
+  },
+  render: interviewsPage,
+};
+
 export const appDefinition = {
   id: "CanHire",
   uses: ["hire"],
@@ -540,11 +617,11 @@ export const appDefinition = {
     "hire.remind": { handler: "remind", on: "hire.InterviewReminder" },
   },
   pages: [
-    { path: "/careers", render: careersPage },
-    { path: "/careers/mine", render: minePage },
-    { path: "/hiring", render: hiringPage },
-    { path: "/hiring/handoff", render: handoffPage },
-    { path: "/hiring/interviews", render: interviewsPage },
+    careersPageDescriptor,
+    minePageDescriptor,
+    hiringPageDescriptor,
+    handoffPageDescriptor,
+    interviewsPageDescriptor,
   ],
   disabled: ["hire.Vacancy.delete"],
 };
@@ -1065,17 +1142,10 @@ export function canApp() {
   };
 }
 
-export async function careersPage(c) {
+export async function careersPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "hire",
-      path: "/careers",
-      title: message("Careers", { nl: "Vacatures" }),
-      description: message("Find published vacancies and submit your own application.", {
-        nl: "Vind gepubliceerde vacatures en dien je eigen sollicitatie in.",
-      }),
-    },
+    careersPageDescriptor,
     () =>
       card({
         context: c,
@@ -1107,18 +1177,10 @@ export async function careersPage(c) {
   );
 }
 
-export async function minePage(c) {
-  check(hasRole(c, "authenticated"), "forbidden");
+export async function minePage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "hire",
-      path: "/careers/mine",
-      title: message("My applications", { nl: "Mijn sollicitaties" }),
-      description: message("Follow your own submission without private interviewer feedback.", {
-        nl: "Volg je eigen sollicitatie zonder private interviewerfeedback.",
-      }),
-    },
+    minePageDescriptor,
     () =>
       card({
         context: c,
@@ -1152,18 +1214,10 @@ export async function minePage(c) {
   );
 }
 
-export async function hiringPage(c) {
-  check(hasRole(c, "hire.recruiter"), "forbidden");
+export async function hiringPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "hire",
-      path: "/hiring",
-      title: message("Hiring", { nl: "Werving" }),
-      description: message("Coordinate private candidates and restricted interview evidence.", {
-        nl: "Coördineer private kandidaten en afgeschermd gespreksbewijs.",
-      }),
-    },
+    hiringPageDescriptor,
     () =>
       card({
         context: c,
@@ -1263,21 +1317,10 @@ export async function hiringPage(c) {
   );
 }
 
-export async function handoffPage(c) {
-  check(hasRole(c, hr), "forbidden");
+export async function handoffPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "hire",
-      path: "/hiring/handoff",
-      title: message("Hiring handoff", { nl: "Wervingsoverdracht" }),
-      description: message(
-        "Review hired account identity using the canonical HR employee creation and checklist workflow.",
-        {
-          nl: "Beoordeel de aangenomen accountidentiteit via de canonieke HR-medewerker- en checklistworkflow.",
-        },
-      ),
-    },
+    handoffPageDescriptor,
     () => [
       card({
         context: c,
@@ -1300,21 +1343,10 @@ export async function handoffPage(c) {
   );
 }
 
-export async function interviewsPage(c) {
-  check(hasRole(c, "hire.interviewer"), "forbidden");
+export async function interviewsPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "hire",
-      path: "/hiring/interviews",
-      title: message("My interviews", { nl: "Mijn gesprekken" }),
-      description: message(
-        "Record private feedback only for your own active confirmed interview assignment.",
-        {
-          nl: "Registreer private feedback alleen voor je eigen actieve bevestigde gesprekstoewijzing.",
-        },
-      ),
-    },
+    interviewsPageDescriptor,
     () => [
       list({
         context: c,
