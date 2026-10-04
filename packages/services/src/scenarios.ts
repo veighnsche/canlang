@@ -475,8 +475,11 @@ export function decodeMediaScript(script: unknown): DecodedMediaScript {
  * provider-correct script. Returns the table retyped (media scripts
  * stay serialized — decode with {@link decodeMediaScript}).
  */
+const TABLE_KEYS: ReadonlySet<string> = new Set(['provider', 'scenario', 'script']);
+
 export function parseScenarioTable(input: unknown): ScenarioTable {
   const record = checkRecord(input, 'scenario table');
+  checkKeys(record, 'scenario table', TABLE_KEYS);
   if (typeof record['provider'] !== 'string' || !PROVIDERS.has(record['provider'])) {
     throw new ScenarioTableError(
       `scenario table has an unknown provider ${JSON.stringify(record['provider'])}.`,
@@ -924,6 +927,26 @@ export const SCENARIO_TABLES: readonly ScenarioTable[] = [
   ...JUDGMENTS_SCENARIO_TABLES,
   ...MEDIA_SCENARIO_TABLES,
 ];
+
+/** Deep-freeze one value graph; catalog tables are immutable. */
+function deepFreezeCatalog(value: unknown): void {
+  if (typeof value !== 'object' || value === null || Object.isFrozen(value)) {
+    return;
+  }
+  Object.freeze(value);
+  for (const entry of Object.values(value)) {
+    deepFreezeCatalog(entry);
+  }
+}
+
+for (const table of SCENARIO_TABLES) {
+  deepFreezeCatalog(table);
+}
+Object.freeze(MAIL_SCENARIO_TABLES);
+Object.freeze(MODELS_SCENARIO_TABLES);
+Object.freeze(JUDGMENTS_SCENARIO_TABLES);
+Object.freeze(MEDIA_SCENARIO_TABLES);
+Object.freeze(SCENARIO_TABLES);
 
 /** Look up one table by seed-ref segments; null when unlisted. */
 export function findScenarioTable(

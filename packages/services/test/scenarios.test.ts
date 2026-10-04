@@ -115,6 +115,24 @@ describe('scenarios: fail-closed parsing', () => {
     }
   });
 
+  it('rejects extra table-level keys and freezes the catalog', () => {
+    assert.throws(
+      () =>
+        parseScenarioTable({
+          provider: 'mail',
+          scenario: 'send-ok',
+          script: { kind: 'accept' },
+          calls: [],
+        }),
+      /unknown key "calls"/,
+    );
+    assert.ok(Object.isFrozen(SCENARIO_TABLES));
+    for (const table of SCENARIO_TABLES) {
+      assert.ok(Object.isFrozen(table));
+      assert.ok(Object.isFrozen(table.script));
+    }
+  });
+
   it('rejects cross-provider kinds and unknown script keys', () => {
     assert.throws(
       () =>
