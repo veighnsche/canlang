@@ -258,7 +258,7 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Evidence: COMPLETED EXTERNALLY (H009): Codex finished + independently reviewed the CanWorkbench triplet; milestones b3c78fc/706c70a/3d41233/13071ec/372def7/82260cf; acceptance in design/COMPLEX-APPS.md + design/complex-apps/completion-verification.json. Not Muse work; never dispatched here.
 
 - [ ] **N10 — Document extraction extension**
-  - Prerequisites: BLOCKED DESIGN: READY extraction handoff; J03 and any relevant writer release
+  - Prerequisites: SATISFIED BY USER-OVERRIDE 2026-10-04 (was: READY extraction handoff): coordinator-authored extraction-design.md (796 lines: D1-D9 flagged, Purchase + Expense Can/JS witnesses, 19 cases); J03 released
   - Owner / files / interfaces: Muse implementation agent; draft/CanPurchase.can/.md/.mjs and draft/CanExpense.can/.md/.mjs
   - Changes / traceability: Q1–Q3; implement agreed source-evidence, exact-money and version-bound review journey using existing owners.
   - Acceptance: Reviewed extraction acceptance/failure examples preserve authority and source evidence; corresponding desired JS included.
@@ -328,6 +328,8 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - DONE A02: writer 01a107ad-31a8-7312-84eb-ffc930ff1ceb RELEASED draft/CanShift.can, draft/CanShift.md, draft/CanShift.mjs. Task ticked complete (see A02 evidence).
 - DONE design A04: writer 01a107ab-3b05-7580-a454-935716911f8a RELEASED history-design.md (new 499-line file only; git untouched). Verified: H1-H4/G1-G5 investigation, D1-D9 flagged ([proposal]/[new]), Can + JS witnesses, 14 cases with honest isolated/journey split, JEV advice disclosed without re-vote, scaffold parse + node --check exit 0 claimed on wrappers. A04 input READY-BY-OVERRIDE.
 - DISPATCH batch 3 (slots freed x2): A03 implementation writer (CanVolunteer triplet), A04 implementation writer (CanRent triplet). N10-design still running. Queued: A05, A06, N10 implementation (A05 before A06).
+- DONE design N10: writer 01a107ad-309c-7012-a535-1278de5081bb RELEASED extraction-design.md (new 796-line file only; git untouched). Verified: D1-D9 flagged with alternatives + line-cited precedents (D1: manual transcription v1, no provider, seam preserved), Purchase + Expense Can/JS witnesses, 19 required cases, no-JEV rationale disclosed, snippet node --check claimed. N10 input READY-BY-OVERRIDE.
+- DISPATCH batch 4 (slot freed x1): A05 implementation writer (CanMail triplet + CanCustomer.can/.md). A03/A04 still running. Queued: A06 (after A05 release), N10 implementation.
 - ACK H005 NOTE watcher repaired: accepted. contextlib.closing fix noted; H002 command reusable when ready work next exhausts (not now — A01 active). No TUI-push claim.
 - ACK H006 READY A01 accepted: complete C4 feedback-design.md (457 lines) + review.md limits read in full. Scope: Decision/current_decision/contracts/policy/invariant/locks/derive, roadmap/moderate bodies, withdraw_decision/decision_history, both page roots, full target mirror, journey observations + withdrawal table + decision_history sequence, 15-row required-cases table. No DESIGN/GRAMMAR/runtime work. C1/Rent-history/C3/C5 remain unadopted.
 - RESERVED A01: draft/CanFeedback.can, draft/CanFeedback.md, draft/CanFeedback.mjs — writer 01a10715-f84a-75c0-839e-02675ad1d0e3 (A01 Feedback/17) active. J01 released; no pending Feedback edits at handoff (verified clean).
