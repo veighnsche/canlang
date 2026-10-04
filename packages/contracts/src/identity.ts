@@ -173,6 +173,38 @@ export interface McpGrant {
   readonly revoked_at: InstantString | null;
 }
 
+/**
+ * OAuth public client (RFC 7591 dynamic registration, lane-06 S7).
+ * MCP hosts register an instance client, then drive the standard
+ * authorize/code/token dance; the issued access token is an `McpGrant`
+ * Bearer. Public clients only: no secrets stored.
+ */
+export type OAuthClientId = string;
+
+export interface OAuthClient {
+  readonly client_id: OAuthClientId;
+  readonly client_name: string;
+  readonly redirect_uris: readonly string[];
+  readonly registered_at: InstantString;
+}
+
+/**
+ * Single-use authorization code (10-minute TTL, PKCE S256 only).
+ * The raw code is presented once at the token endpoint; the store keeps
+ * only its SHA-256 hash, mirroring every other issued credential.
+ */
+export interface AuthCode {
+  readonly code_sha256: string;
+  readonly client_id: OAuthClientId;
+  readonly user_id: UserId;
+  readonly team_id: TeamId | null;
+  readonly redirect_uri: string;
+  readonly code_challenge: string;
+  readonly created_at: InstantString;
+  readonly expires_at: InstantString;
+  readonly consumed_at: InstantString | null;
+}
+
 /** How the current call proved its identity. */
 export type IdentityBinding =
   | { readonly kind: 'session'; readonly session_id: SessionId }

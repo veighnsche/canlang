@@ -90,12 +90,16 @@ function spySub(overrides: Partial<HttpSubHandlers> = {}): HttpSubHandlers & {
   operationsCalls: Array<{ op: string }>;
   authCalls: number;
   uploadsCalls: number;
+  ingressCalls: number;
+  oauthCalls: number;
 } {
   const operationsCalls: Array<{ op: string }> = [];
   const spy = {
     operationsCalls,
     authCalls: 0,
     uploadsCalls: 0,
+    ingressCalls: 0,
+    oauthCalls: 0,
     operations: async (_req: Request, op: string) => {
       operationsCalls.push({ op });
       return new Response('op!', { status: 200 });
@@ -107,6 +111,14 @@ function spySub(overrides: Partial<HttpSubHandlers> = {}): HttpSubHandlers & {
     uploads: async (_req: Request) => {
       spy.uploadsCalls += 1;
       return new Response('up!', { status: 200 });
+    },
+    ingress: async (_req: Request) => {
+      spy.ingressCalls += 1;
+      return new Response('in!', { status: 200 });
+    },
+    oauth: async (_req: Request) => {
+      spy.oauthCalls += 1;
+      return new Response('oa!', { status: 200 });
     },
     ...overrides,
   };

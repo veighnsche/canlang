@@ -19,3 +19,4 @@ export * from './authentication/context.js';
 export * from './authentication/revocation.js';
 export * from './authentication/audience.js';
 export * from './authentication/grants.js';
+export * from './authentication/oauth.js';

@@ -17,10 +17,13 @@ import { createMcpHandler } from '../src/mcp/server.js';
 import { createHttpHandler } from '../src/http/routes.js';
 import { handleOperationRequest } from '../src/http/operations.js';
 import {
+  createFakeBindings,
   createFakeCatalog,
   createFakeFileUseInfo,
   createFakeKernel,
   createFakeRegistry,
+  createFakeSink,
+  createFakeVerifier,
   createMemoryRateLimiter,
   createTestApp,
   createTestIdentityDeps,
@@ -634,6 +637,10 @@ test('missing auth answers 401 with a safe error body', async () => {
   const body = (await res.json()) as AuthErrorBody;
   assert.equal(body.error.code, 'forbidden');
   assert.equal(body.error.message, 'Authentication required.');
+  assert.equal(
+    res.headers.get('www-authenticate'),
+    'Bearer resource_metadata="https://test.invalid/.well-known/oauth-protected-resource"',
+  );
 });
 
 test('session cookie without a grant Bearer [REDACTED] 401', async () => {
@@ -743,11 +750,14 @@ test('same operation via S4 HTTP and MCP produces deep-equal inputs', async () =
     identity: createTestIdentityDeps(t.identity),
     secureCookies: false,
     uploads: { files: createFakeFileUseInfo(false), kernel: createFakeKernel({}) },
+    ingress: { bindings: createFakeBindings([]), verifier: createFakeVerifier({}), sink: createFakeSink() },
   };
   const http = createHttpHandler(httpDeps, {
     operations: (req, op) => handleOperationRequest(httpDeps, req, op),
     auth: () => Promise.resolve(new Response('unused', { status: 500 })),
     uploads: () => Promise.resolve(new Response('unused', { status: 500 })),
+    ingress: () => Promise.resolve(new Response('unused', { status: 500 })),
+    oauth: () => Promise.resolve(new Response('unused', { status: 500 })),
   });
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
   const inputs = { qty: '2', label: 'x' };
