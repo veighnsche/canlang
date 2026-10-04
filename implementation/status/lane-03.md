@@ -303,6 +303,12 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   execution-side plan-intake types + structurally constrained mapper
   callback until L1 emits/compiles; activation idempotent via pointer
   check; phase mapping to L7 UpgradeState documented at the join.
+  S7 storage DONE (`9fd86be`+`c9df090`): 7 methods x3 adapters, 12
+  conformance cases x3. Coordinator follow-ups: StagedRow created/
+  createdBy/archivedAt (publish prefers staged); publish claim moves in
+  same batch; flip records actual revision; reset lists clear migration
+  tables. Legs green: memory 43/43, D1 46/46, DO 44/44. Engine worker
+  RUNNING (briefed on additive contract updates).
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
