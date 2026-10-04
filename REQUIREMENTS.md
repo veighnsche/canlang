@@ -44,6 +44,8 @@ Examples follow BDD semantics: fixtures supply the Given, the enclosing operatio
 
 Examples execute in isolated test state through the same operation runtime and permission checks. They never seed production data, become MCP tools, or call live providers. Shared runtime guarantees have shared tests; apps need not repeat the authentication, CRUD, or transport test suite. The concrete `fixture` and `examples` notation is defined in [DESIGN.md](DESIGN.md#51-inline-behavior-examples).
 
+Actor examples must represent distinct current-team participants and explicit role grants on noncalling accounts. Reuse `fixture name=user {roles=[role]}` and select the caller through `as`; ordinary membership is the default. Preserve deterministic isolated identities, canonical imported role identity, least authority and existing caller selectors. Invalid account/grant setup is a setup failure, never an expected business rejection. Positive isolated operation cases must not be reported as an executed multi-operation journey; shared-state journey authoring remains an explicit gap.
+
 Attachment examples need real finalized test files, not fabricated IDs, metadata-only literals or incomplete uploads. Reuse the existing fixture declaration to provision version-pinned valid sample bytes through the shared upload/finalization rules. The common sample and ownership are defaults; declare only differences. Preserve distinct file identities, effective upload limits, attachment permissions and isolated storage per example row. Invalid fixture setup cannot count as an expected business rejection. File fixtures never enter production or MCP; app examples check attachment workflows while shared runtime tests cover upload machinery.
 
 ## Built-in internationalization

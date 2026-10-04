@@ -1,0 +1,15 @@
+{
+  "model": "jev-latest",
+  "state": "The current Can specification is not an executable runtime. Its BDD tables invoke their containing action a single time per fresh test state, using Model and file fixtures. Two accounts, self/other, share the local team; outsider is foreign. Current as values confer selected roles on self, or choose a public/foreign caller, with member self as default. Declared-role calls already test any active account in the verified team. Expense submission requires evidence that its separate assigned reviewer has that role. A later finance decision requires three separate local members. Existing fixtures cannot supply those identities or permissions. Generic fixture name=path {fields} parses already, but checking/provisioning has not been built. Assess brevity, backward validity, stable account selection and minimal grants together. The choices concern identity setup only; none links isolated rows into an executed journey.",
+  "questions": {
+    "actors": {
+      "type": "choice",
+      "instructions": "Which design most directly fills the stated fixture gap without unnecessary authoring?",
+      "criteria": {
+        "user_fixture": "Add a user recipe to existing fixture declarations: fixture name=user {roles=[reviewer]}. Every such declaration creates its own active member of the isolated team; roles default to none beyond membership and can name owner or authored roles. Select that account through as, also allowing explicit self/other, without changing old role selectors. Resolve users before dependent files/records and preserve declaration identity through row retries. Reject editable user fields and account values inside role lists. Only referenced/seeded recipes are loaded.",
+        "actors_map": "Put an actors object on example headers, with named nested role specifications such as actors={claimant:{roles:[]},reviewer:{roles:[reviewer]},finance:{roles:[finance]}}. Its keys identify local accounts selected by as, alongside unchanged legacy choices. This colocates identity setup with the table rather than treating users as recipes; it introduces header-map resolution and requires repetition or a rule for sharing the map.",
+        "defer": "Retain the present account palette and self-only role grants. Specify that scenarios requiring a third teammate or a noncaller grant exceed the BDD contract. No new notation or checking rules are required, at the expense of leaving the requested positive behavior unrepresentable."
+      }
+    }
+  }
+}

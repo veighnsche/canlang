@@ -1,0 +1,36 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": "Can is a draft SaaS language. Existing inline examples seed fixture Model/file recipes and call their enclosing operation once in an isolated row. self and other are active users of the test team; outsider belongs to another team. The as selector accepts roles and grants those only to self; omitted as selects ordinary-member self. Typed role(subject) checks an active subject’s declared role in the current team. An expense assignment must verify a different reviewer’s role, and finance approval needs claimant, reviewer and finance as three different current members. Additional actors and noncaller grants are missing. The parser accepts fixture NAME=path {fields}; semantic validation and execution are unimplemented. Compact authoring, compatibility, deterministic identity and explicit least authority matter equally. No alternative below supplies sequential multi-operation execution: each row still makes exactly one real call.",
+    "questions": {
+      "actors": {
+        "type": "choice",
+        "instructions": "Choose the smallest coherent actor extension under these requirements.",
+        "criteria": {
+          "user_fixture": "Reuse fixture name=user {roles=[reviewer]} as a test-only recipe for a distinct active current-team account. Empty or omitted roles means ordinary membership; owner and declared roles are allowed, membership implicit. Permit as to select that fixture or self/other while preserving legacy role-to-self selections. Identity is declaration-based, stable within one row, isolated across rows; referenced or seeded users provision before model/file recipes. No user-fixture field mutation or mixing identities into role arrays. This adds one recipe kind with static role-list semantics.",
+          "actors_map": "Introduce an examples actors={claimant:{roles:[]},reviewer:{roles:[reviewer]},finance:{roles:[finance]}} binding map. Named entries supply deterministic same-team references and as selects an entry; preserve legacy callers. The map keeps test roles beside each table and avoids a reserved user recipe but requires a new common-binding namespace and repeated maps or reusable map resolution.",
+          "defer": "Keep only built-in self/other/outsider and role-to-self selection. Preserve the smallest existing surface and document three-member/noncaller-grant examples as unsupported. This avoids new semantics but cannot express the required successful cases."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "actors": {
+        "type": "choice",
+        "choice": "user_fixture",
+        "confidence": 0.88,
+        "probabilities": {
+          "user_fixture": 0.92,
+          "defer": 0.02,
+          "actors_map": 0.06
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 728,
+      "output_tokens": 42
+    }
+  }
+}
