@@ -202,6 +202,9 @@ Active reservations: none (coordinator holds all owned files until first delegat
 - Lane 05 C4b merged as PR #62 (`f23d1df`): forms-only as surveyed (ui forms/tests, no contracts/manifests — no assembly/lock action). Suite: ui 504/504 (was 487).
 - Lane 06 completion #64 (`dcc6f71`, status-only): S1–S7 + B1/B2 all merged, writers released, worktree retained for the B1 join. No L7 ask; their B1 record matches mine (L1 emission + L3 descriptors + L5 consent + L7 binding act).
 
+- PR #66 (branch `muse/lane-07-platform/c4b-join`, reviewed head `041a534`, base `298c51b`, squash-merged as `b1b3352`): C4b + L6 completion handoffs + evidence. Checks: integration.yml green on PR (workspace 45s, tools 8s); typecheck clean; vitest 84/84 (16 files); ui 504/504; independent review MERGEABLE with zero findings. Limits: B1 still L1-blocked.
+- Lane 04 S8 record #60 (`a11907c`, status-only): S8 merged with a delta re-review NEEDS-CHANGES fixed freeze-first (work 129/129 observed here, matching). No new L7 asks; S8b/S8d handoffs already received and answered/landed.
+
 ## Remaining work and cleanup
 
 Full authorized scope remains except B0 planning. Owned resources: one worktree (above), no background processes, no cloud credentials used. Cleanup on completion: release subagents, remove worktree after merges settle, record final revisions.
