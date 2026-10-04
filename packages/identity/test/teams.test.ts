@@ -212,7 +212,6 @@ test('removal keeps the last owner and revokes team-bound grants', async () => {
   const revoked = await store.findMcpGrantByTokenHash('ab'.repeat(32));
   assert.ok(revoked?.revoked_at !== null && revoked?.revoked_at !== undefined);
   assert.equal(revoked?.grant_id, grant.grant_id);
-  assert.ok(clock.nowMs() > 0);
 });
 
 test('role grammar grants and revokes with the last-owner guard', async () => {
@@ -282,22 +281,22 @@ test('role grammar grants and revokes with the last-owner guard', async () => {
 
 test('team selection follows live membership', async () => {
   const { clock, store, owner, team } = await ownerWithTeam();
-  const session = await store.createSession({
+  await store.createSession({
     user_id: owner.user_id,
     token_sha256: await sha256HexText('session-token'),
     expires_at: '2026-10-11T15:00:00.000Z',
     last_team_id: null,
   });
   assert.deepEqual(
-    await selectTeam(store, { session_token_hash: session.token_sha256, team_id: team.team_id }, { clock }),
+    await selectTeam(store, { session_token: 'session-token', team_id: team.team_id }, { clock }),
     { team_id: team.team_id },
   );
   assert.equal(
-    (await store.findSessionByTokenHash(session.token_sha256))?.last_team_id,
+    (await store.findSessionByTokenHash(await sha256HexText('session-token')))?.last_team_id,
     team.team_id,
   );
   assert.deepEqual(
-    await clearTeamSelection(store, { session_token_hash: session.token_sha256 }, { clock }),
+    await clearTeamSelection(store, { session_token: 'session-token' }, { clock }),
     { cleared: true },
   );
   const outsider = await store.createUser({
@@ -305,18 +304,104 @@ test('team selection follows live membership', async () => {
     password_hash: await hashPassword('outsider-password-1'),
     email_verified: true,
   });
-  const foreign = await store.createSession({
+  await store.createSession({
     user_id: outsider.user_id,
     token_sha256: await sha256HexText('foreign-token'),
     expires_at: '2026-10-11T15:00:00.000Z',
     last_team_id: null,
   });
   await assertIdentityError(
-    () => selectTeam(store, { session_token_hash: foreign.token_sha256, team_id: team.team_id }, { clock }),
+    () => selectTeam(store, { session_token: 'foreign-token', team_id: team.team_id }, { clock }),
     'forbidden',
   );
   await assertIdentityError(
-    () => selectTeam(store, { session_token_hash: session.token_sha256, team_id: 'missing' }, { clock }),
+    () => selectTeam(store, { session_token: 'session-token', team_id: 'missing' }, { clock }),
     'not_found',
   );
+  await assertIdentityError(
+    () => selectTeam(store, { session_token: 'ghost-token', team_id: team.team_id }, { clock }),
+    'forbidden',
+  );
+});
+
+test('removed members re-admit through a fresh invitation', async () => {
+  const { clock, store, mail, owner, team } = await ownerWithTeam();
+  const bob = await store.createUser({
+    email: 'bob@x.co',
+    password_hash: await hashPassword('bob-password-1'),
+    email_verified: true,
+  });
+  await store.createMembership({
+    team_id: team.team_id,
+    user_id: bob.user_id,
+    is_owner: false,
+    roles: [{ role: 'TeamTasks.reviewer', granted_at: '2026-09-03T12:00:00.000Z', granted_by: owner.user_id }],
+  });
+  await removeMember(store, { team_id: team.team_id, member_user_id: bob.user_id }, { removed_by: owner.user_id });
+  const { invitation_id } = await inviteMember(
+    store,
+    mail,
+    { team_id: team.team_id, email: 'bob@x.co', role: 'owner' },
+    { invited_by: owner.user_id, clock, inviteBaseUrl: 'https://app.example.com' },
+  );
+  const membership = await acceptInvitation(store, { invitation_id, user_id: bob.user_id }, { clock });
+  // Same row reactivated with the fresh ceiling, not a second row.
+  assert.equal(membership.status, 'active');
+  assert.equal(membership.is_owner, true);
+  assert.deepEqual(membership.roles, []);
+  const reread = await store.findMembership(team.team_id, bob.user_id);
+  assert.equal(reread?.membership_id, membership.membership_id);
+  assert.equal(reread?.status, 'active');
+});
+
+test('inviting a current member conflicts without mailing', async () => {
+  const { clock, store, mail, owner, team } = await ownerWithTeam();
+  const before = mail.messages.length;
+  await assertIdentityError(
+    () =>
+      inviteMember(
+        store,
+        mail,
+        { team_id: team.team_id, email: 'owner@x.co', role: 'TeamTasks.reviewer' },
+        { invited_by: owner.user_id, clock, inviteBaseUrl: 'https://app.example.com' },
+      ),
+    'conflict',
+  );
+  assert.equal(mail.messages.length, before);
+});
+
+test('removal revokes pending invitations for the member address', async () => {
+  const { clock, store, mail, owner, team } = await ownerWithTeam();
+  const bob = await store.createUser({
+    email: 'bob@x.co',
+    password_hash: await hashPassword('bob-password-1'),
+    email_verified: true,
+  });
+  await store.createMembership({
+    team_id: team.team_id,
+    user_id: bob.user_id,
+    is_owner: false,
+    roles: [],
+  });
+  const { invitation_id } = await inviteMember(
+    store,
+    mail,
+    { team_id: team.team_id, email: 'bob-friend@x.co', role: 'TeamTasks.reviewer' },
+    { invited_by: owner.user_id, clock, inviteBaseUrl: 'https://app.example.com' },
+  );
+  // Pending invite for the member's own address (e.g. sent before they joined
+  // through another path) is revoked on removal; others survive.
+  const own = await store.createInvitation({
+    team_id: team.team_id,
+    email: 'bob@x.co',
+    grants_owner: false,
+    grants_roles: [],
+    invited_by: owner.user_id,
+    expires_at: '2026-10-11T15:00:00.000Z',
+  });
+  await removeMember(store, { team_id: team.team_id, member_user_id: bob.user_id }, { removed_by: owner.user_id });
+  const revoked = await store.findInvitationById(own.invitation_id);
+  assert.ok(revoked?.revoked_at !== null && revoked?.revoked_at !== undefined);
+  const surviving = await store.findInvitationById(invitation_id);
+  assert.equal(surviving?.revoked_at, null);
 });

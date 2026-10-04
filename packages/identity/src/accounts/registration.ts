@@ -16,12 +16,19 @@ import {
   webRandom,
 } from '../ports.js';
 import type { Clock, IdentityStore, MailPort, RandomSource } from '../ports.js';
-import { createOpaqueToken, sha256HexText } from '../sessions/tokens.js';
+import { bytesToBase64Url, createOpaqueToken, sha256HexText } from '../sessions/tokens.js';
 import { checkPasswordPolicy, hashPassword, verifyPassword } from './passwords.js';
 
 export const EMAIL_MAX_LENGTH = 254;
 export const VERIFY_EMAIL_EXPIRES_MS = 24 * 60 * 60 * 1000;
 export const SESSION_EXPIRES_MS = 7 * 24 * 60 * 60 * 1000;
+/**
+ * Well-formed dummy encoding (all-zero salt/key) for oracle-free login
+ * misses. Built programmatically so the salt/key lengths always parse and
+ * the dummy verification always pays the full PBKDF2 cost.
+ */
+export const DUMMY_PASSWORD_ENCODING =
+  `pbkdf2-sha256$600000$${bytesToBase64Url(new Uint8Array(16))}$${bytesToBase64Url(new Uint8Array(32))}`;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function normalizeEmail(email: string): string {
@@ -117,8 +124,14 @@ export async function loginWithPassword(
   const random = opts.random ?? webRandom;
   const email = normalizeEmail(input.email);
   const user = await store.findUserByEmail(email);
-  // Identical failure for unknown email vs wrong password: no oracle.
-  if (user === null || !(await verifyPassword(input.password, user.password_hash))) {
+  // Identical failure for unknown email vs wrong password: no oracle. The
+  // dummy verification keeps unknown-email timing near wrong-password
+  // timing (same PBKDF2 cost); without it the short-circuit is measurable.
+  if (user === null) {
+    await verifyPassword(input.password, DUMMY_PASSWORD_ENCODING);
+    throw new IdentityError('forbidden', 'Invalid email or password.');
+  }
+  if (!(await verifyPassword(input.password, user.password_hash))) {
     throw new IdentityError('forbidden', 'Invalid email or password.');
   }
   if (!user.email_verified) {

@@ -35,10 +35,15 @@ export function buildSessionCookie(
   return cookie;
 }
 
-/** Expire the session cookie (sign-out response). */
-export function buildSessionClearCookie(domain?: string): string {
+/**
+ * Expire the session cookie (sign-out response). Mirrors the Secure default:
+ * a non-Secure Set-Cookie cannot overwrite a Secure cookie on HTTPS.
+ */
+export function buildSessionClearCookie(opts: { secure?: boolean; domain?: string } = {}): string {
+  const secure = opts.secure ?? true;
   let cookie = `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
-  if (domain !== undefined) cookie += `; Domain=${domain}`;
+  if (secure) cookie += '; Secure';
+  if (opts.domain !== undefined) cookie += `; Domain=${opts.domain}`;
   return cookie;
 }
 

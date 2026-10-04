@@ -154,6 +154,19 @@ export function createMemoryIdentityStore(opts?: {
       const row = memberships.get(membership_id);
       if (row) memberships.set(membership_id, { ...row, status: 'removed', updated_at: now() });
     },
+    async reactivateMembership(membership_id, input) {
+      step();
+      const row = memberships.get(membership_id);
+      if (row) {
+        memberships.set(membership_id, {
+          ...row,
+          status: 'active',
+          is_owner: input.is_owner,
+          roles: input.roles,
+          updated_at: now(),
+        });
+      }
+    },
 
     async createInvitation(input) {
       step();

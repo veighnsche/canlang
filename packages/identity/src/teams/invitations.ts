@@ -54,6 +54,13 @@ export async function inviteMember(
   }
   const email = normalizeEmail(input.email);
   checkRoleName(input.role);
+  const addressee = await store.findUserByEmail(email);
+  if (addressee !== null) {
+    const current = await store.findMembership(input.team_id, addressee.user_id);
+    if (current !== null && current.status === 'active') {
+      throw new IdentityError('conflict', 'Already a member of this team.');
+    }
+  }
   const { invitation_id } = await store.createInvitation({
     team_id: input.team_id,
     email,
@@ -103,16 +110,32 @@ export async function acceptInvitation(
   if (existing !== null && existing.status === 'active') {
     throw new IdentityError('conflict', 'Already a member of this team.');
   }
-  const membership = await store.createMembership({
-    team_id: invitation.team_id,
-    user_id: input.user_id,
-    is_owner: invitation.grants_owner,
-    roles: invitation.grants_roles.map((role) => ({
-      role,
-      granted_at: now,
-      granted_by: invitation.invited_by,
-    })),
-  });
+  const grants = invitation.grants_roles.map((role) => ({
+    role,
+    granted_at: now,
+    granted_by: invitation.invited_by,
+  }));
+  let membership: Membership;
+  if (existing !== null) {
+    // Re-admission reactivates the one (team, user) row with the fresh
+    // ceiling; it never inserts a second row.
+    await store.reactivateMembership(existing.membership_id, {
+      is_owner: invitation.grants_owner,
+      roles: grants,
+    });
+    const reactivated = await store.findMembershipById(existing.membership_id);
+    if (reactivated === null) {
+      throw new IdentityError('not_found', 'Membership not found.');
+    }
+    membership = reactivated;
+  } else {
+    membership = await store.createMembership({
+      team_id: invitation.team_id,
+      user_id: input.user_id,
+      is_owner: invitation.grants_owner,
+      roles: grants,
+    });
+  }
   await store.acceptInvitation(input.invitation_id);
   return membership;
 }

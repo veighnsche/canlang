@@ -83,7 +83,11 @@ export interface MailPort {
 /**
  * Constrained system-command surface for identity facts. No raw SQL, no
  * second role store, no account enumeration beyond the exact lookups below.
- * Every mutation is one store revision step in production (lane-03 fence).
+ * Feature code is check-then-act across these calls; production atomicity
+ * (last-owner guards, recovery cascades, re-admission) comes from the
+ * lane-03 revision fence executing each feature operation's steps as one
+ * batch (join J2). The memory double is single-threaded and proves no
+ * concurrency semantics.
  */
 export interface IdentityStore {
   // -- users --
@@ -119,6 +123,16 @@ export interface IdentityStore {
   ): Promise<void>;
   setMembershipOwner(membership_id: MembershipId, is_owner: boolean): Promise<void>;
   removeMembership(membership_id: MembershipId): Promise<void>;
+  /**
+   * Re-admit a removed membership with a fresh grant ceiling (re-invitation
+   * acceptance). Exactly one row per (team, user) ever exists; production
+   * enforces UNIQUE(team_id, user_id) so concurrent re-admissions collide
+   * instead of duplicating.
+   */
+  reactivateMembership(
+    membership_id: MembershipId,
+    input: { is_owner: boolean; roles: Membership['roles'] },
+  ): Promise<void>;
 
   // -- invitations --
   createInvitation(input: {

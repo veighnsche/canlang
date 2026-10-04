@@ -62,6 +62,10 @@ test('session cookie builds, parses, and clears', () => {
   assert.equal(parseSessionCookie(`${SESSION_COOKIE_NAME}=`), null);
   assert.equal(
     buildSessionClearCookie(),
+    `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure`,
+  );
+  assert.equal(
+    buildSessionClearCookie({ secure: false }),
     `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
   );
 });

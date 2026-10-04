@@ -10,9 +10,10 @@ import {
   createMemoryIdentityStore,
   createTestMailOutbox,
 } from '../src/testing.js';
-import { sha256HexText } from '../src/sessions/tokens.js';
+import { base64UrlToBytes, sha256HexText } from '../src/sessions/tokens.js';
 import { hashPassword, verifyPassword } from '../src/accounts/passwords.js';
 import {
+  DUMMY_PASSWORD_ENCODING,
   loginWithPassword,
   registerWithEmail,
   verifyEmail,
@@ -51,6 +52,13 @@ test('password hashing round-trips and rejects malformed encodings', async () =>
     assert.equal(await verifyPassword('correct-horse-9', bad), false);
   }
   await assertIdentityError(() => hashPassword('short'), 'validation');
+  // The login-miss dummy encoding parses with exact salt/key lengths, so the
+  // dummy verification always pays the full PBKDF2 cost (no timing oracle).
+  const parts = DUMMY_PASSWORD_ENCODING.split('$');
+  assert.equal(parts[0], 'pbkdf2-sha256');
+  assert.equal(base64UrlToBytes(parts[2] ?? '')?.length, 16);
+  assert.equal(base64UrlToBytes(parts[3] ?? '')?.length, 32);
+  assert.equal(await verifyPassword('anything-at-all', DUMMY_PASSWORD_ENCODING), false);
 });
 
 test('registration creates an unverified user and mails a token link', async () => {
@@ -147,6 +155,29 @@ test('login issues a live session only to verified holders', async () => {
   assert.equal(wrong.message, unknown.message);
 });
 
+test('email tokens reject purpose confusion in both directions', async () => {
+  const { store, mail, clock } = setup();
+  const opts = { clock, verifyBaseUrl: 'https://app.example.com/verify' };
+  await registerWithEmail(store, mail, { email: 'a@x.co', password: 's3cure-password' }, opts);
+  const verifyToken = (mail.messages[0]?.body_text.match(/[?&]token=([A-Za-z0-9_-]+)/) ?? [])[1] ?? '';
+  await requestRecovery(
+    store,
+    mail,
+    { email: 'a@x.co' },
+    { clock, recoveryBaseUrl: 'https://app.example.com/recover' },
+  );
+  const recoverToken =
+    (mail.messages[mail.messages.length - 1]?.body_text.match(/[?&]token=([A-Za-z0-9_-]+)/) ?? [])[1] ?? '';
+  await assertIdentityError(
+    () => verifyEmail(store, { token: recoverToken }, { clock }),
+    'validation',
+  );
+  await assertIdentityError(
+    () => recoverAccount(store, { token: verifyToken, new_password: 'br4nd-new-password' }, { clock }),
+    'validation',
+  );
+});
+
 test('recovery never enumerates and rotates credentials on completion', async () => {
   const { store, mail, clock } = setup();
   const opts = { clock, verifyBaseUrl: 'https://app.example.com/verify' };
@@ -158,6 +189,15 @@ test('recovery never enumerates and rotates credentials on completion', async ()
     { email: 'a@x.co', password: 's3cure-password' },
     { clock },
   );
+  const user = await store.findUserByEmail('a@x.co');
+  assert.ok(user);
+  const grant = await store.createMcpGrant({
+    user_id: user.user_id,
+    team_id: null,
+    client_id: 'chatbot',
+    token_sha256: await sha256HexText('user-grant'),
+    expires_at: '2026-11-04T15:00:00.000Z',
+  });
 
   const mailsBefore = mail.messages.length;
   assert.deepEqual(
@@ -188,6 +228,9 @@ test('recovery never enumerates and rotates credentials on completion', async ()
   );
   const oldSession = await store.findSessionByTokenHash(await sha256HexText(before.token));
   assert.ok(oldSession?.revoked_at !== null && oldSession?.revoked_at !== undefined);
+  const revokedGrant = await store.findMcpGrantByTokenHash(await sha256HexText('user-grant'));
+  assert.equal(revokedGrant?.grant_id, grant.grant_id);
+  assert.ok(revokedGrant?.revoked_at !== null && revokedGrant?.revoked_at !== undefined);
   await assertIdentityError(
     () => recoverAccount(store, { token: raw, new_password: 'another-password-1' }, { clock }),
     'validation',
@@ -198,4 +241,23 @@ test('recovery never enumerates and rotates credentials on completion', async ()
     { clock },
   );
   assert.ok(fresh.token.length > 0);
+});
+
+test('expired recovery links fail', async () => {
+  const { store, mail, clock } = setup();
+  const opts = { clock, verifyBaseUrl: 'https://app.example.com/verify' };
+  await registerWithEmail(store, mail, { email: 'a@x.co', password: 's3cure-password' }, opts);
+  await requestRecovery(
+    store,
+    mail,
+    { email: 'a@x.co' },
+    { clock, recoveryBaseUrl: 'https://app.example.com/recover' },
+  );
+  const link = mail.messages[mail.messages.length - 1]?.body_text ?? '';
+  const raw = (link.match(/[?&]token=([A-Za-z0-9_-]+)/) ?? [])[1] ?? '';
+  clock.advance(2 * 60 * 60 * 1000);
+  await assertIdentityError(
+    () => recoverAccount(store, { token: raw, new_password: 'br4nd-new-password' }, { clock }),
+    'validation',
+  );
 });

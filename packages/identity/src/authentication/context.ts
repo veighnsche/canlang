@@ -34,8 +34,6 @@ export interface ResolveIdentityInput {
   readonly mcp_grant_token?: string;
   /** Explicit team scope; overrides the session's recorded selection. */
   readonly team_id?: string;
-  /** Admission instant; defaults to the injected clock. */
-  readonly now?: string;
 }
 
 async function resolveSessionTeam(
@@ -68,8 +66,10 @@ export async function resolveIdentity(
   input: ResolveIdentityInput,
   opts: { clock?: Clock } = {},
 ): Promise<ResolvedIdentity> {
+  // The admission instant always comes from the injected clock. Callers must
+  // never supply it: a caller-chosen `now` would admit expired credentials.
   const clock = opts.clock ?? systemClock;
-  const now = input.now ?? toInstant(clock.nowMs());
+  const now = toInstant(clock.nowMs());
   const hasSession = input.session_token !== undefined;
   const hasGrant = input.mcp_grant_token !== undefined;
   if (hasSession && hasGrant) {
@@ -125,6 +125,8 @@ export async function resolveIdentity(
     throw new IdentityError('forbidden', CREDENTIAL_FAILED);
   }
   if (input.team_id !== undefined && input.team_id !== grant.team_id) {
+    // Deliberately distinct: the holder consented to a known team, so naming
+    // the binding is actionable guidance, not a credential oracle.
     throw new IdentityError(
       'forbidden',
       'This connection is bound to a different team; re-authorize to switch.',
@@ -134,7 +136,9 @@ export async function resolveIdentity(
   if (grant.team_id !== null) {
     const membership = await activeMembership(store, team, user.user_id);
     if (membership === null) {
-      throw new IdentityError('forbidden', 'Team membership is no longer active.');
+      // Collapsed: a stolen-grant holder cannot distinguish removal from
+      // expiry/revocation.
+      throw new IdentityError('forbidden', CREDENTIAL_FAILED);
     }
     return {
       actor: {

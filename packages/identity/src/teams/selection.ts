@@ -6,25 +6,33 @@
  * Selection records a hint on the session row; every admission re-resolves
  * team existence and active membership from current facts, so the hint
  * alone never grants anything. Clearing the selection returns the session
- * to app-only context for non-team apps.
+ * to app-only context for non-team apps. Both functions take the raw
+ * session bearer and hash it internally, like `resolveIdentity`.
  */
 import { IdentityError, systemClock, toInstant } from '../ports.js';
 import type { Clock, IdentityStore } from '../ports.js';
+import type { Session } from '../../../contracts/src/identity.js';
+import { sha256HexText } from '../sessions/tokens.js';
+
+async function liveSession(
+  store: IdentityStore,
+  session_token: string,
+  now: string,
+): Promise<Session> {
+  const session = await store.findSessionByTokenHash(await sha256HexText(session_token));
+  if (session === null || session.revoked_at !== null || session.expires_at <= now) {
+    throw new IdentityError('forbidden', 'Session expired or revoked.');
+  }
+  return session;
+}
 
 export async function selectTeam(
   store: IdentityStore,
-  input: { session_token_hash: string; team_id: string },
+  input: { session_token: string; team_id: string },
   opts: { clock?: Clock } = {},
 ): Promise<{ team_id: string }> {
   const clock = opts.clock ?? systemClock;
-  const session = await store.findSessionByTokenHash(input.session_token_hash);
-  if (
-    session === null ||
-    session.revoked_at !== null ||
-    session.expires_at <= toInstant(clock.nowMs())
-  ) {
-    throw new IdentityError('forbidden', 'Session expired or revoked.');
-  }
+  const session = await liveSession(store, input.session_token, toInstant(clock.nowMs()));
   const team = await store.findTeamById(input.team_id);
   if (team === null) {
     throw new IdentityError('not_found', 'Team not found.');
@@ -39,18 +47,11 @@ export async function selectTeam(
 
 export async function clearTeamSelection(
   store: IdentityStore,
-  input: { session_token_hash: string },
+  input: { session_token: string },
   opts: { clock?: Clock } = {},
 ): Promise<{ cleared: true }> {
   const clock = opts.clock ?? systemClock;
-  const session = await store.findSessionByTokenHash(input.session_token_hash);
-  if (
-    session === null ||
-    session.revoked_at !== null ||
-    session.expires_at <= toInstant(clock.nowMs())
-  ) {
-    throw new IdentityError('forbidden', 'Session expired or revoked.');
-  }
+  const session = await liveSession(store, input.session_token, toInstant(clock.nowMs()));
   await store.setSessionTeam(session.session_id, null);
   return { cleared: true };
 }

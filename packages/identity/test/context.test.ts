@@ -123,15 +123,22 @@ test('revoked, expired, and unknown sessions share one failure', async () => {
     expires_at: '2026-10-11T15:00:00.000Z',
     last_team_id: null,
   });
-  const expired = await store.createSession({
+  // Purely expired (unrevoked) and purely revoked (unexpired) sessions.
+  await store.createSession({
     user_id: user.user_id,
-    token_sha256: await sha256HexText('old-token'),
+    token_sha256: await sha256HexText('expired-token'),
     expires_at: '2026-10-04T14:00:00.000Z',
     last_team_id: null,
   });
-  await store.revokeSession(expired.session_id);
+  const revoked = await store.createSession({
+    user_id: user.user_id,
+    token_sha256: await sha256HexText('revoked-token'),
+    expires_at: '2026-10-11T15:00:00.000Z',
+    last_team_id: null,
+  });
+  await store.revokeSession(revoked.session_id);
   const messages = new Set<string>();
-  for (const token of ['live-token-missing', 'old-token', 'never-issued']) {
+  for (const token of ['expired-token', 'revoked-token', 'never-issued']) {
     const error = await assertIdentityError(
       () => resolveIdentity(store, { session_token: token }, { clock }),
       'forbidden',
@@ -139,14 +146,29 @@ test('revoked, expired, and unknown sessions share one failure', async () => {
     messages.add(error.message);
   }
   assert.equal(messages.size, 1);
-  // Revocation takes effect immediately, before expiry.
+  // Revocation takes effect immediately, before expiry, with the same message.
   await revokeSessionByToken(store, { token: 'live-token' });
-  await assertIdentityError(
+  const after = await assertIdentityError(
     () => resolveIdentity(store, { session_token: 'live-token' }, { clock }),
     'forbidden',
   );
+  assert.ok(messages.has(after.message));
   // Unknown-token revocation is idempotent success.
   assert.deepEqual(await revokeSessionByToken(store, { token: 'ghost' }), { revoked: true });
+});
+
+test('a stale recorded team hint degrades to app-only context', async () => {
+  const { clock, store, user } = await userWithTeam();
+  await store.createSession({
+    user_id: user.user_id,
+    token_sha256: await sha256HexText('hint-token'),
+    expires_at: '2026-10-11T15:00:00.000Z',
+    last_team_id: 'team-that-never-existed',
+  });
+  const identity = await resolveIdentity(store, { session_token: 'hint-token' }, { clock });
+  assert.equal(identity.actor?.user_id, user.user_id);
+  assert.equal(identity.team, null);
+  assert.equal(identity.membership, null);
 });
 
 test('MCP grants bind one user and one team', async () => {
@@ -170,14 +192,19 @@ test('MCP grants bind one user and one team', async () => {
       resolveIdentity(store, { mcp_grant_token: 'grant-token', team_id: other.team_id }, { clock }),
     'forbidden',
   );
-  // Removed membership ends grant admission; audience helpers agree.
+  // Removed membership ends grant admission with the collapsed message.
   const membership = await store.findMembership(team.team_id, user.user_id);
   assert.ok(membership);
   await store.removeMembership(membership.membership_id);
-  await assertIdentityError(
+  const removed = await assertIdentityError(
     () => resolveIdentity(store, { mcp_grant_token: 'grant-token' }, { clock }),
     'forbidden',
   );
+  const unknown = await assertIdentityError(
+    () => resolveIdentity(store, { mcp_grant_token: 'never-issued' }, { clock }),
+    'forbidden',
+  );
+  assert.equal(removed.message, unknown.message);
   assert.equal(bindingAudience(identity.binding), 'mcp-grant');
   await assertIdentityError(
     () => resolveIdentity(store, { session_token: 'x', mcp_grant_token: 'y' }, { clock }),
