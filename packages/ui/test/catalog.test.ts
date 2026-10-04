@@ -334,4 +334,116 @@ describe("component catalog", () => {
     assert.equal(byId.get("skeleton")?.js, "renderState");
     assert.equal(byId.get("skeleton")?.availability, "implemented");
   });
+
+  it("reverse-audits every public export: cataloged-implemented or explicitly allowlisted", () => {
+    // Non-component runtime exports, each named with its reason. Helpers are
+    // not selectable Can words so they never enter the catalog; the catalog
+    // itself and the contract constants are metadata, not components. No
+    // blanket skips: every name below must exist on the index (stale entries
+    // fail), and no name may shadow a cataloged factory.
+    const allowlist: Record<string, string> = {
+      // escape.ts: sink-specific escaping and URL guards (S1).
+      csvFormulaProtect: "csv cell guard, not a component",
+      escapeAttr: "attribute escaper, not a component",
+      escapeHtml: "html escaper, not a component",
+      isSafeUrl: "url predicate, not a component",
+      isolate: "bidi isolation helper, not a component",
+      safeHref: "url fallback helper, not a component",
+      // messages.ts: locale resolution and ICU-profile formatting (S1).
+      canonicalDefaultTag: "locale helper, not a component",
+      canonicalPreferredTags: "locale helper, not a component",
+      formatDecimalExact: "scalar formatter, not a component",
+      formatIntExact: "scalar formatter, not a component",
+      formatMessage: "icu formatter, not a component",
+      formatMoneyExact: "scalar formatter, not a component",
+      formatScalar: "scalar formatter, not a component",
+      isEnumTypeId: "type-id predicate, not a component",
+      localeNumberSystem: "locale helper, not a component",
+      localeSeparators: "locale helper, not a component",
+      message: "descriptor factory, not a component",
+      normalizeTag: "bcp47 helper, not a component",
+      resolveCaption: "caption resolver, not a component",
+      resolveMessage: "variant resolver, not a component",
+      selectPluralCategory: "plural helper, not a component",
+      // navigation.ts: discovery candidate filter (S2; buildNavigation is cataloged).
+      selectDiscoveryCandidates: "discovery filter, not a component",
+      // shell.ts: locale/document helpers and the canonical login surface.
+      pageDirection: "writing-direction helper, not a component",
+      pageLocale: "locale helper, not a component",
+      renderLogin: "canonical login surface, not a selectable word",
+      // components.ts: internal text/heading fragments (card/title/text/content/state are cataloged).
+      renderTextValue: "text-value fragment, not a component",
+      rowHeading: "row-heading fragment, not a component",
+      // collections.ts: control primitives (list/table/board/csv-import/export/print are cataloged).
+      collectionPagination: "pagination control renderer, not a word",
+      collectionShareControls: "share control renderer, not a word",
+      collectionToolbar: "toolbar renderer, not a word",
+      controlHref: "control-url builder, not a component",
+      // htmx.ts: fragment/interaction primitives (S5), none a Can word.
+      assertRegionId: "region-id guard, not a component",
+      fragmentRegion: "read-region wrapper, not a word",
+      hxAttrs: "hx-attribute builder, not a component",
+      pollTrigger: "poll declaration, not a word",
+      refreshTrigger: "refresh cadence helper, not a component",
+      staleMarker: "stale marker, not a word",
+      validationStatusSwaps: "status-swap table, not a component",
+      // appearance.ts: admitted-token class resolver (C2b).
+      appearanceClasses: "appearance resolver, not a component",
+      // forms.ts: field-identity and pointer helpers (form/edit/delete/action/actions are cataloged).
+      assertFieldPath: "field-path guard, not a component",
+      fieldErrorOutletId: "outlet-id helper, not a component",
+      fieldInputId: "input-id helper, not a component",
+      fieldInputName: "input-name helper, not a component",
+      formatDatetimeLocal: "datetime renderer, not a component",
+      pointerToFieldName: "json-pointer helper, not a component",
+      // catalog.ts: the shared producer itself.
+      LANE05_CATALOG_VERSION: "catalog version constant, not a component",
+      UI_CATALOG: "the catalog, not a component",
+      // contracts re-exports: wire constants, not components.
+      CSRF_FIELD: "csrf field-name constant, not a component",
+      DEFAULT_THEME: "theme constant, not a component",
+      PRESENTATION_CONTRACT_VERSION: "contract version constant, not a component",
+      TEAM_FIELD: "team field-name constant, not a component",
+    };
+    const implemented = new Set(
+      UI_CATALOG.entries
+        .filter((entry) => entry.availability === "implemented")
+        .map((entry) => entry.js),
+    );
+    for (const name of Object.keys(allowlist)) {
+      assert.ok(
+        !implemented.has(name),
+        `allowlist entry ${name} shadows a cataloged factory`,
+      );
+    }
+    const exported = Object.keys(ui);
+    assert.ok(exported.length > 0, "index must export a public surface");
+    for (const name of exported) {
+      if (implemented.has(name)) {
+        continue;
+      }
+      assert.ok(
+        Object.hasOwn(allowlist, name),
+        `public export ${name} is neither cataloged-implemented nor allowlisted: ${allowlist[name] ?? "missing"}`,
+      );
+    }
+    for (const name of Object.keys(allowlist)) {
+      assert.ok(
+        Object.hasOwn(ui, name),
+        `allowlist entry ${name} is stale: the index no longer exports it`,
+      );
+    }
+  });
+
+  it("pins zero planned entries: all 88 are honestly implemented", () => {
+    const planned = UI_CATALOG.entries.filter(
+      (entry) => entry.availability !== "implemented",
+    );
+    assert.equal(
+      planned.length,
+      0,
+      `planned entries remain: ${planned.map((entry) => `${entry.id}->${entry.js}`).join(", ")}`,
+    );
+    assert.equal(UI_CATALOG.entries.length, 88);
+  });
 });
