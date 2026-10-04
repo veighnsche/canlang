@@ -45,7 +45,7 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Owner / files / interfaces: Muse implementation agent; draft/CanBook.can, draft/CanBook.md; DESIGN §8.1 (read-only)
   - Changes / traceability: Q1/Q2; apply the settled association to the inspected notification/notice callback only. Preserve business guards, immutable inputs, diagnostics, audience-safe id/status/result/error leaves and meaningful examples. Do not wholesale-convert all raw IDs.
   - Acceptance: No redundant pure receipt-status mirror remains for the selected notice. Source/existing target, authorized projection/UI and examples agree; focused checks and compact diff evidence. If the mapping needs a new rule, report the exact design question and work on another ready task.
-  - Evidence: writer 01a106e9-5e60-7ab0-baaa-f3a392f581ac released. Notice.delivery text→delivery(Mail.send), derived state (Delivered=succeeded caption), policies +delivery.id/.status leaves, producers store handle, pure notice_result removed, reminder example asserts pending. Coordinator verified diff vs Contract/Shift patterns; independent projection parse exit 0; guards/effects/grants/outcomes compared; no design question.
+  - Evidence: writer 01a106e9-5e60-7ab0-baaa-f3a392f581ac released. Notice.delivery text→delivery(Mail.send), derived state (Delivered=succeeded caption), policies +delivery.id/.status leaves, producers store handle, pure notice_result removed, reminder example asserts pending. Coordinator verified diff vs Contract/Shift patterns; independent projection parse exit 0; guards/effects/grants/outcomes compared; no design question. Post-release coordinator repair: added missing use std {DeliveryResult} (Grant/Mail convention), re-verified projection parse exit 0.
 
 - [x] **D02 — Catch notification delivery association**
   - Prerequisites: M00; exclusive ownership of this pair
@@ -54,12 +54,12 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: No redundant pure receipt-status mirror remains for the selected notice. Source/existing target, authorized projection/UI and examples agree; focused checks and compact diff evidence. If the mapping needs a new rule, report the exact design question and work on another ready task.
   - Evidence: writer 01a106e9-5fa5-7173-b4db-affb9fe22fe7 released. Notice.delivery text?→delivery(Alerts.notify)?, derived outcome, policies +delivery.id/.status, detail kept as retained safe diagnostic, producers store handle, callback correlates delivery?.id with diagnostic-only effect, 2 operation-resolved recipes, callback table 3→5 rows incl stale-ignore. Coordinator verified vs Check pattern; projection parse exit 0; no design question.
 
-- [ ] **D03 — Desk notification delivery association**
+- [x] **D03 — Desk notification delivery association**
   - Prerequisites: M00; exclusive ownership of this pair
   - Owner / files / interfaces: Muse implementation agent; draft/CanDesk.can, draft/CanDesk.md; DESIGN §8.1 (read-only)
   - Changes / traceability: Q1/Q2; apply the settled association to the inspected notification/notice callback only. Preserve business guards, immutable inputs, diagnostics, audience-safe id/status/result/error leaves and meaningful examples. Do not wholesale-convert all raw IDs.
   - Acceptance: No redundant pure receipt-status mirror remains for the selected notice. Source/existing target, authorized projection/UI and examples agree; focused checks and compact diff evidence. If the mapping needs a new rule, report the exact design question and work on another ready task.
-  - Evidence: pending.
+  - Evidence: writer 01a106e9-60b0-7df1-8514-c73fee43624e released. Message.delivery text?→delivery(Mail.send)? + use std {DeliveryResult}, stored state→derived status? (Queued/Sent captions kept; null=not-requested for customer/notes, kind preserves inbound distinction), customer policy +delivery.status leaf only, reply producer stores handle, pure sent callback + 3 tables removed, reply examples +fresh pending + new 6-row observation table (5 states + null). Coordinator verified import convention, no stale state refs, projection parse exit 0; no design question.
 
 - [ ] **D04 — Event notification delivery association**
   - Prerequisites: M00; exclusive ownership of this pair
@@ -301,9 +301,12 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - RESERVED D01: draft/CanBook.can, draft/CanBook.md — writer 01a106e9-5e60-7ab0-baaa-f3a392f581ac (D01 CanBook/1) batch 1 active, no .mjs in scope.
 - RESERVED D02: draft/CanCatch.can, draft/CanCatch.md — writer 01a106e9-5fa5-7173-b4db-affb9fe22fe7 (D02 CanCatch/2) batch 1 active, no .mjs in scope.
 - RESERVED D03: draft/CanDesk.can, draft/CanDesk.md — writer 01a106e9-60b0-7df1-8514-c73fee43624e (D03 CanDesk/3) batch 1 active, no .mjs in scope.
-- QUEUED ready disjoint: D06/D07/D08/D09/D10, J01/J03/J04/J06. J02 waits D06 release; J05 waits D09 release.
+- QUEUED ready disjoint: D07/D08/D09/D10, J01/J03/J04/J06. J02 waits D06 release; J05 waits D09 release.
 - ACK H002 NOTE file waiting: accepted. External push unavailable (external_agent_ingress_closed); file protocol authoritative. One-shot kqueue watcher reserved for use only when ready queue is exhausted and intake still open; no watcher running while ready work active. Affected tasks: none.
 - DONE D01: writer 01a106e9-5e60-7ab0-baaa-f3a392f581ac RELEASED draft/CanBook.can, draft/CanBook.md. Inbox re-read after result: H001+H002 only, no new IDs.
 - DONE D02: writer 01a106e9-5fa5-7173-b4db-affb9fe22fe7 RELEASED draft/CanCatch.can, draft/CanCatch.md. No new inbox IDs.
-- RESERVED D04: draft/CanEvent.can, draft/CanEvent.md — writer pending spawn batch 2, no .mjs in scope. Note: Billing.charge association exists; scope is notice callback only.
-- RESERVED D05: draft/CanHire.can, draft/CanHire.md, draft/CanHire.mjs — writer pending spawn batch 2.
+- DONE D03: writer 01a106e9-60b0-7df1-8514-c73fee43624e RELEASED draft/CanDesk.can, draft/CanDesk.md. Inbox re-read: H001+H002 only. Untracked feedback-design.md/progress-design.md observed but no READY: NOT adopted, awaiting inbox authorization.
+- REPAIR D01 (coordinator, post-release): added use std {DeliveryResult} to draft/CanBook.can; re-verified.
+- RESERVED D06: draft/CanLoyalty.can, draft/CanLoyalty.md, draft/CanLoyalty.mjs — writer pending spawn batch 3. J02 gated on D06 release.
+- RESERVED D04: draft/CanEvent.can, draft/CanEvent.md — writer 01a106ee-0d5e-78e0-82aa-3296498e1fad (D04 CanEvent/4) batch 2 active, no .mjs in scope. Note: Billing.charge association exists; scope is notice callback only.
+- RESERVED D05: draft/CanHire.can, draft/CanHire.md, draft/CanHire.mjs — writer 01a106ee-0e65-7670-9327-063030f84315 (D05 CanHire/5) batch 2 active.

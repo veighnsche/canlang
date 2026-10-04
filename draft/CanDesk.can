@@ -10,6 +10,7 @@ package desk
  use member_terms {Membership}
  use invoice {Invoice}
  use maintain {Asset,Repair,report as report_fault}
+ use std {DeliveryResult}
  use std {EmailV1 as Mail} from=deployment.mail
  use desk {InboxV1 as Inbox} from=deployment.support_inbox
  Given
@@ -20,12 +21,13 @@ package desk
   export Ticket { location:Location, customer:Customer? label="Customer"@{nl="Klant"}, subject:IncomingMail.subject trim min=1, email:email, thread:text unique label=label_IncomingMail_thread, category:text label=label_Ticket_category, priority:enum(low,normal,urgent)=normal label={text="Priority"@{nl="Prioriteit"},values={low="Low"@{nl="Laag"},normal="Normal"@{nl="Normaal"},urgent="Urgent"@{nl="Urgent"}}}, assignee:user? label="Assignee"@{nl="Toegewezen aan"}, queue:text label=label_Ticket_queue, state:enum(open,waiting_on_customer,resolved)=open label={text=label_Ticket_state,values={open="Open"@{nl="Open"},waiting_on_customer="Waiting on customer"@{nl="Wacht op klant"},resolved="Resolved"@{nl="Opgelost"}}}, due:datetime? label="Response deadline"@{nl="Antwoorddeadline"}, escalation:text? label="Escalation"@{nl="Escalatie"}, escalated_by:user? label="Escalated by"@{nl="Geëscaleerd door"}, escalated_at:datetime? label="Escalated at"@{nl="Geëscaleerd op"}, booking:Booking? label="Booking"@{nl="Boeking"}, membership:Membership? label="Membership"@{nl="Lidmaatschap"}, invoice:Invoice? label="Invoice"@{nl="Factuur"}, repair:Repair? label="Repair"@{nl="Reparatie"} } label="Support request"@{nl="Supportverzoek"}
   derive Ticket.overdue:bool = row.state!=resolved and row.due!=null and row.due<now label="Overdue"@{nl="Te laat"}
   derive Ticket.unassigned:bool = row.assignee==null label="Unassigned"@{nl="Niet toegewezen"}
-  Message in Ticket { external_id:IncomingMail.id unique label=label_Message_external_id, kind:enum(customer,reply,note) label={text="Kind"@{nl="Soort"},values={customer="Customer message"@{nl="Klantbericht"},reply="Customer reply"@{nl="Antwoord aan klant"},note="Private staff note"@{nl="Privénotitie"}}}, body:text max=30000, sender:email label=label_IncomingMail_sender, recipient:email? label=label_IncomingMail_recipient, author:user? label="Author"@{nl="Auteur"}, attachments:file[] label=label_IncomingMail_attachments, delivery:text? label="Delivery reference"@{nl="Afleverreferentie"}, state:enum(received,queued,sent,failed,unknown)=received label={text=label_Ticket_state,values={received="Received"@{nl="Ontvangen"},queued="Queued"@{nl="In wachtrij"},sent="Sent"@{nl="Verzonden"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"}}} } label="Support message"@{nl="Supportbericht"}
+  Message in Ticket { external_id:IncomingMail.id unique label=label_Message_external_id, kind:enum(customer,reply,note) label={text="Kind"@{nl="Soort"},values={customer="Customer message"@{nl="Klantbericht"},reply="Customer reply"@{nl="Antwoord aan klant"},note="Private staff note"@{nl="Privénotitie"}}}, body:text max=30000, sender:email label=label_IncomingMail_sender, recipient:email? label=label_IncomingMail_recipient, author:user? label="Author"@{nl="Auteur"}, attachments:file[] label=label_IncomingMail_attachments, delivery:delivery(Mail.send)? label="Delivery reference"@{nl="Afleverreferentie"} } label="Support message"@{nl="Supportbericht"}
+  derive Message.state:DeliveryResult.status? = row.delivery?.status label={text=label_Ticket_state,values={pending="Queued"@{nl="In wachtrij"},succeeded="Sent"@{nl="Verzonden"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}
   Unmatched { external_id:IncomingMail.id unique label=label_Message_external_id, sender:email label=label_IncomingMail_sender, recipient:email label=label_IncomingMail_recipient, subject:IncomingMail.subject, body:IncomingMail.body, thread:IncomingMail.thread label=label_IncomingMail_thread, attachments:file[] label=label_IncomingMail_attachments, state:enum(pending,resolved)=pending label={text=label_Ticket_state,values={pending="Needs triage"@{nl="Beoordeling nodig"},resolved="Triaged"@{nl="Beoordeeld"}}}, ticket:Ticket? label="Support request"@{nl="Supportverzoek"}, resolved_by:user? label="Triaged by"@{nl="Beoordeeld door"}, resolved_at:datetime? label="Triaged at"@{nl="Beoordeeld op"}, received:datetime server=now label="Received at"@{nl="Ontvangen op"} } label="Unmatched support mail"@{nl="Ongekoppelde supportmail"}
   policy Ticket read=support and can_work(actor,row.location)
   policy Ticket read=authenticated where=actor.email_verified and row.email==actor.email fields=subject,category,priority,state,email
   policy Message read=support and can_work(actor,row.parent.location)
-  policy Message read=authenticated where=actor.email_verified and row.parent.email==actor.email and row.kind!=note fields=kind,body,sender,recipient,attachments,state,created
+  policy Message read=authenticated where=actor.email_verified and row.parent.email==actor.email and row.kind!=note fields=kind,body,sender,recipient,attachments,state,delivery.status,created
   policy Unmatched read=support
   invariant Unmatched: row.state!=resolved or (row.ticket!=null and row.resolved_by!=null and row.resolved_at!=null)
   lock Unmatched fields=external_id,sender,recipient,subject,body,thread,attachments
@@ -38,7 +40,8 @@ package desk
   fixture foreign_document=file {owner=other}
   fixture received_message=Message {parent=conversation,external_id="known-email",kind=customer,body="Still offline",sender="customer@example.test",recipient="support@example.test",attachments=[document]}
   fixture unmatched=Unmatched {external_id="new-email",sender="new@example.test",recipient="support@example.test",subject="Wi-Fi",body="Cannot connect",thread="unknown",attachments=[document]}
-  fixture outbound=Message {parent=conversation,external_id="staff-reply",kind=reply,body="We are checking",sender="staff@example.test",recipient="customer@example.test",author=self,attachments=[document],delivery="outbound",state=queued}
+  fixture attempt=Mail.send {request={to="customer@example.test",subject="Wi-Fi",body="We are checking",attachments=[document]}}
+  fixture outbound=Message {parent=conversation,external_id="staff-reply",kind=reply,body="We are checking",sender="staff@example.test",recipient="customer@example.test",author=self,attachments=[document],delivery=attempt}
   fixture desk_asset=Asset {location=test_site,identifier="WIFI-1",name="Router",category="Connectivity"}
   preferences { state:Ticket.state?, priority:Ticket.priority? }
   message label_IncomingMail_sender = "Sender"@{nl="Afzender"}
@@ -89,15 +92,23 @@ package desk
    require can_work(actor,ticket.location) and trim(body)!=""
    do
     let recipient=ticket.email
-    create Message {parent=ticket,external_id=operation.id,kind=reply,body,sender=actor.email,recipient,author=actor,attachments,state=queued} as message
+    create Message {parent=ticket,external_id=operation.id,kind=reply,body,sender=actor.email,recipient,author=actor,attachments} as message
     send Mail.send {to=recipient,subject=ticket.subject,body=message.body,attachments=message.attachments} as delivery
-    set message {delivery=delivery.id}
+    set message {delivery}
     set ticket {state=waiting_on_customer}
    examples seed=[test_worker] ticket=conversation body="A technician is checking"
-    as,attachments -> ticket.state,count(ticket.Message),first(ticket.Message as message order=message.id)?.attachments??[]
-    support,[document] -> waiting_on_customer,1,[document]
+    as,attachments -> ticket.state,count(ticket.Message),first(ticket.Message as message order=message.id)?.attachments??[],first(ticket.Message as message order=message.id)?.state
+    support,[document] -> waiting_on_customer,1,[document],pending
     support,[foreign_document] -> error(forbidden)
     members,[] -> error(forbidden)
+   examples seed=[test_worker,outbound,attempt] ticket=conversation body="A technician is checking"
+    as,outbound.delivery,attempt.status,attempt.result,attempt.error -> ticket.state,outbound.state,count(ticket.Message)
+    support,attempt,pending,null,null -> waiting_on_customer,pending,2
+    support,attempt,succeeded,{reference="accepted-mail"},null -> waiting_on_customer,succeeded,2
+    support,attempt,failed,null,{code="rejected",message="Recipient rejected"} -> waiting_on_customer,failed,2
+    support,attempt,unknown,null,null -> waiting_on_customer,unknown,2
+    support,attempt,skipped,null,null -> waiting_on_customer,skipped,2
+    support,null,pending,null,null -> waiting_on_customer,null,2
   # Record a staff-only note that is never emailed to the customer. @{nl="Leg een personeelsnotitie vast die nooit naar de klant wordt gemaild."}
   scenario note(ticket:Ticket,body:text,attachments:Message.attachments=[]) by=support label="Add private staff note"@{nl="Privénotitie toevoegen"}
    require can_work(actor,ticket.location) and trim(body)!=""
@@ -168,28 +179,6 @@ package desk
     support,"Router is not responding" -> true,"Wi-Fi",self,open
     support,"" -> error(rule_failed)
     members,"Router is not responding" -> error(forbidden)
-  scenario sent on=Mail.send.completed
-   do
-    for message in Message as row where row.delivery==event.delivery_id and row.state in [queued,unknown] limit=1
-     if event.status==succeeded
-      set message {state=sent}
-     else
-      if event.status==failed
-       set message {state=failed}
-      else
-       set message {state=unknown}
-   examples seed=[outbound] event={delivery_id="outbound",status=succeeded,result={reference="accepted-mail"},error=null}
-    event.delivery_id,outbound.state -> outbound.state,outbound.recipient,outbound.attachments
-    "outbound",queued -> sent,"customer@example.test",[document]
-    "unrelated",queued -> queued,"customer@example.test",[document]
-    "outbound",failed -> failed,"customer@example.test",[document]
-   examples seed=[outbound] event={delivery_id="outbound",status=unknown,result=null,error=null}
-    outbound.state -> outbound.state,count(conversation.Message)
-    queued -> unknown,1
-    sent -> sent,1
-   examples seed=[outbound] event={delivery_id="outbound",status=failed,result=null,error={code="rejected",message="Recipient rejected"}}
-    outbound.state -> outbound.state
-    queued -> failed
  Then
   # Triage location queues and distinguish internal notes from customer replies. @{nl="Beoordeel locatiewachtrijen en onderscheid interne notities van klantantwoorden."}
   page /support title="Support"@{nl="Support"}
