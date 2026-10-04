@@ -343,6 +343,12 @@ pub struct TypeTable {
     pub resolved_cases: HashSet<NodeKey>,
     /// Member failures from type-owned positions (pass 2 `E2013`).
     pub unresolved_members: Vec<UnresolvedMember>,
+    /// Declared type of every Field/Param/DeriveField symbol (PR5
+    /// emission input: typed schemas; absent = undeclared/untypable).
+    pub symbol_types: HashMap<SymbolId, ResolvedType>,
+    /// Declared result of every Scenario/CapabilityOp symbol
+    /// (`None` = void). PR5 emission input: operation signatures.
+    pub symbol_results: HashMap<SymbolId, Option<ResolvedType>>,
 }
 
 /// Check types over `trees` with `tables`.
@@ -358,6 +364,8 @@ pub fn check_types(
     typer.collect_read_scenarios(trees);
     typer.phase2(trees);
     typer.check_cycles();
+    typer.types.symbol_types = std::mem::take(&mut typer.decl);
+    typer.types.symbol_results = std::mem::take(&mut typer.results);
     typer.types
 }
 

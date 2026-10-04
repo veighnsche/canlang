@@ -627,24 +627,27 @@ fn team_tasks_checks_clean() {
     assert_clean(&src, Some(&catalog));
 }
 
-/// ExpenseFlow carries exactly one diagnostic: `sum` on line 97, which
-/// lane-02 marks `planned` (their dispatcher lands with stdlib-pure
-/// PR5). The source is valid; this is a cross-lane timing fact, and the
-/// tripwire fails the day the flag flips so the expectation is revisited.
+/// ExpenseFlow checks clean against the real catalog. History: it
+/// carried one `E6001` while lane-02 marked `sum` planned; the flag
+/// flipped to implemented with lane-02 PR5 (stdlib-pure dispatchers) and
+/// the tripwire below pins the new state — it fails if `sum` ever flips
+/// back or the example regresses.
 #[test]
-fn expense_flow_reports_only_planned_sum() {
+fn expense_flow_checks_clean_with_implemented_sum() {
     let Some(path) = real_catalog_path() else {
         eprintln!(
-            "SKIP expense_flow_reports_only_planned_sum: no packages/values/dist/catalog.json"
+            "SKIP expense_flow_checks_clean_with_implemented_sum: no packages/values/dist/catalog.json"
         );
         return;
     };
     let catalog = load_real_catalog(&path);
+    assert_eq!(
+        catalog.availability("sum"),
+        Some(canlang_compiler::analysis::catalog::Availability::Implemented),
+        "sum availability flipped back to planned: revisit ExpenseFlow expectations",
+    );
     let src = std::fs::read_to_string(workspace_root().join("examples/ExpenseFlow.can")).unwrap();
-    let diags = check(&src, Some(&catalog));
-    assert_findings(&src, &diags, &[("E6001", "sum", 2)]);
-    assert!(diags[0].message.contains("planned"), "{}", diags[0].message);
-    assert!(diags[0].message.contains("lane-02"), "{}", diags[0].message);
+    assert_clean(&src, Some(&catalog));
 }
 
 /// Per-file draft outcome table. Drafts are pre-v1 sources: cross-file
@@ -659,47 +662,60 @@ fn draft_outcome_table() {
         return;
     };
     let catalog = load_real_catalog(&path);
-    // (file, expected diagnostic count).
+    // (file, expected diagnostic count). Counts regenerated 2026-10-04
+    // after the fb226e0→a750816 rebase (corpus rewritten + `sum`
+    // implemented): every moved count was re-observed and spot-checked
+    // (cross-file imports, precise type errors, the two `each=` E1203s).
     let table: &[(&str, usize)] = &[
-        ("draft/CanAffiliate.can", 108),
+        ("draft/CanAffiliate.can", 103),
         ("draft/CanApprove.can", 93),
-        ("draft/CanBoard.can", 6),
+        ("draft/CanBoard.can", 4),
         ("draft/CanBook.can", 222),
-        ("draft/CanCRM.can", 132),
+        ("draft/CanCRM.can", 136),
         ("draft/CanCatch.can", 99),
+        ("draft/CanChat.can", 134),
         ("draft/CanCheck.can", 100),
         ("draft/CanContract.can", 72),
+        ("draft/CanCreative.can", 196),
         ("draft/CanCustomer.can", 95),
+        ("draft/CanDecide.can", 60),
         ("draft/CanDesk.can", 137),
+        ("draft/CanDiscover.can", 154),
         ("draft/CanDo.can", 56),
-        ("draft/CanEvent.can", 464),
-        ("draft/CanExpense.can", 90),
-        ("draft/CanFeedback.can", 16),
+        ("draft/CanEnrich.can", 46),
+        ("draft/CanEvent.can", 463),
+        ("draft/CanExpense.can", 98),
+        ("draft/CanFeedback.can", 26),
         ("draft/CanField.can", 116),
-        ("draft/CanGrant.can", 92),
+        ("draft/CanGallery.can", 32),
+        ("draft/CanGrant.can", 89),
         ("draft/CanHire.can", 146),
-        ("draft/CanInvoice.can", 628),
+        ("draft/CanInbox.can", 182),
+        ("draft/CanInvoice.can", 614),
+        ("draft/CanKnowledge.can", 100),
         ("draft/CanLearn.can", 50),
-        ("draft/CanLeave.can", 86),
-        ("draft/CanLoyalty.can", 118),
-        ("draft/CanMail.can", 192),
-        ("draft/CanMaintain.can", 180),
-        ("draft/CanMember.can", 535),
-        ("draft/CanOnboard.can", 69),
-        ("draft/CanPropose.can", 186),
-        ("draft/CanPurchase.can", 181),
+        ("draft/CanLeave.can", 85),
+        ("draft/CanLoyalty.can", 113),
+        ("draft/CanMail.can", 234),
+        ("draft/CanMaintain.can", 178),
+        ("draft/CanMember.can", 526),
+        ("draft/CanOnboard.can", 67),
+        ("draft/CanPropose.can", 177),
+        ("draft/CanPurchase.can", 191),
         ("draft/CanReception.can", 237),
-        ("draft/CanRefer.can", 140),
-        ("draft/CanRent.can", 894),
-        ("draft/CanReport.can", 52),
-        ("draft/CanShift.can", 262),
-        ("draft/CanStats.can", 88),
-        ("draft/CanStock.can", 124),
-        ("draft/CanSuccess.can", 109),
+        ("draft/CanRefer.can", 131),
+        ("draft/CanRent.can", 931),
+        ("draft/CanReport.can", 50),
+        ("draft/CanShift.can", 4),
+        ("draft/CanStats.can", 82),
+        ("draft/CanStock.can", 121),
+        ("draft/CanSuccess.can", 107),
+        ("draft/CanSync.can", 71),
         ("draft/CanTable.can", 51),
-        ("draft/CanTime.can", 150),
+        ("draft/CanTime.can", 147),
         ("draft/CanTrade.can", 29),
-        ("draft/CanVolunteer.can", 73),
+        ("draft/CanVolunteer.can", 3),
+        ("draft/CanWorkbench.can", 138),
         ("draft/shared/Employees.can", 14),
         ("draft/shared/Locations.can", 55),
         ("draft/shared/Suppliers.can", 6),
@@ -776,10 +792,11 @@ fn real_catalog_end_to_end() {
     }
     assert_eq!(
         catalog.availability("sum"),
-        Some(canlang_compiler::analysis::catalog::Availability::Planned)
+        Some(canlang_compiler::analysis::catalog::Availability::Implemented)
     );
-    // `sum` is the planned entry ExpenseFlow trips on; every implemented
-    // builtin carries at least one overload.
+    // `sum` flipped planned→implemented with lane-02 PR5 (stdlib-pure
+    // dispatchers); the pin fails if it ever flips back. Every
+    // implemented builtin carries at least one overload.
     for id in catalog.ids() {
         let entry = catalog.lookup(id).unwrap();
         if entry.kind == canlang_compiler::analysis::catalog::EntryKind::Builtin

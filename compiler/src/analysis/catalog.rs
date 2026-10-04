@@ -930,12 +930,29 @@ impl SigParser<'_> {
             self.pos += "closed object of every record parameter".len();
             return Ok(SigType::ActionBindings);
         }
-        if rest.starts_with("canonical user mutation") {
-            self.pos += "canonical user mutation".len();
-            return Ok(SigType::ActionTarget);
+        // Lane-02's live wording for the same closed identity-input
+        // object (its `invocation` entry); enforced identically.
+        if rest.starts_with("complete owning input object") {
+            self.pos += "complete owning input object".len();
+            return Ok(SigType::ActionBindings);
+        }
+        // Lane-02 writes both `canonical user mutation` (older entries)
+        // and `canonical local user mutation` (live `invocation` entry)
+        // for an untrusted local operation target.
+        if let Some(after) = rest.strip_prefix("canonical ") {
+            let after = after.strip_prefix("local ").unwrap_or(after);
+            if let Some(tail) = after.strip_prefix("user mutation") {
+                self.pos += rest.len() - tail.len();
+                return Ok(SigType::ActionTarget);
+            }
         }
         if rest.starts_with("singleton action(target)") {
             self.pos += "singleton action(target)".len();
+            return Ok(SigType::ActionResult);
+        }
+        // Lane-02's live constructor result wording.
+        if rest.starts_with("singleton invocation(target)") {
+            self.pos += "singleton invocation(target)".len();
             return Ok(SigType::ActionResult);
         }
         if rest.starts_with('{') {
