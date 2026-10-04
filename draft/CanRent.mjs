@@ -3307,10 +3307,10 @@ export function canApp() {
         equalMoney(row.total, addMoney(subtractMoney(row.subtotal, row.discount), row.tax)) &&
         row.tax.minor >= 0n &&
         row.discount.minor >= 0n &&
-        row.discount.minor <= row.subtotal.minor + row.tax.minor &&
+        compareMoney(row.discount, addMoney(row.subtotal, row.tax)) <= 0 &&
         row.refund_amount.currency === row.total.currency &&
         row.refund_amount.minor >= 0n &&
-        row.refund_amount.minor <= row.total.minor &&
+        compareMoney(row.refund_amount, row.total) <= 0 &&
         row.intervals.every(
           (interval) =>
             compareInstant(interval.from, interval.until) < 0 &&
@@ -3773,10 +3773,6 @@ export function canApp() {
       const discount = multiplyMoney(subtotal, resource.discount_rate),
         tax = multiplyMoney(subtractMoney(subtotal, discount), resource.tax_rate),
         total = addMoney(subtractMoney(subtotal, discount), tax);
-      const afterFee = subtractMoney(
-        total,
-        resource.cancellation_fee ?? money(0n, resource.currency),
-      );
       const booking = await create(c, "rent_reservations.Booking", {
         parent: resource,
         billing_location: resource.location,
@@ -3808,7 +3804,10 @@ export function canApp() {
         discount,
         tax,
         total,
-        refund_amount: afterFee.minor < 0n ? money(0n, resource.currency) : afterFee,
+        refund_amount: max([
+          money(0n, resource.currency),
+          subtractMoney(total, resource.cancellation_fee ?? money(0n, resource.currency)),
+        ]),
         terms: resource.terms,
         refund_before: subtractDuration(from, resource.refund_notice),
         reserved_from: subtractDuration(from, resource.buffer_before),
@@ -3944,10 +3943,6 @@ export function canApp() {
         discount = multiplyMoney(subtotal, resource.discount_rate),
         tax = multiplyMoney(subtractMoney(subtotal, discount), resource.tax_rate),
         total = addMoney(subtractMoney(subtotal, discount), tax);
-      const afterFee = subtractMoney(
-        total,
-        resource.cancellation_fee ?? money(0n, resource.currency),
-      );
       const booking = await create(c, "rent_reservations.Booking", {
         parent: resource,
         billing_location: resource.location,
@@ -3988,7 +3983,10 @@ export function canApp() {
         discount,
         tax,
         total,
-        refund_amount: afterFee.minor < 0n ? money(0n, resource.currency) : afterFee,
+        refund_amount: max([
+          money(0n, resource.currency),
+          subtractMoney(total, resource.cancellation_fee ?? money(0n, resource.currency)),
+        ]),
         terms: resource.terms,
         refund_before: subtractDuration(
           addDuration(first.from, resource.buffer_before),
@@ -4357,12 +4355,14 @@ export function canApp() {
           booking.checked_in === null &&
           available
         ) {
-          if (balance.minor <= old_balance.minor || movement.extra_paid) {
-            const credit = subtractMoney(old_balance, balance);
+          if (compareMoney(balance, old_balance) <= 0 || movement.extra_paid) {
             await set(c, movement, {
               state: "committing",
               outcome: event.value,
-              credit_due: credit.minor < 0n ? money(0n, booking.total.currency) : credit,
+              credit_due: max([
+                money(0n, booking.total.currency),
+                subtractMoney(old_balance, balance),
+              ]),
             });
             const commit = await send(c, "rent_reservations.Membership.commit", {
               source: movement.source,
@@ -4558,7 +4558,9 @@ export function canApp() {
         check(movement.extra_due !== null && equalMoney(value.amount, movement.extra_due));
         if (value.revision > movement.extra_revision) {
           await set(c, movement, { extra_revision: value.revision });
-          if (subtractMoney(value.collected, value.refunded).minor >= movement.extra_due.minor) {
+          if (
+            compareMoney(subtractMoney(value.collected, value.refunded), movement.extra_due) >= 0
+          ) {
             await set(c, movement, { extra_paid: true });
             if (movement.state === "waiting_money" && movement.outcome !== null)
               await emit(c, "rent_reservations.MovementObserved", {
@@ -4586,19 +4588,21 @@ export function canApp() {
           amount.minor > 0n &&
           reason.trim() !== "",
       );
-      let requested = money(0n, movement.credit_due.currency);
-      for await (const credit of records(c, "rent_reservations.MovementCredit", {
-        parent: movement,
-        where: (credit) => credit.state !== "failed",
-      }))
-        requested = addMoney(requested, credit.amount);
-      check(amount.minor <= subtractMoney(movement.credit_due, requested).minor);
+      const requested = await sum(
+        records(c, "rent_reservations.MovementCredit", {
+          parent: movement,
+          where: (credit) => credit.state !== "failed",
+        }),
+        (credit) => credit.amount,
+        movement.credit_due.currency,
+      );
+      check(compareMoney(amount, subtractMoney(movement.credit_due, requested)) <= 0);
       const booking = movement.parent;
       if (charge_source === booking.source) {
         check(
           booking.collected !== null &&
             booking.refunded !== null &&
-            amount.minor <= subtractMoney(booking.collected, booking.refunded).minor,
+            compareMoney(amount, subtractMoney(booking.collected, booking.refunded)) <= 0,
         );
         const refund = await send(c, "rent_reservations.Billing.refund", {
           source: charge_source,
@@ -4625,7 +4629,7 @@ export function canApp() {
           adjustment !== null &&
             adjustment.collected !== null &&
             adjustment.refunded !== null &&
-            amount.minor <= subtractMoney(adjustment.collected, adjustment.refunded).minor,
+            compareMoney(amount, subtractMoney(adjustment.collected, adjustment.refunded)) <= 0,
         );
         const refund = await send(c, "rent_reservations.Billing.refund", {
           source: charge_source,
@@ -4662,7 +4666,7 @@ export function canApp() {
         where: (row) => row.charge_source === event.value.source && row.state !== "paid",
         limit: 1000n,
       }))
-        if (event.value.refunded.minor >= addMoney(credit.baseline, credit.amount).minor)
+        if (compareMoney(event.value.refunded, addMoney(credit.baseline, credit.amount)) >= 0)
           await set(c, credit, { state: "paid" });
     },
     async abandon_movement(c, { movement }) {
@@ -5021,35 +5025,25 @@ export function canApp() {
       ) {
         const refund = await send(c, "rent_reservations.Billing.refund", {
           source: booking.source,
-          amount: money(
+          amount: max([
+            money(0n, booking.total.currency),
             subtractMoney(
               booking.monetary_due ?? booking.total,
               subtractMoney(booking.total, booking.refund_amount),
-            ).minor > 0n
-              ? subtractMoney(
-                  booking.monetary_due ?? booking.total,
-                  subtractMoney(booking.total, booking.refund_amount),
-                ).minor
-              : 0n,
-            booking.total.currency,
-          ),
+            ),
+          ]),
           reason,
         });
         await set(c, booking, {
           refund_delivery: refund.id,
           refund_state: "pending",
-          refund_requested: money(
+          refund_requested: max([
+            money(0n, booking.total.currency),
             subtractMoney(
               booking.monetary_due ?? booking.total,
               subtractMoney(booking.total, booking.refund_amount),
-            ).minor > 0n
-              ? subtractMoney(
-                  booking.monetary_due ?? booking.total,
-                  subtractMoney(booking.total, booking.refund_amount),
-                ).minor
-              : 0n,
-            booking.total.currency,
-          ),
+            ),
+          ]),
         });
       }
       await emit(c, "rent_reservations.ReservationChanged", {
@@ -5584,10 +5578,11 @@ export function canApp() {
             compareInstant(value.snapshot.from, c.now) >= 0 &&
             compareInstant(value.snapshot.from, value.snapshot.until) < 0,
         );
-        let total = 0n;
-        for (const item of value.snapshot.lines) {
-          check(
-            compareDecimal(item.quantity, "0") >= 0 &&
+        check(
+          await all(
+            value.snapshot.lines,
+            (item) =>
+              compareDecimal(item.quantity, "0") >= 0 &&
               (compareDecimal(item.quantity, "0") > 0 ||
                 equalMoney(
                   subtractMoney(
@@ -5602,13 +5597,26 @@ export function canApp() {
               item.price.minor >= 0n &&
               item.tax.minor >= 0n &&
               item.discount.minor >= 0n &&
-              item.discount.minor <=
-                multiplyMoney(item.price, item.quantity).minor + item.tax.minor,
-          );
-          total +=
-            multiplyMoney(item.price, item.quantity).minor + item.tax.minor - item.discount.minor;
-        }
-        check(equalMoney(value.snapshot.total, money(total, resource.currency)));
+              compareMoney(
+                item.discount,
+                addMoney(multiplyMoney(item.price, item.quantity), item.tax),
+              ) <= 0,
+          ),
+        );
+        check(
+          equalMoney(
+            value.snapshot.total,
+            await sum(
+              value.snapshot.lines,
+              (item) =>
+                subtractMoney(
+                  addMoney(multiplyMoney(item.price, item.quantity), item.tax),
+                  item.discount,
+                ),
+              resource.currency,
+            ),
+          ),
+        );
         for await (const fence of records(c, "rent_reservations.ReservationFence", {
           parent: resource,
         }))
@@ -5701,10 +5709,11 @@ export function canApp() {
             compareInstant(value.snapshot.from, c.now) >= 0 &&
             compareInstant(value.snapshot.from, value.snapshot.until) < 0,
         );
-        let total = 0n;
-        for (const item of value.snapshot.lines) {
-          check(
-            compareDecimal(item.quantity, "0") >= 0 &&
+        check(
+          await all(
+            value.snapshot.lines,
+            (item) =>
+              compareDecimal(item.quantity, "0") >= 0 &&
               (compareDecimal(item.quantity, "0") > 0 ||
                 equalMoney(
                   subtractMoney(
@@ -5719,13 +5728,26 @@ export function canApp() {
               item.price.minor >= 0n &&
               item.tax.minor >= 0n &&
               item.discount.minor >= 0n &&
-              item.discount.minor <=
-                multiplyMoney(item.price, item.quantity).minor + item.tax.minor,
-          );
-          total +=
-            multiplyMoney(item.price, item.quantity).minor + item.tax.minor - item.discount.minor;
-        }
-        check(equalMoney(value.snapshot.total, money(total, resource.currency)));
+              compareMoney(
+                item.discount,
+                addMoney(multiplyMoney(item.price, item.quantity), item.tax),
+              ) <= 0,
+          ),
+        );
+        check(
+          equalMoney(
+            value.snapshot.total,
+            await sum(
+              value.snapshot.lines,
+              (item) =>
+                subtractMoney(
+                  addMoney(multiplyMoney(item.price, item.quantity), item.tax),
+                  item.discount,
+                ),
+              resource.currency,
+            ),
+          ),
+        );
         for await (const booking of records(c, "rent_reservations.Booking", { parent: resource }))
           check(booking.source !== value.source);
         for await (const hold of records(c, "rent_reservations.QuoteHold", {
@@ -5750,14 +5772,6 @@ export function canApp() {
             customer.active &&
               customer.locations.some((location) => same(location, resource.location)),
           );
-          let subtotalMinor = 0n,
-            taxMinor = 0n,
-            discountMinor = 0n;
-          for (const item of value.snapshot.lines) {
-            subtotalMinor += multiplyMoney(item.price, item.quantity).minor;
-            taxMinor += item.tax.minor;
-            discountMinor += item.discount.minor;
-          }
           const booking = await create(c, "rent_reservations.Booking", {
             parent: resource,
             billing_location: resource.location,
@@ -5791,9 +5805,17 @@ export function canApp() {
             quantity: value.quantity,
             attendees: value.attendees,
             rate: value.snapshot.total,
-            subtotal: money(subtotalMinor, resource.currency),
-            tax: money(taxMinor, resource.currency),
-            discount: money(discountMinor, resource.currency),
+            subtotal: await sum(
+              value.snapshot.lines,
+              (item) => multiplyMoney(item.price, item.quantity),
+              resource.currency,
+            ),
+            tax: await sum(value.snapshot.lines, (item) => item.tax, resource.currency),
+            discount: await sum(
+              value.snapshot.lines,
+              (item) => item.discount,
+              resource.currency,
+            ),
             total: value.snapshot.total,
             refund_amount: value.snapshot.total,
             terms: value.snapshot.terms,
@@ -6339,8 +6361,10 @@ export function canApp() {
           });
         if (
           fresh &&
-          subtractMoney(event.value.collected, event.value.refunded).minor >=
-            adjustment.amount.minor &&
+          compareMoney(
+            subtractMoney(event.value.collected, event.value.refunded),
+            adjustment.amount,
+          ) >= 0 &&
           ["pending", "expired"].includes(adjustment.state)
         ) {
           await set(c, adjustment, { invoice: event.value.invoice });
@@ -6402,7 +6426,7 @@ export function canApp() {
         if (
           fresh &&
           adjustment.refund_delivery !== null &&
-          event.value.refunded.minor >= adjustment.amount.minor
+          compareMoney(event.value.refunded, adjustment.amount) >= 0
         )
           await set(c, adjustment, { state: "refunded" });
       }
