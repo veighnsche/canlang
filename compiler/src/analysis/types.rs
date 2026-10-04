@@ -5074,6 +5074,20 @@ impl<'a> Typer<'a> {
                     .map(|d| self.expr(cx, d, None))
                     .as_ref()
                     .and_then(|ty| self.model_of_type(ty));
+                // Bare-model domains (`list Expense`) never pass through
+                // query typing, so `row` would stay `Error`-typed in
+                // children (killing enum-case claims and member checks).
+                // Seed the row element from the domain model; query
+                // domains already registered their precise element
+                // above, so never overwrite.
+                if let (Some(d), Some(model)) = (domain, model) {
+                    self.rows
+                        .entry(NodeKey::of(d))
+                        .or_insert(ResolvedType::Record {
+                            symbol: model,
+                            stored: true,
+                        });
+                }
                 if head == Some("table") && attribute_value(node, "columns", cx.text).is_none() {
                     self.diags.push(Diagnostic::error(
                         "E3001",
