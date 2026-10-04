@@ -267,8 +267,11 @@ function cancelLink(cancelHref: string | undefined, context: PresentationContext
   return `<a class="btn btn-ghost" href="${escapeAttr(safeHref(cancelHref))}">${escapeHtml(resolveCaption(CHROME.cancel, context))}</a>`;
 }
 
-/** Serialize one pre-bound action scalar to its hidden-input value. */
-function serializeActionScalar(key: string, value: unknown): string {
+/**
+ * Serialize one pre-bound action scalar to its hidden-input value.
+ * Exported for internal reuse (navigation button bindings); not public API.
+ */
+export function serializeActionScalar(key: string, value: unknown): string {
   if (typeof value === "string") {
     return value;
   }

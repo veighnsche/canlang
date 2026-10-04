@@ -23,7 +23,7 @@ import type { DeliveryStatus } from "./services.js";
 export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
 export type { DeliveryStatus } from "./services.js";
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.11.0";
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.12.0";
 
 /**
  * Name of the hidden CSRF field in every canonical POST form. Rendered by
@@ -1324,4 +1324,143 @@ export interface HoverGalleryImage {
 export interface HoverGalleryProps {
   readonly context: PresentationContext;
   readonly images: ReadonlyArray<HoverGalleryImage>;
+}
+
+// ---------------------------------------------------------------------------
+// C6 navigation + shared state (navigation.ts): breadcrumbs, button, menu,
+// navbar, dock, megamenu, pagination, theme_controller.
+// ---------------------------------------------------------------------------
+
+/**
+ * `breadcrumbs` derived-ancestry trail. `ancestry` is the explicit
+ * declared-route ancestry from the dispatcher, root first; the last entry is
+ * the current page. `label` names the nav for assistive tech.
+ */
+export interface BreadcrumbsProps {
+  readonly context: PresentationContext;
+  readonly label: MessageValue;
+  readonly ancestry: readonly NavigationEntry[];
+}
+
+/**
+ * Canonical-operation binding for `button`: posts to the existing owning
+ * endpoint with the same hidden-field contract as the forms action factory
+ * (operation, operation_id, CSRF, inputs). `inputs` are pre-bound scalar
+ * arguments; record/handle bindings stay with that factory.
+ */
+export interface ButtonActionBinding {
+  readonly postTo: string;
+  readonly operation: string;
+  readonly operationId: string;
+  readonly label: MessageValue;
+  readonly inputs?: Record<string, string | number | bigint | boolean>;
+}
+
+/**
+ * `button` canonical bound control. Exactly one of `action`, `submit`,
+ * `target` or `opens` must be present. `submit` renders the submit control
+ * alone inside an owning form; `target` needs a safe URL; `opens` names a
+ * declared local panel id wired through the :target pattern.
+ */
+export interface ButtonProps {
+  readonly context: PresentationContext;
+  /** Presentation override; otherwise derived from the binding. */
+  readonly caption?: MessageValue;
+  readonly action?: ButtonActionBinding;
+  readonly submit?: true;
+  readonly target?: string;
+  readonly opens?: string;
+  readonly tone?: AppearanceTone;
+  readonly size?: AppearanceSize;
+  readonly variant?: AppearanceVariant;
+}
+
+/**
+ * `menu` semantic nav list. `entries` are declared destinations or canonical
+ * action controls from the authorized descriptors; `label` names the nav.
+ * No `variant` prop: only solid is admitted upstream (a no-op base), so
+ * callers cannot name a failing variant (the divider precedent).
+ */
+export interface MenuProps {
+  readonly context: PresentationContext;
+  readonly label: MessageValue;
+  readonly entries: readonly NavigationEntry[];
+  readonly size?: AppearanceSize;
+  readonly orientation?: AppearanceOrientation;
+}
+
+/**
+ * `navbar` shared navigation presentation. `entries` render as the center
+ * nav list; `start`/`end` are optional trusted slots (brand, tools).
+ * No `variant` prop: only solid is admitted upstream (a no-op base).
+ */
+export interface NavbarProps {
+  readonly context: PresentationContext;
+  readonly label: MessageValue;
+  readonly entries: readonly NavigationEntry[];
+  readonly start?: PageChildren;
+  readonly end?: PageChildren;
+}
+
+/**
+ * `dock` bottom-bar presentation of canonical authorized destinations.
+ * No `variant` prop: only solid is admitted upstream (a no-op base).
+ */
+export interface DockProps {
+  readonly context: PresentationContext;
+  readonly label: MessageValue;
+  readonly entries: readonly NavigationEntry[];
+  readonly size?: AppearanceSize;
+}
+
+/**
+ * `megamenu` authorized page-descriptor groups; each group becomes one native
+ * popover panel. `idPrefix` namespaces the popover ids; callers rendering
+ * two megamenus on one page must pass distinct prefixes. No `variant` prop:
+ * only solid is admitted upstream (a no-op base).
+ */
+export interface MegamenuProps {
+  readonly context: PresentationContext;
+  readonly label: MessageValue;
+  readonly groups: readonly NavigationGroup[];
+  readonly idPrefix?: string;
+  readonly size?: AppearanceSize;
+  readonly orientation?: AppearanceOrientation;
+}
+
+/**
+ * `pagination` collection page-window navigation. `page`/`pages` come from
+ * the enclosing collection's admitted cursor state; `hrefForPage` builds
+ * each destination (the caller preserves filter/order state). `window` caps
+ * the numbered buttons (default 7, minimum 5).
+ */
+export interface PaginationProps {
+  readonly context: PresentationContext;
+  readonly label: MessageValue;
+  readonly page: number;
+  readonly pages: number;
+  readonly hrefForPage: (page: number) => string;
+  readonly window?: number;
+  readonly prevLabel?: MessageValue;
+  readonly nextLabel?: MessageValue;
+}
+
+/** One finite theme choice: a pinned data-theme value plus its label. */
+export interface ThemeOption {
+  readonly value: string;
+  readonly label: MessageValue;
+}
+
+/**
+ * `themeController` no-JS theme-choice form over the shared Appearance path.
+ * `themes` lists the finite choices (every value must be pinned); `current`
+ * marks the active choice. Posts `theme=<value>` plus CSRF to `postTo`;
+ * radios preview live via the theme-controller hook, reset cancels.
+ */
+export interface ThemeControllerProps {
+  readonly context: PresentationContext;
+  readonly label: MessageValue;
+  readonly postTo: string;
+  readonly themes: readonly ThemeOption[];
+  readonly current?: string;
 }

@@ -387,11 +387,15 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
       renderExplicitControl dispatch (12 kinds), assertUniqueFieldPaths, multipart on file_input only
       (review: dead file-type branch dropped), renderField reuses label()/validator() fragments
       (byte-identical). Suite 504/504 green.
-- [ ] C5 groups + slots (branch muse/lane-05-ui/c5-groups, PR pending): contract v0.11.0
-      (32 Props/item/slot types), groups.ts 12 factories + overlays.ts 14 factories (Props moved
-      to contract, modules import), index exports, 26 catalog flips, arity pins. Suite 619/619.
-- [ ] C6 navigation + shared state: menu, navbar, dock, megamenu, theme_controller, pagination-in-collection,
-      button exclusive bindings (action/submit/target/opens). One worker + coordinator.
+- [x] C5 groups + slots (merged PR #68 as 9e47bf4, reviewed head, green): contract
+      v0.11.0 (32 Props/item/slot types + accordion caption), groups.ts 12 factories + overlays.ts
+      14 factories, index exports, 26 catalog flips, arity pins. Review: activation-id guard,
+      trigger shapes, accordion labelling, steps note, swap/diff/fab/hover gaps. Suite 623/623.
+- [ ] C6 navigation + shared state (branch muse/lane-05-ui/c6-navigation, PR pending):
+      contract v0.12.0 (10 Props types), navigation.ts +8 factories (Props moved to contract),
+      index exports, 8 catalog flips, arity pins. Coordinator hardening: label guards (7),
+      null-binding filter + opens typeof, button inputs via forms serializer, theme-controller
+      hook + cancel reset, megamenu group-caption check. Suite 685/685.
 - [ ] C7 collections + agenda + files + review: calendar (agenda dispatch), board, gallery (semantic),
       file/media controls, CSV import panel, company review.ts, date-picker adapter (JEV selection). Two workers.
 - [ ] C8 settings + panels: preferences sections/panels, tabs, details/drawer completion, history, copy
