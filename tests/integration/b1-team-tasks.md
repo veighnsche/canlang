@@ -36,8 +36,14 @@ no row passes until it executes against real components.
   index still exports only catalog/errors/types and the operation registry
   is interim (L1 has no op descriptors yet). B1.3/B1.4 now need: exported
   invocable surface + L1 op descriptors + L1 emission.
-- L6 S4 (PR #22 open): `createHttpHandler(deps, sub)` WHATWG handler aimed
-  at the L7 worker fetch seam — the B1 browser-leg consumer shape. Join
-  when merged: serve it via `startLocalDev` behind the worker entry.
-- L6: authenticated context for two local test users.
+- L6: `createHttpHandler(deps, sub)` WHATWG handler (S4 PR #22 open) is the
+  B1 browser-leg shape. Its `HttpDeps` doc names the L7 worker assembly as
+  the B1 constructor of deps from environment bindings: `{app, pages,
+  invoker, catalog, limiter, logger, clock, identity, secureCookies}`.
+  Production sources: L1 (registry/catalog/app), L3 (invoker), durable
+  rate-limit counters. Join on merge: `createWorkerApp` builds `HttpDeps`
+  from bindings + producer surfaces and serves the handler via
+  `startLocalDev`; no test-only fakes in the served path. Still needed from
+  L6: authenticated context for two local test users (S3 delivered
+  delegation chaining; the local two-user context helper is the B1 leg).
 - L5: page descriptor runtime for the browser leg.
