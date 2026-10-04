@@ -1,8 +1,9 @@
 /* Handwritten desired output. Full invocation values, provider normalization,
  * persistence, renderer and test runner are contracts, not implementations.
+ * Replan factories (breadcrumbs, pagination, badge, status, radio, textarea, select, text, content) are desired.
  * Canonical calls always retain the actual user; completion handlers only propose. */
 import {require as check,hasRole,same,records,collect,count,first,all,any,create,set,send,call,delivery,invocation,int64,compareInstant,addDuration,trim,date} from '@canlang/stdlib';
-import {message,renderPage,table,form,actions,history,card} from '@canlang/ui';
+import {message,renderPage,table,form,actions,history,card,text,content,badge,breadcrumbs,pagination,status,radio,textarea,select} from '@canlang/ui';
 import {staff,can_work} from './employee.mjs';
 import {complete} from './todo.mjs';
 async function eligible(c,person,run){return same(run.account,person)&&await staff(c,person)&&await can_work(c,person,run.location)&&run.targets.every(task=>same(task.location,run.location)&&task.archived_at===null);}
@@ -71,13 +72,27 @@ export function canApp(){return {
  workbenchPage,
 };}
 export async function workbenchPage(c,b){return renderPage(c,workbenchPageDescriptor,()=>[
- form({context:c,operation:'workbench.start'}),
- table({context:c,model:'workbench.Run',columns:['purpose','goal','steps','stopped','expires'],renderRow:async(run,view)=>[
+ /* desired-unimplemented: breadcrumbs, pagination, badge, status, radio, textarea, select, text, content. */
+ breadcrumbs({context:c}),
+ form({context:c,operation:'workbench.start',children:[radio({context:c,field:'purpose'}),textarea({context:c,field:'goal'}),select({context:c,field:'location'})]}),
+ table({context:c,model:'workbench.Run',columns:['purpose','goal','steps','stopped','expires'],empty:message('No sessions yet',{nl:'Nog geen sessies'}),renderRow:async(run,view)=>[
+  pagination({context:view}),
+  badge({context:view,value:run.purpose}),
+  text({context:view,values:[run.goal,run.steps,run.stopped,run.expires]}),
   actions({context:view,operations:['workbench.stop'],boundArgs:{run}}),
-  table({context:view,model:'workbench.Step',parent:run,columns:['ordinal','state','delivery_state','approved_by','approved_at']}),
+  table({context:view,items:run.targets,columns:['title','priority','done'],empty:message('No selected tasks',{nl:'Geen geselecteerde taken'}),renderRow:(task,taskView)=>[pagination({context:taskView})]}),
+  table({context:view,model:'workbench.Step',parent:run,columns:['ordinal','state','delivery_state','approved_by','approved_at'],empty:message('No steps yet',{nl:'Nog geen stappen'}),renderRow:(step,stepView)=>[
+   pagination({context:stepView}),
+   badge({context:stepView,value:step.state}),
+   status({context:stepView,value:step.delivery_state}),
+   text({context:stepView,values:[step.ordinal,step.approved_by,step.approved_at]})]}),
   card({context:view,title:message('Authorized context and suggestions',{nl:'Bevoegde context en suggesties'}),children:[
    actions({context:view,operations:['workbench.next'],boundArgs:{run}}),
-   table({context:view,model:'workbench.Step',parent:run,columns:['ordinal','state','input','proposal'],renderRow:(step,sv)=>[
+   table({context:view,model:'workbench.Step',parent:run,columns:['ordinal','state','input','proposal'],empty:message('No proposals yet',{nl:'Nog geen voorstellen'}),renderRow:(step,sv)=>[
+    pagination({context:sv}),
+    badge({context:sv,value:step.state}),
+    content({context:sv,value:step.proposal?.summary??null}),
+    text({context:sv,values:[step.ordinal,step.input,step.proposal?.call??null]}),
     actions({context:sv,operations:['workbench.approve','workbench.reject'],boundArgs:{step}}),history({context:sv,record:step})]})]})
  ]}),
 ]);}

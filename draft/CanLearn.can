@@ -145,38 +145,67 @@ package learn label="Learning"@{nl="Opleidingen"}
   # Read the exact enrolled content and acknowledge it without a separate testing DSL. @{nl="Lees de exacte ingeschreven inhoud en bevestig die zonder afzonderlijke testtaal."}
   page /learning/mine title="My learning"@{nl="Mijn opleidingen"}
    require authenticated
-   card "Own enrolled versions"@{nl="Eigen ingeschreven versies"}
-    tabs preferences.view
-    list Enrollment as enrollment where enrollment.account==actor and (preferences.view==all or (preferences.view==required and enrollment.parent.required) or (preferences.view==optional and not enrollment.parent.required) or (preferences.view==overdue and enrollment.due!=null and enrollment.due<local_date(now,team.timezone) and enrollment.active and enrollment.progress<100)) and (preferences.location==null or preferences.location in enrollment.parent.locations) and (preferences.audience==null or enrollment.parent.audience==preferences.audience) order={by=preferences.order,default=[due,parent.title],cases={title=[parent.title,due]}} display=split
-     badge row.active
-     text row.parent.title,row.parent.required,row.due,row.active
-     metrics row.progress,row.total
-     card "Lesson access unavailable; your acknowledgments remain in history."@{nl="Lesinhoud niet beschikbaar; je bevestigingen blijven in de historiek."}
-      require not row.active or not actor.email_verified or not eligible(actor,row.parent)
-      table row.Completion columns=author,completed order=completed
-     list row.parent.Lesson order=position display=split
+   breadcrumbs
+   tabs preferences.view
+   list Enrollment as enrollment where enrollment.account==actor and (preferences.view==all or (preferences.view==required and enrollment.parent.required) or (preferences.view==optional and not enrollment.parent.required) or (preferences.view==overdue and enrollment.due!=null and enrollment.due<local_date(now,team.timezone) and enrollment.active and enrollment.progress<100)) and (preferences.location==null or preferences.location in enrollment.parent.locations) and (preferences.audience==null or enrollment.parent.audience==preferences.audience) order={by=preferences.order,default=[due,parent.title],cases={title=[parent.title,due]}} display=split empty="No enrolled courses"@{nl="Geen ingeschreven cursussen"}
+    badge row.parent.audience
+    text row.parent.title,row.due
+    text row.active,row.parent.required
+    progress row.progress max=100
+    text row.total
+    alert
+     require not row.active or not actor.email_verified or not eligible(actor,row.parent)
+     text "Lesson access unavailable; your acknowledgments remain in history."@{nl="Lesinhoud niet beschikbaar; je bevestigingen blijven in de historiek."}
+    card "Acknowledgment history"@{nl="Bevestigingshistoriek"}
+     require not row.active or not actor.email_verified or not eligible(actor,row.parent)
+     table row.Completion columns=author,completed order=completed empty="No acknowledgments yet"@{nl="Nog geen bevestigingen"}
+      pagination
+    steps row.parent.Lesson
+     slot item
       title row.title
       content row.content
       text any(enrollment.Completion as acknowledgment,acknowledgment.lesson==row)
       form complete arguments={enrollment=enrollment,lesson=row}
+    pagination
 
   # Author and publish course versions and inspect attributed completion. @{nl="Maak en publiceer cursusversies en bekijk herleidbare afronding."}
   page /learning/courses title=page_learning_courses_title
    require instructor
+   breadcrumbs
    card page_learning_courses_title
     form Course.create
-    list Course as course where preferences.location==null or preferences.location in course.locations filter=audience,required defaults={audience=preferences.audience} search=title display=split
+     input title
+     radio audience
+     checkbox required
+     ## locations keeps its generated control (array input has no catalog control).
+    list Course as course where preferences.location==null or preferences.location in course.locations filter=audience,required defaults={audience=preferences.audience} search=title display=split empty="No courses yet"@{nl="Nog geen cursussen"}
+     badge row.audience
      edit
      tabs
       tab "Ordered draft lessons"@{nl="Geordende conceptlessen"}
        form DraftLesson.create
-       list row.DraftLesson order=position
+        input title
+        textarea content
+        input position
+       list row.DraftLesson order=position empty="No draft lessons yet"@{nl="Nog geen conceptlessen"}
         edit
         delete
+        pagination
        action publish
       tab "Published versions and enrollments"@{nl="Gepubliceerde versies en inschrijvingen"}
-       list row.Version
-        form enroll
-        table row.Enrollment columns=account,due,active,total,progress
+       list row.Version empty="No published versions yet"@{nl="Nog geen gepubliceerde versies"}
+        badge row.audience
+        button opens=enroll
+        modal "Enroll learner"@{nl="Deelnemer inschrijven"} id=enroll
+         slot content
+          form enroll arguments={version=row} display=inline
+           ## account:user stays generated: no user-picker vocabulary.
+           calendar due
+        table row.Enrollment columns=account,due,active,total,progress empty="No enrollments yet"@{nl="Nog geen inschrijvingen"}
+         progress row.progress max=100
          action withdraw
-         table row.Completion columns=lesson,author,completed order=completed
+         table row.Completion columns=lesson,author,completed order=completed empty="No acknowledgments yet"@{nl="Nog geen bevestigingen"}
+          pagination
+         pagination
+        pagination
+     pagination

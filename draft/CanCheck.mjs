@@ -20,15 +20,23 @@ import {
 } from "@canlang/stdlib";
 import {
   actions,
+  alert,
+  badge,
+  breadcrumbs,
   card,
-  details,
+  divider,
   history,
   message,
-  metrics,
+  pagination,
   renderPage,
+  stat,
+  status,
+  tab,
   table,
+  tabs,
   text,
-} from "@canlang/ui";
+  timeline,
+} from "@canlang/ui"; // desired/unimplemented additions: alert/badge/breadcrumbs/divider/pagination/stat/status/tab/tabs/timeline
 import { can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
 
@@ -539,6 +547,7 @@ export async function jobHealthPage(c, bindings) {
     c,
     jobHealthPageDescriptor,
     () => [
+      breadcrumbs({ context: c }),
       table({
         context: c,
         model: "check.Check",
@@ -562,37 +571,34 @@ export async function jobHealthPage(c, bindings) {
           location: c.preferences.check.location,
         },
         display: "split",
+        empty: message("No checks found", { nl: "Geen controles gevonden" }),
         renderRow: (job, view) => [
           card({
             context: view,
             title: message("Current recorded health", { nl: "Huidige vastgelegde gezondheid" }),
             children: [
-              // Migrated source adds `badge row.state` here; its desired emitted
-              // factory awaits the L5 producer contract, so no new @canlang/ui import is invented.
-              text({
-                context: view,
-                values: [
-                  job.purpose,
-                  job.state,
-                  job.enabled,
-                  job.last_ping,
-                  job.due,
-                  job.armed,
-                  job.revision,
-                ],
-              }),
+              badge({ context: view, value: job.state }),
+              text({ context: view, values: [job.purpose, job.application, job.location, job.owner] }),
+              text({ context: view, values: [job.enabled, job.armed, job.revision] }),
+              text({ context: view, values: [job.last_ping, job.due] }),
+              stat({ context: view, values: [job.period, job.grace] }),
               ...(job.last_ping === null
                 ? [
-                    card({
+                    alert({
                       context: view,
-                      title: message("No heartbeat received yet", {
-                        nl: "Nog geen heartbeat ontvangen",
-                      }),
-                      children: [],
+                      children: [
+                        text({
+                          context: view,
+                          values: [
+                            message("No heartbeat received yet. The first missed deadline marks this check down.", {
+                              nl: "Nog geen heartbeat ontvangen. De eerste gemiste deadline markeert deze controle als uitgevallen.",
+                            }),
+                          ],
+                        }),
+                      ],
                     }),
                   ]
                 : []),
-              metrics({ context: view, result: job, fields: ["period", "grace"] }),
               actions({
                 context: view,
                 operations: ["check.pause", "check.resume"],
@@ -600,30 +606,43 @@ export async function jobHealthPage(c, bindings) {
               }),
             ],
           }),
-          details({
+          divider({ context: view, caption: message("Recorded history", { nl: "Vastgelegde historiek" }) }),
+          tabs({
             context: view,
-            caption: message("Transition and recovery history", {
-              nl: "Overgangs- en herstelhistorie",
-            }),
             children: [
-              table({
+              tab({
                 context: view,
-                model: "check.Transition",
-                parent: job,
-                columns: ["from", "to", "occurred"],
-                order: ["-occurred"],
+                caption: message("Transitions", { nl: "Overgangen" }),
+                children: [
+                  timeline({
+                    context: view,
+                    model: "check.Transition",
+                    parent: job,
+                    renderItem: (t, tv) => [text({ context: tv, values: [t.from, t.to, t.occurred] })],
+                  }),
+                ],
               }),
-              table({
+              tab({
                 context: view,
-                model: "check.Notice",
-                parent: job,
-                columns: ["kind", "outcome", "detail", "occurred"],
-                order: ["-occurred"],
+                caption: message("Notifications", { nl: "Meldingen" }),
+                children: [
+                  table({
+                    context: view,
+                    model: "check.Notice",
+                    parent: job,
+                    columns: ["kind", "outcome", "detail", "occurred"],
+                    order: ["-occurred"],
+                    empty: message("No notifications yet", { nl: "Nog geen meldingen" }),
+                    renderRow: (notice, nv) => [status({ context: nv, value: notice.outcome })],
+                    children: [pagination({ context: view })],
+                  }),
+                ],
               }),
-              history({ context: view, record: job }),
             ],
           }),
+          history({ context: view, record: job }),
         ],
+        children: [pagination({ context: c })],
       }),
     ],
   );

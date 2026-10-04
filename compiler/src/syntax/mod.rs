@@ -7,9 +7,12 @@
 //! diagnostic each and parsing continues.
 //!
 //! This module implements the complete normative GRAMMAR.md, including the
-//! recorded prototype gaps (`delivery(path)` types, sequence-form
-//! examples, preference ordering, CSV form import attributes, page
-//! `refresh`, structured derived-field labels, CRUD `expose`).
+//! recorded prototype gaps (`delivery(path)` and `invocation(paths)`
+//! types, sequence-form examples, preference ordering, CSV form import
+//! attributes, page `refresh`, structured derived-field labels, CRUD
+//! `expose`), plus `corpus`/`judgment` declarations, `gallery`
+//! collections, `slot` items, `preferences` panels, `edit` suites and
+//! generic catalog component items (word/option membership is analysis).
 //!
 //! ## Diagnostic catalog (E1xxx)
 //!
