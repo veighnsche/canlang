@@ -20,6 +20,7 @@ import {
   radio,
   remove,
   renderPage,
+  select,
   slot,
   table,
   tabs,
