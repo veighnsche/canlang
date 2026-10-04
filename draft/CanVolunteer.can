@@ -205,40 +205,76 @@ package volunteer label="Volunteering"@{nl="Vrijwilligerswerk"}
  Then
   # Discover activities and follow only your own assignments. @{nl="Ontdek activiteiten en volg alleen je eigen opdrachten."}
   page /volunteering title="Volunteer activities"@{nl="Vrijwilligersactiviteiten"}
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
    tabs preferences.view
     tab discovery
      card "Published volunteer activities"@{nl="Gepubliceerde vrijwilligersactiviteiten"}
       list Opportunity filter=location defaults={location=preferences.location} order=from
-       text row.description,row.requirements,row.timezone,row.from,row.until,row.capacity
+       pagination
+       badge row.capacity
+       text row.description,row.requirements,row.timezone,row.from,row.until
        form availability
-        metrics result.remaining
-       action signup
+        stat result.remaining
+       button action=signup
     tab assignments
      require authenticated
      card "Your signups and assigned tasks"@{nl="Jouw inschrijvingen en toegewezen taken"}
       list Signup as signup where signup.account==actor display=split
-       text choose(row.cancelled,cancelled,row.state),row.needs_confirmation,row.notification?.status
+       pagination
+       status row.state
+       status row.cancelled
+       status row.needs_confirmation
+       text row.notification?.status
        actions withdraw,reactivate,reconfirm
        list row.Task
         text row.title,row.done,row.completed_by,row.completed_at
-        action complete
+        button action=complete
+       ## Per-signup history shows the volunteer's own state-transition audit under the own grant.
+       history
   # Coordinate confirmed participants and entered attendance. @{nl="Coördineer bevestigde deelnemers en ingevoerde aanwezigheid."}
   page /volunteering/work title="Volunteer coordination"@{nl="Vrijwilligerscoördinatie"}
    require organizer
+   breadcrumbs
    card "Opportunity authoring"@{nl="Activiteiten opstellen"}
     form Community.create
     list Community
      form Opportunity.create
+      ## The community parent auto-binds; contact, timezone, instants and capacity keep generated controls.
+      fieldset "New activity"@{nl="Nieuwe activiteit"}
+       select location
+       input title
+       textarea description
+       textarea requirements
+       select venue
     list Opportunity filter=location defaults={location=preferences.location} order=from display=split
+     pagination
      edit
-     text row.venue,row.venue_confirmed,row.remaining
+     badge row.remaining
+     status row.open
+     status row.cancelled
+     status row.venue_confirmed
+     text row.venue
      form link_venue
+      select venue
      form reschedule
+      select venue
+      textarea reason
      actions publish,cancel
      card "Participants and attendance"@{nl="Deelnemers en aanwezigheid"}
       list row.Signup
-       text row.email,choose(row.cancelled,cancelled,row.state),row.needs_confirmation,row.notification?.status
-       actions confirm,attendance
+       pagination
+       status row.state
+       status row.cancelled
+       status row.needs_confirmation
+       text row.email,row.notification?.status
+       actions confirm
+       button opens=attendance_dialog
+       ## The dialog keeps the signup row; attendance is the only entered input.
+       modal "Record attendance"@{nl="Aanwezigheid vastleggen"} id=attendance_dialog
+        slot content
+         form attendance arguments={signup=row} display=inline
+          toggle attend
        card "Task assignments"@{nl="Taaktoewijzingen"}
         form Task.create
        history
