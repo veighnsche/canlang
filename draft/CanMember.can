@@ -893,7 +893,6 @@ package member_content
      textarea body
      checkbox published
      file_input attachment
-     checkbox staff_only
    list Content empty="No member information yet"@{nl="Nog geen ledeninformatie"} display=split
     text row.published
     edit
