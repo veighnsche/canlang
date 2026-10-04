@@ -181,7 +181,6 @@ package chat
    examples seed=[question] event={delivery_id=observed_request.id}
     observed_request.result,pending_run.unfinished,held_tokens.running -> pending_run.used,held_tokens.held,held_tokens.spent,held_tokens.running,count(branch.Turn)
     TextRun {source="chat-fixture",revision=1,sequence=2,state=cancelled,content="",used_tokens=42,detail=null},false,0 -> 42,0,42,0,1
-
  Then
   # Read current authorized snapshots; reconnecting never resubmits a message. @{nl="Lees actuele toegestane momentopnamen; opnieuw verbinden verstuurt nooit opnieuw een bericht."}
   page /chat title="Conversations"@{nl="Gesprekken"} poll=1s
@@ -257,7 +256,6 @@ package chat
      input provider_key
      input policy_revision
      textarea system_prompt
-     checkbox active
     fieldset "Limits"@{nl="Limieten"}
      range input_tokens
      range output_tokens

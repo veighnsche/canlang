@@ -2,7 +2,7 @@ import { require as check,hasRole,active_member,same,records,first,count,any,int
 import { message,renderPage,list,gallery,table,form,actions,content,text,title,edit,breadcrumbs,pagination,badge,status,loading,chat_bubble,alert,fieldset,input,textarea,select,range,checkbox,file_input } from "@canlang/ui";
 // Desired lowering: breadcrumbs, pagination, badge, status, loading, chat_bubble,
 // alert, fieldset, file_input and placed controls are proposed @canlang/ui
-// contracts (desired/unimplemented). gallery kept without pagination.
+// contracts (desired/unimplemented). gallery with empty+pagination (collection, GRAMMAR L419).
 import { Conversation,Branch,Turn,can_use } from "./chat.mjs";
 /* Handwritten desired target, not implemented code generation/runtime. ImagesV1
  * owns safe graph inspection, allowlist validation, durable provider correlation,
@@ -167,8 +167,7 @@ export async function workflowsPage(c){return renderPage(c,workflowsDescriptor,(
    input({context:c,field:"height_key"})]}),
   fieldset({context:c,caption:message("Limits",{nl:"Limieten"}),children:[
    range({context:c,field:"outputs"}),
-   input({context:c,field:"duration"}),
-   checkbox({context:c,field:"active"})]})]}),
+   input({context:c,field:"duration"})]})]}),
  list({context:c,model:"creative.Template",where:r=>same(r.owner,c.actor),empty:message("No workflow templates yet",{nl:"Nog geen workflowsjablonen"}),renderRow:async(template,tv)=>{
   const inspection=await delivery(tv,{record:template,field:"inspection"},["status","result.fields"]);
   return [pagination({context:tv}),title({context:tv,value:template.name}),edit({context:tv,operation:"creative.Template.update",record:template}),actions({context:tv,operations:["creative.inspect"],boundArgs:{template}}),text({context:tv,values:[inspection?.status??null]}),list({context:tv,items:inspection?.result?.fields??[],empty:message("No input fields found",{nl:"Geen invoervelden gevonden"}),renderRow:(row,rv)=>[pagination({context:rv}),text({context:rv,values:[row.node,row.key,row.kind,row.label]})]}),actions({context:tv,operations:["creative.validate"],boundArgs:{template}}),list({context:tv,model:"creative.Revision",parent:template,order:["-number"],empty:message("No revisions yet",{nl:"Nog geen versies"}),renderRow:async(revision,rv)=>[pagination({context:rv}),text({context:rv,values:[revision.number,revision.published,(await delivery(rv,{record:revision,field:"validation"},["status"]))?.status??null,revision.digest]}),actions({context:rv,operations:["creative.publish"],boundArgs:{revision}})]})];}}),

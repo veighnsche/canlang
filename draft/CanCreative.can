@@ -183,7 +183,6 @@ package creative
    examples seed=[pending_run] event={delivery_id=observed_request.id}
     observed_request.result,pending_run.unfinished,held_budget.running -> pending_run.used,held_budget.held,held_budget.spent,held_budget.running
     ImageRun {source="creative-pending",revision=1,sequence=3,state=cancelled,outputs=[],charged_jobs=1,detail=null},false,0 -> 1,0,1,0
-
  Then
   page /creative title="Image studio"@{nl="Beeldstudio"} poll=1s
    require members
@@ -262,7 +261,6 @@ package creative
     fieldset "Limits"@{nl="Limieten"}
      range outputs
      input duration
-     checkbox active
    list Template as template where template.owner==actor empty="No workflow templates yet"@{nl="Nog geen workflowsjablonen"}
     pagination
     title row.name

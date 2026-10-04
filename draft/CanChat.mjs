@@ -220,8 +220,7 @@ export async function adminPage(c){return renderPage(c,adminDescriptor,()=>[
       input({context:c,field:"name"}),
       input({context:c,field:"provider_key"}),
       input({context:c,field:"policy_revision"}),
-      textarea({context:c,field:"system_prompt"}),
-      checkbox({context:c,field:"active"})]}),
+      textarea({context:c,field:"system_prompt"})]}),
     fieldset({context:c,caption:message("Limits",{nl:"Limieten"}),children:[
       range({context:c,field:"input_tokens"}),
       range({context:c,field:"output_tokens"}),
