@@ -97,11 +97,11 @@ const MAPPING: Record<string, WordMapping> = {
   select: { css: ["components/select.css"], base: "select" },
   skeleton: { css: ["components/skeleton.css"], base: "skeleton", omit: "base class only upstream (unlike loading, no size scale)" },
   stack: { css: ["components/stack.css"], base: "stack", omit: "placement classes only; no admittable dimension" },
-  stat: { css: ["components/stat.css"], base: "stats", orientBase: "stats" },
+  stat: { css: ["components/stat.css"], base: "stats" },
   status: { css: ["components/status.css"], base: "status" },
   steps: { css: ["components/steps.css"], base: "steps", toneBase: "step" },
   swap: { css: ["components/swap.css"], base: "swap", omit: "no tone/size/variant/orientation scale" },
-  tabs: { css: ["components/tab.css"], base: "tabs", sizeBase: "tabs" },
+  tabs: { css: ["components/tab.css"], base: "tabs" },
   table: { css: ["components/table.css"], base: "table" },
   text_rotate: { css: ["components/textrotate.css"], base: "text-rotate", omit: "base class only upstream" },
   textarea: { css: ["components/textarea.css"], base: "textarea" },
@@ -227,6 +227,24 @@ describe("appearance substantiation", () => {
       }
     }
     assert.ok(substantiated > 0, "no appearance tokens substantiated");
+  });
+
+  it("never justifies an appearance block by solid alone", () => {
+    for (const entry of UI_CATALOG.entries) {
+      const appearance = entry.appearance;
+      if (appearance === undefined) {
+        continue;
+      }
+      const variants = appearance.variant ?? [];
+      const solidOnly =
+        variants.length === 1 &&
+        variants[0] === "solid" &&
+        (appearance.tone ?? []).length === 0 &&
+        (appearance.size ?? []).length === 0 &&
+        (appearance.orientation ?? []).length === 0 &&
+        appearance.caption !== true;
+      assert.ok(!solidOnly, `${entry.id} admits appearance for solid alone`);
+    }
   });
 
   it("admits caption exactly on the design-table caption words", () => {
