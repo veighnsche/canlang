@@ -23,7 +23,7 @@ import type { DeliveryStatus } from "./services.js";
 export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
 export type { DeliveryStatus } from "./services.js";
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.4.0";
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.5.0";
 
 /**
  * Name of the hidden CSRF field in every canonical POST form. Rendered by
@@ -419,11 +419,10 @@ export interface ContentProps {
 export interface SharedStateProps {
   readonly context: PresentationContext;
   /**
-   * Rendered state. "no-match" (filtered-empty with clear-filters affordance)
-   * extends this union in the S5 collections-controls slice; validation,
-   * conflict and pending outcomes arrive with S4 forms.
+   * Rendered state. "no-match" is filtered-empty with a clear-filters
+   * affordance; validation, conflict and pending outcomes arrive with forms.
    */
-  readonly kind: "loading" | "empty" | "error";
+  readonly kind: "loading" | "empty" | "no-match" | "error";
   readonly message: MessageValue;
   readonly detail?: MessageValue;
 }
@@ -437,6 +436,8 @@ export interface ListProps {
   readonly cursor?: string;
   readonly empty: MessageValue;
   readonly renderRow: (row: RowView, view: PresentationContext) => PageChildren;
+  /** Search/filter/order/pagination/export toolbar; absent renders rows only. */
+  readonly controls?: CollectionControls;
 }
 
 export interface TableProps {
@@ -448,6 +449,8 @@ export interface TableProps {
   readonly cursor?: string;
   readonly columns: readonly string[];
   readonly empty: MessageValue;
+  /** Search/filter/order/pagination/export toolbar; absent renders rows only. */
+  readonly controls?: CollectionControls;
 }
 
 /**
@@ -587,4 +590,126 @@ export interface ActionProps {
 export interface ActionsProps {
   readonly context: PresentationContext;
   readonly actions: ReadonlyArray<Omit<ActionProps, "context">>;
+}
+
+// ---------------------------------------------------------------------------
+// S5: collection controls (DESIGN §9 query-state toolbar)
+// ---------------------------------------------------------------------------
+
+/** Closed generated filter-operator matrix; unknown operators fail closed. */
+export type FilterOperator =
+  | "eq"
+  | "ne"
+  | "lt"
+  | "lte"
+  | "gt"
+  | "gte"
+  | "between"
+  | "is_null"
+  | "not_null";
+
+/** One active typed filter condition; `between` uses value+upper, null modes none. */
+export interface FilterCondition {
+  readonly field: string;
+  readonly op: FilterOperator;
+  readonly value?: unknown;
+  readonly upper?: unknown;
+}
+
+/** Literal search over declared readable fields (accepted state, not a predicate). */
+export interface CollectionSearch {
+  readonly query: string;
+}
+
+/** One concrete order selector; preference-dispatch resolves server-side. */
+export interface OrderSelector {
+  readonly field: string;
+  readonly direction: "asc" | "desc";
+}
+
+/** Opaque query-bound cursor pagination state. */
+export interface CollectionPagination {
+  readonly nextCursor?: string;
+  readonly prevCursor?: string;
+}
+
+/**
+ * Accepted collection control state rendered as toolbar + pagination chrome.
+ * All request targets are dispatcher-supplied; lane 05 serializes only the
+ * closed accepted shapes above into query strings, never client predicates.
+ */
+export interface CollectionControls {
+  readonly context: PresentationContext;
+  /** Stable automatic-region id wrapping rows + toolbar (opaque, validated shape). */
+  readonly regionId: string;
+  /** Dispatcher-supplied GET target for control/pagination requests. */
+  readonly baseHref: string;
+  readonly search?: CollectionSearch;
+  readonly filters?: ReadonlyArray<FilterCondition>;
+  readonly order?: ReadonlyArray<OrderSelector>;
+  readonly pagination?: CollectionPagination;
+  /** Dispatcher-supplied shared export/print targets; absent omits the control. */
+  readonly exportHref?: string;
+  readonly printHref?: string;
+}
+
+// ---------------------------------------------------------------------------
+// S5: HTMX fragments, swap config, poll/refresh (DESIGN §9)
+// ---------------------------------------------------------------------------
+
+/**
+ * Lane-05 swap vocabulary mapped to HTMX 4 strategies. "morph" is the
+ * default (outerMorph on regions); "replace" is explicit-reset only;
+ * "append"/"prepend" serve infinite-scroll/load-more; "none" skips the swap.
+ */
+export type SwapStrategy = "morph" | "replace" | "append" | "prepend" | "none";
+
+/** Per-status swap override emitted as `hx-status:` attributes. */
+export interface StatusSwap {
+  /** Status selector: exact code ("422") or class wildcard ("5xx"). */
+  readonly status: string;
+  readonly target: string;
+  readonly swap: SwapStrategy;
+  readonly select?: string;
+}
+
+/**
+ * Declarative HTMX request description rendered as hx-* attributes.
+ * URLs always come from the dispatcher; lane 05 never invents routes.
+ */
+export interface HtmxRequest {
+  readonly method: "get" | "post";
+  readonly href: string;
+  readonly target: string;
+  readonly swap?: SwapStrategy;
+  readonly trigger?: string;
+  readonly indicator?: string;
+  readonly statusSwaps?: ReadonlyArray<StatusSwap>;
+  readonly pushUrl?: boolean;
+}
+
+/** Automatic read-region wrapper: stable id + morph default + stale marking slot. */
+export interface FragmentRegionProps {
+  readonly context: PresentationContext;
+  readonly regionId: string;
+  readonly content: PageChildren;
+  readonly label: MessageValue;
+}
+
+/**
+ * Poll declaration: authorized GET reread of one region at a fixed cadence.
+ * Interval is seconds, 1..3600 per DESIGN poll bounds; omission means no poll.
+ */
+export interface PollProps {
+  readonly context: PresentationContext;
+  readonly regionId: string;
+  readonly href: string;
+  readonly intervalSeconds: number;
+}
+
+/** Failed/stale read marker left on a region after correctable reread failure. */
+export interface StaleMarkerProps {
+  readonly context: PresentationContext;
+  readonly regionId: string;
+  readonly message: MessageValue;
 }
