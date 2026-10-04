@@ -82,7 +82,23 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
-## Slice 5: full replans Contract/Stock/Catch/CRM (branch muse/frontend-catalog-migration/slice-05-replan-1, in progress)
+## Slice 6: full replans Refer/Shift/Time/Volunteer (branch muse/frontend-catalog-migration/slice-06-replan-j1, in progress)
+
+Paths: draft/CanRefer/CanShift/CanTime/CanVolunteer (.can+.md+.mjs each) + this status file.
+Source: lane-J read-only planning spec (/tmp/laneJ-spec.md), applied + corrected by coordinator.
+Coordinator corrections to spec: history kept per-advocate-row (Refer, spec misread indent); .md deltas
+rewritten where the spec described controls absent from the new Then (Refer work rows, Time timer card,
+Volunteer discovery/own-task rows); breadcrumbs added per page (spec omitted); countdown/progress
+rejections kept per handoff notes. Given/When byte-identical (single Then hunk per file: Refer L160/Then
+L159, Shift L349/Then L348, Time L251/Then L250, Volunteer L207/Then L207). Witnesses: full-file desired
+.mjs lowerings, node --check clean, proposed @canlang/ui labeled desired/unimplemented.
+Drift: +84 E1200 (Refer 18, Shift 18, Time 24, Volunteer 24); 26 files FAIL (22 pre-existing on main:
+previous 16 + 6 newly merged apps). Prototype parser: Refer stops at breadcrumbs (expected new vocab);
+Shift/Time/Volunteer stop at pre-existing Given/When gaps byte-identical on HEAD baseline.
+Scope growth: 10 formerly owner-held apps merged to main and enter scope (Chat, Creative, Decide, Discover,
+Enrich, Gallery, Inbox, Knowledge, Sync, Workbench): 39 -> 49 draft apps. Added to lane-I planning scope.
+
+## Slice 5: full replans Contract/Stock/Catch/CRM (merged as a064536, PR #58)
 
 Paths: draft/CanContract (.can; .md verified no-change), CanStock (.can+.mjs; .md verified no-change),
 CanCatch (.can+.md), CanCRM (.can+.md+.mjs) + this status file.

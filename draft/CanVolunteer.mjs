@@ -24,19 +24,33 @@ import {
   set,
   subtractDuration,
 } from "@canlang/stdlib";
+/* Desired, unimplemented @canlang/ui contracts. Every factory below is proposed;
+ * none is an installed export and this file never runs. See file header. */
 import {
   actions,
+  badge,
+  breadcrumbs,
+  button,
   card,
   edit,
+  fieldset,
   form,
   history,
+  input,
   list,
   message,
-  metrics,
+  modal,
+  pagination,
   renderPage,
+  select,
+  slot,
+  stat,
+  status,
   tab,
   tabs,
   text,
+  textarea,
+  toggle,
 } from "@canlang/ui";
 import { can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -51,6 +65,14 @@ import { Booking, can_read_booking_details } from "./rent_reservations.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * UI sections mirror the replanned CanVolunteer.can Then: breadcrumbs,
+ * capacity/remaining badges, state/open/cancelled/venue statuses,
+ * signup/task buttons, availability stat, authoring fieldset, placed
+ * venue/reason controls, attendance modal, paginated lists, and per-signup
+ * history. stat replaces metrics under their shared typed-metric contract.
+ * Lowercase UI factories take one props object; slots are prop arrays. All
+ * UI imports and calls are desired/unimplemented. This file passes
+ * node --check (syntax only) and never runs.
  */
 
 const cancelled = message("Cancelled", { nl: "Geannuleerd" });
@@ -1131,6 +1153,8 @@ export async function activitiesPage(c, bindings) {
     c,
     activitiesPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       tabs({
         context: c,
         selector: "volunteer.preferences.view",
@@ -1153,6 +1177,10 @@ export async function activitiesPage(c, bindings) {
                     defaults: { location: c.preferences.volunteer.location },
                     order: ["from"],
                     renderRow: (opportunity, v) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: v }),
+                      /* desired-unimplemented: badge presents a readable typed value. */
+                      badge({ context: v, value: opportunity.capacity }),
                       text({
                         context: v,
                         values: [
@@ -1161,7 +1189,6 @@ export async function activitiesPage(c, bindings) {
                           opportunity.timezone,
                           opportunity.from,
                           opportunity.until,
-                          opportunity.capacity,
                         ],
                       }),
                       form({
@@ -1169,14 +1196,12 @@ export async function activitiesPage(c, bindings) {
                         operation: "volunteer.availability",
                         arguments: { opportunity },
                         renderResult: (result, scope) => [
-                          metrics({ context: scope, result, fields: ["remaining"] }),
+                          /* desired-unimplemented: stat shares the metric contract. */
+                          stat({ context: scope, result, fields: ["remaining"] }),
                         ],
                       }),
-                      actions({
-                        context: v,
-                        operations: ["volunteer.signup"],
-                        boundArgs: { opportunity },
-                      }),
+                      /* desired-unimplemented: button action lowers to the canonical binding. */
+                      button({ context: v, action: "volunteer.signup", arguments: { opportunity } }),
                     ],
                   }),
                 ],
@@ -1201,11 +1226,15 @@ export async function activitiesPage(c, bindings) {
                           where: (signup) => same(signup.account, c.actor),
                           display: "split",
                           renderRow: async (signup, v) => [
+                            /* desired-unimplemented: pagination consumes this collection cursor. */
+                            pagination({ context: v }),
+                            /* desired-unimplemented: status presents readable typed values. */
+                            status({ context: v, value: signup.state }),
+                            status({ context: v, value: signup.cancelled }),
+                            status({ context: v, value: signup.needs_confirmation }),
                             text({
                               context: v,
                               values: [
-                                choose(signup.cancelled, "cancelled", signup.state),
-                                signup.needs_confirmation,
                                 (await delivery(v, { record: signup, field: "notification" }, ["status"]))?.status ?? null,
                               ],
                             }),
@@ -1227,13 +1256,11 @@ export async function activitiesPage(c, bindings) {
                                   context: tv,
                                   values: [task.title, task.done, task.completed_by, task.completed_at],
                                 }),
-                                actions({
-                                  context: tv,
-                                  operations: ["volunteer.complete"],
-                                  boundArgs: { task },
-                                }),
+                                /* desired-unimplemented: button action lowers to the canonical binding. */
+                                button({ context: tv, action: "volunteer.complete", arguments: { task } }),
                               ],
                             }),
+                            history({ context: v, record: signup }),
                           ],
                         }),
                       ],
@@ -1253,6 +1280,8 @@ export async function workPage(c, bindings) {
     c,
     workPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Opportunity authoring", { nl: "Activiteiten opstellen" }),
@@ -1266,6 +1295,21 @@ export async function workPage(c, bindings) {
                 context: scope,
                 operation: "volunteer.Opportunity.create",
                 arguments: { parent: community },
+                /* desired-unimplemented: fieldset groups explicitly placed controls. */
+                children: [
+                  fieldset({
+                    context: scope,
+                    caption: message("New activity", { nl: "Nieuwe activiteit" }),
+                    children: [
+                      /* desired-unimplemented: select/input/textarea place generated controls. */
+                      select({ context: scope, field: "location" }),
+                      input({ context: scope, field: "title" }),
+                      textarea({ context: scope, field: "description" }),
+                      textarea({ context: scope, field: "requirements" }),
+                      select({ context: scope, field: "venue" }),
+                    ],
+                  }),
+                ],
               }),
             ],
           }),
@@ -1277,13 +1321,36 @@ export async function workPage(c, bindings) {
             order: ["from"],
             display: "split",
             renderRow: (opportunity, v) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: v }),
               edit({ context: v, operation: "volunteer.Opportunity.update", record: opportunity }),
+              /* desired-unimplemented: badge presents a readable typed value. */
+              badge({ context: v, value: opportunity.remaining }),
+              /* desired-unimplemented: status presents readable typed values. */
+              status({ context: v, value: opportunity.open }),
+              status({ context: v, value: opportunity.cancelled }),
+              status({ context: v, value: opportunity.venue_confirmed }),
               text({
                 context: v,
-                values: [opportunity.venue, opportunity.venue_confirmed, opportunity.remaining],
+                values: [opportunity.venue],
               }),
-              form({ context: v, operation: "volunteer.link_venue", arguments: { opportunity } }),
-              form({ context: v, operation: "volunteer.reschedule", arguments: { opportunity } }),
+              form({
+                context: v,
+                operation: "volunteer.link_venue",
+                arguments: { opportunity },
+                /* desired-unimplemented: placed select moves the generated control. */
+                children: [select({ context: v, field: "venue" })],
+              }),
+              form({
+                context: v,
+                operation: "volunteer.reschedule",
+                arguments: { opportunity },
+                /* desired-unimplemented: placed select/textarea move the generated controls. */
+                children: [
+                  select({ context: v, field: "venue" }),
+                  textarea({ context: v, field: "reason" }),
+                ],
+              }),
               actions({
                 context: v,
                 operations: ["volunteer.publish", "volunteer.cancel"],
@@ -1298,19 +1365,47 @@ export async function workPage(c, bindings) {
                     model: "volunteer.Signup",
                     parent: opportunity,
                     renderRow: async (signup, sv) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: sv }),
+                      /* desired-unimplemented: status presents readable typed values. */
+                      status({ context: sv, value: signup.state }),
+                      status({ context: sv, value: signup.cancelled }),
+                      status({ context: sv, value: signup.needs_confirmation }),
                       text({
                         context: sv,
                         values: [
                           signup.email,
-                          choose(signup.cancelled, "cancelled", signup.state),
-                          signup.needs_confirmation,
                           (await delivery(sv, { record: signup, field: "notification" }, ["status"]))?.status ?? null,
                         ],
                       }),
                       actions({
                         context: sv,
-                        operations: ["volunteer.confirm", "volunteer.attendance"],
+                        operations: ["volunteer.confirm"],
                         boundArgs: { signup },
+                      }),
+                      /* desired-unimplemented: button opens activates the local modal. */
+                      button({ context: sv, opens: "attendance_dialog" }),
+                      /* desired-unimplemented: modal declares the local activation identity. */
+                      modal({
+                        context: sv,
+                        caption: message("Record attendance", { nl: "Aanwezigheid vastleggen" }),
+                        id: "attendance_dialog",
+                        children: [
+                          slot({
+                            context: sv,
+                            name: "content",
+                            children: [
+                              form({
+                                context: sv,
+                                operation: "volunteer.attendance",
+                                arguments: { signup },
+                                display: "inline",
+                                /* desired-unimplemented: placed toggle moves the generated control. */
+                                children: [toggle({ context: sv, field: "attend" })],
+                              }),
+                            ],
+                          }),
+                        ],
                       }),
                       card({
                         context: sv,
