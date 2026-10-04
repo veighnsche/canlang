@@ -635,12 +635,26 @@ describe("button", () => {
       withExtra({ context: makeContext(), target: "/reviews" }, { opens: null }),
     );
     assert.ok(html.includes(`<a class="btn" href="/reviews">`), html);
+    const targetWins = await button(
+      withExtra({ context: makeContext(), target: "/x" }, { submit: null }),
+    );
+    assert.ok(targetWins.includes(`<a class="btn" href="/x">`), targetWins);
+    const submitWins = await button(
+      withExtra({ context: makeContext(), caption: "Save", submit: true }, { target: null }),
+    );
+    assert.ok(submitWins.includes(`<button type="submit"`), submitWins);
+    await assert.rejects(
+      button(withExtra({ context: makeContext() }, { submit: null, target: null })),
+      /exactly one/,
+    );
   });
 
   it("escapes captions and falls back hostile targets to #", async () => {
     const html = await button({ context: makeContext(), target: `javascript:alert(1)` });
     assert.ok(html.includes(`href="#"`), html);
     assert.ok(!html.includes(`href="javascript:`), html);
+    // The link precedent: fallback keeps the escaped raw target as text.
+    assert.ok(html.includes(`>javascript:alert(1)</a>`), html);
     const xss = await button({ context: makeContext(), caption: XSS, submit: true });
     assert.ok(!xss.includes("<script>"), xss);
     assert.ok(xss.includes("&lt;script&gt;"), xss);
@@ -814,12 +828,9 @@ describe("navbar", () => {
   });
 
   it("accepts only the solid variant and rejects other tokens", async () => {
-    const bare = await navbar({
-      context: makeContext(),
-      label: "Top",
-      entries,
-      variant: "solid",
-    });
+    const bare = await navbar(
+      withExtra({ context: makeContext(), label: "Top", entries }, { variant: "solid" }),
+    );
     assert.ok(bare.includes(`<div class="navbar">`), bare);
     const props = { context: makeContext(), label: "Top", entries };
     await assert.rejects(
@@ -927,6 +938,25 @@ describe("megamenu", () => {
     assert.ok(html.includes(`id="siteNav-1"`), html);
   });
 
+  it("keeps two megamenus disjoint under distinct prefixes", async () => {
+    const first = await megamenu({
+      context: makeContext(),
+      label: "A",
+      groups,
+      idPrefix: "navA",
+    });
+    const second = await megamenu({
+      context: makeContext(),
+      label: "B",
+      groups,
+      idPrefix: "navB",
+    });
+    assert.ok(first.includes(`id="navA-0"`), first);
+    assert.ok(!first.includes("navB-"), first);
+    assert.ok(second.includes(`id="navB-0"`), second);
+    assert.ok(!second.includes("navA-"), second);
+  });
+
   it("resolves group captions and entry titles by locale", async () => {
     const html = await megamenu({
       context: makeContext({ preferredLocales: ["nl"] }),
@@ -957,6 +987,12 @@ describe("megamenu", () => {
     );
     await assert.rejects(
       megamenu({ context: makeContext(), label: "S", groups, idPrefix: "9bad" }),
+      /must match/,
+    );
+    await assert.rejects(
+      megamenu(
+        withExtra({ context: makeContext(), label: "S", groups }, { idPrefix: 5 }),
+      ),
       /must match/,
     );
   });
@@ -1098,6 +1134,19 @@ describe("pagination", () => {
     });
     assert.deepEqual(pageNumbers(html), ["1", "9", "10", "11", "20"]);
     assert.equal(ellipsisCount(html), 2);
+  });
+
+  it("pins first/last with a single gap at one past the window", async () => {
+    const html = await pagination({
+      context: makeContext(),
+      label: "Pages",
+      page: 4,
+      pages: 8,
+      hrefForPage,
+    });
+    assert.deepEqual(pageNumbers(html), ["1", "2", "3", "4", "5", "6", "8"]);
+    assert.equal(ellipsisCount(html), 1);
+    assert.equal(new Set(pageNumbers(html)).size, pageNumbers(html).length);
   });
 
   it("uses caller hrefs verbatim and escapes them for the attribute sink", async () => {

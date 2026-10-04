@@ -1378,19 +1378,21 @@ export interface ButtonProps {
 /**
  * `menu` semantic nav list. `entries` are declared destinations or canonical
  * action controls from the authorized descriptors; `label` names the nav.
+ * No `variant` prop: only solid is admitted upstream (a no-op base), so
+ * callers cannot name a failing variant (the divider precedent).
  */
 export interface MenuProps {
   readonly context: PresentationContext;
   readonly label: MessageValue;
   readonly entries: readonly NavigationEntry[];
   readonly size?: AppearanceSize;
-  readonly variant?: AppearanceVariant;
   readonly orientation?: AppearanceOrientation;
 }
 
 /**
  * `navbar` shared navigation presentation. `entries` render as the center
  * nav list; `start`/`end` are optional trusted slots (brand, tools).
+ * No `variant` prop: only solid is admitted upstream (a no-op base).
  */
 export interface NavbarProps {
   readonly context: PresentationContext;
@@ -1398,22 +1400,24 @@ export interface NavbarProps {
   readonly entries: readonly NavigationEntry[];
   readonly start?: PageChildren;
   readonly end?: PageChildren;
-  readonly variant?: AppearanceVariant;
 }
 
-/** `dock` bottom-bar presentation of canonical authorized destinations. */
+/**
+ * `dock` bottom-bar presentation of canonical authorized destinations.
+ * No `variant` prop: only solid is admitted upstream (a no-op base).
+ */
 export interface DockProps {
   readonly context: PresentationContext;
   readonly label: MessageValue;
   readonly entries: readonly NavigationEntry[];
   readonly size?: AppearanceSize;
-  readonly variant?: AppearanceVariant;
 }
 
 /**
  * `megamenu` authorized page-descriptor groups; each group becomes one native
  * popover panel. `idPrefix` namespaces the popover ids; callers rendering
- * two megamenus on one page must pass distinct prefixes.
+ * two megamenus on one page must pass distinct prefixes. No `variant` prop:
+ * only solid is admitted upstream (a no-op base).
  */
 export interface MegamenuProps {
   readonly context: PresentationContext;
@@ -1421,7 +1425,6 @@ export interface MegamenuProps {
   readonly groups: readonly NavigationGroup[];
   readonly idPrefix?: string;
   readonly size?: AppearanceSize;
-  readonly variant?: AppearanceVariant;
   readonly orientation?: AppearanceOrientation;
 }
 

@@ -436,7 +436,7 @@ export async function button(props: ButtonProps): Promise<string> {
       `<button type="submit" class="${cls}">${text}</button></form>`
     );
   }
-  if (props.submit !== undefined) {
+  if (props.submit !== undefined && props.submit !== null) {
     if (props.submit !== true) {
       throw new Error("button submit must be true when present");
     }
@@ -445,7 +445,7 @@ export async function button(props: ButtonProps): Promise<string> {
     }
     return `<button type="submit" class="${cls}">${override}</button>`;
   }
-  if (props.target !== undefined) {
+  if (props.target !== undefined && props.target !== null) {
     requireText("button", "target", props.target);
     const text = override ?? escapeHtml(props.target);
     return `<a class="${cls}" href="${escapeAttr(safeHref(props.target))}">${text}</a>`;
@@ -542,8 +542,8 @@ export async function megamenu(props: MegamenuProps): Promise<string> {
   if (props.groups.length > MAX_MEGAMENU_GROUPS) {
     throw new Error(`megamenu admits at most ${String(MAX_MEGAMENU_GROUPS)} groups`);
   }
-  const prefix = props.idPrefix ?? "megamenu";
-  if (!ACTIVATION_ID_RE.test(prefix)) {
+  const prefix: unknown = props.idPrefix ?? "megamenu";
+  if (typeof prefix !== "string" || !ACTIVATION_ID_RE.test(prefix)) {
     throw new Error(`megamenu idPrefix ${JSON.stringify(prefix)} must match /^[A-Za-z][A-Za-z0-9_-]*$/`);
   }
   const label = escapeAttr(requireLabel("megamenu", props.label, props.context));
