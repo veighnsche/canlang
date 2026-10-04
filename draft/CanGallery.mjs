@@ -1,9 +1,11 @@
 import { require as check,hasRole,active_member,same,records,count,any,first,create,set,trim } from "@canlang/stdlib";
-import { message,renderPage,list,gallery,table,form,actions,content,text,title,edit } from "@canlang/ui";
+import { message,renderPage,list,gallery,table,form,content,text,title,edit,badge,breadcrumbs,button,checkbox,input,modal,pagination,select,slot,textarea } from "@canlang/ui";
 import { Output,can_view } from "./creative.mjs";
 /* Handwritten desired target; shared runtime, gallery renderer and fixture runner
  * are unimplemented. A submission intentionally owns a selected authorized file
  * attachment. It never grants the reviewer access to its private source run/chat.
+ * Catalog factories added by the frontend replan (breadcrumbs, pagination, badge,
+ * button, modal, slot, select, input, textarea, checkbox) are desired contracts.
  */
 export async function can_read(c,person,collection){return person!==null&&await active_member(c,person,c.team)&&collection.active&&(same(collection.owner,person)||any(await records(c,"gallery.Access",{parent:collection}),a=>same(a.account,person)&&a.active));}
 export async function can_review(c,person,collection){return person!==null&&hasRole(c,"gallery.reviewer",person)&&await can_read(c,person,collection);}
@@ -48,10 +50,43 @@ export function canApp(){
   async approved(c,{collection}){check(hasRole(c,"members"),"forbidden");check(await can_read(c,c.actor,collection));return await records(c,"gallery.Submission",{parent:collection,where:r=>r.state==="approved",order:{by:r=>r.decided_at,direction:"desc"}});}
  };
 }
-export async function approvedPage(c){return renderPage(c,approvedDescriptor,()=>[list({context:c,model:"gallery.Collection",where:collection=>can_read(c,c.actor,collection),renderRow:(collection,cv)=>[title({context:cv,value:collection.name}),form({context:cv,operation:"gallery.approved",arguments:{collection},renderResult:(result,rv)=>[gallery({context:rv,items:result,image:"image",renderRow:(row,iv)=>[title({context:iv,value:row.title}),text({context:iv,values:[row.author,row.rights,row.decided_at]})]})]})]})]);}
-export async function submissionsPage(c){return renderPage(c,submissionsDescriptor,()=>[gallery({context:c,model:Output,where:output=>output.parent.state==="succeeded",image:"image",renderRow:(output,ov)=>[form({context:ov,operation:"gallery.submit",arguments:{output}})]}),gallery({context:c,model:"gallery.Submission",where:submission=>same(submission.author,c.actor),image:"image",renderRow:(submission,sv)=>[title({context:sv,value:submission.title}),text({context:sv,values:[submission.state,submission.reason,submission.withdraw_reason]}),actions({context:sv,operations:["gallery.withdraw"],boundArgs:{submission}})]})]);}
-export async function reviewPage(c){return renderPage(c,reviewDescriptor,()=>[gallery({context:c,model:"gallery.Submission",where:async s=>s.state==="pending"&&await can_review(c,c.actor,s.parent),image:"image",renderRow:(submission,sv)=>[title({context:sv,value:submission.title}),content({context:sv,value:submission.statement}),text({context:sv,values:[submission.author,submission.rights]}),actions({context:sv,operations:["gallery.review"],boundArgs:{submission}})]})]);}
-export async function accessPage(c){return renderPage(c,accessDescriptor,()=>[form({context:c,operation:"gallery.Collection.create"}),list({context:c,model:"gallery.Collection",where:r=>same(r.owner,c.actor),renderRow:(collection,cv)=>[title({context:cv,value:collection.name}),edit({context:cv,operation:"gallery.Collection.update",record:collection,fields:["name","active"]}),form({context:cv,operation:"gallery.Access.create",arguments:{parent:collection}}),table({context:cv,model:"gallery.Access",parent:collection,columns:["account","active"],renderRow:(record,av)=>[edit({context:av,operation:"gallery.Access.update",record,fields:["active"]})]})]})]);}
+export async function approvedPage(c){return renderPage(c,approvedDescriptor,()=>[
+ /* desired-unimplemented: breadcrumbs, pagination. */
+ breadcrumbs({context:c}),
+ list({context:c,model:"gallery.Collection",where:collection=>can_read(c,c.actor,collection),empty:message("No collections available",{nl:"Geen collecties beschikbaar"}),renderRow:(collection,cv)=>[
+  pagination({context:cv}),
+  title({context:cv,value:collection.name}),
+  form({context:cv,operation:"gallery.approved",arguments:{collection},renderResult:(result,rv)=>[gallery({context:rv,items:result,image:"image",empty:message("No approved images yet",{nl:"Nog geen goedgekeurde beelden"}),renderRow:(row,iv)=>[
+   pagination({context:iv}),
+   title({context:iv,value:row.title}),text({context:iv,values:[row.author,row.rights,row.decided_at]})]})]})]})]);}
+export async function submissionsPage(c){return renderPage(c,submissionsDescriptor,()=>[
+ /* desired-unimplemented: breadcrumbs, pagination, badge, button, modal, slot, select, input, textarea. */
+ breadcrumbs({context:c}),
+ gallery({context:c,model:Output,where:output=>output.parent.state==="succeeded",image:"image",empty:message("No successful images to submit",{nl:"Geen geslaagde beelden om in te dienen"}),renderRow:(output,ov)=>[
+  pagination({context:ov}),
+  form({context:ov,operation:"gallery.submit",arguments:{output},children:[select({context:ov,field:"collection"}),input({context:ov,field:"title"}),textarea({context:ov,field:"statement"}),textarea({context:ov,field:"rights"})]})]}),
+ gallery({context:c,model:"gallery.Submission",where:submission=>same(submission.author,c.actor),image:"image",empty:message("No submissions yet",{nl:"Nog geen inzendingen"}),renderRow:(submission,sv)=>[
+  pagination({context:sv}),
+  title({context:sv,value:submission.title}),badge({context:sv,value:submission.state}),text({context:sv,values:[submission.reason,submission.withdraw_reason]}),
+  button({context:sv,opens:"withdraw_image"}),
+  modal({context:sv,caption:message("Withdraw image",{nl:"Beeld intrekken"}),id:"withdraw_image",children:[slot({context:sv,name:"content",children:[form({context:sv,operation:"gallery.withdraw",arguments:{submission},display:"inline",children:[textarea({context:sv,field:"reason"})]})]})]})]})]);}
+export async function reviewPage(c){return renderPage(c,reviewDescriptor,()=>[
+ /* desired-unimplemented: breadcrumbs, pagination, button, modal, slot, checkbox, textarea. */
+ breadcrumbs({context:c}),
+ gallery({context:c,model:"gallery.Submission",where:async s=>s.state==="pending"&&await can_review(c,c.actor,s.parent),image:"image",empty:message("No images awaiting review",{nl:"Geen beelden ter beoordeling"}),renderRow:(submission,sv)=>[
+  pagination({context:sv}),
+  title({context:sv,value:submission.title}),content({context:sv,value:submission.statement}),text({context:sv,values:[submission.author,submission.rights]}),
+  button({context:sv,opens:"review_image"}),
+  modal({context:sv,caption:message("Review image",{nl:"Beeld beoordelen"}),id:"review_image",children:[slot({context:sv,name:"content",children:[form({context:sv,operation:"gallery.review",arguments:{submission},display:"inline",children:[checkbox({context:sv,field:"approve"}),textarea({context:sv,field:"reason"})]})]})]})]})]);}
+export async function accessPage(c){return renderPage(c,accessDescriptor,()=>[
+ /* desired-unimplemented: breadcrumbs, pagination, input. */
+ breadcrumbs({context:c}),
+ form({context:c,operation:"gallery.Collection.create",children:[input({context:c,field:"name"})]}),
+ list({context:c,model:"gallery.Collection",where:r=>same(r.owner,c.actor),empty:message("No collections yet",{nl:"Nog geen collecties"}),renderRow:(collection,cv)=>[
+  pagination({context:cv}),
+  title({context:cv,value:collection.name}),edit({context:cv,operation:"gallery.Collection.update",record:collection,fields:["name","active"]}),
+  form({context:cv,operation:"gallery.Access.create",arguments:{parent:collection}}),
+  table({context:cv,model:"gallery.Access",parent:collection,columns:["account","active"],empty:message("No granted accounts",{nl:"Geen accounts met toegang"}),renderRow:(record,av)=>[pagination({context:av}),edit({context:av,operation:"gallery.Access.update",record,fields:["active"]})]})]})]);}
 export const exampleImports=[{provider:"creative",member:"output",alias:"output"},{provider:"creative",member:"completed",alias:"completed"},{provider:"creative",member:"completed_request",alias:"completed_request"}];
 export function exampleFixtures({self,other,imported}){
  const {output,completed,completed_request}=imported;

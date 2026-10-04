@@ -82,6 +82,47 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
+## Slice 20: full replans Gallery/Inbox/Knowledge (branch muse/frontend-catalog-migration/slice-20-n2-gallery-inbox-knowledge, in progress)
+
+Paths: draft/Can{Gallery,Inbox,Knowledge} (.can+.md+.mjs) + this status
+file. Source: lane-N2 drafter output under /tmp/draftN2, applied +
+corrected by coordinator (chunks re-indented +1, drafter wrote col-0).
+Coordinator corrections: Inbox Queue.create select kind -> radio kind
+(static 4-option Triage.route.choice; Rent kind precedent); Inbox
+review select urgency -> radio urgency (static 3-level domain);
+Knowledge badge index -> badge index.state x2 (IndexState is a
+contract; badge needs the enum path per UI-COMPONENTS L167);
+Knowledge settings assign_author keeps base bare form + gains the
+account ## (bare forms stay where base had them; N1 precedent).
+All mirrored in witnesses (radio import added). Kept after
+verification: Gallery approved result-gallery in base bare form;
+submit/withdraw/review complete; badge on own-enum Submission.state;
+base bare actions with params -> modals; creates == create_fields;
+account:user generated ##. Inbox all forms base-bare + complete
+(review/draft_reply/revise/resolve/classify placed, file[] ##);
+submit/discard/reconcile/resubmit row-only bare;
+status on DeliveryResult.status; badges on Message/Reply/Attempt
+own-enums + Triage choice/level domains; text row.destinations is
+base; details->collapse x9; progress budget leaf. Knowledge
+Topic.create == fields (no create_fields; expert ##, profile is text
+-> input); Audience.create complete; ask/create_document/revise/
+publish/withdraw/escalate/resolve complete (attachments[] ##,
+nullable revision select); reindex/stop/reconcile/release row-only;
+badge Question.state (nullable provider TextRun.state, Chat
+precedent); status transport derive; base text->alert same wording;
+progress budget leaf. Given/When byte-identical (cmp-verified).
+node --check + import-vs-usage scan clean. Census: 33 collections
+w/ empty+pagination (7+13+13); 10 pages w/ breadcrumbs; 4 modals
+(Gallery 2, Knowledge 2; Inbox modal-free, base-kept bare forms).
+Drift: +79 E1200 (base 6; head 12/26/47), no E1204. Independent
+review approve-with-3-nits, all fixed in-branch: Gallery.mjs drops
+unused actions import; Inbox.md lists radio; current-publication
+restores index.checked/detail text (base showed whole contract;
+revision-table badge is pure addition). Prototype stops byte-identical
+(pre-existing Given gaps). Handoff: (a) array control (evidence/
+attachments/destinations); (b) user refs generated; (c) progress/
+collapse/badge/status/gallery renderers.
+
 ## Slice 19: full replans Decide/Discover/Enrich (branch muse/frontend-catalog-migration/slice-19-n1b-decide-discover-enrich, in progress)
 
 Paths: draft/Can{Decide,Discover,Enrich} (.can+.md+.mjs) + this status

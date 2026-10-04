@@ -26,7 +26,7 @@ The ordinary pure `approved` read returns only approved submissions under curren
 
 Approved collections show authorized thumbnail galleries with attribution, rights and approval date. My images/submissions provides success-only candidate images, canonical submit forms and personal status/withdrawal controls. Review presents the exact image, intended use and rights evidence beside the canonical independent-review form. Collection access manages collection activation and member grants.
 
-The shared `gallery` component supplies the image layout, loading/error states, keyboard preview and safe original access. Existing pages, lists, forms and actions provide all business UI with inline English/Dutch captions. One-second authorized page polling updates review and revocation state; it performs no mutation or provider dispatch.
+The shared `gallery` component supplies the image layout, loading/error states, keyboard preview and safe original access. Every page carries breadcrumbs, every collection an explicit empty state and pagination, and submission states render as badges. Parameterized review and withdrawal open catalog modals with typed checkbox/textarea controls, while single-field creates and the submit form keep bare typed forms. Existing pages, lists, forms and actions provide all business UI with inline English/Dutch captions. One-second authorized page polling updates review and revocation state; it performs no mutation or provider dispatch.
 
 ## Behavioral evidence
 
