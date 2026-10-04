@@ -1,0 +1,15 @@
+{
+  "name": "@canlang/files",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Lane 04: file upload intake, finalization, provenance, retention and host bridge (internal; public surface assembles in @canlang/stdlib).",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test 'test/**/*.test.ts'"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}

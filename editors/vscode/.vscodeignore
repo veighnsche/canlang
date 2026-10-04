@@ -1,0 +1,10 @@
+# Local-only assets excluded from the packaged VSIX (see README.md).
+src/**
+audit-astra/**
+.vscode/**
+check-highlighting.cjs
+token-colors.json
+GRAMMAR-AUDIT.md
+AUDIT-RESOLUTION.md
+PALETTE.md
+*-evidence.json

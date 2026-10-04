@@ -126,7 +126,10 @@ const onig = require(base + 'vscode-oniguruma');
  has(' export contract Result {value:text}', 'Result', 'entity.name.type.can');
  for(const word of ['Given','When','Then']) { has(' '+word,word,'keyword.control.section.'+word.toLowerCase()+'.can'); has(' Model {'+word+':text}',word,'variable.other.property.declaration.can'); has(' do return row.'+word,word,'variable.other.property.can'); }
  const manifest=JSON.parse(fs.readFileSync('editors/vscode/package.json','utf8'));
- for(const key of ['main','browser','activationEvents','dependencies']) assert(!(key in manifest));
+ for(const key of ['browser','dependencies']) assert(!(key in manifest));
+ assert.equal(manifest.main,'./out/extension');
+ assert(manifest.activationEvents.includes('onLanguage:can'));
+ assert.equal(manifest.contributes.configuration.properties['can.serverPath'].default,'can');
  assert.equal(manifest.contributes.configurationDefaults['[can]']['editor.tabSize'],1);
  has(' require can_work(actor,deal.location)', 'can_work', 'entity.name.function.call.can');
  has(' do call remote.perform {value=true}', 'perform', 'entity.name.function.reference.can');

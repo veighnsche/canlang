@@ -1,0 +1,38 @@
+# @canlang/values
+
+Exact values, schemas, wire codecs and pure standard builtins for CanLang.
+Owner: lane 02. Internal package: the public facade is `@canlang/stdlib`
+(lane 03), which re-exports the canonical names defined in `src/catalog.ts`.
+
+## Commands
+
+```sh
+npm install     # standalone install inside packages/values
+npm run typecheck
+npm test        # build + node:test over dist/values/test/
+npm run catalog # build + emit versioned catalog JSON to dist/catalog.json
+```
+
+`node:test` is the package runner (the root vitest config explicitly leaves
+producer runners to their owners; lane 03 also uses `node:test`).
+
+## Constraints
+
+- `src/` uses no `node:` imports: it must run on workerd as well as Node.
+  Only `test/` and `scripts/` may use Node APIs.
+- Exactness: integers, durations, money minors and versions are `bigint`;
+  decimals are `Decimal` (`src/decimal.ts`); exact values are never routed
+  through `Number` and never serialized with plain `JSON.stringify`.
+- `src/` imports the type-only boundary `packages/contracts/src/values.ts`
+  via relative `import type` (erased at runtime), mirroring lane 03 S1. L7
+  follow-up (requested with PR1): add the `src/index.ts` re-export, integrate
+  the root lock, and switch these imports to `@canlang/contracts`.
+- JS export names equal Can builtin names verbatim (`add_days`, not
+  `addDays`); operator lowering uses the DESIGN §13 helper names
+  (`addMoney`, `equalValue`, ...). See `src/catalog.ts`.
+- The catalog envelope implements the L1 IR-01 sketch
+  (`catalog_version`/`language_version`/`entries`); L1 acknowledgment pending.
+  Generated `dist/catalog.json` is a build artifact, not app config.
+- Normative detail, representation decisions (R1-R5) and the JEV round live in
+  `implementation/status/lane-02.md` and
+  `implementation/evidence/jev/values-20261004/`.

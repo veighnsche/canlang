@@ -1,40 +1,15 @@
+//! The `can` binary: thin entry point over [`canlang_compiler::cli`].
+//!
+//! All dispatch, output formatting and exit codes live in the library so
+//! integration tests exercise the same code as the shipped binary.
+
 use std::{env, process::ExitCode};
 
-const HELP: &str = "CanLang compiler scaffold
-
-Usage: can <COMMAND>
-       can --help
-       can --version
-
-Reserved commands (not implemented):
-  compile
-  lint
-  fmt
-
-Options:
-  -h, --help     Show this help
-  -V, --version  Show the scaffold version";
-
 fn main() -> ExitCode {
-    let args: Vec<_> = env::args_os().skip(1).collect();
-    let command = args.first().and_then(|arg| arg.to_str());
-
-    match (command, args.len()) {
-        (None, 0) | (Some("--help" | "-h"), 1) => {
-            println!("{HELP}");
-            ExitCode::SUCCESS
-        }
-        (Some("--version" | "-V"), 1) => {
-            println!("can {}", env!("CARGO_PKG_VERSION"));
-            ExitCode::SUCCESS
-        }
-        (Some(command @ ("compile" | "lint" | "fmt")), _) => {
-            eprintln!("error: can {command} is reserved but not implemented");
-            ExitCode::FAILURE
-        }
-        _ => {
-            eprintln!("error: unknown command or unsupported arguments; use can --help");
-            ExitCode::FAILURE
-        }
-    }
+    // Non-UTF-8 arguments degrade to U+FFFD rather than panicking; file
+    // operands that fail to open still report a precise E7002.
+    let argv: Vec<String> = env::args_os()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    ExitCode::from(canlang_compiler::cli::run(&argv) as u8)
 }

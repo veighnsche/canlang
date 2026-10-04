@@ -1,0 +1,13 @@
+{
+  "description": "Business error envelope: stale version conflict with safe field detail. Same shape over HTTP, HTMX fragments, and MCP (isError=true).",
+  "error": {
+    "code": "conflict",
+    "message": "Todo changed since it was read; reload and retry.",
+    "operation_id": "0193f6c0-7a1e-7b2c-9d3e-4f5a6b7c8d9e",
+    "fields": [
+      { "path": "/record/version", "code": "stale", "message": "Expected version 4; current version is 5." }
+    ],
+    "retryable": false
+  },
+  "http_status": 409
+}

@@ -1,0 +1,32 @@
+{
+  "name": "@canlang/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Server-rendered CanLang presentation library (daisyUI/HTMX owned markup and behavior)",
+  "main": "./dist/ui/src/index.js",
+  "types": "./dist/ui/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/ui/src/index.d.ts",
+      "default": "./dist/ui/src/index.js"
+    }
+  },
+  "files": ["dist", "themes.css"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test \"dist/ui/test/**/*.test.js\"",
+    "clean": "rm -rf dist/"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "daisyui": "5.7.47",
+    "happy-dom": "20.14.5",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
