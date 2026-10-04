@@ -12,8 +12,9 @@
 //! and parser `E1200`–`E1216` (see `syntax::mod` for the per-code
 //! summary). The `E2xxx` entries describe name resolution, the `E3xxx`
 //! entries type checking, and the `E6xxx` entries the producer-catalog
-//! loader plus planned-builtin calls; all are reconciled with the real
-//! `analysis` emission sites (`E2011`/`E2015`/`E2016` are unallocated).
+//! loader, planned-builtin calls, and codegen emission; all are
+//! reconciled with the real `analysis`/`codegen` emission sites
+//! (`E2011`/`E2015`/`E2016` are unallocated).
 //! The `E7xxx` entries describe behavior this binary actually
 //! implements. `E4xxx`–`E5xxx`, `W1xxx`–`W3xxx` and `I1xxx` are reserved
 //! placeholders for stages that do not emit them yet; unknown codes are
@@ -96,7 +97,7 @@ pub fn entry_to_text(info: &CodeInfo) -> String {
     out
 }
 
-const CATALOG: [CodeInfo; 104] = [
+const CATALOG: [CodeInfo; 108] = [
     CodeInfo {
         code: "E1001",
         title: "bare-carriage-return",
@@ -840,6 +841,38 @@ const CATALOG: [CodeInfo; 104] = [
         explanation: "A builtin catalog entry's `signature` is not a `;`-separated list of `id(params)->result` overloads over the supported shape subset (or names a different id, or has an empty segment), or a helper signature fails its `id(...)->...` spine check. The examples below are catalog JSON, not source. Fix the entry's signature in the producer file.",
         example_valid: "{\"language_version\":\"1.0\",\"catalog_version\":\"t\",\"entries\":[{\"id\":\"trim\",\"owner\":\"t\",\"kind\":\"builtin\",\"signature\":\"trim(value:S)->text\",\"effects\":\"pure\",\"availability\":\"implemented\"}]}",
         example_invalid: "{\"language_version\":\"1.0\",\"catalog_version\":\"t\",\"entries\":[{\"id\":\"w\",\"owner\":\"t\",\"kind\":\"builtin\",\"signature\":\"not a signature\",\"effects\":\"pure\",\"availability\":\"implemented\"}]}",
+    },
+    CodeInfo {
+        code: "E6005",
+        title: "incomplete-analysis",
+        severity: Severity::Error,
+        explanation: "The codegen driver refuses an incomplete analysis (`complete=false`): emitting from unchecked tables would silently miscompile. This is a driver error, never a source error — the message is fixed and anchors the start of the first source. `can compile` always runs the full pipeline so it never reports this; library callers must pass a complete result or the explicit test-only acknowledgment (`EmitOptions::test_only`, tests only, never shipped).",
+        example_valid: "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E6006",
+        title: "unchecked-position",
+        severity: Severity::Error,
+        explanation: "Analysis left an emission-needed position unchecked: a missing effects, examples, or type-table row the emitter needs. The message names the item and the gap — for example, a sequence step observing a let-bound query value has no table anchors. The emitter omits the position or fails closed (empty rule arrays, throwing stubs) and never invents the missing data. The source is fine; re-run or land the publishing analysis pass.",
+        example_valid: "app T\nGiven\n Expense { amount:int }\n policy Expense read=members\n fixture one=Expense {amount=1}\nWhen\n scenario approve(expense:Expense) by=members\n  do\n   let x = 1\n  examples expense=one\n   as -> expense.amount\n   members -> 1\nThen\n",
+        example_invalid: "app T\nGiven\n Expense { amount:int }\n policy Expense read=members\n fixture one=Expense {amount=1}\nWhen\n crud Expense by=members fields=amount\n scenario approve(expense:Expense) by=members\n  do\n   let x = 1\n  examples seed=[one]\n   do\n    call Expense.create {amount=1} by=members\n    let y = first(Expense as claim where claim.amount==1)\n    y != null -> true\nThen\n",
+    },
+    CodeInfo {
+        code: "E6007",
+        title: "unavailable-emission-capability",
+        severity: Severity::Error,
+        explanation: "Emission needs a producer capability that is unavailable: no catalog was consulted, the catalog entry is `planned` or `external`, the id is missing from the catalog, or the catalog version cannot pin `requires`. The message names the producer and availability, or the missing catalog. Provide a catalog with an implemented entry; `planned` source compiles once the producer flips the entry.",
+        example_valid: "app T\nGiven\n Todo { title:text }\n policy Todo read=members\n derive ok(): int = count(Todo)\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n Todo { title:text }\n policy Todo read=members\n derive bad(): int = planned_widget(Todo)\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E6008",
+        title: "unsupported-emission",
+        severity: Severity::Error,
+        explanation: "A checked position has no DESIGN §13 lowering: an unknown UI factory, named builtin arguments, a value-domain query, or another unlowered shape. The message names the position and the missing lowering. The emitter reports it and emits a throwing placeholder (or a best-effort id); it never invents semantics. Rewrite to a lowered form — `text` renders where `badge` has no lowering.",
+        example_valid: "app T\nGiven\n Todo { title:text, done:bool=false }\n policy Todo read=members\nWhen\nThen\n page / title=\"T\"\n  card \"C\"\n   list Todo as task\n    text row.title\n",
+        example_invalid: "app T\nGiven\n Todo { title:text, done:bool=false }\n policy Todo read=members\nWhen\nThen\n page / title=\"T\"\n  card \"C\"\n   list Todo as task\n    badge row.done\n",
     },
     CodeInfo {
         code: "E7001",
