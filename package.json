@@ -11,8 +11,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "tsc -b packages/contracts packages/cloudflare",
     "typecheck": "tsc -p tsconfig.check.json",
+    "pretest": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
