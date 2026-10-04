@@ -17,7 +17,18 @@
  */
 import { createDOStorage, ensureSchema } from '../../dist/state/src/storage/durable-object.js';
 
-const TABLES = ['records', 'history', 'receipts', 'outbox', 'schedules', 'unique_claims'];
+const TABLES = [
+  'records',
+  'history',
+  'receipts',
+  'outbox',
+  'schedules',
+  'unique_claims',
+  'snapshots',
+  'migration_staging',
+  'migration_progress',
+  'migration_outcomes',
+];
 
 function serializeError(error) {
   const out = {
