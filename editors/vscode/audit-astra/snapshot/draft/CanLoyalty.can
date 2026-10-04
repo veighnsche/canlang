@@ -1,0 +1,120 @@
+# Help the workspace operator reward repeat paid workspace visits with points, tiers, and fulfillable perks. @{nl="Help de werkplekbeheerder herhaalde betaalde bezoeken te belonen met punten, niveaus en uitvoerbare voordelen."}
+app CanLoyalty uses=[loyalty]
+
+# Keep earned points, tier progress and fulfillable perk reservations separate from cash and member allowances. @{nl="Houd verdiende punten, niveauvoortgang en voordeelreserveringen gescheiden van geld en lidmaatschapstegoeden."}
+package loyalty label=heading_rewards
+ use customer {Customer,Contact,owns,test_company,test_contact}
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use std {EmailV1 as Mail} from=deployment.mail
+ use invoice {SalesV1 as Sales} from=deployment.qualified_sales
+ Given
+  message page_loyalty_fulfillment_title = "Reward fulfillment"@{nl="Beloningen uitvoeren"}
+  message page_loyalty_catalog_title = "Reward program"@{nl="Beloningsprogramma"}
+  message heading_rewards = "Rewards"@{nl="Beloningen"}
+  message label_Program_locations = "Locations"@{nl="Locaties"}
+  message label_Reward_cost = "Cost"@{nl="Kosten"}
+  message label_Earning_source = "Source reference"@{nl="Bronreferentie"}
+  preferences { view:enum(rewards,history)=rewards label={text="Reward view"@{nl="Beloningsweergave"},values={rewards=heading_rewards,history="History"@{nl="Geschiedenis"}}}, redemption_state:Redemption.state? label="Reward state"@{nl="Beloningsstatus"} }
+  role program_owner label="Program owner"@{nl="Programma-eigenaar"}
+  role reward_staff label="Reward staff"@{nl="Beloningsmedewerker"}
+  Program { name:text, locations:Location[] label=label_Program_locations, terms:text label="Terms"@{nl="Voorwaarden"}, points_per_sale:int min=1 label="Points per sale"@{nl="Punten per verkoop"}, active:bool=true } label=page_loyalty_catalog_title
+  Tier in Program { name:text, threshold:int min=0 label="Points threshold"@{nl="Puntendrempel"} } label="Reward tier"@{nl="Beloningsniveau"}
+  Reward in Program { name:text, cost:int min=1 label=label_Reward_cost, instructions:text, locations:Location[] label=label_Program_locations, active:bool=true } label="Reward"@{nl="Beloning"}
+  Account in Program { customer:Customer, contact:Contact } label="Reward account"@{nl="Beloningsaccount"}
+  Earning in Account { source:text unique label=label_Earning_source, points:int label="Points"@{nl="Punten"}, reason:text, reversal:Earning? label="Reversed entry"@{nl="Tegenboeking"} } label="Points entry"@{nl="Puntenboeking"}
+  Redemption in Account { reward:Reward, cost:int label=label_Reward_cost, state:enum(reserved,fulfilled,cancelled)=reserved label={text="State"@{nl="Status"},values={reserved="Reserved"@{nl="Gereserveerd"},fulfilled="Fulfilled"@{nl="Uitgevoerd"},cancelled="Cancelled"@{nl="Geannuleerd"}}}, evidence:text?, source:text unique label=label_Earning_source } label="Reward reservation"@{nl="Beloningsreservering"}
+  derive Account.earned:int = sum(row.Earning as earning select earning.points) label="Earned points"@{nl="Verdiende punten"}
+  derive Account.available:int = row.earned-sum(row.Redemption as redemption where redemption.state in [reserved,fulfilled] select redemption.cost) label="Available points"@{nl="Beschikbare punten"}
+  policy Program read=public fields=name,locations,terms,active
+  policy Tier read=public
+  policy Reward read=public where=row.active
+  policy Account read=authenticated where=(row.contact.account==actor and row.contact.verified)
+  policy Account read=reward_staff where=any(row.parent.locations as location,can_work(actor,location))
+  policy Earning read=authenticated where=(row.parent.contact.account==actor and row.parent.contact.verified)
+  policy Earning read=reward_staff where=any(row.parent.parent.locations as location,can_work(actor,location))
+  policy Redemption read=authenticated where=owns(actor,row.parent.customer)
+  policy Redemption read=reward_staff where=any(row.parent.parent.locations as location,can_work(actor,location))
+  unique Tier fields=threshold
+  unique Account fields=customer
+  require Account: row.contact.parent==row.customer
+  require Redemption: row.cost>0 and row.reward.parent==row.parent.parent
+  lock Earning fields=source,points,reason,reversal
+  lock Redemption fields=reward,cost,source
+  fixture perks=Program {name="Perks",locations=[test_site],terms="Welcome packs",points_per_sale=10}
+  fixture wallet=Account {parent=perks,customer=test_company,contact=test_contact}
+  fixture points=Earning {parent=wallet,source="paid-booking",points=100,reason="Qualified sale"}
+  fixture welcome=Reward {parent=perks,name="Welcome pack",cost=60,instructions="Collect at reception",locations=[test_site]}
+ When
+  crud Program by=program_owner fields=name,locations,terms,points_per_sale,active when=all(row.locations as location,can_work(actor,location)) delete=none
+  crud Tier by=program_owner fields=name,threshold delete=none
+  crud Reward by=program_owner fields=name,cost,instructions,locations,active delete=none
+  crud Account by=reward_staff fields=customer,contact update=none delete=none
+  # Reserve your own current reward cost only when the ledger is affordable. @{nl="Reserveer de huidige kosten van je eigen beloning uitsluitend wanneer het puntensaldo toereikend is."}
+  scenario redeem(account:Account,reward:Reward) by=authenticated label="Reserve reward"@{nl="Beloning reserveren"}
+   require (account.contact.account==actor and account.contact.verified) and account.parent.active and reward.active and reward.parent==account.parent and account.available>=reward.cost
+   do
+    create Redemption {parent=account,reward,cost=reward.cost,source=operation.id} as redemption
+    send Mail.send {to=account.contact.email,subject=format("Reward reserved"@{nl="Beloning gereserveerd"},locale=null),body=reward.instructions} as notice
+   examples seed=[points] account=wallet reward=welcome
+    as,reward.cost -> wallet.available,count(wallet.Redemption)
+    members,60 -> 40,1
+    members,101 -> error(rule_failed)
+    public,60 -> error(forbidden)
+  # Record actual perk fulfillment; notification is not fulfillment. @{nl="Registreer de werkelijke uitvoering van het voordeel; een melding is geen uitvoering."}
+  scenario fulfill(redemption:Redemption,evidence:text) by=reward_staff label="Fulfill reward"@{nl="Beloning uitvoeren"}
+   require redemption.state==reserved and trim(evidence)!="" and any(redemption.reward.locations as location,can_work(actor,location))
+   do set redemption {state=fulfilled,evidence}
+  # Release the snapshotted reservation once without altering earned-tier progress. @{nl="Geef de vastgelegde reservering één keer vrij zonder de verdiende niveauvoortgang te veranderen."}
+  scenario cancel(redemption:Redemption,reason:text) by=reward_staff
+   require redemption.state==reserved and trim(reason)!="" and any(redemption.reward.locations as location,can_work(actor,location))
+   do set redemption {state=cancelled,evidence=reason}
+  scenario earning on=Sales.qualification
+   do
+    for account in Account as row where row.customer.id==event.value.customer and row.parent.active limit=100
+     if event.value.exclusive_program==account.parent.id and event.value.milestone==completed and not any(account.Earning as earning,earning.source==event.value.source)
+      create Earning {parent=account,source=event.value.source,points=account.parent.points_per_sale,reason="Qualified completed sale"} as earning
+     if event.value.milestone==reversed
+      let earning=first(account.Earning as item where item.source==event.value.source order=item.id)
+      if earning!=null and not any(account.Earning as item,item.reversal==earning)
+       create Earning {parent=account,source=format("{source}:reversal",{source=event.value.source}),points=-earning.points,reason="Source reversal",reversal=earning} as reversal
+ Then
+  # View your point history and reserve an available manually fulfillable perk. @{nl="Bekijk je puntengeschiedenis en reserveer een beschikbaar handmatig uitvoerbaar voordeel."}
+  page /loyalty title="My rewards"@{nl="Mijn beloningen"}
+   require authenticated
+   card "Own earned and available points"@{nl="Eigen verdiende en beschikbare punten"}
+    list Account display=split
+     metrics row.earned,row.available
+     tabs preferences.view
+      tab rewards
+       form redeem
+       table row.Redemption columns=reward,cost,state,evidence filter=state defaults={state=preferences.redemption_state}
+      tab history
+       table row.Earning columns=points,reason,source,reversal
+
+  # Fulfill or cancel reserved perks with evidence. @{nl="Voer gereserveerde voordelen uit of annuleer ze met bewijs."}
+  page /loyalty/fulfillment title=page_loyalty_fulfillment_title
+   require reward_staff
+   card page_loyalty_fulfillment_title
+    form Account.create
+   card "Evidence and history"@{nl="Bewijs en geschiedenis"}
+    table Redemption columns=parent,reward,cost,state,evidence filter=state defaults={state=preferences.redemption_state}
+     actions fulfill,cancel
+     history
+
+  # Set published program terms under the separate program-owner grant. @{nl="Stel gepubliceerde programmavoorwaarden vast onder het afzonderlijke programma-eigenaarsrecht."}
+  page /loyalty/catalog title=page_loyalty_catalog_title
+   require program_owner
+   card "Program terms"@{nl="Programmavoorwaarden"}
+    form Program.create
+    list Program display=split
+     edit
+     tabs
+      tab "Tiers"@{nl="Niveaus"}
+       form Tier.create
+       list row.Tier
+        edit
+      tab heading_rewards
+       form Reward.create
+       list row.Reward
+        edit

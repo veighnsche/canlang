@@ -1,0 +1,88 @@
+# Help workspace staff track coffee, cleaning supplies, stationery, access-card stock, and other consumables by location and storeroom. @{nl="Help werkplekmedewerkers koffie, schoonmaakmiddelen, kantoorartikelen, toegangskaartvoorraad en andere verbruiksartikelen per locatie en voorraadruimte te volgen."}
+app CanStock uses=[stock]
+
+# Own whole-unit consumable ledgers, atomic transfers and source-identified purchase receipts. @{nl="Beheer voorraadregisters in gehele eenheden, atomaire overboekingen en brongeïdentificeerde inkoopontvangsten."}
+package stock
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use purchase {Receipt}
+ use std {OperationOutcome}
+ Given
+  preferences { location:Location? }
+  message label_StockReceipt_source = "Source reference"@{nl="Bronreferentie"}
+  message label_StockReceipt_order = "Purchase order reference"@{nl="Inkoopreferentie"}
+  message label_StockReceipt_sku = "SKU"@{nl="Artikelcode"}
+  message label_StockReceipt_unit = "Unit"@{nl="Eenheid"}
+  message label_StockReceipt_reversal = "Reversal reference"@{nl="Terugboekingsreferentie"}
+  message label_Item_reorder = "Reorder threshold"@{nl="Besteldrempel"}
+  export contract StockReceipt { source:text label=label_StockReceipt_source, order:text label=label_StockReceipt_order, sku:text label=label_StockReceipt_sku, unit:text label=label_StockReceipt_unit, location:text, quantity:int, revision:int, reversal:text? label=label_StockReceipt_reversal } label="Stock receipt"@{nl="Voorraadontvangst"}
+  export capability StockV1 version=1
+   post(value:StockReceipt) -> OperationOutcome
+   event changed { value:OperationOutcome }
+  role stock_staff label="Stock staff"@{nl="Voorraadmedewerker"}
+  Item { sku:text unique label=label_StockReceipt_sku, name:text, unit:text label=label_StockReceipt_unit, reorder:int=0 min=0 label=label_Item_reorder, active:bool=true } label="Stock item"@{nl="Voorraadartikel"}
+  Threshold in Item { location:Location, reorder:int=0 min=0 label=label_Item_reorder } label="Location reorder threshold"@{nl="Besteldrempel per locatie"}
+  Movement in Item { location:Location, quantity:int, reason:text, source:text unique label=label_StockReceipt_source, transfer:text? label="Transfer reference"@{nl="Overboekingsreferentie"}, reversal:Movement? label=label_StockReceipt_reversal, order:text? label=label_StockReceipt_order, actor:user? } label="Stock movement"@{nl="Voorraadmutatie"}
+  derive available(item:Item,location:Location):int = sum(item.Movement as movement where movement.location==location select movement.quantity)
+  derive Item.total:int = sum(row.Movement as movement select movement.quantity) label="Total stock"@{nl="Totale voorraad"}
+  policy Item read=stock_staff
+  policy Threshold read=stock_staff and can_work(actor,row.location)
+  policy Movement read=stock_staff and can_work(actor,row.location)
+  unique Threshold fields=location
+  require Movement: not any(Movement as other,other!=row and other.source==row.source)
+  require Movement: row.quantity!=0 and trim(row.reason)!="" and available(row.parent,row.location)>=0
+  lock Movement fields=location,quantity,reason,source,transfer,reversal,order,actor
+  lock Item fields=unit,sku when=count(row.Movement)>0
+  fixture coffee=Item {sku="coffee",name="Coffee",unit="box"}
+  fixture goods=Item {sku="boxes",name="Boxes",unit="box"}
+  fixture opening=Movement {parent=goods,location=test_site,quantity=3,reason="Initial count",source="opening"}
+ When
+  crud Item by=stock_staff fields=sku,name,unit,reorder,active delete=none
+  crud Threshold by=stock_staff fields=location,reorder when=can_work(actor,row.location) delete=none
+  # Record an attributed receipt, consumption or count correction without rewriting history. @{nl="Leg een toegeschreven ontvangst, verbruik of telcorrectie vast zonder geschiedenis te herschrijven."}
+  scenario adjust(item:Item,location:Location,quantity:int,reason:text) by=stock_staff label="Adjust stock"@{nl="Voorraad corrigeren"}
+   require item.active and can_work(actor,location) and quantity!=0 and trim(reason)!="" and available(item,location)+quantity>=0
+   do create Movement {parent=item,location,quantity,reason,source=operation.id,actor} as movement
+   examples seed=[test_worker,opening] item=goods location=test_site reason="Consumption"
+    as,quantity -> available(goods,test_site)
+    stock_staff,-3 -> 0
+    stock_staff,-4 -> error(rule_failed)
+    members,-1 -> error(forbidden)
+  # Transfer the same SKU between two authorized sites, committing both legs together. @{nl="Boek hetzelfde artikel over tussen twee toegestane locaties en leg beide zijden samen vast."}
+  scenario transfer(item:Item,from:Location label="Source location"@{nl="Bronlocatie"},to:Location label="Destination location"@{nl="Doellocatie"},quantity:int,reason:text) by=stock_staff label="Transfer stock"@{nl="Voorraad overboeken"}
+   require item.active and from!=to and quantity>0 and can_work(actor,from) and can_work(actor,to) and trim(reason)!="" and available(item,from)>=quantity
+   do
+    create Movement {parent=item,location=from,quantity=-quantity,reason,source=format("{id}:out",{id=operation.id}),transfer=operation.id,actor} as out
+    create Movement {parent=item,location=to,quantity,reason,source=format("{id}:in",{id=operation.id}),transfer=operation.id,actor} as in
+  # Reverse a posted movement with a reason while keeping stock nonnegative. @{nl="Boek een vastgelegde mutatie met een reden terug en behoud een niet-negatieve voorraad."}
+  scenario reverse(movement:Movement,reason:text) by=stock_staff label="Reverse stock movement"@{nl="Voorraadmutatie terugboeken"}
+   require can_work(actor,movement.location) and trim(reason)!="" and not any(movement.parent.Movement as item,item.reversal==movement) and available(movement.parent,movement.location)-movement.quantity>=0
+   do create Movement {parent=movement.parent,location=movement.location,quantity=-movement.quantity,reason,source=operation.id,reversal=movement,order=movement.order,actor} as reversal
+  # Post an accepted source receipt using its immutable unit, location and physical identity. @{nl="Boek een geaccepteerde bronontvangst met haar onveranderlijke eenheid, locatie en fysieke identiteit."}
+  scenario post(item:Item,location:Location,value:StockReceipt label="Accepted purchase receipt"@{nl="Geaccepteerde inkoopontvangst"}) by=stock_staff label="Post purchase receipt"@{nl="Inkoopontvangst boeken"}
+   require can_work(actor,location) and item.active and value.location==location.id and value.sku==item.sku and value.unit==item.unit and value.quantity>0
+   do
+    let receipt=first(Receipt as receipt where receipt.source==value.source order=receipt.id)
+    require receipt!=null and receipt.accepted==value.quantity and receipt.parent.sku==value.sku and receipt.parent.unit==value.unit and receipt.parent.parent.location==location and receipt.parent.parent.reference==value.order
+    require not any(Movement as movement,movement.source==value.source)
+    create Movement {parent=item,location,quantity=value.quantity,reason="Accepted purchase receipt",source=value.source,order=value.order,actor} as movement
+ Then
+  # Inspect location balances and enter deliberate ledger movements. @{nl="Bekijk locatiesaldi en voer bewuste voorraadmutaties in."}
+  page /stock title="Consumables"@{nl="Verbruiksartikelen"}
+   require stock_staff
+   card "Item identities and fixed units"@{nl="Artikelidentiteiten en vaste eenheden"}
+    form Item.create
+    list Item search=name filter=active display=split
+     text row.sku,row.unit
+     metrics row.total
+     edit
+     card "Location reorder thresholds"@{nl="Besteldrempels per locatie"}
+      form Threshold.create
+      list row.Threshold filter=location defaults={location=preferences.location}
+       text row.location,row.reorder
+       edit
+     card "Ledger movements and corrections"@{nl="Voorraadmutaties en correcties"}
+      actions adjust,transfer
+      table row.Movement columns=location,quantity,reason,source,order,actor order=-created filter=location defaults={location=preferences.location}
+       action reverse
+       history

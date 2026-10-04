@@ -1,0 +1,82 @@
+# Help the workspace operator detect missed check-ins from scheduled booking reconciliation, invoice reminders, reporting imports, and maintenance jobs. @{nl="Help de werkplekexploitant ontbrekende signalen detecteren van geplande boekingsafstemming, factuurherinneringen, rapportimports en onderhoudstaken."}
+app CanCheck uses=[check]
+
+# Monitor durable heartbeat receipts without treating health as proof of successful business work. @{nl="Bewaak opgeslagen heartbeatontvangsten zonder gezondheid als bewijs van geslaagd bedrijfswerk te behandelen."}
+package check
+ use rent_catalog {Location}
+ use employee {can_work}
+ use check {PingV1 as Pings} from=deployment.pings
+ use catch {AlertsV1 as Alerts} from=deployment.alerts
+ Given
+  export contract Heartbeat { check:text label="Check reference"@{nl="Controlereferentie"}, token:secret } label="Heartbeat receipt"@{nl="Heartbeatontvangst"}
+  export capability PingV1 version=1
+   event received { value:Heartbeat }
+  role operations label="Operations"@{nl="Operations"}
+  Check { name:text, application:text label=label_Check_application, purpose:text label="Purpose"@{nl="Doel"}, location:Location?, owner:user label="Responsible person"@{nl="Verantwoordelijke"}, period:duration label="Expected period"@{nl="Verwachte periode"}, grace:duration=0m label="Grace period"@{nl="Respijtperiode"}, history_days:int=90 min=1 label="History retention days"@{nl="Bewaartermijn historie in dagen"}, token:secret server=random_secret(), alert:url label="Alert destination"@{nl="Meldingsbestemming"}, enabled:bool=true, last_ping:datetime? label="Last durable heartbeat"@{nl="Laatste opgeslagen heartbeat"}, armed:datetime server=now label="Deadline anchor"@{nl="Startpunt deadline"}, revision:int=1, state:enum(new,up,late,down,paused)=new label={text="State"@{nl="Status"},values={new="Never pinged"@{nl="Nog geen heartbeat"},up="Up"@{nl="Actief"},late="Late"@{nl="Te laat"},down="Down"@{nl="Uitgevallen"},paused="Paused"@{nl="Gepauzeerd"}}} } label="Job check"@{nl="Taakcontrole"}
+  Transition in Check { from:Check.state label="From"@{nl="Vanaf"}, to:Check.state label="To"@{nl="Naar"}, occurred:datetime server=now } label="Health transition"@{nl="Gezondheidsovergang"}
+  event Deadline { check:Check, revision:int }
+  policy Check read=operations where=row.location==null or can_work(actor,row.location) fields=name,application,purpose,location,owner,period,grace,enabled,last_ping,armed,revision,state
+  policy Transition read=operations where=row.parent.location==null or can_work(actor,row.parent.location)
+  require Check: row.period>0m and row.grace>=0m and starts_with(row.alert,"https://")
+  lock Transition fields=from,to,occurred
+  retain Transition until=row.occurred+row.parent.history_days*1d
+  fixture heartbeat=Check {name="Reconcile",application="Billing",purpose="Job heartbeat",owner=self,period=5m,alert="https://example.test/alert"}
+  preferences { application:text? label=label_Check_application, location:Location? }
+  require preferences: row.location==null or can_work(actor,row.location)
+  message label_Check_application = "Application"@{nl="Applicatie"}
+ When
+  # Pause deadlines and alerts while retaining the last durable receipt. @{nl="Pauzeer deadlines en meldingen met behoud van de laatst opgeslagen ontvangst."}
+  scenario pause(check:Check) by=operations
+   require check.location==null or can_work(actor,check.location)
+   do
+    set check {enabled=false,state=paused,revision=check.revision+1}
+    cancel check.id
+   examples check=heartbeat
+    as -> check.enabled,check.state
+    operations -> false,paused
+    members -> error(forbidden)
+  # Resume with a fresh first-period deadline rather than an obsolete alarm. @{nl="Hervat met een nieuwe eerste-periodedeadline in plaats van een verouderd alarm."}
+  scenario resume(check:Check) by=operations
+   require check.location==null or can_work(actor,check.location)
+   do
+    let revision=check.revision+1
+    set check {enabled=true,state=new,armed=now,revision}
+    schedule check.id at=now+check.period+check.grace event=Deadline {check,revision}
+  scenario ping on=Pings.received
+   do
+    for check in Check as row where row.id==event.value.check limit=1
+     require check.token==event.value.token
+     if check.enabled
+      if check.state!=up
+       create Transition {parent=check,from=check.state,to=up} as recovery
+      let revision=check.revision+1
+      set check {last_ping=now,armed=now,state=up,revision}
+      schedule check.id at=now+check.period event=Deadline {check,revision}
+  scenario initial on=Check.created
+   do
+    for check in Check as row where row.id==event.id limit=1
+     if check.enabled
+      schedule check.id at=check.armed+check.period+check.grace event=Deadline {check,revision=check.revision}
+  scenario deadline on=Deadline
+   require event.check.enabled and event.check.revision==event.revision and now>=event.check.armed+event.check.period
+   do
+    if now>=event.check.armed+event.check.period+event.check.grace
+     if event.check.state!=down
+      create Transition {parent=event.check,from=event.check.state,to=down} as transition
+      set event.check {state=down}
+      send Alerts.notify {value={source=transition.id,destination=event.check.alert,message=format("Job heartbeat missed"@{nl="Heartbeat van taak ontbreekt"},locale=null)}} when=event.check.enabled and event.check.state==down as notification
+    else
+     set event.check {state=late}
+     schedule event.check.id at=event.check.armed+event.check.period+event.check.grace event=Deadline {check=event.check,revision=event.check.revision}
+ Then
+  # Read configured checks and perform only authorized pause and resume. @{nl="Lees geconfigureerde controles en voer uitsluitend toegestane pauze- en hervatacties uit."}
+  page /job-health title="Job health"@{nl="Taakgezondheid"}
+   require operations
+   table Check columns=name,application,location,owner,state,enabled,last_ping,period,grace order=name search=name filter=application,location,state defaults={application=preferences.application,location=preferences.location} display=split
+    card "Current recorded health"@{nl="Huidige vastgelegde gezondheid"}
+     text row.purpose,row.state,row.enabled,row.last_ping,row.armed,row.revision
+     metrics row.period,row.grace
+     actions pause,resume
+    details "Transition and recovery history"@{nl="Overgangs- en herstelhistorie"}
+     table row.Transition columns=from,to,occurred order=-occurred
+     history

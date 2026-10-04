@@ -1,0 +1,51 @@
+# Manage team tasks, assign active teammates, and track completion. @{nl="Beheer teamtaken, wijs actieve teamleden toe en volg de voortgang."}
+app TeamTasks
+Given
+ preferences { view:enum(all,unfinished,finished)=all label={text="Task view"@{nl="Taakweergave"},values={all="All tasks"@{nl="Alle taken"},unfinished="Unfinished tasks"@{nl="Open taken"},finished="Finished tasks"@{nl="Afgeronde taken"}}} }
+ Todo { title:text trim max=200 label=field_title, done:bool=false label={text=done,values={true=done,false="Open"@{nl="Open"}}}, assignee:member? label="Assignee"@{nl="Toegewezen aan"} } label="Task"@{nl="Taak"}
+ policy Todo read=members
+ fixture task=Todo {title="Ship prototype"}
+ export message add = "Add"@{nl="Toevoegen"}
+ export message field_title = "Title"@{nl="Titel"}
+ message done = "Done"@{nl="Klaar"}
+ message task_count(n:int) = "{n, plural, one {# task} other {# tasks}}"@{nl="{n, plural, one {# taak} other {# taken}}"}
+When
+ crud Todo by=members fields=title,done,assignee label={create=add}
+  examples update record=task
+   as,changes.done,request.record.version -> record.done,format(task_count(count(Todo)),locale="nl")
+   members,true,1 -> true,"1 taak"
+   members,true,0 -> error(conflict)
+   public,true,1 -> error(forbidden)
+Then
+ # Add work, assign teammates, and track what is finished. @{nl="Voeg werk toe, wijs teamleden toe en volg wat klaar is."}
+ page / title="Team tasks"@{nl="Teamtaken"}
+  card "Add team work"@{nl="Teamwerk toevoegen"}
+   form Todo.create fields=title,assignee display=inline
+  card "Tasks and completion"@{nl="Taken en voortgang"}
+   text task_count(count(Todo))
+   tabs preferences.view
+   list Todo as task where preferences.view==all or (preferences.view==unfinished and not task.done) or (preferences.view==finished and task.done) order=-created search=title filter=done empty="No tasks yet. Add your first task."@{nl="Nog geen taken. Voeg je eerste taak toe."}
+    edit
+    delete
+# Keep shared team notes. @{nl="Bewaar gedeelde teamnotities."}
+app TeamNotes
+use TeamTasks {add,field_title}
+Given
+ preferences { show_content:bool=true label="Expand note content"@{nl="Notitie-inhoud uitklappen"} }
+ Note { title:text trim max=200 label=field_title, content:text? label="Content"@{nl="Inhoud"} } label="Note"@{nl="Notitie"}
+ policy Note read=members
+When
+ crud Note by=members fields=title,content label={create=add}
+Then
+ # Write and browse the team's notes. @{nl="Schrijf en bekijk de notities van het team."}
+ page /notes title="Team notes"@{nl="Teamnotities"}
+  card "Write a note"@{nl="Een notitie schrijven"}
+   form Note.create display=inline
+  card "Shared notes"@{nl="Gedeelde notities"}
+   list Note search=title display=split
+    edit
+    delete
+    details "Note content"@{nl="Notitie-inhoud"} open=preferences.show_content
+     text row.content
+# Manage tasks and notes together. @{nl="Beheer taken en notities samen."}
+app TeamOffice uses=[TeamTasks,TeamNotes]

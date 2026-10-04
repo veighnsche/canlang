@@ -1,0 +1,16 @@
+# Focused highlighting probe.
+app Probe
+Given
+ Item {
+  value:
+   trim,
+  other:A |
+   unique,
+  reverse:unique |
+   trim,
+  normal:text trim,
+  continued:text
+   unique
+ }
+When
+Then

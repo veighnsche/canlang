@@ -1,0 +1,26 @@
+{
+  "capturedUtc": "2026-10-04T01:48:55.673831+00:00",
+  "version": "0.1.4",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "503025c141ee4b80f92c1ed04fb0e71b98e50c2f4aab6144c3747bc181f01882",
+      "bytes": 6521
+    },
+    {
+      "path": "GRAMMAR.md",
+      "sha256": "bd21a290fb4fa0b753cfe6e655b7aca4e65763dd5b42b7c36c7e83b825b24014",
+      "bytes": 53948
+    },
+    {
+      "path": "editors/vscode/package.json",
+      "sha256": "4f8070598f759489d880ceec73e506c8bd82bb870dc5dd6a290886cfbc7c0cd6",
+      "bytes": 855
+    },
+    {
+      "path": "editors/vscode/syntaxes/can.tmLanguage.json",
+      "sha256": "5c0e667200b5bc73fffa21553e96207518694c583d3e0eb07d4642b06975b40d",
+      "bytes": 120114
+    }
+  ]
+}

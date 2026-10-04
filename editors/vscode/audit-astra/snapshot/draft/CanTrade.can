@@ -1,0 +1,77 @@
+# Optionally help workspace members advertise their services, request suppliers, and offer surplus office equipment within the member community. @{nl="Help werkplekleden desgewenst hun diensten aan te bieden, leveranciers te zoeken en overtollige kantoorapparatuur binnen de ledengemeenschap aan te bieden."}
+app CanTrade uses=[trade]
+
+# Publish owned wanted and offered listings with deliberate contact visibility and scoped moderation. @{nl="Publiceer eigen vraag- en aanbodadvertenties met bewuste contactzichtbaarheid en afgebakende moderatie."}
+package trade
+ use rent_catalog {Location,test_site}
+ use member_terms {Membership,entitled,Term}
+ use employee {test_worker}
+ use customer {test_company,test_admin}
+ use member_plans {Plan}
+ Given
+  preferences { location:Location?, category:text? label=label_Post_category, kind:Post.kind?, view:enum(community,mine)=community label={text="Initial view"@{nl="Beginweergave"},values={community="Community listings"@{nl="Communityadvertenties"},mine="My listings"@{nl="Mijn advertenties"}}} }
+  message label_Post_author = "Recorded by"@{nl="Vastgelegd door"}
+  message label_Post_category = "Category"@{nl="Categorie"}
+  role moderator label="Moderator"@{nl="Moderator"}
+  Audience { allow_public:bool=false label="Allow public listings"@{nl="Openbare advertenties toestaan"} } label="Marketplace audience"@{nl="Marktplaatsdoelgroep"}
+  Post { author:user server=actor label=label_Post_author, location:Location?, kind:enum(wanted,offered) label={text="Kind"@{nl="Soort"},values={wanted="Wanted"@{nl="Gezocht"},offered="Offered"@{nl="Aangeboden"}}}, category:text label=label_Post_category, title:text trim min=1, description:text, amount:money?, contact:text label="Published contact"@{nl="Gepubliceerd contact"}, visibility:enum(member,public)=member label={text="Published audience"@{nl="Publicatiedoelgroep"},values={member="Members only"@{nl="Alleen leden"},public="Public"@{nl="Openbaar"}}}, state:enum(active,closed,removed)=active label={text="State"@{nl="Status"},values={active="Active"@{nl="Actief"},closed="Closed"@{nl="Gesloten"},removed="Removed"@{nl="Verwijderd"}}}, moderation_reason:text? label="Moderation reason"@{nl="Moderatiereden"} } label="Community listing"@{nl="Communityadvertentie"}
+  Report in Post { author:user server=actor label=label_Post_author, reason:text trim min=1, resolved:bool=false label="Resolved"@{nl="Afgehandeld"} } label="Listing report"@{nl="Advertentiemelding"}
+  derive eligible(account:user):bool = any(Membership as membership,entitled(account,membership,now))
+  policy Post read=public where=row.visibility==public and row.state==active and any(Audience as audience,audience.allow_public)
+  policy Post read=authenticated where=eligible(actor) and row.state==active and eligible(row.author)
+  policy Post read=authenticated where=row.author==actor
+  policy Post read=moderator
+  policy Report read=authenticated where=row.author==actor
+  policy Report read=moderator
+  lock Post fields=author
+  lock Report fields=author,reason
+  fixture plan=Plan {name="Member",price=money(100,"EUR"),locations=[test_site],access_hours="Weekdays"}
+  fixture membership=Membership {parent=test_company,account=self,plan=plan}
+  fixture paid=Term {parent=membership,source="term",from=datetime("2020-01-01T00:00:00Z"),until=datetime("2099-01-01T00:00:00Z"),price=money(100,"EUR"),locations=[test_site],products=["community"],access_hours="Weekdays",mail=false,seats=1,paid=true,cycle=1}
+  fixture listing=Post {kind=offered,category="Services",title="Accounting",description="Accounting services",contact="Published contact"}
+ When
+  crud Post by=authenticated fields=location,kind,category,title,description,amount,contact,visibility when=row.author==actor and eligible(actor) and row.state!=removed and (row.visibility!=public or any(Audience as audience,audience.allow_public))
+  crud Report by=authenticated fields=reason update=none delete=none when=row.parent.state==active
+  # Close or reopen your own listing without altering the published contact snapshot. @{nl="Sluit of heropen je eigen advertentie zonder de vastgelegde gepubliceerde contactgegevens te wijzigen."}
+  scenario status(post:Post,open:bool label="Open"@{nl="Open"}) by=authenticated label="Change listing status"@{nl="Advertentiestatus wijzigen"}
+   require post.author==actor and eligible(actor) and post.state in [active,closed]
+   do
+    if open
+     set post {state=active}
+    else
+     set post {state=closed}
+   examples seed=[test_admin,paid] post=listing open=false
+    as,post.state -> post.state
+    members,active -> closed
+    members,removed -> error(rule_failed)
+    public,active -> error(forbidden)
+  # Remove reported abuse with a reason, preserving authorship and moderation history. @{nl="Verwijder gemeld misbruik met een reden en behoud auteurschap en moderatiegeschiedenis."}
+  scenario moderate(post:Post,reason:text) by=moderator label="Remove reported listing"@{nl="Gemelde advertentie verwijderen"}
+   require trim(reason)!="" and post.state!=removed
+   do
+    set post {state=removed,moderation_reason=reason}
+    for report in post.Report as row where not row.resolved limit=100
+     set report {resolved=true}
+ Then
+  # Find active community listings and publish only contact details you deliberately choose. @{nl="Vind actieve communityadvertenties en publiceer alleen contactgegevens die je bewust kiest."}
+  page /marketplace title="Community marketplace"@{nl="Communitymarktplaats"}
+   card "Publish a listing"@{nl="Een advertentie publiceren"}
+    form Post.create
+   card "Community discovery"@{nl="Communityaanbod ontdekken"}
+    tabs preferences.view
+    table Post as post where preferences.view==community or post.author==actor columns=kind,category,location,title,amount,contact filter=kind,category,location,state defaults={kind=preferences.kind,category=preferences.category,location=preferences.location} search=title display=split
+     text row.description
+     edit
+     action status
+     details "Published contact and reporting"@{nl="Gepubliceerd contact en melden"}
+      text row.visibility,row.state
+      form Report.create
+  # Resolve reported listings under a separate moderation grant. @{nl="Behandel gemelde advertenties onder een afzonderlijke moderatiebevoegdheid."}
+  page /marketplace/reports title="Listing reports"@{nl="Advertentiemeldingen"}
+   require moderator
+   card "Reported listings"@{nl="Gemelde advertenties"}
+    table Report columns=parent,reason,resolved filter=resolved
+   card "Moderation decisions"@{nl="Moderatiebesluiten"}
+    list Post display=split
+     action moderate
+     history

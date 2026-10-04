@@ -1,0 +1,213 @@
+{
+  "capturedAt": "2026-10-04T01:11:56.408Z",
+  "latestUserPreference": {
+    "types": "muted gray",
+    "keywords": "cyan",
+    "sections": "white bold"
+  },
+  "editors": {
+    "Cursor": {
+      "settingsSha256": "a7038f9dc149ff3189dfa49e752d93fee220b32fdbb8be25df35a9dc5df0e473",
+      "canRules": [
+        {
+          "scope": "keyword.declaration.error.can",
+          "settings": {
+            "foreground": "#F14C4C",
+            "fontStyle": "bold"
+          }
+        },
+        {
+          "name": "Canlang sections",
+          "scope": [
+            "source.can keyword.control.section"
+          ],
+          "settings": {
+            "foreground": "#FFFFFF",
+            "fontStyle": "bold"
+          }
+        },
+        {
+          "name": "Canlang keywords",
+          "scope": [
+            "source.can keyword.declaration",
+            "source.can keyword.control",
+            "source.can keyword.operator.word",
+            "source.can storage.modifier.export",
+            "source.can storage.modifier.field"
+          ],
+          "settings": {
+            "foreground": "#67E8F9",
+            "fontStyle": ""
+          }
+        },
+        {
+          "name": "Canlang types",
+          "scope": [
+            "source.can entity.name.type",
+            "source.can support.type.primitive",
+            "source.can storage.type",
+            "source.can storage.modifier.type"
+          ],
+          "settings": {
+            "foreground": "#A5AEB8",
+            "fontStyle": ""
+          }
+        },
+        {
+          "name": "Canlang functions and operations",
+          "scope": [
+            "source.can entity.name.function"
+          ],
+          "settings": {
+            "foreground": "#FBBF24",
+            "fontStyle": ""
+          }
+        },
+        {
+          "name": "Canlang bindings and identities",
+          "scope": [
+            "source.can variable.other.readwrite",
+            "source.can variable.other.constant",
+            "source.can variable.parameter",
+            "source.can entity.name.namespace"
+          ],
+          "settings": {
+            "foreground": "#93C5FD",
+            "fontStyle": ""
+          }
+        },
+        {
+          "name": "Canlang fields and keys",
+          "scope": [
+            "source.can variable.other.property",
+            "source.can entity.other.attribute-name"
+          ],
+          "settings": {
+            "foreground": "#D8B4FE",
+            "fontStyle": ""
+          }
+        },
+        {
+          "name": "Canlang literals",
+          "scope": [
+            "source.can constant.language.literal",
+            "source.can constant.numeric"
+          ],
+          "settings": {
+            "foreground": "#F9A8D4",
+            "fontStyle": ""
+          }
+        },
+        {
+          "name": "Canlang localization punctuation",
+          "scope": [
+            "source.can meta.message.variants punctuation",
+            "source.can meta.message.variants keyword.operator"
+          ],
+          "settings": {
+            "foreground": "#D6D6DD",
+            "fontStyle": ""
+          }
+        }
+      ]
+    },
+    "Antigravity IDE": {
+      "settingsSha256": "0ab07b872a2582f932bccc229f09229ecaec1f8ff57ceb1789997c46af641c61",
+      "canRules": [
+        {
+          "name": "Canlang sections",
+          "scope": [
+            "source.can keyword.control.section"
+          ],
+          "settings": {
+            "foreground": "#FFFFFF",
+            "fontStyle": "bold"
+          }
+        },
+        {
+          "name": "Canlang keywords",
+          "scope": [
+            "source.can keyword.declaration",
+            "source.can keyword.control",
+            "source.can keyword.operator.word",
+            "source.can storage.modifier.export",
+            "source.can storage.modifier.field"
+          ],
+          "settings": {
+            "foreground": "#67E8F9",
+            "fontStyle": ""
+          }
+        },
+        {
+          "name": "Canlang types",
+          "scope": [
+            "source.can entity.name.type",
+            "source.can support.type.primitive",
+            "source.can storage.type",
+            "source.can storage.modifier.type"
+          ],
+          "settings": {
+            "foreground": "#A5AEB8",
+            "fontStyle": ""
+          }
+        },
+        {
+          "name": "Canlang functions and operations",
+          "scope": [
+            "source.can entity.name.function"
+          ],
+          "settings": {
+            "foreground": "#FBBF24",
+            "fontStyle": ""
+          }
+        },
+        {
+          "name": "Canlang bindings and identities",
+          "scope": [
+            "source.can variable.other.readwrite",
+            "source.can variable.other.constant",
+            "source.can variable.parameter",
+            "source.can entity.name.namespace"
+          ],
+          "settings": {
+            "foreground": "#93C5FD",
+            "fontStyle": ""
+          }
+        },
+        {
+          "name": "Canlang fields and keys",
+          "scope": [
+            "source.can variable.other.property",
+            "source.can entity.other.attribute-name"
+          ],
+          "settings": {
+            "foreground": "#D8B4FE",
+            "fontStyle": ""
+          }
+        },
+        {
+          "name": "Canlang literals",
+          "scope": [
+            "source.can constant.language.literal",
+            "source.can constant.numeric"
+          ],
+          "settings": {
+            "foreground": "#F9A8D4",
+            "fontStyle": ""
+          }
+        },
+        {
+          "name": "Canlang localization punctuation",
+          "scope": [
+            "source.can meta.message.variants punctuation",
+            "source.can meta.message.variants keyword.operator"
+          ],
+          "settings": {
+            "foreground": "#D6D6DD",
+            "fontStyle": ""
+          }
+        }
+      ]
+    }
+  }
+}

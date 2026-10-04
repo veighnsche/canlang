@@ -1,0 +1,115 @@
+# Optionally help a workspace operator receive and deliver customer mail/parcels for on-site or virtual-office customers. @{nl="Help een werkplekbeheerder desgewenst post en pakketten te ontvangen en af te leveren voor klanten op locatie of met een virtueel kantoor."}
+app CanMail uses=[mailroom]
+
+# Receive and resolve physical mail under explicit recipient and delegate authority. @{nl="Ontvang en handel fysieke post af met expliciete ontvanger- en gemachtigderechten."}
+package mailroom label="Mailroom"@{nl="Postkamer"}
+ use customer {Customer,Contact,has_role,test_company,test_contact}
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  message label_Service_recipient = "Recipient"@{nl="Ontvanger"}
+  message label_Service_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Delegate_account = "Account"@{nl="Account"}
+  message label_Item_kind = "Kind"@{nl="Soort"}
+  message label_Item_storage = "Storage location"@{nl="Opslaglocatie"}
+  message label_Item_photo = "Photo"@{nl="Foto"}
+  message label_Item_incident = "Handling incident"@{nl="Afhandelingsincident"}
+  message label_Handling_carrier = "Carrier"@{nl="Vervoerder"}
+  message label_Handling_fee = "Fee"@{nl="Kosten"}
+  preferences { location:Location?, view:enum(all,collection,forwarding,history)=all label={text="Mail view"@{nl="Postweergave"},values={all="All mail"@{nl="Alle post"},collection="Collection queue"@{nl="Afhaalwachtrij"},forwarding="Forwarding queue"@{nl="Doorzendwachtrij"},history="Mail history"@{nl="Postgeschiedenis"}}} }
+  role mail_staff label="Mailroom staff"@{nl="Postmedewerker"}
+  Service in Customer { location:Location, recipient:Contact label=label_Service_recipient, from:datetime label="Start"@{nl="Begin"}, until:datetime label="End"@{nl="Einde"}, instructions:text, forwarding:text? label="Forwarding instructions"@{nl="Doorzendinstructies"}, revision:int=1, verified:bool=false label="Verified"@{nl="Geverifieerd"}, source:text unique label=label_Service_source } label="Mail service"@{nl="Postdienst"}
+  Delegate in Service { account:user label=label_Delegate_account, active:bool=true } label="Collection delegate"@{nl="Afhaalgemachtigde"}
+  Item { location:Location, service:Service?, recipient:Contact? label=label_Service_recipient, source:text unique label=label_Service_source, kind:enum(letter,parcel) label={text=label_Item_kind,values={letter="Letter"@{nl="Brief"},parcel="Parcel"@{nl="Pakket"}}}, storage:text label=label_Item_storage, photo:file? label=label_Item_photo, state:enum(unmatched,received,notified,collection_ready,collected,forward_pending,forwarded,returned)=unmatched label={text="State"@{nl="Status"},values={unmatched="Unmatched"@{nl="Niet gekoppeld"},received="Received"@{nl="Ontvangen"},notified="Notified"@{nl="Gemeld"},collection_ready="Ready for collection"@{nl="Klaar om af te halen"},collected="Collected"@{nl="Afgehaald"},forward_pending="Forwarding pending"@{nl="Doorzending in afwachting"},forwarded="Forwarded"@{nl="Doorgestuurd"},returned="Returned"@{nl="Geretourneerd"}}}, notification:text? label="Notification reference"@{nl="Meldingsreferentie"}, completed:datetime? label="Completed at"@{nl="Afgerond op"}, incident:text? label=label_Item_incident } label="Mail item"@{nl="Poststuk"}
+  Handling in Item { kind:enum(collection,forward,return,correction) label={text=label_Item_kind,values={collection="Collection"@{nl="Afhalen"},forward="Forwarding"@{nl="Doorzending"},return="Return"@{nl="Retour"},correction="Correction"@{nl="Correctie"}}}, account:user? label=label_Delegate_account, instruction:text label="Recorded instruction"@{nl="Vastgelegde instructie"}, destination:text? label="Destination"@{nl="Bestemming"}, evidence:text, carrier:text? label=label_Handling_carrier, fee:money? label=label_Handling_fee, source:text unique label=label_Service_source, author:user server=actor label="Author"@{nl="Auteur"} } label="Handling record"@{nl="Afhandelingsregistratie"}
+  policy Service read=mail_staff and can_work(actor,row.location)
+  policy Service read=authenticated where=row.recipient.account==actor and row.recipient.verified or has_role(actor,row.parent,administrator)
+  policy Delegate read=authenticated where=row.account==actor or has_role(actor,row.parent.parent,administrator)
+  policy Item read=mail_staff and can_work(actor,row.location)
+  policy Item read=authenticated where=row.service!=null and row.recipient!=null and row.recipient.account==actor and row.recipient.verified fields=recipient,kind,state,completed,created
+  policy Handling read=mail_staff and can_work(actor,row.parent.location)
+  policy Handling read=authenticated where=row.parent.recipient!=null and row.parent.recipient.account==actor and row.parent.recipient.verified fields=kind,evidence,carrier,fee
+  require Service: row.from<row.until and row.recipient.parent==row.parent
+  require Item: row.service==null or row.service.location==row.location
+  lock Handling fields=kind,account,instruction,destination,evidence,carrier,fee,source,author
+  unique Delegate fields=account
+  fixture service=Service {parent=test_company,location=test_site,recipient=test_contact,from=datetime("2020-01-01T00:00:00Z"),until=datetime("2099-01-01T00:00:00Z"),instructions="Collection by verified recipient",verified=true,source="mail-term"}
+  fixture parcel=Item {location=test_site,service=service,recipient=test_contact,source="physical-parcel",kind=parcel,storage="Shelf A",state=collection_ready}
+ When
+  crud Delegate by=authenticated fields=account,active when=has_role(actor,row.parent.parent,administrator) delete=none
+  # Receive one physical item; unmatched recipients remain a restricted review. @{nl="Ontvang één fysiek item; niet-gekoppelde ontvangers blijven in een afgeschermde beoordeling."}
+  scenario receive(location:Location,source:text label=label_Service_source,kind:Item.kind,storage:text label=label_Item_storage,service:Service?,photo:file? label=label_Item_photo) by=mail_staff label="Record receipt"@{nl="Ontvangst registreren"}
+   require can_work(actor,location) and trim(storage)!="" and not any(Item as item,item.source==source)
+   do
+    create Item {location,source,kind,storage,photo} as item
+    if service!=null
+     require service.location==location and service.verified and service.from<=now and now<service.until
+     set item {service,recipient=service.recipient,state=received}
+     send Mail.send {to=service.recipient.email,subject=format("Mail received"@{nl="Post ontvangen"},locale=null),body=format("An item is available for authorized collection."@{nl="Er ligt een item klaar dat door een bevoegde persoon kan worden afgehaald."},locale=null)} as notice
+     set item {notification=notice.id,state=notified}
+  # Match an unresolved receipt without fabricating an active entitlement. @{nl="Koppel een onopgeloste ontvangst zonder een actief recht te verzinnen."}
+  scenario match(item:Item,service:Service) by=mail_staff label="Match recipient"@{nl="Ontvanger koppelen"}
+   require can_work(actor,item.location) and item.state==unmatched and service.location==item.location and service.verified and service.from<=now and now<service.until
+   do set item {service,recipient=service.recipient,state=collection_ready}
+  # Record one evidenced collection by the recipient or an explicitly active delegate. @{nl="Registreer één bewezen afhaling door de ontvanger of een expliciet actieve gemachtigde."}
+  scenario collect(item:Item,collector:user label="Collector"@{nl="Afhaler"},evidence:text) by=mail_staff label="Record collection"@{nl="Afhaling registreren"}
+   require can_work(actor,item.location) and item.state in [received,notified,collection_ready] and trim(evidence)!="" and item.service!=null
+   require (item.service.recipient.account==collector and item.service.recipient.verified) or any(item.service.Delegate as delegate,delegate.account==collector and delegate.active)
+   do
+    create Handling {parent=item,kind=collection,account=collector,instruction=item.service.instructions,evidence,source=operation.id} as handling
+    set item {state=collected,completed=now}
+   examples seed=[test_worker] item=parcel evidence="Identity verified"
+    as,collector,item.state -> item.state,count(parcel.Handling)
+    mail_staff,self,collection_ready -> collected,1
+    mail_staff,other,collection_ready -> error(rule_failed)
+    mail_staff,self,collected -> error(rule_failed)
+    members,self,collection_ready -> error(forbidden)
+  # Freeze authorized forwarding instructions before dispatch evidence is recorded. @{nl="Leg geautoriseerde doorzendinstructies vast voordat verzendbewijs wordt geregistreerd."}
+  scenario forward(item:Item) by=mail_staff label="Prepare forwarding"@{nl="Doorzending voorbereiden"}
+   require can_work(actor,item.location) and item.service!=null and item.state in [received,notified,collection_ready] and item.service.forwarding!=null and item.service.verified and now<item.service.until
+   do
+    create Handling {parent=item,kind=forward,instruction=item.service.instructions,destination=item.service.forwarding,evidence="Dispatch pending",source=operation.id} as handling
+    set item {state=forward_pending}
+  # Record carrier dispatch evidence; a fee or invoice cannot prove delivery. @{nl="Registreer vervoerdersbewijs; kosten of een factuur bewijzen geen aflevering."}
+  scenario dispatched(item:Item,carrier:text label=label_Handling_carrier,evidence:text,fee:money? label=label_Handling_fee) by=mail_staff label="Record dispatch"@{nl="Verzending registreren"}
+   require can_work(actor,item.location) and item.state==forward_pending and trim(carrier)!="" and trim(evidence)!=""
+   do
+    create Handling {parent=item,kind=correction,instruction="Forwarding dispatch",carrier,evidence,fee,source=operation.id} as handling
+    set item {state=forwarded,completed=now}
+  # Return a physical item only by an evidenced staff decision. @{nl="Retourneer een fysiek item alleen op basis van een bewezen personeelsbesluit."}
+  scenario return_item(item:Item,evidence:text) by=mail_staff label="Record return"@{nl="Retour registreren"}
+   require can_work(actor,item.location) and item.state in [unmatched,received,notified,collection_ready] and trim(evidence)!=""
+   do
+    create Handling {parent=item,kind=return,instruction="Recorded return",evidence,source=operation.id} as handling
+    set item {state=returned,completed=now}
+  # Keep loss or handling incidents visible without claiming completion. @{nl="Houd verlies- en afhandelingsincidenten zichtbaar zonder afronding te claimen."}
+  scenario incident(item:Item,reason:text) by=mail_staff label=label_Item_incident
+   require can_work(actor,item.location) and trim(reason)!=""
+   do set item {incident=reason}
+ Then
+  # Receive, locate and resolve mail while restricting physical storage information. @{nl="Ontvang, lokaliseer en handel post af terwijl fysieke opslaginformatie afgeschermd blijft."}
+  page /mailroom title="Mail and parcels"@{nl="Post en pakketten"}
+   require mail_staff
+   card "Mail receipt"@{nl="Post ontvangen"}
+    form receive
+   card "Located items"@{nl="Gelokaliseerde post"}
+    tabs preferences.view
+    table Item as item where preferences.view==all or (preferences.view==collection and item.state in [received,notified,collection_ready]) or (preferences.view==forwarding and item.state in [forward_pending,forwarded]) or (preferences.view==history and item.state in [collected,forwarded,returned]) columns=location,recipient,kind,storage,state,incident filter=location,state defaults={location=preferences.location} display=split
+     text row.service,row.photo,row.completed
+     actions match,collect,forward,dispatched,return_item,incident
+     table row.Handling columns=kind,instruction,destination,evidence,carrier,fee
+     history
+
+  # Follow only your own mail and authorized collection delegates. @{nl="Volg uitsluitend je eigen post en geautoriseerde afhaalgemachtigden."}
+  page /mailroom/mine title="My mail"@{nl="Mijn post"}
+   require authenticated
+   card "Own service"@{nl="Eigen postdienst"}
+    list Service display=split
+     text row.location,row.from,row.until,row.instructions,row.forwarding
+     form Delegate.create
+     list row.Delegate
+      edit
+   card "Own mail outcomes"@{nl="Eigen postresultaten"}
+    tabs preferences.view
+    table Item as item where preferences.view==all or (preferences.view==collection and item.state in [received,notified,collection_ready]) or (preferences.view==forwarding and item.state in [forward_pending,forwarded]) or (preferences.view==history and item.state in [collected,forwarded,returned]) columns=recipient,kind,state,completed filter=state
