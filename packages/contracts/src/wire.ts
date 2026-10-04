@@ -68,9 +68,13 @@ export interface MutationRef {
 export type ClosedInputs = Record<string, unknown>;
 
 /**
- * Canonical mutation invocation envelope. One envelope for browser POST,
- * MCP tool calls, and CSV-row confirmations; transport-specific framing
- * (HTTP body, MCP arguments) carries exactly these members.
+ * Canonical mutation invocation envelope: the HTTP-body and invocation-record
+ * form shared by browser POST and CSV-row confirmations. MCP tool calls carry
+ * a flat per-tool projection of this envelope instead: the operation is the
+ * tool name, CRUD update args are `{record,changes,operation_id}`, and
+ * scenario business inputs are named alongside `operation_id` (DESIGN
+ * section 10). The S5 MCP adapter owns that projection; both forms admit
+ * through the same canonical invocation with equal authority.
  */
 export interface MutationEnvelope {
   readonly operation: FqOperationName;
@@ -129,7 +133,8 @@ export interface BusinessError {
   readonly operation_id?: OperationId;
   readonly fields?: readonly FieldError[];
   /** True when repeating the identical envelope may succeed
-   * (e.g. `busy` contention, `delivery_unknown` reconciliation). */
+   * (e.g. `busy` contention, `delivery_unknown` reconciliation; DESIGN
+   * section 7 retry/replay rules). Lane-06 authored member. */
   readonly retryable?: boolean;
 }
 
@@ -193,7 +198,9 @@ export type ReadResult = unknown;
  * always one of the compiled canonical operations; the protected binding is
  * runtime-owned. Remote references carry an opaque handle whose contents
  * clients cannot edit. Changed interface revisions invalidate sealed handles
- * rather than rewriting their authority (DESIGN section 11.3).
+ * rather than rewriting their authority (DESIGN section 11.3). Only the
+ * opaque-handle and revision-invalidation semantics are DESIGN-pinned; the
+ * inner `{kind,handle,target,revision}` member spelling is lane-06's.
  */
 export interface SealedActionHandle {
   readonly kind: 'action_handle';
@@ -204,12 +211,12 @@ export interface SealedActionHandle {
 }
 
 /**
- * Generated per-target input schema shape where ordinary and handle
- * invocation are both exposed: an explicit closed union (DESIGN section 10).
- * Ordinary mode has normal business inputs + operation_id without
- * action_handle; handle mode has action_handle + operation_id + all
- * non-record canonical inputs, omitting every protected record input.
- * An ordinary remote mode requires its own declared delegated access; an
+ * Canonical handle-mode invocation record where ordinary and handle
+ * invocation are both exposed (DESIGN section 10). Handle mode carries the
+ * sealed handle + operation_id + all non-record canonical inputs, omitting
+ * every protected record input; the MCP tool projection flattens these to
+ * sibling arguments (`action_handle`, `operation_id`, named inputs). An
+ * ordinary remote mode requires its own declared delegated access; an
  * action handle does not authorize that mode.
  */
 export interface ActionHandleInvocation {

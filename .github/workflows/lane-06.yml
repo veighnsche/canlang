@@ -2,6 +2,9 @@
 # provides the root workspace; then this workflow adopts the shared install.
 name: lane-06
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
@@ -23,11 +26,19 @@ on:
 jobs:
   contracts-conformance:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       matrix:
         package: [identity, interfaces]
     steps:
       - uses: actions/checkout@v4
+      - name: Guard owned-contract imports
+        run: |
+          # Lane-06 tests may import only lane-06-owned contract files until
+          # L7 join J1 wires the workspace package.
+          imports=$(grep -rho "contracts/src/[a-z0-9_]*\.js" 'packages/${{ matrix.package }}/test' | sort -u)
+          echo "$imports"
+          echo "$imports" | grep -v -E 'contracts/src/(identity|wire)\.js' && exit 1 || exit 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24

@@ -129,12 +129,31 @@ test('business error fixture matches its HTTP status', () => {
     assert.ok(field.path.startsWith('/'));
     assert.ok(field.message.length > 0);
   }
-  // Safe envelope: no secret-bearing members.
-  assert.ok(!('stack' in error) && !('sql' in error) && !('token' in error));
+  // Safe envelope: no secret-bearing members anywhere in the JSON.
+  const forbidden = ['stack', 'sql', 'token', 'secret', 'password', 'cookie', 'credential'];
+  const keys: string[] = [];
+  const collect = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) collect(item);
+    } else if (typeof value === 'object' && value !== null) {
+      for (const [key, item] of Object.entries(value)) {
+        keys.push(key.toLowerCase());
+        collect(item);
+      }
+    }
+  };
+  collect(data.error);
+  for (const key of keys) {
+    assert.ok(
+      !forbidden.some((name) => key.includes(name)),
+      `secret-bearing key: ${key}`,
+    );
+  }
 });
 
 test('upload intent fixture follows the three-step bridge', () => {
   const data = fixture('upload-intent.json') as {
+    fixture_now: string;
     request: UploadIntentRequest;
     response: UploadIntentResponse;
     finalized: UploadFinalizeResponse;
@@ -150,7 +169,8 @@ test('upload intent fixture follows the three-step bridge', () => {
     assert.ok(url.startsWith('https://'));
     assert.ok(!url.includes('credential') && !url.includes('signature='));
   }
-  assert.ok(response.expires_at > '2026-10-04T15:00:00.000Z');
+  assert.ok(Date.parse(data.fixture_now) > 0);
+  assert.ok(Date.parse(response.expires_at) > Date.parse(data.fixture_now));
 
   const finalized: UploadFinalizeResponse = data.finalized;
   assert.ok(finalized.file.length > 0);
@@ -164,10 +184,16 @@ test('action handle fixture omits protected record inputs', () => {
   assert.equal(invocation.action_handle.kind, 'action_handle');
   assert.match(invocation.operation_id, UUID_V7);
   assert.ok(invocation.action_handle.revision.length > 0);
-  // No record-typed input may ride a handle invocation.
-  for (const value of Object.values(invocation.inputs)) {
-    assert.ok(
-      typeof value !== 'object' || value === null || !('id' in (value as object)),
-    );
-  }
+  // No record-typed input may ride a handle invocation, at any depth.
+  const checkNoRecord = (value: unknown, path: string): void => {
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => checkNoRecord(item, `${path}[${index}]`));
+    } else if (typeof value === 'object' && value !== null) {
+      assert.ok(!('id' in value), `record-typed input at ${path}`);
+      for (const [key, item] of Object.entries(value)) {
+        checkNoRecord(item, `${path}.${key}`);
+      }
+    }
+  };
+  checkNoRecord(invocation.inputs, '$inputs');
 });

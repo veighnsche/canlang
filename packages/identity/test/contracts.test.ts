@@ -90,7 +90,7 @@ test('two-user/team fixture satisfies identity shapes', () => {
   }
 });
 
-test('revoked-session fixture marks the session terminal', () => {
+test('revoked-session fixture self-check (admission behavior lands in S2)', () => {
   const data = fixture('revoked-session.json') as {
     sessions: Session[];
     expect: { session_id: string; admission: string; reason: string };

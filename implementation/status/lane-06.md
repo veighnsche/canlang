@@ -156,7 +156,7 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
 - [x] P0 plan: this file (coordinator).
 - [x] S1 contracts-1: contracts identity.ts+wire.ts; identity/interfaces
       package.json+tsconfig; fixtures (two-user/team, revoked session);
-      lane-06.yml; PR #1. Coordinator-authored (core design surface);
+      lane-06.yml; PR #6. Coordinator-authored (core design surface);
       implementer delegation starts at S2.
 - [ ] S2 identity-core: accounts/sessions/teams/authentication + ports +
       testing double; password/recovery/session/CSRF/team lifecycle tests.
