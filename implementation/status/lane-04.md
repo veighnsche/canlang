@@ -120,11 +120,12 @@ Each PR: rebase on current `origin/main`, focused checks exercising the change, 
 
 ## Progress and file reservations
 
-- 2026-10-04: S1 merged (PR #1, squash `50b46b4`). S2 submitted for review on `muse/lane-04-work-services-files/contracts` (`22a7341` + status). Toolchain: typescript@5.9.3, @types/node@24.19.1, node 24, `node:test` glob discovery (`node --test test/` does not discover `.ts`). `node_modules/` untracked per package; root `.gitignore` still needed from L7. Next reservations: S3 `packages/work/src/**` (worker-A), S4 `packages/services/src/{http,mail}/**` (worker-B).
+- 2026-10-04: S1 merged (PR #1, squash `50b46b4`). S2 submitted for review on `muse/lane-04-work-services-files/contracts` (rebased onto `origin/main@fb8cf1f`). Toolchain: typescript@5.9.3, @types/node@24.19.1, node 24, `node:test` glob discovery (`node --test test/` does not discover `.ts`). `node_modules/` untracked per package; root `.gitignore` still needed from L7. Next reservations: S3 `packages/work/src/**` (worker-A), S4 `packages/services/src/{http,mail}/**` (worker-B).
 
 ## Interface requests and handoffs
 
 - 2026-10-04, to L3/L6/L7/L1/L2 (all unlaunched): requests listed above; no producer PRs to read yet. Consumer-side test-only fixtures will be explicit and replaced at joins.
+- 2026-10-04, producer arrivals: L3 `state.ts` v0 merged (`fb8cf1f`, PR #3) with `OperationId`/`Revision`/`InvocationContext` — S8 join target; S2 stays self-contained with no cross-contract imports. L7 B0 PR #4 (root workspace) open — my standalone packages absorb into it later; rebase if it merges first. L1 B0 PR #2 open (no lane-4 impact yet).
 
 ## PR and verification evidence
 
