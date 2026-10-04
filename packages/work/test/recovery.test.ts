@@ -10,6 +10,7 @@ import type {
 } from '../../contracts/src/work.js';
 import {
   buildInventory,
+  buildWorkInventory,
   drainDueScan,
   findStaleClaims,
   isClaimStale,
@@ -83,6 +84,88 @@ describe('recovery: pending-work inventory', () => {
     });
     assert.equal(inventory.oldestUncertainAt, null);
     assert.equal(inventory.outboxUncertain, 0);
+  });
+});
+
+describe('recovery: work-inventory enumeration', () => {
+  it('maps live states, omits terminal items and sorts by intent id', () => {
+    const seen: string[] = [];
+    const items = buildWorkInventory({
+      outboxItems: [
+        outboxItem('obx_u', 'uncertain'),
+        outboxItem('obx_done', 'delivered'),
+        outboxItem('obx_c', 'claimed'),
+        outboxItem('obx_f', 'failed'),
+        outboxItem('obx_p', 'pending'),
+        outboxItem('obx_dead', 'dead'),
+      ],
+      handlerContractFor: (item) => {
+        seen.push(item.id);
+        return `contract:${item.source}`;
+      },
+    });
+    assert.deepEqual(items, [
+      { intentId: 'obx_c', handlerContract: 'contract:Mail.send', state: 'inflight' },
+      { intentId: 'obx_p', handlerContract: 'contract:Mail.send', state: 'undispatched' },
+      { intentId: 'obx_u', handlerContract: 'contract:Mail.send', state: 'uncertain' },
+    ]);
+    // Terminal items never reach the resolver: nothing to attest for them.
+    assert.deepEqual(seen.sort(), ['obx_c', 'obx_p', 'obx_u']);
+  });
+
+  it('returns an empty inventory for empty or fully settled input', () => {
+    assert.deepEqual(
+      buildWorkInventory({ outboxItems: [], handlerContractFor: () => 'c' }),
+      [],
+    );
+    assert.deepEqual(
+      buildWorkInventory({
+        outboxItems: [
+          outboxItem('obx_done', 'delivered'),
+          outboxItem('obx_f', 'failed'),
+          outboxItem('obx_dead', 'dead'),
+        ],
+        handlerContractFor: () => 'c',
+      }),
+      [],
+    );
+  });
+
+  it('throws listing every unmapped item instead of unattestable rows', () => {
+    assert.throws(
+      () =>
+        buildWorkInventory({
+          outboxItems: [
+            outboxItem('obx_b', 'pending'),
+            outboxItem('obx_a', 'claimed'),
+            outboxItem('obx_ok', 'pending'),
+          ],
+          handlerContractFor: (item) =>
+            item.id === 'obx_ok' ? 'contract:Mail.send' : null,
+        }),
+      /no handler-contract mapping for "obx_a", "obx_b"/,
+    );
+    assert.throws(
+      () =>
+        buildWorkInventory({
+          outboxItems: [outboxItem('obx_e', 'pending')],
+          handlerContractFor: () => '',
+        }),
+      /no handler-contract mapping for "obx_e"/,
+    );
+  });
+
+  it('throws on unknown states as shape drift', () => {
+    assert.throws(
+      () =>
+        buildWorkInventory({
+          outboxItems: [
+            { ...outboxItem('obx_x', 'pending'), state: 'parked' } as unknown as OutboxItem,
+          ],
+          handlerContractFor: () => 'c',
+        }),
+      /unknown state "parked"/,
+    );
   });
 });
 
