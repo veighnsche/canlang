@@ -340,6 +340,9 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   drop pre-scan, revision-stability assert, unmapped-model comment fix,
   unique-swap conflict pin. Legs: 499->505/505, D1 47->48/48, DO
   45->46/46; typechecks clean.
+  PR7 merged (a782dae, PR #76, CI state x2/tools/workspace green).
+  S8 branch `muse/lane-03-state/stdlib` from a782dae: thin
+  @canlang/stdlib assembly + B1-B4 joins next.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
@@ -422,6 +425,27 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   Residual: interim descriptors/envelopes -> L1 join; rejected-replay field
   fidelity gap; flat resolvedDefaults per batch; same-batch self-canceling
   writes unsupported; bigint money codec -> L2.
+- PR6 S6 ports/staging: branch `muse/lane-03-state/ports`, reviewed head
+  `0d49425`, merged as `160db71`
+  (https://github.com/veighnsche/canlang/pull/53, squash,
+  --match-head-commit). Checks: local typecheck + `npm test` 328/328; CI
+  `state` x2 / `tools` / `workspace` pass. Independent review APPROVE +
+  scoped re-review APPROVE; 9 minors + 3 nits fixed + regressed.
+  Residual: cross-op intents forbidden; malformed executor output ->
+  fenced rejected receipt; same-batch ack-after-insert marks dispatched.
+- PR7 S7 migrations: branch `muse/lane-03-state/migrations`, reviewed
+  head `4f84eb5f985f4caed998a7b607ffaa9159f2fa33`, merged as `a782dae`
+  (https://github.com/veighnsche/canlang/pull/76, squash,
+  --match-head-commit <sha>). Checks: local typecheck (state +
+  contracts) + `npm test` 505/505 + D1 48/48 + DO 46/46 (miniflare
+  4.20260730.0 real API); CI `state` x2 / `tools` / `workspace` pass.
+  Independent review APPROVE (9 areas evidenced); 4 minors + 3 nits
+  fixed + regressed without a third round. Coordinator self-review F1-F4
+  + round 2 (evidence gate, no-op strictness), 17 regression tests.
+  Residual: staged rows retained post-migration (no cleanup writer);
+  pure model renames target-silent; interim plan-intake/mappers until L1;
+  validation-only fresh-install pointer (L7 fenced write); `failed` has
+  no writer (L7 UpgradeState).
 
 ## Remaining work and cleanup
 
