@@ -118,6 +118,8 @@ Active reservations: none (coordinator holds all owned files until first delegat
 - Lane 02 PR1 merged as PR #8 (`48dbb77`): `contracts/src/values.ts` + `@canlang/values` + `lane-02.yml` + JEV evidence. PR2 assembles the module and integrates the workspace. One NEW conflict: `DeliveryError` (services documented `{code,message}` vs values readonly same shape; interim: services, pinned). Handoff to L2+L4 to deduplicate.
 - Testkit row-spec builder handoff to L1: PR3's runner consumes `TableRowSpec` closures; the `ArtifactTestModule` loader that builds them from emitted test JS (the §13 `exampleFixtures` runtime shape) needs L1's exact emission contract. Until then only `test/` doubles construct specs; production invoke paths report `unsupported`. Row isolation is one fresh local workerd instance per row (measured ~1.2s/instance cold; scaling follow-up at B4).
 - Lane 05 S2 merged as PR #10 (`28f022c`): `presentation.ts` extended (no new barrel collisions), `@canlang/ui` adopted the root workspace and RETIRED its nested lock (L5 follow-up closed). PR3 regenerates the root lock accordingly; ui suite green (101/101).
+- Lane 06 S2 merged as PR #12 (`f092bbb`): identity core; `identity.ts` +3 lines, no new barrel exports, no manifest/lock changes. No lane-07 join action; identity suite green (33/33).
+- Fresh-clone verification (PR4, commit `173e4b6`): clean `git clone` + branch checkout, then `npm ci`, `npm run build`, `npm run typecheck`, `npm test` (44/44), `test_jev.py` (3/3), `cargo build --locked` — all green, no credentials, no extra steps. `docs/dev-setup.md` follows this script verbatim.
 - No lock/manifest integration requests pending beyond the L2/L3/L4/L5 nested-lock follow-ups above. No requests sent yet.
 
 ## PR and verification evidence

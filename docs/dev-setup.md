@@ -1,8 +1,8 @@
 # Developer setup (fresh machine)
 
-Verified verbatim on macOS on 2026-10-04 from a clean clone at `50a5a18`
-(see lane-07 status for the evidence). Linux CI runs the same commands via
-`.github/workflows/integration.yml`.
+Verified verbatim on macOS on 2026-10-04 from a clean clone (commit
+`173e4b6`, lane-07 status holds the evidence log). Linux CI runs the same
+commands via `.github/workflows/integration.yml`.
 
 ## Prerequisites
 
