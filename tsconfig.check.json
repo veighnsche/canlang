@@ -8,7 +8,8 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@canlang/contracts": ["./packages/contracts/src/index.ts"]
+      "@canlang/contracts": ["./packages/contracts/src/index.ts"],
+      "@canlang/cloudflare": ["./packages/cloudflare/src/index.ts"]
     }
   },
   "include": [

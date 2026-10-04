@@ -11,7 +11,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "tsc -b packages/contracts packages/cloudflare",
+    "build": "tsc -b packages/contracts packages/cloudflare packages/testkit",
     "typecheck": "tsc -p tsconfig.check.json",
     "pretest": "npm run build",
     "test": "vitest run",
