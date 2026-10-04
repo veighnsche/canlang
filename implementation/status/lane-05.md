@@ -365,7 +365,9 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
 - [ ] C2 full catalog contract, in two PRs: (a) branch muse/lane-05-ui/c2a-catalog, in progress —
       profile/header/slot/attribute contract v0.7.0 + all 68 word entries + JSON witness test (362/362);
       (b) appearance-token matrix substantiated against pinned daisyUI 5.7.47 CSS + L1 handoff. typed Props
-      per family land with their C3–C8 renderers; signatures in C2a are forward declarations.
+      per family land with their C3–C8 renderers; signatures in C2a are forward declarations. C2a review nit:
+      hero/footer/navbar marked slotted-group though design allows compact/bare alternates — consider an
+      alternates field in C2b.
 - [ ] C3 readable leaves + mockups: avatar, badge, status, kbd, mockup_code, countdown, progress,
       radial_progress, divider, loading, skeleton, link, breadcrumbs, text_rotate. Two workers by file split.
 - [ ] C4 field controls + form integration: input, textarea, checkbox, toggle, radio, select, range, rating,
