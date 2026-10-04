@@ -1,0 +1,22 @@
+{
+  // Owned strict config, self-contained until lane 7 assembles tsconfig.base.json.
+  // B0 wiring: packages/contracts/src/presentation.ts is compiled into this program
+  // (see README). The relative import is temporary and retires at L7 assembly.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src", "test", "../contracts/src/presentation.ts"]
+}
