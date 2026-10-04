@@ -161,7 +161,7 @@ export const appDefinition = {
     "maintain.WorkBatch": {
       exported: true,
       label: message("Authorized inspections", { nl: "Toegestane inspecties" }),
-      fields: { items: { type: "maintain.WorkItem", array: true, requiredArray: true, max: 500 } },
+      fields: { items: { type: "maintain.WorkItem", array: true, requiredArray: true, max: 500n } },
     },
   },
   models: {

@@ -23,9 +23,9 @@ export const appDefinition={
     "ArchiveExposure.Request":{
       readGrants:[{rule:"Request.read.1"}],invariants:["Request.require.1","Request.require.2"],locks:["Request.lock.1","Request.lock.2"],
       fields:{
-        title:{type:"text",trim:true,min:1},submitted_by:{type:"user",server:"actor"},
+        title:{type:"text",trim:true,min:1n},submitted_by:{type:"user",server:"actor"},
         department:{type:"ArchiveExposure.Employee.department",nullable:true,server:async(c)=>(await first(records(c,"ArchiveExposure.Employee",{where:e=>same(e.user,c.actor)&&e.enabled})))?.department??null},
-        archive_reason:{type:"text",nullable:true,default:null,trim:true,min:1},
+        archive_reason:{type:"text",nullable:true,default:null,trim:true,min:1n},
       },
     },
   },
