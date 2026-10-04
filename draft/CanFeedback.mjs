@@ -52,6 +52,34 @@ const responseCaption = message("Staff response", { nl: "Antwoord medewerker" })
 
 const duplicateCaption = message("Duplicate suggestion", { nl: "Dubbele suggestie" });
 
+const feedbackPageDescriptor = {
+  owner: "feedback",
+  path: "/feedback",
+  title: message("Suggestions", { nl: "Suggesties" }),
+  description: message("Browse a public roadmap with counts that expose no voter records.", {
+    nl: "Bekijk een openbare roadmap met aantallen die geen stemmerrecords blootgeven.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    return {};
+  },
+  render: feedbackPage,
+};
+
+const moderationPageDescriptor = {
+  owner: "feedback",
+  path: "/feedback/moderation",
+  title: message("Moderation and roadmap", { nl: "Moderatie en roadmap" }),
+  description: message("Moderate suggestions and record only authorized roadmap commitments.", {
+    nl: "Modereer suggesties en leg uitsluitend toegestane roadmaptoezeggingen vast.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "feedback.product_owner"), "forbidden");
+    return {};
+  },
+  render: moderationPage,
+};
+
 export const appDefinition = {
   id: "CanFeedback",
   uses: ["feedback"],
@@ -331,8 +359,8 @@ export const appDefinition = {
     "feedback.review_edited": { handler: "review_edited", on: "feedback.Suggestion.update" },
   },
   pages: [
-    { path: "/feedback", render: feedbackPage },
-    { path: "/feedback/moderation", render: moderationPage },
+    feedbackPageDescriptor,
+    moderationPageDescriptor,
   ],
   disabled: [
     "feedback.Product.delete",
@@ -477,17 +505,10 @@ export function canApp() {
   };
 }
 
-export async function feedbackPage(c) {
+export async function feedbackPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "feedback",
-      path: "/feedback",
-      title: message("Suggestions", { nl: "Suggesties" }),
-      description: message("Browse a public roadmap with counts that expose no voter records.", {
-        nl: "Bekijk een openbare roadmap met aantallen die geen stemmerrecords blootgeven.",
-      }),
-    },
+    feedbackPageDescriptor,
     () => [
       list({
         context: c,
@@ -579,19 +600,29 @@ export async function feedbackPage(c) {
                     operations: ["feedback.vote"],
                     boundArgs: { suggestion },
                   }),
-                  list({
-                    context: rowView,
-                    model: "feedback.Vote",
-                    parent: suggestion,
-                    renderRow: (vote, voteView) => [
-                      text({ context: voteView, values: [vote.active] }),
-                      actions({
-                        context: voteView,
-                        operations: ["feedback.unvote"],
-                        boundArgs: { vote },
-                      }),
-                    ],
-                  }),
+                  ...(hasRole(rowView, "authenticated")
+                    ? [
+                        details({
+                          context: rowView,
+                          caption: message("Your votes", { nl: "Je eigen stemmen" }),
+                          children: [
+                            list({
+                              context: rowView,
+                              model: "feedback.Vote",
+                              parent: suggestion,
+                              renderRow: (vote, voteView) => [
+                                text({ context: voteView, values: [vote.active] }),
+                                actions({
+                                  context: voteView,
+                                  operations: ["feedback.unvote"],
+                                  boundArgs: { vote },
+                                }),
+                              ],
+                            }),
+                          ],
+                        }),
+                      ]
+                    : []),
                 ],
               }),
             ],
@@ -602,18 +633,10 @@ export async function feedbackPage(c) {
   );
 }
 
-export async function moderationPage(c) {
-  check(hasRole(c, "feedback.product_owner"), "forbidden");
+export async function moderationPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "feedback",
-      path: "/feedback/moderation",
-      title: message("Moderation and roadmap", { nl: "Moderatie en roadmap" }),
-      description: message("Moderate suggestions and record only authorized roadmap commitments.", {
-        nl: "Modereer suggesties en leg uitsluitend toegestane roadmaptoezeggingen vast.",
-      }),
-    },
+    moderationPageDescriptor,
     () => [
       card({
         context: c,

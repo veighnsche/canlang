@@ -64,6 +64,52 @@ const costCaption = message("Cost", { nl: "Kosten" });
 
 const sourceCaption = message("Source reference", { nl: "Bronreferentie" });
 
+const loyaltyPageDescriptor = {
+  owner: "loyalty",
+  path: "/loyalty",
+  title: message("My rewards", { nl: "Mijn beloningen" }),
+  description: message(
+    "View your point history and reserve an available manually fulfillable perk.",
+    {
+      nl: "Bekijk je puntengeschiedenis en reserveer een beschikbaar handmatig uitvoerbaar voordeel.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    check(hasRole(c, "authenticated"), "forbidden");
+    return {};
+  },
+  render: loyaltyPage,
+};
+
+const fulfillmentPageDescriptor = {
+  owner: "loyalty",
+  path: "/loyalty/fulfillment",
+  title: fulfillmentCaption,
+  description: message("Fulfill or cancel reserved perks with evidence.", {
+    nl: "Voer gereserveerde voordelen uit of annuleer ze met bewijs.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "loyalty.reward_staff"), "forbidden");
+    return {};
+  },
+  render: fulfillmentPage,
+};
+
+const catalogPageDescriptor = {
+  owner: "loyalty",
+  path: "/loyalty/catalog",
+  title: programCaption,
+  description: message("Set published program terms under the separate program-owner grant.", {
+    nl: "Stel gepubliceerde programmavoorwaarden vast onder het afzonderlijke programma-eigenaarsrecht.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "loyalty.program_owner"), "forbidden");
+    return {};
+  },
+  render: catalogPage,
+};
+
 export const appDefinition = {
   id: "CanLoyalty",
   uses: ["loyalty"],
@@ -444,9 +490,9 @@ export const appDefinition = {
     "loyalty.notification": { handler: "notification", on: "loyalty.Mail.send.completed" },
   },
   pages: [
-    { path: "/loyalty", render: loyaltyPage },
-    { path: "/loyalty/fulfillment", render: fulfillmentPage },
-    { path: "/loyalty/catalog", render: catalogPage },
+    loyaltyPageDescriptor,
+    fulfillmentPageDescriptor,
+    catalogPageDescriptor,
   ],
   disabled: [
     "loyalty.Program.delete",
@@ -814,21 +860,10 @@ export function canApp() {
   };
 }
 
-export async function loyaltyPage(c) {
-  check(hasRole(c, "authenticated"), "forbidden");
+export async function loyaltyPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "loyalty",
-      path: "/loyalty",
-      title: message("My rewards", { nl: "Mijn beloningen" }),
-      description: message(
-        "View your point history and reserve an available manually fulfillable perk.",
-        {
-          nl: "Bekijk je puntengeschiedenis en reserveer een beschikbaar handmatig uitvoerbaar voordeel.",
-        },
-      ),
-    },
+    loyaltyPageDescriptor,
     () =>
       card({
         context: c,
@@ -948,18 +983,10 @@ export async function loyaltyPage(c) {
   );
 }
 
-export async function fulfillmentPage(c) {
-  check(hasRole(c, "loyalty.reward_staff"), "forbidden");
+export async function fulfillmentPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "loyalty",
-      path: "/loyalty/fulfillment",
-      title: fulfillmentCaption,
-      description: message("Fulfill or cancel reserved perks with evidence.", {
-        nl: "Voer gereserveerde voordelen uit of annuleer ze met bewijs.",
-      }),
-    },
+    fulfillmentPageDescriptor,
     () => [
       card({
         context: c,
@@ -1038,18 +1065,10 @@ export async function fulfillmentPage(c) {
   );
 }
 
-export async function catalogPage(c) {
-  check(hasRole(c, "loyalty.program_owner"), "forbidden");
+export async function catalogPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "loyalty",
-      path: "/loyalty/catalog",
-      title: programCaption,
-      description: message("Set published program terms under the separate program-owner grant.", {
-        nl: "Stel gepubliceerde programmavoorwaarden vast onder het afzonderlijke programma-eigenaarsrecht.",
-      }),
-    },
+    catalogPageDescriptor,
     () =>
       card({
         context: c,

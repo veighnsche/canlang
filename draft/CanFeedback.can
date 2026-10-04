@@ -148,9 +148,11 @@ package feedback
       text row.status,row.response
       edit
       action vote
-      list row.Vote
-       text row.active
-       action unvote
+      details "Your votes"@{nl="Je eigen stemmen"}
+       require authenticated
+       list row.Vote
+        text row.active
+        action unvote
   # Moderate suggestions and record only authorized roadmap commitments. @{nl="Modereer suggesties en leg uitsluitend toegestane roadmaptoezeggingen vast."}
   page /feedback/moderation title="Moderation and roadmap"@{nl="Moderatie en roadmap"}
    require product_owner
