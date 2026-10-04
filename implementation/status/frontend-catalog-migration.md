@@ -60,7 +60,7 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - D1 draft-file release: brief requires release from the current draft coordinator before writing draft/. No direct contact found
   (primary writers include Codex/Astra sessions; peer-session identities unverified). Release requested via this committed status
   and PR descriptions. Mitigation: edit only merged files, never unmerged primary apps; rebase before every PR so conflicts surface for review.
-- D2 L5 full 68-component library + right-sidebar shell: NOT shipped (main has S1-S4 small-subset scope; S5 pending in PR #34).
+- D2 L5 full 68-component library + right-sidebar shell: NOT shipped (main has S1-S5 small-subset scope; S5 merged in #34).
   Owner: lane 05 (steering is the user's paste of prompts/05-ui-steering.md). Migration sources will use approved-but-unimplemented profiles; gaps recorded per slice.
 - D3 L1 catalog consumption (checking/codegen/completion/highlighting): NOT shipped (B0 syntax merged in #30, CLI/LSP in #36). Owner: lane 01.
   Parser/highlighter acceptance of new component words cannot be assumed; approval != support.
@@ -90,4 +90,4 @@ Choices (smallest journey-serving substitutions; everything else demonstrated al
 - `text row.content` -> `content row.content` (note body): paragraph-preserving presentation for multi-line note content; existing core word.
 - Kept as-is (already compliant): bare inline forms (complete generated remainder), tabs bound to owned enum preferences, edit/delete/actions/history canonical controls, details compatibility spelling, metrics shared contract, display=split, empty/filter/defaults states.
 Producer gaps used by this slice: `badge` is approved-but-unimplemented (L1 parser/checker + L5 renderer; D2/D3). `content` is existing core vocabulary, no gap.
-Corpus-drift note: the Python prototype corpus test and the Rust golden-corpus test predate the catalog and reject `badge`; CI's tools job already excludes the corpus test and corpus parse is informational (continue-on-error); lane-01 CI is path-filtered to compiler/**. Drift reconciliation belongs to L1/B4; no test files touched here.
+Corpus-drift note: the Python prototype corpus test and the Rust golden-corpus test predate the catalog and reject `badge`; CI's tools job already excludes the corpus test and corpus parse is informational (continue-on-error); lane-01 CI is path-filtered (compiler/**, editors/vscode/**, two contract files) and does not trigger on examples/**. Drift reconciliation belongs to L1/B4; no test files touched here.
