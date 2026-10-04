@@ -1174,7 +1174,11 @@ impl<'a> Typer<'a> {
                 return self.hook_record_target(cx, target, what, &segments);
             }
         }
+        // Record the target type: effects reads it back for member-path
+        // resolution (`E4001` ownership, `E4051` write evidence). The
+        // call below types on the fly without recording.
         let ty = self.type_path_value(cx, target);
+        let ty = self.record(target, ty);
         match ty {
             ResolvedType::Record {
                 symbol,
@@ -5314,7 +5318,7 @@ impl<'a> Typer<'a> {
             FixtureTarget::File => {
                 self.check_fixture_file(&cx, node, module, object);
             }
-            FixtureTarget::Operation => {
+            FixtureTarget::Operation(_) => {
                 let op = head.and_then(|h| self.tables.node_symbol.get(&NodeKey::of(h)).copied());
                 match op {
                     Some(op) => self.check_fixture_operation(&cx, node, op, object),
@@ -8160,7 +8164,7 @@ impl<'a> Typer<'a> {
                 },
                 FixtureTarget::User => ResolvedType::Scalar(Scalar::User),
                 FixtureTarget::File => ResolvedType::Scalar(Scalar::File),
-                FixtureTarget::Operation => ResolvedType::Opaque("operation fixture"),
+                FixtureTarget::Operation(_) => ResolvedType::Opaque("operation fixture"),
                 FixtureTarget::Unknown => ResolvedType::Error,
             },
             SymbolKind::DeriveFn { .. } => {
