@@ -42,6 +42,12 @@ const sealedHandleIsWire: Equal<barrel.SealedActionHandle, wire.SealedActionHand
 const sealedHandleIsPresentation: Equal<barrel.SealedActionHandle, presentation.SealedActionHandle> =
   true;
 
+// Re-export identity (L5 C8): presentation re-exports HistoryEntry from state
+// (same symbol, collapses under `export *` — pinned so a future divergent
+// local definition fails loudly instead of silently dropping the name).
+const historyEntryIsState: Equal<barrel.HistoryEntry, state.HistoryEntry> = true;
+const historyEntryIsPresentation: Equal<barrel.HistoryEntry, presentation.HistoryEntry> = true;
+
 describe("assembly conflict picks", () => {
   it("pins interim picks until owners reconcile", () => {
     expect([
@@ -59,7 +65,11 @@ describe("assembly conflict picks", () => {
       mutationRefIsPresentation,
       sealedHandleIsWire,
       sealedHandleIsPresentation,
+      historyEntryIsState,
+      historyEntryIsPresentation,
     ]).toEqual([
+      true,
+      true,
       true,
       true,
       true,
