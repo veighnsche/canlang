@@ -53,6 +53,7 @@ describe("worker bundle boundary", () => {
       ...listSourceFiles("src/dev"),
       ...listSourceFiles("src/build"),
       ...listSourceFiles("src/upgrade"),
+      ...listSourceFiles("src/cli"),
     ];
     for (const file of nodeFiles) {
       const lines = readSource(file).split("\n");
