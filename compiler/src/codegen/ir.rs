@@ -1,0 +1,6237 @@
+//! Checked intermediate representation (lane-01 codegen, PR6).
+//!
+//! [`IrProgram`] is a pure transformation of
+//! [`CheckedProgram`](crate::analysis::CheckedProgram): modules, canonical
+//! symbol identities, resolved types, guard/effect order carriers and
+//! operation/fixture descriptors. It never re-derives semantics from the
+//! CST (spans come from [`CheckedProgram`] symbol/module spans only) and
+//! never invents meaning analysis did not check.
+//!
+//! Anything analysis left unchecked is an `E6006` naming the gap (see
+//! [`build`]); anything checked but without a DESIGN §13 lowering is an
+//! `E6008` raised by the lowering stages ([`crate::codegen::js`],
+//! [`crate::codegen::bdd`], [`IrExpr::Unsupported`]/[`IrStmt::Unsupported`]
+//! flowing there from this build).
+//!
+//! [`build`] consumes the PR5 tables: [`TypeTable`](crate::analysis::types::TypeTable)
+//! (`symbol_types`/`symbol_results` plus `node_types`),
+//! [`EffectTables`](crate::analysis::effects::EffectTables) (G1-G9, G13)
+//! and [`ExampleTables`](crate::analysis::examples::ExampleTables) (G10).
+//! Those tables anchor expressions by [`NodeKey`](crate::analysis::NodeKey),
+//! so the build re-parses the sources it is given and decodes the anchored
+//! CST subtrees. This is a deliberate, documented exception to the
+//! never-re-derive principle: spans supply literal content and syntactic
+//! structure only, while every semantic choice (what a name denotes, what
+//! type an expression has, which operation a call targets) comes from the
+//! tables — symbol/type/effect/example tables and the producer catalog —
+//! or from closed language rules (`c`/`actor`/`now`/`self`/`other` context
+//! spellings, `members`/`owner`/`authenticated`/`public` predicate
+//! spellings, `s`/`b` example scopes). The build never re-runs
+//! resolve/types/effects inference from the CST. Positions no table serves
+//! (sequence steps reference let-bound values with no table anchors) stay
+//! loud `E6006` and are omitted fail-closed.
+//!
+//! Index parity: `items[i]` corresponds to `CheckedProgram.symbols[i]` and
+//! `modules[i]` to `CheckedProgram.modules[i]`, so [`SymbolId`] and
+//! [`ModuleId`] index both tables.
+
+use crate::analysis::catalog::{Availability, Catalog, Effects};
+use crate::analysis::effects::EffectVerb;
+use crate::analysis::resolve::{
+    CrudOp, FixtureTarget, ModelOwner, ModuleId, ModuleKind, SymbolId, SymbolKind,
+};
+use crate::analysis::types::{ResolvedType, Scalar};
+use crate::analysis::{CheckedProgram, NodeKey};
+use crate::codegen::bdd::BddSuite;
+use crate::diagnostic::Diagnostic;
+use crate::source::{SourceDb, SourceId, Span};
+use crate::syntax::{SyntaxKind, SyntaxNode};
+use std::collections::{HashMap, HashSet};
+
+/// One `use provider {members} [from=binding]` group, verbatim.
+#[derive(Debug, Clone)]
+pub struct IrImport {
+    /// Provider package/app name.
+    pub provider: String,
+    /// Provider-path span.
+    pub provider_span: Span,
+    /// Imported members as `(name, alias, span)`.
+    pub members: Vec<(String, String, Span)>,
+    /// Deployment binding for bound imports.
+    pub from: Option<String>,
+    /// Whole-declaration span.
+    pub span: Span,
+}
+
+/// One `app`/`package` declaration: identity, imports and ownership.
+#[derive(Debug, Clone)]
+pub struct IrModule {
+    /// Table index (parity with [`CheckedProgram::modules`]).
+    pub id: ModuleId,
+    /// Canonical name (shared app/package namespace).
+    pub name: String,
+    /// Implicit app, composed app or package.
+    pub kind: ModuleKind,
+    /// Declaring source.
+    pub file: SourceId,
+    /// Whole-declaration span.
+    pub span: Span,
+    /// `use` imports in source order.
+    pub imports: Vec<IrImport>,
+    /// Composed-app `uses` member names in source order.
+    pub uses: Vec<String>,
+    /// Resolved `uses` member names in source order.
+    pub uses_resolved: Vec<String>,
+    /// Pages in source order (G9; empty when the module has none or its
+    /// analysis row is absent).
+    pub pages: Vec<IrPage>,
+    /// Module `#` description, when one is attached (G9).
+    pub description: Option<IrMessage>,
+}
+
+/// Storage ownership of a stored model.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrOwner {
+    /// Omitted ownership: team scope (the pinned default).
+    Team,
+    /// `Model in Parent`: child of `Parent`.
+    ChildOf(SymbolId),
+    /// `Model in app`: app-scoped data.
+    App,
+}
+
+/// A declared type position: known when the analysis [`TypeTable`](crate::analysis::types::TypeTable)
+/// resolved it, unknown otherwise (an `E6006` is recorded at build time).
+#[derive(Debug, Clone)]
+pub enum IrType {
+    /// Resolved declared type.
+    Known(ResolvedType),
+    /// Unresolved declared type; lowering must refuse with `E6008`.
+    Unknown,
+}
+
+/// One canonical package-qualified item (parity with `CheckedProgram.symbols`).
+#[derive(Debug, Clone)]
+pub struct IrItem {
+    /// Table index (parity with [`CheckedProgram::symbols`]).
+    pub id: SymbolId,
+    /// Canonical identity (`Package.Name`, `Package.Model.field`, ...).
+    pub canonical: String,
+    /// Local name.
+    pub name: String,
+    /// Owning module.
+    pub module: ModuleId,
+    /// Declaration-name span.
+    pub span: Span,
+    /// Whether `export` was written.
+    pub exported: bool,
+    /// Declaration shape with resolved types attached.
+    pub kind: IrItemKind,
+}
+
+/// Item payload: declaration shape plus child item links.
+///
+/// The bridged variants are intentionally heterogeneous (models carry
+/// full rule payloads, roles carry one caption); the IR is built once
+/// per compilation, so boxing for size buys nothing.
+#[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
+pub enum IrItemKind {
+    Model {
+        fields: Vec<SymbolId>,
+        owner: IrOwner,
+        crud: Option<SymbolId>,
+        /// Declaration `label=` caption (G3).
+        label: Option<IrMessage>,
+        /// Read grants in source order (G3).
+        grants: Vec<IrGrant>,
+        /// Invariant registry ids in source order (G3).
+        invariants: Vec<String>,
+        /// Lock registry ids in source order (G3).
+        locks: Vec<String>,
+        /// Composite uniqueness constraints in source order (G3; the
+        /// lowering reports each as `E6008`: no §13 member shape exists).
+        uniques: Vec<IrUnique>,
+        /// Lifetime declaration, when one is authored (G3).
+        retain: Option<IrRetain>,
+    },
+    Contract {
+        fields: Vec<SymbolId>,
+        /// Declaration `label=` caption (G4).
+        label: Option<IrMessage>,
+    },
+    Event {
+        fields: Vec<SymbolId>,
+    },
+    Role {
+        /// `label=` caption (G5).
+        label: Option<IrMessage>,
+    },
+    Capability {
+        ops: Vec<SymbolId>,
+        events: Vec<SymbolId>,
+        /// Authored `version=` metadata (G6; emits as an exact BigInt).
+        version: Option<i64>,
+    },
+    CapabilityOp {
+        params: Vec<SymbolId>,
+        result: IrType,
+    },
+    Message {
+        params: Vec<SymbolId>,
+        /// Source text plus locale variants (G7; call sites add values).
+        descriptor: Option<IrMessage>,
+    },
+    Fixture {
+        target: FixtureTarget,
+        /// Lowered recipe (G10; `None` keeps the failing shell plus `E6006`).
+        recipe: Option<IrFixture>,
+    },
+    Scenario {
+        params: Vec<SymbolId>,
+        trusted: bool,
+        result: Option<ResolvedType>,
+        /// Whether `read=true` was declared (G1).
+        read: bool,
+        /// `by=` admission gate (G1; empty when absent).
+        by: Vec<IrGuard>,
+        /// `label=` caption (G1).
+        label: Option<IrMessage>,
+        /// Attached `#` description (G9).
+        description: Option<IrMessage>,
+        /// Leading `require` guards in written order (G1).
+        guards: Vec<IrStmt>,
+        /// `do` body statements in written order (G1).
+        effects: Vec<IrStmt>,
+    },
+    Crud {
+        model: SymbolId,
+        create: bool,
+        update: bool,
+        delete: bool,
+    },
+    CrudOp {
+        model: SymbolId,
+        op: CrudOp,
+        /// `by=` admission gate (G2; empty when absent).
+        by: Vec<IrGuard>,
+        /// Whether the declaration carries a `when=` admission predicate
+        /// (G2; the predicate itself lives in the shared `crudWhen` map).
+        has_when: bool,
+        /// Field allowlist for this operation, dotted paths (G2).
+        fields: Vec<String>,
+        /// Caption for this operation, when the declaration labels it (G2).
+        label: Option<IrMessage>,
+        /// Whether this entry is excluded by the owner's `expose`
+        /// allowlist (G2; emits `expose:false`).
+        expose_excluded: bool,
+        /// Declared deletion mode (G2; meaningful for delete operations).
+        delete_mode: IrDeleteMode,
+    },
+    Field {
+        owner: SymbolId,
+        ty: IrType,
+        /// Creation default, when one is authored (G3/G4).
+        default: Option<IrDefault>,
+        /// Server initializer, when one is authored (G3/G4).
+        server: Option<IrServer>,
+        /// `trim`/`min=`/`max=`/`unique` modifiers (G3/G4).
+        modifiers: IrModifiers,
+        /// Label caption, with case values for enum/bool captions (G3/G4).
+        label: Option<IrFieldLabel>,
+    },
+    Param {
+        owner: SymbolId,
+        index: usize,
+        ty: IrType,
+        /// `=` default, when one is authored (G1/G6/G7).
+        default: Option<IrDefault>,
+        /// `label=` caption (G1/G6/G7).
+        label: Option<IrMessage>,
+    },
+    DeriveField {
+        model: SymbolId,
+        ty: IrType,
+        /// Derived value expression (G8).
+        expr: Option<TypedExpr>,
+        /// `label=` caption (G8).
+        label: Option<IrFieldLabel>,
+    },
+    DeriveFn {
+        params: Vec<SymbolId>,
+        result: IrType,
+        /// Derived value expression (G8).
+        expr: Option<TypedExpr>,
+    },
+    Preferences {
+        fields: Vec<SymbolId>,
+        /// Registry validator name, when preferences carry invariants.
+        validate: Option<String>,
+    },
+}
+
+/// One read-grant policy: registry rule plus optional field grants.
+#[derive(Debug, Clone)]
+pub struct IrGrant {
+    /// Registry id (`Model.read.N`).
+    pub rule: String,
+    /// Field grants as dotted selector paths (empty omits `fields`).
+    pub fields: Vec<String>,
+}
+
+/// One composite uniqueness constraint (checked but §13 has no member
+/// shape, so the lowering reports it as `E6008`).
+#[derive(Debug, Clone)]
+pub struct IrUnique {
+    /// Constrained fields as dotted selector paths.
+    pub fields: Vec<String>,
+    /// `where=` predicate (nulls participate only when included).
+    pub where_predicate: Option<TypedExpr>,
+    /// Declaration span.
+    pub span: Span,
+}
+
+/// One model lifetime declaration: `retainUntil` plus the registry rule.
+#[derive(Debug, Clone)]
+pub struct IrRetain {
+    /// `until=` deadline expression.
+    pub until: TypedExpr,
+    /// Declaration span.
+    pub span: Span,
+}
+
+/// Stored-field modifiers: `trim`, `min=`/`max=` bounds, field `unique`.
+#[derive(Debug, Clone, Default)]
+pub struct IrModifiers {
+    /// Whether `trim` was written.
+    pub trim: bool,
+    /// `min=` bound, when one is written.
+    pub min: Option<TypedExpr>,
+    /// `max=` bound, when one is written.
+    pub max: Option<TypedExpr>,
+    /// Whether field-level `unique` was written.
+    pub unique: bool,
+}
+
+/// One field caption: plain message, or `text` plus per-case values for
+/// enum/bool captions.
+#[derive(Debug, Clone)]
+pub struct IrFieldLabel {
+    /// Caption text.
+    pub text: IrMessage,
+    /// `(case, caption)` pairs in written order (empty for plain labels).
+    pub values: Vec<(String, IrMessage)>,
+}
+
+/// One catalog-builtin reference needing an availability check at link time.
+///
+/// PR5 seeds this from checked call positions; the JS lowering appends the
+/// builtins it actually lowers (see [`crate::codegen::js`]). Entries whose
+/// catalog record is missing, `planned` or `external` become `E6007`.
+#[derive(Debug, Clone)]
+pub struct ReferencedBuiltin {
+    /// Catalog entry id.
+    pub id: String,
+    /// Call-site span.
+    pub span: Span,
+}
+
+/// One boolean rule function for the `canApp()` registry (`read` and
+/// `invariants` maps).
+#[derive(Debug, Clone)]
+pub struct IrRuleFn {
+    /// Registry id (`Model.read.N`, `Model.require.N`).
+    pub id: String,
+    /// Rule predicate over `(c, row)`.
+    pub pred: TypedExpr,
+    /// Declaration span.
+    pub span: Span,
+}
+
+/// One lock entry for the `canApp()` registry `locks` map.
+#[derive(Debug, Clone)]
+pub struct IrLockFn {
+    /// Registry id (`Model.lock.N`).
+    pub id: String,
+    /// Locked fields as dotted selector paths.
+    pub fields: Vec<String>,
+    /// `when=` predicate (`None` means always locked).
+    pub when: Option<TypedExpr>,
+    /// Declaration span.
+    pub span: Span,
+}
+
+/// One named rule function for the `canApp()` registry (`crudWhen`,
+/// `retention`, `preferencesValid`).
+#[derive(Debug, Clone)]
+pub struct IrNamedFn {
+    /// Registry key (model-local name, or `preferencesValid[...]`).
+    pub name: String,
+    /// Function body over `(c, row)`.
+    pub body: TypedExpr,
+    /// Declaration span.
+    pub span: Span,
+}
+
+/// Checked program in emission order: modules and items plus link metadata.
+#[derive(Debug, Clone)]
+pub struct IrProgram {
+    /// Modules in `(file, span.start)` order (parity with analysis).
+    pub modules: Vec<IrModule>,
+    /// Items in declaration order (parity with analysis symbols).
+    pub items: Vec<IrItem>,
+    /// `catalog_version` consulted by analysis, or empty when none was.
+    pub catalog_version: String,
+    /// Builtin references observed while decoding checked call positions
+    /// (true call-site spans), plus G13 ids from positions the build does
+    /// not decode, with a fallback origin span.
+    pub referenced_builtins: Vec<ReferencedBuiltin>,
+    /// `read` registry rules in source order (G3).
+    pub read_rules: Vec<IrRuleFn>,
+    /// `invariants` registry rules in source order (G3).
+    pub invariants: Vec<IrRuleFn>,
+    /// `locks` registry entries in source order (G3).
+    pub locks: Vec<IrLockFn>,
+    /// `retention` registry entries in source order (G3).
+    pub retention: Vec<IrNamedFn>,
+    /// Shared `crudWhen` admission map entries in source order (G2).
+    pub crud_when: Vec<IrNamedFn>,
+    /// `preferencesValid` validators in source order (G4).
+    pub preferences_valid: Vec<IrNamedFn>,
+    /// Test suites in operation declaration order, orphans last (G10).
+    pub suites: Vec<BddSuite>,
+}
+
+impl IrProgram {
+    /// Look up an item by id.
+    pub fn item(&self, id: SymbolId) -> &IrItem {
+        &self.items[id.0 as usize]
+    }
+
+    /// Look up a module by id.
+    pub fn module(&self, id: ModuleId) -> &IrModule {
+        &self.modules[id.0 as usize]
+    }
+
+    /// Items owned by `module` in declaration order.
+    pub fn items_of(&self, module: ModuleId) -> impl Iterator<Item = &IrItem> {
+        self.items.iter().filter(move |item| item.module == module)
+    }
+}
+
+/// Build the checked IR from `program`.
+///
+/// Pure transformation: copies modules/symbols, attaches resolved types
+/// from `symbol_types`/`symbol_results`, and decodes the PR5
+/// effects/examples tables anchored by [`NodeKey`] into the CST of `db`
+/// (see the module docs for the span-anchored re-read contract). `catalog`
+/// drives the G12 awaited rule and builtin classification. Never fails:
+/// absent table rows are `E6006`, unlowerable checked positions become
+/// [`IrExpr::Unsupported`]/[`IrStmt::Unsupported`] for loud `E6008` at the
+/// lowering stages.
+pub fn build(
+    program: &CheckedProgram,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+) -> (IrProgram, Vec<Diagnostic>) {
+    let mut cx = Cx::new(program, db, catalog);
+    cx.build_program()
+}
+
+/// Resolve a declared symbol type, recording an `E6006` when the analysis
+/// type table does not publish it (C3: `symbol_types`, populated by the
+/// types pass).
+fn lookup_symbol_type(
+    program: &CheckedProgram,
+    symbol: &crate::analysis::resolve::Symbol,
+    what: &str,
+    diags: &mut Vec<Diagnostic>,
+) -> IrType {
+    match program.types.symbol_types.get(&symbol.id) {
+        Some(ty) => IrType::Known(ty.clone()),
+        None => {
+            diags.push(Diagnostic::error(
+                "E6006",
+                format!(
+                    "{} {}: {what} is not published in the analysis type table; emitting a placeholder schema",
+                    kind_noun(&symbol.kind),
+                    symbol.canonical,
+                ),
+                symbol.span,
+            ));
+            IrType::Unknown
+        }
+    }
+}
+
+/// Resolve a declared operation result, recording an `E6006` when the
+/// analysis type table does not publish it (C3: `symbol_results`).
+/// `declared` is whether the source declares a result at all: undeclared
+/// (void) results resolve to `None` with no diagnostic.
+fn lookup_symbol_result(
+    program: &CheckedProgram,
+    symbol: &crate::analysis::resolve::Symbol,
+    declared: bool,
+    diags: &mut Vec<Diagnostic>,
+) -> Option<ResolvedType> {
+    match program.types.symbol_results.get(&symbol.id) {
+        Some(result) => result.clone(),
+        None if !declared => None,
+        None => {
+            diags.push(Diagnostic::error(
+                "E6006",
+                format!(
+                    "{} {}: declared result type is not published in the analysis type table; omitting the result schema",
+                    kind_noun(&symbol.kind),
+                    symbol.canonical,
+                ),
+                symbol.span,
+            ));
+            None
+        }
+    }
+}
+
+/// Short noun for an item kind, for diagnostics.
+fn kind_noun(kind: &SymbolKind) -> &'static str {
+    match kind {
+        SymbolKind::Model { .. } => "model",
+        SymbolKind::Contract { .. } => "contract",
+        SymbolKind::Event { .. } => "event",
+        SymbolKind::Role => "role",
+        SymbolKind::Capability { .. } => "capability",
+        SymbolKind::CapabilityOp { .. } => "capability operation",
+        SymbolKind::Message { .. } => "message",
+        SymbolKind::Fixture { .. } => "fixture",
+        SymbolKind::Scenario { .. } => "scenario",
+        SymbolKind::Crud { .. } => "crud",
+        SymbolKind::CrudOp { .. } => "crud operation",
+        SymbolKind::Field { .. } => "field",
+        SymbolKind::Param { .. } => "parameter",
+        SymbolKind::DeriveField { .. } => "derived field",
+        SymbolKind::DeriveFn { .. } => "derived function",
+        SymbolKind::Preferences { .. } => "preferences",
+    }
+}
+
+/// Significant children: everything except whitespace gaps and `##`
+/// comments.
+fn kids(node: &SyntaxNode) -> Vec<&SyntaxNode> {
+    node.children
+        .iter()
+        .filter(|n| !matches!(n.kind, SyntaxKind::Trivia | SyntaxKind::Comment))
+        .collect()
+}
+
+/// Slice source text for `span` (empty when out of range; total).
+fn slice(db: &SourceDb, span: Span) -> &str {
+    db.get(span.file)
+        .and_then(|s| s.text.get(span.start as usize..span.end as usize))
+        .unwrap_or("")
+}
+
+/// Decode a `String` token slice (including quotes) to its value.
+fn decode_string(slice: &str) -> String {
+    let body = slice
+        .strip_prefix('"')
+        .and_then(|s| s.strip_suffix('"'))
+        .unwrap_or(slice);
+    unescape_json(body)
+}
+
+/// Minimal JSON string-body unescape (mirrors the analysis decoder).
+fn unescape_json(body: &str) -> String {
+    let mut out = String::with_capacity(body.len());
+    let mut chars = body.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match chars.next() {
+            Some('"') => out.push('"'),
+            Some('\\') => out.push('\\'),
+            Some('/') => out.push('/'),
+            Some('n') => out.push('\n'),
+            Some('r') => out.push('\r'),
+            Some('t') => out.push('\t'),
+            Some('u') => {
+                let hex: String = chars.by_ref().take(4).collect();
+                let code = u32::from_str_radix(&hex, 16).unwrap_or(0);
+                out.push(char::from_u32(code).unwrap_or('\u{FFFD}'));
+            }
+            Some(other) => out.push(other),
+            None => {}
+        }
+    }
+    out
+}
+
+/// Find the CST node for `key` by span plus kind discriminant (total).
+fn find_node<'t>(tree: &'t SyntaxNode, key: &NodeKey) -> Option<&'t SyntaxNode> {
+    if tree.span.start == key.start && tree.span.end == key.end && tree.kind as u8 == key.kind {
+        return Some(tree);
+    }
+    tree.children
+        .iter()
+        .filter_map(|child| find_node(child, key))
+        .next()
+}
+
+/// Whether `name` is a `by`/`read` predicate spelling (kept verbatim).
+fn is_predicate_spelling(name: &str) -> bool {
+    matches!(name, "members" | "owner" | "authenticated" | "public")
+}
+
+/// Whether `name` is a provisioned example account (factory parameter).
+fn is_test_account(name: &str) -> bool {
+    matches!(name, "self" | "other")
+}
+
+/// Duration literal slice (`5s`, `300ms`, ...) to milliseconds.
+fn duration_millis(slice: &str) -> Option<i128> {
+    let (digits, factor) = ["ms", "s", "m", "h", "d"].iter().find_map(|suffix| {
+        slice
+            .strip_suffix(suffix)
+            .filter(|d| !d.is_empty() && d.bytes().all(|b| b.is_ascii_digit()))
+            .map(|d| {
+                (
+                    d,
+                    match *suffix {
+                        "ms" => 1i128,
+                        "s" => 1_000,
+                        "m" => 60_000,
+                        "h" => 3_600_000,
+                        _ => 86_400_000,
+                    },
+                )
+            })
+    })?;
+    digits.parse::<i128>().ok()?.checked_mul(factor)
+}
+
+/// Bridge build context: tables plus re-parsed sources and indexes.
+struct Cx<'a> {
+    program: &'a CheckedProgram,
+    db: &'a SourceDb,
+    catalog: Option<&'a Catalog>,
+    /// Re-parsed trees per source, in [`SourceDb`] order.
+    trees: Vec<(SourceId, SyntaxNode)>,
+    /// `(module, name)` to member symbol.
+    by_name: HashMap<(ModuleId, String), SymbolId>,
+    /// `(owner, name)` to field symbol (model/contract/event/preferences
+    /// fields plus derived fields).
+    fields: HashMap<(SymbolId, String), SymbolId>,
+    /// Module id by canonical module name.
+    modules_by_name: HashMap<String, ModuleId>,
+    /// Builtins observed while decoding calls (true call-site spans).
+    builtins_seen: Vec<ReferencedBuiltin>,
+    /// G13 ids already observed (the rest seed with a fallback span).
+    g13_seen: HashSet<String>,
+    /// Taken page function names (dedup).
+    page_fns: HashSet<String>,
+    /// Preferences validator name per module (filled by rule maps).
+    preference_validators: HashMap<ModuleId, String>,
+    diags: Vec<Diagnostic>,
+}
+
+impl<'a> Cx<'a> {
+    fn new(program: &'a CheckedProgram, db: &'a SourceDb, catalog: Option<&'a Catalog>) -> Self {
+        let mut trees = Vec::new();
+        for (id, _) in db.iter() {
+            let (tree, _) = crate::syntax::parse(db, id);
+            trees.push((id, tree));
+        }
+        let mut by_name = HashMap::new();
+        let mut fields = HashMap::new();
+        for symbol in &program.symbols {
+            by_name.insert((symbol.module, symbol.name.clone()), symbol.id);
+            match &symbol.kind {
+                SymbolKind::Field { owner, .. } | SymbolKind::DeriveField { model: owner, .. } => {
+                    fields.insert((*owner, symbol.name.clone()), symbol.id);
+                }
+                _ => {}
+            }
+        }
+        let modules_by_name = program
+            .modules
+            .iter()
+            .map(|m| (m.name.clone(), m.id))
+            .collect();
+        Self {
+            program,
+            db,
+            catalog,
+            trees,
+            by_name,
+            fields,
+            modules_by_name,
+            builtins_seen: Vec::new(),
+            g13_seen: HashSet::new(),
+            page_fns: HashSet::new(),
+            preference_validators: HashMap::new(),
+            diags: Vec::new(),
+        }
+    }
+
+    /// Source text for `span` (total).
+    fn text(&self, span: Span) -> &str {
+        slice(self.db, span)
+    }
+
+    /// CST node for `key` (total).
+    fn node(&self, key: &NodeKey) -> Option<&SyntaxNode> {
+        self.trees
+            .iter()
+            .find(|(id, _)| *id == key.file)
+            .and_then(|(_, tree)| find_node(tree, key))
+    }
+
+    /// Record an `E6006` gap diagnostic.
+    fn gap(&mut self, message: String, span: Span) {
+        self.diags.push(Diagnostic::error("E6006", message, span));
+    }
+
+    /// Resolve a member name in `module`, following `use` aliases.
+    /// Returns the symbol plus whether it came through an import.
+    fn resolve_member(&self, module: ModuleId, name: &str) -> Option<(SymbolId, bool)> {
+        if let Some(id) = self.by_name.get(&(module, name.to_string())) {
+            return Some((*id, false));
+        }
+        let host = self.program.modules.get(module.0 as usize)?;
+        for import in &host.imports {
+            for member in &import.members {
+                if member.alias == name
+                    && let Some(provider) = self.modules_by_name.get(&import.provider)
+                    && let Some(id) = self.by_name.get(&(*provider, member.name.clone()))
+                {
+                    return Some((*id, true));
+                }
+            }
+        }
+        None
+    }
+
+    /// Canonical identity of `id` (total over symbol ids).
+    fn canonical(&self, id: SymbolId) -> String {
+        self.program
+            .symbols
+            .get(id.0 as usize)
+            .map(|s| s.canonical.clone())
+            .unwrap_or_else(|| format!("symbol{}", id.0))
+    }
+
+    /// Local name of `id` (total over symbol ids).
+    fn local_name(&self, id: SymbolId) -> String {
+        self.program
+            .symbols
+            .get(id.0 as usize)
+            .map(|s| s.name.clone())
+            .unwrap_or_else(|| format!("symbol{}", id.0))
+    }
+}
+
+// --- Scalar classification -------------------------------------------------
+//
+// The §13 scalar lowering dispatches on the checked operand type. These
+// helpers classify [`ResolvedType`] so [`crate::codegen::js`] picks one
+// import name per operation.
+
+/// Scalar families with distinct §13 lowering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScalarFamily {
+    Int,
+    Decimal,
+    Money,
+    Duration,
+    Date,
+    Datetime,
+    Bool,
+    Text,
+    Enum,
+    Reference,
+    Secret,
+}
+
+/// Classify a checked type into its §13 scalar family, if it is one.
+///
+/// `Nullable` unwraps one layer; `Null` matches any nullable side during
+/// comparison lowering and classifies as nothing here.
+pub fn scalar_family(ty: &ResolvedType) -> Option<ScalarFamily> {
+    match ty {
+        ResolvedType::Nullable(inner) => scalar_family(inner),
+        ResolvedType::Scalar(scalar) => Some(match scalar {
+            Scalar::Int => ScalarFamily::Int,
+            Scalar::Decimal => ScalarFamily::Decimal,
+            Scalar::Money => ScalarFamily::Money,
+            Scalar::Duration => ScalarFamily::Duration,
+            Scalar::Date => ScalarFamily::Date,
+            Scalar::Datetime => ScalarFamily::Datetime,
+            Scalar::Bool => ScalarFamily::Bool,
+            Scalar::Text
+            | Scalar::Email
+            | Scalar::Url
+            | Scalar::Locale
+            | Scalar::Timezone
+            | Scalar::Currency => ScalarFamily::Text,
+            Scalar::User | Scalar::Member | Scalar::File | Scalar::Json | Scalar::Bytes => {
+                ScalarFamily::Reference
+            }
+            Scalar::Secret => ScalarFamily::Secret,
+        }),
+        ResolvedType::Enum { .. } => Some(ScalarFamily::Enum),
+        ResolvedType::Record { .. }
+        | ResolvedType::Message(_)
+        | ResolvedType::Team
+        | ResolvedType::OperationContext => Some(ScalarFamily::Reference),
+        ResolvedType::Error
+        | ResolvedType::Unknown
+        | ResolvedType::Null
+        | ResolvedType::Action { .. }
+        | ResolvedType::Invocation { .. }
+        | ResolvedType::Delivery { .. }
+        | ResolvedType::Array { .. }
+        | ResolvedType::Union(_)
+        | ResolvedType::Object(_)
+        | ResolvedType::Operation(_)
+        | ResolvedType::Opaque(_) => None,
+    }
+}
+
+/// Whether values of this type compare structurally with
+/// `equalValue(c, canonicalTypeId, a, b)` (arrays and contracts/records by
+/// value rather than JavaScript object identity).
+pub fn is_structural(ty: &ResolvedType) -> bool {
+    match ty {
+        ResolvedType::Nullable(inner) => is_structural(inner),
+        ResolvedType::Array { .. } | ResolvedType::Record { .. } | ResolvedType::Object(_) => true,
+        ResolvedType::Error
+        | ResolvedType::Unknown
+        | ResolvedType::Null
+        | ResolvedType::Scalar(_)
+        | ResolvedType::Team
+        | ResolvedType::OperationContext
+        | ResolvedType::Enum { .. }
+        | ResolvedType::Message(_)
+        | ResolvedType::Action { .. }
+        | ResolvedType::Invocation { .. }
+        | ResolvedType::Delivery { .. }
+        | ResolvedType::Union(_)
+        | ResolvedType::Operation(_)
+        | ResolvedType::Opaque(_) => false,
+    }
+}
+
+// --- Checked expressions (PR5 contract) ------------------------------------
+//
+// PR5 will produce these from checked expression positions (guards, effects,
+// defaults, queries, example cells). Today they are built by fixture tests
+// to pin the §13 lowering per construct.
+
+/// One checked expression with its resolved type and source span.
+#[derive(Debug, Clone)]
+pub struct TypedExpr {
+    /// Expression shape.
+    pub expr: IrExpr,
+    /// Checked type (drives scalar-dispatch in lowering).
+    pub ty: ResolvedType,
+    /// Source span (source-map attribution).
+    pub span: Span,
+}
+
+impl TypedExpr {
+    /// Attach a type and span to a shape.
+    pub fn new(expr: IrExpr, ty: ResolvedType, span: Span) -> Self {
+        Self { expr, ty, span }
+    }
+}
+
+/// Checked expression shapes with a §13 lowering.
+#[derive(Debug, Clone)]
+pub enum IrExpr {
+    /// Exact integer literal → BigInt (`5n`).
+    Int(i128),
+    /// Exact decimal literal, canonical source spelling (`"1.50"`).
+    Decimal(String),
+    /// Text literal.
+    Text(String),
+    /// Boolean literal.
+    Bool(bool),
+    /// `null` literal.
+    Null,
+    /// `money(minor, "CUR")` construct → `money(25n,"EUR")`.
+    Money { minor: i128, currency: String },
+    /// Duration constant in milliseconds → BigInt (`300000n`).
+    DurationMs(i128),
+    /// `date("2026-10-01")` construct.
+    Date(String),
+    /// `datetime("...Z")` construct.
+    Datetime(String),
+    /// Lexical reference (`c`, `row`, `s`, `b`, `result`, locals).
+    Name(String),
+    /// Field access (`row.status`, `c.actor`).
+    Member { base: Box<TypedExpr>, field: String },
+    /// Call to a source-callable target.
+    Call {
+        target: IrCallTarget,
+        args: Vec<TypedExpr>,
+    },
+    /// Binary operator (scalar-dispatched in lowering).
+    Binary {
+        op: IrBinOp,
+        left: Box<TypedExpr>,
+        right: Box<TypedExpr>,
+    },
+    /// Unary operator.
+    Unary { op: IrUnOp, operand: Box<TypedExpr> },
+    /// Array literal.
+    Array(Vec<TypedExpr>),
+    /// Object literal.
+    Object(Vec<(String, TypedExpr)>),
+    /// Query domain → `records(c, model, {...})`.
+    Query(IrQuery),
+    /// Stored delivery observation →
+    /// `await delivery(c, {record, field}, ["status"])`.
+    DeliveryRead {
+        record: Box<TypedExpr>,
+        field: String,
+        props: Vec<String>,
+    },
+    /// Inline message descriptor → `message(...)`.
+    Message(IrMessage),
+    /// `format(c, descriptor, {locale})`.
+    Format {
+        descriptor: Box<TypedExpr>,
+        locale: Option<String>,
+    },
+    /// Role gate in expression position (subject predicate or bare gate
+    /// over the caller) → `hasRole(c, role)` / `hasRole(c, role, person)`.
+    HasRole {
+        /// Canonical role identity.
+        role: String,
+        /// Subject person, when the source passes one.
+        person: Option<Box<TypedExpr>>,
+    },
+    /// One predicate lambda for collection `where` props:
+    /// `(param) => body`.
+    Lambda {
+        /// Parameter name (the source `as` name, else `row`).
+        param: String,
+        /// Predicate body.
+        body: Box<TypedExpr>,
+    },
+    /// Checked expression with no §13 lowering. The lowering stages
+    /// report `E6008` naming the position and emit a throwing
+    /// placeholder; the build never invents a meaning instead.
+    Unsupported {
+        /// What could not be lowered (`select query`, ...).
+        what: String,
+        /// Why there is no lowering.
+        why: String,
+    },
+}
+
+/// Source-callable call targets.
+#[derive(Debug, Clone)]
+pub enum IrCallTarget {
+    /// Catalog builtin id (`count`, `first`, `any`, ...): imported from
+    /// `@canlang/stdlib`, availability-checked against the catalog (`E6007`).
+    /// `awaited` marks builtins the target awaits (`count`, `first`,
+    /// `any`, ...); PR5 derives it from catalog effects (exact rule TBD).
+    Builtin { id: String, awaited: bool },
+    /// Capability operation by canonical id: imported from its owning
+    /// package module and invoked as `await op(c, ...)`.
+    CapabilityOp(String),
+}
+
+/// Binary operators.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrBinOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    And,
+    Or,
+    Coalesce,
+    In,
+}
+
+/// Unary operators.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrUnOp {
+    Neg,
+    Not,
+}
+
+/// One `order` entry of a query: `field` or `-field`.
+#[derive(Debug, Clone)]
+pub struct IrOrder {
+    /// Field name.
+    pub field: String,
+    /// Whether descending (`-field`).
+    pub descending: bool,
+}
+
+/// Checked query → `records(c, model, {parent?, where?, order?, limit?, archived?})`.
+#[derive(Debug, Clone)]
+pub struct IrQuery {
+    /// Canonical model identity.
+    pub model: String,
+    /// Containment parent value, if any.
+    pub parent: Option<Box<TypedExpr>>,
+    /// Row predicate over `row`, if any.
+    pub where_pred: Option<Box<TypedExpr>>,
+    /// Whether the predicate needs `async` (delivery reads, service calls).
+    pub where_async: bool,
+    /// Order entries in source order.
+    pub order: Vec<IrOrder>,
+    /// Limit value, if any (excess fails, never truncates silently).
+    pub limit: Option<Box<TypedExpr>>,
+    /// Archived selector, if any.
+    pub archived: Option<Box<TypedExpr>>,
+}
+
+// --- Guards, effects, pages, UI (PR5 contract) -----------------------------
+
+/// Checked admission guard: `by` clauses, `require` conditions, page guards.
+#[derive(Debug, Clone)]
+pub enum IrGuard {
+    /// Role gate (canonical role, or a predicate spelling `members`, `owner`,
+    /// `authenticated`, `public`) → `hasRole(c, id)`.
+    Role(String),
+    /// Subject predicate `role(person)` → `hasRole(c, id, person)`.
+    Subject {
+        role: String,
+        person: Box<TypedExpr>,
+    },
+    /// Arbitrary checked boolean expression.
+    Expr(TypedExpr),
+    /// Conjunction in source order.
+    And(Vec<IrGuard>),
+    /// Disjunction in source order.
+    Or(Vec<IrGuard>),
+    /// Negation.
+    Not(Box<IrGuard>),
+}
+
+/// Deletion mode: `deleteRecord(c, row, {mode:'archive'|'remove'})`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrDeleteMode {
+    Archive,
+    Remove,
+}
+
+impl IrDeleteMode {
+    /// Wire spelling.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IrDeleteMode::Archive => "archive",
+            IrDeleteMode::Remove => "remove",
+        }
+    }
+}
+
+/// Checked effect/handler statements in source order.
+#[derive(Debug, Clone)]
+pub enum IrStmt {
+    /// `let name = value`.
+    Let {
+        name: String,
+        value: TypedExpr,
+        span: Span,
+    },
+    /// `create Model {...}` → `create(c, model, input, {when})`.
+    Create {
+        model: String,
+        input: TypedExpr,
+        when: Option<String>,
+        binding: Option<String>,
+        span: Span,
+    },
+    /// `set record {...}` → `set(c, record, changes, {when})`.
+    Set {
+        record: TypedExpr,
+        changes: TypedExpr,
+        when: Option<String>,
+        span: Span,
+    },
+    /// `delete record` with its authored mode.
+    Delete {
+        record: TypedExpr,
+        mode: IrDeleteMode,
+        span: Span,
+    },
+    /// `call operation {...}`. Cross-operation canonical invocation has no
+    /// §13 lowering; the JS stage raises `E6008` naming the operation.
+    Call {
+        operation: String,
+        inputs: TypedExpr,
+        binding: Option<String>,
+        span: Span,
+    },
+    /// `emit Event {...}` → `emit(c, identity, payload)`.
+    Emit {
+        event: String,
+        payload: TypedExpr,
+        span: Span,
+    },
+    /// `send op {...}` → `send(c, identity, args, {when?})`.
+    Send {
+        operation: String,
+        args: TypedExpr,
+        when: Option<TypedExpr>,
+        binding: Option<String>,
+        span: Span,
+    },
+    /// `schedule key at=... event=... {...}`.
+    Schedule {
+        key: TypedExpr,
+        at: TypedExpr,
+        event: String,
+        payload: TypedExpr,
+        span: Span,
+    },
+    /// `cancel key` → `cancel(c, key)`.
+    Cancel { key: TypedExpr, span: Span },
+    /// `return value?`.
+    Return {
+        value: Option<TypedExpr>,
+        span: Span,
+    },
+    /// `require cond` → `check(cond)`.
+    Require { cond: TypedExpr, span: Span },
+    /// `if` with optional else branch.
+    If {
+        cond: TypedExpr,
+        then_branch: Vec<IrStmt>,
+        else_branch: Vec<IrStmt>,
+        span: Span,
+    },
+    /// `for item in domain` → `for (const item of await domain)`.
+    For {
+        item: String,
+        domain: TypedExpr,
+        body: Vec<IrStmt>,
+        span: Span,
+    },
+    /// Checked statement with no §13 lowering. The lowering stages
+    /// report `E6008` naming the position and emit a throwing
+    /// placeholder; the build never invents a meaning instead.
+    Unsupported {
+        /// What could not be lowered (`for limit`, ...).
+        what: String,
+        /// Why there is no lowering.
+        why: String,
+        /// Statement span.
+        span: Span,
+    },
+}
+
+/// Parameterized display message → `message(source, {locales}, {params})`.
+/// Static messages omit the third argument.
+#[derive(Debug, Clone)]
+pub struct IrMessage {
+    /// Source-language text.
+    pub source: String,
+    /// `(locale, translation)` pairs; `None` renders `null`.
+    pub variants: Vec<(String, Option<String>)>,
+    /// Typed parameters in source order.
+    pub params: Vec<IrMessageParam>,
+}
+
+/// Field creation default (PR5 contract): literal defaults stay literal
+/// `default` values; nonliteral defaults lower to a typed
+/// `default(c,{parent})` callable over creation context only (the second
+/// argument carries just the resolved parent when containment exists).
+#[derive(Debug, Clone)]
+pub enum IrDefault {
+    /// Literal default value.
+    Literal(TypedExpr),
+    /// Computed default over creation context.
+    Computed { expr: TypedExpr, has_parent: bool },
+}
+
+/// Server initializer (PR5 contract): the fixed `actor`/`now` metadata or
+/// a callable in the same convention, always excluding caller input.
+#[derive(Debug, Clone)]
+pub enum IrServer {
+    Actor,
+    Now,
+    Computed(TypedExpr),
+}
+
+/// One typed message parameter.
+#[derive(Debug, Clone)]
+pub struct IrMessageParam {
+    /// Parameter name.
+    pub name: String,
+    /// Canonical type id (`int`, `expense.Expense.status`, ...).
+    pub type_id: String,
+    /// Value expression.
+    pub value: TypedExpr,
+}
+
+/// One UI factory node: lowercase server factory, one props object plus
+/// `children` arrays. Never `h`, native-element expansion, hydration or
+/// browser business-state stores.
+#[derive(Debug, Clone)]
+pub struct IrUi {
+    /// Factory name (`card`, `text`, `table`, `list`, `form`, ...).
+    pub factory: String,
+    /// Props in source order.
+    pub props: Vec<(String, TypedExpr)>,
+    /// Child nodes.
+    pub children: Vec<IrUi>,
+    /// Row scope for collections: `(row, view)` names rendering
+    /// `renderRow:(row,view)=>[children]` instead of `children`.
+    pub row_scope: Option<(String, String)>,
+    /// Source span.
+    pub span: Span,
+}
+
+/// One page → named page function plus page descriptor
+/// `{owner, path, title, description?, order?, group?, nav?, admit, render}`
+/// in source order.
+#[derive(Debug, Clone)]
+pub struct IrPage {
+    /// Canonical declaring package.
+    pub owner: String,
+    /// Normalized route pattern.
+    pub path: String,
+    /// Static caption.
+    pub title: IrMessage,
+    /// Static description, if authored.
+    pub description: Option<IrMessage>,
+    /// Exact authored order, if any → BigInt.
+    pub order: Option<i128>,
+    /// Page group, if authored.
+    pub group: Option<String>,
+    /// Whether `nav:"none"` was authored.
+    pub nav_none: bool,
+    /// Admission guards in source order.
+    pub admit: Vec<IrGuard>,
+    /// Render body: UI factory nodes in source order.
+    pub render: Vec<IrUi>,
+    /// Page function name.
+    pub fn_name: String,
+    /// Descriptor binding name.
+    pub descriptor_name: String,
+    /// Declaration span.
+    pub span: Span,
+}
+
+// --- Test artifacts (PR5 contract, lowered by `bdd`) -----------------------
+
+/// Fixture recipe kind. Model/user/file/delivery kinds are mutually
+/// exclusive; provisioned scope values are protected isolated handles.
+#[derive(Debug, Clone)]
+pub enum IrFixtureKind {
+    /// `{model, dependencies, value: async (c, s) => fields}`.
+    Model { model: String, fields: TypedExpr },
+    /// `{dependencies: [], user: async (c, s) => ({roles})}` with canonical
+    /// role identities.
+    User { roles: Vec<String> },
+    /// `{dependencies, file: async (c, s) => fields}`.
+    File { fields: TypedExpr },
+    /// `{delivery, values: async (c, s) => ({request, status?, result?, error?})}`.
+    Delivery {
+        operation: String,
+        request: Box<TypedExpr>,
+        status: Option<Box<TypedExpr>>,
+        result: Option<Box<TypedExpr>>,
+        error: Option<Box<TypedExpr>>,
+    },
+}
+
+/// One fixture recipe.
+#[derive(Debug, Clone)]
+pub struct IrFixture {
+    /// Recipe binding name.
+    pub name: String,
+    /// Canonical fixture identity.
+    pub canonical: String,
+    /// Recipe kind.
+    pub kind: IrFixtureKind,
+    /// Baseline dependency recipe names.
+    pub dependencies: Vec<String>,
+    /// Source span.
+    pub span: Span,
+}
+
+/// One table row: own dependencies, cells, and either expected values or an
+/// exact error code.
+#[derive(Debug, Clone)]
+pub struct IrTableRow {
+    /// Row dependency recipe names.
+    pub dependencies: Vec<String>,
+    /// Cell values in selector order.
+    pub values: TypedExpr,
+    /// Expected observation values, if the row passes.
+    pub expected: Option<TypedExpr>,
+    /// Exact error code, if the row fails.
+    pub error: Option<String>,
+    /// Source span.
+    pub span: Span,
+}
+
+/// One behavior table.
+#[derive(Debug, Clone)]
+pub struct IrTable {
+    /// Attaching operation identity.
+    pub operation: String,
+    /// Common baseline dependency recipe names.
+    pub dependencies: Vec<String>,
+    /// Common inputs callback value.
+    pub inputs: TypedExpr,
+    /// Selector path metadata in source order.
+    pub selectors: Vec<String>,
+    /// Observation callbacks in source order.
+    pub observations: Vec<TypedExpr>,
+    /// Selected rows in source order.
+    pub rows: Vec<IrTableRow>,
+    /// Source span.
+    pub span: Span,
+}
+
+/// One sequence step: call, binding or assertion (distinct required keys
+/// discriminate the shapes; no Can strings are interpreted).
+///
+/// Call steps legitimately dwarf bindings; the IR is built once per
+/// compilation, so boxing for size buys nothing.
+#[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
+pub enum IrStep {
+    /// `{operation, by, inputs, request?, bind?, error?}`. The outer
+    /// operation identifies the attaching scenario; it causes no implicit
+    /// call. Exact-error steps cannot also bind.
+    Call {
+        operation: String,
+        by: TypedExpr,
+        inputs: TypedExpr,
+        request: Option<TypedExpr>,
+        bind: Option<String>,
+        error: Option<String>,
+    },
+    /// `{let, value}`.
+    Binding { name: String, value: TypedExpr },
+    /// `{observations, expected, types}` with canonical type ids.
+    Assertion {
+        observations: TypedExpr,
+        expected: TypedExpr,
+        types: Vec<String>,
+    },
+}
+
+/// One causal sequence.
+#[derive(Debug, Clone)]
+pub struct IrSequence {
+    /// Attaching operation identity.
+    pub operation: String,
+    /// Dependency recipe names, provisioned once before the first step.
+    pub dependencies: Vec<String>,
+    /// Steps in source order.
+    pub steps: Vec<IrStep>,
+    /// Source span.
+    pub span: Span,
+}
+
+// --- Bridge build ---------------------------------------------------------
+
+impl<'a> Cx<'a> {
+    /// Build the program: modules, rule maps, items, suites.
+    fn build_program(&mut self) -> (IrProgram, Vec<Diagnostic>) {
+        let modules = self.build_modules();
+        // Rule maps first: preferences items read their validator names.
+        let mut read_rules = Vec::new();
+        let mut invariants = Vec::new();
+        let mut locks = Vec::new();
+        let mut retention = Vec::new();
+        let mut crud_when = Vec::new();
+        let mut preferences_valid = Vec::new();
+        self.build_rule_maps(
+            &mut read_rules,
+            &mut invariants,
+            &mut locks,
+            &mut retention,
+            &mut crud_when,
+            &mut preferences_valid,
+        );
+        let items = self.build_items();
+        self.check_bound_capabilities();
+        self.check_migrations();
+        let suites = self.build_suites(&items);
+        let referenced_builtins = self.build_referenced_builtins();
+        let program = IrProgram {
+            modules,
+            items,
+            catalog_version: self.program.catalog_version.clone(),
+            referenced_builtins,
+            read_rules,
+            invariants,
+            locks,
+            retention,
+            crud_when,
+            preferences_valid,
+            suites,
+        };
+        (program, std::mem::take(&mut self.diags))
+    }
+
+    /// Copy modules, decoding pages and descriptions (G9).
+    fn build_modules(&mut self) -> Vec<IrModule> {
+        let mut out = Vec::with_capacity(self.program.modules.len());
+        for m in self.program.modules.clone() {
+            let module_data = self.program.effects.modules.get(&m.id).cloned();
+            if module_data.is_none() && !matches!(m.kind, ModuleKind::ComposedApp) {
+                self.gap(
+                    format!(
+                        "module {}: policies, pages, examples, migrations and descriptions have no analysis row (PR5); omitting them from emission",
+                        m.name,
+                    ),
+                    m.span,
+                );
+            }
+            let mut pages = Vec::new();
+            let mut description = None;
+            if let Some(data) = &module_data {
+                for page in &data.pages {
+                    pages.push(self.decode_page(m.id, &m.name, page));
+                }
+                description = self.module_description(m.id, data);
+            }
+            out.push(IrModule {
+                id: m.id,
+                name: m.name.clone(),
+                kind: m.kind,
+                file: m.file,
+                span: m.span,
+                imports: m
+                    .imports
+                    .iter()
+                    .map(|i| IrImport {
+                        provider: i.provider.clone(),
+                        provider_span: i.provider_span,
+                        members: i
+                            .members
+                            .iter()
+                            .map(|mem| (mem.name.clone(), mem.alias.clone(), mem.span))
+                            .collect(),
+                        from: i.from.clone(),
+                        span: i.span,
+                    })
+                    .collect(),
+                uses: m.uses.clone(),
+                uses_resolved: m
+                    .uses_resolved
+                    .iter()
+                    .map(|id| {
+                        self.program
+                            .modules
+                            .get(id.0 as usize)
+                            .map_or_else(|| format!("module{}", id.0), |target| target.name.clone())
+                    })
+                    .collect(),
+                pages,
+                description,
+            });
+        }
+        out
+    }
+
+    /// Copy symbols, decoding per-item PR5 data (G1-G8).
+    fn build_items(&mut self) -> Vec<IrItem> {
+        let mut out = Vec::with_capacity(self.program.symbols.len());
+        for symbol in self.program.symbols.clone() {
+            let kind = self.build_item_kind(&symbol);
+            out.push(IrItem {
+                id: symbol.id,
+                canonical: symbol.canonical.clone(),
+                name: symbol.name.clone(),
+                module: symbol.module,
+                span: symbol.span,
+                exported: symbol.exported,
+                kind,
+            });
+        }
+        out
+    }
+
+    /// Decode one symbol's item kind plus its PR5 payload.
+    #[allow(clippy::too_many_lines)]
+    fn build_item_kind(&mut self, symbol: &crate::analysis::resolve::Symbol) -> IrItemKind {
+        match &symbol.kind {
+            SymbolKind::Model {
+                fields,
+                owner,
+                crud,
+            } => {
+                let (label, grants, invariants, locks, uniques, retain) = self.decode_model(symbol);
+                IrItemKind::Model {
+                    fields: fields.clone(),
+                    owner: match owner {
+                        ModelOwner::Team => IrOwner::Team,
+                        ModelOwner::ChildOf(parent) => IrOwner::ChildOf(*parent),
+                        ModelOwner::App => IrOwner::App,
+                    },
+                    crud: *crud,
+                    label,
+                    grants,
+                    invariants,
+                    locks,
+                    uniques,
+                    retain,
+                }
+            }
+            SymbolKind::Contract { fields } => {
+                let label = self.decode_record_label(symbol, "contract");
+                IrItemKind::Contract {
+                    fields: fields.clone(),
+                    label,
+                }
+            }
+            SymbolKind::Event { fields } => {
+                if !self.program.effects.records.contains_key(&symbol.id) {
+                    self.gap(
+                        format!(
+                            "event {}: field modifiers/defaults are not in the analysis tables (PR5 labels); emitting the typed schema without them",
+                            symbol.canonical,
+                        ),
+                        symbol.span,
+                    );
+                }
+                IrItemKind::Event {
+                    fields: fields.clone(),
+                }
+            }
+            SymbolKind::Role => {
+                let label = self
+                    .program
+                    .effects
+                    .roles
+                    .get(&symbol.id)
+                    .and_then(|data| data.label)
+                    .and_then(|key| self.decode_message_value(symbol.module, &key));
+                if !self.program.effects.roles.contains_key(&symbol.id) {
+                    self.gap(
+                        format!(
+                            "role {}: label is not in the analysis tables (PR5 labels); emitting the identity without it",
+                            symbol.canonical,
+                        ),
+                        symbol.span,
+                    );
+                }
+                IrItemKind::Role { label }
+            }
+            SymbolKind::Capability { ops, events } => {
+                let version = self
+                    .program
+                    .effects
+                    .capabilities
+                    .get(&symbol.id)
+                    .and_then(|data| data.version);
+                if !self.program.effects.capabilities.contains_key(&symbol.id) {
+                    self.gap(
+                        format!(
+                            "capability {}: version, events and operation signatures are not in the analysis tables (PR5 effects); emitting the signature without them",
+                            symbol.canonical,
+                        ),
+                        symbol.span,
+                    );
+                }
+                IrItemKind::Capability {
+                    ops: ops.clone(),
+                    events: events.clone(),
+                    version,
+                }
+            }
+            SymbolKind::CapabilityOp { params, .. } => {
+                // Capability-op results are always declared; a missing
+                // `symbol_results` row is a gap.
+                let result = match self.program.types.symbol_results.get(&symbol.id) {
+                    Some(Some(ty)) => IrType::Known(ty.clone()),
+                    Some(None) => IrType::Known(ResolvedType::Unknown),
+                    None => {
+                        self.gap(
+                            format!(
+                                "capability operation {}: result type is not published in the analysis type table; emitting a placeholder schema",
+                                symbol.canonical,
+                            ),
+                            symbol.span,
+                        );
+                        IrType::Unknown
+                    }
+                };
+                IrItemKind::CapabilityOp {
+                    params: params.clone(),
+                    result,
+                }
+            }
+            SymbolKind::Message { params } => {
+                let descriptor = self
+                    .program
+                    .effects
+                    .messages
+                    .get(&symbol.id)
+                    .map(|data| self.decode_message_data(data));
+                if descriptor.is_none() {
+                    self.gap(
+                        format!(
+                            "message {}: source text, locale variants and parameter labels/defaults are not in the analysis tables (PR5 labels); omitting the descriptor",
+                            symbol.canonical,
+                        ),
+                        symbol.span,
+                    );
+                }
+                IrItemKind::Message {
+                    params: params.clone(),
+                    descriptor,
+                }
+            }
+            SymbolKind::Fixture { target } => {
+                let recipe = self.decode_fixture(symbol, target);
+                IrItemKind::Fixture {
+                    target: *target,
+                    recipe,
+                }
+            }
+            SymbolKind::Scenario {
+                params,
+                trusted,
+                result_node,
+            } => {
+                let result = lookup_symbol_result(
+                    self.program,
+                    symbol,
+                    result_node.is_some(),
+                    &mut self.diags,
+                );
+                let (read, by, label, description, guards, effects) = self.decode_scenario(symbol);
+                IrItemKind::Scenario {
+                    params: params.clone(),
+                    trusted: *trusted,
+                    result,
+                    read,
+                    by,
+                    label,
+                    description,
+                    guards,
+                    effects,
+                }
+            }
+            SymbolKind::Crud {
+                model,
+                create,
+                update,
+                delete,
+            } => IrItemKind::Crud {
+                model: *model,
+                create: *create,
+                update: *update,
+                delete: *delete,
+            },
+            SymbolKind::CrudOp { model, op } => {
+                let (by, has_when, fields, label, expose_excluded, delete_mode) =
+                    self.decode_crud_op(symbol, *model, *op);
+                IrItemKind::CrudOp {
+                    model: *model,
+                    op: *op,
+                    by,
+                    has_when,
+                    fields,
+                    label,
+                    expose_excluded,
+                    delete_mode,
+                }
+            }
+            SymbolKind::Field { owner, .. } => {
+                let (default, server, modifiers, label) = self.decode_field(symbol, *owner);
+                IrItemKind::Field {
+                    owner: *owner,
+                    ty: lookup_symbol_type(self.program, symbol, "declared type", &mut self.diags),
+                    default,
+                    server,
+                    modifiers,
+                    label,
+                }
+            }
+            SymbolKind::Param { owner, index, .. } => {
+                let (default, label) = self.decode_param(symbol, *owner);
+                IrItemKind::Param {
+                    owner: *owner,
+                    index: *index,
+                    ty: lookup_symbol_type(self.program, symbol, "declared type", &mut self.diags),
+                    default,
+                    label,
+                }
+            }
+            SymbolKind::DeriveField { model, .. } => {
+                let (expr, label) = self.decode_derive(symbol);
+                IrItemKind::DeriveField {
+                    model: *model,
+                    ty: lookup_symbol_type(self.program, symbol, "declared type", &mut self.diags),
+                    expr,
+                    label,
+                }
+            }
+            SymbolKind::DeriveFn { params, .. } => {
+                let (expr, _) = self.decode_derive(symbol);
+                // Derived-function results live in `symbol_results`
+                // (declared `: type` spells the result); a missing row
+                // is a gap.
+                let result = match self.program.types.symbol_results.get(&symbol.id) {
+                    Some(Some(ty)) => IrType::Known(ty.clone()),
+                    Some(None) => IrType::Known(ResolvedType::Unknown),
+                    None => {
+                        self.gap(
+                            format!(
+                                "derived function {}: result type is not published in the analysis type table; emitting a placeholder schema",
+                                symbol.canonical,
+                            ),
+                            symbol.span,
+                        );
+                        IrType::Unknown
+                    }
+                };
+                IrItemKind::DeriveFn {
+                    params: params.clone(),
+                    result,
+                    expr,
+                }
+            }
+            SymbolKind::Preferences { fields } => {
+                if !self.program.effects.records.contains_key(&symbol.id) {
+                    self.gap(
+                        format!(
+                            "preferences {}: fields and invariants are not in the analysis tables (PR5 effects); emitting the typed schema without them",
+                            symbol.canonical,
+                        ),
+                        symbol.span,
+                    );
+                }
+                IrItemKind::Preferences {
+                    fields: fields.clone(),
+                    validate: self.preference_validators.get(&symbol.module).cloned(),
+                }
+            }
+        }
+    }
+}
+
+/// Decode scope: module plus example bindings.
+///
+/// `bindings` maps example input names (`record`, `expense`, ...) to the
+/// fixture they are bound to. `row_rewrite` maps a query `as` alias to
+/// `row` inside one anchored expression. `example_values` selects the
+/// example-cell name fallback (unresolvable bare names are enum-case
+/// text, never dangling identifiers).
+#[derive(Debug, Clone)]
+struct Scope {
+    module: ModuleId,
+    bindings: HashMap<String, SymbolId>,
+    row_rewrite: HashMap<String, String>,
+    example_values: bool,
+    /// Declared operation result type, for `result` roots in tables.
+    result_ty: Option<ResolvedType>,
+}
+
+impl Scope {
+    fn module(module: ModuleId) -> Self {
+        Self {
+            module,
+            bindings: HashMap::new(),
+            row_rewrite: HashMap::new(),
+            example_values: false,
+            result_ty: None,
+        }
+    }
+}
+
+impl<'a> Cx<'a> {
+    /// Message descriptor for a `MessageData` row (G7).
+    fn decode_message_data(&self, data: &crate::analysis::effects::MessageData) -> IrMessage {
+        IrMessage {
+            source: data.source.clone(),
+            variants: data
+                .variants
+                .iter()
+                .map(|v| (v.locale.clone(), v.value.clone()))
+                .collect(),
+            params: Vec::new(),
+        }
+    }
+
+    /// Decode a label/message value node: `MessageValue` text plus
+    /// variants, or a `Path` message reference (inlined).
+    fn decode_message_value(&mut self, module: ModuleId, key: &NodeKey) -> Option<IrMessage> {
+        let node = self.node(key)?.clone();
+        self.decode_message_node(module, &node)
+    }
+
+    /// Decode one message node (see [`Cx::decode_message_value`]).
+    fn decode_message_node(&mut self, module: ModuleId, node: &SyntaxNode) -> Option<IrMessage> {
+        match node.kind {
+            SyntaxKind::MessageValue => {
+                let mut source = String::new();
+                let mut variants = Vec::new();
+                for child in kids(node) {
+                    match child.kind {
+                        SyntaxKind::Literal => {
+                            if source.is_empty()
+                                && let Some(text) = literal_string(self.db, child)
+                            {
+                                source = text;
+                            }
+                        }
+                        SyntaxKind::MessageVariant => {
+                            if let Some((locale, value)) = self.decode_variant(child) {
+                                variants.push((locale, value));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                Some(IrMessage {
+                    source,
+                    variants,
+                    params: Vec::new(),
+                })
+            }
+            SyntaxKind::Path => {
+                let name = path_text(self.db, node);
+                match self.resolve_member(module, &name) {
+                    Some((id, _))
+                        if matches!(
+                            self.program.symbols.get(id.0 as usize).map(|s| &s.kind),
+                            Some(SymbolKind::Message { .. })
+                        ) =>
+                    {
+                        self.program
+                            .effects
+                            .messages
+                            .get(&id)
+                            .map(|data| self.decode_message_data(data))
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Decode one `locale=STRING|null` variant.
+    fn decode_variant(&self, node: &SyntaxNode) -> Option<(String, Option<String>)> {
+        let parts = kids(node);
+        let locale = parts.first().and_then(|n| name_text(self.db, n))?;
+        let literal = parts.iter().find(|n| n.kind == SyntaxKind::Literal)?;
+        let value = literal_string_opt(self.db, literal)?;
+        Some((locale, value))
+    }
+
+    /// Decode a field-label value: plain message or `{text, values}`.
+    fn decode_field_label(&mut self, module: ModuleId, key: &NodeKey) -> Option<IrFieldLabel> {
+        let node = self.node(key)?.clone();
+        match node.kind {
+            SyntaxKind::Label => {
+                let mut text = None;
+                let mut values = Vec::new();
+                for child in kids(&node) {
+                    match child.kind {
+                        SyntaxKind::MessageValue | SyntaxKind::Path => {
+                            if text.is_none() {
+                                text = self.decode_message_node(module, child);
+                            }
+                        }
+                        SyntaxKind::LabelCase => {
+                            if let Some((case, caption)) = self.decode_label_case(module, child) {
+                                values.push((case, caption));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                text.map(|text| IrFieldLabel { text, values })
+            }
+            SyntaxKind::MessageValue | SyntaxKind::Path => self
+                .decode_message_node(module, &node)
+                .map(|text| IrFieldLabel {
+                    text,
+                    values: Vec::new(),
+                }),
+            _ => None,
+        }
+    }
+
+    /// Decode one `case=caption` label case.
+    fn decode_label_case(
+        &mut self,
+        module: ModuleId,
+        node: &SyntaxNode,
+    ) -> Option<(String, IrMessage)> {
+        let parts = kids(node);
+        let case = parts.first().and_then(|n| name_text(self.db, n))?;
+        let caption = parts
+            .iter()
+            .find_map(|n| self.decode_message_node(module, n))?;
+        Some((case, caption))
+    }
+
+    /// Checked type of an anchored node, from `node_types` (total).
+    fn node_type(&self, node: &SyntaxNode) -> ResolvedType {
+        let key = NodeKey::of(node);
+        self.program
+            .types
+            .node_types
+            .get(&key)
+            .cloned()
+            .unwrap_or(ResolvedType::Unknown)
+    }
+
+    /// Decode an anchored expression (total: missing anchors are `E6006`
+    /// plus an unsupported placeholder).
+    fn decode_anchored(&mut self, scope: &Scope, key: &NodeKey, what: &str) -> TypedExpr {
+        let span = Span::new(key.file, key.start, key.end);
+        match self.node(key).cloned() {
+            Some(node) => self.decode_expr(scope, &node),
+            None => {
+                self.gap(
+                    format!("{what} is not published in the analysis tables; emitting a throwing placeholder"),
+                    span,
+                );
+                TypedExpr::new(
+                    IrExpr::Unsupported {
+                        what: what.to_string(),
+                        why: "analysis did not publish the anchored node".to_string(),
+                    },
+                    ResolvedType::Unknown,
+                    span,
+                )
+            }
+        }
+    }
+
+    /// Decode one expression node (total).
+    fn decode_expr(&mut self, scope: &Scope, node: &SyntaxNode) -> TypedExpr {
+        let span = node.span;
+        let mut ty = self.node_type(node);
+        let expr = match node.kind {
+            SyntaxKind::Literal => self.decode_literal(node),
+            SyntaxKind::NameRef => self.decode_name_ref(scope, node, &ty),
+            SyntaxKind::Group => {
+                return match kids(node).iter().find(|n| is_expression(n.kind)) {
+                    Some(inner) => self.decode_expr(scope, inner),
+                    None => self.unsupported_expr("empty group", "no inner expression", ty, span),
+                };
+            }
+            SyntaxKind::Array => IrExpr::Array(
+                kids(node)
+                    .iter()
+                    .filter(|n| is_expression(n.kind))
+                    .map(|n| self.decode_expr(scope, n))
+                    .collect(),
+            ),
+            SyntaxKind::Object => self.decode_object(scope, node),
+            SyntaxKind::Construct => self.decode_object(scope, node),
+            SyntaxKind::Member => {
+                return self.decode_member(scope, node, &ty);
+            }
+            SyntaxKind::Call => self.decode_call(scope, node, &ty),
+            SyntaxKind::Unary => self.decode_unary(scope, node, &ty),
+            SyntaxKind::Binary => self.decode_binary(scope, node, &ty),
+            SyntaxKind::Query => self.decode_query(scope, node, &ty),
+            SyntaxKind::Path => {
+                // Paths in value position are single names (set/delete
+                // targets, `by=` spellings handled by guards).
+                let name = path_text(self.db, node);
+                self.decode_bare_name(scope, &name, &ty, span)
+            }
+            _ => IrExpr::Unsupported {
+                what: format!("{:?} expression", node.kind),
+                why: "no §13 lowering exists".to_string(),
+            },
+        };
+        // Table-derived types for scope slots the types pass never sees
+        // (runner-typed example cells): `s` fixture slots take their
+        // recipe target type.
+        if matches!(ty, ResolvedType::Unknown)
+            && let IrExpr::Member { base, field } = &expr
+            && matches!(base.expr, IrExpr::Name(ref name) if name == "s")
+            && let Some(id) = self.resolve_scope_fixture(scope, field)
+        {
+            ty = self.fixture_type(id);
+        }
+        if matches!(ty, ResolvedType::Unknown)
+            && matches!(&expr, IrExpr::Name(name) if name == "result")
+            && let Some(result) = scope.result_ty.clone()
+        {
+            ty = result;
+        }
+        TypedExpr::new(expr, ty, span)
+    }
+
+    /// Resolve an `s` scope slot to its fixture (bindings first, then
+    /// module fixtures).
+    fn resolve_scope_fixture(&self, scope: &Scope, name: &str) -> Option<SymbolId> {
+        if let Some(id) = scope
+            .bindings
+            .values()
+            .find(|id| self.local_name(**id) == name)
+        {
+            return Some(*id);
+        }
+        self.fixture_in_scope(scope.module, name)
+    }
+
+    /// Inferred member type from a base type plus field (field tables
+    /// only; `Unknown` when no table serves the access).
+    fn member_ty(&self, base: &ResolvedType, field: &str) -> ResolvedType {
+        let mut ty = base;
+        while let ResolvedType::Nullable(inner) = ty {
+            ty = inner;
+        }
+        match ty {
+            ResolvedType::Record { symbol, .. } => self
+                .fields
+                .get(&(*symbol, field.to_string()))
+                .and_then(|id| self.program.types.symbol_types.get(id))
+                .cloned()
+                .unwrap_or(ResolvedType::Unknown),
+            ResolvedType::Scalar(Scalar::Money) => match field {
+                "minor" => ResolvedType::Scalar(Scalar::Int),
+                "currency" => ResolvedType::Scalar(Scalar::Currency),
+                _ => ResolvedType::Unknown,
+            },
+            _ => ResolvedType::Unknown,
+        }
+    }
+
+    /// Placeholder expression plus its span (the lowering reports `E6008`).
+    fn unsupported_expr(&self, what: &str, why: &str, ty: ResolvedType, span: Span) -> TypedExpr {
+        TypedExpr::new(
+            IrExpr::Unsupported {
+                what: what.to_string(),
+                why: why.to_string(),
+            },
+            ty,
+            span,
+        )
+    }
+
+    /// Decode a literal: int/decimal/text/bool/null/duration/bytes.
+    fn decode_literal(&self, node: &SyntaxNode) -> IrExpr {
+        let leaf = kids(node).into_iter().next();
+        let Some(leaf) = leaf else {
+            return IrExpr::Unsupported {
+                what: "empty literal".to_string(),
+                why: "no token".to_string(),
+            };
+        };
+        let text = self.text(leaf.span);
+        match leaf.kind {
+            SyntaxKind::Integer => match text.parse::<i128>() {
+                Ok(value) => IrExpr::Int(value),
+                Err(_) => IrExpr::Unsupported {
+                    what: "integer literal".to_string(),
+                    why: format!("{text} does not parse as an integer"),
+                },
+            },
+            SyntaxKind::Decimal => IrExpr::Decimal(text.to_string()),
+            SyntaxKind::String => IrExpr::Text(decode_string(text)),
+            SyntaxKind::Duration => match duration_millis(text) {
+                Some(ms) => IrExpr::DurationMs(ms),
+                None => IrExpr::Unsupported {
+                    what: "duration literal".to_string(),
+                    why: format!("{text} is not a duration"),
+                },
+            },
+            SyntaxKind::Bytes => IrExpr::Unsupported {
+                what: "byte literal".to_string(),
+                why: "no §13 value lowering exists".to_string(),
+            },
+            SyntaxKind::Name => match text {
+                "true" => IrExpr::Bool(true),
+                "false" => IrExpr::Bool(false),
+                "null" => IrExpr::Null,
+                _ => IrExpr::Text(text.to_string()),
+            },
+            _ => IrExpr::Unsupported {
+                what: "literal".to_string(),
+                why: format!("{:?} has no lowering", leaf.kind),
+            },
+        }
+    }
+
+    /// Decode a `NameRef`: locals, context vars, table-resolved symbols,
+    /// type-driven enum cases, or the scope fallback.
+    fn decode_name_ref(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> IrExpr {
+        let name = kids(node)
+            .iter()
+            .find_map(|n| name_text(self.db, n))
+            .unwrap_or_default();
+        // Query-alias rewrite inside one anchored expression.
+        if let Some(row) = scope.row_rewrite.get(&name) {
+            return IrExpr::Name(row.clone());
+        }
+        // Example input bindings rewrite to their fixture scope slot.
+        if let Some(fixture) = scope.bindings.get(&name) {
+            let fixture_name = self.local_name(*fixture);
+            return member_of("s", &fixture_name, &self.fixture_type(*fixture), node.span);
+        }
+        // Fixture references resolve through the example tables.
+        if let Some(id) = self.fixture_in_scope(scope.module, &name) {
+            let fixture_name = self.local_name(id);
+            return member_of("s", &fixture_name, &self.fixture_type(id), node.span);
+        }
+        self.decode_bare_name(scope, &name, ty, node.span)
+    }
+
+    /// Decode a bare name after scope rewrites: context vars, symbols,
+    /// enum cases, or the scope fallback.
+    fn decode_bare_name(
+        &mut self,
+        scope: &Scope,
+        name: &str,
+        ty: &ResolvedType,
+        span: Span,
+    ) -> IrExpr {
+        match name {
+            "c" | "row" | "event" | "result" | "parent" | "preferences" | "s" | "b" => {
+                return IrExpr::Name(name.to_string());
+            }
+            "actor" => return member_of("c", "actor", ty, span),
+            "now" => return member_of("c", "now", ty, span),
+            _ => {}
+        }
+        if is_test_account(name) {
+            return IrExpr::Name(name.to_string());
+        }
+        if is_predicate_spelling(name) {
+            return IrExpr::Unsupported {
+                what: format!("predicate spelling `{name}`"),
+                why: "predicate spellings gate guards, they are not values".to_string(),
+            };
+        }
+        if let Some((id, _)) = self.resolve_member(scope.module, name) {
+            let symbol = self.program.symbols.get(id.0 as usize).cloned();
+            match symbol.as_ref().map(|s| &s.kind) {
+                Some(SymbolKind::Model { .. }) => {
+                    // A bare model domain lowers through the shared
+                    // query contract with no clauses.
+                    return IrExpr::Query(IrQuery {
+                        model: self.canonical(id),
+                        parent: None,
+                        where_pred: None,
+                        where_async: false,
+                        order: Vec::new(),
+                        limit: None,
+                        archived: None,
+                    });
+                }
+                Some(SymbolKind::Message { .. }) => {
+                    if let Some(data) = self.program.effects.messages.get(&id) {
+                        return IrExpr::Message(self.decode_message_data(data));
+                    }
+                }
+                Some(SymbolKind::Param { .. })
+                | Some(SymbolKind::Field { .. })
+                | Some(SymbolKind::DeriveField { .. })
+                | Some(SymbolKind::Fixture { .. }) => {
+                    return IrExpr::Name(name.to_string());
+                }
+                Some(_) => {
+                    return IrExpr::Unsupported {
+                        what: format!("reference to `{name}`"),
+                        why: "no §13 value lowering exists".to_string(),
+                    };
+                }
+                None => {}
+            }
+        }
+        // Type-driven enum cases (typed regions): the checked type says
+        // what the spelling denotes.
+        if is_enum_ty(ty) {
+            return IrExpr::Text(name.to_string());
+        }
+        if scope.example_values {
+            // Runner-typed cells: unresolvable bare names are enum-case
+            // spellings (analysis owns typos via `E5xxx`).
+            return IrExpr::Text(name.to_string());
+        }
+        IrExpr::Name(name.to_string())
+    }
+
+    /// Fixture symbol for `name` visible in `module` (tables only).
+    fn fixture_in_scope(&self, module: ModuleId, name: &str) -> Option<SymbolId> {
+        let (id, _) = self.resolve_member(module, name)?;
+        match self.program.symbols.get(id.0 as usize).map(|s| &s.kind) {
+            Some(SymbolKind::Fixture { .. }) => Some(id),
+            _ => None,
+        }
+    }
+
+    /// Declared type of a fixture reference, from its recipe target.
+    fn fixture_type(&self, id: SymbolId) -> ResolvedType {
+        let target = self
+            .program
+            .symbols
+            .get(id.0 as usize)
+            .and_then(|s| match &s.kind {
+                SymbolKind::Fixture { target } => Some(*target),
+                _ => None,
+            });
+        match target {
+            Some(FixtureTarget::Model(model)) => ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            },
+            Some(FixtureTarget::User) => ResolvedType::Scalar(Scalar::User),
+            Some(FixtureTarget::File) => ResolvedType::Scalar(Scalar::File),
+            _ => ResolvedType::Unknown,
+        }
+    }
+}
+
+/// `base.field` member expression with `ty`.
+fn member_of(base: &str, field: &str, _ty: &ResolvedType, span: Span) -> IrExpr {
+    IrExpr::Member {
+        base: Box::new(TypedExpr::new(
+            IrExpr::Name(base.to_string()),
+            ResolvedType::Unknown,
+            span,
+        )),
+        field: field.to_string(),
+    }
+}
+
+/// Whether `ty` is a delivery handle (possibly nullable).
+fn is_delivery_ty(ty: &ResolvedType) -> bool {
+    match ty {
+        ResolvedType::Delivery { .. } => true,
+        ResolvedType::Nullable(inner) => is_delivery_ty(inner),
+        _ => false,
+    }
+}
+
+/// Whether `ty` is an enum (possibly nullable).
+fn is_enum_ty(ty: &ResolvedType) -> bool {
+    match ty {
+        ResolvedType::Enum { .. } => true,
+        ResolvedType::Nullable(inner) => is_enum_ty(inner),
+        _ => false,
+    }
+}
+
+/// Whether `kind` can appear as an expression child.
+fn is_expression(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Literal
+            | SyntaxKind::NameRef
+            | SyntaxKind::Group
+            | SyntaxKind::Array
+            | SyntaxKind::Object
+            | SyntaxKind::Construct
+            | SyntaxKind::Member
+            | SyntaxKind::Argument
+            | SyntaxKind::Unary
+            | SyntaxKind::Binary
+            | SyntaxKind::Query
+            | SyntaxKind::Call
+            | SyntaxKind::Path
+    )
+}
+
+/// Significant `Name` leaf text.
+fn name_text(db: &SourceDb, node: &SyntaxNode) -> Option<String> {
+    if node.kind == SyntaxKind::Name {
+        Some(slice(db, node.span).to_string())
+    } else {
+        None
+    }
+}
+
+/// Dotted path spelling (`a`, `a.b`).
+fn path_text(db: &SourceDb, node: &SyntaxNode) -> String {
+    kids(node)
+        .iter()
+        .filter_map(|n| name_text(db, n))
+        .collect::<Vec<_>>()
+        .join(".")
+}
+
+/// String value of a `Literal` string, or `None` for `null`/other.
+fn literal_string_opt(db: &SourceDb, node: &SyntaxNode) -> Option<Option<String>> {
+    if node.kind != SyntaxKind::Literal {
+        return None;
+    }
+    let leaf = kids(node).into_iter().next()?;
+    match leaf.kind {
+        SyntaxKind::String => Some(Some(decode_string(slice(db, leaf.span)))),
+        SyntaxKind::Name if slice(db, leaf.span) == "null" => Some(None),
+        _ => None,
+    }
+}
+
+/// String value of a `Literal` string (total: non-strings yield `None`).
+fn literal_string(db: &SourceDb, node: &SyntaxNode) -> Option<String> {
+    literal_string_opt(db, node).flatten()
+}
+
+impl<'a> Cx<'a> {
+    /// Decode an object/construct value: entries in source order
+    /// (shorthand entries read the in-scope binding of the key).
+    /// Constructs wrap their entries in a nested `Object` node.
+    fn decode_object(&mut self, scope: &Scope, node: &SyntaxNode) -> IrExpr {
+        let mut entries = Vec::new();
+        if node.kind == SyntaxKind::Construct
+            && let Some(object) = kids(node).iter().find(|n| n.kind == SyntaxKind::Object)
+        {
+            return self.decode_object(scope, object);
+        }
+        for child in kids(node) {
+            if child.kind != SyntaxKind::ObjectEntry {
+                continue;
+            }
+            let parts = kids(child);
+            let Some(key) = parts.first().and_then(|n| name_text(self.db, n)) else {
+                continue;
+            };
+            let value = parts
+                .iter()
+                .find(|n| is_expression(n.kind) && n.kind != SyntaxKind::Argument)
+                .map(|n| self.decode_expr(scope, n))
+                .unwrap_or_else(|| {
+                    TypedExpr::new(IrExpr::Name(key.clone()), ResolvedType::Unknown, child.span)
+                });
+            entries.push((key, value));
+        }
+        IrExpr::Object(entries)
+    }
+
+    /// Decode member access, wrapping delivery-typed bases in the sole
+    /// observation helper shape (`DeliveryRead`).
+    fn decode_member(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> TypedExpr {
+        // Collect the outer chain: `a.b.c` decodes inside-out, but a
+        // delivery crossing wraps once with the full static prop list.
+        // Returns the typed expression: the checked type wins, table
+        // inference fills gaps the types pass never sees.
+        let mut fields = Vec::new();
+        let mut current = node;
+        loop {
+            let parts = kids(current);
+            let field = parts
+                .iter()
+                .rev()
+                .find_map(|n| name_text(self.db, n))
+                .unwrap_or_default();
+            fields.push(field);
+            let Some(base) = parts.iter().find(|n| is_expression(n.kind)) else {
+                break;
+            };
+            if base.kind != SyntaxKind::Member {
+                // A delivery-typed non-member base has no provenance to
+                // resolve (only `record.field` crossings lower).
+                let base_ty = self.node_type(base);
+                if is_delivery_ty(&base_ty) {
+                    return self.unsupported_expr(
+                        "delivery read",
+                        "owning record/field provenance is not resolvable",
+                        ty.clone(),
+                        node.span,
+                    );
+                }
+                let mut expr = self.decode_expr(scope, base);
+                for field in fields.iter().rev() {
+                    let inferred = self.member_ty(&expr.ty, field);
+                    let field_ty = if *field == fields[0] && !matches!(ty, ResolvedType::Unknown) {
+                        ty.clone()
+                    } else if !matches!(inferred, ResolvedType::Unknown) {
+                        inferred
+                    } else if *field == fields[0] {
+                        ty.clone()
+                    } else {
+                        ResolvedType::Unknown
+                    };
+                    expr = TypedExpr::new(
+                        IrExpr::Member {
+                            base: Box::new(expr),
+                            field: field.clone(),
+                        },
+                        field_ty,
+                        node.span,
+                    );
+                }
+                return expr;
+            }
+            // Nested member: is the inner member delivery-typed?
+            let inner_ty = self.node_type(base);
+            if is_delivery_ty(&inner_ty) {
+                return TypedExpr::new(
+                    self.decode_delivery_read(scope, base, fields, node.span),
+                    ty.clone(),
+                    node.span,
+                );
+            }
+            current = base;
+        }
+        self.unsupported_expr("member access", "no base expression", ty.clone(), node.span)
+    }
+
+    /// Decode a delivery observation: `record.field.props...` with
+    /// compiler-resolved provenance plus the static prop list.
+    fn decode_delivery_read(
+        &mut self,
+        scope: &Scope,
+        base: &SyntaxNode,
+        mut outer_fields: Vec<String>,
+        span: Span,
+    ) -> IrExpr {
+        // `base` is `record.field` with a delivery-typed value.
+        let parts = kids(base);
+        let field = parts
+            .iter()
+            .rev()
+            .find_map(|n| name_text(self.db, n))
+            .unwrap_or_default();
+        let record = parts
+            .iter()
+            .find(|n| is_expression(n.kind))
+            .map(|n| self.decode_expr(scope, n))
+            .unwrap_or_else(|| {
+                TypedExpr::new(IrExpr::Name("row".to_string()), ResolvedType::Unknown, span)
+            });
+        outer_fields.reverse();
+        IrExpr::DeliveryRead {
+            record: Box::new(record),
+            field,
+            props: outer_fields,
+        }
+    }
+
+    /// Decode a call by table-classified callee: builtin (G12 awaited),
+    /// message, role predicate, or `format`.
+    fn decode_call(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> IrExpr {
+        let parts = kids(node);
+        let callee = parts.iter().find(|n| is_expression(n.kind)).copied();
+        let args: Vec<(Option<String>, &SyntaxNode)> = parts
+            .iter()
+            .filter(|n| n.kind == SyntaxKind::Argument)
+            .map(|arg| {
+                let arg_parts = kids(arg);
+                if arg_parts.len() >= 3
+                    && arg_parts[0].kind == SyntaxKind::Name
+                    && self.text(arg_parts[1].span) == "="
+                {
+                    let name = name_text(self.db, arg_parts[0]);
+                    let value = arg_parts[2..]
+                        .iter()
+                        .find(|n| is_expression(n.kind))
+                        .copied();
+                    (name, value)
+                } else {
+                    let value = arg_parts.iter().find(|n| is_expression(n.kind)).copied();
+                    (None, value)
+                }
+            })
+            .filter(|(_, value)| value.is_some())
+            .map(|(name, value)| (name, value.unwrap_or(node)))
+            .collect();
+        let Some(callee) = callee else {
+            return IrExpr::Unsupported {
+                what: "call".to_string(),
+                why: "no callee".to_string(),
+            };
+        };
+        // Named arguments have no positional lowering (except the
+        // `format` locale, consumed below).
+        let callee_name = callee_name(self.db, callee);
+        if callee_name.as_deref() != Some("format") && args.iter().any(|(name, _)| name.is_some()) {
+            return IrExpr::Unsupported {
+                what: format!("call to {}", callee_name.unwrap_or_default()),
+                why: "named arguments have no §13 lowering".to_string(),
+            };
+        }
+        match callee.kind {
+            SyntaxKind::NameRef => {
+                let name = callee_name.unwrap_or_default();
+                self.decode_name_call(scope, &name, &args, ty, node.span)
+            }
+            _ => IrExpr::Unsupported {
+                what: "call".to_string(),
+                why: "only plain names are callable in expression position".to_string(),
+            },
+        }
+    }
+
+    /// Decode a call with a plain-name callee.
+    fn decode_name_call(
+        &mut self,
+        scope: &Scope,
+        name: &str,
+        args: &[(Option<String>, &SyntaxNode)],
+        ty: &ResolvedType,
+        span: Span,
+    ) -> IrExpr {
+        if name == "format" {
+            return self.decode_format_call(scope, args, ty, span);
+        }
+        if let Some((id, _)) = self.resolve_member(scope.module, name) {
+            let kind = self
+                .program
+                .symbols
+                .get(id.0 as usize)
+                .map(|s| s.kind.clone());
+            match kind {
+                Some(SymbolKind::Message { .. }) => {
+                    return self.decode_message_call(scope, id, args, span);
+                }
+                Some(SymbolKind::Role) => {
+                    let person = args
+                        .first()
+                        .map(|(_, value)| Box::new(self.decode_expr(scope, value)));
+                    return IrExpr::HasRole {
+                        role: self.canonical(id),
+                        person,
+                    };
+                }
+                Some(
+                    SymbolKind::Scenario { .. }
+                    | SymbolKind::CapabilityOp { .. }
+                    | SymbolKind::CrudOp { .. }
+                    | SymbolKind::Model { .. }
+                    | SymbolKind::Contract { .. }
+                    | SymbolKind::Event { .. },
+                ) => {
+                    return IrExpr::Unsupported {
+                        what: format!("call to `{name}`"),
+                        why: "operations and nominals are not expression-callable".to_string(),
+                    };
+                }
+                Some(SymbolKind::DeriveFn { .. }) => {
+                    return IrExpr::Unsupported {
+                        what: format!("call to derived function `{name}`"),
+                        why: "no §13 call lowering exists".to_string(),
+                    };
+                }
+                _ => {}
+            }
+        }
+        // Builtin call: the catalog owns the name when one is loaded;
+        // without a catalog an undeclared callee can only be a builtin
+        // (analysis owns typos via `E2001`), verified loud by `E6007`.
+        let is_builtin = match (&self.catalog, self.resolve_member(scope.module, name)) {
+            (Some(catalog), _) => catalog.is_builtin(name),
+            (None, None) => true,
+            (None, Some(_)) => false,
+        };
+        if !is_builtin {
+            return IrExpr::Unsupported {
+                what: format!("call to `{name}`"),
+                why: "call target is not a builtin, message or role".to_string(),
+            };
+        }
+        // G12: awaited exactly when the catalog effects are state-read.
+        // Without a catalog the call is unverifiable (`E6007` fires) and
+        // lowers synchronously.
+        let awaited = self
+            .catalog
+            .and_then(|catalog| catalog.lookup(name))
+            .and_then(|entry| entry.effects)
+            .is_some_and(|effects| effects == Effects::StateRead);
+        self.builtins_seen.push(ReferencedBuiltin {
+            id: name.to_string(),
+            span,
+        });
+        self.g13_seen.insert(name.to_string());
+        IrExpr::Call {
+            target: IrCallTarget::Builtin {
+                id: name.to_string(),
+                awaited,
+            },
+            args: args
+                .iter()
+                .map(|(_, value)| self.decode_expr(scope, value))
+                .collect(),
+        }
+    }
+
+    /// Decode a `format(descriptor, locale?)` call.
+    fn decode_format_call(
+        &mut self,
+        scope: &Scope,
+        args: &[(Option<String>, &SyntaxNode)],
+        ty: &ResolvedType,
+        span: Span,
+    ) -> IrExpr {
+        self.builtins_seen.push(ReferencedBuiltin {
+            id: "format".to_string(),
+            span,
+        });
+        self.g13_seen.insert("format".to_string());
+        let descriptor = args
+            .iter()
+            .find(|(name, _)| name.is_none())
+            .map(|(_, value)| Box::new(self.decode_expr(scope, value)));
+        let locale = args
+            .iter()
+            .find(|(name, _)| name.as_deref() == Some("locale"))
+            .and_then(|(_, value)| {
+                if value.kind == SyntaxKind::Literal {
+                    literal_string(self.db, value)
+                } else {
+                    None
+                }
+            });
+        let Some(descriptor) = descriptor else {
+            return IrExpr::Unsupported {
+                what: "format call".to_string(),
+                why: "no descriptor argument".to_string(),
+            };
+        };
+        let _ = ty;
+        IrExpr::Format { descriptor, locale }
+    }
+
+    /// Decode a message call: descriptor plus typed parameter values.
+    fn decode_message_call(
+        &mut self,
+        scope: &Scope,
+        id: SymbolId,
+        args: &[(Option<String>, &SyntaxNode)],
+        span: Span,
+    ) -> IrExpr {
+        let data = self.program.effects.messages.get(&id).cloned();
+        let Some(data) = data else {
+            return IrExpr::Unsupported {
+                what: format!("call to {}", self.canonical(id)),
+                why: "message row is not in the analysis tables".to_string(),
+            };
+        };
+        let mut descriptor = self.decode_message_data(&data);
+        // Positional fill first, then named (the parser owns order).
+        let mut positional = args.iter().filter(|(name, _)| name.is_none());
+        for param in &data.params {
+            let name = self.local_name(param.param);
+            let value = args
+                .iter()
+                .find(|(arg_name, _)| arg_name.as_deref() == Some(name.as_str()))
+                .map(|(_, value)| *value)
+                .or_else(|| positional.next().map(|(_, value)| *value));
+            let Some(value) = value else { continue };
+            let type_id = self
+                .program
+                .types
+                .symbol_types
+                .get(&param.param)
+                .map(|ty| self.type_id(ty))
+                .unwrap_or_else(|| "unknown".to_string());
+            descriptor.params.push(IrMessageParam {
+                name,
+                type_id,
+                value: self.decode_expr(scope, value),
+            });
+        }
+        let _ = span;
+        IrExpr::Message(descriptor)
+    }
+
+    /// Canonical type id for a resolved type (best-effort, total: unknown
+    /// shapes yield `unknown` rather than failing the build).
+    fn type_id(&self, ty: &ResolvedType) -> String {
+        match ty {
+            ResolvedType::Scalar(scalar) => scalar.as_str().to_string(),
+            ResolvedType::Team => "Team".to_string(),
+            ResolvedType::OperationContext => "OperationContext".to_string(),
+            ResolvedType::Null => "null".to_string(),
+            ResolvedType::Enum {
+                owner: Some(id), ..
+            } => self.canonical(*id),
+            ResolvedType::Record { symbol, .. }
+            | ResolvedType::Message(symbol)
+            | ResolvedType::Operation(symbol) => self.canonical(*symbol),
+            ResolvedType::Array { element, .. } => format!("{}[]", self.type_id(element)),
+            ResolvedType::Nullable(inner) => format!("{}?", self.type_id(inner)),
+            ResolvedType::Union(arms) => arms
+                .iter()
+                .map(|id| self.canonical(*id))
+                .collect::<Vec<_>>()
+                .join("|"),
+            _ => "unknown".to_string(),
+        }
+    }
+
+    /// Decode a unary operator (`not`, `-`).
+    fn decode_unary(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> IrExpr {
+        let parts = kids(node);
+        let op = parts.iter().find_map(|n| match n.kind {
+            SyntaxKind::Name | SyntaxKind::Punct => Some(self.text(n.span)),
+            _ => None,
+        });
+        let operand = parts.iter().find(|n| is_expression(n.kind));
+        let (Some(op), Some(operand)) = (op, operand) else {
+            return IrExpr::Unsupported {
+                what: "unary operator".to_string(),
+                why: "missing operator or operand".to_string(),
+            };
+        };
+        let op = match op {
+            "not" => IrUnOp::Not,
+            "-" => IrUnOp::Neg,
+            _ => {
+                return IrExpr::Unsupported {
+                    what: format!("unary operator `{op}`"),
+                    why: "no §13 lowering exists".to_string(),
+                };
+            }
+        };
+        let _ = ty;
+        IrExpr::Unary {
+            op,
+            operand: Box::new(self.decode_expr(scope, operand)),
+        }
+    }
+
+    /// Decode a binary operator (comparison, logic, arithmetic, `in`).
+    fn decode_binary(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> IrExpr {
+        let parts = kids(node);
+        let mut operands = parts.iter().filter(|n| is_expression(n.kind));
+        let (left, right) = (operands.next(), operands.next());
+        let op = parts.iter().find_map(|n| match n.kind {
+            SyntaxKind::Name | SyntaxKind::Punct => Some(self.text(n.span)),
+            _ => None,
+        });
+        let (Some(left), Some(right), Some(op)) = (left, right, op) else {
+            return IrExpr::Unsupported {
+                what: "binary operator".to_string(),
+                why: "missing operands or operator".to_string(),
+            };
+        };
+        let op = match op {
+            "+" => IrBinOp::Add,
+            "-" => IrBinOp::Sub,
+            "*" => IrBinOp::Mul,
+            "/" => IrBinOp::Div,
+            "%" => IrBinOp::Mod,
+            "==" => IrBinOp::Eq,
+            "!=" => IrBinOp::Ne,
+            "<" => IrBinOp::Lt,
+            "<=" => IrBinOp::Le,
+            ">" => IrBinOp::Gt,
+            ">=" => IrBinOp::Ge,
+            "and" => IrBinOp::And,
+            "or" => IrBinOp::Or,
+            "??" => IrBinOp::Coalesce,
+            "in" => IrBinOp::In,
+            _ => {
+                return IrExpr::Unsupported {
+                    what: format!("binary operator `{op}`"),
+                    why: "no §13 lowering exists".to_string(),
+                };
+            }
+        };
+        let _ = ty;
+        IrExpr::Binary {
+            op,
+            left: Box::new(self.decode_expr(scope, left)),
+            right: Box::new(self.decode_expr(scope, right)),
+        }
+    }
+
+    /// Decode a query: model domain plus `as`/`where`/`order`/`limit`/
+    /// `archived` clauses. `select` projections and value domains have no
+    /// `records()` lowering.
+    fn decode_query(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> IrExpr {
+        let parts = kids(node);
+        let head = parts.iter().find(|n| is_expression(n.kind)).copied();
+        let Some(head) = head else {
+            return IrExpr::Unsupported {
+                what: "query".to_string(),
+                why: "no domain".to_string(),
+            };
+        };
+        // The domain head must name a model for `records(c, model, ...)`.
+        let model = self
+            .collection_head_model(scope.module, head)
+            .map(|id| self.canonical(id));
+        let Some(model) = model else {
+            return IrExpr::Unsupported {
+                what: "query over a value".to_string(),
+                why: "records() lowers model domains only".to_string(),
+            };
+        };
+        let mut alias: Option<String> = None;
+        let mut where_pred = None;
+        let mut where_async = false;
+        let mut order = Vec::new();
+        let mut limit = None;
+        let mut archived = None;
+        for clause in parts.iter().filter(|n| n.kind == SyntaxKind::QueryClause) {
+            let clause_parts = kids(clause);
+            let keyword = clause_parts
+                .iter()
+                .find_map(|n| name_text(self.db, n))
+                .unwrap_or_default();
+            match keyword.as_str() {
+                "as" => {
+                    alias = clause_parts
+                        .iter()
+                        .rev()
+                        .find_map(|n| name_text(self.db, n));
+                }
+                "where" => {
+                    let pred_node = clause_parts.iter().find(|n| is_expression(n.kind)).copied();
+                    if let Some(pred_node) = pred_node {
+                        let mut inner = scope.clone();
+                        if let Some(alias) = &alias {
+                            inner.row_rewrite.insert(alias.clone(), "row".to_string());
+                        }
+                        let pred = self.decode_expr(&inner, pred_node);
+                        where_async = expr_uses_async(&pred);
+                        where_pred = Some(Box::new(pred));
+                    }
+                }
+                "order" => {
+                    // Selector order only (`order=-created`); expression
+                    // keys have no lowering.
+                    let unsupported = clause_parts.iter().any(|n| {
+                        matches!(
+                            n.kind,
+                            SyntaxKind::Binary
+                                | SyntaxKind::Unary
+                                | SyntaxKind::Call
+                                | SyntaxKind::Member
+                        )
+                    });
+                    if unsupported {
+                        return IrExpr::Unsupported {
+                            what: "expression query order".to_string(),
+                            why: "no §13 lowering exists".to_string(),
+                        };
+                    }
+                    for selector in clause_parts.iter().filter(|n| {
+                        matches!(
+                            n.kind,
+                            SyntaxKind::Selectors | SyntaxKind::Path | SyntaxKind::Descending
+                        )
+                    }) {
+                        order.extend(decode_order_selectors(self.db, selector));
+                    }
+                }
+                "limit" => {
+                    if let Some(limit_node) =
+                        clause_parts.iter().find(|n| is_expression(n.kind)).copied()
+                    {
+                        limit = Some(Box::new(self.decode_expr(scope, limit_node)));
+                    }
+                }
+                "archived" => {
+                    if let Some(archived_node) =
+                        clause_parts.iter().find(|n| is_expression(n.kind)).copied()
+                    {
+                        archived = Some(Box::new(self.decode_expr(scope, archived_node)));
+                    }
+                }
+                "select" => {
+                    return IrExpr::Unsupported {
+                        what: "select query".to_string(),
+                        why: "projections have no records() lowering".to_string(),
+                    };
+                }
+                _ => {}
+            }
+        }
+        let _ = ty;
+        IrExpr::Query(IrQuery {
+            model,
+            parent: None,
+            where_pred,
+            where_async,
+            order,
+            limit,
+            archived,
+        })
+    }
+}
+
+/// Callee spelling of a call node (plain names only).
+fn callee_name(db: &SourceDb, callee: &SyntaxNode) -> Option<String> {
+    if callee.kind != SyntaxKind::NameRef {
+        return None;
+    }
+    kids(callee).iter().find_map(|n| name_text(db, n))
+}
+
+/// Whether an expression awaits (state-read builtins, capability calls,
+/// delivery reads): rule functions wrap `async` exactly then.
+pub fn expr_uses_async(expr: &TypedExpr) -> bool {
+    match &expr.expr {
+        IrExpr::Call { target, args } => {
+            matches!(
+                target,
+                IrCallTarget::Builtin { awaited: true, .. } | IrCallTarget::CapabilityOp(_)
+            ) || args.iter().any(expr_uses_async)
+        }
+        IrExpr::DeliveryRead { .. } => true,
+        IrExpr::Member { base, .. } => expr_uses_async(base),
+        IrExpr::Binary { left, right, .. } => expr_uses_async(left) || expr_uses_async(right),
+        IrExpr::Unary { operand, .. } => expr_uses_async(operand),
+        IrExpr::Array(items) => items.iter().any(expr_uses_async),
+        IrExpr::Object(entries) => entries.iter().any(|(_, v)| expr_uses_async(v)),
+        IrExpr::Query(query) => {
+            query.parent.as_ref().is_some_and(|p| expr_uses_async(p))
+                || query
+                    .where_pred
+                    .as_ref()
+                    .is_some_and(|p| expr_uses_async(p))
+                || query.limit.as_ref().is_some_and(|p| expr_uses_async(p))
+                || query.archived.as_ref().is_some_and(|p| expr_uses_async(p))
+        }
+        IrExpr::Message(message) => message.params.iter().any(|p| expr_uses_async(&p.value)),
+        IrExpr::Format { descriptor, .. } => expr_uses_async(descriptor),
+        IrExpr::HasRole { person, .. } => person.as_ref().is_some_and(|p| expr_uses_async(p)),
+        IrExpr::Lambda { body, .. } => expr_uses_async(body),
+        IrExpr::Int(_)
+        | IrExpr::Decimal(_)
+        | IrExpr::Text(_)
+        | IrExpr::Bool(_)
+        | IrExpr::Null
+        | IrExpr::Money { .. }
+        | IrExpr::DurationMs(_)
+        | IrExpr::Date(_)
+        | IrExpr::Datetime(_)
+        | IrExpr::Name(_)
+        | IrExpr::Unsupported { .. } => false,
+    }
+}
+
+/// Decode a guard: role gates (canonical or predicate spelling),
+/// subject predicates, boolean combinations, or an arbitrary checked
+/// boolean expression.
+impl<'a> Cx<'a> {
+    fn decode_guard(&mut self, scope: &Scope, key: &NodeKey) -> IrGuard {
+        let Some(node) = self.node(key).cloned() else {
+            let span = Span::new(key.file, key.start, key.end);
+            self.gap(
+                "guard expression is not published in the analysis tables; emitting a throwing placeholder"
+                    .to_string(),
+                span,
+            );
+            return IrGuard::Expr(TypedExpr::new(
+                IrExpr::Unsupported {
+                    what: "guard".to_string(),
+                    why: "analysis did not publish the anchored node".to_string(),
+                },
+                ResolvedType::Scalar(Scalar::Bool),
+                span,
+            ));
+        };
+        self.decode_guard_node(scope, &node)
+    }
+
+    /// Decode one guard node (see [`Cx::decode_guard`]).
+    fn decode_guard_node(&mut self, scope: &Scope, node: &SyntaxNode) -> IrGuard {
+        match node.kind {
+            SyntaxKind::NameRef => {
+                let name = kids(node)
+                    .iter()
+                    .find_map(|n| name_text(self.db, n))
+                    .unwrap_or_default();
+                if is_predicate_spelling(&name) {
+                    return IrGuard::Role(name);
+                }
+                if let Some((id, _)) = self.resolve_member(scope.module, &name)
+                    && matches!(
+                        self.program.symbols.get(id.0 as usize).map(|s| &s.kind),
+                        Some(SymbolKind::Role)
+                    )
+                {
+                    return IrGuard::Role(self.canonical(id));
+                }
+                IrGuard::Expr(self.decode_expr(scope, node))
+            }
+            SyntaxKind::Call => {
+                // A subject predicate `role(person)` in guard position.
+                let parts = kids(node);
+                let callee = parts.iter().find(|n| is_expression(n.kind));
+                let name = callee.and_then(|c| callee_name(self.db, c));
+                if let Some(name) = name
+                    && let Some((id, _)) = self.resolve_member(scope.module, &name)
+                    && matches!(
+                        self.program.symbols.get(id.0 as usize).map(|s| &s.kind),
+                        Some(SymbolKind::Role)
+                    )
+                {
+                    let person = parts
+                        .iter()
+                        .filter(|n| n.kind == SyntaxKind::Argument)
+                        .filter_map(|arg| kids(arg).iter().find(|n| is_expression(n.kind)).copied())
+                        .next()
+                        .map(|value| Box::new(self.decode_expr(scope, value)));
+                    return match person {
+                        Some(person) => IrGuard::Subject {
+                            role: self.canonical(id),
+                            person,
+                        },
+                        None => IrGuard::Role(self.canonical(id)),
+                    };
+                }
+                IrGuard::Expr(self.decode_expr(scope, node))
+            }
+            SyntaxKind::Binary => {
+                let parts = kids(node);
+                let op = parts
+                    .iter()
+                    .find_map(|n| match n.kind {
+                        SyntaxKind::Name | SyntaxKind::Punct => Some(self.text(n.span)),
+                        _ => None,
+                    })
+                    .unwrap_or("");
+                let mut operands = parts.iter().filter(|n| is_expression(n.kind));
+                match (op, operands.next(), operands.next()) {
+                    ("and", Some(left), Some(right)) => IrGuard::And(vec![
+                        self.decode_guard_node(scope, left),
+                        self.decode_guard_node(scope, right),
+                    ]),
+                    ("or", Some(left), Some(right)) => IrGuard::Or(vec![
+                        self.decode_guard_node(scope, left),
+                        self.decode_guard_node(scope, right),
+                    ]),
+                    _ => IrGuard::Expr(self.decode_expr(scope, node)),
+                }
+            }
+            SyntaxKind::Unary => {
+                let parts = kids(node);
+                let op = parts
+                    .iter()
+                    .find_map(|n| match n.kind {
+                        SyntaxKind::Name | SyntaxKind::Punct => Some(self.text(n.span)),
+                        _ => None,
+                    })
+                    .unwrap_or("");
+                let operand = parts.iter().find(|n| is_expression(n.kind)).copied();
+                match (op, operand) {
+                    ("not", Some(operand)) => {
+                        IrGuard::Not(Box::new(self.decode_guard_node(scope, operand)))
+                    }
+                    _ => IrGuard::Expr(self.decode_expr(scope, node)),
+                }
+            }
+            SyntaxKind::Group => match kids(node).iter().find(|n| is_expression(n.kind)).copied() {
+                Some(inner) => self.decode_guard_node(scope, inner),
+                None => IrGuard::Expr(self.decode_expr(scope, node)),
+            },
+            _ => IrGuard::Expr(self.decode_expr(scope, node)),
+        }
+    }
+
+    /// Decode one effect statement (total).
+    fn decode_effect(
+        &mut self,
+        scope: &Scope,
+        effect: &crate::analysis::effects::Effect,
+        what: &str,
+    ) -> IrStmt {
+        let span = Span::new(effect.node.file, effect.node.start, effect.node.end);
+        match effect.verb {
+            EffectVerb::Let => {
+                let name = effect.binding.clone().unwrap_or_default();
+                let value = effect.value.as_ref().map(|key| {
+                    let mut inner = scope.clone();
+                    inner.bindings.remove(&name);
+                    self.decode_anchored(&inner, key, &format!("{what} let value"))
+                });
+                match value {
+                    Some(value) => IrStmt::Let { name, value, span },
+                    None => unsupported_stmt("let statement", "no value is published", span),
+                }
+            }
+            EffectVerb::Require => {
+                if effect.message.is_some() {
+                    // `require` diagnostics have no statement slot.
+                    return unsupported_stmt(
+                        "require message",
+                        "require diagnostics have no §13 lowering",
+                        span,
+                    );
+                }
+                match effect.cond.as_ref() {
+                    Some(key) => IrStmt::Require {
+                        cond: self.decode_anchored(scope, key, &format!("{what} require")),
+                        span,
+                    },
+                    None => {
+                        unsupported_stmt("require statement", "no predicate is published", span)
+                    }
+                }
+            }
+            EffectVerb::Create => self.decode_create(scope, effect, what, span),
+            EffectVerb::Set => self.decode_set(scope, effect, what, span),
+            EffectVerb::Delete => self.decode_delete(scope, effect, what, span),
+            EffectVerb::Call => {
+                let operation = self.effect_operation(effect);
+                let inputs = self.effect_args_object(scope, effect);
+                IrStmt::Call {
+                    operation,
+                    inputs,
+                    binding: effect.binding.clone(),
+                    span,
+                }
+            }
+            EffectVerb::Emit => {
+                let event = match &effect.target {
+                    Some(crate::analysis::effects::EffectTarget::Event(id)) => self.canonical(*id),
+                    _ => String::new(),
+                };
+                if event.is_empty() {
+                    return unsupported_stmt(
+                        "emit statement",
+                        "no event target is published",
+                        span,
+                    );
+                }
+                IrStmt::Emit {
+                    event,
+                    payload: self.effect_args_object(scope, effect),
+                    span,
+                }
+            }
+            EffectVerb::Send => self.decode_send(scope, effect, what, span),
+            EffectVerb::Schedule => {
+                let (Some(key), Some(at), Some(payload)) = (
+                    effect.key.as_ref(),
+                    effect.at.as_ref(),
+                    effect.value.as_ref(),
+                ) else {
+                    return unsupported_stmt(
+                        "schedule statement",
+                        "key, instant or payload is not published",
+                        span,
+                    );
+                };
+                let event = match &effect.target {
+                    Some(crate::analysis::effects::EffectTarget::Event(id)) => self.canonical(*id),
+                    _ => String::new(),
+                };
+                if event.is_empty() {
+                    return unsupported_stmt(
+                        "schedule statement",
+                        "no event target is published",
+                        span,
+                    );
+                }
+                IrStmt::Schedule {
+                    key: self.decode_anchored(scope, key, &format!("{what} schedule key")),
+                    at: self.decode_anchored(scope, at, &format!("{what} schedule instant")),
+                    event,
+                    payload: self.decode_anchored(
+                        scope,
+                        payload,
+                        &format!("{what} schedule payload"),
+                    ),
+                    span,
+                }
+            }
+            EffectVerb::Cancel => match effect.value.as_ref() {
+                Some(key) => IrStmt::Cancel {
+                    key: self.decode_anchored(scope, key, &format!("{what} cancel key")),
+                    span,
+                },
+                None => unsupported_stmt("cancel statement", "no key is published", span),
+            },
+            EffectVerb::Return => IrStmt::Return {
+                value: effect
+                    .value
+                    .as_ref()
+                    .map(|key| self.decode_anchored(scope, key, &format!("{what} return value"))),
+                span,
+            },
+            EffectVerb::If => {
+                let cond = effect
+                    .cond
+                    .as_ref()
+                    .map(|key| self.decode_anchored(scope, key, &format!("{what} condition")));
+                let Some(cond) = cond else {
+                    return unsupported_stmt("if statement", "no condition is published", span);
+                };
+                IrStmt::If {
+                    cond,
+                    then_branch: effect
+                        .then_effects
+                        .iter()
+                        .map(|e| self.decode_effect(scope, e, what))
+                        .collect(),
+                    else_branch: effect
+                        .else_effects
+                        .iter()
+                        .map(|e| self.decode_effect(scope, e, what))
+                        .collect(),
+                    span,
+                }
+            }
+            EffectVerb::For => {
+                if effect.limit.is_some() {
+                    // Limits fail on excess; dropping one would change
+                    // semantics, so the whole loop stays loud.
+                    return unsupported_stmt(
+                        "for limit",
+                        "bounded loops have no §13 lowering",
+                        span,
+                    );
+                }
+                let item = effect.item.clone().unwrap_or_default();
+                let domain = effect
+                    .domain
+                    .as_ref()
+                    .map(|key| self.decode_anchored(scope, key, &format!("{what} domain")));
+                match domain {
+                    Some(domain) => IrStmt::For {
+                        item,
+                        domain,
+                        body: effect
+                            .then_effects
+                            .iter()
+                            .map(|e| self.decode_effect(scope, e, what))
+                            .collect(),
+                        span,
+                    },
+                    None => unsupported_stmt("for statement", "no domain is published", span),
+                }
+            }
+        }
+    }
+
+    /// Decode a `create` effect.
+    fn decode_create(
+        &mut self,
+        scope: &Scope,
+        effect: &crate::analysis::effects::Effect,
+        what: &str,
+        span: Span,
+    ) -> IrStmt {
+        let model = match &effect.target {
+            Some(crate::analysis::effects::EffectTarget::Model(id)) => Some(*id),
+            _ => None,
+        };
+        let Some(model) = model else {
+            return unsupported_stmt("create statement", "no model target is published", span);
+        };
+        let _ = what;
+        IrStmt::Create {
+            model: self.canonical(model),
+            input: self.effect_args_object(scope, effect),
+            when: self.crud_when_key(model),
+            binding: effect.binding.clone(),
+            span,
+        }
+    }
+
+    /// Decode a `set` effect (record path re-read from the anchored node).
+    fn decode_set(
+        &mut self,
+        scope: &Scope,
+        effect: &crate::analysis::effects::Effect,
+        what: &str,
+        span: Span,
+    ) -> IrStmt {
+        let record_node = self.node(&effect.node).cloned().and_then(|stmt| {
+            kids(&stmt)
+                .iter()
+                .find(|n| matches!(n.kind, SyntaxKind::Path | SyntaxKind::Member))
+                .copied()
+                .cloned()
+        });
+        let Some(record_node) = record_node else {
+            return unsupported_stmt("set statement", "no record path is published", span);
+        };
+        let record = self.decode_expr(scope, &record_node);
+        let model = match &effect.target {
+            Some(crate::analysis::effects::EffectTarget::Record { model }) => *model,
+            Some(crate::analysis::effects::EffectTarget::PendingRecord { model }) => Some(*model),
+            _ => None,
+        };
+        let _ = what;
+        IrStmt::Set {
+            record,
+            changes: self.effect_args_object(scope, effect),
+            when: model.and_then(|id| self.crud_when_key(id)),
+            span,
+        }
+    }
+
+    /// Decode a `delete` effect (mode from the model's `crud` row).
+    fn decode_delete(
+        &mut self,
+        scope: &Scope,
+        effect: &crate::analysis::effects::Effect,
+        what: &str,
+        span: Span,
+    ) -> IrStmt {
+        let record_node = self.node(&effect.node).cloned().and_then(|stmt| {
+            kids(&stmt)
+                .iter()
+                .find(|n| matches!(n.kind, SyntaxKind::Path | SyntaxKind::Member))
+                .copied()
+                .cloned()
+        });
+        let Some(record_node) = record_node else {
+            return unsupported_stmt("delete statement", "no record path is published", span);
+        };
+        let record = self.decode_expr(scope, &record_node);
+        let model = match &effect.target {
+            Some(crate::analysis::effects::EffectTarget::Record { model }) => *model,
+            _ => None,
+        };
+        let _ = what;
+        let mode = model
+            .and_then(|id| self.crud_for_model(id))
+            .and_then(|crud| self.program.effects.cruds.get(&crud))
+            .map(|data| delete_mode(&data.delete_mode))
+            .unwrap_or(IrDeleteMode::Archive);
+        IrStmt::Delete { record, mode, span }
+    }
+
+    /// Decode a `send` effect (queue/analytics targets have no lowering).
+    fn decode_send(
+        &mut self,
+        scope: &Scope,
+        effect: &crate::analysis::effects::Effect,
+        what: &str,
+        span: Span,
+    ) -> IrStmt {
+        let operation = match &effect.target {
+            Some(crate::analysis::effects::EffectTarget::Operation(id)) => {
+                Some(self.canonical(*id))
+            }
+            Some(
+                crate::analysis::effects::EffectTarget::Queue { .. }
+                | crate::analysis::effects::EffectTarget::Analytics { .. },
+            ) => {
+                return unsupported_stmt(
+                    "send to a queue or analytics sink",
+                    "no §13 operation identity exists",
+                    span,
+                );
+            }
+            _ => None,
+        };
+        let Some(operation) = operation else {
+            return unsupported_stmt("send statement", "no operation target is published", span);
+        };
+        IrStmt::Send {
+            operation,
+            args: self.effect_args_object(scope, effect),
+            when: effect
+                .when
+                .as_ref()
+                .map(|key| self.decode_anchored(scope, key, &format!("{what} send guard"))),
+            binding: effect.binding.clone(),
+            span,
+        }
+    }
+
+    /// Operation identity of a `call` effect (total over targets).
+    fn effect_operation(&self, effect: &crate::analysis::effects::Effect) -> String {
+        match &effect.target {
+            Some(crate::analysis::effects::EffectTarget::Operation(id)) => self.canonical(*id),
+            Some(crate::analysis::effects::EffectTarget::Action(ids))
+            | Some(crate::analysis::effects::EffectTarget::Invocation(ids)) => ids
+                .iter()
+                .map(|id| self.canonical(*id))
+                .collect::<Vec<_>>()
+                .join(","),
+            _ => String::new(),
+        }
+    }
+
+    /// Effect object entries as one object expression.
+    fn effect_args_object(
+        &mut self,
+        scope: &Scope,
+        effect: &crate::analysis::effects::Effect,
+    ) -> TypedExpr {
+        let span = Span::new(effect.node.file, effect.node.start, effect.node.end);
+        let entries = effect
+            .args
+            .iter()
+            .map(|arg| {
+                let value = arg
+                    .value
+                    .as_ref()
+                    .map(|key| self.decode_anchored(scope, key, "effect argument"));
+                let value = value.unwrap_or_else(|| {
+                    TypedExpr::new(IrExpr::Name(arg.key.clone()), ResolvedType::Unknown, span)
+                });
+                (arg.key.clone(), value)
+            })
+            .collect();
+        TypedExpr::new(IrExpr::Object(entries), ResolvedType::Unknown, span)
+    }
+
+    /// `crudWhen` registry key for `model` (its local name), when the
+    /// model's `crud` row carries a `when=` predicate.
+    fn crud_when_key(&self, model: SymbolId) -> Option<String> {
+        let crud = self.crud_for_model(model)?;
+        let data = self.program.effects.cruds.get(&crud)?;
+        data.when.as_ref()?;
+        Some(self.local_name(model))
+    }
+
+    /// `Crud` symbol for `model`, if one is declared.
+    fn crud_for_model(&self, model: SymbolId) -> Option<SymbolId> {
+        match self.program.symbols.get(model.0 as usize).map(|s| &s.kind) {
+            Some(SymbolKind::Model { crud, .. }) => *crud,
+            _ => None,
+        }
+    }
+}
+
+/// Convert a decoded guard to its boolean expression (rule
+/// predicates share the guard contract: roles become `hasRole`).
+fn guard_to_expr(guard: &IrGuard, span: Span) -> TypedExpr {
+    let bool_ty = ResolvedType::Scalar(Scalar::Bool);
+    let expr = match guard {
+        IrGuard::Role(id) => IrExpr::HasRole {
+            role: id.clone(),
+            person: None,
+        },
+        IrGuard::Subject { role, person } => IrExpr::HasRole {
+            role: role.clone(),
+            person: Some(person.clone()),
+        },
+        IrGuard::Expr(expr) => return expr.clone(),
+        IrGuard::And(guards) => return fold_guard(guards, IrBinOp::And, bool_ty, span),
+        IrGuard::Or(guards) => return fold_guard(guards, IrBinOp::Or, bool_ty, span),
+        IrGuard::Not(inner) => IrExpr::Unary {
+            op: IrUnOp::Not,
+            operand: Box::new(guard_to_expr(inner, span)),
+        },
+    };
+    TypedExpr::new(expr, bool_ty, span)
+}
+
+/// Fold guard conjunctions/disjunctions into left-nested binaries.
+fn fold_guard(guards: &[IrGuard], op: IrBinOp, ty: ResolvedType, span: Span) -> TypedExpr {
+    let mut iter = guards.iter().map(|guard| guard_to_expr(guard, span));
+    let Some(first) = iter.next() else {
+        return TypedExpr::new(IrExpr::Bool(true), ty, span);
+    };
+    iter.fold(first, |acc, next| {
+        TypedExpr::new(
+            IrExpr::Binary {
+                op,
+                left: Box::new(acc),
+                right: Box::new(next),
+            },
+            ty.clone(),
+            span,
+        )
+    })
+}
+
+/// Throwing statement placeholder (the lowering reports `E6008`).
+fn unsupported_stmt(what: &str, why: &str, span: Span) -> IrStmt {
+    IrStmt::Unsupported {
+        what: what.to_string(),
+        why: why.to_string(),
+        span,
+    }
+}
+
+/// [`DeleteMode`](crate::analysis::effects::DeleteMode) to [`IrDeleteMode`].
+fn delete_mode(mode: &crate::analysis::effects::DeleteMode) -> IrDeleteMode {
+    match mode {
+        crate::analysis::effects::DeleteMode::Archive => IrDeleteMode::Archive,
+        crate::analysis::effects::DeleteMode::Remove => IrDeleteMode::Remove,
+    }
+}
+
+/// Decode `order` selector lists (`field`, `-field`).
+fn decode_order_selectors(db: &SourceDb, node: &SyntaxNode) -> Vec<IrOrder> {
+    let mut out = Vec::new();
+    match node.kind {
+        SyntaxKind::Descending => {
+            let field = kids(node)
+                .iter()
+                .find_map(|n| {
+                    if n.kind == SyntaxKind::Path {
+                        Some(path_text(db, n))
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default();
+            out.push(IrOrder {
+                field,
+                descending: true,
+            });
+        }
+        SyntaxKind::Path => {
+            out.push(IrOrder {
+                field: path_text(db, node),
+                descending: false,
+            });
+        }
+        SyntaxKind::Selectors => {
+            for child in kids(node) {
+                out.extend(decode_order_selectors(db, child));
+            }
+        }
+        _ => {}
+    }
+    out
+}
+
+impl<'a> Cx<'a> {
+    /// Decode a model row (G3): label plus rule references. Rule bodies
+    /// decode once in [`Cx::build_rule_maps`]; the ids here must match.
+    #[allow(clippy::type_complexity)]
+    fn decode_model(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+    ) -> (
+        Option<IrMessage>,
+        Vec<IrGrant>,
+        Vec<String>,
+        Vec<String>,
+        Vec<IrUnique>,
+        Option<IrRetain>,
+    ) {
+        let empty = (None, Vec::new(), Vec::new(), Vec::new(), Vec::new(), None);
+        let data = self.program.effects.models.get(&symbol.id).cloned();
+        let Some(data) = data else {
+            self.gap(
+                format!(
+                    "model {}: read grants, invariants, locks, unique constraints, label and field modifiers/defaults are not in the analysis tables (PR5 rules/labels); emitting the typed schema without them",
+                    symbol.canonical,
+                ),
+                symbol.span,
+            );
+            return empty;
+        };
+        let label = data
+            .label
+            .as_ref()
+            .and_then(|key| self.decode_message_value(symbol.module, key));
+        let grants = data
+            .policies
+            .iter()
+            .enumerate()
+            .map(|(index, policy)| IrGrant {
+                rule: format!("{}.read.{}", symbol.name, index + 1),
+                fields: policy.fields.clone(),
+            })
+            .collect();
+        let invariants = data
+            .invariants
+            .iter()
+            .enumerate()
+            .map(|(index, _)| format!("{}.require.{}", symbol.name, index + 1))
+            .collect();
+        let locks = data
+            .locks
+            .iter()
+            .enumerate()
+            .map(|(index, _)| format!("{}.lock.{}", symbol.name, index + 1))
+            .collect();
+        let scope = Scope::module(symbol.module);
+        let uniques = data
+            .uniques
+            .iter()
+            .map(|unique| IrUnique {
+                fields: unique.fields.clone(),
+                where_predicate: unique.where_predicate.as_ref().map(|key| {
+                    self.decode_anchored(
+                        &scope,
+                        key,
+                        &format!("unique constraint on {}", symbol.canonical),
+                    )
+                }),
+                span: Span::new(unique.node.file, unique.node.start, unique.node.end),
+            })
+            .collect();
+        let mut retains = data.retains.iter();
+        // Clean programs carry at most one lifetime; extras have no slot.
+        if retains.len() > 1 {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!(
+                    "cannot lower model {}: additional retain declarations have no §13 lowering",
+                    symbol.canonical,
+                ),
+                symbol.span,
+            ));
+        }
+        let retain = retains.next().map(|retain| IrRetain {
+            until: retain
+                .until
+                .as_ref()
+                .map(|key| {
+                    self.decode_anchored(&scope, key, &format!("retain on {}", symbol.canonical))
+                })
+                .unwrap_or_else(|| {
+                    TypedExpr::new(
+                        IrExpr::Unsupported {
+                            what: format!("retain on {}", symbol.canonical),
+                            why: "no deadline is published".to_string(),
+                        },
+                        ResolvedType::Unknown,
+                        Span::new(retain.node.file, retain.node.start, retain.node.end),
+                    )
+                }),
+            span: Span::new(retain.node.file, retain.node.start, retain.node.end),
+        });
+        (label, grants, invariants, locks, uniques, retain)
+    }
+
+    /// Decode a contract/record label (G4).
+    fn decode_record_label(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+        noun: &str,
+    ) -> Option<IrMessage> {
+        let data = self.program.effects.records.get(&symbol.id);
+        let Some(data) = data else {
+            self.gap(
+                format!(
+                    "{noun} {}: label and field modifiers/defaults are not in the analysis tables (PR5 labels); emitting the typed schema without them",
+                    symbol.canonical,
+                ),
+                symbol.span,
+            );
+            return None;
+        };
+        data.label
+            .as_ref()
+            .and_then(|key| self.decode_message_value(symbol.module, key))
+    }
+
+    /// Decode a scenario row (G1): admission, guards, effects, captions.
+    #[allow(clippy::type_complexity)]
+    fn decode_scenario(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+    ) -> (
+        bool,
+        Vec<IrGuard>,
+        Option<IrMessage>,
+        Option<IrMessage>,
+        Vec<IrStmt>,
+        Vec<IrStmt>,
+    ) {
+        let empty = (false, Vec::new(), None, None, Vec::new(), Vec::new());
+        let data = self.program.effects.scenarios.get(&symbol.id).cloned();
+        let Some(data) = data else {
+            self.gap(
+                format!(
+                    "scenario {}: guards, effects, body, labels and parameter labels/defaults are not in the analysis tables (PR5 effects); emitting metadata plus a failing handler stub",
+                    symbol.canonical,
+                ),
+                symbol.span,
+            );
+            return empty;
+        };
+        let scope = Scope::module(symbol.module);
+        let by = data
+            .by
+            .as_ref()
+            .map(|key| self.decode_guard(&scope, key))
+            .into_iter()
+            .collect();
+        let label = data
+            .label
+            .as_ref()
+            .and_then(|key| self.decode_message_value(symbol.module, key));
+        let description = self.owner_description(symbol.module, &data.node);
+        if data.scope_authority {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!(
+                    "cannot lower scenario {}: scope=authority has no §13 emission",
+                    symbol.canonical,
+                ),
+                symbol.span,
+            ));
+        }
+        if data.on.is_some() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!(
+                    "cannot lower scenario {}: handler triggers have no §13 member lowering",
+                    symbol.canonical,
+                ),
+                symbol.span,
+            ));
+        }
+        let what = symbol.canonical.clone();
+        let guards = data
+            .guards
+            .iter()
+            .map(|effect| self.decode_effect(&scope, effect, &what))
+            .collect();
+        let effects = data
+            .effects
+            .iter()
+            .map(|effect| self.decode_effect(&scope, effect, &what))
+            .collect();
+        (data.read, by, label, description, guards, effects)
+    }
+
+    /// Decode a generated CRUD operation row (G2).
+    #[allow(clippy::type_complexity)]
+    fn decode_crud_op(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+        model: SymbolId,
+        op: CrudOp,
+    ) -> (
+        Vec<IrGuard>,
+        bool,
+        Vec<String>,
+        Option<IrMessage>,
+        bool,
+        IrDeleteMode,
+    ) {
+        let empty = (
+            Vec::new(),
+            false,
+            Vec::new(),
+            None,
+            false,
+            IrDeleteMode::Archive,
+        );
+        let data = self.program.effects.crud_ops.get(&symbol.id).cloned();
+        let Some(data) = data else {
+            self.gap(
+                format!(
+                    "crud operation {}: guard, field allowlist and labels are not in the analysis tables (PR5 effects); emitting metadata plus a failing handler stub",
+                    symbol.canonical,
+                ),
+                symbol.span,
+            );
+            return empty;
+        };
+        let scope = Scope::module(symbol.module);
+        let by = data
+            .by
+            .as_ref()
+            .map(|key| self.decode_guard(&scope, key))
+            .into_iter()
+            .collect();
+        let label = data
+            .label
+            .as_ref()
+            .and_then(|key| self.decode_message_value(symbol.module, key));
+        let op_name = match op {
+            CrudOp::Create => "create",
+            CrudOp::Update => "update",
+            CrudOp::Delete => "delete",
+        };
+        let expose_excluded = self
+            .program
+            .effects
+            .cruds
+            .get(&data.crud_decl)
+            .map(|crud| !crud.expose.is_empty() && !crud.expose.iter().any(|name| name == op_name))
+            .unwrap_or(false);
+        let _ = model;
+        (
+            by,
+            data.when.is_some(),
+            data.fields.clone(),
+            label,
+            expose_excluded,
+            delete_mode(&data.delete_mode),
+        )
+    }
+
+    /// Decode a stored field row (G3/G4): default, server, modifiers, label.
+    #[allow(clippy::type_complexity)]
+    fn decode_field(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+        owner: SymbolId,
+    ) -> (
+        Option<IrDefault>,
+        Option<IrServer>,
+        IrModifiers,
+        Option<IrFieldLabel>,
+    ) {
+        let empty = (None, None, IrModifiers::default(), None);
+        let data = self
+            .program
+            .effects
+            .models
+            .get(&owner)
+            .and_then(|model| model.fields.iter().find(|f| f.field == symbol.id))
+            .cloned()
+            .or_else(|| {
+                self.program
+                    .effects
+                    .records
+                    .get(&owner)
+                    .and_then(|record| record.fields.iter().find(|f| f.field == symbol.id))
+                    .cloned()
+            });
+        let Some(data) = data else { return empty };
+        let scope = Scope::module(symbol.module);
+        let default = data.default.as_ref().map(|key| {
+            let expr = self.decode_anchored(&scope, key, "field default");
+            if is_literal_default(&expr) {
+                IrDefault::Literal(expr)
+            } else {
+                IrDefault::Computed {
+                    expr,
+                    has_parent: self.model_has_parent(owner),
+                }
+            }
+        });
+        let server = data.server.as_ref().and_then(|key| {
+            let node = self.node(key)?.clone();
+            if node.kind == SyntaxKind::NameRef
+                && let Some(name) = kids(&node).iter().find_map(|n| name_text(self.db, n))
+            {
+                match name.as_str() {
+                    "actor" => return Some(IrServer::Actor),
+                    "now" => return Some(IrServer::Now),
+                    _ => {}
+                }
+            }
+            Some(IrServer::Computed(self.decode_expr(&scope, &node)))
+        });
+        let mut modifiers = IrModifiers::default();
+        for modifier in &data.modifiers {
+            match modifier.name.as_str() {
+                "trim" => modifiers.trim = true,
+                "unique" => modifiers.unique = true,
+                "min" => {
+                    modifiers.min = modifier
+                        .value
+                        .as_ref()
+                        .map(|key| self.decode_anchored(&scope, key, "min bound"));
+                }
+                "max" => {
+                    modifiers.max = modifier
+                        .value
+                        .as_ref()
+                        .map(|key| self.decode_anchored(&scope, key, "max bound"));
+                }
+                _ => {}
+            }
+        }
+        let label = data
+            .label
+            .as_ref()
+            .and_then(|key| self.decode_field_label(symbol.module, key));
+        (default, server, modifiers, label)
+    }
+
+    /// Whether `owner` is a child model (computed defaults take `{parent}`).
+    fn model_has_parent(&self, owner: SymbolId) -> bool {
+        matches!(
+            self.program.symbols.get(owner.0 as usize).map(|s| &s.kind),
+            Some(SymbolKind::Model {
+                owner: ModelOwner::ChildOf(_),
+                ..
+            })
+        )
+    }
+
+    /// Decode a signature parameter row (G1/G6/G7): default and label.
+    fn decode_param(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+        owner: SymbolId,
+    ) -> (Option<IrDefault>, Option<IrMessage>) {
+        let data = self.param_data(owner, symbol.id);
+        let Some(data) = data else {
+            return (None, None);
+        };
+        let scope = Scope::module(symbol.module);
+        let default = data.default.as_ref().map(|key| {
+            let expr = self.decode_anchored(&scope, key, "parameter default");
+            if is_literal_default(&expr) {
+                IrDefault::Literal(expr)
+            } else {
+                IrDefault::Computed {
+                    expr,
+                    has_parent: false,
+                }
+            }
+        });
+        let label = data
+            .label
+            .as_ref()
+            .and_then(|key| self.decode_message_value(symbol.module, key));
+        (default, label)
+    }
+
+    /// `ParamData` for `param` of `owner` (scenario, capability op,
+    /// message or derived function).
+    fn param_data(
+        &self,
+        owner: SymbolId,
+        param: SymbolId,
+    ) -> Option<crate::analysis::effects::ParamData> {
+        if let Some(scenario) = self.program.effects.scenarios.get(&owner)
+            && let Some(data) = scenario.params.iter().find(|p| p.param == param)
+        {
+            return Some(data.clone());
+        }
+        for capability in self.program.effects.capabilities.values() {
+            for op in &capability.ops {
+                if let Some(data) = op.params.iter().find(|p| p.param == param) {
+                    return Some(data.clone());
+                }
+            }
+        }
+        if let Some(message) = self.program.effects.messages.get(&owner)
+            && let Some(data) = message.params.iter().find(|p| p.param == param)
+        {
+            return Some(data.clone());
+        }
+        if let Some(derive) = self.program.effects.derives.get(&owner)
+            && let Some(data) = derive.params.iter().find(|p| p.param == param)
+        {
+            return Some(data.clone());
+        }
+        None
+    }
+
+    /// Decode a derive row (G8): value expression plus field label.
+    fn decode_derive(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+    ) -> (Option<TypedExpr>, Option<IrFieldLabel>) {
+        let data = self.program.effects.derives.get(&symbol.id).cloned();
+        let Some(data) = data else {
+            self.gap(
+                format!(
+                    "derive {}: expression is not in the analysis tables (PR5 effects); emitting a failing stub",
+                    symbol.canonical,
+                ),
+                symbol.span,
+            );
+            return (None, None);
+        };
+        let scope = Scope::module(symbol.module);
+        let expr = data
+            .expr
+            .as_ref()
+            .map(|key| self.decode_anchored(&scope, key, &format!("derive {}", symbol.canonical)));
+        let label = data
+            .label
+            .as_ref()
+            .and_then(|key| self.decode_field_label(symbol.module, key));
+        (expr, label)
+    }
+}
+
+/// Whether a default expression stays a literal `default` value.
+fn is_literal_default(expr: &TypedExpr) -> bool {
+    match &expr.expr {
+        IrExpr::Int(_)
+        | IrExpr::Decimal(_)
+        | IrExpr::Text(_)
+        | IrExpr::Bool(_)
+        | IrExpr::Null
+        | IrExpr::Money { .. }
+        | IrExpr::DurationMs(_)
+        | IrExpr::Date(_)
+        | IrExpr::Datetime(_) => true,
+        IrExpr::Array(items) => items.iter().all(is_literal_default),
+        IrExpr::Object(entries) => entries.iter().all(|(_, v)| is_literal_default(v)),
+        _ => false,
+    }
+}
+
+impl<'a> Cx<'a> {
+    /// Decode rule bodies once (G2/G3/G4): read rules, invariants, locks,
+    /// retention, `crudWhen` and preferences validators. Ids must match
+    /// the references decoded in [`Cx::decode_model`].
+    #[allow(clippy::too_many_arguments)]
+    fn build_rule_maps(
+        &mut self,
+        read_rules: &mut Vec<IrRuleFn>,
+        invariants: &mut Vec<IrRuleFn>,
+        locks: &mut Vec<IrLockFn>,
+        retention: &mut Vec<IrNamedFn>,
+        crud_when: &mut Vec<IrNamedFn>,
+        preferences_valid: &mut Vec<IrNamedFn>,
+    ) {
+        let mut preference_modules: Vec<ModuleId> = Vec::new();
+        for symbol in self.program.symbols.clone() {
+            if let SymbolKind::Model { .. } = &symbol.kind
+                && let Some(data) = self.program.effects.models.get(&symbol.id).cloned()
+            {
+                let scope = Scope::module(symbol.module);
+                for (index, policy) in data.policies.iter().enumerate() {
+                    let span = Span::new(policy.node.file, policy.node.start, policy.node.end);
+                    let read = match policy.read.as_ref() {
+                        Some(key) => {
+                            let guard = self.decode_guard(&scope, key);
+                            guard_to_expr(&guard, span)
+                        }
+                        // Fail-closed: an unpublished grant predicate
+                        // denies rather than broadens, loudly.
+                        None => {
+                            self.gap(
+                                format!(
+                                    "policy on {}: read grant predicate is not in the analysis tables; denying",
+                                    symbol.canonical,
+                                ),
+                                span,
+                            );
+                            TypedExpr::new(
+                                IrExpr::Bool(false),
+                                ResolvedType::Scalar(Scalar::Bool),
+                                span,
+                            )
+                        }
+                    };
+                    let pred = match policy.where_predicate.as_ref() {
+                        Some(key) => {
+                            let where_pred = self.decode_anchored(
+                                &scope,
+                                key,
+                                &format!("policy on {}", symbol.canonical),
+                            );
+                            TypedExpr::new(
+                                IrExpr::Binary {
+                                    op: IrBinOp::And,
+                                    left: Box::new(read),
+                                    right: Box::new(where_pred),
+                                },
+                                ResolvedType::Scalar(Scalar::Bool),
+                                span,
+                            )
+                        }
+                        None => read,
+                    };
+                    read_rules.push(IrRuleFn {
+                        id: format!("{}.read.{}", symbol.name, index + 1),
+                        pred,
+                        span,
+                    });
+                }
+                for (index, invariant) in data.invariants.iter().enumerate() {
+                    let span = Span::new(
+                        invariant.node.file,
+                        invariant.node.start,
+                        invariant.node.end,
+                    );
+                    let pred = invariant.predicate.as_ref().map(|key| {
+                        self.decode_anchored(
+                            &scope,
+                            key,
+                            &format!("invariant on {}", symbol.canonical),
+                        )
+                    });
+                    let Some(pred) = pred else {
+                        self.gap(
+                            format!(
+                                "invariant on {}: predicate is not in the analysis tables; omitting the rule",
+                                symbol.canonical,
+                            ),
+                            span,
+                        );
+                        continue;
+                    };
+                    invariants.push(IrRuleFn {
+                        id: format!("{}.require.{}", symbol.name, index + 1),
+                        pred,
+                        span,
+                    });
+                }
+                for (index, lock) in data.locks.iter().enumerate() {
+                    let span = Span::new(lock.node.file, lock.node.start, lock.node.end);
+                    locks.push(IrLockFn {
+                        id: format!("{}.lock.{}", symbol.name, index + 1),
+                        fields: lock.fields.clone(),
+                        when: lock.when.as_ref().map(|key| {
+                            self.decode_anchored(
+                                &scope,
+                                key,
+                                &format!("lock on {}", symbol.canonical),
+                            )
+                        }),
+                        span,
+                    });
+                }
+                if let Some(retain) = data.retains.first() {
+                    let span = Span::new(retain.node.file, retain.node.start, retain.node.end);
+                    let body = retain.until.as_ref().map(|key| {
+                        self.decode_anchored(
+                            &scope,
+                            key,
+                            &format!("retain on {}", symbol.canonical),
+                        )
+                    });
+                    if let Some(body) = body {
+                        retention.push(IrNamedFn {
+                            name: symbol.name.clone(),
+                            body,
+                            span,
+                        });
+                    }
+                }
+            }
+            if matches!(
+                &symbol.kind,
+                SymbolKind::Preferences { .. }
+                    | SymbolKind::Contract { .. }
+                    | SymbolKind::Event { .. }
+            ) && let Some(data) = self.program.effects.records.get(&symbol.id).cloned()
+                && !data.invariants.is_empty()
+            {
+                let scope = Scope::module(symbol.module);
+                let mut combined: Option<TypedExpr> = None;
+                for invariant in &data.invariants {
+                    let span = Span::new(
+                        invariant.node.file,
+                        invariant.node.start,
+                        invariant.node.end,
+                    );
+                    let pred = invariant.predicate.as_ref().map(|key| {
+                        self.decode_anchored(
+                            &scope,
+                            key,
+                            &format!("invariant on {}", symbol.canonical),
+                        )
+                    });
+                    let Some(pred) = pred else {
+                        self.gap(
+                            format!(
+                                "invariant on {}: predicate is not in the analysis tables; omitting the rule",
+                                symbol.canonical,
+                            ),
+                            span,
+                        );
+                        continue;
+                    };
+                    combined = Some(match combined {
+                        Some(acc) => TypedExpr::new(
+                            IrExpr::Binary {
+                                op: IrBinOp::And,
+                                left: Box::new(acc),
+                                right: Box::new(pred),
+                            },
+                            ResolvedType::Scalar(Scalar::Bool),
+                            span,
+                        ),
+                        None => pred,
+                    });
+                }
+                if let Some(body) = combined {
+                    preferences_valid.push(IrNamedFn {
+                        name: String::new(),
+                        body,
+                        span: symbol.span,
+                    });
+                    preference_modules.push(symbol.module);
+                }
+            }
+        }
+        // Shared `crudWhen` admission, keyed by model-local name, in
+        // declaration order.
+        let mut cruds: Vec<_> = self.program.effects.cruds.values().collect();
+        cruds.sort_by_key(|crud| crud.crud.0);
+        for crud in cruds {
+            let Some(when) = crud.when.as_ref() else {
+                continue;
+            };
+            let module = self
+                .program
+                .symbols
+                .get(crud.model.0 as usize)
+                .map(|s| s.module)
+                .unwrap_or(ModuleId(0));
+            let scope = Scope::module(module);
+            let span = Span::new(when.file, when.start, when.end);
+            crud_when.push(IrNamedFn {
+                name: self.local_name(crud.model),
+                body: self.decode_anchored(&scope, when, "crud admission"),
+                span,
+            });
+        }
+        // One `preferencesValid` name per module when several modules
+        // validate preferences; a lone validator keeps the plain name.
+        if preferences_valid.len() > 1 {
+            for (validator, module) in preferences_valid.iter_mut().zip(preference_modules.iter()) {
+                let module_name = self
+                    .program
+                    .modules
+                    .get(module.0 as usize)
+                    .map(|m| m.name.clone())
+                    .unwrap_or_default();
+                validator.name = format!("preferencesValid_{module_name}");
+                self.preference_validators
+                    .insert(*module, validator.name.clone());
+            }
+        } else if preferences_valid.len() == 1 {
+            preferences_valid[0].name = "preferencesValid".to_string();
+            if let Some(module) = preference_modules.first() {
+                self.preference_validators
+                    .insert(*module, "preferencesValid".to_string());
+            }
+        }
+    }
+
+    /// `E6007` for deployment-bound capabilities that are not available
+    /// (G6): missing, `planned` or `external` catalog entries, or no
+    /// catalog to verify against. Never a silent emit.
+    fn check_bound_capabilities(&mut self) {
+        for module in self.program.modules.clone() {
+            for import in &module.imports {
+                let Some(from) = import.from.clone() else {
+                    continue;
+                };
+                let _ = from;
+                for member in &import.members {
+                    let provider = self.modules_by_name.get(&import.provider).copied();
+                    let target = provider
+                        .and_then(|id| self.by_name.get(&(id, member.name.clone())).copied());
+                    let Some(target) = target else { continue };
+                    let symbol = self.program.symbols.get(target.0 as usize).cloned();
+                    let (availability, noun) = match symbol.as_ref().map(|s| &s.kind) {
+                        Some(SymbolKind::Capability { .. }) => (
+                            self.program
+                                .effects
+                                .capabilities
+                                .get(&target)
+                                .and_then(|data| data.availability),
+                            "capability",
+                        ),
+                        Some(SymbolKind::CapabilityOp { .. }) => {
+                            (self.op_availability(target), "capability operation")
+                        }
+                        _ => continue,
+                    };
+                    let canonical = self.canonical(target);
+                    match availability {
+                        Some(Availability::Implemented) => {}
+                        Some(Availability::Planned) => {
+                            self.diags.push(Diagnostic::error(
+                                "E6007",
+                                format!(
+                                    "bound {noun} '{canonical}' is planned: no implementation to link"
+                                ),
+                                member.span,
+                            ));
+                        }
+                        Some(Availability::External) => {
+                            self.diags.push(Diagnostic::error(
+                                "E6007",
+                                format!(
+                                    "bound {noun} '{canonical}' is external: implemented by another lane, unavailable here"
+                                ),
+                                member.span,
+                            ));
+                        }
+                        None => {
+                            self.diags.push(Diagnostic::error(
+                                "E6007",
+                                format!(
+                                    "cannot verify bound {noun} '{canonical}': no producer catalog entry was consulted"
+                                ),
+                                member.span,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Catalog availability of one capability operation, if published.
+    fn op_availability(&self, op: SymbolId) -> Option<Availability> {
+        self.program
+            .effects
+            .capabilities
+            .values()
+            .flat_map(|capability| capability.ops.iter())
+            .find(|data| data.op == op)
+            .and_then(|data| data.availability)
+    }
+
+    /// Migrations have no §13 member lowering: each is a loud `E6008`
+    /// (G9). Absent migrations emit nothing.
+    fn check_migrations(&mut self) {
+        for migration in &self.program.effects.migrations {
+            let span = Span::new(
+                migration.node.file,
+                migration.node.start,
+                migration.node.end,
+            );
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!(
+                    "cannot lower migration {}: migrations have no §13 lowering",
+                    migration.owner,
+                ),
+                span,
+            ));
+        }
+    }
+
+    /// Builtin references: decoder-observed call sites (true spans) plus
+    /// G13 ids from positions the build does not decode (fallback span).
+    fn build_referenced_builtins(&self) -> Vec<ReferencedBuiltin> {
+        let mut out = self.builtins_seen.clone();
+        let fallback = self
+            .db
+            .iter()
+            .next()
+            .map(|(id, _)| Span::new(id, 0, 0))
+            .unwrap_or(Span::new(SourceId(0), 0, 0));
+        for id in &self.program.effects.referenced_builtins {
+            if !self.g13_seen.contains(id) {
+                out.push(ReferencedBuiltin {
+                    id: id.clone(),
+                    span: fallback,
+                });
+            }
+        }
+        out.sort_by(|a, b| {
+            (a.span.file, a.span.start, a.span.end, a.id.clone()).cmp(&(
+                b.span.file,
+                b.span.start,
+                b.span.end,
+                b.id.clone(),
+            ))
+        });
+        out
+    }
+
+    /// Module `#` description: the set whose owner is the module node.
+    fn module_description(
+        &mut self,
+        module: ModuleId,
+        data: &crate::analysis::effects::ModuleData,
+    ) -> Option<IrMessage> {
+        let app_kind = SyntaxKind::App as u8;
+        let package_kind = SyntaxKind::Package as u8;
+        let mut candidates = data
+            .descriptions
+            .iter()
+            .filter(|entry| entry.owner.kind == app_kind || entry.owner.kind == package_kind);
+        let first = candidates.next()?;
+        if candidates.next().is_some() {
+            let span = Span::new(first.node.file, first.node.start, first.node.end);
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower module: additional descriptions have no §13 lowering".to_string(),
+                span,
+            ));
+        }
+        self.decode_description(module, first)
+    }
+
+    /// Attached `#` description for one declaration node (scenario, page).
+    fn owner_description(&mut self, module: ModuleId, owner: &NodeKey) -> Option<IrMessage> {
+        let data = self.program.effects.modules.get(&module)?;
+        let mut candidates = data
+            .descriptions
+            .iter()
+            .filter(|entry| entry.owner == *owner);
+        let first = candidates.next()?;
+        if candidates.next().is_some() {
+            let span = Span::new(first.node.file, first.node.start, first.node.end);
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower declaration: additional descriptions have no §13 lowering"
+                    .to_string(),
+                span,
+            ));
+        }
+        self.decode_description(module, first)
+    }
+
+    /// Decode one description set: prose plus variants, or a lone
+    /// `#= path` message reference.
+    fn decode_description(
+        &mut self,
+        module: ModuleId,
+        entry: &crate::analysis::effects::DescriptionEntry,
+    ) -> Option<IrMessage> {
+        if let Some(reference) = &entry.reference {
+            let span = Span::new(entry.node.file, entry.node.start, entry.node.end);
+            match self.resolve_member(module, reference) {
+                Some((id, _))
+                    if matches!(
+                        self.program.symbols.get(id.0 as usize).map(|s| &s.kind),
+                        Some(SymbolKind::Message { .. })
+                    ) =>
+                {
+                    return self
+                        .program
+                        .effects
+                        .messages
+                        .get(&id)
+                        .map(|data| self.decode_message_data(data));
+                }
+                _ => {
+                    self.gap(
+                        format!(
+                            "description reference `{reference}` is not published in the analysis tables; omitting the description"
+                        ),
+                        span,
+                    );
+                    return None;
+                }
+            }
+        }
+        if entry.text.is_empty() {
+            return None;
+        }
+        Some(IrMessage {
+            source: entry.text.clone(),
+            variants: entry
+                .variants
+                .iter()
+                .map(|v| (v.locale.clone(), v.value.clone()))
+                .collect(),
+            params: Vec::new(),
+        })
+    }
+}
+
+impl<'a> Cx<'a> {
+    /// Decode one page (G9): route, captions, admission, render body.
+    fn decode_page(
+        &mut self,
+        module: ModuleId,
+        module_name: &str,
+        page: &crate::analysis::effects::PageData,
+    ) -> IrPage {
+        let span = Span::new(page.node.file, page.node.start, page.node.end);
+        let scope = Scope::module(module);
+        let node = self.node(&page.node).cloned();
+        let title = page.title.as_ref().and_then(|key| {
+            // Titles are static captions or context-free message values.
+            let title_node = self.node(key)?.clone();
+            if title_node.kind == SyntaxKind::MessageValue {
+                self.decode_message_node(module, &title_node)
+            } else if title_node.kind == SyntaxKind::Literal {
+                literal_string(self.db, &title_node).map(|source| IrMessage {
+                    source,
+                    variants: Vec::new(),
+                    params: Vec::new(),
+                })
+            } else {
+                None
+            }
+        });
+        let title = title.unwrap_or_else(|| {
+            self.gap(
+                "page title is not published in the analysis tables; emitting an empty caption"
+                    .to_string(),
+                span,
+            );
+            IrMessage {
+                source: String::new(),
+                variants: Vec::new(),
+                params: Vec::new(),
+            }
+        });
+        let description = self.owner_description(module, &page.node);
+        let (path, order, group, nav_none) = node
+            .as_ref()
+            .map(|n| self.decode_page_head(module, n))
+            .unwrap_or_else(|| ("/".to_string(), None, None, false));
+        let mut admit = Vec::new();
+        let mut render = Vec::new();
+        if let Some(node) = node.as_ref() {
+            for child in kids(node) {
+                match child.kind {
+                    SyntaxKind::Require => {
+                        if let Some(pred) =
+                            kids(child).iter().find(|n| is_expression(n.kind)).copied()
+                        {
+                            admit.push(self.decode_guard_node(&scope, pred));
+                        }
+                    }
+                    _ => {
+                        if !is_ui_node(child.kind) {
+                            continue;
+                        }
+                        if let Some(ui) = self.decode_ui(&scope, child, None) {
+                            render.push(ui);
+                        }
+                    }
+                }
+            }
+        }
+        if page.data.is_some() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower page {path}: page data has no §13 lowering"),
+                span,
+            ));
+        }
+        let fn_name = self.page_fn_name(module_name, &path);
+        let descriptor_name = format!("{fn_name}Descriptor");
+        IrPage {
+            owner: module_name.to_string(),
+            path,
+            title,
+            description,
+            order,
+            group,
+            nav_none,
+            admit,
+            render,
+            fn_name,
+            descriptor_name,
+            span,
+        }
+    }
+
+    /// Decode the page head: route pattern plus `order`/`group`/`nav`.
+    /// `data`/`poll`/`refresh` have no lowering and stay loud `E6008`.
+    fn decode_page_head(
+        &mut self,
+        module: ModuleId,
+        node: &SyntaxNode,
+    ) -> (String, Option<i128>, Option<String>, bool) {
+        let mut path = "/".to_string();
+        let mut order = None;
+        let mut group = None;
+        let mut nav_none = false;
+        for child in kids(node) {
+            match child.kind {
+                SyntaxKind::Route => {
+                    path = self.decode_route(child, node.span);
+                }
+                SyntaxKind::Attribute => {
+                    let parts = kids(child);
+                    let name = parts
+                        .first()
+                        .and_then(|n| name_text(self.db, n))
+                        .unwrap_or_default();
+                    let value = parts
+                        .iter()
+                        .find(|n| !matches!(n.kind, SyntaxKind::Name | SyntaxKind::Punct));
+                    match name.as_str() {
+                        "order" => {
+                            if let Some(value) = value
+                                && value.kind == SyntaxKind::Literal
+                                && let Some(leaf) = kids(value).into_iter().next()
+                                && leaf.kind == SyntaxKind::Integer
+                                && let Ok(number) = self.text(leaf.span).parse::<i128>()
+                            {
+                                order = Some(number);
+                            } else if let Some(value) = value {
+                                self.diags.push(Diagnostic::error(
+                                    "E6008",
+                                    "cannot lower page order: only constant integers lower"
+                                        .to_string(),
+                                    value.span,
+                                ));
+                            }
+                        }
+                        "group" => {
+                            if let Some(value) = value
+                                && let Some(text) = static_text(self.db, value)
+                            {
+                                group = Some(text);
+                            } else if let Some(value) = value {
+                                self.diags.push(Diagnostic::error(
+                                    "E6008",
+                                    "cannot lower page group: only static text lowers".to_string(),
+                                    value.span,
+                                ));
+                            }
+                        }
+                        "nav" => {
+                            let spelling = value
+                                .and_then(|v| name_text(self.db, v))
+                                .unwrap_or_default();
+                            if spelling == "none" {
+                                nav_none = true;
+                            } else if let Some(value) = value {
+                                self.diags.push(Diagnostic::error(
+                                    "E6008",
+                                    format!(
+                                        "cannot lower page nav `{spelling}`: only nav=none lowers"
+                                    ),
+                                    value.span,
+                                ));
+                            }
+                        }
+                        "poll" | "refresh" => {
+                            self.diags.push(Diagnostic::error(
+                                "E6008",
+                                format!(
+                                    "cannot lower page {name}: page {name} has no §13 lowering"
+                                ),
+                                child.span,
+                            ));
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+        let _ = module;
+        (path, order, group, nav_none)
+    }
+
+    /// Normalize a route pattern. Static segments concatenate; dynamic
+    /// (record/scalar) segments have no normalized lowering, so the
+    /// source spelling is kept loudly (`E6008`).
+    fn decode_route(&mut self, route: &SyntaxNode, span: Span) -> String {
+        let mut out = String::new();
+        let mut dynamic = false;
+        for child in kids(route) {
+            match child.kind {
+                SyntaxKind::Punct => out.push_str(self.text(child.span)),
+                SyntaxKind::Name => out.push_str(self.text(child.span)),
+                SyntaxKind::RouteStatic => {
+                    for part in kids(child) {
+                        out.push_str(self.text(part.span));
+                    }
+                }
+                SyntaxKind::RouteRecord | SyntaxKind::RouteScalar => {
+                    dynamic = true;
+                    out.push_str(self.text(child.span));
+                }
+                _ => {}
+            }
+        }
+        if out.is_empty() {
+            out.push('/');
+        }
+        if dynamic {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower route {out}: dynamic segments have no normalized §13 lowering; keeping the source spelling"),
+                span,
+            ));
+        }
+        out
+    }
+
+    /// Deterministic page function name from owner plus path segments.
+    fn page_fn_name(&mut self, module: &str, path: &str) -> String {
+        let mut name: String = module
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric())
+            .collect();
+        for segment in path.split('/').filter(|s| !s.is_empty()) {
+            let clean: String = segment
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric())
+                .collect();
+            let mut chars = clean.chars();
+            if let Some(first) = chars.next() {
+                name.push(first.to_ascii_uppercase());
+                name.push_str(chars.as_str());
+            }
+        }
+        if name.is_empty() {
+            name.push_str("page");
+        }
+        name.push_str("Page");
+        let mut candidate = name.clone();
+        let mut n = 2;
+        while !self.page_fns.insert(candidate.clone()) {
+            candidate = format!("{name}{n}");
+            n += 1;
+        }
+        candidate
+    }
+
+    /// Decode one UI node. `row_ctx` carries the enclosing collection's
+    /// `(model, row name)` for bare `edit`/`history` inference.
+    fn decode_ui(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        let word = ui_word(self.db, node);
+        match node.kind {
+            SyntaxKind::Card => {
+                let caption = kids(node)
+                    .iter()
+                    .find(|n| n.kind == SyntaxKind::MessageValue)
+                    .and_then(|n| self.decode_message_node(scope.module, n));
+                let mut props = Vec::new();
+                if let Some(caption) = caption {
+                    props.push((
+                        "title".to_string(),
+                        TypedExpr::new(
+                            IrExpr::Message(caption),
+                            ResolvedType::Scalar(Scalar::Text),
+                            node.span,
+                        ),
+                    ));
+                }
+                let children = self.decode_ui_children(scope, node, row_ctx);
+                Some(IrUi {
+                    factory: "card".to_string(),
+                    props,
+                    children,
+                    row_scope: None,
+                    span: node.span,
+                })
+            }
+            SyntaxKind::Details => {
+                let caption = kids(node)
+                    .iter()
+                    .find(|n| n.kind == SyntaxKind::MessageValue)
+                    .and_then(|n| self.decode_message_node(scope.module, n));
+                let mut props = Vec::new();
+                if let Some(caption) = caption {
+                    props.push((
+                        "caption".to_string(),
+                        TypedExpr::new(
+                            IrExpr::Message(caption),
+                            ResolvedType::Scalar(Scalar::Text),
+                            node.span,
+                        ),
+                    ));
+                }
+                for (name, value) in ui_attributes(self.db, node) {
+                    if name == "open"
+                        && let Some(value) = value
+                    {
+                        props.push(("open".to_string(), self.decode_expr(scope, value)));
+                    }
+                }
+                let children = self.decode_ui_children(scope, node, row_ctx);
+                Some(IrUi {
+                    factory: "details".to_string(),
+                    props,
+                    children,
+                    row_scope: None,
+                    span: node.span,
+                })
+            }
+            SyntaxKind::Form => self.decode_form(scope, node, row_ctx),
+            SyntaxKind::Collection => self.decode_collection(scope, node, &word),
+            SyntaxKind::Tabs => {
+                let target = kids(node).iter().find(|n| is_expression(n.kind)).copied();
+                let mut props = Vec::new();
+                if let Some(target) = target {
+                    // `tabs preferences.view` carries the selector plus
+                    // the live value.
+                    let module_name = self
+                        .program
+                        .modules
+                        .get(scope.module.0 as usize)
+                        .map(|m| m.name.clone())
+                        .unwrap_or_default();
+                    if let Some(selector) = tabs_selector(self.db, &module_name, target) {
+                        props.push((
+                            "selector".to_string(),
+                            TypedExpr::new(
+                                IrExpr::Text(selector),
+                                ResolvedType::Scalar(Scalar::Text),
+                                target.span,
+                            ),
+                        ));
+                    }
+                    props.push(("value".to_string(), self.decode_expr(scope, target)));
+                }
+                let children = self.decode_ui_children(scope, node, row_ctx);
+                Some(IrUi {
+                    factory: "tabs".to_string(),
+                    props,
+                    children,
+                    row_scope: None,
+                    span: node.span,
+                })
+            }
+            SyntaxKind::Edit => Some(self.decode_edit(scope, node, row_ctx)),
+            SyntaxKind::UiLeaf => self.decode_leaf(scope, node, &word, row_ctx),
+            SyntaxKind::CatalogItem => {
+                // Catalog components lower by factory name; unknown ones
+                // stay loud `E6008` at the lowering stage.
+                let mut props = Vec::new();
+                if let Some(value) = kids(node).iter().find(|n| is_expression(n.kind)).copied() {
+                    props.push(("value".to_string(), self.decode_expr(scope, value)));
+                }
+                for (name, value) in ui_attributes(self.db, node) {
+                    if let Some(value) = value {
+                        props.push((name, self.decode_expr(scope, value)));
+                    }
+                }
+                let children = self.decode_ui_children(scope, node, row_ctx);
+                Some(IrUi {
+                    factory: word,
+                    props,
+                    children,
+                    row_scope: None,
+                    span: node.span,
+                })
+            }
+            _ => {
+                // `Slot`, `PreferencePanel`, ordering nodes and anything
+                // else lower by factory word and stay loud `E6008`
+                // when the factory is unknown.
+                Some(IrUi {
+                    factory: word,
+                    props: Vec::new(),
+                    children: Vec::new(),
+                    row_scope: None,
+                    span: node.span,
+                })
+            }
+        }
+    }
+
+    /// Decode child UI nodes, skipping captions/attributes/queries.
+    fn decode_ui_children(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Vec<IrUi> {
+        kids(node)
+            .iter()
+            .filter(|n| is_ui_node(n.kind))
+            .filter_map(|n| self.decode_ui(scope, n, row_ctx.clone()))
+            .collect()
+    }
+
+    /// Decode a `form` node: operation plus display/arguments/fields.
+    fn decode_form(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        let mut props = Vec::new();
+        let target = kids(node)
+            .iter()
+            .find(|n| {
+                matches!(
+                    n.kind,
+                    SyntaxKind::Member | SyntaxKind::Path | SyntaxKind::NameRef
+                )
+            })
+            .copied();
+        if let Some(target) = target
+            && let Some(operation) = self.decode_operation_ref(scope.module, target)
+        {
+            props.push((
+                "operation".to_string(),
+                TypedExpr::new(
+                    IrExpr::Text(operation),
+                    ResolvedType::Scalar(Scalar::Text),
+                    target.span,
+                ),
+            ));
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            match name.as_str() {
+                "display" => {
+                    if let Some(value) = value {
+                        let text = display_text(self.db, value);
+                        props.push((
+                            "display".to_string(),
+                            TypedExpr::new(
+                                IrExpr::Text(text),
+                                ResolvedType::Scalar(Scalar::Text),
+                                value.span,
+                            ),
+                        ));
+                    }
+                }
+                "arguments" => {
+                    if let Some(value) = value {
+                        props.push(("arguments".to_string(), self.decode_expr(scope, value)));
+                    }
+                }
+                "fields" => {
+                    if let Some(value) = value {
+                        let fields = selector_strings(self.db, value);
+                        let span = value.span;
+                        props.push((
+                            "fields".to_string(),
+                            TypedExpr::new(
+                                IrExpr::Array(
+                                    fields
+                                        .iter()
+                                        .map(|f| {
+                                            TypedExpr::new(
+                                                IrExpr::Text(f.clone()),
+                                                ResolvedType::Scalar(Scalar::Text),
+                                                span,
+                                            )
+                                        })
+                                        .collect(),
+                                ),
+                                ResolvedType::Unknown,
+                                span,
+                            ),
+                        ));
+                    }
+                }
+                _ => {}
+            }
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        Some(IrUi {
+            factory: "form".to_string(),
+            props,
+            children,
+            row_scope: None,
+            span: node.span,
+        })
+    }
+
+    /// Resolve a `Model.op`/`scenario` operation reference to its
+    /// canonical identity (total).
+    fn decode_operation_ref(&mut self, module: ModuleId, node: &SyntaxNode) -> Option<String> {
+        match node.kind {
+            SyntaxKind::Member => {
+                let parts = kids(node);
+                let base = parts.iter().find(|n| is_expression(n.kind)).copied()?;
+                let op = parts.iter().rev().find_map(|n| name_text(self.db, n))?;
+                let base_name = match base.kind {
+                    SyntaxKind::NameRef => kids(base).iter().find_map(|n| name_text(self.db, n))?,
+                    _ => return None,
+                };
+                let (model, _) = self.resolve_member(module, &base_name)?;
+                let crud_op = match op.as_str() {
+                    "create" => CrudOp::Create,
+                    "update" => CrudOp::Update,
+                    "delete" => CrudOp::Delete,
+                    _ => {
+                        // Capability operations (`Cap.op`).
+                        let id = self.capability_op(module, &base_name, &op)?;
+                        return Some(self.canonical(id));
+                    }
+                };
+                let id = self.program.symbols.iter().find_map(|s| match &s.kind {
+                    SymbolKind::CrudOp { model: m, op: o } if *m == model && *o == crud_op => {
+                        Some(s.id)
+                    }
+                    _ => None,
+                })?;
+                Some(self.canonical(id))
+            }
+            SyntaxKind::NameRef | SyntaxKind::Path => {
+                let name = match node.kind {
+                    SyntaxKind::Path => path_text(self.db, node),
+                    _ => kids(node).iter().find_map(|n| name_text(self.db, n))?,
+                };
+                let (id, _) = self.resolve_member(module, &name)?;
+                match self.program.symbols.get(id.0 as usize).map(|s| &s.kind) {
+                    Some(SymbolKind::Scenario { .. }) => Some(self.canonical(id)),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Capability-op symbol for `Cap.op` in `module` (total).
+    fn capability_op(&self, module: ModuleId, cap: &str, op: &str) -> Option<SymbolId> {
+        let (id, _) = self.resolve_member(module, cap)?;
+        let symbol = self.program.symbols.get(id.0 as usize)?;
+        match &symbol.kind {
+            SymbolKind::Capability { ops, .. } => ops.iter().find_map(|op_id| {
+                let op_symbol = self.program.symbols.get(op_id.0 as usize)?;
+                if op_symbol.name == *op {
+                    Some(*op_id)
+                } else {
+                    None
+                }
+            }),
+            _ => None,
+        }
+    }
+
+    /// Resolve a collection/query domain head to its model.
+    fn collection_head_model(&self, module: ModuleId, head: &SyntaxNode) -> Option<SymbolId> {
+        let name = match head.kind {
+            SyntaxKind::NameRef => kids(head).iter().find_map(|n| name_text(self.db, n))?,
+            SyntaxKind::Path => path_text(self.db, head),
+            _ => return None,
+        };
+        let (id, _) = self.resolve_member(module, &name)?;
+        match self.program.symbols.get(id.0 as usize).map(|s| &s.kind) {
+            Some(SymbolKind::Model { .. }) => Some(id),
+            _ => None,
+        }
+    }
+
+    /// Decode a collection (`list`/`table`/`gallery`): model, query
+    /// props, presentation props, and row children under `renderRow`.
+    fn decode_collection(&mut self, scope: &Scope, node: &SyntaxNode, word: &str) -> Option<IrUi> {
+        let mut props = Vec::new();
+        let query = kids(node)
+            .iter()
+            .find(|n| n.kind == SyntaxKind::Query)
+            .copied();
+        // Clauses-less collections carry a bare model head instead of a
+        // query node.
+        let head = query
+            .and_then(|query| kids(query).iter().find(|n| is_expression(n.kind)).copied())
+            .or_else(|| {
+                kids(node)
+                    .iter()
+                    .find(|n| matches!(n.kind, SyntaxKind::NameRef | SyntaxKind::Path))
+                    .copied()
+            });
+        let mut model_id = None;
+        if let Some(head) = head
+            && let Some(id) = self.collection_head_model(scope.module, head)
+        {
+            model_id = Some(id);
+            props.push((
+                "model".to_string(),
+                TypedExpr::new(
+                    IrExpr::Text(self.canonical(id)),
+                    ResolvedType::Scalar(Scalar::Text),
+                    head.span,
+                ),
+            ));
+        }
+        let mut as_name: Option<String> = None;
+        if let Some(query) = query {
+            let parts = kids(query);
+            for clause in parts.iter().filter(|n| n.kind == SyntaxKind::QueryClause) {
+                let clause_parts = kids(clause);
+                let keyword = clause_parts
+                    .iter()
+                    .find_map(|n| name_text(self.db, n))
+                    .unwrap_or_default();
+                match keyword.as_str() {
+                    "as" => {
+                        as_name = clause_parts
+                            .iter()
+                            .rev()
+                            .find_map(|n| name_text(self.db, n));
+                    }
+                    "where" => {
+                        if let Some(pred) =
+                            clause_parts.iter().find(|n| is_expression(n.kind)).copied()
+                        {
+                            let param = as_name.clone().unwrap_or_else(|| "row".to_string());
+                            // The alias shadows fixtures inside the
+                            // predicate (it binds the lambda parameter).
+                            let mut inner = scope.clone();
+                            inner.row_rewrite.insert(param.clone(), param.clone());
+                            let body = self.decode_expr(&inner, pred);
+                            props.push((
+                                "where".to_string(),
+                                TypedExpr::new(
+                                    IrExpr::Lambda {
+                                        param,
+                                        body: Box::new(body),
+                                    },
+                                    ResolvedType::Unknown,
+                                    pred.span,
+                                ),
+                            ));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            let Some(value) = value else { continue };
+            match name.as_str() {
+                "order" | "search" | "filter" | "columns" => {
+                    let strings = selector_strings(self.db, value);
+                    let span = value.span;
+                    props.push((
+                        name,
+                        TypedExpr::new(
+                            IrExpr::Array(
+                                strings
+                                    .iter()
+                                    .map(|s| {
+                                        TypedExpr::new(
+                                            IrExpr::Text(s.clone()),
+                                            ResolvedType::Scalar(Scalar::Text),
+                                            span,
+                                        )
+                                    })
+                                    .collect(),
+                            ),
+                            ResolvedType::Unknown,
+                            span,
+                        ),
+                    ));
+                }
+                "empty" => {
+                    if let Some(message) = self.decode_message_node(scope.module, value) {
+                        props.push((
+                            "empty".to_string(),
+                            TypedExpr::new(
+                                IrExpr::Message(message),
+                                ResolvedType::Scalar(Scalar::Text),
+                                value.span,
+                            ),
+                        ));
+                    }
+                }
+                "display" => {
+                    props.push((
+                        "display".to_string(),
+                        TypedExpr::new(
+                            IrExpr::Text(display_text(self.db, value)),
+                            ResolvedType::Scalar(Scalar::Text),
+                            value.span,
+                        ),
+                    ));
+                }
+                "defaults" | "parent" => {
+                    props.push((name, self.decode_expr(scope, value)));
+                }
+                "image" => {
+                    if let Some(field) = name_text(self.db, value).or_else(|| {
+                        if value.kind == SyntaxKind::Path {
+                            Some(path_text(self.db, value))
+                        } else {
+                            None
+                        }
+                    }) {
+                        props.push((
+                            "image".to_string(),
+                            TypedExpr::new(
+                                IrExpr::Text(field),
+                                ResolvedType::Scalar(Scalar::Text),
+                                value.span,
+                            ),
+                        ));
+                    }
+                }
+                _ => {}
+            }
+        }
+        // Row scope: the name the row children actually use (the `as`
+        // name when referenced, else `row`); mixed scopes stay loud.
+        let child_nodes: Vec<&SyntaxNode> = kids(node)
+            .iter()
+            .filter(|n| is_ui_node(n.kind))
+            .copied()
+            .collect();
+        let mut uses_as = false;
+        let mut uses_row = false;
+        for child in &child_nodes {
+            let (child_as, child_row) = ui_row_refs(self.db, child, as_name.as_deref());
+            uses_as = uses_as || child_as;
+            uses_row = uses_row || child_row;
+        }
+        let row_name = match (as_name.clone(), uses_as, uses_row) {
+            (Some(alias), true, true) => {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower collection: row children mix the query alias with `row`"
+                        .to_string(),
+                    node.span,
+                ));
+                alias
+            }
+            (Some(alias), true, false) => alias,
+            _ => "row".to_string(),
+        };
+        let row_ctx = model_id.map(|id| (id, row_name.clone()));
+        let children = child_nodes
+            .iter()
+            .filter_map(|n| self.decode_ui(scope, n, row_ctx.clone()))
+            .collect();
+        Some(IrUi {
+            factory: word.to_string(),
+            props,
+            children,
+            row_scope: Some((row_name, "rowView".to_string())),
+            span: node.span,
+        })
+    }
+
+    /// Decode a bare `edit`: operation plus record inferred from the
+    /// enclosing collection row scope.
+    fn decode_edit(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let mut props = Vec::new();
+        if let Some((model, row)) = row_ctx
+            && let Some(id) = self.program.symbols.iter().find_map(|s| match &s.kind {
+                SymbolKind::CrudOp { model: m, op } if *m == model && *op == CrudOp::Update => {
+                    Some(s.id)
+                }
+                _ => None,
+            })
+        {
+            props.push((
+                "operation".to_string(),
+                TypedExpr::new(
+                    IrExpr::Text(self.canonical(id)),
+                    ResolvedType::Scalar(Scalar::Text),
+                    node.span,
+                ),
+            ));
+            props.push((
+                "record".to_string(),
+                TypedExpr::new(IrExpr::Name(row), ResolvedType::Unknown, node.span),
+            ));
+        }
+        let _ = scope;
+        IrUi {
+            factory: "edit".to_string(),
+            props,
+            children: Vec::new(),
+            row_scope: None,
+            span: node.span,
+        }
+    }
+
+    /// Decode a `UiLeaf` (`text`, `history`, `metrics`, `actions`, ...).
+    fn decode_leaf(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        word: &str,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        let mut props = Vec::new();
+        match word {
+            "text" => {
+                let values: Vec<TypedExpr> = kids(node)
+                    .iter()
+                    .filter(|n| is_expression(n.kind))
+                    .map(|n| self.decode_expr(scope, n))
+                    .collect();
+                props.push((
+                    "values".to_string(),
+                    TypedExpr::new(IrExpr::Array(values), ResolvedType::Unknown, node.span),
+                ));
+            }
+            "history" => {
+                if let Some((_, row)) = &row_ctx {
+                    props.push((
+                        "record".to_string(),
+                        TypedExpr::new(IrExpr::Name(row.clone()), ResolvedType::Unknown, node.span),
+                    ));
+                }
+            }
+            "metrics" => {
+                // `metrics result.count,result.total`: the value roots
+                // select the rendered record.
+                let exprs: Vec<TypedExpr> = kids(node)
+                    .iter()
+                    .filter(|n| is_expression(n.kind))
+                    .map(|n| self.decode_expr(scope, n))
+                    .collect();
+                props.push((
+                    "values".to_string(),
+                    TypedExpr::new(IrExpr::Array(exprs), ResolvedType::Unknown, node.span),
+                ));
+            }
+            "actions" | "action" => {
+                let operations: Vec<String> = kids(node)
+                    .iter()
+                    .filter(|n| {
+                        matches!(
+                            n.kind,
+                            SyntaxKind::Member | SyntaxKind::NameRef | SyntaxKind::Path
+                        )
+                    })
+                    .filter_map(|n| self.decode_operation_ref(scope.module, n))
+                    .collect();
+                let span = node.span;
+                props.push((
+                    "operations".to_string(),
+                    TypedExpr::new(
+                        IrExpr::Array(
+                            operations
+                                .iter()
+                                .map(|op| {
+                                    TypedExpr::new(
+                                        IrExpr::Text(op.clone()),
+                                        ResolvedType::Scalar(Scalar::Text),
+                                        span,
+                                    )
+                                })
+                                .collect(),
+                        ),
+                        ResolvedType::Unknown,
+                        span,
+                    ),
+                ));
+                if let Some((_, row)) = &row_ctx {
+                    // The row record binds the actions; shorthand keeps
+                    // the source binding name.
+                    props.push((
+                        "boundArgs".to_string(),
+                        TypedExpr::new(
+                            IrExpr::Object(vec![(
+                                row.clone(),
+                                TypedExpr::new(
+                                    IrExpr::Name(row.clone()),
+                                    ResolvedType::Unknown,
+                                    span,
+                                ),
+                            )]),
+                            ResolvedType::Unknown,
+                            span,
+                        ),
+                    ));
+                }
+            }
+            "content" | "copy" | "title" => {
+                if let Some(value) = kids(node).iter().find(|n| is_expression(n.kind)).copied() {
+                    let key = if word == "title" { "title" } else { "value" };
+                    props.push((key.to_string(), self.decode_expr(scope, value)));
+                }
+            }
+            _ => {
+                for value in kids(node).iter().filter(|n| is_expression(n.kind)) {
+                    props.push(("value".to_string(), self.decode_expr(scope, value)));
+                }
+            }
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                props.push((name, self.decode_expr(scope, value)));
+            }
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        Some(IrUi {
+            factory: word.to_string(),
+            props,
+            children,
+            row_scope: None,
+            span: node.span,
+        })
+    }
+}
+
+/// Whether `kind` is a render-body UI node.
+fn is_ui_node(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Card
+            | SyntaxKind::Details
+            | SyntaxKind::Tabs
+            | SyntaxKind::Tab
+            | SyntaxKind::Collection
+            | SyntaxKind::Form
+            | SyntaxKind::Edit
+            | SyntaxKind::CatalogItem
+            | SyntaxKind::Slot
+            | SyntaxKind::PreferencePanel
+            | SyntaxKind::UiLeaf
+            | SyntaxKind::PreferenceOrder
+            | SyntaxKind::OrderList
+            | SyntaxKind::OrderCases
+            | SyntaxKind::OrderCase
+    )
+}
+
+/// Factory word of a UI node (the leading name, lowercased).
+fn ui_word(db: &SourceDb, node: &SyntaxNode) -> String {
+    kids(node)
+        .iter()
+        .find_map(|n| name_text(db, n))
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+}
+
+/// `(name, value)` pairs of attribute children.
+fn ui_attributes<'n>(db: &SourceDb, node: &'n SyntaxNode) -> Vec<(String, Option<&'n SyntaxNode>)> {
+    kids(node)
+        .iter()
+        .filter(|n| n.kind == SyntaxKind::Attribute)
+        .map(|attr| {
+            let parts = kids(attr);
+            let name = parts
+                .first()
+                .and_then(|n| name_text(db, n))
+                .unwrap_or_default();
+            let value = parts
+                .iter()
+                .find(|n| !matches!(n.kind, SyntaxKind::Name | SyntaxKind::Punct))
+                .copied();
+            (name, value)
+        })
+        .collect()
+}
+
+/// Scan a row-child subtree for references to the query alias vs
+/// `row`. Nested collections bind their own row scope, so the scan
+/// descends into their queries/attributes but not their render children.
+fn ui_row_refs(db: &SourceDb, node: &SyntaxNode, alias: Option<&str>) -> (bool, bool) {
+    let mut uses_as = false;
+    let mut uses_row = false;
+    ui_row_refs_into(db, node, alias, true, &mut uses_as, &mut uses_row);
+    (uses_as, uses_row)
+}
+
+/// Recursive worker for [`ui_row_refs`].
+fn ui_row_refs_into(
+    db: &SourceDb,
+    node: &SyntaxNode,
+    alias: Option<&str>,
+    nested: bool,
+    uses_as: &mut bool,
+    uses_row: &mut bool,
+) {
+    match node.kind {
+        SyntaxKind::NameRef => {
+            if let Some(name) = kids(node).iter().find_map(|n| name_text(db, n)) {
+                if Some(name.as_str()) == alias {
+                    *uses_as = true;
+                }
+                if name == "row" {
+                    *uses_row = true;
+                }
+            }
+            return;
+        }
+        SyntaxKind::Member => {
+            // Only the base can be a row reference; fields are names.
+            if let Some(base) = kids(node).iter().find(|n| is_expression(n.kind)) {
+                ui_row_refs_into(db, base, alias, false, uses_as, uses_row);
+            }
+            return;
+        }
+        SyntaxKind::Collection if nested => {
+            // Own row scope: scan the query and attributes only.
+            for child in kids(node) {
+                if matches!(
+                    child.kind,
+                    SyntaxKind::Query | SyntaxKind::Attribute | SyntaxKind::MessageValue
+                ) {
+                    ui_row_refs_into(db, child, alias, false, uses_as, uses_row);
+                }
+            }
+            return;
+        }
+        _ => {}
+    }
+    for child in kids(node) {
+        ui_row_refs_into(db, child, alias, true, uses_as, uses_row);
+    }
+}
+
+/// Selector spellings of a `Selectors` value (`-field` keeps its minus).
+fn selector_strings(db: &SourceDb, node: &SyntaxNode) -> Vec<String> {
+    match node.kind {
+        SyntaxKind::Selectors => kids(node)
+            .iter()
+            .flat_map(|n| selector_strings(db, n))
+            .collect(),
+        SyntaxKind::Descending => {
+            let field = kids(node)
+                .iter()
+                .find_map(|n| {
+                    if n.kind == SyntaxKind::Path {
+                        Some(path_text(db, n))
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default();
+            vec![format!("-{field}")]
+        }
+        SyntaxKind::Path => vec![path_text(db, node)],
+        _ => Vec::new(),
+    }
+}
+
+/// Static text of a caption-ish value (message value or string literal).
+fn static_text(db: &SourceDb, node: &SyntaxNode) -> Option<String> {
+    match node.kind {
+        SyntaxKind::MessageValue => kids(node).iter().find_map(|n| {
+            if n.kind == SyntaxKind::Literal {
+                literal_string(db, n)
+            } else {
+                None
+            }
+        }),
+        SyntaxKind::Literal => literal_string(db, node),
+        _ => None,
+    }
+}
+
+/// Display word of a `display=` value.
+fn display_text(db: &SourceDb, node: &SyntaxNode) -> String {
+    match node.kind {
+        SyntaxKind::NameRef => kids(node)
+            .iter()
+            .find_map(|n| name_text(db, n))
+            .unwrap_or_default(),
+        _ => static_text(db, node).unwrap_or_default(),
+    }
+}
+
+/// Decode one fixture recipe (G10): values re-read span-anchored
+/// from the recipe node, classified by tables (fixture targets, model
+/// field types) and closed language rules only.
+impl<'a> Cx<'a> {
+    fn decode_fixture(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+        target: &FixtureTarget,
+    ) -> Option<IrFixture> {
+        let recipe = self
+            .program
+            .examples
+            .fixtures
+            .iter()
+            .find(|r| r.symbol == symbol.id)
+            .cloned();
+        let Some(recipe) = recipe else {
+            self.gap(
+                format!(
+                    "fixture {}: recipe values are not in the analysis tables (PR5 examples); emitting a failing recipe shell",
+                    symbol.canonical,
+                ),
+                symbol.span,
+            );
+            return None;
+        };
+        let node = self.node(&recipe.node).cloned();
+        let object = node.as_ref().and_then(|n| {
+            kids(n)
+                .iter()
+                .find(|c| c.kind == SyntaxKind::Object)
+                .copied()
+                .cloned()
+        });
+        let mut scope = Scope::module(symbol.module);
+        scope.example_values = true;
+        let dependencies: Vec<String> =
+            recipe.seeds.iter().map(|id| self.local_name(*id)).collect();
+        let kind = match target {
+            FixtureTarget::Model(model) => {
+                let fields = object
+                    .as_ref()
+                    .map(|obj| self.decode_recipe_object(&scope, *model, obj));
+                let Some(fields) = fields else {
+                    self.gap(
+                        format!(
+                            "fixture {}: recipe values are not in the analysis tables (PR5 examples); emitting a failing recipe shell",
+                            symbol.canonical,
+                        ),
+                        symbol.span,
+                    );
+                    return None;
+                };
+                IrFixtureKind::Model {
+                    model: self.canonical(*model),
+                    fields,
+                }
+            }
+            FixtureTarget::User => {
+                let mut roles = Vec::new();
+                if let Some(obj) = object.as_ref() {
+                    for child in kids(obj) {
+                        if child.kind != SyntaxKind::ObjectEntry {
+                            continue;
+                        }
+                        let parts = kids(child);
+                        let key = parts.first().and_then(|n| name_text(self.db, n));
+                        if key.as_deref() != Some("roles") {
+                            continue;
+                        }
+                        if let Some(array) =
+                            parts.iter().find(|n| n.kind == SyntaxKind::Array).copied()
+                        {
+                            for entry in kids(array) {
+                                if entry.kind != SyntaxKind::NameRef {
+                                    continue;
+                                }
+                                let name = kids(entry)
+                                    .iter()
+                                    .find_map(|n| name_text(self.db, n))
+                                    .unwrap_or_default();
+                                match self.resolve_member(symbol.module, &name) {
+                                    Some((id, _))
+                                        if matches!(
+                                            self.program
+                                                .symbols
+                                                .get(id.0 as usize)
+                                                .map(|s| &s.kind),
+                                            Some(SymbolKind::Role)
+                                        ) =>
+                                    {
+                                        roles.push(self.canonical(id));
+                                    }
+                                    _ => {
+                                        self.gap(
+                                            format!(
+                                                "fixture {}: role `{name}` is not published in the analysis tables; omitting it",
+                                                symbol.canonical,
+                                            ),
+                                            entry.span,
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                IrFixtureKind::User { roles }
+            }
+            FixtureTarget::File => {
+                let fields = object.as_ref().map(|obj| {
+                    let entries = kids(obj)
+                        .iter()
+                        .filter(|c| c.kind == SyntaxKind::ObjectEntry)
+                        .filter_map(|entry| {
+                            let parts = kids(entry);
+                            let key = parts.first().and_then(|n| name_text(self.db, n))?;
+                            let value = parts
+                                .iter()
+                                .find(|n| is_expression(n.kind))
+                                .map(|n| self.decode_expr(&scope, n))
+                                .unwrap_or_else(|| {
+                                    TypedExpr::new(
+                                        IrExpr::Name(key.clone()),
+                                        ResolvedType::Unknown,
+                                        entry.span,
+                                    )
+                                });
+                            Some((key, value))
+                        })
+                        .collect();
+                    TypedExpr::new(IrExpr::Object(entries), ResolvedType::Unknown, obj.span)
+                });
+                let Some(fields) = fields else {
+                    self.gap(
+                        format!(
+                            "fixture {}: recipe values are not in the analysis tables (PR5 examples); emitting a failing recipe shell",
+                            symbol.canonical,
+                        ),
+                        symbol.span,
+                    );
+                    return None;
+                };
+                IrFixtureKind::File { fields }
+            }
+            FixtureTarget::Operation(op) => {
+                let operation = op.map(|id| self.canonical(id)).unwrap_or_else(|| {
+                    self.gap(
+                        format!(
+                            "fixture {}: operation target is not published in the analysis tables; emitting a best-effort recipe shell",
+                            symbol.canonical,
+                        ),
+                        symbol.span,
+                    );
+                    symbol.canonical.clone()
+                });
+                let mut request = None;
+                let mut status = None;
+                let mut result = None;
+                let mut error = None;
+                if let Some(obj) = object.as_ref() {
+                    for child in kids(obj) {
+                        if child.kind != SyntaxKind::ObjectEntry {
+                            continue;
+                        }
+                        let parts = kids(child);
+                        let key = parts.first().and_then(|n| name_text(self.db, n));
+                        let value = parts
+                            .iter()
+                            .find(|n| is_expression(n.kind))
+                            .map(|n| self.decode_expr(&scope, n));
+                        match (key.as_deref(), value) {
+                            (Some("request"), Some(value)) => request = Some(Box::new(value)),
+                            (Some("status"), Some(value)) => status = Some(Box::new(value)),
+                            (Some("result"), Some(value)) => result = Some(Box::new(value)),
+                            (Some("error"), Some(value)) => error = Some(Box::new(value)),
+                            _ => {}
+                        }
+                    }
+                }
+                let Some(request) = request else {
+                    self.gap(
+                        format!(
+                            "fixture {}: delivery request is not in the analysis tables (PR5 examples); emitting a failing recipe shell",
+                            symbol.canonical,
+                        ),
+                        symbol.span,
+                    );
+                    return None;
+                };
+                IrFixtureKind::Delivery {
+                    operation,
+                    request,
+                    status,
+                    result,
+                    error,
+                }
+            }
+            FixtureTarget::Unknown => {
+                self.gap(
+                    format!(
+                        "fixture {}: unresolved fixture target; emitting a failing recipe shell",
+                        symbol.canonical,
+                    ),
+                    symbol.span,
+                );
+                return None;
+            }
+        };
+        Some(IrFixture {
+            name: symbol.name.clone(),
+            canonical: symbol.canonical.clone(),
+            kind,
+            dependencies,
+            span: symbol.span,
+        })
+    }
+
+    /// Decode a model recipe object: values with model-field-type context
+    /// for enum-case cells.
+    fn decode_recipe_object(
+        &mut self,
+        scope: &Scope,
+        model: SymbolId,
+        node: &SyntaxNode,
+    ) -> TypedExpr {
+        let entries = kids(node)
+            .iter()
+            .filter(|c| c.kind == SyntaxKind::ObjectEntry)
+            .filter_map(|entry| {
+                let parts = kids(entry);
+                let key = parts.first().and_then(|n| name_text(self.db, n))?;
+                let value = parts
+                    .iter()
+                    .find(|n| is_expression(n.kind))
+                    .map(|n| self.decode_cell_with_field(scope, model, &key, n))
+                    .unwrap_or_else(|| {
+                        TypedExpr::new(IrExpr::Name(key.clone()), ResolvedType::Unknown, entry.span)
+                    });
+                Some((key, value))
+            })
+            .collect();
+        TypedExpr::new(IrExpr::Object(entries), ResolvedType::Unknown, node.span)
+    }
+
+    /// Decode one example value with model-field-type context: bare names
+    /// matching an enum field's cases lower as that case text with the
+    /// field's type (tables classify, spans supply the spelling).
+    fn decode_cell_with_field(
+        &mut self,
+        scope: &Scope,
+        model: SymbolId,
+        field: &str,
+        node: &SyntaxNode,
+    ) -> TypedExpr {
+        let mut expr = self.decode_expr(scope, node);
+        if node.kind == SyntaxKind::NameRef
+            && let Some(field_id) = self.fields.get(&(model, field.to_string()))
+            && let Some(ty) = self.program.types.symbol_types.get(field_id)
+            && matches!(&expr.expr, IrExpr::Text(_))
+        {
+            expr.ty = ty.clone();
+        }
+        expr
+    }
+}
+
+/// Suite assembly (G10): one suite per operation with tables, plus
+/// orphan recipes. Sequences omit atomically with `E6006`: step content
+/// references let-bound values with no table anchors, and span re-read
+/// cannot serve them without re-resolving names.
+impl<'a> Cx<'a> {
+    fn build_suites(&mut self, items: &[IrItem]) -> Vec<BddSuite> {
+        // Decode tables grouped by operation, in table order.
+        let mut by_operation: Vec<(SymbolId, Vec<IrTable>, Vec<SymbolId>)> = Vec::new();
+        for table in self.program.examples.tables.clone() {
+            let Some(operation) = table.operation else {
+                let span = Span::new(table.node.file, table.node.start, table.node.end);
+                self.gap(
+                    "example table is not attached to a published operation; omitting it"
+                        .to_string(),
+                    span,
+                );
+                continue;
+            };
+            match self.decode_table(&table, operation) {
+                Some((ir_table, refs)) => {
+                    match by_operation.iter_mut().find(|(op, _, _)| *op == operation) {
+                        Some((_, tables, all_refs)) => {
+                            tables.push(ir_table);
+                            all_refs.extend(refs);
+                        }
+                        None => by_operation.push((operation, vec![ir_table], refs)),
+                    }
+                }
+                None => {
+                    let span = Span::new(table.node.file, table.node.start, table.node.end);
+                    self.gap(
+                        format!(
+                            "example table for {}: cells are not in the analysis tables (PR5 examples); omitting it",
+                            self.canonical(operation),
+                        ),
+                        span,
+                    );
+                }
+            }
+        }
+        // Sequences: atomic `E6006`, omitted fail-closed.
+        for sequence in self.program.examples.sequences.clone() {
+            let span = Span::new(sequence.node.file, sequence.node.start, sequence.node.end);
+            let operation = sequence
+                .operation
+                .map(|id| self.canonical(id))
+                .unwrap_or_else(|| "unknown".to_string());
+            self.gap(
+                format!(
+                    "sequence for {operation}: step content references let-bound values with no table anchors (PR5 examples); omitting it from emission",
+                ),
+                span,
+            );
+        }
+        // Order suites by operation declaration.
+        by_operation.sort_by_key(|(op, _, _)| op.0);
+        // Fixture recipes by symbol (decoded with the items above).
+        let mut recipes: HashMap<SymbolId, IrFixture> = HashMap::new();
+        for item in items {
+            if let IrItemKind::Fixture {
+                recipe: Some(recipe),
+                ..
+            } = &item.kind
+            {
+                recipes.insert(item.id, recipe.clone());
+            }
+        }
+        let mut claimed: HashSet<SymbolId> = HashSet::new();
+        let mut suites = Vec::new();
+        for (operation, tables, refs) in &by_operation {
+            let operation_module = self
+                .program
+                .symbols
+                .get(operation.0 as usize)
+                .map(|s| s.module)
+                .unwrap_or(ModuleId(0));
+            let closure = self.fixture_closure(refs);
+            let mut fixtures = Vec::new();
+            let mut imported = Vec::new();
+            for id in closure {
+                let Some(recipe) = recipes.get(&id) else {
+                    continue;
+                };
+                let home = self
+                    .program
+                    .symbols
+                    .get(id.0 as usize)
+                    .map(|s| s.module)
+                    .unwrap_or(ModuleId(0));
+                if home != operation_module {
+                    let provider = self
+                        .program
+                        .modules
+                        .get(home.0 as usize)
+                        .map(|m| m.name.clone())
+                        .unwrap_or_default();
+                    imported.push(crate::codegen::bdd::IrExampleImport {
+                        provider,
+                        member: recipe.name.clone(),
+                        alias: recipe.name.clone(),
+                    });
+                    continue;
+                }
+                claimed.insert(id);
+                fixtures.push(recipe.clone());
+            }
+            suites.push(BddSuite {
+                scope: self.canonical(*operation),
+                fixtures,
+                imported,
+                tables: tables.clone(),
+                sequences: Vec::new(),
+                span: self
+                    .program
+                    .symbols
+                    .get(operation.0 as usize)
+                    .map(|s| s.span)
+                    .unwrap_or(Span::new(SourceId(0), 0, 0)),
+            });
+        }
+        // Orphan recipes: fixtures no same-module suite claims.
+        let mut orphans: Vec<SymbolId> = recipes
+            .keys()
+            .copied()
+            .filter(|id| !claimed.contains(id))
+            .collect();
+        orphans.sort_by_key(|id| id.0);
+        for id in orphans {
+            let Some(recipe) = recipes.get(&id) else {
+                continue;
+            };
+            suites.push(BddSuite {
+                scope: recipe.canonical.clone(),
+                fixtures: vec![recipe.clone()],
+                imported: Vec::new(),
+                tables: Vec::new(),
+                sequences: Vec::new(),
+                span: recipe.span,
+            });
+        }
+        suites
+    }
+
+    /// Transitive fixture closure over recipe seeds, in declaration order.
+    fn fixture_closure(&self, refs: &[SymbolId]) -> Vec<SymbolId> {
+        let mut seen: HashSet<SymbolId> = HashSet::new();
+        let mut stack: Vec<SymbolId> = refs.to_vec();
+        while let Some(id) = stack.pop() {
+            if !seen.insert(id) {
+                continue;
+            }
+            if let Some(recipe) = self
+                .program
+                .examples
+                .fixtures
+                .iter()
+                .find(|r| r.symbol == id)
+            {
+                stack.extend(recipe.seeds.iter().copied());
+            }
+        }
+        let mut out: Vec<SymbolId> = seen.into_iter().collect();
+        out.sort_by_key(|id| id.0);
+        out
+    }
+
+    /// Decode one behavior table: common inputs, selector metadata,
+    /// observation callbacks and rows. Returns the table plus every
+    /// fixture it references.
+    fn decode_table(
+        &mut self,
+        table: &crate::analysis::examples::BehaviorTable,
+        operation: SymbolId,
+    ) -> Option<(IrTable, Vec<SymbolId>)> {
+        let node = self.node(&table.node).cloned()?;
+        let module = self
+            .program
+            .symbols
+            .get(operation.0 as usize)
+            .map(|s| s.module)?;
+        let mut scope = Scope::module(module);
+        scope.example_values = true;
+        scope.result_ty = self
+            .program
+            .types
+            .symbol_results
+            .get(&operation)
+            .and_then(|result| result.clone());
+        // Common bindings: `name=value` attributes other than `seed`.
+        let mut input_entries: Vec<(String, TypedExpr)> = Vec::new();
+        let mut binding_fixtures: Vec<SymbolId> = Vec::new();
+        for child in kids(&node) {
+            if child.kind != SyntaxKind::Attribute {
+                continue;
+            }
+            let parts = kids(child);
+            let name = parts.first().and_then(|n| name_text(self.db, n))?;
+            if name == "seed" {
+                continue;
+            }
+            let value = parts.iter().find(|n| is_expression(n.kind)).copied();
+            let Some(value) = value else { continue };
+            // Fixture-bound inputs rewrite observation roots to `s`.
+            if value.kind == SyntaxKind::NameRef
+                && let Some(binding) = kids(value).iter().find_map(|n| name_text(self.db, n))
+                && let Some(id) = self.fixture_in_scope(module, &binding)
+            {
+                scope.bindings.insert(name.clone(), id);
+                binding_fixtures.push(id);
+            }
+            input_entries.push((name, self.decode_expr(&scope, value)));
+        }
+        let inputs = TypedExpr::new(
+            IrExpr::Object(input_entries),
+            ResolvedType::Unknown,
+            node.span,
+        );
+        // Header row plus data rows.
+        let rows: Vec<&SyntaxNode> = kids(&node)
+            .iter()
+            .filter(|n| n.kind == SyntaxKind::ExampleRow)
+            .copied()
+            .collect();
+        let (header, data_rows) = rows.split_first()?;
+        let (header_inputs, header_obs) = split_row(self.db, header);
+        let mut observations = Vec::new();
+        let mut refs: Vec<SymbolId> = table.seeds.clone();
+        refs.extend(binding_fixtures.iter().copied());
+        for cell in header_obs {
+            let expr = self.decode_expr(&scope, cell);
+            refs.extend(self.s_refs(module, &expr));
+            observations.push(expr);
+        }
+        let mut ir_rows = Vec::new();
+        for row in data_rows {
+            let (input_cells, expected_cells) = split_row(self.db, row);
+            let mut values = Vec::new();
+            let mut row_refs = Vec::new();
+            for (index, cell) in input_cells.iter().enumerate() {
+                let selector = table.inputs.get(index).map(String::as_str).unwrap_or("");
+                let value = if selector == "as" {
+                    self.decode_as_cell(module, cell)
+                } else {
+                    self.decode_expr(&scope, cell)
+                };
+                row_refs.extend(self.s_refs(module, &value));
+                values.push(value);
+            }
+            let error = expected_cells.iter().find_map(|cell| {
+                if cell.kind == SyntaxKind::ExpectedError {
+                    Some(expected_error_code(self.db, cell))
+                } else {
+                    None
+                }
+            });
+            let expected = if error.is_some() {
+                None
+            } else {
+                let cells: Vec<TypedExpr> = expected_cells
+                    .iter()
+                    .map(|cell| self.decode_expr(&scope, cell))
+                    .collect();
+                for cell in &cells {
+                    row_refs.extend(self.s_refs(module, cell));
+                }
+                Some(TypedExpr::new(
+                    IrExpr::Array(cells),
+                    ResolvedType::Unknown,
+                    row.span,
+                ))
+            };
+            // Row dependencies are fixtures beyond the table level.
+            let table_deps: HashSet<SymbolId> = refs.iter().copied().collect();
+            let dependencies: Vec<String> = {
+                let mut names: Vec<String> = row_refs
+                    .iter()
+                    .filter(|id| !table_deps.contains(id))
+                    .map(|id| self.local_name(*id))
+                    .collect();
+                names.sort();
+                names.dedup();
+                names
+            };
+            refs.extend(row_refs);
+            ir_rows.push(IrTableRow {
+                dependencies,
+                values: TypedExpr::new(IrExpr::Array(values), ResolvedType::Unknown, row.span),
+                expected,
+                error,
+                span: row.span,
+            });
+        }
+        let _ = header_inputs;
+        // Table dependencies: explicit seeds plus common baseline
+        // fixtures, deduplicated, seeds first.
+        let mut dependencies: Vec<String> =
+            table.seeds.iter().map(|id| self.local_name(*id)).collect();
+        for id in &binding_fixtures {
+            let name = self.local_name(*id);
+            if !dependencies.contains(&name) {
+                dependencies.push(name);
+            }
+        }
+        Some((
+            IrTable {
+                operation: self.canonical(operation),
+                dependencies,
+                inputs,
+                selectors: table.inputs.clone(),
+                observations,
+                rows: ir_rows,
+                span: Span::new(table.node.file, table.node.start, table.node.end),
+            },
+            refs,
+        ))
+    }
+
+    /// Decode an `as` caller cell: fixtures and provisioned accounts by
+    /// reference, roles canonically, spellings as text.
+    fn decode_as_cell(&mut self, module: ModuleId, cell: &SyntaxNode) -> TypedExpr {
+        let span = cell.span;
+        let name = match cell.kind {
+            SyntaxKind::NameRef => kids(cell).iter().find_map(|n| name_text(self.db, n)),
+            _ => None,
+        };
+        let Some(name) = name else {
+            let mut scope = Scope::module(module);
+            scope.example_values = true;
+            return self.decode_expr(&scope, cell);
+        };
+        if let Some(id) = self.fixture_in_scope(module, &name) {
+            let fixture_name = self.local_name(id);
+            let ty = self.fixture_type(id);
+            return TypedExpr::new(member_of("s", &fixture_name, &ty, span), ty, span);
+        }
+        if is_test_account(&name) {
+            return TypedExpr::new(IrExpr::Name(name), ResolvedType::Scalar(Scalar::User), span);
+        }
+        if let Some((id, _)) = self.resolve_member(module, &name)
+            && matches!(
+                self.program.symbols.get(id.0 as usize).map(|s| &s.kind),
+                Some(SymbolKind::Role)
+            )
+        {
+            return TypedExpr::new(
+                IrExpr::Text(self.canonical(id)),
+                ResolvedType::Scalar(Scalar::Text),
+                span,
+            );
+        }
+        TypedExpr::new(IrExpr::Text(name), ResolvedType::Scalar(Scalar::Text), span)
+    }
+
+    /// Fixture references of one decoded expression (`s` slots).
+    fn s_refs(&self, module: ModuleId, expr: &TypedExpr) -> Vec<SymbolId> {
+        let mut names = Vec::new();
+        collect_s_refs(&expr.expr, &mut names);
+        names.sort();
+        names.dedup();
+        names
+            .iter()
+            .filter_map(|name| self.fixture_in_scope(module, name))
+            .collect()
+    }
+}
+
+/// Split an example row at `->` into input and expected cells.
+fn split_row<'n>(db: &SourceDb, row: &'n SyntaxNode) -> (Vec<&'n SyntaxNode>, Vec<&'n SyntaxNode>) {
+    let mut inputs = Vec::new();
+    let mut expected = Vec::new();
+    let mut after_arrow = false;
+    for child in kids(row) {
+        if child.kind == SyntaxKind::Punct && slice(db, child.span) == "->" {
+            after_arrow = true;
+            continue;
+        }
+        if child.kind == SyntaxKind::Punct {
+            continue;
+        }
+        if after_arrow {
+            expected.push(child);
+        } else {
+            inputs.push(child);
+        }
+    }
+    (inputs, expected)
+}
+
+/// Exact error code of an `ExpectedError` cell.
+fn expected_error_code(db: &SourceDb, node: &SyntaxNode) -> String {
+    fn visit(db: &SourceDb, node: &SyntaxNode, out: &mut Option<String>) {
+        if node.kind == SyntaxKind::NameRef
+            && out.is_none()
+            && let Some(name) = kids(node).iter().find_map(|n| name_text(db, n))
+            && name != "error"
+        {
+            *out = Some(name);
+            return;
+        }
+        for child in kids(node) {
+            visit(db, child, out);
+        }
+    }
+    let mut code = None;
+    visit(db, node, &mut code);
+    code.unwrap_or_default()
+}
+
+/// Collect `s` scope slot names of one decoded expression.
+fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
+    match expr {
+        IrExpr::Member { base, field } => {
+            if matches!(base.expr, IrExpr::Name(ref name) if name == "s") {
+                out.push(field.clone());
+            } else {
+                collect_s_refs(&base.expr, out);
+            }
+        }
+        IrExpr::Call { args, .. } => {
+            for arg in args {
+                collect_s_refs(&arg.expr, out);
+            }
+        }
+        IrExpr::Binary { left, right, .. } => {
+            collect_s_refs(&left.expr, out);
+            collect_s_refs(&right.expr, out);
+        }
+        IrExpr::Unary { operand, .. } => collect_s_refs(&operand.expr, out),
+        IrExpr::Array(items) => {
+            for item in items {
+                collect_s_refs(&item.expr, out);
+            }
+        }
+        IrExpr::Object(entries) => {
+            for (_, value) in entries {
+                collect_s_refs(&value.expr, out);
+            }
+        }
+        IrExpr::Query(query) => {
+            for part in query
+                .parent
+                .iter()
+                .chain(query.where_pred.iter())
+                .chain(query.limit.iter())
+                .chain(query.archived.iter())
+            {
+                collect_s_refs(&part.expr, out);
+            }
+        }
+        IrExpr::DeliveryRead { record, .. } => collect_s_refs(&record.expr, out),
+        IrExpr::Message(message) => {
+            for param in &message.params {
+                collect_s_refs(&param.value.expr, out);
+            }
+        }
+        IrExpr::Format { descriptor, .. } => collect_s_refs(&descriptor.expr, out),
+        IrExpr::HasRole { person, .. } => {
+            if let Some(person) = person {
+                collect_s_refs(&person.expr, out);
+            }
+        }
+        IrExpr::Lambda { body, .. } => collect_s_refs(&body.expr, out),
+        IrExpr::Int(_)
+        | IrExpr::Decimal(_)
+        | IrExpr::Text(_)
+        | IrExpr::Bool(_)
+        | IrExpr::Null
+        | IrExpr::Money { .. }
+        | IrExpr::DurationMs(_)
+        | IrExpr::Date(_)
+        | IrExpr::Datetime(_)
+        | IrExpr::Name(_)
+        | IrExpr::Unsupported { .. } => {}
+    }
+}
+
+/// `tabs` selector identity for a `preferences.field` target.
+fn tabs_selector(db: &SourceDb, module_name: &str, target: &SyntaxNode) -> Option<String> {
+    if target.kind != SyntaxKind::Member {
+        return None;
+    }
+    let parts = kids(target);
+    let base = parts.iter().find(|n| is_expression(n.kind)).copied()?;
+    if base.kind != SyntaxKind::NameRef {
+        return None;
+    }
+    let base_name = kids(base).iter().find_map(|n| name_text(db, n))?;
+    if base_name != "preferences" {
+        return None;
+    }
+    let field = parts.iter().rev().find_map(|n| name_text(db, n))?;
+    Some(format!("{module_name}.{field}"))
+}
