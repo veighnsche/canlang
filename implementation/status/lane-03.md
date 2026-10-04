@@ -259,6 +259,32 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   commit-time TypeError); F7 flat-resolvedDefaults limitation documented;
   F8 memory normalizes parent to null + strict conformance pins; F9
   archived-update pipeline/admission split documented.
+  S5 merged (2c3610a, PR #41). S6 branch `muse/lane-03-state/ports-staging`
+  from 2c3610a.
+  S6 storage worker DONE (contracts `outboxAck`/`ScheduleEntry`/4 readers;
+  memory/D1/DO adapters + ack-after-insert, orderings). S6 ports worker DONE,
+  committed `e0bc6a0` (+771/-13): `internal/json`, `effects/staging`
+  (fail-closed; cross-op intents forbidden, batch-unique ids, dup schedule
+  keys last-wins, past `at` allowed), invoke re-validation inside try
+  (malformed executor output -> fenced rejected receipt), `ports/
+  {read,transact,system}` + barrel types. Self-reviewed: no material
+  findings; minors noted (null-raw executor still bug-propagates per
+  contract; dead branch in bindQueryRecords; system commit `created_at`
+  uses Date.now not ctx.now). Test worker DONE: test/ports/* 45/45
+  (staging 25, read 8, transact 3, system 6, atomicity 3) + conformance +7
+  cases x3 backends; full suite 313/313 observed by worker, re-verified by
+  coordinator 313/313 + typecheck clean. Divergence fixed by coordinator:
+  cross-invoke dup intentId surfaced raw StorageConstraintError(kind unknown);
+  adapters now map outbox dup to `unique` (memory direct; D1/DO match
+  'outbox' in SQLite message) -> thrown StateError `conflict` per plan;
+  conformance pins kind on all 3 backends, atomicity pins conflict.
+  Independent review APPROVE (no blockers; null-raw edge and thrown-conflict
+  confirmed contract-consistent). All 9 accepted minors fixed + regressed:
+  atomicity header; dup-schedule last-wins conformance x3; empty-ack +
+  malformed-replace pins; system edges (fence->busy, non-object args, bad
+  operationId, absent result->null); reader deep-copy isolation x3;
+  bound-deps-win smuggling pin + dead-branch collapse; collation tiebreak
+  contract note; historyFor ORDER BY version,seq on all 3. Suite 328/328.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
@@ -330,6 +356,17 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   Residual: interim policy tables -> L1 join; interim scalar codec (bigint
   money minors, rich comparisons) -> L2 join; owner authority unverified at
   engine (trust boundary documented; gating is admission's).
+- PR5 S5 mutation/history: branch `muse/lane-03-state/mutation-history`,
+  reviewed head `4adf383f8f86c55ad9a260d47832d78de592b31b`, merged as
+  `2c3610a` (https://github.com/veighnsche/canlang/pull/41, squash,
+  --match-head-commit). Checks: local typecheck + `npm test` 247/247; CI
+  `state` x2 / `tools` / `workspace` pass. Independent review
+  NEEDS-CHANGES (2 major + 7 minor: optional parent defaults, post-hook
+  checks, JSON probe, guards, parent-null unity) all fixed + regressed;
+  re-review APPROVE with no advisories.
+  Residual: interim descriptors/envelopes -> L1 join; rejected-replay field
+  fidelity gap; flat resolvedDefaults per batch; same-batch self-canceling
+  writes unsupported; bigint money codec -> L2.
 
 ## Remaining work and cleanup
 
