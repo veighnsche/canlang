@@ -162,6 +162,27 @@ describe('mutation remove', () => {
     });
   });
 
+  it('archive re-validates hook-set refs against archived targets', async () => {
+    const setter = hook('set-target', ['remove'], (candidate) => ({
+      ...candidate,
+      target: { id: 't-1' },
+    }));
+    const world = await setupMutation([
+      targetModel(),
+      modelDef(CHILD, {
+        fields: { target: field(), note: field() },
+        refs: [refDef('target', TARGET)],
+        hooks: [setter],
+      }),
+    ]);
+    await crudCreate(world, TARGET, { id: 't-1', data: { email: 'a@example.test' } });
+    await crudCreate(world, CHILD, { id: 'c-1', data: { note: 'plain' } });
+    await crudRemove(world, TARGET, 't-1', { version: 1 });
+    const error = await captureStateError(crudRemove(world, CHILD, 'c-1', { version: 1 }));
+    assert.equal(error.code, 'validation');
+    assert.equal((await mustLoad(world.store, asModel(CHILD), 'c-1')).archivedAt, null);
+  });
+
   it('archive with a hook-adjusted unique moves its claim', async () => {
     const recode = hook('recode', ['remove'], (candidate) => ({ ...candidate, code: 'b' }));
     const world = await setupMutation([

@@ -10,6 +10,7 @@ import {
   FIXED_NOW,
   asId,
   asModel,
+  captureStateError,
   crudCreate,
   field,
   freshOperationId,
@@ -163,5 +164,49 @@ describe('mutation history', () => {
         after: { title: 'hi' },
       },
     ]);
+  });
+
+  it('rejects non-string write ids with validation at the pipeline seam', async () => {
+    const world = await setupMutation([noteModel()]);
+    const error = await captureStateError(
+      runMutationWrites({
+        table: world.table,
+        writes: [
+          {
+            op: 'create',
+            model: asModel(NOTE),
+            id: 5 as unknown as ReturnType<typeof asId>,
+            data: { title: 'hi' },
+          },
+        ],
+        context: pipelineContext({ operation: `${NOTE}.create`, operationId: freshOperationId() }),
+        store: world.store,
+      }),
+    );
+    assert.equal(error.code, 'validation');
+  });
+
+  it('rejects non-JSON candidate values with validation at the pipeline seam', async () => {
+    const world = await setupMutation([noteModel()]);
+    // Bigints survive cloning but crash commit-time JSON encoding; the
+    // pipeline probe must turn them into validation (unreachable via invoke,
+    // where admission's input hash already rejects them).
+    const error = await captureStateError(
+      runMutationWrites({
+        table: world.table,
+        writes: [
+          {
+            op: 'create',
+            model: asModel(NOTE),
+            id: asId('n-1'),
+            // Known field (so the unknown-field check passes), non-JSON value.
+            data: { title: 5n as unknown as string },
+          },
+        ],
+        context: pipelineContext({ operation: `${NOTE}.create`, operationId: freshOperationId() }),
+        store: world.store,
+      }),
+    );
+    assert.equal(error.code, 'validation');
   });
 });

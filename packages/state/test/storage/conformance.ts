@@ -1281,17 +1281,22 @@ export function storageConformance(
         query('t.Task', { parent: { model: asModel('t.Team'), id: asId('team-a') } }),
       );
       assert.deepEqual(ids(inA), ['task-1', 'task-2']);
+      // Scoped rows carry their linkage (strict: every backend reads an
+      // explicit object here, never undefined).
+      assert.deepEqual(
+        inA.map((row) => row.parent),
+        [childOf('team-a'), childOf('team-a')],
+      );
       const inB = await store.query(
         query('t.Task', { parent: { model: asModel('t.Team'), id: asId('team-b') } }),
       );
       assert.deepEqual(ids(inB), ['task-3']);
       // NULL-parent rows never match a scope; the unscoped query sees all four.
-      assert.deepEqual(ids(await store.query(query('t.Task'))), [
-        'task-1',
-        'task-2',
-        'task-3',
-        'task-4',
-      ]);
+      const unscoped = await store.query(query('t.Task'));
+      assert.deepEqual(ids(unscoped), ['task-1', 'task-2', 'task-3', 'task-4']);
+      // Parentless rows read back explicit null on every backend (strict:
+      // memory normalizes on write; SQL reads NULL as null).
+      assert.equal(unscoped.find((row) => row.id === 'task-4')?.parent, null);
     });
 
     it('update carries parent; rows without parent read back null', async () => {

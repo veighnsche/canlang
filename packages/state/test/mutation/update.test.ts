@@ -280,4 +280,40 @@ describe('mutation update', () => {
     assert.equal(error.code, 'validation');
     assert.deepEqual((await mustLoad(world.store, asModel(TODO), 'todo-1')).data, { title: 't' });
   });
+
+  it('rejects hook-added undeclared fields with validation', async () => {
+    const smuggler = hook('smuggler', ['update'], (candidate) => ({
+      ...candidate,
+      smuggled: 1,
+    }));
+    const world = await setupMutation([
+      modelDef(TODO, {
+        fields: { title: field({ required: true }) },
+        hooks: [smuggler],
+      }),
+    ]);
+    await seedStoredRow(world.store, asModel(TODO), { id: 'todo-1', data: { title: 't' } });
+    const error = await captureStateError(
+      crudUpdate(world, TODO, 'todo-1', { version: 1, patch: { title: 't2' } }),
+    );
+    assert.equal(error.code, 'validation');
+    assert.deepEqual((await mustLoad(world.store, asModel(TODO), 'todo-1')).data, { title: 't' });
+  });
+
+  it('rejects hook-set non-JSON values with validation, not a commit crash', async () => {
+    const big = hook('big', ['update'], (candidate) => ({ ...candidate, amount: 5n }));
+    const world = await setupMutation([
+      modelDef(TODO, {
+        fields: { title: field({ required: true }), amount: field() },
+        hooks: [big],
+      }),
+    ]);
+    await seedStoredRow(world.store, asModel(TODO), { id: 'todo-1', data: { title: 't' } });
+    // Pre-fix this escaped as a raw TypeError from commit-time JSON encoding;
+    // captureStateError requires a StateError, so only validation passes.
+    const error = await captureStateError(
+      crudUpdate(world, TODO, 'todo-1', { version: 1, patch: { title: 't2' } }),
+    );
+    assert.equal(error.code, 'validation');
+  });
 });

@@ -50,7 +50,14 @@ export interface MutationWritesInput {
   readonly store: StoragePort;
 }
 
-/** Pipeline output: fenced-commit inputs plus receipt defaults. */
+/**
+ * Pipeline output: fenced-commit inputs plus receipt defaults.
+ *
+ * INTERIM: `resolvedDefaults` is flat per batch, so multi-write batches with
+ * same-named defaulted fields across models collide (last wins in the
+ * receipt). Unreachable via single-write crudExecute; scenarios will key
+ * defaults per write.
+ */
 export interface MutationWritesResult {
   readonly writes: DomainWrite[];
   readonly history: HistoryEntry[];
@@ -83,6 +90,18 @@ function safeSet(target: Record<string, unknown>, key: string, value: unknown): 
     writable: true,
     configurable: true,
   });
+}
+
+/**
+ * Clone caller/hook data into the pipeline. Uncloneable values (functions,
+ * symbols) are caller errors, never DataCloneError crashes.
+ */
+function jsonClone<T>(value: T, what: string): T {
+  try {
+    return structuredClone(value);
+  } catch {
+    throw new StateError('validation', `${what} must be JSON data.`);
+  }
 }
 
 /** Deep-freeze staged rows so invariant views cannot mutate provisional state. */
@@ -246,7 +265,46 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
           `Field ${JSON.stringify(field)} is server-only and cannot be supplied.`,
         );
       }
-      safeSet(target, field, structuredClone(value));
+      safeSet(target, field, jsonClone(value, `Field ${JSON.stringify(field)}`));
+    }
+  };
+
+  /**
+   * Post-hook field-name check: hooks may set server-only fields, but never
+   * undeclared ones — downstream readers assume the model contract. Runs on
+   * every path after hooks (caller data was already checked on the way in).
+   */
+  const checkKnownFields = (
+    candidate: Readonly<Record<string, unknown>>,
+    def: InterimModelDef,
+  ): void => {
+    for (const field of Object.keys(candidate)) {
+      if (!Object.hasOwn(def.fields, field)) {
+        throw new StateError(
+          'validation',
+          `Unknown field ${JSON.stringify(field)} for model ${JSON.stringify(def.model as string)}.`,
+        );
+      }
+    }
+  };
+
+  /**
+   * Post-hook JSON-safety probe: bigints and circular refs survive cloning
+   * but crash commit-time JSON encoding with a raw TypeError. Reject them as
+   * caller validation instead (bigint money minors stay rejected interim
+   * until the L2 codec join, matching the S4 read stance).
+   */
+  const checkJsonSafe = (
+    candidate: Readonly<Record<string, unknown>>,
+    def: InterimModelDef,
+  ): void => {
+    try {
+      JSON.stringify(candidate);
+    } catch {
+      throw new StateError(
+        'validation',
+        `Candidate for model ${JSON.stringify(def.model as string)} holds non-JSON values.`,
+      );
     }
   };
 
@@ -262,14 +320,22 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       if (!hook.ops.includes(op)) {
         continue;
       }
-      const next = await hook.run(structuredClone(current), { before, op, actor, now });
+      // Each hook gets a clone and its return is re-cloned: hooks can neither
+      // mutate the pipeline candidate nor smuggle uncloneable values forward
+      // (or retain an alias and mutate it after returning).
+      const next = await hook.run(jsonClone(current, 'Hook candidate'), {
+        before,
+        op,
+        actor,
+        now,
+      });
       if (typeof next !== 'object' || next === null || Array.isArray(next)) {
         throw new Error(
           `Hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(def.model as string)} ` +
             'must return a candidate object.',
         );
       }
-      current = next as Record<string, unknown>;
+      current = jsonClone(next as Record<string, unknown>, 'Hook result');
     }
     return current;
   };
@@ -413,8 +479,8 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     }
     touchedDefs.push(def);
     const id = write.id;
-    if (id === undefined || (id as string) === '') {
-      throw new StateError('validation', 'Mutation writes need a non-empty record id.');
+    if (typeof id !== 'string' || id === '') {
+      throw new StateError('validation', 'Mutation writes need a non-empty string record id.');
     }
     // Admission pre-loads update/remove targets, but the pipeline re-loads
     // via the provisional map for uniformity (batch-earlier writes visible).
@@ -459,11 +525,11 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
           continue;
         }
         if (isParentPathDefault(fallback)) {
+          // No parent, or an unresolvable path, reads as missing — the
+          // required check below decides, so optional parent-bound fields
+          // never block parentless creates.
           if (parentRow === null) {
-            throw new StateError(
-              'validation',
-              `Field ${JSON.stringify(field)} needs a parent to resolve its default.`,
-            );
+            continue;
           }
           const resolved = resolveRowPath(parentRow, fallback.parentPath);
           // An unresolvable parent path reads as missing (the required check
@@ -480,9 +546,12 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       }
       checkRequired(candidate, def);
       const hooked = await runHooks(def, 'create', candidate, null);
-      // Hooks are trusted otherwise (they may set server-only fields); only
-      // the required check re-runs.
+      // Hooks are trusted otherwise (they may set server-only fields), but
+      // the contract checks re-run: no undeclared fields, required present,
+      // JSON-safe values.
+      checkKnownFields(hooked, def);
       checkRequired(hooked, def);
+      checkJsonSafe(hooked, def);
       checkWhen(write.when, {
         id,
         version: 1 as RecordVersion,
@@ -531,6 +600,10 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       if (before === null) {
         throw new StateError('not_found', 'Record not found.');
       }
+      // Archived rows stay updatable here BY DESIGN: canonical admission
+      // gates archived targets for every invoke-path write (CRUD now,
+      // scenarios later), while direct pipeline callers (privileged: future
+      // migrations/backfill) may legitimately touch archived rows.
       if (write.parent !== undefined) {
         throw new StateError('validation', 'Parent linkage is immutable.');
       }
@@ -542,7 +615,9 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def);
       checkRequired(candidate, def);
       const hooked = await runHooks(def, 'update', candidate, before);
+      checkKnownFields(hooked, def);
       checkRequired(hooked, def);
+      checkJsonSafe(hooked, def);
       checkWhen(write.when, {
         id,
         version: (before.version + 1) as RecordVersion,
@@ -623,9 +698,11 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     // Archive AND hard remove both run hooks filtered to op 'remove' (caller
     // intent); the hard-remove candidate is discarded, but hook rejections
     // still block the delete.
-    const hooked = await runHooks(def, 'remove', structuredClone(before.data), before);
+    const hooked = await runHooks(def, 'remove', jsonClone(before.data, 'Remove hook input'), before);
     if (mode === 'archive') {
+      checkKnownFields(hooked, def);
       checkRequired(hooked, def);
+      checkJsonSafe(hooked, def);
       checkWhen(write.when, {
         id,
         version: (before.version + 1) as RecordVersion,
@@ -645,10 +722,12 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     checkLocks(def, before);
     if (mode === 'archive') {
       // Archive keeps uniques reserved and skips the disposal scan (the row
-      // stays, so incoming refs stay valid); refs re-validation is skipped
-      // too (create/update only — hooks are trusted otherwise). Uniques diff
-      // like an update: a hook-adjusted unique value must move its claim, or
-      // the stored row and the unique index diverge.
+      // stays, so incoming refs stay valid). Refs re-validate like
+      // create/update (a hook-set ref to a missing/archived target must not
+      // persist; unchanged refs still pass). Uniques diff like an update: a
+      // hook-adjusted unique value must move its claim, or the stored row
+      // and the unique index diverge.
+      await checkRefs(def, hooked, before);
       for (const key of def.uniqueKeys) {
         const oldCanonical = canonicalUnique(before.data[key], key, def);
         const newCanonical = canonicalUnique(hooked[key], key, def);

@@ -163,9 +163,25 @@ describe('mutation create', () => {
     assert.equal(error.code, 'validation');
   });
 
-  it('rejects parent-path defaults without a parent with validation', async () => {
+  it('reads parent-path defaults as missing without a parent (required decides)', async () => {
     const world = await setupMutation([todoModel()]);
-    const error = await captureStateError(crudCreate(world, TODO, { data: { title: 't' } }));
+    // Optional parent-bound `assignee` never blocks a parentless create.
+    const { out } = await crudCreate(world, TODO, { id: 'todo-1', data: { title: 't' } });
+    assert.equal(out.status, 'committed');
+    const stored = await mustLoad(world.store, asModel(TODO), 'todo-1');
+    assert.ok(!('assignee' in stored.data), 'unresolved default stays absent, not null');
+
+    // A REQUIRED parent-bound field still fails — as missing, not as a
+    // parent error.
+    const strict = await setupMutation([
+      modelDef(TODO, {
+        fields: {
+          title: field({ required: true }),
+          assignee: field({ required: true, default: { parentPath: 'owner' } }),
+        },
+      }),
+    ]);
+    const error = await captureStateError(crudCreate(strict, TODO, { data: { title: 't' } }));
     assert.equal(error.code, 'validation');
   });
 

@@ -48,7 +48,10 @@ export function isParentPathDefault(value: unknown): value is InterimParentPathD
  * optional default. `serverOnly` fields reject caller-supplied values; their
  * values come from defaults, hooks, or (later) server evaluation only.
  * `default` is a JSON literal, or exactly `{ parentPath }` for a parent-row
- * lookup (create only; needs a supplied, existing, unarchived parent).
+ * lookup (create only). Without a supplied parent — or when the path does
+ * not resolve — the default reads as missing and the required check decides,
+ * so optional parent-bound fields never block parentless creates. A supplied
+ * parent must exist and be unarchived.
  */
 export interface InterimFieldDef {
   readonly required: boolean;
@@ -171,10 +174,10 @@ function deepFreeze<T>(value: T, seen: Set<unknown> = new Set()): T {
 export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTable {
   const table = new Map<ModelName, InterimModelDef>();
   for (const def of models) {
-    const model = def.model as string;
-    if (model === '') {
-      throw new Error('Invalid model def: empty model name');
+    if (typeof def.model !== 'string' || def.model === '') {
+      throw new Error('Invalid model def: model names are non-empty strings.');
     }
+    const model = def.model as string;
     if (table.has(def.model)) {
       throw new Error(`Duplicate model def: ${JSON.stringify(model)}`);
     }
@@ -182,6 +185,12 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
       throw new Error(`Invalid model ${JSON.stringify(model)}: fields must be an object.`);
     }
     for (const [name, field] of Object.entries(def.fields)) {
+      if (typeof field !== 'object' || field === null || Array.isArray(field)) {
+        throw new Error(
+          `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ` +
+            'field defs must be objects.',
+        );
+      }
       if (name === '' || name.includes('.')) {
         throw new Error(
           `Invalid field name ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ` +
@@ -214,10 +223,21 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
     }
     const refFields = new Set<string>();
     for (const ref of def.refs) {
-      checkDotPath(ref.field, `ref field on model ${JSON.stringify(model)}`);
-      if ((ref.model as string) === '') {
+      if (typeof ref !== 'object' || ref === null || Array.isArray(ref)) {
         throw new Error(
-          `Invalid ref ${JSON.stringify(ref.field)} on model ${JSON.stringify(model)}: empty target model.`,
+          `Invalid ref on model ${JSON.stringify(model)}: ref defs must be objects.`,
+        );
+      }
+      if (typeof ref.field !== 'string') {
+        throw new Error(
+          `Invalid ref on model ${JSON.stringify(model)}: ref fields are dot-path strings.`,
+        );
+      }
+      checkDotPath(ref.field, `ref field on model ${JSON.stringify(model)}`);
+      if (typeof ref.model !== 'string' || ref.model === '') {
+        throw new Error(
+          `Invalid ref ${JSON.stringify(ref.field)} on model ${JSON.stringify(model)}: ` +
+            'target models are non-empty strings.',
         );
       }
       if (refFields.has(ref.field)) {

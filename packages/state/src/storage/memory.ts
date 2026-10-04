@@ -476,15 +476,19 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
           write.model as string,
           (write.kind === 'insert' ? write.row.id : write.id) as string,
         );
+        // S5: normalize absent linkage to explicit null so memory reads match
+        // the SQL backends (which return explicit null for NULL parents).
+        const storedRow =
+          write.kind === 'remove' ? null : { ...write.row, parent: write.row.parent ?? null };
         if (write.kind === 'insert') {
           if (records.has(key)) {
             const where = `${write.model as string}/${write.row.id as string}`;
             throw new StorageConstraintError('unknown', `record ${where} already exists`);
           }
-          records.set(key, { model: write.model as string, row: write.row });
+          records.set(key, { model: write.model as string, row: storedRow as StoredRow });
         } else if (write.kind === 'update') {
           if (records.has(key)) {
-            records.set(key, { model: write.model as string, row: write.row });
+            records.set(key, { model: write.model as string, row: storedRow as StoredRow });
           }
         } else {
           records.delete(key);
