@@ -36,6 +36,7 @@ package purchase label=page_purchasing_title
   Amendment in Line { quantity:int, reason:text, source:text unique } label="Order amendment"@{nl="Bestelwijziging"}
   export Return in Receipt { source:text unique, quantity:int min=1, returned:date, evidence:text, revision:int=1, posting:Receipt.posting=pending, delivery:text?, attempts:int=0 min=0 max=3 } label="Supplier return"@{nl="Leveranciersretour"}
   Payable in Order { source:text unique, invoice:text, amount:money, issued:date, evidence:text, revision:int=1, posting:Receipt.posting=pending, delivery:text?, attempts:int=0 min=0, reference:text? } label="Supplier invoice evidence"@{nl="Leveranciersfactuurbewijs"}
+  InvoiceDocument in Order { document:file label="Invoice document"@{nl="Factuurdocument"}, source:text unique label=label_Receipt_source, status:enum(draft,transcribed,accepted,rejected)=draft label={text="Extraction review"@{nl="Extractiebeoordeling"},values={draft="Draft"@{nl="Concept"},transcribed="Transcribed"@{nl="Overgenomen"},accepted="Accepted"@{nl="Geaccepteerd"},rejected="Rejected"@{nl="Afgewezen"}}}, invoice:text? label="Claimed invoice number"@{nl="Geclaimd factuurnummer"}, amount:money? label="Claimed amount"@{nl="Geclaimd bedrag"}, issued:date? label="Claimed issue date"@{nl="Geclaimde uitgiftedatum"}, decision:text? label="Decision"@{nl="Besluit"}, payable:Payable? label="Accepted payable"@{nl="Geaccepteerde schuld"} } label="Supplier invoice document"@{nl="Leveranciersfactuurdocument"}
   Adjustment in Budget { request:Request, amount:money, reason:text, source:text unique label=label_Receipt_source } label="Spending adjustment"@{nl="Uitgavenaanpassing"}
   derive Budget.committed:money = sum(row.Request as request where request.state==approved select request.authorized,row.total.currency) label="Committed amount"@{nl="Vastgelegd bedrag"}
   derive Budget.spent:money = sum(row.Request as request where request.state==closed select (request.actual ?? money(0,row.total.currency)),row.total.currency)+sum(row.Adjustment as adjustment select adjustment.amount,row.total.currency) label=label_Request_actual
@@ -56,6 +57,7 @@ package purchase label=page_purchasing_title
   policy Amendment read=buyer or budget_manager where=can_work(actor,row.parent.parent.location)
   policy Return read=buyer or budget_manager where=can_work(actor,row.parent.parent.parent.location)
   policy Payable read=buyer or budget_manager where=can_work(actor,row.parent.location)
+  policy InvoiceDocument read=buyer or budget_manager where=can_work(actor,row.parent.location)
   policy Adjustment read=budget_manager where=any(row.parent.locations as location,can_work(actor,location))
   invariant Budget: row.total.minor>=0 and row.remaining.minor>=0
   invariant Request: row.amount.minor>0 and row.amount.currency==row.parent.total.currency and row.location in row.parent.locations and row.location in row.supplier.locations
@@ -70,6 +72,10 @@ package purchase label=page_purchasing_title
   invariant Payable: row.amount.currency==row.parent.parent.amount.currency and row.amount.minor>=0 and trim(row.invoice)!="" and trim(row.evidence)!=""
   invariant Payable: not any(Payable as other,other!=row and other.source==row.source)
   unique Payable fields=invoice
+  invariant InvoiceDocument: row.status==draft or (row.invoice!=null and row.amount!=null and row.issued!=null)
+  invariant InvoiceDocument: (row.amount ?? row.parent.parent.amount).currency==row.parent.parent.amount.currency
+  invariant InvoiceDocument: row.status!=accepted or (row.payable!=null and row.payable.parent==row.parent and row.payable.source==row.source)
+  invariant InvoiceDocument: not any(InvoiceDocument as other,other!=row and other.source==row.source)
   lock Request fields=location,supplier,requester,reviewer,purpose,category,required_by,amount when=row.state!=draft
   lock Request fields=state,actual,evidence,decision when=row.state==closed
   lock Order fields=reference,supplier_name,supplier_contact,location
@@ -79,6 +85,8 @@ package purchase label=page_purchasing_title
   lock Amendment fields=quantity,reason,source
   lock Return fields=source,quantity,returned,evidence,revision
   lock Payable fields=source,invoice,amount,issued,evidence,revision
+  lock InvoiceDocument fields=document,source
+  lock InvoiceDocument fields=status,invoice,amount,issued,decision,payable when=row.status==accepted or row.status==rejected
   lock Adjustment fields=request,amount,reason,source
   fixture vendor=Supplier {name="Supplies",contact="vendor@example.test",locations=[test_site]}
   fixture budget=Budget {name="Furniture",locations=[test_site],total=money(100,"EUR")}
@@ -86,6 +94,10 @@ package purchase label=page_purchasing_title
   fixture purchase_order=Order {parent=submission,reference="PO-1",supplier_name="Supplies",supplier_contact="vendor@example.test",location=test_site}
   fixture purchase_line=Line {parent=purchase_order,sku="boxes",unit="box",quantity=6,unit_price=money(10,"EUR")}
   fixture goods_receipt=Receipt {parent=purchase_line,source="delivery-A",accepted=2,received=date("2099-01-02"),evidence="Delivery A",posting=confirmed}
+  fixture invoice_pdf=file {}
+  fixture invoice_doc=InvoiceDocument {parent=purchase_order,document=invoice_pdf,source="invoice-doc-1",status=transcribed,invoice="SUP-001",amount=money(20,"EUR"),issued=date("2099-01-03")}
+  fixture filed_payable=Payable {parent=purchase_order,source="invoice-doc-8",invoice="SUP-008",amount=money(10,"EUR"),issued=date("2099-01-03"),evidence="Filed supplier invoice"}
+  fixture accepted_doc=InvoiceDocument {parent=purchase_order,document=invoice_pdf,source="invoice-doc-8",status=accepted,invoice="SUP-008",amount=money(10,"EUR"),issued=date("2099-01-03"),payable=filed_payable}
   fixture extra_authorization=Increase {parent=submission,amount=money(20,"EUR"),reason="More chairs",source="authorization-2"}
  When
   crud Budget by=budget_manager fields=name,total,active create_fields=name,locations,total when=all(row.locations as location,can_work(actor,location)) delete=none
@@ -219,6 +231,74 @@ package purchase label=page_purchasing_title
     budget_manager,closed,money(20,"EUR"),money(21,"EUR") -> error(rule_failed)
     budget_manager,closed,money(20,"EUR"),money(20,"USD") -> error(rule_failed)
     budget_manager,approved,money(20,"EUR"),money(20,"EUR") -> error(rule_failed)
+  # Intake one supplier invoice document under its order; a duplicate source fails instead of silently overwriting. @{nl="Neem één leveranciersfactuurdocument in onder de bestelling; een dubbele bron faalt in plaats van stil te overschrijven."}
+  scenario intake_invoice(order:Order,document:file,source:text label=label_Receipt_source) -> InvoiceDocument by=buyer label="Intake invoice document"@{nl="Factuurdocument innemen"}
+   require can_work(actor,order.location) and order.parent.state in [approved,closed] and trim(source)!=""
+   do
+    require not any(InvoiceDocument as item,item.source==trim(source))
+    create InvoiceDocument {parent=order,document,source=trim(source)} as invoice_document
+    return invoice_document
+   examples seed=[test_worker,invoice_pdf] order=purchase_order document=invoice_pdf
+    as,order.parent.state,source -> count(InvoiceDocument),result.status,result.source
+    buyer,approved,"invoice-doc-2" -> 1,draft,"invoice-doc-2"
+    buyer,closed,"invoice-doc-2" -> 1,draft,"invoice-doc-2"
+    buyer,submitted,"invoice-doc-2" -> error(rule_failed)
+    buyer,approved," " -> error(rule_failed)
+    members,approved,"invoice-doc-2" -> error(forbidden)
+   examples seed=[test_worker,invoice_pdf,invoice_doc] order=purchase_order document=invoice_pdf source="invoice-doc-1"
+    as -> count(InvoiceDocument)
+    buyer -> error(rule_failed)
+  # Transcribe or correct the claimed invoice totals from the frozen document pages. @{nl="Neem de geclaimde factuurtotalen over van de vastgelegde documentpagina's of corrigeer ze."}
+  scenario transcribe_claims(invoice_document:InvoiceDocument,invoice:text,amount:money,issued:date) by=buyer label="Transcribe invoice claims"@{nl="Factuurgegevens overnemen"}
+   require can_work(actor,invoice_document.parent.location) and invoice_document.status in [draft,transcribed] and trim(invoice)!="" and amount.currency==invoice_document.parent.parent.amount.currency and amount.minor>=0
+   do set invoice_document {invoice=trim(invoice),amount,issued,status=transcribed}
+   examples seed=[test_worker,invoice_doc] invoice_document=invoice_doc issued=date("2099-01-03")
+    as,invoice_document.status,invoice,amount -> invoice_document.status,invoice_document.invoice,invoice_document.amount,count(InvoiceDocument)
+    buyer,draft,"SUP-002",money(20,"EUR") -> transcribed,"SUP-002",money(20,"EUR"),1
+    buyer,transcribed,"SUP-002",money(18,"EUR") -> transcribed,"SUP-002",money(18,"EUR"),1
+    buyer,draft,"SUP-002",money(20,"USD") -> error(rule_failed)
+    buyer,draft," ",money(20,"EUR") -> error(rule_failed)
+    buyer,rejected,"SUP-002",money(20,"EUR") -> error(rule_failed)
+    members,draft,"SUP-002",money(20,"EUR") -> error(forbidden)
+   examples seed=[test_worker,accepted_doc] invoice_document=accepted_doc invoice="SUP-008" amount=money(10,"EUR") issued=date("2099-01-03")
+    as -> invoice_document.status
+    buyer -> error(rule_failed)
+  # Accept the reviewed claims as payable evidence against closed spending. @{nl="Accepteer de beoordeelde claims als schuldbewijs tegen afgesloten uitgaven."}
+  scenario accept_invoice(invoice_document:InvoiceDocument,invoice:text,amount:money,issued:date,evidence:text) -> Payable by=budget_manager label="Accept invoice document"@{nl="Factuurdocument accepteren"}
+   require can_work(actor,invoice_document.parent.location) and invoice_document.status==transcribed and invoice_document.parent.parent.state==closed and trim(invoice)!="" and trim(evidence)!=""
+   do
+    require invoice_document.invoice!=null and invoice_document.invoice==invoice and invoice_document.amount!=null and invoice_document.amount==amount and invoice_document.issued!=null and invoice_document.issued==issued
+    require sum(invoice_document.parent.Payable as payable select payable.amount,amount.currency)+amount<=(invoice_document.parent.parent.actual??money(0,amount.currency))+sum(invoice_document.parent.parent.parent.Adjustment as adjustment where adjustment.request==invoice_document.parent.parent select adjustment.amount,amount.currency)
+    create Payable {parent=invoice_document.parent,source=invoice_document.source,invoice,amount,issued,evidence} as payable
+    set invoice_document {status=accepted,payable}
+    return payable
+   examples seed=[test_worker,invoice_doc] invoice_document=invoice_doc evidence="Filed supplier invoice"
+    as,invoice_document.status,invoice_document.parent.parent.state,invoice_document.parent.parent.actual,invoice,amount,issued,request.invoice_document.version -> count(Payable),result.invoice,invoice_document.status,invoice_document.payable==result
+    budget_manager,transcribed,closed,money(20,"EUR"),"SUP-001",money(20,"EUR"),date("2099-01-03"),1 -> 1,"SUP-001",accepted,true
+    budget_manager,transcribed,approved,money(20,"EUR"),"SUP-001",money(20,"EUR"),date("2099-01-03"),1 -> error(rule_failed)
+    budget_manager,transcribed,closed,money(20,"EUR"),"SUP-001",money(19,"EUR"),date("2099-01-03"),1 -> error(rule_failed)
+    budget_manager,transcribed,closed,money(20,"EUR"),"SUP-001",money(20,"EUR"),date("2099-01-04"),1 -> error(rule_failed)
+    budget_manager,transcribed,closed,money(20,"EUR"),"SUP-001",money(21,"EUR"),date("2099-01-03"),1 -> error(rule_failed)
+    budget_manager,transcribed,closed,money(20,"EUR"),"SUP-001",money(20,"USD"),date("2099-01-03"),1 -> error(rule_failed)
+    budget_manager,draft,closed,money(20,"EUR"),"SUP-001",money(20,"EUR"),date("2099-01-03"),1 -> error(rule_failed)
+    budget_manager,transcribed,closed,money(20,"EUR"),"SUP-001",money(20,"EUR"),date("2099-01-03"),2 -> error(conflict)
+    members,transcribed,closed,money(20,"EUR"),"SUP-001",money(20,"EUR"),date("2099-01-03"),1 -> error(forbidden)
+   examples seed=[test_worker,accepted_doc] invoice_document=accepted_doc invoice="SUP-008" amount=money(10,"EUR") issued=date("2099-01-03") evidence="Filed supplier invoice"
+    as -> count(Payable)
+    budget_manager -> error(rule_failed)
+  # Reject transcribed claims with a reason while retaining the frozen document. @{nl="Wijs overgenomen claims af met een reden en behoud het vastgelegde document."}
+  scenario reject_invoice(invoice_document:InvoiceDocument,reason:text) by=budget_manager label="Reject invoice document"@{nl="Factuurdocument afwijzen"}
+   require can_work(actor,invoice_document.parent.location) and invoice_document.status==transcribed and trim(reason)!=""
+   do set invoice_document {status=rejected,decision=trim(reason)}
+   examples seed=[test_worker,invoice_doc] invoice_document=invoice_doc
+    as,invoice_document.status,reason -> invoice_document.status,invoice_document.decision,count(Payable)
+    budget_manager,transcribed,"Totals do not match the order" -> rejected,"Totals do not match the order",0
+    budget_manager,transcribed," " -> error(rule_failed)
+    budget_manager,draft,"Totals do not match the order" -> error(rule_failed)
+    members,transcribed,"Totals do not match the order" -> error(forbidden)
+   examples seed=[test_worker,accepted_doc] invoice_document=accepted_doc reason="Late objection"
+    as -> invoice_document.status
+    budget_manager -> error(rule_failed)
   # Export the frozen payable evidence to configured accounting without initiating payment. @{nl="Exporteer het vastgelegde factuurbewijs naar ingestelde boekhouding zonder betaling te starten."}
   scenario export_payable(payable:Payable) by=budget_manager
    require can_work(actor,payable.parent.location) and payable.posting!=confirmed
@@ -325,6 +405,9 @@ package purchase label=page_purchasing_title
        actions record_payable
        table row.Payable columns=invoice,amount,issued,evidence,posting,reference
         action export_payable
+       form intake_invoice
+       table row.InvoiceDocument columns=document,source,status,invoice,amount,issued,decision order=created
+        actions transcribe_claims,accept_invoice,reject_invoice
        table row.Line columns=sku,unit,quantity,ordered,accepted,unit_price
         edit
         actions amend
