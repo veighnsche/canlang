@@ -21,14 +21,19 @@ import {
 } from '@canlang/identity/testing';
 import { loginWithPassword, registerWithEmail, verifyEmail } from '@canlang/identity';
 import type { IdentityStore, MailPort } from '@canlang/identity';
-import { buildSessionCookie } from '@canlang/identity';
+import { buildSessionCookie, issueMcpGrant } from '@canlang/identity';
 import type {
   AppInfo,
   HttpDeps,
   Logger,
+  McpDeps,
+  McpFilesInfo,
+  McpPermissions,
   MutationOutcome,
+  OperationDescriptor,
   OperationInputShape,
   OperationInvoker,
+  OperationRegistry,
   PageRegistry,
   RateLimiter,
   ReadOutcome,
@@ -201,6 +206,99 @@ export function createTestIdentityDeps(fixture: IdentityFixture): HttpDeps['iden
     recoveryBaseUrl: 'https://test.invalid/auth/recover',
     inviteBaseUrl: 'https://test.invalid',
     sessionMaxAgeSeconds: 3600,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* S5 MCP doubles.                                                   */
+/* ------------------------------------------------------------------ */
+
+export function createFakeOperationRegistry(
+  descriptors: readonly OperationDescriptor[],
+): OperationRegistry {
+  return { list: () => descriptors };
+}
+
+/** Scripted permissions: per-operation discover/call grants. */
+export function createFakePermissions(opts: {
+  discover?: Record<string, boolean>;
+  call?: Record<string, boolean>;
+} = {}): McpPermissions {
+  return {
+    canDiscover: (_identity, operation) => opts.discover?.[operation] ?? true,
+    canCall: (_identity, operation) => opts.call?.[operation] ?? true,
+  };
+}
+
+export function createFakeMcpFilesInfo(opts: {
+  usesFiles?: boolean;
+  intentsUrl?: string;
+} = {}): McpFilesInfo {
+  return {
+    usesFiles: () => opts.usesFiles ?? false,
+    intentsUrl: () => opts.intentsUrl ?? 'https://test.invalid/uploads/intents',
+  };
+}
+
+/** Issue a real grant for the fixture user/team over the memory store. */
+export async function createGrantFixture(identity: IdentityFixture): Promise<{ token: string }> {
+  const { token } = await issueMcpGrant(
+    identity.store,
+    { user_id: identity.userId, team_id: identity.teamId, client_id: 'test-client' },
+    {},
+  );
+  return { token };
+}
+
+export interface TestMcpDeps {
+  readonly deps: McpDeps;
+  readonly logger: Logger & { calls: RecordedLog[] };
+  readonly invoker: OperationInvoker & {
+    mutations: Array<{ envelope: MutationEnvelope; identity: ResolvedIdentity }>;
+    reads: Array<{ envelope: ReadEnvelope; identity: ResolvedIdentity }>;
+  };
+  readonly identity: IdentityFixture;
+  readonly grantToken: string;
+}
+
+/** Assemble McpDeps from fakes: real identity fixture + live grant token. */
+export async function createTestMcpDeps(opts: {
+  descriptors?: readonly OperationDescriptor[];
+  shapes?: Record<string, OperationInputShape>;
+  mutations?: Record<string, (envelope: MutationEnvelope, identity: ResolvedIdentity) => MutationOutcome | Promise<MutationOutcome>>;
+  reads?: Record<string, (envelope: ReadEnvelope, identity: ResolvedIdentity) => ReadOutcome | Promise<ReadOutcome>>;
+  discover?: Record<string, boolean>;
+  call?: Record<string, boolean>;
+  usesFiles?: boolean;
+} = {}): Promise<TestMcpDeps> {
+  const logger = createRecordingLogger();
+  const invoker = createFakeInvoker({
+    ...(opts.mutations === undefined ? {} : { mutations: opts.mutations }),
+    ...(opts.reads === undefined ? {} : { reads: opts.reads }),
+  });
+  const identity = await createIdentityFixture({});
+  const { token: grantToken } = await createGrantFixture(identity);
+  return {
+    logger,
+    invoker,
+    identity,
+    grantToken,
+    deps: {
+      app: createTestApp(),
+      registry: createFakeOperationRegistry(opts.descriptors ?? []),
+      permissions: createFakePermissions({
+        ...(opts.discover === undefined ? {} : { discover: opts.discover }),
+        ...(opts.call === undefined ? {} : { call: opts.call }),
+      }),
+      invoker,
+      catalog: createFakeCatalog(opts.shapes ?? {}),
+      files: createFakeMcpFilesInfo({
+        ...(opts.usesFiles === undefined ? {} : { usesFiles: opts.usesFiles }),
+      }),
+      identity: createTestIdentityDeps(identity),
+      logger,
+      clock: systemInterfacesClock,
+    },
   };
 }
 
