@@ -348,38 +348,76 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
   # Receive, locate and resolve mail while restricting physical storage information. @{nl="Ontvang, lokaliseer en handel post af terwijl fysieke opslaginformatie afgeschermd blijft."}
   page /mailroom title="Mail and parcels"@{nl="Post en pakketten"} order=2
    require mail_staff
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
    card "Service entitlement"@{nl="Dienstrecht"}
     form configure
-    list Service display=split
+     fieldset "Handling instructions"@{nl="Afhandelingsinstructies"}
+      textarea instructions
+      textarea forwarding
+    list Service display=split empty="No mail services"@{nl="Geen postdiensten"}
+     pagination
      text row.location,row.recipient,row.from,row.until,row.active,row.source,row.term,row.paid_evidence
-     actions service_status
+     action service_status
    card "Mail receipt"@{nl="Post ontvangen"}
     form receive
+     fieldset "Receipt"@{nl="Ontvangst"}
+      radio kind
+      input source
+      input storage
+      file_input photo
    card "Located items"@{nl="Gelokaliseerde post"}
     tabs preferences.view
-    table Item as item where preferences.view==all or (preferences.view==collection and item.state in [received,notified,collection_ready]) or (preferences.view==forwarding and item.state in [forward_pending,forwarded]) or (preferences.view==history and item.state in [collected,forwarded,returned]) columns=location,recipient,kind,storage,state,notice_state,incident filter=location,state defaults={location=preferences.location} display=split
+    table Item as item where preferences.view==all or (preferences.view==collection and item.state in [received,notified,collection_ready]) or (preferences.view==forwarding and item.state in [forward_pending,forwarded]) or (preferences.view==history and item.state in [collected,forwarded,returned]) columns=location,recipient,kind,storage,state,notice_state,incident filter=location,state defaults={location=preferences.location} display=split empty="No mail items match these filters"@{nl="Geen poststukken voor deze filters"}
+     pagination
+     badge row.state
+     status row.notice_state
+     collapse label_Item_incident
+      require row.incident!=null
+      alert row.incident
      text row.service,row.photo,row.completed
-     actions match,collect,forward,return_item,incident
-     list row.Dispatch display=split
+     actions match,forward,return_item,incident
+     button opens=collect_detail
+     modal "Record collection"@{nl="Afhaling registreren"} id=collect_detail
+      slot content
+       form collect arguments={item=row} display=inline
+        textarea evidence
+     list row.Dispatch display=split empty="No forwarding attempts"@{nl="Geen doorzendpogingen"}
+      pagination
+      badge row.state
+      badge row.charge_state
       text row.destination,row.instruction_revision,row.state,row.fee,row.charge_state,row.invoice
-      form dispatched arguments={dispatch=row,revision=row.revision}
-      form uncertain arguments={dispatch=row,revision=row.revision}
-      actions retry_fee
-     table row.Handling columns=kind,instruction,revision,destination,evidence,carrier,fee
+      dropdown
+       slot trigger
+        text "Forwarding follow-up"@{nl="Doorzendopvolging"}
+       slot content
+        form dispatched arguments={dispatch=row,revision=row.revision}
+        form uncertain arguments={dispatch=row,revision=row.revision}
+        action retry_fee
+     table row.Handling columns=kind,instruction,revision,destination,evidence,carrier,fee empty="No handling records"@{nl="Geen afhandelingsregistraties"}
+      pagination
      history
-
   # Follow only your own mail and authorized collection delegates. @{nl="Volg uitsluitend je eigen post en geautoriseerde afhaalgemachtigden."}
   page /mailroom/mine title="My mail"@{nl="Mijn post"} order=1
    require authenticated
+   breadcrumbs
    card "Own service"@{nl="Eigen postdienst"}
-    list Service display=split
+    list Service display=split empty="No mail service yet"@{nl="Nog geen postdienst"}
+     pagination
      text row.location,row.from,row.until,row.instructions,row.forwarding,row.revision
      form instructions arguments={service=row,revision=row.revision}
+      textarea instructions
+      textarea forwarding
      form Delegate.create
-     list row.Delegate
+     list row.Delegate empty="No collection delegates"@{nl="Geen afhaalgemachtigden"}
+      pagination
       text row.contact,row.account,row.active
       edit
    card "Own mail outcomes"@{nl="Eigen postresultaten"}
     tabs preferences.view
-    table Item as item where preferences.view==all or (preferences.view==collection and item.state in [received,notified,collection_ready]) or (preferences.view==forwarding and item.state in [forward_pending,forwarded]) or (preferences.view==history and item.state in [collected,forwarded,returned]) columns=recipient,kind,state,notice_state,completed filter=state display=split
-     table row.Handling columns=kind,account,instruction,revision,destination,evidence,carrier,fee,created
+    table Item as item where preferences.view==all or (preferences.view==collection and item.state in [received,notified,collection_ready]) or (preferences.view==forwarding and item.state in [forward_pending,forwarded]) or (preferences.view==history and item.state in [collected,forwarded,returned]) columns=recipient,kind,state,notice_state,completed filter=state display=split empty="No own mail items"@{nl="Geen eigen poststukken"}
+     pagination
+     badge row.state
+     status row.notice_state
+     table row.Handling columns=kind,account,instruction,revision,destination,evidence,carrier,fee,created empty="No handling records"@{nl="Geen afhandelingsregistraties"}
+      pagination

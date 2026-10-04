@@ -23,18 +23,35 @@ import {
   send,
   set,
 } from "@canlang/stdlib";
+/* Desired, unimplemented @canlang/ui contracts. Every factory below is proposed;
+ * none is an installed export and this file never runs. See file header. */
 import {
   actions,
+  alert,
+  badge,
+  breadcrumbs,
+  button,
   card,
+  collapse,
+  dropdown,
   edit,
+  fieldset,
+  file_input,
   form,
   history,
+  input,
   list,
   message,
+  modal,
+  pagination,
+  radio,
   renderPage,
+  slot,
+  status,
   table,
   tabs,
   text,
+  textarea,
 } from "@canlang/ui";
 import { Contact, Customer, owns, has_role } from "./customer.mjs";
 import { can_work } from "./employee.mjs";
@@ -1482,16 +1499,36 @@ export async function mailroomPage(c, bindings) {
     c,
     mailroomPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Service entitlement", { nl: "Dienstrecht" }),
         children: [
-          form({ context: c, operation: "mailroom.configure" }),
+          form({
+            context: c,
+            operation: "mailroom.configure",
+            /* desired-unimplemented: fieldset groups existing form fields. */
+            children: [
+              fieldset({
+                context: c,
+                caption: message("Handling instructions", { nl: "Afhandelingsinstructies" }),
+                children: [
+                  /* desired-unimplemented: placed controls move the generated controls. */
+                  textarea({ context: c, field: "instructions" }),
+                  textarea({ context: c, field: "forwarding" }),
+                ],
+              }),
+            ],
+          }),
           list({
             context: c,
             model: "mailroom.Service",
             display: "split",
+            empty: message("No mail services", { nl: "Geen postdiensten" }),
             renderRow: (service, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
               text({
                 context: view,
                 values: [
@@ -1517,7 +1554,26 @@ export async function mailroomPage(c, bindings) {
       card({
         context: c,
         title: message("Mail receipt", { nl: "Post ontvangen" }),
-        children: [form({ context: c, operation: "mailroom.receive" })],
+        children: [
+          form({
+            context: c,
+            operation: "mailroom.receive",
+            /* desired-unimplemented: fieldset groups existing form fields. */
+            children: [
+              fieldset({
+                context: c,
+                caption: message("Receipt", { nl: "Ontvangst" }),
+                children: [
+                  /* desired-unimplemented: placed controls move the generated controls. */
+                  radio({ context: c, field: "kind" }),
+                  input({ context: c, field: "source" }),
+                  input({ context: c, field: "storage" }),
+                  file_input({ context: c, field: "photo" }),
+                ],
+              }),
+            ],
+          }),
+        ],
       }),
       card({
         context: c,
@@ -1540,25 +1596,73 @@ export async function mailroomPage(c, bindings) {
             filter: ["location", "state"],
             defaults: { location: c.preferences.mailroom.location },
             display: "split",
+            empty: message("No mail items match these filters", {
+              nl: "Geen poststukken voor deze filters",
+            }),
             renderRow: (item, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
+              /* desired-unimplemented: badge/status present readable typed values. */
+              badge({ context: view, value: item.state }),
+              status({ context: view, value: item.notice_state }),
+              // The incident collapse renders only when an incident is recorded.
+              same(item.incident, null)
+                ? null
+                : collapse({
+                    context: view,
+                    caption: incidentCaption,
+                    children: [
+                      /* desired-unimplemented: alert leaf carries a readable notice. */
+                      alert({ context: view, value: item.incident }),
+                    ],
+                  }),
               text({ context: view, values: [item.service, item.photo, item.completed] }),
               actions({
                 context: view,
                 operations: [
                   "mailroom.match",
-                  "mailroom.collect",
                   "mailroom.forward",
                   "mailroom.return_item",
                   "mailroom.incident",
                 ],
                 boundArgs: { item },
               }),
+              /* desired-unimplemented: button opens activates the local modal. */
+              button({ context: view, opens: "collect_detail" }),
+              /* desired-unimplemented: modal declares the local activation identity. */
+              modal({
+                context: view,
+                caption: message("Record collection", { nl: "Afhaling registreren" }),
+                id: "collect_detail",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "mailroom.collect",
+                        arguments: { item },
+                        display: "inline",
+                        /* desired-unimplemented: placed controls move the generated controls. */
+                        children: [textarea({ context: view, field: "evidence" })],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
               list({
                 context: view,
                 model: "mailroom.Dispatch",
                 parent: item,
                 display: "split",
+                empty: message("No forwarding attempts", { nl: "Geen doorzendpogingen" }),
                 renderRow: (dispatch, dispatchView) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: dispatchView }),
+                  /* desired-unimplemented: badge/status present readable typed values. */
+                  badge({ context: dispatchView, value: dispatch.state }),
+                  badge({ context: dispatchView, value: dispatch.charge_state }),
                   text({
                     context: dispatchView,
                     values: [
@@ -1570,20 +1674,44 @@ export async function mailroomPage(c, bindings) {
                       dispatch.invoice,
                     ],
                   }),
-                  form({
+                  /* desired-unimplemented: dropdown shares its trigger/content activation. */
+                  dropdown({
                     context: dispatchView,
-                    operation: "mailroom.dispatched",
-                    arguments: { dispatch, revision: dispatch.revision },
-                  }),
-                  form({
-                    context: dispatchView,
-                    operation: "mailroom.uncertain",
-                    arguments: { dispatch, revision: dispatch.revision },
-                  }),
-                  actions({
-                    context: dispatchView,
-                    operations: ["mailroom.retry_fee"],
-                    boundArgs: { dispatch },
+                    children: [
+                      slot({
+                        context: dispatchView,
+                        name: "trigger",
+                        children: [
+                          text({
+                            context: dispatchView,
+                            values: [
+                              message("Forwarding follow-up", { nl: "Doorzendopvolging" }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      slot({
+                        context: dispatchView,
+                        name: "content",
+                        children: [
+                          form({
+                            context: dispatchView,
+                            operation: "mailroom.dispatched",
+                            arguments: { dispatch, revision: dispatch.revision },
+                          }),
+                          form({
+                            context: dispatchView,
+                            operation: "mailroom.uncertain",
+                            arguments: { dispatch, revision: dispatch.revision },
+                          }),
+                          actions({
+                            context: dispatchView,
+                            operations: ["mailroom.retry_fee"],
+                            boundArgs: { dispatch },
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
                 ],
               }),
@@ -1600,6 +1728,11 @@ export async function mailroomPage(c, bindings) {
                   "carrier",
                   "fee",
                 ],
+                empty: message("No handling records", { nl: "Geen afhandelingsregistraties" }),
+                renderRow: (handling, hv) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: hv }),
+                ],
               }),
               history({ context: view, record: item }),
             ],
@@ -1615,6 +1748,8 @@ export async function myMailPage(c, bindings) {
     c,
     myMailPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Own service", { nl: "Eigen postdienst" }),
@@ -1623,7 +1758,10 @@ export async function myMailPage(c, bindings) {
             context: c,
             model: "mailroom.Service",
             display: "split",
+            empty: message("No mail service yet", { nl: "Nog geen postdienst" }),
             renderRow: (service, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
               text({
                 context: view,
                 values: [
@@ -1639,6 +1777,11 @@ export async function myMailPage(c, bindings) {
                 context: view,
                 operation: "mailroom.instructions",
                 arguments: { service, revision: service.revision },
+                /* desired-unimplemented: placed controls move the generated controls. */
+                children: [
+                  textarea({ context: view, field: "instructions" }),
+                  textarea({ context: view, field: "forwarding" }),
+                ],
               }),
               form({
                 context: view,
@@ -1649,7 +1792,10 @@ export async function myMailPage(c, bindings) {
                 context: view,
                 model: "mailroom.Delegate",
                 parent: service,
+                empty: message("No collection delegates", { nl: "Geen afhaalgemachtigden" }),
                 renderRow: (delegate, rowView) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: rowView }),
                   text({ context: rowView, values: [delegate.contact, delegate.account, delegate.active] }),
                   edit({
                     context: rowView,
@@ -1674,7 +1820,13 @@ export async function myMailPage(c, bindings) {
             columns: ["recipient", "kind", "state", "notice_state", "completed"],
             filter: ["state"],
             display: "split",
+            empty: message("No own mail items", { nl: "Geen eigen poststukken" }),
             renderRow: (item, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
+              /* desired-unimplemented: badge/status present readable typed values. */
+              badge({ context: view, value: item.state }),
+              status({ context: view, value: item.notice_state }),
               table({
                 context: view,
                 model: "mailroom.Handling",
@@ -1689,6 +1841,11 @@ export async function myMailPage(c, bindings) {
                   "carrier",
                   "fee",
                   "created",
+                ],
+                empty: message("No handling records", { nl: "Geen afhandelingsregistraties" }),
+                renderRow: (handling, hv) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: hv }),
                 ],
               }),
             ],
