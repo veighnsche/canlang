@@ -555,6 +555,8 @@ export interface DeleteProps {
   readonly confirm: MessageValue;
   readonly cancelHref?: string;
   readonly idPrefix: string;
+  /** IANA zone for datetime display; always declared on the wire (UTC default). */
+  readonly timeZone?: string;
 }
 
 export interface ActionProps {

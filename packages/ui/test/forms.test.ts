@@ -785,6 +785,7 @@ describe("form outcomes", () => {
     assert.ok(html.includes('role="alert"'));
     assert.ok(html.includes("The outcome is unknown."));
     assert.ok(html.includes("<code>op-xyz</code>"));
+    assert.ok(html.includes("Check later."));
   });
 });
 
@@ -808,6 +809,7 @@ describe("deleteRecord", () => {
     assert.ok(html.includes('<input type="hidden" name="operation" value="TeamTasks.Todo.delete">'));
     assert.ok(html.includes('<input type="hidden" name="operation_id" value="op-del-1">'));
     assert.ok(html.includes(`name="${CSRF_FIELD}" value="csrf-123"`));
+    assert.ok(html.includes('<input type="hidden" name="timezone" value="UTC">'));
     assert.ok(html.includes('<input type="hidden" name="inputs[record][id]" value="r1">'));
     assert.ok(html.includes('<input type="hidden" name="inputs[mode]" value="remove">'));
     assert.ok(html.includes('<button type="submit" class="btn btn-error">Delete</button>'));
@@ -997,6 +999,36 @@ describe("forms escaping and prefixes", () => {
     assert.ok(html.includes('href="#"'));
     assert.ok(!html.includes("javascript:"));
     assert.ok(!html.includes("JaVaScRiPt:"));
+  });
+
+  it("neutralizes unsafe action urls on edit, delete and action too", async () => {
+    const edited = await edit(makeEditProps({ action: "javascript:alert(2)" }));
+    const deleted = await deleteRecord(makeDeleteProps({ action: "JaVaScRiPt:alert(3)" }));
+    const acted = await action(makeActionProps({ action: "vbscript:msgbox(4)" }));
+    for (const html of [edited, deleted, acted]) {
+      assert.ok(html.includes('<form action="#" method="post">'));
+      assert.ok(!html.includes("javascript:"));
+      assert.ok(!html.includes("JaVaScRiPt:"));
+      assert.ok(!html.includes("vbscript:"));
+    }
+  });
+
+  it("survives malformed error pointers by listing them unmatched", async () => {
+    const html = await form(
+      makeFormProps({
+        fields: [field("title")],
+        errors: [
+          fieldError("no-leading-slash", "bad shape"),
+          fieldError("/title//x", "empty segment"),
+          fieldError("/title", "real one"),
+        ],
+      }),
+    );
+    assert.ok(html.includes('role="alert"'));
+    assert.ok(html.includes("bad shape"));
+    assert.ok(html.includes("empty segment"));
+    assert.ok(html.includes('aria-describedby="f1-title-error"'));
+    assert.ok(html.includes("real one"));
   });
 
   it("escapes hostile id prefixes in every id, for and describedby", async () => {

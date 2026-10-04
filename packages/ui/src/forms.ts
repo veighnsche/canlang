@@ -570,7 +570,13 @@ function splitErrors(
   const matched = new Map<string, FieldError[]>();
   const unmatched: FieldError[] = [];
   for (const error of errors ?? []) {
-    const name = pointerToFieldName(error.path);
+    let name: string;
+    try {
+      name = pointerToFieldName(error.path);
+    } catch {
+      unmatched.push(error);
+      continue;
+    }
     if (names.has(name)) {
       const list = matched.get(name);
       if (list === undefined) {
@@ -702,9 +708,11 @@ function outcomeBanner(
     }
     case "unknown": {
       const note = escapeHtml(resolveCaption(CHROME.unknownLead, context));
+      const detail = escapeHtml(resolveCaption(outcome.message, context));
       return (
         `<div role="alert" class="alert alert-warning">` +
         `<p>${note} <code>${escapeHtml(outcome.operationId)}</code></p>` +
+        `<p>${detail}</p>` +
         `</div>`
       );
     }
@@ -783,6 +791,7 @@ export async function deleteRecord(props: DeleteProps): Promise<string> {
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +
+    hidden("timezone", props.timeZone ?? "UTC") +
     recordHiddens(props.record) +
     hidden("inputs[mode]", props.mode) +
     `<div class="flex gap-4"><button type="submit" class="btn ${tone}">${submitLabel}</button>${cancelLink(props.cancelHref, props.context)}</div>` +
