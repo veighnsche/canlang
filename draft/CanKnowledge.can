@@ -1,0 +1,327 @@
+# Publish reviewed company procedures and answer private questions with current authorized evidence. @{nl="Publiceer beoordeelde bedrijfsprocedures en beantwoord privévragen met actueel bevoegd bewijs."}
+app CanKnowledge uses=[knowledge]
+context
+ files types="application/pdf,text/plain" max=5MiB
+
+package knowledge label="Company knowledge"@{nl="Bedrijfskennis"}
+ use std {KnowledgeRequest,IndexState,TextRun,DeliveryResult}
+ Given
+  role knowledge_manager label="Knowledge administrator"@{nl="Kennisbeheerder"}
+  role knowledge_author label="Procedure author"@{nl="Procedureauteur"}
+  role knowledge_reviewer label="Publication reviewer"@{nl="Publicatiebeoordelaar"}
+  Topic { name:text trim min=1 max=100, expert:user label="Accountable expert"@{nl="Verantwoordelijke expert"}, active:bool=true, profile:text min=1 max=200, policy_revision:text min=1 max=200, input_tokens:int=8192 min=1 max=32768, output_tokens:int=2048 min=1 max=4096, duration:duration=120s, daily_limit:int=20 min=1 max=100 } label="Knowledge topic"@{nl="Kennisonderwerp"}
+  Audience in Topic { account:user, active:bool=true } label="Topic readership"@{nl="Lezers van onderwerp"}
+  Document in Topic { name:text trim min=1 max=200, owner:user server=actor, active:bool=true } label="Procedure"@{nl="Procedure"}
+  Revision in Document { number:int min=1 max=100, title:text trim min=1 max=200, body:text max=20000, attachments:file[] max=4, author:user server=actor, authored:datetime server=now } label="Immutable revision"@{nl="Onveranderlijke revisie"}
+  Publication in Document { revision:Revision, reason:text trim min=1 max=2000, reviewer:user server=actor, reviewed:datetime server=now, active:bool=true, withdrawal:text?, withdrawn_by:user?, withdrawn_at:datetime? } label="Publication decision"@{nl="Publicatiebesluit"}
+  DailyUsage in Topic { account:user, day:date, requests:int min=0 } label="Question budget usage"@{nl="Verbruik vragenbudget"}
+  Question in Topic { account:user server=actor, request_value:KnowledgeRequest, request:delivery(Handbook.answer)?, cancellation:delivery(Handbook.cancel)?, reconciliation:delivery(Handbook.reconcile)?, checks:int=0 min=0 max=3, stop_requested:bool=false, unfinished:bool=true } label="Private question"@{nl="Privévraag"}
+  Escalation in Question { reason:text trim min=1 max=2000, state:enum(open,resolved,dismissed)=open label={text="Expert review"@{nl="Expertbeoordeling"},values={open="Awaiting expert"@{nl="Wacht op expert"},resolved="Published guidance supplied"@{nl="Gepubliceerde uitleg verstrekt"},dismissed="Closed with explanation"@{nl="Gesloten met uitleg"}}}, resolution:Revision?, note:text?, resolved_by:user?, resolved_at:datetime? } label="Unresolved question"@{nl="Onopgeloste vraag"}
+  derive readership(person:user,topic:Topic):bool = active_member(person,team) and (topic.expert==person or any(topic.Audience as grant,grant.account==person and grant.active))
+  derive editorial(person:user,document:Document):bool = knowledge_reviewer(person) or document.owner==person or document.parent.expert==person
+  derive Document.current:Revision? = first(row.Publication as publication where publication.active)?.revision
+  derive live(revision:Revision):bool = revision.parent.active and revision.parent.parent.active and any(revision.parent.Publication as publication,publication.active and publication.revision==revision)
+  # Index only current publications; derive retrieval from the same source fields and current read policies. @{nl="Indexeer alleen actuele publicaties; leid opvraging af uit dezelfde bronvelden en actuele leesregels."}
+  corpus Handbook model=Revision scope=parent.parent title=title content=body,attachments where=live(row) from=deployment.knowledge
+  derive Revision.index:IndexState = Handbook.status(row) label="Index readiness"@{nl="Indexgereedheid"}
+  derive Question.state:TextRun.state? = row.request?.progress?.state label="Answer progress"@{nl="Antwoordvoortgang"}
+  derive Question.coverage:Handbook.Run.coverage? = row.request?.progress?.coverage label="Indexed source coverage"@{nl="Dekking geïndexeerde bronnen"}
+  derive Question.answer:Handbook.Answer? = row.request?.progress?.answer
+  derive Question.used:int? = row.request?.progress?.used_tokens label="Measured tokens"@{nl="Gemeten tokens"}
+  derive Question.transport:DeliveryResult.status? = row.request?.status label="Request delivery"@{nl="Verzoekbezorging"}
+  policy Topic read=members
+  policy Audience read=knowledge_manager or row.account==actor
+  policy Document read=members where=editorial(actor,row) or (row.active and row.parent.active and readership(actor,row.parent))
+  policy Document read=knowledge_manager fields=parent,name,owner,active,current
+  policy Revision read=members where=editorial(actor,row.parent) or (live(row) and readership(actor,row.parent.parent))
+  policy Publication read=members where=editorial(actor,row.parent)
+  policy Publication read=members where=row.active and readership(actor,row.parent.parent) fields=revision,active
+  policy Publication read=knowledge_manager fields=revision,active
+  policy DailyUsage read=knowledge_manager or row.account==actor
+  policy Question read=members where=row.account==actor
+  policy Question read=members where=row.parent.expert==actor and count(row.Escalation)>0 fields=parent,account,request_value.question
+  policy Escalation read=members where=row.parent.parent.expert==actor
+  policy Escalation read=members where=row.parent.account==actor fields=parent,reason,state,resolution,resolved_by,resolved_at
+  policy Escalation read=members where=row.parent.account==actor and (row.state==dismissed or (row.resolution!=null and live(row.resolution) and readership(actor,row.parent.parent))) fields=note
+  unique Audience fields=account
+  unique Revision fields=number
+  unique Publication fields=revision
+  unique Publication fields=active where=row.active
+  unique DailyUsage fields=account,day
+  unique Escalation fields=state where=row.state==open
+  invariant Topic: row.duration>=1s and row.duration<=10m
+  invariant Revision: trim(row.body)!="" or count(row.attachments)>0
+  invariant Publication: row.revision.parent==row.parent and row.reviewer!=row.revision.author
+  invariant Publication: (row.withdrawn_at==null)==row.active and (row.withdrawn_by==null)==row.active and (row.withdrawal==null)==row.active
+  invariant Escalation: (row.state==resolved)==(row.resolution!=null) and (row.state==open)==(row.resolved_by==null) and (row.state==open)==(row.resolved_at==null) and (row.state==open)==(row.note==null)
+  lock Audience fields=parent,account
+  lock Document fields=parent
+  lock Revision fields=parent,number,title,body,attachments,author,authored
+  lock Publication fields=parent,revision,reason,reviewer,reviewed
+  lock Publication fields=active,withdrawal,withdrawn_by,withdrawn_at when=not row.active
+  lock DailyUsage fields=parent,account,day
+  lock Question fields=parent,account,request_value,request
+  lock Escalation fields=parent,reason
+  lock Escalation fields=state,resolution,note,resolved_by,resolved_at when=row.state!=open
+  fixture manager=user {roles=[knowledge_manager]}
+  fixture writer=user {roles=[knowledge_author]}
+  fixture reviewer=user {roles=[knowledge_reviewer]}
+  fixture expert=user {}
+  fixture topic=Topic {name="People procedures",expert,profile="company-grounded-v1",policy_revision="grounding-1"}
+  fixture reader=Audience {parent=topic,account=self}
+  fixture writer_access=Audience {parent=topic,account=writer}
+  fixture procedure=Document {parent=topic,name="Leave requests",owner=writer}
+  fixture revision=Revision {parent=procedure,number=1,title="Leave requests",body="Request leave early.",author=writer}
+  fixture next_revision=Revision {parent=procedure,number=2,title="Leave requests",body="Request leave before booking travel.",author=writer}
+  fixture published=Publication {parent=procedure,revision,reason="Reviewed procedure",reviewer}
+  fixture used_today=DailyUsage {parent=topic,account=self,day=local_date(now,"UTC"),requests=20}
+  fixture text_file=file {type="text/plain",owner=writer}
+  fixture foreign_file=file {type="text/plain",owner=other}
+  fixture pending_question=Question {parent=topic,account=self,request_value={source="question-1",revision=1,question="How do I request leave?",profile="company-grounded-v1",policy_revision="grounding-1",max_input_tokens=8192,max_output_tokens=2048,max_duration=120s}}
+  ## The corpus normalizer validates this test-only wire witness against real seeded publication/readership.
+  fixture answered=Handbook.answer {request={scope=topic,value={source="question-proof",revision=1,question="How do I request leave?",profile="company-grounded-v1",policy_revision="grounding-1",max_input_tokens=8192,max_output_tokens=2048,max_duration=120s}},status=succeeded,result={source="question-proof",revision=1,sequence=1,state=succeeded,coverage=complete,answer={context=[revision],statements=[{text="Request leave early.",citations=[1]}],citations=[{id=1,record=revision,field="body",file=null,page=null,from=0,until=20,quote="Request leave early."}]},used_tokens=120,detail=null}}
+  fixture answered_question=Question {parent=topic,account=self,request_value={source="question-proof",revision=1,question="How do I request leave?",profile="company-grounded-v1",policy_revision="grounding-1",max_input_tokens=8192,max_output_tokens=2048,max_duration=120s},request=answered,unfinished=false}
+  fixture issue=Escalation {parent=pending_question,reason="Please clarify the current leave procedure"}
+ When
+  crud Topic by=knowledge_manager fields=name,expert,active,profile,policy_revision,input_tokens,output_tokens,duration,daily_limit when=active_member(row.expert,team) delete=none
+  crud Audience by=knowledge_manager fields=active create_fields=account,active when=not row.active or active_member(row.account,team) delete=none
+  crud Document by=knowledge_author fields=name create=none update=none delete=none
+  crud Revision by=knowledge_author fields=body create=none update=none delete=none
+  crud Publication by=knowledge_reviewer fields=active create=none update=none delete=none
+  crud DailyUsage by=knowledge_manager fields=requests create=none update=none delete=none
+  crud Question by=members fields=stop_requested create=none update=none delete=none
+  crud Escalation by=members fields=state create=none update=none delete=none
+  # Start a procedure under the author's explicit topic readership. @{nl="Start een procedure binnen het expliciete leesrecht van de auteur op het onderwerp."}
+  scenario create_document(topic:Topic,name:text) by=knowledge_author -> Document label="New procedure"@{nl="Nieuwe procedure"}
+   require topic.active and readership(actor,topic) and trim(name)!=""
+   do
+    create Document {parent=topic,name} as document
+    return document
+  # Preserve each candidate's exact text and finalized files before independent approval. @{nl="Bewaar de exacte tekst en afgeronde bestanden van elke kandidaat vóór onafhankelijke goedkeuring."}
+  scenario revise(document:Document,title:text,body:text,attachments:file[]=[]) by=knowledge_author -> Revision label="Propose revision"@{nl="Revisie voorstellen"}
+   require document.owner==actor and document.active and document.parent.active and count(document.Revision)<100 and trim(title)!="" and (trim(body)!="" or count(attachments)>0) and count(attachments)<=4
+   do
+    create Revision {parent=document,number=count(document.Revision)+1,title,body,attachments} as revision
+    return revision
+   examples document=procedure title="Leave requests" body="Request leave early." attachments=[]
+    as -> count(document.Revision)
+    writer -> 1
+    reviewer -> error(forbidden)
+    self -> error(forbidden)
+   examples document=procedure title="Attachment procedure" body=""
+    as,attachments -> count(document.Revision)
+    writer,[text_file] -> 1
+    writer,[foreign_file] -> error(forbidden)
+  # A different reviewer publishes a revision and retires the earlier current publication atomically. @{nl="Een andere beoordelaar publiceert een revisie en trekt de vorige actuele publicatie atomair in."}
+  scenario publish(revision:Revision,reason:text) by=knowledge_reviewer label="Approve publication"@{nl="Publicatie goedkeuren"}
+   require revision.author!=actor and revision.parent.active and revision.parent.parent.active and trim(reason)!="" and not any(revision.parent.Publication as publication,publication.revision==revision)
+   do
+    for publication in revision.parent.Publication as row where row.active limit=1
+     set publication {active=false,withdrawal=reason,withdrawn_by=actor,withdrawn_at=now}
+    create Publication {parent=revision.parent,revision,reason} as publication
+   examples revision=revision reason="Reviewed procedure"
+    as,revision.author -> count(procedure.Publication),procedure.current
+    reviewer,writer -> 1,revision
+    reviewer,reviewer -> error(rule_failed)
+    writer,writer -> error(forbidden)
+  # Withdraw current guidance without erasing its review evidence or waiting for index deletion. @{nl="Trek actuele uitleg in zonder beoordelingsbewijs te wissen of op indexverwijdering te wachten."}
+  scenario withdraw(publication:Publication,reason:text) by=knowledge_reviewer label="Withdraw publication"@{nl="Publicatie intrekken"}
+   require publication.active and trim(reason)!=""
+   do set publication {active=false,withdrawal=reason,withdrawn_by=actor,withdrawn_at=now}
+   examples publication=published reason="Procedure needs correction"
+    as -> publication.active,procedure.current
+    reviewer -> false,null
+    self -> error(forbidden)
+  # Restore a responsible author without changing any already reviewed revision. @{nl="Wijs een verantwoordelijke auteur toe zonder bestaande beoordeelde revisies te wijzigen."}
+  scenario assign_author(document:Document,account:user) by=knowledge_manager label="Assign author"@{nl="Auteur aanwijzen"}
+   require knowledge_author(account)
+   do set document {owner=account}
+  # Pause or restore future source eligibility; all revision history remains intact. @{nl="Pauzeer of herstel toekomstig brongebruik; alle revisiegeschiedenis blijft bewaard."}
+  scenario document_status(document:Document,active:bool) by=knowledge_reviewer label="Set procedure availability"@{nl="Beschikbaarheid procedure instellen"}
+   do set document {active}
+  # Repair indexing of the exact current revision using shared bounded indexing machinery. @{nl="Herstel indexering van de exacte actuele revisie via gedeelde begrensde indexering."}
+  scenario reindex(revision:Revision) by=members label="Refresh source index"@{nl="Bronindex vernieuwen"}
+   require editorial(actor,revision.parent) and live(revision)
+   do send Handbook.refresh {record=revision} as request
+  # Count a durable question before sending; a lost response never earns an unproven budget refund. @{nl="Tel een duurzame vraag vóór verzending; een verloren antwoord geeft nooit een onbewezen budgetteruggave."}
+  scenario ask(topic:Topic,question:KnowledgeRequest.question) by=members -> Question label="Ask a private question"@{nl="Privévraag stellen"}
+   require topic.active and readership(actor,topic) and count(Question as row where row.account==actor and row.unfinished)<2
+   do
+    let day=local_date(now,"UTC")
+    let usage=first(topic.DailyUsage as row where row.account==actor and row.day==day)
+    require usage==null or usage.requests<topic.daily_limit
+    if usage==null
+     create DailyUsage {parent=topic,account=actor,day,requests=1} as counted
+    else
+     set usage {requests=usage.requests+1}
+    let value=KnowledgeRequest {source=operation.id,revision=1,question,profile=topic.profile,policy_revision=topic.policy_revision,max_input_tokens=topic.input_tokens,max_output_tokens=topic.output_tokens,max_duration=topic.duration}
+    create Question {parent=topic,request_value=value} as asked
+    send Handbook.answer {scope=topic,value} when=topic.active and readership(asked.account,topic) and not asked.stop_requested as request
+    set asked {request}
+    return asked
+   examples seed=[reader,used_today] topic=topic question="How do I request leave?"
+    as,used_today.requests,topic.active,reader.active -> count(topic.Question),used_today.requests
+    self,0,true,true -> 1,1
+    self,20,true,true -> error(rule_failed)
+    self,0,false,true -> error(rule_failed)
+    self,0,true,false -> error(rule_failed)
+    other,0,true,true -> error(rule_failed)
+    public,0,true,true -> error(forbidden)
+  # Return only a currently disclosable grounded value; its shared view distinguishes current from historical scope. @{nl="Geef alleen een nu toonbaar onderbouwd antwoord terug; de gedeelde weergave onderscheidt actuele en historische bronselectie."}
+  scenario read_answer(question:Question) read=true -> Handbook.Answer? by=members label="Read sourced answer"@{nl="Antwoord met bronnen lezen"}
+   require question.account==actor
+   do
+    let answer=question.request?.progress?.answer
+    if Handbook.available(answer)
+     return answer
+    return null
+   examples seed=[reader,published,answered_question]
+    do
+     call read_answer {question=answered_question} by=self as visible
+     visible!=null -> true
+     call Audience.update {record=reader,changes={active=false}} by=manager
+     call read_answer {question=answered_question} by=self as hidden
+     hidden==null -> true
+   examples seed=[reader,published,answered_question]
+    do
+     call read_answer {question=answered_question} by=self as visible
+     visible!=null -> true
+     call withdraw {publication=published,reason="Procedure withdrawn"} by=reviewer
+     call read_answer {question=answered_question} by=self as hidden
+     hidden==null -> true
+   examples seed=[reader,published,answered_question,next_revision]
+    do
+     call read_answer {question=answered_question} by=self as visible
+     visible!=null -> true
+     call publish {revision=next_revision,reason="Reviewed replacement"} by=reviewer
+     call read_answer {question=answered_question} by=self as hidden
+     hidden==null,procedure.current -> true,next_revision
+   examples seed=[reader,writer_access,published,answered_question]
+    do
+     call read_answer {question=answered_question} by=self as initial
+     initial!=null -> true
+     call create_document {topic,name="Travel guidance"} by=writer as additional_document
+     call revise {document=additional_document,title="Travel guidance",body="Keep travel receipts.",attachments=[]} by=writer as additional_revision
+     call publish {revision=additional_revision,reason="Reviewed additional guidance"} by=reviewer
+     call read_answer {question=answered_question} by=self as historical
+     historical!=null -> true
+  # Request cancellation of this one question; keep uncertainty and its consumed request slot visible. @{nl="Vraag annulering van deze ene vraag aan; houd onzekerheid en de verbruikte plek zichtbaar."}
+  scenario stop(question:Question) by=members label="Stop answer"@{nl="Antwoord stoppen"}
+   require question.account==actor and question.unfinished and not question.stop_requested
+   do
+    set question {stop_requested=true}
+    send Handbook.cancel {source=question.request_value.source,revision=question.request_value.revision} as cancellation
+    set question {cancellation}
+   examples question=pending_question
+    as -> question.stop_requested,question.unfinished
+    self -> true,true
+    other -> error(rule_failed)
+  # Reconcile the original question without creating another model request. @{nl="Controleer de oorspronkelijke vraag zonder een nieuw modelverzoek te maken."}
+  scenario reconcile(question:Question) by=members label="Check answer outcome"@{nl="Antwoordresultaat controleren"}
+   require question.account==actor and question.checks<3 and (question.reconciliation==null or question.reconciliation.status!=pending)
+   do
+    send Handbook.reconcile {source=question.request_value.source,revision=question.request_value.revision} as reconciliation
+    set question {reconciliation,checks=question.checks+1}
+   examples question=pending_question
+    as,question.checks,topic.active -> question.checks
+    self,0,false -> 1
+    self,3,true -> error(rule_failed)
+    other,0,true -> error(rule_failed)
+  # Release only a proved undispatched question from the two-question concurrency bound. @{nl="Haal alleen een bewezen niet-verzonden vraag uit de limiet van twee gelijktijdige vragen."}
+  scenario release_skipped(question:Question) by=members label="Release unsent question"@{nl="Niet-verzonden vraag vrijgeven"}
+   require question.account==actor and question.request?.status==skipped
+   do set question {unfinished=false}
+  scenario progressed on=Handbook.answer.progressed
+   do
+    for question in Question as row where row.request?.id==event.delivery_id limit=1
+     if question.unfinished and question.state in [succeeded,failed,cancelled]
+      set question {unfinished=false}
+   examples seed=[reader,published] event={delivery_id=answered.id}
+    answered_question.unfinished -> answered_question.unfinished,answered_question.used
+    true -> false,120
+    false -> false,120
+  # Share the exact question and your explanation with the topic's accountable expert and successors. @{nl="Deel de exacte vraag en je uitleg met de verantwoordelijke onderwerpexpert en opvolgers."}
+  scenario escalate(question:Question,reason:text,share:bool label="Share this question with the topic expert"@{nl="Deze vraag delen met de onderwerpexpert"}) by=members label="Ask the expert"@{nl="Expert inschakelen"}
+   require question.account==actor and share and trim(reason)!="" and active_member(question.parent.expert,team) and not any(question.Escalation as issue,issue.state==open)
+   do create Escalation {parent=question,reason} as issue
+   examples question=pending_question reason="Please clarify" share=true
+    as,share -> count(question.Escalation)
+    self,true -> 1
+    self,false -> error(rule_failed)
+    other,true -> error(rule_failed)
+  # Resolve with current published guidance the requester can read, or close with an attributable explanation. @{nl="Los op met actuele gepubliceerde uitleg die de vragensteller mag lezen, of sluit met een herleidbare uitleg."}
+  scenario resolve(issue:Escalation,revision:Revision?,note:text) by=members label="Record expert resolution"@{nl="Expertoplossing vastleggen"}
+   require issue.parent.parent.expert==actor and issue.state==open and trim(note)!=""
+   require revision==null or (revision.parent.parent==issue.parent.parent and live(revision) and readership(issue.parent.account,issue.parent.parent))
+   do
+    if revision==null
+     set issue {state=dismissed,note,resolved_by=actor,resolved_at=now}
+    else
+     set issue {state=resolved,resolution=revision,note,resolved_by=actor,resolved_at=now}
+   examples seed=[reader,published] issue=issue revision=revision note="See the current procedure"
+    as,revision -> issue.state,issue.resolution
+    expert,revision -> resolved,revision
+    expert,next_revision -> error(rule_failed)
+    expert,null -> dismissed,null
+    self,revision -> error(rule_failed)
+ Then
+  page /knowledge title="Company knowledge"@{nl="Bedrijfskennis"} poll=5s
+   require members
+   table Topic as topic columns=name,expert filter=active defaults={active=true} display=split
+    text row.active,row.daily_limit,row.input_tokens,row.output_tokens
+    form ask arguments={topic}
+    table row.Document as document columns=name,current display=split
+     details "Current publication"@{nl="Actuele publicatie"}
+      require document.current!=null and (editorial(actor,document) or readership(actor,topic))
+      text document.current.title,document.current.index
+      content document.current.body
+      text document.current.attachments
+    table row.Question as question where question.account==actor columns=request_value.question,state,coverage,transport,unfinished display=split
+     require row.account==actor
+     text row.used,row.stop_requested,row.request?.error,row.request?.progress?.detail
+     content row.answer
+     text "Historical answers keep their original scope. Ask again for current guidance; changed or revoked used sources hide the answer."@{nl="Historische antwoorden behouden hun oorspronkelijke bronselectie. Stel opnieuw een vraag voor actuele uitleg; gewijzigde of ingetrokken gebruikte bronnen verbergen het antwoord."}
+     actions stop,reconcile,release_skipped
+     form escalate arguments={question}
+     list question.Escalation as issue
+      text row.reason,row.state,row.resolved_by,row.resolved_at
+      details "Closure explanation"@{nl="Uitleg bij afsluiting"}
+       require row.state==dismissed
+       text row.note
+      list Revision as guidance where guidance==issue.resolution and live(guidance) and readership(actor,topic)
+       details "Published resolution"@{nl="Gepubliceerde oplossing"}
+        text issue.note,guidance.title
+        content guidance.body
+        text guidance.attachments
+  page /knowledge/editor title="Procedure editing"@{nl="Procedures bewerken"}
+   require knowledge_author or knowledge_reviewer
+   form create_document
+   table Document as document where editorial(actor,document) columns=name,parent,owner,active,current display=split
+    form revise arguments={document}
+    actions assign_author,document_status
+    table document.Revision as revision columns=number,title,author,authored,index display=split
+     content row.body
+     text row.attachments
+     form publish arguments={revision}
+     form reindex arguments={revision}
+    table document.Publication as publication columns=revision,reviewer,reviewed,active display=split
+     text row.reason,row.withdrawal,row.withdrawn_by,row.withdrawn_at
+     form withdraw arguments={publication}
+     history
+  page /knowledge/expert title="Expert questions"@{nl="Expertvragen"}
+   require members
+   table Escalation as issue where issue.parent.parent.expert==actor columns=parent,state,created filter=state display=split
+    text row.parent.request_value.question,row.parent.account,row.reason
+    form resolve arguments={issue}
+    text row.state,row.resolution,row.note,row.resolved_by,row.resolved_at
+  page /knowledge/settings title="Knowledge settings"@{nl="Kennisinstellingen"}
+   require knowledge_manager
+   form Topic.create
+   table Topic columns=name,expert,profile,active,daily_limit display=split
+    edit
+    form Audience.create
+    table row.Audience columns=account,active
+     edit
+    table row.Document as document columns=name,owner,active
+     form assign_author arguments={document}
+    table row.DailyUsage columns=account,day,requests order=-day

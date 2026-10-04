@@ -1,6 +1,6 @@
 # CanInbox — departmental intake, typed judgment and reviewed replies
 
-2026-10-04. Owner: Astra. Actual app triplet ownership released by root. Root owns adoption into DESIGN/GRAMMAR and the standard catalog. Root accepted the focused judgment/type/lowering and MailboxV1 contracts for this draft round. The sections below are accepted draft contracts; app review and all compiler/runtime implementation remain outstanding.
+2026-10-04. Owner: Astra. Actual app triplet ownership released by root. Root owns adoption into DESIGN/GRAMMAR and the standard catalog. Root accepted the focused judgment/type/lowering and MailboxV1 contracts for this draft round. The sections below are accepted draft contracts; the app has passed focused independent draft review. Compiler/runtime implementation and executable proof remain separate obligations.
 
 ## Product decision
 

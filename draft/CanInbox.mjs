@@ -1,6 +1,6 @@
 import {
   any, count, create, datetime, delivery, equalValue, first, format, hasRole,
-  int64, judgmentSpecification, local_date, records, require as check, same, send, set,
+  int64, judgmentSpecification, local_date, records, require as check, same, send, set, trim,
 } from "@canlang/stdlib";
 import {
   actions, content, details, edit, form, history, list, message, renderPage, table, text,
@@ -150,10 +150,10 @@ export const appDefinition = {
     },
   },
   pure: {
-    "inbox.queue_access": { handler: "queue_access", inputs: { person: { type: "user" }, queue: { type: "inbox.Queue" } }, result: "bool" },
-    "inbox.queue_route": { handler: "queue_route", inputs: { person: { type: "user" }, queue: { type: "inbox.Queue" } }, result: "bool" },
-    "inbox.queue_reply": { handler: "queue_reply", inputs: { person: { type: "user" }, queue: { type: "inbox.Queue" } }, result: "bool" },
-    "inbox.input": { handler: "input", inputs: { message: { type: "inbox.Message" } }, result: "text" },
+    "inbox.queue_access": { handler: "queue_access", inputs: { person: { type: "user" }, queue: { type: "inbox.Queue" } }, result: {type:"bool"} },
+    "inbox.queue_route": { handler: "queue_route", inputs: { person: { type: "user" }, queue: { type: "inbox.Queue" } }, result: {type:"bool"} },
+    "inbox.queue_reply": { handler: "queue_reply", inputs: { person: { type: "user" }, queue: { type: "inbox.Queue" } }, result: {type:"bool"} },
+    "inbox.input": { handler: "input", inputs: { message: { type: "inbox.Message" } }, result: {type:"text"} },
   },
   preferences: { inbox: { fields: { queue: { type: "inbox.Queue", nullable: true }, state: { type: "inbox.Message.state", nullable: true } } } },
   operations: {
@@ -293,18 +293,18 @@ export function canApp() {
     },
     async review(c, { message, queue, reply_needed, urgency, reason, evidence = [] }) {
       check(hasRole(c, "inbox.mail_staff") || hasRole(c, "inbox.inbox_admin"), "forbidden");
-      check(await queue_route(c, c.actor, message.queue) && message.state === "open" && queue.active && message.mailbox.destinations.some(value => same(value, queue)) && reason.trim() !== "" && await count(evidence) <= 4n);
+      check(await queue_route(c, c.actor, message.queue) && message.state === "open" && queue.active && message.mailbox.destinations.some(value => same(value, queue)) && trim(reason) !== "" && await count(evidence) <= 4n);
       const review = await create(c, "inbox.Review", { parent: message, queue, reply_needed, urgency, reason, evidence, assessment: message.assessment });
       await set(c, message, { queue, review });
     },
     async draft_reply(c, { message, body, attachments = [] }) {
       check(hasRole(c, "inbox.mail_staff") || hasRole(c, "inbox.inbox_admin"), "forbidden");
-      check(await queue_reply(c, c.actor, message.queue) && message.state === "open" && message.queue.active && message.mailbox.enabled && message.envelope.reply_to !== null && body.trim() !== "" && await count(attachments) <= 8n);
+      check(await queue_reply(c, c.actor, message.queue) && message.state === "open" && message.queue.active && message.mailbox.enabled && message.envelope.reply_to !== null && trim(body) !== "" && await count(attachments) <= 8n);
       const reply = await create(c, "inbox.Reply", { parent: message, source: format(c, "reply-{operation}", { operation: c.operation.id }), to: message.envelope.reply_to, subject: message.envelope.subject, body, attachments });
     },
     async revise(c, { reply, body, attachments = [] }) {
       check(hasRole(c, "inbox.mail_staff") || hasRole(c, "inbox.inbox_admin"), "forbidden");
-      check(await queue_reply(c, c.actor, reply.parent.queue) && reply.state === "draft" && reply.parent.state === "open" && body.trim() !== "" && await count(attachments) <= 8n);
+      check(await queue_reply(c, c.actor, reply.parent.queue) && reply.state === "draft" && reply.parent.state === "open" && trim(body) !== "" && await count(attachments) <= 8n);
       await set(c, reply, { body, attachments });
     },
     async submit(c, { reply }) {
@@ -366,7 +366,7 @@ export function canApp() {
     },
     async resolve(c, { message, close, reason }) {
       check(hasRole(c, "inbox.mail_staff") || hasRole(c, "inbox.inbox_admin"), "forbidden");
-      check((await queue_route(c, c.actor, message.queue) || await queue_reply(c, c.actor, message.queue)) && reason.trim() !== "");
+      check((await queue_route(c, c.actor, message.queue) || await queue_reply(c, c.actor, message.queue)) && trim(reason) !== "");
       check(!close || !await any(records(c, "inbox.Reply", { parent: message }), reply => reply.state === "draft" || (reply.current !== null && ["queued", "unknown"].includes(reply.current.state))));
       const resolution = await create(c, "inbox.Disposition", { parent: message, closed: close, reason });
       if (close) await set(c, message, { state: "closed" });
@@ -398,7 +398,7 @@ export async function inboxPage(c, bindings) {
           ] }),
         ] }),
         ...(await queue_route(view, view.actor, mail.queue) ? [details({ context: view, caption: message("Review and permitted transfer", { nl: "Beoordeling en toegestane overdracht" }), children: [
-          list({ context: view, items: mail.mailbox.destinations.filter(destination => destination.active), model: "inbox.Queue", display: "split", renderRow: (destination, destinationView) => [
+          list({ context: view, items: mail.mailbox.destinations.filter(destination => destination.active), display: "split", renderRow: (destination, destinationView) => [
             text({ context: destinationView, values: [destination.name, destination.kind] }),
             form({ context: destinationView, operation: "inbox.review", arguments: { message: mail, queue: destination } }),
           ] }),
@@ -491,7 +491,7 @@ export function exampleFixtures({ self, other }) {
     fixtures: {operator, seller, stranger, administrator, intake, sales_queue, intake_grant, sales_grant, mailbox, evidence, foreign_evidence, incoming, editable_reply, frozen, post_receipt, check_receipt, uncertain, exhausted, judged, waiting, recorded_route},
     examples: [
       {
-        operation: "inbox.received", seed: [exhausted], dependencies: [incoming], inputs: async (c, s) => ({ event: { value: s.incoming.envelope } }),
+        operation: "inbox.received", dependencies: [exhausted, incoming], inputs: async (c, s) => ({ event: { value: s.incoming.envelope } }),
         selectors: ["event.value.source", "exhausted.requests", "mailbox.enabled"], observations: [async c => await count(records(c, "inbox.Message")), async c => await count(records(c, "inbox.Assessment")), async (c, s) => s.exhausted.requests],
         rows: [
           { dependencies: [], values: async () => ["incoming-1", 0n, true], expected: async () => [1n, 0n, 0n] },
@@ -506,7 +506,7 @@ export function exampleFixtures({ self, other }) {
         rows: [{ dependencies: [], values: async () => ["Changed content under the same source"], error: "rule_failed" }],
       },
       {
-        operation: "inbox.assessed", seed: [recorded_route], dependencies: [judged, waiting], inputs: async (c, s) => ({ event: { delivery_id: s.judged.id, status: "succeeded", result: (await delivery(c, { record: s.waiting, field: "request" }, ["result"]))?.result ?? null, error: null } }),
+        operation: "inbox.assessed", dependencies: [recorded_route, judged, waiting], inputs: async (c, s) => ({ event: { delivery_id: s.judged.id, status: "succeeded", result: (await delivery(c, { record: s.waiting, field: "request" }, ["result"]))?.result ?? null, error: null } }),
         selectors: ["incoming.queue", "incoming.review", "incoming.assessment"], observations: [async (c, s) => s.waiting.state, async (c, s) => s.incoming.queue, async (c, s) => s.incoming.review, async (c, s) => s.incoming.assessment, async (c, s) => s.waiting.result?.route?.choice ?? null, async (c, s) => s.waiting.result?.urgency?.score ?? null],
         rows: [
           { dependencies: [sales_queue, recorded_route], values: async (c, s) => [s.sales_queue, s.recorded_route, null], expected: async (c, s) => ["succeeded", s.sales_queue, s.recorded_route, null, "sales", "1"] },
@@ -514,7 +514,7 @@ export function exampleFixtures({ self, other }) {
         ],
       },
       {
-        operation: "inbox.draft_reply", seed: [intake_grant], dependencies: [incoming], inputs: async (c, s) => ({ message: s.incoming, body: "Reviewed answer" }),
+        operation: "inbox.draft_reply", dependencies: [intake_grant, incoming], inputs: async (c, s) => ({ message: s.incoming, body: "Reviewed answer" }),
         selectors: ["as", "attachments"], observations: [async (c, s) => await count(records(c, "inbox.Reply", { parent: s.message }))],
         rows: [
           { dependencies: [operator, evidence], values: async (c, s) => [s.operator, [s.evidence]], expected: async () => [1n] },
@@ -522,7 +522,7 @@ export function exampleFixtures({ self, other }) {
         ],
       },
       {
-        operation: "inbox.sent", seed: [uncertain], dependencies: [post_receipt], inputs: async (c, s) => ({ event: { delivery_id: s.post_receipt.id, status: "unknown", result: null, error: null } }),
+        operation: "inbox.sent", dependencies: [uncertain, post_receipt], inputs: async (c, s) => ({ event: { delivery_id: s.post_receipt.id, status: "unknown", result: null, error: null } }),
         selectors: ["event.status", "event.result", "event.error", "post_receipt.status", "post_receipt.result", "post_receipt.error"], observations: [async (c, s) => s.uncertain.state, async (c, s) => s.uncertain.reference],
         rows: [
           { dependencies: [], values: async () => ["unknown", null, null, "unknown", null, null], expected: async () => ["unknown", null] },
@@ -533,7 +533,7 @@ export function exampleFixtures({ self, other }) {
         ],
       },
       {
-        operation: "inbox.sent", seed: [uncertain], dependencies: [post_receipt], inputs: async (c, s) => ({ event: { delivery_id: s.post_receipt.id, status: "unknown", result: null, error: null } }),
+        operation: "inbox.sent", dependencies: [uncertain, post_receipt], inputs: async (c, s) => ({ event: { delivery_id: s.post_receipt.id, status: "unknown", result: null, error: null } }),
         selectors: ["uncertain.state", "uncertain.reference"], observations: [async (c, s) => s.uncertain.state, async (c, s) => s.uncertain.reference],
         rows: [
           { dependencies: [], values: async () => ["accepted", "accepted-1"], expected: async () => ["accepted", "accepted-1"] },
@@ -541,7 +541,7 @@ export function exampleFixtures({ self, other }) {
         ],
       },
       {
-        operation: "inbox.reconciled", seed: [uncertain, check_receipt], dependencies: [check_receipt], inputs: async (c, s) => ({ event: { delivery_id: s.check_receipt.id, status: "unknown", result: null, error: null } }),
+        operation: "inbox.reconciled", dependencies: [uncertain, check_receipt], inputs: async (c, s) => ({ event: { delivery_id: s.check_receipt.id, status: "unknown", result: null, error: null } }),
         selectors: ["uncertain.reconciliation", "event.status", "event.result", "check_receipt.status", "check_receipt.result"], observations: [async (c, s) => s.uncertain.state, async (c, s) => (await delivery(c, { record: s.uncertain, field: "delivery" }, ["id"]))?.id === s.post_receipt.id],
         rows: [
           { dependencies: [check_receipt], values: async (c, s) => [s.check_receipt, "unknown", null, "unknown", null], expected: async () => ["unknown", true] },
@@ -550,7 +550,7 @@ export function exampleFixtures({ self, other }) {
         ],
       },
       {
-        operation: "inbox.classify", seed: [intake_grant], dependencies: [incoming], inputs: async (c, s) => ({ message: s.incoming }),
+        operation: "inbox.classify", dependencies: [intake_grant, incoming], inputs: async (c, s) => ({ message: s.incoming }),
         selectors: ["as", "mailbox.enabled", "mailbox.classify"], observations: [async (c, s) => await count(records(c, "inbox.Assessment", { parent: s.message })), async (c, s) => s.message.queue],
         rows: [
           { dependencies: [operator], values: async (c, s) => [s.operator, true, true], expected: async (c, s) => [1n, s.intake] },
@@ -561,7 +561,7 @@ export function exampleFixtures({ self, other }) {
         ],
       },
       {
-        operation: "inbox.review", seed: [intake_grant, sales_grant], dependencies: [incoming, sales_queue],
+        operation: "inbox.review", dependencies: [intake_grant, sales_grant, incoming, sales_queue],
         inputs: async (c, s) => ({ message: s.incoming, queue: s.sales_queue, reply_needed: true, urgency: "routine", reason: "Reviewed the request", evidence: [] }),
         selectors: ["as", "sales_queue.active"], observations: [async (c, s) => s.message.queue, async (c, s) => await count(records(c, "inbox.Review", { parent: s.message }))],
         rows: [
@@ -582,7 +582,7 @@ export function exampleFixtures({ self, other }) {
         ],
       },
       {
-        operation: "inbox.draft_reply", seed: [intake_grant], dependencies: [incoming], inputs: async (c, s) => ({ message: s.incoming, body: "Reviewed answer", attachments: [] }),
+        operation: "inbox.draft_reply", dependencies: [intake_grant, incoming], inputs: async (c, s) => ({ message: s.incoming, body: "Reviewed answer", attachments: [] }),
         selectors: ["as", "incoming.envelope.reply_to"], observations: [async (c, s) => await count(records(c, "inbox.Reply", { parent: s.message }))],
         rows: [
           { dependencies: [operator], values: async (c, s) => [s.operator, "buyer@example.test"], expected: async () => [1n] },
@@ -591,7 +591,7 @@ export function exampleFixtures({ self, other }) {
         ],
       },
       {
-        operation: "inbox.submit", seed: [intake_grant], dependencies: [editable_reply], inputs: async (c, s) => ({ reply: s.editable_reply }),
+        operation: "inbox.submit", dependencies: [intake_grant, editable_reply], inputs: async (c, s) => ({ reply: s.editable_reply }),
         selectors: ["as", "mailbox.enabled"], observations: [async (c, s) => s.reply.state, async (c, s) => await count(records(c, "inbox.Attempt", { parent: s.reply })), async (c, s) => s.reply.current?.state ?? null],
         rows: [
           { dependencies: [operator], values: async (c, s) => [s.operator, true], expected: async () => ["submitted", 1n, "queued"] },
@@ -600,7 +600,7 @@ export function exampleFixtures({ self, other }) {
         ],
       },
       {
-        operation: "inbox.reconcile", seed: [intake_grant], dependencies: [uncertain], inputs: async (c, s) => ({ attempt: s.uncertain }),
+        operation: "inbox.reconcile", dependencies: [intake_grant, uncertain], inputs: async (c, s) => ({ attempt: s.uncertain }),
         selectors: ["as", "frozen.current", "mailbox.enabled", "attempt.checks"], observations: [async (c, s) => s.attempt.state, async (c, s) => s.attempt.checks],
         rows: [
           { dependencies: [operator], values: async (c, s) => [s.operator, s.uncertain, false, 0n], expected: async () => ["unknown", 1n] },
@@ -609,7 +609,7 @@ export function exampleFixtures({ self, other }) {
         ],
       },
       {
-        operation: "inbox.resubmit", seed: [intake_grant], dependencies: [uncertain], inputs: async (c, s) => ({ attempt: s.uncertain }),
+        operation: "inbox.resubmit", dependencies: [intake_grant, uncertain], inputs: async (c, s) => ({ attempt: s.uncertain }),
         selectors: ["as", "frozen.current", "attempt.state"], observations: [async (c, s) => await count(records(c, "inbox.Attempt", { parent: s.frozen })), async (c, s) => same(s.frozen.current, s.attempt)],
         rows: [
           { dependencies: [operator], values: async (c, s) => [s.operator, s.uncertain, "not_sent"], expected: async () => [2n, false] },
@@ -618,7 +618,7 @@ export function exampleFixtures({ self, other }) {
         ],
       },
       {
-        operation: "inbox.resolve", seed: [intake_grant, frozen, uncertain], dependencies: [incoming], inputs: async (c, s) => ({ message: s.incoming, close: true, reason: "Reviewed resolution" }),
+        operation: "inbox.resolve", dependencies: [intake_grant, frozen, uncertain, incoming], inputs: async (c, s) => ({ message: s.incoming, close: true, reason: "Reviewed resolution" }),
         selectors: ["as", "frozen.current", "uncertain.state"], observations: [async (c, s) => s.message.state],
         rows: [
           { dependencies: [operator], values: async (c, s) => [s.operator, s.uncertain, "unknown"], error: "rule_failed" },

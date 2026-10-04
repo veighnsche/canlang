@@ -1,0 +1,27 @@
+{
+  "state": {
+    "scope": "Publicly grounded hypothetical language/product tradeoff, with no private implementation, organization identity, source document or account information. It does not concern dependency graphs.",
+    "facts": "The official Vectorize API returns asynchronous mutation identifiers for vector changes; lookup limits and namespace/metadata predicates are documented. Official AI Search material describes retrieval filters built from indexed metadata and scheduled synchronization of external files. These mechanisms do not replace the current record authorization of a host application. References: https://developers.cloudflare.com/ai-search/configuration/indexing/syncing/ https://developers.cloudflare.com/ai-search/configuration/retrieval/filtering/ https://developers.cloudflare.com/vectorize/reference/metadata-filtering/ https://developers.cloudflare.com/vectorize/reference/client-api/",
+    "case": "Imagine a small statically typed workflow system with records, pure predicates, access rules, immutable attachments, durable typed effects, observable jobs and reusable presentation. Its knowledge app publishes separately approved manual revisions by topic. Business authors decide audience, spend limits, review and human handoff. Regardless of syntax, retrieval must index versioned content, enforce live authorization on candidates and every supplied context source, link evidence precisely, and stop old answer copies from leaking withdrawn versions or lost permissions. The choice is where to declare this reusable boundary. A specialized source-model declaration can infer the linkage but adds language/tooling work and narrows permitted source shapes. Ordinary capabilities can accommodate unusual connectors yet repeat source/revision/authorization mappings. Compatibility with deployed programs is not a constraint.",
+    "retention": "Not every model input necessarily appears among its citations. Between asking and rereading, a publication or grant may change. One policy invalidates a saved response whenever the reader-visible published set changes. Another checks all input-source dependencies for withdrawal/supersession/access loss and shows a dated scope checkpoint when other publications change. Both suppress answers influenced by a revoked/superseded input; vector ACL metadata cannot decide either policy."
+  },
+  "questions": {
+    "surface": {
+      "type": "choice",
+      "instructions": "Choose the most suitable declaration arrangement for this bounded revision-based assistant, weighing typing, author effort, live access checks and implementation burden equally.",
+      "criteria": {
+        "corpus": "Introduce a small model-linked corpus declaration for scope, source fields and eligibility; generate shared retrieval/index operations and protected grounded values from it, inheriting source read policy at the cost of dedicated tooling.",
+        "services": "Keep grammar unchanged and use ordinary capabilities with common adapters; every consumer supplies version/content associations, genuine-user source reads and a guarded answer view, gaining connector flexibility through explicit wiring.",
+        "app_owned": "Retain indexing/chunk queues, copied permission metadata, candidate filtering and answer provenance in the individual application for maximum control, accepting repeated state and synchronization responsibility."
+      }
+    },
+    "freshness": {
+      "type": "choice",
+      "instructions": "Absent any need to preserve historical answers, which policy should a first release use when the reader-visible procedure catalog changes but all previously used inputs are still valid?",
+      "criteria": {
+        "scope_fence": "Treat any visible publication-set change as a refresh boundary and stop displaying the old answer and citations; retain only safe execution/accounting and require an explicit new budgeted run. This can invalidate useful unchanged guidance.",
+        "used_context": "Continue showing the earlier response with its source-scope timestamp while checking all original model inputs on every read. It avoids avoidable requests but may omit newly published guidance."
+      }
+    }
+  }
+}

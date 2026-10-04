@@ -1,0 +1,27 @@
+{
+  "state": {
+    "scope": "An abstract design decision with verified vendor documentation only; excludes company code, private architecture, actual mail/documents, identities and secrets. This is a new retrieval-design question, not an optional-service composition request.",
+    "facts": "Vectorize supports candidate queries restricted by namespaces and metadata, but indexed updates and removals complete asynchronously rather than at request acknowledgment. AI Search supports indexed-attribute filtering and later synchronization for external sources. The published APIs therefore provide search/index mechanisms, not a guarantee about an application reader permission at the moment of display. Documentation: https://developers.cloudflare.com/vectorize/reference/client-api/ https://developers.cloudflare.com/ai-search/configuration/indexing/syncing/ https://developers.cloudflare.com/vectorize/reference/metadata-filtering/ https://developers.cloudflare.com/ai-search/configuration/retrieval/filtering/",
+    "case": "Consider an employee procedure-answer app written in a declarative typed language. Existing constructs include data models, immutable revisions/files, row access policy, pure expressions, typed durable requests with progress and standard views. Approval, publication, permitted readers, resource allocations and unresolved-question ownership remain business code. Shared retrieval must cover extraction/index state, bounded current authorized search, provenance for every context item, exact source links and later withdrawal of dependent generated output. Each competing declaration must implement these same obligations. New syntax is allowed but incurs tooling/semantics cost and limits the declared source to a local model; service-only composition is more flexible but requires explicit repeated mappings and authorized callbacks.",
+    "retention": "A generated statement can be influenced by a retrieved item even if it omits that citation. On later reads, every used input must still be current and permitted. Beyond that mandatory fence, the product may either suppress content whenever the visible publication universe changes, or preserve still-authorized answers with their past scope date when only unrelated/new sources change. Both approaches forbid showing output influenced by superseded or revoked input, and neither can delegate permission truth to the index."
+  },
+  "questions": {
+    "surface": {
+      "type": "choice",
+      "instructions": "What is the best initial language/library division for this specified authorized knowledge workflow, considering equal functional requirements and both authoring and runtime cost?",
+      "criteria": {
+        "corpus": "Declare the indexed local model, scope path, source fields and current-publication predicate once as a focused corpus feature; derive typed operations and non-copyable proof-bound answer display, with added parser/checker work and constrained source forms.",
+        "services": "Use the language existing service and model forms with a shared retrieval library, leaving explicit per-app source identity/authorization callback mappings and protected-result presentation; avoid a new keyword while accepting recurring configuration.",
+        "app_owned": "Write each application chunk storage, index scheduling, ACL replicas and result/citation lifecycle in full, making specialized behavior easy to alter while expanding the replicated correctness surface."
+      }
+    },
+    "freshness": {
+      "type": "choice",
+      "instructions": "Which default better serves a current company-procedures tool without historical-answer obligations, beyond the mandatory revocation/supersession check on every model-context source?",
+      "criteria": {
+        "scope_fence": "Any difference in the currently readable publication set suppresses saved answer content and citations. Users can request a fresh bounded answer; safe progress and costs remain visible. This is simpler to interpret but can cause frequent regeneration.",
+        "used_context": "Keep answers whose complete used-source set remains authorized/current, and label the earlier scope checkpoint when the broader published set changes. This saves work but can leave the response outdated by new or unrelated publications."
+      }
+    }
+  }
+}

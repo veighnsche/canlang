@@ -124,7 +124,7 @@ settings,settled,eligible,
  "Opportunity.needs_identity_review":async(c,row)=>row.identity_conflict||(row.duplicate_of===null&&await any(records(c,'discover.Opportunity',{parent:row.parent}),other=>!same(other,row)&&other.canonical_url===row.canonical_url&&!same(other.duplicate_of,row)))
  },discoverPage
 };}
-export async function discoverPage(c,b){return renderPage(c,descriptor,[tabs({context:c,children:[
+export async function discoverPage(c,b){return renderPage(c,descriptor,()=>[tabs({context:c,children:[
  tab({context:c,caption:message('Plans',{nl:'Plannen'}),children:[form({context:c,operation:'discover.Plan.create'}),table({context:c,model:'discover.Plan',columns:['name','location','active','revision'],renderRow:(row,view)=>[
   actions({context:view,operations:['discover.start','discover.pause','discover.resume','discover.take_over'],boundArgs:{plan:row}}),form({context:view,operation:'discover.configure',arguments:{plan:row}}),
   table({context:view,model:'discover.Run',parent:row,columns:['started','complete','stopped','document_slots','analysis_slots'],renderRow:(run,rv)=>[actions({context:rv,operations:['discover.stop'],boundArgs:{run}}),table({context:rv,model:'discover.SourcePass',parent:run,columns:['source','state','requests','detail'],renderRow:(pass,pv)=>[actions({context:pv,operations:['discover.retry'],boundArgs:{pass}}),table({context:pv,model:'discover.PageAttempt',parent:pass,columns:['cursor','take','applied','late','traversal','detail','request']})]})]})]})]}),
@@ -739,7 +739,7 @@ export const appDefinition = {
               "max": 20n
             }
           },
-          "result": "discover.SourcePage"
+          "result": {type:"discover.SourcePage"}
         }
       }
     },
@@ -761,7 +761,7 @@ export const appDefinition = {
               "max": 4000n
             }
           },
-          "result": "discover.Claims"
+          "result": {type:"discover.Claims"}
         }
       }
     }
@@ -774,7 +774,7 @@ export const appDefinition = {
           "type": "discover.Plan"
         }
       },
-      "result": "discover.Settings"
+      "result": {type:"discover.Settings"}
     },
     "discover.settled": {
       "handler": "settled",
@@ -783,7 +783,7 @@ export const appDefinition = {
           "type": "discover.Run"
         }
       },
-      "result": "bool"
+      "result": {type:"bool"}
     },
     "discover.eligible": {
       "handler": "eligible",
@@ -792,7 +792,7 @@ export const appDefinition = {
           "type": "discover.Run"
         }
       },
-      "result": "bool"
+      "result": {type:"bool"}
     }
   },
   "operations": {
@@ -801,7 +801,6 @@ export const appDefinition = {
       "kind": "create",
       "model": "discover.Plan",
       "by": "discover.researcher",
-      "read": false,
       "inputs": {
         "fields": ["name", "location", "ted_query", "grants_query", "criteria"]
       },
@@ -812,7 +811,6 @@ export const appDefinition = {
       "kind": "update",
       "model": "discover.Plan",
       "by": "discover.researcher",
-      "read": false,
       "inputs": {
         "record": {
           "type": "discover.Plan"
@@ -832,13 +830,12 @@ export const appDefinition = {
         "nl": "Start een vastgelegde onderzoeksronde met een duurzame voortzetting per bron."
       }),
       "by": "discover.researcher",
-      "read": false,
       "inputs": {
         "plan": {
           "type": "discover.Plan"
         }
       },
-      "result": "discover.Run"
+      "result": {type:"discover.Run"}
     },
     "discover.configure": {
       "handler": "configure",
@@ -846,7 +843,6 @@ export const appDefinition = {
         "nl": "Vervang toekomstige instellingen; bestaande rondes behouden hun bewijs en reserveringen."
       }),
       "by": "discover.researcher",
-      "read": false,
       "inputs": {
         "plan": {
           "type": "discover.Plan"
@@ -886,7 +882,6 @@ export const appDefinition = {
         "nl": "Pauzeer herhaling zonder te beweren dat lopend providerwerk is gestopt of terugbetaald."
       }),
       "by": "discover.researcher",
-      "read": false,
       "inputs": {
         "plan": {
           "type": "discover.Plan"
@@ -899,7 +894,6 @@ export const appDefinition = {
         "nl": "Neem verantwoordelijkheid voor toekomstige rondes binnen je actuele werkbevoegdheid."
       }),
       "by": "discover.researcher",
-      "read": false,
       "inputs": {
         "plan": {
           "type": "discover.Plan"
@@ -912,7 +906,6 @@ export const appDefinition = {
         "nl": "Hervat toekomstige rondes na controle van de verantwoordelijke onderzoeker."
       }),
       "by": "discover.researcher",
-      "read": false,
       "inputs": {
         "plan": {
           "type": "discover.Plan"
@@ -925,7 +918,6 @@ export const appDefinition = {
         "nl": "Reserveer expliciet een nieuwe leespoging; eerdere onzekere pogingen behouden hun kostenreservering."
       }),
       "by": "discover.researcher",
-      "read": false,
       "inputs": {
         "pass": {
           "type": "discover.SourcePass"
@@ -938,7 +930,6 @@ export const appDefinition = {
         "nl": "Stop nieuw werk en sluit latere resultaten uit zonder providerannulering te claimen."
       }),
       "by": "discover.researcher",
-      "read": false,
       "inputs": {
         "run": {
           "type": "discover.Run"
@@ -951,7 +942,6 @@ export const appDefinition = {
         "nl": "Extraheer alleen uit bewaard bewijs; een score is advies en nooit een beoordeling of promotie."
       }),
       "by": "discover.researcher",
-      "read": false,
       "inputs": {
         "evidence": {
           "type": "discover.Evidence"
@@ -964,7 +954,6 @@ export const appDefinition = {
         "nl": "Leg gecorrigeerde claims en geciteerd bewijs vast vóór een zakelijke overdracht."
       }),
       "by": "discover.reviewer",
-      "read": false,
       "inputs": {
         "evidence": {
           "type": "discover.Evidence"
@@ -991,7 +980,7 @@ export const appDefinition = {
           "array": true
         }
       },
-      "result": "discover.Review"
+      "result": {type:"discover.Review"}
     },
     "discover.duplicate": {
       "handler": "duplicate",
@@ -999,7 +988,6 @@ export const appDefinition = {
         "nl": "Bewaar beide bronidentiteiten wanneer een beoordelaar een dubbel conflict oplost."
       }),
       "by": "discover.reviewer",
-      "read": false,
       "inputs": {
         "opportunity": {
           "type": "discover.Opportunity"
@@ -1018,7 +1006,6 @@ export const appDefinition = {
         "nl": "Behoud de gekozen bewaarde revisie na een gedocumenteerde identiteitscontrole."
       }),
       "by": "discover.reviewer",
-      "read": false,
       "inputs": {
         "opportunity": {
           "type": "discover.Opportunity"
@@ -1034,7 +1021,6 @@ export const appDefinition = {
         "nl": "Promoveer één beoordeelde revisie via de canonieke verkoopeigenaar; onderzoek overschrijft nooit een verkoopkans."
       }),
       "by": "discover.reviewer",
-      "read": false,
       "inputs": {
         "review": {
           "type": "discover.Review"
@@ -1049,7 +1035,7 @@ export const appDefinition = {
           "type": "money"
         }
       },
-      "result": "crm.Deal"
+      "result": {type:"crm.Deal"}
     }
   },
   "handlers": {

@@ -1,0 +1,113 @@
+{
+  "scope": "Nine complex app draft triplets. Syntax, static correspondence and focused independent review only; no executable BDD, providers, renderer or security/performance proof.",
+  "checked_at": "2026-10-04T15:08:10.262330+00:00",
+  "apps": [
+    {
+      "app": "CanChat",
+      "javascript_syntax": "pass",
+      "independent_draft_review": "repairs applied",
+      "sha256": {
+        "draft/CanChat.can": "a032d21184e3bc029dbf0b201a7efdf537948daccb7e722c3a71278fdfb9b6f0",
+        "draft/CanChat.mjs": "1878f2075fb5baf74f26768fe47de7cbedb19ca4d2097b0b8a9c11f41e657d43",
+        "draft/CanChat.md": "db69ae2333c25f53062ec914c645e8e06944a33b49d1b41e2f55f0987a422a2b"
+      }
+    },
+    {
+      "app": "CanCreative",
+      "javascript_syntax": "pass",
+      "independent_draft_review": "repairs applied",
+      "sha256": {
+        "draft/CanCreative.can": "244eec8cb37356b59c9a8155aa8013bb17b73c623b534c97472afc45f4c3aa1c",
+        "draft/CanCreative.mjs": "5c62bb447f2fac3d14e8093d1046c18d144cb38f7ea7c6db7b91d212219202ce",
+        "draft/CanCreative.md": "72e5577b948eff9767234baa62a12702e3ea68dafe14017b065c70062e56aaf4"
+      }
+    },
+    {
+      "app": "CanGallery",
+      "javascript_syntax": "pass",
+      "independent_draft_review": "repairs applied",
+      "sha256": {
+        "draft/CanGallery.can": "65fd6018af4343b4675c2bcf9abeff4a8fff94962cd7881a8307e1c2a1f44bb3",
+        "draft/CanGallery.mjs": "5e5259f67d538c6ecd7bb4261d2929d4b48c843795a177a60f48ad66a0a01a9c",
+        "draft/CanGallery.md": "f83983fc5ae1e5f77a23dc9b225e13aa90ca73187586702e22b28298921137f7"
+      }
+    },
+    {
+      "app": "CanInbox",
+      "javascript_syntax": "pass",
+      "independent_draft_review": "repairs applied",
+      "sha256": {
+        "draft/CanInbox.can": "619263ee8fb98252c55d64b2cf8ec29d5284e6c8a146d494cd2fefd6581143a8",
+        "draft/CanInbox.mjs": "42877b46554cad07e11b179951e02e750b4f436ffd641c7935a88a43b2ca6d2a",
+        "draft/CanInbox.md": "f949008a7db16fbbd957132caa2824eb1d86140d4537d3f3a97c469251a94e00"
+      }
+    },
+    {
+      "app": "CanDiscover",
+      "javascript_syntax": "pass",
+      "independent_draft_review": "repairs applied",
+      "sha256": {
+        "draft/CanDiscover.can": "48397249dad315a2bed05e4e388d21b1ca08f7639b4e022d3d16c07785ddc793",
+        "draft/CanDiscover.mjs": "6f69edef1bb3e92881fcd0aad950e38fb892f4c2da2774ba6c52d11889601fc1",
+        "draft/CanDiscover.md": "195e752bbbd71687f3d7290bde2449ab319716dd372412f0ae1df222e77664c7"
+      }
+    },
+    {
+      "app": "CanKnowledge",
+      "javascript_syntax": "pass",
+      "independent_draft_review": "repairs applied",
+      "sha256": {
+        "draft/CanKnowledge.can": "e02973dda3a51412fa846636734e9a07118919f20de20e7c765c28b1aed62eac",
+        "draft/CanKnowledge.mjs": "b8681b443ca70768bd3f49191380fbf5e6b9d82c25eef80b575d6847985176f5",
+        "draft/CanKnowledge.md": "95d39031b62fdb810248e75410fafdce2c12102bc6bededb7121508b0eac7649"
+      }
+    },
+    {
+      "app": "CanSync",
+      "javascript_syntax": "pass",
+      "independent_draft_review": "repairs applied",
+      "sha256": {
+        "draft/CanSync.can": "751d971a27e90f3a1c886902f2ee293fef20a9a17f70980292ad6c7b6c626df0",
+        "draft/CanSync.mjs": "6c67b015cfd14bf8268f34523025e8dc2052490d846fc1c93f9207b47be74645",
+        "draft/CanSync.md": "a5fcb9651bc0aa082d9cae9cc45a42e4068b978ae0a3352b9fc623e44e13b959"
+      }
+    },
+    {
+      "app": "CanEnrich",
+      "javascript_syntax": "pass",
+      "independent_draft_review": "repairs applied",
+      "sha256": {
+        "draft/CanEnrich.can": "c06106fd11c787808249270aa88b71d9fd6af6b914c77b19fac9c92a86961176",
+        "draft/CanEnrich.mjs": "0a81a1cfdac1851c198d133958e1fb8358f1e0c17b4a90c368243a2665b183bc",
+        "draft/CanEnrich.md": "afcb11af6dd8e76e230d297b3e4db147d37ee452a631b43ffafc04664faad871"
+      }
+    },
+    {
+      "app": "CanWorkbench",
+      "javascript_syntax": "pass",
+      "independent_draft_review": "repairs applied",
+      "sha256": {
+        "draft/CanWorkbench.can": "0593e9e0c628f68aaec48a8acda1794de19f9a0a31433707a06720817f041281",
+        "draft/CanWorkbench.mjs": "fb5ec8dce270768fb5e984e7e5f0d49e00d1629ed0bed98de626eb18c9767401",
+        "draft/CanWorkbench.md": "055c84788766058d4d17678a0779de1dcbbd541141bde6cfb584c09dffef8220"
+      }
+    }
+  ],
+  "unimplemented_forms": [
+    "associated delivery/invocation types",
+    "judgment and corpus declarations/generated types",
+    "shared-state examples",
+    "page polling and gallery syntax"
+  ],
+  "correspondence_repairs": [
+    "canonical field-shaped results",
+    "lazy page body builders",
+    "edit.operation",
+    "nested fixtures/examples factory",
+    "source seeds folded into table dependencies",
+    "query order key+direction",
+    "canonical Unicode trim",
+    "receipt default presentation remains status only",
+    "matching callable invariants and handlers"
+  ]
+}

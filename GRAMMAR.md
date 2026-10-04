@@ -44,7 +44,7 @@ After leading spaces, `##` is recognized before `#`. The rest of a `##` physical
 
 The next nonblank/non-`##` source item must be an eligible declaration starting at the same physical column. Its `export` modifier, if present, starts at that column. An ineligible item, a different column, a description at another column or end of source before attachment is an error. A pending description does not skip guards or effects to find a later declaration.
 
-Eligible items are apps, contexts, packages, imports, stored models, schema fields/signature parameters, contracts, events, roles, derived fields/functions, capabilities and their operation signatures, named messages, policies, invariants, unique constraints, locks, lifetimes, fixtures, CRUD declarations, scenarios, all presentation declarations except `require`, context resources/settings and migration declarations/directives. Presentation metadata can describe content, grouping, navigation and operation controls in their view context. Section markers `Given`, `When`, `Then`, execution introducers `do`, guards/effects, `if`, `else`, execution `for`, examples headers/rows and presentation `require` are ineligible. Required descriptions and whether an attached description is sufficiently informative are semantic checks.
+Eligible items are apps, contexts, packages, imports, stored models, schema fields/signature parameters, contracts, events, roles, derived fields/functions, capabilities and their operation signatures, judgments, corpora, named messages, policies, invariants, unique constraints, locks, lifetimes, fixtures, CRUD declarations, scenarios, all presentation declarations except `require`, context resources/settings and migration declarations/directives. Presentation metadata can describe content, grouping, navigation and operation controls in their view context. Section markers `Given`, `When`, `Then`, execution introducers `do`, guards/effects, `if`, `else`, execution `for`, examples headers/rows and presentation `require` are ineligible. Required descriptions and whether an attached description is sufficiently informative are semantic checks.
 
 For a multiline schema, field descriptions use the field's actual column:
 
@@ -90,6 +90,8 @@ Header attributes have the following closed sets. Fixed syntax before the attrib
 | lock | `lock path` | `fields=selectors` **required**, `when=expr` |
 | retain | `retain path` | `until=expr` **required** |
 | capability | `capability NAME` | `version=expr` **required**; an integer interface version is required semantically |
+| corpus | `corpus NAME` | `model=path`, `scope=path`, `title=path`, `content=selectors`, `where=expr`, `from=path`, all **required**; owned model, singular scope and immutable bounded content checked semantically |
+| judgment | `judgment NAME` | `version=expr` **required**; an integer declaration version is required semantically |
 | CRUD | `crud path` | `by=expr` **required**, `fields=selectors` **required**, `create_fields=selectors`, `expose=selectors` (enabled CRUD names or sole `none`), `when=expr`, `create=NAME`, `update=NAME`, `delete=NAME`; supported explicit modes are create/update `none` and delete `none`/`remove`; `label=crud_labels` is a closed enabled-operation caption map |
 | user scenario | `scenario NAME parameters` | `by=expr` **required**, `read=true`, `scope=authority`, one `-> type` result annotation, `label=caption` |
 | trusted scenario | `scenario NAME` | `on=source` **required**; no parameters, `by`, `read`, `scope` or result annotation |
@@ -104,6 +106,7 @@ Header attributes have the following closed sets. Fixed syntax before the attrib
 | tabs | `tabs [expr]` | none; leaf requires an enum preference selector, otherwise tab suites required |
 | tab | `tab expr` | none; nonempty suite, directly inside tabs only |
 | list | `list expr` | `columns=selectors`, `order=ui_order`, `search=selectors`, `filter=selectors`, `empty=expr`, `defaults=values`, `display=NAME`; split is the sole display exception |
+| gallery | `gallery expr` | `image=selector` **required**; `columns=selectors`, `order=ui_order`, `search=selectors`, `filter=selectors`, `empty=expr`, `defaults=values`; image resolves to one readable image file field |
 | table | `table expr` | `columns=selectors` **required**, `order=ui_order`, `search=selectors`, `filter=selectors`, `empty=expr`, `defaults=values`, `display=NAME`; split is the sole display exception |
 | board | `board expr` | `by=selectors` **required**, `columns=selectors`, `order=ui_order`, `search=selectors`, `filter=selectors`, `empty=expr`, `defaults=values`; by must resolve to one enum field |
 | calendar agenda | `calendar expr` | `start=selectors` **required**, `end=selectors` **required**, `columns=selectors`, `order=ui_order`, `search=selectors`, `filter=selectors`, `empty=expr`, `defaults=values`; each endpoint must resolve to one field |
@@ -158,7 +161,7 @@ The presence of `uses=` selects the composed-app production; its absence selects
 
 `context` immediately follows the app it configures, ignoring blank/comment lines. Its suite is nonempty and contains only the context declarations in the table. Composition apps have no package body; their single-use descriptions are inline, and imports after their optional context must resolve to local message-only groups for actual static-description reuse. App/package source overrides belong to their own logical owner, including their attached descriptions; composing/importing does not retag another owner. Source language and context default locale have different roles. The parser does not resolve that restriction or grant visibility from `uses`. An implicit app requires the whole ordered section triple and ends at the next top-level app, package or migration, or EOF. A migration cannot terminate an incomplete triple. A package has only one triple. Imports precede `Given`; neither imports nor arbitrary top-level expressions occur within the sections. An empty import group is syntactically invalid. An empty `uses` group is a semantic error rather than an inferred dependency selection. Provider paths and bound `from` paths are parsed uniformly; checking must establish the canonical owning package and the supported deployment-binding form. A path is not permission to introduce a nested package namespace.
 
-`export` is optional on stored models, contracts, events, roles, derived functions, capabilities, fixtures, user scenarios and named messages. It prefixes the declaration at its existing indentation. It is unavailable on imports, apps, packages, contexts, preferences, derived fields, trusted scenarios, CRUD, policies/rules, presentation, migrations or effects. Exported declaration visibility and whether a scenario is a legitimate user operation are checked after parsing.
+`export` is optional on stored models, contracts, events, roles, derived functions, capabilities, judgments, fixtures, user scenarios and named messages. It prefixes the declaration at its existing indentation. It is unavailable on imports, apps, packages, contexts, preferences, derived fields, trusted scenarios, CRUD, policies/rules, presentation, migrations or effects. Exported declaration visibility and whether a scenario is a legitimate user operation are checked after parsing.
 
 Page title/group/attached-description metadata is static: any message arguments must be context-free constants. Page `require` expressions retain their existing pure-expression syntax, including legitimate data dependencies; no new navigation declaration or guard syntax is introduced. DESIGN §9 defines derived page admission versus local container gates, dependency-limited discovery, current eligibility and ordering. Descriptor generation/admission is semantic compiler/runtime work, not parser behavior.
 
@@ -166,10 +169,11 @@ Page title/group/attached-description metadata is static: any message arguments 
 
 ```ebnf
 type             = type_base ["[" "]"] ["?"] ;
-type_base        = path {"|" path} | enum_type | action_type | delivery_type ;
+type_base        = path {"|" path} | enum_type | action_type | delivery_type | invocation_type ;
 enum_type        = "enum" "(" separated(NAME) [","] ")" ;
 action_type      = "action" "(" separated(path) [","] ")" ;
 delivery_type    = "delivery" "(" path ")" ;
+invocation_type  = "invocation" "(" separated(path) [","] ")" ;
 field_type       = type ["!"] ;
 schema           = "{" bracketed(field) "}" ;
 field            = NAME ":" field_type [initializer] {field_modifier} [field_label_attribute] ;
@@ -179,9 +183,11 @@ parameters       = "(" bracketed(parameter) ")" ;
 parameter        = NAME ":" type ["=" expr] [field_label_attribute] ;
 ```
 
-`enum(...)`, `action(...)` and `delivery(...)` are recognized by their exact call-shaped type production. A bare type path component named `enum`, `action` or `delivery` is not globally banned. Their atom forms are not union arms. Union `|` combines all named paths before array/container suffixes: `A|B[]?` means a nullable array of union values. There are no grouped types, repeated array suffixes or nullable-element spelling `T?[]`. A scalar may have `?` without an array. Enumerator/allowed-action lists are syntactically nonempty, and enum entries are unqualified names. Checking requires distinct values and valid canonical action targets. Union arms must resolve to the supported tagged named value types; primitive unions are not authorized by their syntactic path shape.
+`enum(...)`, `action(...)`, `delivery(...)` and `invocation(...)` are recognized by their exact call-shaped type production. A bare type path component named `enum`, `action`, `delivery` or `invocation` is not globally banned. Their atom forms are not union arms. Union `|` combines all named paths before array/container suffixes: `A|B[]?` means a nullable array of union values. There are no grouped types, repeated array suffixes or nullable-element spelling `T?[]`. A scalar may have `?` without an array. Enumerator/allowed-action lists are syntactically nonempty, and enum entries are unqualified names. Checking requires distinct values and valid canonical action targets. Union arms must resolve to the supported tagged named value types; primitive unions are not authorized by their syntactic path shape.
 
 `delivery(path)` resolves exactly one bound capability operation or bound exported user operation, not a model or arbitrary string. Normal nullable/array suffix rules apply. Its read-only members, send result and protected association follow DESIGN §8.1; no production constructor is added. The current prototype does not recognize this type form.
+
+`invocation(paths)` resolves a nonempty distinct closed set of local enabled user mutation targets. It is a complete normalized call value, unlike `action`'s record-bound form requiring remaining input. Its ordinary expression constructor is `invocation(Target,{arguments})`; `call value {}` uses the existing call production and supplies no replacement arguments. Current authority, frozen record versions, provider-result reference provenance and preview rules follow DESIGN §2.2. Neither the constructor nor a model-generated value grants permission. The current syntax prototype does not support this type form.
 
 The trailing field `!` is creation metadata, not a value-type operator. `text!`, `text?!`, `text[]?!` and repeated `!` are invalid; an explicitly written nonnullable array can use `text[]!`. A qualified field path whose representation is unresolved can be parsed with `!`, as in `items:Contract.rows!`; later checking must prove that the reused field is a nonnullable array. A required-array-input field cannot also have a default or server initializer. A syntax-only parser must not claim it knows an unresolved path's representation.
 
@@ -254,8 +260,8 @@ A query alias scopes over its following clauses, not backward into its domain an
 ## Given declarations
 
 ```ebnf
-given_items    = {line(given_leaf {";" given_leaf}) | ["export"] capability} ;
-given_leaf     = preferences | ["export"] (model | contract | event | role | pure_function | fixture | message)
+given_items    = {line(given_leaf {";" given_leaf}) | ["export"] (capability | judgment)} ;
+given_leaf     = corpus | preferences | ["export"] (model | contract | event | role | pure_function | fixture | message)
                | ordinary_given ;
 ordinary_given = derive_field | policy | invariant | unique | lock | retain ;
 preferences    = "preferences" schema attributes ;
@@ -271,12 +277,19 @@ unique         = "unique" path attributes ;
 lock           = "lock" path attributes ;
 retain         = "retain" path attributes ;
 fixture        = "fixture" NAME "=" (path values | "file" values | "user" values) ;
+corpus         = "corpus" NAME attributes ;
 capability     = "capability" NAME attributes suite(capability_items) ;
 capability_items = leaf_lines(capability_leaf) ;
 capability_leaf = NAME parameters "->" type | event ;
+judgment       = "judgment" NAME attributes suite(judgment_items) ;
+judgment_items = leaf_lines(judgment_leaf) ;
+judgment_leaf  = NAME "noul" caption ["yes" "=" caption "no" "=" caption]
+               | NAME "choice" caption "{" separated(judgment_option) [","] "}"
+               | NAME "score" caption "[" separated(judgment_option) [","] "]" ;
+judgment_option = NAME "=" caption ;
 ```
 
-Here and below, `attributes` expands only the row for that header in the closed table; it is not a generic NAME/value bag. `given_items` consists of leaf lines and capability compounds. `capability_items` is a nonempty sequence of capability items. A field derive target must resolve to `Model.field`; syntactically its path need not be classified by length. A pure function is distinguished by its parameter parentheses. `invariant path: expr` is the sole Given invariant spelling; the former `require path: expr` is invalid. Its target path, colon, expression and `row` scope are unchanged. Execution/mapper guards and presentation gates retain `require`. Both words remain contextual names in name slots. `in team`, a role scope attribute, and arbitrary resource declarations in Given are invalid. `in app` is the explicit app scope; a model path denotes explicit containment. `at` and containment compatibility are semantic.
+Here and below, `attributes` expands only the row for that header in the closed table; it is not a generic NAME/value bag. `given_items` consists of leaf lines, capability compounds and judgment compounds. `judgment_items` is nonempty. NOUL has either both named criteria in the shown order or neither; choice options and ordered score levels are nonempty and uniquely named. Captions are static literal/message values; result shapes, generated type paths, bounds and binding behavior are specified in DESIGN §8.2. Judgment items cannot be mixed with Given declarations or effects. `capability_items` is a nonempty sequence of capability items. A field derive target must resolve to `Model.field`; syntactically its path need not be classified by length. A pure function is distinguished by its parameter parentheses. `invariant path: expr` is the sole Given invariant spelling; the former `require path: expr` is invalid. Its target path, colon, expression and `row` scope are unchanged. Execution/mapper guards and presentation gates retain `require`. Both words remain contextual names in name slots. `in team`, a role scope attribute, and arbitrary resource declarations in Given are invalid. `in app` is the explicit app scope; a model path denotes explicit containment. `at` and containment compatibility are semantic.
 
 User-fixture recipes reuse the existing path/value-object syntax: `fixture NAME=user {roles=[ROLE,...]}` or `fixture NAME=user {}`. Only a static, duplicate-free list of `owner` and visible declared roles is valid; no other fields or dynamic values are accepted. Identity, active same-team membership, grants, dependency loading and caller selection follow DESIGN §5.1 and require semantic validation. File-fixture recipes reuse the value-object syntax. Their parsed fields must later validate as only `type=STRING` and `owner=(self|other|outsider|user_fixture)`; unknown recipe fields and inappropriate shorthand/value shapes are semantic errors. Duplicate object fields are syntactically invalid for every object. An empty recipe is valid. An operation-resolved fixture path provisions a typed delivery recipe with required complete `request={...}` and optional status/result/error; DESIGN §8.1 defines protected runtime identity, result consistency, same-owner association and finalized-file provenance. Resolution distinguishes this test-only operation recipe from ordinary model recipes. Other fixture objects use named/shorthand input fields and require ordinary model/constraint/fixture resolution. There is no production file constructor. Test-only fixture identities are not production globals.
 
@@ -308,6 +321,8 @@ Scalar `label=` slots parse only a literal source STRING with optional descripto
 `source=STRING` belongs to app/package headers, defaulting to `"en"` per logical owner. Its validation and annotation of owned assets/attached prose are semantic; imported or composed owners retain their own source language. `locale` is a normal type-path name whose canonical BCP 47 value rules come from DESIGN §9.1. Its context declaration uses `default=STRING` above and controls deployment fallback/viewer selection only.
 
 Text caption/submit/empty/diagnostic slots parse expressions; checking accepts literal text or message values and rejects other results. No configuration-wide localization is implied. Message references and calls reuse expression grammar. Anonymous descriptor calls require a nonempty list of explicit named arguments, with types resolved from their expressions and every placeholder across variants explicitly bound; there is no implicit capture. Named messages use their declared typed signatures. The initial parser does not parse ICU internals, resolve pure message import closure, execute fallback/formatting, or certify translations.
+
+`corpus NAME` is an unexported Given leaf with the required attributes above; its generated interface/result members are ordinary qualified paths. It derives model-bound indexing, protected grounded answers and observable progress under DESIGN §8.3. No arbitrary extraction expression, query-language string or separate fixture constructor is introduced.
 
 ## When declarations and execution
 
@@ -348,7 +363,7 @@ There is exactly one `do` per scenario. `let` before `do` is invalid. Leading gu
 
 User scenarios require parameter parentheses even when empty and a `by` expression. Trusted scenarios have no authored parameters and use `on=source`; `by` and `on` cannot coexist. Capability/CRUD sources and `.completed` suffixes are parsed as paths, then validated against the finite source registry. Read return requirements, permissible read effects, synchronous call cycles, remote/local targets and all authority rules remain semantic work.
 
-Leaf declarations in Given/context, import lines, named messages, leaf presentation items and migration directives can also use a `leaf {";" leaf}` logical line within their own enclosing category. Every member must be valid in that category and consume its entire syntax. A compound declaration/header or any item receiving a child suite must occupy its logical line alone. Empty entries, a trailing semicolon and mixed declaration/effect categories are errors. Section markers, apps, contexts, packages, scenarios, pages, capability headers, conditional/loop headers, examples and backfill headers are not semicolon leaves. A CRUD with attached examples is compound; a CRUD without them is a leaf.
+Leaf declarations in Given/context, import lines, named messages, leaf presentation items and migration directives can also use a `leaf {";" leaf}` logical line within their own enclosing category. Every member must be valid in that category and consume its entire syntax. A compound declaration/header or any item receiving a child suite must occupy its logical line alone. Empty entries, a trailing semicolon and mixed declaration/effect categories are errors. Section markers, apps, contexts, packages, scenarios, pages, capability/judgment headers, conditional/loop headers, examples and backfill headers are not semicolon leaves. A CRUD with attached examples is compound; a CRUD without them is a leaf.
 
 ## Inline behavior examples
 
@@ -400,7 +415,7 @@ tabs_group     = "tabs" [expr] suite(tab_items) ;
 tab_items      = {"tab" expr suite(ui_body)} ;
 collection     = collection_header suite(ui_body) ;
 collection_header = collection_head expr attributes ;
-collection_head = "list" | "table" | "board" | "calendar" ;
+collection_head = "list" | "table" | "board" | "calendar" | "gallery" ;
 form           = form_header suite(ui_body) ;
 form_header    = "form" expr attributes ;
 selector       = path ;

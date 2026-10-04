@@ -18,6 +18,8 @@ canlang is a DSL specifically for CRUD-centered business SaaS applications. Star
 
 Applications whose core value requires a specialized foundation beyond this model are outside the supported scope. Examples include collaborative design tools, video editors, and large-scale observability engines. Ordinary business reporting and shared records remain within scope. Existing drafts of applications outside this scope do not expand the language's requirements.
 
+Bounded provider-backed workflows—LLM conversations, reviewed generation, judgments, authorized company-document answers, external synchronization and approved tool use—belong in scope when their company behavior remains records, permissions, rules and reviewable operations. Complex drafts must expose missing reusable primitives, not make each app reproduce protocol handling, progress correlation, model-output schemas or retrieval permissions. The accepted `judgment`, associated observable progress, complete `invocation` values and model-bound `corpus` contracts in DESIGN are concrete witnesses. Shared providers/libraries do specialized execution; app source owns purpose, authorization, budgets, approval and the meaning of results. This does not expand Can into arbitrary code execution or unrestricted autonomous agents.
+
 Presentation serves that scope. Provide the entire pinned daisyUI component set through the [approved 68-component vocabulary](design/UI-COMPONENTS.md), with typed bindings, shared themes and one standard shell. The former small subset was a design mistake and must not restrict app authors or agents. Arbitrary HTML, CSS, JavaScript, and specialized visual editors are outside v1.
 
 ## AI-native and token-efficient

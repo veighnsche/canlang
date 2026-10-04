@@ -1,0 +1,64 @@
+{
+  "checks": [
+    {
+      "command": "node --check draft/CanKnowledge.mjs",
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "command": "python3 tools/can_parser.py draft/CanKnowledge.can",
+      "exit": 1,
+      "output": "draft/CanKnowledge.can:18:98: syntax: type permits one array suffix followed by one nullable suffix"
+    },
+    {
+      "command": "python3 tools/can_parser.py /tmp/canknowledge-business-projection.can",
+      "exit": 0,
+      "output": "Parsed 1 .can files (syntax only)."
+    },
+    {
+      "command": "node design/jev/complex-knowledge-20261004/final-descriptor-review.cjs",
+      "exit": 0,
+      "output": "{\n  \"scope\": \"Static metadata inventory and reference resolution only; no runtime or BDD execution.\",\n  \"reports\": [\n    {\n      \"app\": \"CanKnowledge\",\n      \"models\": 8,\n      \"userOperations\": 14,\n      \"trustedHandlers\": 1,\n      \"fixtures\": 18,\n      \"tables\": 10,\n      \"rows\": 30,\n      \"sequences\": 4,\n      \"resolvedReferences\": 57\n    }\n  ]\n}"
+    }
+  ],
+  "static": {
+    "models": 8,
+    "scenarios": 15,
+    "fixtures": 18,
+    "example_blocks": 14,
+    "table_rows": 30,
+    "sequence_blocks": 4,
+    "pages": 4
+  },
+  "descriptor_review": {
+    "scope": "Static metadata inventory and reference resolution only; no runtime or BDD execution.",
+    "reports": [
+      {
+        "app": "CanKnowledge",
+        "models": 8,
+        "userOperations": 14,
+        "trustedHandlers": 1,
+        "fixtures": 18,
+        "tables": 10,
+        "rows": 30,
+        "sequences": 4,
+        "resolvedReferences": 57
+      }
+    ]
+  },
+  "projection_exclusions": [
+    "18: delivery associations replaced with text for syntax only",
+    "24: corpus declaration/attached description",
+    "25: corpus declaration/attached description",
+    "178\u2013184: shared-state sequence",
+    "185\u2013191: shared-state sequence",
+    "192\u2013198: shared-state sequence",
+    "199\u2013207: shared-state sequence",
+    "268: page poll attribute omitted"
+  ],
+  "sha256": {
+    "draft/CanKnowledge.can": "e02973dda3a51412fa846636734e9a07118919f20de20e7c765c28b1aed62eac",
+    "draft/CanKnowledge.mjs": "b8681b443ca70768bd3f49191380fbf5e6b9d82c25eef80b575d6847985176f5",
+    "draft/CanKnowledge.md": "95d39031b62fdb810248e75410fafdce2c12102bc6bededb7121508b0eac7649"
+  }
+}

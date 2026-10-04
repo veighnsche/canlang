@@ -38,7 +38,7 @@
   ],
   "sha256": {
     "draft/CanInbox.can": "619263ee8fb98252c55d64b2cf8ec29d5284e6c8a146d494cd2fefd6581143a8",
-    "draft/CanInbox.mjs": "f8030056278d2a5956028f62cb769fef4128adacdd2f8b5254b5be9d0939f226",
+    "draft/CanInbox.mjs": "42877b46554cad07e11b179951e02e750b4f436ffd641c7935a88a43b2ca6d2a",
     "draft/CanInbox.md": "f949008a7db16fbbd957132caa2824eb1d86140d4537d3f3a97c469251a94e00"
   }
 }
