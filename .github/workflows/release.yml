@@ -63,6 +63,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
       - name: Compile the LSP client (L1 slice 2a sources)
         # Pinned tsc, zero project deps: deterministic emit. The empty type
         # root reproduces L1's own check isolation (their ambient require
