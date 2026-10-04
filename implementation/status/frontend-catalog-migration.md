@@ -115,8 +115,9 @@ and lack empty= on ~120 collections (brief never required empty
 states; L1 parses all clean). Backfill = follow-up churn + witness
 parity risk; offered, not taken. All replan-era apps: 100%
 empty+pagination census.
-CONSOLIDATED HANDOFF to 05 (UI): array control; user/member-picker
-vocabulary; duration/money/datetime/currency scalar rendering;
+CONSOLIDATED HANDOFF to 05 (UI): array control; user-picker
+vocabulary (incl. member-typed assignees, TeamTasks S23); duration/
+money/datetime/currency scalar rendering;
 runtime-option + row-scoped + cross-app-authorized pickers; nested
 param paths (value.*); preference-bound tabs; timeline-order
 vocabulary (renderer-implicit); renderers for gallery/chat-bubble/
