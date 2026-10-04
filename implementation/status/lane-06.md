@@ -399,6 +399,29 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     interfaces 199/199, identity 38/38. Delta re-review APPROVED
     (F1 docs decision accepted, all switches/pins verified);
     merged with lane-06 + workspace CI green, no rebase needed.
+- S7 (in progress): branch `muse/lane-06-identity-interfaces/ingress-trust`
+  from origin/main (3819b23). Scope: provider-ingress auth framework
+  (POST /ingress/{namespace}, L4 `IngressVerifier` port, delegated
+  mapping with actor=null, `IngressSink` port) + OAuth authorization
+  server (metadata, dynamic registration, two-step authorize with
+  session+CSRF consent, PKCE-S256 code exchange minting McpGrant
+  Bearers) + WWW-Authenticate challenges on S5/S6 401s.
+  - No L4 verifier has landed: S7 defines the port, L4 binds at S8.
+    No exchange-step credential: audience decision stands (S6 F1).
+    OAuth v1 limits (documented): public clients only, no refresh
+    tokens, scopes uninterpreted, two-step authorize (GET descriptor
+    + POST consent) so codes are never CSRF-mintable.
+  - Coordinator files: contracts OAuthClient/AuthCode, IdentityStore
+    OAuth methods, ports (ingress + OAuth + HttpDeps.ingress),
+    testing doubles, routes mounts (ingress/oauth/well-known),
+    oauth/metadata.ts, S5/S6 401 challenges, spy/literal updates.
+  - Implementer K owns ingress/{mapping,routes}.ts + ingress.test.ts;
+    L owns identity oauth.ts + memory store methods + oauth.test.ts
+    (identity), interfaces oauth/routes.ts + oauth.test.ts.
+  - Verification: identity 47/47 (9 new), interfaces 230/230 (31 new).
+    Coordinator assembly: identity index export, ports type re-export,
+    HttpDeps/sub-handler literals, grant_type-absent spec fix
+    (invalid_request vs unsupported_grant_type).
 
 ## Remaining work and cleanup
 

@@ -25,10 +25,13 @@ import { handleUploadRequest } from '../src/uploads/routes.js';
 import { bindingForIntent, receiverFromIdentity } from '../src/uploads/principals.js';
 import { createHttpHandler } from '../src/http/routes.js';
 import {
+  createFakeBindings,
   createFakeCatalog,
   createFakeInvoker,
   createFakeKernel,
   createFakeRegistry,
+  createFakeSink,
+  createFakeVerifier,
   createGrantFixture,
   createMemoryRateLimiter,
   createTestApp,
@@ -853,11 +856,14 @@ test('POST /files/intents reaches the uploads sub-handler via createHttpHandler'
     identity: createTestIdentityDeps(t.identity),
     secureCookies: false,
     uploads: { files: t.deps.files, kernel: t.deps.kernel },
+    ingress: { bindings: createFakeBindings([]), verifier: createFakeVerifier({}), sink: createFakeSink() },
   };
   const http = createHttpHandler(httpDeps, {
     operations: () => Promise.resolve(new Response('unused', { status: 500 })),
     auth: () => Promise.resolve(new Response('unused', { status: 500 })),
     uploads: (req) => handleUploadRequest(t.deps, req),
+    ingress: () => Promise.resolve(new Response('unused', { status: 500 })),
+    oauth: () => Promise.resolve(new Response('unused', { status: 500 })),
   });
   const res = await http(
     testRequest('/files/intents', {

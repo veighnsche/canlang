@@ -17,10 +17,13 @@ import { createMcpHandler } from '../src/mcp/server.js';
 import { createHttpHandler } from '../src/http/routes.js';
 import { handleOperationRequest } from '../src/http/operations.js';
 import {
+  createFakeBindings,
   createFakeCatalog,
   createFakeFileUseInfo,
   createFakeKernel,
   createFakeRegistry,
+  createFakeSink,
+  createFakeVerifier,
   createMemoryRateLimiter,
   createTestApp,
   createTestIdentityDeps,
@@ -743,11 +746,14 @@ test('same operation via S4 HTTP and MCP produces deep-equal inputs', async () =
     identity: createTestIdentityDeps(t.identity),
     secureCookies: false,
     uploads: { files: createFakeFileUseInfo(false), kernel: createFakeKernel({}) },
+    ingress: { bindings: createFakeBindings([]), verifier: createFakeVerifier({}), sink: createFakeSink() },
   };
   const http = createHttpHandler(httpDeps, {
     operations: (req, op) => handleOperationRequest(httpDeps, req, op),
     auth: () => Promise.resolve(new Response('unused', { status: 500 })),
     uploads: () => Promise.resolve(new Response('unused', { status: 500 })),
+    ingress: () => Promise.resolve(new Response('unused', { status: 500 })),
+    oauth: () => Promise.resolve(new Response('unused', { status: 500 })),
   });
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
   const inputs = { qty: '2', label: 'x' };
