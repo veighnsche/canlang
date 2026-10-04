@@ -8,6 +8,7 @@ import {
   compareMoney,
   count,
   create,
+  date,
   datetime,
   divideDecimal,
   durationBetween,
@@ -1298,6 +1299,10 @@ export const exampleImports = [
 ];
 export function exampleFixtures({ self, other, imported }) {
   const { test_worker, test_site, test_company } = imported;
+  const time_manager={dependencies:[],user:async()=>({roles:["time.project_manager"]})};
+  const time_technician={dependencies:[],user:async()=>({})};
+  const manager_employee={model:Employee,dependencies:[time_manager,test_site],value:async(c,s)=>({user:s.time_manager,home:s.test_site,locations:[s.test_site],start:date("2020-01-01"),role:"Project manager"})};
+  const technician_employee={model:Employee,dependencies:[time_technician,test_site],value:async(c,s)=>({user:s.time_technician,home:s.test_site,locations:[s.test_site],start:date("2020-01-01"),role:"Technician"})};
   const project = {
     model: "time.Project",
     dependencies: [test_site, test_company],
@@ -1364,38 +1369,54 @@ export function exampleFixtures({ self, other, imported }) {
     }),
   };
   return {
+    time_manager,time_technician,manager_employee,technician_employee,
     project,
     stopped,
     prior,
     adjustment,
     review,
     examples: [
+      {operation:"time.correct",dependencies:[manager_employee,technician_employee,project],sequence:[
+        {operation:"time.manual",by:async(c,s)=>s.time_technician,inputs:async(c,s)=>({employee:s.technician_employee,project:s.project,description:"Forgotten overnight visit",from:datetime("2026-10-01T22:00:00Z"),until:datetime("2026-10-02T02:00:00Z"),billable:true,reason:"Forgot timer"}),bind:"original"},
+        {observations:async(c,s,b)=>[b.original.origin,b.original.duration,b.original.amount,b.original.author],expected:async(c,s)=>["manual",14400000n,money(120n,"EUR"),s.time_technician],types:["time.Entry.origin","duration","money","user"]},
+        {operation:"time.submit",by:async(c,s)=>s.time_technician,inputs:async(c,s)=>({employee:s.technician_employee,from:datetime("2026-10-01T00:00:00Z"),until:datetime("2026-10-03T00:00:00Z")}),bind:"submitted"},
+        {let:"frozen",value:async(c,s,b)=>await first(records(c,"time.Entry",{parent:s.technician_employee,where:row=>row.id===b.original.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.frozen!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"time.revise",by:async(c,s)=>s.time_technician,inputs:async(c,s,b)=>({entry:b.frozen,description:"Changed under review",from:b.frozen.from,until:datetime("2026-10-02T01:00:00Z"),billable:true,reason:"Shorter visit"}),error:"rule_failed"},
+        {operation:"time.decide",by:async(c,s)=>s.time_manager,inputs:async(c,s,b)=>({review:b.submitted,approve:true,reason:"Visit checked"})},
+        {operation:"time.Project.update",by:async(c,s)=>s.time_manager,inputs:async(c,s)=>({record:s.project,changes:{rate:money(60n,"EUR")}})},
+        {let:"approved",value:async(c,s,b)=>await first(records(c,"time.Entry",{parent:s.technician_employee,where:row=>row.id===b.original.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.approved!==null],expected:async()=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.approved.state,b.approved.rate,b.approved.amount],expected:async()=>["approved",money(30n,"EUR"),money(120n,"EUR")],types:["time.Entry.state","money","money"]},
+        {operation:"time.correct",by:async(c,s)=>s.time_manager,inputs:async(c,s,b)=>({entry:b.approved,from:b.approved.from,until:datetime("2026-10-02T01:00:00Z"),reason:"Actual visit ended earlier"}),bind:"replacement"},
+        {observations:async(c,s,b)=>[b.replacement.correction!==null],expected:async()=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.replacement.rate,b.replacement.amount,b.replacement.correction.author,b.replacement.correction.ready],expected:async(c,s)=>[money(30n,"EUR"),money(90n,"EUR"),s.time_manager,true],types:["money","money","user","bool"]},
+        {operation:"time.bill",by:async(c,s)=>s.time_manager,inputs:async(c,s,b)=>({entry:b.replacement}),error:"rule_failed"},
+        {operation:"time.submit",by:async(c,s)=>s.time_technician,inputs:async(c,s)=>({employee:s.technician_employee,from:datetime("2026-10-01T00:00:00Z"),until:datetime("2026-10-03T00:00:00Z")}),bind:"replacement_review"},
+        {operation:"time.decide",by:async(c,s)=>s.time_manager,inputs:async(c,s,b)=>({review:b.replacement_review,approve:true,reason:"Correction checked"})},
+        {let:"billable",value:async(c,s,b)=>await first(records(c,"time.Entry",{parent:s.technician_employee,where:row=>row.id===b.replacement.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.billable!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"time.bill",by:async(c,s)=>s.time_manager,inputs:async(c,s,b)=>({entry:b.billable})},
+        {let:"exported",value:async(c,s,b)=>await first(records(c,"time.Entry",{parent:s.technician_employee,where:row=>row.id===b.replacement.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.exported!==null],expected:async()=>[true],types:["bool"]},
+        {let:"preserved",value:async(c,s,b)=>await first(records(c,"time.Entry",{parent:s.technician_employee,where:row=>row.id===b.original.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.preserved!==null],expected:async()=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.preserved.state,b.preserved.until,b.preserved.amount,b.exported.state,b.exported.amount,b.exported.exported_source,await count(records(c,"time.Correction",{parent:b.preserved}))],expected:async(c,s,b)=>["superseded",datetime("2026-10-02T02:00:00Z"),money(120n,"EUR"),"exported",money(90n,"EUR"),b.exported.id,1n],types:["time.Entry.state","datetime?","money","time.Entry.state","money","text?","int"]}
+      ]},
+
       {
         operation: "time.stop",
-        dependencies: [stopped],
+        dependencies: [test_worker, stopped],
         inputs: async (c, s) => ({ entry: s.stopped }),
-        selectors: ["as", "entry.state"],
-        observations: [
-          async (c, s) => s.entry.until,
-          async (c, s) => s.entry.duration,
-          async (c, s) => s.entry.amount,
-        ],
+        selectors: ["as", "entry.state", "test_worker.active", "entry.until"],
+        observations: [async(c,s)=>s.entry.until,async(c,s)=>s.entry.duration,async(c,s)=>s.entry.amount],
+        types: ["datetime?", "duration", "money"],
         rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", "draft"],
-            expected: async (c, s) => [
-              datetime("2026-10-02T02:00:00Z"),
-              14400000n,
-              money(120n, "EUR"),
-            ],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", "approved"],
-            error: "rule_failed",
-          },
-          { dependencies: [], values: async (c, s) => ["public", "draft"], error: "forbidden" },
+          {values:async()=>["members","draft",true,datetime("2026-10-02T02:00:00Z")],expected:async()=>[datetime("2026-10-02T02:00:00Z"),14400000n,money(120n,"EUR")]},
+          {values:async()=>["members","approved",true,datetime("2026-10-02T02:00:00Z")],error:"rule_failed"},
+          {values:async()=>["public","draft",true,datetime("2026-10-02T02:00:00Z")],error:"forbidden"},
+          {values:async()=>["members","draft",false,null],expected:async(c)=>[c.now,durationBetween(c.now,datetime("2026-10-01T22:00:00Z")),multiplyMoney(money(30n,"EUR"),divideDecimal(durationBetween(c.now,datetime("2026-10-01T22:00:00Z")),3600000n))]},
+          {values:async()=>["members","draft",false,datetime("2026-10-02T02:00:00Z")],expected:async()=>[datetime("2026-10-02T02:00:00Z"),14400000n,money(120n,"EUR")]},
         ],
       },
       {

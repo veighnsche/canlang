@@ -38,6 +38,10 @@ package time label="Time tracking"@{nl="Tijdregistratie"}
   lock Entry fields=project,service,description,from,until,rate,billable,origin,reason,author,overlap_reason,overlap_author when=row.state in [submitted,approved,exported,superseded]
   lock PeriodReview fields=from,until,entries,submitted_by
   lock Correction fields=reason,replacement,author,original_source,amount
+  fixture time_manager=user {roles=[project_manager]}
+  fixture time_technician=user {}
+  fixture manager_employee=Employee {user=time_manager,home=test_site,locations=[test_site],start=date("2020-01-01"),role="Project manager"}
+  fixture technician_employee=Employee {user=time_technician,home=test_site,locations=[test_site],start=date("2020-01-01"),role="Technician"}
   fixture project=Project {name="Repair",location=test_site,customer=test_company,rate=money(30,"EUR")}
   fixture stopped=Entry {parent=test_worker,project=project,description="Visit",from=datetime("2026-10-01T22:00:00Z"),until=datetime("2026-10-02T02:00:00Z"),rate=money(30,"EUR"),origin=timer}
   fixture prior=Entry {parent=test_worker,project=project,description="Original source",from=datetime("2026-09-30T10:00:00Z"),until=datetime("2026-09-30T14:00:00Z"),rate=money(30,"EUR"),origin=timer,state=superseded,exported_source="prior-source"}
@@ -58,17 +62,20 @@ package time label="Time tracking"@{nl="Tijdregistratie"}
     create Entry {parent=employee,project,service,description,from=now,rate=project.rate,billable,origin=timer} as entry
     return entry
   # Fix a running timer's end once while checking the final interval. @{nl="Leg de eindtijd van een lopende timer eenmaal vast en controleer het definitieve tijdvak."}
+  ## Closing already-started own work does not grant new work after employment/location revocation.
   scenario stop(entry:Entry) by=members
    require entry.parent.user==actor and entry.state==draft
    do
     if entry.until==null
      require now>entry.from and (not overlaps_work(entry.parent,entry.from,now,entry) or entry.overlap_reason!=null)
      set entry {until=now}
-   examples entry=stopped
-    as,entry.state -> entry.until,entry.duration,entry.amount
-    members,draft -> datetime("2026-10-02T02:00:00Z"),4h,money(120,"EUR")
-    members,approved -> error(rule_failed)
-    public,draft -> error(forbidden)
+   examples seed=[test_worker] entry=stopped
+    as,entry.state,test_worker.active,entry.until -> entry.until,entry.duration,entry.amount
+    members,draft,true,datetime("2026-10-02T02:00:00Z") -> datetime("2026-10-02T02:00:00Z"),4h,money(120,"EUR")
+    members,approved,true,datetime("2026-10-02T02:00:00Z") -> error(rule_failed)
+    public,draft,true,datetime("2026-10-02T02:00:00Z") -> error(forbidden)
+    members,draft,false,null -> now,now-datetime("2026-10-01T22:00:00Z"),money(30,"EUR")*((now-datetime("2026-10-01T22:00:00Z"))/1h)
+    members,draft,false,datetime("2026-10-02T02:00:00Z") -> datetime("2026-10-02T02:00:00Z"),4h,money(120,"EUR")
   # Record forgotten work with its author and reason; only a manager can grant a recorded overlap exception. @{nl="Registreer vergeten werk met auteur en reden; alleen een manager mag een vastgelegde overlapuitzondering toestaan."}
   scenario manual(employee:Employee,project:Project,description:text,from:datetime label=label_Entry_from,until:datetime label=label_Entry_until,billable:bool label=label_Entry_billable,reason:text,service:Job?=null,exception:text?=null) -> Entry by=members or project_manager
    require (employee.user==actor or project_manager) and employee.active and project.active and can_work(actor,project.location) and from<until and until<=now and trim(reason)!=""
@@ -157,6 +164,33 @@ package time label="Time tracking"@{nl="Tijdregistratie"}
     project_manager,approved -> superseded,datetime("2026-10-02T02:00:00Z"),money(90,"EUR"),true,self
     members,approved -> error(forbidden)
     project_manager,draft -> error(rule_failed)
+   examples seed=[manager_employee,technician_employee,project]
+    do
+     call manual {employee=technician_employee,project=project,description="Forgotten overnight visit",from=datetime("2026-10-01T22:00:00Z"),until=datetime("2026-10-02T02:00:00Z"),billable=true,reason="Forgot timer"} by=time_technician as original
+     original.origin,original.duration,original.amount,original.author -> manual,4h,money(120,"EUR"),time_technician
+     call submit {employee=technician_employee,from=datetime("2026-10-01T00:00:00Z"),until=datetime("2026-10-03T00:00:00Z")} by=time_technician as submitted
+     let frozen=first(technician_employee.Entry as row where row.id==original.id order=row.id)
+     frozen!=null -> true
+     call revise {entry=frozen,description="Changed under review",from=frozen.from,until=datetime("2026-10-02T01:00:00Z"),billable=true,reason="Shorter visit"} by=time_technician -> error(rule_failed)
+     call decide {review=submitted,approve=true,reason="Visit checked"} by=time_manager
+     call Project.update {record=project,changes={rate=money(60,"EUR")}} by=time_manager
+     let approved_entry=first(technician_employee.Entry as row where row.id==original.id order=row.id)
+     approved_entry!=null -> true
+     approved_entry.state,approved_entry.rate,approved_entry.amount -> approved,money(30,"EUR"),money(120,"EUR")
+     call correct {entry=approved_entry,from=approved_entry.from,until=datetime("2026-10-02T01:00:00Z"),reason="Actual visit ended earlier"} by=time_manager as replacement
+     replacement.correction!=null -> true
+     replacement.rate,replacement.amount,replacement.correction.author,replacement.correction.ready -> money(30,"EUR"),money(90,"EUR"),time_manager,true
+     call bill {entry=replacement} by=time_manager -> error(rule_failed)
+     call submit {employee=technician_employee,from=datetime("2026-10-01T00:00:00Z"),until=datetime("2026-10-03T00:00:00Z")} by=time_technician as replacement_review
+     call decide {review=replacement_review,approve=true,reason="Correction checked"} by=time_manager
+     let billable=first(technician_employee.Entry as row where row.id==replacement.id order=row.id)
+     billable!=null -> true
+     call bill {entry=billable} by=time_manager
+     let exported_entry=first(technician_employee.Entry as row where row.id==replacement.id order=row.id)
+     exported_entry!=null -> true
+     let preserved=first(technician_employee.Entry as row where row.id==original.id order=row.id)
+     preserved!=null -> true
+     preserved.state,preserved.until,preserved.amount,exported_entry.state,exported_entry.amount,exported_entry.exported_source,count(preserved.Correction) -> superseded,datetime("2026-10-02T02:00:00Z"),money(120,"EUR"),exported,money(90,"EUR"),exported_entry.id,1
   # Queue the approved frozen source once after any prior exported source is fenced and financially neutral. @{nl="Zet de goedgekeurde vastgelegde bron eenmaal in de wachtrij nadat een eerdere geëxporteerde bron is afgeschermd en financieel vereffend."}
   scenario bill(entry:Entry) by=project_manager
    require can_work(actor,entry.project.location) and entry.state==approved and entry.billable and entry.project.customer!=null and entry.amount.minor>0 and (entry.correction==null or entry.correction.ready)
