@@ -40,8 +40,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: packages/${{ matrix.package }}/package-lock.json
-      - run: npm ci
+      # npm install (not ci): tolerates the root workspace lock until lane 07
+      # absorbs these packages, mirroring lane-03. Switch to root `npm ci`
+      # once the root lock covers @canlang/work, services and files.
+      - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test
