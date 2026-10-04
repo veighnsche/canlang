@@ -148,6 +148,7 @@ package learn label="Learning"@{nl="Opleidingen"}
    card "Own enrolled versions"@{nl="Eigen ingeschreven versies"}
     tabs preferences.view
     list Enrollment as enrollment where enrollment.account==actor and (preferences.view==all or (preferences.view==required and enrollment.parent.required) or (preferences.view==optional and not enrollment.parent.required) or (preferences.view==overdue and enrollment.due!=null and enrollment.due<local_date(now,team.timezone) and enrollment.active and enrollment.progress<100)) and (preferences.location==null or preferences.location in enrollment.parent.locations) and (preferences.audience==null or enrollment.parent.audience==preferences.audience) order={by=preferences.order,default=[due,parent.title],cases={title=[parent.title,due]}} display=split
+     badge row.active
      text row.parent.title,row.parent.required,row.due,row.active
      metrics row.progress,row.total
      card "Lesson access unavailable; your acknowledgments remain in history."@{nl="Lesinhoud niet beschikbaar; je bevestigingen blijven in de historiek."}

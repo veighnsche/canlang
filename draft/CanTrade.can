@@ -87,7 +87,8 @@ package trade
    card "Community discovery"@{nl="Communityaanbod ontdekken"}
     require preferences.view==community
     table Post as post where post.state==active columns=kind,category,location,title,amount,contact filter=kind,category,location defaults={kind=preferences.kind,category=preferences.category,location=preferences.location} search=title display=split
-     text row.description
+     badge row.state
+     content row.description
      edit
      action status
      details "Published contact and reporting"@{nl="Gepubliceerd contact en melden"}
@@ -96,6 +97,7 @@ package trade
    card "My listings"@{nl="Mijn advertenties"}
     require authenticated and preferences.view==mine
     table Post as post where post.author==actor columns=kind,title,visibility,state,moderation_reason filter=state display=split
+     badge row.state
      edit
      delete
      action status
@@ -111,9 +113,11 @@ package trade
    card "Reported listings"@{nl="Gemelde advertenties"}
     require moderator
     table Report columns=parent,reason,resolved,decision filter=resolved defaults={resolved=false}
+     badge row.resolved
      action dismiss
    card "Moderation decisions"@{nl="Moderatiebesluiten"}
     require moderator
     list Post as post where any(post.Report as report,not report.resolved) display=split
+     badge row.state
      action moderate
      history
