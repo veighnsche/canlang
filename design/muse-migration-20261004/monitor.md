@@ -20,7 +20,7 @@ Codex-owned authoritative runtime record. Muse reads but does not edit this file
 - Read-only view: /opt/homebrew/bin/tmux -S /private/tmp/canlang-muse-20261004-01a10349/tmux.sock attach-session -r -t '=canlang-muse'
 - Detach: Ctrl-b then d. Attached clients: 1 (/dev/ttys000) at the 15:54 UTC wake; preserve the viewing session.
 - Heartbeat: canlang-muse-and-astra-migration; automation_update confirmed ACTIVE, same chat, every 15 minutes, default notifications with prompt limiting updates to meaningful changes/completion/failure/required input.
-- Latest observation: prior H017 publication verified at d8f3e3e with matching actual origin and clean checkout. Current main is clean and behind origin; H018 requests Git/checkout ownership. Release acknowledgment must be verified before mutations.
+- Latest observation: prior H017 publication verified at d8f3e3e with matching actual origin and clean checkout. Current main is clean and behind origin; H018 requests Git/checkout ownership. H018 release acknowledgment is verified with zero active writers/reservations.
 - Notification limitation: external session-message ingress remains unavailable. H002/H005 are acknowledged; current pane evidences five-minute native-goal inbox rereads, not a running filesystem watcher. The H011 file is published, but this inspection does not prove live intake.
 - Next action: verify H018 release, normally integrate origin, check preserved committed content and draft syntax, then return ownership through H019 publication. Preserve separate worktrees and pending C01/C02 review.
 - Design ownership: Codex owns independent C01/C02 acceptance. Muse applied A02–A06/N10 after a separately recorded user override authorizing design plus application. Those changes are released and committed, but independent acceptance remains pending. No rejected JEV retry or new shared language rules are authorized by this Git handoff.
@@ -85,3 +85,7 @@ H014 release is explicitly evidenced in tasks.md. Normal merge preserved all 3 l
 ## Scheduled Git synchronization — 2026-10-04 17:46 UTC
 
 H016 release is explicitly evidenced in tasks.md, with zero active writers/reservations. Normal merge completed without conflicts and preserved 7 local/43 incoming changed paths exactly. All 31 JavaScript draft syntax checks and the editor highlighting checks pass. Other worktrees and viewing remain preserved. H017 returns ownership conditionally on publication with no integration in progress; this pre-push record alone does not prove publication. C01/C02 independent acceptance remains pending.
+
+## Scheduled Git synchronization — 2026-10-04 18:11 UTC
+
+H018 release is explicitly evidenced in tasks.md. Normal merge completed without conflicts, preserving all 3 local/24 incoming changed paths exactly. All 31 draft JavaScript syntax checks passed. Other worktrees and attached viewer remain preserved. H019 returns ownership conditionally on publication with no integration in progress; publication is verified after push and is not inferred from this pre-push note. C01/C02 independent acceptance remains pending.
