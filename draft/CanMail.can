@@ -56,11 +56,9 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
   lock Handling fields=kind,account,instruction,revision,destination,evidence,carrier,fee,source,dispatch,author
   unique Delegate fields=contact,account
   ## Typed isolated receipt snapshots include a valid frozen request; no provider send is performed.
-  fixture pending_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=pending,result=null,error=null}
-  fixture accepted_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=succeeded,result={reference="accepted-mail"},error=null}
-  fixture unknown_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=unknown,result=null,error=null}
-  fixture failed_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=failed,result=null,error={code="provider",message="Delivery rejected"}}
-  fixture skipped_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=skipped,result=null,error=null}
+  fixture attempt=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"}}
+  ## A separately selected pending receipt exercises a superseded completion ID.
+  fixture pending_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"}}
   fixture service=Service {parent=test_company,location=test_site,recipient=test_contact,from=datetime("2020-01-01T00:00:00Z"),until=datetime("2099-01-01T00:00:00Z"),instructions="Collection by verified recipient",verified=true,source="mail-term",currency="EUR",term=paid_term}
   fixture nominee=user {}
   fixture unrelated=user {}
@@ -307,15 +305,15 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
      if event.status==succeeded and event.result!=null and item.state==received
       set item {state=notified}
    ## Provisioned receipts are snapshots; these handler calls test current-attempt correlation and custody preservation.
-   examples event={delivery_id=accepted_notice.id,status=succeeded,result={reference="accepted-mail"},error=null}
-    parcel.notification,parcel.state,event.delivery_id,event.status,event.result,event.error -> parcel.state,parcel.notice_state
-    accepted_notice,received,accepted_notice.id,succeeded,{reference="accepted-mail"},null -> notified,succeeded
-    pending_notice,received,accepted_notice.id,succeeded,{reference="accepted-mail"},null -> received,pending
-    null,received,accepted_notice.id,succeeded,{reference="accepted-mail"},null -> received,null
-    unknown_notice,received,unknown_notice.id,unknown,null,null -> received,unknown
-    failed_notice,received,failed_notice.id,failed,null,{code="provider",message="Delivery rejected"} -> received,failed
-    skipped_notice,received,skipped_notice.id,skipped,null,null -> received,skipped
-    accepted_notice,collected,accepted_notice.id,succeeded,{reference="accepted-mail"},null -> collected,succeeded
+   examples event={delivery_id=attempt.id,status=succeeded,result={reference="accepted-mail"},error=null}
+    parcel.notification,parcel.state,event.delivery_id,event.status,event.result,event.error,attempt.status,attempt.result,attempt.error -> parcel.state,parcel.notice_state
+    attempt,received,attempt.id,succeeded,{reference="accepted-mail"},null,succeeded,{reference="accepted-mail"},null -> notified,succeeded
+    pending_notice,received,attempt.id,succeeded,{reference="accepted-mail"},null,succeeded,{reference="accepted-mail"},null -> received,pending
+    null,received,attempt.id,succeeded,{reference="accepted-mail"},null,succeeded,{reference="accepted-mail"},null -> received,null
+    attempt,received,attempt.id,unknown,null,null,unknown,null,null -> received,unknown
+    attempt,received,attempt.id,failed,null,{code="provider",message="Delivery rejected"},failed,null,{code="provider",message="Delivery rejected"} -> received,failed
+    attempt,received,attempt.id,skipped,null,null,skipped,null,null -> received,skipped
+    attempt,collected,attempt.id,succeeded,{reference="accepted-mail"},null,succeeded,{reference="accepted-mail"},null -> collected,succeeded
  Then
   # Receive, locate and resolve mail while restricting physical storage information. @{nl="Ontvang, lokaliseer en handel post af terwijl fysieke opslaginformatie afgeschermd blijft."}
   page /mailroom title="Mail and parcels"@{nl="Post en pakketten"} order=2

@@ -96,4 +96,21 @@ An initial `current_offer.document=the_attempt` model association selector is fo
 
 The standalone desired JavaScript passes `node --check`. The current parser rejects `delivery(Target)?` at witness line 9. A disclosed temporary structural projection changes only those two field types to `text?`; all declarations and three tables parse. Descriptor-only construction validates dependency closure, exclusive recipe discriminators and ten row/observation arities. Source/target token checks compare all input cells, expected values, recipe requests and canonical operation references. No fixture planner, provider, finalized-file provenance engine or business runner executed.
 
-The coordinator can apply the accepted rules to DESIGN §5.1/§8.1/§13 and the relevant grammar explanations, then reduce recipes per **distinct normalized request**, retaining all independent status/result/error cases. Grant/Mail can generally collapse five identical-request recipes into one; Approve must keep the separate historical decision request. Existing status-only leaf grants, domain completion callbacks and typed receipt authority stay unchanged. Full-envelope/provenance validation, baseline planning, protected-path checking and eventual runtime acceptance tests remain explicit implementation work.
+The coordinator can apply the accepted rules to DESIGN §5.1/§8.1/§13 and the relevant grammar explanations, then reduce recipes per **distinct normalized request**, retaining all independent status/result/error cases. Keep separate declarations for independently required attempt identities and for different frozen requests, as the actual application below demonstrates. Existing status-only leaf grants, domain completion callbacks and typed receipt authority stay unchanged. Full-envelope/provenance validation, baseline planning, protected-path checking and eventual runtime acceptance tests remain explicit implementation work.
+
+
+## Applied normalization size evidence
+
+The subsequent focused application preserves distinct receipt identities where association independence or superseded completion requires them. Grant retains both detached failed and succeeded receipts beside its varying selected receipt, including pending and no-request cases. All production source bodies and JavaScript production prefixes compare unchanged after test erasure; every original independent expected value/error is retained. Measurements are UTF-8 bytes of each entire `.can` file against the captured pre-normalization state, excluding documentation changes and earlier semantic migrations:
+
+| App | Receipt declarations before → after | Source bytes before → after | Delta |
+| --- | ---: | ---: | ---: |
+| Grant | 5 → 3 | 43,453 → 43,411 | −42 |
+| Mail | 5 → 2 | 38,700 → 38,382 | −318 |
+| Approve | 6 → 3 | 31,350 → 31,169 | −181 |
+| Propose | 12 → 3 | 42,241 → 41,010 | −1,231 |
+| Total | 28 → 11 | 155,744 → 153,972 | −1,772 (about 1.14%) |
+
+No model tokenizer is readily installed, and no token-saving claim is inferred from declaration counts. Explicit initial-selector columns offset much of the eliminated request repetition. Trusted completion tables also repeat event and initial-recipe status/result/error cells so both envelopes are valid and independently checked. A reusable structural fixture value or event-from-recipe form could address that remaining duplication only under a separate contract decision; this application introduces neither.
+
+The coordinator also shortened the unexported primary recipe name to `attempt` where unambiguous; selector/dependency identities changed consistently in source and target, without changing request values or operation behavior. The measurements above include this final normalization.

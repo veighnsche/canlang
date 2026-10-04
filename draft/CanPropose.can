@@ -8,7 +8,7 @@ package propose
  use refer {captured}
  use rent_catalog {Location,test_site}
  use employee {can_work,test_worker}
- use std {EmailV1 as Mail} from=deployment.mail
+ use std {EmailV1 as Mail,DeliveryResult} from=deployment.mail
  use rent_reservations {RoomsV1 as Rooms} from=deployment.rooms
  use propose {DocumentsV1 as Documents} from=deployment.documents
  Given
@@ -38,9 +38,11 @@ package propose
   event HoldDeadline { revision:Revision, until:datetime }
   role salesperson label="Salesperson"@{nl="Verkoper"}
   export Proposal in Customer { location:Location, recipient:Contact label=label_QuoteDocument_recipient, issuer:text label=label_QuoteDocument_issuer, title:text, currency:currency, valid_days:int=14 min=1 label="Validity in days"@{nl="Geldigheid in dagen"}, current:int=0 label="Current revision"@{nl="Huidige versie"} } label="Proposal"@{nl="Offerte"}
-  export Revision in Proposal { product:text? label="Product code"@{nl="Productcode"}, attribution:text?, exclusive_program:text?, attributed_at:datetime?, attribution_window:duration?, number:int label="Offer revision number"@{nl="Offerteversienummer"}, issuer_snapshot:text label="Frozen issuer"@{nl="Vastgelegde uitgever"}, title_snapshot:text label="Frozen title"@{nl="Vastgelegde titel"}, location_snapshot:text label="Frozen location"@{nl="Vastgelegde locatie"}, customer_snapshot:text label="Frozen customer"@{nl="Vastgelegde klant"}, alternative_to:Revision? label="Alternative to revision"@{nl="Alternatief voor offerteversie"}, recipient_email:email label="Recipient email"@{nl="E-mailadres ontvanger"}, account:user? label="Account"@{nl="Account"}, expires:datetime label=label_QuoteDocument_expires, terms:text label=label_QuoteDocument_terms, refund_before:datetime label="Frozen refund deadline"@{nl="Vastgelegde terugbetalingsdeadline"}, resource:text? label=label_Revision_resource, from:datetime label=label_QuoteDocument_from, until:datetime label=label_QuoteDocument_until, intervals:QuoteInterval[] label="Exact service intervals"@{nl="Exacte gebruikstijdvakken"}, seats:int=1 min=1 label=label_Revision_seats, quantity:int=1 min=1 label="Capacity units"@{nl="Capaciteitseenheden"}, held_until:datetime? label="Hold deadline"@{nl="Reserveringsdeadline"}, total:money, state:enum(draft,sent,accepted,declined,withdrawn)=draft label={text="State"@{nl="Status"},values={draft="Draft"@{nl="Concept"},sent="Sent"@{nl="Verstuurd"},accepted="Accepted"@{nl="Geaccepteerd"},declined="Declined"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"}}}, decided_by:user? label="Decided by"@{nl="Besloten door"}, decided_at:datetime? label="Decided at"@{nl="Besloten op"}, handoff:enum(none,pending,confirmed,unavailable,unknown,alternative_selected)=none label={text="Booking handoff"@{nl="Boekingsoverdracht"},values={none="None"@{nl="Geen"},pending="Pending"@{nl="In afwachting"},confirmed="Confirmed"@{nl="Bevestigd"},unavailable="Accepted; awaiting alternative"@{nl="Geaccepteerd; wacht op alternatief"},unknown="Unknown"@{nl="Onbekend"},alternative_selected="Alternative accepted"@{nl="Alternatief geaccepteerd"}}}, delivery:text? label="Delivery reference"@{nl="Verzendingsreferentie"}, booking:text? label="Booking reference"@{nl="Boekingsreferentie"}, invoice:text? label="Invoice reference"@{nl="Factuurreferentie"}, hold_state:enum(none,pending,held,releasing,released,unavailable,unknown,expired)=none label={text="Inventory hold outcome"@{nl="Resultaat voorraadreservering"},values={none="Not held"@{nl="Niet gereserveerd"},pending="Hold pending"@{nl="Reservering in behandeling"},held="Held until deadline"@{nl="Gereserveerd tot deadline"},releasing="Release pending"@{nl="Vrijgave in behandeling"},released="Released"@{nl="Vrijgegeven"},unavailable="Unavailable"@{nl="Niet beschikbaar"},unknown="Unknown"@{nl="Onbekend"},expired="Expired"@{nl="Verlopen"}}}, booking_version:int=0, hold_version:int=0, hold_delivery:text?, hold_release:text?, notice_delivery:text?, notice_state:enum(none,pending,delivered,failed,unknown,skipped)=none label={text="Offer notice"@{nl="Offertebericht"},values={none="Not sent"@{nl="Niet verstuurd"},pending="Pending"@{nl="In behandeling"},delivered="Delivered"@{nl="Afgeleverd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}, document_state:enum(none,pending,ready,failed,unknown,skipped)=none label={text="Document outcome"@{nl="Documentresultaat"},values={none="Not requested"@{nl="Niet aangevraagd"},pending="Pending"@{nl="In behandeling"},ready="Ready"@{nl="Gereed"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}, document_delivery:text? label="Document request reference"@{nl="Referentie documentaanvraag"}, pdf:file? label="PDF document"@{nl="PDF-document"} } label="Offer revision"@{nl="Offerteversie"}
+  export Revision in Proposal { product:text? label="Product code"@{nl="Productcode"}, attribution:text?, exclusive_program:text?, attributed_at:datetime?, attribution_window:duration?, number:int label="Offer revision number"@{nl="Offerteversienummer"}, issuer_snapshot:text label="Frozen issuer"@{nl="Vastgelegde uitgever"}, title_snapshot:text label="Frozen title"@{nl="Vastgelegde titel"}, location_snapshot:text label="Frozen location"@{nl="Vastgelegde locatie"}, customer_snapshot:text label="Frozen customer"@{nl="Vastgelegde klant"}, alternative_to:Revision? label="Alternative to revision"@{nl="Alternatief voor offerteversie"}, recipient_email:email label="Recipient email"@{nl="E-mailadres ontvanger"}, account:user? label="Account"@{nl="Account"}, expires:datetime label=label_QuoteDocument_expires, terms:text label=label_QuoteDocument_terms, refund_before:datetime label="Frozen refund deadline"@{nl="Vastgelegde terugbetalingsdeadline"}, resource:text? label=label_Revision_resource, from:datetime label=label_QuoteDocument_from, until:datetime label=label_QuoteDocument_until, intervals:QuoteInterval[] label="Exact service intervals"@{nl="Exacte gebruikstijdvakken"}, seats:int=1 min=1 label=label_Revision_seats, quantity:int=1 min=1 label="Capacity units"@{nl="Capaciteitseenheden"}, held_until:datetime? label="Hold deadline"@{nl="Reserveringsdeadline"}, total:money, state:enum(draft,sent,accepted,declined,withdrawn)=draft label={text="State"@{nl="Status"},values={draft="Draft"@{nl="Concept"},sent="Sent"@{nl="Verstuurd"},accepted="Accepted"@{nl="Geaccepteerd"},declined="Declined"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"}}}, decided_by:user? label="Decided by"@{nl="Besloten door"}, decided_at:datetime? label="Decided at"@{nl="Besloten op"}, handoff:enum(none,pending,confirmed,unavailable,unknown,alternative_selected)=none label={text="Booking handoff"@{nl="Boekingsoverdracht"},values={none="None"@{nl="Geen"},pending="Pending"@{nl="In afwachting"},confirmed="Confirmed"@{nl="Bevestigd"},unavailable="Accepted; awaiting alternative"@{nl="Geaccepteerd; wacht op alternatief"},unknown="Unknown"@{nl="Onbekend"},alternative_selected="Alternative accepted"@{nl="Alternatief geaccepteerd"}}}, delivery:text? label="Delivery reference"@{nl="Verzendingsreferentie"}, booking:text? label="Booking reference"@{nl="Boekingsreferentie"}, invoice:text? label="Invoice reference"@{nl="Factuurreferentie"}, hold_state:enum(none,pending,held,releasing,released,unavailable,unknown,expired)=none label={text="Inventory hold outcome"@{nl="Resultaat voorraadreservering"},values={none="Not held"@{nl="Niet gereserveerd"},pending="Hold pending"@{nl="Reservering in behandeling"},held="Held until deadline"@{nl="Gereserveerd tot deadline"},releasing="Release pending"@{nl="Vrijgave in behandeling"},released="Released"@{nl="Vrijgegeven"},unavailable="Unavailable"@{nl="Niet beschikbaar"},unknown="Unknown"@{nl="Onbekend"},expired="Expired"@{nl="Verlopen"}}}, booking_version:int=0, hold_version:int=0, hold_delivery:text?, hold_release:text?, notice:delivery(Mail.send)?, document_state:enum(none,pending,ready,failed,unknown,skipped)=none label={text="Document outcome"@{nl="Documentresultaat"},values={none="Not requested"@{nl="Niet aangevraagd"},pending="Pending"@{nl="In behandeling"},ready="Ready"@{nl="Gereed"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}, document:delivery(Documents.quote)? label="Document request"@{nl="Documentaanvraag"}, pdf:file? label="PDF document"@{nl="PDF-document"} } label="Offer revision"@{nl="Offerteversie"}
   export Item in Revision { title:text, quantity:decimal=1 min=0, unit:text label="Unit"@{nl="Eenheid"}, price:money, tax:money label=label_QuoteLine_tax, discount:money label=label_QuoteLine_discount } label="Quote item"@{nl="Offerteregel"}
   derive Revision.snapshot:QuoteDocument = QuoteDocument {issuer=row.issuer_snapshot,customer=row.customer_snapshot,resource=row.resource,quantity=row.quantity,attendees=row.seats,recipient=row.recipient_email,title=row.title_snapshot,location=row.location_snapshot,from=row.from,until=row.until,intervals=row.intervals,terms=row.terms,refund_before=row.refund_before,expires=row.expires,lines=row.Item as item select QuoteLine {title=item.title,quantity=item.quantity,unit=item.unit,price=item.price,tax=item.tax,discount=item.discount},total=row.total}
+  derive Revision.notice_state:DeliveryResult.status? = row.notice?.status label="Offer notice"@{nl="Offertebericht"}
+  derive Revision.document_delivery_state:DeliveryResult.status? = row.document?.status label="Document delivery"@{nl="Documentbezorging"}
   policy Proposal read=salesperson and can_work(actor,row.location)
   policy Revision read=salesperson and can_work(actor,row.parent.location)
   policy Revision read=authenticated where=actor.email_verified and row.recipient_email==actor.email
@@ -56,6 +58,13 @@ package propose
   export fixture offer=Proposal {parent=test_company,location=test_site,recipient=test_contact,issuer="Operator",title="Office",currency="EUR",current=1}
   export fixture current_offer=Revision {parent=offer,number=1,issuer_snapshot="Operator",title_snapshot="Office",location_snapshot="Main",customer_snapshot="Example company",recipient_email=actor.email,expires=datetime("2099-01-01T00:00:00Z"),terms="No reservation",refund_before=datetime("2099-01-02T09:00:00Z"),from=datetime("2099-01-02T09:00:00Z"),until=datetime("2099-01-02T10:00:00Z"),total=money(100,"EUR"),state=sent}
   fixture priced_item=Item {parent=current_offer,title="Office",quantity=1,unit="day",price=money(100,"EUR"),tax=money(0,"EUR"),discount=money(0,"EUR")}
+  ## Typed delivery fixtures provision isolated observations; they do not send mail or generate PDF bytes.
+  fixture original_pdf=file {}
+  fixture generated_pdf=file {}
+  fixture notice_attempt=Mail.send {request={to=current_offer.recipient_email,subject=current_offer.title_snapshot,body="Frozen offer notice"}}
+  ## Explicit priced_item dependency completes the baseline snapshot; distinct attempts retain stale-ID coverage.
+  fixture attempt=Documents.quote {request={source=current_offer.id,snapshot=current_offer.snapshot,revision=priced_item.parent.number}}
+  fixture pending_document=Documents.quote {request={source=current_offer.id,snapshot=current_offer.snapshot,revision=priced_item.parent.number}}
  When
   crud Proposal by=salesperson fields=title,valid_days create_fields=location,recipient,issuer,title,currency,valid_days when=can_work(actor,row.location) delete=none
   crud Item by=salesperson fields=title,quantity,unit,price,tax,discount when=can_work(actor,row.parent.parent.location) and row.parent.state==draft delete=remove
@@ -83,29 +92,38 @@ package propose
    do
     set revision {total=sum(revision.Item as item select item.price*item.quantity+item.tax-item.discount,revision.parent.currency),state=sent}
     send Mail.send {to=revision.recipient_email,subject=revision.parent.title,body=format("Review the frozen offer at {link}. Sign in with your verified recipient email."@{nl="Bekijk de vastgelegde offerte via {link}. Meld je aan met je geverifieerde e-mailadres als ontvanger."}(link=app_url(format("/offers/respond/{id}",{id=revision.id}))),locale=null)} as notice
-    set revision {notice_delivery=notice.id,notice_state=pending}
-  scenario notice_result on=Mail.send.completed
-   do
-    for revision in Revision as row where row.notice_delivery==event.delivery_id limit=1
-     if event.status==succeeded
-      set revision {notice_state=delivered}
-     else
-      if event.status==failed
-       set revision {notice_state=failed}
-      else
-       if event.status==skipped
-        set revision {notice_state=skipped}
-       else
-        set revision {notice_state=unknown}
+    set revision {notice}
   # Render a frozen sent offer without consulting mutable customer prices. @{nl="Genereer een vastgelegde verstuurde offerte zonder wijzigbare klantprijzen te raadplegen."}
   export scenario document(revision:Revision) by=salesperson or authenticated label=label_QuotePdf_document
    require revision.state in [sent,accepted,declined] and ((salesperson and can_work(actor,revision.parent.location)) or (actor.email_verified and actor.email==revision.recipient_email))
    do
     send Documents.quote {source=revision.id,revision=revision.number,snapshot=revision.snapshot} as delivery
-    set revision {document_delivery=delivery.id,document_state=pending}
+    set revision {document=delivery,document_state=pending}
+   examples seed=[priced_item,notice_attempt] revision=current_offer
+    as,revision.state,revision.notice,request.revision.version,notice_attempt.status,notice_attempt.result,notice_attempt.error -> revision.notice_state,revision.document_state,revision.document_delivery_state,revision.state,revision.total,revision.pdf,revision.version
+    self,sent,null,1,pending,null,null -> null,pending,pending,sent,money(100,"EUR"),null,2
+    self,sent,notice_attempt,1,pending,null,null -> pending,pending,pending,sent,money(100,"EUR"),null,2
+    self,sent,notice_attempt,1,succeeded,{reference="accepted-mail"},null -> succeeded,pending,pending,sent,money(100,"EUR"),null,2
+    self,sent,notice_attempt,1,failed,null,{code="provider",message="Delivery rejected"} -> failed,pending,pending,sent,money(100,"EUR"),null,2
+    self,sent,notice_attempt,1,unknown,null,null -> unknown,pending,pending,sent,money(100,"EUR"),null,2
+    self,sent,notice_attempt,1,skipped,null,null -> skipped,pending,pending,sent,money(100,"EUR"),null,2
+    self,accepted,notice_attempt,1,failed,null,{code="provider",message="Delivery rejected"} -> failed,pending,pending,accepted,money(100,"EUR"),null,2
+    self,declined,notice_attempt,1,succeeded,{reference="accepted-mail"},null -> succeeded,pending,pending,declined,money(100,"EUR"),null,2
+    self,withdrawn,null,1,pending,null,null -> error(rule_failed)
+    public,sent,null,1,pending,null,null -> error(forbidden)
+    outsider,sent,null,1,pending,null,null -> error(rule_failed)
+    self,sent,null,2,pending,null,null -> error(conflict)
+   ## Genuine queued requests replace the current association; this sequence does not execute the provider.
+   examples seed=[priced_item]
+    do
+     call document {revision=current_offer} by=self
+     let first_request=current_offer.document?.id
+     first_request!=null and current_offer.version==2 -> true
+     call document {revision=current_offer} by=self
+     current_offer.document?.id!=first_request,current_offer.document_state,current_offer.state,current_offer.total,current_offer.version -> true,pending,sent,money(100,"EUR"),3
   scenario document_result on=Documents.quote.completed
    do
-    for revision in Revision as row where row.document_delivery==event.delivery_id limit=1
+    for revision in Revision as row where row.document?.id==event.delivery_id limit=1
      if event.status==succeeded and event.result!=null and event.result.source==revision.id and event.result.revision==revision.number
       set revision {pdf=event.result.document,document_state=ready}
      else
@@ -116,6 +134,18 @@ package propose
         set revision {document_state=skipped}
        else
         set revision {document_state=unknown}
+   ## Each admitted completion has a consistent typed receipt. A superseded attempt cannot change the current PDF state.
+   examples seed=[priced_item] event={delivery_id=attempt.id,status=succeeded,result={source=current_offer.id,revision=1,document=generated_pdf},error=null}
+    current_offer.document,current_offer.document_state,current_offer.pdf,event.delivery_id,event.status,event.result,event.error,current_offer.state,attempt.status,attempt.result,attempt.error -> current_offer.document_state,current_offer.pdf,current_offer.document_delivery_state,current_offer.state,current_offer.total,current_offer.version
+    attempt,pending,null,attempt.id,succeeded,{source=current_offer.id,revision=1,document=generated_pdf},null,sent,succeeded,{source=current_offer.id,revision=1,document=generated_pdf},null -> ready,generated_pdf,succeeded,sent,money(100,"EUR"),2
+    pending_document,pending,null,attempt.id,succeeded,{source=current_offer.id,revision=1,document=generated_pdf},null,sent,succeeded,{source=current_offer.id,revision=1,document=generated_pdf},null -> pending,null,pending,sent,money(100,"EUR"),1
+    null,none,null,attempt.id,succeeded,{source=current_offer.id,revision=1,document=generated_pdf},null,sent,succeeded,{source=current_offer.id,revision=1,document=generated_pdf},null -> none,null,null,sent,money(100,"EUR"),1
+    attempt,pending,null,attempt.id,succeeded,{source="another-revision",revision=1,document=generated_pdf},null,sent,succeeded,{source="another-revision",revision=1,document=generated_pdf},null -> unknown,null,succeeded,sent,money(100,"EUR"),2
+    attempt,pending,null,attempt.id,succeeded,{source=current_offer.id,revision=2,document=generated_pdf},null,sent,succeeded,{source=current_offer.id,revision=2,document=generated_pdf},null -> unknown,null,succeeded,sent,money(100,"EUR"),2
+    attempt,pending,original_pdf,attempt.id,failed,null,{code="provider",message="Document generation rejected"},accepted,failed,null,{code="provider",message="Document generation rejected"} -> failed,original_pdf,failed,accepted,money(100,"EUR"),2
+    attempt,pending,original_pdf,attempt.id,unknown,null,null,accepted,unknown,null,null -> unknown,original_pdf,unknown,accepted,money(100,"EUR"),2
+    attempt,pending,original_pdf,attempt.id,skipped,null,null,accepted,skipped,null,null -> skipped,original_pdf,skipped,accepted,money(100,"EUR"),2
+    attempt,pending,null,attempt.id,succeeded,{source=current_offer.id,revision=1,document=generated_pdf},null,declined,succeeded,{source=current_offer.id,revision=1,document=generated_pdf},null -> ready,generated_pdf,succeeded,declined,money(100,"EUR"),2
   # Decide the current unexpired revision using the addressed verified account. @{nl="Beoordeel de huidige niet-verlopen versie met het geadresseerde geverifieerde account."}
   scenario decide(revision:Revision,accept:bool label="Accept"@{nl="Accepteren"},capture:Capture?=null) by=authenticated label="Record decision"@{nl="Besluit vastleggen"}
    require actor.email_verified and actor.email==revision.recipient_email and revision.state==sent and revision.expires>now and revision.number==revision.parent.current
@@ -338,7 +368,7 @@ package propose
      edit
      form revise
      list row.Revision order=-number filter=state,handoff defaults={state=preferences.state}
-      text row.number,row.issuer_snapshot,row.customer_snapshot,row.title_snapshot,row.location_snapshot,row.recipient_email,row.resource,row.from,row.until,row.seats,row.quantity,row.terms,row.refund_before,row.expires,row.total,row.state,row.handoff,row.booking,row.invoice,row.hold_state,row.held_until,row.notice_state,row.document_state,row.pdf
+      text row.number,row.issuer_snapshot,row.customer_snapshot,row.title_snapshot,row.location_snapshot,row.recipient_email,row.resource,row.from,row.until,row.seats,row.quantity,row.terms,row.refund_before,row.expires,row.total,row.state,row.handoff,row.booking,row.invoice,row.hold_state,row.held_until,row.notice_state,row.document_state,row.document_delivery_state,row.pdf
       tabs
        tab "Frozen revisions and items"@{nl="Vastgelegde versies en regels"}
         form Item.create
@@ -360,7 +390,7 @@ package propose
      table row.Item columns=title,quantity,unit,price,tax,discount
    card "Decision and booking outcome"@{nl="Besluit en boekingsresultaat"}
     actions decide,document,request_booking
-    text row.pdf,row.document_state,row.booking,row.invoice
+    text row.pdf,row.document_state,row.document_delivery_state,row.booking,row.invoice
     card "Inventory promise"@{nl="Voorraadtoezegging"}
      text row.held_until
      details "Held inventory"@{nl="Tijdelijk gereserveerde voorraad"}
