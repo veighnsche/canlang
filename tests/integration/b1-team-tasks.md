@@ -28,14 +28,16 @@ no row passes until it executes against real components.
 ## Blocked-on recalls (unmet contracts)
 
 - L1: `can compile` emission + `ArtifactTestModule` loader shape (§13
-  `exampleFixtures` runtime contract). IR-03 answered by L7 (`can-platform`
-  CLI, PR7): thin entries can wire now; execution still needs emission.
-- L3: invocation/commit engine behind the `state.ts` ports. S3 (`21dd47f`)
-  delivered real `invocation/` (admit/invoke/fence-retry/replay) +
-  `policy/roles` (125/125 suite incl. 65 invocation cases), but the package
-  index still exports only catalog/errors/types and the operation registry
-  is interim (L1 has no op descriptors yet). B1.3/B1.4 now need: exported
-  invocable surface + L1 op descriptors + L1 emission.
+  `exampleFixtures` runtime contract). IR-03 consumed: thin entries exec
+  `can-platform` verbatim (B0 #36, verified end to end in PR12 — B5
+  interop evidence). `can compile` still check-only; emission is L1
+  slice 4 (named unblock for B1.1/B1.2/B1.3/B1.5).
+- L3: invocation/commit engine behind the `state.ts` ports. S4/S5
+  (`471f1ed`/`2c3610a`) export `queryRecords`/`queryAggregate` +
+  `crudExecute`/`runMutationWrites` (247/247 suite), but on `Interim*`
+  defs (L1 descriptors pending) and `admit`/`invoke` stay unexported.
+  B1.3/B1.4 now need: canonical invoke export + L1 op descriptors +
+  L1 emission.
 - L6: `createHttpHandler(deps, sub)` WHATWG handler MERGED (S4 PR #22,
   `9a01b51`; interfaces suite 120/120). Its `HttpDeps` doc names the L7
   worker assembly as the B1 constructor of deps from environment bindings:
@@ -44,7 +46,9 @@ no row passes until it executes against real components.
   (invoker), durable rate-limit counters. The L6 side of the B1 join is
   now unblocked: `createWorkerApp` will build `HttpDeps` from bindings +
   producer surfaces and serve the handler via `startLocalDev`; no
-  test-only fakes in the served path. Ready-pending-L1: invoker needs the
-  L3 exported surface + L1 op descriptors; still needed from L6: the local
-  two-user authenticated context helper for the B1 legs.
+  test-only fakes in the served path. S5 (`090f7b4`) adds the exported
+  `interfaces/src/mcp/*` server shape (B1 MCP-leg surface).
+  Ready-pending-L1: invoker needs the L3 exported surface + L1 op
+  descriptors; still needed from L6: the local two-user authenticated
+  context helper for the B1 legs.
 - L5: page descriptor runtime for the browser leg.
