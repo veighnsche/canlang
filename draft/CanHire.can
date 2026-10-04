@@ -10,6 +10,7 @@ package hire label="Recruitment"@{nl="Werving"}
  use employee {Employee,hr,can_work,test_worker}
  use onboard {Template,start,test_template}
  use std {EmailV1 as Mail} from=deployment.mail
+ use std {DeliveryResult}
  use shift {ScheduleV1 as StaffSchedule} from=deployment.staff_schedule
  Given
   message heading_own_application_outcomes = "Own application outcomes"@{nl="Eigen sollicitatieresultaten"}
@@ -26,7 +27,9 @@ package hire label="Recruitment"@{nl="Werving"}
   role interviewer label=label_interviewer
   Vacancy { location:Location, title:text trim min=1, description:text, employment:text label="Employment type"@{nl="Dienstverband"}, skills:text[] label="Skills"@{nl="Vaardigheden"}, owner:user server=actor label="Owner"@{nl="Eigenaar"}, published:bool=false label="Published"@{nl="Gepubliceerd"}, open:bool=true label="Open"@{nl="Open"}, retention_days:int=180 min=1 label="Candidate retention days"@{nl="Bewaartermijn kandidaten in dagen"}, retention_until:datetime? label="Candidate expiry"@{nl="Vervaldatum kandidaten"}, closed_at:datetime? label="Closed at"@{nl="Gesloten op"} } label="Vacancy"@{nl="Vacature"}
   Candidate in Vacancy { account:user? label="Account"@{nl="Account"}, name:text, email:email, application:text label=label_Candidate_application, cv:file? label=label_Candidate_cv, source:text label=label_Candidate_source, stage:enum(applied,interview,offer,hired,rejected,withdrawn)=applied label={text="Hiring stage"@{nl="Sollicitatiefase"},values={applied="Applied"@{nl="Gesolliciteerd"},interview=label_Candidate_stage_interview,offer="Offer"@{nl="Aanbod"},hired="Hired"@{nl="Aangenomen"},rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"}}}, reason:text?, previous_stage:Candidate.stage? label="Previous active stage"@{nl="Vorige actieve fase"}, onboarding_reference:text? label="Onboarding reference"@{nl="Inwerkreferentie"}, identity_review:text? label="Reviewed account evidence"@{nl="Bewijs beoordeeld account"} } label="Candidate"@{nl="Kandidaat"}
-  Interview in Candidate { interviewer:Employee label=label_interviewer, from:datetime label=label_Interview_from, until:datetime label=label_Interview_until, timezone:timezone, notes:text?, feedback:text? label=label_Interview_feedback, state:enum(pending,confirmed,cancelled,unavailable,failed)=pending label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In afwachting"},confirmed="Confirmed"@{nl="Bevestigd"},cancelled="Cancelled"@{nl="Geannuleerd"},unavailable="Unavailable"@{nl="Niet beschikbaar"},failed="Failed"@{nl="Mislukt"}}}, previous:Interview? label="Retained interview"@{nl="Behouden gesprek"}, source:text unique label=label_Candidate_source, release_delivery:text? label="Release reference"@{nl="Vrijgavereferentie"}, release_state:enum(none,pending,released,failed,unknown)=none label={text="Reservation release"@{nl="Reservering vrijgeven"},values={none="Not requested"@{nl="Niet aangevraagd"},pending="Pending"@{nl="In afwachting"},released="Released"@{nl="Vrijgegeven"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"}}}, delivery:text? label="Delivery reference"@{nl="Verzendingsreferentie"}, notice_delivery:text? label="Reminder reference"@{nl="Herinneringsreferentie"}, notice_state:enum(none,pending,succeeded,failed,unknown,skipped)=none label={text="Reminder delivery"@{nl="Verzending herinnering"},values={none="Not requested"@{nl="Niet aangevraagd"},pending="Pending"@{nl="In afwachting"},succeeded="Sent"@{nl="Verzonden"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}} } label=label_Candidate_stage_interview
+  Interview in Candidate { interviewer:Employee label=label_interviewer, from:datetime label=label_Interview_from, until:datetime label=label_Interview_until, timezone:timezone, notes:text?, feedback:text? label=label_Interview_feedback, state:enum(pending,confirmed,cancelled,unavailable,failed)=pending label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In afwachting"},confirmed="Confirmed"@{nl="Bevestigd"},cancelled="Cancelled"@{nl="Geannuleerd"},unavailable="Unavailable"@{nl="Niet beschikbaar"},failed="Failed"@{nl="Mislukt"}}}, previous:Interview? label="Retained interview"@{nl="Behouden gesprek"}, source:text unique label=label_Candidate_source, release_delivery:text? label="Release reference"@{nl="Vrijgavereferentie"}, release_state:enum(none,pending,released,failed,unknown)=none label={text="Reservation release"@{nl="Reservering vrijgeven"},values={none="Not requested"@{nl="Niet aangevraagd"},pending="Pending"@{nl="In afwachting"},released="Released"@{nl="Vrijgegeven"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"}}}, delivery:text? label="Delivery reference"@{nl="Verzendingsreferentie"}, notice_delivery:delivery(Mail.send)? label="Reminder reference"@{nl="Herinneringsreferentie"} } label=label_Candidate_stage_interview
+  ## Reminder state observes the Mail receipt; null renders the standard not-requested state.
+  derive Interview.notice_state:DeliveryResult.status? = row.notice_delivery?.status label={text="Reminder delivery"@{nl="Verzending herinnering"},values={pending="Pending"@{nl="In afwachting"},succeeded="Sent"@{nl="Verzonden"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}
   event InterviewAccepted { interview:Interview }
   event InterviewReminder { interview:Interview, revision:int }
   policy Vacancy read=public where=row.published and row.open fields=location,title,description,employment,skills
@@ -278,23 +281,7 @@ package hire label="Recruitment"@{nl="Werving"}
    require event.interview.state==confirmed and event.revision==1 and event.interview.parent.stage in [applied,interview,offer] and event.interview.interviewer.active and can_work(event.interview.interviewer.user,event.interview.parent.parent.location)
    do
     send Mail.send {to=event.interview.parent.email,subject=format("Interview reminder"@{nl="Herinnering sollicitatiegesprek"},locale=null),body=event.interview.parent.parent.title} when=event.interview.state==confirmed and event.interview.parent.stage in [applied,interview,offer] and event.interview.interviewer.active and can_work(event.interview.interviewer.user,event.interview.parent.parent.location) as notice
-    set event.interview {notice_delivery=notice.id,notice_state=pending}
-  scenario reminder_result on=Mail.send.completed
-   do
-    for interview in Interview as item where item.notice_delivery==event.delivery_id limit=1
-     if event.status==succeeded
-      set interview {notice_state=succeeded}
-     else
-      if event.status==failed
-       set interview {notice_state=failed}
-      else
-       if event.status==skipped
-        set interview {notice_state=skipped}
-       else
-        if event.status==unknown
-         set interview {notice_state=unknown}
-        else
-         set interview {notice_state=pending}
+    set event.interview {notice_delivery=notice}
  Then
   # Find published vacancies and submit your own application. @{nl="Vind gepubliceerde vacatures en dien je eigen sollicitatie in."}
   page /careers title="Careers"@{nl="Vacatures"}
