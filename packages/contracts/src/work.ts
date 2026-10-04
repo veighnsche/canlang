@@ -111,8 +111,12 @@ export interface OutboxItem {
   source: string;
   /** Deterministic index of this effect within its operation. */
   occurrenceIndex: number;
-  /** Frozen provider inputs; versions frozen at commit. */
-  request: unknown;
+  /**
+   * Frozen provider inputs record; versions frozen at commit. Always a
+   * plain JSON record (the lane-3 `OutboxIntent.arguments` shape);
+   * non-records are rejected at staging and never commit.
+   */
+  request: Readonly<Record<string, unknown>>;
   /**
    * Originating scheduled/recurring occurrence, stamped by the runtime when
    * the intent is staged during an occurrence execution; null for direct
