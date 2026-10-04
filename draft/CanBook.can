@@ -18,7 +18,9 @@ package appointments
   WeeklyHours in Calendar { weekday:int min=1 max=7, opens:text="09:00", closes:text="18:00", fold:enum(earlier,later)=earlier } label="Weekly opening hours"@{nl="Wekelijkse openingstijden"}
   ClosedDay in Calendar { day:date unique, reason:text } label="Holiday or closed day"@{nl="Feestdag of sluitingsdag"}
   Attempt in Appointment { source:text unique, kind:enum(initial,movement) label={text="Request kind"@{nl="Verzoeksoort"},values={initial="Initial booking"@{nl="Eerste boeking"},movement="Reschedule"@{nl="Verplaatsing"}}}, from:datetime, until:datetime, previous_source:text?, previous_host_revision:int=1, previous_room_revision:int=1, requested_by:user server=actor, state:enum(pending,active,failed,cancelled,retired,released)=pending label={text="Reservation attempt"@{nl="Reserveringspoging"},values={pending="Pending"@{nl="In behandeling"},active="Active"@{nl="Actief"},failed="Failed"@{nl="Mislukt"},cancelled="Cancelled"@{nl="Geannuleerd"},retired="Previous slot awaiting release"@{nl="Vorige afspraak wacht op vrijgave"},released="Released"@{nl="Vrijgegeven"}}}, host_ok:bool=false, room_ok:bool=false, host_unknown:bool=false, room_unknown:bool=false, host_revision:int=1, room_revision:int=1, host_delivery:text?, room_delivery:text?, room_confirmation:text?, host_release:text?, room_release:text?, host_released:bool=false, room_released:bool=false } label="Reservation attempt"@{nl="Reserveringspoging"}
-  Notice in Appointment { kind:enum(confirmation,reminder) label={text="Notice kind"@{nl="Berichtsoort"},values={confirmation="Confirmation"@{nl="Bevestiging"},reminder="Reminder"@{nl="Herinnering"}}}, source:text, delivery:text unique, state:enum(pending,delivered,failed,unknown,skipped)=pending label={text="Delivery"@{nl="Verzending"},values={pending="Pending"@{nl="In behandeling"},delivered="Delivered"@{nl="Afgeleverd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}} } label="Appointment notice delivery"@{nl="Verzending afspraakbericht"}
+  Notice in Appointment { kind:enum(confirmation,reminder) label={text="Notice kind"@{nl="Berichtsoort"},values={confirmation="Confirmation"@{nl="Bevestiging"},reminder="Reminder"@{nl="Herinnering"}}}, source:text, delivery:delivery(Mail.send) } label="Appointment notice delivery"@{nl="Verzending afspraakbericht"}
+  ## Notice state observes the Mail receipt; the existing Delivered caption renders succeeded.
+  derive Notice.state:DeliveryResult.status = row.delivery.status label={text="Delivery"@{nl="Verzending"},values={pending="Pending"@{nl="In behandeling"},succeeded="Delivered"@{nl="Afgeleverd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}
   derive available(calendar:Calendar,from:datetime,until:datetime):bool = is_open(calendar.location,from,until) and from<until and local_date(from,calendar.timezone)==local_date(until-1ms,calendar.timezone) and any(calendar.WeeklyHours as hours,hours.weekday==weekday(local_date(from,calendar.timezone)) and local_instant(local_date(from,calendar.timezone),hours.opens,calendar.timezone,fold=hours.fold)<=from and until<=local_instant(local_date(from,calendar.timezone),hours.closes,calendar.timezone,fold=hours.fold)) and not any(calendar.ClosedDay as closure,closure.day==local_date(from,calendar.timezone)) and any(calendar.Window as window,window.available and window.from<=from and until<=window.until) and not any(calendar.Window as window,not window.available and overlaps(from,until,window.from,window.until))
   event Reminder { appointment:Appointment, revision:int }
   event AttemptProgress { attempt:Attempt }
@@ -28,8 +30,8 @@ package appointments
   policy ClosedDay read=public
   policy Attempt read=host_manager and can_work(actor,row.parent.parent.parent.location)
   policy Attempt read=authenticated where=row.parent.contact.account==actor and row.parent.contact.verified
-  policy Notice read=host_manager and can_work(actor,row.parent.parent.parent.location)
-  policy Notice read=authenticated where=row.parent.contact.account==actor and row.parent.contact.verified
+  policy Notice read=host_manager and can_work(actor,row.parent.parent.parent.location) fields=parent,kind,source,delivery.id,delivery.status,state,created_by,created,updated_by,updated,archived_at
+  policy Notice read=authenticated where=row.parent.contact.account==actor and row.parent.contact.verified fields=parent,kind,source,delivery.id,delivery.status,state,created_by,created,updated_by,updated,archived_at
   policy Type read=public
   policy Appointment read=host_manager and can_work(actor,row.parent.parent.location)
   policy Appointment read=authenticated where=row.contact.account==actor and row.contact.verified
@@ -308,7 +310,7 @@ package appointments
       set appointment {from=attempt.from,until=attempt.until,active_source=attempt.source,state=confirmed,host_ok=true,room_ok=true,host_delivery=attempt.host_delivery,room_delivery=attempt.room_delivery,reason=null}
       set attempt {state=active}
       send Mail.send {to=appointment.contact.email,subject=format("Appointment confirmed"@{nl="Afspraak bevestigd"},locale=null),body=appointment.parent.parent.instructions} when=appointment.state==confirmed and appointment.active_source==attempt.source as confirmed_notice
-      create Notice {parent=appointment,kind=confirmation,source=attempt.source,delivery=confirmed_notice.id} as notice
+      create Notice {parent=appointment,kind=confirmation,source=attempt.source,delivery=confirmed_notice} as notice
       if appointment.from>now+1h
        schedule appointment.id at=appointment.from-1h event=Reminder {appointment,revision=appointment.version+1}
      else
@@ -364,25 +366,12 @@ package appointments
    require event.appointment.state==confirmed and event.appointment.version==event.revision
    do
     send Mail.send {to=event.appointment.contact.email,subject=format("Appointment reminder"@{nl="Afspraakherinnering"},locale=null),body=event.appointment.parent.parent.instructions} when=event.appointment.state==confirmed and event.appointment.version==event.revision as delivery
-    create Notice {parent=event.appointment,kind=reminder,source=event.appointment.active_source,delivery=delivery.id} as notice
+    create Notice {parent=event.appointment,kind=reminder,source=event.appointment.active_source,delivery} as notice
    examples seed=[test_worker] event={appointment=booked,revision=1}
-    booked.state,event.revision -> count(Notice)
+    booked.state,event.revision -> count(Notice),first(booked.Notice)?.state
     unavailable,1 -> error(rule_failed)
     confirmed,0 -> error(rule_failed)
-    confirmed,1 -> 1
-  scenario notice_result on=Mail.send.completed
-   do
-    for notice in Notice as item where item.delivery==event.delivery_id limit=1
-     if event.status==succeeded
-      set notice {state=delivered}
-     else
-      if event.status==failed
-       set notice {state=failed}
-      else
-       if event.status==skipped
-        set notice {state=skipped}
-       else
-        set notice {state=unknown}
+    confirmed,1 -> 1,pending
  Then
   # Choose a location, appointment type and published host window. @{nl="Kies een locatie, afspraaktype en gepubliceerd gastheervenster."}
   page /appointments title="Appointments"@{nl="Afspraken"}
