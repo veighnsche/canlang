@@ -220,6 +220,21 @@ export type ScheduleOp =
     }
   | { readonly op: 'cancel'; readonly key: string };
 
+/** One unique-key claim staged atomically with its originating write. */
+export interface UniqueClaim {
+  readonly model: ModelName;
+  readonly keyName: string;
+  readonly keyValue: string;
+  readonly recordId: RecordId;
+}
+
+/** One unique-key release staged atomically with its originating write. */
+export interface UniqueRelease {
+  readonly model: ModelName;
+  readonly keyName: string;
+  readonly keyValue: string;
+}
+
 /**
  * One atomic owner commit. The store asserts `expectedRevision`, applies all
  * writes/constraints/history/receipt/outbox/schedule work, and increments the
@@ -233,6 +248,8 @@ export interface CommitBatch {
   readonly receipt: Receipt | null;
   readonly outbox: ReadonlyArray<OutboxIntent>;
   readonly schedules: ReadonlyArray<ScheduleOp>;
+  readonly uniqueClaims: ReadonlyArray<UniqueClaim>;
+  readonly uniqueReleases: ReadonlyArray<UniqueRelease>;
 }
 
 /** Result of a successful fenced commit. */
