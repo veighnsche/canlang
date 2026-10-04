@@ -22,21 +22,42 @@ import {
   set,
   sum,
 } from "@canlang/stdlib";
+/* Desired, unimplemented @canlang/ui contracts. Every factory below is proposed;
+ * none is an installed export and this file never runs. See file header. */
 import {
   actions,
+  badge,
+  breadcrumbs,
+  button,
   card,
+  checkbox,
+  content,
+  divider,
   edit,
+  fieldset,
   form,
+  hero,
   history,
+  input,
+  label,
   list,
   message,
-  metrics,
+  modal,
+  pagination,
+  progress,
   renderPage,
+  slot,
+  stat,
+  status,
   tab,
   table,
   tabs,
   text,
-  content,
+  textarea,
+  timeline,
+  toggle,
+  tooltip,
+  validator,
 } from "@canlang/ui";
 import { Contact, Customer } from "./customer.mjs";
 import { can_work } from "./employee.mjs";
@@ -862,25 +883,41 @@ export async function loyaltyPage(c, bindings) {
   return renderPage(
     c,
     loyaltyPageDescriptor,
-    () =>
-      card({
+    () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
+      /* desired-unimplemented: hero groups the rewards overview. */
+      hero({
         context: c,
-        title: message("Own earned and available points", {
-          nl: "Eigen verdiende en beschikbare punten",
-        }),
         children: [
           list({
             context: c,
             model: "loyalty.Account",
             where: (account) => same(account.contact.account, c.actor) && account.contact.verified,
             display: "split",
+            empty: message("No reward account yet", { nl: "Nog geen beloningsaccount" }),
             renderRow: (account, v) => [
-              metrics({
-                context: v,
-                result: account,
-                fields: ["available", "earned", "tier_progress", "tier_span"],
-              }),
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: v }),
+              /* desired-unimplemented: stat presents typed metric values. */
+              stat({ context: v, values: [account.available, account.earned] }),
               text({ context: v, values: [account.tier, account.next_tier] }),
+              text({ context: v, values: [account.tier_progress, account.tier_span] }),
+              // Tier progress renders only when a next tier defines a positive span.
+              account.tier_span > 0n
+                ? card({
+                    context: v,
+                    title: message("Tier progress", { nl: "Niveauvoortgang" }),
+                    children: [
+                      /* desired-unimplemented: progress checks the tier span bounds. */
+                      progress({
+                        context: v,
+                        value: account.tier_progress,
+                        max: account.tier_span,
+                      }),
+                    ],
+                  })
+                : null,
               text({
                 context: v,
                 values: [
@@ -907,12 +944,24 @@ export async function loyaltyPage(c, bindings) {
                         parent: account.parent,
                         where: (reward) => reward.active,
                         columns: ["name", "cost", "locations"],
+                        empty: message("No active rewards", { nl: "Geen actieve beloningen" }),
                         renderRow: (reward, rv) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: rv }),
                           content({ context: rv, value: reward.instructions }),
-                          form({
+                          /* desired-unimplemented: tooltip annotates the canonical form. */
+                          tooltip({
                             context: rv,
-                            operation: "loyalty.redeem",
-                            arguments: { account, reward },
+                            caption: message("Reserve this reward", {
+                              nl: "Reserveer deze beloning",
+                            }),
+                            children: [
+                              form({
+                                context: rv,
+                                operation: "loyalty.redeem",
+                                arguments: { account, reward },
+                              }),
+                            ],
                           }),
                         ],
                       }),
@@ -935,7 +984,13 @@ export async function loyaltyPage(c, bindings) {
                           state: c.preferences.loyalty.redemption_state,
                         },
                         display: "split",
+                        empty: message("No reservations yet", { nl: "Nog geen reserveringen" }),
                         renderRow: (redemption, rv) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: rv }),
+                          /* desired-unimplemented: badge/status present readable typed values. */
+                          badge({ context: rv, value: redemption.state }),
+                          status({ context: rv, value: redemption.notification }),
                           text({
                             context: rv,
                             values: [
@@ -956,18 +1011,20 @@ export async function loyaltyPage(c, bindings) {
                     context: v,
                     value: "history",
                     children: [
-                      table({
+                      /* desired-unimplemented: timeline renders one item per row. */
+                      timeline({
                         context: v,
                         model: "loyalty.Earning",
                         parent: account,
-                        columns: [
-                          "points",
-                          "tier",
-                          "reason",
-                          "source",
-                          "reversal",
-                          "author",
-                          "qualification",
+                        renderItem: (row, iv) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: iv }),
+                          text({ context: iv, values: [row.points, row.tier] }),
+                          text({ context: iv, values: [row.reason, row.source] }),
+                          text({
+                            context: iv,
+                            values: [row.reversal, row.author, row.qualification],
+                          }),
                         ],
                       }),
                     ],
@@ -978,6 +1035,7 @@ export async function loyaltyPage(c, bindings) {
           }),
         ],
       }),
+    ],
   );
 }
 
@@ -986,11 +1044,15 @@ export async function fulfillmentPage(c, bindings) {
     c,
     fulfillmentPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: fulfillmentCaption,
         children: [form({ context: c, operation: "loyalty.Account.create" })],
       }),
+      /* desired-unimplemented: divider separates the enrollment card. */
+      divider({ context: c }),
       card({
         context: c,
         title: message("Evidence and history", { nl: "Bewijs en geschiedenis" }),
@@ -1015,11 +1077,73 @@ export async function fulfillmentPage(c, bindings) {
               location: c.preferences.loyalty.location,
               state: c.preferences.loyalty.redemption_state,
             },
+            empty: message("No reservations match these filters", {
+              nl: "Geen reserveringen voor deze filters",
+            }),
             renderRow: (redemption, v) => [
-              actions({
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: v }),
+              /* desired-unimplemented: badge/status present readable typed values. */
+              badge({ context: v, value: redemption.state }),
+              status({ context: v, value: redemption.notification }),
+              /* desired-unimplemented: button opens activates the local modal. */
+              button({ context: v, opens: "fulfill_detail" }),
+              /* desired-unimplemented: modal declares the local activation identity. */
+              modal({
                 context: v,
-                operations: ["loyalty.fulfill", "loyalty.cancel"],
-                boundArgs: { redemption },
+                caption: message("Fulfill reward", { nl: "Beloning uitvoeren" }),
+                id: "fulfill_detail",
+                children: [
+                  slot({
+                    context: v,
+                    name: "content",
+                    children: [
+                      form({
+                        context: v,
+                        operation: "loyalty.fulfill",
+                        arguments: { redemption },
+                        display: "inline",
+                        /* desired-unimplemented: fieldset groups existing form fields. */
+                        children: [
+                          fieldset({
+                            context: v,
+                            caption: message("Evidence", { nl: "Bewijs" }),
+                            children: [
+                              /* desired-unimplemented: label/textarea/validator place the evidence control. */
+                              label({ context: v, field: "evidence" }),
+                              textarea({ context: v, field: "evidence" }),
+                              validator({ context: v, field: "evidence" }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              /* desired-unimplemented: button opens activates the local modal. */
+              button({ context: v, opens: "cancel_detail" }),
+              /* desired-unimplemented: modal declares the local activation identity. */
+              modal({
+                context: v,
+                caption: message("Cancel reservation", { nl: "Reservering annuleren" }),
+                id: "cancel_detail",
+                children: [
+                  slot({
+                    context: v,
+                    name: "content",
+                    children: [
+                      form({
+                        context: v,
+                        operation: "loyalty.cancel",
+                        arguments: { redemption },
+                        display: "inline",
+                        /* desired-unimplemented: placed controls move the generated fields. */
+                        children: [textarea({ context: v, field: "reason" })],
+                      }),
+                    ],
+                  }),
+                ],
               }),
               history({ context: v, record: redemption }),
             ],
@@ -1034,9 +1158,30 @@ export async function fulfillmentPage(c, bindings) {
             context: c,
             model: "loyalty.Account",
             display: "split",
+            empty: message("No reward accounts", { nl: "Geen beloningsaccounts" }),
             renderRow: (account, v) => [
-              metrics({ context: v, result: account, fields: ["available", "earned"] }),
-              form({ context: v, operation: "loyalty.adjust", arguments: { account } }),
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: v }),
+              /* desired-unimplemented: stat presents typed metric values. */
+              stat({ context: v, values: [account.available, account.earned] }),
+              form({
+                context: v,
+                operation: "loyalty.adjust",
+                arguments: { account },
+                /* desired-unimplemented: fieldset groups existing form fields. */
+                children: [
+                  fieldset({
+                    context: v,
+                    caption: message("Correction", { nl: "Correctie" }),
+                    children: [
+                      /* desired-unimplemented: placed controls move the generated controls. */
+                      input({ context: v, field: "points" }),
+                      checkbox({ context: v, field: "tier" }),
+                      textarea({ context: v, field: "reason" }),
+                    ],
+                  }),
+                ],
+              }),
               table({
                 context: v,
                 model: "loyalty.Earning",
@@ -1050,8 +1195,34 @@ export async function fulfillmentPage(c, bindings) {
                   "author",
                   "qualification",
                 ],
+                empty: message("No points entries yet", { nl: "Nog geen puntenboekingen" }),
                 renderRow: (entry, ev) => [
-                  actions({ context: ev, operations: ["loyalty.reverse"], boundArgs: { entry } }),
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: ev }),
+                  /* desired-unimplemented: button opens activates the local modal. */
+                  button({ context: ev, opens: "reverse_entry" }),
+                  /* desired-unimplemented: modal declares the local activation identity. */
+                  modal({
+                    context: ev,
+                    caption: message("Reverse entry", { nl: "Boeking terugdraaien" }),
+                    id: "reverse_entry",
+                    children: [
+                      slot({
+                        context: ev,
+                        name: "content",
+                        children: [
+                          form({
+                            context: ev,
+                            operation: "loyalty.reverse",
+                            arguments: { entry },
+                            display: "inline",
+                            /* desired-unimplemented: placed controls move the generated fields. */
+                            children: [textarea({ context: ev, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
                   history({ context: ev, record: entry }),
                 ],
               }),
@@ -1067,17 +1238,39 @@ export async function catalogPage(c, bindings) {
   return renderPage(
     c,
     catalogPageDescriptor,
-    () =>
+    () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Program terms", { nl: "Programmavoorwaarden" }),
         children: [
-          form({ context: c, operation: "loyalty.Program.create" }),
+          form({
+            context: c,
+            operation: "loyalty.Program.create",
+            /* desired-unimplemented: fieldset groups existing form fields. */
+            children: [
+              fieldset({
+                context: c,
+                caption: message("Program terms", { nl: "Programmavoorwaarden" }),
+                children: [
+                  /* desired-unimplemented: placed controls move the generated controls. */
+                  input({ context: c, field: "name" }),
+                  textarea({ context: c, field: "terms" }),
+                  input({ context: c, field: "points_per_sale" }),
+                  toggle({ context: c, field: "active" }),
+                ],
+              }),
+            ],
+          }),
           list({
             context: c,
             model: "loyalty.Program",
             display: "split",
+            empty: message("No reward programs", { nl: "Geen beloningsprogramma's" }),
             renderRow: (program, v) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: v }),
               edit({ context: v, operation: "loyalty.Program.update", record: program }),
               tabs({
                 context: v,
@@ -1095,8 +1288,13 @@ export async function catalogPage(c, bindings) {
                         context: v,
                         model: "loyalty.Tier",
                         parent: program,
-                        renderRow: (tier, tv) =>
+                        empty: message("No tiers recorded", { nl: "Geen niveaus vastgelegd" }),
+                        renderRow: (tier, tv) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: tv }),
+                          text({ context: tv, values: [tier.threshold] }),
                           edit({ context: tv, operation: "loyalty.Tier.update", record: tier }),
+                        ],
                       }),
                     ],
                   }),
@@ -1113,8 +1311,13 @@ export async function catalogPage(c, bindings) {
                         context: v,
                         model: "loyalty.Reward",
                         parent: program,
-                        renderRow: (reward, rv) =>
+                        empty: message("No rewards recorded", { nl: "Geen beloningen vastgelegd" }),
+                        renderRow: (reward, rv) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: rv }),
+                          text({ context: rv, values: [reward.cost, reward.active] }),
                           edit({ context: rv, operation: "loyalty.Reward.update", record: reward }),
+                        ],
                       }),
                     ],
                   }),
@@ -1124,6 +1327,7 @@ export async function catalogPage(c, bindings) {
           }),
         ],
       }),
+    ],
   );
 }
 
