@@ -1,0 +1,510 @@
+# Help workspace community teams sell or allocate places at networking sessions, workshops, and customer events. @{nl="Help werkplekcommunityteams plaatsen voor netwerksessies, workshops en klantevenementen verkopen of toewijzen."}
+app CanEvent uses=[events,invoice]
+
+# Own event ticket capacity and admission, with separate venue and customer collection owners. @{nl="Beheer toegangscapaciteit en toelating met afzonderlijke eigenaren voor evenementlocatie en klantinning."}
+package events
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use customer {Customer,owns,has_location_role,test_company,test_booker}
+ use rent_reservations {Resource}
+ use rent_reservations {RoomsV1 as Rooms} from=deployment.rooms
+ use invoice {Settlement}
+ use std {OperationOutcome,DeliveryResult}
+ use std {EmailV1 as Mail} from=deployment.mail
+ use invoice {BillingV1 as Billing} from=deployment.billing
+ Given
+  role organizer label="Event organizer"@{nl="Evenementorganisator"}
+  role finance label="Event finance"@{nl="Evenementfinanciën"}
+  role check_in label="Admission staff"@{nl="Toegangsmedewerker"}
+  Program { name:text unique } label="Event program"@{nl="Evenementprogramma"}
+  Event in Program { location:Location, name:text, description:text, timezone:timezone, from:datetime label="From"@{nl="Vanaf"}, until:datetime label="Until"@{nl="Tot"}, capacity:int min=1 label="Capacity"@{nl="Capaciteit"}, price:money, sales_until:datetime label="Sales close at"@{nl="Verkoop sluit op"}, refund_before:datetime label="Refund cutoff"@{nl="Terugbetalingsgrens"}, terms:text label="Terms"@{nl="Voorwaarden"}, venue:Change? label="Selected venue reservation"@{nl="Gekozen locatiereservering"}, venue_name:text? label="Venue"@{nl="Evenementlocatie"}, pending_change:Change? label="Pending material change"@{nl="Materiële wijziging in behandeling"}, revision:int=1 min=1, organizer:user server=actor label="Created by"@{nl="Aangemaakt door"}, cancellation_reason:text? label="Event cancellation reason"@{nl="Reden evenementannulering"}, published:bool=false label="Published"@{nl="Gepubliceerd"}, cancelled:bool=false label=label_Event_cancelled } label="Event"@{nl="Evenement"}
+  Registration in Event { settlement_revision:int=0 min=0, event_revision:int=0 min=0 label="Last event update applied"@{nl="Laatst toegepaste evenementwijziging"}, account:user label="Account"@{nl="Account"}, location:Location label="Original billing location"@{nl="Oorspronkelijke facturatielocatie"}, name:text, email:email, source:text unique label="Source reference"@{nl="Bronreferentie"}, price:money, terms:text label="Frozen ticket terms"@{nl="Vastgelegde toegangsbewijsvoorwaarden"}, refund_before:datetime label="Frozen refund cutoff"@{nl="Vastgelegde terugbetalingsgrens"}, refund_required:bool=false label="Return unfulfilled funds"@{nl="Niet uitgevoerde bedragen terugbetalen"}, refund_reason:text? label="Refund reason"@{nl="Terugbetalingsreden"}, refund_state:enum(none,pending,unknown,refunded,review)=none label={text="Refund outcome"@{nl="Terugbetalingsresultaat"},values={none="No refund requested"@{nl="Geen terugbetaling aangevraagd"},pending="Refund requested"@{nl="Terugbetaling aangevraagd"},unknown="Refund uncertain"@{nl="Terugbetaling onzeker"},refunded="Funds resolved"@{nl="Bedragen afgehandeld"},review="Finance review"@{nl="Financiële beoordeling"}}}, collected:money label="Collected funds"@{nl="Geïnde bedragen"}, refunded:money label="Returned funds"@{nl="Terugbetaalde bedragen"}, collection_pending:bool=false label="Collection unresolved"@{nl="Inning onopgelost"}, refund_pending:bool=false label="Refund unresolved"@{nl="Terugbetaling onopgelost"}, cancel_reason:text? label="Frozen collection cancellation reason"@{nl="Vastgelegde reden annulering inning"}, cancel_delivery:text? label="Collection cancellation request"@{nl="Aanvraag annulering inning"}, cancel_status:DeliveryResult.status? label="Cancellation delivery state"@{nl="Status annuleringsverzending"}, fenced:bool=false label="Collection source fenced"@{nl="Inningsbron afgeschermd"}, fence_revision:int=0 label="Cancellation ledger fence"@{nl="Afwikkelingsgrens annulering"}, absent:bool=false label="Invoice authoritatively absent"@{nl="Factuur aantoonbaar afwezig"}, invoice_state:Settlement.state? label="Invoice state"@{nl="Factuurstatus"}, refund_delivery:text? label="Refund request"@{nl="Terugbetalingsaanvraag"}, refund_target:money? label="Requested cumulative return"@{nl="Aangevraagde cumulatieve terugbetaling"}, refund_status:DeliveryResult.status? label="Refund delivery state"@{nl="Status terugbetalingsverzending"}, reconcile_delivery:text? label="Settlement refresh request"@{nl="Aanvraag afwikkelingsverversing"}, reconcile_status:DeliveryResult.status? label="Settlement refresh state"@{nl="Status afwikkelingsverversing"}, expires:datetime label="Expires at"@{nl="Verloopt op"}, state:enum(held,pending,confirmed,expired,cancelled,review)=held label={text="State"@{nl="Status"},values={cancelled=label_Event_cancelled,held="Held"@{nl="Gereserveerd"},pending=label_Registration_state_pending,confirmed="Confirmed"@{nl="Bevestigd"},expired="Expired"@{nl="Verlopen"},review="Needs resolution"@{nl="Vereist beoordeling"}}}, payment:enum(free,unpaid,pending,paid,refunded,unknown)=unpaid label={text="Payment state"@{nl="Betaalstatus"},values={pending=label_Registration_state_pending,free="Free"@{nl="Gratis"},unpaid="Unpaid"@{nl="Onbetaald"},paid="Paid"@{nl="Betaald"},refunded="Refunded"@{nl="Terugbetaald"},unknown="Unknown"@{nl="Onbekend"}}}, ticket:text unique label="Ticket"@{nl="Toegangsbewijs"}, checked_in:datetime? label="Admission time"@{nl="Toegelaten op"}, checked_by:user? label="Admitted by"@{nl="Toegelaten door"}, invoice:text? label="Invoice reference"@{nl="Factuurreferentie"}, delivery:text? label="Delivery reference"@{nl="Afleverreferentie"} } label="Event registration"@{nl="Evenementregistratie"}
+  # Capture a proposed material change without mutating the selected event or its original venue. @{nl="Leg een voorgestelde materiële wijziging vast zonder het gekozen evenement of zijn oorspronkelijke locatie te wijzigen."}
+  Change in Event { source:text unique label="Venue request identity"@{nl="Identiteit locatieaanvraag"}, base_revision:int label="Selected event revision"@{nl="Gekozen evenementrevisie"}, location:Event.location, timezone:Event.timezone, from:Event.from, until:Event.until, capacity:Event.capacity, sales_until:datetime label="Proposed sales cutoff"@{nl="Voorgestelde verkoopgrens"}, reason:text, author:user server=actor label="Change proposed by"@{nl="Wijziging voorgesteld door"}, resource:Resource? label="Rentable venue"@{nl="Verhuurbare locatie"}, customer:Customer? label="Venue customer"@{nl="Locatieklant"}, account:user label="Venue allocation account"@{nl="Account locatietoewijzing"}, previous:Change? label="Retained original venue"@{nl="Behouden oorspronkelijke locatie"}, state:enum(holding,confirming,adopted,releasing,released,failed,review)=holding label={text="Change state"@{nl="Wijzigingsstatus"},values={holding="Candidate held or requested"@{nl="Kandidaat gereserveerd of aangevraagd"},confirming="Confirmation pending"@{nl="Bevestiging in behandeling"},adopted="Selected change"@{nl="Gekozen wijziging"},releasing="Cleanup pending"@{nl="Opruiming in behandeling"},released="Cleanup confirmed"@{nl="Opruiming bevestigd"},failed="Request failed"@{nl="Aanvraag mislukt"},review="Change needs review"@{nl="Wijziging vereist beoordeling"}}}, venue_state:OperationOutcome.state=pending label="Authoritative venue state"@{nl="Gezaghebbende locatiestatus"}, venue_revision:int=0 label="Venue owner revision"@{nl="Revisie locatie-eigenaar"}, reference:text? label="Venue reservation reference"@{nl="Referentie locatiereservering"}, hold_delivery:text? label="Candidate hold request"@{nl="Aanvraag kandidaatlocatie"}, confirm_delivery:text? label="Venue confirmation request"@{nl="Aanvraag locatiebevestiging"}, release_reason:text? label="Frozen venue release reason"@{nl="Vastgelegde reden locatievrijgave"}, release_delivery:text? label="Venue release request"@{nl="Aanvraag locatievrijgave"}, hold_status:DeliveryResult.status? label="Candidate hold delivery state"@{nl="Verzendstatus kandidaatlocatie"}, confirm_status:DeliveryResult.status? label="Confirmation delivery state"@{nl="Verzendstatus bevestiging"}, release_status:DeliveryResult.status? label="Release delivery state"@{nl="Verzendstatus vrijgave"} } label="Event schedule and venue change"@{nl="Wijziging evenementplanning en locatie"}
+  Notice in Registration { kind:enum(confirmation,change,cancellation) label={text="Notice kind"@{nl="Berichtsoort"},values={confirmation="Ticket confirmation"@{nl="Bevestiging toegangsbewijs"},change="Material event change"@{nl="Materiële evenementwijziging"},cancellation="Admission cancellation"@{nl="Annulering toegang"}}}, revision:int label="Event revision at notice"@{nl="Evenementrevisie bij bericht"}, subject:text label="Notice subject"@{nl="Onderwerp bericht"}, body:text label="Notice text"@{nl="Berichttekst"}, delivery:text unique label="Mail delivery identity"@{nl="Identiteit berichtverzending"}, reference:text? label="Mail acceptance reference"@{nl="Referentie berichtacceptatie"}, state:DeliveryResult.status=pending } label="Attendee notice outcome"@{nl="Resultaat deelnemersbericht"}
+  event HoldDue { registration:Registration }
+  event VenueObserved { value:OperationOutcome }
+  event ApplyChange { change:Change }
+  event AttendeeNotice { registration:Registration, kind:Notice.kind, revision:int, body:text }
+  event SettlementObserved { value:Settlement }
+  event RefundCheck { registration:Registration }
+  event AttendeeUpdate { event:Event, revision:int, kind:Notice.kind, reason:text }
+  event VenueCleanup { event:Event, revision:int, reason:text }
+  derive Event.available:int = row.capacity-count(row.Registration as registration where registration.state==confirmed or (registration.state in [held,pending] and now<registration.expires))
+  policy Program read=organizer
+  policy Event read=public where=row.published and not row.cancelled fields=location,name,description,timezone,from,until,capacity,price,sales_until,refund_before,terms,venue_name,published,cancelled
+  policy Event read=authenticated where=any(row.Registration as registration,registration.account==actor) fields=location,name,description,timezone,from,until,venue_name,published,cancelled,revision,cancellation_reason
+  policy Event read=organizer or check_in or finance where=can_work(actor,row.location)
+  policy Registration read=organizer or finance where=can_work(actor,row.parent.location)
+  policy Registration read=check_in where=can_work(actor,row.parent.location) fields=name,email,state,payment,ticket,checked_in,checked_by
+  policy Change read=organizer where=can_work(actor,row.parent.location)
+  policy Notice read=organizer where=can_work(actor,row.parent.parent.location)
+  policy Notice read=authenticated where=row.parent.account==actor
+  policy Registration read=authenticated where=row.account==actor
+  invariant Event: row.from<row.until and row.sales_until<=row.from and row.price.minor>=0 and row.price.currency==row.location.currency and row.available>=0
+  invariant Change: row.from<row.until and row.sales_until<=row.from and (row.resource==null or row.resource.location==row.location)
+  lock Change fields=source,base_revision,location,timezone,from,until,capacity,sales_until,reason,author,resource,customer,account,previous
+  lock Notice fields=kind,revision,subject,body,delivery
+  lock Registration fields=account,location,name,email,source,price,terms,refund_before,ticket
+  fixture program=Program {name="Community"}
+  fixture workshop=Event {parent=program,location=test_site,name="Workshop",description="Networking",timezone="Europe/Brussels",from=datetime("2099-01-02T09:00:00Z"),until=datetime("2099-01-02T10:00:00Z"),capacity=1,price=money(0,"EUR"),sales_until=datetime("2099-01-02T08:00:00Z"),refund_before=datetime("2099-01-01T09:00:00Z"),terms="Free",published=true}
+  fixture free_ticket=Registration {parent=workshop,account=other,location=test_site,name="Guest",email="guest@example.test",source="free",price=money(0,"EUR"),terms="Free",refund_before=datetime("2099-01-01T09:00:00Z"),collected=money(0,"EUR"),refunded=money(0,"EUR"),expires=datetime("2099-01-02T08:00:00Z"),state=confirmed,payment=free,ticket="ticket"}
+  fixture competing_ticket=Registration {parent=workshop,account=self,location=test_site,name="Second attendee",email="second@example.test",source="second",price=money(0,"EUR"),terms="Free",refund_before=datetime("2099-01-01T09:00:00Z"),collected=money(0,"EUR"),refunded=money(0,"EUR"),expires=datetime("2099-01-02T08:00:00Z"),state=confirmed,payment=free,ticket="second-ticket"}
+  fixture event_room=Resource {location=test_site,name="Event hall",kind=event_space,party_limit=20,timezone="Europe/Brussels",currency="EUR",hourly=money(100,"EUR"),terms="Venue allocation",refund_notice=1d,accessibility="Step-free"}
+  fixture incumbent=Change {parent=workshop,source="original-venue",base_revision=1,location=test_site,timezone="Europe/Brussels",from=datetime("2099-01-02T09:00:00Z"),until=datetime("2099-01-02T10:00:00Z"),capacity=1,sales_until=datetime("2099-01-02T08:00:00Z"),reason="Original confirmed venue",resource=event_room,customer=test_company,account=self,previous=null,state=adopted,venue_state=confirmed,venue_revision=2,reference="original-reservation"}
+  fixture proposed=Change {parent=workshop,source="candidate",base_revision=1,location=test_site,timezone="Europe/Brussels",from=datetime("2099-01-03T09:00:00Z"),until=datetime("2099-01-03T10:00:00Z"),capacity=1,sales_until=datetime("2099-01-03T08:00:00Z"),reason="New schedule",resource=null,customer=null,account=self,previous=null}
+  preferences { location:Location?, ticket_state:Registration.state? label="Initial ticket state filter"@{nl="Eerste filter toegangsbewijsstatus"} }
+  message notice_title(kind:Notice.kind) = "{kind,select,confirmation{Event ticket confirmed}change{Event schedule or venue changed}cancellation{Event admission cancelled}other{Event ticket update}}"@{nl="{kind,select,confirmation{Toegangsbewijs evenement bevestigd}change{Planning of locatie evenement gewijzigd}cancellation{Toegang tot evenement geannuleerd}other{Wijziging toegangsbewijs evenement}}"}
+  message notice_details(name:text,location:text,from:datetime,until:datetime,zone:timezone,reason:text,ticket:text,revision:int) = "{name} at {location}. Start: {from}; end: {until}. Event timezone: {zone}. Revision {revision}. {reason} Ticket: {ticket}."@{nl="{name} bij {location}. Begin: {from}; einde: {until}. Tijdzone evenement: {zone}. Revisie {revision}. {reason} Toegangsbewijs: {ticket}."}
+  message label_Event_cancelled = "Cancelled"@{nl="Geannuleerd"}
+  message label_Registration_state_pending = "Pending"@{nl="In behandeling"}
+ When
+  crud Program by=organizer fields=name delete=none
+  crud Event by=organizer fields=name,description,price,sales_until,refund_before,terms create_fields=location,name,description,timezone,from,until,capacity,price,sales_until,refund_before,terms when=can_work(actor,row.location) and not row.cancelled delete=none
+  # Publish only a free-standing event or one whose canonical venue reservation is confirmed. @{nl="Publiceer uitsluitend een losstaand evenement of een evenement met bevestigde canonieke locatiereservering."}
+  scenario publish(event:Event) by=organizer
+   require can_work(actor,event.location) and not event.cancelled and event.from>now and (event.venue==null or event.venue.venue_state==confirmed) and event.pending_change==null
+   do set event {published=true}
+  # Reserve one ticket at the current frozen price; free tickets require no invented payment. @{nl="Reserveer één toegangsbewijs tegen de huidige vastgelegde prijs; gratis toegang vereist geen verzonnen betaling."}
+  scenario register(event:Event,name:text,email:email?=null,customer:Customer?=null,account:user?=null) -> Registration by=authenticated or organizer label="Register for event"@{nl="Registreren voor evenement"}
+   require event.published and not event.cancelled and now<event.sales_until and event.available>0 and trim(name)!=""
+   require event.venue==null or event.venue.venue_state==confirmed
+   require account==null or account==actor or (organizer and can_work(actor,event.location))
+   require (account!=null and account!=actor and email!=null) or ((account==null or account==actor) and actor.email_verified and (email==null or email==actor.email))
+   require event.price.minor==0 or (customer!=null and customer.active and event.location in customer.locations and (owns(account ?? actor,customer) or has_location_role(account ?? actor,customer,booker,event.location) or has_location_role(account ?? actor,customer,administrator,event.location)))
+   do
+    create Registration {parent=event,account=account ?? actor,name,email=email ?? actor.email,source=operation.id,price=event.price,event_revision=event.revision,terms=event.terms,refund_before=event.refund_before,collected=money(0,event.price.currency),refunded=money(0,event.price.currency),expires=now+15m,ticket=operation.id} as registration
+    if event.price.minor==0
+     set registration {state=confirmed,payment=free}
+     emit AttendeeNotice {registration,kind=confirmation,revision=event.revision,body=registration.ticket}
+    else
+     require customer!=null
+     send Billing.charge {value={source=registration.source,customer=customer.id,location=registration.location.id,description=event.name,amount=registration.price,terms=registration.terms,due=local_date(now,event.timezone)}} as delivery
+     set registration {state=pending,payment=pending,delivery=delivery.id}
+     schedule registration.id at=registration.expires event=HoldDue {registration}
+    return registration
+   examples seed=[test_worker,test_company,test_booker] event=workshop name="Attendee" email="guest@example.test" customer=test_company account=other
+    as,event.price -> result.account,result.payment,result.state
+    organizer,money(0,"EUR") -> other,free,confirmed
+    organizer,money(10,"EUR") -> other,pending,pending
+    check_in,money(0,"EUR") -> error(rule_failed)
+   examples event=workshop name="Own attendee"
+    as,event.price -> result.account,result.payment,result.state
+    members,money(0,"EUR") -> self,free,confirmed
+    members,money(10,"EUR") -> error(rule_failed)
+   examples seed=[free_ticket] event=workshop name="Attendee" email="guest@example.test" customer=null
+    as -> count(workshop.Registration)
+    organizer -> error(rule_failed)
+  # Scan a fulfilled ticket once without modifying room occupancy. @{nl="Scan een voldaan toegangsbewijs één keer zonder ruimtebezetting te wijzigen."}
+  scenario admit(registration:Registration) by=check_in label="Admit ticket"@{nl="Toegangsbewijs toelaten"}
+   require can_work(actor,registration.parent.location) and not registration.parent.cancelled and registration.state==confirmed and registration.payment in [free,paid] and registration.checked_in==null and (registration.parent.venue==null or registration.parent.venue.venue_state==confirmed)
+   do set registration {checked_in=now,checked_by=actor}
+   examples seed=[test_worker] registration=free_ticket
+    as,registration.state,registration.checked_in -> registration.checked_by
+    check_in,confirmed,null -> self
+    check_in,cancelled,null -> error(rule_failed)
+    check_in,confirmed,datetime("2026-10-04T12:00:00Z") -> error(rule_failed)
+    organizer,confirmed,null -> error(forbidden)
+  # Keep the original room until a replacement has committed; changing location rechecks current worker scope at both locations. @{nl="Behoud de oorspronkelijke ruimte totdat een vervanging is vastgelegd; controleer bij locatiewijziging actuele werkrechten op beide locaties."}
+  scenario change(event:Event,location:Event.location,timezone:Event.timezone,from:Event.from,until:Event.until,capacity:Event.capacity,sales_until:Event.sales_until,reason:text,resource:Change.resource=null,customer:Change.customer=null) -> Change by=organizer label="Change schedule or reserve venue"@{nl="Planning wijzigen of locatie reserveren"}
+   require can_work(actor,event.location) and can_work(actor,location) and not event.cancelled and event.pending_change==null and from>now and from<until and sales_until<=from and trim(reason)!="" and not any(event.Registration as registration,registration.checked_in!=null)
+   require location.currency==event.price.currency and capacity>=count(event.Registration as registration where registration.state==confirmed or (registration.state in [held,pending] and now<registration.expires))
+   require resource==null or (resource.active and resource.location==location and resource.party_limit>=capacity and customer!=null and customer.active and location in customer.locations)
+   do
+    let retained=first(event.Change as prior where prior==event.venue and prior.resource==resource and resource!=null order=prior.id)
+    create Change {parent=event,source=operation.id,base_revision=event.revision,location,timezone,from,until,capacity,sales_until,reason,resource,customer,account=retained?.account ?? actor,previous=event.venue} as change
+    set event {pending_change=change}
+    if resource==null
+     emit ApplyChange {change}
+    else
+     require customer!=null
+     if event.venue!=null and event.venue.resource==resource
+      require event.venue.venue_state==confirmed and event.venue.customer==customer
+      send Rooms.stage {value={source=change.source,revision=1,resource=resource.id,customer=customer.id,account=change.account,from,until,quantity=1,price=null,terms=null},previous_source=event.venue.source,previous_revision=event.venue.venue_revision} as delivery
+      set change {hold_delivery=delivery.id,hold_status=pending}
+     else
+      send Rooms.hold {value={source=change.source,revision=1,resource=resource.id,customer=customer.id,account=actor,from,until,quantity=1,price=null,terms=null}} as delivery
+      set change {hold_delivery=delivery.id,hold_status=pending}
+    return change
+   examples seed=[test_worker,incumbent] event=workshop location=test_site timezone="Europe/Brussels" from=datetime("2099-01-03T09:00:00Z") until=datetime("2099-01-03T10:00:00Z") capacity=1 sales_until=datetime("2099-01-03T08:00:00Z") reason="Move workshop" resource=event_room customer=test_company
+    as,event.venue -> result.previous,result.account,result.state,workshop.from
+    organizer,incumbent -> incumbent,self,holding,datetime("2099-01-02T09:00:00Z")
+    check_in,incumbent -> error(forbidden)
+  # Abandon a candidate with its original source; a late hold or confirmation cannot select it again. @{nl="Verlaat een kandidaat met zijn oorspronkelijke bron; een late reservering of bevestiging kan hem niet opnieuw selecteren."}
+  scenario abandon(change:Change,reason:text) by=organizer label="Abandon proposed change"@{nl="Voorgestelde wijziging verlaten"}
+   require can_work(actor,change.parent.location) and change.parent.pending_change==change and change.state in [holding,confirming,failed,review] and trim(reason)!=""
+   do
+    set change.parent {pending_change=null}
+    set change {state=releasing}
+    if change.resource!=null
+     send Rooms.release {source=change.source,resource=change.resource.id,reason} as delivery
+     set change {release_reason=reason,release_delivery=delivery.id,release_status=pending}
+    else
+     set change {state=released}
+   examples seed=[incumbent,test_worker] change=proposed reason="Keep original"
+    as,workshop.venue,workshop.pending_change,proposed.resource,proposed.customer,proposed.previous -> workshop.venue,workshop.pending_change,proposed.state,incumbent.venue_state
+    organizer,incumbent,proposed,event_room,test_company,incumbent -> incumbent,null,releasing,confirmed
+    check_in,incumbent,proposed,event_room,test_company,incumbent -> error(forbidden)
+  # Repeat safe venue cleanup with exactly the captured source, resource and reason; earlier receipts remain in history. @{nl="Herhaal veilige locatieopruiming met exact de vastgelegde bron, voorziening en reden; eerdere ontvangsten blijven in de historie."}
+  scenario retry_release(change:Change) by=organizer label="Retry venue cleanup"@{nl="Locatieopruiming opnieuw proberen"}
+   require can_work(actor,change.parent.location) and change.resource!=null and change.state==releasing and change.release_status in [failed,unknown,skipped] and change.release_reason!=null
+   do
+    send Rooms.release {source=change.source,resource=change.resource.id,reason=change.release_reason} as delivery
+    set change {release_delivery=delivery.id,release_status=pending}
+  # Correlate the initial venue delivery before accepting its owner outcome. @{nl="Koppel de eerste locatieverzending voordat het eigenaarresultaat wordt aanvaard."}
+  scenario venue_held on=Rooms.hold.completed
+   do
+    for change in Change as row where row.hold_delivery==event.delivery_id limit=1
+     set change {hold_status=event.status}
+     if event.status==succeeded and event.result!=null
+      require event.result.source==change.source
+      emit VenueObserved {value=event.result}
+     if event.status in [failed,skipped] and change.state==holding
+      set change {state=failed}
+   examples seed=[proposed] event={delivery_id="hold-delivery",status=succeeded,result=OperationOutcome {source="wrong-source",revision=1,state=pending,reference="room",detail=null},error=null}
+    proposed.hold_delivery -> proposed.hold_status
+    "hold-delivery" -> error(rule_failed)
+    "other-delivery" -> null
+  # Match the staged replacement delivery while retaining the original venue. @{nl="Koppel de verzending van de gefaseerde vervanging terwijl de oorspronkelijke locatie behouden blijft."}
+  scenario venue_staged on=Rooms.stage.completed
+   do
+    for change in Change as row where row.hold_delivery==event.delivery_id limit=1
+     set change {hold_status=event.status}
+     if event.status==succeeded and event.result!=null
+      require event.result.source==change.source
+      emit VenueObserved {value=event.result}
+     if event.status in [failed,skipped] and change.state==holding
+      set change {state=failed}
+  # Retain a correlated confirmation receipt without assuming transport success fulfills the venue. @{nl="Bewaar een gekoppelde bevestigingsontvangst zonder aan te nemen dat transportsucces de locatie vervult."}
+  scenario venue_confirmed on=Rooms.confirm.completed
+   do
+    for change in Change as row where row.confirm_delivery==event.delivery_id limit=1
+     set change {confirm_status=event.status}
+     if event.status==succeeded and event.result!=null
+      require event.result.source==change.source
+      emit VenueObserved {value=event.result}
+     if event.status in [failed,skipped] and change.state==confirming
+      set change {state=review}
+  # Record cleanup delivery separately and require the released owner outcome. @{nl="Registreer opruimverzending afzonderlijk en vereis het vrijgaveresultaat van de eigenaar."}
+  scenario venue_released on=Rooms.release.completed
+   do
+    for change in Change as row where row.release_delivery==event.delivery_id limit=1
+     set change {release_status=event.status}
+     if event.status==succeeded and event.result!=null
+      require event.result.source==change.source
+      emit VenueObserved {value=event.result}
+  # Forward authenticated venue observations into the one revision reducer. @{nl="Stuur geauthenticeerde locatiewaarnemingen naar de enige revisieverwerker."}
+  scenario venue_changed on=Rooms.changed
+   do emit VenueObserved {value=event.value}
+  # Accept increasing venue revisions and keep abandoned sources fenced from adoption. @{nl="Aanvaard stijgende locatierevisies en scherm verlaten bronnen af tegen overname."}
+  scenario observe_venue on=VenueObserved
+   do
+    for change in Change as row where row.source==event.value.source limit=1
+     if event.value.revision>change.venue_revision
+      set change {venue_revision=event.value.revision,reference=event.value.reference}
+      if change.state!=releasing and change.state!=released
+       set change {venue_state=event.value.state}
+      if change.parent.venue==change and event.value.state in [released,unavailable,failed,unknown]
+       set change.parent {published=false}
+      if event.value.state==released
+       set change {venue_state=released}
+       if change.state==releasing
+        set change {state=released}
+       if change.parent.venue==change
+        set change.parent {published=false}
+      if change.parent.pending_change==change and not change.parent.cancelled and change.base_revision==change.parent.revision
+       if event.value.state==pending and change.state==holding and change.resource!=null
+        send Rooms.confirm {source=change.source,resource=change.resource.id} when=change.parent.pending_change==change and not change.parent.cancelled and change.state==confirming as delivery
+        set change {state=confirming,confirm_delivery=delivery.id,confirm_status=pending}
+       if event.value.state==confirmed and change.state in [holding,confirming,review]
+        emit ApplyChange {change}
+       if event.value.state in [unavailable,failed,unknown]
+        set change {state=review}
+   examples seed=[proposed] event={value=OperationOutcome {source="candidate",revision=2,state=confirmed,reference="room-candidate",detail=null}}
+    proposed.state,proposed.venue_revision -> proposed.state,proposed.venue_state,proposed.venue_revision,workshop.from
+    released,1 -> released,pending,2,datetime("2099-01-02T09:00:00Z")
+    releasing,1 -> releasing,pending,2,datetime("2099-01-02T09:00:00Z")
+    holding,3 -> holding,pending,3,datetime("2099-01-02T09:00:00Z")
+   examples seed=[proposed,incumbent] event={value=OperationOutcome {source="candidate",revision=2,state=unavailable,reference="room-candidate",detail="Venue unavailable"}}
+    workshop.venue,workshop.pending_change,proposed.previous,proposed.resource,proposed.customer -> workshop.venue,incumbent.venue_state,proposed.state,workshop.from
+    incumbent,proposed,incumbent,event_room,test_company -> incumbent,confirmed,review,datetime("2099-01-02T09:00:00Z")
+  # Adopt only the current revision and fresh capacity; predecessor cleanup is an independently visible outcome. @{nl="Neem uitsluitend de huidige revisie en actuele capaciteit over; opruiming van de voorganger is een afzonderlijk zichtbaar resultaat."}
+  scenario apply_change on=ApplyChange
+   require event.change.parent.pending_change==event.change and event.change.base_revision==event.change.parent.revision and not event.change.parent.cancelled and event.change.state in [holding,confirming,review]
+   require event.change.resource==null or event.change.venue_state==confirmed
+   do
+    let selected=event.change.parent
+    let occupied=count(selected.Registration as registration where registration.state==confirmed or (registration.state in [held,pending] and now<registration.expires))
+    if event.change.capacity<occupied or event.change.from<=now or not organizer(event.change.author) or not can_work(event.change.author,selected.location) or not can_work(event.change.author,event.change.location) or any(selected.Registration as registration,registration.checked_in!=null)
+     set event.change {state=review}
+    else
+     set selected {location=event.change.location,timezone=event.change.timezone,from=event.change.from,until=event.change.until,capacity=event.change.capacity,sales_until=event.change.sales_until,venue=null,venue_name=null,pending_change=null,revision=selected.revision+1}
+     set event.change {state=adopted}
+     if event.change.resource!=null
+      set selected {venue=event.change,venue_name=event.change.resource.name}
+     if event.change.previous!=null and event.change.previous.resource!=null
+      set event.change.previous {state=releasing}
+      send Rooms.release {source=event.change.previous.source,resource=event.change.previous.resource.id,reason=event.change.reason} as delivery
+      set event.change.previous {release_reason=event.change.reason,release_delivery=delivery.id,release_status=pending}
+     if selected.published
+      schedule format("{event}:attendees",{event=selected.id}) at=now event=AttendeeUpdate {event=selected,revision=selected.revision,kind=change,reason=event.change.reason}
+   examples seed=[free_ticket,test_worker] event={change=proposed}
+    as,workshop.pending_change,proposed.capacity -> workshop.from,proposed.state,workshop.revision
+    organizer,proposed,1 -> datetime("2099-01-03T09:00:00Z"),adopted,2
+    organizer,null,1 -> error(rule_failed)
+   examples seed=[free_ticket,test_worker] event={change=proposed}
+    as,workshop.pending_change,proposed.base_revision -> workshop.from,proposed.state
+    organizer,proposed,2 -> error(rule_failed)
+    members,proposed,1 -> datetime("2099-01-02T09:00:00Z"),review
+  # Revoke unconsumed admission first, with the ticket's frozen cutoff governing automatic refund eligibility. @{nl="Trek ongebruikte toegang eerst in; de vastgelegde grens van het toegangsbewijs bepaalt automatische terugbetaling."}
+  scenario cancel(registration:Registration,reason:text) by=authenticated or organizer
+   require registration.account==actor or (organizer and can_work(actor,registration.parent.location))
+   require registration.state in [held,pending,confirmed,review] and registration.checked_in==null and trim(reason)!=""
+   do
+    set registration {state=cancelled,refund_required=registration.refund_required or now<registration.refund_before,refund_reason=reason}
+    cancel registration.id
+    if registration.price.minor>0
+     if registration.cancel_delivery==null or registration.cancel_status in [failed,unknown,skipped]
+      send Billing.cancel {source=registration.source,reason=registration.cancel_reason ?? reason} as cancellation
+      set registration {cancel_reason=registration.cancel_reason ?? reason,cancel_delivery=cancellation.id,cancel_status=pending}
+     if registration.refund_required
+      set registration {refund_state=review}
+    emit AttendeeNotice {registration,kind=cancellation,revision=registration.parent.revision,body=reason}
+  # Release the elapsed ticket hold and reconcile any uncertain payment. @{nl="Geef de verstreken tijdelijke toegang vrij en reconcilieer onzekere betaling."}
+  scenario expired on=HoldDue
+   require event.registration.state in [held,pending] and event.registration.expires<=now
+   do
+    set event.registration {state=expired}
+    send Billing.reconcile {source=event.registration.source} as delivery
+    set event.registration {reconcile_delivery=delivery.id,reconcile_status=pending}
+  # Finance resolves an unfulfilled paid ticket through the same refund request path used by cancellation. @{nl="Financiën handelt een betaald maar niet uitgevoerd toegangsbewijs af via hetzelfde terugbetalingspad als annulering."}
+  scenario refund(registration:Registration,reason:text) by=finance label="Resolve ticket refund"@{nl="Terugbetaling toegangsbewijs afhandelen"}
+   require can_work(actor,registration.parent.location) and can_work(actor,registration.location) and registration.state in [cancelled,expired,review] and registration.price.minor>0 and trim(reason)!="" and registration.refund_state!=refunded
+   do
+    set registration {refund_required=true,refund_reason=reason,refund_state=review}
+    if registration.cancel_delivery==null or registration.cancel_status in [failed,unknown,skipped]
+     send Billing.cancel {source=registration.source,reason=registration.cancel_reason ?? reason} as cancellation
+     set registration {cancel_reason=registration.cancel_reason ?? reason,cancel_delivery=cancellation.id,cancel_status=pending}
+    emit RefundCheck {registration}
+  scenario reconcile(registration:Registration) by=authenticated or organizer or finance label="Reconcile ticket payment"@{nl="Betaling toegangsbewijs reconciliëren"}
+   require registration.account==actor or ((organizer or finance) and can_work(actor,registration.parent.location))
+   require registration.price.minor>0
+   do
+    send Billing.reconcile {source=registration.source} as delivery
+    set registration {reconcile_delivery=delivery.id,reconcile_status=pending}
+  # Keep cancellation acknowledgement and ledger fence independent of returned money. @{nl="Bewaar annuleringsbevestiging en afwikkelingsgrens afzonderlijk van terugbetaalde bedragen."}
+  scenario cancelled_money on=Billing.cancel.completed
+   do
+    for registration in Registration as row where row.cancel_delivery==event.delivery_id limit=1
+     set registration {cancel_status=event.status}
+     if event.status==succeeded and event.result!=null
+      require event.result.source==registration.source
+      if event.result.state in [released,pending,unavailable]
+       set registration {fenced=true,fence_revision=event.result.revision}
+       if event.result.state==released and event.result.reference==null
+        set registration {absent=true,collection_pending=false}
+       send Billing.reconcile {source=registration.source} as delivery
+       set registration {reconcile_delivery=delivery.id,reconcile_status=pending}
+       emit RefundCheck {registration}
+  # Save the refund delivery outcome and request fresh cumulative money evidence. @{nl="Bewaar het verzendresultaat van de terugbetaling en vraag nieuw cumulatief geldbewijs."}
+  scenario refund_result on=Billing.refund.completed
+   do
+    for registration in Registration as row where row.refund_delivery==event.delivery_id limit=1
+     set registration {refund_status=event.status}
+     if event.status in [failed,unknown,skipped]
+      set registration {refund_state=unknown}
+     if event.status==succeeded and event.result!=null
+      require event.result.source==registration.source
+      if event.result.state in [failed,unavailable]
+       set registration {refund_status=failed,refund_state=review}
+      send Billing.reconcile {source=registration.source} as delivery
+      set registration {reconcile_delivery=delivery.id,reconcile_status=pending}
+  # Match settlement refresh delivery and feed nonnull evidence into canonical reconciliation. @{nl="Koppel afwikkelingsverversing en stuur niet-lege bewijsgegevens naar canonieke reconciliatie."}
+  scenario reconciled_money on=Billing.reconcile.completed
+   do
+    for registration in Registration as row where row.reconcile_delivery==event.delivery_id limit=1
+     set registration {reconcile_status=event.status}
+     if event.status==succeeded and event.result!=null
+      require event.result.source==registration.source
+      emit SettlementObserved {value=event.result}
+  # Process verified invoice snapshots through the same settlement path as explicit refresh. @{nl="Verwerk geverifieerde factuurmomentopnamen via hetzelfde afwikkelingspad als expliciete verversing."}
+  scenario money_received on=Billing.settled
+   do emit SettlementObserved {value=event.value}
+  # Preserve cumulative balances, terminal admission and fresh capacity under ordered invoice evidence. @{nl="Behoud cumulatieve saldi, beëindigde toegang en actuele capaciteit onder geordend factuurbewijs."}
+  scenario money on=SettlementObserved
+   do
+    for registration in Registration as row where row.source==event.value.source limit=1
+     require registration.price==event.value.amount and registration.price.currency==event.value.collected.currency and registration.price.currency==event.value.refunded.currency
+     if event.value.revision>registration.settlement_revision
+      let was_confirmed=registration.state==confirmed
+      set registration {absent=false,settlement_revision=event.value.revision,invoice=event.value.invoice,collected=event.value.collected,refunded=event.value.refunded,collection_pending=event.value.collection_pending,refund_pending=event.value.refund_pending,invoice_state=event.value.state}
+      if registration.refund_required and registration.collected>registration.refunded and registration.refund_state==refunded
+       set registration {refund_state=review}
+      if event.value.collection_pending or event.value.refund_pending
+       set registration {payment=unknown}
+      else
+       if event.value.collected==event.value.refunded and event.value.refunded>=registration.price and registration.price.minor>0
+        set registration {payment=refunded,state=cancelled,refund_state=refunded}
+       else
+        if event.value.collected-event.value.refunded>=registration.price and registration.price.minor>0
+         set registration {payment=paid}
+         if registration.checked_in==null
+          if not registration.parent.cancelled and registration.state in [held,pending,confirmed,expired] and registration.cancel_delivery==null and not registration.refund_required and event.value.state==issued and registration.parent.from>now and (registration.parent.venue==null or registration.parent.venue.venue_state==confirmed) and (registration.state==confirmed or (registration.state in [held,pending] and now<registration.expires) or registration.parent.available>0)
+           set registration {state=confirmed}
+          else
+           if registration.state!=cancelled
+            set registration {state=review,refund_required=true,refund_reason="Paid ticket cannot be fulfilled",refund_state=review}
+           if registration.refund_required and registration.cancel_delivery==null
+            send Billing.cancel {source=registration.source,reason=registration.refund_reason ?? "Unfulfilled ticket"} as delivery
+            set registration {cancel_reason=registration.refund_reason ?? "Unfulfilled ticket",cancel_delivery=delivery.id,cancel_status=pending}
+         if registration.state==confirmed and not was_confirmed
+          emit AttendeeNotice {registration,kind=confirmation,revision=registration.parent.revision,body=registration.ticket}
+        else
+         if event.value.state==void
+          set registration {payment=unpaid}
+          if registration.state!=cancelled and registration.checked_in==null
+           set registration {state=expired}
+         else
+          if event.value.collected.minor>0 or event.value.refunded.minor>0
+           set registration {payment=unknown}
+           if registration.checked_in==null and registration.state!=cancelled and not (registration.state in [held,pending] and now<registration.expires)
+            set registration {state=review,refund_required=true,refund_reason="Unfulfilled partial ticket payment",refund_state=review}
+           if registration.refund_required and registration.cancel_delivery==null
+            send Billing.cancel {source=registration.source,reason=registration.refund_reason ?? "Unfulfilled ticket"} as delivery
+            set registration {cancel_reason=registration.refund_reason ?? "Unfulfilled ticket",cancel_delivery=delivery.id,cancel_status=pending}
+      emit RefundCheck {registration}
+   examples seed=[free_ticket] event={value=Settlement {source="free",invoice="invoice",revision=2,amount=money(10,"EUR"),collected=money(10,"EUR"),refunded=money(0,"EUR"),collection_pending=false,refund_pending=false,state=issued,recorded_at=datetime("2026-10-04T12:00:00Z")}}
+    free_ticket.price,free_ticket.state,free_ticket.cancel_delivery,free_ticket.settlement_revision,free_ticket.payment,event.value.refund_pending -> free_ticket.state,free_ticket.payment,free_ticket.settlement_revision
+    money(10,"EUR"),expired,null,0,pending,false -> confirmed,paid,2
+    money(10,"EUR"),cancelled,"cancel-ticket",0,pending,false -> cancelled,paid,2
+    money(10,"EUR"),expired,"cancel-ticket",0,pending,false -> review,paid,2
+    money(10,"EUR"),cancelled,"cancel-ticket",3,pending,false -> cancelled,pending,3
+    money(10,"EUR"),expired,null,0,pending,true -> expired,unknown,2
+   examples seed=[free_ticket,competing_ticket] event={value=Settlement {source="free",invoice="invoice",revision=2,amount=money(10,"EUR"),collected=money(10,"EUR"),refunded=money(0,"EUR"),collection_pending=false,refund_pending=false,state=issued,recorded_at=datetime("2026-10-04T12:00:00Z")}}
+    free_ticket.price,free_ticket.state -> free_ticket.state,free_ticket.payment,workshop.available,free_ticket.refund_required
+    money(10,"EUR"),expired -> review,paid,0,true
+   examples seed=[free_ticket] event={value=Settlement {source="free",invoice="invoice",revision=2,amount=money(10,"EUR"),collected=money(10,"EUR"),refunded=money(0,"EUR"),collection_pending=false,refund_pending=false,state=issued,recorded_at=datetime("2026-10-04T12:00:00Z")}}
+    event.value.amount -> free_ticket.payment
+    money(10,"EUR") -> error(rule_failed)
+  # Send only the outstanding evidenced full-ticket refund after the invoice cancellation fence and uncertainty clear. @{nl="Verzend uitsluitend de openstaande bewezen volledige terugbetaling nadat factuurafscherming en onzekerheid zijn afgehandeld."}
+  scenario refund_check on=RefundCheck
+   do
+    let registration=event.registration
+    if registration.refund_required and registration.fenced and registration.settlement_revision>=registration.fence_revision and registration.settlement_revision>0 and not registration.collection_pending and not registration.refund_pending and registration.collected>registration.refunded and registration.refund_state!=refunded and (registration.refund_delivery==null or registration.refund_status==failed or (registration.refund_target!=null and registration.refunded>=registration.refund_target))
+     send Billing.refund {source=registration.source,amount=registration.collected-registration.refunded,reason=registration.refund_reason ?? "Ticket refund"} as delivery
+     set registration {refund_delivery=delivery.id,refund_target=registration.collected,refund_status=pending,refund_state=pending}
+    if registration.refund_required and registration.fenced and (registration.absent or (registration.settlement_revision>=registration.fence_revision and not registration.collection_pending and not registration.refund_pending and registration.collected==registration.refunded and (registration.collected.minor>0 or registration.invoice_state==void)))
+     set registration {refund_state=refunded}
+   examples event={registration=free_ticket}
+    free_ticket.price,free_ticket.state,free_ticket.refund_required,free_ticket.fenced,free_ticket.settlement_revision,free_ticket.fence_revision,free_ticket.collected,free_ticket.collection_pending -> free_ticket.refund_state,free_ticket.refund_target
+    money(10,"EUR"),cancelled,true,true,2,2,money(10,"EUR"),false -> pending,money(10,"EUR")
+    money(10,"EUR"),cancelled,true,true,1,2,money(10,"EUR"),false -> none,null
+    money(10,"EUR"),cancelled,true,true,2,2,money(10,"EUR"),true -> none,null
+    money(10,"EUR"),cancelled,true,false,2,2,money(10,"EUR"),false -> none,null
+  # Cancel all ticket sales and candidates without converting money or mail delivery into success. @{nl="Annuleer alle toegangsbewijsverkoop en kandidaten zonder geld of berichtverzending als succes te beschouwen."}
+  scenario cancel_event(event:Event,reason:text) by=organizer label="Cancel event"@{nl="Evenement annuleren"}
+   require can_work(actor,event.location) and not event.cancelled and trim(reason)!=""
+   do
+    set event {cancelled=true,cancellation_reason=reason,revision=event.revision+1,pending_change=null}
+    schedule format("{event}:venues",{event=event.id}) at=now event=VenueCleanup {event,revision=event.revision,reason}
+    schedule format("{event}:attendees",{event=event.id}) at=now event=AttendeeUpdate {event,revision=event.revision,kind=cancellation,reason}
+   examples seed=[test_worker,free_ticket] event=workshop reason="Event cancelled"
+    as -> workshop.cancelled,free_ticket.state,free_ticket.checked_in
+    organizer -> true,confirmed,null
+    check_in -> error(forbidden)
+  # Apply one attendee revision at a time; event cancellation already blocks sales and admission before this work runs. @{nl="Pas één deelnemersrevisie tegelijk toe; evenementannulering blokkeert verkoop en toegang voordat dit werk loopt."}
+  scenario attendee_update on=AttendeeUpdate
+   require event.event.revision==event.revision
+   do
+    let registration=first(event.event.Registration as ticket where ticket.event_revision<event.revision and (event.kind==cancellation or ticket.state in [held,pending,confirmed,review]) order=ticket.id)
+    if registration!=null
+     set registration {event_revision=event.revision}
+     if event.kind==cancellation
+      require event.event.cancelled
+      set registration {state=cancelled,refund_required=registration.price.minor>0,refund_reason=event.reason}
+      cancel registration.id
+      if registration.price.minor>0
+       set registration {refund_state=review}
+       if registration.cancel_delivery==null or registration.cancel_status in [failed,unknown,skipped]
+        send Billing.cancel {source=registration.source,reason=registration.cancel_reason ?? event.reason} as cancellation
+        set registration {cancel_reason=registration.cancel_reason ?? event.reason,cancel_delivery=cancellation.id,cancel_status=pending}
+       emit RefundCheck {registration}
+     emit AttendeeNotice {registration,kind=event.kind,revision=event.revision,body=event.reason}
+     schedule format("{event}:attendees",{event=event.event.id}) at=now event=AttendeeUpdate {event=event.event,revision=event.revision,kind=event.kind,reason=event.reason}
+   examples seed=[free_ticket] event={event=workshop,revision=2,kind=cancellation,reason="Workshop cancelled"}
+    workshop.revision,workshop.cancelled -> free_ticket.state,free_ticket.event_revision
+    2,true -> cancelled,2
+    3,true -> error(rule_failed)
+  # Clean up one venue source per occurrence with explicit resource routing and release-before-arrival fences. @{nl="Ruim één locatiebron per uitvoering op met expliciete voorzieningsroutering en vrijgaveafscherming vóór aankomst."}
+  scenario venue_cleanup on=VenueCleanup
+   require event.event.cancelled and event.event.revision==event.revision
+   do
+    let change=first(event.event.Change as candidate where candidate.state in [holding,confirming,adopted,review,failed] order=candidate.id)
+    if change!=null
+     set change {state=releasing}
+     if change.resource!=null
+      send Rooms.release {source=change.source,resource=change.resource.id,reason=event.reason} as delivery
+      set change {release_reason=event.reason,release_delivery=delivery.id,release_status=pending}
+     else
+      set change {state=released}
+     schedule format("{event}:venues",{event=event.event.id}) at=now event=VenueCleanup {event=event.event,revision=event.revision,reason=event.reason}
+  # Freeze current event details and track revision-bound delivery to the ticket contact. @{nl="Leg actuele evenementdetails vast en volg revisiegebonden verzending naar de contactpersoon van het toegangsbewijs."}
+  scenario attendee_notice on=AttendeeNotice
+   require event.registration.parent.revision==event.revision
+   do
+    let subject=format(notice_title(event.kind),locale=null)
+    let body=format(notice_details(event.registration.parent.name,event.registration.parent.location.name,event.registration.parent.from,event.registration.parent.until,event.registration.parent.timezone,event.body,event.registration.ticket,event.revision),locale=null)+" "+app_url("/events")
+    send Mail.send {to=event.registration.email,subject,body} when=event.registration.parent.revision==event.revision and (event.kind!=confirmation or (event.registration.state==confirmed and not event.registration.parent.cancelled)) as delivery
+    create Notice {parent=event.registration,kind=event.kind,revision=event.revision,subject,body,delivery=delivery.id} as notice
+  # Retain each matching mail result without changing admission or financial state. @{nl="Bewaar elk gekoppeld berichtresultaat zonder toegang of financiële status te wijzigen."}
+  scenario notice_result on=Mail.send.completed
+   do
+    for notice in Notice as row where row.delivery==event.delivery_id limit=1
+     set notice {state=event.status}
+     if event.status==succeeded and event.result!=null
+      set notice {reference=event.result.reference}
+  # Retry eligible current correspondence with a new receipt while history retains the earlier attempt. @{nl="Probeer geldig huidig berichtverkeer opnieuw met een nieuwe ontvangst terwijl historie de eerdere poging bewaart."}
+  scenario resend_notice(notice:Notice) by=organizer label="Retry attendee notice"@{nl="Deelnemersbericht opnieuw proberen"}
+   require can_work(actor,notice.parent.parent.location) and notice.parent.parent.revision==notice.revision and notice.state in [failed,unknown] and (notice.kind!=confirmation or (notice.parent.state==confirmed and not notice.parent.parent.cancelled))
+   do
+    send Mail.send {to=notice.parent.email,subject=notice.subject,body=notice.body} when=notice.parent.parent.revision==notice.revision and (notice.kind!=confirmation or (notice.parent.state==confirmed and not notice.parent.parent.cancelled)) as delivery
+    create Notice {parent=notice.parent,kind=notice.kind,revision=notice.revision,subject=notice.subject,body=notice.body,delivery=delivery.id} as retry
+ Then
+  # Discover published events and retrieve only your own tickets. @{nl="Ontdek gepubliceerde evenementen en haal uitsluitend je eigen toegangsbewijzen op."}
+  page /events title="Events"@{nl="Evenementen"}
+   card "Published event discovery"@{nl="Gepubliceerde evenementen ontdekken"}
+    list (Event as offering where offering.published and not offering.cancelled) columns=name,location,from,until,price filter=location defaults={location=preferences.location} search=name order=from display=split
+     text row.description,row.timezone,row.from,row.until,row.price,row.sales_until,row.refund_before,row.terms,row.venue_name
+     form register
+   card "Own tickets and admission"@{nl="Eigen toegangsbewijzen en toelating"}
+    require authenticated
+    list (Registration as ticket where ticket.account==actor) filter=state defaults={state=preferences.ticket_state} display=split
+     text row.ticket,row.state,row.payment,row.expires,row.checked_in,row.refund_state,row.terms,row.refund_before,row.parent.name,row.parent.location,row.parent.from,row.parent.until,row.parent.timezone,row.parent.cancelled,row.parent.cancellation_reason
+     table row.Notice columns=kind,revision,state,reference
+     actions cancel,reconcile
+  # Author events and perform scoped reception admission. @{nl="Beheer evenementen en voer beperkte receptietoelating uit."}
+  page /events/work title="Event operations"@{nl="Evenementuitvoering"}
+   require organizer or check_in or finance
+   card "Event intake"@{nl="Evenement aanmaken"}
+    require organizer
+    form Program.create
+    list Program columns=name
+     form Event.create
+   list Event columns=name,location,from filter=location defaults={location=preferences.location} display=split
+    card "Event and venue outcome"@{nl="Evenement en locatie-uitkomst"}
+     text row.timezone,row.capacity,row.sales_until,row.refund_before,row.terms
+     edit
+     actions publish,change,cancel_event
+     form register
+    table row.Change columns=location,from,until,state,venue_state,venue_revision,hold_status,confirm_status,release_status
+     actions abandon,retry_release
+     history
+    table row.Registration columns=name,email,state,payment,ticket,checked_in filter=state,payment search=name display=split
+     action admit
+     details "Ticket finance and history"@{nl="Financiën en historie toegangsbewijs"}
+      require organizer or finance
+      text row.expires,row.price,row.checked_by,row.terms,row.refund_before,row.invoice,row.delivery,row.refund_state,row.collected,row.refunded,row.cancel_status,row.refund_status,row.reconcile_status
+      actions cancel,refund,reconcile
+      table row.Notice columns=kind,revision,state,reference
+       action resend_notice
+      history

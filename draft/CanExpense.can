@@ -1,0 +1,122 @@
+# Help workspace employees claim approved travel between locations, emergency supplies, and other out-of-pocket operating expenses. @{nl="Help werkplekmedewerkers goedgekeurde reizen tussen locaties, noodbenodigdheden en andere voorgeschoten bedrijfskosten declareren."}
+app CanExpense uses=[expense]
+
+# Keep private employee claims, review revisions and reimbursement evidence separate. @{nl="Houd privédeclaraties, beoordelingsrevisies en vergoedingsbewijs gescheiden."}
+package expense label="Expenses"@{nl="Onkosten"}
+ use rent_catalog {Location,test_site}
+ use employee {Employee,can_work,test_worker}
+ Given
+  role reviewer label=label_reviewer
+  role finance label="Finance"@{nl="Financiën"}
+  Expense in Employee { location:Location, corrects:Expense? label="Corrected claim"@{nl="Gecorrigeerde declaratie"}, authorization:text? label="Job or purchase authorization reference"@{nl="Werk- of inkoopautorisatiereferentie"}, purpose:text trim min=1 label="Purpose"@{nl="Doel"}, category:text label="Category"@{nl="Categorie"}, amount:money, business_date:date label="Business date"@{nl="Kostendatum"}, receipt:file label=label_Expense_receipt, reviewer:user label=label_reviewer, status:enum(draft,submitted,approved,rejected,reimbursed)=draft label={text="Status"@{nl="Status"},values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved=label_Expense_status_approved,rejected="Rejected"@{nl="Afgewezen"},reimbursed="Reimbursed"@{nl="Vergoed"}}}, submission:int=0 label=label_Expense_submission, decision:text? label="Decision"@{nl="Besluit"}, decided_by:user? label="Decision maker"@{nl="Beslist door"}, decided_at:datetime? label=label_Expense_decided_at } label="Expense claim"@{nl="Onkostendeclaratie"}
+  Decision in Expense { submission:int label=label_Expense_submission, amount:money, receipt:file label=label_Expense_receipt, reviewer:user label=label_reviewer, approved:bool label=label_Expense_status_approved, reason:text, decided_at:datetime label=label_Expense_decided_at } label="Expense decision"@{nl="Onkostenbesluit"}
+  Reimbursement in Expense { amount:money, reference:text trim min=1, paid:date label=label_Reimbursement_paid, reason:text, recorded_by:user server=actor label="Recorded by"@{nl="Vastgelegd door"} } label=evidenced_reimbursement_caption
+  policy Expense read=authenticated where=row.parent.user==actor
+  policy Expense read=reviewer where=row.reviewer==actor and can_work(actor,row.location) and row.status!=draft
+  policy Expense read=finance and can_work(actor,row.location)
+  policy Decision read=authenticated where=row.parent.parent.user==actor or (reviewer and row.parent.reviewer==actor and can_work(actor,row.parent.location)) or (finance and can_work(actor,row.parent.location))
+  policy Reimbursement read=authenticated where=row.parent.parent.user==actor or (finance and can_work(actor,row.parent.location))
+  invariant Expense: row.amount.minor>0 and row.amount.currency==row.location.currency
+  invariant Expense: row.corrects==null or (row.corrects.parent==row.parent and row.corrects.status==rejected)
+  lock Expense fields=location,authorization,purpose,category,amount,business_date,receipt,reviewer when=row.status!=draft
+  lock Expense fields=corrects
+  lock Decision fields=submission,amount,receipt,reviewer,approved,reason,decided_at
+  lock Reimbursement fields=amount,reference,paid,reason,recorded_by
+  fixture receipt=file {}
+  fixture other_worker=Employee {user=other,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer"}
+  fixture claim=Expense {parent=test_worker,location=test_site,purpose="Travel between sites",category="Travel",amount=money(25,"EUR"),business_date=date("2026-10-01"),receipt=receipt,reviewer=other}
+  fixture previous_claim=Expense {parent=test_worker,location=test_site,purpose="Earlier supplies",category="Supplies",amount=money(25,"EUR"),business_date=date("2026-10-01"),receipt=receipt,reviewer=other,status=reimbursed}
+  fixture previous_payment=Reimbursement {parent=previous_claim,amount=money(25,"EUR"),reference="bank-previous",paid=date("2026-10-01"),reason="Statement evidence"}
+  fixture rejected_decision=Decision {parent=claim,submission=1,amount=money(25,"EUR"),receipt=receipt,reviewer=other,approved=false,reason="Clarify the journey",decided_at=datetime("2026-10-02T09:00:00Z")}
+  preferences { status:Expense.status? }
+  message evidenced_reimbursement_caption = "Evidenced reimbursement"@{nl="Onderbouwde vergoeding"}
+  message label_reviewer = "Reviewer"@{nl="Beoordelaar"}
+  message label_Expense_receipt = "Receipt"@{nl="Bon"}
+  message label_Expense_status_approved = "Approved"@{nl="Goedgekeurd"}
+  message label_Expense_submission = "Submission revision"@{nl="Ingediende revisie"}
+  message label_Expense_decided_at = "Decision time"@{nl="Beslist op"}
+  message label_Reimbursement_paid = "Payment date"@{nl="Betaaldatum"}
+ When
+  crud Expense by=members fields=location,authorization,purpose,category,amount,business_date,receipt,reviewer when=row.parent.user==actor and row.parent.active and row.status==draft and can_work(actor,row.location) delete=none
+  # Submit your draft after checking the active, distinct reviewer. @{nl="Dien je concept in na controle van een actieve, andere beoordelaar."}
+  scenario submit(expense:Expense) by=members
+   require expense.parent.user==actor and expense.parent.active and expense.status==draft and expense.reviewer!=actor and can_work(expense.reviewer,expense.location)
+   do set expense {status=submitted,submission=expense.submission+1}
+   examples seed=[other_worker] expense=claim
+    expense.reviewer -> expense.status,expense.submission,expense.receipt
+    other -> submitted,1,receipt
+    self -> error(rule_failed)
+  # Decide exactly the submitted amount and receipt; rejection needs a reason. @{nl="Beslis over precies het ingediende bedrag en de bon; afwijzing vereist een reden."}
+  scenario decide(expense:Expense,approve:bool label=label_Expense_status_approved,reason:text) by=reviewer label="Record decision"@{nl="Besluit vastleggen"}
+   require expense.status==submitted and expense.reviewer==actor and expense.parent.user!=actor and can_work(actor,expense.location) and (approve or trim(reason)!="")
+   do
+    create Decision {parent=expense,submission=expense.submission,amount=expense.amount,receipt=expense.receipt,reviewer=actor,approved=approve,reason,decided_at=now} as decision
+    if approve
+     set expense {status=approved,decision=reason,decided_by=actor,decided_at=now}
+    else
+     set expense {status=rejected,decision=reason,decided_by=actor,decided_at=now}
+   examples seed=[other_worker] expense=claim
+    as,expense.parent,expense.status,expense.reviewer,expense.submission,approve,reason -> expense.status,expense.receipt,expense.decided_by,count(expense.Decision),any(expense.Decision as decision,decision.submission==1 and decision.amount==money(25,"EUR") and decision.receipt==receipt and decision.reviewer==self and decision.approved==approve and decision.reason==reason)
+    reviewer,other_worker,submitted,self,1,true,"Checked the journey" -> approved,receipt,self,1,true
+    reviewer,other_worker,submitted,self,1,false,"Clarify the journey" -> rejected,receipt,self,1,true
+    reviewer,other_worker,submitted,self,1,false,"" -> error(rule_failed)
+    reviewer,test_worker,submitted,self,1,true,"Checked the journey" -> error(rule_failed)
+    members,test_worker,submitted,self,1,true,"Checked the journey" -> error(forbidden)
+  # Create a corrected draft while preserving the rejected claim and its decision. @{nl="Maak een gecorrigeerd concept met behoud van de afgewezen declaratie en het besluit."}
+  scenario correct(expense:Expense) by=members label="Create correction draft"@{nl="Correctieconcept maken"}
+   require expense.parent.user==actor and expense.status==rejected and expense.parent.active and can_work(actor,expense.location) and not any(Expense as replacement,replacement.corrects==expense)
+   do create Expense {parent=expense.parent,corrects=expense,authorization=expense.authorization,location=expense.location,purpose=expense.purpose,category=expense.category,amount=expense.amount,business_date=expense.business_date,receipt=expense.receipt,reviewer=expense.reviewer,submission=expense.submission} as replacement
+   examples seed=[rejected_decision,other_worker] expense=claim
+    expense.status,expense.submission,expense.decision,expense.decided_by,expense.decided_at -> expense.status,expense.receipt,expense.decision,expense.decided_by,expense.decided_at,count(expense.Decision),rejected_decision.receipt,rejected_decision.reason,count(expense.parent.Expense),any(expense.parent.Expense as replacement,replacement.corrects==expense and replacement.status==draft and replacement.receipt==receipt and replacement.amount==money(25,"EUR") and replacement.submission==1 and replacement.reviewer==other)
+    rejected,1,"Clarify the journey",other,datetime("2026-10-02T09:00:00Z") -> rejected,receipt,"Clarify the journey",other,datetime("2026-10-02T09:00:00Z"),1,receipt,"Clarify the journey",2,true
+    submitted,1,null,null,null -> error(rule_failed)
+  # Record one full same-currency reimbursement with external payment evidence. @{nl="Leg één volledige vergoeding in dezelfde valuta vast met extern betalingsbewijs."}
+  scenario reimburse(expense:Expense,amount:money,reference:text,paid:date label=label_Reimbursement_paid,reason:text) by=finance label="Record reimbursement"@{nl="Vergoeding vastleggen"}
+   require can_work(actor,expense.location) and expense.status==approved and amount==expense.amount and trim(reference)!="" and trim(reason)!="" and paid<=local_date(now,expense.location.timezone) and count(expense.Reimbursement)==0 and not any(Reimbursement as payment,payment.reference==trim(reference))
+   do
+    create Reimbursement {parent=expense,amount,reference=trim(reference),paid,reason} as payment
+    set expense {status=reimbursed}
+   examples seed=[previous_payment] expense=claim reason="Bank statement"
+    as,expense.status,amount,reference,paid -> expense.status,count(expense.Reimbursement),any(expense.Reimbursement as payment,payment.reference=="bank-new" and payment.amount==money(25,"EUR"))
+    finance,approved,money(25,"EUR")," bank-new ",local_date(now,test_site.timezone) -> reimbursed,1,true
+    finance,approved,money(25,"EUR"),"bank-previous",local_date(now,test_site.timezone) -> error(rule_failed)
+    finance,approved,money(20,"EUR"),"bank-new",local_date(now,test_site.timezone) -> error(rule_failed)
+    finance,approved,money(25,"USD"),"bank-new",local_date(now,test_site.timezone) -> error(rule_failed)
+    finance,approved,money(25,"EUR"),"bank-new",add_days(local_date(now,test_site.timezone),1) -> error(rule_failed)
+    finance,submitted,money(25,"EUR"),"bank-new",local_date(now,test_site.timezone) -> error(rule_failed)
+    members,approved,money(25,"EUR"),"bank-new",local_date(now,test_site.timezone) -> error(forbidden)
+ Then
+  # Submit your receipts and see their private decision history. @{nl="Dien je bonnen in en bekijk hun privébesluithistorie."}
+  page /expenses/mine title="My expenses"@{nl="Mijn onkosten"}
+   require members
+   card "Claim intake"@{nl="Declaratie aanmaken"}
+    form Expense.create
+   list Expense as expense where expense.parent.user==actor order=-expense.business_date filter=status,location,category,business_date defaults={status=preferences.status} display=split
+    card "Own claim and receipt"@{nl="Eigen declaratie en bon"}
+     text row.purpose,row.authorization,row.corrects,row.business_date,row.amount,row.receipt,row.status,row.submission,row.decision
+     edit
+     actions submit,correct
+    list row.Decision
+     text row.submission,row.amount,row.receipt,row.approved,row.reason,row.decided_at
+    list row.Reimbursement
+     text row.reference,row.amount,row.paid,row.reason
+    history
+  # Review assigned claims and record evidenced reimbursement under finance grants. @{nl="Beoordeel toegewezen declaraties en leg onderbouwde vergoeding vast binnen financiële bevoegdheden."}
+  page /expenses/review title="Expense review"@{nl="Onkostenbeoordeling"}
+   require reviewer or finance
+   table Expense columns=parent,location,purpose,business_date,amount,receipt,status order=business_date filter=status,location,category,business_date defaults={status=preferences.status} display=split
+    card "Frozen claim review"@{nl="Vastgelegde declaratie beoordelen"}
+     text row.authorization,row.corrects,row.submission,row.reviewer,row.decision,row.decided_by,row.decided_at
+     actions decide,reimburse
+    tabs
+     tab "Recorded decisions"@{nl="Vastgelegde besluiten"}
+      list row.Decision
+       text row.submission,row.amount,row.receipt,row.reviewer,row.approved,row.reason,row.decided_at
+     tab evidenced_reimbursement_caption
+      list row.Reimbursement
+       text row.reference,row.amount,row.paid,row.reason,row.recorded_by
+   card "Awaiting reimbursement"@{nl="Wacht op vergoeding"}
+    table Expense as expense where expense.status==approved columns=parent,location,purpose,amount,receipt,status filter=parent,location,category,business_date display=split
+     actions reimburse
+   card "Accounting evidence"@{nl="Boekhoudbewijs"}
+    table Reimbursement columns=parent,reference,amount,paid,reason,recorded_by order=-paid filter=paid

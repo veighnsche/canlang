@@ -1,0 +1,227 @@
+# Help reception and support teams handle booking changes, billing questions, Wi-Fi problems, and member service requests across workspace locations. @{nl="Help receptie- en supportteams boekingswijzigingen, factuurvragen, wifi-problemen en ledenserviceverzoeken op werkpleklocaties behandelen."}
+app CanDesk uses=[desk]
+
+# Keep customer-visible support messages separate from private staff notes and unrelated business actions. @{nl="Houd klantzichtbare supportberichten gescheiden van privénotities en andere bedrijfsacties."}
+package desk
+ use customer {Customer,owns,has_role}
+ use rent_catalog {Location,test_site}
+ use employee {can_work,staff,test_worker}
+ use rent_reservations {Booking}
+ use member_terms {Membership}
+ use invoice {Invoice}
+ use maintain {Asset,Repair,report as report_fault}
+ use std {EmailV1 as Mail} from=deployment.mail
+ use desk {InboxV1 as Inbox} from=deployment.support_inbox
+ Given
+  export contract IncomingMail { id:text min=1 max=1000, sender:email label=label_IncomingMail_sender, recipient:email label=label_IncomingMail_recipient, thread:text? max=300 label=label_IncomingMail_thread, subject:text max=300, body:text max=30000, attachments:file[] label=label_IncomingMail_attachments } label="Incoming support mail"@{nl="Inkomende supportmail"}
+  export capability InboxV1 version=1
+   event received { value:IncomingMail }
+  role support label="Support staff"@{nl="Supportmedewerker"}
+  export Ticket { location:Location, customer:Customer? label="Customer"@{nl="Klant"}, subject:IncomingMail.subject trim min=1, email:email, thread:text unique label=label_IncomingMail_thread, category:text label=label_Ticket_category, priority:enum(low,normal,urgent)=normal label={text="Priority"@{nl="Prioriteit"},values={low="Low"@{nl="Laag"},normal="Normal"@{nl="Normaal"},urgent="Urgent"@{nl="Urgent"}}}, assignee:user? label="Assignee"@{nl="Toegewezen aan"}, queue:text label=label_Ticket_queue, state:enum(open,waiting_on_customer,resolved)=open label={text=label_Ticket_state,values={open="Open"@{nl="Open"},waiting_on_customer="Waiting on customer"@{nl="Wacht op klant"},resolved="Resolved"@{nl="Opgelost"}}}, due:datetime? label="Response deadline"@{nl="Antwoorddeadline"}, escalation:text? label="Escalation"@{nl="Escalatie"}, escalated_by:user? label="Escalated by"@{nl="Geëscaleerd door"}, escalated_at:datetime? label="Escalated at"@{nl="Geëscaleerd op"}, booking:Booking? label="Booking"@{nl="Boeking"}, membership:Membership? label="Membership"@{nl="Lidmaatschap"}, invoice:Invoice? label="Invoice"@{nl="Factuur"}, repair:Repair? label="Repair"@{nl="Reparatie"} } label="Support request"@{nl="Supportverzoek"}
+  derive Ticket.overdue:bool = row.state!=resolved and row.due!=null and row.due<now label="Overdue"@{nl="Te laat"}
+  derive Ticket.unassigned:bool = row.assignee==null label="Unassigned"@{nl="Niet toegewezen"}
+  Message in Ticket { external_id:IncomingMail.id unique label=label_Message_external_id, kind:enum(customer,reply,note) label={text="Kind"@{nl="Soort"},values={customer="Customer message"@{nl="Klantbericht"},reply="Customer reply"@{nl="Antwoord aan klant"},note="Private staff note"@{nl="Privénotitie"}}}, body:text max=30000, sender:email label=label_IncomingMail_sender, recipient:email? label=label_IncomingMail_recipient, author:user? label="Author"@{nl="Auteur"}, attachments:file[] label=label_IncomingMail_attachments, delivery:text? label="Delivery reference"@{nl="Afleverreferentie"}, state:enum(received,queued,sent,failed,unknown)=received label={text=label_Ticket_state,values={received="Received"@{nl="Ontvangen"},queued="Queued"@{nl="In wachtrij"},sent="Sent"@{nl="Verzonden"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"}}} } label="Support message"@{nl="Supportbericht"}
+  Unmatched { external_id:IncomingMail.id unique label=label_Message_external_id, sender:email label=label_IncomingMail_sender, recipient:email label=label_IncomingMail_recipient, subject:IncomingMail.subject, body:IncomingMail.body, thread:IncomingMail.thread label=label_IncomingMail_thread, attachments:file[] label=label_IncomingMail_attachments, state:enum(pending,resolved)=pending label={text=label_Ticket_state,values={pending="Needs triage"@{nl="Beoordeling nodig"},resolved="Triaged"@{nl="Beoordeeld"}}}, ticket:Ticket? label="Support request"@{nl="Supportverzoek"}, resolved_by:user? label="Triaged by"@{nl="Beoordeeld door"}, resolved_at:datetime? label="Triaged at"@{nl="Beoordeeld op"}, received:datetime server=now label="Received at"@{nl="Ontvangen op"} } label="Unmatched support mail"@{nl="Ongekoppelde supportmail"}
+  policy Ticket read=support and can_work(actor,row.location)
+  policy Ticket read=authenticated where=actor.email_verified and row.email==actor.email fields=subject,category,priority,state,email
+  policy Message read=support and can_work(actor,row.parent.location)
+  policy Message read=authenticated where=actor.email_verified and row.parent.email==actor.email and row.kind!=note fields=kind,body,sender,recipient,attachments,state,created
+  policy Unmatched read=support
+  invariant Unmatched: row.state!=resolved or (row.ticket!=null and row.resolved_by!=null and row.resolved_at!=null)
+  lock Unmatched fields=external_id,sender,recipient,subject,body,thread,attachments
+  lock Unmatched fields=state,ticket,resolved_by,resolved_at when=row.state==resolved
+  lock Ticket fields=email,thread
+  lock Ticket fields=repair when=row.repair!=null
+  lock Message fields=external_id,kind,body,sender,recipient,author,attachments
+  fixture conversation=Ticket {location=test_site,subject="Wi-Fi",email="customer@example.test",thread="thread",category="Connectivity",queue="Reception"}
+  fixture document=file {}
+  fixture foreign_document=file {owner=other}
+  fixture received_message=Message {parent=conversation,external_id="known-email",kind=customer,body="Still offline",sender="customer@example.test",recipient="support@example.test",attachments=[document]}
+  fixture unmatched=Unmatched {external_id="new-email",sender="new@example.test",recipient="support@example.test",subject="Wi-Fi",body="Cannot connect",thread="unknown",attachments=[document]}
+  fixture outbound=Message {parent=conversation,external_id="staff-reply",kind=reply,body="We are checking",sender="staff@example.test",recipient="customer@example.test",author=self,attachments=[document],delivery="outbound",state=queued}
+  fixture desk_asset=Asset {location=test_site,identifier="WIFI-1",name="Router",category="Connectivity"}
+  preferences { state:Ticket.state?, priority:Ticket.priority? }
+  message label_IncomingMail_sender = "Sender"@{nl="Afzender"}
+  message label_IncomingMail_recipient = "Recipient"@{nl="Ontvanger"}
+  message label_IncomingMail_thread = "Conversation token"@{nl="Gesprekstoken"}
+  message label_IncomingMail_attachments = "Attachments"@{nl="Bijlagen"}
+  message label_Ticket_category = "Category"@{nl="Categorie"}
+  message label_Ticket_queue = "Queue"@{nl="Wachtrij"}
+  message label_Ticket_state = "State"@{nl="Status"}
+  message label_Message_external_id = "External identity"@{nl="Externe identiteit"}
+ When
+  crud Ticket by=support fields=subject,category,priority,assignee,queue,state,due,customer,booking,membership,invoice create_fields=location,customer,subject,email,thread,category,priority,assignee,queue,due,booking,membership,invoice when=can_work(actor,row.location) and (row.assignee==null or (staff(row.assignee) and can_work(row.assignee,row.location))) delete=none
+   examples update seed=[test_worker] record=conversation
+    as,changes.due,record.state -> record.overdue
+    support,now-1h,open -> true
+    support,now-1h,waiting_on_customer -> true
+    support,now-1h,resolved -> false
+    support,now,open -> false
+    members,now-1h,open -> error(forbidden)
+  # Open a private support conversation under the verified customer's own address; this performs no booking or billing action. @{nl="Open een privéondersteuningsgesprek onder het eigen geverifieerde klantadres; dit voert geen boekings- of facturatieactie uit."}
+  export scenario open_request(location:Location,subject:Ticket.subject,body:Message.body,category:text,priority:Ticket.priority=normal,attachments:file[]=[],client:Customer?=null label="Customer"@{nl="Klant"}) -> Ticket by=authenticated label="Open support request"@{nl="Supportverzoek openen"}
+   require actor.email_verified and location.active and trim(body)!="" and trim(category)!=""
+   require client==null or (client.active and location in client.locations and (owns(actor,client) or has_role(actor,client,administrator) or has_role(actor,client,booker)))
+   require count(Ticket archived=include as ticket where ticket.email==actor.email and ticket.created>now-1d)<20
+   do
+    create Ticket {location,customer=client,subject,email=actor.email,thread=operation.id,category,priority,queue="Reception"} as ticket
+    create Message {parent=ticket,external_id=format("web-{id}",{id=operation.id}),kind=customer,body,sender=actor.email,recipient=null,author=actor,attachments} as message
+    return ticket
+   examples seed=[test_worker] location=test_site subject="Wi-Fi" category="Connectivity" attachments=[]
+    as,body -> result.email,count(result.Message),result.queue
+    members,"Cannot connect" -> actor.email,1,"Reception"
+    members,"" -> error(rule_failed)
+    public,"Cannot connect" -> error(forbidden)
+  # Append only to your verified private conversation and reopen it without altering staff routing or notes. @{nl="Voeg uitsluitend toe aan je geverifieerde privégesprek en heropen het zonder personeelsroutering of notities te wijzigen."}
+  scenario respond(ticket:Ticket,body:Message.body,attachments:file[]=[]) by=authenticated label="Reply to support"@{nl="Support beantwoorden"}
+   require actor.email_verified and ticket.email==actor.email and trim(body)!=""
+   require count(ticket.Message as message where message.author==actor and message.created>now-1h)<20
+   do
+    create Message {parent=ticket,external_id=format("web-{id}",{id=operation.id}),kind=customer,body,sender=actor.email,recipient=null,author=actor,attachments} as message
+    set ticket {state=open}
+   examples ticket=conversation body="Still offline"
+    as,ticket.state,ticket.email -> ticket.state,count(ticket.Message)
+    members,resolved,actor.email -> open,1
+    members,open,"another@example.test" -> error(rule_failed)
+    public,open,"another@example.test" -> error(forbidden)
+  # Append a staff reply to the frozen conversation destination before queueing delivery. @{nl="Voeg een personeelsantwoord toe aan de vastgelegde gespreksbestemming voordat levering in de wachtrij komt."}
+  scenario reply(ticket:Ticket,body:text,attachments:Message.attachments=[]) by=support label="Reply to customer"@{nl="Klant beantwoorden"}
+   require can_work(actor,ticket.location) and trim(body)!=""
+   do
+    let recipient=ticket.email
+    create Message {parent=ticket,external_id=operation.id,kind=reply,body,sender=actor.email,recipient,author=actor,attachments,state=queued} as message
+    send Mail.send {to=recipient,subject=ticket.subject,body=message.body,attachments=message.attachments} as delivery
+    set message {delivery=delivery.id}
+    set ticket {state=waiting_on_customer}
+   examples seed=[test_worker] ticket=conversation body="A technician is checking"
+    as,attachments -> ticket.state,count(ticket.Message),first(ticket.Message as message order=message.id)?.attachments??[]
+    support,[document] -> waiting_on_customer,1,[document]
+    support,[foreign_document] -> error(forbidden)
+    members,[] -> error(forbidden)
+  # Record a staff-only note that is never emailed to the customer. @{nl="Leg een personeelsnotitie vast die nooit naar de klant wordt gemaild."}
+  scenario note(ticket:Ticket,body:text,attachments:Message.attachments=[]) by=support label="Add private staff note"@{nl="Privénotitie toevoegen"}
+   require can_work(actor,ticket.location) and trim(body)!=""
+   do create Message {parent=ticket,external_id=operation.id,kind=note,body,sender=actor.email,recipient=actor.email,author=actor,attachments} as note
+   examples seed=[test_worker] ticket=conversation attachments=[]
+    as,body -> count(conversation.Message),conversation.state
+    support,"Restarted the router" -> 1,open
+    support,"" -> error(rule_failed)
+    members,"Restarted the router" -> error(forbidden)
+  # Accept each external mail identity once; transport replay succeeds without another message or ticket transition. @{nl="Accepteer elke externe mailidentiteit één keer; transportherhaling slaagt zonder nieuw bericht of nieuwe statusovergang."}
+  scenario incoming on=Inbox.received
+   do
+    if not any(Message archived=include as message,message.external_id==event.value.id) and not any(Unmatched archived=include as message,message.external_id==event.value.id)
+     let ticket=first(Ticket as ticket where event.value.thread!=null and ticket.thread==event.value.thread and ticket.email==event.value.sender order=ticket.id)
+     if ticket!=null
+      create Message {parent=ticket,external_id=event.value.id,kind=customer,body=event.value.body,sender=event.value.sender,recipient=event.value.recipient,attachments=event.value.attachments} as message
+      set ticket {state=open}
+     else
+      create Unmatched {external_id=event.value.id,sender=event.value.sender,recipient=event.value.recipient,subject=event.value.subject,body=event.value.body,thread=event.value.thread,attachments=event.value.attachments} as unmatched
+   examples seed=[conversation] event={value={id="fresh-email",sender="customer@example.test",recipient="support@example.test",thread="thread",subject="Wi-Fi",body="Still offline",attachments=[document]}}
+    event.value.sender,conversation.state -> count(conversation.Message),count(Unmatched),conversation.state
+    "customer@example.test",resolved -> 1,0,open
+    "stranger@example.test",resolved -> 0,1,resolved
+   examples seed=[received_message] event={value={id="known-email",sender="customer@example.test",recipient="support@example.test",thread="thread",subject="Wi-Fi",body="Still offline",attachments=[document]}}
+    conversation.state -> count(conversation.Message),conversation.state
+    resolved -> 1,resolved
+   examples seed=[unmatched] event={value={id="new-email",sender="new@example.test",recipient="support@example.test",thread="unknown",subject="Wi-Fi",body="Cannot connect",attachments=[document]}}
+    event.value.id -> count(Unmatched)
+    "new-email" -> 1
+  # Resolve unknown mail once into a new scoped ticket, retaining its addresses, files and triage audit; never trust a supplied ticket ID. @{nl="Koppel onbekende mail één keer aan een nieuw locatiegebonden verzoek met behoud van adressen, bestanden en beoordelingshistorie; vertrouw nooit een aangeleverd verzoek-ID."}
+  scenario triage(incoming:Unmatched label="Unmatched incoming mail"@{nl="Ongekoppelde inkomende mail"},location:Location,category:text label=label_Ticket_category,queue:text label=label_Ticket_queue,subject:Ticket.subject=incoming.subject) -> Ticket by=support label="Triage unmatched mail"@{nl="Ongekoppelde mail beoordelen"}
+   require can_work(actor,location) and incoming.state==pending and trim(category)!="" and trim(queue)!="" and not any(Message archived=include as message,message.external_id==incoming.external_id)
+   do
+    create Ticket {location,subject,email=incoming.sender,thread=operation.id,category,queue} as ticket
+    create Message {parent=ticket,external_id=incoming.external_id,kind=customer,body=incoming.body,sender=incoming.sender,recipient=incoming.recipient,attachments=incoming.attachments} as message
+    set incoming {state=resolved,ticket,resolved_by=actor,resolved_at=now}
+    return ticket
+   examples seed=[test_worker] incoming=unmatched location=test_site category="Connectivity" queue="Reception"
+    as,category -> incoming.state,incoming.ticket==result,first(result.Message as message order=message.id)?.attachments??[]
+    support,"Connectivity" -> resolved,true,[document]
+    support,"" -> error(rule_failed)
+    members,"Connectivity" -> error(forbidden)
+   examples seed=[test_worker,received_message] incoming=unmatched location=test_site category="Connectivity" queue="Reception"
+    as,incoming.external_id -> incoming.state
+    support,"known-email" -> error(rule_failed)
+   examples seed=[test_worker] incoming=unmatched location=test_site category="Connectivity" queue="Reception"
+    as,incoming.state,incoming.ticket,incoming.resolved_by,incoming.resolved_at -> incoming.state
+    support,resolved,conversation,self,now -> error(rule_failed)
+  # Escalate an unresolved request with a responsible queue and attributable reason while preserving its deadline. @{nl="Escaleer een onopgelost verzoek met een verantwoordelijke wachtrij en herleidbare reden met behoud van de deadline."}
+  scenario escalate(ticket:Ticket,queue:text label=label_Ticket_queue,reason:text,assignee:user?=null label="Assignee"@{nl="Toegewezen aan"}) by=support label="Escalate request"@{nl="Verzoek escaleren"}
+   require can_work(actor,ticket.location) and ticket.state!=resolved and trim(queue)!="" and trim(reason)!=""
+   require assignee==null or (staff(assignee) and can_work(assignee,ticket.location))
+   do set ticket {queue,assignee,priority=urgent,escalation=reason,escalated_by=actor,escalated_at=now}
+   examples seed=[test_worker] ticket=conversation queue="Facilities" reason="Service interrupted"
+    as,ticket.state -> ticket.queue,ticket.priority,ticket.escalation,ticket.escalated_by
+    support,open -> "Facilities",urgent,"Service interrupted",self
+    support,resolved -> error(rule_failed)
+    members,open -> error(forbidden)
+  # Open a canonical own-reporter fault for this ticket's location and retain its repair; private notes are never forwarded automatically. @{nl="Open een canonieke storing met de huidige melder voor de locatie van dit verzoek en bewaar de reparatie; privénotities worden nooit automatisch doorgestuurd."}
+  scenario handoff(ticket:Ticket,asset:Asset,description:text,photo:file?=null) -> Repair by=support label="Hand off to maintenance"@{nl="Overdragen aan onderhoud"}
+   require can_work(actor,ticket.location) and ticket.state!=resolved and ticket.repair==null and asset.location==ticket.location
+   do
+    call report_fault {asset,title=ticket.subject,description,photo} as repair
+    set ticket {repair}
+    return repair
+   examples seed=[test_worker] ticket=conversation asset=desk_asset photo=null
+    as,description -> ticket.repair==result,result.title,result.reporter,ticket.state
+    support,"Router is not responding" -> true,"Wi-Fi",self,open
+    support,"" -> error(rule_failed)
+    members,"Router is not responding" -> error(forbidden)
+  scenario sent on=Mail.send.completed
+   do
+    for message in Message as row where row.delivery==event.delivery_id and row.state in [queued,unknown] limit=1
+     if event.status==succeeded
+      set message {state=sent}
+     else
+      if event.status==failed
+       set message {state=failed}
+      else
+       set message {state=unknown}
+   examples seed=[outbound] event={delivery_id="outbound",status=succeeded,result={reference="accepted-mail"},error=null}
+    event.delivery_id,outbound.state -> outbound.state,outbound.recipient,outbound.attachments
+    "outbound",queued -> sent,"customer@example.test",[document]
+    "unrelated",queued -> queued,"customer@example.test",[document]
+    "outbound",failed -> failed,"customer@example.test",[document]
+   examples seed=[outbound] event={delivery_id="outbound",status=unknown,result=null,error=null}
+    outbound.state -> outbound.state,count(conversation.Message)
+    queued -> unknown,1
+    sent -> sent,1
+   examples seed=[outbound] event={delivery_id="outbound",status=failed,result=null,error={code="rejected",message="Recipient rejected"}}
+    outbound.state -> outbound.state
+    queued -> failed
+ Then
+  # Triage location queues and distinguish internal notes from customer replies. @{nl="Beoordeel locatiewachtrijen en onderscheid interne notities van klantantwoorden."}
+  page /support title="Support"@{nl="Support"}
+   require support
+   card "Ticket intake"@{nl="Supportverzoek aanmaken"}
+    form Ticket.create
+   details "Unmatched mail triage"@{nl="Ongekoppelde mail beoordelen"}
+    table Unmatched as mail where mail.state==pending columns=sender,subject,received order=-received
+     text row.recipient,row.body,row.attachments,row.thread
+     form triage
+   list Ticket columns=subject,customer,queue,priority,state,assignee,due,overdue filter=location,state,priority,assignee,unassigned,overdue,category,queue defaults={state=preferences.state,priority=preferences.priority} search=subject display=split
+    card "Request and responsible queue"@{nl="Verzoek en verantwoordelijke wachtrij"}
+     text row.location,row.customer,row.email,row.category,row.queue,row.priority,row.assignee,row.state,row.due,row.overdue,row.escalation,row.escalated_by,row.escalated_at,row.booking,row.membership,row.invoice,row.repair
+     edit
+     form escalate
+     form handoff
+    tabs
+     tab "Customer conversation"@{nl="Klantgesprek"}
+      form reply
+      table row.Message as message where message.kind!=note columns=kind,body,sender,recipient,attachments,state order=created
+       text row.author,row.created
+     tab "Private staff notes"@{nl="Privénotities"}
+      form note
+      table row.Message as message where message.kind==note columns=body,author,created order=created
+       text row.kind,row.sender,row.recipient,row.attachments,row.state
+    history
+  # Read only your authenticated customer conversation. @{nl="Lees uitsluitend je geauthenticeerde klantgesprek."}
+  page /support/mine title="My support requests"@{nl="Mijn supportverzoeken"}
+   require authenticated and actor.email_verified
+   card "Private support intake"@{nl="Privésupportverzoek"}
+    form open_request
+   list Ticket as ticket where ticket.email==actor.email filter=state,priority defaults={state=preferences.state,priority=preferences.priority} display=split
+    text row.subject,row.category,row.priority,row.state
+    form respond
+    table row.Message columns=kind,body,sender,recipient,attachments,state,created order=created

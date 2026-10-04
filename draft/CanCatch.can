@@ -1,0 +1,192 @@
+# Help the workspace operator triage JavaScript errors in its booking, member, billing, and staff applications. @{nl="Help de werkplekexploitant JavaScript-fouten in boekings-, leden-, factuur- en personeelsapplicaties beoordelen."}
+app CanCatch uses=[catch]
+context
+ queue ErrorJobs type=catch.ErrorWork
+
+# Queue minimized JavaScript error events and keep issue triage distinct from technical intake provisioning. @{nl="Zet geminimaliseerde JavaScript-foutgebeurtenissen in de wachtrij en scheid probleemtriage van technische innameconfiguratie."}
+package catch
+ use employee {staff,can_work,test_worker}
+ use todo {Task}
+ use std {DeliveryResult}
+ use rent_catalog {test_site}
+ use catch {AlertsV1 as Alerts} from=deployment.alerts
+ use catch {IntakeV1 as ErrorIntake} from=deployment.error_intake
+ Given
+  export contract Alert { source:text label="Source reference"@{nl="Bronreferentie"}, destination:url label="Destination"@{nl="Bestemming"}, message:text label=label_Alert_message } label="Human alert"@{nl="Melding"}
+  export contract AlertAccepted { reference:text } label="Alert acceptance"@{nl="Melding geaccepteerd"}
+  export capability AlertsV1 version=1
+   notify(value:Alert) -> AlertAccepted
+  role developer label="Developer"@{nl="Ontwikkelaar"}
+  Project { name:text, application:text label="Application"@{nl="Applicatie"}, viewers:user[] label="Authorized viewers"@{nl="Bevoegde lezers"}, active:bool=true, grouping_version:int=1 label=label_Project_grouping_version, quota:int=10000 min=1 label="Intake quota"@{nl="Innamequotum"}, raw_days:int=30 min=1 label="Raw retention days"@{nl="Bewaartermijn ruwe gegevens in dagen"}, issue_days:int=90 min=1 label="Issue retention days"@{nl="Bewaartermijn problemen in dagen"}, alert:url? label="Alert destination"@{nl="Meldingsbestemming"}, key:secret server=random_secret() } label="Configured project"@{nl="Geconfigureerd project"}
+  Issue in Project { task:Task? label="Repair task"@{nl="Hersteltaak"}, fingerprint:text label=label_Issue_fingerprint, fingerprint_version:int label="Fingerprint version"@{nl="Versie foutvingerafdruk"}, message:text label=label_Alert_message, environment:text? label=label_Issue_environment, owner:user? label=label_Issue_owner, state:enum(open,resolved)=open label={text="State"@{nl="Status"},values={open="Open"@{nl="Open"},resolved="Resolved"@{nl="Opgelost"}}}, resolved_at:datetime? label="Resolved at"@{nl="Opgelost op"}, last_activity:datetime label="Last activity"@{nl="Laatste activiteit"}, count:int=0 } label="Application issue"@{nl="Applicatieprobleem"}
+  Occurrence in Issue { environment:text? label=label_Issue_environment, release:text? label=label_Issue_release, event_id:text unique label=label_Occurrence_event_id, occurred:datetime, received:datetime server=now label="Received at"@{nl="Ontvangen op"}, message:text label=label_Alert_message, stack:text? label=label_Occurrence_stack } label="Error occurrence"@{nl="Foutgebeurtenis"}
+  RawPayload in Occurrence { payload:file label=label_RawPayload_payload } label=retained_raw_evidence_caption
+  Note in Issue { author:user server=actor label="Author"@{nl="Auteur"}, body:text trim min=1 } label="Triage note"@{nl="Triagenotitie"}
+  export contract ErrorWork { project:Project label="Project"@{nl="Project"}, event_id:text label=label_Occurrence_event_id, fingerprint:text label=label_Issue_fingerprint, grouping_version:int min=1 label=label_Project_grouping_version, occurred:datetime, message:text max=4096 label=label_Alert_message, stack:text? max=32000 label=label_Occurrence_stack, environment:text? label=label_Issue_environment, release:text? label=label_Issue_release, payload:file? label=label_RawPayload_payload } label="Queued error work"@{nl="Foutverwerking in wachtrij"}
+  export contract IntakeHealth { project:Project, revision:int min=1, observed:datetime, accepted:int min=0, rejected:int min=0, dropped:int min=0, processing_failed:int min=0 }
+  Health in Project { revision:int, observed:datetime, accepted:int, rejected:int, dropped:int, processing_failed:int } label="Capture health"@{nl="Gezondheid foutregistratie"}
+  Notice in Issue { kind:enum(new,regression) label={text="Alert kind"@{nl="Meldingstype"},values={new="New issue"@{nl="Nieuw probleem"},regression="Regression"@{nl="Terugkeer"}}}, destination:url, delivery:text?, outcome:DeliveryResult.status=pending label="Alert outcome"@{nl="Meldingsresultaat"}, detail:text?, occurred:datetime server=now }
+  export capability IntakeV1 version=1
+   event accepted { value:ErrorWork }
+   event health { value:IntakeHealth }
+  derive Issue.release:text? = first(row.Occurrence as occurrence order=-occurrence.occurred)?.release label=label_Issue_release
+  policy Project read=developer and staff(actor) where=actor in row.viewers fields=name,application,active,grouping_version,quota,raw_days,issue_days
+  policy Issue read=developer and staff(actor) where=actor in row.parent.viewers
+  policy Occurrence read=developer and staff(actor) where=actor in row.parent.parent.viewers
+  policy RawPayload read=developer and staff(actor) where=actor in row.parent.parent.parent.viewers
+  policy Note read=developer and staff(actor) where=actor in row.parent.parent.viewers
+  policy Health read=developer and staff(actor) where=actor in row.parent.viewers
+  policy Notice read=developer and staff(actor) where=actor in row.parent.parent.viewers fields=kind,outcome,detail,occurred
+  unique Health fields=parent
+  unique Issue fields=fingerprint,fingerprint_version,environment
+  invariant Project: row.raw_days<=row.issue_days
+  retain Issue until=row.last_activity+row.parent.issue_days*1d
+  retain RawPayload until=row.parent.received+row.parent.parent.parent.raw_days*1d
+  lock Occurrence fields=event_id,occurred,received,message,stack,environment,release
+  lock RawPayload fields=payload
+  lock Note fields=author,body
+  lock Notice fields=kind,destination,occurred
+  fixture project=Project {name="CanDo",application="Tasks",viewers=[self]}
+  fixture open_issue=Issue {parent=project,fingerprint="stack",fingerprint_version=1,message="Error",last_activity=now,count=1}
+  fixture seen=Occurrence {parent=open_issue,event_id="seen",occurred=now-1m,message="Error"}
+  fixture raw=file {}
+  fixture health=Health {parent=project,revision=1,observed=now-2m,accepted=10,rejected=0,dropped=0,processing_failed=0}
+  fixture alert_notice=Notice {parent=open_issue,kind=new,destination="https://alerts.example.invalid/hook",delivery="alert-1"}
+  preferences { environment:text? label=label_Issue_environment, evidence_open:bool=false label="Expand retained occurrence evidence"@{nl="Bewaarde foutgegevens uitklappen"} }
+  message retained_raw_evidence_caption = "Retained raw evidence"@{nl="Bewaarde ruwe gegevens"}
+  message label_Alert_message = "Message"@{nl="Bericht"}
+  message label_Project_grouping_version = "Grouping version"@{nl="Groepeerversie"}
+  message label_Issue_fingerprint = "Error fingerprint"@{nl="Foutvingerafdruk"}
+  message label_Issue_environment = "Environment"@{nl="Omgeving"}
+  message label_Issue_release = "Release"@{nl="Release"}
+  message label_Issue_owner = "Responsible person"@{nl="Verantwoordelijke"}
+  message label_Occurrence_event_id = "External event identity"@{nl="Externe gebeurtenisidentiteit"}
+  message label_Occurrence_stack = "Stack trace"@{nl="Stacktrace"}
+  message label_RawPayload_payload = "Raw payload"@{nl="Ruwe gegevens"}
+ When
+  # Resolve an observed issue without suppressing later genuine regressions. @{nl="Los een waargenomen probleem op zonder latere echte regressies te onderdrukken."}
+  scenario resolve(issue:Issue) by=developer label="Resolve issue"@{nl="Probleem oplossen"}
+   require staff(actor) and actor in issue.parent.viewers and issue.state==open
+   do set issue {state=resolved,resolved_at=now}
+   examples seed=[test_worker] issue=open_issue
+    as,issue.state -> issue.state
+    developer,open -> resolved
+    developer,resolved -> error(rule_failed)
+    members,open -> error(forbidden)
+  # Assign triage to an active work identity without changing event counts. @{nl="Wijs triage toe aan een actieve werkidentiteit zonder gebeurtenisaantallen te wijzigen."}
+  scenario assign(issue:Issue,owner:user? label=label_Issue_owner) by=developer
+   require staff(actor) and actor in issue.parent.viewers and (owner==null or (staff(owner) and developer(owner) and owner in issue.parent.viewers))
+   do set issue {owner}
+   examples seed=[test_worker] issue=open_issue
+    as,owner -> issue.owner
+    developer,self -> self
+    developer,null -> null
+    developer,other -> error(rule_failed)
+    members,self -> error(forbidden)
+  # Link an existing readable task without copying repair work into issue state. @{nl="Koppel een bestaande leesbare taak zonder herstelwerk in de probleemstatus te kopiëren."}
+  scenario link_task(issue:Issue,task:Task?) by=developer label="Link repair task"@{nl="Hersteltaak koppelen"}
+   require staff(actor) and actor in issue.parent.viewers and (task==null or task.location==null or can_work(actor,task.location))
+   do set issue {task}
+  crud Note by=developer fields=body update=none delete=none when=staff(actor) and actor in row.parent.parent.viewers
+  scenario accepted on=ErrorIntake.accepted
+   require event.value.project.active and event.value.grouping_version==event.value.project.grouping_version and event.value.occurred<=now+5m and event.value.occurred>=now-7d
+   do send ErrorJobs.publish {value=event.value} as queued
+  scenario process on=ErrorJobs
+   require event.project.active and event.occurred<=now+5m and event.occurred>=now-7d
+   do
+    if not any(Occurrence as occurrence,occurrence.event_id==event.event_id and occurrence.parent.parent==event.project)
+     let issue=first(event.project.Issue as issue where issue.fingerprint==event.fingerprint and issue.fingerprint_version==event.grouping_version and issue.environment==event.environment order=issue.id)
+     if issue==null
+      create Issue {parent=event.project,fingerprint=event.fingerprint,fingerprint_version=event.grouping_version,message=event.message,environment=event.environment,last_activity=now,count=1} as created_issue
+      create Occurrence {parent=created_issue,event_id=event.event_id,environment=event.environment,release=event.release,occurred=event.occurred,message=event.message,stack=event.stack} as occurrence
+      if event.payload!=null
+       create RawPayload {parent=occurrence,payload=event.payload} as raw
+      if event.project.alert!=null
+       create Notice {parent=created_issue,kind=new,destination=event.project.alert} as notice
+     else
+      create Occurrence {parent=issue,event_id=event.event_id,environment=event.environment,release=event.release,occurred=event.occurred,message=event.message,stack=event.stack} as occurrence
+      if event.payload!=null
+       create RawPayload {parent=occurrence,payload=event.payload} as raw
+      set issue {count=issue.count+1}
+      if now>issue.last_activity
+       set issue {last_activity=now}
+      if issue.state==resolved and issue.resolved_at!=null and event.occurred>issue.resolved_at
+       set issue {state=open}
+       if event.project.alert!=null
+        create Notice {parent=issue,kind=regression,destination=event.project.alert} as notice
+   examples seed=[seen] event={project=project,event_id="new-event",fingerprint="stack",grouping_version=1,occurred=now-1m,message="Error",stack=null,environment=null,release="release-2",payload=null}
+    open_issue.state,open_issue.resolved_at,event.occurred,event.event_id,event.payload -> open_issue.state,open_issue.count,count(open_issue.Occurrence),count(RawPayload)
+    open,null,now-1m,"new-event",raw -> open,2,2,1
+    resolved,now-2m,now-1m,"new-event",null -> open,2,2,0
+    resolved,now-1m,now-2m,"new-event",null -> resolved,2,2,0
+    open,null,now-1m,"seen",null -> open,1,1,0
+    open,null,now-8d,"new-event",null -> error(rule_failed)
+    open,null,now+6m,"new-event",null -> error(rule_failed)
+  scenario intake_health on=ErrorIntake.health
+   require event.value.project.active and event.value.observed<=now
+   do
+    let health=first(event.value.project.Health as health order=health.id)
+    if health==null
+     create Health {parent=event.value.project,revision=event.value.revision,observed=event.value.observed,accepted=event.value.accepted,rejected=event.value.rejected,dropped=event.value.dropped,processing_failed=event.value.processing_failed} as created
+    else
+     if event.value.revision>health.revision
+      require event.value.observed>=health.observed and event.value.accepted>=health.accepted and event.value.rejected>=health.rejected and event.value.dropped>=health.dropped and event.value.processing_failed>=health.processing_failed
+      set health {revision=event.value.revision,observed=event.value.observed,accepted=event.value.accepted,rejected=event.value.rejected,dropped=event.value.dropped,processing_failed=event.value.processing_failed}
+     else
+      if event.value.revision==health.revision
+       require event.value.observed==health.observed and event.value.accepted==health.accepted and event.value.rejected==health.rejected and event.value.dropped==health.dropped and event.value.processing_failed==health.processing_failed
+   examples seed=[health] event={value={project=project,revision=2,observed=now-1m,accepted=11,rejected=0,dropped=0,processing_failed=0}}
+    event.value.revision,event.value.observed,event.value.accepted -> health.revision,health.accepted
+    2,now-1m,11 -> 2,11
+    1,now-2m,10 -> 1,10
+    1,now-2m,11 -> error(rule_failed)
+    2,now+1m,11 -> error(rule_failed)
+  scenario notify on=Notice.create
+   do
+    let notice=event.after
+    if notice.kind==new
+     send Alerts.notify {value={source=notice.id,destination=notice.destination,message=format("New application error"@{nl="Nieuwe applicatiefout"},locale=null)}} when=notice.parent.parent.active as delivery
+     set notice {delivery=delivery.id}
+    else
+     send Alerts.notify {value={source=notice.id,destination=notice.destination,message=format("Application error regression"@{nl="Applicatiefout teruggekeerd"},locale=null)}} when=notice.parent.parent.active as delivery
+     set notice {delivery=delivery.id}
+  scenario notification_result on=Alerts.notify.completed
+   do
+    let notice=first(Notice as notice where notice.delivery==event.delivery_id order=notice.id)
+    if notice!=null
+     set notice {outcome=event.status,detail=event.error?.message}
+   examples seed=[alert_notice] event={delivery_id="alert-1",status=unknown,result=null,error=null}
+    event.status,event.result,event.error -> alert_notice.outcome,open_issue.state,open_issue.count
+    succeeded,{reference="accepted"},null -> succeeded,open,1
+    failed,null,{code="unavailable",message="Alert destination unavailable"} -> failed,open,1
+    unknown,null,null -> unknown,open,1
+ Then
+  # Triage configured projects without SDK-key, quota or retention settings tools. @{nl="Beoordeel geconfigureerde projecten zonder instellingen voor SDK-sleutels, quota of bewaartermijnen."}
+  page /errors title="Application errors"@{nl="Applicatiefouten"}
+   require developer
+   list Project columns=name,application
+    text row.name,row.application
+    card "Capture health"@{nl="Gezondheid foutregistratie"}
+     table row.Health columns=observed,accepted,rejected,dropped,processing_failed
+     details "Missing health evidence"@{nl="Ontbrekend gezondheidsbewijs"}
+      require count(row.Health)==0
+      text "Capture health is unavailable; no events is not evidence of zero errors."@{nl="De gezondheid van foutregistratie is niet beschikbaar; geen gebeurtenissen bewijst niet dat er geen fouten zijn."}
+    table row.Issue columns=message,environment,release,count,last_activity,state,owner filter=state,environment,release defaults={environment=preferences.environment} search=message display=split
+     card "Issue triage"@{nl="Probleemtriage"}
+      text row.message,row.count,row.last_activity,row.state,row.owner
+      actions resolve,assign,link_task
+      text row.task
+      form Task.create
+      form Note.create
+     tabs
+      tab "Occurrence evidence"@{nl="Bewijs foutgebeurtenissen"}
+       table row.Occurrence columns=occurred,received,environment,release,message,stack order=-received filter=release
+        details retained_raw_evidence_caption open=preferences.evidence_open
+         list row.RawPayload
+          text row.payload
+      tab "Alert delivery"@{nl="Meldingsbezorging"}
+       table row.Notice columns=kind,outcome,detail,occurred order=-occurred
+      tab "Triage notes"@{nl="Triagenotities"}
+       list row.Note
+        text row.body,row.author
+     history

@@ -1,0 +1,293 @@
+# Optionally help a workspace operator receive and deliver customer mail/parcels for on-site or virtual-office customers. @{nl="Help een werkplekbeheerder desgewenst post en pakketten te ontvangen en af te leveren voor klanten op locatie of met een virtueel kantoor."}
+app CanMail uses=[mailroom]
+
+# Receive and resolve physical mail under explicit recipient and delegate authority. @{nl="Ontvang en handel fysieke post af met expliciete ontvanger- en gemachtigderechten."}
+package mailroom label="Mailroom"@{nl="Postkamer"}
+ use customer {Customer,Contact,owns,has_role,test_company,test_contact,test_admin}
+ use member_terms {Term,eligible_term,paid_term,allocated}
+ use invoice {Charge}
+ use invoice {BillingV1 as Billing} from=deployment.billing
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  message label_Service_recipient = "Recipient"@{nl="Ontvanger"}
+  message label_Service_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Delegate_account = "Account"@{nl="Account"}
+  message label_Item_kind = "Kind"@{nl="Soort"}
+  message label_Item_storage = "Storage location"@{nl="Opslaglocatie"}
+  message label_Item_photo = "Photo"@{nl="Foto"}
+  message label_Item_incident = "Handling incident"@{nl="Afhandelingsincident"}
+  message label_Handling_carrier = "Carrier"@{nl="Vervoerder"}
+  message label_Handling_fee = "Fee"@{nl="Kosten"}
+  preferences { location:Location?, view:enum(all,collection,forwarding,history)=all label={text="Mail view"@{nl="Postweergave"},values={all="All mail"@{nl="Alle post"},collection="Collection queue"@{nl="Afhaalwachtrij"},forwarding="Forwarding queue"@{nl="Doorzendwachtrij"},history="Mail history"@{nl="Postgeschiedenis"}}} }
+  role mail_staff label="Mailroom staff"@{nl="Postmedewerker"}
+  Service in Customer { location:Location, recipient:Contact label=label_Service_recipient, from:datetime label="Start"@{nl="Begin"}, until:datetime label="End"@{nl="Einde"}, instructions:text, forwarding:text? label="Forwarding instructions"@{nl="Doorzendinstructies"}, revision:int=1, verified:bool=false label="Verified"@{nl="Geverifieerd"}, source:text unique label=label_Service_source, term:Term? label="Purchased paid term"@{nl="Gekochte betaalde termijn"}, paid_evidence:text? label="Paid-service evidence"@{nl="Bewijs betaalde dienst"}, currency:currency, billing:bool=false label="Invoice handling fees"@{nl="Afhandelingskosten factureren"}, active:bool=true } label="Mail service"@{nl="Postdienst"}
+  Delegate in Service { account:user label=label_Delegate_account, active:bool=true } label="Collection delegate"@{nl="Afhaalgemachtigde"}
+  Item { location:Location, service:Service?, recipient:Contact? label=label_Service_recipient, source:text unique label=label_Service_source, kind:enum(letter,parcel) label={text=label_Item_kind,values={letter="Letter"@{nl="Brief"},parcel="Parcel"@{nl="Pakket"}}}, storage:text label=label_Item_storage, photo:file? label=label_Item_photo, state:enum(unmatched,received,notified,collection_ready,collected,forward_pending,forwarded,returned)=unmatched label={text="State"@{nl="Status"},values={unmatched="Unmatched"@{nl="Niet gekoppeld"},received="Received"@{nl="Ontvangen"},notified="Notified"@{nl="Gemeld"},collection_ready="Ready for collection"@{nl="Klaar om af te halen"},collected="Collected"@{nl="Afgehaald"},forward_pending="Forwarding pending"@{nl="Doorzending in afwachting"},forwarded="Forwarded"@{nl="Doorgestuurd"},returned="Returned"@{nl="Geretourneerd"}}}, notification:text? label="Notification reference"@{nl="Meldingsreferentie"}, notice_state:enum(none,pending,succeeded,failed,unknown,skipped)=none label={text="Notification"@{nl="Melding"},values={none="Not sent"@{nl="Niet verzonden"},pending="Sending"@{nl="Wordt verzonden"},succeeded="Accepted"@{nl="Geaccepteerd"},failed="Failed"@{nl="Mislukt"},unknown="Uncertain"@{nl="Onzeker"},skipped="Skipped"@{nl="Overgeslagen"}}}, notice_reference:text?, reminders:int=0, reminder_delay:duration=7d, reminder_limit:int=2 min=0 max=5, history_days:int=180 min=1, retention_until:datetime?, dispatch:Dispatch?, completed:datetime? label="Completed at"@{nl="Afgerond op"}, incident:text? label=label_Item_incident } label="Mail item"@{nl="Poststuk"}
+  Handling in Item { kind:enum(collection,forward,return,correction) label={text=label_Item_kind,values={collection="Collection"@{nl="Afhalen"},forward="Forwarding"@{nl="Doorzending"},return="Return"@{nl="Retour"},correction="Correction"@{nl="Correctie"}}}, account:user? label=label_Delegate_account, instruction:text label="Recorded instruction"@{nl="Vastgelegde instructie"}, destination:text? label="Destination"@{nl="Bestemming"}, evidence:text, carrier:text? label=label_Handling_carrier, fee:money? label=label_Handling_fee, source:text unique label=label_Service_source, revision:int, dispatch:Dispatch?, author:user server=actor label="Author"@{nl="Auteur"} } label="Handling record"@{nl="Afhandelingsregistratie"}
+  Dispatch in Item { source:text unique, instruction:text, instruction_revision:int label="Instruction version"@{nl="Instructieversie"}, destination:text label="Frozen postal destination"@{nl="Vastgelegde postbestemming"}, fee:money? label=label_Handling_fee, charge:Charge?, state:enum(pending,unknown,dispatched,cancelled)=pending label={text="Dispatch"@{nl="Verzending"},values={pending="Pending"@{nl="In afwachting"},unknown="Uncertain"@{nl="Onzeker"},dispatched="Evidenced dispatch"@{nl="Verzending met bewijs"},cancelled="No dispatch recorded"@{nl="Geen verzending vastgelegd"}}}, charge_state:enum(none,pending,confirmed,failed,unknown)=none label={text="Fee invoice"@{nl="Kostenfactuur"},values={none="No invoice requested"@{nl="Geen factuur aangevraagd"},pending="Invoice requested"@{nl="Factuur aangevraagd"},confirmed="Invoice created"@{nl="Factuur aangemaakt"},failed="Invoice failed"@{nl="Factuur mislukt"},unknown="Invoice uncertain"@{nl="Factuur onzeker"}}}, charge_delivery:text?, reconcile_delivery:text?, invoice:text?, revision:int=1 } label="Forwarding attempt"@{nl="Doorzendpoging"}
+  event Reminder { item:Item, number:int }
+  derive recipient(person:user,service:Service):bool = service.parent.active and service.parent.archived_at==null and service.recipient.archived_at==null and service.recipient.verified and service.recipient.account!=null and service.recipient.account==person
+  derive manage(person:user,service:Service):bool = recipient(person,service) or has_role(person,service.parent,administrator)
+  derive live(service:Service):bool = service.active and service.verified and service.parent.active and service.parent.archived_at==null and service.location.active and service.recipient.archived_at==null and service.recipient.verified and service.recipient.account!=null and service.from<=now and now<service.until and ((service.term!=null and service.term.parent.parent==service.parent and service.term.mail and service.location in service.term.locations and service.term.price.currency==service.currency and eligible_term(service.recipient.account,service.term,now)) or (service.term==null and service.paid_evidence!=null and trim(service.paid_evidence)!=""))
+  derive fee_charge(item:Item,fee:money?):Charge? = first([Charge {source=format("mail-forward-{item}",{item=item.id}),customer=item.service.parent.id,location=item.location.id,description=format("Forwarding fee"@{nl="Doorzendkosten"},locale=null),amount=fee??money(0,item.service.currency),due=local_date(now,item.location.timezone)}] as value where item.service.billing and fee!=null and fee.minor>0)
+  derive permitted_collector(person:user,service:Service):bool = recipient(person,service) or (service.parent.active and service.parent.archived_at==null and any(service.Delegate as delegate,delegate.account==person and delegate.active) and any(service.parent.Contact as contact,contact.account==person and contact.verified))
+  policy Service read=mail_staff and can_work(actor,row.location)
+  policy Service read=authenticated where=manage(actor,row)
+  policy Delegate read=authenticated where=row.account==actor or manage(actor,row.parent)
+  policy Item read=mail_staff and can_work(actor,row.location)
+  policy Item read=authenticated where=row.service!=null and recipient(actor,row.service) fields=service,recipient,kind,state,notice_state,completed,created
+  policy Handling read=mail_staff and can_work(actor,row.parent.location)
+  policy Handling read=authenticated where=row.parent.service!=null and recipient(actor,row.parent.service) fields=kind,account,instruction,revision,destination,evidence,carrier,fee,created
+  policy Dispatch read=mail_staff and can_work(actor,row.parent.location)
+  invariant Service: row.from<row.until and row.recipient.parent==row.parent and row.revision>0 and (row.term==null or (row.term.parent.parent==row.parent and row.location in row.term.locations and row.currency==row.term.price.currency))
+  invariant Delegate: any(row.parent.parent.Contact as contact,contact.account==row.account and contact.verified)
+  invariant Item: (row.service==null or (row.service.location==row.location and row.recipient==row.service.recipient)) and (row.dispatch==null or row.dispatch.parent==row)
+  invariant Dispatch: (row.fee==null or (row.fee.minor>=0 and row.parent.service!=null and row.fee.currency==row.parent.service.currency)) and (row.charge==null or row.charge.source==row.source)
+  retain Item until=row.retention_until
+  lock Service fields=parent,location,recipient,source,term,currency,billing
+  lock Dispatch fields=source,instruction,instruction_revision,destination,fee,charge
+  lock Handling fields=kind,account,instruction,revision,destination,evidence,carrier,fee,source,dispatch,author
+  unique Delegate fields=account
+  fixture service=Service {parent=test_company,location=test_site,recipient=test_contact,from=datetime("2020-01-01T00:00:00Z"),until=datetime("2099-01-01T00:00:00Z"),instructions="Collection by verified recipient",verified=true,source="mail-term",currency="EUR",term=paid_term}
+  fixture delegate_contact=Contact {parent=test_company,name="Collection delegate",email="delegate@example.test",account=other,verified=true}
+  fixture delegate=Delegate {parent=service,account=other}
+  fixture prepared=Dispatch {parent=parcel,source="mail-forward-parcel",instruction="Collection by verified recipient",instruction_revision=1,destination="Original address",fee=money(5,"EUR"),charge={source="mail-forward-parcel",customer=test_company.id,location=test_site.id,description="Forwarding fee",amount=money(5,"EUR"),due=date("2090-01-01")},state=pending}
+  fixture parcel=Item {location=test_site,service=service,recipient=test_contact,source="physical-parcel",kind=parcel,storage="Shelf A",state=collection_ready}
+ When
+  # Record the owning paid-service reference, without inventing a membership notification feed. @{nl="Leg de verwijzing naar de betaalde dienst vast zonder een lidmaatschapsmeldingsfeed te verzinnen."}
+  scenario configure(customer:Customer,location:Location,recipient:Contact,from:datetime,until:datetime,source:text,term:Term?,paid_evidence:text?,currency:currency,billing:bool=false,instructions:text,forwarding:text?) by=mail_staff label="Configure mail service"@{nl="Postdienst instellen"}
+   require can_work(actor,location) and customer.active and customer.archived_at==null and recipient.parent==customer and recipient.verified and recipient.account!=null and from<until and trim(source)!="" and trim(instructions)!="" and (forwarding==null or trim(forwarding)!="")
+   require (term!=null and term.parent.parent==customer and term.mail and location in term.locations and term.price.currency==currency) or (term==null and paid_evidence!=null and trim(paid_evidence)!="")
+   do create Service {parent=customer,location,recipient,from,until,source,term,paid_evidence,currency,billing,instructions,forwarding,verified=true} as service
+  # Change future service availability without resolving or deleting held physical items. @{nl="Wijzig toekomstige dienstbeschikbaarheid zonder bewaarde fysieke items af te handelen of te verwijderen."}
+  scenario service_status(service:Service,active:bool,until:datetime,paid_evidence:text?) by=mail_staff label="Review service availability"@{nl="Dienstbeschikbaarheid beoordelen"}
+   require can_work(actor,service.location) and service.from<until and (service.term!=null or not active or (paid_evidence!=null and trim(paid_evidence)!=""))
+   do set service {active,until,paid_evidence}
+  crud Delegate by=authenticated fields=account,active when=owns(actor,row.parent.parent) or has_role(actor,row.parent.parent,administrator) delete=none
+   examples create seed=[test_admin,delegate_contact] parent=service account=other active=true
+    as,delegate_contact.verified,test_admin.active -> count(service.Delegate)
+    authenticated,true,true -> 1
+    authenticated,false,true -> error(rule_failed)
+    authenticated,true,false -> error(rule_failed)
+    members,true,true -> error(forbidden)
+  # Update authorized instructions without changing an existing forwarding snapshot. @{nl="Werk geautoriseerde instructies bij zonder een bestaande doorzendmomentopname te wijzigen."}
+  scenario instructions(service:Service,instructions:text,forwarding:text?,revision:int) by=authenticated label="Update handling instructions"@{nl="Afhandelingsinstructies bijwerken"}
+   require manage(actor,service) and revision==service.revision and trim(instructions)!="" and (forwarding==null or trim(forwarding)!="")
+   do set service {instructions,forwarding,revision=service.revision+1}
+   examples seed=[test_admin,allocated] service=service instructions="Collect at reception" forwarding="New address" revision=1
+    as,revision -> service.forwarding,service.revision
+    authenticated,1 -> "New address",2
+    authenticated,0 -> error(rule_failed)
+    members,1 -> error(forbidden)
+  # Receive one physical item; unmatched recipients remain a restricted review. @{nl="Ontvang één fysiek item; niet-gekoppelde ontvangers blijven in een afgeschermde beoordeling."}
+  scenario receive(location:Location,source:text label=label_Service_source,kind:Item.kind,storage:text label=label_Item_storage,service:Service?,photo:file? label=label_Item_photo) by=mail_staff label="Record receipt"@{nl="Ontvangst registreren"}
+   require can_work(actor,location) and trim(source)!="" and trim(storage)!="" and not any(Item as item,item.source==source)
+   require service==null or (service.location==location and live(service))
+   do
+    create Item {location,source,kind,storage,photo} as item
+    if service!=null
+     set item {service,recipient=service.recipient,state=received}
+     send Mail.send {to=service.recipient.email,subject=format("Mail received"@{nl="Post ontvangen"},locale=null),body=format("An item is available for authorized collection."@{nl="Er ligt een item klaar dat door een bevoegde persoon kan worden afgehaald."},locale=null)} when=item.state in [received,notified,collection_ready] and recipient(service.recipient.account,service) as notice
+     set item {notification=notice.id,notice_state=pending}
+     schedule format("mail-reminder-{item}",{item=item.id}) at=now+item.reminder_delay event=Reminder {item,number=1}
+   examples seed=[test_worker,test_admin,allocated] location=test_site source="new-receipt" kind=parcel storage="Shelf A" service=service photo=null
+    as,paid_term.mail,paid_term.paid,service.paid_evidence -> count(Item as item where item.source=="new-receipt")
+    mail_staff,true,true,null -> 1
+    mail_staff,false,true,null -> error(rule_failed)
+    mail_staff,true,false,"Manual evidence cannot override linked term" -> error(rule_failed)
+  # Match an unresolved receipt against the current paid service and notify separately. @{nl="Koppel een onopgeloste ontvangst aan de huidige betaalde dienst en meld afzonderlijk."}
+  scenario match(item:Item,service:Service) by=mail_staff label="Match recipient"@{nl="Ontvanger koppelen"}
+   require can_work(actor,item.location) and item.state==unmatched and service.location==item.location and live(service)
+   do
+    set item {service,recipient=service.recipient,state=received}
+    send Mail.send {to=service.recipient.email,subject=format("Mail received"@{nl="Post ontvangen"},locale=null),body=format("An item is available for authorized collection."@{nl="Er ligt een item klaar dat door een bevoegde persoon kan worden afgehaald."},locale=null)} when=item.state in [received,notified,collection_ready] and recipient(service.recipient.account,service) as notice
+    set item {notification=notice.id,notice_state=pending}
+    schedule format("mail-reminder-{item}",{item=item.id}) at=now+item.reminder_delay event=Reminder {item,number=1}
+  # Record one evidenced collection by the currently verified recipient or delegate, including after service expiry. @{nl="Registreer één bewezen afhaling door de huidige geverifieerde ontvanger of gemachtigde, ook na het verlopen van de dienst."}
+  scenario collect(item:Item,collector:user label="Collector"@{nl="Afhaler"},evidence:text) by=mail_staff label="Record collection"@{nl="Afhaling registreren"}
+   require can_work(actor,item.location) and item.state in [received,notified,collection_ready] and trim(evidence)!="" and item.service!=null
+   require permitted_collector(collector,item.service)
+   do
+    create Handling {parent=item,kind=collection,account=collector,instruction=item.service.instructions,revision=item.service.revision,evidence,source=operation.id} as handling
+    set item {state=collected,completed=now,retention_until=now+item.history_days*1d}
+    cancel format("mail-reminder-{item}",{item=item.id})
+   examples seed=[test_worker,test_admin,allocated,delegate,delegate_contact] item=parcel evidence="Identity verified"
+    as,collector,item.state,service.until,delegate.active,delegate_contact.verified -> item.state,count(parcel.Handling)
+    mail_staff,self,collection_ready,datetime("2021-01-01T00:00:00Z"),true,true -> collected,1
+    mail_staff,other,collection_ready,datetime("2099-01-01T00:00:00Z"),true,true -> collected,1
+    mail_staff,other,collection_ready,datetime("2099-01-01T00:00:00Z"),false,true -> error(rule_failed)
+    mail_staff,other,collection_ready,datetime("2099-01-01T00:00:00Z"),true,false -> error(rule_failed)
+    mail_staff,self,collected,datetime("2099-01-01T00:00:00Z"),true,true -> error(rule_failed)
+    members,self,collection_ready,datetime("2099-01-01T00:00:00Z"),true,true -> error(forbidden)
+  # Freeze a unique forwarding attempt and optional same-currency invoice charge. @{nl="Leg een unieke doorzendpoging en optionele factuurkosten in dezelfde valuta vast."}
+  scenario forward(item:Item,fee:money? label=label_Handling_fee,destination_verified:bool label="Postal destination verified"@{nl="Postbestemming geverifieerd"}) by=mail_staff label="Prepare forwarding"@{nl="Doorzending voorbereiden"}
+   require can_work(actor,item.location) and item.service!=null and item.state in [received,notified,collection_ready] and item.dispatch==null and live(item.service) and item.service.forwarding!=null and trim(item.service.forwarding)!=""
+   require destination_verified and (fee==null or (fee.minor>=0 and fee.currency==item.service.currency))
+   do
+    let source=format("mail-forward-{item}",{item=item.id})
+    create Dispatch {parent=item,source,instruction=item.service.instructions,instruction_revision=item.service.revision,destination=item.service.forwarding,fee,charge=fee_charge(item,fee)} as dispatch
+    set item {state=forward_pending,dispatch}
+    cancel format("mail-reminder-{item}",{item=item.id})
+    if dispatch.charge!=null
+     send Billing.charge {value=dispatch.charge} as delivery
+     set dispatch {charge_delivery=delivery.id,charge_state=pending}
+   examples seed=[test_worker,test_admin,allocated] item=parcel fee=money(5,"EUR") destination_verified=true
+    as,paid_term.mail,paid_term.paid,service.forwarding,destination_verified -> item.state,count(item.Dispatch)
+    mail_staff,true,true,"Original address",true -> forward_pending,1
+    mail_staff,true,true,"Original address",false -> error(rule_failed)
+    mail_staff,false,true,"Original address",true -> error(rule_failed)
+    mail_staff,true,false,"Original address",true -> error(rule_failed)
+    mail_staff,true,true,null,true -> error(rule_failed)
+  # Confirm the exact current forwarding attempt with carrier evidence, independently of billing. @{nl="Bevestig de exacte huidige doorzendpoging met vervoerdersbewijs, onafhankelijk van facturatie."}
+  scenario dispatched(dispatch:Dispatch,revision:int,carrier:text label=label_Handling_carrier,evidence:text) by=mail_staff label="Record dispatch"@{nl="Verzending registreren"}
+   require can_work(actor,dispatch.parent.location) and dispatch.parent.state==forward_pending and dispatch.parent.dispatch==dispatch and dispatch.state in [pending,unknown] and revision==dispatch.revision and trim(carrier)!="" and trim(evidence)!=""
+   do
+    create Handling {parent=dispatch.parent,kind=forward,instruction=dispatch.instruction,revision=dispatch.instruction_revision,destination=dispatch.destination,carrier,evidence,fee=dispatch.fee,dispatch,source=dispatch.source} as handling
+    set dispatch {state=dispatched,revision=dispatch.revision+1}
+    set dispatch.parent {state=forwarded,completed=now,retention_until=now+dispatch.parent.history_days*1d}
+   examples seed=[test_worker] dispatch=prepared revision=1 carrier="Manual carrier" evidence="Tracking reference"
+    as,parcel.state,parcel.dispatch,service.forwarding,dispatch.charge_state,revision -> parcel.state,max(parcel.Handling as row select row.destination)
+    mail_staff,forward_pending,prepared,"Changed address",confirmed,1 -> forwarded,"Original address"
+    mail_staff,forward_pending,prepared,"Original address",pending,0 -> error(rule_failed)
+    mail_staff,forwarded,prepared,"Original address",confirmed,1 -> error(rule_failed)
+  # Keep uncertain forwarding pending and append the attempted-dispatch evidence. @{nl="Houd onzekere doorzending in behandeling en voeg bewijs van de verzendpoging toe."}
+  scenario uncertain(dispatch:Dispatch,revision:int,evidence:text) by=mail_staff label="Record uncertain dispatch"@{nl="Onzekere verzending registreren"}
+   require can_work(actor,dispatch.parent.location) and dispatch.parent.state==forward_pending and dispatch.parent.dispatch==dispatch and dispatch.state in [pending,unknown] and dispatch.revision==revision and trim(evidence)!=""
+   do
+    create Handling {parent=dispatch.parent,kind=correction,instruction=dispatch.instruction,revision=dispatch.instruction_revision,destination=dispatch.destination,evidence,dispatch,source=operation.id} as handling
+    set dispatch {state=unknown,revision=dispatch.revision+1}
+    set dispatch.parent {incident=evidence}
+  # Return only by an evidenced staff decision; an unresolved dispatch needs an explicit no-dispatch confirmation. @{nl="Retourneer alleen op basis van een bewezen personeelsbesluit; een onopgeloste verzending vereist expliciete bevestiging dat niet is verzonden."}
+  scenario return_item(item:Item,evidence:text,no_dispatch:bool=false) by=mail_staff label="Record return"@{nl="Retour registreren"}
+   require can_work(actor,item.location) and item.state in [unmatched,received,notified,collection_ready,forward_pending] and trim(evidence)!=""
+   require item.state!=forward_pending or no_dispatch
+   do
+    create Handling {parent=item,kind=return,instruction="Recorded return",revision=item.service?.revision??0,evidence,dispatch=item.dispatch,source=operation.id} as handling
+    if item.dispatch!=null
+     set item.dispatch {state=cancelled,revision=item.dispatch.revision+1}
+    set item {state=returned,completed=now,retention_until=now+item.history_days*1d}
+    cancel format("mail-reminder-{item}",{item=item.id})
+   examples seed=[test_worker] item=parcel evidence="Physical return recorded" no_dispatch=false
+    as,item.state,no_dispatch -> item.state,item.retention_until
+    mail_staff,received,false -> returned,now+item.history_days*1d
+    mail_staff,forward_pending,false -> error(rule_failed)
+    mail_staff,forward_pending,true -> returned,now+item.history_days*1d
+  # Append corrections without rewriting receipt or handling evidence. @{nl="Voeg correcties toe zonder ontvangst- of afhandelingsbewijs te herschrijven."}
+  scenario incident(item:Item,reason:text) by=mail_staff label=label_Item_incident
+   require can_work(actor,item.location) and trim(reason)!=""
+   do
+    create Handling {parent=item,kind=correction,instruction="Staff correction",revision=item.service?.revision??0,evidence=reason,dispatch=item.dispatch,source=operation.id} as handling
+    set item {incident=reason}
+  # Re-submit only the frozen fee with its original billing source. @{nl="Dien uitsluitend de vastgelegde kosten opnieuw in met de oorspronkelijke facturatiebron."}
+  scenario retry_fee(dispatch:Dispatch) by=mail_staff label="Retry forwarding invoice"@{nl="Doorzendfactuur opnieuw proberen"}
+   require can_work(actor,dispatch.parent.location) and dispatch.charge!=null and dispatch.charge_state in [failed,unknown]
+   do
+    send Billing.reconcile {source=dispatch.source} as delivery
+    set dispatch {reconcile_delivery=delivery.id,charge_delivery=null,charge_state=pending}
+  scenario fee_result on=Billing.charge.completed
+   do
+    for dispatch in Dispatch as row where row.charge_delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      require event.result.source==dispatch.source
+      if event.result.state==confirmed
+       set dispatch {charge_state=confirmed,invoice=event.result.reference}
+      else
+       set dispatch {charge_state=failed}
+     else
+      if event.status==failed
+       set dispatch {charge_state=failed}
+      else
+       if event.status==unknown
+        set dispatch {charge_state=unknown}
+   examples event={delivery_id="forward-fee",status=succeeded,result={source="mail-forward-parcel",revision=1,state=confirmed,reference="invoice-1",detail=null},error=null}
+    prepared.charge_delivery,parcel.state,prepared.state -> parcel.state,prepared.charge_state
+    "forward-fee",forward_pending,unknown -> forward_pending,confirmed
+    "older-fee",forward_pending,unknown -> forward_pending,none
+  scenario fee_reconciled on=Billing.reconcile.completed
+   do
+    for dispatch in Dispatch as row where row.reconcile_delivery==event.delivery_id limit=1
+     if event.status==succeeded
+      if event.result!=null
+       require event.result.source==dispatch.source and event.result.amount==dispatch.fee
+       set dispatch {charge_state=confirmed,invoice=event.result.invoice,reconcile_delivery=null}
+      else
+       send Billing.charge {value=dispatch.charge} as delivery
+       set dispatch {charge_delivery=delivery.id,charge_state=pending,reconcile_delivery=null}
+     else
+      if event.status in [failed,unknown]
+       set dispatch {charge_state=unknown,reconcile_delivery=null}
+  # Bound uncollected reminders without changing physical custody or service entitlement. @{nl="Begrens herinneringen voor niet-afgehaalde post zonder fysieke bewaring of dienstrechten te wijzigen."}
+  scenario remind on=Reminder
+   do
+    let item=event.item
+    if item.state in [received,notified,collection_ready] and item.service!=null and event.number==item.reminders+1 and event.number<=item.reminder_limit and recipient(item.service.recipient.account,item.service)
+     send Mail.send {to=item.service.recipient.email,subject=format("Mail awaiting collection"@{nl="Post wacht op afhaling"},locale=null),body=format("Please arrange authorized collection of your item."@{nl="Regel bevoegde afhaling van je poststuk."},locale=null)} when=item.state in [received,notified,collection_ready] and recipient(item.service.recipient.account,item.service) as notice
+     set item {notification=notice.id,notice_state=pending,reminders=event.number}
+     if item.reminders<item.reminder_limit
+      schedule format("mail-reminder-{item}",{item=item.id}) at=now+item.reminder_delay event=Reminder {item,number=item.reminders+1}
+   examples event={item=parcel,number=1}
+    parcel.state,parcel.reminders -> parcel.state,parcel.reminders,parcel.retention_until
+    collection_ready,0 -> collection_ready,1,null
+    collected,0 -> collected,0,null
+    collection_ready,2 -> collection_ready,2,null
+  scenario notice_result on=Mail.send.completed
+   do
+    for item in Item as row where row.notification==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      set item {notice_state=succeeded,notice_reference=event.result.reference}
+      if item.state==received
+       set item {state=notified}
+     else
+      if event.status==failed
+       set item {notice_state=failed}
+      else
+       if event.status==unknown
+        set item {notice_state=unknown}
+       else
+        if event.status==skipped
+         set item {notice_state=skipped}
+   examples event={delivery_id="mail-notice",status=succeeded,result={reference="accepted-mail"},error=null}
+    parcel.notification,parcel.state,event.status,event.result -> parcel.state,parcel.notice_state
+    "mail-notice",received,succeeded,{reference="accepted-mail"} -> notified,succeeded
+    "old-notice",received,succeeded,{reference="accepted-mail"} -> received,none
+    "mail-notice",received,unknown,null -> received,unknown
+ Then
+  # Receive, locate and resolve mail while restricting physical storage information. @{nl="Ontvang, lokaliseer en handel post af terwijl fysieke opslaginformatie afgeschermd blijft."}
+  page /mailroom title="Mail and parcels"@{nl="Post en pakketten"} order=2
+   require mail_staff
+   card "Service entitlement"@{nl="Dienstrecht"}
+    form configure
+    list Service display=split
+     text row.location,row.recipient,row.from,row.until,row.active,row.source,row.term,row.paid_evidence
+     actions service_status
+   card "Mail receipt"@{nl="Post ontvangen"}
+    form receive
+   card "Located items"@{nl="Gelokaliseerde post"}
+    tabs preferences.view
+    table Item as item where preferences.view==all or (preferences.view==collection and item.state in [received,notified,collection_ready]) or (preferences.view==forwarding and item.state in [forward_pending,forwarded]) or (preferences.view==history and item.state in [collected,forwarded,returned]) columns=location,recipient,kind,storage,state,notice_state,incident filter=location,state defaults={location=preferences.location} display=split
+     text row.service,row.photo,row.completed
+     actions match,collect,forward,return_item,incident
+     list row.Dispatch display=split
+      text row.destination,row.instruction_revision,row.state,row.fee,row.charge_state,row.invoice
+      form dispatched arguments={dispatch=row,revision=row.revision}
+      form uncertain arguments={dispatch=row,revision=row.revision}
+      actions retry_fee
+     table row.Handling columns=kind,instruction,revision,destination,evidence,carrier,fee
+     history
+
+  # Follow only your own mail and authorized collection delegates. @{nl="Volg uitsluitend je eigen post en geautoriseerde afhaalgemachtigden."}
+  page /mailroom/mine title="My mail"@{nl="Mijn post"} order=1
+   require authenticated
+   card "Own service"@{nl="Eigen postdienst"}
+    list Service display=split
+     text row.location,row.from,row.until,row.instructions,row.forwarding,row.revision
+     form instructions arguments={service=row,revision=row.revision}
+     form Delegate.create
+     list row.Delegate
+      edit
+   card "Own mail outcomes"@{nl="Eigen postresultaten"}
+    tabs preferences.view
+    table Item as item where preferences.view==all or (preferences.view==collection and item.state in [received,notified,collection_ready]) or (preferences.view==forwarding and item.state in [forward_pending,forwarded]) or (preferences.view==history and item.state in [collected,forwarded,returned]) columns=recipient,kind,state,notice_state,completed filter=state display=split
+     table row.Handling columns=kind,account,instruction,revision,destination,evidence,carrier,fee,created

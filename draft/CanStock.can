@@ -1,0 +1,193 @@
+# Help workspace staff track coffee, cleaning supplies, stationery, access-card stock, and other consumables by location and storeroom. @{nl="Help werkplekmedewerkers koffie, schoonmaakmiddelen, kantoorartikelen, toegangskaartvoorraad en andere verbruiksartikelen per locatie en voorraadruimte te volgen."}
+app CanStock uses=[stock]
+
+# Own whole-unit consumable ledgers, atomic transfers and source-identified purchase receipts. @{nl="Beheer voorraadregisters in gehele eenheden, atomaire overboekingen en brongeïdentificeerde inkoopontvangsten."}
+package stock
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use stock {StockIngressV1 as Receipts} from=deployment.stock_receipts
+ use std {OperationOutcome}
+ Given
+  preferences { location:Location? }
+  invariant preferences: row.location==null or can_work(actor,row.location)
+  message label_StockReceipt_source = "Source reference"@{nl="Bronreferentie"}
+  message label_StockReceipt_order = "Purchase order reference"@{nl="Inkoopreferentie"}
+  message label_StockReceipt_sku = "SKU"@{nl="Artikelcode"}
+  message label_StockReceipt_unit = "Unit"@{nl="Eenheid"}
+  message label_StockReceipt_reversal = "Reversal reference"@{nl="Terugboekingsreferentie"}
+  message label_Item_reorder = "Reorder threshold"@{nl="Besteldrempel"}
+  export contract StockReceipt { source:text label=label_StockReceipt_source, order:text label=label_StockReceipt_order, sku:text label=label_StockReceipt_sku, unit:text label=label_StockReceipt_unit, location:text, quantity:int, revision:int, reversal:text? label=label_StockReceipt_reversal } label="Stock receipt"@{nl="Voorraadontvangst"}
+  export capability StockV1 version=1
+   post(value:StockReceipt) -> OperationOutcome
+   event changed { value:OperationOutcome }
+  ## StockV1.post maps only authenticated purchase-origin Receipts.post to committed PostOutcome.
+  ## The installed binding fixes team/location/source namespaces and the immutable request digest; rejection maps to a failed receipt.
+  ## PostOutcome completes only its originating post delivery after commit, including replay. No delegated user role or remote model query is inferred.
+  export capability StockIngressV1 version=1
+   event post { value:StockReceipt }
+  export event PostOutcome { value:OperationOutcome }
+  export event ProjectionOutcome { value:OperationOutcome }
+  event ApplyProjection { projection:Projection }
+  ## StockV1.changed maps committed ProjectionOutcome with verified source/revision; it does not complete unrelated deliveries.
+  role stock_staff label="Stock staff"@{nl="Voorraadmedewerker"}
+  Item { sku:text unique label=label_StockReceipt_sku, name:text, unit:text label=label_StockReceipt_unit, reorder:int=0 min=0 label=label_Item_reorder, active:bool=true } label="Stock item"@{nl="Voorraadartikel"}
+  Threshold in Item { location:Location, reorder:int=0 min=0 label=label_Item_reorder } label="Location reorder threshold"@{nl="Besteldrempel per locatie"}
+  Movement in Item { location:Location, quantity:int, reason:text, source:text unique label=label_StockReceipt_source, transfer:text? label="Transfer reference"@{nl="Overboekingsreferentie"}, reversal:Movement? label=label_StockReceipt_reversal, order:text? label=label_StockReceipt_order, actor:user?, revision:int?, unit:text? } label="Stock movement"@{nl="Voorraadmutatie"}
+  Projection { source:text unique, value:StockReceipt, location:Location, state:enum(pending,confirmed,failed)=pending, movement:Movement?, detail:text? } label="Purchase stock projection"@{nl="Inkoopvoorraadboeking"}
+  policy Projection read=stock_staff and can_work(actor,row.location)
+  invariant Projection: row.source==row.value.source and row.location.id==row.value.location and row.value.revision>0 and (row.value.reversal==null and row.value.quantity>0 or row.value.reversal!=null and row.value.quantity<0) and (row.state!=confirmed or row.movement!=null)
+  lock Projection fields=source,value,location
+  lock Projection fields=state,movement,detail when=row.state==confirmed
+  derive available(item:Item,location:Location):int = sum(item.Movement as movement where movement.location==location select movement.quantity)
+  derive Threshold.available:int = available(row.parent,row.location) label="Available stock"@{nl="Beschikbare voorraad"}
+  derive Threshold.low:bool = row.available<=row.reorder label="Reorder needed"@{nl="Aanvulling nodig"}
+  derive Item.low:bool = row.total<=row.reorder label="Total reorder needed"@{nl="Totale aanvulling nodig"}
+  derive Item.total:int = sum(row.Movement as movement select movement.quantity) label="Total stock"@{nl="Totale voorraad"}
+  policy Item read=stock_staff
+  policy Threshold read=stock_staff and can_work(actor,row.location)
+  policy Movement read=stock_staff and can_work(actor,row.location)
+  unique Threshold fields=location
+  invariant Movement: not any(Movement as other,other!=row and other.source==row.source)
+  invariant Movement: row.quantity!=0 and trim(row.reason)!="" and available(row.parent,row.location)>=0
+  lock Movement fields=location,quantity,reason,source,transfer,reversal,order,actor,revision,unit
+  lock Item fields=unit,sku when=count(row.Movement)>0
+  fixture coffee=Item {sku="coffee",name="Coffee",unit="box"}
+  fixture goods=Item {sku="boxes",name="Boxes",unit="box"}
+  fixture opening=Movement {parent=goods,location=test_site,quantity=3,reason="Initial count",source="opening"}
+  fixture purchased=Movement {parent=goods,location=test_site,quantity=3,reason="Accepted purchase receipt",source="delivery-A",order="PO-1",revision=1,unit="box"}
+  fixture consumed=Movement {parent=goods,location=test_site,quantity=-1,reason="Consumption",source="consumed"}
+  fixture incoming=Projection {source="delivery-B",value=StockReceipt {source="delivery-B",order="PO-1",sku="boxes",unit="box",location=test_site.id,quantity=3,revision=1,reversal=null},location=test_site}
+ When
+  crud Item by=stock_staff fields=sku,name,unit,reorder,active delete=none
+  crud Threshold by=stock_staff fields=location,reorder when=can_work(actor,row.location) delete=none
+  # Record an attributed receipt, consumption or count correction without rewriting history. @{nl="Leg een toegeschreven ontvangst, verbruik of telcorrectie vast zonder geschiedenis te herschrijven."}
+  scenario adjust(item:Item,location:Location,quantity:int,reason:text) by=stock_staff label="Adjust stock"@{nl="Voorraad corrigeren"}
+   require item.active and can_work(actor,location) and quantity!=0 and trim(reason)!="" and available(item,location)+quantity>=0
+   do create Movement {parent=item,location,quantity,reason,source=operation.id,actor} as movement
+   examples seed=[test_worker,opening] item=goods location=test_site reason="Consumption"
+    as,quantity -> available(goods,test_site)
+    stock_staff,-3 -> 0
+    stock_staff,-4 -> error(rule_failed)
+    members,-1 -> error(forbidden)
+  # Transfer the same SKU between two authorized sites, committing both legs together. @{nl="Boek hetzelfde artikel over tussen twee toegestane locaties en leg beide zijden samen vast."}
+  scenario transfer(item:Item,from:Location label="Source location"@{nl="Bronlocatie"},to:Location label="Destination location"@{nl="Doellocatie"},quantity:int,reason:text) by=stock_staff label="Transfer stock"@{nl="Voorraad overboeken"}
+   require item.active and from!=to and quantity>0 and can_work(actor,from) and can_work(actor,to) and trim(reason)!="" and available(item,from)>=quantity
+   do
+    create Movement {parent=item,location=from,quantity=-quantity,reason,source=format("{id}:out",{id=operation.id}),transfer=operation.id,actor} as out
+    create Movement {parent=item,location=to,quantity,reason,source=format("{id}:in",{id=operation.id}),transfer=operation.id,actor} as in
+  # Reverse a posted movement with a reason while keeping stock nonnegative. @{nl="Boek een vastgelegde mutatie met een reden terug en behoud een niet-negatieve voorraad."}
+  scenario reverse(movement:Movement,reason:text) by=stock_staff label="Reverse stock movement"@{nl="Voorraadmutatie terugboeken"}
+   require movement.order==null and can_work(actor,movement.location) and trim(reason)!="" and not any(movement.parent.Movement as item,item.reversal==movement) and available(movement.parent,movement.location)-movement.quantity>=0
+   do create Movement {parent=movement.parent,location=movement.location,quantity=-movement.quantity,reason,source=operation.id,reversal=movement,order=movement.order,actor} as reversal
+  # Persist authenticated purchase projections and acknowledge identical source replay. @{nl="Bewaar geauthenticeerde inkoopboekingen en bevestig identieke bronherhaling."}
+  scenario post on=Receipts.post
+   require trim(event.value.source)!="" and trim(event.value.order)!="" and event.value.revision>0 and (event.value.reversal==null and event.value.quantity>0 or event.value.reversal!=null and event.value.quantity<0)
+   do
+    let value=event.value
+    let location=first(Location as location where location.id==value.location order=location.id)
+    require location!=null
+    let previous=first(Projection as projection where projection.source==value.source order=projection.id)
+    if previous!=null
+     require previous.value==value and previous.location==location
+     if previous.state==confirmed
+      emit PostOutcome {value={source=value.source,revision=value.revision,state=confirmed,reference=previous.movement.id,detail=null}}
+     else
+      set previous {state=pending,detail=null}
+      schedule previous.id at=now event=ApplyProjection {projection=previous}
+      emit PostOutcome {value={source=value.source,revision=value.revision,state=pending,reference=previous.id,detail=null}}
+    else
+     create Projection {source=value.source,value,location} as projection
+     schedule projection.id at=now event=ApplyProjection {projection}
+     emit PostOutcome {value={source=value.source,revision=value.revision,state=pending,reference=projection.id,detail=null}}
+   examples seed=[incoming] event={value=StockReceipt {source="delivery-B",order="PO-1",sku="boxes",unit="box",location=test_site.id,quantity=3,revision=1,reversal=null}}
+    event.value.quantity,event.value.unit -> count(Projection),count(Movement),incoming.state
+    3,"box" -> 1,0,pending
+    4,"box" -> error(rule_failed)
+    3,"pack" -> error(rule_failed)
+  # Apply one saved projection or record a visible failure without inventing usable stock. @{nl="Verwerk één opgeslagen boeking of registreer een zichtbare fout zonder bruikbare voorraad te verzinnen."}
+  scenario apply_projection on=ApplyProjection
+   do
+    let projection=event.projection
+    if projection.state==pending
+     let value=projection.value
+     let location=projection.location
+     let item=first(Item as item where item.sku==value.sku order=item.id)
+     if item==null or value.unit!=item.unit or (not item.active and value.reversal==null)
+      set projection {state=failed,detail="Unknown SKU, inactive item or mismatched unit"}
+      emit ProjectionOutcome {value={source=value.source,revision=value.revision,state=failed,reference=projection.id,detail=projection.detail}}
+     else
+      let previous=first(Movement as movement where movement.source==value.source order=movement.id)
+      if previous!=null
+       if previous.parent==item and previous.location==location and previous.quantity==value.quantity and previous.order==value.order and previous.unit==value.unit and previous.revision==value.revision and (previous.reversal==null and value.reversal==null or previous.reversal!=null and previous.reversal.source==value.reversal)
+        set projection {state=confirmed,movement=previous,detail=null}
+        emit ProjectionOutcome {value={source=value.source,revision=value.revision,state=confirmed,reference=previous.id,detail=null}}
+       else
+        set projection {state=failed,detail="Source conflicts with an existing stock movement"}
+        emit ProjectionOutcome {value={source=value.source,revision=value.revision,state=failed,reference=projection.id,detail=projection.detail}}
+      else
+       if value.reversal==null
+        create Movement {parent=item,location,quantity=value.quantity,reason="Accepted purchase receipt",source=value.source,order=value.order,revision=value.revision,unit=value.unit} as movement
+        set projection {state=confirmed,movement,detail=null}
+        emit ProjectionOutcome {value={source=value.source,revision=value.revision,state=confirmed,reference=movement.id,detail=null}}
+       else
+        let original=first(Movement as movement where movement.source==value.reversal order=movement.id)
+        if original==null or original.parent!=item or original.location!=location or original.order!=value.order or original.unit!=value.unit or original.quantity<=0 or original.reversal!=null
+         set projection {state=failed,detail="Return does not match its original receipt movement"}
+         emit ProjectionOutcome {value={source=value.source,revision=value.revision,state=failed,reference=projection.id,detail=projection.detail}}
+        else
+         if original.quantity+sum(original.parent.Movement as movement where movement.reversal==original select movement.quantity)+value.quantity<0 or available(item,location)+value.quantity<0
+          set projection {state=failed,detail="Insufficient usable stock or return exceeds accepted receipt"}
+          emit ProjectionOutcome {value={source=value.source,revision=value.revision,state=failed,reference=projection.id,detail=projection.detail}}
+         else
+          create Movement {parent=item,location,quantity=value.quantity,reason="Supplier return",source=value.source,order=value.order,reversal=original,revision=value.revision,unit=value.unit} as movement
+          set projection {state=confirmed,movement,detail=null}
+          emit ProjectionOutcome {value={source=value.source,revision=value.revision,state=confirmed,reference=movement.id,detail=null}}
+   examples seed=[incoming,goods] event={projection=incoming}
+    goods.active,event.projection.value.unit -> available(goods,test_site),count(Movement),incoming.state
+    true,"box" -> 3,1,confirmed
+    true,"pack" -> 0,0,failed
+    false,"box" -> 0,0,failed
+   examples seed=[incoming,purchased,consumed] event={projection=incoming}
+    event.projection.value.reversal,event.projection.value.quantity,consumed.quantity -> available(goods,test_site),count(Movement),incoming.state,purchased.quantity
+    "delivery-A",-2,-1 -> 0,3,confirmed,3
+    "delivery-A",-2,-2 -> 1,2,failed,3
+    "delivery-A",-4,-1 -> 2,2,failed,3
+    "missing",-1,-1 -> 2,2,failed,3
+  # Retry a saved projection after investigating a failed stock posting. @{nl="Herhaal een opgeslagen boeking na onderzoek van een mislukte voorraadboeking."}
+  scenario retry(projection:Projection) by=stock_staff
+   require can_work(actor,projection.location) and projection.state==failed
+   do
+    set projection {state=pending,detail=null}
+    schedule projection.id at=now event=ApplyProjection {projection}
+  # Report a scoped location balance without exposing stock at other sites. @{nl="Rapporteer een locatiesaldo zonder voorraad op andere locaties te tonen."}
+  scenario balance(item:Item,location:Location) read=true -> int by=stock_staff
+   require can_work(actor,location)
+   do return available(item,location)
+ Then
+  # Inspect location balances and enter deliberate ledger movements. @{nl="Bekijk locatiesaldi en voer bewuste voorraadmutaties in."}
+  page /stock title="Consumables"@{nl="Verbruiksartikelen"}
+   require stock_staff
+   card "Purchase posting queue"@{nl="Wachtrij inkoopboekingen"}
+    list Projection filter=state,location defaults={location=preferences.location}
+     text row.source,row.value.order,row.value.sku,row.value.unit,row.value.quantity,row.location,row.state,row.detail
+     action retry
+     history
+   card "Item identities and fixed units"@{nl="Artikelidentiteiten en vaste eenheden"}
+    form Item.create
+    list Item search=name filter=active display=split
+     text row.sku,row.unit
+     metrics row.total,row.low
+     edit
+     card "Location reorder thresholds"@{nl="Besteldrempels per locatie"}
+      form Threshold.create
+      list row.Threshold filter=location defaults={location=preferences.location}
+       metrics row.available,row.reorder,row.low
+       text row.location
+       edit
+     card "Ledger movements and corrections"@{nl="Voorraadmutaties en correcties"}
+      actions adjust,transfer
+      form balance
+       text result
+      table row.Movement columns=location,quantity,reason,source,order,actor order=-created filter=location defaults={location=preferences.location}
+       action reverse
+       history

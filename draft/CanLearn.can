@@ -1,0 +1,133 @@
+# Help workspace operators deliver text-based staff induction, safety procedures, and member orientation. @{nl="Help werkplekbeheerders tekstgebaseerde personeelsintroductie, veiligheidsprocedures en ledenoriëntatie aan te bieden."}
+app CanLearn uses=[learn]
+
+# Publish immutable text-course versions and record each learner's own acknowledgments. @{nl="Publiceer onveranderlijke tekstcursusversies en registreer de eigen bevestigingen van iedere deelnemer."}
+package learn label="Learning"@{nl="Opleidingen"}
+ use rent_catalog {Location,test_site}
+ use employee {can_work,staff as is_staff,test_worker}
+ use member_terms {Term,eligible_term,paid_term,allocated}
+ use customer {test_contact,test_admin}
+ Given
+  message page_learning_courses_title = "Course authoring"@{nl="Cursussen beheren"}
+  message label_Course_locations = "Locations"@{nl="Locaties"}
+  message label_Course_required = "Required"@{nl="Verplicht"}
+  message label_DraftLesson_content = "Lesson content"@{nl="Lesinhoud"}
+  message label_DraftLesson_position = "Position"@{nl="Volgorde"}
+  message label_Enrollment_account = "Account"@{nl="Account"}
+  preferences { view:enum(all,required,optional,overdue)=all label={text="Course view"@{nl="Cursusweergave"},values={all="All courses"@{nl="Alle cursussen"},required="Required courses"@{nl="Verplichte cursussen"},optional="Optional courses"@{nl="Optionele cursussen"},overdue="Overdue courses"@{nl="Achterstallige cursussen"}}} }
+  role instructor label="Instructor"@{nl="Docent"}
+  Course { title:text, audience:enum(staff,member) label={text="Audience"@{nl="Doelgroep"},values={staff="Staff"@{nl="Personeel"},member="Member"@{nl="Lid"}}}, locations:Location[]! min=1 label=label_Course_locations, required:bool=false label=label_Course_required, revision:int=0 } label="Course"@{nl="Cursus"}
+  DraftLesson in Course { title:text, content:text label=label_DraftLesson_content, position:int min=1 label=label_DraftLesson_position } label="Draft lesson"@{nl="Conceptles"}
+  export Version in Course { number:int label="Course version number"@{nl="Cursusversienummer"}, audience:Course.audience, required:bool label=label_Course_required, title:text, locations:Location[]! min=1 label=label_Course_locations } label="Course version"@{nl="Cursusversie"}
+  Lesson in Version { title:text, content:text label=label_DraftLesson_content, position:int label=label_DraftLesson_position } label="Lesson"@{nl="Les"}
+  export Enrollment in Version { total:int min=0, account:user label=label_Enrollment_account, due:date?, active:bool=true } label="Enrollment"@{nl="Inschrijving"}
+  Completion in Enrollment { lesson:Lesson, author:user server=actor label="Author"@{nl="Auteur"}, completed:datetime server=now label="Completed at"@{nl="Afgerond op"} } label="Lesson acknowledgment"@{nl="Lesbevestiging"}
+  derive Enrollment.progress:decimal = count(row.Completion)*100/max([1,row.total]) label="Progress"@{nl="Voortgang"}
+  derive eligible(account:user,version:Version):bool = (version.audience==staff and is_staff(account) and any(version.locations as location,can_work(account,location))) or (version.audience==member and any(Term as term,eligible_term(account,term,now) and any(version.locations as location,location in term.locations and location.active)))
+  export contract Progress { enrollment:Enrollment, version:Version, completed:int, total:int, percentage:decimal, active:bool }
+  policy Course read=instructor where=all(row.locations as location,can_work(actor,location))
+  policy DraftLesson read=instructor where=all(row.parent.locations as location,can_work(actor,location))
+  policy Version read=instructor where=all(row.locations as location,can_work(actor,location))
+  policy Version read=authenticated where=any(row.Enrollment as enrollment,enrollment.account==actor)
+  policy Lesson read=instructor where=all(row.parent.locations as location,can_work(actor,location))
+  policy Lesson read=authenticated where=actor.email_verified and eligible(actor,row.parent) and any(row.parent.Enrollment as enrollment,enrollment.account==actor and enrollment.active)
+  policy Enrollment read=instructor where=all(row.parent.locations as location,can_work(actor,location))
+  policy Enrollment read=authenticated where=row.account==actor
+  policy Completion read=instructor where=all(row.parent.parent.locations as location,can_work(actor,location))
+  policy Completion read=authenticated where=row.parent.account==actor
+  unique DraftLesson fields=position
+  unique Lesson fields=position
+  lock Enrollment fields=account,total
+  unique Version fields=number
+  unique Enrollment fields=account
+  unique Completion fields=lesson
+  invariant Completion: row.lesson.parent==row.parent.parent
+  lock Version fields=number,audience,required,title,locations
+  lock Lesson fields=title,content,position
+  lock Completion fields=lesson,author,completed
+  fixture course=Course {title="Opening",audience=staff,locations=[test_site]}
+  fixture published=Version {parent=course,number=1,audience=staff,required=true,title="Opening",locations=[test_site]}
+  fixture lesson=Lesson {parent=published,title="Unlock",content="Follow procedure",position=1}
+  fixture enrolled=Enrollment {parent=published,account=self,total=1}
+  fixture acknowledged=Completion {parent=enrolled,lesson}
+ When
+  crud Course by=instructor fields=title,audience,locations,required when=all(row.locations as location,can_work(actor,location)) delete=none
+  crud DraftLesson by=instructor fields=title,content,position when=all(row.parent.locations as location,can_work(actor,location)) delete=remove
+  # Freeze a new ordered lesson set without changing any existing enrollment denominator. @{nl="Leg een nieuwe geordende lessenreeks vast zonder de noemer van bestaande inschrijvingen te wijzigen."}
+  scenario publish(course:Course) by=instructor
+   require all(course.locations as location,can_work(actor,location)) and count(course.DraftLesson)>0
+   do
+    let number=course.revision+1
+    create Version {parent=course,number,audience=course.audience,required=course.required,title=course.title,locations=course.locations} as version
+    for draft in course.DraftLesson as lesson order=lesson.position limit=100
+     create Lesson {parent=version,title=draft.title,content=draft.content,position=draft.position} as lesson
+    set course {revision=number}
+  # Enroll an explicit authorized audience in one published version. @{nl="Schrijf een expliciete geautoriseerde doelgroep in voor één gepubliceerde versie."}
+  scenario enroll(version:Version,account:user label=label_Enrollment_account,due:date?) by=instructor label="Enroll learner"@{nl="Deelnemer inschrijven"}
+   require all(version.locations as location,can_work(actor,location))
+   require eligible(account,version) and count(version.Lesson)>0
+   do create Enrollment {parent=version,account,due,total=count(version.Lesson)} as enrollment
+   examples seed=[test_worker] version=published account=self due=null
+    as,version.audience -> count(version.Enrollment)
+    instructor,staff -> 1
+    instructor,member -> error(rule_failed)
+   examples seed=[test_worker,test_admin,test_contact,allocated] version=published account=self due=null
+    as,version.audience,paid_term.paid -> count(version.Enrollment)
+    instructor,member,true -> 1
+    instructor,member,false -> error(rule_failed)
+  # Acknowledge only a lesson in your own active enrolled version. @{nl="Bevestig uitsluitend een les uit je eigen actieve ingeschreven versie."}
+  scenario complete(enrollment:Enrollment,lesson:Lesson) by=authenticated
+   require actor.email_verified and enrollment.account==actor and enrollment.active and eligible(actor,enrollment.parent) and lesson.parent==enrollment.parent
+   do
+    if not any(enrollment.Completion as completion,completion.lesson==lesson)
+     create Completion {parent=enrollment,lesson} as completion
+   examples seed=[test_worker] enrollment=enrolled lesson=lesson
+    as,enrollment.active -> count(enrolled.Completion)
+    members,true -> 1
+    members,false -> error(rule_failed)
+    public,true -> error(forbidden)
+   examples seed=[test_worker,acknowledged] enrollment=enrolled lesson=lesson
+    as -> count(enrollment.Completion)
+    members -> 1
+  # Return only the learner's own or an authorized instructor's exact published-version progress. @{nl="Geef alleen de voortgang van de eigen deelnemer of een bevoegde docent voor de exacte gepubliceerde versie."}
+  export scenario progress(enrollment:Enrollment) read=true -> Progress by=authenticated
+   require enrollment.account==actor or (instructor and all(enrollment.parent.locations as location,can_work(actor,location)))
+   do return Progress {enrollment,version=enrollment.parent,completed=count(enrollment.Completion),total=enrollment.total,percentage=enrollment.progress,active=enrollment.active}
+  # Revoke lesson access while retaining completed-version evidence. @{nl="Trek toegang tot lessen in en bewaar bewijs van afgeronde versies."}
+  scenario withdraw(enrollment:Enrollment) by=instructor label="Withdraw"@{nl="Intrekken"}
+   require all(enrollment.parent.locations as location,can_work(actor,location))
+   do set enrollment {active=false}
+ Then
+  # Read the exact enrolled content and acknowledge it without a separate testing DSL. @{nl="Lees de exacte ingeschreven inhoud en bevestig die zonder afzonderlijke testtaal."}
+  page /learning/mine title="My learning"@{nl="Mijn opleidingen"}
+   require authenticated
+   card "Own enrolled versions"@{nl="Eigen ingeschreven versies"}
+    tabs preferences.view
+    list Enrollment as enrollment where enrollment.account==actor and (preferences.view==all or (preferences.view==required and enrollment.parent.required) or (preferences.view==optional and not enrollment.parent.required) or (preferences.view==overdue and enrollment.due!=null and enrollment.due<local_date(now,team.timezone))) display=split
+     text row.parent.title,row.parent.required,row.due,row.active
+     metrics row.progress,row.total
+     list row.parent.Lesson order=position
+      title row.title
+      content row.content
+      form complete arguments={enrollment=enrollment,lesson=row}
+
+  # Author and publish course versions and inspect attributed completion. @{nl="Maak en publiceer cursusversies en bekijk herleidbare afronding."}
+  page /learning/courses title=page_learning_courses_title
+   require instructor
+   card page_learning_courses_title
+    form Course.create
+    list Course filter=audience,required search=title display=split
+     edit
+     tabs
+      tab "Ordered draft lessons"@{nl="Geordende conceptlessen"}
+       form DraftLesson.create
+       list row.DraftLesson order=position
+        edit
+        delete
+       action publish
+      tab "Published versions and enrollments"@{nl="Gepubliceerde versies en inschrijvingen"}
+       list row.Version
+        form enroll
+        table row.Enrollment columns=account,due,active,total,progress
+         action withdraw
+         table row.Completion columns=lesson,author,completed order=completed

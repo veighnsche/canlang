@@ -1,0 +1,13 @@
+# Own the canonical supplier directory without duplicating it in facilities or purchasing. @{nl="Beheer de canonieke leverancierslijst zonder die in facilitair beheer of inkoop te dupliceren."}
+package supplier label="Suppliers"@{nl="Leveranciers"}
+ use rent_catalog {Location}
+ use employee {can_work}
+ Given
+  export role buyer label="Buyer"@{nl="Inkoper"}
+  export role budget_manager label="Budget manager"@{nl="Budgetbeheerder"}
+  export Supplier { name:text trim min=1, contact:email label="Supplier email"@{nl="E-mail leverancier"}, locations:Location[] label="Locations"@{nl="Locaties"}, active:bool=true } label="Supplier"@{nl="Leverancier"}
+  policy Supplier read=buyer or budget_manager where=any(row.locations as location,can_work(actor,location))
+  policy Supplier read=members where=row.active and any(row.locations as location,can_work(actor,location)) fields=name,locations,active
+ When
+  crud Supplier by=buyer fields=name,contact,locations,active when=all(row.locations as location,can_work(actor,location)) delete=none
+ Then

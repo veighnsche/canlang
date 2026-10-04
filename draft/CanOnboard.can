@@ -1,0 +1,115 @@
+# Help workspace HR and location managers prepare new employees for reception, sales, community, and facilities duties. @{nl="Help HR en locatiemanagers nieuwe medewerkers voor receptie-, verkoop-, community- en facilitaire taken voor te bereiden."}
+app CanOnboard uses=[employee,onboard]
+
+# Own employee work identity and private, versioned onboarding checklists. @{nl="Beheer de werkidentiteit van medewerkers en private, geversioneerde inwerkchecklists."}
+package onboard label=page_people_onboarding_title
+ use rent_catalog {Location,test_site}
+ use employee {Employee,hr,test_worker,deactivate,can_work}
+ Given
+  export contract WorkItem { reference:text, revision:int, location:text?, title:text, detail:text?, due:datetime?, action:action(complete) } label="Authorized work item"@{nl="Toegestaan werkitem"}
+  export contract WorkBatch { items:WorkItem[]! max=500 } label="Authorized work batch"@{nl="Toegestane werkverzameling"}
+  message page_people_onboarding_title = "Onboarding"@{nl="Inwerken"}
+  preferences { home:Location? label="Home location"@{nl="Standplaats"}, view:enum(all,unfinished,overdue)=all label={text="Step view"@{nl="Stappenweergave"},values={all="All steps"@{nl="Alle stappen"},unfinished="Unfinished steps"@{nl="Onafgeronde stappen"},overdue="Overdue steps"@{nl="Achterstallige stappen"}}} }
+  export Template { name:text, role:text label="Role"@{nl="Rol"}, location:Location, active:bool=true label="Available template"@{nl="Beschikbare template"}, revision:int=1 } label="Checklist template"@{nl="Checklisttemplate"}
+  TemplateStep in Template { title:text trim min=1, offset_days:int=0 label="Offset in days"@{nl="Verschuiving in dagen"}, category:enum(equipment,induction,account,training)=induction label={text="Category"@{nl="Categorie"},values={equipment="Equipment"@{nl="Uitrusting"},induction="Induction"@{nl="Introductie"},account="Account"@{nl="Account"},training="Training"@{nl="Opleiding"}}} } label="Template step"@{nl="Templatestap"}
+  Checklist in Employee { template:Template, template_version:int label="Template version"@{nl="Templateversie"}, started:date label="Started on"@{nl="Gestart op"}, generation:text unique label="Generation reference"@{nl="Generatiereferentie"} } label="Onboarding checklist"@{nl="Inwerkchecklist"}
+  export Step in Checklist { title:text trim min=1, due:date, assignee:user label="Assignee"@{nl="Toegewezen persoon"}, category:TemplateStep.category, document:file? label="Generate document"@{nl="Document genereren"}, blocked_reason:text? label="Blocking reason"@{nl="Blokkeerreden"}, done:bool=false, completed_by:user? label="Completed by"@{nl="Afgerond door"}, completed_at:datetime? label="Completed at"@{nl="Afgerond op"} } label="Onboarding step"@{nl="Inwerkstap"}
+  derive Checklist.completed_steps:int = count(row.Step as s where s.done) label="Completed steps"@{nl="Afgeronde stappen"}
+  derive Checklist.total_steps:int = count(row.Step) label="Active steps"@{nl="Actieve stappen"}
+  derive Checklist.progress:decimal = count(row.Step as s where s.done)*100/max([1,count(row.Step)]) label="Progress"@{nl="Voortgang"}
+  policy Template read=hr or (members and can_work(actor,row.location))
+  policy TemplateStep read=hr or (members and can_work(actor,row.parent.location))
+  policy Checklist read=hr or (authenticated and row.parent.user==actor)
+  policy Step read=hr or (authenticated and (row.assignee==actor or row.parent.parent.user==actor))
+  invariant Step: not row.done or (row.completed_at!=null and row.completed_by!=null)
+  lock Checklist fields=template,template_version,started,generation
+  export fixture test_template=Template {name="Opening",role="operator",location=test_site}
+  fixture test_checklist=Checklist {parent=test_worker,template=test_template,template_version=1,started=date("2026-10-01"),generation="test-onboarding"}
+  fixture test_step=Step {parent=test_checklist,title="Induction",due=date("2026-10-03"),assignee=self,category=induction}
+ When
+  crud Template by=hr fields=name,role,location,active create_fields=name,role,location
+  crud TemplateStep by=hr fields=title,offset_days,category delete=remove
+  crud Step by=hr fields=title,due,assignee,category,document,blocked_reason when=row.parent.parent.active and active_member(row.assignee,team)
+  scenario template_changed on=Template.update
+   do set event.after {revision=event.before.revision+1}
+  scenario template_step_created on=TemplateStep.create
+   do set event.after.parent {revision=event.after.parent.revision+1}
+  scenario template_step_changed on=TemplateStep.update
+   do set event.after.parent {revision=event.after.parent.revision+1}
+  scenario template_step_removed on=TemplateStep.delete
+   do set event.before.parent {revision=event.before.parent.revision+1}
+  # Copy a current role/location template once without changing existing checklists. @{nl="Kopieer een huidige rol- en locatietemplate één keer zonder bestaande checklists te wijzigen."}
+  export scenario start(employee:Employee,template:Template) by=hr label="Start"@{nl="Starten"}
+   require employee.active and active_member(employee.user,team) and template.active and employee.role==template.role and employee.home==template.location
+   do
+    create Checklist {parent=employee,template,template_version=template.revision,started=employee.start,generation=operation.id} as checklist
+    for source in template.TemplateStep limit=100
+     create Step {parent=checklist,title=source.title,due=add_days(employee.start,source.offset_days),assignee=employee.user,category=source.category} as step
+   examples seed=[test_worker] employee=test_worker template=test_template
+    as,employee.active,template.active -> count(employee.Checklist)
+    hr,true,true -> 1
+    hr,false,true -> error(rule_failed)
+    hr,true,false -> error(rule_failed)
+    members,true,true -> error(forbidden)
+  # Record completion by the assigned employee or HR independently of document upload. @{nl="Registreer afronding door de toegewezen medewerker of HR onafhankelijk van documentupload."}
+  export scenario complete(step:Step) by=hr or authenticated
+   require step.parent.parent.active and (hr or step.assignee==actor) and not step.done and step.blocked_reason==null
+   do set step {done=true,completed_by=actor,completed_at=now}
+   examples step=test_step
+    as,step.assignee,step.blocked_reason -> step.done
+    members,self,null -> true
+    members,other,null -> error(rule_failed)
+    members,self,"Equipment missing" -> error(rule_failed)
+  # Reopen a completed step with an attributed reason. @{nl="Heropen een afgeronde stap met een herleidbare reden."}
+  scenario reopen(step:Step,reason:text) by=hr
+   require step.parent.parent.active and step.done and trim(reason)!=""
+   do set step {done=false,completed_by=null,completed_at=null,blocked_reason=reason}
+   examples step=test_step reason="Equipment correction"
+    as,step.done,step.completed_by,step.completed_at -> step.done,step.blocked_reason
+    hr,true,self,datetime("2026-10-03T12:00:00Z") -> false,"Equipment correction"
+    hr,false,null,null -> error(rule_failed)
+    members,false,null,null -> error(forbidden)
+  # Return only current eligible work under the canonical completion authority. @{nl="Geef alleen actueel uitvoerbaar werk terug binnen de canonieke afrondingsbevoegdheid."}
+  export scenario work(locations:text[]) read=true scope=authority -> WorkBatch by=hr or authenticated
+   do return WorkBatch {items=Step as item where (item.parent.parent.active and (hr or item.assignee==actor) and not item.done and item.blocked_reason==null) and (count(locations)==0 or item.parent.parent.home.id in locations) select WorkItem {reference=item.id,revision=item.version,location=item.parent.parent.home.id,title=item.title,detail=null,due=local_instant(item.due,"00:00",team.timezone,fold=earlier),action=action(complete,{step=item})}}
+  # Revalidate the selected item before presenting its protected canonical action. @{nl="Controleer het gekozen item opnieuw voordat de beschermde canonieke actie wordt getoond."}
+  export scenario work_detail(record:Step) read=true scope=authority -> WorkItem by=hr or authenticated
+   require record.parent.parent.active and (hr or record.assignee==actor) and not record.done and record.blocked_reason==null
+   do return WorkItem {reference=record.id,revision=record.version,location=record.parent.parent.home.id,title=record.title,detail=null,due=local_instant(record.due,"00:00",team.timezone,fold=earlier),action=action(complete,{step=record})}
+ Then
+  # Follow your assigned readiness work and private attachments. @{nl="Volg je toegewezen inwerkstappen en private bijlagen."}
+  page /people/my-readiness title="My readiness"@{nl="Mijn inwerkstappen"}
+   require authenticated
+   card "Assigned readiness steps"@{nl="Toegewezen inwerkstappen"}
+    tabs preferences.view
+    list Step as step where step.assignee==actor and (preferences.view==all or (preferences.view==unfinished and not step.done) or (preferences.view==overdue and not step.done and step.due<local_date(now,team.timezone))) order=step.due
+     text row.title,row.due,row.blocked_reason,row.document
+     action complete
+
+  # Prepare work identities and role/location checklists under HR document grants. @{nl="Bereid werkidentiteiten en rol- en locatiechecklists voor binnen HR-documentrechten."}
+  page /people/onboarding title=page_people_onboarding_title
+   require hr
+   card "Employee onboarding"@{nl="Medewerkers inwerken"}
+    form Employee.create
+   card "Dated checklist steps"@{nl="Gedateerde checkliststappen"}
+    tabs preferences.view
+    list Employee order=start filter=home,active,role search=role defaults={home=preferences.home} display=split
+     edit
+     form start
+     action deactivate
+     list row.Checklist
+      metrics row.completed_steps,row.total_steps,row.progress
+      form Step.create
+      list row.Step as step where preferences.view==all or (preferences.view==unfinished and not step.done) or (preferences.view==overdue and not step.done and step.due<local_date(now,team.timezone)) order=due
+       edit
+       actions complete,reopen
+       history
+   card "Reusable templates"@{nl="Herbruikbare templates"}
+    form Template.create
+    list Template display=split
+     text row.revision,row.active
+     edit
+     form TemplateStep.create
+     list row.TemplateStep
+      edit
+      delete

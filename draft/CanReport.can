@@ -1,0 +1,88 @@
+# Provide a scoped operational reporting package for workspace managers and finance. @{nl="Bied afgebakende operationele rapportage voor werkplekbeheerders en financiële medewerkers."}
+app CanReport uses=[report]
+
+# Reproduce authorized operational measures from versioned sources with explicit completeness. @{nl="Reproduceer toegestane operationele maatstaven uit geversioneerde bronnen met expliciete volledigheid."}
+package report
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use report {ReportsV1 as Reports} from=deployment.reports
+ Given
+  preferences { definition:Definition? label=label_Definition }
+  message label_Checkpoint = "Source checkpoint"@{nl="Broncontrolepunt"}
+  message label_Checkpoint_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Checkpoint_generated = "Generated at"@{nl="Gegenereerd op"}
+  message label_Contribution_from = "From"@{nl="Van"}
+  message label_Contribution_until = "Until"@{nl="Tot"}
+  message label_Contribution_unit = "Unit"@{nl="Eenheid"}
+  message label_ReportBatch_rows = "Source rows"@{nl="Bronregels"}
+  message label_Definition = "Report definition"@{nl="Rapportdefinitie"}
+  message label_Definition_inclusion = "Inclusion rule"@{nl="Meetelregel"}
+  message label_Run_locations = "Locations"@{nl="Locaties"}
+  export contract Checkpoint { source:text label=label_Checkpoint_source, revision:text label="Source revision"@{nl="Bronrevisie"}, generated:datetime label=label_Checkpoint_generated, state:enum(fresh,lagging,partial,unavailable) label={text="State"@{nl="Status"},values={fresh="Up to date"@{nl="Actueel"},lagging="Delayed"@{nl="Vertraagd"},partial="Incomplete"@{nl="Onvolledig"},unavailable="Unavailable"@{nl="Niet beschikbaar"}}}, complete:bool label="Complete source coverage"@{nl="Volledige brondekking"} } label=label_Checkpoint
+  export contract Contribution { source:text label=label_Checkpoint_source, revision:int, location:text, from:datetime label=label_Contribution_from, until:datetime label=label_Contribution_until, metric:enum(booked_minutes,saleable_minutes,excluded_minutes,occupied_minutes,cash,receivable,renewal,backlog) label={text="Metric"@{nl="Maatstaf"},values={booked_minutes="Booked minutes"@{nl="Gereserveerde minuten"},saleable_minutes="Saleable minutes"@{nl="Verkoopbare minuten"},excluded_minutes="Excluded minutes"@{nl="Uitgesloten minuten"},occupied_minutes="Occupied minutes"@{nl="Werkelijk bezette minuten"},cash="Cash receipts"@{nl="Ontvangen betalingen"},receivable="Receivables"@{nl="Openstaande vorderingen"},renewal="Renewals"@{nl="Verlengingen"},backlog="Service backlog"@{nl="Werkachterstand"}}}, quantity:decimal, unit:text label=label_Contribution_unit, amount:money?, provisional:bool=false label="Provisional"@{nl="Voorlopig"}, reversal:text? label="Reversal reference"@{nl="Terugboekingsreferentie"} } label="Source contribution"@{nl="Bronbijdrage"}
+  export contract ReportBatch { checkpoint:Checkpoint label=label_Checkpoint, rows:Contribution[]! label=label_ReportBatch_rows } label="Report batch"@{nl="Rapportbatch"}
+  export capability ReportsV1 version=1
+   reports(locations:text[],from:datetime,until:datetime) -> ReportBatch
+  role manager label="Reporting manager"@{nl="Rapportagebeheerder"}
+  role finance label="Finance"@{nl="Financiën"}
+  Definition { name:text, metric:Contribution.metric, unit:text label=label_Contribution_unit, finance_only:bool=false label="Finance access only"@{nl="Alleen financiële toegang"}, inclusion:text label=label_Definition_inclusion, display_timezone:timezone label="Reporting timezone"@{nl="Rapportagetijdzone"}, enabled:bool=true } label=label_Definition
+  Run in Definition { account:user label="User account"@{nl="Gebruikersaccount"}, locations:Location[]! label=label_Run_locations, from:datetime label=label_Contribution_from, until:datetime label=label_Contribution_until, currency:currency?, requested:datetime server=now label="Requested at"@{nl="Aangevraagd op"}, delivery:text unique label="Delivery reference"@{nl="Verzendingsreferentie"}, checkpoint:Checkpoint? label=label_Checkpoint, rows:Contribution[] label=label_ReportBatch_rows, state:Checkpoint.state=unavailable, pending:bool=true label="Processing pending"@{nl="Verwerking in afwachting"} } label="Report run"@{nl="Rapportuitvoering"}
+  contract Measure { quantity:decimal?, numerator:decimal? label="Numerator"@{nl="Teller"}, denominator:decimal? label="Denominator"@{nl="Noemer"}, value:decimal? label="Measure value"@{nl="Meetwaarde"}, amount:money?, state:Run.state, generated:datetime? label=label_Checkpoint_generated, inclusion:text label=label_Definition_inclusion, unit:text label=label_Contribution_unit } label="Report measure"@{nl="Rapportmaatstaf"}
+  policy Definition read=manager where=(not row.finance_only or finance) and (not (row.metric in [cash,receivable]) or finance)
+  policy Run read=manager where=row.account==actor and all(row.locations as location,can_work(actor,location)) and (not row.parent.finance_only or finance) and (not (row.parent.metric in [cash,receivable]) or finance)
+  invariant Run: row.from<row.until and count(row.locations)>0
+  lock Run fields=account,locations,from,until,currency,requested,delivery
+  fixture utilization=Definition {name="Utilization",metric=booked_minutes,unit="room-minute",inclusion="Confirmed resource minutes / saleable minutes",display_timezone="Europe/Brussels"}
+  fixture unavailable=Run {parent=utilization,account=self,locations=[test_site],from=datetime("2026-10-01T00:00:00Z"),until=datetime("2026-10-02T00:00:00Z"),delivery="report",state=unavailable,pending=false}
+ When
+  # Refresh one permitted metric range without mutating the source business records. @{nl="Vernieuw één toegestaan meetbereik zonder de zakelijke brongegevens te wijzigen."}
+  scenario refresh(definition:Definition,locations:Location[] label=label_Run_locations,from:datetime label=label_Contribution_from,until:datetime label=label_Contribution_until,currency:currency?) by=manager
+   require definition.enabled and from<until and count(locations)>0 and all(locations as location,can_work(actor,location)) and (not definition.finance_only or finance) and (not (definition.metric in [cash,receivable]) or finance)
+   do
+    send Reports.reports {locations=locations as location select location.id,from,until} as delivery
+    create Run {parent=definition,account=actor,locations,from,until,currency,delivery=delivery.id} as run
+  scenario result on=Reports.reports.completed
+   do
+    for run in Run as item where item.delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      require all(event.result.rows as row,any(run.locations as location,location.id==row.location))
+      set run {rows=(event.result.rows as contribution where contribution.metric==run.parent.metric or (run.parent.metric==booked_minutes and contribution.metric in [saleable_minutes,excluded_minutes])),checkpoint=event.result.checkpoint,state=event.result.checkpoint.state,pending=false}
+     else
+      set run {state=unavailable,pending=false}
+  # Expose the chosen measure with denominator and missing-source state, never an invented zero. @{nl="Toon de gekozen maatstaf met noemer en ontbrekende-bronstatus, nooit een verzonnen nul."}
+  scenario measure(run:Run) read=true -> Measure by=manager label="Show report measure"@{nl="Rapportmaatstaf tonen"}
+   require run.account==actor and all(run.locations as location,can_work(actor,location)) and (not run.parent.finance_only or finance) and (not (run.parent.metric in [cash,receivable]) or finance)
+   do
+    if run.checkpoint==null or run.pending or run.state in [unavailable,partial]
+     return Measure {state=run.state,inclusion=run.parent.inclusion,unit=run.parent.unit}
+    let selected=run.rows as row where row.metric==run.parent.metric and row.unit==run.parent.unit and row.reversal==null
+    let quantity=sum(selected as row select row.quantity)
+    if run.parent.metric==booked_minutes
+     let denominator=sum(run.rows as row where row.metric==saleable_minutes and row.unit==run.parent.unit select row.quantity)
+     if denominator==0
+      return Measure {quantity,numerator=quantity,denominator,value=null,state=run.state,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
+     return Measure {quantity,numerator=quantity,denominator,value=quantity/denominator,state=run.state,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
+    if run.currency!=null
+     return Measure {quantity,amount=sum(selected as row where row.amount!=null and row.amount.currency==run.currency select row.amount,run.currency),state=run.state,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
+    return Measure {quantity,state=run.state,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
+   examples seed=[test_worker] run=unavailable
+    as -> result.quantity,result.state
+    manager -> null,unavailable
+    members -> error(forbidden)
+ Then
+  # Compare booked and recorded occupancy, cash receipts, balances and service backlog. @{nl="Vergelijk gereserveerde en vastgelegde bezetting, ontvangen betalingen, saldi en serviceachterstand."}
+  page /reports title="Operational reports"@{nl="Operationele rapporten"}
+   require manager
+   card "Existing report definitions"@{nl="Bestaande rapportdefinities"}
+    list Definition as definition where preferences.definition==null or definition==preferences.definition
+     text row.name,row.inclusion,row.unit,row.display_timezone
+     form refresh
+     card "Run checkpoints and completeness"@{nl="Controlepunten en volledigheid van uitvoeringen"}
+      list row.Run order=-requested display=split
+       text row.state,row.checkpoint,row.from,row.until,row.currency
+       card "Typed report measure"@{nl="Getypeerde rapportmaatstaf"}
+        form measure
+         metrics result.quantity,result.numerator,result.denominator,result.value,result.amount
+         text result.state,result.inclusion,result.unit
+       details "Source contributions"@{nl="Bronbijdragen"}
+        table row.rows columns=source,revision,location,metric,quantity,unit,amount,provisional

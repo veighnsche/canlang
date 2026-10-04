@@ -1,0 +1,133 @@
+# CanInvoice requirements
+
+Inherits [canlang requirements](../REQUIREMENTS.md) and [workspace operator context](WORKSPACE_OPERATOR.md), with [portfolio composition](PORTFOLIO.md). Companion draft: [CanInvoice.can](CanInvoice.can).
+
+## Purpose and Adoption Goal
+
+Help the workspace operator issue readable invoices for day offices, desks, meeting rooms, memberships, and approved add-ons. Adoption depends on customers seeing exactly what they bought, downloading the issued invoice, and paying a trustworthy balance.
+
+## Users and Permissions
+
+Team members with billing permission maintain authorized customer billing profiles through CanCustomer and manage draft invoices. Only authorized billing members issue or void invoices. Provider-confirmed payment/refund state is not editable through generic CRUD; customers use their payment destination.
+
+Verified customer billing contacts can view and download only invoices explicitly linked to their own customer organization. Finance records evidenced external full payments and adjustments; customer organization membership cannot grant operator staff privileges.
+
+## Data and Ownership
+
+Invoice stores an issued number, customer/billing snapshot, issue/due dates, currency, line-item snapshots, explicit discount/tax amounts, and payment references. Billable lines with a positive net amount have positive quantities; a zero quantity is allowed only for a net-zero informational line. Prices, tax and discounts are nonnegative, and amounts use deterministic minor-unit rounding. Issued invoices retain their identity and totals after customer or price changes.
+
+Snapshot the issuing business identity/address and entered tax identifier, customer billing details, service location, booking or membership-term reference, and service dates on each issued line. Retain immutable linked adjustment/credit records with reason, amount/currency, and original invoice reference; provider refunds and credits have separate states.
+
+Recurring source charges include customer organization, membership cycle/term, immutable fee/benefit reference, service period, due date and explicit collection owner. Store authorized payment-method/provider references and collection consent evidence on the server; never raw card credentials. An invoice snapshots developer-maintained bounded retry policy and records dated attempt outcomes, distinguishing confirmed failure from unknown provider outcome.
+
+## Workflows and Business Rules
+
+Allow edits while draft, then freeze billable content when issued. Calculate and display lines, tax, discount, and total in one currency. Full confirmed payment settles the invoice; browser return URLs do not. A void request disables new checkout, but an uncertain existing payment must be reconciled before final void. Already settled funds require a linked refund/adjustment, not deletion of the original invoice.
+
+A unique source charge identity prevents billing the same booking or membership term twice. An authorized recorded external full payment may settle an invoice with evidence and unique payment reference; reconcile conflicts with an in-flight provider payment rather than settling twice. A credit reduces the recorded amount owed once without changing the issued invoice; where payment is required, collect only the current full remaining balance. If that balance changes during collection, disable obsolete checkout and reconcile its uncertain result before creating a replacement. Provider amount/currency checks use the frozen collection attempt; a valid late receipt exceeding the current remaining balance records the excess for refund/review rather than dropping received funds. Credit on a paid invoice creates a visible refund/adjustment obligation, not a fictitious completed refund.
+
+For an authorized recurring charge, issue one invoice per source cycle and request automatic collection only if the configured provider capability and customer consent allow it; otherwise supply a payment link. An invoice or scheduled attempt cannot activate a membership until authenticated settlement matches the cycle, amount and currency. Retry only after a confirmed retryable failure under the snapshotted attempt/date bounds. A timeout continues the same uncertain provider attempt and is reconciled before any fresh charge. If billing ownership changes, reconcile outstanding operations and preserve cycle/charge aliases before enabling the new owner.
+
+## Pages and Interactions
+
+Use the [shared shell and personal configuration](../REQUIREMENTS.md#standard-shell-and-personal-configuration). Order permitted navigation as My invoices, then Customer invoices for finance. Parameterized invoice/document details are contextual links, never unbound sidebar entries. Customer/billing maintenance uses CanCustomer's owning operations.
+
+| Page or destination | daisyUI layout and content | Canonical actions and conditions |
+| --- | --- | --- |
+| My invoices — own customer index | List with issued number, service period, due date, currency, full remaining balance and payment-state Badge; useful payment links after membership expiry | Open authorized details, collect through the current provider flow and download documents; consent/payment-method changes use customer-authorized provider actions |
+| Customer invoices — finance index | Location/customer/date/overdue/currency filters; invoice Table, line-item Fieldsets and separate receivable/cash Stat totals under CanReport definitions; billing-export Button | Create/edit drafts and lines, issue, void, record evidenced external full payment, credit/refund and request only eligible collection/retry actions |
+| Collection work — finance queue within index | Tabs for recurring cycles, failed/customer-action cases and overdue aging; chronological attempts, source service period, next action and policy-bound retry eligibility | Reconcile pending/unknown attempts before replacement; staff cannot erase issued debt with a subscription flag |
+| Issued invoice — contextual detail | Issuer/customer identities, service dates/location and itemized quantities/prices/tax/discount Table; adjustment history and separate balance/refund Alerts | Print frozen HTML, download frozen PDF and linked credits; offer a separate receipt only after confirmed settlement |
+
+On mobile, stack item rows with their labels and keep currency/full balance/payment action visible. Distinguish loading, no own invoices and no filter matches; preserve draft line input on validation or stale updates. Disable obsolete checkout when balance changes, show uncertain payment separately from confirmed failure, and refresh the owning outcome after returning from the provider. Keep refund obligations visible until evidenced; never optimistically settle on browser return. Document-loading and delivery failures cannot alter frozen totals. Technical retry defaults, credentials and provider wiring have no end-user settings editor.
+
+## Personal Configuration
+
+Inherit shared account/language/appearance persistence, validation and reset. Finance may save an authorized location, currency/date filter and receivable-queue starting view; customers may choose their own invoice list order. Expose filter clear/reset. Saved currency filters select records, never convert money or reprice snapshots. Personal settings cannot change consent, payment methods, retry limits, invoice terms or collection ownership; those business actions remain in their existing authorized workflows. Printed facts retain issued snapshots.
+
+## Interfaces and Integrations
+
+Use D1 for records, the Stripe payment adapter for collection, and EmailService for invoice messages.
+
+Declare charge ingestion and settlement/adjustment outcomes for booking and membership sources. Invoice issuance is not booking confirmation or building access authorization. Store or reproducibly generate issued documents from frozen snapshots; authorize every document download.
+
+Provider wiring, credentials and technical retry defaults are developer-maintained database/configuration. Finance reviews attempts and may request a retry only under the existing recorded policy; no collection-policy editor or technical-admin side is required. Customer consent/payment-method changes remain customer business actions.
+
+## Background Actions
+
+Queue the issued invoice message and, by default, one overdue reminder after the due date in the team's timezone. Re-read current balance/void state before sending. Reconcile delayed payment or refund events through the shared payment adapter.
+
+Run current identified cycle collection attempts at their recorded dates and finite attempt limit, with reconciliation before retries. Re-check consent, balance, cancellation/void state and existing attempt before dispatch. Deliver a failed-payment notice with a useful own-invoice payment path; bounded chasers preserve delivery identity. Cancellation of future renewal stops unborn source charges, not an already issued debt without a linked adjustment.
+
+## Error Handling
+
+Keep uncertain payments pending and use the same provider operation when retrying. A repeated callback cannot settle twice. Reject total/currency mismatches; show a refund or duplicate-provider-payment exception for billing review rather than silently altering the issued amount.
+
+## Scope and Completion
+
+Complete when issued totals remain unchanged by later edits, authenticated provider results settle the correct invoice once, and already-confirmed payment suppresses an unsent overdue reminder. Initial scope is single-currency full-payment invoicing with explicit tax amounts, not a statutory tax/accounting engine.
+
+A customer can retrieve and print the exact issued invoice after a booking, finance can record an external full payment or linked credit, and a later price/address change cannot rewrite the issued document. Partial payments, deposits, currency conversion, and jurisdiction-specific tax/accounting automation remain deferred.
+
+A recurring renewal creates one invoice and cannot double-charge after a timeout or duplicate event; confirmed failure remains visible with a payment action and matching term outcome. Initial automatic collection is optional and adapter-configured; payment-link collection remains usable. Deposits, partial monetary payments, currency conversion, vendor payments and statutory accounting remain deferred.
+
+Frontend journey: after membership expiry, a verified billing contact opens their invoice, prints its frozen identities/lines and pays the full current balance; provider return shows pending until confirmed settlement, then a separate receipt.
+
+Frontend journey: finance credits an issued invoice during uncertain collection; obsolete checkout disables and the queue retains reconciliation/refund obligations. A stale draft edit preserves input, while later customer/address changes leave the issued document unchanged.
+
+## Composition and Ownership
+
+Recommended placement: Finance. Own issued documents, identified customer collection attempts, refund evidence and receivable balance. Use CanCustomer billing identities and source charge references. Compose with CanExpense/CanPurchase under distinct grants; provider broker payouts remain in CanAffiliate. See [portfolio composition and ownership](PORTFOLIO.md). Focused example requirements remain valid; composing packages does not require a new source file or an independent deployment per package.
+
+The billing Charge contract accepts optional frozen issuer/terms and typed DocumentLine items. Source ingress validates currency and the exact item sum, retains order and service dates/location/reference/unit, and rejects a reused source with changed items or commercial values. Missing items retain the existing single-line charge case. Issued line content stays locked; PDF snapshots include the same fields and external-payment references. This closes the quote handoff's sum-only synthetic-line defect without adding a second invoicing operation.
+
+
+## Authored billing and payment contract
+
+These are proposed source and binding contracts, with no provider/runtime implementation in this round. The selected binding authenticates the producing package and fixes its team/customer/location namespace. It retains the original delivery, operation kind and immutable request digest; matching a source string alone cannot complete a request. A changed replay fails rather than repricing an existing source.
+
+| BillingV1 operation | Verified BillingIngressV1 event | Committed result mapping |
+| --- | --- | --- |
+| `charge(value)` | `charge {value}` → `source_charge` | `ChargeOutcome.value` completes only that charge delivery. `confirmed` means one frozen invoice exists, including exact replay; it does not mean paid. |
+| `cancel(source,reason)` | `cancel {source,reason}` → `source_cancel` | `CancelOutcome.value` completes only that cancellation delivery. An absent source retains a cancellation fence and returns `released`; an uncertain collection returns `pending`/`void_pending`; collected funds return `unavailable` for a linked refund decision. |
+| `refund(source,amount,reason)` | `refund {source,amount,reason}` → `source_refund` | `RefundOutcome.value` completes only that refund request. A committed provider intent is `pending`. External or split-provider cash creates the linked credit obligation and returns `unavailable` for finance evidence; it cannot fabricate a refund. |
+| `reconcile(source)` | `reconcile {source}` → `source_reconcile` | `ReconcileOutcome.value` is the current cumulative `Settlement`, or null for an absent invoice. The result belongs to that reconcile delivery, not a separate charge/cancel/refund delivery. |
+| `settled` event | `InvoiceSettlement {value}` | Publish the committed cumulative snapshot with verified source identity and increasing `ledger_revision`. This domain change informs consumers; it does not complete another operation. |
+
+Handler rejection rolls back domain changes and maps to a safe failed completion. Missing or uncertain owner-commit evidence remains unknown, even if transport succeeded. A completed request may contain a pending business result. Consumers must retain their pending/unknown work and reconcile its original identity before submitting new money-moving work. A null reconcile result cannot erase an already known invoice or settlement revision.
+
+`Settlement.amount` is the original issued total. `collected` and `refunded` are cumulative evidenced amounts, including external full collections and external refund evidence. `state` is the invoice lifecycle (`draft`, `issued`, `void_pending`, `void`), so `issued` does not establish payment. `collection_pending` and `refund_pending` preserve uncertainty separately. Booking/membership owners match source/cycle, original amount, currency and a newer revision before admitting their own paid outcome. Invoice `version` remains the optimistic-record version; `ledger_revision` orders business settlement snapshots and is unaffected by document-child writes.
+
+The invoice snapshots the developer-maintained automatic policy at issuance: three attempts, a two-day delay and fourteen-day window by default, with an authored maximum of ten attempts. Defaults are deployment/database configuration with no staff CRUD or end-user editor. An identified source with consent and a positive remaining balance schedules its first automatic attempt. A zero-value source can issue a settled zero invoice through the same owner operation, without creating a provider collection. Later automatic attempts require a definite `failed`/`transient` result, a live source, a remaining balance, remaining recorded bounds and no pending/unknown collection. No new automatic attempt follows a timeout, transport error, customer-action failure or cancellation. The provider validates current mandate ownership, scope, expiry and capability at dispatch; a stored consent reference is not authorization by itself.
+
+The canonical `collect` action requests interactive checkout with null consent. A verified own billing contact or authorized finance member can recover after a definite transient, customer-action or prevented-collection outcome, including after automatic retries expire. Runtime admission/rate limits apply separately; the automatic deadline cannot make an overdue invoice unpayable. A permanent failure requires billing review. Failure notices carry the own-invoice path and recheck current invoice state, balance and attempt failure before dispatch, so a later confirmed collection suppresses stale payment chasers. A pending/unknown attempt fences all replacement collection. Each new proven-failure attempt has a fresh logical reference, while delivery retries and reconciliation preserve the existing reference and frozen amount/currency/customer/consent arguments.
+
+`Payments.changed`, correlated collect/refund completions, cancellation completions and reconciliation completions all enter the same `ProviderReceipt` handler. Provider revisions order observations. Older/equal observations cannot regress an attempt; a newer authenticated success contradicting a prior failed result still records received money and flags review. A transport error alone records uncertainty, not a retryable payment failure. A source dispatch that is definitively skipped proves no provider invocation and is recorded separately as prevented collection. Immutable `PaymentRequest` rows retain repeated cancel/reconcile delivery identities, so a slow reply remains correlated after later requests.
+
+A credit during uncertain collection is retained immediately, clears obsolete checkout from presentation and invokes `Payments.cancel` for the exact prior attempt. Cancellation disables future checkout use; accepted payment uncertainty remains pending until reconciled. The frozen original attempt amount validates a valid late receipt even after the balance changes. Any excess appears in `refund_due` and review; it is not dropped. A void request uses the same fence and cannot finalize while collection is uncertain. Received funds retain the issued invoice and require credit/refund evidence.
+
+Finance's `refund` and `record_refund` can evidence an amount up to the current refund obligation, bounded by the selected original payment's unrefunded amount. This permits recovery across separate received-payment exceptions without enabling partial customer collection. An external refund additionally requires its original external payment, unique bank reference, receipt date, reason and evidence. Issued content and immutable credit evidence remain intact; refund enqueue or credit alone never counts as refunded money. Manual credits attribute the finance actor; trusted source credits use null actor and retained verified-source audit context.
+
+## Authored documents, pages and examples
+
+One `issued_snapshot` mapping supplies `DocumentsV1.invoice` and the separate `DocumentsV1.receipt` operation. Both include frozen identities, ordered lines with units/service dates/location/reference, original total/terms, linked credits and distinct collection/refund evidence. A receipt requires evidenced full settlement with no uncertain collection; a browser return cannot satisfy it. Immutable `Document` rows retain kind, source revision, finalized file and generation date. `DocumentRequest` exposes pending/failed/unknown delivery feedback without changing money; a mismatched source/revision never attaches a file. Issued and voided documents remain readable through the invoice's current authorization.
+
+My invoices explicitly selects the current billing contact's issued records even when that account also has finance permission. Customer grants exclude draft content, consent and technical policy, and expose the amount/status fields needed for balance calculations. Finance's existing index contains the collection queue, dated outcomes, next automatic date and separate cash/refund evidence. The contextual detail preserves frozen line fields and totals, shows pending and refund obligations separately, and offers authorized document/receipt files. The ordinary browser print journey uses this frozen detail; print styling, badge rendering, accessible mobile layout, polling/return feedback and file delivery remain shared renderer/runtime implementation obligations. The current syntax prototype does not support page `poll`, so this source does not claim an implemented automatic browser-return refresh.
+
+Inline examples cover billable/informational quantity rules, own collection permission, replacement fencing, customer-action recovery, automatic retry limits/deadlines, receipt gating, settled-reminder suppression, immutable issued totals after credit, credit during uncertainty, a late/excess success, duplicate success, exact-amount rejection, unpaid void reconciliation, source replay rejection, external full-payment evidence and external/provider refund evidence. They reuse invoice/payment/credit fixtures and vary selectors instead of copying states into near-identical models. `python3 tools/can_parser.py draft/CanInvoice.can` accepted the authored source on 2026-10-04. This was syntax validation only: inline examples, permission/type checking, actual providers, PDF rendering and executable settlement were not run.
+
+The shared difficult snapshot/payment-boundary decisions use the three rewritten consultations saved as [billing evidence](../design/jev/draft-billing-evidence-20261004-wording.md) and [payment boundary evidence](../design/jev/draft-payment-boundary-20261004-wording.md). Their classifier judgments inform the design; they do not prove implementation or authorize deviations from these requirements.
+
+### Commercial qualification producer
+
+Invoice now owns a concrete `SalesIngressV1.observed` handler for source-owned SaleMilestone facts and a `SaleCheck` qualification publisher. The installed binding authenticates allowed Rent/Member producer namespaces and maps their committed `CommercialSaleChanged` events to ingress; Invoice's committed `SaleQualification` maps to `SalesV1.qualification` consumers. These mappings are explicit adapter obligations, not an invented automatically implemented Sales service. Original source/customer/account/location/product/amount/purchase-time/attribution fields cannot change across revisions. Equal-revision payload conflicts fail; a reversed source remains terminal even if it arrives before an invoice or a delayed completion.
+
+Source `purchased_at` records the actual purchase, whereas `occurred` describes its later owner milestone. The publisher verifies the billed customer/location and original charge amount, actual full collection, absence of refund/pending/review uncertainty, and the owner milestone. Any evidenced refund/void or source disqualification removes eligibility; normalized source events cannot substitute for received money. Revisions of source observations and published qualification are separate monotone counters. Unchanged qualification state emits no new output.
+
+CommercialHistory is one Customer-owned, explicitly reviewed baseline with an evidenced first paid invoice. `first_receipt` derives actual successful provider/external receipt timestamps; `first_paid_invoice` sorts the complete customer ledger with the shared stable ID tie breaker. First payment observations retain that initial selection and fill the invoice's first-paid timestamp from real evidence. Finance's `review_commercial_history` accepts completeness only when every previously paid invoice has a real timestamp and the selected first invoice matches the authoritative ledger. Unknown imported history stays unknown. New customer record creation alone does not prove a new commercial identity. The finance invoice detail offers the actual review form and retained baseline evidence.
+
+Qualification's `history_known` and `first_customer` are computed here, never accepted from a visitor/source flag. A changed/backdated customer ledger that no longer matches the reviewed baseline becomes unknown; consumers receive the changed eligibility and Refer reverses existing rewards. Complete history can be reviewed again through the same operation. Broker commissions do not require first-customer status. Captured program identities are owner-qualified to avoid raw cross-model ID collision. A source must freeze a real shared Capture before purchase; the receiver checks that capture rather than trusting redirect text.
+
+Inline examples cover reviewed/unknown history, missing first-paid timestamps, exact-source replay/conflict and terminal reversal. Syntax parsing passed; these examples have not executed. Runtime events, adapter causation/namespace mappings, payment normalization and the example runner remain unimplemented. Source cancellation-period policy is not inferred from a membership title or term length.
+
+Each new payment attempt schedules its own five-minute reconciliation occurrence. While that same attempt remains pending or unknown, the occurrence requests its existing provider reference and schedules its next check; confirmed outcomes stop recurrence. The work is keyed by attempt identity, so more than 100 outstanding attempts cannot block reconciliation for the entire team. Scheduling and requests remain ordinary authored effects.

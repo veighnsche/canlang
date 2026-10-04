@@ -1,0 +1,689 @@
+# Help the workspace operator manage paid membership terms and a useful customer member portal. @{nl="Help de werkplekbeheerder betaalde lidmaatschapstermijnen en een nuttig klantenportaal te beheren."}
+app CanMember uses=[member_plans,member_terms,member_content,rent_fulfillment,invoice,desk,events]
+
+# Publish shared membership benefits without making customers administrators. @{nl="Publiceer gedeelde lidmaatschapsvoordelen zonder klanten beheerder te maken."}
+package member_plans
+ use rent_catalog {Location}
+ use employee {can_work}
+ Given
+  preferences { active_filter:bool? label="Active plans"@{nl="Actieve abonnementen"} }
+  role plan_owner label="Plan owner"@{nl="Abonnementseigenaar"}
+  export contract MemberHours { location:text, timezone:timezone, weekdays:int[]!, opens:text, closes:text, close_after:AccessHours.close_after, fold:AccessHours.fold }
+  export AccessHours in Plan { location:Location, weekdays:int[]! label="Days of week"@{nl="Weekdagen"}, opens:text="09:00" label="Opens"@{nl="Opent"}, closes:text="18:00" label="Closes"@{nl="Sluit"}, close_after:int=0 min=0 max=1 label="Closing day offset"@{nl="Dagverschuiving sluiting"}, fold:enum(earlier,later)=earlier label={text="Clock-change choice"@{nl="Keuze bij klokwijziging"},values={earlier="Earlier occurrence"@{nl="Eerder tijdstip"},later="Later occurrence"@{nl="Later tijdstip"}}} } label="Purchased access hours"@{nl="Gekochte toegangsuren"}
+  export Plan { name:text trim min=1, price:money, months:int=1 min=1 label="Months"@{nl="Maanden"}, locations:Location[] label="Locations"@{nl="Locaties"}, products:text[] label="Products"@{nl="Producten"}, access_hours:text label="Access hours"@{nl="Toegangsuren"}, mail:bool=false label="Mail benefit"@{nl="Postvoordeel"}, guest_limit:int=0 min=0 label="Concurrent guests per host"@{nl="Gelijktijdige gasten per gastheer"}, seats:int=1 min=1 label="Seats"@{nl="Plaatsen"}, active:bool=true } label="Membership plan"@{nl="Lidmaatschapsabonnement"}
+  export Benefit in Plan { product:text label="Product"@{nl="Product"}, unit:enum(hour,day,visit) label={text="Unit"@{nl="Eenheid"},values={hour="Hour"@{nl="Uur"},day="Day"@{nl="Dag"},visit="Visit"@{nl="Bezoek"}}}, quantity:decimal min=0, duration:duration, overage:money label="Overage per unit"@{nl="Meerprijs per eenheid"} } label="Plan benefit"@{nl="Abonnementsvoordeel"}
+  policy Plan read=public fields=name,price,months,locations,products,access_hours,mail,guest_limit,seats,active
+  policy AccessHours read=public
+  policy Benefit read=public
+  invariant Plan: row.price.minor>0 and count(row.locations)>0
+  invariant Benefit: row.quantity==round(row.quantity,0) and row.duration>0m and row.overage.minor>=0 and row.overage.currency==row.parent.price.currency
+  invariant AccessHours: row.location in row.parent.locations and count(row.weekdays)>0 and all(row.weekdays as day,1<=day and day<=7) and local_instant(date("2000-01-03"),row.opens,row.location.timezone,fold=row.fold)<local_instant(add_days(date("2000-01-03"),row.close_after),row.closes,row.location.timezone,fold=row.fold)
+  unique Benefit fields=product
+ When
+  crud Plan by=plan_owner fields=name,price,months,locations,products,access_hours,mail,guest_limit,seats,active when=all(row.locations as location,can_work(actor,location)) delete=none
+  crud AccessHours by=plan_owner fields=location,weekdays,opens,closes,close_after,fold when=all(row.parent.locations as location,can_work(actor,location)) delete=none
+  crud Benefit by=plan_owner fields=product,unit,quantity,duration,overage when=all(row.parent.locations as location,can_work(actor,location)) delete=none
+ Then
+  # Author the sellable plan catalog under a distinct plan-owner grant. @{nl="Beheer het verkoopbare abonnementscatalogus onder een afzonderlijk eigenaarsrecht."}
+  page /membership/plans title="Membership plans"@{nl="Lidmaatschapsabonnementen"} order=4
+   require plan_owner
+   card "Plan catalog"@{nl="Abonnementscatalogus"}
+    form Plan.create
+   card "Benefits and units"@{nl="Voordelen en eenheden"}
+    list Plan filter=active defaults={active=preferences.active_filter} display=split
+     edit
+     form AccessHours.create
+     table row.AccessHours columns=location,weekdays,opens,closes,close_after,fold
+      edit
+     form Benefit.create
+     table row.Benefit columns=product,unit,quantity,duration,overage
+      edit
+     history
+
+# Own paid term snapshots, company seats and period-bound allowance allocations. @{nl="Beheer vastgelegde betaalde termijnen, bedrijfsplaatsen en periodegebonden tegoedtoewijzingen."}
+package member_terms label=label_package
+ use member_plans {Plan,Benefit,AccessHours,MemberHours}
+ use customer {Customer,Contact,CompanyAccessChanged,owns,has_role,has_location_role,test_company,test_contact,test_admin,test_booker}
+ use rent_catalog {test_site,Location,DateHours,is_open}
+ use employee {can_work,test_worker}
+ use member_terms {MembershipIngressV1 as Requests} from=deployment.membership_ingress
+ use invoice {BillingV1 as Billing,Settlement,DocumentLine,SaleMilestone} from=deployment.billing
+ use std {OperationOutcome}
+ use sales_attribution {Capture,latest_capture}
+ use refer {captured}
+ Given
+  message page_membership_register_title = "Membership register"@{nl="Lidmaatschapsregister"}
+  message label_included_units = "Included units"@{nl="Inbegrepen eenheden"}
+  message label_overage = "Monetary overage"@{nl="Meerprijs in geld"}
+  message label_package = "Membership"@{nl="Lidmaatschap"}
+  message label_Entitlement_customer = "Customer"@{nl="Klant"}
+  message label_Entitlement_account = "Account"@{nl="Account"}
+  message label_Entitlement_product = "Product"@{nl="Product"}
+  message label_Entitlement_from = "Start"@{nl="Begin"}
+  message label_Entitlement_until = "End"@{nl="Einde"}
+  message label_Entitlement_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Membership_consent = "Recurrence consent"@{nl="Toestemming voor herhaling"}
+  message label_Term = "Paid term"@{nl="Betaalde termijn"}
+  message label_Term_locations = "Locations"@{nl="Locaties"}
+  message label_Term_cycle = "Billing cycle"@{nl="Facturatiecyclus"}
+  preferences { current_only:bool=false label="Current terms only"@{nl="Alleen huidige termijnen"} }
+  export contract BenefitInterval { from:datetime, until:datetime }
+  export contract Entitlement { source:text, customer:text, account:user, location:text, product:text, intervals:BenefitInterval[]!, quantity:int, unit:Benefit.unit, duration:duration, rate:money, previous_source:text?, restore_consumed:bool=false }
+  export contract AllowanceOutcome { source:text, revision:int, state:OperationOutcome.state, phase:BenefitRequest.state, reference:text?, detail:text?, units:decimal, covered_units:decimal, overage:money, unit:Benefit.unit, duration:duration, rate:money }
+  export contract AccessEvidence { source:text, customer:text, account:user, location:text, at:datetime, until:datetime, guest_limit:int, eligible:bool, revision:int, checked_at:datetime }
+  export capability MembershipV1 version=1
+   reserve(value:Entitlement) -> AllowanceOutcome
+   commit(source:text,customer:text) -> AllowanceOutcome
+   consume(source:text,customer:text) -> AllowanceOutcome
+   release(source:text,customer:text,restore_consumed:bool=false) -> OperationOutcome
+   reconcile(source:text,customer:text) -> AllowanceOutcome?
+   eligibility(source:text,customer:text,account:user,location:text,at:datetime,until:datetime) -> AccessEvidence
+   event changed { value:AccessEvidence }
+   event allowance_changed { value:AllowanceOutcome }
+  export capability MembershipIngressV1 version=1
+   event reserve { value:Entitlement }
+   event commit { source:text, customer:text }
+   event consume { source:text, customer:text }
+   event release { source:text, customer:text, restore_consumed:bool=false }
+   event reconcile { source:text, customer:text }
+   event eligibility { source:text, customer:text, account:user, location:text, at:datetime, until:datetime }
+  export event ReserveOutcome { value:AllowanceOutcome }
+  export event CommitOutcome { value:AllowanceOutcome }
+  export event ConsumeOutcome { value:AllowanceOutcome }
+  export event ReleaseOutcome { value:OperationOutcome }
+  export event ReconcileOutcome { source:text, value:AllowanceOutcome? }
+  export event EligibilityOutcome { value:AccessEvidence }
+  export event AllowanceChanged { value:AllowanceOutcome }
+  export event EligibilityChanged { value:AccessEvidence }
+  role member_manager label="Membership manager"@{nl="Lidmaatschapsbeheerder"}
+  export role content_editor label="Content editor"@{nl="Inhoudsredacteur"}
+  export Membership in Customer { account:user label=label_Entitlement_account, plan:Plan, paused:bool=false label="Paused"@{nl="Gepauzeerd"}, revoked:bool=false label="Revoked"@{nl="Ingetrokken"}, recurrence:bool=false label="Recurrence"@{nl="Herhaling"}, consent:text? label=label_Membership_consent, cancellation_at:datetime? label="Cancellation effective date"@{nl="Ingangsdatum annulering"}, cancellation_reason:text? label="Cancellation reason"@{nl="Annuleringsreden"}, next_cycle:int=1 min=1, access_revision:int=0, anchor:date label="Calendar anchor"@{nl="Kalenderanker"}, timezone:timezone, months:int=1 min=1 label="Months"@{nl="Maanden"} } label=label_package
+  export Term in Membership { billing_location:Location?, attribution:text?, exclusive_program:text?, attributed_at:datetime?, attribution_window:duration?, source:text unique label=label_Entitlement_source, from:datetime label=label_Entitlement_from, until:datetime label=label_Entitlement_until, price:money, locations:Location[]! label=label_Term_locations, products:text[]! label="Products"@{nl="Producten"}, access_hours:text label="Access hours"@{nl="Toegangsuren"}, hours:MemberHours[]! label="Purchased access windows"@{nl="Gekochte toegangstijdvakken"}, mail:bool label="Mail benefit"@{nl="Postvoordeel"}, guest_limit:int=0 min=0 label="Concurrent guests per host"@{nl="Gelijktijdige gasten per gastheer"}, seats:int label="Seats"@{nl="Plaatsen"}, paid:bool=false label="Paid"@{nl="Betaald"}, invoice:text? label="Invoice reference"@{nl="Factuurreferentie"}, cycle:int label=label_Term_cycle, title:text="Membership", automatic:bool=false, consent:text?, settlement_revision:int=0, collection:enum(pending,confirmed,failed,unknown)=pending label={text="Invoice creation"@{nl="Factuuraanmaak"},values={pending="Pending"@{nl="In afwachting"},confirmed="Invoice confirmed"@{nl="Factuur bevestigd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"}}}, charge_delivery:text?, reconcile_delivery:text?, refund_delivery:text?, cancellation:enum(none,pending,applied)=none label={text="Cancellation outcome"@{nl="Annuleringsresultaat"},values={none="No cancellation"@{nl="Geen annulering"},pending="Pending"@{nl="In afwachting"},applied="Applied"@{nl="Toegepast"}}}, refund_requested:money? label="Requested refund"@{nl="Aangevraagde terugbetaling"}, refund_access:enum(none,retain,revoke)=none label={text="Refund access decision"@{nl="Toegangsbesluit bij terugbetaling"},values={none="No decision"@{nl="Geen besluit"},retain="Retain paid access"@{nl="Betaalde toegang behouden"},revoke="Revoke paid access"@{nl="Betaalde toegang intrekken"}}} } label=label_Term
+  Seat in Term { account:user label=label_Entitlement_account, active:bool=true, removed_reason:text? label="Removal reason"@{nl="Reden intrekking"} } label="Paid seat"@{nl="Betaalde plaats"}
+  Allowance in Term { product:text label=label_Entitlement_product, unit:Benefit.unit, duration:duration, overage:money label=label_overage, granted:decimal label="Granted units"@{nl="Toegekende eenheden"}, from:datetime label=label_Entitlement_from, until:datetime label=label_Entitlement_until } label="Allowance"@{nl="Tegoed"}
+  BenefitRequest in Customer { source:text unique label=label_Entitlement_source, value:Entitlement, previous:BenefitRequest?, state:enum(staged,reserved,consumed,released)=reserved label={text="Allowance state"@{nl="Tegoedstatus"},values={staged="Replacement staged"@{nl="Vervanging voorbereid"},reserved="Reserved"@{nl="Gereserveerd"},consumed="Consumed"@{nl="Verbruikt"},released="Released"@{nl="Vrijgegeven"}}}, revision:int=1, result:OperationOutcome.state=confirmed, units:decimal=0 label="Requested units"@{nl="Aangevraagde eenheden"}, covered_units:decimal=0 label=label_included_units, overage:money label=label_overage, review_reason:text? label="Reconciliation reason"@{nl="Afstemmingsreden"} } label="Benefit request"@{nl="Voordeelaanvraag"}
+  Allocation in Allowance { request:BenefitRequest, from:datetime label=label_Entitlement_from, until:datetime label=label_Entitlement_until, requested_units:decimal label="Requested units"@{nl="Aangevraagde eenheden"}, units:decimal label=label_included_units, held:decimal label="Additional held units"@{nl="Extra geblokkeerde eenheden"}, state:BenefitRequest.state=reserved label="Allowance state"@{nl="Tegoedstatus"} } label="Allowance allocation"@{nl="Tegoedtoewijzing"}
+  BenefitFence in Customer { source:text unique, restore_consumed:bool=false }
+  Reversal in Allocation { source:text unique, units:decimal, restored:bool } label="Allowance reversal"@{nl="Tegoedterugboeking"}
+  Renewal in Membership { capture:Capture?, cycle:int label=label_Term_cycle, requester:user? label="Requester"@{nl="Aanvrager"}, automatic:bool=false label="Automatic renewal"@{nl="Automatische verlenging"}, consent:text? label=label_Membership_consent, state:enum(pending,created,skipped,failed)=pending label={text="Renewal outcome"@{nl="Verlengingsresultaat"},values={pending="Pending"@{nl="In afwachting"},created="Term created"@{nl="Termijn aangemaakt"},skipped="Skipped"@{nl="Overgeslagen"},failed="Failed"@{nl="Mislukt"}}}, term:Term? label=label_Term } label="Renewal request"@{nl="Verlengingsaanvraag"}
+  event RenewalDue { renewal:Renewal }
+  event MembershipDue { membership:Membership }
+  event PaymentCheck { term:Term }
+  event TermBoundary { term:Term }
+  event SettlementReceived { value:Settlement }
+  CommercialSale in Term { phase:SaleMilestone.milestone?, revision:int=0 min=0 }
+  unique CommercialSale fields=parent
+  event CommercialCheck { term:Term }
+  export event CommercialSaleChanged { value:SaleMilestone }
+  AccessWatch in Customer { source:text unique, account:user, location:Location, at:datetime, until:datetime, revision:int=0 } label="Access verification"@{nl="Toegangscontrole"}
+  export Content { title:text, category:text label="Content category"@{nl="Inhoudscategorie"}, body:text, locations:Location[]! label=label_Term_locations, plans:Plan[] label="Plan audience"@{nl="Abonnementsdoelgroep"}, published:bool=false label="Published"@{nl="Gepubliceerd"}, attachment:file? label="Member document"@{nl="Ledendocument"}, staff_only:bool=false label="Staff only"@{nl="Alleen personeel"} } label="Member content"@{nl="Ledeninformatie"}
+  export event AccessChanged { membership:Membership, revision:int }
+  event CompanyAccessStep { customer:Customer, after:text? }
+  event AllocationAccessStep { membership:Membership, after:text? }
+  event WatchAccessStep { customer:Customer, after:text? }
+  derive commercial(term:Term,sale:CommercialSale,location:Location,phase:SaleMilestone.milestone,at:datetime):SaleMilestone = SaleMilestone {source=term.source,revision=sale.revision,customer=term.parent.parent.id,account=term.parent.account,location=location.id,product="membership",amount=term.price,purchased_at=term.created,occurred=at,milestone=phase,attribution=term.attribution,exclusive_program=term.exclusive_program,attributed_at=term.attributed_at,attribution_window=term.attribution_window}
+  derive eligible_account(person:user,customer:Customer):bool = customer.active and customer.archived_at==null and any(customer.Contact as contact,contact.account==person and contact.verified) and (owns(person,customer) or has_role(person,customer,booker) or has_role(person,customer,administrator))
+  export derive eligible_term(person:user,term:Term,at:datetime):bool = eligible_account(person,term.parent.parent) and not term.parent.paused and not term.parent.revoked and term.paid and term.from<=at and at<term.until and ((term.parent.parent.kind==individual and term.parent.account==person) or any(term.Seat as seat,seat.account==person and seat.active))
+  export derive entitled(person:user,membership:Membership,at:datetime):bool = any(membership.Term as term,eligible_term(person,term,at))
+  derive hours_on(hours:MemberHours,day:date,from:datetime,until:datetime):bool = weekday(day) in hours.weekdays and local_instant(day,hours.opens,hours.timezone,fold=hours.fold)<=from and until<=local_instant(add_days(day,hours.close_after),hours.closes,hours.timezone,fold=hours.fold)
+  derive permitted_hours(term:Term,location:text,from:datetime,until:datetime):bool = any(term.hours as hours,hours.location==location and (hours_on(hours,local_date(from,hours.timezone),from,until) or hours_on(hours,add_days(local_date(from,hours.timezone),-1),from,until)))
+  derive balance(allowance:Allowance):decimal = allowance.granted-sum(allowance.Allocation as allocation where allocation.state in [reserved,consumed] select allocation.units)-sum(allowance.Allocation as allocation where allocation.state==staged select allocation.held)
+  derive Allowance.available:decimal = sum([row] as grant where grant.until>now and grant.parent.paid and not grant.parent.parent.paused and not grant.parent.parent.revoked select balance(grant)) label="Available units"@{nl="Beschikbare eenheden"}
+  derive Allowance.reserved:decimal = sum(row.Allocation as allocation where allocation.state==reserved select allocation.units)+sum(row.Allocation as allocation where allocation.state==staged select allocation.held) label="Reserved units"@{nl="Gereserveerde eenheden"}
+  derive Allowance.consumed:decimal = sum(row.Allocation as allocation where allocation.state==consumed select allocation.units) label="Consumed units"@{nl="Verbruikte eenheden"}
+  derive Allowance.expired:decimal = sum([row] as grant where grant.until<=now select max([0,balance(grant)])) label="Expired units"@{nl="Verlopen eenheden"}
+  derive outcome(request:BenefitRequest):AllowanceOutcome = AllowanceOutcome {source=request.source,revision=request.revision,state=request.result,phase=request.state,reference=request.id,detail=null,units=request.units,covered_units=request.covered_units,overage=request.overage,unit=request.value.unit,duration=request.value.duration,rate=request.value.rate}
+  derive cycle_boundary(membership:Membership,offset:int):datetime = local_instant(add_months(membership.anchor,offset*membership.months),"00:00",membership.timezone,fold=earlier)
+  derive access_term(watch:AccessWatch,term:Term):bool = term.parent.parent==watch.parent and watch.location in term.locations and watch.location.active and max([now,watch.at])<watch.until and is_open(watch.location,max([now,watch.at]),watch.until) and eligible_term(watch.account,term,max([now,watch.at])) and term.until>=watch.until and permitted_hours(term,watch.location.id,max([now,watch.at]),watch.until)
+  derive access(watch:AccessWatch):AccessEvidence = AccessEvidence {source=watch.source,customer=watch.parent.id,account=watch.account,location=watch.location.id,at=watch.at,until=watch.until,guest_limit=max(Term as term where access_term(watch,term) select term.guest_limit)??0,eligible=any(Term as term,access_term(watch,term)),revision=watch.revision,checked_at=now}
+  policy Membership read=authenticated where=row.account==actor or has_role(actor,row.parent,administrator) or owns(actor,row.parent)
+  policy Membership read=authenticated where=any(row.Term as term,any(term.Seat as seat,seat.account==actor)) fields=account,plan,paused,revoked,anchor,timezone,months,cancellation_at,cancellation_reason
+  policy Membership read=member_manager where=any(row.plan.locations as location,can_work(actor,location))
+  policy Term read=authenticated where=row.parent.account==actor or has_role(actor,row.parent.parent,administrator) or has_role(actor,row.parent.parent,billing)
+  policy Term read=authenticated where=any(row.Seat as seat,seat.account==actor) fields=from,until,price,locations,products,access_hours,hours,mail,seats,paid,invoice,cycle,collection,cancellation
+  policy Term read=member_manager where=any(row.locations as location,can_work(actor,location))
+  policy Seat read=authenticated where=row.account==actor or has_role(actor,row.parent.parent.parent,administrator)
+  policy Seat read=member_manager where=any(row.parent.locations as location,can_work(actor,location))
+  policy Allowance read=authenticated where=row.parent.parent.account==actor or has_role(actor,row.parent.parent.parent,administrator) or any(row.parent.Seat as seat,seat.account==actor)
+  policy Allocation read=authenticated where=row.request.value.account==actor or has_role(actor,row.request.parent,administrator)
+  policy Allowance read=member_manager where=any(row.parent.locations as location,can_work(actor,location))
+  policy Allocation read=member_manager where=any(row.parent.parent.locations as location,can_work(actor,location))
+  policy Content read=authenticated where=row.published and not row.staff_only and any(Term as term,eligible_term(actor,term,now) and (count(row.plans)==0 or term.parent.plan in row.plans) and any(row.locations as location,location in term.locations))
+  policy Content read=content_editor where=all(row.locations as location,can_work(actor,location))
+  policy BenefitRequest read=authenticated where=row.value.account==actor or has_role(actor,row.parent,administrator)
+  policy BenefitRequest read=member_manager where=any(Location as location,location.id==row.value.location and can_work(actor,location))
+  policy Renewal read=authenticated where=row.parent.account==actor or has_role(actor,row.parent.parent,billing)
+  policy Renewal read=member_manager where=any(row.parent.plan.locations as location,can_work(actor,location))
+  invariant Term: row.from<row.until and row.price.minor>0 and row.seats>0 and count(row.hours)>0 and all(row.locations as location,any(row.hours as hours,hours.location==location.id))
+  invariant Allowance: row.from<row.until and row.duration>0m and row.granted>=0 and balance(row)>=0
+  invariant Allocation: row.from<row.until and row.units==round(row.units,0) and row.requested_units==round(row.requested_units,0) and row.units>=0 and row.requested_units>0 and row.held>=0 and row.held<=row.units and row.parent.from<=row.from and row.until<=row.parent.until
+  invariant BenefitRequest: row.units==round(row.units,0) and row.covered_units==round(row.covered_units,0) and row.units>0 and row.covered_units>=0 and row.covered_units<=row.units and row.overage.minor>=0
+  invariant BenefitRequest: sum(Allocation as allocation where allocation.request==row select allocation.requested_units)==row.units and sum(Allocation as allocation where allocation.request==row select allocation.units)==row.covered_units and row.overage==row.value.rate*(row.units-row.covered_units) and all(Allocation as allocation where allocation.request==row,allocation.state==row.state)
+  invariant BenefitRequest: (row.state==released and row.result==released) or (row.state!=released and row.result==confirmed)
+  invariant Content: count(row.locations)>0
+  unique Renewal fields=cycle
+  invariant Allowance: row.granted==round(row.granted,0)
+  unique Term fields=cycle
+  unique Seat fields=account
+  unique Allowance fields=product
+  unique Allocation fields=request,from,until
+  lock Membership fields=anchor,timezone,months
+  lock Term fields=billing_location,attribution,exclusive_program,attributed_at,attribution_window,source,from,until,price,locations,products,access_hours,hours,mail,guest_limit,seats,cycle,title,automatic,consent
+  lock Allowance fields=product,unit,duration,overage,granted,from,until
+  lock BenefitRequest fields=source,value,previous
+  lock BenefitFence fields=source,restore_consumed
+  lock Allocation fields=request,from,until,requested_units,units,held
+  lock Reversal fields=source,units,restored
+  lock AccessWatch fields=source,account,location,at,until
+  lock Renewal fields=capture,cycle,requester,automatic,consent
+  fixture plan=Plan {name="Team plan",price=money(100,"EUR"),locations=[test_site],access_hours="Weekdays"}
+  fixture access_day=DateHours {parent=test_site,day=date("2090-01-01"),opens="09:00",closes="18:00"}
+  fixture plan_hours=AccessHours {parent=plan,location=test_site,weekdays=[1,2,3,4,5,6,7]}
+  fixture company_membership=Membership {parent=test_company,account=self,plan=plan,anchor=date("2020-01-01"),timezone="UTC"}
+  export fixture paid_term=Term {parent=company_membership,source="paid-term",from=datetime("2020-01-01T00:00:00Z"),until=datetime("2099-01-01T00:00:00Z"),price=money(100,"EUR"),locations=[test_site],products=["workspace"],access_hours="Weekdays",hours=[{location=test_site.id,timezone=test_site.timezone,weekdays=[1,2,3,4,5,6,7],opens="09:00",closes="18:00",close_after=0,fold=earlier}],mail=false,seats=1,paid=true,cycle=1}
+  fixture beneficiary=Contact {parent=test_company,name="Seat holder",email="seat@example.test",account=other,verified=true}
+  export fixture allocated=Seat {parent=paid_term,account=self}
+  fixture hourly_grant=Allowance {parent=paid_term,product="workspace",unit=hour,duration=1h,overage=money(10,"EUR"),granted=10,from=paid_term.from,until=paid_term.until}
+  fixture reserved_request=BenefitRequest {parent=test_company,source="reserved-booking",value={source="reserved-booking",customer=test_company.id,account=self,location=test_site.id,product="workspace",intervals=[{from=datetime("2090-01-01T09:00:00Z"),until=datetime("2090-01-01T11:00:00Z")}],quantity=1,unit=hour,duration=1h,rate=money(10,"EUR"),previous_source=null},units=2,covered_units=2,overage=money(0,"EUR")}
+  fixture reserved_allocation=Allocation {parent=hourly_grant,request=reserved_request,from=datetime("2090-01-01T09:00:00Z"),until=datetime("2090-01-01T11:00:00Z"),requested_units=2,units=2,held=2}
+  fixture month_end=Membership {parent=test_company,account=self,plan=plan,anchor=date("2099-01-31"),timezone="UTC"}
+  fixture month_renewal=Renewal {parent=month_end,cycle=1,requester=self}
+  fixture leap_end=Membership {parent=test_company,account=self,plan=plan,anchor=date("2096-01-31"),timezone="UTC"}
+  fixture leap_renewal=Renewal {parent=leap_end,cycle=1,requester=self}
+  fixture commercial_sale=CommercialSale {parent=paid_term,phase=paid}
+ When
+  crud Membership by=member_manager fields=account,plan,anchor,timezone when=any(row.plan.locations as location,can_work(actor,location)) update=none delete=none
+  crud Content by=content_editor fields=title,category,body,locations,plans,published,attachment when=all(row.locations as location,can_work(actor,location)) delete=none
+  # Retain the selected interval independently of later plan edits. @{nl="Bewaar het geselecteerde interval onafhankelijk van latere abonnementswijzigingen."}
+  scenario calendar_snapshot on=Membership.create
+   do set event.after {months=event.after.plan.months}
+  # Request an identified cycle without ending an earlier paid term. @{nl="Vraag een geïdentificeerde cyclus aan zonder een eerdere betaalde termijn te beëindigen."}
+  export scenario term(membership:Membership,cycle:int label=label_Term_cycle,capture:Capture?=null) by=member_manager or authenticated label=label_Term
+   require cycle>0 and not membership.revoked and membership.plan.active
+   require (member_manager and any(membership.plan.locations as location,can_work(actor,location))) or membership.account==actor or has_role(actor,membership.parent,billing)
+   require cycle_boundary(membership,cycle)>now
+   do
+    if capture!=null
+     let location=first(membership.plan.locations as site order=site.id)
+     require location!=null and actor.email_verified and capture.parent==membership.parent and capture.account==membership.account and capture.account==actor
+     require capture==latest_capture(membership.parent,actor,location,"membership")
+    let previous=first(membership.Renewal as request where request.cycle==cycle order=request.id)
+    require previous==null or previous.capture==capture
+    if previous==null
+     create Renewal {parent=membership,cycle,capture,requester=actor,consent=membership.consent} as renewal
+     schedule renewal.id at=now event=RenewalDue {renewal}
+   examples seed=[test_worker] membership=month_end
+    as,cycle -> count(membership.Renewal)
+    member_manager,1 -> 1
+    member_manager,0 -> error(rule_failed)
+    members,1 -> 1
+    outsider,1 -> error(not_found)
+   examples seed=[test_contact,test_admin] membership=month_end cycle=1 capture=captured
+    as,captured.captured,captured.advocate.parent.products -> count(membership.Renewal),first(membership.Renewal as renewal order=renewal.id)?.capture
+    members,now,["membership"] -> 1,captured
+    members,now,["office"] -> error(rule_failed)
+    members,now-31d,["membership"] -> error(rule_failed)
+  # Admit a due renewal using current consent and its original calendar anchor. @{nl="Laat een verschuldigde verlenging toe met actuele toestemming en het oorspronkelijke kalenderanker."}
+  scenario create_term on=RenewalDue
+   require event.renewal.state==pending
+   do
+    let request=event.renewal
+    let membership=request.parent
+    let from=cycle_boundary(membership,request.cycle-1)
+    let until=cycle_boundary(membership,request.cycle)
+    if membership.revoked or not membership.plan.active or until<=now or (request.automatic and (not membership.recurrence or membership.consent!=request.consent or request.consent==null or (membership.cancellation_at!=null and from>=membership.cancellation_at)))
+     set request {state=skipped}
+    else
+     require request.automatic or (request.requester!=null and (request.requester==membership.account or has_role(request.requester,membership.parent,billing) or (member_manager(request.requester) and any(membership.plan.locations as location,can_work(request.requester,location)))))
+     let existing=first(membership.Term as term where term.cycle==request.cycle order=term.id)
+     if existing!=null
+      set request {state=created,term=existing}
+     else
+      require not any(membership.Term as old,overlaps(from,until,old.from,old.until))
+      let location=first(membership.plan.locations as site order=site.id)
+      require location!=null
+      create Term {parent=membership,billing_location=location,attribution=request.capture?.code,exclusive_program=request.capture?.program,attributed_at=request.capture?.captured,attribution_window=request.capture?.window,source=request.id,from,until,cycle=request.cycle,price=membership.plan.price,locations=membership.plan.locations,products=membership.plan.products,access_hours=membership.plan.access_hours,hours=membership.plan.AccessHours as hours select MemberHours {location=hours.location.id,timezone=hours.location.timezone,weekdays=hours.weekdays,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,fold=hours.fold},mail=membership.plan.mail,guest_limit=membership.plan.guest_limit,seats=membership.plan.seats,title=membership.plan.name,automatic=request.automatic,consent=request.consent} as term
+      for benefit in membership.plan.Benefit limit=100
+       create Allowance {parent=term,product=benefit.product,unit=benefit.unit,duration=benefit.duration,overage=benefit.overage,granted=benefit.quantity,from,until} as allowance
+      send Billing.charge {value={source=term.source,customer=membership.parent.id,location=location.id,description=term.title,amount=term.price,due=local_date(from,membership.timezone),consent=term.consent,items=[{title=term.title,quantity=1,price=term.price,tax=money(0,term.price.currency),discount=money(0,term.price.currency),unit="term",from,until,location=location.id,reference=term.source}]}} when=term.cancellation==none and term.until>now and not term.parent.revoked and (not term.automatic or (term.parent.recurrence and term.parent.consent==term.consent and (term.parent.cancellation_at==null or term.from<term.parent.cancellation_at))) as charge
+      set term {charge_delivery=charge.id}
+      set request {state=created,term}
+      schedule format("term-start-{id}",{id=term.id}) at=max([now,term.from]) event=TermBoundary {term}
+      schedule format("term-end-{id}",{id=term.id}) at=term.until event=TermBoundary {term}
+      schedule format("payment-check-{id}",{id=term.id}) at=now+5m event=PaymentCheck {term}
+   examples seed=[test_worker,plan_hours] event={renewal=month_renewal}
+    month_renewal.cycle -> month_end.Term as term order=term.cycle select term.from,month_end.Term as term order=term.cycle select term.until
+    1 -> [datetime("2099-01-31T00:00:00Z")],[datetime("2099-02-28T00:00:00Z")]
+    2 -> [datetime("2099-02-28T00:00:00Z")],[datetime("2099-03-31T00:00:00Z")]
+   examples seed=[test_worker,plan_hours] event={renewal=leap_renewal}
+    leap_renewal.cycle -> leap_end.Term as term order=term.cycle select term.from,leap_end.Term as term order=term.cycle select term.until
+    1 -> [datetime("2096-01-31T00:00:00Z")],[datetime("2096-02-29T00:00:00Z")]
+    2 -> [datetime("2096-02-29T00:00:00Z")],[datetime("2096-03-31T00:00:00Z")]
+  # Catch up missed cycles in bounded batches without collecting expired periods. @{nl="Haal gemiste cycli in begrensde reeksen in zonder verlopen perioden te innen."}
+  scenario renewal_tick on=MembershipDue
+   require event.membership.recurrence and not event.membership.revoked
+   do
+    let membership=event.membership
+    for offset in [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23] limit=24
+     let cycle=membership.next_cycle
+     let from=cycle_boundary(membership,cycle-1)
+     if from-7d<=now and (membership.cancellation_at==null or from<membership.cancellation_at)
+      let previous=first(membership.Renewal as request where request.cycle==cycle order=request.id)
+      if previous==null
+       create Renewal {parent=membership,cycle,automatic=true,consent=membership.consent} as renewal
+       schedule renewal.id at=now event=RenewalDue {renewal}
+      set membership {next_cycle=cycle+1}
+    if membership.cancellation_at==null or cycle_boundary(membership,membership.next_cycle-1)<membership.cancellation_at
+     schedule membership.id at=max([now+1m,cycle_boundary(membership,membership.next_cycle-1)-7d]) event=MembershipDue {membership}
+  # Retry a failed generation using its existing cycle identity. @{nl="Probeer een mislukte generatie opnieuw met dezelfde cyclusidentiteit."}
+  scenario retry_renewal(renewal:Renewal) by=member_manager or authenticated label="Retry renewal generation"@{nl="Verlengingsgeneratie opnieuw proberen"}
+   require (member_manager and any(renewal.parent.plan.locations as location,can_work(actor,location))) or renewal.parent.account==actor or has_role(actor,renewal.parent.parent,billing)
+   require renewal.state in [pending,failed] and cycle_boundary(renewal.parent,renewal.cycle)>now
+   do schedule renewal.id at=now event=RenewalDue {renewal}
+  # Assign a paid company seat only to an eligible current company account. @{nl="Wijs een betaalde bedrijfsplaats uitsluitend toe aan een geschikt huidig bedrijfsaccount."}
+  scenario assign(term:Term,account:user label=label_Entitlement_account) by=authenticated
+   require has_role(actor,term.parent.parent,administrator) and term.paid and not term.parent.revoked and term.until>now and all(term.locations as location,has_location_role(actor,term.parent.parent,administrator,location))
+   require eligible_account(account,term.parent.parent)
+   require count(term.Seat as seat where seat.active)<term.seats 
+   do
+    let previous=first(term.Seat as seat where seat.account==account order=seat.id)
+    if previous==null
+     create Seat {parent=term,account} as seat
+    else
+     require not previous.active
+     set previous {active=true,removed_reason=null}
+    emit AccessChanged {membership=term.parent,revision=term.parent.access_revision+1}
+   examples seed=[test_admin,test_booker,beneficiary] term=paid_term account=other
+    term.paid -> count(paid_term.Seat)
+    true -> 1
+    false -> error(rule_failed)
+   examples seed=[test_admin,test_booker,beneficiary,allocated] term=paid_term account=other
+    term.seats -> count(paid_term.Seat)
+    1 -> error(rule_failed)
+  # Revoke future paid seat access without erasing historical terms or invoices. @{nl="Trek toekomstige plaatsrechten in zonder historische termijnen of facturen te wissen."}
+  scenario remove(seat:Seat,reason:text) by=authenticated or member_manager label="Remove seat"@{nl="Plaats intrekken"}
+   require seat.active and trim(reason)!="" and (has_role(actor,seat.parent.parent.parent,administrator) or (member_manager and any(seat.parent.locations as location,can_work(actor,location))))
+   do
+    set seat {active=false,removed_reason=reason}
+    emit AccessChanged {membership=seat.parent.parent,revision=seat.parent.parent.access_revision+1}
+  # Reserve exact eligible intervals at the beneficiary ledger before money collection. @{nl="Reserveer exacte geldige tijdvakken in het begunstigdentegoed vóór geldinning."}
+  scenario reserve on=Requests.reserve
+   do
+    let value=event.value
+    let customer=first(Customer as item where item.id==value.customer order=item.id)
+    require customer!=null and eligible_account(value.account,customer)
+    require not any(customer.BenefitFence as fence,fence.source==value.source)
+    require value.unit in [hour,day] and count(value.intervals)>0 and value.quantity>0 and value.duration>0m and value.rate.minor>=0
+    require all(value.intervals as interval,interval.from>=now and interval.from<interval.until and not any(value.intervals as other,other!=interval and overlaps(interval.from,interval.until,other.from,other.until)))
+    let existing=first(customer.BenefitRequest as request where request.source==value.source order=request.id)
+    if existing!=null
+     require existing.value==value and existing.state!=released
+     emit ReserveOutcome {value=outcome(existing)}
+    else
+     let previous=first(customer.BenefitRequest as request where request.source==value.previous_source order=request.id)
+     require value.previous_source==null or (previous!=null and (previous.state==reserved or (previous.state==consumed and value.restore_consumed)) and previous.value.account==value.account and previous.value.location==value.location and previous.value.product==value.product and previous.value.unit==value.unit and previous.value.duration==value.duration and previous.value.rate==value.rate and not any(customer.BenefitRequest as candidate,candidate.previous==previous and candidate.state==staged))
+     create BenefitRequest {parent=customer,source=value.source,value,previous,overage=money(0,value.rate.currency)} as request
+     if previous!=null
+      set request {state=staged}
+     for interval in value.intervals limit=100
+      let grants=Allowance as grant where grant.parent.parent.parent==customer and grant.product==value.product and any(grant.parent.locations as site,site.id==value.location) and grant.product in grant.parent.products and grant.from<interval.until and interval.from<grant.until and eligible_term(value.account,grant.parent,max([interval.from,grant.from]))
+      require not any(grants as grant,any(grants as other,other!=grant and overlaps(grant.from,grant.until,other.from,other.until)))
+      require sum(grants as grant select min([interval.until,grant.until])-max([interval.from,grant.from]))==interval.until-interval.from
+      for grant in grants limit=100
+       require grant.unit==value.unit and grant.duration==value.duration and grant.overage==value.rate and grant.until>now
+       let from=max([interval.from,grant.from])
+       let until=min([interval.until,grant.until])
+       require permitted_hours(grant.parent,value.location,from,until)
+       require value.unit!=day or (from==interval.from and until==interval.until)
+       require value.unit!=hour or (until-from)%grant.duration==0m
+       create Allocation {parent=grant,request,from,until,requested_units=value.quantity,units=0,held=0,state=request.state} as allocation
+       if value.unit==hour
+        set allocation {requested_units=(until-from)/grant.duration*value.quantity}
+       let units=allocation.requested_units
+       let credit=sum(grant.Allocation as old where previous!=null and old.request==previous and old.state in [reserved,consumed] select old.units)-sum(grant.Allocation as staged where staged.request==request select staged.units-staged.held)
+       let covered=min([units,balance(grant)+max([0,credit])])
+       set allocation {units=covered,held=max([0,covered-max([0,credit])])}
+       set request {units=request.units+units,covered_units=request.covered_units+covered,overage=request.overage+value.rate*(units-covered)}
+     emit ReserveOutcome {value=outcome(request)}
+     emit AllowanceChanged {value=outcome(request)}
+   examples seed=[test_admin,test_contact,allocated,hourly_grant] event={value={source="booking-benefit",customer=test_company.id,account=self,location=test_site.id,product="workspace",intervals=[{from=datetime("2090-01-01T09:00:00Z"),until=datetime("2090-01-01T11:00:00Z")}],quantity=1,unit=hour,duration=1h,rate=money(10,"EUR"),previous_source=null}}
+    hourly_grant.granted -> test_company.BenefitRequest as request select request.covered_units,test_company.BenefitRequest as request select request.overage
+    10 -> [2],[money(0,"EUR")]
+    1 -> [1],[money(10,"EUR")]
+    0 -> [0],[money(20,"EUR")]
+   examples seed=[test_admin,test_contact,allocated,hourly_grant] event={value={source="booking-benefit",customer=test_company.id,account=self,location=test_site.id,product="workspace",intervals=[{from=datetime("2090-01-01T09:00:00Z"),until=datetime("2090-01-01T10:30:00Z")}],quantity=1,unit=hour,duration=1h,rate=money(10,"EUR"),previous_source=null}}
+    hourly_grant.granted -> count(test_company.BenefitRequest)
+    10 -> error(rule_failed)
+  # Swap staged coverage only after every replacement owner has accepted. @{nl="Wissel tijdelijk tegoed pas nadat elke vervangende eigenaar heeft ingestemd."}
+  scenario commit on=Requests.commit
+   do
+    let customer=first(Customer as row where row.id==event.customer order=row.id)
+    require customer!=null
+    let request=first(customer.BenefitRequest as row where row.source==event.source order=row.id)
+    require request!=null and request.state in [staged,reserved,consumed]
+    if request.state==staged
+     require all(Allocation as allocation where allocation.request==request,allocation.parent.until>now and eligible_term(request.value.account,allocation.parent.parent,max([now,allocation.from])) and permitted_hours(allocation.parent.parent,request.value.location,allocation.from,allocation.until))
+     require request.previous!=null and (request.previous.state==reserved or (request.previous.state==consumed and request.value.restore_consumed))
+     let next_state=request.previous.state
+     for allocation in Allocation as row where row.request==request.previous and row.state in [reserved,consumed] limit=100
+      if allocation.state==consumed
+       create Reversal {parent=allocation,source=request.source,units=allocation.units,restored=allocation.parent.until>now} as reversal
+      set allocation {state=released}
+     set request.previous {state=released,result=released,revision=request.previous.revision+1}
+     for allocation in Allocation as row where row.request==request and row.state==staged limit=100
+      set allocation {state=next_state}
+     set request {state=next_state,revision=request.revision+1}
+     emit AllowanceChanged {value=outcome(request.previous)}
+     emit AllowanceChanged {value=outcome(request)}
+    emit CommitOutcome {value=outcome(request)}
+  # Consume once at owner-confirmed fulfillment; staged originals remain protected. @{nl="Verbruik één keer bij door de eigenaar bevestigde uitvoering; tijdelijke originelen blijven beschermd."}
+  scenario consume on=Requests.consume
+   do
+    let customer=first(Customer as row where row.id==event.customer order=row.id)
+    require customer!=null
+    let request=first(customer.BenefitRequest as row where row.source==event.source order=row.id)
+    require request!=null and request.state in [reserved,consumed] and not any(customer.BenefitRequest as row,row.previous==request and row.state==staged)
+    if request.state==reserved
+     for allocation in Allocation as row where row.request==request and row.state==reserved limit=100
+      set allocation {state=consumed}
+     set request {state=consumed,revision=request.revision+1}
+     emit AllowanceChanged {value=outcome(request)}
+    emit ConsumeOutcome {value=outcome(request)}
+   examples seed=[test_admin,test_contact,allocated,reserved_request,reserved_allocation] event={source="reserved-booking",customer=test_company.id}
+    reserved_request.state,reserved_allocation.state,reserved_request.result -> reserved_request.state,reserved_allocation.state,reserved_request.revision
+    reserved,reserved,confirmed -> consumed,consumed,2
+    consumed,consumed,confirmed -> consumed,consumed,1
+    released,released,released -> error(rule_failed)
+  # Compensate within the original owner and period, fencing cancellation before creation. @{nl="Compenseer binnen de oorspronkelijke eigenaar en periode en blokkeer aanmaak na annulering."}
+  scenario release on=Requests.release
+   do
+    let customer=first(Customer as row where row.id==event.customer order=row.id)
+    require customer!=null
+    let fence=first(customer.BenefitFence as row where row.source==event.source order=row.id)
+    if fence==null
+     create BenefitFence {parent=customer,source=event.source,restore_consumed=event.restore_consumed} as fence
+    else
+     require fence.restore_consumed==event.restore_consumed
+    let request=first(customer.BenefitRequest as row where row.source==event.source order=row.id)
+    if request!=null
+     require not any(customer.BenefitRequest as row,row.previous==request and row.state==staged)
+     require request.state!=consumed or event.restore_consumed
+     if request.state!=released
+      for allocation in Allocation as row where row.request==request and row.state in [reserved,staged,consumed] limit=100
+       if allocation.state==consumed
+        create Reversal {parent=allocation,source=event.source,units=allocation.units,restored=allocation.parent.until>now} as reversal
+       set allocation {state=released}
+      set request {state=released,result=released,revision=request.revision+1}
+      emit AllowanceChanged {value=outcome(request)}
+     emit ReleaseOutcome {value={source=event.source,revision=request.revision,state=released,reference=request.id,detail=null}}
+    else
+     emit ReleaseOutcome {value={source=event.source,revision=1,state=released,reference=fence.id,detail=null}}
+   examples seed=[test_admin,test_contact,allocated,reserved_request,reserved_allocation] event={source="reserved-booking",customer=test_company.id,restore_consumed=false}
+    reserved_request.state,reserved_allocation.state,reserved_request.result -> reserved_request.state,reserved_allocation.state
+    reserved,reserved,confirmed -> released,released
+    consumed,consumed,confirmed -> error(rule_failed)
+    released,released,released -> released,released
+  # Read the committed ledger without interpreting missing evidence as a release. @{nl="Lees het vastgelegde tegoed zonder ontbrekend bewijs als vrijgave te interpreteren."}
+  scenario reconcile on=Requests.reconcile
+   do
+    let customer=first(Customer as row where row.id==event.customer order=row.id)
+    require customer!=null
+    let request=first(customer.BenefitRequest as row where row.source==event.source order=row.id)
+    if request==null
+     emit ReconcileOutcome {source=event.source,value=null}
+    else
+     emit ReconcileOutcome {source=event.source,value=outcome(request)}
+  # Verify customer-routed access and retain its current revision for revocation. @{nl="Controleer klantgebonden toegang en bewaar de actuele versie voor intrekking."}
+  scenario eligibility on=Requests.eligibility
+   do
+    let customer=first(Customer as row where row.id==event.customer order=row.id)
+    let location=first(Location as row where row.id==event.location order=row.id)
+    require customer!=null and location!=null and event.at<event.until
+    let watch=first(customer.AccessWatch as row where row.source==event.source order=row.id)
+    if watch==null
+     create AccessWatch {parent=customer,source=event.source,account=event.account,location,at=event.at,until=event.until} as watch
+    else
+     require watch.account==event.account and watch.location==location and watch.at==event.at and watch.until==event.until
+    set watch {revision=watch.revision+1}
+    emit EligibilityOutcome {value=access(watch)}
+   examples seed=[test_admin,test_contact,paid_term,allocated,access_day] event={source="guest-window",customer=test_company.id,account=self,location=test_site.id,at=datetime("2090-01-01T09:00:00Z"),until=datetime("2090-01-01T10:00:00Z")}
+    event.until,paid_term.guest_limit,paid_term.paid -> any(AccessWatch as watch,watch.source=="guest-window" and access(watch).eligible),max(AccessWatch as watch where watch.source=="guest-window" select access(watch).guest_limit)
+    datetime("2090-01-01T10:00:00Z"),2,true -> true,2
+    datetime("2090-01-01T20:00:00Z"),2,true -> false,0
+    datetime("2090-01-01T10:00:00Z"),2,false -> false,0
+  # Pause access while keeping billing and owned history reachable. @{nl="Pauzeer toegang en houd facturatie en eigen geschiedenis bereikbaar."}
+  scenario pause(membership:Membership,reason:text) by=member_manager
+   require trim(reason)!="" and any(membership.plan.locations as location,can_work(actor,location))
+   do
+    set membership {paused=true}
+    emit AccessChanged {membership,revision=membership.access_revision+1}
+  # Resume only access already supported by current paid terms. @{nl="Hervat alleen toegang die al door huidige betaalde termijnen wordt ondersteund."}
+  scenario resume(membership:Membership) by=member_manager
+   require any(membership.plan.locations as location,can_work(actor,location)) and not membership.revoked
+   do
+    require any(membership.Term as term,term.paid and term.from<=now and now<term.until)
+    set membership {paused=false}
+    emit AccessChanged {membership,revision=membership.access_revision+1}
+  # Revoke prospective benefits and retain the customer money evidence. @{nl="Trek toekomstige voordelen in en bewaar het financiële klantbewijs."}
+  scenario revoke(membership:Membership,reason:text) by=member_manager label="Revoke benefits"@{nl="Voordelen intrekken"}
+   require trim(reason)!="" and any(membership.plan.locations as location,can_work(actor,location))
+   do
+    set membership {revoked=true,recurrence=false}
+    cancel membership.id
+    emit AccessChanged {membership,revision=membership.access_revision+1}
+  # Record or cancel explicit recurrence consent without rewriting existing cycles. @{nl="Registreer of annuleer expliciete herhalingstoestemming zonder bestaande cycli te herschrijven."}
+  scenario consent(membership:Membership,enabled:bool,reference:text? label=label_Membership_consent) by=authenticated label=label_Membership_consent
+   require membership.account==actor or has_role(actor,membership.parent,billing)
+   require not enabled or (reference!=null and trim(reference)!="")
+   do
+    require not enabled or (not membership.revoked and (membership.cancellation_at==null or membership.cancellation_at>now))
+    set membership {recurrence=enabled,consent=reference}
+    if enabled
+     schedule membership.id at=now event=MembershipDue {membership}
+    else
+     set membership {consent=null}
+     cancel membership.id
+  # Record a cancellation date and keep paid access until an explicit policy outcome. @{nl="Registreer een annuleringsdatum en behoud betaalde toegang tot een expliciete beleidsuitkomst."}
+  scenario cancel_membership(membership:Membership,effective:datetime label="Cancellation effective date"@{nl="Ingangsdatum annulering"},reason:text) by=authenticated label="Request membership cancellation"@{nl="Annulering lidmaatschap aanvragen"}
+   require membership.account==actor or has_role(actor,membership.parent,billing)
+   require effective>=now and trim(reason)!=""
+   do
+    set membership {cancellation_at=effective,cancellation_reason=reason,recurrence=false}
+    cancel membership.id
+  # Apply a recorded refund and access decision to one identified term. @{nl="Pas een geregistreerde terugbetalings- en toegangsbeslissing toe op één geïdentificeerde termijn."}
+  scenario refund_term(term:Term,amount:money,revoke_access:bool label="Revoke access"@{nl="Toegang intrekken"},reason:text) by=member_manager label="Apply term refund policy"@{nl="Terugbetalingsbeleid termijn toepassen"}
+   require any(term.locations as location,can_work(actor,location)) and trim(reason)!="" and amount.currency==term.price.currency and amount.minor>0 and amount<=term.price and term.cancellation==none
+   do
+    set term {cancellation=pending,refund_requested=amount}
+    if revoke_access
+     set term {paid=false,refund_access=revoke}
+    else
+     set term {refund_access=retain}
+    emit AccessChanged {membership=term.parent,revision=term.parent.access_revision+1}
+    emit CommercialCheck {term}
+    send Billing.refund {source=term.source,amount,reason} as refund
+    set term {refund_delivery=refund.id}
+    schedule format("payment-check-{id}",{id=term.id}) at=now+5m event=PaymentCheck {term}
+  scenario charge_result on=Billing.charge.completed
+   do
+    for term in Term as row where row.charge_delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      require event.result.source==term.source
+      set term {collection=confirmed,invoice=event.result.reference}
+     else
+      if event.status in [failed,unknown]
+       if event.status==failed
+        set term {collection=failed}
+       else
+        set term {collection=unknown}
+  # Recover an uncertain charge using the same source and immutable snapshot. @{nl="Herstel een onzekere kostenpost met dezelfde bron en onveranderlijke momentopname."}
+  scenario retry_collection(term:Term) by=member_manager or authenticated label="Retry term invoice"@{nl="Termijnfactuur opnieuw proberen"}
+   require (member_manager and any(term.locations as location,can_work(actor,location))) or term.parent.account==actor or has_role(actor,term.parent.parent,billing)
+   require term.collection in [failed,unknown] and term.until>now and term.cancellation==none
+   do
+    let location=first(term.locations as site order=site.id)
+    require location!=null
+    send Billing.charge {value={source=term.source,customer=term.parent.parent.id,location=location.id,description=term.title,amount=term.price,due=local_date(term.from,term.parent.timezone),consent=term.consent,items=[{title=term.title,quantity=1,price=term.price,tax=money(0,term.price.currency),discount=money(0,term.price.currency),unit="term",from=term.from,until=term.until,location=location.id,reference=term.source}]}} when=term.cancellation==none and term.until>now and not term.parent.revoked and (not term.automatic or (term.parent.recurrence and term.parent.consent==term.consent and (term.parent.cancellation_at==null or term.from<term.parent.cancellation_at))) as delivery
+    set term {charge_delivery=delivery.id,collection=pending}
+  scenario settlement on=Billing.settled
+   do emit SettlementReceived {value=event.value}
+  scenario reconcile_payment on=Billing.reconcile.completed
+   do
+    for term in Term as row where row.reconcile_delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      require event.result.source==term.source
+      emit SettlementReceived {value=event.result}
+  # Apply only newer cumulative money evidence to its exact immutable term. @{nl="Pas uitsluitend nieuwer cumulatief geldbewijs toe op de exacte onveranderlijke termijn."}
+  scenario apply_settlement on=SettlementReceived
+   do
+    for term in Term as row where row.source==event.value.source limit=1
+     require event.value.amount==term.price and event.value.collected.currency==term.price.currency and event.value.refunded.currency==term.price.currency
+     if event.value.revision>term.settlement_revision
+      set term {settlement_revision=event.value.revision,invoice=event.value.invoice,collection=confirmed,paid=term.refund_access!=revoke and event.value.state==issued and ((term.refund_access==retain and event.value.collected>=term.price) or (term.cancellation==none and not event.value.refund_pending and event.value.collected-event.value.refunded>=term.price))}
+      if term.cancellation==pending and term.refund_requested!=null and event.value.refunded>=term.refund_requested and not event.value.refund_pending
+       set term {cancellation=applied}
+      emit AccessChanged {membership=term.parent,revision=term.parent.access_revision+1}
+      emit CommercialCheck {term}
+  scenario payment_recovery on=PaymentCheck
+   do
+    let term=event.term
+    if term.collection in [pending,unknown] or term.cancellation==pending
+     send Billing.reconcile {source=term.source} as delivery
+     set term {reconcile_delivery=delivery.id}
+     schedule format("payment-check-{id}",{id=term.id}) at=now+5m event=PaymentCheck {term}
+  scenario term_boundary on=TermBoundary
+   do
+    emit AccessChanged {membership=event.term.parent,revision=event.term.parent.access_revision+1}
+    emit CommercialCheck {term=event.term}
+  # Publish source lifecycle evidence; Invoice still decides whether money actually qualifies. @{nl="Publiceer bewijs van de bronlevenscyclus; Facturatie bepaalt nog steeds of geld werkelijk kwalificeert."}
+  scenario commercial_check on=CommercialCheck
+   do
+    let term=event.term
+    if term.price.minor>0 and term.billing_location!=null
+     if not any(term.CommercialSale as sale,true)
+      create CommercialSale {parent=term} as created
+     let sale=first(term.CommercialSale as sale order=sale.id)
+     require sale!=null
+     if sale.phase!=reversed
+      if term.cancellation!=none or term.refund_access==revoke or (sale.phase!=null and not term.paid)
+       set sale {phase=reversed,revision=sale.revision+1}
+       emit CommercialSaleChanged {value=commercial(term,sale,term.billing_location,reversed,now)}
+      else
+       if term.paid
+        if term.until<=now
+         if sale.phase!=completed
+          set sale {phase=completed,revision=sale.revision+1}
+          emit CommercialSaleChanged {value=commercial(term,sale,term.billing_location,completed,term.until)}
+        else
+         if sale.phase==null
+          set sale {phase=paid,revision=sale.revision+1}
+          emit CommercialSaleChanged {value=commercial(term,sale,term.billing_location,paid,now)}
+   examples event={term=paid_term}
+    paid_term.billing_location,paid_term.paid,paid_term.cancellation -> count(paid_term.CommercialSale),first(paid_term.CommercialSale as sale order=sale.id)?.phase
+    test_site,true,none -> 1,paid
+    test_site,true,pending -> 1,reversed
+    null,true,none -> 0,null
+   examples event={term=paid_term} seed=[commercial_sale]
+    commercial_sale.phase,paid_term.billing_location,paid_term.paid,paid_term.cancellation -> commercial_sale.phase,commercial_sale.revision
+    paid,test_site,true,pending -> reversed,1
+    reversed,test_site,true,none -> reversed,0
+    paid,test_site,true,none -> paid,0
+  scenario company_changed on=CompanyAccessChanged
+   do
+    emit CompanyAccessStep {customer=event.customer,after=null}
+    emit WatchAccessStep {customer=event.customer,after=null}
+  scenario company_access_step on=CompanyAccessStep
+   do
+    let membership=first(event.customer.Membership archived=include as row where event.after==null or row.id>event.after order=row.id)
+    if membership!=null
+     emit AllocationAccessStep {membership,after=null}
+     emit CompanyAccessStep {customer=event.customer,after=membership.id}
+  scenario access_changed on=AccessChanged
+   do
+    set event.membership {access_revision=max([event.membership.access_revision+1,event.revision])}
+    emit AllocationAccessStep {membership=event.membership,after=null}
+    emit WatchAccessStep {customer=event.membership.parent,after=null}
+  scenario allocation_access_step on=AllocationAccessStep
+   do
+    let allocation=first(Allocation as row where row.parent.parent.parent==event.membership and row.request.state in [staged,reserved] and row.until>now and (event.after==null or row.id>event.after) order=row.id)
+    if allocation!=null
+     if not eligible_term(allocation.request.value.account,allocation.parent.parent,max([now,allocation.from]))
+      set allocation.request {review_reason="Paid membership or assigned seat no longer covers this use"}
+     emit AllocationAccessStep {membership=event.membership,after=allocation.id}
+  scenario watch_access_step on=WatchAccessStep
+   do
+    let watch=first(event.customer.AccessWatch archived=include as row where row.until>now and (event.after==null or row.id>event.after) order=row.id)
+    if watch!=null
+     if watch.archived_at==null
+      set watch {revision=watch.revision+1}
+      emit EligibilityChanged {value=access(watch)}
+     else
+      emit EligibilityChanged {value=AccessEvidence {source=watch.source,customer=watch.parent.id,account=watch.account,location=watch.location.id,at=watch.at,until=watch.until,guest_limit=0,eligible=false,revision=watch.revision+1,checked_at=now}}
+     emit WatchAccessStep {customer=event.customer,after=watch.id}
+
+ Then
+  # View your current benefits and keep your billing portal available after expiry. @{nl="Bekijk je huidige voordelen en houd je facturatieportaal bereikbaar na afloop."}
+  page /membership/mine title="My membership"@{nl="Mijn lidmaatschap"} order=1
+   require authenticated
+   card "Own membership and consent"@{nl="Eigen lidmaatschap en toestemming"}
+    list Membership display=split
+     form consent
+     form term
+     form cancel_membership
+     table row.Renewal columns=cycle,state,term
+      action retry_renewal
+     list row.Term as term where not preferences.current_only or (term.from<=now and now<term.until)
+      text row.from,row.until,row.price,row.paid,row.seats,row.mail,row.invoice,row.collection,row.cancellation
+      actions retry_collection,refund_term
+      tabs
+       tab "Term seats"@{nl="Termijnplaatsen"}
+        form assign
+        list row.Seat
+         action remove
+       tab "Allowance allocations"@{nl="Tegoedtoewijzingen"}
+        list row.Allowance
+         text row.product,row.unit,row.granted,row.available,row.reserved,row.consumed,row.expired,row.overage
+         table row.Allocation columns=from,until,units,held,state
+     table row.parent.BenefitRequest columns=source,units,covered_units,overage,state,review_reason
+     history
+
+  # Resolve paid terms, allowances and company seat allocations. @{nl="Beheer betaalde termijnen, tegoeden en bedrijfsplaatsen."}
+  page /membership/register title=page_membership_register_title order=3
+   require member_manager
+   card page_membership_register_title
+    list Membership display=split
+     form term
+     actions pause,resume,revoke
+     table row.Renewal columns=cycle,state,term
+      action retry_renewal
+     table row.parent.BenefitRequest columns=source,units,covered_units,overage,state,review_reason
+     list row.Term as term where not preferences.current_only or (term.from<=now and now<term.until)
+      text row.from,row.until,row.price,row.paid,row.invoice,row.collection,row.cancellation
+      actions retry_collection,refund_term
+      table row.Allowance columns=product,unit,granted,available,reserved,consumed,expired,overage,from,until
+      table row.Seat columns=account,active,removed_reason
+       action remove
+      form assign
+      history
+
+# Serve member content under live entitlement, distinct from staff procedures. @{nl="Bied ledeninhoud aan onder een actueel recht, gescheiden van personeelsprocedures."}
+package member_content
+ use member_terms {Content,content_editor}
+ Given
+ When
+ Then
+  # Publish site guides under the content editor grant. @{nl="Publiceer locatiegidsen onder het recht van de inhoudsredacteur."}
+  page /membership/content/edit title="Edit member information"@{nl="Ledeninformatie bewerken"}
+   require content_editor
+   form Content.create
+   list Content display=split
+    edit
+    history
+  # Open only member content currently granted by paid, nonrevoked terms. @{nl="Open uitsluitend ledeninhoud die momenteel door betaalde, niet-ingetrokken termijnen wordt toegestaan."}
+  page /membership/content title="Member information"@{nl="Ledeninformatie"} order=2
+   require authenticated
+   card "Authorized member information"@{nl="Geautoriseerde ledeninformatie"}
+    list Content
+     title row.title
+     content row.body
+     text row.attachment

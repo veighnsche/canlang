@@ -1,0 +1,314 @@
+# Help workspace sales teams quote offices, meeting rooms, coworking days, and add-on services to business customers. @{nl="Help verkoopteams kantoren, vergaderruimten, coworkingdagen en extra diensten aan zakelijke klanten te offreren."}
+app CanPropose uses=[propose]
+
+# Freeze priced offer revisions and record recipient decisions separately from booking outcomes. @{nl="Leg geprijsde offerteversies vast en registreer ontvangerbesluiten afzonderlijk van boekingsresultaten."}
+package propose
+ use customer {Customer,Contact,test_company,test_contact,test_admin}
+ use sales_attribution {Capture,latest_capture}
+ use refer {captured}
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use std {EmailV1 as Mail} from=deployment.mail
+ use rent_reservations {RoomsV1 as Rooms} from=deployment.rooms
+ use propose {DocumentsV1 as Documents} from=deployment.documents
+ Given
+  message heading_itemized_quote = "Itemized quote"@{nl="Gespecificeerde offerte"}
+  message label_QuoteLine_tax = "Tax"@{nl="Belasting"}
+  message label_QuoteLine_discount = "Discount"@{nl="Korting"}
+  message label_QuoteDocument_issuer = "Issuer"@{nl="Uitgever"}
+  message label_QuoteDocument_recipient = "Recipient"@{nl="Ontvanger"}
+  message label_QuoteDocument_from = "Start"@{nl="Begin"}
+  message label_QuoteDocument_until = "End"@{nl="Einde"}
+  message label_QuoteDocument_terms = "Terms"@{nl="Voorwaarden"}
+  message label_QuoteDocument_expires = "Expires at"@{nl="Vervalt op"}
+  message label_QuotePdf_document = "Generate quote document"@{nl="Offertedocument genereren"}
+  message label_Revision_resource = "Resource reference"@{nl="Referentie voorziening"}
+  message label_Revision_seats = "Seats"@{nl="Plaatsen"}
+  preferences { location:Location?, state:Revision.state?, items_open:bool=true label="Expand itemized quote"@{nl="Offerteregels uitklappen"} }
+  export contract QuoteLine { title:text, quantity:decimal, unit:text, price:money, tax:money label=label_QuoteLine_tax, discount:money label=label_QuoteLine_discount } label="Quote line"@{nl="Offerteregel"}
+  export contract QuoteInterval { from:datetime, until:datetime } label="Quoted access interval"@{nl="Geoffreerd toegangstijdvak"}
+  export derive quote_intervals_valid(from:datetime,until:datetime,intervals:QuoteInterval[]):bool = from<until and (count(intervals)==0 or (all(intervals as interval,from<=interval.from and interval.from<interval.until and interval.until<=until) and count(group(intervals as interval,interval.from))==count(intervals) and all(intervals as left,all(intervals as right,left.from==right.from or left.until<=right.from or right.until<=left.from)) and min(intervals as interval select interval.from)==from and max(intervals as interval select interval.until)==until))
+  export contract QuoteDocument { issuer:text label=label_QuoteDocument_issuer, customer:text, resource:text?, quantity:int, attendees:int, recipient:email label=label_QuoteDocument_recipient, title:text, location:text, from:datetime label=label_QuoteDocument_from, until:datetime label=label_QuoteDocument_until, intervals:QuoteInterval[] label="Exact service intervals"@{nl="Exacte gebruikstijdvakken"}, terms:text label=label_QuoteDocument_terms, refund_before:datetime label="Refund deadline"@{nl="Terugbetalingsdeadline"}, expires:datetime label=label_QuoteDocument_expires, lines:QuoteLine[]! label="Lines"@{nl="Regels"}, total:money } label="Quote document"@{nl="Offertedocument"}
+  export contract QuoteOffer { source:text, revision:int, customer:text, location:text, resource:text, recipient:email, quantity:int, attendees:int, snapshot:QuoteDocument, hold_until:datetime } label="Temporary quote reservation"@{nl="Tijdelijke offertereservering"}
+  export contract AcceptedOffer { product:text?, attribution:text?, exclusive_program:text?, attributed_at:datetime?, attribution_window:duration?, source:text, revision:int, customer:text, location:text, resource:text, account:user, recipient:email, accepted_at:datetime, quantity:int, attendees:int, snapshot:QuoteDocument } label="Accepted offer handoff"@{nl="Overdracht geaccepteerde offerte"}
+  export contract QuotePdf { source:text label="Source reference"@{nl="Bronreferentie"}, document:file label=label_QuotePdf_document, revision:int } label="Quote PDF"@{nl="Offerte-PDF"}
+  export capability DocumentsV1 version=1
+   quote(source:text,snapshot:QuoteDocument,revision:int) -> QuotePdf
+  role salesperson label="Salesperson"@{nl="Verkoper"}
+  export Proposal in Customer { location:Location, recipient:Contact label=label_QuoteDocument_recipient, issuer:text label=label_QuoteDocument_issuer, title:text, currency:currency, valid_days:int=14 min=1 label="Validity in days"@{nl="Geldigheid in dagen"}, current:int=0 label="Current revision"@{nl="Huidige versie"} } label="Proposal"@{nl="Offerte"}
+  export Revision in Proposal { product:text? label="Product code"@{nl="Productcode"}, attribution:text?, exclusive_program:text?, attributed_at:datetime?, attribution_window:duration?, number:int label="Offer revision number"@{nl="Offerteversienummer"}, issuer_snapshot:text label="Frozen issuer"@{nl="Vastgelegde uitgever"}, title_snapshot:text label="Frozen title"@{nl="Vastgelegde titel"}, location_snapshot:text label="Frozen location"@{nl="Vastgelegde locatie"}, customer_snapshot:text label="Frozen customer"@{nl="Vastgelegde klant"}, alternative_to:Revision? label="Alternative to revision"@{nl="Alternatief voor offerteversie"}, recipient_email:email label="Recipient email"@{nl="E-mailadres ontvanger"}, account:user? label="Account"@{nl="Account"}, expires:datetime label=label_QuoteDocument_expires, terms:text label=label_QuoteDocument_terms, refund_before:datetime label="Frozen refund deadline"@{nl="Vastgelegde terugbetalingsdeadline"}, resource:text? label=label_Revision_resource, from:datetime label=label_QuoteDocument_from, until:datetime label=label_QuoteDocument_until, intervals:QuoteInterval[] label="Exact service intervals"@{nl="Exacte gebruikstijdvakken"}, seats:int=1 min=1 label=label_Revision_seats, quantity:int=1 min=1 label="Capacity units"@{nl="Capaciteitseenheden"}, held_until:datetime? label="Hold deadline"@{nl="Reserveringsdeadline"}, total:money, state:enum(draft,sent,accepted,declined,withdrawn)=draft label={text="State"@{nl="Status"},values={draft="Draft"@{nl="Concept"},sent="Sent"@{nl="Verstuurd"},accepted="Accepted"@{nl="Geaccepteerd"},declined="Declined"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"}}}, decided_by:user? label="Decided by"@{nl="Besloten door"}, decided_at:datetime? label="Decided at"@{nl="Besloten op"}, handoff:enum(none,pending,confirmed,unavailable,unknown,alternative_selected)=none label={text="Booking handoff"@{nl="Boekingsoverdracht"},values={none="None"@{nl="Geen"},pending="Pending"@{nl="In afwachting"},confirmed="Confirmed"@{nl="Bevestigd"},unavailable="Accepted; awaiting alternative"@{nl="Geaccepteerd; wacht op alternatief"},unknown="Unknown"@{nl="Onbekend"},alternative_selected="Alternative accepted"@{nl="Alternatief geaccepteerd"}}}, delivery:text? label="Delivery reference"@{nl="Verzendingsreferentie"}, booking:text? label="Booking reference"@{nl="Boekingsreferentie"}, invoice:text? label="Invoice reference"@{nl="Factuurreferentie"}, hold_state:enum(none,pending,held,releasing,released,unavailable,unknown,expired)=none label={text="Inventory hold outcome"@{nl="Resultaat voorraadreservering"},values={none="Not held"@{nl="Niet gereserveerd"},pending="Hold pending"@{nl="Reservering in behandeling"},held="Held until deadline"@{nl="Gereserveerd tot deadline"},releasing="Release pending"@{nl="Vrijgave in behandeling"},released="Released"@{nl="Vrijgegeven"},unavailable="Unavailable"@{nl="Niet beschikbaar"},unknown="Unknown"@{nl="Onbekend"},expired="Expired"@{nl="Verlopen"}}}, booking_version:int=0, hold_version:int=0, hold_delivery:text?, hold_release:text?, notice_delivery:text?, notice_state:enum(none,pending,delivered,failed,unknown,skipped)=none label={text="Offer notice"@{nl="Offertebericht"},values={none="Not sent"@{nl="Niet verstuurd"},pending="Pending"@{nl="In behandeling"},delivered="Delivered"@{nl="Afgeleverd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}, document_state:enum(none,pending,ready,failed,unknown,skipped)=none label={text="Document outcome"@{nl="Documentresultaat"},values={none="Not requested"@{nl="Niet aangevraagd"},pending="Pending"@{nl="In behandeling"},ready="Ready"@{nl="Gereed"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}, document_delivery:text? label="Document request reference"@{nl="Referentie documentaanvraag"}, pdf:file? label="PDF document"@{nl="PDF-document"} } label="Offer revision"@{nl="Offerteversie"}
+  export Item in Revision { title:text, quantity:decimal=1 min=0, unit:text label="Unit"@{nl="Eenheid"}, price:money, tax:money label=label_QuoteLine_tax, discount:money label=label_QuoteLine_discount } label="Quote item"@{nl="Offerteregel"}
+  derive Revision.snapshot:QuoteDocument = QuoteDocument {issuer=row.issuer_snapshot,customer=row.customer_snapshot,resource=row.resource,quantity=row.quantity,attendees=row.seats,recipient=row.recipient_email,title=row.title_snapshot,location=row.location_snapshot,from=row.from,until=row.until,intervals=row.intervals,terms=row.terms,refund_before=row.refund_before,expires=row.expires,lines=row.Item as item select QuoteLine {title=item.title,quantity=item.quantity,unit=item.unit,price=item.price,tax=item.tax,discount=item.discount},total=row.total}
+  policy Proposal read=salesperson and can_work(actor,row.location)
+  policy Revision read=salesperson and can_work(actor,row.parent.location)
+  policy Revision read=authenticated where=actor.email_verified and row.recipient_email==actor.email
+  policy Item read=salesperson and can_work(actor,row.parent.parent.location)
+  policy Item read=authenticated where=actor.email_verified and row.parent.recipient_email==actor.email
+  invariant Proposal: row.recipient.parent==row.parent
+  invariant Revision: (row.product==null or trim(row.product)!="") and quote_intervals_valid(row.from,row.until,row.intervals) and row.total.currency==row.parent.currency and row.total.minor>=0
+  invariant Item: (row.quantity>0 or row.price*row.quantity+row.tax-row.discount==money(0,row.price.currency)) and row.price.currency==row.parent.parent.currency and row.tax.currency==row.price.currency and row.discount.currency==row.price.currency and row.price.minor>=0 and row.tax.minor>=0 and row.discount.minor>=0 and row.price*row.quantity+row.tax>=row.discount
+  unique Revision fields=number
+  lock Revision fields=product,number,issuer_snapshot,title_snapshot,location_snapshot,customer_snapshot,alternative_to,recipient_email,expires,terms,refund_before,resource,from,until,intervals,seats,quantity,total when=row.state!=draft
+  lock Revision fields=attribution,exclusive_program,attributed_at,attribution_window,account,decided_by,decided_at when=row.decided_at!=null
+  lock Item fields=title,quantity,unit,price,tax,discount when=row.parent.state!=draft
+  export fixture offer=Proposal {parent=test_company,location=test_site,recipient=test_contact,issuer="Operator",title="Office",currency="EUR",current=1}
+  export fixture current_offer=Revision {parent=offer,number=1,issuer_snapshot="Operator",title_snapshot="Office",location_snapshot="Main",customer_snapshot="Example company",recipient_email=actor.email,expires=datetime("2099-01-01T00:00:00Z"),terms="No reservation",refund_before=datetime("2099-01-02T09:00:00Z"),from=datetime("2099-01-02T09:00:00Z"),until=datetime("2099-01-02T10:00:00Z"),total=money(100,"EUR"),state=sent}
+  fixture priced_item=Item {parent=current_offer,title="Office",quantity=1,unit="day",price=money(100,"EUR"),tax=money(0,"EUR"),discount=money(0,"EUR")}
+ When
+  crud Proposal by=salesperson fields=title,valid_days create_fields=location,recipient,issuer,title,currency,valid_days when=can_work(actor,row.location) delete=none
+  crud Item by=salesperson fields=title,quantity,unit,price,tax,discount when=can_work(actor,row.parent.parent.location) and row.parent.state==draft delete=remove
+  # Create a fresh revision and withdraw all prior undecided response links. @{nl="Maak een nieuwe versie en trek alle eerdere onbeantwoorde reactielinks in."}
+  export scenario revise(proposal:Proposal,terms:text label=label_QuoteDocument_terms,resource:text? label=label_Revision_resource,from:datetime label=label_QuoteDocument_from,until:datetime label=label_QuoteDocument_until,seats:int label=label_Revision_seats,quantity:int=1 label="Capacity units"@{nl="Capaciteitseenheden"},refund_before:datetime=from label="Refund deadline"@{nl="Terugbetalingsdeadline"},intervals:QuoteInterval[]=[] label="Exact service intervals"@{nl="Exacte gebruikstijdvakken"},product:text?=null label="Product code"@{nl="Productcode"}) -> Revision by=salesperson label="Create revision"@{nl="Nieuwe versie maken"}
+   require can_work(actor,proposal.location) and quote_intervals_valid(from,until,intervals) and seats>0 and quantity>0
+   do
+    for old in proposal.Revision as revision where revision.state in [draft,sent] limit=100
+     set old {state=withdrawn}
+     if old.hold_state in [pending,held,unknown]
+      set old {hold_state=releasing}
+    let number=proposal.current+1
+    set proposal {current=number}
+    create Revision {parent=proposal,number,product,issuer_snapshot=proposal.issuer,title_snapshot=proposal.title,location_snapshot=proposal.location.name,customer_snapshot=proposal.parent.name,recipient_email=proposal.recipient.email,expires=now+proposal.valid_days*1d,terms,refund_before,resource,from,until,intervals=intervals as interval order=interval.from,seats,quantity,total=money(0,proposal.currency)} as revision
+    return revision
+   examples seed=[test_worker] proposal=offer terms="Exact access" resource="office" from=datetime("2099-01-02T09:00:00Z") until=datetime("2099-01-03T18:00:00Z") seats=1
+    as,intervals -> count(result.intervals)
+    salesperson,[] -> 0
+    salesperson,[{from=datetime("2099-01-02T09:00:00Z"),until=datetime("2099-01-02T18:00:00Z")},{from=datetime("2099-01-03T09:00:00Z"),until=datetime("2099-01-03T18:00:00Z")}] -> 2
+    salesperson,[{from=datetime("2099-01-02T09:00:00Z"),until=datetime("2099-01-03T10:00:00Z")},{from=datetime("2099-01-03T09:00:00Z"),until=datetime("2099-01-03T18:00:00Z")}] -> error(rule_failed)
+    salesperson,[{from=datetime("2099-01-02T10:00:00Z"),until=datetime("2099-01-03T18:00:00Z")}] -> error(rule_failed)
+  # Send and freeze a priced revision; the quote does not hold inventory by default. @{nl="Verstuur een vastgelegde geprijsde versie; de offerte reserveert standaard geen voorraad."}
+  export scenario send_offer(revision:Revision) by=salesperson label="Send offer"@{nl="Offerte versturen"}
+   require can_work(actor,revision.parent.location) and revision.state==draft and count(revision.Item)>0 and revision.expires>now
+   do
+    set revision {total=sum(revision.Item as item select item.price*item.quantity+item.tax-item.discount,revision.parent.currency),state=sent}
+    send Mail.send {to=revision.recipient_email,subject=revision.parent.title,body=format("Review the frozen offer at {link}. Sign in with your verified recipient email."@{nl="Bekijk de vastgelegde offerte via {link}. Meld je aan met je geverifieerde e-mailadres als ontvanger."}(link=app_url(format("/offers/respond/{id}",{id=revision.id}))),locale=null)} as notice
+    set revision {notice_delivery=notice.id,notice_state=pending}
+  scenario notice_result on=Mail.send.completed
+   do
+    for revision in Revision as row where row.notice_delivery==event.delivery_id limit=1
+     if event.status==succeeded
+      set revision {notice_state=delivered}
+     else
+      if event.status==failed
+       set revision {notice_state=failed}
+      else
+       if event.status==skipped
+        set revision {notice_state=skipped}
+       else
+        set revision {notice_state=unknown}
+  # Render a frozen sent offer without consulting mutable customer prices. @{nl="Genereer een vastgelegde verstuurde offerte zonder wijzigbare klantprijzen te raadplegen."}
+  export scenario document(revision:Revision) by=salesperson or authenticated label=label_QuotePdf_document
+   require revision.state in [sent,accepted,declined] and ((salesperson and can_work(actor,revision.parent.location)) or (actor.email_verified and actor.email==revision.recipient_email))
+   do
+    send Documents.quote {source=revision.id,revision=revision.number,snapshot=revision.snapshot} as delivery
+    set revision {document_delivery=delivery.id,document_state=pending}
+  scenario document_result on=Documents.quote.completed
+   do
+    for revision in Revision as row where row.document_delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==revision.id and event.result.revision==revision.number
+      set revision {pdf=event.result.document,document_state=ready}
+     else
+      if event.status==failed
+       set revision {document_state=failed}
+      else
+       if event.status==skipped
+        set revision {document_state=skipped}
+       else
+        set revision {document_state=unknown}
+  # Decide the current unexpired revision using the addressed verified account. @{nl="Beoordeel de huidige niet-verlopen versie met het geadresseerde geverifieerde account."}
+  scenario decide(revision:Revision,accept:bool label="Accept"@{nl="Accepteren"},capture:Capture?=null) by=authenticated label="Record decision"@{nl="Besluit vastleggen"}
+   require actor.email_verified and actor.email==revision.recipient_email and revision.state==sent and revision.expires>now and revision.number==revision.parent.current
+   do
+    if accept
+     if capture!=null
+      require revision.resource!=null and revision.product!=null and capture.parent==revision.parent.parent and capture.account==actor
+      require capture==latest_capture(revision.parent.parent,actor,revision.parent.location,revision.product)
+     if revision.alternative_to!=null
+      require revision.alternative_to.handoff in [none,unavailable]
+      set revision.alternative_to {handoff=alternative_selected}
+     set revision {state=accepted,account=actor,decided_by=actor,decided_at=now,attribution=capture?.code,exclusive_program=capture?.program,attributed_at=capture?.captured,attribution_window=capture?.window}
+    else
+     set revision {state=declined,account=actor,decided_by=actor,decided_at=now}
+     if revision.hold_state in [pending,held,unknown]
+      set revision {hold_state=releasing}
+   examples revision=current_offer accept=true
+    as,revision.state -> revision.state,revision.decided_by
+    members,sent -> accepted,self
+    members,withdrawn -> error(rule_failed)
+    public,sent -> error(forbidden)
+   examples seed=[test_contact,test_admin] revision=current_offer accept=true capture=captured
+    as,revision.resource,revision.product,captured.captured -> revision.state,revision.attribution,revision.exclusive_program,revision.attributed_at
+    members,"quoted-meeting","meeting",now -> accepted,captured.code,captured.program,now
+    members,"quoted-meeting","office",now -> error(rule_failed)
+    members,"quoted-meeting","meeting",now-31d -> error(rule_failed)
+    members,null,null,now -> error(rule_failed)
+  # Obtain a separately expiring inventory hold without recording recipient acceptance. @{nl="Verkrijg een afzonderlijk verlopende voorraadreservering zonder klantacceptatie vast te leggen."}
+  scenario hold_inventory(revision:Revision,until:datetime) by=salesperson label="Hold quoted inventory"@{nl="Geoffreerde voorraad tijdelijk reserveren"}
+   require can_work(actor,revision.parent.location) and revision.state==sent and revision.number==revision.parent.current and revision.resource!=null and revision.expires>now
+   require now<until and until<=revision.expires and revision.hold_state in [none,unavailable]
+   do
+    send Rooms.hold_offer {value=QuoteOffer {source=revision.id,revision=revision.number,customer=revision.parent.parent.id,location=revision.parent.location.id,resource=revision.resource,recipient=revision.recipient_email,quantity=revision.quantity,attendees=revision.seats,snapshot=revision.snapshot,hold_until=until}} as delivery
+    set revision {hold_state=pending,hold_delivery=delivery.id,held_until=until,hold_release=null}
+   examples seed=[test_worker,priced_item] revision=current_offer
+    as,revision.resource,until -> revision.hold_state,revision.held_until
+    salesperson,"office",datetime("2098-12-31T00:00:00Z") -> pending,datetime("2098-12-31T00:00:00Z")
+    salesperson,"office",datetime("2099-01-02T00:00:00Z") -> error(rule_failed)
+    members,"office",datetime("2098-12-31T00:00:00Z") -> error(forbidden)
+  scenario held on=Rooms.hold_offer.completed
+   do
+    for revision in Revision as row where row.hold_delivery==event.delivery_id and row.hold_state in [pending,unknown] limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==revision.id and event.result.revision==revision.number and event.result.kind==hold
+      if event.result.version>revision.hold_version
+       set revision {hold_version=event.result.version}
+       if event.result.state==confirmed and event.result.expires!=null and revision.held_until!=null and event.result.expires<=revision.held_until and event.result.expires>now and revision.state in [sent,accepted]
+        set revision {hold_state=held,held_until=event.result.expires}
+       else
+        if event.result.state in [unavailable,failed]
+         set revision {hold_state=unavailable}
+        else
+         if event.result.state==released
+          set revision {hold_state=released}
+         else
+          if revision.held_until!=null and revision.held_until<=now
+           set revision {hold_state=expired}
+          else
+           set revision {hold_state=unknown}
+     else
+      set revision {hold_state=unknown}
+  # Request the exact accepted snapshot; acceptance itself reserves and charges nothing. @{nl="Vraag de exacte geaccepteerde momentopname aan; acceptatie zelf reserveert en incasseert niets."}
+  export scenario request_booking(revision:Revision) by=authenticated or salesperson label="Request booking"@{nl="Boeking aanvragen"}
+   require revision.state==accepted and revision.resource!=null and revision.account!=null and revision.handoff in [none,unavailable]
+   require revision.account==actor or (salesperson and can_work(actor,revision.parent.location))
+   require revision.decided_at!=null and revision.decided_by==revision.account
+   do
+    send Rooms.accept_offer {value=AcceptedOffer {product=revision.product,attribution=revision.attribution,exclusive_program=revision.exclusive_program,attributed_at=revision.attributed_at,attribution_window=revision.attribution_window,source=revision.id,revision=revision.number,customer=revision.parent.parent.id,location=revision.parent.location.id,resource=revision.resource,account=revision.account,recipient=revision.recipient_email,accepted_at=revision.decided_at,quantity=revision.quantity,attendees=revision.seats,snapshot=revision.snapshot}} as delivery
+    set revision {handoff=pending,delivery=delivery.id}
+   examples revision=current_offer
+    as,revision.state -> revision.handoff
+    members,sent -> error(rule_failed)
+    salesperson,sent -> error(rule_failed)
+   examples seed=[test_worker,priced_item] revision=current_offer
+    as,revision.state,revision.resource,revision.account,revision.decided_by,revision.decided_at -> revision.handoff,revision.total,revision.invoice
+    salesperson,accepted,"office",self,self,datetime("2026-10-04T09:00:00Z") -> pending,money(100,"EUR"),null
+    salesperson,sent,"office",self,self,datetime("2026-10-04T09:00:00Z") -> error(rule_failed)
+  scenario booked on=Rooms.accept_offer.completed
+   do
+    for revision in Revision as row where row.delivery==event.delivery_id and row.handoff in [pending,unknown] limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==revision.id and event.result.revision==revision.number and event.result.kind==booking
+      if event.result.version>revision.booking_version
+       set revision {booking_version=event.result.version}
+       if event.result.state==confirmed and event.result.reference!=null
+        set revision {handoff=confirmed,booking=event.result.reference,invoice=event.result.invoice}
+       else
+        if event.result.state in [unavailable,failed]
+         set revision {handoff=unavailable}
+        else
+         if event.result.state==pending
+          set revision {handoff=pending,booking=event.result.reference,invoice=event.result.invoice}
+         else
+          set revision {handoff=unknown}
+     else
+      set revision {handoff=unknown}
+  scenario offer_changed on=Rooms.offer_changed
+   do
+    for revision in Revision as row where row.id==event.value.source and row.number==event.value.revision limit=1
+     if event.value.kind==booking and event.value.version>revision.booking_version and revision.state==accepted and revision.handoff in [pending,unknown,confirmed,unavailable]
+      set revision {booking_version=event.value.version}
+      if event.value.reference!=null
+       set revision {booking=event.value.reference}
+      if event.value.invoice!=null
+       set revision {invoice=event.value.invoice}
+      if event.value.state==confirmed and event.value.reference!=null
+       set revision {handoff=confirmed,booking=event.value.reference,invoice=event.value.invoice}
+      if event.value.state in [unavailable,failed]
+       set revision {handoff=unavailable}
+      if event.value.state==unknown
+       set revision {handoff=unknown}
+      if event.value.state==pending
+       set revision {handoff=pending,booking=event.value.reference,invoice=event.value.invoice}
+     if event.value.kind==hold and event.value.version>revision.hold_version and revision.hold_state in [pending,unknown,held]
+      set revision {hold_version=event.value.version}
+      if event.value.state==confirmed and event.value.expires!=null and event.value.expires>now and revision.held_until!=null and event.value.expires<=revision.held_until and revision.state in [sent,accepted]
+       set revision {hold_state=held,held_until=event.value.expires}
+      if event.value.state in [unavailable,failed,released]
+       set revision {hold_state=released}
+   examples seed=[priced_item] event={value={source=current_offer.id,revision=1,version=1,kind=hold,state=confirmed,reference="reservation",detail=null,invoice=null,expires=null}}
+    current_offer.state,current_offer.handoff,event.value.kind,event.value.version,current_offer.booking_version -> current_offer.handoff,current_offer.booking
+    accepted,pending,hold,1,0 -> pending,null
+    accepted,pending,booking,1,0 -> confirmed,"reservation"
+    accepted,confirmed,hold,1,1 -> confirmed,null
+    accepted,pending,booking,1,2 -> pending,null
+  # Offer a new choice preserving the accepted source and its complete itemized prices. @{nl="Bied een nieuwe keuze aan met behoud van de geaccepteerde bron en alle gespecificeerde prijzen."}
+  scenario offer_alternative(revision:Revision,resource:text,from:datetime,until:datetime,terms:text,refund_before:datetime=from,intervals:QuoteInterval[]=[] label="Exact service intervals"@{nl="Exacte gebruikstijdvakken"},product:text?=null label="Product code"@{nl="Productcode"}) by=salesperson label="Prepare sold-out alternative"@{nl="Alternatief bij uitverkoop voorbereiden"}
+   require can_work(actor,revision.parent.location) and revision.state==accepted and revision.handoff==unavailable and from<until and trim(terms)!=""
+   do
+    call revise {proposal=revision.parent,terms,resource,from,until,seats=revision.seats,quantity=revision.quantity,refund_before,intervals,product} as replacement
+    set replacement {alternative_to=revision}
+    for item in revision.Item limit=100
+     create Item {parent=replacement,title=item.title,quantity=item.quantity,unit=item.unit,price=item.price,tax=item.tax,discount=item.discount} as copied
+   examples seed=[test_worker,priced_item] revision=current_offer resource="alternative-office" from=datetime("2099-01-02T09:00:00Z") until=datetime("2099-01-02T10:00:00Z") terms="New room; original price"
+    as,revision.state,revision.handoff -> revision.parent.current,revision.total,count(Revision as candidate where candidate.alternative_to==revision)
+    salesperson,accepted,unavailable -> 2,money(100,"EUR"),1
+    salesperson,accepted,pending -> error(rule_failed)
+    members,accepted,unavailable -> error(forbidden)
+  scenario expire_holds on=every(1m)
+   do
+    for revision in Revision as row where row.hold_state in [pending,held,unknown] and row.held_until!=null and (row.held_until<=now or row.state in [withdrawn,declined]) limit=100
+     if revision.state in [withdrawn,declined]
+      set revision {hold_state=releasing}
+     else
+      set revision {hold_state=expired}
+    for revision in Revision as row where row.hold_state==releasing and row.state!=accepted and row.hold_release==null limit=100
+     require revision.resource!=null
+     send Rooms.release_offer {source=revision.id,revision=revision.number,resource=revision.resource,reason="Quote hold expired or withdrawn"} as release
+     set revision {hold_release=release.id}
+  scenario hold_released on=Rooms.release_offer.completed
+   do
+    for revision in Revision as row where row.hold_release==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==revision.id and event.result.revision==revision.number and event.result.kind==release and event.result.state==released
+      set revision {hold_state=released}
+  scenario retry_hold_release(revision:Revision) by=salesperson label="Retry hold release"@{nl="Vrijgave voorraad opnieuw proberen"}
+   require can_work(actor,revision.parent.location) and revision.hold_state==releasing
+   do set revision {hold_release=null}
+ Then
+  # Author offers and resolve accepted quotations still awaiting inventory. @{nl="Maak offertes en los geaccepteerde offertes op die nog op voorraad wachten."}
+  page /offers title="Offers"@{nl="Offertes"}
+   require salesperson
+   card "Customer selection"@{nl="Klantselectie"}
+    list Customer
+     form Proposal.create
+   card "Offer drafts"@{nl="Conceptoffertes"}
+    list Proposal filter=location search=title defaults={location=preferences.location} display=split
+     edit
+     form revise
+     list row.Revision order=-number filter=state,handoff defaults={state=preferences.state}
+      text row.number,row.issuer_snapshot,row.customer_snapshot,row.title_snapshot,row.location_snapshot,row.recipient_email,row.resource,row.from,row.until,row.seats,row.quantity,row.terms,row.refund_before,row.expires,row.total,row.state,row.handoff,row.booking,row.invoice,row.hold_state,row.held_until,row.notice_state,row.document_state,row.pdf
+      tabs
+       tab "Frozen revisions and items"@{nl="Vastgelegde versies en regels"}
+        form Item.create
+        list row.Item
+         edit
+         delete
+       tab "Booking follow-up"@{nl="Boekingsopvolging"}
+        actions send_offer,document,hold_inventory,request_booking,offer_alternative,retry_hold_release
+        copy app_url(format("/offers/respond/{id}",{id=row.id}))
+        history
+
+  # Review the exact addressed offer and its separate booking outcome. @{nl="Bekijk de exact geadresseerde offerte en het afzonderlijke boekingsresultaat."}
+  page /offers/respond/{Revision.id} title="Your offer"@{nl="Jouw offerte"}
+   require authenticated
+   card "Frozen offer facts"@{nl="Vastgelegde offertegegevens"}
+    text row.issuer_snapshot,row.customer_snapshot,row.title_snapshot,row.location_snapshot,row.from,row.until,row.seats,row.quantity,row.terms,row.refund_before,row.expires,row.state,row.handoff,row.total
+   card heading_itemized_quote
+    details heading_itemized_quote open=preferences.items_open
+     table row.Item columns=title,quantity,unit,price,tax,discount
+   card "Decision and booking outcome"@{nl="Besluit en boekingsresultaat"}
+    actions decide,document,request_booking
+    text row.pdf,row.document_state,row.booking,row.invoice
+    card "Inventory promise"@{nl="Voorraadtoezegging"}
+     text row.held_until
+     details "Held inventory"@{nl="Tijdelijk gereserveerde voorraad"}
+      require row.hold_state==held and row.held_until!=null and row.held_until>now
+      text "Inventory is held only until the displayed deadline."@{nl="Voorraad is uitsluitend tot de getoonde deadline gereserveerd."}
+     details "Availability must be checked"@{nl="Beschikbaarheid moet worden gecontroleerd"}
+      require row.hold_state!=held or row.held_until==null or row.held_until<=now
+      text "Acceptance does not guarantee inventory or payment."@{nl="Acceptatie garandeert geen voorraad of betaling."}

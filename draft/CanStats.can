@@ -1,0 +1,181 @@
+# Help workspace marketing teams understand traffic and tracked inquiries on location, workspace, and event pages. @{nl="Help werkplekmarketingteams verkeer en gemeten aanvragen op locatie-, werkplek- en evenementpagina's te begrijpen."}
+app CanStats uses=[stats]
+context
+ queue WebJobs type=stats.WebEvent
+ analytics WebDimensions { site:text, name:text, path:text, location:text?, source:text?, medium:text?, workspace:text?, occurred:datetime, identified:text, value:decimal }
+
+# Report observed website events and identifier coverage without manufacturing confirmed business sales. @{nl="Rapporteer gemeten websitegebeurtenissen en identificatiedekking zonder bevestigde zakelijke verkopen te verzinnen."}
+package stats
+ use stats {DimensionsV1 as Dimensions} from=deployment.dimensions
+ use stats {TrackerV1 as Tracker} from=deployment.tracker
+ Given
+  preferences { site:Site? label=label_Site }
+  message health_title = "Processing health"@{nl="Verwerkingsstatus"}
+  message label_Site = "Website"@{nl="Website"}
+  role analyst label="Analyst"@{nl="Analist"}
+  Site { name:text, domain:text label="Domain"@{nl="Domein"}, timezone:timezone, goals:text[]! label="Tracked goals"@{nl="Gemeten doelen"}, viewers:user[], active:bool=true, quota:int=100000 min=1, key:secret server=random_secret() } label=label_Site
+  AcceptedEvent in Site { event_id:text unique label="Event reference"@{nl="Gebeurtenisreferentie"}, name:text, occurred:datetime, received:datetime server=now label="Received at"@{nl="Ontvangen op"}, path:text label="Page path"@{nl="Paginapad"}, location:text?, workspace:text? label="Workspace dimension"@{nl="Werkplekdimensie"}, source:text? label="Acquisition source"@{nl="Acquisitiebron"}, medium:text? label="Acquisition medium"@{nl="Acquisitiemedium"}, visitor:text?, session:text?, session_started:datetime? } label="Accepted website event"@{nl="Geaccepteerde websitegebeurtenis"}
+  Health in Site { revision:int=0, observed:datetime?, rejected:int=0, accepted:int=0 label="Accepted events"@{nl="Geaccepteerde gebeurtenissen"}, dropped:int=0 label="Dropped events"@{nl="Verworpen gebeurtenissen"}, last_processed:datetime? label="Last processed at"@{nl="Laatst verwerkt op"}, state:enum(fresh,lagging,unavailable)=unavailable label={text="State"@{nl="Status"},values={fresh="Up to date"@{nl="Actueel"},lagging="Delayed"@{nl="Vertraagd"},unavailable="Unavailable"@{nl="Niet beschikbaar"}}} } label=health_title
+  export contract WebEvent { site:Site, event_id:text, name:text, occurred:datetime, path:text, location:text?, workspace:text?, source:text?, medium:text?, visitor:text?, session:text?, session_started:datetime? }
+  export contract TrackerHealth { site:Site, revision:int min=1, observed:datetime, rejected:int min=0, dropped:int min=0, state:Health.state }
+  export contract DimensionRow { key:text?, events:decimal min=0, goals:decimal min=0, identified:decimal min=0 }
+  export contract DimensionResult { site:text, from:datetime, until:datetime, dimension:enum(path,location,source,medium,workspace) label={text="Dimension"@{nl="Dimensie"},values={path="Page path"@{nl="Paginapad"},location="Location"@{nl="Locatie"},source="Acquisition source"@{nl="Acquisitiebron"},medium="Acquisition medium"@{nl="Acquisitiemedium"},workspace="Workspace"@{nl="Werkplek"}}}, goal:text?, configured_goals:text[]!, rows:DimensionRow[] max=200, events:decimal min=0, goals:decimal min=0, identified:decimal min=0, sampled:bool, complete:bool, generated:datetime }
+  export capability DimensionsV1 version=1
+   read(site:text,from:datetime,until:datetime,dimension:DimensionResult.dimension,goals:text[],goal:text?) -> DimensionResult
+  Breakdown in Site { account:user server=actor, from:datetime, until:datetime, dimension:DimensionResult.dimension, goal:text?, configured_goals:text[]!, current:bool=true, delivery:text unique, state:enum(pending,fresh,partial,failed,unknown)=pending label={text="Report state"@{nl="Rapportstatus"},values={pending="Pending"@{nl="In afwachting"},fresh="Available"@{nl="Beschikbaar"},partial="Partial"@{nl="Gedeeltelijk"},failed="Unavailable"@{nl="Niet beschikbaar"},unknown="Unknown"@{nl="Onbekend"}}}, result:DimensionResult?, error:text?, requested:datetime server=now }
+  contract GoalCount { name:text, events:int }
+  export capability TrackerV1 version=1
+   event accepted { value:WebEvent }
+   event health { value:TrackerHealth }
+  contract Summary { goal_counts:GoalCount[]?, events:int? label="Accepted event count"@{nl="Aantal geaccepteerde gebeurtenissen"}, goals:int? label="Observed goal events"@{nl="Gemeten doelgebeurtenissen"}, goal_rate:decimal? label="Observed goal rate"@{nl="Gemeten doelratio"}, visitors:int? label="Identified visitors"@{nl="Geïdentificeerde bezoekers"}, sessions:int? label="Observed sessions"@{nl="Gemeten sessies"}, identified:int? label="Identified events"@{nl="Geïdentificeerde gebeurtenissen"}, identity_coverage:decimal? label="Identifier coverage"@{nl="Identificatiedekking"}, live:int? label="Recent identified visitors"@{nl="Recente geïdentificeerde bezoekers"}, state:Health.state, generated:datetime label="Generated at"@{nl="Gegenereerd op"} } label="Website traffic summary"@{nl="Websiteverkeersoverzicht"}
+  policy Site read=analyst where=actor in row.viewers fields=name,domain,timezone,goals,active
+  policy AcceptedEvent read=analyst where=actor in row.parent.viewers fields=event_id,name,occurred,received,path,location,workspace,source,medium
+  policy Health read=analyst where=actor in row.parent.viewers
+  policy Breakdown read=analyst where=row.account==actor and actor in row.parent.viewers
+  invariant Site: all(row.goals as goal,trim(goal)!="") and count(group(row.goals as goal,goal))==count(row.goals)
+  unique Health fields=parent
+  unique Breakdown fields=parent,account where=row.current
+  lock Breakdown fields=account,from,until,dimension,goal,configured_goals,delivery,requested
+  retain Breakdown until=row.requested+1d
+  lock AcceptedEvent fields=event_id,name,occurred,received,path,location,workspace,source,medium,visitor,session,session_started
+  retain AcceptedEvent until=row.occurred+30d
+  fixture website=Site {name="Website",domain="example.test",timezone="Europe/Brussels",goals=["tour_request"],viewers=[self]}
+  fixture health=Health {parent=website,state=fresh,observed=now}
+  fixture seen=AcceptedEvent {parent=website,event_id="seen",name="page_view",occurred=now-1m,path="/",visitor="visitor-1",session="session-1",session_started=now-2m}
+  fixture report=Breakdown {parent=website,from=now-1d,until=now,dimension=path,configured_goals=["tour_request"],delivery="dimension-1"}
+ When
+  scenario intake on=Tracker.accepted
+   require event.value.site.active and event.value.occurred<=now+5m and event.value.occurred>now-30d
+   require (event.value.session==null and event.value.session_started==null) or (event.value.visitor!=null and event.value.session!=null and event.value.session_started!=null and event.value.session_started<=event.value.occurred)
+   do send WebJobs.publish {value=event.value} as queued
+   examples event={value=WebEvent {site=website,event_id="new",name="page_view",occurred=now,path="/"}}
+    event.value.visitor,event.value.session,event.value.session_started -> website.active
+    null,null,null -> true
+    "visitor","session",now -> true
+    null,"session",now -> error(rule_failed)
+    "visitor",null,now -> error(rule_failed)
+    "visitor","session",now+1m -> error(rule_failed)
+  scenario process on=WebJobs
+   require event.site.active and event.occurred<=now+5m and event.occurred>now-30d
+   do
+    if not any(event.site.AcceptedEvent as accepted,accepted.event_id==event.event_id)
+     create AcceptedEvent {parent=event.site,event_id=event.event_id,name=event.name,occurred=event.occurred,path=event.path,location=event.location,workspace=event.workspace,source=event.source,medium=event.medium,visitor=event.visitor,session=event.session,session_started=event.session_started} as accepted
+     send WebDimensions.write {site=event.site.id,name=event.name,path=event.path,location=event.location,source=event.source,medium=event.medium,workspace=event.workspace,occurred=event.occurred,identified=format("{present}",{present=event.visitor!=null}),value=1} as telemetry
+     let health=first(event.site.Health as health order=health.id)
+     if health==null
+      create Health {parent=event.site,accepted=1,last_processed=now} as created
+     else
+      set health {accepted=health.accepted+1,last_processed=now}
+   examples seed=[health] event=WebEvent {site=website,event_id="fresh",name="page_view",occurred=now,path="/"}
+    website.active -> health.accepted
+    true -> 1
+    false -> error(rule_failed)
+   examples seed=[health] event=WebEvent {site=website,event_id="expired",name="page_view",occurred=now-30d,path="/"}
+    website.active -> health.accepted
+    true -> error(rule_failed)
+   examples seed=[health,seen] event=WebEvent {site=website,event_id="seen",name="page_view",occurred=now-1m,path="/",visitor="visitor-1",session="session-1",session_started=now-2m}
+    health.accepted,event.event_id -> count(website.AcceptedEvent),health.accepted
+    1,"seen" -> 1,1
+    1,"another" -> 2,2
+  # Expose exact accepted-event counts and identifier coverage for one reproducible local-day range. @{nl="Toon exacte aantallen geaccepteerde gebeurtenissen en identificatiedekking voor één reproduceerbaar bereik van lokale dagen."}
+  scenario summary(site:Site,from:date label="From"@{nl="Van"},until:date label="Until"@{nl="Tot"}) read=true scope=authority -> Summary by=analyst label="Show traffic summary"@{nl="Verkeersoverzicht tonen"}
+   require from<until and from>=add_days(local_date(now,site.timezone),-30) and until<=add_days(local_date(now,site.timezone),1) and site.active and actor in site.viewers
+   do
+    let start=local_instant(from,"00:00",site.timezone,fold=earlier)
+    let end=local_instant(until,"00:00",site.timezone,fold=earlier)
+    require start>=now-30d
+    let selected=site.AcceptedEvent as event where start<=event.occurred and event.occurred<end and event.occurred<=now
+    let health=first(site.Health as health order=health.id)
+    if health==null or health.observed==null or health.observed<now-5m or health.state==unavailable
+     return Summary {state=unavailable,generated=now}
+    let total=count(selected)
+    let identified=count(selected as event where event.visitor!=null)
+    let goals=count(selected as event where event.name in site.goals)
+    let goal_counts=site.goals as goal select GoalCount {name=goal,events=count(selected as event where event.name==goal)}
+    if total==0
+     return Summary {goal_counts,events=0,goals=0,visitors=0,sessions=0,identified=0,live=count(group((site.AcceptedEvent as event where event.visitor!=null and event.occurred>=now-5m and event.occurred<=now) as item,item.visitor)),state=health.state,generated=now}
+    return Summary {goal_counts,events=total,goals,goal_rate=goals/total,visitors=count(group((selected as event where event.visitor!=null) as item,item.visitor)),sessions=count(group((site.AcceptedEvent as event where event.session!=null and event.session_started!=null and start<=event.session_started and event.session_started<end and event.occurred<=now) as item,item.session)),identified,identity_coverage=identified/total,live=count(group((site.AcceptedEvent as event where event.visitor!=null and event.occurred>=now-5m and event.occurred<=now) as item,item.visitor)),state=health.state,generated=now}
+   examples seed=[health] site=website from=local_date(now,website.timezone) until=add_days(local_date(now,website.timezone),1)
+    as,health.state -> result.events,result.visitors,result.state
+    analyst,fresh -> 0,0,fresh
+    analyst,unavailable -> null,null,unavailable
+    members,fresh -> error(forbidden)
+   examples seed=[health] site=website from=local_date(now,website.timezone) until=add_days(local_date(now,website.timezone),1)
+    as,health.observed -> result.events,result.state
+    analyst,now-6m -> null,unavailable
+  scenario tracker_health on=Tracker.health
+   require event.value.site.active and event.value.observed<=now
+   do
+    let health=first(event.value.site.Health as health order=health.id)
+    if health==null
+     create Health {parent=event.value.site,revision=event.value.revision,observed=event.value.observed,rejected=event.value.rejected,dropped=event.value.dropped,state=event.value.state} as created
+    else
+     if event.value.revision>health.revision
+      require (health.observed==null or event.value.observed>=health.observed) and event.value.rejected>=health.rejected and event.value.dropped>=health.dropped
+      set health {revision=event.value.revision,observed=event.value.observed,rejected=event.value.rejected,dropped=event.value.dropped,state=event.value.state}
+     else
+      if event.value.revision==health.revision
+       require event.value.observed==health.observed and event.value.rejected==health.rejected and event.value.dropped==health.dropped and event.value.state==health.state
+  # Request a weighted dimension report without exposing tracker identities. @{nl="Vraag een gewogen dimensierapport op zonder trackeridentiteiten bloot te geven."}
+  scenario breakdown(site:Site,from:date,until:date,dimension:DimensionResult.dimension,goal:text?=null) by=analyst label="Request breakdown"@{nl="Uitsplitsing aanvragen"}
+   require site.active and actor in site.viewers and from<until and from>=add_days(local_date(now,site.timezone),-30) and until<=add_days(local_date(now,site.timezone),1) and (goal==null or goal in site.goals)
+   do
+    for previous in site.Breakdown as report where report.account==actor and report.current limit=1
+     set previous {current=false}
+    let start=local_instant(from,"00:00",site.timezone,fold=earlier)
+    let end=local_instant(until,"00:00",site.timezone,fold=earlier)
+    require start>=now-30d
+    send Dimensions.read {site=site.id,from=start,until=end,dimension,goals=site.goals,goal} as delivery
+    create Breakdown {parent=site,from=start,until=end,dimension,goal,configured_goals=site.goals,delivery=delivery.id} as report
+  scenario dimension_result on=Dimensions.read.completed
+   do
+    let report=first(Breakdown as report where report.delivery==event.delivery_id order=report.id)
+    if report!=null and report.current
+     if event.status==succeeded
+      if event.result!=null and event.result.site==report.parent.id and event.result.from==report.from and event.result.until==report.until and event.result.dimension==report.dimension and event.result.goal==report.goal and event.result.configured_goals==report.configured_goals and event.result.generated<=now and event.result.generated>=report.requested and event.result.goals<=event.result.events and event.result.identified<=event.result.events and all(event.result.rows as row,row.goals<=row.events and row.identified<=row.events) and count(group(event.result.rows as row,row.key))==count(event.result.rows) and sum(event.result.rows as row select row.events)<=event.result.events and sum(event.result.rows as row select row.goals)<=event.result.goals and sum(event.result.rows as row select row.identified)<=event.result.identified and (not event.result.complete or (sum(event.result.rows as row select row.events)==event.result.events and sum(event.result.rows as row select row.goals)==event.result.goals and sum(event.result.rows as row select row.identified)==event.result.identified))
+       if event.result.complete
+        set report {state=fresh,result=event.result,error=null}
+       else
+        set report {state=partial,result=event.result,error=null}
+      else
+       set report {state=failed,error="Invalid dimension report"}
+     else
+      if event.status==unknown
+       set report {state=unknown,error=event.error?.message}
+      else
+       set report {state=failed,error=event.error?.message}
+   examples seed=[report] event={delivery_id="dimension-1",status=succeeded,result=DimensionResult {site=website.id,from=report.from,until=report.until,dimension=path,goal=null,configured_goals=["tour_request"],rows=[{key="/",events=2,goals=1,identified=1}],events=2,goals=1,identified=1,sampled=true,complete=true,generated=now},error=null}
+    event.result.complete,event.result.events,event.result.site,report.current -> report.state,report.result==null
+    true,2,website.id,true -> fresh,false
+    false,3,website.id,true -> partial,false
+    true,3,website.id,true -> failed,true
+    true,2,"foreign",true -> failed,true
+    true,2,website.id,false -> pending,true
+ Then
+  # Inspect configured sites and clearly labeled tracker-observed goals. @{nl="Bekijk ingestelde websites en duidelijk gelabelde doelen die de tracker heeft waargenomen."}
+  page /traffic title="Website traffic"@{nl="Websiteverkeer"} poll=5s
+   require analyst
+   card "Configured site and reporting range"@{nl="Ingestelde website en rapportagebereik"}
+    list Site as site where preferences.site==null or site==preferences.site
+     text row.name,row.domain,row.timezone,row.goals
+     card "Observed traffic and identifier coverage"@{nl="Gemeten verkeer en identificatiedekking"}
+      form summary display=inline
+       text result.state,result.generated
+       metrics result.events,result.goals,result.goal_rate,result.visitors,result.sessions,result.live,result.identity_coverage
+       details "Observed goals"@{nl="Gemeten doelen"}
+        require result.goal_counts!=null
+        table result.goal_counts columns=name,events
+     card "Weighted dimension estimates"@{nl="Gewogen dimensieschattingen"}
+      form breakdown
+      list row.Breakdown as report where report.account==actor and report.current
+       text row.state,row.requested,row.goal,row.configured_goals,row.error
+       details "Report result"@{nl="Rapportresultaat"}
+        require row.result!=null
+        text row.result.from,row.result.until,row.result.sampled,row.result.complete,row.result.generated
+        metrics row.result.events,row.result.goals,row.result.identified
+        table row.result.rows columns=key,events,goals,identified
+     tabs
+      tab health_title
+       table row.Health columns=accepted,rejected,dropped,last_processed,observed,state
+      tab "Accepted event inspection"@{nl="Geaccepteerde gebeurtenissen bekijken"}
+       table row.AcceptedEvent columns=name,occurred,path,location,workspace,source,medium filter=name,location,path order=-occurred

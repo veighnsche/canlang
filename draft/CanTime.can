@@ -1,0 +1,258 @@
+# Help workspace teams record time spent on customer services, facilities work, and location projects. @{nl="Help werkplekteams tijd voor klantdiensten, facilitair werk en locatieprojecten te registreren."}
+app CanTime uses=[time]
+
+# Record observed or manual employee time, freeze period reviews and preserve correction and billing evidence. @{nl="Registreer gemeten of handmatig ingevoerde medewerkerstijd, leg periodebeoordelingen vast en bewaar correctie- en facturatiebewijs."}
+package time label="Time tracking"@{nl="Tijdregistratie"}
+ use employee {Employee,can_work,test_worker}
+ use customer {Customer,test_company}
+ use field {Job}
+ use rent_catalog {Location,test_site}
+ use invoice {BillingV1 as Billing} from=deployment.billing
+ Given
+  preferences { project:Project? label=label_Project, location:Location?, week:date?, billable_filter:bool? label="Initial billable filter"@{nl="Eerste facturatiefilter"} }
+  message label_Project = "Time project"@{nl="Tijdregistratieproject"}
+  message label_Entry_from = "Started at"@{nl="Gestart op"}
+  message label_Entry_until = "Stopped at"@{nl="Gestopt op"}
+  message label_Entry_billable = "Billable"@{nl="Factureerbaar"}
+  role project_manager label="Project manager"@{nl="Projectmanager"}
+  Project { name:text, location:Location, customer:Customer?, rate:money label="Current hourly rate"@{nl="Huidig uurtarief"}, active:bool=true } label=label_Project
+  Entry in Employee { project:Project, service:Job? label="Service visit"@{nl="Servicebezoek"}, description:text, from:datetime label=label_Entry_from, until:datetime? label=label_Entry_until, rate:money label="Frozen rate"@{nl="Vastgelegd tarief"}, billable:bool=true label=label_Entry_billable, origin:enum(timer,manual) label={text="Time origin"@{nl="Herkomst tijdregistratie"},values={timer="Observed timer"@{nl="Gemeten timer"},manual="Manual entry"@{nl="Handmatige registratie"}}}, reason:text?, author:user server=actor, overlap_reason:text? label="Overlap exception"@{nl="Overlapuitzondering"}, overlap_author:user?, state:enum(draft,submitted,approved,exported,superseded)=draft, review:PeriodReview?, correction:Correction?, decision:text?, exported_source:text?, delivery:text? } label="Time entry"@{nl="Tijdregistratie"}
+  PeriodReview in Employee { from:datetime, until:datetime, entries:Entry[]!, state:enum(submitted,approved,rejected,withdrawn)=submitted, submitted_by:user server=actor, decided_by:user?, reason:text? } label="Period review"@{nl="Periodebeoordeling"}
+  Correction in Entry { reason:text, replacement:Entry, author:user server=actor, original_source:text?, amount:money, cancel_delivery:text?, cancel_status:enum(pending,succeeded,failed,unknown)=pending, fenced:bool=false, fence_revision:int=0, absent:bool=false, revision:int=0, collected:money, refunded:money, collection_pending:bool=true, refund_pending:bool=false, refund_delivery:text?, refund_revision:int=0, refund_status:enum(pending,succeeded,failed,unknown)?, reconcile_delivery:text?, reconcile_status:enum(pending,succeeded,failed,unknown)? } label="Time correction"@{nl="Tijdcorrectie"}
+  derive Entry.duration:duration = (row.until ?? now)-row.from
+  derive Entry.amount:money = row.rate*(row.duration/1h)
+  derive Correction.ready:bool = row.fenced and (row.absent or (row.revision>0 and row.revision>=row.fence_revision and not row.collection_pending and not row.refund_pending and row.collected==row.refunded))
+  derive overlaps_work(employee:Employee,from:datetime,until:datetime,skip:Entry?):bool = any(employee.Entry as entry,entry!=skip and entry.state!=superseded and (entry.until==null and entry.from<until or (entry.until!=null and overlaps(from,until,entry.from,entry.until))))
+  policy Project read=members and can_work(actor,row.location)
+  policy Entry read=members where=row.parent.user==actor
+  policy Entry read=project_manager and can_work(actor,row.project.location)
+  policy PeriodReview read=members where=row.parent.user==actor
+  policy PeriodReview read=project_manager and all(row.entries as entry,can_work(actor,entry.project.location))
+  policy Correction read=members where=row.parent.parent.user==actor
+  policy Correction read=project_manager and can_work(actor,row.parent.project.location)
+  invariant Project: row.rate.minor>=0 and (row.customer==null or row.location in row.customer.locations)
+  invariant Entry: row.until==null or row.until>row.from
+  invariant PeriodReview: row.from<row.until and count(row.entries)>0 and all(row.entries as entry,entry.parent==row.parent and entry.until!=null and row.from<=entry.from and entry.until<=row.until)
+  unique Entry fields=parent where=row.until==null
+  unique Correction fields=parent
+  lock Entry fields=project,service,description,from,until,rate,billable,origin,reason,author,overlap_reason,overlap_author when=row.state in [submitted,approved,exported,superseded]
+  lock PeriodReview fields=from,until,entries,submitted_by
+  lock Correction fields=reason,replacement,author,original_source,amount
+  fixture project=Project {name="Repair",location=test_site,customer=test_company,rate=money(30,"EUR")}
+  fixture stopped=Entry {parent=test_worker,project=project,description="Visit",from=datetime("2026-10-01T22:00:00Z"),until=datetime("2026-10-02T02:00:00Z"),rate=money(30,"EUR"),origin=timer}
+  fixture prior=Entry {parent=test_worker,project=project,description="Original source",from=datetime("2026-09-30T10:00:00Z"),until=datetime("2026-09-30T14:00:00Z"),rate=money(30,"EUR"),origin=timer,state=superseded,exported_source="prior-source"}
+  fixture adjustment=Correction {parent=prior,reason="Corrected exported time",replacement=stopped,original_source="prior-source",amount=money(120,"EUR"),fenced=true,fence_revision=2,revision=2,collected=money(120,"EUR"),refunded=money(120,"EUR"),collection_pending=false}
+  fixture review=PeriodReview {parent=test_worker,from=datetime("2026-10-01T00:00:00Z"),until=datetime("2026-10-03T00:00:00Z"),entries=[stopped]}
+ When
+  crud Project by=project_manager fields=name,rate,active create_fields=name,location,customer,rate when=can_work(actor,row.location) delete=none
+  # Return the current timer or begin observed work at server time with the current rate. @{nl="Geef de huidige timer terug of begin gemeten werk op servertijd met het huidige tarief."}
+  scenario start(employee:Employee,project:Project,description:text,billable:bool=true label=label_Entry_billable,service:Job?=null) -> Entry by=members
+   require employee.user==actor and employee.active and project.active and can_work(actor,project.location)
+   require service==null or (service.employee==employee and service.location==project.location and (project.customer==null or service.customer==project.customer))
+   do
+    let running=first(employee.Entry as entry where entry.until==null order=entry.id)
+    if running!=null
+     require running.project==project and running.description==description and running.billable==billable and running.service==service
+     return running
+    require not any(employee.Entry as entry,entry.state!=superseded and entry.until!=null and entry.until>now)
+    create Entry {parent=employee,project,service,description,from=now,rate=project.rate,billable,origin=timer} as entry
+    return entry
+  # Fix a running timer's end once while checking the final interval. @{nl="Leg de eindtijd van een lopende timer eenmaal vast en controleer het definitieve tijdvak."}
+  scenario stop(entry:Entry) by=members
+   require entry.parent.user==actor and entry.state==draft
+   do
+    if entry.until==null
+     require now>entry.from and (not overlaps_work(entry.parent,entry.from,now,entry) or entry.overlap_reason!=null)
+     set entry {until=now}
+   examples entry=stopped
+    as,entry.state -> entry.until,entry.duration,entry.amount
+    members,draft -> datetime("2026-10-02T02:00:00Z"),4h,money(120,"EUR")
+    members,approved -> error(rule_failed)
+    public,draft -> error(forbidden)
+  # Record forgotten work with its author and reason; only a manager can grant a recorded overlap exception. @{nl="Registreer vergeten werk met auteur en reden; alleen een manager mag een vastgelegde overlapuitzondering toestaan."}
+  scenario manual(employee:Employee,project:Project,description:text,from:datetime label=label_Entry_from,until:datetime label=label_Entry_until,billable:bool label=label_Entry_billable,reason:text,service:Job?=null,exception:text?=null) -> Entry by=members or project_manager
+   require (employee.user==actor or project_manager) and employee.active and project.active and can_work(actor,project.location) and from<until and until<=now and trim(reason)!=""
+   require service==null or (service.employee==employee and service.location==project.location and (project.customer==null or service.customer==project.customer))
+   do
+    let overlap=overlaps_work(employee,from,until,null)
+    require not overlap or (project_manager and trim(exception ?? "")!="")
+    create Entry {parent=employee,project,service,description,from,until,rate=project.rate,billable,origin=manual,reason} as entry
+    if overlap
+     set entry {overlap_reason=exception,overlap_author=actor}
+    return entry
+   examples seed=[stopped] employee=test_worker project=project description="Forgotten visit" from=datetime("2026-10-02T03:00:00Z") until=datetime("2026-10-02T04:00:00Z") billable=true reason="Forgot timer"
+    as,from,exception -> result.origin,result.amount,result.overlap_reason
+    members,datetime("2026-10-02T03:00:00Z"),null -> manual,money(30,"EUR"),null
+    members,datetime("2026-10-02T01:00:00Z"),null -> error(rule_failed)
+    project_manager,datetime("2026-10-02T01:00:00Z"),"Approved concurrent work" -> manual,money(90,"EUR"),"Approved concurrent work"
+  # Revise own finished draft work without changing its frozen rate or service identity. @{nl="Wijzig eigen afgerond conceptwerk zonder het vastgelegde tarief of de service-identiteit te wijzigen."}
+  scenario revise(entry:Entry,description:text,from:datetime,until:datetime,billable:bool,reason:text,exception:text?=null) by=members or project_manager
+   require (entry.parent.user==actor or project_manager) and can_work(actor,entry.project.location) and entry.state==draft and entry.until!=null and from<until and until<=now and trim(reason)!=""
+   do
+    let overlap=overlaps_work(entry.parent,from,until,entry)
+    require not overlap or (project_manager and trim(exception ?? "")!="")
+    set entry {description,from,until,billable,origin=manual,reason,overlap_reason=null,overlap_author=null}
+    if overlap
+     set entry {overlap_reason=exception,overlap_author=actor}
+  # Freeze all finished draft entries wholly inside a period as one attributed submission. @{nl="Leg alle afgeronde conceptregistraties binnen een periode vast als één toegeschreven indiening."}
+  scenario submit(employee:Employee,from:datetime,until:datetime) -> PeriodReview by=members
+   require employee.user==actor and employee.active and from<until and until<=now
+   do
+    require not any(employee.Entry as entry,entry.state!=superseded and entry.from<until and (entry.until==null or entry.until>from) and (entry.until==null or entry.from<from or entry.until>until))
+    let entries=employee.Entry as entry where entry.state==draft and entry.until!=null and from<=entry.from and entry.until<=until order=entry.from
+    require count(entries)>0
+    create PeriodReview {parent=employee,from,until,entries} as review
+    for entry in entries limit=500
+     set entry {state=submitted,review=review,decision=null}
+    return review
+   examples employee=test_worker from=datetime("2026-10-01T00:00:00Z") until=datetime("2026-10-03T00:00:00Z") seed=[stopped]
+    stopped.state -> stopped.state,result.state,count(result.entries)
+    draft -> submitted,submitted,1
+    approved -> error(rule_failed)
+  # Decide the frozen period under every entry's current location grant, retaining the reviewer and reason. @{nl="Beoordeel de vastgelegde periode onder de actuele locatierechten van elke registratie en bewaar beoordelaar en reden."}
+  scenario decide(review:PeriodReview,approve:bool,reason:text) by=project_manager
+   require review.state==submitted and trim(reason)!="" and all(review.entries as entry,entry.state==submitted and entry.review==review and can_work(actor,entry.project.location))
+   do
+    if approve
+     set review {state=approved,decided_by=actor,reason}
+    else
+     set review {state=rejected,decided_by=actor,reason}
+    for entry in review.entries limit=500
+     if approve
+      set entry {state=approved,decision=reason}
+     else
+      set entry {state=draft,decision=reason}
+   examples review=review reason="Reviewed period"
+    as,approve,stopped.state,stopped.review -> review.state,stopped.state,review.decided_by
+    project_manager,true,submitted,review -> approved,approved,self
+    project_manager,false,submitted,review -> rejected,draft,self
+    members,true,submitted,review -> error(forbidden)
+  # Withdraw a submitted period with an attributed explanation and restore its editable drafts. @{nl="Trek een ingediende periode in met een toegeschreven toelichting en herstel bewerkbare concepten."}
+  scenario withdraw(review:PeriodReview,reason:text) by=members or project_manager
+   require review.state==submitted and trim(reason)!="" and (review.parent.user==actor or project_manager) and all(review.entries as entry,entry.state==submitted and entry.review==review and can_work(actor,entry.project.location))
+   do
+    set review {state=withdrawn,decided_by=actor,reason}
+    for entry in review.entries limit=500
+     set entry {state=draft,decision=reason}
+  # Preserve approved evidence, retire its active interval and create an attributed replacement for a new review. @{nl="Bewaar goedgekeurd bewijs, beëindig het actieve tijdvak en maak een toegeschreven vervanging voor een nieuwe beoordeling."}
+  scenario correct(entry:Entry,from:datetime,until:datetime,reason:text,exception:text?=null) -> Entry by=project_manager
+   require can_work(actor,entry.project.location) and entry.state in [approved,exported] and (entry.correction==null or entry.correction.ready) and entry.until!=null and from<until and until<=now and trim(reason)!=""
+   do
+    let overlap=overlaps_work(entry.parent,from,until,entry)
+    require not overlap or trim(exception ?? "")!=""
+    create Entry {parent=entry.parent,project=entry.project,service=entry.service,description=entry.description,from,until,rate=entry.rate,billable=entry.billable,origin=manual,reason} as replacement
+    create Correction {parent=entry,reason,replacement,original_source=entry.exported_source,amount=entry.amount,collected=money(0,entry.rate.currency),refunded=money(0,entry.rate.currency)} as correction
+    set entry {state=superseded}
+    set replacement {correction=correction}
+    if overlap
+     set replacement {overlap_reason=exception,overlap_author=actor}
+    if correction.original_source!=null
+     send Billing.cancel {source=correction.original_source,reason} as cancellation
+     set correction {cancel_delivery=cancellation.id}
+    else
+     set correction {fenced=true,absent=true,collection_pending=false}
+    return replacement
+   examples entry=stopped from=datetime("2026-10-01T22:00:00Z") until=datetime("2026-10-02T01:00:00Z") reason="End time corrected"
+    as,entry.state -> entry.state,entry.until,result.amount,result.correction.ready,result.correction.author
+    project_manager,approved -> superseded,datetime("2026-10-02T02:00:00Z"),money(90,"EUR"),true,self
+    members,approved -> error(forbidden)
+    project_manager,draft -> error(rule_failed)
+  # Queue the approved frozen source once after any prior exported source is fenced and financially neutral. @{nl="Zet de goedgekeurde vastgelegde bron eenmaal in de wachtrij nadat een eerdere geëxporteerde bron is afgeschermd en financieel vereffend."}
+  scenario bill(entry:Entry) by=project_manager
+   require can_work(actor,entry.project.location) and entry.state==approved and entry.billable and entry.project.customer!=null and entry.amount.minor>0 and (entry.correction==null or entry.correction.ready)
+   do
+    send Billing.charge {value={source=entry.id,customer=entry.project.customer.id,location=entry.project.location.id,description=entry.description,amount=entry.amount,due=local_date(now,entry.project.location.timezone)}} as delivery
+    set entry {state=exported,exported_source=entry.id,delivery=delivery.id}
+   examples entry=stopped seed=[adjustment]
+    as,entry.state,entry.correction,adjustment.revision,adjustment.collection_pending,adjustment.refunded -> entry.state,entry.exported_source
+    project_manager,approved,adjustment,2,false,money(120,"EUR") -> exported,stopped.id
+    project_manager,approved,adjustment,1,false,money(120,"EUR") -> error(rule_failed)
+    project_manager,approved,adjustment,2,true,money(120,"EUR") -> error(rule_failed)
+    project_manager,approved,adjustment,2,false,money(0,"EUR") -> error(rule_failed)
+  # Retry a definite failed original-source cancellation without releasing the replacement. @{nl="Probeer een definitief mislukte annulering van de oorspronkelijke bron opnieuw zonder de vervanging vrij te geven."}
+  scenario retry_cancel(correction:Correction) by=project_manager
+   require can_work(actor,correction.parent.project.location) and correction.original_source!=null and correction.cancel_status==failed and not correction.fenced
+   do
+    send Billing.cancel {source=correction.original_source,reason=correction.reason} as delivery
+    set correction {cancel_delivery=delivery.id,cancel_status=pending}
+  # Refresh original-source balances without confusing delivery with settlement. @{nl="Ververs saldi van de oorspronkelijke bron zonder verzending met afwikkeling te verwarren."}
+  scenario reconcile(correction:Correction) by=project_manager
+   require can_work(actor,correction.parent.project.location) and correction.original_source!=null
+   do
+    send Billing.reconcile {source=correction.original_source} as delivery
+    set correction {reconcile_delivery=delivery.id,reconcile_status=pending}
+  # Ask the invoice owner to refund remaining original-source funds only after uncertainty has cleared. @{nl="Vraag de factuureigenaar resterende bronbedragen terug te betalen zodra onzekerheid is verdwenen."}
+  scenario refund(correction:Correction,reason:text) by=project_manager
+   require can_work(actor,correction.parent.project.location) and correction.original_source!=null and correction.fenced and correction.revision>0 and not correction.collection_pending and not correction.refund_pending and correction.collected>correction.refunded and (correction.refund_status==null or correction.refund_status==failed or (correction.refund_status==succeeded and correction.revision>correction.refund_revision)) and trim(reason)!=""
+   do
+    send Billing.refund {source=correction.original_source,amount=correction.collected-correction.refunded,reason} as delivery
+    set correction {refund_delivery=delivery.id,refund_revision=correction.revision,refund_status=pending}
+  scenario cancelled on=Billing.cancel.completed
+   do
+    for correction in Correction as row where row.cancel_delivery==event.delivery_id limit=1
+     set correction {cancel_status=event.status}
+     if event.status==succeeded and event.result!=null and event.result.source==correction.original_source and event.result.state in [released,pending,unavailable]
+      set correction {fenced=true,fence_revision=event.result.revision}
+      if event.result.state==released and event.result.reference==null
+       set correction {absent=true,collection_pending=false}
+  scenario refunded on=Billing.refund.completed
+   do
+    for correction in Correction as row where row.refund_delivery==event.delivery_id limit=1
+     set correction {refund_status=event.status}
+     if event.status==succeeded and event.result!=null and event.result.source==correction.original_source and event.result.state==unavailable
+      set correction {refund_status=failed}
+  scenario reconciled on=Billing.reconcile.completed
+   do
+    for correction in Correction as row where row.reconcile_delivery==event.delivery_id limit=1
+     set correction {reconcile_status=event.status}
+     if event.status==succeeded and event.result!=null and event.result.source==correction.original_source and event.result.amount==correction.amount and event.result.revision>correction.revision
+      set correction {absent=false,revision=event.result.revision,collected=event.result.collected,refunded=event.result.refunded,collection_pending=event.result.collection_pending,refund_pending=event.result.refund_pending}
+  scenario settled on=Billing.settled
+   do
+    for correction in Correction as row where row.original_source==event.value.source limit=1
+     require event.value.amount==correction.amount
+     if event.value.revision>correction.revision
+      set correction {absent=false,revision=event.value.revision,collected=event.value.collected,refunded=event.value.refunded,collection_pending=event.value.collection_pending,refund_pending=event.value.refund_pending}
+ Then
+  # Start, stop and submit your own time with separate observed and entered evidence. @{nl="Start, stop en dien je eigen tijd in met afzonderlijk gemeten en ingevoerd bewijs."}
+  page /time/mine title="My time"@{nl="Mijn tijd"}
+   require members
+   card "Timer and manual time intake"@{nl="Timer- en handmatige tijdinvoer"} layout=columns
+    form start display=inline
+    form manual
+    form submit
+   list Entry as entry where entry.parent.user==actor and entry.until==null
+    text row.project,row.from,row.duration
+    action stop
+   table Entry as entry where entry.parent.user==actor and (preferences.location==null or entry.project.location==preferences.location) and (preferences.week==null or (local_date(entry.from,team.timezone)>=preferences.week and local_date(entry.from,team.timezone)<add_days(preferences.week,7))) columns=project,service,description,from,until,origin,duration,rate,amount,state filter=project,project.location,from,until,billable,state defaults={project=preferences.project,billable=preferences.billable_filter} order=-from display=split
+    actions stop,revise
+    details "Observed, entered and review evidence"@{nl="Gemeten, ingevoerd en beoordelingsbewijs"}
+     text row.author,row.billable,row.reason,row.overlap_reason,row.overlap_author,row.decision,row.review
+    history
+   list group((Entry as entry where entry.parent.user==actor and entry.until!=null and entry.state!=superseded and (preferences.project==null or entry.project==preferences.project) and (preferences.location==null or entry.project.location==preferences.location) and (preferences.billable_filter==null or entry.billable==preferences.billable_filter) and (preferences.week==null or (local_date(entry.from,team.timezone)>=preferences.week and local_date(entry.from,team.timezone)<add_days(preferences.week,7)))) as entry,entry.rate.currency)
+    metrics row.key,sum(row.items as entry select entry.duration),sum(row.items as entry select entry.amount,row.key)
+   table PeriodReview as review where review.parent.user==actor columns=from,until,state,reason
+    action withdraw
+    history
+  # Review fixed periods and preserve correction financial uncertainty until the invoice owner resolves it. @{nl="Beoordeel vastgelegde periodes en bewaar financiële correctieonzekerheid totdat de factuureigenaar deze oplost."}
+  page /time/review title="Time review"@{nl="Tijdbeoordeling"}
+   require project_manager
+   card "Project rates"@{nl="Projecttarieven"}
+    form Project.create
+    table Project columns=name,location,customer,rate,active
+     edit
+   table PeriodReview columns=parent,from,until,state,decided_by,reason filter=parent,from,until,state order=-from display=split
+    actions decide,withdraw
+    table row.entries columns=project,from,until,rate,amount,overlap_reason,overlap_author,state
+    history
+   table Entry as entry where preferences.location==null or entry.project.location==preferences.location columns=parent,project,from,until,rate,amount,state filter=parent,project,project.location,from,until,state,billable defaults={project=preferences.project,billable=preferences.billable_filter} order=-from display=split
+    actions correct,bill
+    details "Correction and billing evidence"@{nl="Correctie- en facturatiebewijs"}
+     text row.service,row.origin,row.billable,row.reason,row.decision,row.exported_source,row.delivery
+     table row.Correction columns=reason,replacement,author,original_source,cancel_status,collected,refunded,collection_pending,refund_pending,refund_status,reconcile_status,ready
+      actions retry_cancel,reconcile,refund
+    history
+   list group((Entry as entry where entry.state==approved and entry.billable and (preferences.project==null or entry.project==preferences.project) and (preferences.location==null or entry.project.location==preferences.location)) as entry,entry.rate.currency)
+    metrics row.key,sum(row.items as entry select entry.amount,row.key)
+    table row.items columns=parent,project,duration,rate,amount,state
+     action bill

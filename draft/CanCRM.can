@@ -1,0 +1,211 @@
+# Help workspace sales teams turn inquiries into tours, quotes, and office or coworking sales. @{nl="Help werkplekverkoopteams aanvragen omzetten in rondleidingen, offertes en kantoor- of coworkingverkopen."}
+app CanCRM uses=[crm,customer,appointments,propose]
+
+# Manage scoped sales opportunities against the canonical customer directory. @{nl="Beheer toegestane verkoopkansen met de canonieke klantendirectory."}
+package crm label="Sales"@{nl="Verkoop"}
+ use customer {Customer,Contact,duplicate_customers,duplicate_contacts,Alias,CompanyRole,Invitation,alias as customer_alias,invite as invite_company,recover as recover_company,claim as claim_contact,accept as accept_invitation,remove as remove_company_role,test_company,test_contact}
+ use appointments {Calendar,Window,Type,Appointment,book as book_tour,cancel as cancel_tour,attendance as tour_attendance,booked}
+ use propose {Proposal,Revision,Item,revise as revise_quote,send_offer,document as quote_document,request_booking,current_offer}
+ use employee {Employee,can_work,test_worker}
+ use rent_catalog {Location,test_site}
+ use rent_reservations {Booking}
+ use member_terms {Membership,Term}
+ use member_plans {Plan}
+ Given
+  role salesperson label="Salesperson"@{nl="Verkoper"}
+  contract Pipeline { count:int, total:money } label="Pipeline summary"@{nl="Samenvatting verkoopkansen"}
+  Deal { customer:Customer, contact:Contact, title:text trim min=1, location:Location, owner:user server=actor label="Responsible person"@{nl="Verantwoordelijke"}, value:money label="Value"@{nl="Waarde"}, stage:enum(lead,qualified,proposal,won,lost)=lead label={text=label_Deal_stage,values={lead="Lead"@{nl="Lead"},qualified="Qualified"@{nl="Gekwalificeerd"},proposal="Proposal"@{nl="Offertefase"},won="Won"@{nl="Gewonnen"},lost="Lost"@{nl="Verloren"}}}, seats:int=1 min=1 label="Seats"@{nl="Plaatsen"}, desired_start:date? label="Desired start date"@{nl="Gewenste startdatum"}, duration:text? label="Desired duration"@{nl="Gewenste duur"}, workspace:text? label="Workspace needs"@{nl="Werkplekbehoefte"}, source:text? label="Source reference"@{nl="Bronreferentie"}, next_action:datetime? label="Next action time"@{nl="Tijd volgende actie"}, notes:text?, lost_reason:text? label="Loss reason"@{nl="Reden verloren kans"}, outcome_reference:text? label=label_Deal_outcome_reference } label="Sales opportunity"@{nl="Verkoopkans"}
+  Activity in Deal { kind:enum(call,email,note,tour,quote,sale) label={text="Kind"@{nl="Soort"},values={call="Call"@{nl="Telefoongesprek"},email="Email"@{nl="E-mail"},note="Note"@{nl="Notitie"},tour="Tour"@{nl="Rondleiding"},quote="Quote"@{nl="Offerte"},sale="Confirmed sale"@{nl="Bevestigde verkoop"}}}, body:text trim min=1, link:url? label="Reviewed source link"@{nl="Beoordeelde bronlink"}, appointment:Appointment? label="Tour appointment"@{nl="Rondleidingafspraak"}, revision:Revision? label="Quote revision"@{nl="Offerteversie"}, author:user server=actor label="Author"@{nl="Auteur"}, occurred:datetime server=now } label="Sales activity"@{nl="Verkoopactiviteit"}
+  Sale { deal:Deal, booking:Booking? unique, term:Term? unique, recorded_by:user server=actor label="Recorded by"@{nl="Vastgelegd door"}, recorded_at:datetime server=now label="Recorded at"@{nl="Vastgelegd op"} } label="Confirmed sale evidence"@{nl="Bewijs bevestigde verkoop"}
+  policy Sale read=salesperson and can_work(actor,row.deal.location)
+  invariant Sale: (row.booking!=null and row.term==null) or (row.booking==null and row.term!=null)
+  lock Sale fields=deal,booking,term,recorded_by,recorded_at
+  policy Deal read=salesperson and can_work(actor,row.location)
+  policy Activity read=salesperson and can_work(actor,row.parent.location)
+  invariant Deal: row.contact.parent==row.customer and row.value.minor>=0 and row.value.currency==row.location.currency
+  invariant Activity: (row.appointment==null or (row.kind==tour and row.revision==null and row.appointment.customer==row.parent.customer and row.appointment.contact==row.parent.contact and row.appointment.parent.parent.location==row.parent.location)) and (row.revision==null or (row.kind==quote and row.appointment==null and row.revision.parent.parent==row.parent.customer and row.revision.parent.recipient==row.parent.contact and row.revision.parent.location==row.parent.location))
+  lock Activity fields=kind,body,link,appointment,revision,author,occurred
+  fixture colleague=Employee {user=other,home=test_worker.home,locations=test_worker.locations,start=test_worker.start,role=test_worker.role}
+  fixture prospect=Deal {customer=test_company,contact=test_contact,title="Office",location=test_site,owner=self,value=money(500,"EUR")}
+  fixture sale_plan=Plan {name="Coworking",price=money(500,"EUR"),locations=[test_site],products=["coworking"],access_hours="Business hours",seats=6}
+  fixture sale_membership=Membership {parent=test_company,account=self,plan=sale_plan,anchor=date("2026-10-01"),timezone="UTC"}
+  fixture paid_term=Term {parent=sale_membership,source="crm-win-term",from=datetime("2026-10-01T00:00:00Z"),until=datetime("2026-11-01T00:00:00Z"),price=money(500,"EUR"),locations=[test_site],products=["coworking"],access_hours="Business hours",mail=false,seats=6,paid=true,cycle=1}
+  fixture prior_sale=Sale {deal=prospect,term=paid_term}
+  fixture linked_tour=Activity {parent=prospect,kind=tour,body="Scheduled tour",appointment=booked}
+  fixture linked_quote=Activity {parent=prospect,kind=quote,body="Issued quote",revision=current_offer}
+  fixture reviewed_link=Activity {parent=prospect,kind=tour,body="Reviewed tour",link="https://example.test/tours/1"}
+  preferences { location:Location?, stage:Deal.stage?, followup:enum(overdue,upcoming)=overdue label={text="Next-action view"@{nl="Weergave vervolgacties"},values={overdue="Overdue next actions"@{nl="Achterstallige vervolgacties"},upcoming="Upcoming next actions"@{nl="Komende vervolgacties"}}} }
+  invariant preferences: row.location==null or can_work(actor,row.location)
+  message label_Deal_stage = "Sales stage"@{nl="Verkoopfase"}
+  message label_Deal_outcome_reference = "Confirmed outcome reference"@{nl="Referentie bevestigde uitkomst"}
+ When
+  crud Deal by=salesperson fields=title,owner,value,seats,desired_start,duration,workspace,source,next_action,notes when=can_work(actor,row.location) and can_work(row.owner,row.location) and salesperson(row.owner) and row.customer.active and row.stage in [lead,qualified,proposal] create_fields=customer,contact,title,location,value,seats,desired_start,duration,workspace,source,next_action,notes delete=none
+   examples update seed=[test_worker,colleague] record=prospect
+    as,changes.owner -> record.owner
+    salesperson,self -> self
+    salesperson,other -> error(rule_failed)
+  crud Activity by=salesperson fields=kind,body update=none delete=none when=can_work(actor,row.parent.location) and row.kind in [call,email,note]
+  # Advance a live deal without claiming inventory or payment. @{nl="Zet een actieve verkoopkans vooruit zonder voorraad of betaling te claimen."}
+  scenario advance(deal:Deal,stage:Deal.stage label=label_Deal_stage) by=salesperson label="Advance stage"@{nl="Fase vooruitzetten"}
+   require can_work(actor,deal.location) and ((deal.stage==lead and stage==qualified) or (deal.stage==qualified and stage==proposal))
+   do set deal {stage}
+  # Retain a reviewed tour or quote link without scheduling or issuing it. @{nl="Bewaar een beoordeelde rondleiding- of offertelink zonder deze te plannen of uit te geven."}
+  scenario record_link(deal:Deal,kind:Activity.kind,link:url label="Reviewed source link"@{nl="Beoordeelde bronlink"},body:text) by=salesperson label="Record reviewed link"@{nl="Beoordeelde link vastleggen"}
+   require can_work(actor,deal.location) and kind in [tour,quote] and trim(body)!=""
+   require not any(deal.Activity as activity,activity.kind==kind and activity.link==link)
+   do create Activity {parent=deal,kind,body,link} as activity
+   examples seed=[test_worker] deal=prospect link="https://example.test/tours/1" body="Reviewed tour"
+    as,kind -> count(deal.Activity)
+    salesperson,tour -> 1
+    salesperson,note -> error(rule_failed)
+    members,tour -> error(forbidden)
+   examples seed=[test_worker,reviewed_link] deal=prospect kind=tour link="https://example.test/tours/1" body="Reviewed tour"
+    as -> count(deal.Activity)
+    salesperson -> error(rule_failed)
+  # Link an actual appointment without treating pending coordination as confirmation. @{nl="Koppel een echte afspraak zonder wachtende afstemming als bevestiging te behandelen."}
+  scenario record_tour(deal:Deal,appointment:Appointment,body:text) by=salesperson label="Record tour appointment"@{nl="Rondleidingafspraak vastleggen"}
+   require can_work(actor,deal.location) and appointment.customer==deal.customer and appointment.contact==deal.contact and appointment.parent.parent.location==deal.location and trim(body)!=""
+   require not any(deal.Activity as activity,activity.appointment==appointment)
+   do create Activity {parent=deal,kind=tour,body,appointment} as activity
+   examples seed=[test_worker] deal=prospect appointment=booked body="Scheduled tour"
+    as,appointment.state -> count(deal.Activity)
+    salesperson,pending -> 1
+    salesperson,confirmed -> 1
+    members,confirmed -> error(forbidden)
+   examples seed=[test_worker,linked_tour] deal=prospect appointment=booked body="Scheduled tour"
+    as -> count(deal.Activity)
+    salesperson -> error(rule_failed)
+  # Record the exact issued revision; draft prices are not issued offer evidence. @{nl="Leg de exact uitgegeven versie vast; conceptprijzen zijn geen bewijs van een uitgegeven offerte."}
+  scenario record_quote(deal:Deal,revision:Revision,body:text) by=salesperson label="Record issued quote"@{nl="Uitgegeven offerte vastleggen"}
+   require can_work(actor,deal.location) and revision.parent.parent==deal.customer and revision.parent.recipient==deal.contact and revision.parent.location==deal.location and revision.state in [sent,accepted,declined] and trim(body)!=""
+   require not any(deal.Activity as activity,activity.revision==revision)
+   do create Activity {parent=deal,kind=quote,body,revision} as activity
+   examples seed=[test_worker] deal=prospect revision=current_offer body="Issued quote"
+    as,revision.state -> count(deal.Activity)
+    salesperson,sent -> 1
+    salesperson,draft -> error(rule_failed)
+    members,sent -> error(forbidden)
+   examples seed=[test_worker,linked_quote] deal=prospect revision=current_offer body="Issued quote"
+    as -> count(deal.Activity)
+    salesperson -> error(rule_failed)
+  # Record a won outcome linked to actual source evidence. @{nl="Leg een gewonnen uitkomst vast die naar werkelijk bronbewijs verwijst."}
+  scenario win(deal:Deal,booking:Booking?,term:Term?) by=salesperson label="Record won opportunity"@{nl="Gewonnen kans vastleggen"}
+   require can_work(actor,deal.location) and deal.stage in [lead,qualified,proposal]
+   require (booking!=null and term==null) or (booking==null and term!=null)
+   do
+    if booking!=null
+     require booking.customer==deal.customer and booking.parent.location==deal.location and booking.status in [confirmed,occupied,completed]
+     require not any(Sale as sale,sale.booking==booking)
+     create Sale {deal,booking} as evidence
+     create Activity {parent=deal,kind=sale,body=booking.id} as activity
+     set deal {stage=won,outcome_reference=booking.id,next_action=null}
+    else
+     require term!=null and term.parent.parent==deal.customer and deal.location in term.locations and term.paid
+     require not any(Sale as sale,sale.term==term)
+     create Sale {deal,term} as evidence
+     create Activity {parent=deal,kind=sale,body=term.id} as activity
+     set deal {stage=won,outcome_reference=term.id,next_action=null}
+   examples seed=[test_worker] deal=prospect
+    as -> deal.stage
+    salesperson -> error(rule_failed)
+    members -> error(forbidden)
+   examples seed=[test_worker] deal=prospect term=paid_term
+    as,term.paid,term.locations -> deal.stage,count(Sale as sale where sale.deal==deal),count(deal.Activity),deal.outcome_reference==paid_term.id
+    salesperson,true,[test_site] -> won,1,1,true
+    salesperson,false,[test_site] -> error(rule_failed)
+    salesperson,true,[] -> error(rule_failed)
+    members,true,[test_site] -> error(forbidden)
+   examples seed=[test_worker,prior_sale] deal=prospect term=paid_term
+    as -> deal.stage
+    salesperson -> error(rule_failed)
+  # Record why a live opportunity was lost. @{nl="Leg vast waarom een actieve verkoopkans verloren ging."}
+  scenario lose(deal:Deal,reason:text) by=salesperson label="Record lost opportunity"@{nl="Verloren kans vastleggen"}
+   require can_work(actor,deal.location) and deal.stage in [lead,qualified,proposal] and trim(reason)!=""
+   do set deal {stage=lost,lost_reason=reason,next_action=null}
+   examples seed=[test_worker] deal=prospect
+    as,reason -> deal.stage,deal.lost_reason
+    salesperson,"No longer needed" -> lost,"No longer needed"
+    salesperson,"" -> error(rule_failed)
+    members,"No longer needed" -> error(forbidden)
+  # Reopen with an attributed activity preserving prior outcome evidence. @{nl="Heropen met een toegeschreven activiteit die eerder uitkomstbewijs behoudt."}
+  scenario reopen(deal:Deal,reason:text) by=salesperson
+   require can_work(actor,deal.location) and deal.stage in [won,lost] and trim(reason)!=""
+   do
+    create Activity {parent=deal,kind=note,body=reason} as activity
+    set deal {stage=lead}
+  # Summarize only readable open opportunities in one selected currency. @{nl="Vat uitsluitend leesbare open verkoopkansen samen in één gekozen valuta."}
+  scenario pipeline(currency:currency) read=true -> Pipeline by=salesperson label="Read pipeline"@{nl="Verkoopkansen lezen"}
+   do return Pipeline {count=count(Deal as deal where deal.stage in [lead,qualified,proposal] and deal.value.currency==currency),total=sum(Deal as deal where deal.stage in [lead,qualified,proposal] and deal.value.currency==currency select deal.value,currency)}
+ Then
+  # Review prospects, location needs and dated follow-up. @{nl="Bekijk prospects, locatiebehoeften en gedateerde vervolgacties."}
+  page /sales title="Sales pipeline"@{nl="Verkoopkansen"}
+   require salesperson
+   card "Customer opportunity intake"@{nl="Klantverkoopkans aanmaken"}
+    form Customer.create import=csv review=duplicate_customers
+    list Customer as customer where customer.active columns=name,kind search=name
+     edit
+     delete
+     form Contact.create arguments={parent=customer} import=csv review=duplicate_contacts
+     details "Likely company duplicates"@{nl="Mogelijke dubbele bedrijven"}
+      list Customer archived=include as candidate where candidate.kind==customer.kind and lower(candidate.name)==lower(customer.name) and candidate!=customer columns=name,kind
+       form customer_alias arguments={source=candidate,target=customer}
+     form invite_company arguments={org=customer}
+     form recover_company arguments={org=customer}
+     list customer.CompanyRole columns=account,role,locations,active
+      action remove_company_role
+     list customer.Invitation columns=email,role,locations,status,expires
+      action accept_invitation
+     list Alias as mapping where mapping.from_customer==customer or mapping.to_customer==customer columns=from_customer,to_customer,reason,approved_by
+     list customer.Contact as contact columns=name,email
+      edit
+      delete
+      form Deal.create arguments={customer,contact}
+      action claim_contact
+      details "Likely contact duplicates"@{nl="Mogelijke dubbele contactpersonen"}
+       list Contact archived=include as candidate where candidate.email==contact.email and candidate!=contact columns=name,email
+   board Deal as deal by=stage columns=title,customer,contact,value,seats,next_action filter=location,owner,stage defaults={location=preferences.location,stage=preferences.stage} search=title
+    text row.value,row.seats,row.next_action,row.outcome_reference
+    details "Deal needs and actions"@{nl="Behoeften en acties verkoopkans"} display=drawer
+     text row.desired_start,row.duration,row.workspace,row.notes,row.lost_reason
+     edit
+     actions advance,win,lose,reopen,record_link
+     form Activity.create
+     details "Schedule a tour"@{nl="Rondleiding plannen"}
+      list Calendar as calendar where calendar.active and calendar.location==deal.location columns=location,timezone,hours,instructions,cutoff
+       table calendar.Window columns=from,until,available order=from
+       list calendar.Type as type columns=name,duration,room
+        form book_tour arguments={type,customer=deal.customer,contact=deal.contact}
+      list Appointment as appointment where appointment.customer==deal.customer and appointment.contact==deal.contact and appointment.parent.parent.location==deal.location columns=from,until,state,reason,host_ok,room_ok order=from
+       actions cancel_tour,tour_attendance
+       form record_tour arguments={deal,appointment}
+     details "Prepare and issue a quote"@{nl="Offerte voorbereiden en uitgeven"}
+      form Proposal.create arguments={parent=deal.customer,recipient=deal.contact,location=deal.location,currency=deal.value.currency}
+      list Proposal as proposal where proposal.parent==deal.customer and proposal.recipient==deal.contact and proposal.location==deal.location columns=title,current,currency
+       edit
+       form revise_quote arguments={proposal,seats=deal.seats}
+       list proposal.Revision as revision order=-number columns=number,state,total,expires,handoff,booking
+        text revision.from,revision.until,revision.seats,revision.terms,revision.pdf
+        form Item.create arguments={parent=revision}
+        list revision.Item columns=title,quantity,unit,price,tax,discount
+         edit
+         delete
+        actions send_offer,quote_document,request_booking
+        form record_quote arguments={deal,revision}
+     list row.Activity order=-occurred
+      text row.kind,row.body,row.link,row.appointment,row.revision,row.author,row.occurred
+     list Sale as sale where sale.deal==deal columns=booking,term,recorded_by,recorded_at
+     history
+   card "Selected currency pipeline"@{nl="Verkoopkansen in gekozen valuta"}
+    form pipeline display=inline
+     metrics result.count,result.total
+   card "Customer timeline"@{nl="Klanttijdlijn"}
+    list Customer archived=include as customer columns=name,kind,active,archived_at search=name
+     list Deal as deal where deal.customer==customer columns=title,contact,stage,next_action order=-updated
+      list deal.Activity order=-occurred
+       text row.kind,row.body,row.link,row.appointment,row.revision,row.author,row.occurred
+      history
+   card "Next actions"@{nl="Vervolgacties"}
+    tabs preferences.followup
+    table Deal as deal where deal.stage in [lead,qualified,proposal] and deal.next_action!=null and ((preferences.followup==overdue and deal.next_action<now) or (preferences.followup==upcoming and deal.next_action>=now)) columns=title,customer,contact,next_action,owner order=next_action filter=location,owner defaults={location=preferences.location} search=title
+  ## CSV export follows the shared authorized collection/read-result contract; no app formatter is authored.
+  ## Imported forms keep appointments, propose and customer permissions; a CRM salesperson role alone grants no host, proposal or customer-manager authority.
