@@ -6,7 +6,8 @@
     "moduleResolution": "NodeNext",
     "noEmit": true,
     "skipLibCheck": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["test/**/*.ts", "../../contracts/src/services.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "../../contracts/src/services.ts"]
 }
