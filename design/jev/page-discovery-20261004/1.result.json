@@ -1,0 +1,36 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": "Can is a draft language with no implemented compiler/runtime to preserve. The sole authored navigation input is its page declaration. Existing DESIGN says pages inherit authentication/team requirements from rendered data, page require narrows admission, nested require hides its container, and row/field/operation policies remain authoritative. Navigation uses accessible static pages; record/token routes are excluded. Titles and group captions are localized static text/messages, declaration order is default, order/group/nav=none are existing exceptions, and compositions deduplicate pages. Existing desired CRM and Expense JS has pages:[{path,render}], while the page function contains title and role guard; this does not yet specify shell discovery. Verified source CRM /sales requires salesperson; Expense /expenses/mine requires members and /expenses/review requires reviewer or finance. Current inspected static page guards use auth/role facts; dynamic detail guards can inspect row. The source language also permits general pure page require predicates and a page data= pure-read binding, so a future static page guard could depend on stored data/result. No navigation implementation or timing measurement exists. Required outcomes: current page admission, safe static labels, no duplicate authored access/navigation schema, no rendering unrelated pages, no unrelated body queries or mutations, empty authorized collections stay navigable, identical guards on direct requests and links, and coherent behavior on query failure/revocation. Distinguish page entry from successful data loading or availability of every contained action. The proposed derived descriptor contains owning identity, route, static message title/optional group and order/nav placement, plus a shared admission function and render function; no new Can source form is necessary.",
+    "questions": {
+      "discovery": {
+        "type": "choice",
+        "instructions": "Which admission strategy best satisfies those outcomes without hiding necessary work?",
+        "criteria": {
+          "derived_admission": "Generate a single admission program from inherited context requirements and explicit page-level guards; both shell discovery and the actual route use it. Evaluate only dependencies needed by those guards, including bounded pure data reads when the guard truly depends on them. Never render the body, load an unrelated data= result, inspect list nonemptiness, or invoke actions. Return guard-needed bindings privately for reuse by actual rendering at the same checkpoint. Denial hides the link; a genuine read/budget failure reports discovery unavailable rather than granting access. Metadata is static and no guard data is serialized. This provides exact current entry eligibility, but some page permission decisions necessarily perform relevant reads.",
+          "context_only_hidden": "Keep navigation admission entirely context-only: infer auth/team needs and evaluate guards proven independent of business reads. Require a static page with a data-dependent page guard to use the existing nav=none exception, while direct navigation still evaluates its full source guard. This guarantees discovery never reads business data and retains one authored gate, but omits otherwise legitimate data-gated destinations from the shell or makes authors restructure their page gate.",
+          "candidate_links": "Generate context-only candidate links for all static pages, treating data-dependent guard parts as unknown rather than evaluating them; enforce the complete source guard on direct GET. The shell avoids all business queries and keeps destinations discoverable, but some displayed links deny when opened, so navigation means possible admission rather than currently accessible pages."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "discovery": {
+        "type": "choice",
+        "choice": "derived_admission",
+        "confidence": 0.98,
+        "probabilities": {
+          "derived_admission": 0.99,
+          "context_only_hidden": 0.0,
+          "candidate_links": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 935,
+      "output_tokens": 49
+    }
+  }
+}
