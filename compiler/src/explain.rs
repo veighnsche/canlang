@@ -96,7 +96,7 @@ pub fn entry_to_text(info: &CodeInfo) -> String {
     out
 }
 
-const CATALOG: [CodeInfo; 83] = [
+const CATALOG: [CodeInfo; 84] = [
     CodeInfo {
         code: "E1001",
         title: "bare-carriage-return",
@@ -720,6 +720,14 @@ const CATALOG: [CodeInfo; 83] = [
         explanation: "`can fmt` needs the lossless CST formatter (slice 2b). Until then it reports this error and never a false clean. Exit status is 2.",
         example_valid: "can check main.can",
         example_invalid: "can fmt --check main.can   # until slice 2b",
+    },
+    CodeInfo {
+        code: "E7006",
+        title: "unwritable-output",
+        severity: Severity::Error,
+        explanation: "`can fmt` formatted the input but could not write the file back (missing, read-only or unwritable path). Earlier files in the same invocation may already be rewritten. Exit status is 2. Check the path and permissions.",
+        example_valid: "can fmt main.can",
+        example_invalid: "can fmt readonly-dir/main.can",
     },
     CodeInfo {
         code: "I1001",

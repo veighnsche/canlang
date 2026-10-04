@@ -198,17 +198,63 @@ fn cli_explain_json_shape_and_unknown_code() {
 }
 
 #[test]
-fn cli_fmt_never_reports_false_clean() {
-    let file = TempFile::new("fmt.can", "app F\nGiven\nWhen\nThen\n");
+fn cli_fmt_check_clean_and_drift() {
+    let clean = TempFile::new("fmt-clean.can", "app F\nGiven\nWhen\nThen\n");
+    let result = dispatch(&argv(&["fmt", "--check", &clean.arg()]));
+    assert_eq!(result.code, exit::OK);
+    assert!(result.stdout.is_empty());
+    assert!(result.stderr.is_empty());
+
+    let drifted = "app F   \nGiven\nWhen\nThen";
+    let drift = TempFile::new("fmt-drift.can", drifted);
+    let result = dispatch(&argv(&["fmt", "--check", &drift.arg()]));
+    assert_eq!(result.code, exit::DIAGNOSTICS);
+    assert_eq!(result.stdout.trim(), drift.arg());
+    assert!(result.stderr.is_empty());
+    // --check writes nothing.
+    assert_eq!(std::fs::read_to_string(&drift.path).unwrap(), drifted);
+}
+
+#[test]
+fn cli_fmt_rewrites_files_in_place() {
+    let file = TempFile::new("fmt-write.can", "app F   \nGiven\nWhen\nThen");
+    let result = dispatch(&argv(&["fmt", &file.arg()]));
+    assert_eq!(result.code, exit::OK, "{}", result.stderr);
+    assert_eq!(
+        std::fs::read_to_string(&file.path).unwrap(),
+        "app F\nGiven\nWhen\nThen\n"
+    );
+    // Second run is a no-op success.
+    let result = dispatch(&argv(&["fmt", "--check", &file.arg()]));
+    assert_eq!(result.code, exit::OK);
+    assert!(result.stdout.is_empty());
+}
+
+#[test]
+fn cli_fmt_parse_failure_reports_envelope_and_writes_nothing() {
+    let before = "app F\nGiven\n\tTodo {x:int}\nWhen\nThen\n";
+    let file = TempFile::new("fmt-bad.can", before);
     for args in [
         argv(&["fmt", "--check", &file.arg()]),
         argv(&["fmt", &file.arg()]),
     ] {
         let result = dispatch(&args);
-        assert_eq!(result.code, exit::TOOL_FAILURE, "fmt must fail: {args:?}");
-        assert_ne!(result.code, exit::OK);
-        assert!(result.stderr.contains("E7005"));
+        assert_eq!(result.code, exit::DIAGNOSTICS, "{args:?}");
+        assert!(result.stdout.contains("\"E1003\""), "{}", result.stdout);
+        assert!(result.stdout.contains("\"diagnostics\""), "{}", result.stdout);
+        assert!(result.stderr.is_empty());
     }
+    assert_eq!(std::fs::read_to_string(&file.path).unwrap(), before);
+}
+
+#[test]
+fn cli_fmt_missing_file_is_tool_failure() {
+    let file = TempFile::new("fmt-gone.can", "app F\nGiven\nWhen\nThen\n");
+    std::fs::remove_file(&file.path).unwrap();
+    let result = dispatch(&argv(&["fmt", &file.arg()]));
+    assert_eq!(result.code, exit::TOOL_FAILURE);
+    assert!(result.stdout.is_empty());
+    assert!(result.stderr.contains("E7002"), "{}", result.stderr);
 }
 
 #[test]

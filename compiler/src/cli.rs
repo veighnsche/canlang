@@ -186,9 +186,11 @@ fn write_ignoring_broken_pipe(mut sink: impl std::io::Write, bytes: &[u8], name:
     }
 }
 
-/// Dispatch without touching real stdio (see module docs for the two
-/// documented side effects: none here for `lsp`, child spawn for thin
-/// lane-7 entries). Analysis runs the production [`CatalogAnalyzer`].
+/// Dispatch without touching real stdout/stderr (file reads happen here,
+/// as does the `fmt` stdin read when no operands or `-` request it; the
+/// module docs cover the remaining side effects: none here for `lsp`,
+/// child spawn for thin lane-7 entries). Analysis runs the production
+/// [`CatalogAnalyzer`].
 pub fn dispatch(argv: &[String]) -> DispatchResult {
     // Pre-parse for the `--catalog` flag only (`parse_args` is pure, and
     // `dispatch_with` parses again authoritatively; on a parse error the
@@ -447,7 +449,7 @@ Commands:
   compile   Check sources (artifact emission lands in slice 4)
   check     Analyze sources and report diagnostics
   lint      Run lint rules over sources (rules land in slice 2b)
-  fmt       Check formatting (unimplemented: reports E7005, never false clean)
+  fmt       Format sources in place (or check with --check)
   explain   Print a diagnostic catalog entry: can explain E1001
   lsp       Run the language server over stdio (Content-Length JSON-RPC)
   run       Thin lane-7 entry: exec can-platform run (passthrough)
@@ -474,7 +476,7 @@ fn command_help(cmd: &str) -> String {
             "can {cmd} — analyze sources and report diagnostics (parse + resolve + types over the producer catalog; result is complete=false until PR5 effects/examples land)\n\nUsage: can {cmd} [--format=json|text] [--catalog=PATH] FILE.can...\n\nCatalog order: --catalog PATH, CAN_CATALOG, ./can-catalog.json, ./packages/values/dist/catalog.json (emit it with `npm run catalog` in packages/values). Without a catalog, builtin names do not resolve.\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n"
         ),
         "explain" => "can explain — print a diagnostic catalog entry\n\nUsage: can explain [--format=json|text] CODE\n\nExit codes: 0 printed, 2 unknown code (E7003) or bad usage.\n".to_string(),
-        "fmt" => "can fmt — check formatting (slice 2a: unimplemented)\n\nUsage: can fmt [--check] FILE.can...\n\nAlways reports E7005 until the slice-2b formatter lands; never a false clean.\n".to_string(),
+        "fmt" => "can fmt — format sources canonically\n\nUsage: can fmt [--check] [FILE.can...|-]\n\nFormats each file in place, writing only files that change. With no operands, or `-`, reads stdin and writes the formatted text to stdout. `--check` writes nothing and lists the files that differ instead. Parse failures print the machine-JSON diagnostic envelope on stdout and write nothing. Exit codes: 0 clean, 10 errors or differences reported, 2 tool failure.\n".to_string(),
         "lsp" => "can lsp — run the language server over stdio\n\nUsage: can lsp\n\nSpeaks Content-Length JSON-RPC; see the transport module docs.\n".to_string(),
         "run" | "test" | "build" | "deploy" => format!(
             "can {cmd} — thin lane-7 entry (passthrough to can-platform)\n\nUsage: can {cmd} [ARGS...]\n\nExecs `can-platform {cmd}` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can {cmd} --help` asks the platform tool; use\n`can --help {cmd}` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n"
@@ -550,19 +552,131 @@ fn run_explain(operands: &[String], format: OutputFormat) -> DispatchResult {
     }
 }
 
-fn run_fmt(operands: &[String], _check: bool) -> DispatchResult {
-    if operands.is_empty() {
-        return DispatchResult::tool_error(
-            "E7001",
-            "can fmt expects at least one FILE.can operand".to_string(),
-        );
+/// One formatter input: a file (written back in place) or stdin (`dest`
+/// is `None`, rendered to stdout).
+struct FmtInput {
+    /// Display name: the operand path, or `<stdin>`.
+    name: String,
+    /// Input text as read.
+    text: String,
+    /// Where formatted output goes in write mode (`None` means stdout).
+    dest: Option<PathBuf>,
+}
+
+fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
+    let mut inputs = Vec::new();
+    // No operands formats the stdin filter, mirroring rustfmt/gofmt.
+    let resolved: Vec<&str> = if operands.is_empty() {
+        vec!["-"]
+    } else {
+        operands.iter().map(String::as_str).collect()
+    };
+    let mut stdin_used = false;
+    for operand in resolved {
+        if operand == "-" {
+            if stdin_used {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "duplicate `-` (stdin) operand".to_string(),
+                );
+            }
+            stdin_used = true;
+            match std::io::read_to_string(std::io::stdin()) {
+                Ok(text) => inputs.push(FmtInput {
+                    name: "<stdin>".to_string(),
+                    text,
+                    dest: None,
+                }),
+                Err(err) => {
+                    return DispatchResult::tool_error(
+                        "E7002",
+                        format!("cannot read '<stdin>': {err}"),
+                    );
+                }
+            }
+            continue;
+        }
+        match std::fs::read_to_string(operand) {
+            Ok(text) => inputs.push(FmtInput {
+                name: operand.to_string(),
+                text,
+                dest: Some(PathBuf::from(operand)),
+            }),
+            Err(err) => {
+                return DispatchResult::tool_error(
+                    "E7002",
+                    format!("cannot read '{operand}': {err}"),
+                );
+            }
+        }
     }
-    // Stub reports unimplemented (E7005), never a false clean.
-    DispatchResult::tool_error(
-        "E7005",
-        "formatter not implemented in slice 2a (needs the lossless CST); refusing to claim clean"
-            .to_string(),
-    )
+    // Format everything before writing anything: a parse failure anywhere
+    // reports the aggregated envelope and leaves every file untouched.
+    let mut db = SourceDb::new();
+    let mut outputs: Vec<String> = Vec::with_capacity(inputs.len());
+    let mut result = DiagnosticResult::new(
+        tool_version(),
+        crate::LANGUAGE_VERSION,
+        crate::SCHEMA_VERSION,
+    );
+    for input in &inputs {
+        let id = db.add(input.name.clone(), input.text.clone());
+        match crate::format::format_source(id, &input.text) {
+            Ok(formatted) => outputs.push(formatted.text),
+            Err(error) => {
+                outputs.push(String::new());
+                for diagnostic in error.diagnostics {
+                    result.push(diagnostic);
+                }
+            }
+        }
+    }
+    if result.has_errors() {
+        result.add_sources(&db);
+        result.finish();
+        return DispatchResult {
+            code: exit::DIAGNOSTICS,
+            stdout: format!("{}\n", result.to_json()),
+            stderr: String::new(),
+            run_lsp: false,
+        };
+    }
+    if check {
+        let mut differing = Vec::new();
+        for (input, output) in inputs.iter().zip(outputs.iter()) {
+            if *output != input.text {
+                differing.push(input.name.clone());
+            }
+        }
+        if differing.is_empty() {
+            return DispatchResult::ok_stdout(String::new());
+        }
+        return DispatchResult {
+            code: exit::DIAGNOSTICS,
+            stdout: format!("{}\n", differing.join("\n")),
+            stderr: String::new(),
+            run_lsp: false,
+        };
+    }
+    // Sequential writes: a failure aborts with E7006, leaving earlier
+    // files already rewritten (atomic rename hardening is future work).
+    let mut stdout = String::new();
+    for (input, output) in inputs.iter().zip(outputs.iter()) {
+        match &input.dest {
+            None => stdout.push_str(output),
+            Some(path) => {
+                if *output != input.text
+                    && let Err(err) = std::fs::write(path, output)
+                {
+                    return DispatchResult::tool_error(
+                        "E7006",
+                        format!("cannot write '{}': {err}", path.display()),
+                    );
+                }
+            }
+        }
+    }
+    DispatchResult::ok_stdout(stdout)
 }
 
 /// Thin lane-7 entry: exec the platform producer with argument passthrough.
