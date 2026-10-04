@@ -1,0 +1,39 @@
+{
+  "request": {
+    "state": {
+      "context": "The source excerpt describes a department expense application. Its priorities include adoption and avoiding repeated syntax alongside preserved authorization and submission evidence. At present submit verifies Employee eligibility without checking the language reviewer grant. Adding reviewer(person) is already supported. A revoked reviewer can no longer invoke decide; changing that reviewer on the submitted record is barred. A team owner could restore the grant, although some revocations should persist. No recovery action currently serves the claimant in that case. Required outcomes are private receipts, review by an eligible different account, retained frozen receipt/amount, at most one correction successor and finance payment evidence distinct from approval. Mutation history already includes actor and time. Each candidate keeps those privacy/fence requirements. This assessment selects a source policy only; execution is unimplemented. Judge each route for a claim whose reviewer cannot appropriately regain access, without treating extra privileges as free.",
+      "verified_source": "scenario submit(expense:Expense) by=members\n require expense.parent.user==actor and expense.parent.active and expense.status==draft and expense.reviewer!=actor and can_work(expense.reviewer,expense.location)\n do set expense {status=submitted,submission=expense.submission+1}\nscenario decide(expense:Expense,approve:bool,reason:text) by=reviewer\n require expense.status==submitted and expense.reviewer==actor and expense.parent.user!=actor and can_work(actor,expense.location) and (approve or trim(reason)!=\"\")\nlock Expense fields=location,authorization,purpose,category,amount,business_date,receipt,reviewer when=row.status!=draft\ninvariant Expense: row.corrects==null or (row.corrects.parent==row.parent and row.corrects.status==rejected)\nscenario correct(expense:Expense) by=members\n require expense.parent.user==actor and expense.status==rejected and expense.parent.active and can_work(actor,expense.location) and not any(Expense as replacement,replacement.corrects==expense)"
+    },
+    "questions": {
+      "recovery": {
+        "type": "choice",
+        "instructions": "For an intentionally unavailable assigned reviewer, which candidate gives the most appropriate evidence-preserving department workflow?",
+        "criteria": {
+          "withdraw": "Add a reason-bearing claimant withdrawal gated on submitted state and lost reviewer role or workplace access. Record a separate withdrawn state without pretending a review decision occurred; preserve the old locked claim and reuse the one-successor correction path.",
+          "reassign": "Introduce an authorized submitted-assignment replacement with immutable before/after/reason evidence. Adjust the reviewer lock for that canonical action while continuing to freeze amounts and receipts and checking the replacement grant.",
+          "restore": "Leave claimant operations unchanged and require owner-mediated restoration of the reviewer permission when possible. It adds no new state or scenario, but permanently inappropriate restoration leaves the submission outstanding."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "recovery": {
+        "type": "choice",
+        "choice": "reassign",
+        "confidence": 0.45,
+        "probabilities": {
+          "withdraw": 0.36,
+          "reassign": 0.63,
+          "restore": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 896,
+      "output_tokens": 44
+    }
+  }
+}
