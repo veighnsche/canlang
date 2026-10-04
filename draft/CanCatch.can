@@ -214,7 +214,7 @@ package catch
       copy row.fingerprint
       badge row.fingerprint_version
       countdown (row.last_activity+row.parent.issue_days*1d)-now
-      ## Retention countdown is view-only; it schedules nothing and shows explicit unavailable when out of range.
+      ## Retention countdown is view-only; it schedules nothing and should show explicit unavailable when out of range.
       steps
        slot item
         text "Reported"@{nl="Gemeld"}

@@ -84,7 +84,8 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 
 ## Slice 5: full replans Contract/Stock/Catch/CRM (branch muse/frontend-catalog-migration/slice-05-replan-1, in progress)
 
-Paths: draft/CanContract (.can+.md), CanStock (.can+.md+.mjs), CanCatch (.can+.md), CanCRM (.can+.md+.mjs) + this status file.
+Paths: draft/CanContract (.can; .md verified no-change), CanStock (.can+.mjs; .md verified no-change),
+CanCatch (.can+.md), CanCRM (.can+.md+.mjs) + this status file.
 Workers (disjoint, no git): W-E Contract/Stock; W-F Catch/CRM. Calibration slice: 2 apps per worker.
 Replan bar: per-app frontend plan (users/tasks, pages+composition, families/bindings, states, defaults, source-target map);
 complete Then rewrite with the full vocabulary where journeys warrant; faithful .mjs with actual desired composition and
@@ -98,6 +99,10 @@ Drift: +142 E1200 (Contract 36, Stock 30, Catch 30, CRM 46) over 26 baseline = 1
 main too (untouched baseline files FAIL in this run), recorded L1 gap, never gates drafting. Prototype parser:
 Stock/CRM stop at breadcrumbs (expected new vocab); Contract/Catch stop at pre-existing Given type-gap errors
 (byte-identical on HEAD baseline). Handoff: reviewed .can/desired-.mjs pairs + exact gaps to 05/01 via PR.
+Open handoff question to 05: nullable interactive targets (CanCRM button target=revision.pdf with pdf:file?,
+link target=row.link with link:url?) are profile-legal; confirm null targets omit/disable rather than rendering
+broken anchors. Review nits (6/6 fixed in-branch): status no-change record, Catch/CRM .md wording, countdown
+comment softened to desired behavior.
 
 ## Steering: draft-first full replans (received 2026-10-04 ~17:45)
 
