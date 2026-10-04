@@ -19,7 +19,7 @@ import type {
   Team,
   TeamId,
   UserId,
-} from '../../contracts/src/identity.js';
+} from '@canlang/contracts';
 import { systemClock, toInstant, webRandom } from './ports.js';
 import type {
   Clock,

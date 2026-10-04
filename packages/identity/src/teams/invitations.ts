@@ -18,7 +18,7 @@ import {
   toInstant,
 } from '../ports.js';
 import type { Clock, IdentityStore, MailPort } from '../ports.js';
-import type { Membership } from '../../../contracts/src/identity.js';
+import type { Membership } from '@canlang/contracts';
 import { normalizeEmail } from '../accounts/registration.js';
 
 export const INVITE_EXPIRES_MS = 7 * 24 * 60 * 60 * 1000;
