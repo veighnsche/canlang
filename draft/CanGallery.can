@@ -1,0 +1,121 @@
+# Review finalized creative assets and share approved collections without exposing private conversations. @{nl="Beoordeel afgeronde creatieve bestanden en deel goedgekeurde collecties zonder privégesprekken openbaar te maken."}
+app CanGallery uses=[chat,creative,gallery]
+context
+ files types="application/pdf,image/png,image/jpeg,text/plain,application/json"
+
+package gallery
+ use creative {Output,can_view,output,completed,completed_request}
+ use std {ImageRun,GeneratedImage}
+ Given
+  role curator label="Collection curator"@{nl="Collectiebeheerder"}
+  role reviewer label="Image reviewer"@{nl="Beeldbeoordelaar"}
+  Collection { name:text trim max=200, owner:user server=actor, active:bool=true } label="Image collection"@{nl="Beeldcollectie"}
+  Access in Collection { account:user, active:bool=true } label="Collection access"@{nl="Collectietoegang"}
+  Submission in Collection { output:Output, image:file, author:user server=actor, title:text trim max=200, statement:text max=4000, rights:text max=4000, state:enum(pending,approved,rejected,withdrawn)=pending label={text="Review state"@{nl="Beoordelingsstatus"},values={pending="Awaiting review"@{nl="Wacht op beoordeling"},approved="Approved"@{nl="Goedgekeurd"},rejected="Changes required"@{nl="Wijzigingen nodig"},withdrawn="Withdrawn"@{nl="Ingetrokken"}}}, decision:enum(approved,rejected)?, reviewed_by:user?, reason:text?, decided_at:datetime?, withdraw_reason:text?, withdrawn_by:user?, withdrawn_at:datetime? } label="Submitted image"@{nl="Ingediend beeld"}
+  derive can_read(person:user?,collection:Collection):bool = person!=null and active_member(person,team) and collection.active and (collection.owner==person or any(collection.Access as access,access.account==person and access.active))
+  derive can_review(person:user?,collection:Collection):bool = person!=null and reviewer(person) and can_read(person,collection)
+  policy Collection read=members fields=name,owner,active
+  policy Access read=members and (row.account==actor or row.parent.owner==actor)
+  policy Submission read=members and row.author==actor
+  policy Submission read=can_review(actor,row.parent) fields=parent,image,author,title,statement,rights,state,decision,reviewed_by,reason,decided_at,withdraw_reason,withdrawn_by,withdrawn_at,created,updated
+  policy Submission read=can_read(actor,row.parent) and row.state==approved fields=parent,image,author,title,statement,rights,state,decision,reviewed_by,reason,decided_at,created,updated
+  unique Access fields=account
+  unique Submission fields=output where=row.state in [pending,approved]
+  invariant Submission: (row.decision==null and row.reviewed_by==null and row.decided_at==null) or (row.decision!=null and row.reviewed_by!=null and row.decided_at!=null and row.reviewed_by!=row.author)
+  lock Collection fields=owner
+  lock Access fields=account
+  lock Submission fields=output,image,author,title,statement,rights
+  lock Submission fields=decision,reviewed_by,reason,decided_at when=row.decision!=null
+  lock Submission fields=state,withdraw_reason,withdrawn_by,withdrawn_at when=row.state==withdrawn
+  fixture gallery_curator=user {roles=[curator]}
+  fixture gallery_reviewer=user {roles=[reviewer]}
+  fixture collection=Collection {name="Approved campaign art",owner=gallery_curator}
+  fixture reviewer_access=Access {parent=collection,account=gallery_reviewer}
+  fixture audience=Access {parent=collection,account=self}
+  fixture submission=Submission {parent=collection,output,image=output.image,author=self,title="Quiet garden",statement="For the launch presentation",rights="Original generated artwork reviewed for company use"}
+ When
+  crud Collection by=curator fields=name,active create_fields=name when=row.owner==actor delete=none
+  crud Access by=curator fields=active create_fields=account when=row.parent.owner==actor and (not row.active or active_member(row.account,team)) delete=none
+  # Submit a readable successful output and explicit rights evidence, copying only the selected finalized image. @{nl="Dien een leesbaar succesvol resultaat in met expliciet rechtenbewijs en kopieer alleen het geselecteerde afgeronde beeld."}
+  scenario submit(output:Output,collection:Collection,title:text,statement:text,rights:text) by=members -> Submission label="Submit for review"@{nl="Ter beoordeling indienen"}
+   require can_view(actor,output.parent) and output.parent.state==succeeded and collection.active
+   require trim(title)!="" and trim(statement)!="" and trim(rights)!=""
+   require not any(collection.Submission as row,row.output==output and row.state in [pending,approved])
+   do
+    create Submission {parent=collection,output,image=output.image,title,statement,rights} as submission
+    return submission
+   examples output=output collection=collection title="Quiet garden" statement="For the launch presentation" rights="Company use reviewed"
+    as,completed_request.result,collection.active -> count(collection.Submission)
+    self,ImageRun {source="creative-completed",revision=1,sequence=2,state=succeeded,outputs=[GeneratedImage {position=0,image=output.image}],charged_jobs=1,detail=null},true -> 1
+    self,ImageRun {source="creative-completed",revision=1,sequence=2,state=failed,outputs=[GeneratedImage {position=0,image=output.image}],charged_jobs=1,detail=null},true -> error(rule_failed)
+    self,ImageRun {source="creative-completed",revision=1,sequence=2,state=succeeded,outputs=[GeneratedImage {position=0,image=output.image}],charged_jobs=1,detail=null},false -> error(rule_failed)
+    other,ImageRun {source="creative-completed",revision=1,sequence=2,state=succeeded,outputs=[GeneratedImage {position=0,image=output.image}],charged_jobs=1,detail=null},true -> error(rule_failed)
+  # Record an independent review of exactly the frozen image and evidence. @{nl="Leg een onafhankelijke beoordeling vast van precies het vastgelegde beeld en bewijs."}
+  scenario review(submission:Submission,approve:bool,reason:text) by=reviewer label="Review image"@{nl="Beeld beoordelen"}
+   require can_review(actor,submission.parent) and submission.state==pending and submission.author!=actor and trim(reason)!=""
+   do
+    if approve
+     set submission {state=approved,decision=approved,reviewed_by=actor,reason,decided_at=now}
+    else
+     set submission {state=rejected,decision=rejected,reviewed_by=actor,reason,decided_at=now}
+   examples seed=[reviewer_access] submission=submission approve=true reason="Rights and image reviewed"
+    as,reviewer_access.active,submission.author,completed.author -> submission.state,submission.reviewed_by
+    gallery_reviewer,true,self,self -> approved,gallery_reviewer
+    gallery_reviewer,false,self,self -> error(rule_failed)
+    gallery_reviewer,true,gallery_reviewer,gallery_reviewer -> error(rule_failed)
+    self,true,self,self -> error(forbidden)
+   examples seed=[reviewer_access,audience,submission]
+    do
+     call approved {collection} by=self as before
+     count(before) -> 0
+     call review {submission,approve=true,reason="Approved for company launch materials"} by=gallery_reviewer
+     call approved {collection} by=self as shared
+     count(shared),first(shared)?.image,first(shared)?.decision -> 1,output.image,approved
+     call Access.update {record=audience,changes={active=false}} by=gallery_curator
+     call approved {collection} by=self -> error(rule_failed)
+     call withdraw {submission,reason="Usage consent withdrawn"} by=self
+     submission.state,submission.decision,submission.reason,submission.withdraw_reason -> withdrawn,approved,"Approved for company launch materials","Usage consent withdrawn"
+     call approved {collection} by=gallery_reviewer as after
+     count(after) -> 0
+  # Withdraw visibility while retaining the original approval or rejection and who made it. @{nl="Trek de zichtbaarheid in en behoud de oorspronkelijke goed- of afkeuring en de beoordelaar."}
+  scenario withdraw(submission:Submission,reason:text) by=members label="Withdraw image"@{nl="Beeld intrekken"}
+   require submission.author==actor or can_review(actor,submission.parent) or (curator and submission.parent.owner==actor)
+   require submission.state!=withdrawn and trim(reason)!=""
+   do set submission {state=withdrawn,withdraw_reason=reason,withdrawn_by=actor,withdrawn_at=now}
+  # Return only approved assets under current collection access and normal field/file grants. @{nl="Toon alleen goedgekeurde bestanden binnen actuele collectietoegang en gewone veld- en bestandsrechten."}
+  scenario approved(collection:Collection) by=members read=true -> Submission[] label="Open approved collection"@{nl="Goedgekeurde collectie openen"}
+   require can_read(actor,collection)
+   do return collection.Submission as row where row.state==approved order=-row.decided_at
+ Then
+  page /gallery title="Approved collections"@{nl="Goedgekeurde collecties"} poll=1s
+   require members
+   list Collection as collection where can_read(actor,collection)
+    title row.name
+    form approved arguments={collection=row}
+     gallery result image=image
+      title row.title
+      text row.author,row.rights,row.decided_at
+  page /gallery/submit title="My images and submissions"@{nl="Mijn beelden en inzendingen"} poll=1s
+   require members
+   gallery Output as output where output.parent.state==succeeded image=image
+    form submit arguments={output=row}
+   gallery Submission as submission where submission.author==actor image=image
+    title row.title
+    text row.state,row.reason,row.withdraw_reason
+    action withdraw
+  page /gallery/review title="Image review"@{nl="Beeldbeoordeling"} poll=1s
+   require reviewer
+   gallery Submission as submission where submission.state==pending and can_review(actor,submission.parent) image=image
+    title row.title
+    content row.statement
+    text row.author,row.rights
+    action review
+  page /gallery/access title="Collection access"@{nl="Collectietoegang"}
+   require curator
+   form Collection.create
+   list Collection as collection where collection.owner==actor
+    title row.name
+    edit fields=name,active
+    form Access.create arguments={parent=row}
+    table row.Access columns=account,active
+     edit fields=active

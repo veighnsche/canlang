@@ -1,0 +1,226 @@
+# Turn private ideas into bounded image jobs using employee-published workflow revisions. @{nl="Zet privé-ideeën om in begrensde beeldtaken met door medewerkers gepubliceerde workflowversies."}
+app CanCreative uses=[chat,creative]
+context
+ files types="application/pdf,image/png,image/jpeg,text/plain,application/json"
+
+package creative
+ use chat {Conversation,Branch,Turn,can_use,conversation}
+ use std {WorkflowInput,WorkflowDefinition,WorkflowInspection,WorkflowValidation,ImageRequest,ImageRun,GeneratedImage,DeliveryResult}
+ use std {ImagesV1 as Images} from=deployment.images
+ Given
+  role creative_manager label="Creative administrator"@{nl="Creatief beheerder"}
+  Template { name:text trim max=200, owner:user server=actor, graph:file, prompt_node:text="6", prompt_key:text="text", negative_node:text="7", negative_key:text="text", width_node:text="5", width_key:text="width", height_node:text="5", height_key:text="height", outputs:int=1 min=1 max=4, duration:duration=120s, active:bool=true, current:Revision?, inspection:delivery(Images.inspect)? } label="Image workflow"@{nl="Beeldworkflow"}
+  Revision in Template { number:int min=1, definition:WorkflowDefinition, outputs:int min=1 max=4, duration:duration, validation:delivery(Images.validate)?, published:bool=false, digest:text? } label="Immutable workflow revision"@{nl="Onveranderlijke workflowversie"}
+  Budget { account:user unique, cap:int min=1, parallel:int=2 min=1 max=10, spent:int=0 min=0, held:int=0 min=0, running:int=0 min=0 max=10, active:bool=true } label="Image-job allowance"@{nl="Budget voor beeldtaken"}
+  export Run { source:text unique, author:user server=actor, conversation:Conversation?, revision:Revision, budget:Budget, prompt:ImageRequest.prompt, negative:ImageRequest.negative, width:ImageRequest.width, height:ImageRequest.height, request:delivery(Images.submit)?, cancellation:delivery(Images.cancel)?, reconciliation:delivery(Images.reconcile)?, used:int? min=0 max=1, unfinished:bool=true, stop_requested:bool=false } label="Image generation"@{nl="Beeldgeneratie"}
+  export Output in Run { position:int min=0 max=3, image:file } label="Finalized image"@{nl="Afgerond beeldbestand"}
+  derive definition(template:Template):WorkflowDefinition = WorkflowDefinition {graph=template.graph,prompt=WorkflowInput {node=template.prompt_node,key=template.prompt_key},negative=WorkflowInput {node=template.negative_node,key=template.negative_key},width=WorkflowInput {node=template.width_node,key=template.width_key},height=WorkflowInput {node=template.height_node,key=template.height_key}}
+  export derive can_view(person:user?,run:Run):bool = person!=null and active_member(person,team) and run.author==person and (run.conversation==null or can_use(person,run.conversation))
+  derive Run.state:ImageRun.state? = row.request?.progress?.state
+  derive Run.detail:text? = row.request?.progress?.detail
+  derive Run.delivery_state:DeliveryResult.status? = row.request?.status label="Submission receipt"@{nl="Indieningsbewijs"}
+  derive Run.stop_delivery:DeliveryResult.status? = row.cancellation?.status label="Stop receipt"@{nl="Stopbewijs"}
+  derive Run.reconcile_delivery:DeliveryResult.status? = row.reconciliation?.status label="Recovery receipt"@{nl="Herstelbewijs"}
+  policy Template read=members fields=name,active,current
+  policy Template read=creative_manager and row.owner==actor
+  policy Revision read=members where=row.published and row.parent.active fields=parent,number,definition,published,digest,outputs,duration
+  policy Revision read=creative_manager and row.parent.owner==actor
+  policy Budget read=creative_manager or (members and row.account==actor)
+  policy Run read=can_view(actor,row) fields=source,author,conversation,revision,prompt,negative,width,height,state,used,unfinished,stop_requested,detail,request.id,request.status,request.error,request.progress.state,request.progress.detail,cancellation.id,cancellation.status,cancellation.error,reconciliation.id,reconciliation.status,reconciliation.error,delivery_state,stop_delivery,reconcile_delivery,created,updated
+  policy Run read=members and row.author==actor fields=source,author,conversation,state,used,unfinished,stop_requested,detail,request.id,request.status,request.error,request.progress.state,request.progress.detail,cancellation.id,cancellation.status,cancellation.error,reconciliation.id,reconciliation.status,reconciliation.error,delivery_state,stop_delivery,reconcile_delivery,created,updated
+  policy Output read=can_view(actor,row.parent)
+  invariant Template: row.duration>=1s and row.duration<=15m and (row.current==null or (row.current.parent==row and row.current.published))
+  invariant Revision: row.duration>=1s and row.duration<=15m and (not row.published or row.digest!=null)
+  invariant Budget: row.spent+row.held<=row.cap and row.running<=row.parallel
+  invariant Run: row.width%64==0 and row.height%64==0
+  unique Revision fields=number
+  unique Output fields=position
+  lock Template fields=owner
+  lock Revision fields=number,definition,outputs,duration,validation
+  lock Revision fields=published,digest when=row.published
+  lock Budget fields=account
+  lock Run fields=source,author,conversation,revision,budget,prompt,negative,width,height,request
+  lock Output fields=position,image
+  fixture manager=user {roles=[creative_manager]}
+  export fixture graph=file {type="application/json"}
+  fixture workflow=Template {name="Launch visuals",owner=manager,graph}
+  fixture checked=Images.validate {request={value=WorkflowDefinition {graph,prompt=WorkflowInput {node="6",key="text"},negative=WorkflowInput {node="7",key="text"},width=WorkflowInput {node="5",key="width"},height=WorkflowInput {node="5",key="height"}}},status=succeeded,result=WorkflowValidation {valid=true,digest="fixture-validated-graph",detail=null}}
+  fixture revision=Revision {parent=workflow,number=1,definition=WorkflowDefinition {graph,prompt=WorkflowInput {node="6",key="text"},negative=WorkflowInput {node="7",key="text"},width=WorkflowInput {node="5",key="width"},height=WorkflowInput {node="5",key="height"}},outputs=1,duration=120s,validation=checked,published=true,digest="fixture-validated-graph"}
+  fixture budget=Budget {account=self,cap=20}
+  export fixture image=file {type="image/png"}
+  fixture completed_budget=Budget {account=self,cap=20,spent=1}
+  export fixture completed_request=Images.submit {request={value=ImageRequest {source="creative-completed",revision=1,workflow=WorkflowDefinition {graph,prompt=WorkflowInput {node="6",key="text"},negative=WorkflowInput {node="7",key="text"},width=WorkflowInput {node="5",key="width"},height=WorkflowInput {node="5",key="height"}},validation="fixture-validated-graph",prompt="A quiet garden",negative="",width=512,height=512,max_outputs=1,max_duration=120s}},status=succeeded,result=ImageRun {source="creative-completed",revision=1,sequence=2,state=succeeded,outputs=[GeneratedImage {position=0,image}],charged_jobs=1,detail=null}}
+  export fixture completed=Run {source="creative-completed",author=self,conversation=null,revision,budget=completed_budget,prompt="A quiet garden",negative="",width=512,height=512,request=completed_request,used=1,unfinished=false}
+  export fixture output=Output {parent=completed,position=0,image}
+  fixture held_budget=Budget {account=self,cap=20,held=1,running=1}
+  fixture observed_request=Images.submit {request={value=ImageRequest {source="creative-pending",revision=1,workflow=WorkflowDefinition {graph,prompt=WorkflowInput {node="6",key="text"},negative=WorkflowInput {node="7",key="text"},width=WorkflowInput {node="5",key="width"},height=WorkflowInput {node="5",key="height"}},validation="fixture-validated-graph",prompt="A quiet garden",negative="",width=512,height=512,max_outputs=1,max_duration=120s}},status=succeeded,result=ImageRun {source="creative-pending",revision=1,sequence=1,state=queued,outputs=[],charged_jobs=null,detail=null}}
+  fixture pending_run=Run {source="creative-pending",author=self,conversation=null,revision,budget=held_budget,prompt="A quiet garden",negative="",width=512,height=512,request=observed_request}
+  fixture prior_output=Output {parent=pending_run,position=0,image}
+ When
+  crud Template by=creative_manager fields=name,graph,prompt_node,prompt_key,negative_node,negative_key,width_node,width_key,height_node,height_key,outputs,duration,active create_fields=name,graph,prompt_node,prompt_key,negative_node,negative_key,width_node,width_key,height_node,height_key,outputs,duration when=row.owner==actor delete=none
+  crud Budget by=creative_manager fields=cap,parallel,active create_fields=account,cap,parallel delete=none
+  scenario template_edited on=Template.update
+   do set event.after {inspection=null}
+  # Inspect allowed input destinations without starting a generation. @{nl="Inspecteer toegestane invoerbestemmingen zonder een generatie te starten."}
+  scenario inspect(template:Template) by=creative_manager label="Inspect workflow inputs"@{nl="Workflowinvoer inspecteren"}
+   require template.owner==actor and template.active
+   do
+    send Images.inspect {graph=template.graph} as inspection
+    set template {inspection}
+  # Freeze this draft graph and mapping into a new revision for safe provider validation. @{nl="Leg deze conceptgraaf en koppelingen vast in een nieuwe versie voor veilige validatie."}
+  scenario validate(template:Template) by=creative_manager -> Revision label="Validate new revision"@{nl="Nieuwe versie valideren"}
+   require template.owner==actor and template.active
+   do
+    let value=definition(template)
+    create Revision {parent=template,number=count(template.Revision)+1,definition=value,outputs=template.outputs,duration=template.duration} as revision
+    send Images.validate {value} as validation
+    set revision {validation}
+    return revision
+  # Publish only the exact successfully validated immutable snapshot; later draft edits cannot change it. @{nl="Publiceer alleen de exact gevalideerde onveranderlijke momentopname; latere conceptwijzigingen veranderen die niet."}
+  scenario publish(revision:Revision) by=creative_manager label="Publish workflow and graph to members"@{nl="Workflow en graaf met leden delen"}
+   require revision.parent.owner==actor and revision.parent.active and not revision.published
+   require revision.validation?.status==succeeded and revision.validation?.result?.valid==true and revision.validation?.result?.digest!=null
+   do
+    set revision {published=true,digest=revision.validation.result.digest}
+    set revision.parent {current=revision}
+   examples revision=revision
+    as,revision.published,checked.result -> revision.published,workflow.current
+    manager,false,WorkflowValidation {valid=true,digest="fixture-validated-graph",detail=null} -> true,revision
+    manager,false,WorkflowValidation {valid=false,digest=null,detail="Mapping rejected"} -> error(rule_failed)
+    manager,true,WorkflowValidation {valid=true,digest="fixture-validated-graph",detail=null} -> error(rule_failed)
+    other,false,WorkflowValidation {valid=true,digest="fixture-validated-graph",detail=null} -> error(forbidden)
+  # Submit one bounded image job with a frozen published workflow and explicit authorized chat context. @{nl="Dien één begrensde beeldtaak in met een vaste gepubliceerde workflow en expliciet toegestane gesprekscontext."}
+  export scenario generate(template:Template,prompt:ImageRequest.prompt,negative:ImageRequest.negative="",width:ImageRequest.width=512,height:ImageRequest.height=512,conversation:Conversation?=null) by=members -> Run label="Generate images"@{nl="Beelden genereren"}
+   require template.active and template.current!=null and template.current.published and trim(prompt)!=""
+   require width%64==0 and height%64==0 and (conversation==null or can_use(actor,conversation))
+   do
+    let budget=first(Budget as row where row.account==actor order=row.id)
+    require budget!=null and budget.active and budget.running<budget.parallel and budget.spent+budget.held+1<=budget.cap
+    let revision=template.current
+    require revision.digest!=null
+    create Run {source=operation.id,conversation,revision,budget,prompt,negative,width,height} as run
+    set budget {held=budget.held+1,running=budget.running+1}
+    send Images.submit {value=ImageRequest {source=run.source,revision=1,workflow=revision.definition,validation=revision.digest,prompt,negative,width,height,max_outputs=revision.outputs,max_duration=revision.duration}} when=active_member(run.author,team) and template.active and budget.active and not run.stop_requested and (run.conversation==null or can_use(run.author,run.conversation)) as request
+    set run {request}
+    return run
+   examples seed=[budget] template=workflow prompt="A quiet garden" negative="" width=512 height=512 conversation=null
+    as,workflow.current,budget.cap,budget.spent,width -> count(Run as run where run.source==operation.id),budget.held
+    self,revision,20,0,512 -> 1,1
+    self,revision,1,0,512 -> 1,1
+    self,revision,1,1,512 -> error(rule_failed)
+    self,null,20,0,512 -> error(rule_failed)
+    self,revision,20,0,513 -> error(rule_failed)
+   examples seed=[budget,conversation] template=workflow prompt="A private idea" negative="" width=512 height=512 conversation=conversation
+    as,workflow.current,conversation.active,conversation.account -> count(Run as run where run.source==operation.id)
+    self,revision,true,self -> 1
+    self,revision,false,self -> error(rule_failed)
+    self,revision,true,other -> error(rule_failed)
+  # Deliberately copy an owned chat turn into the normal image form's canonical generation operation. @{nl="Kopieer bewust een eigen gespreksbericht naar de canonieke beeldgeneratiebewerking."}
+  scenario from_turn(turn:Turn,template:Template,negative:ImageRequest.negative="",width:ImageRequest.width=512,height:ImageRequest.height=512) by=members -> Run label="Create image from this message"@{nl="Maak een beeld van dit bericht"}
+   require can_use(actor,turn.parent.parent)
+   do
+    call generate {template,prompt=turn.content,negative,width,height,conversation=turn.parent.parent} as run
+    return run
+  # Request a targeted external stop and retain uncertainty until the provider confirms the outcome. @{nl="Vraag een gerichte externe stop en behoud onzekerheid totdat de aanbieder de uitkomst bevestigt."}
+  scenario stop(run:Run) by=members label="Stop image job"@{nl="Beeldtaak stoppen"}
+   require run.author==actor and run.unfinished and run.cancellation?.status!=pending
+   do
+    send Images.cancel {source=run.source,revision=1} as cancellation
+    set run {stop_requested=true,cancellation}
+  # Reconcile the existing image job without submitting a replacement or releasing unconfirmed usage. @{nl="Controleer de bestaande beeldtaak zonder een vervanging in te dienen of onbevestigd gebruik vrij te geven."}
+  scenario reconcile(run:Run) by=members label="Check image outcome"@{nl="Beelduitkomst controleren"}
+   require run.author==actor and (run.unfinished or run.used==null) and run.reconciliation?.status!=pending
+   do
+    send Images.reconcile {source=run.source,revision=1} as reconciliation
+    set run {reconciliation}
+  # Release the reservation only when the authoritative receipt proves the job was never dispatched. @{nl="Geef de reservering alleen vrij wanneer het gezaghebbende bewijs aantoont dat de taak nooit is verzonden."}
+  scenario release_skipped(run:Run) by=members label="Release unsent job"@{nl="Niet-verzonden taak vrijgeven"}
+   require run.author==actor and run.request?.status==skipped and run.request?.progress==null and run.used==null and run.unfinished
+   do
+    set run.budget {held=run.budget.held-1,running=run.budget.running-1}
+    set run {used=0,unfinished=false}
+  scenario conversation_revoked on=Conversation.updated
+   do
+    let conversation=first(Conversation as row where row.id==event.id order=row.id)
+    if conversation!=null and not conversation.active
+     for run in Run as row where row.conversation==conversation and row.unfinished limit=10
+      if run.cancellation?.status!=pending
+       send Images.cancel {source=run.source,revision=1} as cancellation
+       set run {stop_requested=true,cancellation}
+  scenario member_removed on=teams.member_removed
+   do
+    if not active_member(event.user,team)
+     for run in Run as row where row.author==event.user and row.unfinished limit=10
+      if run.cancellation?.status!=pending
+       send Images.cancel {source=run.source,revision=1} as cancellation
+       set run {stop_requested=true,cancellation}
+  scenario image_progressed on=Images.submit.progressed
+   do
+    for run in Run as row where row.request?.id==event.delivery_id limit=1
+     let value=run.request?.progress
+     if value!=null
+      require count(value.outputs)<=run.revision.outputs and (value.state!=succeeded or count(value.outputs)>0)
+      require run.used==null or run.used==value.charged_jobs
+      if run.used==null and value.charged_jobs!=null
+       set run.budget {held=run.budget.held-1,spent=run.budget.spent+value.charged_jobs}
+       set run {used=value.charged_jobs}
+      if run.unfinished and value.state in [succeeded,failed,cancelled]
+       set run.budget {running=run.budget.running-1}
+       set run {unfinished=false}
+      for output in value.outputs limit=4
+       if not any(run.Output as row,row.position==output.position)
+        create Output {parent=run,position=output.position,image=output.image} as saved
+   examples seed=[pending_run,image] event={delivery_id=observed_request.id}
+    observed_request.result -> pending_run.state,pending_run.used,held_budget.held,held_budget.spent,held_budget.running,count(pending_run.Output)
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=succeeded,outputs=[GeneratedImage {position=0,image}],charged_jobs=1,detail=null} -> succeeded,1,0,1,0,1
+    ImageRun {source="creative-pending",revision=1,sequence=1,state=queued,outputs=[],charged_jobs=null,detail=null} -> queued,null,1,0,1,0
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=unknown,outputs=[],charged_jobs=null,detail=null} -> unknown,null,1,0,1,0
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=cancelled,outputs=[],charged_jobs=null,detail=null} -> cancelled,null,1,0,0,0
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=failed,outputs=[GeneratedImage {position=0,image}],charged_jobs=1,detail=null} -> failed,1,0,1,0,1
+   examples seed=[pending_run,prior_output] event={delivery_id=observed_request.id}
+    observed_request.result,pending_run.used,pending_run.unfinished,held_budget.held,held_budget.spent,held_budget.running -> held_budget.held,held_budget.spent,held_budget.running,count(pending_run.Output)
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=succeeded,outputs=[GeneratedImage {position=0,image}],charged_jobs=1,detail=null},1,false,0,1,0 -> 0,1,0,1
+   examples seed=[pending_run] event={delivery_id=observed_request.id}
+    observed_request.result,pending_run.unfinished,held_budget.running -> pending_run.used,held_budget.held,held_budget.spent,held_budget.running
+    ImageRun {source="creative-pending",revision=1,sequence=3,state=cancelled,outputs=[],charged_jobs=1,detail=null},false,0 -> 1,0,1,0
+ Then
+  page /creative title="Image studio"@{nl="Beeldstudio"} poll=1s
+   require members
+   form generate display=inline
+   list Run as run where can_view(actor,run) order=-created
+    title row.prompt
+    text row.state,row.delivery_state,row.stop_requested,row.stop_delivery,row.reconcile_delivery,row.used,row.detail
+    gallery row.Output image=image order=position
+    actions stop,reconcile,release_skipped
+   table Budget columns=cap,spent,held,running,active
+  page /creative/from-chat title="Chat to image"@{nl="Van gesprek naar beeld"} poll=1s
+   require members
+   list Conversation as conversation where conversation.active
+    title row.title
+    list row.Branch
+     title row.title
+     list row.Turn order=position
+      content row.content
+      form from_turn arguments={turn=row}
+  page /creative/recovery title="Unresolved image jobs"@{nl="Onopgeloste beeldtaken"} poll=1s
+   require members
+   table Run as run where run.unfinished or run.used==null columns=state,delivery_state,stop_delivery,reconcile_delivery,used,detail
+    actions stop,reconcile,release_skipped
+  page /creative/workflows title="Workflow templates"@{nl="Workflowsjablonen"} poll=1s
+   require creative_manager
+   text "Upload an allowed API-format graph. Inspect its inputs, map the four fields, validate a snapshot, then publish it."@{nl="Upload een toegestane API-graaf. Inspecteer de invoer, koppel vier velden, valideer een momentopname en publiceer deze."}
+   form Template.create
+   list Template as template where template.owner==actor
+    title row.name
+    edit
+    action inspect
+    text row.inspection
+    list (row.inspection?.result?.fields ?? [])
+     text row.node,row.key,row.kind,row.label
+    action validate
+    list row.Revision order=-number
+     text row.number,row.published,row.validation,row.digest
+     action publish
+   form Budget.create
+   table Budget columns=account,cap,parallel,spent,held,running,active
+    edit fields=cap,parallel,active
