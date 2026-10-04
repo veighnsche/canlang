@@ -223,6 +223,14 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   semantics join); bigint-minor money cannot round-trip storage JSON until
   the L2 codec join; owner authority unverified at engine (gating is
   admission's); `when`-on-secret oracle question for review.
+  Independent review NEEDS-CHANGES (4 major + 3 minor) all fixed +
+  regressed, suite 180/180: F1 array-transparent secret carve-out; F2
+  viewers project BEFORE where/sort/aggregate (cross-grant value leak
+  closed); F3 unknown predicate op -> StateError validation; F4
+  `when`-on-secret rejected at build; F5 same-currency money min/max
+  implemented; F6 owner-aggregate test added; F7 `by` validated +
+  policy AST cloned/frozen at build. Owner-authority trust boundary
+  documented on queryRecords.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
