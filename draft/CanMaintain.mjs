@@ -23,6 +23,7 @@ import {
   max,
   date,
   datetime,
+  delivery,
 } from "@canlang/stdlib";
 import {
   message,
@@ -505,11 +506,12 @@ export const appDefinition = {
       label: message("Assignment delivery", { nl: "Opdrachtverzending" }),
       readGrants: [{ rule: "Notice.read.1" }],
       fields: {
-        delivery: { type: "text" },
+        delivery: { type: "delivery", operation: "maintain.Mail.send" },
+      },
+      derived: {
         state: {
-          type: "enum",
-          cases: ["pending", "succeeded", "failed", "unknown", "skipped"],
-          default: "pending",
+          type: "std.DeliveryResult.status",
+          handler: "Notice.state",
           label: {
             text: message("Delivery outcome", { nl: "Verzendingsresultaat" }),
             values: {
@@ -866,7 +868,6 @@ export const appDefinition = {
     "maintain.activate_plan": { handler: "activate_plan", on: "maintain.Plan.create" },
     "maintain.revise_plan": { handler: "revise_plan", on: "maintain.Plan.update" },
     "maintain.retire_asset": { handler: "retire_asset", on: "maintain.Asset.update" },
-    "maintain.notice_result": { handler: "notice_result", on: "maintain.Mail.send.completed" },
     "maintain.remind": { handler: "remind", on: "maintain.Reminder" },
     "maintain.affected_result": {
       handler: "affected_result",
@@ -962,6 +963,10 @@ export function canApp() {
       "Notice.read.1": async (c, row) =>
         hasRole(c, "maintain.maintenance_manager") &&
         (await can_work(c, c.actor, row.parent.parent.parent.location)),
+    },
+    derives: {
+      "Notice.state": async (c, row) =>
+        (await delivery(c, { record: row, field: "delivery" }, ["status"])).status,
     },
     invariants: {
       "Cancellation.require.1": (c, row) =>
@@ -1130,21 +1135,26 @@ export function canApp() {
             ["assigned", "in_progress"].includes(repair.state),
         },
       );
-      await create(c, "maintain.Notice", { parent: assignment, delivery: notice.id });
+      await create(c, "maintain.Notice", { parent: assignment, delivery: notice });
     },
     async retry_notice(c, { notice }) {
       check(hasRole(c, "maintain.maintenance_manager"), "forbidden");
       check(
         (await can_work(c, c.actor, notice.parent.parent.parent.location)) &&
-          notice.state === "failed" &&
-          !(await any(records(c, "maintain.Notice", { parent: notice.parent }), (item) =>
-            ["pending", "unknown", "succeeded"].includes(item.state),
+          (await delivery(c, { record: notice, field: "delivery" }, ["status"])).status ===
+            "failed" &&
+          !(await any(
+            records(c, "maintain.Notice", { parent: notice.parent }),
+            async (item) =>
+              ["pending", "unknown", "succeeded"].includes(
+                (await delivery(c, { record: item, field: "delivery" }, ["status"])).status,
+              ),
           )) &&
           same(notice.parent.parent.assignment, notice.parent) &&
           notice.parent.supplier.active &&
           ["assigned", "in_progress"].includes(notice.parent.parent.state),
       );
-      const delivery = await send(
+      const attempt = await send(
         c,
         "maintain.Mail.send",
         {
@@ -1161,15 +1171,7 @@ export function canApp() {
             ["assigned", "in_progress"].includes(notice.parent.parent.state),
         },
       );
-      await create(c, "maintain.Notice", { parent: notice.parent, delivery: delivery.id });
-    },
-    async notice_result(c, { event }) {
-      for await (const notice of records(c, "maintain.Notice", {
-        where: (item) =>
-          item.delivery === event.delivery_id && ["pending", "unknown"].includes(item.state),
-        limit: 1n,
-      }))
-        await set(c, notice, { state: event.status });
+      await create(c, "maintain.Notice", { parent: notice.parent, delivery: attempt });
     },
     async start(c, { repair }) {
       check(hasRole(c, "maintain.technician"), "forbidden");
