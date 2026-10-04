@@ -306,6 +306,15 @@ money test, T3 enum: badge test, T4 no-match/validation/conflict/pending
 documented as S4/S5 extensions. Literal bidi marks converted to \u escapes.
 Merge: (to be filled) reviewed head sha, checks, squash merge result.
 
+Note (S3): L7's new integration check runs `npm ci`, so the lane-05 daisyUI
+devDep required a root-lock sync to merge. Applied mechanically via
+`npm install --package-lock-only` (11-line daisyui-only addition, verified
+with local `npm ci` + 183/183); the lockfile stays L7-owned and this sync is
+flagged for L7 review in the PR. Main is independently red on `integration`
+(lanes 02/03 runs failing at the same step window); if integration stays red
+for non-lane-05 reasons after our sync, that is L7's gate to repair, not a
+lane-05 merge blocker beyond our own green checks.
+
 ## Remaining work and cleanup
 
 Full lane scope per subtasks S1-S8. Owned resources: this worktree only; no build caches beyond packages/ui/
