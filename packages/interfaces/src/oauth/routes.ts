@@ -271,7 +271,8 @@ async function authorizeContext(
 
 async function handleAuthorizeGet(deps: OAuthDeps, request: Request, url: URL): Promise<Response> {
   const params = url.searchParams;
-  const team = params.get('team') ?? undefined;
+  const teamParam = params.get('team');
+  const team = teamParam === null || teamParam === '' ? undefined : teamParam;
   const context = await authorizeContext(deps, request, team);
   if (context instanceof Response) return context;
   // Unverified client/redirect/challenge failures answer 400 PLAIN — never

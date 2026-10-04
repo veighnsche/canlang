@@ -331,3 +331,22 @@ test('POST /ingress/{namespace} reaches the ingress sub-handler via createHttpHa
   assert.deepEqual((await res.json()) as unknown, { accepted: true, producer_event_id: 'evt-1' });
   assert.equal(t.sink.calls.length, 1);
 });
+
+test('URL-encoded namespace decodes before binding lookup', async () => {
+  const t = happyDeps();
+  const res = await handleIngressRequest(t.deps, jsonIngress('acme%2Dbilling', { charge: 1 }));
+  assert.equal(res.status, 200);
+  assert.equal(t.verifier.calls.length, 1);
+});
+
+test('lowercase-constructed method still routes (fetch normalizes to POST)', async () => {
+  const t = happyDeps();
+  const req = testRequest('/ingress/acme-billing', {
+    method: 'post',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ charge: 1 }),
+  });
+  assert.equal(req.method, 'POST');
+  const res = await handleIngressRequest(t.deps, req);
+  assert.equal(res.status, 200);
+});

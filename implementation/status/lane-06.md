@@ -422,6 +422,12 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     Coordinator assembly: identity index export, ports type re-export,
     HttpDeps/sub-handler literals, grant_type-absent spec fix
     (invalid_request vs unsupported_grant_type).
+  - PR #51 open at b5d3db6. Independent review APPROVE-WITH-NOTES:
+    F1 empty-team asymmetry fixed (GET normalizes like POST); all
+    T-gaps pinned (401 challenge headers, content-type edges,
+    empty-team, register boundaries, removal-then-exchange,
+    oversized GET state, encoded namespace, method normalization).
+    After notes: interfaces 237/237.
 
 ## Remaining work and cleanup
 

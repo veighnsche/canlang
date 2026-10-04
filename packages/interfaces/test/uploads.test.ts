@@ -221,6 +221,10 @@ test('auth: missing credential is 401 forbidden and never touches the kernel', a
     code: 'forbidden',
     message: 'Authentication required.',
   });
+  assert.equal(
+    res.headers.get('www-authenticate'),
+    'Bearer resource_metadata="https://test.invalid/.well-known/oauth-protected-resource"',
+  );
   assert.equal(t.kernel.calls.length, 0);
 });
 

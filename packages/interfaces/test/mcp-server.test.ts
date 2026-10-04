@@ -637,6 +637,10 @@ test('missing auth answers 401 with a safe error body', async () => {
   const body = (await res.json()) as AuthErrorBody;
   assert.equal(body.error.code, 'forbidden');
   assert.equal(body.error.message, 'Authentication required.');
+  assert.equal(
+    res.headers.get('www-authenticate'),
+    'Bearer resource_metadata="https://test.invalid/.well-known/oauth-protected-resource"',
+  );
 });
 
 test('session cookie without a grant Bearer [REDACTED] 401', async () => {

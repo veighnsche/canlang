@@ -429,3 +429,108 @@ test('top-level handler mounts the OAuth sub-handler for well-known + /oauth/*',
   const authorize = await handler(get('/oauth/authorize?client_id=x'));
   assert.equal(authorize.status, 401);
 });
+
+test('token endpoint rejects wrong and missing content types', async () => {
+  const t = await createTestOAuthDeps();
+  const wrong = await handleOAuthRequest(
+    t.deps,
+    testRequest('/oauth/token', {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain' },
+      body: 'grant_type=authorization_code',
+    }),
+  );
+  assert.equal(wrong.status, 400);
+  assert.equal(((await wrong.json()) as { error: string }).error, 'invalid_request');
+  const missing = await handleOAuthRequest(
+    t.deps,
+    testRequest('/oauth/token', { method: 'POST', body: 'grant_type=authorization_code' }),
+  );
+  assert.equal(missing.status, 400);
+  assert.equal(((await missing.json()) as { error: string }).error, 'invalid_request');
+});
+
+test('empty team matches absent team on both authorize steps', async () => {
+  const t = await createTestOAuthDeps();
+  const client_id = await register(t);
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  const query = `client_id=${client_id}&redirect_uri=${encodeURIComponent(REDIRECT)}&code_challenge=${CHALLENGE}&code_challenge_method=S256`;
+  const emptyGet = await handleOAuthRequest(t.deps, get(`/oauth/authorize?${query}&team=`, t.identity.cookie));
+  assert.equal(emptyGet.status, 200);
+  const post = await handleOAuthRequest(
+    t.deps,
+    postJson(
+      '/oauth/authorize',
+      { client_id, redirect_uri: REDIRECT, code_challenge: CHALLENGE, code_challenge_method: 'S256', team: '' },
+      { cookie: t.identity.cookie, csrf },
+    ),
+  );
+  assert.equal(post.status, 302);
+});
+
+test('registration accepts boundary values: five URIs, 100-char name', async () => {
+  const t = await createTestOAuthDeps();
+  const uris = ['a', 'b', 'c', 'd', 'e'].map((h) => `https://${h}.example/cb`);
+  const res = await handleOAuthRequest(
+    t.deps,
+    postJson('/oauth/register', { redirect_uris: uris, client_name: 'n'.repeat(100) }),
+  );
+  assert.equal(res.status, 201);
+  const body = (await res.json()) as { redirect_uris: string[]; client_name: string };
+  assert.deepEqual(body.redirect_uris, uris);
+  assert.equal(body.client_name, 'n'.repeat(100));
+});
+
+test('authorize GET rejects oversized state', async () => {
+  const t = await createTestOAuthDeps();
+  const client_id = await register(t);
+  const res = await handleOAuthRequest(
+    t.deps,
+    get(
+      `/oauth/authorize?client_id=${client_id}&redirect_uri=${encodeURIComponent(REDIRECT)}&code_challenge=${CHALLENGE}&code_challenge_method=S256&state=${'s'.repeat(1025)}`,
+      t.identity.cookie,
+    ),
+  );
+  assert.equal(res.status, 400);
+});
+
+test('exchange after team removal mints, but MCP admission rejects', async () => {
+  const t = await createTestOAuthDeps();
+  const client_id = await register(t);
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  const authRes = await handleOAuthRequest(
+    t.deps,
+    postJson(
+      '/oauth/authorize',
+      {
+        client_id,
+        redirect_uri: REDIRECT,
+        code_challenge: CHALLENGE,
+        code_challenge_method: 'S256',
+        team: t.identity.teamId,
+      },
+      { cookie: t.identity.cookie, csrf },
+    ),
+  );
+  assert.equal(authRes.status, 302);
+  const code = new URL(authRes.headers.get('location') ?? '').searchParams.get('code') ?? '';
+  assert.ok(code.length > 0);
+  const membership = await t.deps.identity.store.findMembership(t.identity.teamId, t.identity.userId);
+  assert.ok(membership);
+  await t.deps.identity.store.removeMembership(membership.membership_id);
+  const tokenRes = await handleOAuthRequest(
+    t.deps,
+    postForm('/oauth/token', {
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: REDIRECT,
+      client_id,
+      code_verifier: VERIFIER,
+    }),
+  );
+  assert.equal(tokenRes.status, 200);
+  const access = ((await tokenRes.json()) as { access_token: string }).access_token;
+  await assert.rejects(() =>
+    resolveIdentity(t.deps.identity.store, { mcp_grant_token: access }),
+  );
+});
