@@ -1,4 +1,121 @@
-# Source migration coverage
+# Draft refinement and migration coverage
+
+Current tracker updated October 4, 2026, after the [120-item evaluation](../EVALUATION.md). We are resuming the earlier work on the 39 app requirement/source pairs and 21 handwritten desired JavaScript targets. The evaluation produced findings and a correction plan; it did not apply those corrections to the product drafts. This current section supersedes historical completion claims, open-item descriptions and worker assignments further down this file.
+
+## Resumption point
+
+Before the evaluation, the latest recorded work was source workflow closure and uniform source/target translation, following the commercial, document/support and analytics passes. Full body/query/scalar/example correspondence remained open. The conversation records the user's four-hour checkpoint before switching to evaluation; this document does not contain an independently measured elapsed duration for that earlier work.
+
+At this resumption check, all 39 app `.can` files, all 21 `.mjs` targets and this report were byte-identical to the [evaluation baseline](../design/evaluation/baseline-20261004T041647Z/README.md). Existing completed draft work therefore remains the starting point. There are currently **302 inline example blocks in the 39 app sources, 305 across all 44 Can sources**; these are authored specifications, not executed test results. Older counts below describe earlier passes.
+
+The [integrated verdict and finite correction plan](../design/evaluation/ADOPTION.md), [language findings](../design/evaluation/evidence/language/findings.md) and [interface findings](../design/evaluation/INTERFACES.md) supply the evaluated evidence. This tracker also includes the subsequent delivery/history boundary questions, explicitly as candidates. It does not adopt new primitives merely by listing them.
+
+## Parallel execution lanes
+
+Planning updated October 4, 2026. These are queues and ownership assignments, not a claim that workers have been launched. The four current collaboration slots support the coordinator and at most three active workers. More execution capacity can be used for ready, disjoint tasks; it does not permit simultaneous writers to one file. Give each worker one bounded task and the relevant source, requirement, contract and evaluation evidence, rather than an entire lane's backlog or conversation history.
+
+| Lane | Responsibility and exclusive source ownership | Normal model / reasoning |
+| --- | --- | --- |
+| A — authority and private workflows | Expense, Mail, Customer, Grant, Approve, Hire, Leave, Onboard, Shift, Volunteer; their existing matching MJS/requirements; shared Employees. | GPT-6.1 Sol **High** for authority/recovery changes; **Medium** for settled local alignment. |
+| B — operational workflows and progress | Book, Propose, Report, Field, Maintain, Do, Desk, Reception, Event, Check, Catch, Stats, Success; matching MJS/requirements; shared Locations. | GPT-6.1 Sol **High** for multi-step recovery/composition; **Medium** for a bounded local fix. |
+| C — money, commercial evidence and records | Rent, Member, Invoice, Refer, Affiliate, Loyalty, Purchase, Stock, Trade, Board, CRM, Contract, Learn, Table, Time, Feedback; matching MJS/requirements; shared Suppliers. | GPT-6.1 Sol **High** for typed money/history/ledger alignment; **Medium** for settled local work. |
+| D — shared contracts and language examples | Bounded contract tasks below. DESIGN/GRAMMAR/REQUIREMENTS/DECISIONS edits and the two reference examples have one explicit active writer; transfer that ownership at task completion. Cross-app application goes through A/B/C. | GPT-6 Astra **Medium/High** for consequential unresolved semantics; Sol **Medium/High** for established contract detail. |
+| E — consistency review and closure | Read committed source/targets by construct or journey. Return concrete corrections to the owning lane. Coordinator owns this tracker and staged commits. | Sol **High** for target correspondence; Astra **High** for final cross-app authority/recovery review; Luna **Medium** for mechanical documentation. |
+
+A/B/C partition all 39 app pairs. The 21 existing targets stay with their source owners. D is a sequence of focused tasks, not one worker asked to redesign every shared facility. Reviewers receive requirements and raw artifacts without the author's verdict; one focused review per meaningful change is sufficient unless new concerns justify another. Shared-file changes requested by another lane are handed to their current writer.
+
+## Scheduling and dependencies
+
+Start three independent tasks: **6 (actor/grant fixtures), 4 (Report completeness), and the concrete money correction in 5 (Rent target)**. Task 6 must also specify grants on a non-calling fixture account: current role selectors grant roles to self only, so Expense's corrected reviewer predicate needs a valid other-account role setup. Its initial contract milestone unblocks Expense/Mail examples without waiting for unrelated contract decisions.
+
+As soon as a slot frees, dispatch the highest-impact ready task: **1 (Expense), 3 (Book/Propose progress), 2 (Mail)**. Existing production-rule corrections can be investigated while fixture semantics settle; a completed fix must include valid examples. Tasks 10/11/13 are independent contract work and can use freed slots. Neither unfinished delivery/history/dependency proposals nor a broad review may block known local fixes.
+
+| Task | Lane | Recommended model / reasoning | Dependency / handoff |
+| --- | --- | --- | --- |
+| 1 | A | Sol **High** | Existing role predicate is settled; final noncaller role and recovery examples use 6/7. Review business recovery choice against L1. |
+| 2 | A | Sol **High** | Existing eligibility/relationship distinction is settled; corrected external/member actor cases use 6/7. Serialize later Mail changes from 14/16. |
+| 3 | B | Sol **High** | Ready using existing event/schedule contracts. Keep initial Book and Propose corrections small; no dependency on a new scheduler. |
+| 4 | B | Sol **Medium** | Ready independently; complete/empty/partial source cases are sufficient for this task. |
+| 5 | C | Sol **High** | Rent money fix is ready. Hand equivalent findings in other targets to A/B/C; whole-target correspondence is E2 below. |
+| 6 | D | Astra **Medium** | Critical contract milestone: additional accounts, noncaller role grants and deterministic caller selection. JEV if alternatives require a design choice; apply positive cases through owners. |
+| 7 | D | Sol **High** | Error/fixture semantics can be inspected independently; finalize caller/grant details with 6. Preserve actual by/guard order. |
+| 8 | D → A | Astra **Medium** | Compare existing authorized IDs/roster and Employee labels; no directory primitive assumed. A applies any accepted Employee/Expense changes. |
+| 9 | D | Sol **High** | Existing canonical invocation and exposure rules; preserve the scratch witness and return any app changes to its owner. |
+| 10 | D | Sol **Medium** | Ready: one derived safe page descriptor, with source/target witness. Owner applies remaining targets during E2. |
+| 11 | D | Sol **High** | Ready: existing finalized-file and authority contract. Route attachment examples to A/C; no transfer implementation. |
+| 12 | D → A/B/C | Astra **High** | Historical provenance/authority is consequential. Settle bounded intake versus retained archive, then apply needed source declarations through owners. |
+| 13 | D | Astra **High** | Ready: existing fence/draining contracts and provider restore boundaries. Resolve documentation conflicts without adding raw-write escape paths. |
+| 14 | D → A/B/C | Astra **High** for contract choice; Sol **High** for accepted draft edits | Read current handlers now; adopt only after balanced existing-contract comparison/JEV. Await 2/3 before writing overlapping Mail/Propose files. |
+| 15 | C | Astra **High** for preserved-history choice; Sol **High** for accepted edits | Starts after concrete Rent correction in 5. Compare retained report outcomes and growth; hand any shared semantics to D. |
+| 16 | B → A/C | Sol **High**, Astra **Medium** if semantics remain disputed | Investigation can run read-only; apply to Mail after 2 and to commercial owners after their active tasks. Whole workflow/owner preservation is the acceptance condition. |
+| 17 | D → A/B/C | Sol **Medium** | Reuse evaluated assumption examples. Shared review contract first, source changes only through affected owners. |
+
+Each completed source task includes its matching existing target, affected canonical UI/MCP binding and inline expected outcomes. Definitions with no runtime code need an explicit compile-time or metadata mapping. Keep one canonical pattern for the same construct. Do not create 18 additional MJS files merely to make the inventory symmetric; add a focused witness only for a construct whose translation is otherwise unrepresented.
+
+## Model and cost basis
+
+The recommendations are task-planning judgments, not measured timing predictions. Model IDs are `gpt-6-luna`, `gpt-6.1-sol` and `gpt-6-astra`; Medium/High correspond to supported dispatcher values `medium`/`high`. Use Luna Low (`low`, called Light in the local skill) only for a fully prescribed one-step edit. Escalate when actual ambiguity or costly mistakes warrant it, rather than making every worker Ultra. Reserve Ultra for a separately delegated orchestrator that genuinely coordinates independent workers/review stages, subject to actual dispatcher support; it is not an ordinary leaf-task setting.
+
+Official API Standard short-context prices checked October 4, 2026, per million input/cached-input/output tokens: Luna **$0.10/$0.01/$0.50**, Sol 6.1 **$2.00/$0.10/$10.00**, Astra **$10.00/$1.00/$50.00**. These are comparison inputs, not Codex subscription consumption or full-task cost; context/reasoning, retries and tool use also matter. Sources: [official pricing](https://developers.openai.com/api/docs/pricing), [Sol 6.1](https://developers.openai.com/api/docs/models/gpt-6.1-sol), [Luna](https://developers.openai.com/api/docs/models/gpt-6-luna), [Astra](https://developers.openai.com/api/docs/models/gpt-6-astra). Use the least expensive reliable combination from the model-selection skill.
+
+## Commits and task closure
+
+Commit a coherent completed correction as soon as its focused checks and applicable source/target review pass; do not wait for the whole lane or all apps. Useful milestones include Report completeness, Rent money lowering, a settled fixture contract with its reference witness, Expense eligibility/recovery, and separate Book/Propose progress fixes. A candidate comparison can conclude with preserving the current design plus a precise documented limit. Agreement from JEV is advice, not proof or automatic approval.
+
+One coordinator stages explicit task-owned paths and commits them; workers do not concurrently stage the shared index or use `git add .`. Update the matching row's status/evidence/commit in this file when closing a task. Include only related source, target, requirement/contract and tracker changes. A semantic contract change includes necessary affected examples/targets, or an explicitly compatible additive milestone. Preserve unrelated edits and never commit knowingly invalid fixture examples just to claim progress.
+
+Focused verification means JavaScript syntax for changed targets, applicable source syntax with prototype limits disclosed, and manual source/target/expected-outcome correspondence for the affected behavior. The same source construct gets the same import, argument order, authority, effect ordering and UI props everywhere. No compiler/library/runtime execution claim follows from those checks. Implementation remains outside this refinement round.
+
+## Current draft backlog
+
+All items below are open. **Fix** identifies a demonstrated source/target defect, **clarify** an unresolved contract, and **evaluate** a possible simplification. Use existing language mechanisms first; difficult design choices follow the project's JEV consultation rules. Keep shared mechanics canonical while preserving authored business authority, commitments and outcome meaning.
+
+| Order | Gap and disposition | Draft work and evidence needed |
+| --- | --- | --- |
+| 1 | Reviewer eligibility and revocation — **fix** | Align CanExpense and its target: submission requires the actual reviewer role as well as current workplace eligibility. Define narrow authorized recovery after reviewer revocation, retaining submitted evidence. Cover valid reviewer, active nonreviewer, self, revoked assignment and stale recovery. R1/L1. |
+| 2 | Current authority versus historical validity — **fix** | Correct CanMail's permanent verified-contact invariant and invalid actor/example setups. Current revocation must deny collection while preserving valid historical delegates and handling records. R1/L3. |
+| 3 | Background progress beyond a global bound — **fix** | Replace CanBook/CanPropose fail-stop periodic scans using existing record-addressed events/schedules where applicable. Preserve reservation compensation and the original commitment. Trace 99/100/101/1,000 eligible records, replay, delay and old-backlog admission. R2/L2. |
+| 4 | Partial evidence versus exact zero — **fix** | Correct CanReport completeness/state admission and exact-result guards. Show incomplete, missing and stale sources separately from a complete empty source. R4/L5. |
+| 5 | Canonical Can-to-JavaScript correspondence — **fix and clarify** | Correct CanRent money-unit construction and checked arithmetic. Maintain one mapping per supported construct across all 21 targets, including guards/effects, queries, metadata, UI bindings and examples; legitimate differences must follow source differences. R9/C-I01 and DESIGN section 13. |
+| 6 | Additional same-team test actors — **clarify** | Extend the existing fixture/example contract enough to provision and select three distinct current-team actors with explicit grants. Show the complete claimant/reviewer/finance journey rather than using an outsider or a seeded historical outcome as equivalent coverage. R11/L3C. |
+| 7 | Valid fixture setup and precise errors — **clarify** | Pin server-owned fixture setup and expected error semantics; invalid setup cannot count as an operation rejection. Correct affected source and translated examples under those rules. R11/L3. |
+| 8 | Authorized person selection — **clarify** | Specify how existing user/employee references acquire permitted readable labels and current eligibility in browser/MCP. Compare current authorized IDs/roster with existing Employee labels; cover duplicate names, revocation and private HR data. R6/C-I02. |
+| 9 | Canonical operation exposure — **clarify** | Resolve the scratch archive example's unusable reasonless delete exposure while preserving the reason-bearing action and internal canonical invocation. No successful authorization bypass was found. R12. |
+| 10 | Shared-shell page discovery — **clarify** | Define compiler-derived safe page title/order/eligibility metadata in desired JavaScript without a second authored navigation registry or unrelated page reads. C target-correspondence evidence. |
+| 11 | MCP finalized-file handoff — **clarify** | Describe the authorized host/runtime upload and finalization path to the existing opaque file input. Preserve file identity, current grants and upload limits; no arbitrary local path becomes an attachment. C target-correspondence evidence. |
+| 12 | Historical SaaS intake — **clarify** | Define bounded intake/provenance mapping for historical approvals, receipts, dates, accounts and files, or a linked immutable readable archive where prior authority cannot be established. Do not confuse current CRUD CSV with installed-schema migration. R10/L7. |
+| 13 | Fenced maintenance, provider switching and recovery — **clarify** | Reconcile raw-maintenance wording with existing revision fences; explicitly apply the old-work gate to config-only provider changes. Document composed database/file/config recovery and external reconciliation. R5/L6/C-I03. |
+| 14 | Repeated delivery bookkeeping — **evaluate** | Compare current ID/status/result mirrors with a persistent, authorized association to the existing runtime delivery contract. Preserve current-attempt correlation and explicit business reactions; no new Given spelling is selected. Subsequent discussion candidate, grounded in Mail/Propose handlers. |
+| 15 | Repeated historical capture — **evaluate** | Compare safe same-operation coalescing and smaller immutable facts/checkpoints with full snapshots. Preserve which facts became binding, historical report truth, disclosure and retention. No automatic-history primitive is selected. R8/L8. |
+| 16 | Accidental integration dependencies — **evaluate** | Compare value-contract reuse and optional workflow composition under existing package boundaries. Preserve canonical owners, full required behavior and truthful provider setup; do not introduce wrappers, copied models or assumed pruning. R3/L4. |
+| 17 | Reviewable inferred company policy — **clarify** | Make privacy, approval, duplicate-handling and retention assumptions visible through source-derived review. Keep source/example meaning authoritative; a review summary must not become a second authored policy contract. R6. |
+
+Measured private-caption simplification and stale documentation cleanup remain lower-priority polish. New primitives or broad default changes require equal-outcome evidence. Actual buyer/support economics remain in the evaluation, rather than being treated as Can syntax defects.
+
+## Whole-corpus closure queue
+
+The 17 evaluated gaps are not the entire earlier app-completion backlog. Keep these closure tasks active so completing that list does not become another premature stopping point.
+
+| Task | Lane / model | Concrete work and completion evidence |
+| --- | --- | --- |
+| E1 | A/B/C; Sol **Medium**, **High** for substantive workflow gaps | Give each worker one app requirement/source/existing-target pair at a time. Refresh all 39 historical per-app rows with requirement-linked dispositions and correct actual omissions. Preserve declared scope and companion business requirements. Do not mark an app complete from generic syntax checks or describe missing business behavior as deferred infrastructure. |
+| E2 | E; Sol **High**; edits through A/B/C | Review all 21 targets by supported construct: metadata/types, policies/authority, CRUD/scenarios/hooks, queries/scalars, services/events, UI/i18n and fixtures/examples. Record one canonical mapping and actual source witnesses, including compile-time-only constructs. Correct inconsistent occurrences through their owners and check translated expectations. Start on settled commits; revisit only constructs affected by later changes. |
+| E3 | E; Astra **High**, bounded independent review | Review affected full journeys across Expense/reimbursement, customer/proposal/reservation/invoice, mail/delegates, and owner-produced CanDo work/actions. Inspect committed artifacts and requirements, preserving pending/unknown/revoked/stale/compensation outcomes. Return concrete issues to existing owners; no broad new evaluation or blanket framework. |
+| E4 | E/coordinator; Luna **Medium** for prescribed edits, Sol **Medium** for closure judgment | Apply proven private-caption polish, refresh counts/links and current per-app statuses, and record final source/target coverage plus remaining execution-dependent evidence. Close the round only when required supported draft workflows and shared mappings have no unexplained gaps; retain bounded design choices and future validation honestly. |
+
+E1 can run whenever an owner's next app is free; it need not wait for all 17 tasks. E2/E3 review stable relevant commits while other files progress. Finish E4 after pending corrections are integrated. Every gap has one owner even when its application spans several lanes.
+
+## Next concrete app correction
+
+**Start with CanExpense.can and CanExpense.mjs.** The current `submit` guard checks `can_work(expense.reviewer,expense.location)` but omits the declared reviewer-role predicate; `decide` requires that role, and submission locks the reviewer. Add the existing subject-role check and settle the smallest authorized recovery after later revocation without removing the evidence lock. Keep source, desired JavaScript, canonical UI/MCP action and meaningful examples aligned. The Employee `role:text` is not a language role grant.
+
+This document update records the task plan; none of those source/target corrections has been made in this planning pass. The scheduling section replaces the earlier globally sequential order: begin ready independent work in parallel and satisfy only each task's real dependencies. Expense remains the first authority-lane correction.
+
+## Draft completion evidence
+
+Completion requires required app workflows traced against their companion requirements, defined semantics and canonical translation for every supported construct, consistent existing targets, sufficiently precise shared import contracts, and meaningful valid inline success/rejection examples. Close each demonstrated defect or explicitly decide its scoped alternative with the same required outcomes. Syntax checks and text inventories supply only their actual evidence; later runtime, migration, UI, provider and performance execution remain separate validation.
+
+## Historical migration record
 
 Migration date: October 3, 2026. The inputs are the 39 app requirements plus WORKSPACE_OPERATOR, PORTFOLIO, ADMIN_SURFACES, root REQUIREMENTS and DESIGN. The business requirement documents remain the target; this report does not relax their completion criteria.
 
@@ -14,7 +131,7 @@ The drafts replace inferred inputs, overloaded user/trusted handlers, implicit r
 
 Payment, allowance, staff reservation, stock posting, document generation and credential requests retain source identity and pending/failed/unknown states rather than treating a delivery receipt as fulfillment. Commercial booking terms are copied from the catalog, not supplied by the buyer. Customer roles, employee location grants, published commercial catalogs and moderation responsibilities are separated.
 
-There are now 52 inline example tables across all 39 app sources. They include success, invalid-state, permission, month-end/leap restoration, cross-year calendar coverage, delayed-event cutoff, source freshness, attachment preservation/renewal and selected capacity/budget cases. CanExpense and CanContract use the specified finalized-file fixtures for positive attachment examples. Example tables are authored expectations, not executed tests or complete acceptance coverage.
+That earlier pass recorded 52 inline example tables across all 39 app sources; the current resumption inventory above supersedes this count. They included success, invalid-state, permission, month-end/leap restoration, cross-year calendar coverage, delayed-event cutoff, source freshness, attachment preservation/renewal and selected capacity/budget cases. CanExpense and CanContract use the specified finalized-file fixtures for positive attachment examples. Example tables are authored expectations, not executed tests or complete acceptance coverage.
 
 ## Design and implementation limits
 
@@ -48,9 +165,9 @@ Review source/version/delivery bookkeeping for reusable runtime metadata, preser
 
 Other proposed reusable workflow/service facilities remain brainstorming candidates. Import/export and app composition are now recorded in DESIGN and the source drafts. Three later JEV consultations assessed composition alternatives, including local versus schema-only imports, but not the complete grammar or migrated source catalogue. No compiler/runtime has implemented them.
 
-## Per-app coverage
+## Historical per-app coverage
 
-The second column identifies migrated behavior, not a claim of completion. The third identifies material remaining work visible in the requirements or current source. Shared runtime/design limits above apply to every app.
+The second column identifies migrated behavior, not a claim of completion. The third records remaining work at the time of those passes; later entries and the current backlog above supersede resolved or reclassified items. Unassessed requirement coverage still needs source review; the evaluation did not certify every app complete. Shared runtime/design limits apply to every app.
 
 | App | Migrated behavior | Material requirements still open |
 | --- | --- | --- |
@@ -201,7 +318,7 @@ This entry supersedes stale open-item descriptions in historical migration passe
 
 Authored now: subject-role checks using canonical role calls; canonical form CSV import with owner duplicate-review reads; trusted-origin `app_url`; finance-owned on-account approval; CRM provider operations and recipient-page composition; Book staged replacement preserving the original; Propose frozen offers, held expiry, safe recipient links and kind/version-correlated handoffs; location weekly/holiday/date opening rules; work/detail producers for all five CanDo sources; explicit active-session CanDo source refresh and projection supersession; Onboard fixture/category, template/progress and reminders; Volunteer reactivation/rescheduling/booking evidence; Shift staged staffing; Maintain frozen downtime resource routing; invoice frozen quote lines and cumulative billing evidence.
 
-Invoice and membership lifecycle completion and Rent integration are currently assigned to focused workers. Maintain/Field handoffs, the remaining per-app rows above and whole-corpus JavaScript consistency still require concrete corrections. Optional handoffs stated by the app requirements remain optional; required workflows cannot be reclassified as deferred implementation. Only actual shared-library/transport/rendering execution is deferred.
+At that stage, Invoice and membership lifecycle completion and Rent integration were assigned to focused workers; this is historical assignment information, not a current dispatch. Maintain/Field handoffs, remaining per-app rows and whole-corpus JavaScript consistency required concrete corrections. Optional handoffs stated by the app requirements remain optional; required workflows cannot be reclassified as deferred implementation. Only actual shared-library/transport/rendering execution is deferred.
 
 Current verification is bounded: syntax checks on supported source files, JavaScript parse checks and focused preservation comparisons. New CSV/refresh/order attributes are documented but the unchanged syntax prototype does not accept every current presentation form. Inline BDD tables are authored expectations, not executed tests.
 
