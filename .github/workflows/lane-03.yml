@@ -1,0 +1,43 @@
+name: lane-03 state
+
+on:
+  push:
+    branches:
+      - 'muse/lane-03-state/**'
+    paths:
+      - 'packages/state/**'
+      - 'packages/stdlib/**'
+      - 'packages/contracts/src/state.ts'
+      - '.github/workflows/lane-03.yml'
+  pull_request:
+    paths:
+      - 'packages/state/**'
+      - 'packages/stdlib/**'
+      - 'packages/contracts/src/state.ts'
+      - '.github/workflows/lane-03.yml'
+
+jobs:
+  state:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install state package
+        working-directory: packages/state
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        working-directory: packages/state
+        run: npm run typecheck
+      - name: Build and test
+        working-directory: packages/state
+        run: npm test
+      - name: Install stdlib assembly
+        if: hashFiles('packages/stdlib/package.json') != ''
+        working-directory: packages/stdlib
+        run: npm install --no-audit --no-fund
+      - name: Typecheck stdlib
+        if: hashFiles('packages/stdlib/package.json') != ''
+        working-directory: packages/stdlib
+        run: npm run typecheck
