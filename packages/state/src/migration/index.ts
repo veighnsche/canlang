@@ -30,6 +30,13 @@
  * flip no-ops throw) stand between a mis-schedule and corruption. A
  * concurrent same-owner migration therefore fails loud (busy or
  * validation), never silently — but L7 must still never schedule one.
+ *
+ * SINGLE-OWNER STORES (loud assumption): record rows carry no owner
+ * (`records.owner` is `''`, scans unscoped), so one store instance serves
+ * exactly one owner; per-owner transitions plus owner-prefixed model names
+ * plus deployer serialization are the whole isolation story. A shared
+ * multi-owner store would mix layouts under one fence — that topology
+ * needs row ownership first.
  */
 
 import type {
@@ -188,6 +195,7 @@ export async function resumeMigration(
         input.chunkSize,
         now,
         actor,
+        input.isExpiredRow,
       );
       const flip = await flipToInstalled(store, plan, now, disposition);
       const after = await store.readMigrationProgress(plan.migrationId);

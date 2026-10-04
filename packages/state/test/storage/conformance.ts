@@ -2452,6 +2452,49 @@ export function storageConformance(
       });
     });
 
+    it('S7: flip fence loss applies nothing', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const migrationId = freshId('mig-flipfail');
+      const owner = freshId('owner-flipfail');
+      const skip = `skip-1-${migrationId}`;
+      await store.commit(makeBatch(0, { outbox: [makeIntent({ intentId: skip })] }));
+      // Installed X at revision 2; the flip below targets Y with a STALE
+      // expected revision, forcing the fenced path (no early-return).
+      await store.flipInstalledSnapshot({
+        expectedRevision: asRevision(1),
+        migrationId: freshId('mig-flipfail-seed'),
+        owner,
+        snapshot: makeSnapshot(owner, { snapshotId: 'snap-1', digest: 'digest-1' }),
+        renameFromOwner: null,
+        invalidatedIntentIds: [],
+        outcomes: [],
+      });
+      const failed = await captureFailure(
+        store.flipInstalledSnapshot({
+          expectedRevision: asRevision(0),
+          migrationId,
+          owner,
+          snapshot: makeSnapshot(owner, { snapshotId: 'snap-2', digest: 'digest-2' }),
+          renameFromOwner: null,
+          invalidatedIntentIds: [skip],
+          outcomes: [makeOutcome(migrationId, skip)],
+        }),
+      );
+      expectFenceConflict(failed, 0, 2);
+      assert.deepEqual(await store.readInstalledSnapshot(owner), {
+        ...makeSnapshot(owner, { snapshotId: 'snap-1', digest: 'digest-1' }),
+        installedRevision: 2,
+      });
+      assert.deepEqual(
+        (await store.outboxPending()).map((intent) => intent.intentId),
+        [skip],
+      );
+      assert.deepEqual(await store.readMigrationOutcomes(migrationId), []);
+      assert.equal(await store.readMigrationProgress(migrationId), null);
+      assert.equal(await store.readRevision(), 2);
+    });
+
     it('S7: flip with renameFromOwner removes the old pointer; rowless flip creates active progress', async () => {
       const { store, reset } = await setup();
       await reset();

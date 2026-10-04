@@ -501,11 +501,12 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       viewRows.set(`${mapping.target as string}\0${row.id as string}`, row);
     }
   }
-  // Untouched desired models persist live: a desired name with no plan
-  // mapping at all (other owners' models under shared-authority tables;
-  // genuinely new models scan empty) reads from live, so refs and
-  // invariants see the true post-state. Mapped names are already covered
-  // (staged/retained) or post-state empty (renamed-away sources).
+  // Desired names with no plan mapping at all (genuinely new models, which
+  // scan empty barring lingering tables) read from live, so INVARIANTS see
+  // the true post-state — staged refs to unmapped models block earlier at
+  // checkRefTargetRetained and never consume this fallback. Mapped names
+  // are already covered (staged/retained) or post-state empty
+  // (renamed-away sources).
   for (const desiredName of desiredModels.keys()) {
     if (plan.targets.has(desiredName) || plan.models.has(desiredName)) {
       continue;

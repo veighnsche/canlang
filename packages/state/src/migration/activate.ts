@@ -78,6 +78,12 @@ export interface ActivateInput {
   readonly desiredModels: ModelTable;
   readonly chunkSize: number;
   readonly clock: ClockPort;
+  /**
+   * Optional deployment-supplied expiry signal (absent until L1 lifetime
+   * descriptors land; see `stage.ts`): when present, drop candidates are
+   * pre-scanned and any expired row blocks activation with validation.
+   */
+  readonly isExpiredRow?: (row: StoredRow) => boolean;
 }
 
 /** Invalidate disposition: intent ids to skip plus their outcome records. */
@@ -98,7 +104,7 @@ interface DropCandidate {
  * `resumeMigration`, never by re-entering here.
  */
 export async function activate(input: ActivateInput): Promise<FlipResult> {
-  const { store, plan, inventory, oldModels, desiredModels, chunkSize, clock } = input;
+  const { store, plan, inventory, oldModels, desiredModels, chunkSize, clock, isExpiredRow } = input;
   if (!Number.isInteger(chunkSize) || chunkSize < 1) {
     throw new Error(`Invalid migration chunk size: ${JSON.stringify(chunkSize)}`);
   }
@@ -125,7 +131,7 @@ export async function activate(input: ActivateInput): Promise<FlipResult> {
     throw new StateError('validation', 'Migration clock must supply a finite time >= 0.');
   }
   const actor = `migration:${plan.toSnapshotId}`;
-  await publishStagedAndDrops(store, plan, oldModels, desiredModels, chunkSize, now, actor);
+  await publishStagedAndDrops(store, plan, oldModels, desiredModels, chunkSize, now, actor, isExpiredRow);
   const result = await flipToInstalled(store, plan, now, disposition);
   if (!result.flipped) {
     // The evidence gate proved installed == from (and from != target) up
@@ -336,7 +342,10 @@ async function checkActivationEvidence(store: StoragePort, plan: ValidatedMigrat
  * staged reads after the publish cursor plus bounded drop enumeration per
  * chunk until both exhaust. Drop enumeration is state-derived (disposed
  * rows vanish), so an interrupted loop resumes without a drop cursor and
- * never republishes a cursor range.
+ * never republishes a cursor range. When `isExpiredRow` is supplied, drop
+ * candidates are pre-scanned first and any expired row blocks with
+ * validation before anything publishes (DESIGN §11.2: drops remain
+ * subject to expiry).
  */
 export async function publishStagedAndDrops(
   store: StoragePort,
@@ -346,8 +355,12 @@ export async function publishStagedAndDrops(
   chunkSize: number,
   now: number,
   actor: string,
+  isExpiredRow?: (row: StoredRow) => boolean,
 ): Promise<void> {
   await checkActivationEvidence(store, plan);
+  if (isExpiredRow !== undefined) {
+    await checkDropExpiry(store, plan, isExpiredRow);
+  }
   for (;;) {
     const progress = await store.readMigrationProgress(plan.migrationId);
     if (progress === null) {
@@ -598,6 +611,62 @@ function appendDropPublish(
     );
     if (value !== null) {
       uniqueReleases.push({ model: drop.model as ModelName, keyName: key, keyValue: value });
+    }
+  }
+}
+
+/** Internal bound for the drop-expiry pre-scan (chunked, unbounded total). */
+const DROP_EXPIRY_SCAN_LIMIT = 500;
+
+/**
+ * Expiry pre-scan (DESIGN §11.2: drops remain subject to expiry): every
+ * undisposed drop candidate must be unexpired BEFORE the publish loop
+ * moves anything — an expired candidate means the expiry backlog has not
+ * finished disposal under its old lifecycle, so activation blocks with
+ * validation (fail fast, nothing published). Rename disposals are moves,
+ * not drops (see `appendStagedPublish`): they carry staging-time expiry
+ * proof and stay ungated, like conversions.
+ */
+async function checkDropExpiry(
+  store: StoragePort,
+  plan: ValidatedMigrationPlan,
+  isExpiredRow: (row: StoredRow) => boolean,
+): Promise<void> {
+  const dropped: string[] = [];
+  for (const [name, mapping] of plan.models) {
+    if (mapping.kind === 'drop') {
+      dropped.push(name as string);
+    }
+  }
+  dropped.sort();
+  for (const model of dropped) {
+    let after: string | null = null;
+    for (;;) {
+      const chunk = await store.query({
+        model: model as ModelName,
+        authority: 'owner',
+        archived: 'include',
+        ...(after === null ? {} : { where: { op: 'gt', field: 'id', value: after } }),
+        order: [{ field: 'id', direction: 'asc' }],
+        limit: DROP_EXPIRY_SCAN_LIMIT,
+      });
+      if (chunk.length === 0) {
+        break;
+      }
+      for (const row of chunk) {
+        if (isExpiredRow(row) === true) {
+          throw new StateError(
+            'validation',
+            `Cannot drop expired row ${JSON.stringify(model)}/${JSON.stringify(row.id)}: ` +
+              `the expiry backlog must finish disposal under its old lifecycle before activation.`,
+          );
+        }
+      }
+      const last = chunk[chunk.length - 1];
+      if (last === undefined || chunk.length < DROP_EXPIRY_SCAN_LIMIT) {
+        break;
+      }
+      after = last.id as string;
     }
   }
 }

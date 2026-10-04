@@ -435,6 +435,57 @@ describe('activation preconditions', () => {
     assert.equal(live?.version as number, 2);
     assert.equal((await store.readMigrationProgress('mig-1'))?.phase, 'publishing');
   });
+
+  it('blocks a removal flip when the pointer vanishes mid-activation', async () => {
+    const { store } = setupMigrationWorld();
+    await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
+    const { oldModels } = todoTables();
+    const desiredModels = buildModelTable([]);
+    const plan = validateTransition(
+      makeInstalled(),
+      makeTransition({ directives: [{ kind: 'dropOwner' }] }),
+      oldModels,
+      desiredModels,
+    );
+    await installSnapshot(store, makeInstalled());
+    for (;;) {
+      const result = await stageNextChunk({
+        store,
+        plan,
+        mappers: new Map(),
+        oldModels,
+        desiredModels,
+        chunkSize: 10,
+      });
+      if (result.done) {
+        break;
+      }
+    }
+    await validateStaged({ store, plan, desiredModels, oldModels, oldLocks: oldLocks([]) });
+    // Fault injection around the REAL adapter: the pointer reads present
+    // for the publish-start evidence gate, then vanishes before the flip.
+    let reads = 0;
+    const racing: StoragePort = {
+      ...store,
+      async readInstalledSnapshot(owner: string) {
+        reads += 1;
+        if (reads === 1) {
+          return store.readInstalledSnapshot(owner);
+        }
+        return null;
+      },
+    };
+    const error = await captureStateError(() =>
+      activate({ store: racing, plan, inventory: [], oldModels, desiredModels, chunkSize: 10, clock: fixedClock() }),
+    );
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, /missing predecessor evidence/);
+    assert.equal(reads, 2);
+    // Publish disposed the rows, the removal flip refused: no silent
+    // skip/outcome loss, and resume retries from publishing.
+    assert.equal(await store.load(asModel(TODO_MODEL), 'a' as StoredRow['id']), null);
+    assert.equal((await store.readMigrationProgress('mig-1'))?.phase, 'publishing');
+  });
 });
 
 describe('activation publish and flip', () => {
@@ -576,6 +627,57 @@ describe('activation publish and flip', () => {
     // Conversions preserve archive state through publish.
     const live = await store.load(asModel(TODO_MODEL), 'a' as StoredRow['id']);
     assert.deepEqual(live?.data, { title: 'a', done: true, priority: 'low' });
+  });
+
+  it('blocks drops when the expiry backlog is unfinished', async () => {
+    const { store } = setupMigrationWorld();
+    await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
+    await seedLive(store, GONE, [{ id: 'g', data: { n: 1 } }]);
+    const oldModels = buildModelTable([
+      oldTodoDef(),
+      modelDef(GONE, { fields: { n: field() } }),
+    ]);
+    const desiredModels = buildModelTable([desiredTodoDef()]);
+    const plan = validateTransition(
+      makeInstalled(),
+      makeTransition({ directives: [...todoDirectives(), { kind: 'dropModel', model: GONE }] }),
+      oldModels,
+      desiredModels,
+    );
+    await installSnapshot(store, makeInstalled());
+    for (;;) {
+      const result = await stageNextChunk({
+        store,
+        plan,
+        mappers: await todoMappers(),
+        oldModels,
+        desiredModels,
+        chunkSize: 10,
+      });
+      if (result.done) {
+        break;
+      }
+    }
+    await validateStaged({ store, plan, desiredModels, oldModels, oldLocks: oldLocks([]) });
+    const error = await captureStateError(() =>
+      activate({
+        store,
+        plan,
+        inventory: [],
+        oldModels,
+        desiredModels,
+        chunkSize: 10,
+        clock: fixedClock(),
+        isExpiredRow: (row) => (row.id as string) === 'g',
+      }),
+    );
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, /Cannot drop expired row/);
+    // Fail fast: the pre-scan runs before anything publishes.
+    assert.ok((await store.load(asModel(GONE), 'g' as StoredRow['id'])) !== null);
+    const live = await store.load(asModel(TODO_MODEL), 'a' as StoredRow['id']);
+    assert.equal(live?.version as number, 1);
+    assert.equal((await store.readMigrationProgress('mig-1'))?.phase, 'staged');
   });
 
   it('publishes name-only renames with no history', async () => {
@@ -840,6 +942,64 @@ describe('activation publish and flip', () => {
         ],
       }),
     );
+  });
+
+  it('conflicts deterministically on cross-chunk unique swaps', async () => {
+    const { store } = setupMigrationWorld();
+    const oldModels = buildModelTable([
+      modelDef(TODO_MODEL, { fields: { slug: field({ required: true }) }, uniqueKeys: ['slug'] }),
+    ]);
+    const desiredModels = buildModelTable([
+      modelDef(TODO_MODEL, { fields: { slug: field({ required: true }) }, uniqueKeys: ['slug'] }),
+    ]);
+    const seedClaimed = async (id: string, slug: string): Promise<void> => {
+      const row = makeRow({ id, data: { slug } });
+      const revision = await store.readRevision();
+      await store.commit(
+        makeBatch(revision as number, {
+          writes: [{ kind: 'insert', model: asModel(TODO_MODEL), row }],
+          uniqueClaims: [{ model: asModel(TODO_MODEL), keyName: 'slug', keyValue: slug, recordId: row.id }],
+        }),
+      );
+    };
+    await seedClaimed('r-1', 'a');
+    await seedClaimed('r-2', 'b');
+    const plan = validateTransition(
+      makeInstalled(),
+      makeTransition({ directives: [{ kind: 'backfill', model: TODO_MODEL }] }),
+      oldModels,
+      desiredModels,
+    );
+    await installSnapshot(store, makeInstalled());
+    // Each mapper swaps its OWN slug (before-only, no cross-row reads);
+    // the staged set stays unique, so validation passes.
+    const mapper: MigrationMapper = (before, row) => {
+      row.set('slug', before.data['slug'] === 'a' ? 'b' : 'a');
+    };
+    for (;;) {
+      const result = await stageNextChunk({
+        store,
+        plan,
+        mappers: new Map([[asModel(TODO_MODEL), mapper]]),
+        oldModels,
+        desiredModels,
+        chunkSize: 10,
+      });
+      if (result.done) {
+        break;
+      }
+    }
+    await validateStaged({ store, plan, desiredModels, oldModels, oldLocks: oldLocks([]) });
+    // Chunk 1 (r-1: a→b) claims 'b' while r-2 still holds it: the storage
+    // unique constraint rejects the chunk — loudly, deterministically.
+    const error = await captureStateError(() =>
+      activate({ store, plan, inventory: [], oldModels, desiredModels, chunkSize: 1, clock: fixedClock() }),
+    );
+    assert.equal(error.code, 'conflict');
+    // The failed chunk applied nothing: live rows and progress untouched.
+    const first = await store.load(asModel(TODO_MODEL), 'r-1' as StoredRow['id']);
+    assert.deepEqual(first?.data, { slug: 'a' });
+    assert.equal((await store.readMigrationProgress('mig-1'))?.phase, 'staged');
   });
 
   it('removes the renamed-away owner pointer on owner rename', async () => {

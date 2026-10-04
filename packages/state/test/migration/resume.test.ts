@@ -108,9 +108,12 @@ describe('resume observation', () => {
       clock: fixedClock(),
     });
     assert.equal(flip.flipped, true);
+    const revision = await store.readRevision();
     const observed = await resumeMigration(resumeBag(store, plan));
     assert.equal(observed.progress?.phase, 'active');
     assert.equal(observed.flip, null);
+    // Pure observation: no write, no revision advance.
+    assert.equal(await store.readRevision(), revision);
   });
 
   it('reruns the flip idempotently with flipped:false', async () => {
