@@ -24,7 +24,7 @@ import type {
   MessageValue,
   PresentationContext,
 } from "../../contracts/src/presentation.js";
-import type { FieldError, MutationRef } from "../../contracts/src/wire.js";
+import type { FieldError, MutationRef } from "../../contracts/src/presentation.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 import {
   canonicalDefaultTag,

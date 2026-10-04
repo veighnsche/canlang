@@ -9,7 +9,7 @@ import type {
   FormProps,
   PresentationContext,
 } from "../../contracts/src/presentation.js";
-import type { FieldError, SealedActionHandle } from "../../contracts/src/wire.js";
+import type { FieldError, SealedActionHandle } from "../../contracts/src/presentation.js";
 import { message } from "../src/messages.js";
 import {
   action,

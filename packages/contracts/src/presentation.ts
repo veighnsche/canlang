@@ -19,6 +19,10 @@ import type {
 } from "./wire.js";
 import type { DeliveryStatus } from "./services.js";
 
+/** Reused producer types, re-exported so lane-05 members import one contract file. */
+export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
+export type { DeliveryStatus } from "./services.js";
+
 export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.4.0";
 
 /**
