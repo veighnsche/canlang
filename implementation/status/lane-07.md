@@ -107,7 +107,8 @@ Active reservations: none (coordinator holds all owned files until first delegat
 
 ## Interface requests and handoffs
 
-None sent yet (no producer coordinator active to receive them). This section will record each request with producer, exact symbol/behavior, consuming example, and milestone.
+- Lane 04 S1 merged as PR #1 (`50b46b4`, status plan only, no code). L4 S2 will add `packages/contracts/src/{work,services,files}.ts` (their bodies) and needs root workspace + `contracts` manifest/index: delivered by this lane's PR1. Coordination: when L4 S2 lands, lane 07 adds the `src/index.ts` re-exports (index assembly is L7-owned); L4 must not silently extend the assembly in passing.
+- No lock/manifest integration requests pending. No requests sent yet (only lane 04 active besides this lane; its S1 needs no lane-07 action beyond PR1).
 
 ## PR and verification evidence
 
