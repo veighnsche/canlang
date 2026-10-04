@@ -21,6 +21,7 @@ package appointments
   Notice in Appointment { kind:enum(confirmation,reminder) label={text="Notice kind"@{nl="Berichtsoort"},values={confirmation="Confirmation"@{nl="Bevestiging"},reminder="Reminder"@{nl="Herinnering"}}}, source:text, delivery:text unique, state:enum(pending,delivered,failed,unknown,skipped)=pending label={text="Delivery"@{nl="Verzending"},values={pending="Pending"@{nl="In behandeling"},delivered="Delivered"@{nl="Afgeleverd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}} } label="Appointment notice delivery"@{nl="Verzending afspraakbericht"}
   derive available(calendar:Calendar,from:datetime,until:datetime):bool = is_open(calendar.location,from,until) and from<until and local_date(from,calendar.timezone)==local_date(until-1ms,calendar.timezone) and any(calendar.WeeklyHours as hours,hours.weekday==weekday(local_date(from,calendar.timezone)) and local_instant(local_date(from,calendar.timezone),hours.opens,calendar.timezone,fold=hours.fold)<=from and until<=local_instant(local_date(from,calendar.timezone),hours.closes,calendar.timezone,fold=hours.fold)) and not any(calendar.ClosedDay as closure,closure.day==local_date(from,calendar.timezone)) and any(calendar.Window as window,window.available and window.from<=from and until<=window.until) and not any(calendar.Window as window,not window.available and overlaps(from,until,window.from,window.until))
   event Reminder { appointment:Appointment, revision:int }
+  event AttemptProgress { attempt:Attempt }
   policy Calendar read=public fields=location,timezone,duration,hours,instructions,cutoff,active
   policy Window read=public
   policy WeeklyHours read=public
@@ -169,9 +170,11 @@ package appointments
       else
        set attempt {host_unknown=true}
    examples seed=[test_worker,original,candidate] event={delivery_id="move-host",status=succeeded,result={source="move",revision=1,state=unavailable,reference=null,detail="Host unavailable"},error=null}
-    event.result.state -> candidate.state,booked.from,booked.state
-    unavailable -> failed,datetime("2099-01-01T09:00:00Z"),confirmed
-    confirmed -> pending,datetime("2099-01-01T09:00:00Z"),confirmed
+    event.result.state,candidate.state -> candidate.state,booked.from,booked.state
+    unavailable,pending -> failed,datetime("2099-01-01T09:00:00Z"),confirmed
+    confirmed,pending -> pending,datetime("2099-01-01T09:00:00Z"),confirmed
+    confirmed,cancelled -> cancelled,datetime("2099-01-01T09:00:00Z"),confirmed
+    confirmed,active -> active,datetime("2099-01-01T09:00:00Z"),confirmed
   scenario room_result on=Rooms.hold.completed
    do
     for attempt in Attempt as item where item.room_delivery==event.delivery_id and item.state==pending limit=1
@@ -236,9 +239,28 @@ package appointments
       set attempt {state=failed,room_unknown=false}
       if attempt.kind==initial and attempt.parent.state==pending
        set attempt.parent {state=unavailable}
-  scenario ready on=every(1m)
+  ## Change events locate current state; no historical event snapshot or population scan.
+  scenario attempt_created on=Attempt.created
    do
-    for attempt in Attempt as item where item.state==pending and item.host_ok and item.room_ok and not item.host_unknown and not item.room_unknown limit=100
+    for changed in Attempt as row where row.id==event.id limit=1
+     emit AttemptProgress {attempt=changed}
+  scenario attempt_updated on=Attempt.updated
+   do
+    for changed in Attempt as row where row.id==event.id limit=1
+     emit AttemptProgress {attempt=changed}
+  ## Address old backlog explicitly without restarting an allocation or releasing the retained original.
+  scenario recover_attempt(attempt:Attempt) by=authenticated or host_manager label="Resume reservation follow-up"@{nl="Reserveringsopvolging hervatten"}
+   require (attempt.parent.contact.account==actor and attempt.parent.contact.verified) or (host_manager and can_work(actor,attempt.parent.parent.parent.location))
+   do emit AttemptProgress {attempt}
+   examples seed=[test_worker] attempt=candidate
+    as,request.attempt.version -> attempt.state
+    members,1 -> pending
+    members,0 -> error(conflict)
+    public,1 -> error(forbidden)
+  scenario ready on=AttemptProgress
+   do
+    let attempt=event.attempt
+    if attempt.state==pending and attempt.host_ok and attempt.room_ok and not attempt.host_unknown and not attempt.room_unknown
      let appointment=attempt.parent
      if (attempt.kind==initial and appointment.state==pending) or (attempt.kind==movement and appointment.state==confirmed and appointment.active_source==attempt.previous_source)
       if attempt.previous_source!=null
@@ -253,14 +275,20 @@ package appointments
        schedule appointment.id at=appointment.from-1h event=Reminder {appointment,revision=appointment.version+1}
      else
       set attempt {state=cancelled}
-   examples seed=[test_worker,original,candidate]
-    candidate.host_ok,candidate.state -> booked.from,booked.state
-    true,pending -> datetime("2099-01-01T10:00:00Z"),confirmed
-    false,pending -> datetime("2099-01-01T09:00:00Z"),confirmed
-    true,cancelled -> datetime("2099-01-01T09:00:00Z"),confirmed
-  scenario cleanup on=every(1m)
+   examples seed=[test_worker,original] event={attempt=candidate}
+    candidate.host_ok,candidate.room_ok,candidate.state,booked.active_source -> booked.from,booked.state,candidate.state,original.state
+    true,true,pending,"tour" -> datetime("2099-01-01T10:00:00Z"),confirmed,active,retired
+    false,true,pending,"tour" -> datetime("2099-01-01T09:00:00Z"),confirmed,pending,active
+    true,false,pending,"tour" -> datetime("2099-01-01T09:00:00Z"),confirmed,pending,active
+    true,true,cancelled,"tour" -> datetime("2099-01-01T09:00:00Z"),confirmed,cancelled,active
+    true,true,pending,"newer" -> datetime("2099-01-01T09:00:00Z"),confirmed,cancelled,active
+   examples seed=[test_worker,original] event={attempt=candidate}
+    candidate.state,candidate.host_ok,booked.active_source,booked.from,booked.until,original.state -> candidate.state,original.state,booked.from,count(Notice)
+    active,true,"move",candidate.from,candidate.until,retired -> active,retired,datetime("2099-01-01T10:00:00Z"),0
+  scenario cleanup on=AttemptProgress
    do
-    for attempt in Attempt as item where item.state in [failed,cancelled,retired] limit=100
+    let attempt=event.attempt
+    if attempt.state in [failed,cancelled,retired]
      if not attempt.host_released and attempt.host_release==null
       send StaffSchedule.release {source=attempt.source,revision=attempt.host_revision} as release
       set attempt {host_release=release.id}
@@ -270,6 +298,16 @@ package appointments
       set attempt {room_release=release.id}
      if attempt.host_released and attempt.room_released
       set attempt {state=released}
+   examples seed=[test_worker,original] event={attempt=candidate}
+    candidate.state,candidate.host_release,candidate.host_released -> candidate.state,candidate.host_release==null,original.state,booked.from
+    cancelled,null,false -> cancelled,false,active,datetime("2099-01-01T09:00:00Z")
+    cancelled,"release",false -> cancelled,false,active,datetime("2099-01-01T09:00:00Z")
+    failed,null,true -> released,true,active,datetime("2099-01-01T09:00:00Z")
+    active,null,false -> active,true,active,datetime("2099-01-01T09:00:00Z")
+   examples seed=[test_worker,original] event={attempt=candidate}
+    booked.room_snapshot,candidate.state,candidate.room_released,candidate.room_release -> candidate.host_release==null,candidate.room_release==null,original.state
+    "office",cancelled,false,null -> false,false,active
+    "office",cancelled,false,"release" -> false,false,active
   scenario host_released on=StaffSchedule.release.completed
    do
     for attempt in Attempt as item where item.host_release==event.delivery_id limit=1
@@ -316,6 +354,7 @@ package appointments
      details "Appointment coordination"@{nl="Afspraakafstemming"}
       text row.host_ok,row.room_ok,row.host_delivery,row.room_delivery
       list row.Attempt columns=kind,from,until,state,host_ok,room_ok,host_unknown,room_unknown,host_released,room_released
+       actions recover_attempt
       list row.Notice columns=kind,state
   # Maintain availability and record attendance under host grants. @{nl="Beheer beschikbaarheid en leg aanwezigheid vast binnen gastheerbevoegdheden."}
   page /appointments/hosts title="Host calendars"@{nl="Gastheerkalenders"}
