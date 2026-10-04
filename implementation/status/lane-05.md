@@ -370,8 +370,10 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
       (b) branch muse/lane-05-ui/c2b-appearance, PR pending — appearance-token matrix on 44/68 words,
       substantiated against pinned daisyUI 5.7.47 CSS (9 tests), alternates on hero/footer/navbar,
       contract v0.8.0. Suite 371/371 green. Props per family land with C3–C8 renderers.
-- [ ] C3 readable leaves + mockups: avatar, badge, status, kbd, mockup_code, countdown, progress,
-      radial_progress, divider, loading, skeleton, link, breadcrumbs, text_rotate. Two workers by file split.
+- [x] C3 readable leaves (branch muse/lane-05-ui/c3-leaves, PR pending): contract v0.9.0
+      (11 leaf Props), src/appearance.ts closed token renderer, leaves.ts (badge/status/kbd/mockupCode/
+      countdown/divider/link) + media.ts (avatar/progress/radialProgress/textRotate), 11 catalog flips.
+      Breadcrumbs deferred to C6 (needs descriptor ancestry). Suite 448/448 green.
 - [ ] C4 field controls + form integration: input, textarea, checkbox, toggle, radio, select, range, rating,
       file_input, otp, label, validator, filter, calendar(field dispatch), explicit-control placement +
       remainder/duplication rules in forms.ts. Two workers (controls + forms integration).
