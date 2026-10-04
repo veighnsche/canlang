@@ -399,7 +399,7 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     interfaces 199/199, identity 38/38. Delta re-review APPROVED
     (F1 docs decision accepted, all switches/pins verified);
     merged with lane-06 + workspace CI green, no rebase needed.
-- S7 (in progress): branch `muse/lane-06-identity-interfaces/ingress-trust`
+- S7 (MERGED 2026-10-04 as 2cbd471, PR #51): branch `muse/lane-06-identity-interfaces/ingress-trust`
   from origin/main (3819b23). Scope: provider-ingress auth framework
   (POST /ingress/{namespace}, L4 `IngressVerifier` port, delegated
   mapping with actor=null, `IngressSink` port) + OAuth authorization
@@ -427,7 +427,34 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     T-gaps pinned (401 challenge headers, content-type edges,
     empty-team, register boundaries, removal-then-exchange,
     oversized GET state, encoded namespace, method normalization).
-    After notes: interfaces 237/237.
+    After notes: interfaces 237/237. Merged with lane-06 + workspace
+    CI green, no rebase needed (review already APPROVE-WITH-NOTES).
+- B1/B2 lane-06 evidence (in progress): branch
+  `muse/lane-06-identity-interfaces/b1-evidence` from origin/main.
+  integration-parity.test.ts (14) + integration-lifecycle.test.ts (8):
+  shared-assembly two-user flows over the real identity store —
+  same-op browser/MCP equivalence, single-derivation proof, equal
+  rejection (forged/expired/revoked/unknown-team/unknown-arg/
+  missing-op-id/denied/owner-only), replay passthrough, error-shape
+  parity without leaks, full OAuth dance driving MCP, team-bound
+  consent, mid-flow revocation, removeMember lifecycle, uploads
+  journey, ingress journey, cross-user isolation. interfaces 259/259.
+  /tmp/s6-kernel-probe.mjs re-run on current main: PROBE PASS 9/9.
+  - Rebased onto 3a345c7 (L4 S8 changed files.ts: finalizedAt ->
+    DatetimeValue, UploadIntentRequest now re-exported from wire.ts
+    per the X1 dedupe direction); adapted two FinalizedFile test
+    literals to the DatetimeValue shape. 259/259 + 47/47 + probe PASS.
+  - BLOCKED (cross-lane compile+run, exact unmet contracts): L1 T4
+    emission unmerged (compiler has syntax/CLI only; no
+    appDefinition/registry artifact, so no real registry to call
+    through); L3 engine callable exists only against interim
+    engine-local descriptors (version/role/field semantics are
+    L3's to enforce at the join); L5 consent screens interim
+    (descriptor); L7 workerd/D1 local runner needed for the
+    deployed-shape run. Lane-06 port boundaries (OperationInvoker,
+    OperationRegistry, SchemaCatalog, PageRegistry, FileKernel,
+    IngressVerifier/Sink) stand ready with B1 binding as the
+    compile-time forcing function.
 
 ## Remaining work and cleanup
 
