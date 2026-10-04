@@ -180,7 +180,7 @@ package sync label="CRM synchronization"@{nl="CRM-synchronisatie"}
     input period
    table Link as link where link.enabled==(preferences.view==active) columns=remote,enabled,period,latest.created,current.request.status empty="No linked accounts in this view"@{nl="Geen gekoppelde accounts in deze weergave"}
     pagination
-    status link.current?.request?.status
+    status row.current?.request?.status
     text row.remote,row.enabled,row.period,row.latest.created
     edit fields=period
     actions refresh,pause,resume

@@ -107,7 +107,10 @@ import-vs-usage scan clean. Census: 8 collections w/
 empty+pagination (4+4); 2 pages w/ breadcrumbs; 1 modal (Sync
 close; Workbench modal-free, base-kept bare form + row-only
 actions). Drift: +30 E1200 (base 0; head 18/12), no E1204.
-Prototype stops
+Independent review approve-with-4-nits, all fixed in-branch:
+Workbench.mjs header + desired-list input->textarea (+text/content);
+Workbench.md radio/textarea/select prose; Sync status link.->row.
+(Rent precedent: row.* valid beside table alias.) Prototype stops
 byte-identical (pre-existing Given gaps). Handoff: (a) array
 control (targets); (b) nested param paths (value.*); (c)
 preference-bound tabs; (d) diff/status/badge/drawer renderers.

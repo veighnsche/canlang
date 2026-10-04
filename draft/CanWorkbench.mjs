@@ -1,6 +1,6 @@
 /* Handwritten desired output. Full invocation values, provider normalization,
  * persistence, renderer and test runner are contracts, not implementations.
- * Replan factories (breadcrumbs, pagination, badge, status, radio, input, select, text, content) are desired.
+ * Replan factories (breadcrumbs, pagination, badge, status, radio, textarea, select, text, content) are desired.
  * Canonical calls always retain the actual user; completion handlers only propose. */
 import {require as check,hasRole,same,records,collect,count,first,all,any,create,set,send,call,delivery,invocation,int64,compareInstant,addDuration,trim,date} from '@canlang/stdlib';
 import {message,renderPage,table,form,actions,history,card,text,content,badge,breadcrumbs,pagination,status,radio,textarea,select} from '@canlang/ui';
@@ -72,7 +72,7 @@ export function canApp(){return {
  workbenchPage,
 };}
 export async function workbenchPage(c,b){return renderPage(c,workbenchPageDescriptor,()=>[
- /* desired-unimplemented: breadcrumbs, pagination, badge, status, radio, input, select. */
+ /* desired-unimplemented: breadcrumbs, pagination, badge, status, radio, textarea, select, text, content. */
  breadcrumbs({context:c}),
  form({context:c,operation:'workbench.start',children:[radio({context:c,field:'purpose'}),textarea({context:c,field:'goal'}),select({context:c,field:'location'})]}),
  table({context:c,model:'workbench.Run',columns:['purpose','goal','steps','stopped','expires'],empty:message('No sessions yet',{nl:'Nog geen sessies'}),renderRow:async(run,view)=>[
