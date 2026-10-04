@@ -82,7 +82,35 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
-## Slice 12: full replans Propose/Purchase/Reception (branch muse/frontend-catalog-migration/slice-12-replan-i2, in progress)
+## Slice 13: full replan Invoice (branch muse/frontend-catalog-migration/slice-13-invoice, in progress)
+
+Paths: draft/CanInvoice (.can+.md, .mjs new) + this status file. Source: lane-K
+drafter output under /tmp/sliceK-invoice, applied + corrected by coordinator.
+Coordinator corrections to draft: 6 bare actions with non-row params became
+catalog modals (issue/record_payment/credit/refund/record_refund/void; op
+labels reused; select for the payment record refs, input for datetimes);
+review table gains badge row.state + front pagination (trailing pagination
+removed: exactly one); review_attempt form gains display=inline; .md: billing
+export stays in the shared toolbar (no authored export button), modal mentions
+added. Datetime params stay input (calendar is date-only).
+Kept from draft after verification: dropdown trigger/content slots;
+route-page badge on the detail page (route-bound row, Reception
+company-route precedent); copy/link/history/edit/delete/tabs/tab suites as
+base.
+Given/When byte-identical (splice-verified; zero non-Then removals). Witness:
+new Then-only file (no base .mjs; honest inline desired/unimplemented labels).
+node --check clean.
+Drift: +44 E1200, no E1204. Ok on main. Prototype stops at the pre-existing
+Given gap byte-identical (zero new drift).
+Handoff: (a) select reference sourcing (refund/record_refund payment);
+(b) nullable inputs (tax_reference text?); (c) dropdown/modal/calendar/badge/
+copy/file-input/select renderers.
+Review (substance 0225d7b): 2 blockers + 5 nits, all applied in-branch —
+review-list pagination, 3 legacy modal display=inline (+ witness mirror),
+.md modal enumeration/placement, witness label + modal caption convention,
+status copy-paste claims removed.
+
+## Slice 12: full replans Propose/Purchase/Reception (merged as 3ce5365, PR #94)
 
 Paths: draft/CanPropose (.can+.md, .mjs new), CanPurchase (.can+.md+.mjs),
 CanReception (.can+.md, .mjs new) + this status file. Source: lane-I drafter
