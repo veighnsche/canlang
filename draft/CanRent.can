@@ -183,10 +183,9 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
   policy Resource read=reservation_manager and can_work(actor,row.location)
   policy DayCalendar read=public
   policy Window read=public
-  policy Booking read=reservation_manager and can_work(actor,row.parent.location)
-  policy Booking read=authenticated where=row.account==actor
+  export derive can_read_booking_details(booking:Booking):bool = (reservation_manager and can_work(actor,booking.parent.location)) or (authenticated and booking.account==actor) or (billing and can_work(actor,booking.parent.location))
+  policy Booking read=can_read_booking_details(row)
   policy Booking read=reception and can_work(actor,row.parent.location) fields=customer,account,email,from,until,quantity,attendees,status,payment,allowance,checked_in,checked_out,overdue,source
-  policy Booking read=billing and can_work(actor,row.parent.location)
   policy Downtime read=reservation_manager and can_work(actor,row.parent.location)
   policy DowntimeFence read=reservation_manager and can_work(actor,row.parent.location)
   policy VenueFence read=reservation_manager and can_work(actor,row.parent.location)
