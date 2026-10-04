@@ -160,7 +160,7 @@ export const appDefinition = {
   capabilities: {
     [PayableEvidenceV1]: {
       exported: true,
-      version: 1,
+      version: 1n,
       operations: {
         record: { inputs: { value: { type: PayableEvidence } }, result: OperationOutcome },
       },

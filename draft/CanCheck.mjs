@@ -227,7 +227,7 @@ export const appDefinition = {
   capabilities: {
     "check.PingV1": {
       exported: true,
-      version: 1,
+      version: 1n,
       events: { received: { fields: { value: { type: "check.Heartbeat" } } } },
     },
   },
