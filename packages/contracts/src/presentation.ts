@@ -23,7 +23,7 @@ import type { DeliveryStatus } from "./services.js";
 export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
 export type { DeliveryStatus } from "./services.js";
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.9.0";
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.10.0";
 
 /**
  * Name of the hidden CSRF field in every canonical POST form. Rendered by
@@ -589,7 +589,133 @@ export interface FormFieldDef {
   readonly value?: unknown;
   /** Caller-supplied opaque options for enum/reference selects. */
   readonly options?: ReadonlyArray<FormFieldOption>;
+  /**
+   * Explicit control selection (C4): which factory renders this field.
+   * Absent selects the default factory from `type` (established S4 rules).
+   * Unsuitable selections throw; duplicate paths across fields throw.
+   */
+  readonly control?: FieldControlKind;
+  /** Explicit label caption override (the `label path [caption]` spelling). */
+  readonly labelCaption?: MessageValue;
 }
+
+/** Explicit selectable widget for a writable field (C4). */
+export type FieldControlKind =
+  | "input"
+  | "textarea"
+  | "checkbox"
+  | "toggle"
+  | "radio"
+  | "select"
+  | "range"
+  | "rating"
+  | "file_input"
+  | "otp"
+  | "filter"
+  | "calendar";
+
+/** Shared inputs for every field-control factory (C4). */
+export interface FieldControlProps {
+  readonly context: PresentationContext;
+  readonly field: FormFieldDef;
+  /** Caller-unique id prefix; shared with the owning form for id stability. */
+  readonly idPrefix: string;
+  readonly mode: FormMode;
+  /** All outcome errors; the factory filters to its field, like renderField. */
+  readonly errors?: ReadonlyArray<FieldError>;
+  /** IANA zone for temporal display; defaults to UTC when absent. */
+  readonly timeZone?: string;
+}
+
+/** `label path [caption]`: this field's label element only (moves, never duplicates). */
+export interface LabelProps {
+  readonly context: PresentationContext;
+  readonly field: FormFieldDef;
+  readonly idPrefix: string;
+  readonly caption?: MessageValue;
+}
+
+/** `validator path`: this field's error outlet only (moves, never duplicates). */
+export interface ValidatorProps {
+  readonly context: PresentationContext;
+  readonly field: FormFieldDef;
+  readonly idPrefix: string;
+  readonly mode: FormMode;
+  readonly errors?: ReadonlyArray<FieldError>;
+}
+
+/** Appearance-bearing control props (each mirrors its admitted catalog matrix). */
+export interface InputProps extends FieldControlProps {
+  readonly tone?: AppearanceTone;
+  readonly size?: AppearanceSize;
+  readonly variant?: AppearanceVariant;
+}
+export interface TextareaProps extends FieldControlProps {
+  readonly tone?: AppearanceTone;
+  readonly size?: AppearanceSize;
+  readonly variant?: AppearanceVariant;
+}
+export interface CheckboxProps extends FieldControlProps {
+  readonly tone?: AppearanceTone;
+  readonly size?: AppearanceSize;
+}
+export interface ToggleProps extends FieldControlProps {
+  readonly tone?: AppearanceTone;
+  readonly size?: AppearanceSize;
+}
+export interface RadioProps extends FieldControlProps {
+  readonly tone?: AppearanceTone;
+  readonly size?: AppearanceSize;
+}
+export interface SelectProps extends FieldControlProps {
+  readonly tone?: AppearanceTone;
+  readonly size?: AppearanceSize;
+  readonly variant?: AppearanceVariant;
+}
+export interface RangeProps extends FieldControlProps {
+  readonly tone?: AppearanceTone;
+  readonly size?: AppearanceSize;
+  readonly orientation?: AppearanceOrientation;
+}
+export interface RatingProps extends FieldControlProps {
+  readonly size?: AppearanceSize;
+}
+export interface FileInputProps extends FieldControlProps {
+  readonly tone?: AppearanceTone;
+  readonly size?: AppearanceSize;
+  readonly variant?: AppearanceVariant;
+}
+export interface OtpProps extends FieldControlProps {
+  readonly tone?: AppearanceTone;
+  readonly size?: AppearanceSize;
+}
+
+/**
+ * `filter` field-owner production: finite-choice input with Filter
+ * presentation. The view-preference production arrives with C8 preferences.
+ */
+export interface FilterProps extends FieldControlProps {}
+
+/**
+ * `calendar` agenda production: date-grouped read-only agenda over a query
+ * in the team timezone. Field production reuses the control props.
+ */
+export interface CalendarAgendaProps {
+  readonly context: PresentationContext;
+  readonly model: string;
+  readonly startField: string;
+  readonly endField: string;
+  readonly where?: unknown;
+  readonly limit?: number;
+  readonly cursor?: string;
+  readonly empty: MessageValue;
+  /** IANA zone for day grouping/display; defaults to UTC when absent. */
+  readonly timeZone?: string;
+}
+export interface CalendarFieldProps extends FieldControlProps {}
+export type CalendarProps =
+  | (CalendarAgendaProps & { readonly kind: "agenda" })
+  | (CalendarFieldProps & { readonly kind: "field" });
 
 export interface FormFieldOption {
   /** Opaque value (enum case name or reference); never a grant. */
