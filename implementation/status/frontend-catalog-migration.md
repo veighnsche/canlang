@@ -93,18 +93,22 @@ review table gains badge row.state + front pagination (trailing pagination
 removed: exactly one); review_attempt form gains display=inline; .md: billing
 export stays in the shared toolbar (no authored export button), modal mentions
 added. Datetime params stay input (calendar is date-only).
-Kept from draft after verification: dropdown trigger/content slots; agenda
-calendar collection; route-page badge under page (route-bound row, Reception
-company-route precedent); progress accepted/ordered (ordered>=1 by model:
-quantity min=1); copy/link/history/edit/delete/tabs/tab suites as base.
+Kept from draft after verification: dropdown trigger/content slots;
+route-page badge on the detail page (route-bound row, Reception
+company-route precedent); copy/link/history/edit/delete/tabs/tab suites as
+base.
 Given/When byte-identical (splice-verified; zero non-Then removals). Witness:
 new Then-only file (no base .mjs; honest inline desired/unimplemented labels).
 node --check clean.
 Drift: +44 E1200, no E1204. Ok on main. Prototype stops at the pre-existing
 Given gap byte-identical (zero new drift).
 Handoff: (a) select reference sourcing (refund/record_refund payment);
-(b) nullable inputs (tax_reference text?); (c) agenda/dropdown/modal/calendar/
-stat renderers.
+(b) nullable inputs (tax_reference text?); (c) dropdown/modal/calendar/badge/
+copy/file-input/select renderers.
+Review (substance 0225d7b): 2 blockers + 5 nits, all applied in-branch —
+review-list pagination, 3 legacy modal display=inline (+ witness mirror),
+.md modal enumeration/placement, witness label + modal caption convention,
+status copy-paste claims removed.
 
 ## Slice 12: full replans Propose/Purchase/Reception (merged as 3ce5365, PR #94)
 

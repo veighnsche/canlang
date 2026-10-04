@@ -7,9 +7,9 @@ import {
   calendar,
   card,
   checkbox, // desired/unimplemented
-  content, // desired/unimplemented: core leaf, no witness use yet
+  content, // desired/unimplemented
   copy, // desired/unimplemented
-  delete as removeRecord, // desired/unimplemented: core leaf, no witness use yet
+  delete as removeRecord, // desired/unimplemented
   dropdown, // desired/unimplemented
   edit,
   fieldset, // desired/unimplemented
@@ -21,7 +21,7 @@ import {
   link, // desired/unimplemented
   list,
   message,
-  metrics, // desired/unimplemented: core leaf, no witness use yet
+  metrics, // desired/unimplemented
   modal, // desired/unimplemented
   pagination, // desired/unimplemented
   renderPage,
@@ -239,7 +239,7 @@ export async function invoiceHistoryPage(c, bindings) {
                       }),
                       modal({
                         context: rowView,
-                        title: message("Resolve invoice booking link", {
+                        caption: message("Resolve invoice booking link", {
                           nl: "Factuur-reserveringskoppeling oplossen",
                         }),
                         id: "legacy_booking_resolve",
@@ -251,6 +251,7 @@ export async function invoiceHistoryPage(c, bindings) {
                                 context: rowView,
                                 operation: "invoice.link_legacy_booking",
                                 arguments: { edge: row },
+                                display: "inline",
                                 children: [
                                   fieldset({
                                     context: rowView,
@@ -300,7 +301,7 @@ export async function invoiceHistoryPage(c, bindings) {
                   }),
                   modal({
                     context: view,
-                    title: message("Map historical invoice customer", {
+                    caption: message("Map historical invoice customer", {
                       nl: "Historische factuur aan klant koppelen",
                     }),
                     id: "legacy_map",
@@ -312,6 +313,7 @@ export async function invoiceHistoryPage(c, bindings) {
                             context: view,
                             operation: "invoice.link_legacy",
                             arguments: { entry },
+                            display: "inline",
                             children: [
                               fieldset({
                                 context: view,
@@ -328,7 +330,7 @@ export async function invoiceHistoryPage(c, bindings) {
                   }),
                   modal({
                     context: view,
-                    title: message("Retain invoice booking link", {
+                    caption: message("Retain invoice booking link", {
                       nl: "Factuur-reserveringskoppeling bewaren",
                     }),
                     id: "legacy_edge_retain",
@@ -340,6 +342,7 @@ export async function invoiceHistoryPage(c, bindings) {
                             context: view,
                             operation: "invoice.retain_legacy_booking",
                             arguments: { entry },
+                            display: "inline",
                             children: [
                               fieldset({
                                 context: view,
@@ -671,7 +674,7 @@ export async function customerInvoicesPage(c, bindings) {
                           button({ context: attemptView, opens: "attempt_review" }),
                           modal({
                             context: attemptView,
-                            title: message("Review payment outcome", {
+                            caption: message("Review payment outcome", {
                               nl: "Betalingsresultaat beoordelen",
                             }),
                             id: "attempt_review",

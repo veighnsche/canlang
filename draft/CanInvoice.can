@@ -837,6 +837,7 @@ package invoice label="Invoices"@{nl="Facturen"}
     list result columns=source,external_id,location empty="No historical invoices match this lookup"@{nl="Geen historische facturen voldoen aan deze zoekopdracht"}
      copy row.source
      copy row.external_id
+     pagination
    table LegacyInvoice archived=include as entry columns=source,external_id,location empty="No historical invoices retained yet"@{nl="Nog geen historische facturen bewaard"} display=split
     copy entry.source
     copy entry.external_id
@@ -851,7 +852,7 @@ package invoice label="Invoices"@{nl="Facturen"}
       text row.mapping_reason,row.attestation,row.source_evidence
       modal "Resolve invoice booking link"@{nl="Factuur-reserveringskoppeling oplossen"} id=legacy_booking_resolve
        slot content
-        form link_legacy_booking arguments={edge=row}
+        form link_legacy_booking arguments={edge=row} display=inline
          fieldset
           textarea reason
      pagination
@@ -864,13 +865,13 @@ package invoice label="Invoices"@{nl="Facturen"}
      text entry.mapping_reason,entry.attestation,entry.imported_by,entry.imported_at
      modal "Map historical invoice customer"@{nl="Historische factuur aan klant koppelen"} id=legacy_map
       slot content
-       form link_legacy arguments={entry=row}
+       form link_legacy arguments={entry=row} display=inline
         fieldset
          select customer
          textarea reason
      modal "Retain invoice booking link"@{nl="Factuur-reserveringskoppeling bewaren"} id=legacy_edge_retain
       slot content
-       form retain_legacy_booking arguments={entry=row}
+       form retain_legacy_booking arguments={entry=row} display=inline
         fieldset
          input booking_source
          input booking_external_id
