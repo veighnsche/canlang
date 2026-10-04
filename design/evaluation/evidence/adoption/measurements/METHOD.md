@@ -1,0 +1,17 @@
+# Frozen corpus token and repetition measurements
+
+Measured 2026-10-04 from `baseline-20261004T041647Z/snapshot/`. All 115 SHA256 entries match the captured manifest (`3d853e5a13a3c3eac7f150dfa742e26e0d9bf6c652b20fb05da4aa0b2b576106`). No source/target changes were made. Root supplied this bounded measurement to evaluation owner A; A owns its interpretation and incorporation into E006/E021–E025.
+
+## Reproduction and limits
+
+Run `measure.py` with Python and **tiktoken 0.12.0**, using `o200k_base` and `cl100k_base`. This run used a temporary environment at `/tmp/canlang-eval-tokenizer-20261004`; the installed dependencies are recorded in `environment.txt`. Encoding tables are cached there; tiktoken verifies their published hashes when loading. No dependency was added to the Can project. The script writes `corpus.json` and `repetition.json` beside itself.
+
+These are pinned reference encodings, **not a verified tokenizer for GPT-6 Luna, Sol or Astra**. They provide reproducible source-length comparisons and a sensitivity check. They do not measure hidden model reasoning, dispatcher context, billed/API tokens or total agent-task usage. UTF-8 bytes and physical lines are secondary measures. Source/model version, supplied-document selection and actual interventions remain necessary for the experiment evidence.
+
+Every whole file is encoded unchanged. For `.can` breakdowns, leading single-`#` description lines, leading `##` comment lines, indentation-delimited `examples` blocks and fixture declarations are identified lexically. Balanced `@{...}` translation spans take precedence over those categories. All remaining content is called `production`; it includes base UI labels, named messages, import/section declarations and whitespace. This category is not pure business logic. Fixtures are test material even where stored in Given. Descriptions and translations are necessary product information where required, not presumed removable overhead.
+
+Each whole-file token is assigned to the category of its first UTF-8 byte. This makes the token partitions sum to the unchanged whole-file count; tokens crossing a category boundary follow that deterministic rule. The partition is a lexical accounting aid, not a parser, semantic validation or a claim that removing a category saves that exact token count. Translation spans include syntax as well as translated wording. The frozen sources are the measured inputs; do not generalize these proportions to all company apps.
+
+`corpus.json` separates app Can, shared packages, standalone examples, app requirements, handwritten MJS and other design/support Markdown. It includes per-file hashes/counts and 21 same-app source/target pairs. **MJS is handwritten desired output, not compiled output.** Pair ratios describe this draft corpus; comparing them does not prove compilation, behavior equivalence, performance, or advantage over a framework. Summing 39 Can apps versus 21 MJS files is not a fair expansion ratio.
+
+`repetition.json` counts selected attributes, `can_work(actor,...)` expressions, identifiers and repeated stripped production lines across the 44 Can files. String contents are removed for identifier/attribute counts. These are exact lexical candidates with file lists. Repeated authorization or independent business policies are not automatically boilerplate, safe defaults or opportunities for removal. B owns semantic classification; A owns measured effect of any proposed reduction. Removing whitespace/newlines to present smaller counts is not an improvement experiment.

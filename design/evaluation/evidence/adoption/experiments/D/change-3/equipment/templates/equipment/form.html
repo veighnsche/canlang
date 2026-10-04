@@ -1,0 +1,1 @@
+{% extends 'equipment/base.html' %}{% block content %}<h2>Create or edit request</h2><form method="post">{% csrf_token %}{{ form.as_div }}{{ version.as_div }}<button>Save request</button></form>{% endblock %}

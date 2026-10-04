@@ -1,0 +1,26 @@
+# Own the canonical employee work identity; private HR fields remain separate from work grants. @{nl="Beheer de canonieke werkidentiteit van medewerkers; privépersoneelsvelden blijven gescheiden van werkbevoegdheden."}
+package employee label="Employees"@{nl="Medewerkers"}
+ use rent_catalog {Location,test_site}
+ Given
+  export role hr label="Human resources"@{nl="Personeelszaken"}
+  export Employee { user:user unique, home:Location label="Home location"@{nl="Standplaats"}, locations:Location[] label="Locations"@{nl="Locaties"}, operator_wide:bool=false label="All operator locations"@{nl="Alle locaties van de exploitant"}, active:bool=true, start:date label="Employment start"@{nl="Start dienstverband"}, end:date? label="Employment end"@{nl="Einde dienstverband"}, manager:user? label="Line manager"@{nl="Leidinggevende"}, role:text label="Work role"@{nl="Werkrol"}, skills:text[] label="Skills"@{nl="Vaardigheden"}, private_notes:text? label="Private HR notes"@{nl="Privénotities personeelszaken"}, document:file? label="HR document"@{nl="Personeelsdocument"} } label="Employee"@{nl="Medewerker"}
+  export event EmployeeChanged { employee:Employee, active:bool, revision:int }
+  export derive staff(person:user):bool = any(Employee as e,e.user==person and e.active and active_member(person,team))
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=hr
+  policy Employee read=members and staff(actor) fields=user,home,locations,operator_wide,active,role,skills
+  policy Employee read=authenticated where=row.user==actor
+  invariant Employee: row.end==null or row.end>=row.start
+  export fixture test_worker=Employee {user=self,home=test_site,locations=[test_site],start=date("2026-10-01"),role="operator"}
+ When
+  crud Employee by=hr fields=home,locations,operator_wide,start,end,manager,role,skills,private_notes,document create_fields=user,home,locations,start,manager,role,skills delete=none
+  # Deny new work immediately; downstream scheduling reconciliation remains separate. @{nl="Weiger nieuw werk onmiddellijk; reconciliatie van afhankelijke planning blijft afzonderlijk."}
+  export scenario deactivate(employee:Employee,ended:date label="Employment end date"@{nl="Einddatum dienstverband"}) by=hr label="End active employment"@{nl="Actief dienstverband beëindigen"}
+   require employee.active and ended>=employee.start
+   do
+    set employee {active=false,end=ended}
+  scenario changed on=Employee.update
+   do
+    if event.before.home!=event.after.home or event.before.locations!=event.after.locations or event.before.operator_wide!=event.after.operator_wide or event.before.active!=event.after.active or event.before.start!=event.after.start or event.before.end!=event.after.end or event.before.role!=event.after.role or event.before.skills!=event.after.skills
+     emit EmployeeChanged {employee=event.after,active=event.after.active,revision=event.after.version}
+ Then

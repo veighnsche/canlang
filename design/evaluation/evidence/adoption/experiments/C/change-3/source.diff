@@ -1,0 +1,93 @@
+--- /Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/change-2/app.can
++++ /Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/change-3/app.can
+@@ -1,6 +1,12 @@
+ # Request departmental equipment privately, manage your unresolved requests, and review only departments you manage.
+ app EquipmentRequests
+ Given
++ role steward label="Review access steward"
++ ReviewGrant { reviewer:user label="Temporary reviewer", until:datetime label="Review access expiry", granted_by:user server=actor label="Granted by", granted_at:datetime server=now label="Granted at", revoked_by:user? label="Revoked by", revoked_at:datetime? label="Revoked at" } label="Department A review access"
++ policy ReviewGrant read=members where=owner or steward or row.reviewer==actor
++ lock ReviewGrant fields=reviewer,until,granted_by,granted_at
++ lock ReviewGrant fields=revoked_by,revoked_at when=row.revoked_at!=null
++ invariant ReviewGrant: (row.revoked_at==null and row.revoked_by==null) or (row.revoked_at!=null and row.revoked_by!=null)
+  ## Department assignments are business data; canonical teams still owns authentication and team membership.
+  Employee { user:user unique label="Employee", department:enum(A,B,C) label={text="Department",values={A="Department A",B="Department B",C="Department C"}}, manager:bool=false label="Department manager", enabled:bool=true } label="Department assignment"
+  policy Employee read=members where=owner or row.user==actor
+@@ -11,14 +17,29 @@
+  invariant Request: row.archived_at==null or row.archive_reason!=null
+  lock Request fields=archive_reason when=row.archive_reason!=null
+  lock Request fields=submitted_by,department
+- policy Request read=members where=row.submitted_by==actor or any(Employee as employee,employee.user==actor and employee.enabled and employee.manager and employee.department==row.department)
++ policy Request read=members where=row.submitted_by==actor or any(Employee as employee,employee.user==actor and employee.enabled and employee.manager and employee.department==row.department) or (row.department==A and any(ReviewGrant as grant,grant.reviewer==actor and grant.revoked_at==null and now<grant.until))
+  preferences { view:enum(open,archived,all)=open label={text="Request state",values={open="Open",archived="Archived",all="All"}} }
++ fixture temporary_review=ReviewGrant {reviewer=self,until=datetime("2030-01-01T00:00:00Z"),granted_by=other}
+  fixture current_employee=Employee {user=self,department=A}
+  fixture other_employee=Employee {user=other,department=B}
+  fixture mine=Request {title="Monitor",submitted_by=self,department=A}
+  fixture colleague_a=Request {title="Keyboard",submitted_by=other,department=A}
+  fixture colleague_b=Request {title="Dock",submitted_by=other,department=B}
+ When
++ # Grant a current member read-only review of department A until an explicit future instant.
++ scenario grant_review(reviewer:user,until:datetime) by=owner or steward label="Grant temporary review"
++  require active_member(reviewer,team)
++  require until>now message="Choose a future expiry."
++  do create ReviewGrant {reviewer,until} as grant
++ # Revoke a grant for new admissions immediately, retaining who revoked it and when.
++ scenario revoke_review(grant:ReviewGrant) by=owner or steward label="Revoke temporary review"
++  require grant.revoked_at==null
++  do set grant {revoked_by=actor,revoked_at=now}
++  examples grant=temporary_review
++   as -> temporary_review.revoked_by,temporary_review.revoked_at!=null,temporary_review.version
++   owner -> self,true,2
++   steward -> self,true,2
++   members -> error(forbidden)
+  ## The owner maintains current department assignments through browser forms or the same MCP CRUD.
+  crud Employee by=owner fields=department,manager,enabled create_fields=user,department,manager,enabled delete=none when=active_member(row.user,team)
+  crud Request by=members fields=title,details,cost_centre when=row.submitted_by==actor and row.archived_at==null and any(Employee as employee,employee.user==actor and employee.enabled) label={delete="Archive"}
+@@ -44,6 +65,9 @@
+   examples delete record=mine seed=[current_employee]
+    as,request.record.version -> mine.archived_at!=null
+    members,1 -> error(rule_failed)
++  examples update record=colleague_a seed=[current_employee,temporary_review]
++   as,changes.title,temporary_review.until -> colleague_a.title
++   members,"Reviewer edit",now+1h -> error(rule_failed)
+  # Archive your open request with a trimmed nonempty reason, preserving its claim and evidence.
+  scenario archive(request:Request,reason:text) by=members label="Archive with reason"
+   require request.submitted_by==actor and request.archived_at==null
+@@ -59,6 +83,9 @@
+   examples request=colleague_a seed=[current_employee]
+    as,reason -> colleague_a.archived_at!=null
+    members,"Change another claim" -> error(rule_failed)
++  examples request=colleague_a seed=[current_employee,temporary_review]
++   as,reason,temporary_review.until -> colleague_a.archived_at!=null
++   members,"Reviewer archive",now+1h -> error(rule_failed)
+  # Read authorized requests including preserved archives; this typed view also supplies scoped CSV export.
+  scenario browse() by=members read=true -> Request[]
+   do return Request archived=include
+@@ -68,6 +95,12 @@
+    members,true -> 2,0
+    owner,false -> 1,0
+    public,false -> error(forbidden)
++  examples seed=[current_employee,mine,colleague_a,colleague_b,temporary_review]
++   as,temporary_review.until,temporary_review.revoked_at,temporary_review.revoked_by -> count(result),count(result as request where request.department==B)
++   members,now+1h,null,null -> 2,0
++   members,now,null,null -> 1,0
++   members,now-1h,null,null -> 1,0
++   members,now+1h,now,other -> 1,0
+  # Find readable exact-title candidates before explicitly choosing whether to create a new request.
+  scenario duplicates(title:Request.title,details:Request.details) by=members read=true -> Request[]
+   do return Request archived=include as request where request.title==title
+@@ -97,3 +130,13 @@
+   form Employee.create
+   table Employee columns=user,department,manager,enabled filter=department,manager,enabled
+    edit
++ # Manage temporary read grants without granting review stewards department administration rights.
++ page /review-access title="Temporary review access"
++  require owner or steward
++  form grant_review
++  table ReviewGrant columns=reviewer,until,granted_by,granted_at,revoked_by,revoked_at filter=reviewer,until,revoked_at
++   details "Grant attribution"
++    history
++   card "Revoke active grant"
++    require row.revoked_at==null
++    action revoke_review

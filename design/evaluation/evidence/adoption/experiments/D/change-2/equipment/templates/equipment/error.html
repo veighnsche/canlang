@@ -1,0 +1,1 @@
+{% extends 'equipment/base.html' %}{% block content %}<h2>Operation unsuccessful</h2><p role="alert">{{ error.message }}</p>{{ error.fields }}<p><a href="{% url 'equipment-list' %}">Reload current requests</a></p>{% endblock %}
