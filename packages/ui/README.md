@@ -29,7 +29,11 @@ in `implementation/status/lane-05.md`).
 Integers travel as bigint or canonical decimal strings; naive numbers are
 accepted only when safe. Currency scales are an explicit formatting
 parameter from the pinned lane 2 table, never a default here. Datetimes are
-canonical RFC3339 UTC instants; civil dates never shift timezones.
+canonical RFC3339 UTC instants with explicit calendar/time validation
+(leap second `:60` rejected); civil dates never shift timezones.
+Grouping patterns and numbering-system digits are derived from Intl probes,
+so safe-range output matches platform ICU exactly while big values stay
+exact; negative plain numbers use a pinned ASCII hyphen-minus.
 
 ## Checks
 

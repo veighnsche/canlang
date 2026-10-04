@@ -20,6 +20,7 @@ export {
   formatIntExact,
   formatMessage,
   formatMoneyExact,
+  localeNumberSystem,
   localeSeparators,
   message,
   normalizeTag,
@@ -28,6 +29,7 @@ export {
 } from "./messages.js";
 export type {
   Bcp47Tag,
+  LocaleNumberSystem,
   MessageParams,
   ResolvedMessage,
   ThemeTokens,

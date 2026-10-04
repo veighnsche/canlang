@@ -191,13 +191,19 @@ Files: packages/contracts/src/presentation.ts; packages/ui/{package.json,package
 tsconfig.json,README.md,.gitignore,src/{index,escape,messages}.ts,
 test/{escape,messages}.test.ts,test/fixtures/descriptors.ts}; .github/workflows/lane-05.yml;
 this status plan.
-Checks (local, node v24.21.0): `npm run typecheck` clean; `npm test` 44/44 pass
-(escape 13, messages 31 incl. TeamTasks task-count en/nl, exact-number plural priority,
-64-bit French/Arabic categories, money/date/time, ICU error cases).
+Checks (local, node v24.21.0): `npm run typecheck` clean; `npm test` 48/48 pass
+(escape 25, messages 23 incl. TeamTasks task-count en/nl, exact-number plural priority,
+64-bit French/Arabic categories, money/date/time, ICU error cases, Intl cross-check
+over en/nl/fr/hi-IN/ar-EG/de-CH, quoted-# literals, datetime rollover rejection).
 Decisions sealed in code: descriptor bound params used when explicit args absent;
 ESM-only emit (module ESNext) so the out-of-scope contract file compiles consistently;
 CI uses npm ci with the owned lockfile.
-PR: (to be filled on open) head sha, review notes, merge result.
+PR #7 (muse/lane-05-ui/s1-contract -> main). Self-review: full diff inspected, all
+14 files in ownership; verified escaping sinks, lookup order, no root writes.
+Independent read-only subagent review: approve-with-follow-ups; findings F1 (canonical
+dotted enum ids), F2 (datetime rollover), F3 (quoted #), F4 (locale grouping/digits)
+and nits N1-N4 all fixed in-branch with regression tests before merge.
+Merge: (to be filled) reviewed head sha, checks, squash merge result.
 
 ## Remaining work and cleanup
 

@@ -25,9 +25,9 @@ export type MessageVariantMap = Record<string, string | null>;
 
 /**
  * One bound message parameter: `type` is the canonical resolved type id
- * (scalar `int`, nullable `text?`, qualified enum identities, ...); `value` is
- * the runtime display value, restricted by the formatter to nonnullable scalar
- * display values (string-like, bool/enum, int/decimal, money, date/datetime).
+ * (scalar `int`, qualified enum identities like `expense.Expense.status`, ...);
+ * ids arrive unwrapped because message params are nonnullable scalar display
+ * values (string-like, bool/enum, int/decimal, money, date/datetime).
  */
 export interface MessageParamValue {
   readonly type: string;

@@ -103,6 +103,9 @@ function lookupOne(
     if (a === request && b !== request) return -1;
     if (b === request && a !== request) return 1;
     if (b.length !== a.length) return b.length - a.length;
+    // Defensive: compatible tags are all prefixes of one request, so distinct
+    // candidates always differ in length and the rule above decides. The
+    // app-default/lexical tiebreaks below only document the DESIGN §9.1 order.
     if (a === appDefault && b !== appDefault) return -1;
     if (b === appDefault && a !== appDefault) return 1;
     return a < b ? -1 : a > b ? 1 : 0;
@@ -207,9 +210,20 @@ function isValidDate(iso: string): boolean {
   );
 }
 
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)(?:\.(\d+))?$/;
+
 function isValidInstant(iso: string): boolean {
-  const ms = Date.parse(iso);
-  return Number.isFinite(ms);
+  // Validate the calendar date and wall time explicitly: Date.parse rolls
+  // over out-of-range fields (Feb 30 becomes Mar 2). Leap second :60 is
+  // rejected: it is unrepresentable in JS Date and outside canonical instants.
+  if (!isValidDate(iso.slice(0, 10))) {
+    return false;
+  }
+  const time = iso.slice(11, -1);
+  if (!TIME_RE.test(time)) {
+    return false;
+  }
+  return Number.isFinite(Date.parse(iso));
 }
 
 function toOperand(name: string, param: MessageParamValue): ScalarOperand {
@@ -264,7 +278,16 @@ function toOperand(name: string, param: MessageParamValue): ScalarOperand {
       }
       return { kind: "datetime", iso: value as string };
     default:
-      if (type === "enum" || type.startsWith("enum.") || type.startsWith("enum:")) {
+      // Qualified nominal enum identities (DESIGN §13, e.g.
+      // "expense.Expense.status") arrive as dotted type ids. Non-string
+      // values still fail closed below, so a mistyped record/array/object
+      // can never be formatted as an enum case.
+      if (
+        type === "enum" ||
+        type.startsWith("enum.") ||
+        type.startsWith("enum:") ||
+        type.includes(".")
+      ) {
         if (typeof value !== "string") fail(name, `type ${type} needs a stable case name`);
         return { kind: "enum", value: value as string };
       }
@@ -277,7 +300,7 @@ function toOperand(name: string, param: MessageParamValue): ScalarOperand {
 // ---------------------------------------------------------------------------
 
 type PatternNode =
-  | { readonly kind: "text"; readonly value: string }
+  | { readonly kind: "text"; readonly value: string; readonly substitute: boolean }
   | {
       readonly kind: "arg";
       readonly name: string;
@@ -305,18 +328,28 @@ class PatternParser {
   private parseMessage(nested: boolean): PatternNode[] {
     const nodes: PatternNode[] = [];
     let text = "";
+    let literal = false;
     const flush = () => {
       if (text !== "") {
-        nodes.push({ kind: "text", value: text });
+        nodes.push({ kind: "text", value: text, substitute: !literal });
         text = "";
+        literal = false;
       }
+    };
+    // Quoted spans never undergo `#` substitution; split runs on transitions.
+    const append = (value: string, isLiteral: boolean) => {
+      if (text !== "" && isLiteral !== literal) {
+        flush();
+      }
+      literal = isLiteral;
+      text += value;
     };
     while (this.pos < this.pattern.length) {
       const ch = this.pattern[this.pos] as string;
       if (ch === "'") {
         const next = this.pattern[this.pos + 1];
         if (next === "'") {
-          text += "'";
+          append("'", false);
           this.pos += 2;
         } else if (next === "{" || next === "}" || next === "#" || next === "|") {
           // Quoted literal: consume up to the closing apostrophe.
@@ -325,11 +358,11 @@ class PatternParser {
           if (end === -1) {
             throw patternError(this.pattern, this.pos, "unterminated quoted literal");
           }
-          text += this.pattern.slice(this.pos, end);
+          append(this.pattern.slice(this.pos, end), true);
           this.pos = end + 1;
         } else {
           // Lone apostrophe before ordinary text stays literal (ICU lenient mode).
-          text += "'";
+          append("'", false);
           this.pos += 1;
         }
       } else if (ch === "{") {
@@ -342,7 +375,7 @@ class PatternParser {
         flush();
         return nodes;
       } else {
-        text += ch;
+        append(ch, false);
         this.pos += 1;
       }
     }
@@ -521,38 +554,112 @@ export function localeSeparators(locale: string): LocaleSeparators {
   return { group, decimal };
 }
 
-function groupIntDigits(digits: string, sep: string): string {
-  if (digits.length <= 3) return digits;
-  const out: string[] = [];
-  let count = 0;
-  for (let i = digits.length - 1; i >= 0; i -= 1) {
-    out.push(digits[i] as string);
-    count += 1;
-    if (count === 3 && i !== 0) {
-      out.push(sep);
-      count = 0;
+export interface LocaleNumberSystem {
+  readonly group: string;
+  readonly decimal: string;
+  /** Localized decimal digits 0-9 for the locale numbering system. */
+  readonly digits: readonly string[];
+  /** Rightmost group size; 0 disables grouping. */
+  readonly primaryGroup: number;
+  /** Repeating group size applied leftwards. */
+  readonly secondaryGroup: number;
+}
+
+const numberSystemCache = new Map<string, LocaleNumberSystem>();
+
+/**
+ * Derive separators, digits and the grouping pattern from Intl probes, so
+ * exact values keep locale grouping (hi-IN pairs) and numbering systems
+ * (ar-EG digits) while digits themselves never pass through binary floats.
+ */
+export function localeNumberSystem(locale: string): LocaleNumberSystem {
+  const cached = numberSystemCache.get(locale);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const probe = new Intl.NumberFormat(locale);
+  let group = ",";
+  let decimal = ".";
+  for (const part of probe.formatToParts(1000.5)) {
+    if (part.type === "group") group = part.value;
+    if (part.type === "decimal") decimal = part.value;
+  }
+  const ungrouped = new Intl.NumberFormat(locale, { useGrouping: false });
+  const digits: string[] = [];
+  for (let d = 0; d <= 9; d += 1) {
+    digits.push(ungrouped.format(d));
+  }
+  let primaryGroup = 3;
+  let secondaryGroup = 3;
+  const runs: number[] = [];
+  let current = 0;
+  let seenGroup = false;
+  for (const part of probe.formatToParts(123456789012345)) {
+    if (part.type === "group") {
+      seenGroup = true;
+      runs.push(current);
+      current = 0;
+    } else if (part.type === "integer") {
+      current += Array.from(part.value).length;
     }
   }
-  return out.reverse().join("");
+  runs.push(current);
+  if (!seenGroup) {
+    primaryGroup = 0;
+  } else {
+    const fromRight = runs.reverse();
+    primaryGroup = fromRight[0] as number;
+    secondaryGroup = (fromRight[1] as number | undefined) ?? primaryGroup;
+    if (primaryGroup <= 0) primaryGroup = 3;
+    if (secondaryGroup <= 0) secondaryGroup = primaryGroup;
+  }
+  const system: LocaleNumberSystem = { group, decimal, digits, primaryGroup, secondaryGroup };
+  numberSystemCache.set(locale, system);
+  return system;
+}
+
+function groupDigits(digits: string, system: LocaleNumberSystem): string {
+  const primary = system.primaryGroup;
+  if (primary <= 0 || digits.length <= primary) {
+    return digits;
+  }
+  const step = system.secondaryGroup > 0 ? system.secondaryGroup : primary;
+  const parts: string[] = [];
+  let rest = digits;
+  parts.unshift(rest.slice(-primary));
+  rest = rest.slice(0, -primary);
+  while (rest.length > step) {
+    parts.unshift(rest.slice(-step));
+    rest = rest.slice(0, -step);
+  }
+  if (rest !== "") {
+    parts.unshift(rest);
+  }
+  return parts.join(system.group);
+}
+
+function localizeDigits(latin: string, system: LocaleNumberSystem): string {
+  return latin.replace(/[0-9]/g, (d) => system.digits[Number(d)] as string);
 }
 
 export function formatIntExact(value: bigint, locale: string): string {
-  const { group } = localeSeparators(locale);
+  const system = localeNumberSystem(locale);
   const negative = value < 0n;
   const digits = (negative ? -value : value).toString(10);
-  return `${negative ? "-" : ""}${groupIntDigits(digits, group)}`;
+  // Pinned: ASCII hyphen-minus for negatives (ICU would use locale minus signs).
+  return `${negative ? "-" : ""}${localizeDigits(groupDigits(digits, system), system)}`;
 }
 
 export function formatDecimalExact(text: string, locale: string): string {
-  const { group, decimal } = localeSeparators(locale);
+  const system = localeNumberSystem(locale);
   const key = decimalKey(text);
   const negative = key.startsWith("-");
   const rest = negative ? key.slice(1) : key;
   const dot = rest.indexOf(".");
   const intPart = dot === -1 ? rest : rest.slice(0, dot);
   const fracPart = dot === -1 ? "" : rest.slice(dot + 1);
-  const head = `${negative ? "-" : ""}${groupIntDigits(intPart, group)}`;
-  return fracPart === "" ? head : `${head}${decimal}${fracPart}`;
+  const head = `${negative ? "-" : ""}${localizeDigits(groupDigits(intPart, system), system)}`;
+  return fracPart === "" ? head : `${head}${system.decimal}${localizeDigits(fracPart, system)}`;
 }
 
 /** Round a canonical decimal to an integer (half-even, ICU integer style). */
@@ -628,8 +735,8 @@ export function formatMoneyExact(options: MoneyFormatOptions): string {
   const digits = abs.toString(10).padStart(scale + 1, "0");
   const intDigits = digits.slice(0, digits.length - scale);
   const fracDigits = scale === 0 ? "" : digits.slice(digits.length - scale);
-  const { group, decimal } = localeSeparators(locale);
-  const numeric = `${groupIntDigits(intDigits, group)}${fracDigits === "" ? "" : `${decimal}${fracDigits}`}`;
+  const system = localeNumberSystem(locale);
+  const numeric = `${localizeDigits(groupDigits(intDigits, system), system)}${fracDigits === "" ? "" : `${system.decimal}${localizeDigits(fracDigits, system)}`}`;
   // Reuse the locale currency pattern by formatting a probe and swapping the
   // numeric run; Intl supplies symbol placement, spacing and sign handling.
   const probe = new Intl.NumberFormat(locale, {
@@ -730,11 +837,11 @@ export function formatMessage(
   return renderNodes(nodes, state);
 }
 
-function operandOf(state: FormatState, name: string, offset: string): ScalarOperand {
+function operandOf(state: FormatState, name: string): ScalarOperand {
   const operand = state.operands.get(name);
   if (operand === undefined) {
     throw new Error(
-      `message pattern error ${offset}: undeclared argument "${name}" in ${JSON.stringify(state.pattern)}`,
+      `message pattern error: undeclared argument "${name}" in ${JSON.stringify(state.pattern)}`,
     );
   }
   return operand;
@@ -744,7 +851,7 @@ function renderNodes(nodes: readonly PatternNode[], state: FormatState): string 
   let out = "";
   for (const node of nodes) {
     if (node.kind === "text") {
-      out += renderText(node.value, state);
+      out += renderText(node, state);
     } else {
       out += renderArgument(node, state);
     }
@@ -753,8 +860,9 @@ function renderNodes(nodes: readonly PatternNode[], state: FormatState): string 
 }
 
 /** Render literal text, expanding `#` to the nearest enclosing plural number. */
-function renderText(value: string, state: FormatState): string {
-  if (!value.includes("#")) return value;
+function renderText(node: Extract<PatternNode, { kind: "text" }>, state: FormatState): string {
+  const value = node.value;
+  if (!node.substitute || !value.includes("#")) return value;
   const current = state.pluralStack[state.pluralStack.length - 1];
   if (current === undefined) return value;
   const formatted =
@@ -765,7 +873,7 @@ function renderText(value: string, state: FormatState): string {
 }
 
 function renderArgument(node: Extract<PatternNode, { kind: "arg" }>, state: FormatState): string {
-  const operand = operandOf(state, node.name, `for argument "${node.name}"`);
+  const operand = operandOf(state, node.name);
   switch (node.format) {
     case "plain":
       return renderPlain(operand, state);

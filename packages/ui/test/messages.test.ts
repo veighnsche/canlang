@@ -171,8 +171,25 @@ describe("formatMessage select/number/date/money", () => {
     );
     const status = "{s, select, submitted {Submitted} approved {Approved} other {Other}}";
     assert.equal(
-      formatMessage(status, { locale: "en", args: { s: { type: "enum.Expense.status", value: "approved" } } }),
+      formatMessage(status, { locale: "en", args: { s: { type: "expense.Expense.status", value: "approved" } } }),
       "Approved",
+    );
+  });
+
+  it("accepts canonical qualified enum identities and rejects mistyped values", () => {
+    const pattern = "{s, select, submitted {S} other {O}}";
+    for (const type of ["enum", "enum.Expense.status", "enum:Expense.status", "expense.Expense.status"]) {
+      assert.equal(
+        formatMessage(pattern, { locale: "en", args: { s: { type, value: "submitted" } } }),
+        "S",
+      );
+    }
+    // A record-typed value can never be formatted as an enum case.
+    assert.throws(() =>
+      formatMessage(pattern, { locale: "en", args: { s: { type: "expense.Expense.status", value: { id: "1" } } } }),
+    );
+    assert.throws(() =>
+      formatMessage(pattern, { locale: "en", args: { s: { type: "text?", value: "x" } } }),
     );
   });
 
@@ -206,6 +223,52 @@ describe("formatMessage select/number/date/money", () => {
     assert.ok(time.includes("2:00"), time);
     assert.throws(() =>
       formatMessage("{d,time}", { locale: "en", args: { d: { type: "date", value: "2026-10-04" } } }),
+    );
+  });
+
+  it("rejects rolled-over datetimes and out-of-range times", () => {
+    for (const bad of ["2026-02-30T00:00:00Z", "2026-10-04T25:00:00Z", "2026-10-04T12:60:00Z", "2026-10-04T12:00:60Z"]) {
+      assert.throws(() =>
+        formatMessage("{t}", { locale: "en", args: { t: { type: "datetime", value: bad } } }),
+      );
+    }
+    assert.equal(
+      formatMessage("{t,date,short}", {
+        locale: "en",
+        timeZone: "UTC",
+        args: { t: { type: "datetime", value: "2026-02-28T23:00:00Z" } },
+      }),
+      "2/28/26",
+    );
+  });
+
+  it("keeps quoted '#' literal inside plurals", () => {
+    assert.equal(
+      formatMessage("{n, plural, other {'#'}}", { locale: "en", args: { n: { type: "int", value: 5 } } }),
+      "#",
+    );
+    assert.equal(
+      formatMessage("{n, plural, other {# of '#'}}", { locale: "en", args: { n: { type: "int", value: 5 } } }),
+      "5 of #",
+    );
+  });
+
+  it("uses locale grouping and digits for exact values", () => {
+    // Safe-range values must match platform ICU exactly (oracle); big-value
+    // exactness is covered separately and never passes through floats.
+    for (const locale of ["en", "nl", "fr", "hi-IN", "ar-EG", "de-CH"]) {
+      for (const value of [0, 7, 1000, 1234567, 123456789012345]) {
+        assert.equal(
+          formatMessage("{n,number}", { locale, args: { n: { type: "int", value } } }),
+          new Intl.NumberFormat(locale).format(value),
+          `${locale} ${value}`,
+        );
+      }
+    }
+    // Beyond safe range the digits stay exact (spot-check Latin rendering).
+    assert.equal(
+      formatMessage("{n,number}", { locale: "en", args: { n: { type: "int", value: "123456789012345678901234567890" } } }),
+      "123,456,789,012,345,678,901,234,567,890",
     );
   });
 
