@@ -24,15 +24,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install state package
-        working-directory: packages/state
-        run: npm install --no-audit --no-fund
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install workspace
+        run: bun install --frozen-lockfile
       - name: Typecheck
         working-directory: packages/state
-        run: npm run typecheck
+        run: bun run typecheck
       - name: Build and test
         working-directory: packages/state
-        run: npm test
+        run: bun run test
   stdlib:
     runs-on: ubuntu-latest
     steps:
@@ -40,11 +42,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - name: Install workspace
-        run: npm ci --no-audit --no-fund
+        run: bun install --frozen-lockfile
       - name: Build @canlang/values
-        run: npm run build -w @canlang/values
+        run: bun run --filter @canlang/values build
       - name: Typecheck stdlib
-        run: npm run typecheck -w @canlang/stdlib
+        run: bun run --filter @canlang/stdlib typecheck
       - name: Build and test stdlib
-        run: npm test -w @canlang/stdlib
+        run: bun run --filter @canlang/stdlib test

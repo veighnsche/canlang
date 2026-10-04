@@ -25,13 +25,12 @@ are imported here by relative source path until lane 07 assembles the workspace 
 `contracts` index. Engine-local descriptor/codec shims needed before lanes 01/02 land
 are marked interim and replaced at those joins — never a second catalog.
 
-## Build and test (standalone until the L7 workspace adopts this manifest)
+## Build and test
 
 ```sh
-cd packages/state
-npm install
-npm run typecheck
-npm test
+bun install --frozen-lockfile   # from the repo root
+bun run --filter @canlang/state typecheck
+bun run --filter @canlang/state test
 ```
 
-Dependencies are exact-pinned (no lockfile; the root workspace lock is lane 07 owned).
+Dependencies are exact-pinned; the single root `bun.lock` is lane 07 owned.

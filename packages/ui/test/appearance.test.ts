@@ -3,13 +3,17 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { UI_CATALOG } from "../src/catalog.js";
 import { appearanceClasses } from "../src/appearance.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 // Compiled tests run from dist/ui/test; sources sit beside dist.
 const packageRoot = join(here, "..", "..", "..");
-const daisyRoot = join(packageRoot, "..", "..", "node_modules", "daisyui");
+// Resolve through node_modules instead of assuming a hoisted root layout
+// (bun nests workspace deps under packages/ui/node_modules).
+const pkgRequire = createRequire(import.meta.url);
+const daisyRoot = dirname(pkgRequire.resolve("daisyui/package.json"));
 
 const DAISY_PIN = "5.7.47";
 

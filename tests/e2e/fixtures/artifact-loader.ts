@@ -141,14 +141,14 @@ function loadHandbuiltTeamTasks(root: string): WorkerAssembly {
   // @canlang/ui dist. No specifier is rewritten: both aliases serve the
   // identical built bytes.
   for (const tree of [
-    readVendorTree(root, "packages/contracts/dist", "vendor/contracts", "npm run build"),
-    readVendorTree(root, "packages/contracts/dist", "contracts/src", "npm run build"),
-    readVendorTree(root, "packages/ui/dist/ui/src", "vendor/ui", "npm run build -w @canlang/ui"),
+    readVendorTree(root, "packages/contracts/dist", "vendor/contracts", "bun run build"),
+    readVendorTree(root, "packages/contracts/dist", "contracts/src", "bun run build"),
+    readVendorTree(root, "packages/ui/dist/ui/src", "vendor/ui", "bun run --filter @canlang/ui build"),
     readVendorTree(
       root,
       "packages/identity/dist/identity/src",
       "vendor/identity",
-      "npm run build -w @canlang/identity",
+      "bun run --filter @canlang/identity build",
     ),
   ]) {
     for (const [name, contents] of Object.entries(tree)) modules[name] = contents;

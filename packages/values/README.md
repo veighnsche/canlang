@@ -7,10 +7,10 @@ Owner: lane 02. Internal package: the public facade is `@canlang/stdlib`
 ## Commands
 
 ```sh
-npm install     # standalone install inside packages/values
-npm run typecheck
-npm test        # build + node:test over dist/values/test/
-npm run catalog # build + emit versioned catalog JSON to dist/catalog.json
+bun install --frozen-lockfile                # from the repo root (single workspace lock)
+bun run --filter @canlang/values typecheck
+bun run --filter @canlang/values test        # build + node:test over dist/values/test/
+bun run --filter @canlang/values catalog     # build + emit versioned catalog JSON to dist/catalog.json
 ```
 
 `node:test` is the package runner (the root vitest config explicitly leaves

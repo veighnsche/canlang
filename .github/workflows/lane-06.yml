@@ -1,6 +1,6 @@
 # Lane 06 CI: build + test owned workspace packages. Install runs at the root
-# workspace; the committed root lockfile stays lane-07-owned (join J1 routes
-# the exact member manifests there), so CI syncs it ephemerally.
+# workspace from the committed lane-07-owned bun.lock (join J1 routes the
+# exact member manifests there).
 name: lane-06
 
 permissions:
@@ -33,8 +33,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: package-lock.json
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - name: Guard owned-contract imports
         run: |
           # Tests import unconflicted names from the @canlang/contracts
@@ -44,13 +45,13 @@ jobs:
           echo "$imports"
           echo "$imports" | grep -v -E 'contracts/src/(identity|wire)\.js' && exit 1 || exit 0
       - name: Install workspace
-        run: npm install --no-audit --no-fund
+        run: bun install --frozen-lockfile
       - name: Build contracts assembly
         # Owned production sources import the @canlang/contracts public
         # assembly (dist), avoiding the L7-flagged conflicted names.
-        run: npm run build --workspace @canlang/contracts
+        run: bun run --filter @canlang/contracts build
       - name: Build consumed workspaces
         # interfaces consumes the built identity + ui entries.
-        run: npm run build --workspace @canlang/identity --workspace @canlang/ui
+        run: bun run --filter @canlang/identity --filter @canlang/ui build
       - name: Test owned packages
-        run: npm test --workspace @canlang/identity --workspace @canlang/interfaces
+        run: bun run --filter @canlang/identity --filter @canlang/interfaces test

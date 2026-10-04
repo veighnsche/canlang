@@ -1,6 +1,5 @@
 # Lane 05 CI: build + test the owned @canlang/ui workspace package. Install runs
-# at the root workspace; the committed root lockfile stays lane-07-owned, so CI
-# syncs it ephemerally (same as the lane 06 precedent).
+# at the root workspace from the committed lane-07-owned bun.lock.
 name: lane-05
 
 permissions:
@@ -29,8 +28,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: package-lock.json
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - name: Guard owned-contract imports
         run: |
           # Lane-05 sources may import only the lane-05-owned contract file until
@@ -40,6 +40,6 @@ jobs:
           if [ -z "$imports" ]; then exit 0; fi
           echo "$imports" | grep -v -E 'contracts/src/presentation\.js' && exit 1 || exit 0
       - name: Install workspace
-        run: npm install --no-audit --no-fund
+        run: bun install --frozen-lockfile
       - name: Test owned package
-        run: npm test --workspace @canlang/ui
+        run: bun run --filter @canlang/ui test
