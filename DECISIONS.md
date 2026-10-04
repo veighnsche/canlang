@@ -774,3 +774,10 @@ JEV disagreed with low confidence: leaf/read/mirror .65/.10/.25, .46/.44/.10 and
 Keep lifecycle enablement distinct from public publication. Optional `expose=create,update` (or sole `none`) controls one owner's generated interfaces; omitted means all enabled CRUD. Internal calls retain the same registry, admission, deletion lifecycle and history. Explicit excluded public references are errors, not a second endpoint. This addresses unusable direct reasonless delete discovery without claiming an authorization bypass or forcing another product wrapper.
 
 Three JEV requests prefer the allowlist .84/.53/.83, with confidence .75/.29/.75; the middle default alternative .47 is a real near tie. The safe default remains cheaper where intentional public-interface restriction is unnecessary. [Exact Can/JS/BDD witness and saved advice](design/canonical-exposure-20261004.md) distinguish canonical invocation tests from unexecuted interface discovery. No compiler or publisher implementation is added.
+
+
+## Initial delivery fixture attributes — October 4, 2026
+
+Reuse ordinary table selectors to vary the whole status/result/error of a directly named delivery recipe. Freeze its complete request against untouched baseline setup; combine and validate initial attributes, model associations and result-file provenance before provisioning the protected receipt once. No receipt mutation, request/authority patch, descendant selector or sequence-time fixture edit is introduced. Keep separate recipes only for differing requests or independently required attempt identities.
+
+Three fresh JEV consultations chose initial selectors with probabilities .81/.94/.95 and confidence .72/.91/.93. Separate-recipe probabilities .14/.05/.03 and existing-value factoring .04/.01/.02 preserve the competing costs; the first distribution totals .99 and is not normalized. [Complete evidence, exact setup contract and Can/JS witness](design/delivery-recipe-overrides-20261004.md). Advice does not prove an implemented planner, file provenance or provider behavior. App normalization is tracked in MIGRATION.
