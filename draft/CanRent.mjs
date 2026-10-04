@@ -54,22 +54,50 @@ import {
   weekday,
 } from "@canlang/stdlib";
 import {
+  accordion,
   action,
   actions,
+  alert,
+  badge,
+  board,
+  breadcrumbs,
+  button,
   calendar,
   card,
-  details,
+  checkbox,
+  collapse,
+  content,
+  copy,
+  divider,
+  dropdown,
   edit,
+  fieldset,
+  file_input,
   form,
   history,
+  input,
+  join,
+  link,
   list,
   message,
+  modal,
+  pagination,
+  preferences,
+  radio,
   renderPage,
+  select,
+  slot,
+  stat,
+  status,
   tab,
   table,
   tabs,
+  textarea,
   text,
-} from "@canlang/ui";
+  toggle,
+  tooltip,
+  validator,
+} from "@canlang/ui"; // desired/unimplemented: accordion/alert/badge/board/breadcrumbs/button/checkbox/collapse/content/copy/divider/dropdown/fieldset/file_input/input/join/link/modal/pagination/preferences/radio/select/slot/stat/status/textarea/toggle/tooltip/validator; rest adapts existing
 import { BillingProfile, Customer, has_location_role, owns } from "./customer.mjs";
 import { Charge, DocumentLine, Settlement, SaleMilestone } from "./deployment.billing.mjs";
 import { AllowanceOutcome, BenefitInterval, Entitlement } from "./deployment.membership.mjs";
@@ -7999,45 +8027,157 @@ export async function workspaceCatalogPage(c, bindings) {
     c,
     workspaceCatalogPageDescriptor,
     () => [
+      breadcrumbs({ context: c }),
+      preferences({
+        context: c,
+        children: [toggle({ context: c, field: "arrival_open" })],
+      }),
       card({
         context: c,
         title: message("Location catalog", { nl: "Locatiecatalogus" }),
         children: [
-          form({ context: c, operation: "rent_catalog.Location.create" }),
+          form({
+            context: c,
+            operation: "rent_catalog.Location.create",
+            children: [
+              fieldset({
+                context: c,
+                children: [
+                  input({ context: c, field: "name" }),
+                  textarea({ context: c, field: "address" }),
+                  input({ context: c, field: "timezone" }),
+                  input({ context: c, field: "currency" }),
+                  input({ context: c, field: "hours" }),
+                  textarea({ context: c, field: "arrival" }),
+                  checkbox({ context: c, field: "active" }),
+                ],
+              }),
+            ],
+          }),
           table({
             context: c,
             model: "rent_catalog.Location",
             columns: ["name", "address", "timezone", "currency", "hours"],
+            empty: message("No locations yet", { nl: "Nog geen locaties" }),
             renderRow: (row, view) => [
-              edit({ context: view, operation: "rent_catalog.Location.update", record: row }),
-              details({
+              text({ context: view, values: [row.active] }),
+              edit({
+                context: view,
+                operation: "rent_catalog.Location.update",
+                record: row,
+                children: [
+                  fieldset({
+                    context: view,
+                    children: [
+                      checkbox({ context: view, field: "active" }),
+                      textarea({ context: view, field: "arrival" }),
+                    ],
+                  }),
+                ],
+              }),
+              collapse({
                 context: view,
                 caption: message("Arrival information", { nl: "Aankomstinformatie" }),
                 open: c.preferences.rent_catalog_ui.arrival_open,
                 children: [text({ context: view, values: [row.arrival] })],
               }),
-              ...[
-                ["WeeklyHours", ["weekday", "opens", "closes", "close_after"]],
-                ["ClosedDate", ["day", "reason"]],
-                ["DateHours", ["day", "opens", "closes", "close_after", "closed"]],
-              ].flatMap(([model, columns]) => [
-                form({
-                  context: view,
-                  operation: `rent_catalog.${model}.create`,
-                  arguments: { parent: row },
-                }),
-                table({
-                  context: view,
-                  model: `rent_catalog.${model}`,
-                  parent: row,
-                  columns,
-                  renderRow: (record, rowView) => [
-                    edit({ context: rowView, operation: `rent_catalog.${model}.update`, record }),
-                  ],
-                }),
-              ]),
+              form({
+                context: view,
+                operation: "rent_catalog.WeeklyHours.create",
+                arguments: { parent: row },
+                children: [
+                  fieldset({
+                    context: view,
+                    children: [
+                      input({ context: view, field: "weekday" }),
+                      input({ context: view, field: "opens" }),
+                      input({ context: view, field: "closes" }),
+                      input({ context: view, field: "close_after" }),
+                      radio({ context: view, field: "fold" }),
+                    ],
+                  }),
+                ],
+              }),
+              table({
+                context: view,
+                model: "rent_catalog.WeeklyHours",
+                parent: row,
+                columns: ["weekday", "opens", "closes", "close_after"],
+                empty: message("No weekly hours yet", { nl: "Nog geen weekopeningstijden" }),
+                renderRow: (record, rowView) => [
+                  edit({
+                    context: rowView,
+                    operation: "rent_catalog.WeeklyHours.update",
+                    record,
+                  }),
+                ],
+                children: [pagination({ context: view })],
+              }),
+              form({
+                context: view,
+                operation: "rent_catalog.ClosedDate.create",
+                arguments: { parent: row },
+                children: [
+                  fieldset({
+                    context: view,
+                    children: [
+                      calendar({ context: view, field: "day" }),
+                      textarea({ context: view, field: "reason" }),
+                    ],
+                  }),
+                ],
+              }),
+              table({
+                context: view,
+                model: "rent_catalog.ClosedDate",
+                parent: row,
+                columns: ["day", "reason"],
+                empty: message("No closed dates yet", { nl: "Nog geen sluitingsdagen" }),
+                renderRow: (record, rowView) => [
+                  edit({
+                    context: rowView,
+                    operation: "rent_catalog.ClosedDate.update",
+                    record,
+                  }),
+                ],
+                children: [pagination({ context: view })],
+              }),
+              form({
+                context: view,
+                operation: "rent_catalog.DateHours.create",
+                arguments: { parent: row },
+                children: [
+                  fieldset({
+                    context: view,
+                    children: [
+                      calendar({ context: view, field: "day" }),
+                      input({ context: view, field: "opens" }),
+                      input({ context: view, field: "closes" }),
+                      input({ context: view, field: "close_after" }),
+                      checkbox({ context: view, field: "closed" }),
+                      radio({ context: view, field: "fold" }),
+                    ],
+                  }),
+                ],
+              }),
+              table({
+                context: view,
+                model: "rent_catalog.DateHours",
+                parent: row,
+                columns: ["day", "opens", "closes", "close_after", "closed"],
+                empty: message("No date hours yet", { nl: "Nog geen datumtijden" }),
+                renderRow: (record, rowView) => [
+                  edit({
+                    context: rowView,
+                    operation: "rent_catalog.DateHours.update",
+                    record,
+                  }),
+                ],
+                children: [pagination({ context: view })],
+              }),
               history({ context: view, record: row }),
             ],
+            children: [pagination({ context: c })],
           }),
         ],
       }),
@@ -8050,11 +8190,45 @@ export async function resourceCatalogPage(c, bindings) {
     c,
     resourceCatalogPageDescriptor,
     () => [
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Resource catalog and rates", { nl: "Voorzieningencatalogus en tarieven" }),
         children: [
-          form({ context: c, operation: "rent_reservations.Resource.create" }),
+          form({
+            context: c,
+            operation: "rent_reservations.Resource.create",
+            children: [
+              fieldset({
+                context: c,
+                children: [
+                  select({ context: c, field: "location" }),
+                  input({ context: c, field: "name" }),
+                  checkbox({ context: c, field: "pooled" }),
+                  input({ context: c, field: "capacity" }),
+                  input({ context: c, field: "party_limit" }),
+                  radio({ context: c, field: "kind" }),
+                  input({ context: c, field: "hold_for" }),
+                  checkbox({ context: c, field: "active" }),
+                  input({ context: c, field: "timezone" }),
+                  input({ context: c, field: "currency" }),
+                  input({ context: c, field: "tax_rate" }),
+                  input({ context: c, field: "discount_rate" }),
+                  input({ context: c, field: "cancellation_fee" }),
+                  input({ context: c, field: "hourly" }),
+                  input({ context: c, field: "daily" }),
+                  radio({ context: c, field: "price_unit" }),
+                  input({ context: c, field: "increment" }),
+                  input({ context: c, field: "minimum" }),
+                  textarea({ context: c, field: "terms" }),
+                  input({ context: c, field: "refund_notice" }),
+                  input({ context: c, field: "buffer_before" }),
+                  input({ context: c, field: "buffer_after" }),
+                  textarea({ context: c, field: "accessibility" }),
+                ],
+              }),
+            ],
+          }),
           table({
             context: c,
             model: "rent_reservations.Resource",
@@ -8072,9 +8246,25 @@ export async function resourceCatalogPage(c, bindings) {
             filter: ["location"],
             defaults: { location: c.preferences.rent_reservations.location },
             display: "split",
+            empty: message("No resources match these filters", {
+              nl: "Geen voorzieningen voldoen aan deze filters",
+            }),
             renderRow: (row, view) => [
-              edit({ context: view, operation: "rent_reservations.Resource.update", record: row }),
-              details({
+              edit({
+                context: view,
+                operation: "rent_reservations.Resource.update",
+                record: row,
+                children: [
+                  fieldset({
+                    context: view,
+                    children: [
+                      checkbox({ context: view, field: "active" }),
+                      textarea({ context: view, field: "terms" }),
+                    ],
+                  }),
+                ],
+              }),
+              collapse({
                 context: view,
                 caption: policyTitle,
                 children: [
@@ -8086,6 +8276,7 @@ export async function resourceCatalogPage(c, bindings) {
               }),
               history({ context: view, record: row }),
             ],
+            children: [pagination({ context: c })],
           }),
         ],
       }),
@@ -8098,10 +8289,61 @@ export async function workspacePage(c, bindings) {
     c,
     workspacePageDescriptor,
     () => [
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Discover workspace", { nl: "Werkplekken ontdekken" }),
         children: [
+          accordion({
+            context: c,
+            children: [
+              collapse({
+                context: c,
+                caption: message("Holds and confirmation", { nl: "Reserveren en bevestigen" }),
+                children: [
+                  text({
+                    context: c,
+                    values: [
+                      message("A hold expires at its shown expiry.", {
+                        nl: "Een tijdelijke reservering verloopt op het getoonde tijdstip.",
+                      }),
+                    ],
+                  }),
+                  text({
+                    context: c,
+                    values: [
+                      message("Confirmation needs payment and any allowance.", {
+                        nl: "Bevestiging vereist betaling en een eventueel tegoed.",
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              collapse({
+                context: c,
+                caption: message("Cancellation and refunds", { nl: "Annuleren en terugbetalen" }),
+                children: [
+                  text({
+                    context: c,
+                    values: [
+                      message("Cancellation stops future access.", {
+                        nl: "Annuleren stopt toekomstige toegang.",
+                      }),
+                    ],
+                  }),
+                  text({
+                    context: c,
+                    values: [
+                      message("Refunds follow the frozen terms.", {
+                        nl: "Terugbetalingen volgen de vastgelegde voorwaarden.",
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+          divider({ context: c }),
           table({
             context: c,
             model: "rent_reservations.Resource",
@@ -8123,8 +8365,11 @@ export async function workspacePage(c, bindings) {
             defaults: { location: c.preferences.rent_reservations.location },
             search: ["name"],
             display: "split",
+            empty: message("No resources match these filters", {
+              nl: "Geen voorzieningen voldoen aan deze filters",
+            }),
             renderRow: (row, view) => [
-              details({
+              collapse({
                 context: view,
                 caption: policyTitle,
                 children: [
@@ -8141,78 +8386,120 @@ export async function workspacePage(c, bindings) {
                   }),
                 ],
               }),
-              ...[
-                [
-                  "hour",
-                  "available",
-                  "hold",
-                  message("Check an hourly interval", { nl: "Een tijdvak per uur controleren" }),
-                ],
-                [
-                  "day",
-                  "available_days",
-                  "hold_days",
-                  message("Check local workspace days", { nl: "Lokale werkplekdagen controleren" }),
-                ],
-              ]
-                .filter(([unit]) => row.price_unit === unit)
-                .map(([unit, operation, hold, title]) =>
-                  card({
-                    context: view,
-                    title,
-                    children: [
-                      form({
-                        context: view,
-                        operation: `rent_reservations.${operation}`,
-                        arguments: { resource: row },
-                        renderResult: (result, resultView) => [
-                          text({
-                            context: resultView,
-                            values: [
-                              result.available,
-                              result.total,
-                              result.terms,
-                              ...(unit === "hour" ? [result.refund_before] : []),
-                            ],
-                          }),
-                          ...(result.available
-                            ? [
-                                card({
-                                  context: resultView,
-                                  title: message("Hold this workspace", {
-                                    nl: "Deze werkplek tijdelijk reserveren",
-                                  }),
-                                  children: [
-                                    form({
-                                      context: resultView,
-                                      operation: `rent_reservations.${hold}`,
-                                      arguments:
-                                        unit === "hour"
-                                          ? {
-                                              resource: result.resource,
-                                              from: result.from,
-                                              until: result.until,
-                                              quantity: result.quantity,
-                                              attendees: result.attendees,
-                                            }
-                                          : {
-                                              resource: result.resource,
-                                              start: result.start,
-                                              end: result.end,
-                                              quantity: result.quantity,
-                                              attendees: result.attendees,
-                                            },
-                                    }),
-                                  ],
-                                }),
-                              ]
-                            : []),
-                        ],
+              ...(row.price_unit === "hour"
+                ? [
+                    card({
+                      context: view,
+                      title: message("Check an hourly interval", {
+                        nl: "Een tijdvak per uur controleren",
                       }),
-                    ],
-                  }),
-                ),
+                      children: [
+                        form({
+                          context: view,
+                          operation: "rent_reservations.available",
+                          arguments: { resource: row },
+                          renderResult: (result, resultView) => [
+                            text({ context: resultView, values: [result.available] }),
+                            stat({ context: resultView, values: [result.total] }),
+                            content({ context: resultView, value: result.terms }),
+                            text({ context: resultView, values: [result.refund_before] }),
+                            ...(result.available
+                              ? [
+                                  card({
+                                    context: resultView,
+                                    title: message("Hold this interval", {
+                                      nl: "Dit tijdvak tijdelijk reserveren",
+                                    }),
+                                    children: [
+                                      form({
+                                        context: resultView,
+                                        operation: "rent_reservations.hold",
+                                        arguments: {
+                                          resource: result.resource,
+                                          from: result.from,
+                                          until: result.until,
+                                          quantity: result.quantity,
+                                          attendees: result.attendees,
+                                        },
+                                        children: [
+                                          fieldset({
+                                            context: resultView,
+                                            children: [
+                                              select({ context: resultView, field: "customer" }),
+                                              input({ context: resultView, field: "email" }),
+                                              checkbox({ context: resultView, field: "use_allowance" }),
+                                              validator({ context: resultView, field: "email" }),
+                                            ],
+                                          }),
+                                        ],
+                                      }),
+                                    ],
+                                  }),
+                                ]
+                              : []),
+                          ],
+                        }),
+                      ],
+                    }),
+                  ]
+                : []),
+              ...(row.price_unit === "day"
+                ? [
+                    card({
+                      context: view,
+                      title: message("Check local workspace days", {
+                        nl: "Lokale werkplekdagen controleren",
+                      }),
+                      children: [
+                        form({
+                          context: view,
+                          operation: "rent_reservations.available_days",
+                          arguments: { resource: row },
+                          renderResult: (result, resultView) => [
+                            text({ context: resultView, values: [result.available] }),
+                            stat({ context: resultView, values: [result.total] }),
+                            content({ context: resultView, value: result.terms }),
+                            ...(result.available
+                              ? [
+                                  card({
+                                    context: resultView,
+                                    title: message("Hold these days", {
+                                      nl: "Deze dagen tijdelijk reserveren",
+                                    }),
+                                    children: [
+                                      form({
+                                        context: resultView,
+                                        operation: "rent_reservations.hold_days",
+                                        arguments: {
+                                          resource: result.resource,
+                                          start: result.start,
+                                          end: result.end,
+                                          quantity: result.quantity,
+                                          attendees: result.attendees,
+                                        },
+                                        children: [
+                                          fieldset({
+                                            context: resultView,
+                                            children: [
+                                              select({ context: resultView, field: "customer" }),
+                                              input({ context: resultView, field: "email" }),
+                                              checkbox({ context: resultView, field: "use_allowance" }),
+                                            ],
+                                          }),
+                                        ],
+                                      }),
+                                    ],
+                                  }),
+                                ]
+                              : []),
+                          ],
+                        }),
+                      ],
+                    }),
+                  ]
+                : []),
             ],
+            children: [pagination({ context: c })],
           }),
         ],
       }),
@@ -8225,6 +8512,7 @@ export async function reservationsPage(c, bindings) {
     c,
     reservationsPageDescriptor,
     () => [
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Availability and booking evidence", {
@@ -8237,6 +8525,9 @@ export async function reservationsPage(c, bindings) {
             filter: ["location", "active"],
             defaults: { location: c.preferences.rent_reservations.location },
             display: "split",
+            empty: message("No resources match these filters", {
+              nl: "Geen voorzieningen voldoen aan deze filters",
+            }),
             renderRow: (resource, view) => [
               edit({
                 context: view,
@@ -8254,12 +8545,25 @@ export async function reservationsPage(c, bindings) {
                         context: view,
                         operation: "rent_reservations.DayCalendar.create",
                         arguments: { parent: resource },
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [
+                              calendar({ context: view, field: "day" }),
+                              input({ context: view, field: "opens" }),
+                              input({ context: view, field: "closes" }),
+                              checkbox({ context: view, field: "closed" }),
+                              radio({ context: view, field: "fold" }),
+                            ],
+                          }),
+                        ],
                       }),
                       table({
                         context: view,
                         model: "rent_reservations.DayCalendar",
                         parent: resource,
                         columns: ["day", "opens", "closes", "closed"],
+                        empty: message("No day calendars yet", { nl: "Nog geen dagkalenders" }),
                         renderRow: (record, rowView) => [
                           edit({
                             context: rowView,
@@ -8267,17 +8571,32 @@ export async function reservationsPage(c, bindings) {
                             record,
                           }),
                         ],
+                        children: [pagination({ context: view })],
                       }),
                       form({
                         context: view,
                         operation: "rent_reservations.Window.create",
                         arguments: { parent: resource },
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [
+                              input({ context: view, field: "from" }),
+                              input({ context: view, field: "until" }),
+                              checkbox({ context: view, field: "closed" }),
+                              textarea({ context: view, field: "reason" }),
+                            ],
+                          }),
+                        ],
                       }),
                       table({
                         context: view,
                         model: "rent_reservations.Window",
                         parent: resource,
                         columns: ["from", "until", "closed", "reason"],
+                        empty: message("No availability windows", {
+                          nl: "Geen beschikbaarheidsvensters",
+                        }),
                         renderRow: (row, rowView) => [
                           edit({
                             context: rowView,
@@ -8285,6 +8604,7 @@ export async function reservationsPage(c, bindings) {
                             record: row,
                           }),
                         ],
+                        children: [pagination({ context: view })],
                       }),
                     ],
                   }),
@@ -8292,20 +8612,17 @@ export async function reservationsPage(c, bindings) {
                     context: view,
                     caption: message("Booking outcomes", { nl: "Reserveringsresultaten" }),
                     children: [
-                      table({
+                      board({
                         context: view,
                         model: "rent_reservations.Booking",
                         parent: resource,
-                        columns: [
-                          "customer",
-                          "from",
-                          "until",
-                          "quantity",
-                          "status",
-                          "payment",
-                          "allowance",
+                        by: "status",
+                        columns: ["customer", "from", "until", "quantity", "payment", "allowance"],
+                        empty: message("No bookings yet", { nl: "Nog geen reserveringen" }),
+                        renderRow: (row, rowView) => [
+                          history({ context: rowView, record: row }),
                         ],
-                        renderRow: (row, rowView) => [history({ context: rowView, record: row })],
+                        children: [pagination({ context: view })],
                       }),
                     ],
                   }),
@@ -8317,23 +8634,46 @@ export async function reservationsPage(c, bindings) {
                         context: view,
                         operation: "rent_reservations.revise_capacity",
                         arguments: { resource },
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [
+                              input({ context: view, field: "capacity" }),
+                              textarea({ context: view, field: "reason" }),
+                            ],
+                          }),
+                        ],
                       }),
                       table({
                         context: view,
                         model: "rent_reservations.CapacityRevision",
                         parent: resource,
                         columns: ["capacity", "effective", "reason"],
+                        empty: message("No capacity revisions yet", {
+                          nl: "Nog geen capaciteitsrevisies",
+                        }),
+                        children: [pagination({ context: view })],
                       }),
                       form({
                         context: view,
                         operation: "rent_reservations.Desk.create",
                         arguments: { parent: resource },
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [
+                              input({ context: view, field: "name" }),
+                              checkbox({ context: view, field: "active" }),
+                            ],
+                          }),
+                        ],
                       }),
                       table({
                         context: view,
                         model: "rent_reservations.Desk",
                         parent: resource,
                         columns: ["name", "active"],
+                        empty: message("No desks yet", { nl: "Nog geen bureaus" }),
                         renderRow: (record, rowView) => [
                           edit({
                             context: rowView,
@@ -8341,49 +8681,86 @@ export async function reservationsPage(c, bindings) {
                             record,
                           }),
                         ],
+                        children: [pagination({ context: view })],
                       }),
                       list({
                         context: view,
                         model: "rent_reservations.VenueReservation",
                         parent: resource,
+                        empty: message("No venue reservations", { nl: "Geen ruimtereserveringen" }),
                         renderRow: (row, rowView) => [
+                          badge({ context: rowView, value: row.status }),
                           text({
                             context: rowView,
-                            values: [row.source, row.from, row.until, row.quantity, row.status],
+                            values: [row.source, row.from, row.until, row.quantity],
                           }),
+                          copy({ context: rowView, value: row.source }),
                         ],
+                        children: [pagination({ context: view })],
                       }),
                       list({
                         context: view,
                         model: "rent_reservations.QuoteHold",
                         parent: resource,
+                        empty: message("No quote holds", { nl: "Geen offertereserveringen" }),
                         renderRow: (row, rowView) => [
+                          text({ context: rowView, values: [row.active] }),
                           text({
                             context: rowView,
-                            values: [
-                              row.source,
-                              row.from,
-                              row.until,
-                              row.quantity,
-                              row.expires,
-                              row.active,
-                            ],
+                            values: [row.source, row.from, row.until, row.quantity, row.expires],
                           }),
+                          copy({ context: rowView, value: row.source }),
                         ],
+                        children: [pagination({ context: view })],
+                      }),
+                      alert({
+                        context: view,
+                        caption: message("Conflicts need manager review", {
+                          nl: "Conflicten vereisen beoordeling",
+                        }),
                       }),
                       list({
                         context: view,
                         model: "rent_reservations.Conflict",
                         parent: resource,
                         where: (row) => !row.resolved,
+                        empty: message("No unresolved conflicts", {
+                          nl: "Geen onopgeloste conflicten",
+                        }),
                         renderRow: (row, rowView) => [
                           text({ context: rowView, values: [row.booking, row.reason] }),
-                          action({
+                          button({ context: rowView, opens: "conflict_resolve" }),
+                          modal({
                             context: rowView,
-                            operation: "rent_reservations.resolve_conflict",
-                            boundArgs: { conflict: row },
+                            caption: message("Resolve reservation conflict", {
+                              nl: "Reserveringsconflict oplossen",
+                            }),
+                            id: "conflict_resolve",
+                            children: [
+                              slot({
+                                context: rowView,
+                                name: "content",
+                                children: [
+                                  form({
+                                    context: rowView,
+                                    operation: "rent_reservations.resolve_conflict",
+                                    arguments: { conflict: row },
+                                    display: "inline",
+                                    children: [
+                                      fieldset({
+                                        context: rowView,
+                                        children: [
+                                          textarea({ context: rowView, field: "evidence" }),
+                                        ],
+                                      }),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                            ],
                           }),
                         ],
+                        children: [pagination({ context: view })],
                       }),
                     ],
                   }),
@@ -8393,39 +8770,93 @@ export async function reservationsPage(c, bindings) {
                       nl: "Reparatieblokkades en herstel",
                     }),
                     children: [
-                      form({
+                      button({ context: view, opens: "repair_block" }),
+                      modal({
                         context: view,
-                        operation: "rent_reservations.block",
-                        arguments: { resource },
+                        caption: message("Block for repair", { nl: "Blokkeren voor reparatie" }),
+                        id: "repair_block",
+                        children: [
+                          slot({
+                            context: view,
+                            name: "content",
+                            children: [
+                              form({
+                                context: view,
+                                operation: "rent_reservations.block",
+                                arguments: { resource },
+                                display: "inline",
+                                children: [
+                                  fieldset({
+                                    context: view,
+                                    children: [
+                                      input({ context: view, field: "from" }),
+                                      input({ context: view, field: "until" }),
+                                      textarea({ context: view, field: "reason" }),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                            ],
+                          }),
+                        ],
                       }),
                       list({
                         context: view,
                         model: "rent_reservations.Downtime",
                         parent: resource,
+                        empty: message("No repair blocks", { nl: "Geen reparatieblokkades" }),
                         renderRow: (row, rowView) => [
+                          text({ context: rowView, values: [row.active] }),
                           text({
                             context: rowView,
                             values: [
                               row.from,
                               row.until,
                               row.reason,
-                              row.active,
                               row.verified_by,
                               row.verification,
                             ],
                           }),
-                          action({
+                          copy({ context: rowView, value: row.source }),
+                          button({ context: rowView, opens: "downtime_restore" }),
+                          modal({
                             context: rowView,
-                            operation: "rent_reservations.restore",
-                            boundArgs: { downtime: row },
+                            caption: message("Restore availability", {
+                              nl: "Beschikbaarheid herstellen",
+                            }),
+                            id: "downtime_restore",
+                            children: [
+                              slot({
+                                context: rowView,
+                                name: "content",
+                                children: [
+                                  form({
+                                    context: rowView,
+                                    operation: "rent_reservations.restore",
+                                    arguments: { downtime: row },
+                                    display: "inline",
+                                    children: [
+                                      fieldset({
+                                        context: rowView,
+                                        children: [
+                                          textarea({ context: rowView, field: "evidence" }),
+                                        ],
+                                      }),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                            ],
                           }),
                         ],
+                        children: [pagination({ context: view })],
                       }),
                     ],
                   }),
                 ],
               }),
             ],
+            children: [pagination({ context: c })],
           }),
         ],
       }),
@@ -8438,78 +8869,317 @@ export async function myBookingsPage(c, bindings) {
     c,
     myBookingsPageDescriptor,
     () => [
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Your booking outcomes", { nl: "Jouw reserveringsresultaten" }),
         children: [
+          steps({
+            context: c,
+            children: [
+              slot({
+                context: c,
+                name: "item",
+                children: [text({ context: c, values: [message("Hold", { nl: "Reserveren" })] })],
+              }),
+              slot({
+                context: c,
+                name: "item",
+                children: [text({ context: c, values: [message("Request", { nl: "Aanvragen" })] })],
+              }),
+              slot({
+                context: c,
+                name: "item",
+                children: [text({ context: c, values: [message("Confirm", { nl: "Bevestigen" })] })],
+              }),
+              slot({
+                context: c,
+                name: "item",
+                children: [text({ context: c, values: [message("Arrive", { nl: "Aankomen" })] })],
+              }),
+              slot({
+                context: c,
+                name: "item",
+                children: [text({ context: c, values: [message("Depart", { nl: "Vertrekken" })] })],
+              }),
+            ],
+          }),
+          divider({ context: c }),
           list({
             context: c,
             model: "rent_reservations.Booking",
             where: (booking) => same(booking.account, c.actor),
             order: ["from"],
             display: "split",
+            empty: message("No bookings yet", { nl: "Nog geen reserveringen" }),
             renderRow: (booking, view) => [
+              badge({ context: view, value: booking.status }),
+              badge({ context: view, value: booking.payment }),
+              badge({ context: view, value: booking.allowance }),
+              badge({ context: view, value: booking.refund_state }),
+              stat({ context: view, values: [booking.total] }),
               text({
                 context: view,
                 values: [
                   booking.from,
                   booking.until,
-                  booking.total,
-                  booking.status,
-                  booking.payment,
-                  booking.allowance,
+                  booking.monetary_due,
+                  booking.service_due,
+                  booking.allowance_units,
+                  booking.included_units,
                 ],
               }),
+              copy({ context: view, value: booking.source }),
               actions({
                 context: view,
                 operations: [
-                  "rent_fulfillment.request",
-                  "rent_reservations.fulfill_free",
                   "rent_reservations.reconcile_booking",
                   "rent_reservations.reconcile_allowance",
-                  "rent_reservations.move",
-                  "rent_reservations.move_days",
-                  "rent_reservations.move_membership",
-                  "rent_reservations.move_membership_days",
-                  "rent_reservations.extend",
-                  "rent_fulfillment.cancel",
                 ],
                 boundArgs: { booking },
               }),
-              list({
+              join({
                 context: view,
-                model: "rent_reservations.Movement",
-                parent: booking,
-                renderRow: (movement, rowView) => [
-                  text({
-                    context: rowView,
-                    values: [movement.intervals, movement.state, movement.outcome],
-                  }),
-                  actions({
-                    context: rowView,
-                    operations: [
-                      "rent_reservations.abandon_movement",
-                      "rent_reservations.reconcile_movement",
-                      "rent_reservations.retry_movement_cleanup",
+                children: [button({ context: view, opens: "request_payment" })],
+              }),
+              join({
+                context: view,
+                children: [
+                  button({ context: view, opens: "move_hold" }),
+                  button({ context: view, opens: "move_days_hold" }),
+                  button({ context: view, opens: "move_member" }),
+                  button({ context: view, opens: "move_member_days" }),
+                ],
+              }),
+              join({
+                context: view,
+                children: [
+                  button({ context: view, opens: "booking_extend" }),
+                  button({ context: view, opens: "booking_cancel" }),
+                  button({ context: view, opens: "free_confirm" }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Request payment and allowance", {
+                  nl: "Betaling en tegoed aanvragen",
+                }),
+                id: "request_payment",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_fulfillment.request",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [checkbox({ context: view, field: "use_allowance" })],
+                          }),
+                        ],
+                      }),
                     ],
-                    boundArgs: { movement },
                   }),
                 ],
               }),
-              list({
+              modal({
                 context: view,
-                model: "rent_reservations.Notice",
-                parent: booking,
-                renderRow: (notice, rowView) => [
-                  text({ context: rowView, values: [notice.kind, notice.state, notice.subject] }),
-                  action({
-                    context: rowView,
-                    operation: "rent_reservations.resend_notice",
-                    boundArgs: { notice },
+                caption: message("Move held booking", { nl: "Tijdelijke reservering verplaatsen" }),
+                id: "move_hold",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_reservations.move",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [
+                              input({ context: view, field: "from" }),
+                              input({ context: view, field: "until" }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
                 ],
               }),
-              details({
+              modal({
+                context: view,
+                caption: message("Move workspace days", { nl: "Werkplekdagen verplaatsen" }),
+                id: "move_days_hold",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_reservations.move_days",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [
+                              calendar({ context: view, field: "start" }),
+                              calendar({ context: view, field: "end" }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Move member workspace", { nl: "Ledenwerkplek verplaatsen" }),
+                id: "move_member",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_reservations.move_membership",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [
+                              input({ context: view, field: "from" }),
+                              input({ context: view, field: "until" }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Move member workspace days", {
+                  nl: "Ledenwerkplekdagen verplaatsen",
+                }),
+                id: "move_member_days",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_reservations.move_membership_days",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [
+                              calendar({ context: view, field: "start" }),
+                              calendar({ context: view, field: "end" }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Extend booking", { nl: "Reservering verlengen" }),
+                id: "booking_extend",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_reservations.extend",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [
+                              input({ context: view, field: "until" }),
+                              textarea({ context: view, field: "reason" }),
+                              input({ context: view, field: "amount" }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Cancel booking", { nl: "Reservering annuleren" }),
+                id: "booking_cancel",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_fulfillment.cancel",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [textarea({ context: view, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Confirm free booking", { nl: "Gratis reservering bevestigen" }),
+                id: "free_confirm",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_reservations.fulfill_free",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [textarea({ context: view, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              collapse({
                 context: view,
                 caption: message("Frozen commercial terms", {
                   nl: "Vastgelegde commerciële voorwaarden",
@@ -8528,8 +9198,54 @@ export async function myBookingsPage(c, bindings) {
                   }),
                 ],
               }),
+              list({
+                context: view,
+                model: "rent_reservations.Movement",
+                parent: booking,
+                empty: message("No workspace moves", { nl: "Geen werkplekverplaatsingen" }),
+                renderRow: (movement, rowView) => [
+                  badge({ context: rowView, value: movement.state }),
+                  text({
+                    context: rowView,
+                    values: [movement.intervals, movement.outcome],
+                  }),
+                  actions({
+                    context: rowView,
+                    operations: [
+                      "rent_reservations.abandon_movement",
+                      "rent_reservations.reconcile_movement",
+                      "rent_reservations.retry_movement_cleanup",
+                    ],
+                    boundArgs: { movement },
+                  }),
+                ],
+                children: [pagination({ context: view })],
+              }),
+              list({
+                context: view,
+                model: "rent_reservations.Notice",
+                parent: booking,
+                empty: message("No correspondence yet", { nl: "Nog geen correspondentie" }),
+                renderRow: (notice, rowView) => [
+                  status({ context: rowView, value: notice.state }),
+                  text({ context: rowView, values: [notice.kind, notice.subject] }),
+                  tooltip({
+                    context: rowView,
+                    caption: message("Retry delivery", { nl: "Opnieuw verzenden" }),
+                    children: [
+                      action({
+                        context: rowView,
+                        operation: "rent_reservations.resend_notice",
+                        boundArgs: { notice },
+                      }),
+                    ],
+                  }),
+                ],
+                children: [pagination({ context: view })],
+              }),
               history({ context: view, record: booking }),
             ],
+            children: [pagination({ context: c })],
           }),
         ],
       }),
@@ -8542,6 +9258,7 @@ export async function arrivalsPage(c, bindings) {
     c,
     arrivalsPageDescriptor,
     () => [
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Physical arrivals and departures", {
@@ -8562,23 +9279,204 @@ export async function arrivalsPage(c, bindings) {
             ],
             filter: ["status"],
             display: "split",
+            empty: message("No bookings to handle", { nl: "Geen reserveringen om af te handelen" }),
             renderRow: (booking, view) => [
               actions({
                 context: view,
-                operations: [
-                  "rent_fulfillment.request",
-                  "rent_reservations.fulfill_free",
-                  "rent_reservations.confirm_account",
-                  "rent_fulfillment.check_in",
-                  "rent_fulfillment.check_out",
-                  "rent_reservations.no_show",
-                  "rent_reservations.assign_desk",
-                  "rent_fulfillment.cancel",
-                ],
+                operations: ["rent_fulfillment.check_in", "rent_fulfillment.check_out"],
                 boundArgs: { booking },
+              }),
+              join({
+                context: view,
+                children: [
+                  button({ context: view, opens: "request_payment_arrival" }),
+                  button({ context: view, opens: "free_confirm_arrival" }),
+                  button({ context: view, opens: "account_confirm" }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Request payment and allowance", {
+                  nl: "Betaling en tegoed aanvragen",
+                }),
+                id: "request_payment_arrival",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_fulfillment.request",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [checkbox({ context: view, field: "use_allowance" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Confirm free booking", { nl: "Gratis reservering bevestigen" }),
+                id: "free_confirm_arrival",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_reservations.fulfill_free",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [textarea({ context: view, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Confirm on account", { nl: "Op rekening bevestigen" }),
+                id: "account_confirm",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_reservations.confirm_account",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [textarea({ context: view, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              dropdown({
+                context: view,
+                children: [
+                  slot({
+                    context: view,
+                    name: "trigger",
+                    children: [
+                      text({
+                        context: view,
+                        values: [message("More actions", { nl: "Meer acties" })],
+                      }),
+                    ],
+                  }),
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      button({ context: view, opens: "booking_no_show" }),
+                      button({ context: view, opens: "booking_cancel_arrival" }),
+                      button({ context: view, opens: "desk_assign" }),
+                    ],
+                  }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Record no-show", { nl: "Niet verschijnen vastleggen" }),
+                id: "booking_no_show",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_reservations.no_show",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [textarea({ context: view, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Cancel booking", { nl: "Reservering annuleren" }),
+                id: "booking_cancel_arrival",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_fulfillment.cancel",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [textarea({ context: view, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Assign pool desk", { nl: "Poolbureau toewijzen" }),
+                id: "desk_assign",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "rent_reservations.assign_desk",
+                        arguments: { booking },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: view,
+                            children: [
+                              select({ context: view, field: "desk" }),
+                              input({ context: view, field: "from" }),
+                              input({ context: view, field: "until" }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
               }),
               history({ context: view, record: booking }),
             ],
+            children: [pagination({ context: c })],
           }),
         ],
       }),
@@ -8591,32 +9489,65 @@ export async function financeReviewPage(c, bindings) {
     c,
     financeReviewPageDescriptor,
     () => [
+      breadcrumbs({ context: c }),
+      alert({
+        context: c,
+        caption: message("Refunds need finance review", {
+          nl: "Terugbetalingen vereisen beoordeling",
+        }),
+      }),
       list({
         context: c,
         model: "rent_reservations.Booking",
         where: (booking) => ["review", "unknown", "pending"].includes(booking.refund_state),
         display: "split",
+        empty: message("No finance exceptions", { nl: "Geen financiële uitzonderingen" }),
         renderRow: (booking, view) => [
+          badge({ context: view, value: booking.status }),
+          badge({ context: view, value: booking.payment }),
+          badge({ context: view, value: booking.allowance }),
+          badge({ context: view, value: booking.refund_state }),
           text({
             context: view,
-            values: [
-              booking.customer,
-              booking.from,
-              booking.until,
-              booking.total,
-              booking.status,
-              booking.payment,
-              booking.allowance,
-              booking.refund_state,
-            ],
+            values: [booking.customer, booking.from, booking.until, booking.total],
           }),
+          copy({ context: view, value: booking.source }),
           actions({
             context: view,
-            operations: ["rent_reservations.reconcile_booking", "rent_reservations.refund_review"],
+            operations: ["rent_reservations.reconcile_booking"],
             boundArgs: { booking },
+          }),
+          button({ context: view, opens: "booking_refund" }),
+          modal({
+            context: view,
+            caption: message("Refund booking exception", {
+              nl: "Reserveringsuitzondering terugbetalen",
+            }),
+            id: "booking_refund",
+            children: [
+              slot({
+                context: view,
+                name: "content",
+                children: [
+                  form({
+                    context: view,
+                    operation: "rent_reservations.refund_review",
+                    arguments: { booking },
+                    display: "inline",
+                    children: [
+                      fieldset({
+                        context: view,
+                        children: [textarea({ context: view, field: "reason" })],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
           }),
           history({ context: view, record: booking }),
         ],
+        children: [pagination({ context: c })],
       }),
       list({
         context: c,
@@ -8624,50 +9555,140 @@ export async function financeReviewPage(c, bindings) {
         where: (booking) =>
           ["confirmed", "occupied", "completed", "no_show"].includes(booking.status),
         display: "split",
+        empty: message("No confirmed bookings", { nl: "Geen bevestigde reserveringen" }),
         renderRow: (booking, view) => [
-          action({ context: view, operation: "rent_reservations.adjust", boundArgs: { booking } }),
+          badge({ context: view, value: booking.status }),
+          copy({ context: view, value: booking.source }),
+          button({ context: view, opens: "booking_adjust" }),
+          modal({
+            context: view,
+            caption: message("Charge booking adjustment", {
+              nl: "Reserveringscorrectie factureren",
+            }),
+            id: "booking_adjust",
+            children: [
+              slot({
+                context: view,
+                name: "content",
+                children: [
+                  form({
+                    context: view,
+                    operation: "rent_reservations.adjust",
+                    arguments: { booking },
+                    display: "inline",
+                    children: [
+                      fieldset({
+                        context: view,
+                        children: [
+                          input({ context: view, field: "amount" }),
+                          textarea({ context: view, field: "reason" }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
           list({
             context: view,
             model: "rent_reservations.Movement",
             parent: booking,
             where: (row) => row.credit_due !== null && row.credit_due.minor > 0n,
+            empty: message("No movement credits", { nl: "Geen verplaatsingstegoeden" }),
             renderRow: (movement, rowView) => [
-              text({ context: rowView, values: [movement.credit_due, movement.state] }),
-              action({
+              badge({ context: rowView, value: movement.state }),
+              text({ context: rowView, values: [movement.credit_due] }),
+              button({ context: rowView, opens: "movement_credit_refund" }),
+              modal({
                 context: rowView,
-                operation: "rent_reservations.refund_movement_credit",
-                boundArgs: { movement },
+                caption: message("Refund movement credit", {
+                  nl: "Verplaatsingstegoed terugbetalen",
+                }),
+                id: "movement_credit_refund",
+                children: [
+                  slot({
+                    context: rowView,
+                    name: "content",
+                    children: [
+                      form({
+                        context: rowView,
+                        operation: "rent_reservations.refund_movement_credit",
+                        arguments: { movement },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: rowView,
+                            children: [
+                              input({ context: rowView, field: "charge_source" }),
+                              input({ context: rowView, field: "amount" }),
+                              textarea({ context: rowView, field: "reason" }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
               }),
               table({
                 context: rowView,
                 model: "rent_reservations.MovementCredit",
                 parent: movement,
                 columns: ["charge_source", "amount", "state", "reason"],
+                empty: message("No movement credit refunds", {
+                  nl: "Geen terugbetalingen van verplaatsingstegoed",
+                }),
+                children: [pagination({ context: rowView })],
               }),
             ],
+            children: [pagination({ context: view })],
           }),
           list({
             context: view,
             model: "rent_reservations.Adjustment",
             parent: booking,
+            empty: message("No adjustments", { nl: "Geen correcties" }),
             renderRow: (adjustment, rowView) => [
+              badge({ context: rowView, value: adjustment.state }),
               text({
                 context: rowView,
-                values: [
-                  adjustment.amount,
-                  adjustment.reason,
-                  adjustment.state,
-                  adjustment.new_until,
+                values: [adjustment.amount, adjustment.reason, adjustment.new_until],
+              }),
+              button({ context: rowView, opens: "adjustment_refund" }),
+              modal({
+                context: rowView,
+                caption: message("Refund adjustment exception", {
+                  nl: "Correctie-uitzondering terugbetalen",
+                }),
+                id: "adjustment_refund",
+                children: [
+                  slot({
+                    context: rowView,
+                    name: "content",
+                    children: [
+                      form({
+                        context: rowView,
+                        operation: "rent_reservations.refund_adjustment",
+                        arguments: { adjustment },
+                        display: "inline",
+                        children: [
+                          fieldset({
+                            context: rowView,
+                            children: [textarea({ context: rowView, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
                 ],
               }),
-              action({
-                context: rowView,
-                operation: "rent_reservations.refund_adjustment",
-                boundArgs: { adjustment },
-              }),
             ],
+            children: [pagination({ context: view })],
           }),
+          history({ context: view, record: booking }),
         ],
+        children: [pagination({ context: c })],
       }),
     ],
   );
@@ -8679,6 +9700,7 @@ export async function occupancyPage(c, bindings) {
     c,
     occupancyPageDescriptor,
     () => [
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Booked agenda and physical occupancy", {
@@ -8692,12 +9714,15 @@ export async function occupancyPage(c, bindings) {
               preferences.location === null || same(booking.parent.location, preferences.location),
             start: "from",
             end: "until",
+            empty: message("No bookings in this view", { nl: "Geen reserveringen in deze weergave" }),
             renderRow: (row, view) => [
+              badge({ context: view, value: row.status }),
               text({
                 context: view,
-                values: [row.quantity, row.status, row.checked_in, row.checked_out],
+                values: [row.quantity, row.checked_in, row.checked_out],
               }),
             ],
+            children: [pagination({ context: c })],
           }),
         ],
       }),
@@ -8711,6 +9736,9 @@ export async function occupancyPage(c, bindings) {
             columns: ["location", "name", "capacity"],
             filter: ["location"],
             defaults: { location: preferences.location },
+            empty: message("No resources match these filters", {
+              nl: "Geen voorzieningen voldoen aan deze filters",
+            }),
             renderRow: (resource, view) =>
               hasRole(c, "rent_reservations.reservation_manager")
                 ? [
@@ -8737,6 +9765,10 @@ export async function occupancyPage(c, bindings) {
                                 "unit",
                                 "provisional",
                               ],
+                              empty: message("No measures in this window", {
+                                nl: "Geen maatstaven in dit venster",
+                              }),
+                              children: [pagination({ context: resultView })],
                             }),
                           ],
                         }),
@@ -8744,6 +9776,7 @@ export async function occupancyPage(c, bindings) {
                     }),
                   ]
                 : [],
+            children: [pagination({ context: c })],
           }),
         ],
       }),
@@ -8753,12 +9786,15 @@ export async function occupancyPage(c, bindings) {
 
 export async function bookingHistoryPage(c,bindings) {
   return renderPage(c,bookingHistoryPageDescriptor,()=>[
-    hasRole(c,reservation_manager) ? card({context:c,title:message("Retain source bookings", {nl:"Bronreserveringen bewaren"}),children:[form({context:c,operation:"rent_reservations.retain_legacy",import:"csv",review:"rent_reservations.legacy_matches"})]}) : null,
-    form({context:c,operation:"rent_reservations.legacy_matches",renderResult:(result,view)=>[list({context:view,rows:result,columns:["source","external_id","location"]})]}),
-    table({context:c,model:LegacyBooking,archived:"include",columns:["source","external_id","location"],display:"split",renderRow:(entry,view)=>[
+    breadcrumbs({context:c}),
+    hasRole(c,reservation_manager) ? card({context:c,title:message("Retain source bookings", {nl:"Bronreserveringen bewaren"}),children:[form({context:c,operation:"rent_reservations.retain_legacy",import:"csv",review:"rent_reservations.legacy_matches",children:[fieldset({context:c,children:[input({context:c,field:"source"}),input({context:c,field:"external_id"}),select({context:c,field:"location"}),file_input({context:c,field:"source_evidence"}),textarea({context:c,field:"attestation"})]})]})]}) : null,
+    form({context:c,operation:"rent_reservations.legacy_matches",renderResult:(result,view)=>[list({context:view,rows:result,columns:["source","external_id","location"],empty:message("No matching retained bookings", {nl:"Geen overeenkomende bewaarde reserveringen"}),renderRow:(row,rowView)=>[copy({context:rowView,value:row.source}),copy({context:rowView,value:row.external_id})],children:[pagination({context:view})]})]}),
+    table({context:c,model:LegacyBooking,archived:"include",columns:["source","external_id","location"],display:"split",empty:message("No retained bookings", {nl:"Geen bewaarde reserveringen"}),renderRow:(entry,view)=>[
+      copy({context:view,value:entry.source}),
+      copy({context:view,value:entry.external_id}),
       text({context:view,values:[entry.facts.customer_source,entry.facts.customer_external_id,entry.facts.resource_source,entry.facts.resource_external_id,entry.facts.actor,entry.facts.from_original,entry.facts.until_original,entry.facts.from,entry.facts.until,entry.facts.status,entry.facts.payment,entry.facts.quantity,entry.facts.amount,entry.customer,entry.resource]}),
-      (hasRole(view,reservation_manager)||hasRole(view,"invoice.finance")) ? card({context:view,title:message("Current mapping and source evidence", {nl:"Huidige koppeling en bronbewijs"}),children:[action({context:view,operation:"rent_reservations.link_legacy",boundArgs:{entry}}),text({context:view,values:[entry.account,entry.mapping_reason,entry.source_evidence,entry.attestation,entry.imported_by,entry.imported_at]}),history({context:view,record:entry})]}) : null,
-    ]}),
+      (hasRole(view,reservation_manager)||hasRole(view,"invoice.finance")) ? card({context:view,caption:message("Current mapping and source evidence", {nl:"Huidige koppeling en bronbewijs"}),children:[button({context:view,opens:"link_legacy_booking"}),link({context:view,target:entry.source_evidence,caption:message("Original source artifact", {nl:"Oorspronkelijk bronbestand"})}),text({context:view,values:[entry.account,entry.mapping_reason,entry.attestation,entry.imported_by,entry.imported_at]}),modal({context:view,caption:message("Map historical booking", {nl:"Historische reservering koppelen"}),id:"link_legacy_booking",children:[slot({context:view,name:"content",children:[form({context:view,operation:"rent_reservations.link_legacy",arguments:{entry},display:"inline",children:[fieldset({context:view,children:[select({context:view,field:"customer"}),select({context:view,field:"resource"}),textarea({context:view,field:"reason"})]})]})]})]}),history({context:view,record:entry})]}) : null,
+    ],children:[pagination({context:c})]}),
   ]);
 }
 
