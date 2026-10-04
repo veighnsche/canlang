@@ -24,17 +24,30 @@ import {
 } from "@canlang/stdlib";
 import {
   actions,
+  badge, // desired/unimplemented
+  breadcrumbs, // desired/unimplemented
+  button, // desired/unimplemented
+  calendar, // desired/unimplemented
   card,
-  details,
+  checkbox, // desired/unimplemented
+  drawer, // desired/unimplemented
   edit,
+  fieldset, // desired/unimplemented
+  file_input, // desired/unimplemented
   form,
   history,
+  input, // desired/unimplemented
   list,
   message,
-  metrics,
+  modal, // desired/unimplemented
+  pagination, // desired/unimplemented
+  progress, // desired/unimplemented
   renderPage,
+  slot, // desired/unimplemented
+  stat, // desired/unimplemented
   table,
   text,
+  textarea, // desired/unimplemented
 } from "@canlang/ui";
 import { can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -50,6 +63,13 @@ import { budget_manager, buyer, Supplier } from "./supplier.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * UI sections mirror the replanned Then: breadcrumbs, typed request/receive
+ * fieldsets, state/posting badges, accepted-vs-ordered progress, paginated
+ * collections with empty states, a drawer authorization detail, and stat over
+ * the shared metric contract. details/metrics have no remaining use. Lowercase
+ * UI factories take one props object; slots are prop arrays. All UI imports
+ * and calls are desired/unimplemented. This file passes node --check (syntax
+ * only) and never runs.
  */
 
 export const Receipt = "purchase.Receipt";
@@ -1749,11 +1769,29 @@ export async function minePage(c, bindings) {
     c,
     minePageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Own requests", { nl: "Eigen aanvragen" }),
         children: [
-          form({ context: c, operation: "purchase.Request.create" }),
+          form({
+            context: c,
+            operation: "purchase.Request.create",
+            /* desired-unimplemented: placed controls move the generated controls. */
+            children: [
+              fieldset({
+                context: c,
+                caption: message("Purchase request", { nl: "Inkoopaanvraag" }),
+                children: [
+                  textarea({ context: c, field: "purpose" }),
+                  input({ context: c, field: "category" }),
+                  input({ context: c, field: "amount" }),
+                  calendar({ context: c, field: "required_by" }),
+                ],
+              }),
+            ],
+          }),
           list({
             context: c,
             model: "purchase.Request",
@@ -1766,7 +1804,12 @@ export async function minePage(c, bindings) {
               supplier: c.preferences.purchase.supplier,
             },
             display: "split",
+            empty: message("No requests yet.", { nl: "Nog geen aanvragen." }),
             renderRow: (request, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
+              /* desired-unimplemented: badge presents the readable own-enum value. */
+              badge({ context: view, value: request.state }),
               edit({ context: view, operation: "purchase.Request.update", record: request }),
               actions({ context: view, operations: ["purchase.submit"], boundArgs: { request } }),
               text({
@@ -1794,6 +1837,8 @@ export async function purchasingPage(c, bindings) {
     c,
     purchasingPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Supplier directory", { nl: "Leveranciersregister" }),
@@ -1803,8 +1848,12 @@ export async function purchasingPage(c, bindings) {
             context: c,
             model: Supplier,
             columns: ["name", "contact", "locations", "active"],
-            renderRow: (supplier, view) =>
+            empty: message("No suppliers recorded.", { nl: "Geen leveranciers vastgelegd." }),
+            renderRow: (supplier, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
               edit({ context: view, operation: "supplier.Supplier.update", record: supplier }),
+            ],
           }),
         ],
       }),
@@ -1816,13 +1865,18 @@ export async function purchasingPage(c, bindings) {
             context: c,
             model: "purchase.Request",
             display: "split",
-            filter: ["state", "location", "category", "supplier"],
+            filter: ["state", "location", "supplier"],
             defaults: {
               state: c.preferences.purchase.state,
               location: c.preferences.purchase.location,
               supplier: c.preferences.purchase.supplier,
             },
+            empty: message("No requests match these filters.", {
+              nl: "Geen aanvragen voor deze filters.",
+            }),
             renderRow: (request, rv) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: rv }),
               text({
                 context: rv,
                 values: [
@@ -1834,140 +1888,513 @@ export async function purchasingPage(c, bindings) {
                   request.decision,
                 ],
               }),
-              details({
+              /* desired-unimplemented: badge presents the readable own-enum value. */
+              badge({ context: rv, value: request.state }),
+              /* desired-unimplemented: button opens activates the local drawer. */
+              button({ context: rv, opens: "auth_detail" }),
+              drawer({
                 context: rv,
                 caption: message("Purchase authorization", { nl: "Inkoopautorisatie" }),
-                record: request,
-                display: "drawer",
+                id: "auth_detail",
                 children: [
-                  edit({ context: rv, operation: "purchase.Request.update", record: request }),
-                  actions({
+                  slot({
                     context: rv,
-                    operations: [
-                      "purchase.submit",
-                      "purchase.decide",
-                      "purchase.order",
-                      "purchase.increase",
-                      "purchase.close",
-                      "purchase.cancel",
-                      "purchase.adjust",
-                    ],
-                    boundArgs: { request },
-                  }),
-                  list({
-                    context: rv,
-                    model: "purchase.Order",
-                    parent: request,
-                    renderRow: (order, ov) => [
-                      form({
-                        context: ov,
-                        operation: "purchase.Line.create",
-                        arguments: { parent: order },
-                      }),
+                    name: "content",
+                    children: [
+                      edit({ context: rv, operation: "purchase.Request.update", record: request }),
                       actions({
-                        context: ov,
-                        operations: ["purchase.record_payable"],
-                        boundArgs: { order },
+                        context: rv,
+                        operations: ["purchase.submit"],
+                        boundArgs: { request },
                       }),
-                      table({
-                        context: ov,
-                        model: "purchase.Payable",
-                        parent: order,
-                        columns: [
-                          "invoice",
-                          "amount",
-                          "issued",
-                          "evidence",
-                          "posting",
-                          "reference",
-                        ],
-                        renderRow: (payable, pv) =>
-                          actions({
-                            context: pv,
-                            operations: ["purchase.export_payable"],
-                            boundArgs: { payable },
-                          }),
-                      }),
-                      form({ context: ov, operation: "purchase.intake_invoice", arguments: { order } }),
-                      table({
-                        context: ov,
-                        model: "purchase.InvoiceDocument",
-                        parent: order,
-                        columns: ["document", "source", "status", "invoice", "amount", "issued", "decision"],
-                        order: ["created"],
-                        renderRow: (invoice_document, iv) => [
-                          actions({
-                            context: iv,
-                            operations: [
-                              "purchase.transcribe_claims",
-                              "purchase.accept_invoice",
-                              "purchase.reject_invoice",
+                      button({ context: rv, opens: "decide_detail" }),
+                      modal({
+                        context: rv,
+                        caption: message("Record decision", { nl: "Besluit vastleggen" }),
+                        id: "decide_detail",
+                        children: [
+                          slot({
+                            context: rv,
+                            name: "content",
+                            children: [
+                              form({
+                                context: rv,
+                                operation: "purchase.decide",
+                                arguments: { request },
+                                display: "inline",
+                                children: [
+                                  checkbox({ context: rv, field: "approve" }),
+                                  textarea({ context: rv, field: "reason" }),
+                                ],
+                              }),
                             ],
-                            boundArgs: { invoice_document },
                           }),
                         ],
                       }),
-                      table({
-                        context: ov,
-                        model: "purchase.Line",
-                        parent: order,
-                        columns: ["sku", "unit", "quantity", "ordered", "accepted", "unit_price"],
-                        renderRow: (line, lv) => [
-                          actions({
-                            context: lv,
-                            operations: ["purchase.amend"],
-                            boundArgs: { line },
+                      button({ context: rv, opens: "order_detail" }),
+                      modal({
+                        context: rv,
+                        caption: message("Place supplier order", {
+                          nl: "Leveranciersbestelling plaatsen",
+                        }),
+                        id: "order_detail",
+                        children: [
+                          slot({
+                            context: rv,
+                            name: "content",
+                            children: [
+                              form({
+                                context: rv,
+                                operation: "purchase.order",
+                                arguments: { request },
+                                display: "inline",
+                                children: [input({ context: rv, field: "reference" })],
+                              }),
+                            ],
                           }),
-                          edit({
-                            context: lv,
-                            operation: "purchase.Line.update",
-                            record: line,
+                        ],
+                      }),
+                      button({ context: rv, opens: "increase_detail" }),
+                      modal({
+                        context: rv,
+                        caption: message("Authorize increase", { nl: "Verhoging autoriseren" }),
+                        id: "increase_detail",
+                        children: [
+                          slot({
+                            context: rv,
+                            name: "content",
+                            children: [
+                              form({
+                                context: rv,
+                                operation: "purchase.increase",
+                                arguments: { request },
+                                display: "inline",
+                                children: [
+                                  input({ context: rv, field: "amount" }),
+                                  textarea({ context: rv, field: "reason" }),
+                                ],
+                              }),
+                            ],
                           }),
+                        ],
+                      }),
+                      button({ context: rv, opens: "close_detail" }),
+                      modal({
+                        context: rv,
+                        caption: message("Close spending", { nl: "Uitgaven afsluiten" }),
+                        id: "close_detail",
+                        children: [
+                          slot({
+                            context: rv,
+                            name: "content",
+                            children: [
+                              form({
+                                context: rv,
+                                operation: "purchase.close",
+                                arguments: { request },
+                                display: "inline",
+                                children: [
+                                  input({ context: rv, field: "actual" }),
+                                  textarea({ context: rv, field: "evidence" }),
+                                ],
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      button({ context: rv, opens: "cancel_detail" }),
+                      modal({
+                        context: rv,
+                        caption: message("Cancel request", { nl: "Aanvraag annuleren" }),
+                        id: "cancel_detail",
+                        children: [
+                          slot({
+                            context: rv,
+                            name: "content",
+                            children: [
+                              form({
+                                context: rv,
+                                operation: "purchase.cancel",
+                                arguments: { request },
+                                display: "inline",
+                                children: [
+                                  input({ context: rv, field: "actual" }),
+                                  textarea({ context: rv, field: "evidence" }),
+                                  textarea({ context: rv, field: "reason" }),
+                                ],
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      button({ context: rv, opens: "adjust_detail" }),
+                      modal({
+                        context: rv,
+                        caption: message("Adjust spending", { nl: "Uitgaven aanpassen" }),
+                        id: "adjust_detail",
+                        children: [
+                          slot({
+                            context: rv,
+                            name: "content",
+                            children: [
+                              form({
+                                context: rv,
+                                operation: "purchase.adjust",
+                                arguments: { request },
+                                display: "inline",
+                                children: [
+                                  input({ context: rv, field: "amount" }),
+                                  textarea({ context: rv, field: "reason" }),
+                                ],
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      list({
+                        context: rv,
+                        model: "purchase.Order",
+                        parent: request,
+                        empty: message("No orders placed.", { nl: "Geen bestellingen geplaatst." }),
+                        renderRow: (order, ov) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: ov }),
+                          /* desired-unimplemented: badge presents the readable own-enum value. */
+                          badge({ context: ov, value: order.state }),
                           form({
-                            context: lv,
-                            operation: "purchase.receive",
-                            arguments: { line },
+                            context: ov,
+                            operation: "purchase.Line.create",
+                            arguments: { parent: order },
+                          }),
+                          button({ context: ov, opens: "payable_detail" }),
+                          modal({
+                            context: ov,
+                            caption: message("Record payable", {
+                              nl: "Te betalen bedrag registreren",
+                            }),
+                            id: "payable_detail",
+                            children: [
+                              slot({
+                                context: ov,
+                                name: "content",
+                                children: [
+                                  form({
+                                    context: ov,
+                                    operation: "purchase.record_payable",
+                                    arguments: { order },
+                                    display: "inline",
+                                    children: [
+                                      fieldset({
+                                        context: ov,
+                                        caption: message("Payable evidence", {
+                                          nl: "Bewijs te betalen bedrag",
+                                        }),
+                                        children: [
+                                          input({ context: ov, field: "source" }),
+                                          input({ context: ov, field: "invoice" }),
+                                          input({ context: ov, field: "amount" }),
+                                          calendar({ context: ov, field: "issued" }),
+                                          textarea({ context: ov, field: "evidence" }),
+                                        ],
+                                      }),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                            ],
                           }),
                           table({
-                            context: lv,
-                            model: Receipt,
-                            parent: line,
+                            context: ov,
+                            model: "purchase.Payable",
+                            parent: order,
                             columns: [
-                              "source",
-                              "accepted",
-                              "rejected",
-                              "returned",
-                              "received",
-                              "posting",
+                              "invoice",
+                              "amount",
+                              "issued",
                               "evidence",
+                              "posting",
+                              "reference",
                             ],
-                            order: ["-received"],
-                            renderRow: (receipt, rv) => [
+                            empty: message("No invoice evidence recorded.", {
+                              nl: "Geen factuurbewijs vastgelegd.",
+                            }),
+                            renderRow: (payable, pv) => [
+                              /* desired-unimplemented: pagination consumes this collection cursor. */
+                              pagination({ context: pv }),
+                              /* desired-unimplemented: badge presents the readable own-enum value. */
+                              badge({ context: pv, value: payable.posting }),
                               actions({
-                                context: rv,
-                                operations: ["purchase.return_goods", "purchase.retry_stock"],
-                                boundArgs: { receipt },
+                                context: pv,
+                                operations: ["purchase.export_payable"],
+                                boundArgs: { payable },
+                              }),
+                            ],
+                          }),
+                          form({
+                            context: ov,
+                            operation: "purchase.intake_invoice",
+                            arguments: { order },
+                            children: [
+                              fieldset({
+                                context: ov,
+                                caption: message("Invoice document", { nl: "Factuurdocument" }),
+                                children: [
+                                  file_input({ context: ov, field: "document" }),
+                                  input({ context: ov, field: "source" }),
+                                ],
+                              }),
+                            ],
+                          }),
+                          table({
+                            context: ov,
+                            model: "purchase.InvoiceDocument",
+                            parent: order,
+                            columns: ["document", "source", "status", "invoice", "amount", "issued", "decision"],
+                            order: ["created"],
+                            empty: message("No invoice documents recorded.", {
+                              nl: "Geen factuurdocumenten vastgelegd.",
+                            }),
+                            renderRow: (invoice_document, iv) => [
+                              /* desired-unimplemented: pagination consumes this collection cursor. */
+                              pagination({ context: iv }),
+                              /* desired-unimplemented: badge presents the readable own-enum value. */
+                              badge({ context: iv, value: invoice_document.status }),
+                              button({ context: iv, opens: "transcribe_detail" }),
+                              modal({
+                                context: iv,
+                                caption: message("Transcribe invoice claims", {
+                                  nl: "Factuurgegevens overnemen",
+                                }),
+                                id: "transcribe_detail",
+                                children: [
+                                  slot({
+                                    context: iv,
+                                    name: "content",
+                                    children: [
+                                      form({
+                                        context: iv,
+                                        operation: "purchase.transcribe_claims",
+                                        arguments: { invoice_document },
+                                        display: "inline",
+                                        children: [
+                                          input({ context: iv, field: "invoice" }),
+                                          input({ context: iv, field: "amount" }),
+                                          calendar({ context: iv, field: "issued" }),
+                                        ],
+                                      }),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                              button({ context: iv, opens: "accept_detail" }),
+                              modal({
+                                context: iv,
+                                caption: message("Accept invoice document", {
+                                  nl: "Factuurdocument accepteren",
+                                }),
+                                id: "accept_detail",
+                                children: [
+                                  slot({
+                                    context: iv,
+                                    name: "content",
+                                    children: [
+                                      form({
+                                        context: iv,
+                                        operation: "purchase.accept_invoice",
+                                        arguments: { invoice_document },
+                                        display: "inline",
+                                        children: [
+                                          input({ context: iv, field: "invoice" }),
+                                          input({ context: iv, field: "amount" }),
+                                          calendar({ context: iv, field: "issued" }),
+                                          textarea({ context: iv, field: "evidence" }),
+                                        ],
+                                      }),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                              button({ context: iv, opens: "reject_detail" }),
+                              modal({
+                                context: iv,
+                                caption: message("Reject invoice document", {
+                                  nl: "Factuurdocument afwijzen",
+                                }),
+                                id: "reject_detail",
+                                children: [
+                                  slot({
+                                    context: iv,
+                                    name: "content",
+                                    children: [
+                                      form({
+                                        context: iv,
+                                        operation: "purchase.reject_invoice",
+                                        arguments: { invoice_document },
+                                        display: "inline",
+                                        children: [
+                                          textarea({ context: iv, field: "reason" }),
+                                        ],
+                                      }),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                            ],
+                          }),
+                          table({
+                            context: ov,
+                            model: "purchase.Line",
+                            parent: order,
+                            columns: ["sku", "unit", "quantity", "ordered", "accepted", "unit_price"],
+                            empty: message("No line items recorded.", { nl: "Geen regels vastgelegd." }),
+                            renderRow: (line, lv) => [
+                              /* desired-unimplemented: pagination consumes this collection cursor. */
+                              pagination({ context: lv }),
+                              /* desired-unimplemented: progress checks compatible int units. */
+                              progress({ context: lv, value: line.accepted, max: line.ordered }),
+                              edit({
+                                context: lv,
+                                operation: "purchase.Line.update",
+                                record: line,
+                              }),
+                              button({ context: lv, opens: "amend_detail" }),
+                              modal({
+                                context: lv,
+                                caption: message("Amend line", { nl: "Regel wijzigen" }),
+                                id: "amend_detail",
+                                children: [
+                                  slot({
+                                    context: lv,
+                                    name: "content",
+                                    children: [
+                                      form({
+                                        context: lv,
+                                        operation: "purchase.amend",
+                                        arguments: { line },
+                                        display: "inline",
+                                        children: [
+                                          input({ context: lv, field: "quantity" }),
+                                          textarea({ context: lv, field: "reason" }),
+                                        ],
+                                      }),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                              form({
+                                context: lv,
+                                operation: "purchase.receive",
+                                arguments: { line },
+                                /* desired-unimplemented: placed controls move the generated controls. */
+                                children: [
+                                  fieldset({
+                                    context: lv,
+                                    caption: message("Delivery receipt", {
+                                      nl: "Ontvangstregistratie",
+                                    }),
+                                    children: [
+                                      input({ context: lv, field: "source" }),
+                                      input({ context: lv, field: "accepted" }),
+                                      input({ context: lv, field: "rejected" }),
+                                      calendar({ context: lv, field: "received" }),
+                                      textarea({ context: lv, field: "evidence" }),
+                                    ],
+                                  }),
+                                ],
                               }),
                               table({
-                                context: rv,
-                                model: Return,
-                                parent: receipt,
-                                columns: ["source", "quantity", "returned", "evidence", "posting"],
-                                renderRow: (returned, view) =>
+                                context: lv,
+                                model: Receipt,
+                                parent: line,
+                                columns: [
+                                  "source",
+                                  "accepted",
+                                  "rejected",
+                                  "returned",
+                                  "received",
+                                  "posting",
+                                  "evidence",
+                                ],
+                                order: ["-received"],
+                                empty: message("No delivery receipts recorded.", {
+                                  nl: "Geen ontvangstregistraties vastgelegd.",
+                                }),
+                                renderRow: (receipt, rv) => [
+                                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                                  pagination({ context: rv }),
+                                  /* desired-unimplemented: badge presents the readable own-enum value. */
+                                  badge({ context: rv, value: receipt.posting }),
                                   actions({
-                                    context: view,
-                                    operations: ["purchase.retry_return"],
-                                    boundArgs: { returned },
+                                    context: rv,
+                                    operations: ["purchase.retry_stock"],
+                                    boundArgs: { receipt },
                                   }),
+                                  button({ context: rv, opens: "return_detail" }),
+                                  modal({
+                                    context: rv,
+                                    caption: message("Return goods", {
+                                      nl: "Goederen retourneren",
+                                    }),
+                                    id: "return_detail",
+                                    children: [
+                                      slot({
+                                        context: rv,
+                                        name: "content",
+                                        children: [
+                                          form({
+                                            context: rv,
+                                            operation: "purchase.return_goods",
+                                            arguments: { receipt },
+                                            display: "inline",
+                                            children: [
+                                              fieldset({
+                                                context: rv,
+                                                caption: message("Supplier return", {
+                                                  nl: "Leveranciersretour",
+                                                }),
+                                                children: [
+                                                  input({ context: rv, field: "source" }),
+                                                  input({ context: rv, field: "quantity" }),
+                                                  calendar({ context: rv, field: "returned" }),
+                                                  textarea({ context: rv, field: "evidence" }),
+                                                ],
+                                              }),
+                                            ],
+                                          }),
+                                        ],
+                                      }),
+                                    ],
+                                  }),
+                                  table({
+                                    context: rv,
+                                    model: Return,
+                                    parent: receipt,
+                                    columns: ["source", "quantity", "returned", "evidence", "posting"],
+                                    empty: message("No supplier returns recorded.", {
+                                      nl: "Geen leveranciersretouren vastgelegd.",
+                                    }),
+                                    renderRow: (returned, view) => [
+                                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                                      pagination({ context: view }),
+                                      /* desired-unimplemented: badge presents the readable own-enum value. */
+                                      badge({ context: view, value: returned.posting }),
+                                      actions({
+                                        context: view,
+                                        operations: ["purchase.retry_return"],
+                                        boundArgs: { returned },
+                                      }),
+                                    ],
+                                  }),
+                                  history({ context: rv, record: receipt }),
+                                ],
                               }),
-                              history({ context: rv, record: receipt }),
                             ],
                           }),
                         ],
                       }),
+                      history({ context: rv, record: request }),
                     ],
                   }),
-                  history({ context: rv, record: request }),
                 ],
               }),
             ],
@@ -1983,8 +2410,12 @@ export async function purchasingPage(c, bindings) {
             context: c,
             model: "purchase.Budget",
             display: "split",
+            empty: message("No budgets recorded.", { nl: "Geen budgetten vastgelegd." }),
             renderRow: (budget, view) => [
-              metrics({
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
+              /* desired-unimplemented: stat shares the metric contract. */
+              stat({
                 context: view,
                 result: budget,
                 fields: ["total", "committed", "spent", "remaining"],
