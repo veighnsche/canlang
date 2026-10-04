@@ -1587,7 +1587,10 @@ export interface TabsBinding {
  * names the radios after the owned preference and wraps them in a form
  * POSTing to the caller path. Either a nonempty tab-child suite or a
  * selector binding is required. No `variant` prop: only solid is admitted
- * upstream (a no-op base); sizes land on the container only.
+ * upstream (a no-op base); sizes land on the container only. Panel/tab
+ * element ids namespace under `id` when given, else under the radio group
+ * name: pages rendering more than one tabset — or more than one set bound
+ * to one preference — must pass distinct ids (the megamenu rule).
  */
 export interface TabsProps {
   readonly context: PresentationContext;

@@ -37,7 +37,6 @@ import type {
   SettingsBaseControls,
   SettingsPanelProps,
   ThemeDensity,
-  ThemeOption,
 } from "../../contracts/src/presentation.js";
 import { CSRF_FIELD } from "../../contracts/src/presentation.js";
 import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
@@ -136,8 +135,9 @@ async function renderBase(base: SettingsBaseControls, context: PresentationConte
   if (densityText !== null && densityText === "") {
     throw new Error("renderSettingsPanel density label must not be empty");
   }
-  // No default selection: an unknown current density leaves all radios
+  // No default selection: an absent current density leaves all radios
   // unchecked (the theme side behaves the same), never presented as set.
+  // A present-but-undeclared value throws above instead.
   const radios = DENSITIES.map(
     (option) =>
       `<label><input type="radio" class="radio" name="density" value="${option.value}"` +

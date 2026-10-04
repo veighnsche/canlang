@@ -40,7 +40,6 @@ import type {
   CopyProps,
   HistoryProps,
   MessageParamValue,
-  MessageValue,
   PageChildren,
   PresentationContext,
   TabsBinding,
@@ -198,12 +197,13 @@ export async function tabs(props: TabsProps): Promise<string> {
   if (props.binding === undefined) {
     requireText("tabs", "radio group name", group);
   }
-  const label =
-    props.caption === undefined
-      ? ""
-      : ` aria-label="${escapeAttr(resolveCaption(props.caption, props.context))}"`;
-  if (props.caption !== undefined && resolveCaption(props.caption, props.context) === "") {
-    throw new Error("tabs caption must not be empty");
+  let label = "";
+  if (props.caption !== undefined) {
+    const caption = resolveCaption(props.caption, props.context);
+    if (caption === "") {
+      throw new Error("tabs caption must not be empty");
+    }
+    label = ` aria-label="${escapeAttr(caption)}"`;
   }
 
   // Selector-only bound tabset: no panels, just the preference form.
@@ -231,6 +231,11 @@ export async function tabs(props: TabsProps): Promise<string> {
   }
 
   const nameAttr = escapeAttr(group);
+  // Panel/tab element ids namespace under the explicit id when given,
+  // else under the radio group name. Two tabsets sharing one prefix
+  // (two default sets, or two sets bound to one preference without ids)
+  // collide: callers must pass distinct ids (the megamenu rule).
+  const idPrefix = props.id ?? group;
   const defaultValue =
     items.find((item) => item.open === true)?.value ??
     (props.binding?.current !== undefined && items.some((item) => item.value === props.binding?.current)
@@ -245,8 +250,8 @@ export async function tabs(props: TabsProps): Promise<string> {
       }
       const body = await renderKids("tabs item", item.children);
       const selected = item.value === defaultValue;
-      const panelId = `${group}-panel-${String(index)}`;
-      const tabId = `${group}-tab-${String(index)}`;
+      const panelId = `${idPrefix}-panel-${String(index)}`;
+      const tabId = `${idPrefix}-tab-${String(index)}`;
       return (
         `<input type="radio" class="tab" role="tab" id="${escapeAttr(tabId)}" name="${nameAttr}"` +
         ` value="${escapeAttr(item.value)}" aria-label="${escapeAttr(caption)}"` +
@@ -328,12 +333,13 @@ export async function history(props: HistoryProps): Promise<string> {
   if (props.entries.length === 0) {
     throw new Error("history needs a nonempty entries suite");
   }
-  const label =
-    props.caption === undefined
-      ? ""
-      : ` aria-label="${escapeAttr(resolveCaption(props.caption, props.context))}"`;
-  if (props.caption !== undefined && resolveCaption(props.caption, props.context) === "") {
-    throw new Error("history caption must not be empty");
+  let label = "";
+  if (props.caption !== undefined) {
+    const caption = resolveCaption(props.caption, props.context);
+    if (caption === "") {
+      throw new Error("history caption must not be empty");
+    }
+    label = ` aria-label="${escapeAttr(caption)}"`;
   }
   const operationLabel = escapeHtml(resolveCaption(OPERATION_LABEL, props.context));
   const actorLabel = escapeHtml(resolveCaption(ACTOR_LABEL, props.context));

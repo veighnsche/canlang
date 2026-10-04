@@ -170,6 +170,88 @@ describe("tabs", () => {
     assert.ok(!html.includes("tab-content"), html);
   });
 
+  it("prefers an explicit open item over the bound current value", async () => {
+    const html = await tabs({
+      context: makeContext(),
+      binding: {
+        name: "view",
+        options: [
+          { value: "a", label: "First" },
+          { value: "b", label: "Second" },
+        ],
+        current: "b",
+        postTo: "/prefs/view",
+      },
+      items: [
+        { value: "a", caption: "First", children: ["A"], open: true },
+        { value: "b", caption: "Second", children: ["B"] },
+      ],
+    });
+    assert.ok(html.includes('value="a" aria-label="First" aria-selected="true"'), html);
+    assert.ok(html.includes('value="b" aria-label="Second" aria-selected="false"'), html);
+  });
+
+  it("rejects duplicate binding options", async () => {
+    await assert.rejects(
+      tabs({
+        context: makeContext(),
+        binding: {
+          name: "view",
+          options: [
+            { value: "a", label: "First" },
+            { value: "a", label: "Again" },
+          ],
+          postTo: "/prefs/view",
+        },
+        items: [{ value: "a", caption: "First", children: ["A"] }],
+      }),
+      /duplicate option/,
+    );
+  });
+
+  it("keeps two tabsets disjoint under distinct ids", async () => {
+    const first = await tabs({
+      context: makeContext(),
+      id: "nav",
+      items: [{ value: "a", caption: "A", children: ["A"] }],
+    });
+    const second = await tabs({
+      context: makeContext(),
+      id: "prefs",
+      items: [{ value: "a", caption: "A", children: ["A"] }],
+    });
+    assert.ok(first.includes('id="nav-tab-0"'), first);
+    assert.ok(first.includes('aria-controls="nav-panel-0"'), first);
+    assert.ok(!first.includes("prefs-"), first);
+    assert.ok(second.includes('id="prefs-tab-0"'), second);
+    assert.ok(!second.includes("nav-"), second);
+  });
+
+  it("namespaces same-preference bound sets under distinct ids", async () => {
+    const binding = {
+      name: "view",
+      options: [{ value: "a", label: "First" }],
+      postTo: "/prefs/view",
+    };
+    const first = await tabs({
+      context: makeContext(),
+      id: "left",
+      binding,
+      items: [{ value: "a", caption: "First", children: ["A"] }],
+    });
+    const second = await tabs({
+      context: makeContext(),
+      id: "right",
+      binding,
+      items: [{ value: "a", caption: "First", children: ["A"] }],
+    });
+    assert.ok(first.includes('name="view"'), first);
+    assert.ok(first.includes('id="left-panel-0"'), first);
+    assert.ok(!first.includes("right-"), first);
+    assert.ok(second.includes('id="right-panel-0"'), second);
+    assert.ok(!second.includes("left-"), second);
+  });
+
   it("fails closed on missing suites, mismatches and bad bindings", async () => {
     await assert.rejects(tabs({ context: makeContext() }), /suite or a selector binding/);
     await assert.rejects(tabs({ context: makeContext(), items: [] }), /suite or a selector binding/);
