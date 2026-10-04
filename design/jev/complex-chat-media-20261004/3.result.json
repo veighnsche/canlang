@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "These design alternatives concern CanChat, CanCreative and CanGallery, a declarative business-language draft without implemented standard libraries. Each must deliver the same journey: private immutable conversational branches, bounded resource use, observable partial generation, return-to-run after disconnect, authorized targeted stop, failed/unknown/reconcile feedback, current membership and file revocation, immutable company-edited image-template revisions and only finalized reviewed assets in shared collections. Showing the newest retained partial response is sufficient; reproducing every emitted token is unnecessary. Can already specifies atomic owner mutations, typed durable outbox delivery associations, verified adapter events and authorized page polling. A proposed shared adapter, regardless of the selected surface, must persist request digest/source/revision, provider run mapping and ordered evidence, coalesce output, prevent changed-payload identity reuse, keep unknown outcomes and isolate external cancellation. Streamed HTTP success and accepted image submission never establish completed work. Official Ollama NDJSON supports terminal signals but not a documented durable resume key; cancelling its JS client cancels that instance. ComfyUI submit validates plus enqueues and untargeted interrupt needs isolation or a verified targeted API. Workerd request execution is not a durable inference controller. Receiving-app file finalization and resource enforcement remain mandatory. Token/job/dimension limits can be guaranteed only when supported; a fictitious currency-cost estimate cannot become a hard spend guarantee. None of the alternatives has prior implementation or automatic adoption.",
+    "questions": {
+      "run_interface": {
+        "type": "choice",
+        "instructions": "Pick the most appropriate shared interface for completing these drafts, considering equally source economy, reusable behavior, honest recovery/authority, user outcomes and the amount of new specification required.",
+        "criteria": {
+          "typed_snapshots": "Extend the standard capability catalog with text/image start/cancel/reconcile operations and sequenced cumulative snapshot events. Keep durable transport/provider state and file transfer in reusable adapters. Retain normal business run models with correlation and budget handling, presented with the existing authorized list/content/form polling surface. This is compatible with current effects and is modest to specify, while repeating some business snapshot handlers and omitting exact token replay.",
+          "run_construct": "Specify a first-class durable-work run construct to derive common run state, observer bindings and stop/reconcile controls. Shared adapters remain responsible for provider facts; apps retain all business policy. Reducing recurring run bookkeeping may improve authoring, at the cost of a newly reviewed language abstraction and complete typing, admission, replay and generated-JS semantics.",
+          "event_log": "Use a reusable persistent normalized event stream with cursors/subscriptions and app projections, retaining each recorded generation event. Exact replay and audit are advantages when clients diverge. This requires stronger retention, ordering, revocation, flow-control and cursor contracts; it still cannot promise recovery of chunks the provider produced before the adapter persisted them."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "run_interface": {
+        "type": "choice",
+        "choice": "typed_snapshots",
+        "confidence": 0.91,
+        "probabilities": {
+          "event_log": 0.0,
+          "typed_snapshots": 0.94,
+          "run_construct": 0.06
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 885,
+      "output_tokens": 49
+    }
+  }
+}

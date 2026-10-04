@@ -1,0 +1,4 @@
+line 14: substitute delivery association types only for syntax projection
+line 91: omit sequence-example suite unsupported by prototype
+line 186: omit accepted poll attribute unsupported by prototype
+line 212: omit accepted poll attribute unsupported by prototype

@@ -1,0 +1,8 @@
+line 67: omit sequence-example suite unsupported by prototype
+line 90: omit accepted poll attribute unsupported by prototype
+line 95: project gallery to established list syntax
+line 98: omit accepted poll attribute unsupported by prototype
+line 100: project gallery to established list syntax
+line 102: project gallery to established list syntax
+line 106: omit accepted poll attribute unsupported by prototype
+line 108: project gallery to established list syntax
