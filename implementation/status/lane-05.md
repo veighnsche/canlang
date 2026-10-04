@@ -408,15 +408,23 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
       variant dropped; TabsOption replaces ThemeOption misuse); state.js imports retargeted
       to presentation.js (guard); density unknown leaves radios unchecked. 7 catalog flips
       (88/88 implemented, 0 planned); arity pins. Suite 779/779.
-- [ ] C9 catalog completion + B1/B2/B3 + discovery evidence (branch muse/lane-05-ui/c9-evidence,
-      PR pending): journeys.test.ts (authority/locale/interaction/error/discovery over real code paths
-      with hand-emitted fixtures, honestly test-only) + catalog reverse audit + zero-planned pin (88/88).
-      Ledger filled 68/68 from catalog data. Suite 796/796.
+- [x] C9 catalog completion + B1/B2/B3 + discovery evidence (merged PR #83 as 2f16cf3,
+      reviewed head, green): journeys.test.ts (authority/locale/interaction/error/discovery over real
+      code paths with hand-emitted fixtures, honestly test-only) + catalog reverse audit +
+      zero-planned pin (88/88). Ledger filled 68/68 from catalog data. Review: focus/swap
+      evidence made real (login autofocus; sidebar checkbox contract; none-swap declaration).
+      Suite 796/796.
       B1/B2/B3 join readiness (lane-05 side): UI consumes PageDescriptor/AdmitFn/RenderFn/RowQueryRunner/
       HistoryEntry/DeliveryStatus producer shapes; denied→login without leakage, forbidden-field
       absence, locale fallback, swap preservation, and catalog discovery are proven. Blocked on
       producers (owner-kept): L1 real descriptor emission (syntax merged, no emission yet),
       L7 workerd/D1 runner coordination. No lane-05 mock advertises producer behavior.
+
+Lane 05 complete (2026-10-04): all slices S1–S5 + C1–C9 merged as reviewed green heads
+(#7, #10, #16, #26, #34, #37, #42, #45, #47, #55, #62, #68, #71, #75, #78, #83).
+Contract canlang.presentation/0.14.0; @canlang/ui 796/796 tests; 88/88 catalog entries
+implemented, 0 planned; 68-word ledger fully rendered. No lane-05-owned TODOs remain;
+foreign lane-08 doc edits preserved aside (stash + /tmp backups) for their owner.
 
 ## 68-component coverage ledger (2026-10-04; renderer = @canlang/ui factory)
 
