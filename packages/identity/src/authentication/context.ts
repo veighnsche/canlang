@@ -24,7 +24,7 @@ import type {
   Membership,
   ResolvedIdentity,
   Team,
-} from '../../../contracts/src/identity.js';
+} from '@canlang/contracts';
 import { sha256HexText } from '../sessions/tokens.js';
 
 const CREDENTIAL_FAILED = 'Session expired or revoked.';
