@@ -8,6 +8,7 @@ package success
  use member_terms {Membership,Term as MembershipTerm,term}
  use rent_catalog {Location,test_site}
  use employee {can_work,test_worker}
+ use std {DeliveryResult}
  use std {EmailV1 as Mail} from=deployment.mail
  Given
   export contract WorkItem { reference:text, revision:int, location:text?, title:text, detail:text?, due:datetime?, action:action(complete) } label="Authorized work item"@{nl="Toegestaan werkitem"}
@@ -21,8 +22,10 @@ package success
   Account in Customer { location:Location, manager:user label=label_account_manager, email:email, renewal:date? label="Renewal date"@{nl="Verlengingsdatum"}, risk:enum(low,medium,high)=low label={text="Assessed renewal risk"@{nl="Beoordeeld verlengingsrisico"},values={low="Low"@{nl="Laag"},medium="Medium"@{nl="Gemiddeld"},high="High"@{nl="Hoog"}}}, reviewed_at:datetime? label="Last review"@{nl="Laatste beoordeling"}, reviewed_by:user? label="Reviewed by"@{nl="Beoordeeld door"}, risk_reason:text? label="Risk assessment reason"@{nl="Reden voor risicobeoordeling"}, notes:text?, agreement:AgreementTerm? label="Agreement reference"@{nl="Overeenkomstreferentie"}, membership:Membership? label="Membership reference"@{nl="Lidmaatschapsreferentie"}, active:bool=true } label="Customer account"@{nl="Klantdossier"}
   Milestone in Account { title:text trim min=1, due:date, done:bool=false, completed_by:user? label=label_Milestone_completed_by, completed_at:datetime? label=label_Milestone_completed_at } label="Account milestone"@{nl="Klantmijlpaal"}
   export FollowUp in Account { title:text, due:datetime, assignee:user label="Assignee"@{nl="Toegewezen aan"}, email:email, done:bool=false, completed_by:user? label=label_Milestone_completed_by, completed_at:datetime? label=label_Milestone_completed_at } label=label_FollowUp
-  Notice in Account { followup:FollowUp?, revision:int, account_revision:int, recipient:email, subject:text, body:text, delivery:text unique, state:enum(pending,succeeded,failed,unknown)=pending label={text="Delivery state"@{nl="Bezorgstatus"},values={pending="Pending"@{nl="In afwachting"},succeeded="Delivered"@{nl="Bezorgd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"}}} } label="Reminder outcome"@{nl="Herinneringsresultaat"}
-  policy Notice read=account_manager and can_work(actor,row.parent.location)
+  Notice in Account { followup:FollowUp?, revision:int, account_revision:int, recipient:email, subject:text, body:text, delivery:delivery(Mail.send) } label="Reminder outcome"@{nl="Herinneringsresultaat"}
+  ## Notice state observes the Mail receipt; the existing Delivered caption renders succeeded.
+  derive Notice.state:DeliveryResult.status = row.delivery.status label={text="Delivery state"@{nl="Bezorgstatus"},values={pending="Pending"@{nl="In afwachting"},succeeded="Delivered"@{nl="Bezorgd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}
+  policy Notice read=account_manager and can_work(actor,row.parent.location) fields=parent,followup,revision,account_revision,recipient,subject,body,delivery.id,delivery.status,state,created_by,created,updated_by,updated,archived_at
   lock Notice fields=followup,revision,account_revision,recipient,subject,body,delivery
   lock Milestone fields=title,due,done,completed_by,completed_at when=row.done
   lock FollowUp fields=title,due,assignee,email,done,completed_by,completed_at when=row.done
@@ -104,7 +107,7 @@ package success
     if account_manager(event.followup.assignee) and can_work(event.followup.assignee,event.followup.parent.location) and event.followup.due<=now
      let subject=format("Account follow-up"@{nl="Klantopvolging"},locale=null)
      send Mail.send {to=event.followup.email,subject,body=event.followup.title} when=event.followup.version==event.revision and event.followup.parent.version==event.account_revision and not event.followup.done and event.followup.parent.active and account_manager(event.followup.assignee) and can_work(event.followup.assignee,event.followup.parent.location) as notice
-     create Notice {parent=event.followup.parent,followup=event.followup,revision=event.revision,account_revision=event.account_revision,recipient=event.followup.email,subject,body=event.followup.title,delivery=notice.id} as outcome
+     create Notice {parent=event.followup.parent,followup=event.followup,revision=event.revision,account_revision=event.account_revision,recipient=event.followup.email,subject,body=event.followup.title,delivery=notice} as outcome
   # Remind the current manager at the location's renewal-date boundary without renewing paid terms. @{nl="Herinner de huidige beheerder op de lokale verlengingsdatum zonder betaalde voorwaarden te verlengen."}
   scenario renewal_due on=RenewalDue
    require event.account.version==event.revision and event.account.active and event.account.renewal!=null
@@ -113,11 +116,7 @@ package success
      let subject=format("Account renewal due"@{nl="Klantverlenging nodig"},locale=null)
      let body=format("Review the recorded renewal date; renewal remains a separate agreement action."@{nl="Controleer de vastgelegde verlengingsdatum; verlenging blijft een afzonderlijke overeenkomstactie."},locale=null)
      send Mail.send {to=event.account.email,subject,body} when=event.account.version==event.revision and event.account.active and account_manager(event.account.manager) and can_work(event.account.manager,event.account.location) as notice
-     create Notice {parent=event.account,revision=event.revision,account_revision=event.revision,recipient=event.account.email,subject,body,delivery=notice.id} as outcome
-  scenario notice_result on=Mail.send.completed
-   do
-    for notice in Notice as row where row.delivery==event.delivery_id and row.state in [pending,unknown] limit=1
-     set notice {state=event.status}
+     create Notice {parent=event.account,revision=event.revision,account_revision=event.revision,recipient=event.account.email,subject,body,delivery=notice} as outcome
   # Record when a manager last reviewed the account, without changing a source agreement or paid term. @{nl="Leg vast wanneer een beheerder het dossier laatst beoordeelde zonder een bronovereenkomst of betaalde termijn te wijzigen."}
   scenario review(account:Account) by=account_manager label="Record account review"@{nl="Dossierbeoordeling vastleggen"}
    require can_work(actor,account.location) and account.active
