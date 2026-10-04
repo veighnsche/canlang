@@ -11,12 +11,11 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
   role reviewer label=label_reviewer
   export Document { location:Location?, title:text, category:text label="Category"@{nl="Categorie"}, subject:text?, submitter:user server=actor label="Submitter"@{nl="Indiener"}, email:email, current:int=0 label="Current revision"@{nl="Huidige revisie"} } label="Document"@{nl="Document"}
   export Submission in Document { assignment:int=1 label="Assignment revision"@{nl="Toewijzingsrevisie"}, revision:int, file:file, note:text label=label_Submission_note, reviewer:user label=label_reviewer, reviewer_email:email label=label_Submission_reviewer_email, due:datetime, state:enum(pending,approved,rejected,withdrawn)=pending label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In behandeling"},approved="Approved"@{nl="Goedgekeurd"},rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"}}}, reason:text?, decided_by:user? label="Decision maker"@{nl="Beslist door"}, decided_at:datetime? label="Decision time"@{nl="Beslist op"} } label="Submitted version"@{nl="Ingediende versie"}
-  Notice in Submission { kind:enum(request,decision,reminder) label={text="Notice kind"@{nl="Soort bericht"},values={request="Review request"@{nl="Beoordelingsverzoek"},decision="Decision"@{nl="Besluit"},reminder="Reminder"@{nl="Herinnering"}}}, assignment:Submission.assignment, recipient:email label="Recipient"@{nl="Ontvanger"}, subject:text, body:text, delivery:text? label="Delivery reference"@{nl="Verzendingsreferentie"}, state:DeliveryResult.status=pending } label="Review notice"@{nl="Beoordelingsbericht"}
+  Notice in Submission { kind:enum(request,decision,reminder) label={text="Notice kind"@{nl="Soort bericht"},values={request="Review request"@{nl="Beoordelingsverzoek"},decision="Decision"@{nl="Besluit"},reminder="Reminder"@{nl="Herinnering"}}}, assignment:Submission.assignment, recipient:email label="Recipient"@{nl="Ontvanger"}, subject:text, body:text, delivery:delivery(Mail.send)? label="Delivery reference"@{nl="Verzendingsreferentie"} } label="Review notice"@{nl="Beoordelingsbericht"}
+  derive Notice.state:DeliveryResult.status? = row.delivery?.status label="Delivery state"@{nl="Verzendstatus"}
   derive Submission.overdue:bool = row.state==pending and row.due<now label="Overdue"@{nl="Te laat"}
   event Due { submission:Submission, assignment:int }
-  policy Notice read=members where=row.parent.parent.submitter==actor
-  policy Notice read=coordinator where=row.parent.parent.location==null or can_work(actor,row.parent.parent.location)
-  policy Notice read=reviewer where=row.parent.reviewer==actor and row.parent.state!=withdrawn and (row.parent.parent.location==null or can_work(actor,row.parent.parent.location))
+  policy Notice read=(members and row.parent.parent.submitter==actor) or (coordinator and (row.parent.parent.location==null or can_work(actor,row.parent.parent.location))) or (reviewer and row.parent.reviewer==actor and row.parent.state!=withdrawn and (row.parent.parent.location==null or can_work(actor,row.parent.parent.location))) fields=parent,kind,assignment,recipient,subject,body,state,delivery.id,delivery.status,created_by,created,updated_by,updated,archived_at
   lock Notice fields=kind,assignment,recipient,subject,body
   lock Notice fields=delivery when=row.delivery!=null
   policy Document read=members where=row.submitter==actor
@@ -34,21 +33,58 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
   fixture coordinator_user=user {roles=[coordinator]}
   fixture ordinary_user=user {}
   fixture hr_user=user {roles=[hr]}
-  fixture reviewer_worker=Employee {user=reviewer_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer"}
-  fixture replacement_worker=Employee {user=replacement_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Replacement reviewer"}
+  fixture reviewer_worker=Employee {user=reviewer_user,name="Alex",home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer"}
+  fixture replacement_worker=Employee {user=replacement_user,name="Alex",home=test_site,locations=[test_site],start=date("2026-10-01"),role="Replacement reviewer"}
   fixture coordinator_worker=Employee {user=coordinator_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Coordinator"}
   fixture ordinary_worker=Employee {user=ordinary_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer"}
   fixture document=Document {location=test_site,title="Plan",category="Signage",current=1,submitter=self,email="submitter@example.test"}
   fixture original=file {}
   fixture replacement=file {}
   fixture pending_version=Submission {parent=document,revision=1,file=original,note="Signage",reviewer=reviewer_user,reviewer_email="reviewer@example.test",due=now+1d}
-  fixture pending_notice=Notice {parent=pending_version,kind=request,assignment=1,recipient="reviewer@example.test",subject="Review",body="Plan",delivery="notice"}
+  fixture pending_delivery=Mail.send {request={to="reviewer@example.test",subject="Review",body="Plan"},status=pending,result=null,error=null}
+  fixture accepted_delivery=Mail.send {request={to="reviewer@example.test",subject="Review",body="Plan"},status=succeeded,result={reference="accepted-mail"},error=null}
+  fixture unknown_delivery=Mail.send {request={to="reviewer@example.test",subject="Review",body="Plan"},status=unknown,result=null,error=null}
+  fixture failed_delivery=Mail.send {request={to="reviewer@example.test",subject="Review",body="Plan"},status=failed,result=null,error={code="provider",message="Delivery rejected"}}
+  fixture skipped_delivery=Mail.send {request={to="reviewer@example.test",subject="Review",body="Plan"},status=skipped,result=null,error=null}
+  fixture failed_decision_delivery=Mail.send {request={to="submitter@example.test",subject="Review",body="Approved with conditions"},status=failed,result=null,error={code="provider",message="Delivery rejected"}}
+  fixture pending_notice=Notice {parent=pending_version,kind=request,assignment=1,recipient="reviewer@example.test",subject="Review",body="Plan",delivery=pending_delivery}
   fixture accepted=Submission {parent=document,revision=1,file=original,note="Original",reviewer=reviewer_user,reviewer_email="reviewer@example.test",due=now+1d,state=approved,decided_by=reviewer_user,decided_at=now}
   preferences { review_state:Submission.state? label="Initial review state filter"@{nl="Eerste filter beoordelingsstatus"}, versions_open:bool=false label="Expand submitted version history"@{nl="Ingediende versiehistorie uitklappen"} }
   message label_reviewer = "Reviewer"@{nl="Beoordelaar"}
   message label_Submission_note = "Note"@{nl="Notitie"}
   message label_Submission_reviewer_email = "Reviewer email"@{nl="E-mail beoordelaar"}
  When
+  # Read eligible reviewers through current work-field grants. @{nl="Lees geschikte beoordelaars via actuele werkveldtoegang."}
+  scenario reviewer_choices(document:Document) read=true -> Employee[] by=members label="Choose reviewer"@{nl="Beoordelaar kiezen"}
+   require (document.submitter==actor or coordinator) and (document.location==null or can_work(actor,document.location))
+   do return Employee as candidate where candidate.active and candidate.user!=actor and candidate.user!=document.submitter and reviewer(candidate.user) and (document.location==null or can_work(candidate.user,document.location))
+   examples seed=[test_worker,reviewer_worker,replacement_worker,ordinary_worker,coordinator_worker] document=document
+    as,document.submitter,document.location,reviewer_worker.active,reviewer_worker.name,test_worker.active -> count(result),count(result as candidate where candidate.name=="Alex"),any(result as candidate,candidate.user==ordinary_user)
+    self,self,test_site,true,"Alex",true -> 2,2,false
+    self,self,test_site,false,"Alex",true -> 1,1,false
+    self,self,null,false,"Alex",true -> 1,1,false
+    self,self,test_site,true,null,true -> 2,1,false
+    coordinator_user,self,test_site,true,"Alex",true -> 2,2,false
+    reviewer_user,reviewer_user,test_site,true,"Alex",true -> 1,1,false
+    reviewer_user,self,test_site,true,"Alex",true -> error(rule_failed)
+    self,self,test_site,true,"Alex",false -> error(rule_failed)
+    self,self,null,true,"Alex",false -> 0,0,false
+    outsider,self,test_site,true,"Alex",true -> error(forbidden)
+    public,self,test_site,true,"Alex",true -> error(forbidden)
+   ## Receipt snapshots are canonical bound recipes. An unrelated failed receipt cannot alter this Notice's selected pending receipt.
+   examples seed=[pending_notice,test_worker,failed_delivery] document=document
+    pending_notice.delivery -> pending_notice.state,pending_version.state
+    accepted_delivery -> succeeded,pending
+    unknown_delivery -> unknown,pending
+    skipped_delivery -> skipped,pending
+    failed_delivery -> failed,pending
+    pending_delivery -> pending,pending
+    null -> null,pending
+   ## Delivery progress preserves the exact approved file, reason and actor/time. Null means no request is yet associated.
+   examples seed=[pending_notice,test_worker] document=document
+    pending_notice.kind,pending_notice.recipient,pending_notice.body,pending_version.state,pending_version.reason,pending_version.decided_by,pending_version.decided_at,pending_notice.delivery -> pending_notice.state,pending_version.state,pending_version.file,pending_version.reason,pending_version.decided_by,pending_version.decided_at
+    decision,"submitter@example.test","Approved with conditions",approved,"Approved with conditions",reviewer_user,now,failed_decision_delivery -> failed,approved,original,"Approved with conditions",reviewer_user,now
+    decision,"submitter@example.test","Approved with conditions",approved,"Approved with conditions",reviewer_user,now,null -> null,approved,original,"Approved with conditions",reviewer_user,now
   crud Document by=members fields=title,category,subject create_fields=location,title,category,subject,email when=row.submitter==actor and (row.location==null or can_work(actor,row.location)) delete=none
    examples update seed=[test_worker] record=document
     as,changes.title -> document.title
@@ -143,7 +179,13 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
      let pending_review=first(document_record.Submission as row where row.revision==1 order=row.id)
      pending_review!=null -> true
      let review_version=pending_review.version
+     let review_document=first(Document as row where row.submitter==self order=row.id)
+     review_document!=null -> true
+     call reviewer_choices {document=review_document} by=self as before_reviewers
+     any(before_reviewers as candidate,candidate.user==reviewer_user) -> true
      call deactivate {employee=reviewer_worker,ended=date("2026-10-02")} by=hr_user
+     call reviewer_choices {document=review_document} by=self as after_reviewers
+     any(after_reviewers as candidate,candidate.user==reviewer_user),any(after_reviewers as candidate,candidate.user==replacement_user) -> false,true
      reviewer_worker.active,reviewer(reviewer_user),can_work(reviewer_user,test_site) -> false,true,false
      call decide {submission=pending_review,approve=true,reason="Unavailable reviewer"} by=reviewer_user -> error(rule_failed)
      call assign {submission=pending_review,assignee=replacement_user,email="new-reviewer@example.test"} by=coordinator_user
@@ -220,28 +262,13 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
     1,now+1m,1,pending,reviewer_user,null,true -> error(rule_failed)
     1,now-1m,1,pending,ordinary_user,null,true -> error(rule_failed)
     1,now-1m,1,pending,reviewer_user,test_site,false -> error(rule_failed)
-  scenario notify on=Notice.create
+  ## Record effects publish Notice.created after commit; Notice has no public create operation.
+  scenario notify on=Notice.created
    do
-    let notice=event.after
-    send Mail.send {to=notice.recipient,subject=notice.subject,body=notice.body} when=notice.kind==decision or (notice.parent.state==pending and notice.parent.revision==notice.parent.parent.current and notice.parent.assignment==notice.assignment and notice.parent.reviewer_email==notice.recipient and reviewer(notice.parent.reviewer) and (notice.parent.parent.location==null or can_work(notice.parent.reviewer,notice.parent.parent.location))) as delivery
-    set notice {delivery=delivery.id}
-  scenario delivered on=Mail.send.completed
-   do
-    for notice in Notice as row where row.delivery==event.delivery_id limit=1
-     set notice {state=event.status}
-
-   examples seed=[pending_notice] event={delivery_id="notice",status=unknown,result=null,error=null}
-    event.delivery_id,event.status,event.result,event.error -> pending_notice.state,pending_version.state
-    "notice",succeeded,{reference="accepted-mail"},null -> succeeded,pending
-    "notice",unknown,null,null -> unknown,pending
-    "notice",skipped,null,null -> skipped,pending
-    "notice",failed,null,{code="provider",message="Delivery rejected"} -> failed,pending
-    "different",failed,null,{code="provider",message="Delivery rejected"} -> pending,pending
-   ## Safe failed completion changes its decision Notice, never the approved file or decision; no retry is inferred from the error code.
-   examples seed=[pending_notice] event={delivery_id="notice",status=failed,result=null,error={code="provider",message="Delivery rejected"}}
-    pending_notice.kind,pending_notice.recipient,pending_notice.body,pending_version.state,pending_version.reason,pending_version.decided_by,pending_version.decided_at,event.delivery_id,event.status,event.result,event.error -> pending_notice.state,pending_version.state,pending_version.file,pending_version.reason,pending_version.decided_by,pending_version.decided_at
-    decision,"submitter@example.test","Approved with conditions",approved,"Approved with conditions",reviewer_user,now,"notice",failed,null,{code="provider",message="Delivery rejected"} -> failed,approved,original,"Approved with conditions",reviewer_user,now
-    decision,"submitter@example.test","Approved with conditions",approved,"Approved with conditions",reviewer_user,now,"different",failed,null,{code="provider",message="Delivery rejected"} -> pending,approved,original,"Approved with conditions",reviewer_user,now
+    let notice=first(Notice as row where row.id==event.id order=row.id)
+    if notice!=null and notice.delivery==null
+     send Mail.send {to=notice.recipient,subject=notice.subject,body=notice.body} when=notice.kind==decision or (notice.parent.state==pending and notice.parent.revision==notice.parent.parent.current and notice.parent.assignment==notice.assignment and notice.parent.reviewer_email==notice.recipient and reviewer(notice.parent.reviewer) and (notice.parent.parent.location==null or can_work(notice.parent.reviewer,notice.parent.parent.location))) as attempt
+     set notice {delivery=attempt}
 
  Then
   # Submit and follow your own exact document versions. @{nl="Dien je eigen exacte documentversies in en volg ze."}
@@ -253,6 +280,9 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
     card "Current document"@{nl="Huidig document"}
      edit
      form submit
+     form reviewer_choices arguments={document}
+      list result as candidate columns=name,user,role,home
+       form submit arguments={document,assignee=candidate.user}
     details "Submitted version history"@{nl="Ingediende versiehistorie"} open=preferences.versions_open
      table row.Submission columns=revision,file,note,reviewer,due,overdue,state,reason order=-revision filter=state,reviewer,overdue
       action withdraw
@@ -263,10 +293,13 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
   # Review assigned submissions or coordinate permitted assignments. @{nl="Beoordeel toegewezen inzendingen of coördineer toegestane toewijzingen."}
   page /documents/review title="Review queue"@{nl="Beoordelingswachtrij"}
    require reviewer or coordinator
-   table Submission columns=parent,revision,file,note,reviewer,due,overdue,state order=due filter=state,reviewer,parent.location,parent.category,overdue defaults={state=preferences.review_state} display=split
+   table Submission as submission columns=parent,revision,file,note,reviewer,due,overdue,state order=due filter=state,reviewer,parent.location,parent.category,overdue defaults={state=preferences.review_state} display=split
     card "Exact submitted version"@{nl="Exact ingediende versie"}
      text row.revision,row.file,row.note,row.due,row.state,row.reason
      actions decide,assign
+     form reviewer_choices arguments={document=submission.parent}
+      list result as candidate columns=name,user,role,home
+       form assign arguments={submission,assignee=candidate.user}
     details "Review history"@{nl="Beoordelingshistorie"}
      text row.decided_by,row.decided_at
      history
