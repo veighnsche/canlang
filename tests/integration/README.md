@@ -11,6 +11,11 @@ This directory coordinates joins, not a giant replacement test framework.
 - `b1-team-tasks.md` — the B1 join plan and evidence log: one real connected
   app over local workerd/D1, two users, browser + MCP legs, denied/stale/
   replay rows, inline examples over compiled handlers.
+- `lane02-values.test.ts` — lane-02 contribution (PR6 #48, accepted): values
+  conformance join driving the real `@canlang/values` dist with testkit
+  report assembly; honest `unsupported` rows when the dist is absent (the
+  root-CI path) plus two permanent L1/L3 block rows. L2 owns the pinned
+  catalog count (54) and updates this file as the catalog grows.
 - Future milestone joins (`b2-*.md`, …) land here with their evidence.
 
 ## Contribution contract

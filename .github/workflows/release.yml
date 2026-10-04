@@ -60,15 +60,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Compile the LSP client (L1 slice 2a sources)
+        # Pinned tsc, zero project deps: deterministic emit. The empty type
+        # root reproduces L1's own check isolation (their ambient require
+        # shim collides with workspace @types/node); revisit at slice 2b
+        # when they switch to real imports.
+        run: |
+          mkdir -p /tmp/empty-typeroot
+          cd editors/vscode
+          npx -y -p typescript@5.9.3 tsc --strict --target es2022 --module commonjs --lib es2022 --typeRoots /tmp/empty-typeroot --outDir out --rootDir src src/extension.ts src/client.ts
       - name: Archive the VSCode/Cursor extension payload
-        # Explicit payload, not the whole directory: audit evidence and any
-        # future build output stay out of the bundle. L1 extends this list
-        # with src/ when the client build lands.
+        # Explicit payload, not the whole directory: audit evidence stays
+        # out. `out/` is the compiled client `main` points at; `src/` rides
+        # along for transparency.
         run: |
           mkdir -p release-artifacts
           cd editors/vscode
-          zip -r ../../release-artifacts/canlang-vscode.zip package.json README.md token-colors.json syntaxes
-          if [ -d src ]; then zip -r ../../release-artifacts/canlang-vscode.zip src; fi
+          zip -r ../../release-artifacts/canlang-vscode.zip package.json README.md token-colors.json syntaxes out src
       - uses: actions/upload-artifact@v4
         with:
           name: editor-bundle
