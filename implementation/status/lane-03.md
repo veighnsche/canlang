@@ -206,14 +206,26 @@ all evidence is local miniflare + node suites recorded below with commands/versi
 
 ## Interface requests and handoffs
 
-- To L7 (blocking workspace integration, not implementation): adopt
-  `packages/state/package.json` + `packages/stdlib/package.json` into the root Node
-  workspace/lock when it exists; author `packages/contracts/{package.json,src/index.ts}`
-  assembling owned `src/state.ts`. L3 consumes via relative source import until then.
-- To L1: minimal appDefinition model/operation descriptor types (B1 need).
-- To L2: exact value equality + canonical JSON codec (B1 need).
+- To L7 (partially landed): root workspace (`packages/*`, #4) and
+  `contracts/{package.json,src/index.ts}` assembly exist; `packages/state` is a
+  member by glob. Still needed: root-lock adoption of state's devDeps
+  (miniflare/@cloudflare/workers-types exact pins are in the nested manifest;
+  nested lock follows current lane convention); state package joins the root
+  `tsconfig.check.json` when L7 invites (needs extends-compatible tsconfig —
+  current interim ESNext/Bundler + relative contracts import predates the
+  assembly; migrate to `@canlang/contracts` import at that join).
+  KNOWN CONFLICT (from contracts/index.ts, L7 handoff): `OperationId` state
+  branded vs wire plain — interim pick is state's; L3 proposes keeping the
+  branded state definition (narrows to string, wire-compatible) and will
+  confirm with L6.
+- To L1: minimal appDefinition model/operation descriptor types (B1 need;
+  artifact/diagnostic contracts landed in #2 — evaluate for S3+ use).
+- To L2: exact value equality + canonical JSON codec (B1 need; scaffold #8 has
+  kinds/errors/catalog only — still interim in S3).
 - From L3 (when S6 lands): transaction/read/system-command ports + outbox/schedule
   staging shapes for L4/L6/L7.
+- From L6 (landed #6/#12, evaluate in S3): identity core + wire envelope for
+  admission consumption.
 
 ## PR and verification evidence
 
