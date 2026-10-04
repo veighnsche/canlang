@@ -540,34 +540,98 @@ async function resource_evidence(c, resource) {
     capacity: resource.capacity,
     pooled: resource.pooled,
     timezone: resource.timezone,
-    windows: (await collect(records(c, "rent_reservations.Window", { parent: resource }))).map(
-      (window) => ({ from: window.from, until: window.until, closed: window.closed }),
-    ),
-    downtime: (await collect(records(c, "rent_reservations.Downtime", { parent: resource }))).map(
-      (downtime) => ({ from: downtime.from, until: downtime.until, active: downtime.active }),
-    ),
-    bookings: (await collect(records(c, "rent_reservations.Booking", { parent: resource }))).map(
-      (booking) => ({
-        from: booking.from,
-        until: booking.until,
-        intervals: booking.intervals,
-        quantity: booking.quantity,
-        status: booking.status,
-        checked_in: booking.checked_in,
-        checked_out: booking.checked_out,
-        arrival_buffer: booking.arrival_buffer,
-        departure_buffer: booking.departure_buffer,
-      }),
-    ),
-    venues: (
-      await collect(records(c, "rent_reservations.VenueReservation", { parent: resource }))
-    ).map((venue) => ({
-      from: venue.from,
-      until: venue.until,
-      quantity: venue.quantity,
-      status: venue.status,
-    })),
   };
+}
+
+function report_booking(c, booking) {
+  return {
+    from: booking.from,
+    until: booking.until,
+    intervals: booking.intervals,
+    quantity: booking.quantity,
+    status: booking.status,
+    checked_in: booking.checked_in,
+    checked_out: booking.checked_out,
+    arrival_buffer: booking.arrival_buffer,
+    departure_buffer: booking.departure_buffer,
+  };
+}
+
+function report_venue(c, venue) {
+  return {
+    from: venue.from,
+    until: venue.until,
+    quantity: venue.quantity,
+    status: venue.status,
+  };
+}
+
+function report_window(c, window) {
+  return {
+    from: window.from,
+    until: window.until,
+    closed: window.closed,
+  };
+}
+
+function report_downtime(c, downtime) {
+  return {
+    from: downtime.from,
+    until: downtime.until,
+    active: downtime.active,
+  };
+}
+
+async function saved_bookings(c, resource, sequence) {
+  const facts = await collect(records(c, "rent_reservations.BookingEvidence", {
+    parent: resource, where: (fact) => fact.sequence <= sequence,
+  }));
+  const result = [];
+  for (const bucket of await group(facts, (fact) => fact.key)) {
+    const ordered = bucket.items.sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0));
+    const latest = ordered[ordered.length - 1];
+    if (latest.value !== null) result.push(latest.value);
+  }
+  return result;
+}
+
+async function saved_venues(c, resource, sequence) {
+  const facts = await collect(records(c, "rent_reservations.VenueEvidence", {
+    parent: resource, where: (fact) => fact.sequence <= sequence,
+  }));
+  const result = [];
+  for (const bucket of await group(facts, (fact) => fact.key)) {
+    const ordered = bucket.items.sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0));
+    const latest = ordered[ordered.length - 1];
+    if (latest.value !== null) result.push(latest.value);
+  }
+  return result;
+}
+
+async function saved_windows(c, resource, sequence) {
+  const facts = await collect(records(c, "rent_reservations.WindowEvidence", {
+    parent: resource, where: (fact) => fact.sequence <= sequence,
+  }));
+  const result = [];
+  for (const bucket of await group(facts, (fact) => fact.key)) {
+    const ordered = bucket.items.sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0));
+    const latest = ordered[ordered.length - 1];
+    if (latest.value !== null) result.push(latest.value);
+  }
+  return result;
+}
+
+async function saved_downtime(c, resource, sequence) {
+  const facts = await collect(records(c, "rent_reservations.DowntimeEvidence", {
+    parent: resource, where: (fact) => fact.sequence <= sequence,
+  }));
+  const result = [];
+  for (const bucket of await group(facts, (fact) => fact.key)) {
+    const ordered = bucket.items.sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0));
+    const latest = ordered[ordered.length - 1];
+    if (latest.value !== null) result.push(latest.value);
+  }
+  return result;
 }
 
 function saved_service(c, booking, point) {
@@ -584,22 +648,24 @@ function saved_service(c, booking, point) {
 }
 
 async function saved_saleable(c, policy, opening, left, right) {
+  const windows = await saved_windows(c, policy.parent, policy.sequence),
+    downtime = await saved_downtime(c, policy.parent, policy.sequence);
   return (
     policy.value.active &&
     (await policy_open(c, opening, left, right)) &&
     (await any(
-      policy.value.windows,
+      windows,
       (window) =>
         !window.closed &&
         compareInstant(window.from, left) <= 0 &&
         compareInstant(right, window.until) <= 0,
     )) &&
     !(await any(
-      policy.value.windows,
+      windows,
       (window) => window.closed && overlaps(left, right, window.from, window.until),
     )) &&
     !(await any(
-      policy.value.downtime,
+      downtime,
       (downtime) =>
         downtime.active &&
         compareInstant(downtime.from, right) < 0 &&
@@ -646,7 +712,7 @@ async function saved_rows(c, resource, points, until) {
             multiplyDecimal(
               minutes,
               await sum(
-                policy.value.bookings.filter(
+                (await saved_bookings(c, resource, policy.sequence)).filter(
                   (booking) =>
                     ["confirmed", "occupied", "completed"].includes(booking.status) &&
                     saved_service(c, booking, left),
@@ -657,7 +723,7 @@ async function saved_rows(c, resource, points, until) {
             multiplyDecimal(
               minutes,
               await sum(
-                policy.value.venues.filter(
+                (await saved_venues(c, resource, policy.sequence)).filter(
                   (venue) =>
                     venue.status === "confirmed" &&
                     compareInstant(venue.from, left) <= 0 &&
@@ -674,7 +740,7 @@ async function saved_rows(c, resource, points, until) {
           quantity: multiplyDecimal(
             minutes,
             await sum(
-              policy.value.bookings.filter(
+              (await saved_bookings(c, resource, policy.sequence)).filter(
                 (booking) =>
                   booking.checked_in !== null &&
                   compareInstant(booking.checked_in, left) <= 0 &&
@@ -684,7 +750,7 @@ async function saved_rows(c, resource, points, until) {
             ),
           ),
           provisional: await any(
-            policy.value.bookings,
+            await saved_bookings(c, resource, policy.sequence),
             (booking) => booking.checked_in !== null && booking.checked_out === null,
           ),
         },
@@ -1902,10 +1968,60 @@ export const appDefinition = {
       parent: "rent_reservations.Resource",
       readGrants: [{ rule: "ResourcePolicy.read.1" }],
       locks: ["ResourcePolicy.lock.1"],
+      unique: [{ fields: ["sequence"] }],
       fields: {
         effective: { type: "datetime", server: "now" },
         sequence: { type: "int" },
+        baseline: { type: "bool", default: false },
         value: { type: "rent_reservations.ResourceEvidence" },
+      },
+    },
+    "rent_reservations.BookingEvidence": {
+      parent: "rent_reservations.Resource",
+      readGrants: [{ rule: "BookingEvidence.read.1" }],
+      locks: ["BookingEvidence.lock.1"],
+      invariants: ["BookingEvidence.invariant.1"],
+      unique: [{ fields: ["sequence", "key"] }],
+      fields: {
+        sequence: { type: "int" },
+        key: { type: "text" },
+        value: { type: "rent_reservations.ReportBooking", nullable: true },
+      },
+    },
+    "rent_reservations.VenueEvidence": {
+      parent: "rent_reservations.Resource",
+      readGrants: [{ rule: "VenueEvidence.read.1" }],
+      locks: ["VenueEvidence.lock.1"],
+      invariants: ["VenueEvidence.invariant.1"],
+      unique: [{ fields: ["sequence", "key"] }],
+      fields: {
+        sequence: { type: "int" },
+        key: { type: "text" },
+        value: { type: "rent_reservations.ReportVenue", nullable: true },
+      },
+    },
+    "rent_reservations.WindowEvidence": {
+      parent: "rent_reservations.Resource",
+      readGrants: [{ rule: "WindowEvidence.read.1" }],
+      locks: ["WindowEvidence.lock.1"],
+      invariants: ["WindowEvidence.invariant.1"],
+      unique: [{ fields: ["sequence", "key"] }],
+      fields: {
+        sequence: { type: "int" },
+        key: { type: "text" },
+        value: { type: "rent_reservations.ReportWindow", nullable: true },
+      },
+    },
+    "rent_reservations.DowntimeEvidence": {
+      parent: "rent_reservations.Resource",
+      readGrants: [{ rule: "DowntimeEvidence.read.1" }],
+      locks: ["DowntimeEvidence.lock.1"],
+      invariants: ["DowntimeEvidence.invariant.1"],
+      unique: [{ fields: ["sequence", "key"] }],
+      fields: {
+        sequence: { type: "int" },
+        key: { type: "text" },
+        value: { type: "rent_reservations.ReportDowntime", nullable: true },
       },
     },
   },
@@ -2080,10 +2196,6 @@ export const appDefinition = {
         capacity: { type: "int" },
         pooled: { type: "bool" },
         timezone: { type: "timezone" },
-        windows: { type: "rent_reservations.ReportWindow", array: true },
-        downtime: { type: "rent_reservations.ReportDowntime", array: true },
-        bookings: { type: "rent_reservations.ReportBooking", array: true },
-        venues: { type: "rent_reservations.ReportVenue", array: true },
       },
     },
   },
@@ -2446,6 +2558,58 @@ export const appDefinition = {
         until: { type: "datetime" },
       },
       result: { type: Contribution, array: true },
+    },
+    "rent_reservations.report_booking": {
+      handler: "report_booking",
+      inputs: { booking: { type: "rent_reservations.Booking" } },
+      result: "rent_reservations.ReportBooking",
+    },
+    "rent_reservations.report_venue": {
+      handler: "report_venue",
+      inputs: { venue: { type: "rent_reservations.VenueReservation" } },
+      result: "rent_reservations.ReportVenue",
+    },
+    "rent_reservations.report_window": {
+      handler: "report_window",
+      inputs: { window: { type: "rent_reservations.Window" } },
+      result: "rent_reservations.ReportWindow",
+    },
+    "rent_reservations.report_downtime": {
+      handler: "report_downtime",
+      inputs: { downtime: { type: "rent_reservations.Downtime" } },
+      result: "rent_reservations.ReportDowntime",
+    },
+    "rent_reservations.saved_bookings": {
+      handler: "saved_bookings",
+      inputs: {
+        resource: { type: "rent_reservations.Resource" },
+        sequence: { type: "int" },
+      },
+      result: { type: "rent_reservations.ReportBooking", array: true },
+    },
+    "rent_reservations.saved_venues": {
+      handler: "saved_venues",
+      inputs: {
+        resource: { type: "rent_reservations.Resource" },
+        sequence: { type: "int" },
+      },
+      result: { type: "rent_reservations.ReportVenue", array: true },
+    },
+    "rent_reservations.saved_windows": {
+      handler: "saved_windows",
+      inputs: {
+        resource: { type: "rent_reservations.Resource" },
+        sequence: { type: "int" },
+      },
+      result: { type: "rent_reservations.ReportWindow", array: true },
+    },
+    "rent_reservations.saved_downtime": {
+      handler: "saved_downtime",
+      inputs: {
+        resource: { type: "rent_reservations.Resource" },
+        sequence: { type: "int" },
+      },
+      result: { type: "rent_reservations.ReportDowntime", array: true },
     },
   },
   preferences: {
@@ -3409,10 +3573,30 @@ export function canApp() {
     saved_service,
     saved_saleable,
     saved_rows,
+    report_booking,
+    report_venue,
+    report_window,
+    report_downtime,
+    saved_bookings,
+    saved_venues,
+    saved_windows,
+    saved_downtime,
     read: {
       "LegacyBooking.read.1":async(c,row)=>(hasRole(c,reservation_manager)||hasRole(c,"invoice.finance")) && await can_work(c,c.actor,row.location),
       "LegacyBooking.read.2":async(c,row)=>hasRole(c,"authenticated") && same(row.account,c.actor) && row.customer!==null && (await owns(c,c.actor,row.customer) || await has_location_role(c,c.actor,row.customer,"booker",row.location)),
       "ResourcePolicy.read.1": async (c, row) =>
+        hasRole(c, "rent_reservations.reservation_manager") &&
+        (await can_work(c, c.actor, row.parent.location)),
+      "BookingEvidence.read.1": async (c, row) =>
+        hasRole(c, "rent_reservations.reservation_manager") &&
+        (await can_work(c, c.actor, row.parent.location)),
+      "VenueEvidence.read.1": async (c, row) =>
+        hasRole(c, "rent_reservations.reservation_manager") &&
+        (await can_work(c, c.actor, row.parent.location)),
+      "WindowEvidence.read.1": async (c, row) =>
+        hasRole(c, "rent_reservations.reservation_manager") &&
+        (await can_work(c, c.actor, row.parent.location)),
+      "DowntimeEvidence.read.1": async (c, row) =>
         hasRole(c, "rent_reservations.reservation_manager") &&
         (await can_work(c, c.actor, row.parent.location)),
       "Resource.read.1": () => true,
@@ -3487,6 +3671,10 @@ export function canApp() {
     },
     invariants: {
       "LegacyBooking.invariant.1":(c,row)=>(row.facts.customer_source===null)===(row.facts.customer_external_id===null) && (row.facts.resource_source===null)===(row.facts.resource_external_id===null),
+      "BookingEvidence.invariant.1": async (c, row) => await any(records(c, "rent_reservations.ResourcePolicy", { parent: row.parent }), (capture) => capture.sequence === row.sequence),
+      "VenueEvidence.invariant.1": async (c, row) => await any(records(c, "rent_reservations.ResourcePolicy", { parent: row.parent }), (capture) => capture.sequence === row.sequence),
+      "WindowEvidence.invariant.1": async (c, row) => await any(records(c, "rent_reservations.ResourcePolicy", { parent: row.parent }), (capture) => capture.sequence === row.sequence),
+      "DowntimeEvidence.invariant.1": async (c, row) => await any(records(c, "rent_reservations.ResourcePolicy", { parent: row.parent }), (capture) => capture.sequence === row.sequence),
       "DayCalendar.require.1": (c, row) =>
         compareInstant(
           local_instant(row.day, row.opens, row.parent.timezone, { fold: row.fold }),
@@ -3550,7 +3738,11 @@ export function canApp() {
     locks: {
       "ReservationFence.lock.1": { fields: ["source", "revision", "reason", "offer"] },
       "LegacyBooking.lock.1":{fields:["source","external_id","location","facts","source_evidence","attestation","imported_by","imported_at"]},
-      "ResourcePolicy.lock.1": { fields: ["effective", "sequence", "value"] },
+      "ResourcePolicy.lock.1": { fields: ["effective", "sequence", "baseline", "value"] },
+      "BookingEvidence.lock.1": { fields: ["sequence", "key", "value"] },
+      "VenueEvidence.lock.1": { fields: ["sequence", "key", "value"] },
+      "WindowEvidence.lock.1": { fields: ["sequence", "key", "value"] },
+      "DowntimeEvidence.lock.1": { fields: ["sequence", "key", "value"] },
       "Booking.lock.2": { fields: ["monetary_due"], when: (c, row) => row.monetary_due !== null },
       "Booking.lock.1": {
         fields: [
@@ -3603,6 +3795,7 @@ export function canApp() {
         sequence: int64(
           (await count(records(c, "rent_reservations.ResourcePolicy", { parent: resource }))) + 1n,
         ),
+        baseline: true,
         value: await resource_evidence(c, resource),
       });
     },
@@ -3618,22 +3811,34 @@ export function canApp() {
     },
     async snapshot_Window_create(c, { event }) {
       const resource = event.after.parent;
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: resource,
         sequence: int64(
           (await count(records(c, "rent_reservations.ResourcePolicy", { parent: resource }))) + 1n,
         ),
         value: await resource_evidence(c, resource),
       });
+      await create(c, "rent_reservations.WindowEvidence", {
+        parent: event.after.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: event.after.id,
+        value: await report_window(c, event.after),
+      });
     },
     async snapshot_Window_update(c, { event }) {
       const resource = event.after.parent;
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: resource,
         sequence: int64(
           (await count(records(c, "rent_reservations.ResourcePolicy", { parent: resource }))) + 1n,
         ),
         value: await resource_evidence(c, resource),
+      });
+      await create(c, "rent_reservations.WindowEvidence", {
+        parent: event.after.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: event.after.id,
+        value: await report_window(c, event.after),
       });
     },
     async snapshot_DayCalendar_create(c, { event }) {
@@ -3723,52 +3928,16 @@ export function canApp() {
       );
       const midnight = days.map((day) =>
           local_instant(day, "00:00", resource.timezone, { fold: "earlier" }),
-        ),
-        windows = flatten(
-          flatten(
-            policies.map((policy) =>
-              policy.value.windows.map((window) => [window.from, window.until]),
-            ),
-          ),
-        ),
-        downtime = flatten(
-          flatten(
-            policies.map((policy) =>
-              policy.value.downtime.map((downtime) => [downtime.from, downtime.until ?? until]),
-            ),
-          ),
-        ),
-        service = flatten(
-          flatten(
-            policies.map((policy) =>
-              policy.value.bookings.map((booking) => [
-                booking.from,
-                booking.until,
-                booking.checked_in ?? from,
-                booking.checked_out ?? c.now,
-              ]),
-            ),
-          ),
-        ),
-        access = flatten(
-          flatten(
-            policies.map((policy) =>
-              policy.value.bookings.map((booking) =>
-                flatten(
-                  booking.intervals.map((interval) => [
-                    addDuration(interval.from, booking.arrival_buffer),
-                    subtractDuration(interval.until, booking.departure_buffer),
-                  ]),
-                ),
-              ),
-            ),
-          ),
-        ),
-        venues = flatten(
-          flatten(
-            policies.map((policy) => policy.value.venues.map((venue) => [venue.from, venue.until])),
-          ),
         );
+      const factBookings = (await collect(records(c, "rent_reservations.BookingEvidence", { parent: resource }))).filter((fact) => fact.value !== null),
+        factVenues = (await collect(records(c, "rent_reservations.VenueEvidence", { parent: resource }))).filter((fact) => fact.value !== null),
+        factWindows = (await collect(records(c, "rent_reservations.WindowEvidence", { parent: resource }))).filter((fact) => fact.value !== null),
+        factDowntime = (await collect(records(c, "rent_reservations.DowntimeEvidence", { parent: resource }))).filter((fact) => fact.value !== null);
+      const windows = flatten(factWindows.map((fact) => [fact.value.from, fact.value.until])),
+        downtime = flatten(factDowntime.map((fact) => [fact.value.from, fact.value.until ?? until])),
+        service = flatten(factBookings.map((fact) => [fact.value.from, fact.value.until, fact.value.checked_in ?? from, fact.value.checked_out ?? c.now])),
+        access = flatten(factBookings.map((fact) => flatten(fact.value.intervals.map((interval) => [addDuration(interval.from, fact.value.arrival_buffer), subtractDuration(interval.until, fact.value.departure_buffer)])))),
+        venues = flatten(factVenues.map((fact) => [fact.value.from, fact.value.until]));
       const boundaries = [
           from,
           until,
@@ -3794,22 +3963,10 @@ export function canApp() {
           .map((point) => point.key)
           .sort(compareInstant);
       const complete =
-          (await any(policies, (policy) => compareInstant(policy.effective, from) <= 0)) &&
+          (await any(policies, (policy) => compareInstant(policy.effective, from) <= 0 && policy.baseline)) &&
           (await any(openings, (policy) => compareInstant(policy.effective, from) <= 0)),
-        stamp =
-          policies
-            .sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0))
-            .map((policy) =>
-              format("{id}:{sequence}", { id: policy.id, sequence: policy.sequence }),
-            )
-            .join(",") +
-          ":" +
-          openings
-            .sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0))
-            .map((policy) =>
-              format("{id}:{sequence}", { id: policy.id, sequence: policy.sequence }),
-            )
-            .join(",");
+        stamp = [policies, openings].map((rows) => rows.sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0)).map((row) => format("{id}:{sequence}", { id: row.id, sequence: row.sequence })).join(",")).join(":")
+          + ":" + [factBookings, factVenues, factWindows, factDowntime].map((rows) => rows.sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0)).map((row) => format("{id}:{sequence}", { id: row.id, sequence: row.sequence })).join(",")).join(":");
       return {
         checkpoint: {
           source: resource.id,
@@ -4056,7 +4213,7 @@ export function canApp() {
         benefit_rate: multiplyMoney(resource.hourly, divideDecimal(resource.increment, 3600000n)),
         benefit_intervals: [{ from, until }],
       });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: booking.parent,
         sequence: int64(
           (await count(
@@ -4064,6 +4221,12 @@ export function canApp() {
           )) + 1n,
         ),
         value: await resource_evidence(c, booking.parent),
+      });
+      await create(c, "rent_reservations.BookingEvidence", {
+        parent: booking.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: booking.id,
+        value: await report_booking(c, booking),
       });
       if (use_allowance) await set(c, booking, { allowance: "pending" });
       await schedule(c, booking.id, booking.expires, "rent_reservations.HoldDue", { booking });
@@ -4234,7 +4397,7 @@ export function canApp() {
         departure_buffer: resource.buffer_after,
         arrival_buffer: resource.buffer_before,
       });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: booking.parent,
         sequence: int64(
           (await count(
@@ -4242,6 +4405,12 @@ export function canApp() {
           )) + 1n,
         ),
         value: await resource_evidence(c, booking.parent),
+      });
+      await create(c, "rent_reservations.BookingEvidence", {
+        parent: booking.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: booking.id,
+        value: await report_booking(c, booking),
       });
       if (use_allowance) await set(c, booking, { allowance: "pending" });
       await schedule(c, booking.id, booking.expires, "rent_reservations.HoldDue", { booking });
@@ -4285,7 +4454,7 @@ export function canApp() {
         reserved_from: subtractDuration(from, booking.parent.buffer_before),
         reserved_until: addDuration(until, booking.departure_buffer),
       });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_move = await create(c, "rent_reservations.ResourcePolicy", {
         parent: booking.parent,
         sequence: int64(
           (await count(
@@ -4293,6 +4462,12 @@ export function canApp() {
           )) + 1n,
         ),
         value: await resource_evidence(c, booking.parent),
+      });
+      await create(c, "rent_reservations.BookingEvidence", {
+        parent: booking.parent,
+        sequence: policy_snapshot_move.sequence,
+        key: booking.id,
+        value: await report_booking(c, booking),
       });
       await emit(c, "rent_reservations.ReservationChanged", {
         booking,
@@ -4356,7 +4531,7 @@ export function canApp() {
         reserved_from: first_day.from,
         reserved_until: last_day.until,
       });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: booking.parent,
         sequence: int64(
           (await count(
@@ -4364,6 +4539,12 @@ export function canApp() {
           )) + 1n,
         ),
         value: await resource_evidence(c, booking.parent),
+      });
+      await create(c, "rent_reservations.BookingEvidence", {
+        parent: booking.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: booking.id,
+        value: await report_booking(c, booking),
       });
       await emit(c, "rent_reservations.ReservationChanged", {
         booking,
@@ -4732,7 +4913,7 @@ export function canApp() {
           } else {
             await set(c, booking, { intervals: [] });
           }
-          await create(c, "rent_reservations.ResourcePolicy", {
+          const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
             parent: booking.parent,
             sequence: int64(
               (await count(
@@ -4740,6 +4921,12 @@ export function canApp() {
               )) + 1n,
             ),
             value: await resource_evidence(c, booking.parent),
+          });
+          await create(c, "rent_reservations.BookingEvidence", {
+            parent: booking.parent,
+            sequence: policy_snapshot_1.sequence,
+            key: booking.id,
+            value: await report_booking(c, booking),
           });
           await set(c, movement, { state: "adopted", outcome: event.value });
           await cancel(c, movement.id);
@@ -4750,7 +4937,7 @@ export function canApp() {
         } else {
           await set(c, movement, { state: "review", outcome: event.value });
           await set(c, booking, { status: "review", refund_state: "review" });
-          await create(c, "rent_reservations.ResourcePolicy", {
+          const policy_snapshot_4 = await create(c, "rent_reservations.ResourcePolicy", {
             parent: booking.parent,
             sequence: int64(
               (await count(
@@ -4758,6 +4945,12 @@ export function canApp() {
               )) + 1n,
             ),
             value: await resource_evidence(c, booking.parent),
+          });
+          await create(c, "rent_reservations.BookingEvidence", {
+            parent: booking.parent,
+            sequence: policy_snapshot_4.sequence,
+            key: booking.id,
+            value: await report_booking(c, booking),
           });
           await emit(c, "rent_reservations.CommercialCheck", { booking });
         }
@@ -5009,19 +5202,25 @@ export function canApp() {
           reason.trim() !== "" &&
           (until === null || compareInstant(from, until) < 0),
       );
-      await create(c, "rent_reservations.Downtime", {
+      const downtime = await create(c, "rent_reservations.Downtime", {
         parent: resource,
         source: c.operation.id,
         from,
         until,
         reason,
       });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: resource,
         sequence: int64(
           (await count(records(c, "rent_reservations.ResourcePolicy", { parent: resource }))) + 1n,
         ),
         value: await resource_evidence(c, resource),
+      });
+      await create(c, "rent_reservations.DowntimeEvidence", {
+        parent: downtime.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: downtime.id,
+        value: await report_downtime(c, downtime),
       });
       for await (const booking of records(c, "rent_reservations.Booking", {
         parent: resource,
@@ -5042,7 +5241,7 @@ export function canApp() {
           evidence.trim() !== "",
       );
       await set(c, downtime, { active: false, verified_by: c.actor, verification: evidence });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: downtime.parent,
         sequence: int64(
           (await count(
@@ -5050,6 +5249,12 @@ export function canApp() {
           )) + 1n,
         ),
         value: await resource_evidence(c, downtime.parent),
+      });
+      await create(c, "rent_reservations.DowntimeEvidence", {
+        parent: downtime.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: downtime.id,
+        value: await report_downtime(c, downtime),
       });
     },
     async prepare(c, { booking, use_allowance = false }) {
@@ -5072,7 +5277,7 @@ export function canApp() {
           allowance: "pending",
           allowance_delivery: allocation.id,
         });
-        await create(c, "rent_reservations.ResourcePolicy", {
+        const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
           parent: booking.parent,
           sequence: int64(
             (await count(
@@ -5080,6 +5285,12 @@ export function canApp() {
             )) + 1n,
           ),
           value: await resource_evidence(c, booking.parent),
+        });
+        await create(c, "rent_reservations.BookingEvidence", {
+          parent: booking.parent,
+          sequence: policy_snapshot_1.sequence,
+          key: booking.id,
+          value: await report_booking(c, booking),
         });
       } else {
         const charge = await send(c, "rent_reservations.Billing.charge", {
@@ -5091,7 +5302,7 @@ export function canApp() {
           billing_delivery: charge.id,
           monetary_due: booking.total,
         });
-        await create(c, "rent_reservations.ResourcePolicy", {
+        const policy_snapshot_2 = await create(c, "rent_reservations.ResourcePolicy", {
           parent: booking.parent,
           sequence: int64(
             (await count(
@@ -5099,6 +5310,12 @@ export function canApp() {
             )) + 1n,
           ),
           value: await resource_evidence(c, booking.parent),
+        });
+        await create(c, "rent_reservations.BookingEvidence", {
+          parent: booking.parent,
+          sequence: policy_snapshot_2.sequence,
+          key: booking.id,
+          value: await report_booking(c, booking),
         });
       }
     },
@@ -5128,7 +5345,7 @@ export function canApp() {
             (await credit_allowed(c, booking.customer, booking.parent))),
       );
       await set(c, booking, { status: "occupied", checked_in: c.now });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: booking.parent,
         sequence: int64(
           (await count(
@@ -5136,6 +5353,12 @@ export function canApp() {
           )) + 1n,
         ),
         value: await resource_evidence(c, booking.parent),
+      });
+      await create(c, "rent_reservations.BookingEvidence", {
+        parent: booking.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: booking.id,
+        value: await report_booking(c, booking),
       });
       await schedule(
         c,
@@ -5165,7 +5388,7 @@ export function canApp() {
         reserved_until:
           compareInstant(booking.reserved_until, buffered) < 0 ? buffered : booking.reserved_until,
       });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: booking.parent,
         sequence: int64(
           (await count(
@@ -5173,6 +5396,12 @@ export function canApp() {
           )) + 1n,
         ),
         value: await resource_evidence(c, booking.parent),
+      });
+      await create(c, "rent_reservations.BookingEvidence", {
+        parent: booking.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: booking.id,
+        value: await report_booking(c, booking),
       });
       await emit(c, "rent_reservations.ReservationChanged", {
         booking,
@@ -5196,7 +5425,7 @@ export function canApp() {
         cancellation_reason: reason,
         cancellation_restore: restore,
       });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: booking.parent,
         sequence: int64(
           (await count(
@@ -5204,6 +5433,12 @@ export function canApp() {
           )) + 1n,
         ),
         value: await resource_evidence(c, booking.parent),
+      });
+      await create(c, "rent_reservations.BookingEvidence", {
+        parent: booking.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: booking.id,
+        value: await report_booking(c, booking),
       });
       await cancel(c, booking.id);
       let cleanupPending = false;
@@ -5306,7 +5541,7 @@ export function canApp() {
           from: subtractDuration(value.from, venue.parent.buffer_before),
           until: addDuration(value.until, venue.parent.buffer_after),
         });
-        await create(c, "rent_reservations.ResourcePolicy", {
+        const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
           parent: venue.parent,
           sequence: int64(
             (await count(
@@ -5314,6 +5549,12 @@ export function canApp() {
             )) + 1n,
           ),
           value: await resource_evidence(c, venue.parent),
+        });
+        await create(c, "rent_reservations.VenueEvidence", {
+          parent: venue.parent,
+          sequence: policy_snapshot_1.sequence,
+          key: venue.id,
+          value: await report_venue(c, venue),
         });
         await emit(c, "rent_reservations.VenueOutcome", {
           value: {
@@ -5413,7 +5654,7 @@ export function canApp() {
               until: event.until,
               reason: "Requested maintenance",
             });
-            await create(c, "rent_reservations.ResourcePolicy", {
+            const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
               parent: downtime.parent,
               sequence: int64(
                 (await count(
@@ -5421,6 +5662,12 @@ export function canApp() {
                 )) + 1n,
               ),
               value: await resource_evidence(c, downtime.parent),
+            });
+            await create(c, "rent_reservations.DowntimeEvidence", {
+              parent: downtime.parent,
+              sequence: policy_snapshot_1.sequence,
+              key: downtime.id,
+              value: await report_downtime(c, downtime),
             });
             for await (const booking of records(c, "rent_reservations.Booking", {
               parent: resource,
@@ -5477,7 +5724,7 @@ export function canApp() {
           found = true;
           if (downtime.active) {
             await set(c, downtime, { active: false, verification: event.evidence });
-            await create(c, "rent_reservations.ResourcePolicy", {
+            const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
               parent: downtime.parent,
               sequence: int64(
                 (await count(
@@ -5485,6 +5732,12 @@ export function canApp() {
                 )) + 1n,
               ),
               value: await resource_evidence(c, downtime.parent),
+            });
+            await create(c, "rent_reservations.DowntimeEvidence", {
+              parent: downtime.parent,
+              sequence: policy_snapshot_1.sequence,
+              key: downtime.id,
+              value: await report_downtime(c, downtime),
             });
             await emit(c, "rent_reservations.VenueOutcome", {
               value: {
@@ -5557,7 +5810,7 @@ export function canApp() {
           quantity: value.quantity,
           expires: addDuration(c.now, resource.hold_for),
         });
-        await create(c, "rent_reservations.ResourcePolicy", {
+        const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
           parent: venue.parent,
           sequence: int64(
             (await count(
@@ -5565,6 +5818,12 @@ export function canApp() {
             )) + 1n,
           ),
           value: await resource_evidence(c, venue.parent),
+        });
+        await create(c, "rent_reservations.VenueEvidence", {
+          parent: venue.parent,
+          sequence: policy_snapshot_1.sequence,
+          key: venue.id,
+          value: await report_venue(c, venue),
         });
         await schedule(c, venue.id, venue.expires, "rent_reservations.VenueDue", { venue });
         await emit(c, "rent_reservations.VenueOutcome", {
@@ -5635,7 +5894,7 @@ export function canApp() {
           status: "staged",
           previous,
         });
-        await create(c, "rent_reservations.ResourcePolicy", {
+        const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
           parent: venue.parent,
           sequence: int64(
             (await count(
@@ -5643,6 +5902,12 @@ export function canApp() {
             )) + 1n,
           ),
           value: await resource_evidence(c, venue.parent),
+        });
+        await create(c, "rent_reservations.VenueEvidence", {
+          parent: venue.parent,
+          sequence: policy_snapshot_1.sequence,
+          key: venue.id,
+          value: await report_venue(c, venue),
         });
         await schedule(c, venue.id, venue.expires, "rent_reservations.VenueDue", { venue });
         await emit(c, "rent_reservations.VenueOutcome", {
@@ -5666,7 +5931,7 @@ export function canApp() {
         );
         check(await free(c, venue.parent, venue.from, venue.until, 0n, null));
         await set(c, venue, { status: "confirmed" });
-        await create(c, "rent_reservations.ResourcePolicy", {
+        const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
           parent: venue.parent,
           sequence: int64(
             (await count(
@@ -5674,6 +5939,12 @@ export function canApp() {
             )) + 1n,
           ),
           value: await resource_evidence(c, venue.parent),
+        });
+        await create(c, "rent_reservations.VenueEvidence", {
+          parent: venue.parent,
+          sequence: policy_snapshot_1.sequence,
+          key: venue.id,
+          value: await report_venue(c, venue),
         });
         await cancel(c, venue.id);
         await emit(c, "rent_reservations.VenueOutcome", {
@@ -5719,7 +5990,7 @@ export function canApp() {
         }))
           if (["held", "staged", "confirmed"].includes(venue.status)) {
             await set(c, venue, { status: "released", reason: event.reason });
-            await create(c, "rent_reservations.ResourcePolicy", {
+            const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
               parent: venue.parent,
               sequence: int64(
                 (await count(
@@ -5727,6 +5998,12 @@ export function canApp() {
                 )) + 1n,
               ),
               value: await resource_evidence(c, venue.parent),
+            });
+            await create(c, "rent_reservations.VenueEvidence", {
+              parent: venue.parent,
+              sequence: policy_snapshot_1.sequence,
+              key: venue.id,
+              value: await report_venue(c, venue),
             });
             await cancel(c, venue.id);
             await emit(c, "rent_reservations.VenueOutcome", {
@@ -5754,13 +6031,19 @@ export function canApp() {
       const venue = event.venue;
       check(["held", "staged"].includes(venue.status) && compareInstant(venue.expires, c.now) <= 0);
       await set(c, venue, { status: "expired" });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: venue.parent,
         sequence: int64(
           (await count(records(c, "rent_reservations.ResourcePolicy", { parent: venue.parent }))) +
             1n,
         ),
         value: await resource_evidence(c, venue.parent),
+      });
+      await create(c, "rent_reservations.VenueEvidence", {
+        parent: venue.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: venue.id,
+        value: await report_venue(c, venue),
       });
       await emit(c, "rent_reservations.VenueOutcome", {
         value: {
@@ -6106,7 +6389,7 @@ export function canApp() {
                   monetary_due: booking.total,
                 });
               }
-              await create(c, "rent_reservations.ResourcePolicy", {
+              const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
                 parent: booking.parent,
                 sequence: int64(
                   (await count(
@@ -6114,6 +6397,12 @@ export function canApp() {
                   )) + 1n,
                 ),
                 value: await resource_evidence(c, booking.parent),
+              });
+              await create(c, "rent_reservations.BookingEvidence", {
+                parent: booking.parent,
+                sequence: policy_snapshot_1.sequence,
+                key: booking.id,
+                value: await report_booking(c, booking),
               });
               await schedule(c, booking.id, booking.expires, "rent_reservations.HoldDue", { booking });
               await emit(c, "rent_reservations.OfferOutcome", {
@@ -6302,7 +6591,7 @@ export function canApp() {
       );
       check(await bookable(c, booking));
       await set(c, booking, { status: "confirmed", payment: "free", fulfillment_reason: reason });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: booking.parent,
         sequence: int64(
           (await count(
@@ -6310,6 +6599,12 @@ export function canApp() {
           )) + 1n,
         ),
         value: await resource_evidence(c, booking.parent),
+      });
+      await create(c, "rent_reservations.BookingEvidence", {
+        parent: booking.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: booking.id,
+        value: await report_booking(c, booking),
       });
       await cancel(c, booking.id);
       await emit(c, "rent_reservations.ReservationChanged", {
@@ -6356,7 +6651,7 @@ export function canApp() {
       }
       if (booking.allowance === "not_required") {
         await set(c, booking, { status: "confirmed" });
-        await create(c, "rent_reservations.ResourcePolicy", {
+        const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
           parent: booking.parent,
           sequence: int64(
             (await count(
@@ -6364,6 +6659,12 @@ export function canApp() {
             )) + 1n,
           ),
           value: await resource_evidence(c, booking.parent),
+        });
+        await create(c, "rent_reservations.BookingEvidence", {
+          parent: booking.parent,
+          sequence: policy_snapshot_1.sequence,
+          key: booking.id,
+          value: await report_booking(c, booking),
         });
         await cancel(c, booking.id);
         await emit(c, "rent_reservations.ReservationChanged", {
@@ -6376,7 +6677,7 @@ export function canApp() {
             value: benefit_request(c, booking),
           });
           await set(c, booking, { status: "pending", allowance_delivery: allocation.id });
-          await create(c, "rent_reservations.ResourcePolicy", {
+          const policy_snapshot_2 = await create(c, "rent_reservations.ResourcePolicy", {
             parent: booking.parent,
             sequence: int64(
               (await count(
@@ -6384,6 +6685,12 @@ export function canApp() {
               )) + 1n,
             ),
             value: await resource_evidence(c, booking.parent),
+          });
+          await create(c, "rent_reservations.BookingEvidence", {
+            parent: booking.parent,
+            sequence: policy_snapshot_2.sequence,
+            key: booking.id,
+            value: await report_booking(c, booking),
           });
         }
         if (booking.allowance === "reserved" && booking.consume_delivery === null) {
@@ -6392,7 +6699,7 @@ export function canApp() {
             customer: booking.customer.id,
           });
           await set(c, booking, { status: "pending", consume_delivery: consume.id });
-          await create(c, "rent_reservations.ResourcePolicy", {
+          const policy_snapshot_3 = await create(c, "rent_reservations.ResourcePolicy", {
             parent: booking.parent,
             sequence: int64(
               (await count(
@@ -6400,6 +6707,12 @@ export function canApp() {
               )) + 1n,
             ),
             value: await resource_evidence(c, booking.parent),
+          });
+          await create(c, "rent_reservations.BookingEvidence", {
+            parent: booking.parent,
+            sequence: policy_snapshot_3.sequence,
+            key: booking.id,
+            value: await report_booking(c, booking),
           });
         }
       }
@@ -6430,7 +6743,7 @@ export function canApp() {
         }
         if (event.status === "failed" && ["held", "pending"].includes(booking.status)) {
           await set(c, booking, { status: "review" });
-          await create(c, "rent_reservations.ResourcePolicy", {
+          const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
             parent: booking.parent,
             sequence: int64(
               (await count(
@@ -6438,6 +6751,12 @@ export function canApp() {
               )) + 1n,
             ),
             value: await resource_evidence(c, booking.parent),
+          });
+          await create(c, "rent_reservations.BookingEvidence", {
+            parent: booking.parent,
+            sequence: policy_snapshot_1.sequence,
+            key: booking.id,
+            value: await report_booking(c, booking),
           });
           await emit(c, "rent_reservations.CommercialCheck", { booking });
         }
@@ -6453,7 +6772,7 @@ export function canApp() {
           reason.trim() !== "",
       );
       await set(c, booking, { status: "no_show", cancellation_reason: reason });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: booking.parent,
         sequence: int64(
           (await count(
@@ -6461,6 +6780,12 @@ export function canApp() {
           )) + 1n,
         ),
         value: await resource_evidence(c, booking.parent),
+      });
+      await create(c, "rent_reservations.BookingEvidence", {
+        parent: booking.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: booking.id,
+        value: await report_booking(c, booking),
       });
       await emit(c, "rent_reservations.ReservationChanged", {
         booking,
@@ -6622,7 +6947,7 @@ export function canApp() {
               until: adjustment.new_until,
               reserved_until: addDuration(adjustment.new_until, adjustment.parent.departure_buffer),
             });
-            await create(c, "rent_reservations.ResourcePolicy", {
+            const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
               parent: adjustment.parent.parent,
               sequence: int64(
                 (await count(
@@ -6632,6 +6957,12 @@ export function canApp() {
                 )) + 1n,
               ),
               value: await resource_evidence(c, adjustment.parent.parent),
+            });
+            await create(c, "rent_reservations.BookingEvidence", {
+              parent: adjustment.parent.parent,
+              sequence: policy_snapshot_1.sequence,
+              key: adjustment.parent.id,
+              value: await report_booking(c, adjustment.parent),
             });
             await set(c, adjustment, { state: "paid" });
             await cancel(c, adjustment.id);
@@ -6713,7 +7044,7 @@ export function canApp() {
       const restore =
         booking.status === "expired" || compareInstant(c.now, booking.refund_before) < 0;
       await set(c, booking, { status: "cancelled", cancellation_reason: reason });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: booking.parent,
         sequence: int64(
           (await count(
@@ -6721,6 +7052,12 @@ export function canApp() {
           )) + 1n,
         ),
         value: await resource_evidence(c, booking.parent),
+      });
+      await create(c, "rent_reservations.BookingEvidence", {
+        parent: booking.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: booking.id,
+        value: await report_booking(c, booking),
       });
       if (booking.allowance !== "not_required" && booking.release_delivery === null) {
         const release = await send(c, "rent_reservations.Membership.release", {
@@ -7009,7 +7346,7 @@ export function canApp() {
           ["held", "pending", "review"].includes(booking.status)
         ) {
           await set(c, booking, { allowance: "failed", status: "review" });
-          await create(c, "rent_reservations.ResourcePolicy", {
+          const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
             parent: booking.parent,
             sequence: int64(
               (await count(
@@ -7017,6 +7354,12 @@ export function canApp() {
               )) + 1n,
             ),
             value: await resource_evidence(c, booking.parent),
+          });
+          await create(c, "rent_reservations.BookingEvidence", {
+            parent: booking.parent,
+            sequence: policy_snapshot_1.sequence,
+            key: booking.id,
+            value: await report_booking(c, booking),
           });
           const release = await send(c, "rent_reservations.Membership.release", {
             source: booking.allowance_source ?? booking.source,
@@ -7092,7 +7435,7 @@ export function canApp() {
         ) {
           if (["held", "pending"].includes(booking.status)) {
             await set(c, booking, { status: "review" });
-            await create(c, "rent_reservations.ResourcePolicy", {
+            const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
               parent: booking.parent,
               sequence: int64(
                 (await count(
@@ -7100,6 +7443,12 @@ export function canApp() {
                 )) + 1n,
               ),
               value: await resource_evidence(c, booking.parent),
+            });
+            await create(c, "rent_reservations.BookingEvidence", {
+              parent: booking.parent,
+              sequence: policy_snapshot_1.sequence,
+              key: booking.id,
+              value: await report_booking(c, booking),
             });
           }
           if (booking.release_delivery === null) {
@@ -7154,7 +7503,7 @@ export function canApp() {
                 customer: booking.customer.id,
               });
               await set(c, booking, { status: "pending", consume_delivery: consume.id });
-              await create(c, "rent_reservations.ResourcePolicy", {
+              const policy_snapshot_2 = await create(c, "rent_reservations.ResourcePolicy", {
                 parent: booking.parent,
                 sequence: int64(
                   (await count(
@@ -7163,9 +7512,15 @@ export function canApp() {
                 ),
                 value: await resource_evidence(c, booking.parent),
               });
+              await create(c, "rent_reservations.BookingEvidence", {
+                parent: booking.parent,
+                sequence: policy_snapshot_2.sequence,
+                key: booking.id,
+                value: await report_booking(c, booking),
+              });
             } else {
               await set(c, booking, { status: "review", refund_state: "review" });
-              await create(c, "rent_reservations.ResourcePolicy", {
+              const policy_snapshot_3 = await create(c, "rent_reservations.ResourcePolicy", {
                 parent: booking.parent,
                 sequence: int64(
                   (await count(
@@ -7173,6 +7528,12 @@ export function canApp() {
                   )) + 1n,
                 ),
                 value: await resource_evidence(c, booking.parent),
+              });
+              await create(c, "rent_reservations.BookingEvidence", {
+                parent: booking.parent,
+                sequence: policy_snapshot_3.sequence,
+                key: booking.id,
+                value: await report_booking(c, booking),
               });
             }
           }
@@ -7190,7 +7551,7 @@ export function canApp() {
             (booking.payment !== "paid" || (await financial_cover(c, booking)))
           ) {
             await set(c, booking, { status: "confirmed" });
-            await create(c, "rent_reservations.ResourcePolicy", {
+            const policy_snapshot_4 = await create(c, "rent_reservations.ResourcePolicy", {
               parent: booking.parent,
               sequence: int64(
                 (await count(
@@ -7198,6 +7559,12 @@ export function canApp() {
                 )) + 1n,
               ),
               value: await resource_evidence(c, booking.parent),
+            });
+            await create(c, "rent_reservations.BookingEvidence", {
+              parent: booking.parent,
+              sequence: policy_snapshot_4.sequence,
+              key: booking.id,
+              value: await report_booking(c, booking),
             });
             await cancel(c, booking.id);
             await emit(c, "rent_reservations.ReservationChanged", {
@@ -7206,7 +7573,7 @@ export function canApp() {
             });
           } else {
             await set(c, booking, { status: "review", refund_state: "review" });
-            await create(c, "rent_reservations.ResourcePolicy", {
+            const policy_snapshot_5 = await create(c, "rent_reservations.ResourcePolicy", {
               parent: booking.parent,
               sequence: int64(
                 (await count(
@@ -7215,6 +7582,12 @@ export function canApp() {
               ),
               value: await resource_evidence(c, booking.parent),
             });
+            await create(c, "rent_reservations.BookingEvidence", {
+              parent: booking.parent,
+              sequence: policy_snapshot_5.sequence,
+              key: booking.id,
+              value: await report_booking(c, booking),
+            });
           }
         }
       }
@@ -7222,7 +7595,7 @@ export function canApp() {
         await set(c, booking, { allowance: "released" });
         if (["held", "pending", "confirmed"].includes(booking.status)) {
           await set(c, booking, { status: "review" });
-          await create(c, "rent_reservations.ResourcePolicy", {
+          const policy_snapshot_6 = await create(c, "rent_reservations.ResourcePolicy", {
             parent: booking.parent,
             sequence: int64(
               (await count(
@@ -7230,6 +7603,12 @@ export function canApp() {
               )) + 1n,
             ),
             value: await resource_evidence(c, booking.parent),
+          });
+          await create(c, "rent_reservations.BookingEvidence", {
+            parent: booking.parent,
+            sequence: policy_snapshot_6.sequence,
+            key: booking.id,
+            value: await report_booking(c, booking),
           });
         }
       }
@@ -7312,7 +7691,7 @@ export function canApp() {
           ) {
             if (["not_required", "consumed"].includes(booking.allowance)) {
               await set(c, booking, { status: "confirmed", refund_state: "none" });
-              await create(c, "rent_reservations.ResourcePolicy", {
+              const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
                 parent: booking.parent,
                 sequence: int64(
                   (await count(
@@ -7320,6 +7699,12 @@ export function canApp() {
                   )) + 1n,
                 ),
                 value: await resource_evidence(c, booking.parent),
+              });
+              await create(c, "rent_reservations.BookingEvidence", {
+                parent: booking.parent,
+                sequence: policy_snapshot_1.sequence,
+                key: booking.id,
+                value: await report_booking(c, booking),
               });
               await cancel(c, booking.id);
             } else if (booking.allowance === "reserved" && booking.consume_delivery === null) {
@@ -7332,7 +7717,7 @@ export function canApp() {
                 expires: addDuration(c.now, booking.parent.hold_for),
                 consume_delivery: consume.id,
               });
-              await create(c, "rent_reservations.ResourcePolicy", {
+              const policy_snapshot_2 = await create(c, "rent_reservations.ResourcePolicy", {
                 parent: booking.parent,
                 sequence: int64(
                   (await count(
@@ -7340,6 +7725,12 @@ export function canApp() {
                   )) + 1n,
                 ),
                 value: await resource_evidence(c, booking.parent),
+              });
+              await create(c, "rent_reservations.BookingEvidence", {
+                parent: booking.parent,
+                sequence: policy_snapshot_2.sequence,
+                key: booking.id,
+                value: await report_booking(c, booking),
               });
               await schedule(c, booking.id, booking.expires, "rent_reservations.HoldDue", {
                 booking,
@@ -7349,7 +7740,7 @@ export function canApp() {
                 status: "pending",
                 expires: addDuration(c.now, booking.parent.hold_for),
               });
-              await create(c, "rent_reservations.ResourcePolicy", {
+              const policy_snapshot_3 = await create(c, "rent_reservations.ResourcePolicy", {
                 parent: booking.parent,
                 sequence: int64(
                   (await count(
@@ -7357,13 +7748,19 @@ export function canApp() {
                   )) + 1n,
                 ),
                 value: await resource_evidence(c, booking.parent),
+              });
+              await create(c, "rent_reservations.BookingEvidence", {
+                parent: booking.parent,
+                sequence: policy_snapshot_3.sequence,
+                key: booking.id,
+                value: await report_booking(c, booking),
               });
               await schedule(c, booking.id, booking.expires, "rent_reservations.HoldDue", {
                 booking,
               });
             } else {
               await set(c, booking, { status: "review", refund_state: "review" });
-              await create(c, "rent_reservations.ResourcePolicy", {
+              const policy_snapshot_4 = await create(c, "rent_reservations.ResourcePolicy", {
                 parent: booking.parent,
                 sequence: int64(
                   (await count(
@@ -7372,10 +7769,16 @@ export function canApp() {
                 ),
                 value: await resource_evidence(c, booking.parent),
               });
+              await create(c, "rent_reservations.BookingEvidence", {
+                parent: booking.parent,
+                sequence: policy_snapshot_4.sequence,
+                key: booking.id,
+                value: await report_booking(c, booking),
+              });
             }
           } else {
             await set(c, booking, { status: "review", refund_state: "review" });
-            await create(c, "rent_reservations.ResourcePolicy", {
+            const policy_snapshot_5 = await create(c, "rent_reservations.ResourcePolicy", {
               parent: booking.parent,
               sequence: int64(
                 (await count(
@@ -7383,6 +7786,12 @@ export function canApp() {
                 )) + 1n,
               ),
               value: await resource_evidence(c, booking.parent),
+            });
+            await create(c, "rent_reservations.BookingEvidence", {
+              parent: booking.parent,
+              sequence: policy_snapshot_5.sequence,
+              key: booking.id,
+              value: await report_booking(c, booking),
             });
           }
         }
@@ -7401,7 +7810,7 @@ export function canApp() {
           ["held", "pending", "confirmed"].includes(booking.status)
         ) {
           await set(c, booking, { status: "review" });
-          await create(c, "rent_reservations.ResourcePolicy", {
+          const policy_snapshot_6 = await create(c, "rent_reservations.ResourcePolicy", {
             parent: booking.parent,
             sequence: int64(
               (await count(
@@ -7409,6 +7818,12 @@ export function canApp() {
               )) + 1n,
             ),
             value: await resource_evidence(c, booking.parent),
+          });
+          await create(c, "rent_reservations.BookingEvidence", {
+            parent: booking.parent,
+            sequence: policy_snapshot_6.sequence,
+            key: booking.id,
+            value: await report_booking(c, booking),
           });
         }
         await emit(c, "rent_reservations.ReservationChanged", {
@@ -7435,7 +7850,7 @@ export function canApp() {
           ["pending", "review"].includes(booking.status)
         ) {
           await set(c, booking, { status: "review", refund_state: "review" });
-          await create(c, "rent_reservations.ResourcePolicy", {
+          const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
             parent: booking.parent,
             sequence: int64(
               (await count(
@@ -7443,6 +7858,12 @@ export function canApp() {
               )) + 1n,
             ),
             value: await resource_evidence(c, booking.parent),
+          });
+          await create(c, "rent_reservations.BookingEvidence", {
+            parent: booking.parent,
+            sequence: policy_snapshot_1.sequence,
+            key: booking.id,
+            value: await report_booking(c, booking),
           });
           await emit(c, "rent_reservations.CommercialCheck", { booking });
         }
@@ -7480,7 +7901,7 @@ export function canApp() {
         compareInstant(booking.expires, c.now) <= 0 && ["held", "pending"].includes(booking.status),
       );
       await set(c, booking, { status: "expired" });
-      await create(c, "rent_reservations.ResourcePolicy", {
+      const policy_snapshot_1 = await create(c, "rent_reservations.ResourcePolicy", {
         parent: booking.parent,
         sequence: int64(
           (await count(
@@ -7488,6 +7909,12 @@ export function canApp() {
           )) + 1n,
         ),
         value: await resource_evidence(c, booking.parent),
+      });
+      await create(c, "rent_reservations.BookingEvidence", {
+        parent: booking.parent,
+        sequence: policy_snapshot_1.sequence,
+        key: booking.id,
+        value: await report_booking(c, booking),
       });
       if (booking.allowance !== "not_required" && booking.release_delivery === null) {
         const release = await send(c, "rent_reservations.Membership.release", {
@@ -8419,22 +8846,72 @@ export function exampleFixtures({ self, other, imported }) {
       parent: s.test_room,
       effective: subtractDuration(c.now, 172800000n),
       sequence: 1n,
+      baseline: true,
       value: {
         active: true,
         capacity: 1n,
         pooled: false,
         timezone: "Europe/Brussels",
-        windows: [
-          {
-            from: subtractDuration(c.now, 172800000n),
-            until: addDuration(c.now, 172800000n),
-            closed: false,
-          },
-        ],
-        downtime: [],
-        bookings: [],
-        venues: [],
       },
+    }),
+  };
+  const recorded_window = {
+    model: "rent_reservations.WindowEvidence",
+    dependencies: [test_room, test_window],
+    value: async (c, s) => ({
+      parent: s.test_room,
+      sequence: 1n,
+      key: s.test_window.id,
+      value: {
+        from: subtractDuration(c.now, 172800000n),
+        until: addDuration(c.now, 172800000n),
+        closed: false,
+      },
+    }),
+  };
+  const recorded_followup = {
+    model: "rent_reservations.ResourcePolicy",
+    dependencies: [test_room],
+    value: async (c, s) => ({
+      parent: s.test_room,
+      effective: subtractDuration(c.now, 86400000n),
+      sequence: 2n,
+      value: {
+        active: true,
+        capacity: 1n,
+        pooled: false,
+        timezone: "Europe/Brussels",
+      },
+    }),
+  };
+  const recorded_booking_old = {
+    model: "rent_reservations.BookingEvidence",
+    dependencies: [test_room],
+    value: async (c, s) => ({
+      parent: s.test_room,
+      sequence: 1n,
+      key: "seeded-booking",
+      value: {
+        from: subtractDuration(c.now, 86400000n),
+        until: addDuration(c.now, 86400000n),
+        intervals: [],
+        quantity: 1n,
+        status: "confirmed",
+        checked_in: null,
+        checked_out: null,
+        arrival_buffer: 0n,
+        departure_buffer: 0n,
+      },
+    }),
+  };
+  const recorded_booking_absent = {
+    model: "rent_reservations.BookingEvidence",
+    dependencies: [test_room],
+    value: async (c, s) => ({
+      parent: s.test_room,
+      sequence: 2n,
+      key: "seeded-booking",
+      value: null,
     }),
   };
   const test_sale = {
@@ -8463,6 +8940,10 @@ export function exampleFixtures({ self, other, imported }) {
     test_room,
     test_window,
     recorded_resource,
+    recorded_window,
+    recorded_followup,
+    recorded_booking_old,
+    recorded_booking_absent,
     examples: [
       {operation:"rent_reservations.move",seed:[history_worker,open_site,quote_window],dependencies:[history_worker,open_site,quote_window,test_hold],inputs:async(c,s)=>({booking:s.test_hold,from:datetime("2099-01-01T11:00:00Z"),until:datetime("2099-01-01T12:00:00Z")}),selectors:["as","booking.account","history_worker.active"],observations:[async(c,s)=>s.test_hold.from],rows:[
         {dependencies:[],values:async(c,s)=>[s.history_user,s.history_user,true],expected:async(c,s)=>[datetime("2099-01-01T11:00:00Z")]},
@@ -8643,8 +9124,8 @@ export function exampleFixtures({ self, other, imported }) {
       },
       {
         operation: "rent_reservations.resource_report",
-        seed: [recorded_resource, recorded_site],
-        dependencies: [test_room],
+        seed: [recorded_resource, recorded_window, recorded_site, test_window],
+        dependencies: [test_room, test_window],
         inputs: async (c, s) => ({
           resource: s.test_room,
           from: local_instant(local_date(c.now, "Europe/Brussels"), "09:00", "Europe/Brussels", {
@@ -8678,8 +9159,8 @@ export function exampleFixtures({ self, other, imported }) {
       },
       {
         operation: "rent_reservations.resource_report",
-        seed: [recorded_resource, recorded_site],
-        dependencies: [test_room],
+        seed: [recorded_resource, recorded_window, recorded_site, test_window],
+        dependencies: [test_room, test_window],
         inputs: async (c, s) => ({ resource: s.test_room }),
         selectors: ["from", "until"],
         observations: [
@@ -8694,6 +9175,116 @@ export function exampleFixtures({ self, other, imported }) {
               addDuration(subtractDuration(c.now, 864000000n), 3600000n),
             ],
             expected: async (c, s) => [false, 0n],
+          },
+        ],
+      },
+      {
+        operation: "rent_reservations.resource_report",
+        seed: [
+          recorded_resource,
+          recorded_followup,
+          recorded_window,
+          recorded_booking_old,
+          recorded_booking_absent,
+          recorded_site,
+          test_window,
+        ],
+        dependencies: [test_room, test_window],
+        inputs: async (c, s) => ({
+          resource: s.test_room,
+          from: local_instant(local_date(c.now, "Europe/Brussels"), "09:00", "Europe/Brussels", {
+            fold: "earlier",
+          }),
+          until: local_instant(local_date(c.now, "Europe/Brussels"), "10:00", "Europe/Brussels", {
+            fold: "earlier",
+          }),
+        }),
+        selectors: ["recorded_booking_absent.value"],
+        observations: [
+          async (c, s) => s.result.checkpoint.complete,
+          async (c, s) =>
+            sum(
+              s.result.rows.filter((item) => item.metric === "booked_minutes"),
+              (item) => item.quantity,
+            ),
+        ],
+        rows: [
+          {
+            dependencies: [],
+            values: async (c, s) => [null],
+            expected: async (c, s) => [true, "0"],
+          },
+          {
+            dependencies: [recorded_booking_old],
+            values: async (c, s) => [s.recorded_booking_old.value],
+            expected: async (c, s) => [true, "60"],
+          },
+        ],
+      },
+      {
+        operation: "rent_reservations.resource_report",
+        seed: [recorded_resource, recorded_window, recorded_site, test_window, history_worker],
+        dependencies: [test_room, test_window, history_worker],
+        inputs: async (c, s) => ({
+          resource: s.test_room,
+          from: local_instant(local_date(c.now, "Europe/Brussels"), "09:00", "Europe/Brussels", {
+            fold: "earlier",
+          }),
+          until: local_instant(local_date(c.now, "Europe/Brussels"), "10:00", "Europe/Brussels", {
+            fold: "earlier",
+          }),
+        }),
+        selectors: ["as", "history_worker.active"],
+        observations: [async (c, s) => s.result.checkpoint.complete],
+        rows: [
+          {
+            dependencies: [],
+            values: async (c, s) => [s.history_user, true],
+            expected: async (c, s) => [true],
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => [s.history_user, false],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => ["members", true],
+            error: "forbidden",
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => ["public", true],
+            error: "forbidden",
+          },
+        ],
+      },
+      {
+        operation: "rent_reservations.cancel_booking",
+        seed: [test_hold],
+        dependencies: [test_hold, test_room],
+        inputs: async (c, s) => ({ booking: s.test_hold, reason: "Customer request" }),
+        selectors: ["booking.status", "reason"],
+        observations: [
+          async (c, s) => s.test_hold.status,
+          async (c, s) => count(records(c, "rent_reservations.ResourcePolicy", { parent: s.test_room })),
+          async (c, s) => count(records(c, "rent_reservations.BookingEvidence", { parent: s.test_room })),
+        ],
+        rows: [
+          {
+            dependencies: [],
+            values: async (c, s) => ["held", "Customer request"],
+            expected: async (c, s) => ["cancelled", 1n, 1n],
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => ["cancelled", "Customer request"],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => ["held", " "],
+            error: "rule_failed",
           },
         ],
       },
