@@ -392,7 +392,7 @@ export function canApp() {
       "Booking.read.1": async (c, row) =>
         hasRole(c, "cafe.host") && (await can_work(c, c.actor, row.parent.location)),
     },
-    derived: {
+    derives: {
       "Booking.overdue": (c, row) =>
         row.seated !== null &&
         row.cleared === null &&
