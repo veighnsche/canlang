@@ -43,7 +43,7 @@ Inherit [shared shell and personal configuration](../REQUIREMENTS.md#standard-sh
 
 ## Interfaces and Integrations
 
-Use D1 for views and a team-scoped Durable Object schedule authority for assignments, availability, swaps, and connected employee service commitments. That authority coordinates both employees' reservations; do not assume a transaction spanning separate employee objects and D1.
+Use the default team D1 authority and its shared revision fence for assignments, availability, swaps, and connected employee service commitments. One operator-wide ledger coordinates both employees' reservations with current local Employee/Location reads. The source declares no Durable Object placement; external schedule capabilities retain their explicit asynchronous reservation protocol rather than implying a transaction spanning providers.
 
 Declare absence reads from CanLeave if configured. The schedule authority is operator-scoped across locations so a staff member cannot be independently booked by two sites. When CanField is connected, use the same employee schedule: compatible service visits may occur within their duty shift, but swapping/reassigning/cancelling that shift must reject incompatible dependent visits until a dispatcher resolves them.
 
