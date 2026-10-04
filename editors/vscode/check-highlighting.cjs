@@ -115,6 +115,28 @@ const onig = require(base + 'vscode-oniguruma');
  has(' do return table','table','variable.other.readwrite.can');has(' do return row.list','list','variable.other.property.can');has(' Model {table:text}','table','variable.other.property.declaration.can');has(' Model {value:action(remove)}','action','storage.type.can');has(' do return action(row)','action','entity.name.function.call.can');
  assert(!tokenLines(['When',' card caption'])[1].some(t=>t.scopes.includes('entity.name.tag.component.can')));
 
+ // The approved component inventory is the regression source: no smaller UI allowlist.
+ const componentInventory=fs.readFileSync('design/UI-COMPONENTS.md','utf8').split('## Complete inventory\n')[1].split('## Binding contracts')[0];
+ const componentWords=[...componentInventory.matchAll(/^\| [^|]+ \| `([a-z_][a-z_0-9]*)` \|/gm)].map(match=>match[1]);
+ assert.equal(componentWords.length,68);assert.equal(new Set(componentWords).size,68);
+ const componentScope='entity.name.tag.component.can';
+ const uiWords=[...new Set([...componentWords,'slot','preferences','gallery'])];
+ for(const word of uiWords) {
+  hasIn(['Then',' page /catalog title="Catalog"','  '+word],2,word,componentScope);
+  hasIn(['Then',' page /catalog title="Catalog"','  card "Nested"','   '+word+' row.value tone=info'],3,word,componentScope);
+  hasIn(['Then',' page /catalog title="Catalog"','  divider; '+word],2,word,componentScope);
+  has(' Model {'+word+':text}',word,'variable.other.property.declaration.can');
+  has(' do return row.'+word,word,'variable.other.property.can');
+  has(' do return '+word,word,'variable.other.readwrite.can');
+  assert(!tokenLines(['When','  '+word])[1].some(t=>t.scopes.includes(componentScope)),word+' is not a UI header in When');
+  assert(!tokenLines(['Then',' page /catalog title="Catalog"','  '+word+'=value'])[2].some(t=>t.scopes.includes(componentScope)),word+' attribute stays a name');
+  assert(!tokenLines(['Then',' page /catalog title="Catalog"','  '+word+'_custom row.value'])[2].some(t=>t.scopes.includes(componentScope)),word+' prefix cannot color an unknown word');
+ }
+ hasIn(['Then',' page /catalog title="Catalog"','  form review','   rating score','   textarea note'],3,'rating',componentScope);
+ hasIn(['Then',' page /catalog title="Catalog"','  modal "Review" id=review','   slot content','    form review'],3,'slot',componentScope);
+ hasIn(['Then',' page /catalog title="Catalog"','  button action=approve'],2,'action','variable.other.property.key.can');
+ console.log('All 68 approved component words plus slot/preferences/gallery retain contextual UI scopes.');
+
  const capability=[' export capability API version=1','  not(','   true:text,','   where:enum(true,not,select)','  ) -> Result[]?',' role next'];
  hasIn(capability,1,'not','entity.name.function.can');hasIn(capability,2,'true','variable.parameter.can');hasIn(capability,3,'true','variable.other.constant.enum.can');hasIn(capability,4,'Result','entity.name.type.can');hasIn(capability,5,'role','keyword.declaration.can');
  const continued=[' Todo {','  title:','   text','   trim label="Title",','  done:bool=false',' }'];
@@ -222,6 +244,7 @@ const onig = require(base + 'vscode-oniguruma');
   assert.equal(fontStyle('  require before.valid','require',mapperState),2,editor+' bold-only backfill require');
   const uiLine='  card "Heading"';const uiState=grammar.tokenizeLine(' page /items title="Items"',grammar.tokenizeLine('Then',tm.INITIAL).ruleStack).ruleStack;
   assert.equal(foreground(uiLine,'card',uiState),'#569CD6',editor+' frontend component');
+  for(const word of uiWords) assert.equal(foreground('  '+word,word,uiState),'#569CD6',editor+' UI word '+word);
   assert.equal(foreground('  require members','require',uiState),'#FFFFFF',editor+' presentation guard');
   assert.equal(fontStyle('  require members','require',uiState),2,editor+' bold-only presentation guard');
   assert.equal(foreground(' do require item.ready','require'),'#FFFFFF',editor+' inline guard');

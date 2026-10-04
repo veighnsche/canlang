@@ -1762,7 +1762,7 @@
           "include": "#operation-attributes"
         },
         {
-          "match": "(?:^ *|(?<=;) *)(?![A-Za-z_][A-Za-z0-9_]*\\s*[:=])(?:card|details|tabs|tab|list|table|board|calendar|form|title|text|content|metrics|copy|edit|delete|action|actions|history)(?=\\s|$)",
+          "match": "(?:^ *|(?<=;) *)(?![A-Za-z_][A-Za-z0-9_]*\\s*[:=])(?:accordion|action|actions|alert|aura|avatar|badge|board|breadcrumbs|button|calendar|card|carousel|chat_bubble|checkbox|collapse|content|copy|countdown|delete|details|diff|divider|dock|drawer|dropdown|edit|fab|fieldset|file_input|filter|footer|form|gallery|hero|history|hover_3d|hover_gallery|indicator|input|join|kbd|label|link|list|loading|mask|megamenu|menu|metrics|mockup_browser|mockup_code|mockup_phone|mockup_window|modal|navbar|otp|pagination|preferences|progress|radial_progress|radio|range|rating|select|skeleton|slot|stack|stat|status|steps|swap|tab|table|tabs|text|text_rotate|textarea|theme_controller|timeline|title|toast|toggle|tooltip|validator)(?=\\s|;|$)",
           "name": "entity.name.tag.component.can"
         },
         {
