@@ -1,0 +1,65 @@
+## Isolated proposed extract of the existing expense owner, not an additional app or a second installed role.
+package expense
+ use rent_catalog {Location,test_site}
+ use employee {Employee,can_work,test_worker}
+ Given
+  role finance label="Finance"
+  contract LegacyClaim { actor:text?, reviewer:text?, decision_time_original:text?, decided_at:datetime?, paid:date?, status:text?, purpose:text?, amount:money?, receipt:file?, receipt_issue:text? }
+  LegacyExpense { source:text trim min=1, external_id:text min=1, location:Location, claim:LegacyClaim, source_evidence:file, attestation:text trim min=1, claimant:user?, access_reason:text?, imported_by:user server=actor, imported_at:datetime server=now }
+  unique LegacyExpense fields=source,external_id
+  lock LegacyExpense fields=source,external_id,location,claim,source_evidence,attestation,imported_by,imported_at
+  policy LegacyExpense read=finance and can_work(actor,row.location)
+  policy LegacyExpense read=authenticated where=row.claimant==actor fields=source,external_id,location,claim
+  invariant LegacyExpense: (row.claim.receipt!=null and row.claim.receipt_issue==null) or (row.claim.receipt==null and trim(row.claim.receipt_issue??"")!="")
+  fixture receipt=file {}
+  fixture source_evidence=file {}
+  fixture imported=LegacyExpense {source="vendor-a",external_id="old-17",location=test_site,claim={actor="Former employee 41",reviewer="Reviewer 8",decision_time_original="2021-05-12T09:00:00Z",decided_at=datetime("2021-05-12T09:00:00Z"),paid=date("2021-05-20"),status="Paid",purpose="Travel",amount=money(25,"EUR"),receipt=receipt,receipt_issue=null},source_evidence=source_evidence,attestation="Source fields transcribed; no live approval inferred"}
+ When
+  # Retain source evidence under current finance authority without recreating a past approval or payment.
+  scenario retain_legacy(source:text,external_id:text,location:Location,claim:LegacyClaim,source_evidence:file,attestation:text) by=finance -> LegacyExpense
+   require can_work(actor,location) and trim(source)!="" and trim(external_id)!="" and trim(attestation)!=""
+   require not any(LegacyExpense archived=include as entry,entry.source==trim(source) and entry.external_id==external_id)
+   do
+    create LegacyExpense {source=trim(source),external_id,location,claim,source_evidence,attestation=trim(attestation)} as entry
+    return entry
+   examples seed=[test_worker,imported] source="vendor-a" external_id="old-18" location=test_site source_evidence=source_evidence attestation="Transcribed from retained export" claim={actor="Former employee 41",reviewer=null,decision_time_original=null,decided_at=null,paid=null,status="Unknown",purpose="Travel",amount=money(25,"EUR"),receipt=receipt,receipt_issue=null}
+    as,external_id,claim.receipt,claim.receipt_issue -> result.external_id,result.claim.actor,result.claim.status,result.claimant,result.imported_by
+    finance,"old-18",receipt,null -> "old-18","Former employee 41","Unknown",null,self
+    finance,"old-18",null,"Original receipt missing from export" -> "old-18","Former employee 41","Unknown",null,self
+    finance,"old-17",receipt,null -> error(rule_failed)
+    finance,"old-18",null,null -> error(rule_failed)
+    members,"old-18",receipt,null -> error(forbidden)
+  # Find existing retained source identities before an explicit create decision; this is not an upsert.
+  scenario legacy_matches(source:text,external_id:text,location:Location) read=true -> LegacyExpense[] by=finance
+   require can_work(actor,location)
+   do return LegacyExpense as entry where entry.source==trim(source) and entry.external_id==external_id
+   examples seed=[test_worker,imported] source="vendor-a" external_id="old-17" location=test_site
+    as -> count(result)
+    finance -> 1
+    members -> error(forbidden)
+  # Grant or revoke current claimant access after an evidenced account match; historical actor text remains immutable.
+  scenario link_legacy(entry:LegacyExpense,claimant:user?,reason:text) by=finance
+   require can_work(actor,entry.location) and trim(reason)!=""
+   require claimant==null or any(Employee archived=include as worker,worker.user==claimant and (worker.home==entry.location or entry.location in worker.locations))
+   do set entry {claimant,access_reason=trim(reason)}
+   examples seed=[test_worker] entry=imported claimant=self reason="Verified original personnel key against current account"
+    as,entry.claimant,claimant,reason,request.entry.version -> entry.claimant,entry.claim.actor,entry.claim.decided_at,entry.access_reason
+    finance,null,self,"Verified match",1 -> self,"Former employee 41",datetime("2021-05-12T09:00:00Z"),"Verified match"
+    finance,self,null,"Revoke mistaken access mapping",1 -> null,"Former employee 41",datetime("2021-05-12T09:00:00Z"),"Revoke mistaken access mapping"
+    finance,null,other,"No matching roster identity",1 -> error(rule_failed)
+    finance,null,self," ",1 -> error(rule_failed)
+    finance,null,self,"Verified match",2 -> error(conflict)
+    members,null,self,"Verified match",1 -> error(forbidden)
+ Then
+  page /expenses/history title="Historical expense evidence"
+   require authenticated
+   card "Retain source records"
+    require finance
+    form retain_legacy import=csv review=legacy_matches
+   table LegacyExpense as entry columns=source,external_id,location display=split
+    text entry.claim.actor,entry.claim.reviewer,entry.claim.decision_time_original,entry.claim.decided_at,entry.claim.paid,entry.claim.status,entry.claim.purpose,entry.claim.amount,entry.claim.receipt,entry.claim.receipt_issue
+    card "Current access mapping"
+     require finance
+     action link_legacy
+     text entry.access_reason,entry.attestation,entry.imported_by,entry.imported_at,entry.source_evidence
+     history

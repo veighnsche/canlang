@@ -11,6 +11,14 @@ package expense label="Expenses"@{nl="Onkosten"}
   Expense in Employee { location:Location, corrects:Expense? label="Corrected claim"@{nl="Gecorrigeerde declaratie"}, authorization:text? label="Job or purchase authorization reference"@{nl="Werk- of inkoopautorisatiereferentie"}, purpose:text trim min=1 label="Purpose"@{nl="Doel"}, category:text label="Category"@{nl="Categorie"}, amount:money, business_date:date label="Business date"@{nl="Kostendatum"}, receipt:file label=label_Expense_receipt, reviewer:user label=label_reviewer, status:enum(draft,submitted,approved,rejected,withdrawn,reimbursed)=draft label={text="Status"@{nl="Status"},values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved=label_Expense_status_approved,rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"},reimbursed="Reimbursed"@{nl="Vergoed"}}}, submission:int=0 label=label_Expense_submission, withdrawal:text? label="Withdrawal reason"@{nl="Reden voor intrekking"}, decision:text? label="Decision"@{nl="Besluit"}, decided_by:user? label="Decision maker"@{nl="Beslist door"}, decided_at:datetime? label=label_Expense_decided_at } label="Expense claim"@{nl="Onkostendeclaratie"}
   Decision in Expense { submission:int label=label_Expense_submission, amount:money, receipt:file label=label_Expense_receipt, reviewer:user label=label_reviewer, approved:bool label=label_Expense_status_approved, reason:text, decided_at:datetime label=label_Expense_decided_at } label="Expense decision"@{nl="Onkostenbesluit"}
   Reimbursement in Expense { amount:money, reference:text trim min=1, paid:date label=label_Reimbursement_paid, reason:text, recorded_by:user server=actor label="Recorded by"@{nl="Vastgelegd door"} } label=evidenced_reimbursement_caption
+  contract LegacyClaim { actor:text?, reviewer:text?, decision_time_original:text?, decided_at:datetime?, paid:date?, status:text?, purpose:text?, amount:money?, receipt:file?, receipt_issue:text? }
+  ## Imported source claims are immutable evidence, not live approvals or payments.
+  LegacyExpense { source:text trim min=1, external_id:text min=1, location:Location, claim:LegacyClaim, source_evidence:file, attestation:text trim min=1, claimant:user?, access_reason:text?, imported_by:user server=actor, imported_at:datetime server=now }
+  unique LegacyExpense fields=source,external_id
+  lock LegacyExpense fields=source,external_id,location,claim,source_evidence,attestation,imported_by,imported_at
+  policy LegacyExpense read=finance and can_work(actor,row.location)
+  policy LegacyExpense read=authenticated where=row.claimant==actor fields=source,external_id,location,claim
+  invariant LegacyExpense: (row.claim.receipt!=null and row.claim.receipt_issue==null) or (row.claim.receipt==null and trim(row.claim.receipt_issue??"")!="")
   policy Expense read=authenticated where=row.parent.user==actor
   policy Expense read=reviewer where=row.reviewer==actor and can_work(actor,row.location) and row.status!=draft
   policy Expense read=finance and can_work(actor,row.location)
@@ -39,6 +47,10 @@ package expense label="Expenses"@{nl="Onkosten"}
   fixture previous_claim=Expense {parent=test_worker,location=test_site,purpose="Earlier supplies",category="Supplies",amount=money(25,"EUR"),business_date=date("2026-10-01"),receipt=receipt,reviewer=reviewer_user,status=reimbursed}
   fixture previous_payment=Reimbursement {parent=previous_claim,amount=money(25,"EUR"),reference="bank-previous",paid=date("2026-10-01"),reason="Statement evidence"}
   fixture rejected_decision=Decision {parent=claim,submission=1,amount=money(25,"EUR"),receipt=receipt,reviewer=reviewer_user,approved=false,reason="Clarify the journey",decided_at=datetime("2026-10-02T09:00:00Z")}
+  fixture legacy_source=file {}
+  fixture legacy_receipt_upload=file {owner=finance_user}
+  fixture legacy_source_upload=file {owner=finance_user}
+  fixture legacy_entry=LegacyExpense {source="vendor-a",external_id="old-17",location=test_site,claim={actor="Former employee 41",reviewer="Reviewer 8",decision_time_original="2021-05-12T09:00:00Z",decided_at=datetime("2021-05-12T09:00:00Z"),paid=date("2021-05-20"),status="Paid",purpose="Travel",amount=money(25,"EUR"),receipt=receipt,receipt_issue=null},source_evidence=legacy_source,attestation="Source fields transcribed; no live approval inferred"}
   preferences { status:Expense.status? }
   message evidenced_reimbursement_caption = "Evidenced reimbursement"@{nl="Onderbouwde vergoeding"}
   message label_reviewer = "Reviewer"@{nl="Beoordelaar"}
@@ -229,6 +241,74 @@ package expense label="Expenses"@{nl="Onkosten"}
     finance_user,approved,true,money(25,"EUR"),"bank-new",local_date(now,test_site.timezone),"Bank statement",2 -> error(conflict)
     finance_user,approved,true,money(25,"EUR")," ",local_date(now,test_site.timezone),"Bank statement",1 -> error(rule_failed)
     finance_user,approved,true,money(25,"EUR"),"bank-new",local_date(now,test_site.timezone)," ",1 -> error(rule_failed)
+  # Retain source evidence under current finance authority without recreating a past approval or payment.
+  scenario retain_legacy(source:text,external_id:text,location:Location,claim:LegacyClaim,source_evidence:file,attestation:text) by=finance -> LegacyExpense label="Retain historical evidence"@{nl="Historisch bewijs bewaren"}
+   require can_work(actor,location) and trim(source)!="" and trim(external_id)!="" and trim(attestation)!=""
+   require not any(LegacyExpense archived=include as entry,entry.source==trim(source) and entry.external_id==external_id)
+   do
+    create LegacyExpense {source=trim(source),external_id,location,claim,source_evidence,attestation=trim(attestation)} as entry
+    return entry
+   examples seed=[test_worker,legacy_entry] source="vendor-a" external_id="old-18" location=test_site source_evidence=legacy_source attestation="Transcribed from retained export" claim={actor="Former employee 41",reviewer=null,decision_time_original=null,decided_at=null,paid=null,status="Unknown",purpose="Travel",amount=money(25,"EUR"),receipt=receipt,receipt_issue=null}
+    as,external_id,claim.receipt,claim.receipt_issue -> result.external_id,result.claim.actor,result.claim.status,result.claimant,result.imported_by
+    finance,"old-18",receipt,null -> "old-18","Former employee 41","Unknown",null,self
+    finance,"old-18",null,"Original receipt missing from export" -> "old-18","Former employee 41","Unknown",null,self
+    finance,"old-17",receipt,null -> error(rule_failed)
+    finance,"old-18",null,null -> error(rule_failed)
+    members,"old-18",receipt,null -> error(forbidden)
+   ## Actual calls change current access; viewer-read result counts, not inspection, establish visibility. Role fixtures remain fixed.
+   examples seed=[test_worker,finance_worker,ordinary_worker,hr_user,legacy_receipt_upload,legacy_source_upload]
+    do
+     let historical_claim=LegacyClaim {actor="Former employee 41",reviewer="Original reviewer",decision_time_original="2021-05-12T09:00:00Z",decided_at=datetime("2021-05-12T09:00:00Z"),paid=date("2021-05-20"),status="Paid",purpose="Historical travel",amount=money(25,"EUR"),receipt=legacy_receipt_upload,receipt_issue=null}
+     call retain_legacy {source="vendor-a",external_id="journey-1",location=test_site,claim=historical_claim,source_evidence=legacy_source_upload,attestation="Source export checked; no present-day approval inferred"} by=finance_user as retained
+     count(LegacyExpense),count(Expense),count(Decision),count(Reimbursement) -> 1,0,0,0
+     call legacy_matches {source="vendor-a",external_id="journey-1",location=test_site} by=self as before_access
+     count(before_access) -> 0
+     call link_legacy {entry=retained,claimant=self,reason="Verified source personnel key"} by=finance_user
+     call legacy_matches {source="vendor-a",external_id="journey-1",location=test_site} by=self as readable
+     count(readable) -> 1
+     let own_record=first(readable)
+     own_record!=null -> true
+     own_record.claim.actor,own_record.claim.status,own_record.claim.receipt -> "Former employee 41","Paid",legacy_receipt_upload
+     call link_legacy {entry=retained,claimant=null,reason="Stale mapping revision"} by=finance_user -> error(conflict)
+     let mapped=first(LegacyExpense as entry where entry.id==retained.id)
+     mapped!=null -> true
+     call link_legacy {entry=mapped,claimant=null,reason="Revoke mistaken account match"} by=finance_user
+     call legacy_matches {source="vendor-a",external_id="journey-1",location=test_site} by=self as revoked
+     count(revoked) -> 0
+     let unlinked=first(LegacyExpense as entry where entry.id==retained.id)
+     unlinked!=null -> true
+     call link_legacy {entry=unlinked,claimant=ordinary_user,reason="Verified corrected account match"} by=finance_user
+     call legacy_matches {source="vendor-a",external_id="journey-1",location=test_site} by=ordinary_user as corrected_access
+     count(corrected_access) -> 1
+     call retain_legacy {source="vendor-a",external_id="journey-1",location=test_site,claim=historical_claim,source_evidence=legacy_source_upload,attestation="Source export checked; no present-day approval inferred"} by=finance_user -> error(rule_failed)
+     call deactivate {employee=finance_worker,ended=date("2026-10-02")} by=hr_user
+     let current=first(LegacyExpense as entry where entry.id==retained.id)
+     current!=null -> true
+     call link_legacy {entry=current,claimant=null,reason="No current workplace eligibility"} by=finance_user -> error(rule_failed)
+     call link_legacy {entry=current,claimant=null,reason="No finance role"} by=ordinary_user -> error(forbidden)
+     call legacy_matches {source="vendor-a",external_id="journey-1",location=test_site} by=finance_user as former_steward
+     count(former_steward),current.claim.actor,current.claim.status,current.claim.decided_at,current.claim.paid,current.imported_by,count(Expense),count(Decision),count(Reimbursement) -> 0,"Former employee 41","Paid",datetime("2021-05-12T09:00:00Z"),date("2021-05-20"),finance_user,0,0,0
+  # Find readable historical source identities for intake review and private evidence lookup. @{nl="Vind leesbare historische bronidentiteiten voor invoercontrole en privé-inzage in bewijs."}
+  scenario legacy_matches(source:text,external_id:text,location:Location) read=true -> LegacyExpense[] by=authenticated label="Find historical evidence"@{nl="Historisch bewijs zoeken"}
+   do return LegacyExpense as entry where entry.source==trim(source) and entry.external_id==external_id and entry.location==location
+   examples seed=[test_worker,legacy_entry] source="vendor-a" external_id="old-17" location=test_site
+    as -> count(result)
+    finance -> 1
+    members -> 0
+    public -> error(forbidden)
+  # Grant or revoke current claimant access after an evidenced account match; historical actor text remains immutable.
+  scenario link_legacy(entry:LegacyExpense,claimant:user?,reason:text) by=finance label="Change historical access"@{nl="Historische toegang wijzigen"}
+   require can_work(actor,entry.location) and trim(reason)!=""
+   require claimant==null or any(Employee archived=include as worker,worker.user==claimant and (worker.home==entry.location or entry.location in worker.locations))
+   do set entry {claimant,access_reason=trim(reason)}
+   examples seed=[test_worker] entry=legacy_entry claimant=self reason="Verified original personnel key against current account"
+    as,entry.claimant,claimant,reason,request.entry.version -> entry.claimant,entry.claim.actor,entry.claim.decided_at,entry.access_reason
+    finance,null,self,"Verified match",1 -> self,"Former employee 41",datetime("2021-05-12T09:00:00Z"),"Verified match"
+    finance,self,null,"Revoke mistaken access mapping",1 -> null,"Former employee 41",datetime("2021-05-12T09:00:00Z"),"Revoke mistaken access mapping"
+    finance,null,other,"No matching roster identity",1 -> error(rule_failed)
+    finance,null,self," ",1 -> error(rule_failed)
+    finance,null,self,"Verified match",2 -> error(conflict)
+    members,null,self,"Verified match",1 -> error(forbidden)
  Then
   # Submit your receipts and see their private decision history. @{nl="Dien je bonnen in en bekijk hun privébesluithistorie."}
   page /expenses/mine title="My expenses"@{nl="Mijn onkosten"}
@@ -268,3 +348,20 @@ package expense label="Expenses"@{nl="Onkosten"}
      actions reimburse
    card "Accounting evidence"@{nl="Boekhoudbewijs"}
     table Reimbursement columns=parent,reference,amount,paid,reason,recorded_by order=-paid filter=paid
+  # Retain historical evidence separately from current approvals and payment actions. @{nl="Bewaar historisch bewijs afzonderlijk van huidige goedkeuringen en betalingsacties."}
+  page /expenses/history title="Historical expense evidence"@{nl="Historisch onkostenbewijs"}
+   require authenticated
+   card "Retain source records"@{nl="Bronrecords bewaren"}
+    require finance
+    form retain_legacy import=csv review=legacy_matches
+   card "Find a source record"@{nl="Een bronrecord zoeken"}
+    form legacy_matches
+     list result columns=source,external_id,location
+      text row.claim.actor,row.claim.status,row.claim.receipt
+   table LegacyExpense as entry columns=source,external_id,location display=split
+    text entry.claim.actor,entry.claim.reviewer,entry.claim.decision_time_original,entry.claim.decided_at,entry.claim.paid,entry.claim.status,entry.claim.purpose,entry.claim.amount,entry.claim.receipt,entry.claim.receipt_issue
+    card "Current access mapping"@{nl="Huidige toegangstoewijzing"}
+     require finance
+     action link_legacy
+     text entry.access_reason,entry.attestation,entry.imported_by,entry.imported_at,entry.source_evidence
+     history
