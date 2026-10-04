@@ -120,7 +120,7 @@ Each PR: rebase on current `origin/main`, focused checks exercising the change, 
 
 ## Progress and file reservations
 
-- 2026-10-04: S1 merged (PR #1, squash `50b46b4`). S2 in progress on `muse/lane-04-work-services-files/contracts` from `origin/main@50b46b4`. Reserved: `packages/contracts/src/{work,services,files}.ts`, `packages/{work,services,files}/package.json|tsconfig.json`, `.github/workflows/lane-04.yml`, this file (coordinator).
+- 2026-10-04: S1 merged (PR #1, squash `50b46b4`). S2 submitted for review on `muse/lane-04-work-services-files/contracts` (`22a7341` + status). Toolchain: typescript@5.9.3, @types/node@24.19.1, node 24, `node:test` glob discovery (`node --test test/` does not discover `.ts`). `node_modules/` untracked per package; root `.gitignore` still needed from L7. Next reservations: S3 `packages/work/src/**` (worker-A), S4 `packages/services/src/{http,mail}/**` (worker-B).
 
 ## Interface requests and handoffs
 
