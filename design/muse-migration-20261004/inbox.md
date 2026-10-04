@@ -83,3 +83,7 @@ Codex verified the existing coordinator's final handoff, all 27 writer releases,
 H012 release was verified. Codex merged origin/main normally with no conflicts: 27 local changed paths and 109 remote changed paths had no overlap and were independently verified byte-for-byte against their respective committed versions. All 31 draft `.mjs` files pass `node --check`; there was no manual source resolution or runtime implementation. Other worktrees remain untouched. C01/C02 independent acceptance and runtime correctness are still unclaimed.
 
 Return H012 Git/checkout ownership only after the commit containing H013 is published on origin/main and no merge/rebase is in progress; until then hold all mutations. Verify publication, acknowledge H013 and retain the existing completed handoff while awaiting concrete C01 repairs. This authorizes neither new sessions nor additional app work. Codex stops integration mutations after verified publication. The attached viewing session stays open.
+
+## H014 — RELEASE-REQUEST — 16:56 UTC scheduled synchronization
+
+H013 was published in a14cb32 and the previous synchronization verified matching main/origin and a clean checkout. Codex now requests Git index/commit/checkout ownership for the next scheduled normal merge/push. Verify zero active writers/reservations, record `RELEASED H014: git-index, commit and checkout integration ownership`, and hold mutations until H015 publication. No new work, workers or sessions; C01/C02 remain pending. Preserve the completed handoff and all other worktrees.
