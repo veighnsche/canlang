@@ -227,52 +227,98 @@ package customer
  Then
   # Maintain customers and review duplicates under location scope. @{nl="Beheer klanten en beoordeel dubbelen binnen locatiebevoegdheden."}
   page /customers title="Customers"@{nl="Klanten"}
+   breadcrumbs
    require customer_manager
    card "Customer intake"@{nl="Klant aanmaken"}
     form Customer.create import=csv review=duplicate_customers
+     input name
+     radio kind
    list Customer columns=name,kind,locations,active search=name filter=kind,active defaults={kind=preferences.kind,active=preferences.active} display=split
+    pagination
     card "Canonical customer identity"@{nl="Canonieke klantidentiteit"}
+     status row.active
+     badge row.kind
      edit
-     actions alias,recover
+      input name
+      checkbox active
+     ## Explicit forms bind the row record and place typed reason controls; same
+     ## canonical operations and guards as the former `actions` pair.
+     form alias arguments={source=row}
+      textarea reason
+     form recover arguments={org=row}
+      textarea reason
     tabs
      tab "Contacts"@{nl="Contactpersonen"}
       form Contact.create import=csv review=duplicate_contacts
+       input name
+       input email
+       input phone
+       input external_id
       table row.Contact columns=name,email,phone,account,verified
+       pagination
+       status row.verified
        edit
      tab "Billing profiles"@{nl="Factuurprofielen"}
       form BillingProfile.create
+       textarea address
+       input tax_reference
       table row.BillingProfile columns=contact,address,tax_reference,on_account
+       pagination
+       status row.on_account
        edit
     history
   # Review invoicing eligibility without granting membership or recording payment. @{nl="Beoordeel facturatiegeschiktheid zonder lidmaatschap te verlenen of betaling vast te leggen."}
   page /customers/billing-approvals title="Billing approvals"@{nl="Facturatiegoedkeuringen"}
+   breadcrumbs
    require finance
    table BillingProfile columns=parent,contact,on_account,approved_locations,approval_reason,approved_by,approved_at
-    action approve_account
+    pagination
+    status row.on_account
+    form approve_account arguments={profile=row}
+     checkbox approve
+     textarea reason
     history
   # Manage only your company's grants; paid seats are a separate operation. @{nl="Beheer uitsluitend de rechten van je bedrijf; betaalde plaatsen zijn een afzonderlijke operatie."}
   page /companies/{Customer.id} title="Company people"@{nl="Bedrijfsleden"}
+   breadcrumbs
    require authenticated and has_role(actor,row,administrator)
    card "Company role invitation"@{nl="Uitnodiging bedrijfsrol"}
     text row.name
+    ## Fieldset caption reuses the zero-parameter message directly; literal
+    ## captions may be replaced by typed message references (DESIGN §9 intro).
+    ## Placed controls render first, then the generated org/locations controls
+    ## in owner order.
     form invite
+     fieldset notice_company_invitation
+      input email
+      radio role
    card "Current company grants"@{nl="Huidige bedrijfsrechten"}
     list row.CompanyRole columns=account,role,locations,active
-     action remove
+     pagination
+     badge row.role
+     status row.active
+     button action=remove arguments={grant=row}
    card "Invitation outcomes"@{nl="Uitnodigingsuitkomsten"}
     list row.Invitation
-     text row.email,row.role,row.locations,row.status,row.expires
-   details "Independent access reconciliation"@{nl="Afzonderlijke toegangsafstemming"}
+     pagination
+     badge row.status
+     text row.email,row.role,row.locations,row.expires
+   collapse "Independent access reconciliation"@{nl="Afzonderlijke toegangsafstemming"}
     text "Company grants apply immediately. Paid seats and allowance review remain with Membership; visitor admission and credential confirmations remain with Reception."@{nl="Bedrijfsrechten gelden direct. Betaalde plaatsen en tegoedbeoordeling blijven bij Lidmaatschap; gasttoelating en sleutelbevestigingen blijven bij Receptie."}
     text "Use Membership access review and Reception access review when those services are available in your product. Unavailable services have no reported reconciliation outcome here."@{nl="Gebruik Beoordeling lidmaatschapstoegang en Beoordeling receptietoegang wanneer die diensten beschikbaar zijn in je product. Voor niet-beschikbare diensten wordt hier geen afstemmingsresultaat gemeld."}
   # Review your addressed invitations without purchasing benefits or staff access. @{nl="Beoordeel je gerichte uitnodigingen zonder voordelen of personeelstoegang te kopen."}
   page /company-invitations title="Invitations"@{nl="Uitnodigingen"}
+   breadcrumbs
    require authenticated
    card "Own contact claim"@{nl="Eigen contact koppelen"}
     list Contact
-     text row.name,row.email,row.verified
-     action claim
+     pagination
+     status row.verified
+     text row.name,row.email
+     button action=claim arguments={contact=row}
    card "Addressed company invitations"@{nl="Gerichte bedrijfsuitnodigingen"}
     list Invitation as invitation where invitation.email==actor.email and invitation.status==open
-     text row.email,row.role,row.locations,row.expires,row.status
-     action accept
+     pagination
+     badge row.status
+     text row.email,row.role,row.locations,row.expires
+     button action=accept arguments={invitation=row}
