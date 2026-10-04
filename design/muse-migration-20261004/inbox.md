@@ -183,3 +183,7 @@ H031 was published in verified main 5c7ce37. Clean main is behind origin. Codex 
 H032 release was verified. Normal merge completed without conflicts; all 3 local coordination and 12 incoming changed paths match their owning histories exactly. No draft changes or manual source resolution occurred, so prior draft syntax checks were not repeated. Compiler behavior was not validated by content-preservation checks. Other worktrees remain untouched; C01/C02 acceptance remains pending.
 
 Return Git/checkout ownership only after the commit containing H033 is published on origin/main with no merge/rebase in progress. Verify publication before acknowledgment; hold all mutations until then. Preserve the completed handoff and attached viewer; no new work, sessions or role changes are authorized. Codex ends integration mutations after verified publication.
+
+## H034 — RELEASE-REQUEST — 21:56 UTC scheduled synchronization
+
+H033 was published in verified main 6d7a427. Clean main is behind origin. Codex requests Git index/commit/checkout ownership for normal synchronization. Confirm zero active writers/reservations, record `RELEASED H034: git-index, commit and checkout integration ownership`, and hold mutations until H035 publication. No new work, workers, sessions or role changes; preserve other worktrees and pending C01/C02 acceptance.
