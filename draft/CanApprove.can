@@ -41,13 +41,11 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
   fixture original=file {}
   fixture replacement=file {}
   fixture pending_version=Submission {parent=document,revision=1,file=original,note="Signage",reviewer=reviewer_user,reviewer_email="reviewer@example.test",due=now+1d}
-  fixture pending_delivery=Mail.send {request={to="reviewer@example.test",subject="Review",body="Plan"},status=pending,result=null,error=null}
-  fixture accepted_delivery=Mail.send {request={to="reviewer@example.test",subject="Review",body="Plan"},status=succeeded,result={reference="accepted-mail"},error=null}
-  fixture unknown_delivery=Mail.send {request={to="reviewer@example.test",subject="Review",body="Plan"},status=unknown,result=null,error=null}
-  fixture failed_delivery=Mail.send {request={to="reviewer@example.test",subject="Review",body="Plan"},status=failed,result=null,error={code="provider",message="Delivery rejected"}}
-  fixture skipped_delivery=Mail.send {request={to="reviewer@example.test",subject="Review",body="Plan"},status=skipped,result=null,error=null}
-  fixture failed_decision_delivery=Mail.send {request={to="submitter@example.test",subject="Review",body="Approved with conditions"},status=failed,result=null,error={code="provider",message="Delivery rejected"}}
-  fixture pending_notice=Notice {parent=pending_version,kind=request,assignment=1,recipient="reviewer@example.test",subject="Review",body="Plan",delivery=pending_delivery}
+  fixture attempt=Mail.send {request={to="reviewer@example.test",subject="Review",body="Plan"}}
+  ## This independent failed identity is deliberately unrelated to the selected review attempt.
+  fixture detached_delivery=Mail.send {request={to="reviewer@example.test",subject="Review",body="Plan"},status=failed,error={code="provider",message="Delivery rejected"}}
+  fixture decision_attempt=Mail.send {request={to="submitter@example.test",subject="Review",body="Approved with conditions"}}
+  fixture pending_notice=Notice {parent=pending_version,kind=request,assignment=1,recipient="reviewer@example.test",subject="Review",body="Plan",delivery=attempt}
   fixture accepted=Submission {parent=document,revision=1,file=original,note="Original",reviewer=reviewer_user,reviewer_email="reviewer@example.test",due=now+1d,state=approved,decided_by=reviewer_user,decided_at=now}
   preferences { review_state:Submission.state? label="Initial review state filter"@{nl="Eerste filter beoordelingsstatus"}, versions_open:bool=false label="Expand submitted version history"@{nl="Ingediende versiehistorie uitklappen"} }
   message label_reviewer = "Reviewer"@{nl="Beoordelaar"}
@@ -72,19 +70,19 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
     outsider,self,test_site,true,"Alex",true -> error(forbidden)
     public,self,test_site,true,"Alex",true -> error(forbidden)
    ## Receipt snapshots are canonical bound recipes. An unrelated failed receipt cannot alter this Notice's selected pending receipt.
-   examples seed=[pending_notice,test_worker,failed_delivery] document=document
-    pending_notice.delivery -> pending_notice.state,pending_version.state
-    accepted_delivery -> succeeded,pending
-    unknown_delivery -> unknown,pending
-    skipped_delivery -> skipped,pending
-    failed_delivery -> failed,pending
-    pending_delivery -> pending,pending
-    null -> null,pending
+   examples seed=[pending_notice,test_worker,detached_delivery] document=document
+    pending_notice.delivery,attempt.status,attempt.result,attempt.error -> pending_notice.state,pending_version.state
+    attempt,succeeded,{reference="accepted-mail"},null -> succeeded,pending
+    attempt,unknown,null,null -> unknown,pending
+    attempt,skipped,null,null -> skipped,pending
+    attempt,failed,null,{code="provider",message="Delivery rejected"} -> failed,pending
+    attempt,pending,null,null -> pending,pending
+    null,pending,null,null -> null,pending
    ## Delivery progress preserves the exact approved file, reason and actor/time. Null means no request is yet associated.
-   examples seed=[pending_notice,test_worker] document=document
-    pending_notice.kind,pending_notice.recipient,pending_notice.body,pending_version.state,pending_version.reason,pending_version.decided_by,pending_version.decided_at,pending_notice.delivery -> pending_notice.state,pending_version.state,pending_version.file,pending_version.reason,pending_version.decided_by,pending_version.decided_at
-    decision,"submitter@example.test","Approved with conditions",approved,"Approved with conditions",reviewer_user,now,failed_decision_delivery -> failed,approved,original,"Approved with conditions",reviewer_user,now
-    decision,"submitter@example.test","Approved with conditions",approved,"Approved with conditions",reviewer_user,now,null -> null,approved,original,"Approved with conditions",reviewer_user,now
+   examples seed=[pending_notice,test_worker,decision_attempt] document=document
+    pending_notice.kind,pending_notice.recipient,pending_notice.body,pending_version.state,pending_version.reason,pending_version.decided_by,pending_version.decided_at,pending_notice.delivery,decision_attempt.status,decision_attempt.result,decision_attempt.error -> pending_notice.state,pending_version.state,pending_version.file,pending_version.reason,pending_version.decided_by,pending_version.decided_at
+    decision,"submitter@example.test","Approved with conditions",approved,"Approved with conditions",reviewer_user,now,decision_attempt,failed,null,{code="provider",message="Delivery rejected"} -> failed,approved,original,"Approved with conditions",reviewer_user,now
+    decision,"submitter@example.test","Approved with conditions",approved,"Approved with conditions",reviewer_user,now,null,pending,null,null -> null,approved,original,"Approved with conditions",reviewer_user,now
   crud Document by=members fields=title,category,subject create_fields=location,title,category,subject,email when=row.submitter==actor and (row.location==null or can_work(actor,row.location)) delete=none
    examples update seed=[test_worker] record=document
     as,changes.title -> document.title

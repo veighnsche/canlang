@@ -1631,13 +1631,10 @@ export function exampleFixtures({ self, other, imported }) {
       state: "pending",
     }),
   };
-  const pending_notice = {dependencies:[],delivery:"mailroom.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "pending", "result": null, "error": null})};
-  const accepted_notice = {dependencies:[],delivery:"mailroom.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "succeeded", "result": {"reference": "accepted-mail"}, "error": null})};
-  const unknown_notice = {dependencies:[],delivery:"mailroom.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "unknown", "result": null, "error": null})};
-  const failed_notice = {dependencies:[],delivery:"mailroom.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "failed", "result": null, "error": {"code": "provider", "message": "Delivery rejected"}})};
-  const skipped_notice = {dependencies:[],delivery:"mailroom.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "skipped", "result": null, "error": null})};
+  const attempt={dependencies:[],delivery:"mailroom.Mail.send",values:async(c,s)=>({request:{to:"recipient@example.test",subject:"Notice",body:"Recorded decision"}})};
+  const pending_notice={dependencies:[],delivery:"mailroom.Mail.send",values:async(c,s)=>({request:{to:"recipient@example.test",subject:"Notice",body:"Recorded decision"}})};
   return {
-    pending_notice, accepted_notice, unknown_notice, failed_notice, skipped_notice,
+    attempt, pending_notice,
     nominee,
     unrelated,
     mail_operator,
@@ -2048,7 +2045,15 @@ export function exampleFixtures({ self, other, imported }) {
         ],
       },
 
-      {operation:"mailroom.notice_result",dependencies:[accepted_notice],inputs:async(c,s)=>({event:{delivery_id:s.accepted_notice.id,status:"succeeded",result:{reference:"accepted-mail"},error:null}}),selectors:["parcel.notification","parcel.state","event.delivery_id","event.status","event.result","event.error"],observations:[async(c,s)=>s.parcel.state,async(c,s)=>(await delivery(c,{record:s.parcel,field:"notification"},["status"]))?.status ?? null],rows:[{dependencies:[parcel,accepted_notice],values:async(c,s)=>[s.accepted_notice,"received",s.accepted_notice.id,"succeeded",{"reference": "accepted-mail"},null],expected:async(c,s)=>["notified", "succeeded"]},{dependencies:[parcel,accepted_notice,pending_notice],values:async(c,s)=>[s.pending_notice,"received",s.accepted_notice.id,"succeeded",{"reference": "accepted-mail"},null],expected:async(c,s)=>["received", "pending"]},{dependencies:[parcel,accepted_notice],values:async(c,s)=>[null,"received",s.accepted_notice.id,"succeeded",{"reference": "accepted-mail"},null],expected:async(c,s)=>["received", null]},{dependencies:[parcel,unknown_notice],values:async(c,s)=>[s.unknown_notice,"received",s.unknown_notice.id,"unknown",null,null],expected:async(c,s)=>["received", "unknown"]},{dependencies:[parcel,failed_notice],values:async(c,s)=>[s.failed_notice,"received",s.failed_notice.id,"failed",null,{"code": "provider", "message": "Delivery rejected"}],expected:async(c,s)=>["received", "failed"]},{dependencies:[parcel,skipped_notice],values:async(c,s)=>[s.skipped_notice,"received",s.skipped_notice.id,"skipped",null,null],expected:async(c,s)=>["received", "skipped"]},{dependencies:[parcel,accepted_notice],values:async(c,s)=>[s.accepted_notice,"collected",s.accepted_notice.id,"succeeded",{"reference": "accepted-mail"},null],expected:async(c,s)=>["collected", "succeeded"]}]},
+      {operation:"mailroom.notice_result",dependencies:[attempt],inputs:async(c,s)=>({event:{delivery_id:s.attempt.id,status:"succeeded",result:{reference:"accepted-mail"},error:null}}),selectors:["parcel.notification", "parcel.state", "event.delivery_id", "event.status", "event.result", "event.error", "attempt.status", "attempt.result", "attempt.error"],observations:[async(c,s)=>s.parcel.state,async(c,s)=>(await delivery(c,{record:s.parcel,field:"notification"},["status"]))?.status ?? null],rows:[
+          {dependencies:[parcel,attempt],values:async(c,s)=>[s.attempt, "received", s.attempt.id, "succeeded", {"reference": "accepted-mail"}, null, "succeeded", {reference:"accepted-mail"}, null],expected:async(c,s)=>["notified", "succeeded"]},
+          {dependencies:[parcel,attempt,pending_notice],values:async(c,s)=>[s.pending_notice, "received", s.attempt.id, "succeeded", {"reference": "accepted-mail"}, null, "succeeded", {reference:"accepted-mail"}, null],expected:async(c,s)=>["received", "pending"]},
+          {dependencies:[parcel,attempt],values:async(c,s)=>[null, "received", s.attempt.id, "succeeded", {"reference": "accepted-mail"}, null, "succeeded", {reference:"accepted-mail"}, null],expected:async(c,s)=>["received", null]},
+          {dependencies:[parcel,attempt],values:async(c,s)=>[s.attempt, "received", s.attempt.id, "unknown", null, null, "unknown", null, null],expected:async(c,s)=>["received", "unknown"]},
+          {dependencies:[parcel,attempt],values:async(c,s)=>[s.attempt, "received", s.attempt.id, "failed", null, {"code": "provider", "message": "Delivery rejected"}, "failed", null, {code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["received", "failed"]},
+          {dependencies:[parcel,attempt],values:async(c,s)=>[s.attempt, "received", s.attempt.id, "skipped", null, null, "skipped", null, null],expected:async(c,s)=>["received", "skipped"]},
+          {dependencies:[parcel,attempt],values:async(c,s)=>[s.attempt, "collected", s.attempt.id, "succeeded", {"reference": "accepted-mail"}, null, "succeeded", {reference:"accepted-mail"}, null],expected:async(c,s)=>["collected", "succeeded"]}
+        ]},
     ],
   };
 }

@@ -53,11 +53,10 @@ package grant
   lock Application fields=email,title,description,answers,amount,received,receipt_evidence,override_reason when=row.state!=draft
   lock Application fields=reviewer when=row.state!=draft and (row.state!=submitted or (reviewer(row.reviewer) and can_work(row.reviewer,row.parent.location)))
   ## Typed isolated receipt snapshots include a valid frozen request; no provider send is performed.
-  fixture pending_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=pending,result=null,error=null}
-  fixture accepted_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=succeeded,result={reference="accepted-mail"},error=null}
-  fixture unknown_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=unknown,result=null,error=null}
-  fixture failed_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=failed,result=null,error={code="provider",message="Delivery rejected"}}
-  fixture skipped_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=skipped,result=null,error=null}
+  fixture attempt=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"}}
+  ## Independent detached failure must not change the selected attempt.
+  fixture detached_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=failed,error={code="provider",message="Delivery rejected"}}
+  fixture detached_success=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=succeeded,result={reference="accepted-mail"}}
   fixture reviewer_user=user {roles=[reviewer]}
   fixture replacement_user=user {roles=[reviewer]}
   fixture coordinator_user=user {roles=[coordinator]}
@@ -328,18 +327,18 @@ package grant
     coordinator_user -> 0
     ordinary_user -> error(forbidden)
    ## Status-only receipt snapshots do not alter committed awards. A detached failed attempt cannot replace the current pending association.
-   examples seed=[coordinator_worker,submitted,failed_notice,accepted_notice] grant=program
-    as,submitted.state,submitted.decision,submitted.decided_by,submitted.decided_at,submitted.notice -> submitted.notice_state,submitted.state,submitted.decision,submitted.decided_by,submitted.decided_at,submitted.amount,count(result.items),program.remaining
-    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),accepted_notice -> succeeded,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
-    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),unknown_notice -> unknown,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
-    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),skipped_notice -> skipped,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
-    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),failed_notice -> failed,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
-    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),pending_notice -> pending,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
-    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),null -> null,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
-    coordinator_user,submitted,null,null,null,accepted_notice -> succeeded,submitted,null,null,null,money(60,"EUR"),0,money(100,"EUR")
-    coordinator_user,submitted,null,null,null,unknown_notice -> unknown,submitted,null,null,null,money(60,"EUR"),0,money(100,"EUR")
-    coordinator_user,submitted,null,null,null,skipped_notice -> skipped,submitted,null,null,null,money(60,"EUR"),0,money(100,"EUR")
-    coordinator_user,submitted,null,null,null,pending_notice -> pending,submitted,null,null,null,money(60,"EUR"),0,money(100,"EUR")
+   examples seed=[coordinator_worker,submitted,detached_notice,detached_success,attempt] grant=program
+    as,submitted.state,submitted.decision,submitted.decided_by,submitted.decided_at,submitted.notice,attempt.status,attempt.result,attempt.error -> submitted.notice_state,submitted.state,submitted.decision,submitted.decided_by,submitted.decided_at,submitted.amount,count(result.items),program.remaining
+    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),attempt,succeeded,{reference="accepted-mail"},null -> succeeded,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
+    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),attempt,unknown,null,null -> unknown,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
+    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),attempt,skipped,null,null -> skipped,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
+    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),attempt,failed,null,{code="provider",message="Delivery rejected"} -> failed,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
+    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),attempt,pending,null,null -> pending,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
+    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),null,pending,null,null -> null,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
+    coordinator_user,submitted,null,null,null,attempt,succeeded,{reference="accepted-mail"},null -> succeeded,submitted,null,null,null,money(60,"EUR"),0,money(100,"EUR")
+    coordinator_user,submitted,null,null,null,attempt,unknown,null,null -> unknown,submitted,null,null,null,money(60,"EUR"),0,money(100,"EUR")
+    coordinator_user,submitted,null,null,null,attempt,skipped,null,null -> skipped,submitted,null,null,null,money(60,"EUR"),0,money(100,"EUR")
+    coordinator_user,submitted,null,null,null,attempt,pending,null,null -> pending,submitted,null,null,null,money(60,"EUR"),0,money(100,"EUR")
  Then
   # Discover the published cash-award terms and use private applicant intake. @{nl="Bekijk de gepubliceerde subsidievoorwaarden en gebruik de private aanvraagprocedure."}
   page /awards title="Funded programs"@{nl="Financieringsprogramma's"}
