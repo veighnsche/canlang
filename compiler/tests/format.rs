@@ -72,14 +72,18 @@ fn corpus_files() -> Vec<std::path::PathBuf> {
     files
 }
 
-/// Tolerant corpus mode: the parser on this base rejects newer draft
-/// syntax (48/54 files report E1200s; `syntax::golden_corpus_parses_clean`
-/// is red on main too — pre-existing, sibling-owned parser catch-up), so
-/// each file below either formats (and must then be idempotent with a
-/// trivia-stable CST) or is refused with diagnostics and no output.
-/// Tighten back to strict all-format once the sibling parser catch-up
-/// merges. The shelf's `expected_corpus_errors` pin (`each=` E1203s) was
-/// deleted per its own instruction: those drafts now parse.
+/// Corpus files that do not parse under the current grammar: file name to
+/// the exact expected diagnostic codes (sorted). The formatter must refuse
+/// these with `FormatError` rather than emit output; the files themselves
+/// are sibling-owned (the `each=` trusted-scenario attribute they use is
+/// not in GRAMMAR.md and the parser rejects it with E1203 — either the
+/// grammar/parser or the two drafts must change, both outside this lane).
+fn expected_corpus_errors(file_name: &str) -> Option<Vec<&'static str>> {
+    match file_name {
+        "CanShift.can" | "CanVolunteer.can" => Some(vec!["E1203", "E1203"]),
+        _ => None,
+    }
+}
 
 #[test]
 fn corpus_formats_cleanly_and_is_idempotent() {
@@ -91,21 +95,55 @@ fn corpus_formats_cleanly_and_is_idempotent() {
     );
     let mut failures = Vec::new();
     let mut table = Vec::new();
-    let mut refused = 0usize;
+    let mut expected_seen = 0usize;
     for path in &files {
         let text = std::fs::read_to_string(path).unwrap();
+        let name = path
+            .file_name()
+            .expect("corpus file must have a name")
+            .to_string_lossy()
+            .into_owned();
+        let expected = expected_corpus_errors(&name);
         match format_source(SourceId(0), &text) {
             Err(error) => {
-                // Refused: must carry at least one diagnostic (never a
-                // silent refusal); no output exists by construction
-                // (`FormatError` has no text field).
-                refused += 1;
-                if error.diagnostics.is_empty() {
-                    failures.push(format!("{}: refused without diagnostics", path.display()));
+                let mut codes: Vec<&str> = error.diagnostics.iter().map(|d| d.code).collect();
+                codes.sort_unstable();
+                match expected {
+                    Some(want) if codes == want => {
+                        expected_seen += 1;
+                        table.push(format!(
+                            "{:>9}  {} (expected {})",
+                            "ERROR",
+                            path.display(),
+                            want.join(",")
+                        ));
+                    }
+                    Some(want) => failures.push(format!(
+                        "{}: expected [{}], got [{codes:?}]",
+                        path.display(),
+                        want.join(",")
+                    )),
+                    None => {
+                        let file = path.display();
+                        let count = error.diagnostics.len();
+                        failures.push(format!("{file}: {count} diagnostic(s)"));
+                        for diagnostic in &error.diagnostics {
+                            let code = diagnostic.code;
+                            let message = &diagnostic.message;
+                            failures.push(format!("  {code} {message}"));
+                        }
+                        table.push(format!("{:>9}  {}", "ERROR", path.display()));
+                    }
                 }
-                table.push(format!("{:>9}  {}", "refused", path.display()));
             }
             Ok(first) => {
+                if expected.is_some() {
+                    failures.push(format!(
+                        "{}: expected a parse error, but it formatted",
+                        path.display()
+                    ));
+                    continue;
+                }
                 let label = if first.changed {
                     "changed"
                 } else {
@@ -134,11 +172,12 @@ fn corpus_formats_cleanly_and_is_idempotent() {
             }
         }
     }
-    table.sort();
-    println!(
-        "corpus format table ({} files, {refused} refused):",
-        table.len()
+    assert_eq!(
+        expected_seen, 2,
+        "both known-unparseable corpus files must still be present"
     );
+    table.sort();
+    println!("corpus format table ({} files):", table.len());
     for row in &table {
         println!("{row}");
     }
@@ -366,15 +405,10 @@ fn invalid_sources_yield_diagnostics_and_no_output() {
     }
 }
 
-// The three tests below are verbatim from the track-D shelf but ignored
-// until the sibling parser catch-up merges: the judgment / gallery /
-// countdown / badge / modal / corpus / invocation syntax they use is
-// rejected by the parser on this base (E1200/E1213). Un-ignore (and
-// tighten the corpus test above to strict all-format) after rebasing
-// onto the parser update.
+// The three tests below are verbatim from the track-D shelf (un-ignored
+// once the PR4 grammar catch-up merged).
 
 #[test]
-#[ignore = "needs sibling parser: judgment/gallery/invocation syntax (E1200/E1213 on this base)"]
 fn judgment_items_format() {
     let formatted = format_fixed_point(
         "app A\nGiven\n export judgment  Review  version=1\n  factual  noul  \"Supported?\"  yes = \"Yes\"  no = \"No\"\n  readiness  score  \"Ready?\"[low = \"Low\" , high = \"High\"]\n  pick  choice  \"Pick?\"{a = \"A\" , b = \"B\"}\n  smart  choice  \"Smart?\"  options = runtime{none = \"None\"}\nWhen\nThen\n",
@@ -387,7 +421,6 @@ fn judgment_items_format() {
 }
 
 #[test]
-#[ignore = "needs sibling parser: gallery/countdown/badge/modal/corpus syntax (E1200 on this base)"]
 fn corpus_gallery_catalog_slot_and_edit_format() {
     let formatted = format_fixed_point(
         "app A\nGiven\n corpus  Handbook  model = Revision  scope = site  title = title  content = body , attachments  where = live(row)  from = deployment.knowledge\nWhen\nThen\n page  /handbook  title = \"Handbook\"@{nl=\"Handboek\"}\n  ## Section comment.   \n  # Gallery prose.\n  gallery  Revision  as  revision  where  live(revision)  image = cover\n   title  row.title\n   text  row.body\n  countdown(row.updated+7d)-now\n  badge  \"New\" ; countdown (row.updated)-now\n  modal  \"Notice\"  open = show\n   slot  content\n    text  row.body\n  edit  fields = title , body\n",
@@ -400,7 +433,6 @@ fn corpus_gallery_catalog_slot_and_edit_format() {
 }
 
 #[test]
-#[ignore = "needs sibling parser: invocation/gallery syntax (E1200/E1213 on this base)"]
 fn invocation_and_group_heads_format() {
     let formatted = format_fixed_point(
         "app A\nGiven\n M {x:int , call : invocation( A.update , B )?}\nWhen\n scenario s(m:M) by=members\n  do\n   let v = invocation( A.update , { record = m } )\nThen\n page /m title=\"M\"\n  gallery(items) image=cover\n",

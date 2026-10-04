@@ -96,7 +96,7 @@ pub fn entry_to_text(info: &CodeInfo) -> String {
     out
 }
 
-const CATALOG: [CodeInfo; 84] = [
+const CATALOG: [CodeInfo; 83] = [
     CodeInfo {
         code: "E1001",
         title: "bare-carriage-return",
@@ -712,14 +712,6 @@ const CATALOG: [CodeInfo; 84] = [
         explanation: "`can run|test|build|deploy` are thin lane-7 entries that exec the `can-platform` CLI with argument passthrough. It was not found on PATH and `CAN_PLATFORM_BIN` is unset. Install the lane-7 producer or set `CAN_PLATFORM_BIN`. `can` never embeds a second platform engine.",
         example_valid: "CAN_PLATFORM_BIN=/usr/local/bin/can-platform can run",
         example_invalid: "can run   # without can-platform installed",
-    },
-    CodeInfo {
-        code: "E7005",
-        title: "formatter-unimplemented",
-        severity: Severity::Error,
-        explanation: "`can fmt` needs the lossless CST formatter (slice 2b). Until then it reports this error and never a false clean. Exit status is 2.",
-        example_valid: "can check main.can",
-        example_invalid: "can fmt --check main.can   # until slice 2b",
     },
     CodeInfo {
         code: "E7006",
