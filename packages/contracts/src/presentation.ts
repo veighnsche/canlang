@@ -23,7 +23,7 @@ import type { DeliveryStatus } from "./services.js";
 export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
 export type { DeliveryStatus } from "./services.js";
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.10.0";
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.11.0";
 
 /**
  * Name of the hidden CSRF field in every canonical POST form. Rendered by
@@ -1045,4 +1045,273 @@ export interface RadialProgressProps {
 export interface TextRotateProps {
   readonly context: PresentationContext;
   readonly items: ReadonlyArray<MessageValue>;
+}
+
+// ---------------------------------------------------------------------------
+// C5 container groups (groups.ts): accordion, collapse, fieldset, join, stack,
+// hero, footer, stat, steps, timeline, carousel, diff.
+// ---------------------------------------------------------------------------
+
+/** One `accordion` disclosure item: required caption, content suite, single-open flag. */
+export interface AccordionItem {
+  readonly caption: MessageValue;
+  readonly children: PageChildren;
+  readonly open?: boolean;
+}
+
+/** `accordion` single-open disclosure group (pinned upstream radio-input pattern). */
+export interface AccordionProps {
+  readonly context: PresentationContext;
+  readonly items: ReadonlyArray<AccordionItem>;
+  readonly id?: string;
+}
+
+/** `collapse` native details/summary disclosure with a required caption. */
+export interface CollapseProps {
+  readonly context: PresentationContext;
+  readonly caption: MessageValue;
+  readonly children: PageChildren;
+  readonly open?: boolean;
+  readonly id?: string;
+}
+
+/** `fieldset` native group for existing form fields; legend only when captioned. */
+export interface FieldsetProps {
+  readonly context: PresentationContext;
+  readonly caption?: MessageValue;
+  readonly children: PageChildren;
+  readonly id?: string;
+}
+
+/** `join` visual grouping of existing controls (container only; children own join-item). */
+export interface JoinProps {
+  readonly context: PresentationContext;
+  readonly children: PageChildren;
+  readonly orientation?: AppearanceOrientation;
+  readonly id?: string;
+}
+
+/** `stack` visual stacking of scoped content. */
+export interface StackProps {
+  readonly context: PresentationContext;
+  readonly children: PageChildren;
+  readonly id?: string;
+}
+
+/** Closed start/content/end slot schema shared by `hero` and `footer`. */
+export interface HeroSlots {
+  readonly content: PageChild;
+  readonly start?: PageChild;
+  readonly end?: PageChild;
+}
+
+/** `hero` prominent group: either children or slots, never both and never neither. */
+export interface HeroProps {
+  readonly context: PresentationContext;
+  readonly caption?: MessageValue;
+  readonly children?: PageChildren;
+  readonly slots?: HeroSlots;
+  readonly id?: string;
+}
+
+/** Closed start/content/end slot schema for `footer`. */
+export interface FooterSlots {
+  readonly content: PageChild;
+  readonly start?: PageChild;
+  readonly end?: PageChild;
+}
+
+/** `footer` page footer group: either children or slots, never both and never neither. */
+export interface FooterProps {
+  readonly context: PresentationContext;
+  readonly caption?: MessageValue;
+  readonly children?: PageChildren;
+  readonly slots?: FooterSlots;
+  readonly orientation?: AppearanceOrientation;
+  readonly id?: string;
+}
+
+/** `stat` typed metric: required value plus optional title/description/icon slots. */
+export interface StatProps {
+  readonly context: PresentationContext;
+  readonly value: TextValue;
+  readonly title?: MessageValue;
+  readonly description?: MessageValue;
+  readonly icon?: PageChild;
+  readonly orientation?: AppearanceOrientation;
+  readonly id?: string;
+}
+
+/** One `steps` stage: label plus item-only tone and optional marker. */
+export interface StepItem {
+  readonly label: TextValue;
+  readonly tone?: AppearanceTone;
+  readonly marker?: string;
+}
+
+/** `steps` ordered process stages as a semantic list. */
+export interface StepsProps {
+  readonly context: PresentationContext;
+  readonly items: ReadonlyArray<StepItem>;
+  readonly orientation?: AppearanceOrientation;
+  readonly id?: string;
+}
+
+/** One `timeline` entry: at least a start or an end, optional middle. */
+export interface TimelineItem {
+  readonly start?: PageChild;
+  readonly middle?: PageChild;
+  readonly end?: PageChild;
+}
+
+/** `timeline` ordered entries as a semantic list. */
+export interface TimelineProps {
+  readonly context: PresentationContext;
+  readonly items: ReadonlyArray<TimelineItem>;
+  readonly orientation?: AppearanceOrientation;
+  readonly id?: string;
+}
+
+/** `carousel` ordered readable content with explicit item slots. */
+export interface CarouselProps {
+  readonly context: PresentationContext;
+  readonly items: ReadonlyArray<PageChild>;
+  readonly orientation?: AppearanceOrientation;
+  readonly id?: string;
+}
+
+/** `diff` two-slot before/after presentation (no automatic business comparison). */
+export interface DiffProps {
+  readonly context: PresentationContext;
+  readonly before: PageChild;
+  readonly after: PageChild;
+  readonly id?: string;
+}
+
+// ---------------------------------------------------------------------------
+// C5 floating/feedback/effect overlays (overlays.ts): alert, toast, tooltip,
+// indicator, chat_bubble, dropdown, modal, drawer, swap, fab, aura, mask,
+// hover_3d, hover_gallery.
+// ---------------------------------------------------------------------------
+
+/** `alert` readable notice or operation feedback: value leaf or content suite. */
+export interface AlertProps {
+  readonly context: PresentationContext;
+  readonly value?: TextValue;
+  readonly children?: PageChildren;
+  readonly tone?: AppearanceTone;
+  readonly variant?: AppearanceVariant;
+  readonly orientation?: AppearanceOrientation;
+  readonly regionId?: string;
+}
+
+/** `toast` notice placement: container plus one message leaf or suite. */
+export interface ToastProps {
+  readonly context: PresentationContext;
+  readonly message?: TextValue;
+  readonly children?: PageChildren;
+  readonly regionId?: string;
+}
+
+/** `tooltip` annotation: required caption plus the annotated content. */
+export interface TooltipProps {
+  readonly context: PresentationContext;
+  readonly caption: MessageValue;
+  readonly content: PageChildren;
+  readonly tone?: AppearanceTone;
+}
+
+/** `indicator` explicit content plus indicator slots. */
+export interface IndicatorProps {
+  readonly context: PresentationContext;
+  readonly content: PageChildren;
+  readonly indicator: PageChildren;
+}
+
+/** `chat_bubble` message with start/end alignment and optional slots. */
+export interface ChatBubbleProps {
+  readonly context: PresentationContext;
+  readonly side?: "start" | "end";
+  readonly content: PageChildren;
+  readonly avatar?: PageChildren;
+  readonly header?: PageChildren;
+  readonly footer?: PageChildren;
+  readonly tone?: AppearanceTone;
+}
+
+/** `dropdown` explicit trigger and content slots with focus behavior. */
+export interface DropdownProps {
+  readonly context: PresentationContext;
+  readonly trigger: PageChildren;
+  readonly content: PageChildren;
+}
+
+/** `modal` activated dialog: required caption/content, optional id/slots. */
+export interface ModalProps {
+  readonly context: PresentationContext;
+  readonly caption: MessageValue;
+  readonly id?: string;
+  readonly content: PageChildren;
+  readonly trigger?: PageChildren;
+  readonly actions?: PageChildren;
+  readonly variant?: AppearanceVariant;
+}
+
+/** `drawer` activated side panel: required caption, id and content. */
+export interface DrawerProps {
+  readonly context: PresentationContext;
+  readonly caption: MessageValue;
+  readonly id: string;
+  readonly content: PageChildren;
+  readonly trigger?: PageChildren;
+  readonly actions?: PageChildren;
+  readonly variant?: AppearanceVariant;
+}
+
+/** `swap` two presentation slots selected by explicit or transient state. */
+export interface SwapProps {
+  readonly context: PresentationContext;
+  readonly on: PageChildren;
+  readonly off: PageChildren;
+  readonly active?: boolean;
+  readonly label?: MessageValue;
+}
+
+/** `fab` main trigger plus a nonempty suite of canonical action controls. */
+export interface FabProps {
+  readonly context: PresentationContext;
+  readonly label?: MessageValue;
+  readonly main: PageChildren;
+  readonly actions: PageChildren;
+}
+
+/** `aura` decoration around existing content. */
+export interface AuraProps {
+  readonly context: PresentationContext;
+  readonly content: PageChildren;
+  readonly size?: AppearanceSize;
+}
+
+/** `mask` visual shape around existing content. */
+export interface MaskProps {
+  readonly context: PresentationContext;
+  readonly content: PageChildren;
+}
+
+/** `hover_3d` decorative wrapper; interactive descendants are invalid. */
+export interface Hover3dProps {
+  readonly context: PresentationContext;
+  readonly content: PageChildren;
+}
+
+/** One `hover_gallery` image: safe source plus its accessible alternative. */
+export interface HoverGalleryImage {
+  readonly src: string;
+  readonly alt: MessageValue;
+}
+
+/** `hover_gallery` 1..10 authorized images with keyboard/touch access. */
+export interface HoverGalleryProps {
+  readonly context: PresentationContext;
+  readonly images: ReadonlyArray<HoverGalleryImage>;
 }
