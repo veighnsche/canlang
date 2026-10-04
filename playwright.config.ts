@@ -3,7 +3,7 @@
 // there is intentionally NO webServer block: one startLocalDev per worker
 // is the D1 isolation mechanism, and the bridge URL is dynamic per worker.
 //
-// Run with root `npm run test:e2e` (L7 PR23: @playwright/test + CI job).
+// Run with root `bun run test:e2e` (L7 PR23: @playwright/test + CI job).
 // Chromium-only until the first green TeamTasks run.
 import { defineConfig, devices } from "@playwright/test";
 
