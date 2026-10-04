@@ -80,6 +80,7 @@ package expenses
     form Expense.create
    card "Review status and decisions"@{nl="Beoordelingsstatus en besluiten"}
     list Expense order=-created filter=status defaults={status=preferences.status} display=split
+     badge row.status
      edit
      actions submit,approve,reject
      history
