@@ -44,6 +44,7 @@ const TAILWIND_UTILS = new Set([
   "flex-1",
   "flex-col",
   "font-bold",
+  "gap-2",
   "gap-4",
   "grid",
   "grid-cols-2",
