@@ -82,6 +82,36 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
+## Slice 14: full replan Member (branch muse/frontend-catalog-migration/slice-14-member, in progress)
+
+Paths: draft/CanMember (.can+.md, .mjs new) + this status file. Source:
+lane-K drafter output under /tmp/sliceK-member, applied + corrected by
+coordinator. Coordinator corrections to draft: 8 modal forms gain
+display=inline; refund_term modals gain input amount (money, required);
+cancel_membership modal gains input effective (datetime, required);
+Plan.create gains price/months/guest_limit/seats inputs;
+AccessHours.create gains close_after; Benefit.create gains
+quantity/duration/overage; Content.create gains attachment file_input +
+staff_only checkbox (all mirrored in the witness; witness modal captions
+fixed to caption: convention). Array fields (locations/products/weekdays/
+plans) stay unplaced: no catalog array control (Loyalty Program precedent);
+handoff (a). Kept from draft after verification: dropdown-free modal suite;
+Allowance.unit badge (Benefit.unit reference, Affiliate provider_state
+precedent); Term collection/cancellation/refund_access badges (own enums);
+stat on owned Allowance derives (Affiliate available() precedent); text
+access_review result (base); title row.title (base syntax); bare term/assign/
+access_review/recheck_access (bare-form generation, base pattern); now
+where-filters (base). Given/When byte-identical (splice-verified; zero
+non-Then removals). Witness: new Then-only file (no base .mjs; blanket
+desired/unimplemented header). node --check clean.
+Census: 22 collections w/ empty+pagination; 7 pages w/ breadcrumbs; 8/8/8/8
+modal/button/slot/inline. Drift: +132 E1200 (base clean), no E1204. Ok on
+main. Prototype stops at first new-catalog primitive (L30 breadcrumbs);
+base stops at pre-existing L620 Given gap.
+Handoff: (a) array control for locations/products/weekdays/plans;
+(b) duration/money scalar input rendering; (c) modal/calendar/badge/copy/
+file-input/select/radio/checkbox/textarea/stat/tooltip/join renderers.
+
 ## Slice 13: full replan Invoice (branch muse/frontend-catalog-migration/slice-13-invoice, in progress)
 
 Paths: draft/CanInvoice (.can+.md, .mjs new) + this status file. Source: lane-K
