@@ -144,8 +144,8 @@ pub enum FixtureTarget {
     User,
     /// `fixture n=file {...}`.
     File,
-    /// Operation-resolved delivery recipe.
-    Operation,
+    /// Operation-resolved delivery recipe (`None` = bound-external/opaque).
+    Operation(Option<SymbolId>),
     /// Unresolved head (`E2001` already reported).
     Unknown,
 }
@@ -3004,18 +3004,18 @@ impl<'a> Resolver<'a> {
                         SymbolKind::Scenario { .. }
                         | SymbolKind::Capability { .. }
                         | SymbolKind::CapabilityOp { .. }
-                        | SymbolKind::CrudOp { .. } => FixtureTarget::Operation,
+                        | SymbolKind::CrudOp { .. } => FixtureTarget::Operation(Some(id)),
                         _ => FixtureTarget::Unknown,
                     };
                 }
-                Some(ScopedName::External { .. }) => return FixtureTarget::Operation,
+                Some(ScopedName::External { .. }) => return FixtureTarget::Operation(None),
                 None => {}
             }
         }
         if segments.len() == 2 {
             if let Some(op) = self.resolve_op_path(module, segments, node, text, diags) {
                 self.tables.node_symbol.insert(NodeKey::of(node), op);
-                return FixtureTarget::Operation;
+                return FixtureTarget::Operation(Some(op));
             }
             return FixtureTarget::Unknown;
         }

@@ -1,14 +1,16 @@
-//! Name resolution and type checking (lane-01 analysis, PR4).
+//! Name resolution and type checking (lane-01 analysis, PR5).
 //!
 //! Pipeline: [`check_program`] runs parse (`E1xxx`, see [`crate::syntax`])
-//! then resolve ([`resolve`], `E2xxx`) then types ([`types`], `E3xxx`).
-//! The producer catalog ([`catalog`], `E6xxx`) is loaded by the caller and
-//! consulted for builtin call shapes; helpers are codegen-only and never
-//! callable from source.
+//! then resolve ([`resolve`], `E2xxx`) then types ([`types`], `E3xxx`)
+//! then effects ([`effects`], `E4xxx`) then examples ([`examples`],
+//! `E5xxx`), with cross-pass dedup/sort in [`check`]. The producer
+//! catalog ([`catalog`], `E6xxx`) is loaded by the caller and consulted
+//! for builtin call shapes; helpers are codegen-only and never callable
+//! from source.
 //!
-//! `DiagnosticResult.complete` stays `false`: effects, examples, UI shape
-//! rules, handler sources and codegen are PR5+. See [`CheckedProgram`] for
-//! the PR5/codegen input contract and the deferred-check inventory.
+//! The pipeline is complete: [`check_program`] runs every pass and callers
+//! report `complete=true` (gated by [`check::readiness`]). See
+//! [`CheckedProgram`] for the codegen input contract.
 //!
 //! Recorded hole (M6): catalog-item `NAME=word` options are catalog
 //! vocabulary, not name references, so neither pass resolves them and
@@ -17,10 +19,15 @@
 //! `slot`/`preferences` children resolve and type normally.
 
 pub mod catalog;
+pub mod check;
+pub mod effects;
+pub mod examples;
 pub mod resolve;
 pub mod types;
 
 pub use catalog::Catalog;
+pub use effects::EffectTables;
+pub use examples::ExampleTables;
 pub use resolve::{Module, ModuleId, ResolveTables, Symbol, SymbolId, SymbolKind};
 pub use types::{ResolvedType, Scalar, TypeTable};
 
@@ -75,18 +82,21 @@ pub struct CheckedProgram {
     pub symbols: Vec<Symbol>,
     /// Resolved types per symbol and per typed CST node.
     pub types: TypeTable,
+    /// Effects, handlers and rule tables (PR5A).
+    pub effects: EffectTables,
+    /// Fixture, behavior-table and sequence tables (PR5B).
+    pub examples: ExampleTables,
     /// `catalog_version` of the producer catalog consulted, or the empty
     /// string when no catalog was available (an `E6xxx` is then reported).
     pub catalog_version: String,
 }
 
-/// Run parse + resolve + types over `files`.
+/// Run the full check pipeline over `files`.
 ///
 /// Returns the checked program plus every diagnostic (`E1xxx` parse,
-/// `E2xxx` resolve, `E6xxx` catalog-shape; `E3xxx` types). The caller
-/// merges catalog-*loading* diagnostics (see [`catalog::load_catalog`]).
-/// Callers must report `complete=false`: effects, examples, UI shape
-/// rules, handler sources and codegen are PR5+ (see [`CheckedProgram`]).
+/// `E2xxx` resolve, `E6xxx` catalog-shape, `E3xxx` types, `E4xxx`
+/// effects, `E5xxx` examples), deduplicated and sorted. The caller merges
+/// catalog-*loading* diagnostics (see [`catalog::load_catalog`]).
 pub fn check_program(
     db: &SourceDb,
     files: &[SourceId],
@@ -102,13 +112,30 @@ pub fn check_program(
     let resolve_tables = resolve::resolve_program(db, &trees, catalog, &mut diagnostics);
     let types = types::check_types(db, &trees, catalog, &resolve_tables, &mut diagnostics);
     resolve::emit_unresolved(db, &resolve_tables, &types, &mut diagnostics);
-    diagnostics.sort_by(|a, b| {
-        (a.primary.file, a.primary.start, &a.code).cmp(&(b.primary.file, b.primary.start, &b.code))
-    });
+    let effects = effects::check_effects(
+        db,
+        &trees,
+        &resolve_tables,
+        &types,
+        catalog,
+        &mut diagnostics,
+    );
+    let examples = examples::check_examples(
+        db,
+        &trees,
+        &resolve_tables,
+        &types,
+        catalog,
+        &mut diagnostics,
+    );
+    let mut diagnostics = check::dedup_diagnostics(diagnostics);
+    check::sort_diagnostics(&mut diagnostics);
     let program = CheckedProgram {
         modules: resolve_tables.modules.clone(),
         symbols: resolve_tables.symbols.clone(),
         types,
+        effects,
+        examples,
         catalog_version: catalog.map_or_else(String::new, |c| c.version().to_string()),
     };
     (program, diagnostics)
