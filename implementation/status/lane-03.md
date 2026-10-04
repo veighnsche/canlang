@@ -261,6 +261,23 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   archived-update pipeline/admission split documented.
   S5 merged (2c3610a, PR #41). S6 branch `muse/lane-03-state/ports-staging`
   from 2c3610a.
+  S6 storage worker DONE (contracts `outboxAck`/`ScheduleEntry`/4 readers;
+  memory/D1/DO adapters + ack-after-insert, orderings). S6 ports worker DONE,
+  committed `e0bc6a0` (+771/-13): `internal/json`, `effects/staging`
+  (fail-closed; cross-op intents forbidden, batch-unique ids, dup schedule
+  keys last-wins, past `at` allowed), invoke re-validation inside try
+  (malformed executor output -> fenced rejected receipt), `ports/
+  {read,transact,system}` + barrel types. Self-reviewed: no material
+  findings; minors noted (null-raw executor still bug-propagates per
+  contract; dead branch in bindQueryRecords; system commit `created_at`
+  uses Date.now not ctx.now). Test worker DONE: test/ports/* 45/45
+  (staging 25, read 8, transact 3, system 6, atomicity 3) + conformance +7
+  cases x3 backends; full suite 313/313 observed by worker, re-verified by
+  coordinator 313/313 + typecheck clean. Divergence fixed by coordinator:
+  cross-invoke dup intentId surfaced raw StorageConstraintError(kind unknown);
+  adapters now map outbox dup to `unique` (memory direct; D1/DO match
+  'outbox' in SQLite message) -> thrown StateError `conflict` per plan;
+  conformance pins kind on all 3 backends, atomicity pins conflict.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
