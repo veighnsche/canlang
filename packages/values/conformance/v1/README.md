@@ -17,22 +17,32 @@ re-implementing the codecs.
   ordered `[{ path, code }]` list the thrown `SchemaError` must carry
   exactly; `secret` rows additionally set `encodeRefused: true` plus
   `encodeError: { class, code }`, meaning `encodeValue` of any secret
-  value must throw that exact error.
-- `builtinCalls` — executable rows for every catalog builtin (32) and helper
-  (22) with `availability: "implemented"`, keyed by catalog `id`. Each row is
+  value must throw that exact error. New kinds: `invocation` (valid
+  round-trip plus bad-target/bad-arg-type/allowlist rejections), `json`
+  (object/array/scalar rows plus number rejections), and `email`/`url`
+  accept/reject rows for the validated string rules.
+- `builtinCalls` — executable rows for every catalog builtin (34) and helper
+  (23) with `availability: "implemented"`, keyed by catalog `id`. Each row is
   `{ id, args, expected }` or `{ id, args, expectedError }`, where `args` is
   the exact positional argument list the JS function takes. See "Argument
   specs" below for the encodings. `expectedError` is
   `{ class: "ValueError", code }` with a `ValueFailureCode`, or
   `{ class: "SchemaError", codes? }` with an ordered violation-code list.
+  New kinds: `choose` (true/false selection plus a non-boolean error row),
+  `invocation` (packaging plus a bad-target error row), `divideDurationMs`
+  (duration/duration ratio plus division-by-zero), and an M1 `sum` order
+  pair (reversed money domains pinning order-independent totals).
 - `operationSamples` — one realistic descriptor pair plus cases:
-  - `schema`: contracts (`TodoForm` with bounds, defaults and a
-    `text[]!` required-array field), enums (`TodoStatus`), operations (query
-    `listTodos`, mutation `completeTodo`). Nominals outside
-    contracts/enums are model references (here `Todo`); `operation_id` is
-    required for mutations and rejected for queries.
+  - `schema`: contracts (`TodoForm` with bounds, defaults, a `trim`med
+    title and a `text[]!` required-array field; `BoundedList` with a
+    `min: 1` array for omitted-bound cases), enums (`TodoStatus`),
+    operations (query `listTodos`, mutation `completeTodo`). Nominals
+    outside contracts/enums are model references (here `Todo`);
+    `operation_id` is required for mutations and rejected for queries.
   - `valueCases`: `{ typeId, mode, wire, expected | expectedViolations }`
-    for `validateValue`.
+    for `validateValue`. New kinds: a padded-title case pinning `trim`
+    normalization, and `BoundedList` cases pinning fail-closed omitted
+    bounds (omitted `min: 1` array fails; explicit `["a"]` passes).
   - `inputCases`: `{ op, args, expected | expectedViolations }` for
     `validateOperationInput`.
   - Schema failures are violation-code lists only. BDD rule: a `SchemaError`

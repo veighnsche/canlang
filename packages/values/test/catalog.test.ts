@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { CATALOG, LANE02_CATALOG_VERSION } from "../src/catalog.js";
 import { VALUES_CONTRACT_VERSION } from "../../contracts/src/values.js";
 
-/** The closed DESIGN §3 builtin names (L215), as an independent oracle. */
+/** The closed DESIGN §3 builtin names (L215/L221), as an independent oracle. */
 const EXPECTED_BUILTINS = [
   "count", "sum", "min", "max", "any", "all", "first", "group", "flatten",
-  "at", "abs", "round", "lower", "upper", "trim", "contains", "starts_with",
+  "at", "choose", "abs", "round", "lower", "upper", "trim", "contains", "starts_with",
   "join", "format", "app_url", "active_member", "overlaps", "local_date",
   "local_instant", "add_days", "add_months", "date_year", "weekday", "dates",
-  "money", "date", "datetime", "action", "random_secret",
+  "money", "date", "datetime", "action", "invocation", "random_secret",
 ];
 
 /** The DESIGN §13 lowering helpers (L992), as an independent oracle. */
@@ -26,7 +26,7 @@ const EXPECTED_HELPERS = [
  */
 const EXPECTED_GAP_HELPERS = [
   "addDecimal", "subtractDecimal", "multiplyDecimal", "negateDecimal",
-  "divideMoney", "divideDurationByInt",
+  "divideMoney", "divideDurationByInt", "divideDurationMs",
 ];
 
 describe("builtin catalog", () => {
@@ -76,12 +76,33 @@ describe("builtin catalog", () => {
     assert.ok(signature.startsWith("equalValue(c:"), signature);
   });
 
+  it("covers every closed §3 builtin name (DESIGN L221 mirror)", () => {
+    // Verbatim transcription of the closed builtin sentence; update both
+    // sides together. This pin exists because `invocation` and `choose`
+    // were once missed (audit B2/B4).
+    const closed = [
+      "count", "sum", "min", "max", "any", "all", "first", "group",
+      "flatten", "at", "abs", "round", "lower", "upper", "trim",
+      "contains", "starts_with", "join", "format", "app_url",
+      "active_member", "overlaps", "local_date", "local_instant",
+      "add_days", "add_months", "date_year", "weekday", "dates",
+      "money", "date", "datetime", "action", "invocation", "choose",
+      "random_secret",
+    ];
+    assert.equal(closed.length, 36);
+    const ids = new Set(CATALOG.entries.map((entry) => entry.id));
+    for (const name of closed) {
+      assert.ok(ids.has(name), `missing builtin: ${name}`);
+    }
+  });
+
   it("marks the PR4/PR5 slices implemented with no builtin left planned", () => {
     const byId = new Map(CATALOG.entries.map((entry) => [entry.id, entry]));
     const implemented = [
       "count", "flatten", "min", "max", "any", "all", "first", "group",
-      "at", "lower", "upper", "trim", "contains", "starts_with", "join",
-      "format", "same", "equalValue", "sum", "abs", "app_url", "action",
+      "at", "choose", "lower", "upper", "trim", "contains", "starts_with", "join",
+      "format", "same", "equalValue", "sum", "abs", "app_url", "action", "invocation",
+      "divideDurationMs",
     ];
     for (const id of implemented) {
       assert.equal(byId.get(id)?.availability, "implemented", id);

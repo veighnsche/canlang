@@ -47,12 +47,14 @@ describe("bounded profile accept matrix", () => {
     assert.equal(renderMessage("{n,number}", { n: intParam(1234567n) }, "de"), "1.234.567");
   });
 
-  it("renders {n,number,integer} with half-even rounding", () => {
-    const args = { n: { type: "decimal", value: new Decimal(25n, 1) } as MessageParam };
-    assert.equal(renderMessage("{n,number,integer}", args, "en"), "2");
-    const up = { n: { type: "decimal", value: new Decimal(35n, 1) } as MessageParam };
-    assert.equal(renderMessage("{n,number,integer}", up, "en"), "4");
+  it("renders {n,number,integer} for ints and rejects decimals", () => {
     assert.equal(renderMessage("{n,number,integer}", { n: intParam(42n) }, "en"), "42");
+    assert.equal(renderMessage("{n,number,integer}", { n: intParam(-1234567n) }, "en"), "-1,234,567");
+    const decimal = { n: { type: "decimal", value: new Decimal(25n, 1) } as MessageParam };
+    assertValueError(() => renderMessage("{n,number,integer}", decimal, "en"), "invalid-construction");
+    const declared: Record<string, MessageParamType> = { n: "decimal" };
+    assertValueError(() => validateMessagePattern("{n,number,integer}", declared), "invalid-construction");
+    assert.equal(renderMessage("{n,number}", decimal, "en"), "2.5");
   });
 
   it("renders {d,date} defaulting to medium style", () => {
@@ -341,7 +343,7 @@ describe("exactness without Number routing", () => {
   it("renders negative numbers with the locale minus sign", () => {
     assert.equal(renderMessage("{n,number}", { n: intParam(-1234567n) }, "en"), "-1,234,567");
     const neg = { n: { type: "decimal", value: new Decimal(-25n, 1) } as MessageParam };
-    assert.equal(renderMessage("{n,number,integer}", neg, "en"), "-2");
+    assert.equal(renderMessage("{n,number}", neg, "en"), "-2.5");
   });
 
   it("applies Indic secondary grouping from Intl parts", () => {
@@ -352,6 +354,13 @@ describe("exactness without Number routing", () => {
     const half = { n: { type: "decimal", value: new Decimal(15n, 1) } as MessageParam };
     const pattern = "{n, plural, one {#} other {# others}}";
     assert.equal(renderMessage(pattern, half, "en"), "1.5 others");
+  });
+
+  it("fails closed for decimals that do not round-trip Number exactly", () => {
+    const precise = {
+      n: { type: "decimal", value: new Decimal(1123456789012345678n, 18) } as MessageParam,
+    };
+    assertValueError(() => renderMessage("{n, plural, other {#}}", precise, "en"), "out-of-range");
   });
 
   it("treats trailing-zero decimals as their integer value (R2a-consistent)", () => {
@@ -381,7 +390,9 @@ describe("typed display of money/date/datetime", () => {
   });
 
   it("rejects unknown-currency money", () => {
-    const bad = { m: { type: "money", value: makeMoney(1n, "XXX") } as MessageParam };
+    const bad = {
+      m: { type: "money", value: { kind: "money", minor: 1n, currency: "XXX" } } as MessageParam,
+    };
     assertValueError(() => renderMessage("{m}", bad, "en"), "unknown-currency");
   });
 
@@ -402,7 +413,9 @@ describe("typed display of money/date/datetime", () => {
   });
 
   it("rejects out-of-range datetimes and ints", () => {
-    const far = { t: { type: "datetime", value: makeDatetime(253402300800000n) } as MessageParam };
+    const far = {
+      t: { type: "datetime", value: { kind: "datetime", ms: 253402300800000n } } as MessageParam,
+    };
     assertValueError(() => renderMessage("{t}", far, "en"), "out-of-range");
     assertValueError(
       () => renderMessage("{n,number}", { n: intParam(2n ** 63n) }, "en"),
@@ -462,6 +475,24 @@ describe("message descriptors", () => {
       () => makeMessageDescriptor("{v}", {}, { v: { type: "zzz", value: 1 } as unknown as MessageParam }),
       "invalid-construction",
     );
+  });
+
+  it("rejects reserved __proto__ param names instead of dropping them", () => {
+    const params = JSON.parse('{"__proto__":{"type":"text","value":"x"}}') as Record<string, MessageParam>;
+    assertValueError(() => makeMessageDescriptor("{x}", {}, params), "invalid-construction");
+    try {
+      makeMessageDescriptor("{x}", {}, params);
+      assert.fail("expected reserved-name rejection");
+    } catch (err) {
+      assert.ok(err instanceof ValueError);
+      assert.equal(err.message, 'message param name "__proto__" is reserved');
+    }
+  });
+
+  it("accepts constructor-named params", () => {
+    const descriptor = makeMessageDescriptor("{constructor}", {}, { constructor: textParam("ctor") });
+    assert.deepEqual(Object.keys(descriptor.params as Record<string, MessageParam>), ["constructor"]);
+    assert.equal(renderMessage("{constructor}", { constructor: textParam("ctor") }, "en"), "ctor");
   });
 
   it("guards descriptor shapes", () => {
