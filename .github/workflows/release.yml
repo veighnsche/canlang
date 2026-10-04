@@ -33,15 +33,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - name: Install from lock
-        run: npm ci --no-audit --no-fund
+        run: bun install --frozen-lockfile
       - name: Build lane-07 packages
-        run: npm run build
+        run: bun run build
       - name: Build packed producer packages
         # Each packed non-L7 workspace builds standalone (their own tsconfigs).
         # Extend this list together with the pack loop below.
-        run: npm run build -w @canlang/state -w @canlang/values
+        run: bun run --filter @canlang/state --filter @canlang/values build
       - name: Pack publishable workspaces
         # Only non-private workspaces with a dist build. Private internals
         # (identity, interfaces, work, services, files) and the ui lib join
@@ -49,7 +51,7 @@ jobs:
         run: |
           mkdir -p release-artifacts
           for w in contracts cloudflare testkit state values; do
-            npm pack -w "@canlang/$w" --pack-destination "$PWD/release-artifacts"
+            (cd "packages/$w" && bun pm pack >/dev/null && mv ./*.tgz "$GITHUB_WORKSPACE/release-artifacts/")
           done
       - uses: actions/upload-artifact@v4
         with:
@@ -63,7 +65,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - name: Compile the LSP client (L1 slice 2a sources)
         # Pinned tsc, zero project deps: deterministic emit. The empty type
         # root reproduces L1's own check isolation (their ambient require
@@ -72,7 +76,7 @@ jobs:
         run: |
           mkdir -p /tmp/empty-typeroot
           cd editors/vscode
-          npx -y -p typescript@5.9.3 tsc --strict --target es2022 --module commonjs --lib es2022 --typeRoots /tmp/empty-typeroot --outDir out --rootDir src src/extension.ts src/client.ts
+          bunx -p typescript@5.9.3 tsc --strict --target es2022 --module commonjs --lib es2022 --typeRoots /tmp/empty-typeroot --outDir out --rootDir src src/extension.ts src/client.ts
       - name: Archive the VSCode/Cursor extension payload
         # Explicit payload, not the whole directory: audit evidence stays
         # out. `out/` is the compiled client `main` points at; `src/` rides

@@ -23,17 +23,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      # npm install (not ci): a member-dir ci would bind the L7-owned root lock;
-      # the nested lock is verified standalone and mirrors the lane-03 flow.
-      - name: Install values package
-        working-directory: packages/values
-        run: npm install --no-audit --no-fund
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      # Root install: the single lane-07-owned bun.lock covers every
+      # workspace member. Run steps stay in the member dir; `bun run test`
+      # (never bare `bun test`) executes the package's own node:test script.
+      - name: Install workspace
+        run: bun install --frozen-lockfile
       - name: Typecheck
         working-directory: packages/values
-        run: npm run typecheck
+        run: bun run typecheck
       - name: Build and test
         working-directory: packages/values
-        run: npm test
+        run: bun run test
       - name: Emit catalog
         working-directory: packages/values
-        run: npm run catalog
+        run: bun run catalog

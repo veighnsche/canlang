@@ -7,7 +7,7 @@ import * as index from "../src/index.js";
 /**
  * Export conformance for the builtin catalog.
  *
- * (a) The emitted dist/catalog.json (test-only fixture consumption of `npm
+ * (a) The emitted dist/catalog.json (test-only fixture consumption of `bun
  * run catalog` output) parses and deep-equals the imported authored CATALOG.
  * (b) Every implemented entry's js name is a function export of the barrel.
  *
@@ -17,7 +17,7 @@ describe("exports conformance", () => {
   it("emitted catalog.json deep-equals the authored CATALOG", (t) => {
     const emission = new URL("../../catalog.json", import.meta.url);
     if (!existsSync(emission)) {
-      t.skip("dist/catalog.json absent; run `npm run catalog` to exercise the emission fixture");
+      t.skip("dist/catalog.json absent; run `bun run catalog` to exercise the emission fixture");
       return;
     }
     const parsed: unknown = JSON.parse(readFileSync(emission, "utf8"));
