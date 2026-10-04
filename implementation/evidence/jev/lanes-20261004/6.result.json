@@ -1,0 +1,34 @@
+{
+  "request": {
+    "state": "Scheduling now permits a partition wider than five: the user believes library work is greatest and wants it divided, although no task-duration study is available. Baseline implementation is only a Rust CLI stub and TextMate highlighting; 39 Can app files and 21 intended JavaScript outputs specify the planned SaaS language. Required technology direction is Rust compilation and tooling, TypeScript libraries, direct JavaScript/workerd, common policy/invocation, daisyUI+HTMX interfaces and MCP. Exactly one worktree is used by each user-started Muse lead and its path-assigned child workers, with recurring reviewed PRs and incremental merges. Codex must not start these sessions. Standard runtime functions, Cloudflare facilities and maintained dependencies should be reused. Correctness includes exact values, one fenced commit owner, live permission evaluation, protected receipts/files and genuine BDD calls. D1 batches with the stated revision assertion and SQLite DO transactions are local guarantees, not a cross-owner atomic protocol. Proposal-stage history, enumeration and AI features cannot acquire assumed behavior. Planning aims at balanced substantial tasks, ownership clarity, useful first integrations and manageable laptop resource use; parallel speed is unknown. Variant A assigns seven teams to: complete Rust compiler/IDE suite; scalar/type/schema/serialization library; authorized records/query/CRUD/transaction/upgrade/replay kernel; durable work together with service and file adapters; rendering and localization; authentication and HTTP/MCP transport; and build/environment/deployment/example runner/release integration. Its fourth team keeps effect lifecycle and adapters close but carries a broad backlog. Variant B makes that fourth team two independent teams, increasing the total to eight: durable scheduling/dispatch/receipt engine versus external service/file adapters. This can distribute external-capability breadth, while requiring an extra interface handoff and increasing checkout/build/lead overhead. Both variants keep read authority in the state kernel, rendering and identity concerns in their named owners, auth writes under kernel commits, shared manifests under a sole owner, and contract-first bootstrap followed by real connected execution. Mock outcomes or syntactic acceptance do not count as finished product behavior.",
+    "questions": {
+      "partition": {
+        "type": "choice",
+        "instructions": "Given the authorized larger partition, which arrangement is the more useful starting plan without pretending the effort distribution has been measured?",
+        "criteria": {
+          "A": "A: Seven worktrees, with delivery machinery and adapters coordinated inside a single lane.",
+          "B": "B: Eight worktrees, placing scheduling/receipt behavior and provider/file behavior in separate lanes."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "partition": {
+        "type": "choice",
+        "choice": "A",
+        "confidence": 0.21,
+        "probabilities": {
+          "B": 0.4,
+          "A": 0.6
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 812,
+      "output_tokens": 31
+    }
+  }
+}
