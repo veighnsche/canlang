@@ -1014,11 +1014,14 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// Lower arithmetic: `int64` checked integer arithmetic, `addMoney` and
-    /// friends, `divideDecimal`, `durationBetween`, `addDuration` and
-    /// `subtractDuration`. Decimal add/subtract/multiply/negate have §13
-    /// names assigned to no import (the catalog carries helpers the spec
-    /// does not), so they are `E6008`.
+    /// Lower arithmetic: `int64` checked integer arithmetic, the money
+    /// helpers (`addMoney`, `subtractMoney`, `multiplyMoney`, `divideMoney`),
+    /// the decimal helpers (`addDecimal`, `subtractDecimal`,
+    /// `multiplyDecimal`, `divideDecimal`), `durationBetween`, `addDuration`
+    /// and `subtractDuration`. Decimal operands mix with `int` exactly (the
+    /// helpers take `int|decimal`); scalar-first money products normalize to
+    /// `multiplyMoney(money, factor)`; a `money`/`money` ratio is
+    /// `divideDecimal`. Shapes with no verified helper stay `E6008`.
     fn lower_arithmetic(
         &mut self,
         op: IrBinOp,
@@ -1053,6 +1056,14 @@ impl<'a> Emitter<'a> {
                     let r = self.lower_expr(right);
                     format!("{name}({l},{r})")
                 }
+                // A money/money ratio has no currency unit and uses decimal
+                // rounding: `divideDecimal` documents money operands.
+                IrBinOp::Div => {
+                    self.stdlib.insert("divideDecimal".to_string());
+                    let l = self.lower_expr(left);
+                    let r = self.lower_expr(right);
+                    format!("divideDecimal({l},{r})")
+                }
                 _ => {
                     self.unsupported(
                         "money arithmetic",
@@ -1070,6 +1081,12 @@ impl<'a> Emitter<'a> {
                     let r = self.lower_expr(right);
                     format!("multiplyMoney({l},{r})")
                 }
+                IrBinOp::Div => {
+                    self.stdlib.insert("divideMoney".to_string());
+                    let l = self.lower_expr(left);
+                    let r = self.lower_expr(right);
+                    format!("divideMoney({l},{r})")
+                }
                 _ => {
                     self.unsupported(
                         "money arithmetic",
@@ -1079,19 +1096,44 @@ impl<'a> Emitter<'a> {
                     self.throw_expr("money arithmetic has no lowering")
                 }
             },
-            (Some(ScalarFamily::Decimal), Some(ScalarFamily::Decimal)) => match op {
-                IrBinOp::Div => {
-                    self.stdlib.insert("divideDecimal".to_string());
+            // Scalar-first money products normalize money-first: lane-02
+            // `multiplyMoney(m, factor)` takes the money operand first.
+            (Some(ScalarFamily::Decimal), Some(ScalarFamily::Money))
+            | (Some(ScalarFamily::Int), Some(ScalarFamily::Money)) => match op {
+                IrBinOp::Mul => {
+                    self.stdlib.insert("multiplyMoney".to_string());
                     let l = self.lower_expr(left);
                     let r = self.lower_expr(right);
-                    format!("divideDecimal({l},{r})")
+                    format!("multiplyMoney({r},{l})")
+                }
+                _ => {
+                    self.unsupported(
+                        "money arithmetic",
+                        &format!("factor {js_op} money has no §13 lowering"),
+                        span,
+                    );
+                    self.throw_expr("money arithmetic has no lowering")
+                }
+            },
+            (Some(ScalarFamily::Decimal), Some(ScalarFamily::Decimal))
+            | (Some(ScalarFamily::Decimal), Some(ScalarFamily::Int))
+            | (Some(ScalarFamily::Int), Some(ScalarFamily::Decimal)) => match op {
+                IrBinOp::Add | IrBinOp::Sub | IrBinOp::Mul | IrBinOp::Div => {
+                    let name = match op {
+                        IrBinOp::Add => "addDecimal",
+                        IrBinOp::Sub => "subtractDecimal",
+                        IrBinOp::Mul => "multiplyDecimal",
+                        _ => "divideDecimal",
+                    };
+                    self.stdlib.insert(name.to_string());
+                    let l = self.lower_expr(left);
+                    let r = self.lower_expr(right);
+                    format!("{name}({l},{r})")
                 }
                 _ => {
                     self.unsupported(
                         "decimal arithmetic",
-                        &format!(
-                            "decimal {js_op} decimal has no §13 import name (the producer catalog carries decimal helpers the spec does not assign)"
-                        ),
+                        &format!("decimal {js_op} decimal has no §13 lowering"),
                         span,
                     );
                     self.throw_expr("decimal arithmetic has no lowering")
@@ -1163,7 +1205,8 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// Lower unary operators: `int64(-x)`, `negateMoney(x)`, `!x`.
+    /// Lower unary operators: `int64(-x)`, `negateMoney(x)`,
+    /// `negateDecimal(x)`, `!x`.
     fn lower_unary(&mut self, op: IrUnOp, operand: &TypedExpr, span: Span) -> String {
         match op {
             IrUnOp::Not => {
@@ -1180,6 +1223,11 @@ impl<'a> Emitter<'a> {
                     self.stdlib.insert("negateMoney".to_string());
                     let inner = self.lower_expr(operand);
                     format!("negateMoney({inner})")
+                }
+                Some(ScalarFamily::Decimal) => {
+                    self.stdlib.insert("negateDecimal".to_string());
+                    let inner = self.lower_expr(operand);
+                    format!("negateDecimal({inner})")
                 }
                 _ => {
                     let id = self.canonical_type_id(&operand.ty, span);
