@@ -117,17 +117,28 @@ package report
   # Compare booked and recorded occupancy, cash receipts, balances and service backlog. @{nl="Vergelijk gereserveerde en vastgelegde bezetting, ontvangen betalingen, saldi en serviceachterstand."}
   page /reports title="Operational reports"@{nl="Operationele rapporten"}
    require manager
+   breadcrumbs
    card "Existing report definitions"@{nl="Bestaande rapportdefinities"}
-    list Definition as definition where preferences.definition==null or definition==preferences.definition
-     text row.name,row.inclusion,row.unit,row.display_timezone
-     form refresh
-     card "Run checkpoints and completeness"@{nl="Controlepunten en volledigheid van uitvoeringen"}
-      list row.Run order=-requested display=split
-       badge row.state
-       text row.state,row.checkpoint,row.pending,row.from,row.until,row.currency
-       card "Typed report measure"@{nl="Getypeerde rapportmaatstaf"}
-        form measure
-         metrics result.quantity,result.numerator,result.denominator,result.value,result.amount
-         text result.state,result.complete,result.pending,result.generated,result.inclusion,result.unit
-       details "Source contributions"@{nl="Bronbijdragen"}
-        table row.rows columns=source,revision,location,metric,quantity,unit,amount,provisional
+    list Definition as definition where preferences.definition==null or definition==preferences.definition empty="No report definitions available."@{nl="Geen rapportdefinities beschikbaar."}
+     pagination
+     ## Each definition keeps its prominent header with inclusion rule, unit and reporting timezone.
+     hero row.name
+      text row.inclusion,row.unit,row.display_timezone
+      form refresh
+      card "Run checkpoints and completeness"@{nl="Controlepunten en volledigheid van uitvoeringen"}
+       list row.Run order=-requested display=split empty="No runs yet."@{nl="Nog geen uitvoeringen."}
+        pagination
+        badge row.state
+        text row.checkpoint,row.pending,row.from,row.until,row.currency
+        card "Typed report measure"@{nl="Getypeerde rapportmaatstaf"}
+         form measure
+          metrics result.quantity,result.numerator,result.denominator,result.value,result.amount
+          ## Freshness and coverage keep explicit state presentation; quantities stay withheld, never zero-filled.
+          badge result.state
+          text result.complete,result.pending,result.generated,result.inclusion,result.unit
+          alert
+           require result.state!=fresh or not result.complete or result.pending
+           text "Coverage is incomplete; shown quantities are withheld, never zero-filled."@{nl="De dekking is onvolledig; getoonde hoeveelheden blijven achtergehouden en worden nooit met nul gevuld."}
+        collapse "Source contributions"@{nl="Bronbijdragen"}
+         table row.rows columns=source,revision,location,metric,quantity,unit,amount,provisional empty="No source contributions."@{nl="Geen bronbijdragen."}
+          pagination
