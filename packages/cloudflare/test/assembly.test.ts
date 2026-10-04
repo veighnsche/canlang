@@ -109,7 +109,7 @@ describe("assembleWorker", () => {
     const url = writeModule(dir, "home.mjs", VALID_PAGE_SOURCE);
     const artifact = fixtureArtifact(
       [{ owner: "fixture", path: "/", module: "home.mjs", export: "home" }],
-      [{ id: "fixture.demo", kind: "operation", module: "ops.mjs", export: "demo" }],
+      [{ id: "fixture.demo", kind: "operation", module: "ops.mjs", export: "demo", member: ["demo"] }],
     );
     const assembled = await assembleWorker(
       artifact,
@@ -241,10 +241,10 @@ describe("assembleWorker", () => {
   it("counts only operation callables toward opCount", async () => {
     const dir = tempDir();
     const artifact = fixtureArtifact([], [
-      { id: "fixture.a", kind: "operation", module: "a.mjs", export: "a" },
-      { id: "fixture.b", kind: "operation", module: "b.mjs", export: "b" },
-      { id: "fixture.p", kind: "pure", module: "p.mjs", export: "p" },
-      { id: "fixture.r", kind: "rule", module: "r.mjs", export: "r" },
+      { id: "fixture.a", kind: "operation", module: "a.mjs", export: "a", member: ["a"] },
+      { id: "fixture.b", kind: "operation", module: "b.mjs", export: "b", member: ["b"] },
+      { id: "fixture.p", kind: "pure", module: "p.mjs", export: "p", member: ["p"] },
+      { id: "fixture.r", kind: "rule", module: "r.mjs", export: "r", member: ["r"] },
     ]);
     const assembled = await assembleWorker(artifact, stubAsm(dir, {}), stubDeps());
     expect(assembled.pageCount).toBe(0);
@@ -275,13 +275,13 @@ describe("buildInvoker", () => {
     const url = writeModule(
       dir,
       "ops.mjs",
-      `export async function echo(c, input) {
-        return { echoed: input.operation_id, caller: c.caller.userId, member: c.memberships.includes("members") };
+      `export function canApp() {
+        return { echo: async (c, input) => ({ echoed: input.operation_id, caller: c.caller.userId, member: c.memberships.includes("members") }) };
       }`,
     );
     const artifact = fixtureArtifact(
       [],
-      [{ id: "fixture.echo", kind: "operation", module: "ops.mjs", export: "echo" }],
+      [{ id: "fixture.echo", kind: "operation", module: "ops.mjs", export: "echo", member: ["echo"] }],
     );
     const invoker = buildInvoker(artifact, stubAsm(dir, { "ops.mjs": url }), stubStore());
     const operationId = "0193c1f0-0000-7000-8000-000000000001" as OperationId;
@@ -312,13 +312,13 @@ describe("buildInvoker", () => {
     const url = writeModule(
       dir,
       "ops.mjs",
-      `export async function echo(c, input) {
-        return { caller: c.caller.userId, roles: c.caller.roles.length, member: c.memberships.length };
+      `export function canApp() {
+        return { echo: async (c, input) => ({ caller: c.caller.userId, roles: c.caller.roles.length, member: c.memberships.length }) };
       }`,
     );
     const artifact = fixtureArtifact(
       [],
-      [{ id: "fixture.echo", kind: "operation", module: "ops.mjs", export: "echo" }],
+      [{ id: "fixture.echo", kind: "operation", module: "ops.mjs", export: "echo", member: ["echo"] }],
     );
     const invoker = buildInvoker(artifact, stubAsm(dir, { "ops.mjs": url }), stubStore());
     const outcome = await invoker.invokeMutation(

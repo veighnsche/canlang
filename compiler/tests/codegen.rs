@@ -33,6 +33,7 @@ use canlang_compiler::codegen::js::{self, Emitter};
 use canlang_compiler::codegen::sourcemap;
 use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
 use canlang_compiler::diagnostic::{DiagnosticResult, Severity};
+use canlang_compiler::json::Json;
 use canlang_compiler::source::{LineIndex, SourceDb, SourceId, Span};
 use canlang_compiler::{LANGUAGE_VERSION, SCHEMA_VERSION};
 use std::path::PathBuf;
@@ -321,6 +322,28 @@ fn golden_teamtasks_structure() {
         parsed.get("artifact_version").and_then(|v| v.as_i64()),
         Some(1)
     );
+    // F1: every callable carries an explicit `member` path (non-empty
+    // array of non-empty strings) into the module's `canApp()` object.
+    match parsed.get("callables") {
+        Some(Json::Arr(items)) => {
+            assert!(!items.is_empty(), "callables non-empty in JSON");
+            for item in items {
+                match item.get("member") {
+                    Some(Json::Arr(segments)) => {
+                        assert!(!segments.is_empty(), "member non-empty in JSON");
+                        for segment in segments {
+                            assert!(
+                                matches!(segment, Json::Str(s) if !s.is_empty()),
+                                "member segments are non-empty strings in JSON"
+                            );
+                        }
+                    }
+                    other => panic!("callable member must be a string array, got {other:?}"),
+                }
+            }
+        }
+        other => panic!("callables must be an array, got {other:?}"),
+    }
 
     // Modules: entrypoint (composed assembly) first, then packages in
     // source order.
@@ -467,7 +490,7 @@ fn golden_teamtasks_structure() {
     // G12: state-read builtins await; the bare model domain lowers
     // through the shared query contract.
     assert!(
-        entry.contains("await count(records(c,\"TeamTasks.Todo\",{}))"),
+        entry.contains("await count(await records(c,\"TeamTasks.Todo\",{}))"),
         "awaited count over domain"
     );
     // Registry: callable factory with handlers only, no metadata spread.
@@ -515,6 +538,25 @@ fn golden_teamtasks_structure() {
             ["operation", "pure", "rule", "handler", "migration"].contains(&callable.kind.as_str()),
             "known kind"
         );
+        // F1: the explicit `member` path is non-empty and every segment
+        // resolves against the emitted `canApp()` registry text.
+        assert!(
+            !callable.member.is_empty(),
+            "member non-empty for {}",
+            callable.id
+        );
+        for segment in &callable.member {
+            assert!(
+                !segment.is_empty(),
+                "member segment non-empty for {}",
+                callable.id
+            );
+            assert!(
+                entry.contains(segment),
+                "member segment {segment:?} of {} resolvable in entry",
+                callable.id
+            );
+        }
     }
     // G9 page registry: both pages with descriptor exports.
     assert_eq!(artifact.pages.len(), 2, "two pages");
@@ -918,7 +960,7 @@ fn golden_expenseflow_structure() {
         "summarize body"
     );
     assert!(
-        entry.contains("const selected = records(c,\"expenses.Expense\",{where:(row)=>(row.amount.currency === currency) && (row.status === status)});"),
+        entry.contains("const selected = await records(c,\"expenses.Expense\",{where:(row)=>(row.amount.currency === currency) && (row.status === status)});"),
         "summarize query"
     );
     // G12: `count`/`sum` await; the value-domain query has no
@@ -982,6 +1024,25 @@ fn golden_expenseflow_structure() {
             "export {} present",
             callable.export
         );
+        // F1: the explicit `member` path is non-empty and every segment
+        // resolves against the emitted `canApp()` registry text.
+        assert!(
+            !callable.member.is_empty(),
+            "member non-empty for {}",
+            callable.id
+        );
+        for segment in &callable.member {
+            assert!(
+                !segment.is_empty(),
+                "member segment non-empty for {}",
+                callable.id
+            );
+            assert!(
+                entry.contains(segment),
+                "member segment {segment:?} of {} resolvable in entry",
+                callable.id
+            );
+        }
     }
     // G10 suites: one per operation with tables, in operation
     // declaration order; every fixture is claimed (no orphan shells).
@@ -1652,7 +1713,7 @@ fn construct_scalars_per_op() {
     let (text, _, diags) = lower(&ir, &query);
     assert_eq!(
         text,
-        "records(c,\"demo.Widget\",{where:(row)=>row.count === 1n,order:[\"-count\"],limit:10n})"
+        "await records(c,\"demo.Widget\",{where:(row)=>row.count === 1n,order:[\"-count\"],limit:10n})"
     );
     assert!(diags.is_empty());
 }
@@ -2865,4 +2926,45 @@ fn sourcemap_mappings_round_trip() {
     // Malformed mappings fail loudly instead of misresolving.
     assert!(sourcemap::decode_mappings(";;;,,,").is_err());
     assert!(sourcemap::decode_mappings("!").is_err());
+}
+
+/// F3 forms: a `form` without `fields=` defaults to the target model's
+/// stored field names in schema order — the same array the explicit-all
+/// spelling would emit. Explicit `fields=` wins (pinned by the TeamTasks
+/// golden's `fields:["title","assignee"]` assertion above).
+#[test]
+fn form_fields_default_to_model_schema() {
+    let (db, id) = load_example("TeamTasks.can");
+    let (catalog, catalog_path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    let (artifact, _diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&catalog_path);
+    let entry = &artifact.modules[0].js;
+    // `form Note.create display=inline` (examples/TeamTasks.can:50) has no
+    // `fields=`: it defaults to every stored Note field in schema order,
+    // exactly the explicit `fields=title,content` array.
+    assert!(
+        entry.contains(
+            "operation:\"TeamNotes.Note.create\",display:\"inline\",fields:[\"title\",\"content\"]"
+        ),
+        "defaulted form fields:\n{entry}"
+    );
+}
+
+/// F3 forms: a `form` whose operation is unresolvable still omits
+/// `fields` (loud path preserved — no silent empty default).
+#[test]
+fn form_fields_unknown_op_stays_loud() {
+    let src = "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\n crud Todo by=members fields=title\nThen\n page / title=\"T\"\n  card \"C\"\n   form Nope.nope display=inline\n";
+    let mut db = SourceDb::new();
+    let id = db.add("unknown-op-form.can".to_string(), src.to_string());
+    let (program, result) = check_example(&db, id, None);
+    let (artifact, _diags) = emit_test_only(&program, &db, &result, None);
+    let entry = &artifact.modules[0].js;
+    // No operation prop (unresolvable) and crucially no `fields` prop:
+    // ui fails loudly on the missing required prop, as before.
+    assert!(
+        entry.contains("form({context:c,display:\"inline\"})"),
+        "loud form without fields:\n{entry}"
+    );
 }
