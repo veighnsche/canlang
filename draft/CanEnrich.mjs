@@ -1,5 +1,8 @@
 import {choose, count, create, delivery, emit, equalValue, first, hasRole, int64, local_date, records, require as check, same, send, set, subtractDuration, compareInstant, any} from "@canlang/stdlib";
-import {actions, details, edit, form, history, message, renderPage, table, text} from "@canlang/ui";
+import {actions, details, edit, form, history, message, renderPage, table, text, breadcrumbs, preferences, toggle, input, pagination, checkbox, button, modal, diff, divider, radio, textarea, select} from "@canlang/ui";
+// Desired lowering: breadcrumbs, preferences, toggle, input, pagination,
+// checkbox, button, modal, diff, divider, radio, textarea and select are proposed
+// @canlang/ui contracts (desired/unimplemented). modal uses caption.
 import {Customer} from "./customer.mjs";
 
 // Handwritten desired output. Proposed imports implement DESIGN §13 contracts later.
@@ -103,20 +106,29 @@ export function canApp(){
 
 export async function enrichmentPage(c,bindings){
  return renderPage(c,page,()=>[
-  form({context:c,operation:"enrich.Company.create"}),
-  table({context:c,model:Company,where:company=>company.enabled===c.preferences.enrich.enabled,columns:["customer","number","enabled"],renderRow:async(company,view)=>[
-   edit({context:view,operation:"enrich.Company.update",record:company,fields:["enabled"]}),form({context:view,operation:"enrich.start",arguments:{company}}),
+  breadcrumbs({context:c}),
+  preferences({context:c,children:[toggle({context:c,field:"enabled"})]}),
+  form({context:c,operation:"enrich.Company.create",children:[select({context:c,field:"customer"}),input({context:c,field:"number"})]}),
+  table({context:c,model:Company,where:company=>company.enabled===c.preferences.enrich.enabled,columns:["customer","number","enabled"],empty:message("No linked companies",{nl:"Geen gekoppelde bedrijven"}),renderRow:async(company,view)=>[
+   pagination({context:view}),
+   edit({context:view,operation:"enrich.Company.update",record:company,fields:["enabled"],children:[checkbox({context:view,field:"enabled"})]}),
+   form({context:view,operation:"enrich.start",arguments:{company},children:[checkbox({context:view,field:"refresh"}),checkbox({context:view,field:"fallback"})]}),
    details({context:view,caption:message("Research and accepted facts",{nl:"Onderzoek en geaccepteerde gegevens"}),display:"drawer",children:[
     text({context:view,values:[await count(records(view,"enrich.Lookup",{parent:company,where:lookup=>local_date(lookup.created,"UTC")===local_date(view.now,"UTC")}))]}),
-    table({context:view,model:"enrich.Run",parent:company,columns:["created","requested_by","primary.request.status","fallback.request.status","allow_fallback","stopped"],renderRow:async(run,runView)=>[
-     actions({context:runView,operations:["enrich.fallback","enrich.stop"],boundArgs:{run}}),
-     text({context:runView,values:[run.primary===null?null:(await delivery(runView,{record:run.primary,field:"request"},["result"]))?.result??null,run.fallback===null?null:(await delivery(runView,{record:run.fallback,field:"request"},["result"]))?.result??null]}),
-     form({context:runView,operation:"enrich.accept",arguments:{run}}),
+    table({context:view,model:"enrich.Run",parent:company,columns:["created","requested_by","primary.request.status","fallback.request.status","allow_fallback","stopped"],empty:message("No enrichment reviews",{nl:"Geen verrijkingsbeoordelingen"}),renderRow:async(run,runView)=>[
+     pagination({context:runView}),
+     actions({context:runView,operations:["enrich.stop"],boundArgs:{run}}),
+     button({context:runView,opens:"fallback_dialog"}),
+     modal({context:runView,caption:message("Consult secondary source",{nl:"Tweede bron raadplegen"}),id:"fallback_dialog",slots:{content:()=>[form({context:runView,operation:"enrich.fallback",arguments:{run},display:"inline",children:[checkbox({context:runView,field:"refresh"})]})]}}),
+     diff({context:runView,slots:{before:async()=>[text({context:runView,values:[run.primary===null?null:(await delivery(runView,{record:run.primary,field:"request"},["result"]))?.result??null]})],after:async()=>[text({context:runView,values:[run.fallback===null?null:(await delivery(runView,{record:run.fallback,field:"request"},["result"]))?.result??null]})]}}),
+     form({context:runView,operation:"enrich.accept",arguments:{run},children:[radio({context:runView,field:"field"}),textarea({context:runView,field:"reason"})]})
     ]}),
-    table({context:view,model:AcceptedFact,parent:company,columns:["field","ordinal","value","lookup.provider","prior","reviewer","reason","created"]}),
-    table({context:view,model:"enrich.Lookup",parent:company,columns:["provider","created","request.status","request.result","request.error"]}),history({context:view,record:company}),
-   ]}),
-  ]}),
+    table({context:view,model:AcceptedFact,parent:company,columns:["field","ordinal","value","lookup.provider","prior","reviewer","reason","created"],empty:message("No accepted facts",{nl:"Geen geaccepteerde gegevens"}),renderRow:(fact,fv)=>[pagination({context:fv})]}),
+    divider({context:view,caption:message("Provider receipts",{nl:"Externe bronbewijzen"})}),
+    table({context:view,model:"enrich.Lookup",parent:company,columns:["provider","created","request.status","request.result","request.error"],empty:message("No provider evidence",{nl:"Geen extern bronbewijs"}),renderRow:(lookup,lv)=>[pagination({context:lv})]}),
+    history({context:view,record:company})
+   ]})
+  ]})
  ]);
 }
 
