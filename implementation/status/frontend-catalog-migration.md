@@ -62,8 +62,10 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
   and PR descriptions. Mitigation: edit only merged files, never unmerged primary apps; rebase before every PR so conflicts surface for review.
 - D2 L5 full 68-component library + right-sidebar shell: NOT shipped (main has S1-S4 small-subset scope; S5 pending in PR #34).
   Owner: lane 05 (steering is the user's paste of prompts/05-ui-steering.md). Migration sources will use approved-but-unimplemented profiles; gaps recorded per slice.
-- D3 L1 catalog consumption (checking/codegen/completion/highlighting): NOT shipped (B0 syntax merged in #30). Owner: lane 01.
+- D3 L1 catalog consumption (checking/codegen/completion/highlighting): NOT shipped (B0 syntax merged in #30, CLI/LSP in #36). Owner: lane 01.
   Parser/highlighter acceptance of new component words cannot be assumed; approval != support.
+  Concrete impact: slice 1's two `badge` lines turn L1's golden_corpus_parses_clean red on main (E1200 invalid syntax shape;
+  base was 0 failures, measured 2026-10-04). Each migration slice will note its exact new-word lines so L1 reconciliation stays mechanical; no test files touched here.
 - D4 L6 canonical login/identity/transport: partial (S4 HTTP merged #22, S5 MCP pending #32). Login-screen migration is presentation selection, never rebuilt auth.
 - D5 unmerged primary apps (CanKnowledge/CanInbox/CanDiscover/CanSync/others): owned by primary draft writers; excluded until merged.
 - D6 (to L1, nit from PR #35 review): GRAMMAR.md header-attribute table label "| calendar agenda |" is ambiguous — the row covers only the start/end-required agenda production while the bare-selector date control lives in prose + UI-COMPONENTS.md. Suggested "| calendar (agenda) |". Not edited here: carried normative text stays verbatim with its owner.
@@ -75,4 +77,17 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 
 ## Reviewed heads and merged PRs
 
-- (Pending slice 0.)
+- PR #35 docs handoff: reviewed head d241592 (substance reviewed at 88733c7; delta was the reviewer's own 3-line status fix + conflict-free rebase onto fb226e0), tools+workspace green, squash-merged as 2451d85. URL: https://github.com/veighnsche/canlang/pull/35
+
+## Slice 1: reference examples (branch muse/frontend-catalog-migration/slice-01-examples)
+
+Paths: examples/TeamTasks.can, examples/ExpenseFlow.can, this status file. No companions exist for examples (no .mjs/.md). No shared-package files.
+Baselines (pre-migration, from origin/main 2451d85):
+- TeamTasks (51 lines): app TeamTasks page / (inline Todo.create form; task-count text; tabs preferences.view; Todo list with edit/delete; empty state); app TeamNotes page /notes (inline Note.create form; Note split list with edit/delete + details open=preferences.show_content showing row.content); app TeamOffice uses=[TeamTasks,TeamNotes]. BDD: update examples incl. conflict/forbidden rows.
+- ExpenseFlow (108 lines): package expenses page / (Expense.create drawer form; Expense split list with edit/actions submit,approve,reject/history; filter=status with preferences default); package reporting page /reports (tabs preferences.status; inline summarize form with metrics result.count,result.total). BDD: submit/approve/reject tables + shared-state sequence (parser-unimplemented, noted inline).
+Choices (smallest journey-serving substitutions; everything else demonstrated already compliant):
+- +`badge row.done` (Todo list): per-row completion state with owning done/Open captions. +`badge row.status` (Expense list): per-row Draft/Submitted/Approved/Rejected state. Both are the catalog's badge leaf on readable row values; no new strings.
+- `text row.content` -> `content row.content` (note body): paragraph-preserving presentation for multi-line note content; existing core word.
+- Kept as-is (already compliant): bare inline forms (complete generated remainder), tabs bound to owned enum preferences, edit/delete/actions/history canonical controls, details compatibility spelling, metrics shared contract, display=split, empty/filter/defaults states.
+Producer gaps used by this slice: `badge` is approved-but-unimplemented (L1 parser/checker + L5 renderer; D2/D3). `content` is existing core vocabulary, no gap.
+Corpus-drift note: the Python prototype corpus test and the Rust golden-corpus test predate the catalog and reject `badge`; CI's tools job already excludes the corpus test and corpus parse is informational (continue-on-error); lane-01 CI is path-filtered to compiler/**. Drift reconciliation belongs to L1/B4; no test files touched here.
