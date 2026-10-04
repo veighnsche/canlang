@@ -20,7 +20,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && cp -r test/fixtures dist/identity/test/fixtures",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && node --test \"dist/identity/test/**/*.test.js\"",
+    "test": "bun run build && node --test \"dist/identity/test/**/*.test.js\"",
     "clean": "rm -rf dist/"
   },
   "dependencies": {

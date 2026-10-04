@@ -319,25 +319,76 @@ package discover label="Opportunity research"@{nl="Kansenonderzoek"}
   # Research plans and source coverage with reviewable evidence. @{nl="Onderzoeksplannen en brondekking met beoordeelbaar bewijs."}
   page /discover title="Opportunity research"@{nl="Kansenonderzoek"}
    require researcher or reviewer
+   breadcrumbs
    tabs
     tab "Plans"@{nl="Plannen"}
      form Plan.create
-     table Plan columns=name,location,active,revision
+      input name
+      select location
+      textarea ted_query
+      textarea grants_query
+      textarea criteria
+     table Plan columns=name,location,active,revision empty="No research plans"@{nl="Geen onderzoeksplannen"}
+      pagination
       actions start,pause,resume,take_over
       form configure arguments={plan=row}
-      table row.Run columns=started,complete,stopped,document_slots,analysis_slots
+       fieldset "Sources"@{nl="Bronnen"}
+        textarea ted_query
+        textarea grants_query
+        textarea criteria
+       fieldset "Limits"@{nl="Limieten"}
+        input period
+        input lookback_days
+        input max_pages
+        input max_documents
+        input max_analysis
+        input output_tokens
+      table row.Run columns=started,complete,stopped,document_slots,analysis_slots empty="No research runs"@{nl="Geen onderzoeksrondes"}
+       pagination
        action stop
-       table row.SourcePass columns=source,state,requests,detail
+       table row.SourcePass columns=source,state,requests,detail empty="No source passes"@{nl="Geen bronrondes"}
+        pagination
+        badge row.state
         action retry
-        table row.PageAttempt columns=cursor,take,applied,late,traversal,detail,request
+        table row.PageAttempt columns=cursor,take,applied,late,traversal,detail,request empty="No page attempts"@{nl="Geen paginapogingen"}
+         pagination
     tab "Evidence and review"@{nl="Bewijs en beoordeling"}
-     table Opportunity columns=source,key,canonical_url,needs_identity_review,expired,duplicate_of,deal
+     ## Readable pipeline stages; gating stays in When guards.
+     steps
+      slot item
+       text "Collect"@{nl="Verzamelen"}
+      slot item
+       text "Analyse"@{nl="Analyseren"}
+      slot item
+       text "Review"@{nl="Beoordelen"}
+      slot item
+       text "Promote"@{nl="Promoveren"}
+     table Opportunity columns=source,key,canonical_url,needs_identity_review,expired,duplicate_of,deal empty="No opportunities"@{nl="Geen kansen"}
+      pagination
       form duplicate arguments={opportunity=row}
+       select canonical
+       textarea reason
       form accept_identity arguments={opportunity=row}
-      table row.Evidence columns=document,claims,analysis_issue
-       action analyse
-       form review arguments={evidence=row}
-      table row.Conflict columns=document,observed
-      table row.Review columns=title,deadline,deadline_note,reviewed_by,reviewed_at
+       textarea reason
+      ## Ordinal evidence chain; newest admission invalidates older reviews.
+      timeline row.Evidence
+       slot item
+        text row.document,row.claims,row.analysis_issue
+        copy row.document.key
+        action analyse
+        form review arguments={evidence=row}
+         input title
+         textarea summary
+         input deadline
+         input deadline_zone
+         textarea deadline_note
+         ## quotes keeps its generated control: quote arrays have no catalog control.
+      table row.Conflict columns=document,observed empty="No conflicts"@{nl="Geen conflicten"}
+       pagination
+      table row.Review columns=title,deadline,deadline_note,reviewed_by,reviewed_at empty="No reviews"@{nl="Geen beoordelingen"}
+       pagination
        form promote arguments={review=row}
+        select customer
+        select contact
+        input value
       history

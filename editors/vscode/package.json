@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "compile": "tsc --strict --target es2022 --module commonjs --lib es2022 --outDir out --rootDir src src/extension.ts src/client.ts",
-    "vscode:prepublish": "npm run compile"
+    "vscode:prepublish": "bun run compile"
   },
   "contributes": {
     "languages": [
