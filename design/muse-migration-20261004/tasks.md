@@ -257,12 +257,12 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: Complete scoped journey and consistent proposed JS imports; no compiler/library/infrastructure implementation. New contracts must be explicitly released before use.
   - Evidence: COMPLETED EXTERNALLY (H009): Codex finished + independently reviewed the CanWorkbench triplet; milestones b3c78fc/706c70a/3d41233/13071ec/372def7/82260cf; acceptance in design/COMPLEX-APPS.md + design/complex-apps/completion-verification.json. Not Muse work; never dispatched here.
 
-- [ ] **N10 — Document extraction extension**
+- [x] **N10 — Document extraction extension**
   - Prerequisites: SATISFIED BY USER-OVERRIDE 2026-10-04 (was: READY extraction handoff): coordinator-authored extraction-design.md (796 lines: D1-D9 flagged, Purchase + Expense Can/JS witnesses, 19 cases); J03 released
   - Owner / files / interfaces: Muse implementation agent; draft/CanPurchase.can/.md/.mjs and draft/CanExpense.can/.md/.mjs
   - Changes / traceability: Q1–Q3; implement agreed source-evidence, exact-money and version-bound review journey using existing owners.
   - Acceptance: Reviewed extraction acceptance/failure examples preserve authority and source evidence; corresponding desired JS included.
-  - Evidence: pending.
+  - Evidence: writer 01a107b9-db70-7982-9026-59718c5368db released (READY-BY-OVERRIDE). Purchase InvoiceDocument journey (4 scenarios, 8 example blocks, page form+table) + Expense ReceiptExtract journey (transcribe scenario, submit exact-match guard, sequences updated, page form+2 lists) applied; both JS targets match with full-clause disabled entries, no generated CRUD. Coordinator verified: no record_payable/export_payable/decide/withdraw/correct/reimburse body changes, no provider/OCR/capability, no reviewed_version, exact money only; node --check OK both; Purchase parses exit 0 directly; Expense projection parse exit 0 (disclosed pre-existing exclusions: sequence bodies, CSV import/review). Unexecuted behavior disclosed.
 
 - [x] **M01 — Integration, evidence and coherent commits**
   - Prerequisites: M00; per-task released writers; final join after every released implementation task
@@ -336,6 +336,7 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - DISPATCH batch 6 (slot freed x1): N10 implementation writer (Purchase + Expense triplets). A04/A06 running. Queue empty; final integration + handoff after releases.
 - DONE A04: writer 01a107b2-7c80-7ca3-9066-bda29e24855b RELEASED draft/CanRent.can, draft/CanRent.md, draft/CanRent.mjs. Task ticked complete (see A04 evidence). 5/6 gated tasks done; A06 + N10 running.
 - DONE A06: writer 01a107b9-396d-74d0-ba3d-d7b0cdb4d028 RELEASED draft/CanMail.can, draft/CanMail.md, draft/CanMail.mjs. Task ticked complete (see A06 evidence). All A-tasks done; N10 running (last writer).
+- DONE N10: writer 01a107b9-db70-7982-9026-59718c5368db RELEASED all 6 Purchase/Expense files. Task ticked complete (see N10 evidence). 6/6 gated tasks done; zero writers active.
 - ACK H005 NOTE watcher repaired: accepted. contextlib.closing fix noted; H002 command reusable when ready work next exhausts (not now — A01 active). No TUI-push claim.
 - ACK H006 READY A01 accepted: complete C4 feedback-design.md (457 lines) + review.md limits read in full. Scope: Decision/current_decision/contracts/policy/invariant/locks/derive, roadmap/moderate bodies, withdraw_decision/decision_history, both page roots, full target mirror, journey observations + withdrawal table + decision_history sequence, 15-row required-cases table. No DESIGN/GRAMMAR/runtime work. C1/Rent-history/C3/C5 remain unadopted.
 - RESERVED A01: draft/CanFeedback.can, draft/CanFeedback.md, draft/CanFeedback.mjs — writer 01a10715-f84a-75c0-839e-02675ad1d0e3 (A01 Feedback/17) active. J01 released; no pending Feedback edits at handoff (verified clean).

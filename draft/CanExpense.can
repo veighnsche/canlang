@@ -11,6 +11,7 @@ package expense label="Expenses"@{nl="Onkosten"}
   Expense in Employee { location:Location, corrects:Expense? label="Corrected claim"@{nl="Gecorrigeerde declaratie"}, authorization:text? label="Job or purchase authorization reference"@{nl="Werk- of inkoopautorisatiereferentie"}, purpose:text trim min=1 label="Purpose"@{nl="Doel"}, category:text label="Category"@{nl="Categorie"}, amount:money, business_date:date label="Business date"@{nl="Kostendatum"}, receipt:file label=label_Expense_receipt, reviewer:user label=label_reviewer, status:enum(draft,submitted,approved,rejected,withdrawn,reimbursed)=draft label={text="Status"@{nl="Status"},values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved=label_Expense_status_approved,rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"},reimbursed="Reimbursed"@{nl="Vergoed"}}}, submission:int=0 label=label_Expense_submission, withdrawal:text? label="Withdrawal reason"@{nl="Reden voor intrekking"}, decision:text? label="Decision"@{nl="Besluit"}, decided_by:user? label="Decision maker"@{nl="Beslist door"}, decided_at:datetime? label=label_Expense_decided_at } label="Expense claim"@{nl="Onkostendeclaratie"}
   Decision in Expense { submission:int label=label_Expense_submission, amount:money, receipt:file label=label_Expense_receipt, reviewer:user label=label_reviewer, approved:bool label=label_Expense_status_approved, reason:text, decided_at:datetime label=label_Expense_decided_at } label="Expense decision"@{nl="Onkostenbesluit"}
   Reimbursement in Expense { amount:money, reference:text trim min=1, paid:date label=label_Reimbursement_paid, reason:text, recorded_by:user server=actor label="Recorded by"@{nl="Vastgelegd door"} } label=evidenced_reimbursement_caption
+  ReceiptExtract in Expense { source:text unique label="Extraction source"@{nl="Extractiebron"}, amount:money, spent_on:date label="Receipt date"@{nl="Bondatum"}, merchant:text label="Merchant"@{nl="Verkoper"} } label="Receipt transcription"@{nl="Bontranscriptie"}
   contract LegacyClaim { actor:text?, reviewer:text?, decision_time_original:text?, decided_at:datetime?, paid:date?, status:text?, purpose:text?, amount:money?, receipt:file?, receipt_issue:text? }
   ## Imported source claims are immutable evidence, not live approvals or payments.
   LegacyExpense { source:text trim min=1, external_id:text min=1, location:Location, claim:LegacyClaim, source_evidence:file, attestation:text trim min=1, claimant:user?, access_reason:text?, imported_by:user server=actor, imported_at:datetime server=now }
@@ -24,12 +25,17 @@ package expense label="Expenses"@{nl="Onkosten"}
   policy Expense read=finance and can_work(actor,row.location)
   policy Decision read=authenticated where=row.parent.parent.user==actor or (reviewer and row.parent.reviewer==actor and can_work(actor,row.parent.location)) or (finance and can_work(actor,row.parent.location))
   policy Reimbursement read=authenticated where=row.parent.parent.user==actor or (finance and can_work(actor,row.parent.location))
+  policy ReceiptExtract read=authenticated where=row.parent.parent.user==actor
+  policy ReceiptExtract read=reviewer where=row.parent.reviewer==actor and can_work(actor,row.parent.location) and row.parent.status!=draft
+  policy ReceiptExtract read=finance and can_work(actor,row.parent.location)
   invariant Expense: row.amount.minor>0 and row.amount.currency==row.location.currency
   invariant Expense: row.corrects==null or (row.corrects.parent==row.parent and row.corrects.status in [rejected,withdrawn])
+  invariant ReceiptExtract: row.amount.minor>0 and row.amount.currency==row.parent.location.currency and trim(row.merchant)!=""
   lock Expense fields=location,authorization,purpose,category,amount,business_date,receipt,reviewer when=row.status!=draft
   lock Expense fields=corrects
   lock Decision fields=submission,amount,receipt,reviewer,approved,reason,decided_at
   lock Reimbursement fields=amount,reference,paid,reason,recorded_by
+  lock ReceiptExtract fields=source,amount,spent_on,merchant
   ## Table rows invoke one operation; connected sequences below use real calls and commits under the proposed example contract.
   fixture receipt=file {}
   fixture corrected_receipt=file {}
@@ -46,6 +52,7 @@ package expense label="Expenses"@{nl="Onkosten"}
   fixture claim=Expense {parent=test_worker,location=test_site,purpose="Travel between sites",category="Travel",amount=money(25,"EUR"),business_date=date("2026-10-01"),receipt=receipt,reviewer=reviewer_user}
   fixture previous_claim=Expense {parent=test_worker,location=test_site,purpose="Earlier supplies",category="Supplies",amount=money(25,"EUR"),business_date=date("2026-10-01"),receipt=receipt,reviewer=reviewer_user,status=reimbursed}
   fixture previous_payment=Reimbursement {parent=previous_claim,amount=money(25,"EUR"),reference="bank-previous",paid=date("2026-10-01"),reason="Statement evidence"}
+  fixture receipt_extract=ReceiptExtract {parent=claim,source="extract-1",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"}
   fixture rejected_decision=Decision {parent=claim,submission=1,amount=money(25,"EUR"),receipt=receipt,reviewer=reviewer_user,approved=false,reason="Clarify the journey",decided_at=datetime("2026-10-02T09:00:00Z")}
   fixture legacy_source=file {}
   fixture legacy_receipt_upload=file {owner=finance_user}
@@ -82,11 +89,11 @@ package expense label="Expenses"@{nl="Onkosten"}
      call deactivate {employee=reviewer_worker,ended=date("2026-10-02")} by=hr_user
      call reviewer_choices {location=test_site} by=self as after
      count(after),reviewer(reviewer_user),reviewer_worker.active -> 0,true,false
-  # Submit your draft after checking the active, distinct reviewer. @{nl="Dien je concept in na controle van een actieve, andere beoordelaar."}
+  # Submit your draft after checking the active, distinct reviewer and an exact receipt transcription. @{nl="Dien je concept in na controle van een actieve, andere beoordelaar en een exacte bontranscriptie."}
   scenario submit(expense:Expense) by=members
-   require expense.parent.user==actor and expense.parent.active and expense.status==draft and can_work(actor,expense.location) and expense.reviewer!=actor and reviewer(expense.reviewer) and can_work(expense.reviewer,expense.location)
+   require expense.parent.user==actor and expense.parent.active and expense.status==draft and can_work(actor,expense.location) and expense.reviewer!=actor and reviewer(expense.reviewer) and can_work(expense.reviewer,expense.location) and any(expense.ReceiptExtract as extract,extract.amount==expense.amount and extract.spent_on==expense.business_date)
    do set expense {status=submitted,submission=expense.submission+1}
-   examples seed=[reviewer_worker,ordinary_worker] expense=claim
+   examples seed=[reviewer_worker,ordinary_worker,receipt_extract] expense=claim
     as,expense.reviewer,reviewer_worker.active,test_worker.active,request.expense.version -> expense.status,expense.submission,expense.receipt,expense.reviewer
     self,reviewer_user,true,true,1 -> submitted,1,receipt,reviewer_user
     self,ordinary_user,true,true,1 -> error(rule_failed)
@@ -95,13 +102,20 @@ package expense label="Expenses"@{nl="Onkosten"}
     self,reviewer_user,true,false,1 -> error(rule_failed)
     ordinary_user,reviewer_user,true,true,1 -> error(rule_failed)
     self,reviewer_user,true,true,2 -> error(conflict)
-   examples seed=[reviewer_worker] expense=claim
+   examples seed=[reviewer_worker,receipt_extract] expense=claim
     expense.location -> expense.status
     other_site -> error(rule_failed)
+   examples seed=[reviewer_worker,ordinary_worker] expense=claim
+    as,expense.reviewer,reviewer_worker.active,test_worker.active,request.expense.version -> expense.status
+    self,reviewer_user,true,true,1 -> error(rule_failed)
+   examples seed=[reviewer_worker,ordinary_worker,receipt_extract] expense=claim
+    as,expense.reviewer,receipt_extract.amount -> expense.status
+    self,reviewer_user,money(30,"EUR") -> error(rule_failed)
    ## Shared-state journeys use the proposed sequence grammar; the initial parser does not accept this form yet.
    ## User role recipes stay fixed. employee.deactivate demonstrates an actual workplace eligibility transition.
    examples seed=[claim,reviewer_worker,finance_worker,ordinary_user]
     do
+     call transcribe_receipt {expense=claim,source="extract-1",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
      call submit {expense=claim} by=self
      claim.status,claim.submission,claim.receipt -> submitted,1,receipt
      call decide {expense=claim,approve=true,reason="Checked the journey"} by=ordinary_user -> error(forbidden)
@@ -114,6 +128,7 @@ package expense label="Expenses"@{nl="Onkosten"}
      call reimburse {expense=claim,amount=money(25,"EUR"),reference="bank-repeat",paid=local_date(now,test_site.timezone),reason="Bank statement"} by=finance_user -> error(rule_failed)
    examples seed=[claim,reviewer_worker,finance_worker,corrected_receipt]
     do
+     call transcribe_receipt {expense=claim,source="extract-1",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
      call submit {expense=claim} by=self
      call decide {expense=claim,approve=false,reason="Clarify the journey"} by=reviewer_user
      claim.status,claim.receipt,count(claim.Decision) -> rejected,receipt,1
@@ -124,6 +139,7 @@ package expense label="Expenses"@{nl="Onkosten"}
      call Expense.update {record=replacement,changes={purpose="Journey evidence corrected",receipt=corrected_receipt,reviewer=reviewer_user}} by=self
      let ready=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
      ready!=null -> true
+     call transcribe_receipt {expense=ready,source="extract-11",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
      call submit {expense=ready} by=self
      let submitted_replacement=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
      submitted_replacement!=null -> true
@@ -136,6 +152,7 @@ package expense label="Expenses"@{nl="Onkosten"}
      claim.status,claim.receipt,claim.decision,paid_replacement.status,paid_replacement.submission,paid_replacement.receipt,any(claim.Decision as decision,not decision.approved and decision.receipt==receipt and decision.reason=="Clarify the journey"),any(paid_replacement.Decision as decision,decision.approved and decision.submission==2 and decision.receipt==corrected_receipt),count(paid_replacement.Reimbursement) -> rejected,receipt,"Clarify the journey",reimbursed,2,corrected_receipt,true,true,1
    examples seed=[claim,reviewer_worker,replacement_worker,finance_worker,hr_user,corrected_receipt]
     do
+     call transcribe_receipt {expense=claim,source="extract-1",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
      call submit {expense=claim} by=self
      let submitted_version=claim.version
      call deactivate {employee=reviewer_worker,ended=date("2026-10-02")} by=hr_user
@@ -153,6 +170,7 @@ package expense label="Expenses"@{nl="Onkosten"}
      call Expense.update {record=recovery_draft,changes={receipt=corrected_receipt,reviewer=replacement_user}} by=self
      let recovery_ready=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
      recovery_ready!=null -> true
+     call transcribe_receipt {expense=recovery_ready,source="extract-12",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
      call submit {expense=recovery_ready} by=self
      let recovery_submitted=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
      recovery_submitted!=null -> true
@@ -163,6 +181,33 @@ package expense label="Expenses"@{nl="Onkosten"}
      let recovery_paid=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
      recovery_paid!=null -> true
      claim.status,claim.reviewer,claim.receipt,count(claim.Decision),recovery_paid.status,recovery_paid.reviewer,recovery_paid.receipt,recovery_paid.submission,count(recovery_paid.Decision),count(recovery_paid.Reimbursement) -> withdrawn,reviewer_user,receipt,0,reimbursed,replacement_user,corrected_receipt,2,1,1
+  # Transcribe the claimed totals from the frozen receipt while the claim is a draft. @{nl="Neem de geclaimde totalen over van de vastgelegde bon terwijl de declaratie een concept is."}
+  scenario transcribe_receipt(expense:Expense,source:text,amount:money,spent_on:date,merchant:text) -> ReceiptExtract by=members label="Transcribe receipt claims"@{nl="Bonclaims overnemen"}
+   require expense.parent.user==actor and expense.parent.active and can_work(actor,expense.location) and expense.status==draft and trim(source)!="" and trim(merchant)!="" and amount.currency==expense.location.currency and amount.minor>0
+   do
+    require not any(ReceiptExtract as extract,extract.source==trim(source))
+    create ReceiptExtract {parent=expense,source=trim(source),amount,spent_on,merchant=trim(merchant)} as extract
+    return extract
+   examples seed=[test_worker] expense=claim source="extract-2" spent_on=date("2026-10-01") merchant="Station kiosk"
+    as,expense.status,amount -> count(ReceiptExtract),result.source,result.amount
+    self,draft,money(25,"EUR") -> 1,"extract-2",money(25,"EUR")
+    self,draft,money(25,"USD") -> error(rule_failed)
+    self,submitted,money(25,"EUR") -> error(rule_failed)
+    ordinary_user,draft,money(25,"EUR") -> error(rule_failed)
+   examples seed=[test_worker,receipt_extract] expense=claim source="extract-1" amount=money(25,"EUR") spent_on=date("2026-10-01") merchant="Station kiosk"
+    as -> count(ReceiptExtract)
+    self -> error(rule_failed)
+   examples seed=[claim,reviewer_worker]
+    do
+     call transcribe_receipt {expense=claim,source="extract-9",amount=money(30,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
+     claim.status,count(claim.ReceiptExtract) -> draft,1
+     call submit {expense=claim} by=self -> error(rule_failed)
+     claim.status,count(claim.Decision) -> draft,0
+     call transcribe_receipt {expense=claim,source="extract-10",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
+     call submit {expense=claim} by=self
+     claim.status,claim.submission,count(claim.ReceiptExtract) -> submitted,1,2
+     call decide {expense=claim,approve=true,reason="Receipt and transcription checked"} by=reviewer_user
+     claim.status,count(claim.Decision) -> approved,1
   # Decide exactly the submitted amount and receipt; rejection needs a reason. @{nl="Beslis over precies het ingediende bedrag en de bon; afwijzing vereist een reden."}
   scenario decide(expense:Expense,approve:bool label=label_Expense_status_approved,reason:text) by=reviewer label="Record decision"@{nl="Besluit vastleggen"}
    require expense.status==submitted and expense.reviewer==actor and expense.parent.user!=actor and can_work(actor,expense.location) and (approve or trim(reason)!="")
@@ -324,6 +369,9 @@ package expense label="Expenses"@{nl="Onkosten"}
      text row.purpose,row.authorization,row.corrects,row.business_date,row.amount,row.receipt,row.status,row.submission,row.decision,row.withdrawal
      edit
      actions submit,withdraw,correct
+     form transcribe_receipt
+     list row.ReceiptExtract
+      text row.source,row.merchant,row.amount,row.spent_on
     list row.Decision
      text row.submission,row.amount,row.receipt,row.approved,row.reason,row.decided_at
     list row.Reimbursement
@@ -336,6 +384,8 @@ package expense label="Expenses"@{nl="Onkosten"}
     card "Frozen claim review"@{nl="Vastgelegde declaratie beoordelen"}
      text row.authorization,row.corrects,row.submission,row.reviewer,row.decision,row.decided_by,row.decided_at
      actions decide,reimburse
+     list row.ReceiptExtract
+      text row.source,row.merchant,row.amount,row.spent_on
     tabs
      tab "Recorded decisions"@{nl="Vastgelegde besluiten"}
       list row.Decision
