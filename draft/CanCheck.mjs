@@ -57,6 +57,20 @@ export const PingV1 = "check.PingV1";
  */
 const applicationCaption = message("Application", { nl: "Applicatie" });
 
+const jobHealthPageDescriptor = {
+  owner: "check",
+  path: "/job-health",
+  title: message("Job health", { nl: "Taakgezondheid" }),
+  description: message("Read configured checks and perform only authorized pause and resume.", {
+    nl: "Lees geconfigureerde controles en voer uitsluitend toegestane pauze- en hervatacties uit.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "check.operations"), "forbidden");
+    return {};
+  },
+  render: jobHealthPage,
+};
+
 export const appDefinition = {
   id: "CanCheck",
   uses: ["check"],
@@ -254,7 +268,7 @@ export const appDefinition = {
     "check.delivered": { handler: "delivered", on: "check.Alerts.notify.completed" },
     "check.deadline": { handler: "deadline", on: "check.Deadline" },
   },
-  pages: [{ path: "/job-health", render: jobHealthPage }],
+  pages: [jobHealthPageDescriptor],
   disabled: [
     "check.Check.create",
     "check.Check.update",
@@ -521,18 +535,10 @@ export function canApp() {
   };
 }
 
-export async function jobHealthPage(c) {
-  check(hasRole(c, "check.operations"), "forbidden");
+export async function jobHealthPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "check",
-      path: "/job-health",
-      title: message("Job health", { nl: "Taakgezondheid" }),
-      description: message("Read configured checks and perform only authorized pause and resume.", {
-        nl: "Lees geconfigureerde controles en voer uitsluitend toegestane pauze- en hervatacties uit.",
-      }),
-    },
+    jobHealthPageDescriptor,
     () => [
       table({
         context: c,

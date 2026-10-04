@@ -83,6 +83,34 @@ export const complete = "volunteer.complete";
  * across booking/volunteer authorities. No booking is reserved by Volunteer.
  * Activity cancellation and rescheduling preserve participant/task history.
  */
+const activitiesPageDescriptor = {
+  owner: "volunteer",
+  path: "/volunteering",
+  title: message("Volunteer activities", { nl: "Vrijwilligersactiviteiten" }),
+  description: message("Discover activities and follow only your own assignments.", {
+    nl: "Ontdek activiteiten en volg alleen je eigen opdrachten.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    return {};
+  },
+  render: activitiesPage,
+};
+
+const workPageDescriptor = {
+  owner: "volunteer",
+  path: "/volunteering/work",
+  title: message("Volunteer coordination", { nl: "Vrijwilligerscoördinatie" }),
+  description: message("Coordinate confirmed participants and entered attendance.", {
+    nl: "Coördineer bevestigde deelnemers en ingevoerde aanwezigheid.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "volunteer.organizer"), "forbidden");
+    return {};
+  },
+  render: workPage,
+};
+
 export const appDefinition = {
   id: "CanVolunteer",
   uses: ["volunteer"],
@@ -555,8 +583,8 @@ export const appDefinition = {
     "volunteer.remind": { handler: "remind", on: "volunteer.Reminder" },
   },
   pages: [
-    { path: "/volunteering", render: activitiesPage },
-    { path: "/volunteering/work", render: workPage },
+    activitiesPageDescriptor,
+    workPageDescriptor,
   ],
   disabled: ["volunteer.Opportunity.delete", "volunteer.Task.delete"],
 };
@@ -1096,17 +1124,10 @@ export function canApp() {
   };
 }
 
-export async function activitiesPage(c) {
+export async function activitiesPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "volunteer",
-      path: "/volunteering",
-      title: message("Volunteer activities", { nl: "Vrijwilligersactiviteiten" }),
-      description: message("Discover activities and follow only your own assignments.", {
-        nl: "Ontdek activiteiten en volg alleen je eigen opdrachten.",
-      }),
-    },
+    activitiesPageDescriptor,
     () => [
       tabs({
         context: c,
@@ -1159,71 +1180,67 @@ export async function activitiesPage(c) {
               }),
             ],
           }),
-          tab({
-            context: c,
-            value: "assignments",
-            children: [
-              card({
-                context: c,
-                title: message("Your signups and assigned tasks", {
-                  nl: "Jouw inschrijvingen en toegewezen taken",
-                }),
-                children: [
-                  list({
-                    context: c,
-                    model: "volunteer.Signup",
-                    display: "split",
-                    renderRow: (signup, v) => [
-                      text({ context: v, values: [signup.state, signup.needs_confirmation] }),
-                      actions({
-                        context: v,
-                        operations: [
-                          "volunteer.withdraw",
-                          "volunteer.reactivate",
-                          "volunteer.reconfirm",
-                        ],
-                        boundArgs: { signup },
+          ...(hasRole(c, "authenticated")
+            ? [
+                tab({
+                  context: c,
+                  value: "assignments",
+                  children: [
+                    card({
+                      context: c,
+                      title: message("Your signups and assigned tasks", {
+                        nl: "Jouw inschrijvingen en toegewezen taken",
                       }),
-                      list({
-                        context: v,
-                        model: Task,
-                        parent: signup,
-                        renderRow: (task, tv) => [
-                          text({
-                            context: tv,
-                            values: [task.title, task.done, task.completed_by, task.completed_at],
-                          }),
-                          actions({
-                            context: tv,
-                            operations: ["volunteer.complete"],
-                            boundArgs: { task },
-                          }),
-                        ],
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-            ],
-          }),
+                      children: [
+                        list({
+                          context: c,
+                          model: "volunteer.Signup",
+                          display: "split",
+                          renderRow: (signup, v) => [
+                            text({ context: v, values: [signup.state, signup.needs_confirmation] }),
+                            actions({
+                              context: v,
+                              operations: [
+                                "volunteer.withdraw",
+                                "volunteer.reactivate",
+                                "volunteer.reconfirm",
+                              ],
+                              boundArgs: { signup },
+                            }),
+                            list({
+                              context: v,
+                              model: Task,
+                              parent: signup,
+                              renderRow: (task, tv) => [
+                                text({
+                                  context: tv,
+                                  values: [task.title, task.done, task.completed_by, task.completed_at],
+                                }),
+                                actions({
+                                  context: tv,
+                                  operations: ["volunteer.complete"],
+                                  boundArgs: { task },
+                                }),
+                              ],
+                            }),
+                          ],
+                        }),
+                      ],
+                    }),
+                  ],
+                })
+              ]
+            : []),
         ],
       }),
     ],
   );
 }
 
-export async function workPage(c) {
-  check(hasRole(c, "volunteer.organizer"), "forbidden");
+export async function workPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "volunteer",
-      path: "/volunteering/work",
-      title: message("Volunteer coordination", { nl: "Vrijwilligerscoördinatie" }),
-      description: message("Coordinate confirmed participants and entered attendance.", {
-        nl: "Coördineer bevestigde deelnemers en ingevoerde aanwezigheid.",
-      }),
-    },
+    workPageDescriptor,
     () => [
       card({
         context: c,

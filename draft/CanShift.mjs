@@ -239,6 +239,34 @@ async function travel_entered(c, roster, employee, location, from, until, before
       ((await next_work(c, roster, employee, until, skip))?.before ?? 0n) > 0n)
   );
 }
+const rosterPageDescriptor = {
+  owner: "shift",
+  path: "/roster",
+  title: rosterCaption,
+  description: message("Plan drafts, publish coverage and resolve current commitments.", {
+    nl: "Plan concepten, publiceer bezetting en los huidige inzetverplichtingen op.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "shift.scheduler"), "forbidden");
+    return {};
+  },
+  render: rosterPage,
+};
+
+const minePageDescriptor = {
+  owner: "shift",
+  path: "/roster/mine",
+  title: message("My shifts", { nl: "Mijn diensten" }),
+  description: message("Maintain your availability separately from hidden roster drafts.", {
+    nl: "Beheer je beschikbaarheid afzonderlijk van verborgen conceptroosters.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "members"), "forbidden");
+    return {};
+  },
+  render: minePage,
+};
+
 export const appDefinition = {
   id: "CanShift",
   uses: ["shift"],
@@ -808,8 +836,8 @@ export const appDefinition = {
     },
   },
   pages: [
-    { path: "/roster", render: rosterPage },
-    { path: "/roster/mine", render: minePage },
+    rosterPageDescriptor,
+    minePageDescriptor,
   ],
   disabled: ["shift.Roster.delete", "shift.Availability.delete", "shift.Coverage.delete"],
   compositions: {
@@ -1817,18 +1845,10 @@ export function canApp() {
   };
 }
 
-export async function rosterPage(c) {
-  check(hasRole(c, "shift.scheduler"), "forbidden");
+export async function rosterPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "shift",
-      path: "/roster",
-      title: rosterCaption,
-      description: message("Plan drafts, publish coverage and resolve current commitments.", {
-        nl: "Plan concepten, publiceer bezetting en los huidige inzetverplichtingen op.",
-      }),
-    },
+    rosterPageDescriptor,
     () => [
       form({ context: c, operation: "shift.Roster.create" }),
       list({
@@ -1921,18 +1941,10 @@ export async function rosterPage(c) {
   );
 }
 
-export async function minePage(c) {
-  check(hasRole(c, "members"), "forbidden");
+export async function minePage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "shift",
-      path: "/roster/mine",
-      title: message("My shifts", { nl: "Mijn diensten" }),
-      description: message("Maintain your availability separately from hidden roster drafts.", {
-        nl: "Beheer je beschikbaarheid afzonderlijk van verborgen conceptroosters.",
-      }),
-    },
+    minePageDescriptor,
     () => [
       card({
         context: c,

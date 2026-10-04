@@ -56,6 +56,40 @@ const fromCaption = message("Started at", { nl: "Gestart op" });
 const untilCaption = message("Stopped at", { nl: "Gestopt op" });
 const billableCaption = message("Billable", { nl: "Factureerbaar" });
 
+const minePageDescriptor = {
+  owner: "time",
+  path: "/time/mine",
+  title: message("My time", { nl: "Mijn tijd" }),
+  description: message(
+    "Start, stop and submit your own time with separate observed and entered evidence.",
+    {
+      nl: "Start, stop en dien je eigen tijd in met afzonderlijk gemeten en ingevoerd bewijs.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "members"), "forbidden");
+    return {};
+  },
+  render: minePage,
+};
+
+const reviewPageDescriptor = {
+  owner: "time",
+  path: "/time/review",
+  title: message("Time review", { nl: "Tijdbeoordeling" }),
+  description: message(
+    "Review fixed periods and preserve correction financial uncertainty until the invoice owner resolves it.",
+    {
+      nl: "Beoordeel vastgelegde periodes en bewaar financiële correctieonzekerheid totdat de factuureigenaar deze oplost.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "time.project_manager"), "forbidden");
+    return {};
+  },
+  render: reviewPage,
+};
+
 export const appDefinition = {
   id: "CanTime",
   uses: ["time"],
@@ -459,8 +493,8 @@ export const appDefinition = {
     "time.settled": { handler: "settled", on: { capability: "time.Billing", event: "settled" } },
   },
   pages: [
-    { path: "/time/mine", render: minePage },
-    { path: "/time/review", render: reviewPage },
+    minePageDescriptor,
+    reviewPageDescriptor,
   ],
   disabled: ["time.Project.delete"],
 };
@@ -970,21 +1004,10 @@ export function canApp() {
   };
 }
 
-export async function minePage(c) {
-  check(hasRole(c, "members"), "forbidden");
+export async function minePage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "time",
-      path: "/time/mine",
-      title: message("My time", { nl: "Mijn tijd" }),
-      description: message(
-        "Start, stop and submit your own time with separate observed and entered evidence.",
-        {
-          nl: "Start, stop en dien je eigen tijd in met afzonderlijk gemeten en ingevoerd bewijs.",
-        },
-      ),
-    },
+    minePageDescriptor,
     async () => [
       card({
         context: c,
@@ -1116,21 +1139,10 @@ export async function minePage(c) {
     ],
   );
 }
-export async function reviewPage(c) {
-  check(hasRole(c, "time.project_manager"), "forbidden");
+export async function reviewPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "time",
-      path: "/time/review",
-      title: message("Time review", { nl: "Tijdbeoordeling" }),
-      description: message(
-        "Review fixed periods and preserve correction financial uncertainty until the invoice owner resolves it.",
-        {
-          nl: "Beoordeel vastgelegde periodes en bewaar financiële correctieonzekerheid totdat de factuureigenaar deze oplost.",
-        },
-      ),
-    },
+    reviewPageDescriptor,
     async () => [
       card({
         context: c,

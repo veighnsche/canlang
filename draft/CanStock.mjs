@@ -81,6 +81,20 @@ const reversalCaption = message("Reversal reference", { nl: "Terugboekingsrefere
 
 const reorderCaption = message("Reorder threshold", { nl: "Besteldrempel" });
 
+const stockPageDescriptor = {
+  owner: "stock",
+  path: "/stock",
+  title: message("Consumables", { nl: "Verbruiksartikelen" }),
+  description: message("Inspect location balances and enter deliberate ledger movements.", {
+    nl: "Bekijk locatiesaldi en voer bewuste voorraadmutaties in.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "stock.stock_staff"), "forbidden");
+    return {};
+  },
+  render: stockPage,
+};
+
 export const appDefinition = {
   id: "CanStock",
   uses: ["stock"],
@@ -370,7 +384,7 @@ export const appDefinition = {
       ),
     },
   },
-  pages: [{ path: "/stock", render: stockPage }],
+  pages: [stockPageDescriptor],
   disabled: [
     "stock.Item.delete",
     "stock.Threshold.delete",
@@ -798,18 +812,10 @@ export function canApp() {
   };
 }
 
-export async function stockPage(c) {
-  check(hasRole(c, "stock.stock_staff"), "forbidden");
+export async function stockPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "stock",
-      path: "/stock",
-      title: message("Consumables", { nl: "Verbruiksartikelen" }),
-      description: message("Inspect location balances and enter deliberate ledger movements.", {
-        nl: "Bekijk locatiesaldi en voer bewuste voorraadmutaties in.",
-      }),
-    },
+    stockPageDescriptor,
     () => [
       card({
         context: c,
