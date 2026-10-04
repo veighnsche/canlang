@@ -1,0 +1,64 @@
+# Archive an owned request with a required reason through its one canonical delete.
+app ArchiveExposure
+Given
+ Employee {user:user unique,department:enum(A,B),enabled:bool=true}
+ policy Employee read=members where=row.user==actor
+ lock Employee fields=user
+ Request {title:text trim min=1,submitted_by:user server=actor,department:Employee.department? server=first(Employee as employee where employee.user==actor and employee.enabled)?.department,archive_reason:text? trim min=1}
+ policy Request read=members where=row.submitted_by==actor
+ invariant Request: row.department!=null
+ invariant Request: row.archived_at==null or row.archive_reason!=null
+ lock Request fields=submitted_by,department
+ lock Request fields=archive_reason when=row.archive_reason!=null
+ fixture employee=Employee {user=self,department=A}
+ fixture mine=Request {title="Monitor",submitted_by=self,department=A}
+When
+ ## Proposed exposure syntax: default lifecycle remains enabled; only publication is restricted.
+ crud Request by=members fields=title expose=create,update when=row.submitted_by==actor and row.archived_at==null and any(Employee as employee,employee.user==actor and employee.enabled)
+  ## These canonical admission cases do not advertise a public delete route; the test harness is not an exposure grant.
+  examples delete record=mine seed=[employee]
+   as,record.archive_reason,request.record.version -> mine.archived_at!=null,mine.archive_reason,mine.version
+   self,null,1 -> error(rule_failed)
+   self,"Previously recorded",1 -> true,"Previously recorded",2
+   other,"Previously recorded",1 -> error(rule_failed)
+   self,"Previously recorded",0 -> error(conflict)
+ # Archive your open request with a reason, retaining owner and department evidence.
+ scenario archive(request:Request,reason:text) by=members
+  require request.submitted_by==actor and request.archived_at==null
+  require trim(reason)!=""
+  do
+   set request {archive_reason=trim(reason)}
+   call Request.delete {record=request}
+  examples request=mine seed=[employee]
+   as,reason,employee.enabled,request.request.version -> mine.archived_at!=null,mine.title,mine.submitted_by,mine.department,mine.archive_reason,mine.version
+   self,"  No longer needed  ",true,1 -> true,"Monitor",self,A,"No longer needed",2
+   self,"   ",true,1 -> error(rule_failed)
+   self,"No longer needed",true,0 -> error(conflict)
+   other,"No longer needed",true,1 -> error(rule_failed)
+   self,"No longer needed",false,1 -> error(rule_failed)
+   public,"No longer needed",true,1 -> error(forbidden)
+  ## Proposed attached sequence: the complete evidence history comes from actual canonical calls.
+  examples seed=[employee]
+   do
+    call Request.create {title="Monitor"} by=self
+    let opened=first(Request as row where row.submitted_by==self order=row.id)
+    opened!=null -> true
+    call archive {request=opened,reason="  No longer needed  "} by=self
+    let archived=first(Request archived=include as row where row.submitted_by==self order=row.id)
+    archived!=null -> true
+    archived.archived_at!=null,archived.title,archived.submitted_by,archived.department,archived.archive_reason,archived.version -> true,"Monitor",self,A,"No longer needed",2
+    call archive {request=archived,reason="Different reason"} by=self -> error(rule_failed)
+    let retained=first(Request archived=include as row where row.submitted_by==self order=row.id)
+    retained!=null -> true
+    retained.archive_reason,retained.version,count(Request archived=include) -> "No longer needed",2,1
+Then
+ page / title="Your requests"
+  require members
+  form Request.create
+  table Request archived=include columns=title,department,archive_reason,archived_at
+   text row.submitted_by
+   history
+   card "Manage your open request"
+    require row.archived_at==null
+    edit
+    action archive

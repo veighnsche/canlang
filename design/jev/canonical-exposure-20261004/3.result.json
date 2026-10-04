@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Consider a not-yet-implemented declarative language's equipment-request example. Requests can be archived only with retained nonempty evidence. The owner-facing archive action checks current ownership and openness, trims and saves the explanation, then invokes the existing generated deletion operation, whose normal admission still runs. Final constraints forbid an archived request without an explanation, and recorded explanations and ownership cannot be changed. A stale version conflicts and failed actions commit nothing; all accepted writes in this owner transaction use one version increment. The ordinary deletion tool cannot accept a reason, so invoking it on a fresh request fails rather than escaping authorization. At present product selection advertises enabled CRUD plus user actions; plain imported executable dependencies are internal unless selected interface references expose a target. Local canonical calls by themselves add no public exposure. Disabling deletion is a lifecycle prohibition, including the internal path, not a visibility setting. Preserve one deletion implementation, precise owner/version admission and atomic historical evidence across the proposed options. The issue is discovery clarity, not a demonstrated successful exploit; the draft has no compiler/dispatcher/renderer implementation. Automatic inference of whether all arbitrary business guards can ever succeed is outside the verified language contract.",
+    "questions": {
+      "exposure": {
+        "type": "choice",
+        "instructions": "Select the best way to retain the exact archival workflow and canonical execution while keeping discovery understandable and app authoring simple. Treat probabilities as advice, not approval.",
+        "criteria": {
+          "keep_default": "Accept the honest existing discoverability contract. Preserve the fail-safe direct delete and point clients to the existing archive action with reason; no flags or package restructuring. This retains a dead-end operation in the ordinary tool list even though it does not violate owner/evidence rules.",
+          "crud_exposure": "Separate generation from publication with one CRUD exposure list: expose=create,update omits the enabled delete from all public UI/MCP/routes while keeping that identical target internally callable under its existing admission. Defaults stay unchanged and explicit contradictory public references are errors. The cost is one new closed attribute and derived metadata, without a duplicate archive/delete implementation.",
+          "presentation_selection": "Exploit existing dependency exposure rules instead of changing grammar. A new selected presentation/product imports the unchanged owning business declarations, publishes only the intended forms and reason-bearing action, and leaves delete unreferenced internally. It meets discovery and execution outcomes using current rules, at the expense of an extra presentation composition and relocating interface authoring."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "exposure": {
+        "type": "choice",
+        "choice": "crud_exposure",
+        "confidence": 0.75,
+        "probabilities": {
+          "crud_exposure": 0.83,
+          "keep_default": 0.04,
+          "presentation_selection": 0.13
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 782,
+      "output_tokens": 48
+    }
+  }
+}
