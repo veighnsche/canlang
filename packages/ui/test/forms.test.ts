@@ -5,6 +5,7 @@ import type {
   ActionProps,
   DeleteProps,
   EditProps,
+  FieldControlKind,
   FormFieldDef,
   FormProps,
   PresentationContext,
@@ -261,6 +262,16 @@ describe("form hidden fields and roots", () => {
 });
 
 describe("form field widgets", () => {
+  it("honors labelCaption overrides like explicit controls", async () => {
+    const html = await form(
+      makeFormProps({
+        fields: [field("a", { label: "Original", labelCaption: "Override" })],
+      }),
+    );
+    assert.ok(html.includes(">Override<"), "override rendered");
+    assert.ok(!html.includes("Original"), "declared label replaced");
+  });
+
   it("renders text, email and url inputs with escaped values", async () => {
     const html = await form(
       makeFormProps({
@@ -1070,5 +1081,256 @@ describe("forms escaping and prefixes", () => {
       }),
     );
     assertIdsPrefixed(html, "xyz9");
+  });
+});
+
+describe("explicit control dispatch", () => {
+  it("renders textlike and boolean controls through their factories", async () => {
+    const textInput = await form(
+      makeFormProps({ fields: [field("a", { type: "text", value: "x", control: "input" })] }),
+    );
+    assert.ok(textInput.includes('<input type="text" name="inputs[a]" id="f1-a" value="x" class="input"'));
+
+    const area = await form(
+      makeFormProps({ fields: [field("a", { type: "text", value: "x", control: "textarea" })] }),
+    );
+    assert.ok(area.includes('<textarea name="inputs[a]" id="f1-a" class="textarea"'));
+
+    const box = await form(
+      makeFormProps({ fields: [field("a", { type: "bool", value: true, control: "checkbox" })] }),
+    );
+    assert.ok(
+      box.includes(
+        '<input type="checkbox" name="inputs[a]" id="f1-a" value="true" checked class="checkbox"',
+      ),
+    );
+
+    const tog = await form(
+      makeFormProps({ fields: [field("a", { type: "bool", value: false, control: "toggle" })] }),
+    );
+    assert.ok(tog.includes('type="checkbox" name="inputs[a]" id="f1-a"'));
+    assert.ok(tog.includes('class="toggle"'));
+  });
+
+  it("renders finite-choice controls with their option lists", async () => {
+    const options = [
+      { value: "a", label: "A" },
+      { value: "b", label: "B" },
+    ];
+    const radios = await form(
+      makeFormProps({
+        fields: [field("s", { type: "enum", value: "b", control: "radio", options })],
+      }),
+    );
+    assert.ok(radios.includes('role="radiogroup"'));
+    assert.ok(radios.includes('type="radio" name="inputs[s]"'));
+
+    const picked = await form(
+      makeFormProps({
+        fields: [field("s", { type: "enum", value: "b", control: "select", options })],
+      }),
+    );
+    assert.ok(picked.includes('<select name="inputs[s]" id="f1-s" class="select"'));
+    assert.ok(picked.includes('<option value="b" selected>B</option>'));
+
+    const filtered = await form(
+      makeFormProps({
+        fields: [field("s", { type: "enum", value: "a", control: "filter", options })],
+      }),
+    );
+    assert.ok(filtered.includes('<div class="filter">'));
+    assert.ok(!filtered.includes("filter-reset"));
+    assert.ok(!filtered.includes('type="reset"'));
+  });
+
+  it("renders numeric controls with schema bounds", async () => {
+    const slider = await form(
+      makeFormProps({
+        fields: [field("n", { type: "int", value: 5, min: 1, max: 10, control: "range" })],
+      }),
+    );
+    assert.ok(slider.includes('type="range" name="inputs[n]" id="f1-n"'));
+    assert.ok(slider.includes('min="1" max="10"'));
+    assert.ok(slider.includes('class="range"'));
+
+    const stars = await form(
+      makeFormProps({ fields: [field("n", { type: "int", value: 3, control: "rating" })] }),
+    );
+    assert.ok(stars.includes('class="rating"'));
+    assert.ok(stars.includes('value="3"'));
+  });
+
+  it("renders file inputs and switches the form to multipart", async () => {
+    const html = await form(
+      makeFormProps({ fields: [field("avatar", { type: "file", control: "file_input" })] }),
+    );
+    assert.ok(html.includes('<form action="/submit" method="post" enctype="multipart/form-data">'));
+    assert.ok(html.includes('type="file" name="inputs[avatar]" id="f1-avatar"'));
+    assert.ok(html.includes('class="file-input"'));
+  });
+
+  it("renders otp and calendar controls", async () => {
+    const code = await form(
+      makeFormProps({ fields: [field("pin", { type: "text", value: "12", control: "otp" })] }),
+    );
+    assert.ok(code.includes('<div class="otp">'));
+    assert.ok(code.includes('inputmode="numeric" name="inputs[pin]"'));
+
+    const day = await form(
+      makeFormProps({
+        fields: [field("d", { type: "date", value: "2024-02-29", control: "calendar" })],
+      }),
+    );
+    assert.ok(day.includes('type="date" name="inputs[d]"'));
+
+    const when = await form(
+      makeFormProps({
+        timeZone: "Europe/Amsterdam",
+        fields: [field("w", { type: "datetime", value: "2024-07-15T12:00:00Z", control: "calendar" })],
+      }),
+    );
+    assert.ok(when.includes('type="datetime-local" name="inputs[w]"'));
+    assert.ok(when.includes('value="2024-07-15T14:00"'));
+  });
+
+  it("throws naming the field for unknown controls from JS callers", async () => {
+    const bad = field("mystery", { control: "bogus" as unknown as FieldControlKind });
+    await assert.rejects(
+      form(makeFormProps({ fields: [bad] })),
+      /field "mystery": unknown control "bogus"/,
+    );
+  });
+
+  it("propagates factory suitability throws fail-closed", async () => {
+    await assert.rejects(
+      form(makeFormProps({ fields: [field("n", { type: "text", control: "range" })] })),
+      /field "n": range needs a numeric type/,
+    );
+    await assert.rejects(
+      form(makeFormProps({ fields: [field("t", { type: "text", control: "checkbox" })] })),
+      /field "t": checkbox needs a bool type/,
+    );
+  });
+
+  it("honors labelCaption on explicit controls", async () => {
+    const html = await form(
+      makeFormProps({
+        fields: [field("a", { label: "Original", labelCaption: "Override", control: "input" })],
+      }),
+    );
+    assert.ok(html.includes(">Override<"));
+    assert.ok(!html.includes("Original"));
+  });
+});
+
+describe("duplicate field paths", () => {
+  it("form() throws naming the duplicated path", async () => {
+    await assert.rejects(
+      form(makeFormProps({ fields: [field("dup"), field("other"), field("dup")] })),
+      /duplicate field path "dup"/,
+    );
+  });
+
+  it("edit() throws naming the duplicated path", async () => {
+    await assert.rejects(
+      edit(makeEditProps({ fields: [field("dup"), field("dup")] })),
+      /duplicate field path "dup"/,
+    );
+  });
+
+  it("action() scenario fields throw naming the duplicated path", async () => {
+    await assert.rejects(
+      action(makeActionProps({ fields: [field("dup"), field("dup")] })),
+      /duplicate field path "dup"/,
+    );
+  });
+});
+
+describe("multipart encoding", () => {
+  it("omits enctype without file fields", async () => {
+    const html = await form(
+      makeFormProps({ fields: [field("title", { control: "input" }), field("n", { type: "int" })] }),
+    );
+    assert.ok(html.includes('<form action="/submit" method="post">'));
+    assert.ok(!html.includes("enctype"));
+    const mini = await action(makeActionProps({ fields: [field("reason")] }));
+    assert.ok(!mini.includes("enctype"));
+    const buttonOnly = await action(makeActionProps());
+    assert.ok(!buttonOnly.includes("enctype"));
+  });
+
+  it("action() mini-forms use multipart for file_input controls", async () => {
+    const html = await action(
+      makeActionProps({ fields: [field("avatar", { type: "file", control: "file_input" })] }),
+    );
+    assert.ok(html.includes('<form action="/act" method="post" enctype="multipart/form-data">'));
+    assert.ok(html.includes('type="file" name="inputs[avatar]"'));
+  });
+});
+
+describe("explicit/default equivalence", () => {
+  it("matches default name/id/outlet wiring byte-identically where the control matches the default", async () => {
+    const errors = [fieldError("/title", "Title is required", "required")];
+    const plain = await form(
+      makeFormProps({
+        fields: [field("title", { type: "text", value: "draft", required: true })],
+        errors,
+      }),
+    );
+    const explicit = await form(
+      makeFormProps({
+        fields: [field("title", { type: "text", value: "draft", required: true, control: "input" })],
+        errors,
+      }),
+    );
+    assert.equal(explicit, plain);
+  });
+
+  it("matches readonly toggle wiring between default bools and explicit toggles", async () => {
+    const errors = [fieldError("/on", "Must accept", "required")];
+    const plain = await form(
+      makeFormProps({
+        fields: [field("on", { type: "bool", value: true, readonly: true })],
+        errors,
+      }),
+    );
+    const explicit = await form(
+      makeFormProps({
+        fields: [field("on", { type: "bool", value: true, readonly: true, control: "toggle" })],
+        errors,
+      }),
+    );
+    assert.equal(explicit, plain);
+  });
+
+  it("matches select wiring between default enums and explicit selects", async () => {
+    const options = [
+      { value: "a", label: "A" },
+      { value: "b", label: "B" },
+    ];
+    const plain = await form(
+      makeFormProps({ fields: [field("status", { type: "enum", value: "b", options })] }),
+    );
+    const explicit = await form(
+      makeFormProps({
+        fields: [field("status", { type: "enum", value: "b", options, control: "select" })],
+      }),
+    );
+    assert.equal(explicit, plain);
+  });
+
+  it("dispatches explicit controls in action() scenario mini-forms", async () => {
+    const html = await action(
+      makeActionProps({
+        fields: [
+          field("n", { type: "int", value: 4, min: 1, max: 5, control: "range" }),
+          field("note", { control: "textarea" }),
+        ],
+      }),
+    );
+    assert.ok(html.includes('type="range" name="inputs[n]"'));
+    assert.ok(html.includes('min="1" max="5"'));
+    assert.ok(html.includes('<textarea name="inputs[note]" id="a1-note"'));
+    assertIdsPrefixed(html, "a1");
   });
 });

@@ -5,6 +5,10 @@ import type * as presentation from "../src/presentation.js";
 import type * as services from "../src/services.js";
 import type * as state from "../src/state.js";
 import type * as wire from "../src/wire.js";
+// S8b runtime pin: files has no build, so the pin imports its TS source
+// (allowed by tsconfig.check.json). If files ever gains a dist, prefer it.
+import { DEFAULT_FILE_POLICY } from "../../files/src/upload/index.ts";
+import { DEFAULT_UPLOAD_MAX_BYTES, DEFAULT_UPLOAD_TYPES } from "../src/wire.js";
 
 type Equal<X, Y> =
   (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? true : false;
@@ -14,7 +18,13 @@ type Equal<X, Y> =
 // (not the pins) when the owning lanes reconcile the definition.
 const operationIdIsState: Equal<barrel.OperationId, state.OperationId> = true;
 const deliveryStatusIsServices: Equal<barrel.DeliveryStatus, services.DeliveryStatus> = true;
+
+// Reconciled identities (L4 S8): files.ts re-exports both names from wire,
+// so the barrel needs no explicit line — but if either side ever diverges
+// again, the name silently drops from the barrel. Each pair fails loudly.
 const fileTransferMetaIsWire: Equal<barrel.FileTransferMeta, wire.FileTransferMeta> = true;
+const fileTransferMetaIsFiles: Equal<barrel.FileTransferMeta, files.FileTransferMeta> = true;
+const uploadIntentRequestIsWire: Equal<barrel.UploadIntentRequest, wire.UploadIntentRequest> = true;
 const uploadIntentRequestIsFiles: Equal<barrel.UploadIntentRequest, files.UploadIntentRequest> = true;
 
 // Re-export identities (L5 S4): presentation re-exports these wire types.
@@ -38,6 +48,8 @@ describe("assembly conflict picks", () => {
       operationIdIsState,
       deliveryStatusIsServices,
       fileTransferMetaIsWire,
+      fileTransferMetaIsFiles,
+      uploadIntentRequestIsWire,
       uploadIntentRequestIsFiles,
       businessErrorIsWire,
       businessErrorIsPresentation,
@@ -60,6 +72,15 @@ describe("assembly conflict picks", () => {
       true,
       true,
       true,
+      true,
+      true,
     ]);
+  });
+
+  it("pins the files default policy to the wire upload defaults (L4 S8b)", () => {
+    expect(DEFAULT_FILE_POLICY).toEqual({
+      types: [...DEFAULT_UPLOAD_TYPES],
+      maxBytes: DEFAULT_UPLOAD_MAX_BYTES,
+    });
   });
 });

@@ -1160,6 +1160,9 @@ export function storageConformance(
         failed instanceof StorageConstraintError,
         `expected StorageConstraintError, got ${String(failed)}`,
       );
+      // S6: duplicate intent ids are `unique` on every backend (D1/DO match the
+      // outbox table name in the SQLite UNIQUE message), mapping to `conflict`.
+      assert.equal(failed.kind, 'unique');
       assert.equal(await store.readRevision(), 0);
       assert.equal(await store.load(asModel('t.Doc'), asId('ob-1')), null);
       if (probe !== undefined) {
@@ -1382,6 +1385,346 @@ export function storageConformance(
         (await store.load(asModel('t.Task'), asId('task-2')))?.parent ?? null,
         null,
       );
+    });
+
+    it('outbox ack removes the intent from pending; unknown and repeated acks are a no-op', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      await store.commit(
+        makeBatch(0, {
+          outbox: [
+            makeIntent({ intentId: 'ack-a', operationId: 'op-ack' }),
+            makeIntent({ intentId: 'ack-b', operationId: 'op-ack' }),
+          ],
+        }),
+      );
+      assert.deepEqual(
+        (await store.outboxPending()).map((intent) => intent.intentId),
+        ['ack-a', 'ack-b'],
+      );
+      const acked = await store.commit({ ...makeBatch(1), outboxAck: ['ack-a'] });
+      assert.equal(acked.revision, 2);
+      assert.deepEqual(
+        (await store.outboxPending()).map((intent) => intent.intentId),
+        ['ack-b'],
+      );
+      // Unknown ids and already-dispatched ids are an idempotent no-op.
+      const noop = await store.commit({
+        ...makeBatch(2),
+        outboxAck: ['ack-unknown', 'ack-a'],
+      });
+      assert.equal(noop.revision, 3);
+      assert.deepEqual(
+        (await store.outboxPending()).map((intent) => intent.intentId),
+        ['ack-b'],
+      );
+    });
+
+    it('acking an id staged in the same batch marks it dispatched', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      await store.commit({
+        ...makeBatch(0, {
+          outbox: [
+            makeIntent({ intentId: 'sb-keep', operationId: 'op-sb-ack' }),
+            makeIntent({ intentId: 'sb-ack', operationId: 'op-sb-ack' }),
+          ],
+        }),
+        outboxAck: ['sb-ack'],
+      });
+      assert.deepEqual(
+        (await store.outboxPending()).map((intent) => intent.intentId),
+        ['sb-keep'],
+      );
+      assert.equal(await store.readRevision(), 1);
+    });
+
+    it('outboxPending returns full intents ordered by creation then id', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const first = makeIntent({
+        intentId: 'ob-m2',
+        operationId: 'op-ob-1',
+        occurrenceIndex: 2,
+      });
+      const second = makeIntent({
+        intentId: 'ob-m1',
+        operationId: 'op-ob-1',
+        occurrenceIndex: 1,
+      });
+      const guarded = {
+        ...makeIntent({ intentId: 'ob-a0', operationId: 'op-ob-2', target: 'sms.send' }),
+        dispatchGuard: 'weekday',
+      };
+      await store.commit(
+        makeBatch(0, {
+          receipt: makeReceipt({
+            operationId: 'op-ob-1',
+            committedRevision: 1,
+            createdAt: 1_700_000_000_100,
+          }),
+          outbox: [first, second],
+        }),
+      );
+      await store.commit(
+        makeBatch(1, {
+          receipt: makeReceipt({
+            operationId: 'op-ob-2',
+            committedRevision: 2,
+            createdAt: 1_700_000_000_600,
+          }),
+          outbox: [guarded],
+        }),
+      );
+      // Same-batch ties break by intent id; the later batch sorts after both.
+      assert.deepEqual(await store.outboxPending(), [second, first, guarded]);
+    });
+
+    it('scheduleGet hits on replace, tracks updates, and misses after cancel', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      assert.equal(await store.scheduleGet('sched-missing'), null);
+      await store.commit(
+        makeBatch(0, {
+          schedules: [
+            {
+              op: 'replace',
+              key: 'sched-1',
+              at: 1_700_000_010_000,
+              event: asOperation('shop.pickupDue'),
+              payload: { order: 'ord-1' },
+            },
+          ],
+        }),
+      );
+      assert.deepEqual(await store.scheduleGet('sched-1'), {
+        key: 'sched-1',
+        at: 1_700_000_010_000,
+        event: 'shop.pickupDue',
+        payload: { order: 'ord-1' },
+      });
+      await store.commit(
+        makeBatch(1, {
+          schedules: [
+            {
+              op: 'replace',
+              key: 'sched-1',
+              at: 1_700_000_020_000,
+              event: asOperation('shop.pickupLate'),
+              payload: {},
+            },
+          ],
+        }),
+      );
+      assert.deepEqual(await store.scheduleGet('sched-1'), {
+        key: 'sched-1',
+        at: 1_700_000_020_000,
+        event: 'shop.pickupLate',
+        payload: {},
+      });
+      await store.commit(makeBatch(2, { schedules: [{ op: 'cancel', key: 'sched-1' }] }));
+      assert.equal(await store.scheduleGet('sched-1'), null);
+      assert.equal(await store.scheduleGet('sched-missing'), null);
+    });
+
+    it('schedulesDue filters by now, orders by time then key, and caps at limit', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      await store.commit(
+        makeBatch(0, {
+          schedules: [
+            { op: 'replace', key: 'due-b', at: 2_000, event: asOperation('t.due'), payload: {} },
+            {
+              op: 'replace',
+              key: 'due-a',
+              at: 1_000,
+              event: asOperation('t.due'),
+              payload: { n: 1 },
+            },
+            { op: 'replace', key: 'due-c', at: 2_000, event: asOperation('t.due'), payload: {} },
+            {
+              op: 'replace',
+              key: 'future',
+              at: 9_999_999_999_999,
+              event: asOperation('t.due'),
+              payload: {},
+            },
+          ],
+        }),
+      );
+      const due = await store.schedulesDue(2_000, 10);
+      assert.deepEqual(
+        due.map((entry) => [entry.key, entry.at]),
+        [
+          ['due-a', 1_000],
+          ['due-b', 2_000],
+          ['due-c', 2_000],
+        ],
+      );
+      assert.deepEqual(
+        (await store.schedulesDue(2_000, 2)).map((entry) => entry.key),
+        ['due-a', 'due-b'],
+      );
+      assert.deepEqual(await store.schedulesDue(999, 10), []);
+      // Boundary `at <= now` is inclusive; payloads round-trip.
+      assert.deepEqual(due[0]?.payload, { n: 1 });
+    });
+
+    it('schedulesDue rejects a bad limit with a plain Error', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      for (const limit of [0, -1, 1.5, Number.NaN]) {
+        const failed = await captureFailure(store.schedulesDue(1_700_000_000_000, limit));
+        if (!(failed instanceof Error)) {
+          assert.fail(`expected Error for limit ${String(limit)}, got ${String(failed)}`);
+        }
+        assert.match(failed.message, /Invalid schedules limit/);
+        assert.equal(failed.constructor, Error);
+      }
+      assert.equal(await store.readRevision(), 0);
+    });
+
+    it('historyFor returns one record history ordered by version ascending', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const created = makeHistory({
+        model: 'shop.Order',
+        recordId: 'ord-h',
+        version: 1,
+        operationId: 'op-h-1',
+        change: 'create',
+        before: null,
+        after: { total: 50 },
+      });
+      const updated = makeHistory({
+        model: 'shop.Order',
+        recordId: 'ord-h',
+        version: 2,
+        operationId: 'op-h-2',
+        change: 'update',
+        before: { total: 50 },
+        after: { total: 60 },
+      });
+      const archived = makeHistory({
+        model: 'shop.Order',
+        recordId: 'ord-h',
+        version: 3,
+        operationId: 'op-h-3',
+        change: 'archive',
+        before: { total: 60 },
+        after: { total: 60 },
+      });
+      const other = makeHistory({
+        model: 'shop.Order',
+        recordId: 'ord-other',
+        version: 1,
+        operationId: 'op-h-1',
+        change: 'create',
+      });
+      // Committed out of version order: the reader sorts, never assumes insert order.
+      await store.commit(makeBatch(0, { history: [updated, other] }));
+      await store.commit(makeBatch(1, { history: [archived, created] }));
+      assert.deepEqual(await store.historyFor(asModel('shop.Order'), asId('ord-h')), [
+        created,
+        updated,
+        archived,
+      ]);
+      assert.deepEqual(await store.historyFor(asModel('shop.Order'), asId('ord-other')), [other]);
+      assert.deepEqual(await store.historyFor(asModel('shop.Order'), asId('ord-missing')), []);
+    });
+
+    it('same-batch duplicate schedule keys apply in order, last op wins', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      // S6 review: pins adapter apply order on every backend (D1 batch()
+      // statement order, DO sequential exec, memory sequential loop).
+      await store.commit(
+        makeBatch(0, {
+          schedules: [
+            {
+              op: 'replace',
+              key: 'dup-rr',
+              at: 1_000,
+              event: asOperation('t.due'),
+              payload: { v: 1 },
+            },
+            {
+              op: 'replace',
+              key: 'dup-rr',
+              at: 2_000,
+              event: asOperation('t.due'),
+              payload: { v: 2 },
+            },
+            { op: 'replace', key: 'dup-rc', at: 1_000, event: asOperation('t.due'), payload: {} },
+            { op: 'cancel', key: 'dup-rc' },
+            { op: 'cancel', key: 'dup-cr' },
+            { op: 'replace', key: 'dup-cr', at: 3_000, event: asOperation('t.due'), payload: {} },
+          ],
+        }),
+      );
+      assert.deepEqual((await store.scheduleGet('dup-rr'))?.at, 2_000);
+      assert.deepEqual((await store.scheduleGet('dup-rr'))?.payload, { v: 2 });
+      assert.equal(await store.scheduleGet('dup-rc'), null);
+      assert.deepEqual((await store.scheduleGet('dup-cr'))?.at, 3_000);
+    });
+
+    it('readers return deep copies isolated from stored state', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      await store.commit(
+        makeBatch(0, {
+          outbox: [makeIntent({ intentId: 'dc-i', operationId: 'op-dc' })],
+          schedules: [
+            { op: 'replace', key: 'dc-k', at: 1_000, event: asOperation('t.due'), payload: { n: 1 } },
+          ],
+          history: [makeHistory({ model: 't.Doc', recordId: 'dc-r', version: 1, after: { n: 1 } })],
+        }),
+      );
+      const pending = await store.outboxPending();
+      assert.equal(pending.length, 1);
+      const pendingArgs = pending[0]?.arguments as Record<string, unknown>;
+      pendingArgs['to'] = 'mutated@example.com';
+      pendingArgs['added'] = true;
+      const sched = await store.scheduleGet('dc-k');
+      assert.ok(sched !== null);
+      (sched.payload as Record<string, unknown>)['n'] = 999;
+      const due = await store.schedulesDue(9_999_999_999_999, 10);
+      assert.equal(due.length, 1);
+      (due[0]?.payload as Record<string, unknown>)['n'] = 999;
+      const hist = await store.historyFor(asModel('t.Doc'), asId('dc-r'));
+      assert.equal(hist.length, 1);
+      (hist[0]?.after as Record<string, unknown>)['n'] = 999;
+      // Re-reads observe pristine state on every backend.
+      assert.deepEqual((await store.outboxPending())[0]?.arguments, { to: 'a@example.com' });
+      assert.deepEqual((await store.scheduleGet('dc-k'))?.payload, { n: 1 });
+      assert.deepEqual((await store.schedulesDue(9_999_999_999_999, 10))[0]?.payload, { n: 1 });
+      assert.deepEqual((await store.historyFor(asModel('t.Doc'), asId('dc-r')))[0]?.after, {
+        n: 1,
+      });
+    });
+
+    it('historyFor orders duplicate versions by insertion sequence', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      // Duplicate versions are reachable only via direct unstaged commits
+      // (the pipeline assigns unique versions); the (version, seq) order
+      // keeps the reader total and deterministic on every backend.
+      const first = makeHistory({
+        model: 't.Doc',
+        recordId: 'dv-r',
+        version: 1,
+        operationId: 'op-dv-1',
+        after: { n: 1 },
+      });
+      const second = makeHistory({
+        model: 't.Doc',
+        recordId: 'dv-r',
+        version: 1,
+        operationId: 'op-dv-2',
+        after: { n: 2 },
+      });
+      await store.commit(makeBatch(0, { history: [first, second] }));
+      assert.deepEqual(await store.historyFor(asModel('t.Doc'), asId('dv-r')), [first, second]);
     });
   });
 }

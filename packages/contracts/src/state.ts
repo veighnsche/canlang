@@ -228,6 +228,17 @@ export interface OutboxIntent {
   readonly dispatchGuard?: string;
 }
 
+/**
+ * S6 storage read shape for one schedule row. Returned by `scheduleGet` and
+ * `schedulesDue`; the write path stays `ScheduleOp` (replace/cancel).
+ */
+export interface ScheduleEntry {
+  readonly key: string;
+  readonly at: number;
+  readonly event: OperationName;
+  readonly payload: Readonly<Record<string, unknown>>;
+}
+
 /** Schedule replace/cancel staged atomically with its originating state. */
 export type ScheduleOp =
   | {
@@ -269,6 +280,14 @@ export interface CommitBatch {
   readonly schedules: ReadonlyArray<ScheduleOp>;
   readonly uniqueClaims: ReadonlyArray<UniqueClaim>;
   readonly uniqueReleases: ReadonlyArray<UniqueRelease>;
+  /**
+   * S6: intent ids to mark dispatched in this same atomic commit. OPTIONAL so
+   * pre-S6 batch literals still compile; adapters treat `undefined` as `[]`.
+   * Inserts apply first, then acks, so acking an id staged in the SAME batch
+   * marks it dispatched. Ack is idempotent: unknown or already-dispatched ids
+   * are a no-op (dispatchers retry at-least-once).
+   */
+  readonly outboxAck?: ReadonlyArray<string>;
 }
 
 /** Dot-separated path into a stored row (`data` unless a metadata name). S4. */
@@ -346,4 +365,25 @@ export interface StoragePort {
   commit(batch: CommitBatch): Promise<CommitResult>;
   /** Look up a durable receipt by identity. */
   readReceipt(identity: ReceiptIdentity): Promise<Receipt | null>;
+  /**
+   * S6: status-pending outbox intents, ordered by (created_at, intent_id).
+   * Readers observe committed state only; results are deep copies. The id
+   * tiebreak is backend-defined for non-ASCII ids (JS UTF-16 order vs SQLite
+   * BINARY); realistic ids are ASCII, where the orders agree.
+   */
+  outboxPending(): Promise<ReadonlyArray<OutboxIntent>>;
+  /** S6: one schedule row by key, or null when absent. */
+  scheduleGet(key: string): Promise<ScheduleEntry | null>;
+  /**
+   * S6: schedules with `at <= now`, ordered by (at, key), capped at `limit`.
+   * `limit` must be an integer >= 1; anything else throws a plain Error. The
+   * key tiebreak is backend-defined for non-ASCII keys (see outboxPending).
+   */
+  schedulesDue(now: number, limit: number): Promise<ReadonlyArray<ScheduleEntry>>;
+  /**
+   * S6: history for one record, ordered by version ascending with insertion
+   * sequence as the tiebreak (duplicate versions are reachable only via
+   * direct unstaged commits; fenced writes carry unique versions).
+   */
+  historyFor(model: ModelName, recordId: RecordId): Promise<ReadonlyArray<HistoryEntry>>;
 }

@@ -83,8 +83,8 @@ describe('services contracts', () => {
   });
 
   it('models payment state, collect and refund inputs', () => {
-    // Amount/datetime shapes belong to lane 2; fixtures use stand-ins.
-    const money = { minorUnits: '2500', currency: 'EUR' };
+    // Amounts are lane-2 wire money (decimal-string minors + currency).
+    const money = { minor: '2500', currency: 'EUR' };
     const state: PaymentState = {
       reference: 'pay_1',
       revision: 2,
@@ -119,7 +119,10 @@ describe('services contracts', () => {
     const report: ErrorReport = {
       id: 'err_1',
       message: 'boom',
-      occurred_at: '2026-10-04T15:00:00Z',
+      occurred_at: {
+        kind: 'datetime',
+        ms: BigInt(Date.parse('2026-10-04T15:00:00Z')),
+      },
       stack: null,
       release: '1.0.0',
       environment: null,
