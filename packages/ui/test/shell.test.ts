@@ -1009,25 +1009,29 @@ describe("renderLogin", () => {
 });
 
 describe("focus behavior", () => {
-  it("focuses the login username input", async () => {
+  // Focus is asserted as an emitted-markup contract: happy-dom applies
+  // focus() even to unfocusable nodes, so focus-then-read-back proves the
+  // harness, not the library.
+  it("marks the login username input autofocus", async () => {
     const html = await renderLogin(makeLogin());
+    assert.ok(
+      html.includes('name="username" type="text" autocomplete="username" required autofocus'),
+      "username input carries autofocus",
+    );
     const page = await loadHtml(html);
     try {
-      const username = page.document.querySelector(
-        "input#can-login-username",
-      ) as unknown as {
-        focus(): void;
-      } | null;
+      const username = page.document.querySelector("input#can-login-username");
       assert.ok(username !== null);
-      username.focus();
-      const activeId = (page.document.activeElement as { id: string } | null)?.id;
-      assert.equal(activeId, "can-login-username");
+      assert.ok(
+        (username as { hasAttribute(name: string): boolean }).hasAttribute("autofocus"),
+        "parsed username keeps autofocus",
+      );
     } finally {
       await page.close();
     }
   });
 
-  it("focuses the sidebar toggle", async () => {
+  it("wires the sidebar toggle through a focusable checkbox", async () => {
     const html = await renderPage(
       makeContext(),
       makeDescriptor(),
@@ -1036,14 +1040,13 @@ describe("focus behavior", () => {
     );
     const page = await loadHtml(html);
     try {
-      const toggle = page.document.querySelector(
-        ".navbar label[for='can-drawer']",
-      ) as unknown as {
-        focus(): void;
+      const checkbox = page.document.querySelector("input#can-drawer") as unknown as {
+        type: string;
       } | null;
-      assert.ok(toggle !== null);
-      toggle.focus();
-      assert.equal(page.document.activeElement, toggle as unknown);
+      assert.ok(checkbox !== null, "drawer checkbox renders");
+      assert.equal(checkbox.type, "checkbox", "toggle state holder is natively focusable");
+      const toggle = page.document.querySelector(".navbar label[for='can-drawer']");
+      assert.ok(toggle !== null, "visible toggle labels the checkbox");
     } finally {
       await page.close();
     }

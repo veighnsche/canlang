@@ -402,10 +402,21 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
       none); index exports; 4 catalog flips; arity pins; review caption guard. Suite 732/732.
       Calendar closed: agenda shipped in C4a; JEV adopts C (no static grid); gallery unwarranted
       (no catalog word; list/board/hover_gallery cover). Evidence: jev/lane-05-c7-20261004/.
-- [ ] C8 settings + panels: preferences sections/panels, tabs, details/drawer completion, history, copy
-      (old S6 scope reconciled with new profiles). One worker + coordinator.
-- [ ] C9 catalog completion + B1/B2/B3 + discovery evidence: availability truthfulness audit, L1/L6/L7 joins,
-      real-route authority tests, agent-facing discovery proof. Coordinator-led.
+- [ ] C8 settings + panels (branch muse/lane-05-ui/c8-settings, PR pending): contract
+      v0.14.0 (12 Props types + HistoryEntry re-export), panels.ts (tabs/history/copy),
+      settings.ts (renderSettingsPanel), leaves.ts +3 mockups. Props in contract (tabs
+      variant dropped; TabsOption replaces ThemeOption misuse); state.js imports retargeted
+      to presentation.js (guard); density unknown leaves radios unchecked. 7 catalog flips
+      (88/88 implemented, 0 planned); arity pins. Suite 779/779.
+- [ ] C9 catalog completion + B1/B2/B3 + discovery evidence (branch muse/lane-05-ui/c9-evidence,
+      PR pending): journeys.test.ts (authority/locale/interaction/error/discovery over real code paths
+      with hand-emitted fixtures, honestly test-only) + catalog reverse audit + zero-planned pin (88/88).
+      Ledger filled 68/68 from catalog data. Suite 796/796.
+      B1/B2/B3 join readiness (lane-05 side): UI consumes PageDescriptor/AdmitFn/RenderFn/RowQueryRunner/
+      HistoryEntry/DeliveryStatus producer shapes; denied→login without leakage, forbidden-field
+      absence, locale fallback, swap preservation, and catalog discovery are proven. Blocked on
+      producers (owner-kept): L1 real descriptor emission (syntax merged, no emission yet),
+      L7 workerd/D1 runner coordination. No lane-05 mock advertises producer behavior.
 
 ## 68-component coverage ledger (2026-10-04; renderer = @canlang/ui factory)
 
@@ -414,74 +425,74 @@ Semantic helpers and CSS used inside other renderers do NOT count as selectable 
 
 | # | Can word | daisyUI | Catalog | Renderer | Props | Slice |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | accordion | Accordion | — | — | — | C5 |
-| 2 | alert | Alert | — | — | — | C5 |
-| 3 | aura | Aura | — | — | — | C5 |
-| 4 | avatar | Avatar | — | — | — | C3 |
-| 5 | badge | Badge | — (badge CSS in forms/tables only) | — | — | C3 |
-| 6 | breadcrumbs | Breadcrumbs | — | — | — | C3/C6 |
-| 7 | button | Button | — (btn CSS everywhere; no Button factory) | — | — | C6 |
-| 8 | calendar | Calendar | plan (agenda-shaped) | — | — | C4/C7 |
+| 1 | accordion | Accordion | impl | accordion | AccordionProps | C5 |
+| 2 | alert | Alert | impl | alert | AlertProps | C5 |
+| 3 | aura | Aura | impl | aura | AuraProps | C5 |
+| 4 | avatar | Avatar | impl | avatar | AvatarProps | C3 |
+| 5 | badge | Badge | impl | badge | BadgeProps | C3 |
+| 6 | breadcrumbs | Breadcrumbs | impl | breadcrumbs | BreadcrumbsProps | C3/C6 |
+| 7 | button | Button | impl | button | ButtonProps | C6 |
+| 8 | calendar | Calendar | impl | calendar | CalendarProps | C4/C7 |
 | 9 | card | Card | impl | card | CardProps | — (done S3) |
-| 10 | carousel | Carousel | — | — | — | C5 |
-| 11 | chat_bubble | Chat bubble | — | — | — | C5 |
-| 12 | checkbox | Checkbox | — (input CSS in forms only) | — | — | C4 |
-| 13 | collapse | Collapse | plan via details | — | — | C5 |
-| 14 | countdown | Countdown | — | — | — | C3 |
-| 15 | diff | Diff | — | — | — | C5 |
-| 16 | divider | Divider | — | — | — | C3 |
-| 17 | dock | Dock | — | — | — | C6 |
-| 18 | drawer | Drawer | — (shell-internal only) | — | — | C5 |
-| 19 | dropdown | Dropdown | — (shell-internal only) | — | — | C5 |
-| 20 | fab | FAB/Speed Dial | — | — | — | C5 |
-| 21 | fieldset | Fieldset | — (form-internal only) | — | — | C5 |
-| 22 | file_input | File Input | — | — | — | C4 |
-| 23 | filter | Filter | — | — | — | C4 |
-| 24 | footer | Footer | — | — | — | C5 |
-| 25 | hero | Hero | — | — | — | C5 |
-| 26 | hover_3d | Hover 3D Card | — | — | — | C5 |
-| 27 | hover_gallery | Hover Gallery | — | — | — | C5 |
-| 28 | indicator | Indicator | — | — | — | C5 |
-| 29 | input | Text Input | — (form-internal only) | — | — | C4 |
-| 30 | join | Join | — (toolbar-internal only) | — | — | C5 |
-| 31 | kbd | Kbd | — | — | — | C3 |
-| 32 | label | Label | — (form-internal only) | — | — | C4 |
-| 33 | link | Link | — | — | — | C3 |
+| 10 | carousel | Carousel | impl | carousel | CarouselProps | C5 |
+| 11 | chat_bubble | Chat bubble | impl | chatBubble | ChatBubbleProps | C5 |
+| 12 | checkbox | Checkbox | impl | checkbox | CheckboxProps | C4 |
+| 13 | collapse | Collapse | impl | collapse | CollapseProps | C5 |
+| 14 | countdown | Countdown | impl | countdown | CountdownProps | C3 |
+| 15 | diff | Diff | impl | diff | DiffProps | C5 |
+| 16 | divider | Divider | impl | divider | DividerProps | C3 |
+| 17 | dock | Dock | impl | dock | DockProps | C6 |
+| 18 | drawer | Drawer | impl | drawer | DrawerProps | C5 |
+| 19 | dropdown | Dropdown | impl | dropdown | DropdownProps | C5 |
+| 20 | fab | FAB/Speed Dial | impl | fab | FabProps | C5 |
+| 21 | fieldset | Fieldset | impl | fieldset | FieldsetProps | C5 |
+| 22 | file_input | File Input | impl | fileInput | FileInputProps | C4 |
+| 23 | filter | Filter | impl | filter | FilterProps | C4 |
+| 24 | footer | Footer | impl | footer | FooterProps | C5 |
+| 25 | hero | Hero | impl | hero | HeroProps | C5 |
+| 26 | hover_3d | Hover 3D Card | impl | hover3d | Hover3dProps | C5 |
+| 27 | hover_gallery | Hover Gallery | impl | hoverGallery | HoverGalleryProps | C5 |
+| 28 | indicator | Indicator | impl | indicator | IndicatorProps | C5 |
+| 29 | input | Text Input | impl | input | InputProps | C4 |
+| 30 | join | Join | impl | join | JoinProps | C5 |
+| 31 | kbd | Kbd | impl | kbd | KbdProps | C3 |
+| 32 | label | Label | impl | label | LabelProps | C4 |
+| 33 | link | Link | impl | link | LinkProps | C3 |
 | 34 | list | List | impl | list | ListProps | — (done S3/S5) |
-| 35 | loading | Loading | impl via renderState | renderState | SharedStateProps | — (done S3) |
-| 36 | mask | Mask | — | — | — | C5 |
-| 37 | megamenu | Megamenu | — | — | — | C6 |
-| 38 | menu | Menu | — (shell-internal only) | — | — | C6 |
-| 39 | mockup_browser | Browser mockup | — | — | — | C3 |
-| 40 | mockup_code | Code mockup | — | — | — | C3 |
-| 41 | mockup_phone | Phone mockup | — | — | — | C3 |
-| 42 | mockup_window | Window mockup | — | — | — | C3 |
-| 43 | modal | Modal | — (shell-internal only) | — | — | C5 |
-| 44 | navbar | Navbar | — (shell-internal only) | — | — | C6 |
-| 45 | otp | OTP | — | — | — | C4 |
-| 46 | pagination | Pagination | — (collection-internal only) | — | — | C6 |
-| 47 | progress | Progress | — | — | — | C3 |
-| 48 | radial_progress | Radial progress | — | — | — | C3 |
-| 49 | radio | Radio | — (form-internal only) | — | — | C4 |
-| 50 | range | Range slider | — (form-internal only) | — | — | C4 |
-| 51 | rating | Rating | — (form-internal only) | — | — | C4 |
-| 52 | select | Select | — (form-internal only) | — | — | C4 |
-| 53 | skeleton | Skeleton | impl via renderState | renderState | SharedStateProps | — (done S3) |
-| 54 | stack | Stack | — | — | — | C5 |
-| 55 | stat | Stat | — | — | — | C5 |
-| 56 | status | Status | — | — | — | C3 |
-| 57 | steps | Steps | — | — | — | C5 |
-| 58 | swap | Swap | — | — | — | C5 |
-| 59 | tabs | Tabs | plan | — | — | C8 |
+| 35 | loading | Loading | impl | renderState | SharedStateProps | — (done S3) |
+| 36 | mask | Mask | impl | mask | MaskProps | C5 |
+| 37 | megamenu | Megamenu | impl | megamenu | MegamenuProps | C6 |
+| 38 | menu | Menu | impl | menu | MenuProps | C6 |
+| 39 | mockup_browser | Browser mockup | impl | mockupBrowser | MockupBrowserProps | C8 |
+| 40 | mockup_code | Code mockup | impl | mockupCode | MockupCodeProps | C3 |
+| 41 | mockup_phone | Phone mockup | impl | mockupPhone | MockupPhoneProps | C8 |
+| 42 | mockup_window | Window mockup | impl | mockupWindow | MockupWindowProps | C8 |
+| 43 | modal | Modal | impl | modal | ModalProps | C5 |
+| 44 | navbar | Navbar | impl | navbar | NavbarProps | C6 |
+| 45 | otp | OTP | impl | otp | OtpProps | C4 |
+| 46 | pagination | Pagination | impl | pagination | PaginationProps | C6 |
+| 47 | progress | Progress | impl | progress | ProgressProps | C3 |
+| 48 | radial_progress | Radial progress | impl | radialProgress | RadialProgressProps | C3 |
+| 49 | radio | Radio | impl | radio | RadioProps | C4 |
+| 50 | range | Range slider | impl | range | RangeProps | C4 |
+| 51 | rating | Rating | impl | rating | RatingProps | C4 |
+| 52 | select | Select | impl | select | SelectProps | C4 |
+| 53 | skeleton | Skeleton | impl | renderState | SharedStateProps | — (done S3) |
+| 54 | stack | Stack | impl | stack | StackProps | C5 |
+| 55 | stat | Stat | impl | stat | StatProps | C5 |
+| 56 | status | Status | impl | status | StatusProps | C3 |
+| 57 | steps | Steps | impl | steps | StepsProps | C5 |
+| 58 | swap | Swap | impl | swap | SwapProps | C5 |
+| 59 | tabs | Tabs | impl | tabs | TabsProps | C8 |
 | 60 | table | Table | impl | table | TableProps | — (done S3/S5) |
-| 61 | text_rotate | Text Rotate | — | — | — | C3 |
-| 62 | textarea | Textarea | — (form-internal only) | — | — | C4 |
-| 63 | theme_controller | Theme Controller | — | — | — | C6 |
-| 64 | timeline | Timeline | — | — | — | C5 |
-| 65 | toast | Toast | — | — | — | C5 |
-| 66 | toggle | Toggle | — (form-internal only) | — | — | C4 |
-| 67 | tooltip | Tooltip | — | — | — | C5 |
-| 68 | validator | Validator | — | — | — | C4 |
+| 61 | text_rotate | Text Rotate | impl | textRotate | TextRotateProps | C3 |
+| 62 | textarea | Textarea | impl | textarea | TextareaProps | C4 |
+| 63 | theme_controller | Theme Controller | impl | themeController | ThemeControllerProps | C6 |
+| 64 | timeline | Timeline | impl | timeline | TimelineProps | C5 |
+| 65 | toast | Toast | impl | toast | ToastProps | C5 |
+| 66 | toggle | Toggle | impl | toggle | ToggleProps | C4 |
+| 67 | tooltip | Tooltip | impl | tooltip | TooltipProps | C5 |
+| 68 | validator | Validator | impl | validator | ValidatorProps | C4 |
 
 Non-catalog semantic constructs (kept, owned behavior): page (renderPage, done S2; C1 corrects),
 form/edit/delete/action/actions (done S4), title/text/content (done S3), navigation (done S2),

@@ -15,7 +15,10 @@ import {
   divider,
   kbd,
   link,
+  mockupBrowser,
   mockupCode,
+  mockupPhone,
+  mockupWindow,
   status,
 } from "../src/leaves.js";
 import { loadHtml } from "./harness.js";
@@ -548,6 +551,174 @@ describe("link", () => {
       assert.equal(el.getAttribute("href"), "/docs/guide");
       assert.equal(el.textContent, "Guide");
       assert.ok(el.classList.contains("link-primary"));
+    } finally {
+      await page.close();
+    }
+  });
+});
+
+describe("mockupBrowser", () => {
+  it("renders toolbar, URL bar text and trusted children", async () => {
+    const html = await mockupBrowser({
+      context: makeContext(),
+      url: "https://example.com/app",
+      children: ["<p>Page body</p>"],
+    });
+    assert.ok(html.includes(`<div class="mockup-browser">`), html);
+    assert.ok(html.includes(`<div class="mockup-browser-toolbar">`), html);
+    assert.ok(html.includes(`<div class="input">https://example.com/app</div>`), html);
+    assert.ok(html.includes("<p>Page body</p>"), html);
+    assert.ok(!html.includes("<a "), html);
+  });
+
+  it("renders an empty URL bar when no url is given", async () => {
+    const html = await mockupBrowser({ context: makeContext(), children: ["<p>B</p>"] });
+    assert.ok(html.includes(`<div class="input"></div>`), html);
+  });
+
+  it("fails closed on empty suites and appearance extras", async () => {
+    await assert.rejects(mockupBrowser({ context: makeContext(), children: [] }), /nonempty content suite/);
+    await assert.rejects(
+      mockupBrowser(withExtra({ context: makeContext(), children: ["A"] }, { size: "lg" })),
+      /admits no appearance/,
+    );
+    await assert.rejects(
+      mockupBrowser({ context: makeContext(), children: ["A"], caption: "" }),
+      /caption must not be empty/,
+    );
+  });
+
+  it("resolves url and caption in locale order", async () => {
+    const en = await mockupBrowser({
+      context: makeContext(),
+      url: message("https://example.com", { nl: "https://voorbeeld.nl" }),
+      caption: message("Preview", { nl: "Voorbeeld" }),
+      children: ["A"],
+    });
+    assert.ok(en.includes("https://example.com"), en);
+    assert.ok(en.includes('aria-label="Preview"'), en);
+    const nl = await mockupBrowser({
+      context: makeContext({ preferredLocales: ["nl"] }),
+      url: message("https://example.com", { nl: "https://voorbeeld.nl" }),
+      caption: message("Preview", { nl: "Voorbeeld" }),
+      children: ["A"],
+    });
+    assert.ok(nl.includes("https://voorbeeld.nl"), nl);
+    assert.ok(nl.includes('aria-label="Voorbeeld"'), nl);
+  });
+
+  it("escapes hostile url text", async () => {
+    const html = await mockupBrowser({ context: makeContext(), url: XSS, children: ["A"] });
+    assert.ok(!html.includes("<script>"), html);
+    assert.ok(html.includes("&lt;script&gt;"), html);
+  });
+
+  it("exposes browser chrome in the DOM", async () => {
+    const html = await mockupBrowser({
+      context: makeContext(),
+      url: "https://example.com",
+      caption: "Preview",
+      children: ["<p>Body</p>"],
+    });
+    const page = await loadHtml(html);
+    try {
+      const el = page.document.querySelector(".mockup-browser");
+      assert.ok(el, "browser wrapper present");
+      assert.equal(el.getAttribute("aria-label"), "Preview");
+      assert.equal(el.querySelector(".mockup-browser-toolbar .input")?.textContent, "https://example.com");
+      assert.equal(el.querySelector("p")?.textContent, "Body");
+    } finally {
+      await page.close();
+    }
+  });
+});
+
+describe("mockupPhone", () => {
+  it("renders camera notch, display slot and trusted children", async () => {
+    const html = await mockupPhone({ context: makeContext(), children: ["<p>App</p>"] });
+    assert.ok(html.includes(`<div class="mockup-phone">`), html);
+    assert.ok(html.includes(`<div class="mockup-phone-camera"></div>`), html);
+    assert.ok(html.includes(`<div class="mockup-phone-display"><p>App</p></div>`), html);
+  });
+
+  it("fails closed on empty suites and appearance extras", async () => {
+    await assert.rejects(mockupPhone({ context: makeContext(), children: [] }), /nonempty content suite/);
+    await assert.rejects(
+      mockupPhone(withExtra({ context: makeContext(), children: ["A"] }, { tone: "primary" })),
+      /admits no appearance/,
+    );
+  });
+
+  it("resolves captions in locale order and escapes hostile text", async () => {
+    const nl = await mockupPhone({
+      context: makeContext({ preferredLocales: ["nl"] }),
+      caption: message("Preview", { nl: "Voorbeeld" }),
+      children: ["A"],
+    });
+    assert.ok(nl.includes('aria-label="Voorbeeld"'), nl);
+    const html = await mockupPhone({ context: makeContext(), caption: XSS, children: ["A"] });
+    assert.ok(!html.includes("<script>"), html);
+    assert.ok(html.includes("&lt;script&gt;"), html);
+  });
+
+  it("exposes phone chrome in the DOM", async () => {
+    const html = await mockupPhone({
+      context: makeContext(),
+      caption: "Preview",
+      children: ["<p>App</p>"],
+    });
+    const page = await loadHtml(html);
+    try {
+      const el = page.document.querySelector(".mockup-phone");
+      assert.ok(el, "phone wrapper present");
+      assert.equal(el.getAttribute("aria-label"), "Preview");
+      assert.ok(el.querySelector(".mockup-phone-camera"), "camera present");
+      assert.equal(el.querySelector(".mockup-phone-display p")?.textContent, "App");
+    } finally {
+      await page.close();
+    }
+  });
+});
+
+describe("mockupWindow", () => {
+  it("renders window chrome around trusted children", async () => {
+    const html = await mockupWindow({ context: makeContext(), children: ["<p>Doc</p>"] });
+    assert.ok(html.includes(`<div class="mockup-window">`), html);
+    assert.ok(html.includes("<p>Doc</p>"), html);
+  });
+
+  it("fails closed on empty suites and appearance extras", async () => {
+    await assert.rejects(mockupWindow({ context: makeContext(), children: [] }), /nonempty content suite/);
+    await assert.rejects(
+      mockupWindow(withExtra({ context: makeContext(), children: ["A"] }, { variant: "ghost" })),
+      /admits no appearance/,
+    );
+  });
+
+  it("resolves captions in locale order and escapes hostile text", async () => {
+    const nl = await mockupWindow({
+      context: makeContext({ preferredLocales: ["nl"] }),
+      caption: message("Preview", { nl: "Voorbeeld" }),
+      children: ["A"],
+    });
+    assert.ok(nl.includes('aria-label="Voorbeeld"'), nl);
+    const html = await mockupWindow({ context: makeContext(), caption: XSS, children: ["A"] });
+    assert.ok(!html.includes("<script>"), html);
+    assert.ok(html.includes("&lt;script&gt;"), html);
+  });
+
+  it("exposes window chrome in the DOM", async () => {
+    const html = await mockupWindow({
+      context: makeContext(),
+      caption: "Preview",
+      children: ["<p>Doc</p>"],
+    });
+    const page = await loadHtml(html);
+    try {
+      const el = page.document.querySelector(".mockup-window");
+      assert.ok(el, "window wrapper present");
+      assert.equal(el.getAttribute("aria-label"), "Preview");
+      assert.equal(el.querySelector("p")?.textContent, "Doc");
     } finally {
       await page.close();
     }
