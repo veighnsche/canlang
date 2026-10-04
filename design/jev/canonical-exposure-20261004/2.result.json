@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "The reviewed draft source contains one generated archival delete and one human workflow which records why a request is archived before invoking that same delete. The workflow rejects another owner, an old request version and whitespace-only explanations; its normal canonical nested invocation retains member/current employee admission. Archive evidence locks once present, final archived rows must contain it, and the transaction advances an existing record's version only once. A direct generated delete offers no writable explanation field and therefore fails safely rather than providing a proved bypass. The current specification lists all enabled CRUD tools of a product-selected package. Import-only packages keep canonical operations available for internal execution without automatic discovery; explicitly referenced page controls publish their targets, whereas internal calls alone do not. Turning delete off would also remove the lifecycle operation the workflow needs. There is no implemented compiler/tool runtime to amend, and no supported per-CRUD exposure setting today. We need the same owner, version, trimmed reason, atomic archive and locked history, with UI and MCP referring to canonical identities, while judging whether an extra doomed discovery entry is acceptable. No general guard satisfiability analysis or performance measurements are available.",
+    "questions": {
+      "exposure": {
+        "type": "choice",
+        "instructions": "Which draft authoring choice most clearly preserves the verified archive guarantees and UI/MCP parity with the least total language and source overhead?",
+        "criteria": {
+          "keep_default": "Make no language change: keep enabled CRUD discovery and accurately explain direct-delete failure, with the reason-bearing scenario as the useful archive interface. Source remains compact and the invariant protects history, but users/tools see a callable entry that cannot complete ordinary archival requests.",
+          "crud_exposure": "Introduce an explicit generated-CRUD publication allowlist, spelled expose=create,update, defaulting to all enabled operations. A nonlisted enabled delete remains the same internal canonical lifecycle target with unchanged by/when/versions; public controls or routes cannot expose it, and invalid explicit references are diagnosed. This adds a small author declaration/metadata contract instead of another delete method or guard inference.",
+          "presentation_selection": "Avoid a new attribute by selecting only a separately authored UI package/product whose imports include the existing business owner internally. Its pages explicitly reference create/update and the archive scenario but omit generated delete. Canonical identity/atomic permissions remain; extra presentation/product composition and moving the selected interface are the cost."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "exposure": {
+        "type": "choice",
+        "choice": "crud_exposure",
+        "confidence": 0.29,
+        "probabilities": {
+          "keep_default": 0.47,
+          "crud_exposure": 0.53,
+          "presentation_selection": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 760,
+      "output_tokens": 48
+    }
+  }
+}

@@ -90,7 +90,7 @@ Header attributes have the following closed sets. Fixed syntax before the attrib
 | lock | `lock path` | `fields=selectors` **required**, `when=expr` |
 | retain | `retain path` | `until=expr` **required** |
 | capability | `capability NAME` | `version=expr` **required**; an integer interface version is required semantically |
-| CRUD | `crud path` | `by=expr` **required**, `fields=selectors` **required**, `create_fields=selectors`, `when=expr`, `create=NAME`, `update=NAME`, `delete=NAME`; supported explicit modes are create/update `none` and delete `none`/`remove`; `label=crud_labels` is a closed enabled-operation caption map |
+| CRUD | `crud path` | `by=expr` **required**, `fields=selectors` **required**, `create_fields=selectors`, `expose=selectors` (enabled CRUD names or sole `none`), `when=expr`, `create=NAME`, `update=NAME`, `delete=NAME`; supported explicit modes are create/update `none` and delete `none`/`remove`; `label=crud_labels` is a closed enabled-operation caption map |
 | user scenario | `scenario NAME parameters` | `by=expr` **required**, `read=true`, `scope=authority`, one `-> type` result annotation, `label=caption` |
 | trusted scenario | `scenario NAME` | `on=source` **required**; no parameters, `by`, `read`, `scope` or result annotation |
 | execution/mapper guard | `require expr` | `message=expr`; a literal text or message value is required semantically; presentation require has no attributes |
@@ -469,3 +469,5 @@ A page refresh attribute names a canonical operation, not an arbitrary expressio
 Retention keeps the existing `retain path until=expr` production. The expression may yield `datetime?` as specified in DESIGN §7.1; null adds no independent deadline and never cancels a finite ancestor lifetime. This is semantic typing, not a new condition attribute or ternary expression.
 
 Derived model-field labels reuse the ordinary caption/value map. Values must belong to the resolved enum/bool type (after nullable unwrapping); null keeps shared unavailable/not-requested presentation, never an invented enum case. This conveys presentation only, not defaults, initialization or authority. Other declaration labels stay scalar. The current syntax prototype still rejects a structured derived-field label; this semantic/grammar draft extension is not parser implementation.
+
+CRUD `expose` is a closed publication allowlist of enabled `create`, `update`, `delete`, or sole `none`; omission permits all enabled operations. Duplicate/unknown/disabled selectors and mixed `none` fail checking. Public references cannot override the owner exception; normal internal canonical admission/lifecycle remains unchanged (DESIGN §5). The syntax prototype does not yet recognize this attribute.

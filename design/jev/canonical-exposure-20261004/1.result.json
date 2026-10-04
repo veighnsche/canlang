@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Can is a draft language; no compiler, registry dispatcher or UI/MCP runner exists here. A selected business package currently publishes every enabled generated CRUD operation as well as user scenarios. Dependencies included by imports are executable internally but are not automatically published; a selected page's explicit operation references expose their canonical targets. An internal call does not publish its target. CRUD delete omitted mode means archive; delete=none disables both canonical delete and the documented deletion effect/internal invocation, so it cannot keep an archive scenario's canonical call. The verified example has immutable owner/department, a nullable archive reason excluded from writable CRUD inputs, an invariant requiring reason when archived, and a lock once reason is set. Its archive(request,reason) checks owner/open/nonblank, sets the trimmed reason and calls canonical Request.delete in one transaction. The nested call rechecks the same members/owner/current assignment rules and expected version; one owner transaction increments the row version once. Direct delete has no reason input and rolls back at the invariant. No successful authorization bypass was found. Desired outcomes are that exact reason-bearing archive, owner/stale/evidence preservation, one canonical deletion identity and clear browser/MCP discovery. General proof that arbitrary guards or invariants make operations unusable is not assumed decidable. Compare draft language contracts and source cost, not measured runtime speed.",
+    "questions": {
+      "exposure": {
+        "type": "choice",
+        "instructions": "Which option best balances identical business outcomes, truthful canonical discovery, concise source identity and the smallest justified new contract?",
+        "criteria": {
+          "keep_default": "Retain current default exposure and the safely failing direct delete, documenting that archive(reason) is the successful user action. No new syntax or presentation package; existing canonical operation identities and evidence checks stay unchanged. Browser/MCP still advertise an unusable deletion entry on ordinary open records.",
+          "crud_exposure": "Add one optional closed CRUD expose=create,update list; omission keeps existing defaults. Only listed enabled CRUD operations may be published to browser/MCP/generated external routes; excluded delete stays enabled in the same registry for normal internal calls and lifecycle effects. Explicit public references to an excluded target are checked errors. No new operation, manifest or inferred guard solver; one authored exception and metadata mapping are added.",
+          "presentation_selection": "Use the already existing selected-versus-imported distinction: keep the business owner unselected in a new product composition and select a presentation package that imports the existing owner declarations, exposes create/update and archive explicitly, and never references delete. No exposure syntax added; it preserves owner identities and normal call checks but adds a presentation package/product arrangement and relocation of selected pages."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "exposure": {
+        "type": "choice",
+        "choice": "crud_exposure",
+        "confidence": 0.75,
+        "probabilities": {
+          "presentation_selection": 0.12,
+          "crud_exposure": 0.84,
+          "keep_default": 0.04
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 820,
+      "output_tokens": 48
+    }
+  }
+}
