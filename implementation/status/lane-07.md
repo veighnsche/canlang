@@ -192,6 +192,9 @@ Active reservations: none (coordinator holds all owned files until first delegat
 - Lane 05 C4a merged as PR #55 (`3c8f24d`): field controls/calendar, presentation 0.9.0→0.10.0 (+131). No new collisions (scan still the 8 known, now 2 interim + 6 identities, all pinned). No manifest changes (no lock action). Suite: ui 487/487 (was 372).
 - PR16 seeds hardening (PR57 NITs): reason-fragment assertions in the rejection table, `SeedRefError` class assert on duplicates, strict kebab (no leading/trailing/double hyphens) + doc, unicode/colon-only/long rows. Grammar tightened before L4 authors anything to it.
 
+- PR #61 (branch `muse/lane-07-platform/s8-join`, reviewed head `dcd8d29`, base `3a345c7`, squash-merged as `0a2fdad`): S8b pin + interim-drop ×2 + C4a join + seeds hardening + evidence. Checks: integration.yml green on PR (workspace 44s, tools 7s); typecheck clean; vitest 83/83 (16 files); ui 487, work 129, services 105, files 54; collision scan still 8 known (now 2 interim + 6 identities); independent review MERGEABLE (3 NITs: tsconfig-comment wording REFUTED with evidence — files src uses `.ts` imports in 4 files, `.js` only for contracts; header staleness + single-char row folded into PR17). Interim count: 2 (`OperationId`, `DeliveryStatus`). Limits: B1 still L1-blocked.
+- Open-producer survey (PR17): L5 C4b PR #62 (ui forms/tests only — no assembly/lock action on merge, ui suite spot-check then); L4 #60 status-only (no action); L6 B1/B2 PR #59 still open (no new L7 ask — "runner pending" = the B1 binding act itself); Lane 08 #58 frontend (out of scope).
+
 ## Remaining work and cleanup
 
 Full authorized scope remains except B0 planning. Owned resources: one worktree (above), no background processes, no cloud credentials used. Cleanup on completion: release subagents, remove worktree after merges settle, record final revisions.
