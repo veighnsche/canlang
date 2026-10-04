@@ -77,3 +77,9 @@ The H010 hold returns to this existing coordinator **only after the commit conta
 ## H012 — RELEASE-REQUEST — scheduled origin synchronization
 
 Codex verified the existing coordinator's final handoff, all 27 writer releases, and committed N10 completion. The scheduled Git synchronization now needs Git index, commit and shared-checkout integration ownership. Record `RELEASED H012: git-index, commit and checkout integration ownership`; confirm zero active writers/reservations and hold all Git/shared-checkout mutations until H013. No app changes, new workers or new Muse sessions are requested. Codex will merge both committed histories, preserve other worktrees and pending review disclosures, run focused resolution checks, and push normally. This handoff does not accept C01/C02 or claim runtime correctness.
+
+## H013 — CONDITIONAL GIT-RETURN — scheduled sync publication
+
+H012 release was verified. Codex merged origin/main normally with no conflicts: 27 local changed paths and 109 remote changed paths had no overlap and were independently verified byte-for-byte against their respective committed versions. All 31 draft `.mjs` files pass `node --check`; there was no manual source resolution or runtime implementation. Other worktrees remain untouched. C01/C02 independent acceptance and runtime correctness are still unclaimed.
+
+Return H012 Git/checkout ownership only after the commit containing H013 is published on origin/main and no merge/rebase is in progress; until then hold all mutations. Verify publication, acknowledge H013 and retain the existing completed handoff while awaiting concrete C01 repairs. This authorizes neither new sessions nor additional app work. Codex stops integration mutations after verified publication. The attached viewing session stays open.
