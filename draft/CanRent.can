@@ -1163,7 +1163,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       set booking {status=review,refund_state=review}
       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
       emit CommercialCheck {booking}
-   examples seed=[test_hold] event={delivery_id="consume-test",status=failed,result=null,error="Owner rejected consumption"}
+   examples seed=[test_hold] event={delivery_id="consume-test",status=failed,result=null,error={code="rejected",message="Owner rejected consumption"}}
     test_hold.status,test_hold.consume_delivery -> test_hold.status
     cancelled,"consume-test" -> cancelled
     completed,"consume-test" -> completed

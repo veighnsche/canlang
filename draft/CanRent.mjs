@@ -8932,7 +8932,7 @@ export function exampleFixtures({ self, other, imported }) {
             delivery_id: "consume-test",
             status: "failed",
             result: null,
-            error: "Owner rejected consumption",
+            error: { code: "rejected", message: "Owner rejected consumption" },
           },
         }),
         selectors: ["test_hold.status", "test_hold.consume_delivery"],
