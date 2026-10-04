@@ -982,7 +982,7 @@ export const appDefinition = {
       invariants: ["Movement.require.1"],
       fields: {
         source: { type: "text", unique: true },
-        intervals: { type: BenefitInterval, array: true, nonempty: true },
+        intervals: { type: BenefitInterval, array: true, requiredArray: true },
         expires: { type: "datetime" },
         state: {
           type: "enum",
