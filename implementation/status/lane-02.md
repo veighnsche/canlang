@@ -4,9 +4,10 @@ Status: active coordination. Coordinator session 01a10710-7482-7093-8e17-2382b07
 goal goal-01a10711-f621-7501-9494-d85e4f5f865d (native, no token budget).
 Worktree (owned, cleanup: this coordinator after all writers/viewers release):
 `/Users/vince/Projects/canlang-worktrees/lane-02-values`, branch prefix
-`muse/lane-02-values/`, base origin/main c949174 (PR2 #17 merged; see
-evidence). Current branch: `muse/lane-02-values/temporal` (PR3 slice). The
-primary checkout is never touched.
+`muse/lane-02-values/`, base origin/main 2f2585e (PR3 #20 merged; L6 S3
+#19 also in — error envelope/wire codecs/projection, relevant to PR5).
+Current branch: `muse/lane-02-values/collections` (PR4 slice). The primary
+checkout is never touched.
 
 Owner prompt: [lane 02](../prompts/02-values.md). Binding: PLAN, WORKFLOW,
 CONTRACTS, DIAGNOSTICS, AGENTS.md (all read at b06d873).
@@ -337,8 +338,53 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
   order — decided: equal gives [] without consulting the limit, doc + 2
   vectors added) + 1 NIT (dead zone branch removed) + flip-count correction
   (15, not 16).
-- Active workers: none (coordinator assembling PR3; next delegation is the
-  PR4 text/collections slice).
+- PR3 merged 2026-10-04 as 2f2585e (PR #20, squash, head c54ef79):
+  independent review verdict merge (1 MINOR dates()/limit order — decided
+  equal gives [] without consulting the limit, doc + 2 vectors; 1 NIT dead
+  zone branch removed; flip count corrected 15 not 16); 142/142 green, both
+  `values` CI runs green. Coordinator repair commit needed: a pipe-masked
+  typecheck let an unused binding through the fixup push — lesson: never
+  trust `cmd | tail` exit codes for gates; verify unmasked. `workspace` red
+  pre-existing (L3 S2 lock breakage persists).
+- PR4 branch `muse/lane-02-values/collections` cut from 2f2585e. Workers
+  C (text/icu/locale, 6 files) + D (array/equality, 4 files) spawned with
+  disjoint files while PR3 was in flight; first files already on disk.
+- Active workers: text (C) + array/equality (D).
+- PR4 deliveries 2026-10-04: D done first (array/equality, 4 files, 79
+  vectors); C done (text/icu/locale, 6 files, 131 vectors). Combined clean
+  tree: typecheck clean, 352/352 green (142+79+131), catalog still 56
+  (PR4 flips pending). Coordinator deep review: array/equality/text-core
+  correct as delivered; 3 material fixes requested from C — (F1)
+  resolveVariant needs RFC 4647 prefix matching (`en` must match `en-US`;
+  rank/better currently dead under exact-equality filtering), (F2) drop the
+  source-tag-variant throw (constructible-but-unresolvable landmine),
+  (F3) scalarLength must return bigint (Can int; `count` precedent).
+  Recorded decision: ICU number rendering keeps Latin digits with
+  locale separators/minus/grouping (exactness-first, Rust-reproducible;
+  localized digit shaping is ICU-version-sensitive).
+- PR4 fixes: C followup landed tool-restricted (zero changes); fresh fix
+  worker applied F1-F4, 357/357 green. Coordinator verified diff (prefix
+  admission + subtag boundary, source-throw deleted, bigint assertions).
+  Assembly flips: index barrel + 18 catalog flips (16 builtins + same/
+  equalValue; sum stays planned — dispatcher PR5 like abs) + 5 features;
+  typed-errors description corrected (DeliveryError L4-owned); added
+  flip-pin test + barrel re-export smoke test. 359/359, typecheck clean,
+  catalog 56/15. Independent review verdict FIX (2 blocking, probe-confirmed,
+  both coordinator-missed): B1 sumMoney inferred path never validates the
+  currency table (fail-open vs explicit path; L213); B2 sumInt/sumDuration/
+  sumDecimal check per-addition instead of mathematical-total-then-once
+  (L213). 8 nits (scalar-compare dedup, {n} vs {n,number} zero-stripping,
+  group header exception, lone-surrogate + type-conflict vectors, parser
+  depth cap, sourceLang null, at() holes doc). One fix worker spawned
+  over array/text/icu/locale + tests; rest of slice verified conformant.
+- PR4 review fixes landed 369/369 (typecheck clean, catalog 56/15).
+  Coordinator verified: B1 currencyScale(head) placement; B2 unbounded
+  accumulate + single check with faithful `overflow` (not the constructor's
+  `out-of-range`) via an identical digit-length pre-check; N1-N8 all
+  confirmed in diff. L213 reading recorded: int/decimal/duration aggregates
+  are mathematical-total-then-once; money aggregation is per-row currency
+  validation + checked minor accumulation (fold of addMoney), matching
+  money's per-operation check norm and the reviewer's verdict.
 
 ## Interface requests and handoffs
 
@@ -384,6 +430,12 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
   (L3 S2 lock breakage, documented on PR). Limits: `abs` dispatcher in PR5;
   decimal.js oracle deferred to PR5; temporal held for PR3.
   URL: https://github.com/veighnsche/canlang/pull/17
+- PR #20 (temporal) MERGED 2026-10-04 as 2f2585e: 8 files, reviewed head
+  e57e881 + fixup 3f53648 + repair c54ef79, review verdict merge (MINOR +
+  NIT fixed), 142/142 green, both `values` CI runs green. `workspace` red
+  pre-existing. Limits: datetime range is a lane-02 decision; ICU host
+  variance documented.
+  URL: https://github.com/veighnsche/canlang/pull/20
 
 ## Remaining work and cleanup
 
