@@ -82,6 +82,39 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
+## Slice 21: full replans Sync/Workbench (branch muse/frontend-catalog-migration/slice-21-n2b-sync-workbench, in progress)
+
+Paths: draft/Can{Sync,Workbench} (.can+.md+.mjs) + this status file.
+Source: lane-N2 drafter output under /tmp/draftN2, applied +
+corrected by coordinator (chunks re-indented +1). Coordinator
+corrections: Workbench start input goal -> textarea goal (text
+max=2000; Decide/Inbox reason precedent); witness import swaps
+input->textarea (UI input now unused; input(c,s) hits are the
+fixture helper). Mirrored. Kept after verification: Sync tabs
+preferences.view added (base where referenced it undeclared;
+UI-COMPONENTS Tabs ruling, Enrich toggle precedent); Link.create ==
+create_fields; propose value.* nested inputs complete, base bare
+form kept; close splits to modal (reason param), approve/rebase/
+acknowledge/refresh/pause/resume row-only bare; badges on own-enum
+decision + WriteResult.state outcome; status on nullable delivery
+chains; diff preserves before/desired leaves; drawer details kept.
+Workbench start complete (radio purpose 2-enum, location select,
+targets Task[]! ##); nested targets table columns valid (Task has
+title/priority/done); stop/next/approve/reject row-only bare;
+badges on purpose/Step.state; status on delivery_state derive.
+Given/When byte-identical (cmp-verified). node --check +
+import-vs-usage scan clean. Census: 8 collections w/
+empty+pagination (4+4); 2 pages w/ breadcrumbs; 1 modal (Sync
+close; Workbench modal-free, base-kept bare form + row-only
+actions). Drift: +30 E1200 (base 0; head 18/12), no E1204.
+Independent review approve-with-4-nits, all fixed in-branch:
+Workbench.mjs header + desired-list input->textarea (+text/content);
+Workbench.md radio/textarea/select prose; Sync status link.->row.
+(Rent precedent: row.* valid beside table alias.) Prototype stops
+byte-identical (pre-existing Given gaps). Handoff: (a) array
+control (targets); (b) nested param paths (value.*); (c)
+preference-bound tabs; (d) diff/status/badge/drawer renderers.
+
 ## Slice 20: full replans Gallery/Inbox/Knowledge (branch muse/frontend-catalog-migration/slice-20-n2-gallery-inbox-knowledge, in progress)
 
 Paths: draft/Can{Gallery,Inbox,Knowledge} (.can+.md+.mjs) + this status
