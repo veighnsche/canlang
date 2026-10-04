@@ -11,7 +11,9 @@
     "clean": "rm -rf dist/"
   },
   "dependencies": {
-    "@canlang/contracts": "0.1.0"
+    "@canlang/contracts": "0.1.0",
+    "@canlang/identity": "0.1.0",
+    "@canlang/ui": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "26.6.4",
