@@ -4,11 +4,9 @@ Status: active coordination. Coordinator session 01a10710-7482-7093-8e17-2382b07
 goal goal-01a10711-f621-7501-9494-d85e4f5f865d (native, no token budget).
 Worktree (owned, cleanup: this coordinator after all writers/viewers release):
 `/Users/vince/Projects/canlang-worktrees/lane-02-values`, branch prefix
-`muse/lane-02-values/`, base origin/main 53f6f29 (PR1 #8 merged; L4 S2 #5,
-L6 S1 #6, L5 S1 #7, L7 PR2 #9, L5 S2 #10, L7 PR3 #11, L6 S2 #12, L7 PR4 #14
-also in — L7 PR3/PR4 bring the testkit table runner + integration skeleton
-relevant to PR6). Current branch: `muse/lane-02-values/scalars` (PR2 slice).
-The primary checkout is never touched.
+`muse/lane-02-values/`, base origin/main c949174 (PR2 #17 merged; see
+evidence). Current branch: `muse/lane-02-values/temporal` (PR3 slice). The
+primary checkout is never touched.
 
 Owner prompt: [lane 02](../prompts/02-values.md). Binding: PLAN, WORKFLOW,
 CONTRACTS, DIAGNOSTICS, AGENTS.md (all read at b06d873).
@@ -198,9 +196,12 @@ implementation/evidence/jev/values-20261004/  # JEV round (done)
 - Case/whitespace/scalars: native `toLowerCase/toUpperCase`, `\p{White_Space}`,
   string iteration; native `TextEncoder`/URL (app_url origin is injected trusted
   context, never request Host).
-- ICU: reuse `@formatjs/icu-messageformat-parser` (pinned; pure JS, workerd-safe)
-  for parsing + OWN validator/renderer enforcing the bounded profile. Qualify:
-  banned constructs rejected, bound constructs render per vectors.
+- ICU: OWN bounded parser+validator+renderer (evaluated `@formatjs/
+  icu-messageformat-parser` 3.5.20 and rejected it: it supersets Can semantics,
+  so the required validator approaches own-parser cost while adding dep +
+  root-lock coordination; structural bounds in an owned parser reject banned
+  constructs as syntax errors). Native `Intl.PluralRules`/`Intl` parts supply
+  locale rules; exact digit rendering is own code (never Number-routed).
 - Runner/build: `node:test` built-in + `tsc` build to dist; `typescript` pinned
   devDep. No framework added. src uses no `node:` imports (workerd-safe).
 - ISO 4217 scale table: generated at author time from an authoritative public
@@ -321,7 +322,23 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
   (`divideDurationByInt`) likewise (rides PR3). Int ops lower via the
   `int64()` wrapper (draft-witnessed); int/duration/text comparisons lower
   to native operators. Carried in the PR2 description.
-- Active workers: none (both slices delivered; coordinator assembling PR2).
+- PR2 merged 2026-10-04 as c949174 (PR #17, squash, head ee3897e):
+  independent review verdict merge with zero findings; 87/87 on the PR tree,
+  both `values` CI runs green. The red `workspace` job is pre-existing
+  breakage (L3 S2 #15 added state deps without the L7-owned root-lock
+  update; fails identically on unmodified main@5a271a6, run 37208106425) —
+  documented on the PR; L3/L7 own the fix. No rebase past 53f6f29 was needed
+  (L3 S2 touches disjoint paths; merge commit already includes it).
+- PR3 branch `muse/lane-02-values/temporal` cut from c949174: 4 temporal
+  files + catalog (15 flips + `divideDurationByInt` gap entry + 2 feature
+  flips) + index exports. Catalog now 56 entries: 32 implemented, 22
+  planned, 2 external (audited by exact script, not grep).
+- PR3 review (verdict merge): 1 MINOR (`dates()` equal-endpoints/limit
+  order — decided: equal gives [] without consulting the limit, doc + 2
+  vectors added) + 1 NIT (dead zone branch removed) + flip-count correction
+  (15, not 16).
+- Active workers: none (coordinator assembling PR3; next delegation is the
+  PR4 text/collections slice).
 
 ## Interface requests and handoffs
 
@@ -361,6 +378,12 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
   both `values` CI runs green, mergeStateStatus CLEAN, branch unprotected.
   Limits: all entries planned/external; export-conformance in PR5.
   URL: https://github.com/veighnsche/canlang/pull/8
+- PR #17 (scalars) MERGED 2026-10-04 as c949174: 14 files, reviewed head
+  ee3897e, independent review verdict merge with zero findings, 87/87 on
+  the PR tree, both `values` CI runs green. `workspace` red pre-existing
+  (L3 S2 lock breakage, documented on PR). Limits: `abs` dispatcher in PR5;
+  decimal.js oracle deferred to PR5; temporal held for PR3.
+  URL: https://github.com/veighnsche/canlang/pull/17
 
 ## Remaining work and cleanup
 

@@ -26,7 +26,7 @@ const EXPECTED_HELPERS = [
  */
 const EXPECTED_GAP_HELPERS = [
   "addDecimal", "subtractDecimal", "multiplyDecimal", "negateDecimal",
-  "divideMoney",
+  "divideMoney", "divideDurationByInt",
 ];
 
 describe("builtin catalog", () => {
