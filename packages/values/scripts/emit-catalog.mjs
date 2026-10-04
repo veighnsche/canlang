@@ -2,7 +2,7 @@
 // Emits the versioned lane-02 catalog JSON from the single authored definition
 // (src/catalog.ts), validates its shape, and asserts export conformance:
 // every implemented entry resolves to a function export of the built dist
-// index. Run after `npm run build`.
+// index. Run after `bun run build`.
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
