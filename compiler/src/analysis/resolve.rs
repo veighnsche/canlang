@@ -806,6 +806,7 @@ fn is_type_node(kind: SyntaxKind) -> bool {
             | SyntaxKind::EnumType
             | SyntaxKind::ActionType
             | SyntaxKind::DeliveryType
+            | SyntaxKind::InvocationType
     )
 }
 
@@ -3379,7 +3380,7 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
-            SyntaxKind::ActionType | SyntaxKind::DeliveryType => {
+            SyntaxKind::ActionType | SyntaxKind::DeliveryType | SyntaxKind::InvocationType => {
                 for child in kids(node) {
                     if child.kind != SyntaxKind::Path {
                         continue;
@@ -4478,6 +4479,26 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
+            // Slots and preference panels are transparent structural
+            // groups: their children resolve in the current scope.
+            SyntaxKind::Slot | SyntaxKind::PreferencePanel => {
+                for child in kids(node) {
+                    if is_ui_child(child.kind) {
+                        self.walk_ui(text, module, scope, child, diags);
+                    }
+                }
+            }
+            SyntaxKind::CatalogItem => {
+                for child in kids(node) {
+                    if is_expression(child.kind) {
+                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags);
+                    } else if is_ui_child(child.kind) {
+                        self.walk_ui(text, module, scope, child, diags);
+                    }
+                    // `NAME=word` options are catalog vocabulary, not
+                    // name references; membership is PR5 (M6 record).
+                }
+            }
             _ => {}
         }
     }
@@ -4969,6 +4990,9 @@ fn is_ui_child(kind: SyntaxKind) -> bool {
             | SyntaxKind::Form
             | SyntaxKind::Edit
             | SyntaxKind::UiLeaf
+            | SyntaxKind::Slot
+            | SyntaxKind::PreferencePanel
+            | SyntaxKind::CatalogItem
     )
 }
 

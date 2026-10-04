@@ -4509,14 +4509,13 @@ impl<'a> Parser<'a> {
                     self.error_for_line(out, child);
                 }
             } else {
-                self.diags.push(
-                    Fail::new(
-                        "E1216",
-                        "expected leading require, one do body, then examples".to_string(),
-                        child.tokens[0].span,
-                    )
-                    .diag(),
-                );
+                let message = if mapper {
+                    "expected leading require guards plus do (mappers take no examples)"
+                } else {
+                    "expected leading require, one do body, then examples"
+                };
+                self.diags
+                    .push(Fail::new("E1216", message.to_string(), child.tokens[0].span).diag());
                 self.error_for_line(out, child);
             }
         }

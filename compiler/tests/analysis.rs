@@ -45,8 +45,9 @@ fn write_file(dir: &Path, name: &str, content: &str) -> PathBuf {
 }
 
 /// Explicitly test-only catalog: builtin shapes transcribed from the
-/// DESIGN §3 notation block, plus synthetic `planned_widget` (planned)
-/// and `help_inner` (helper) entries no producer emits.
+/// DESIGN §3 notation block plus the §2.2 `invocation` constructor, plus
+/// synthetic `planned_widget` (planned) and `help_inner` (helper)
+/// entries no producer emits.
 const FIXTURE_JSON: &str = r#"{
   "language_version": "1.0",
   "catalog_version": "test-only-0",
@@ -58,6 +59,7 @@ const FIXTURE_JSON: &str = r#"{
     {"id": "trim", "js": "trim", "owner": "test", "kind": "builtin", "signature": "trim(value:S)->text", "effects": "pure", "availability": "implemented"},
     {"id": "local_instant", "js": "localInstant", "owner": "test", "kind": "builtin", "signature": "local_instant(date:date,time:text,zone:timezone,fold:enum(earlier,later))->datetime", "effects": "pure", "availability": "implemented"},
     {"id": "action", "js": "action", "owner": "test", "kind": "builtin", "signature": "action(target:canonical user mutation,bindings:closed object of every record parameter)->singleton action(target)", "effects": "pure", "availability": "implemented"},
+    {"id": "invocation", "js": "invocation", "owner": "test", "kind": "builtin", "signature": "invocation(target:canonical local user mutation,arguments:complete owning input object)->singleton invocation(target)", "effects": "pure", "availability": "implemented"},
     {"id": "all", "js": "all", "owner": "test", "kind": "builtin", "signature": "all(domain:C<T> as x,predicate:bool in x scope)->bool", "effects": "pure", "availability": "implemented"},
     {"id": "planned_widget", "js": "plannedWidget", "owner": "test", "kind": "builtin", "signature": "planned_widget(domain:C<int>)->int", "effects": "pure", "availability": "planned"},
     {"id": "help_inner", "js": "helpInner", "owner": "test", "kind": "helper", "signature": "help_inner(value:int)->int; JS-side helper", "effects": "pure", "availability": "implemented"}
@@ -663,59 +665,63 @@ fn draft_outcome_table() {
     };
     let catalog = load_real_catalog(&path);
     // (file, expected diagnostic count). Counts regenerated 2026-10-04
-    // after the fb226e0→a750816 rebase (corpus rewritten + `sum`
-    // implemented): every moved count was re-observed and spot-checked
-    // (cross-file imports, precise type errors, the two `each=` E1203s).
+    // for the PR4 review fixes: B4 types `invocation(...)` positions
+    // (CanWorkbench +2: the line-15 target E2001s) and M6 resolves
+    // `slot`/catalog-item subtrees like their siblings (all other
+    // moves are UI-subtree E2001/E2013s under identical scoping, each
+    // family audited: no new codes, no other adds) plus the PR5B
+    // carryover (CanCreative -1: `application/json` fixture type now
+    // accepted per DESIGN §5).
     let table: &[(&str, usize)] = &[
-        ("draft/CanAffiliate.can", 103),
-        ("draft/CanApprove.can", 93),
+        ("draft/CanAffiliate.can", 108),
+        ("draft/CanApprove.can", 103),
         ("draft/CanBoard.can", 4),
-        ("draft/CanBook.can", 222),
-        ("draft/CanCRM.can", 136),
-        ("draft/CanCatch.can", 99),
+        ("draft/CanBook.can", 233),
+        ("draft/CanCRM.can", 193),
+        ("draft/CanCatch.can", 111),
         ("draft/CanChat.can", 134),
         ("draft/CanCheck.can", 100),
-        ("draft/CanContract.can", 72),
-        ("draft/CanCreative.can", 196),
-        ("draft/CanCustomer.can", 95),
+        ("draft/CanContract.can", 102),
+        ("draft/CanCreative.can", 195),
+        ("draft/CanCustomer.can", 109),
         ("draft/CanDecide.can", 60),
-        ("draft/CanDesk.can", 137),
+        ("draft/CanDesk.can", 156),
         ("draft/CanDiscover.can", 154),
         ("draft/CanDo.can", 56),
         ("draft/CanEnrich.can", 46),
-        ("draft/CanEvent.can", 463),
-        ("draft/CanExpense.can", 98),
-        ("draft/CanFeedback.can", 26),
-        ("draft/CanField.can", 116),
+        ("draft/CanEvent.can", 476),
+        ("draft/CanExpense.can", 128),
+        ("draft/CanFeedback.can", 36),
+        ("draft/CanField.can", 131),
         ("draft/CanGallery.can", 32),
-        ("draft/CanGrant.can", 89),
-        ("draft/CanHire.can", 146),
+        ("draft/CanGrant.can", 102),
+        ("draft/CanHire.can", 164),
         ("draft/CanInbox.can", 182),
-        ("draft/CanInvoice.can", 614),
+        ("draft/CanInvoice.can", 659),
         ("draft/CanKnowledge.can", 100),
         ("draft/CanLearn.can", 50),
-        ("draft/CanLeave.can", 85),
-        ("draft/CanLoyalty.can", 113),
-        ("draft/CanMail.can", 234),
-        ("draft/CanMaintain.can", 178),
-        ("draft/CanMember.can", 526),
+        ("draft/CanLeave.can", 99),
+        ("draft/CanLoyalty.can", 133),
+        ("draft/CanMail.can", 241),
+        ("draft/CanMaintain.can", 186),
+        ("draft/CanMember.can", 567),
         ("draft/CanOnboard.can", 67),
-        ("draft/CanPropose.can", 177),
-        ("draft/CanPurchase.can", 191),
-        ("draft/CanReception.can", 237),
-        ("draft/CanRefer.can", 131),
+        ("draft/CanPropose.can", 199),
+        ("draft/CanPurchase.can", 233),
+        ("draft/CanReception.can", 258),
+        ("draft/CanRefer.can", 138),
         ("draft/CanRent.can", 931),
         ("draft/CanReport.can", 50),
         ("draft/CanShift.can", 4),
         ("draft/CanStats.can", 82),
-        ("draft/CanStock.can", 121),
+        ("draft/CanStock.can", 142),
         ("draft/CanSuccess.can", 107),
         ("draft/CanSync.can", 71),
         ("draft/CanTable.can", 51),
-        ("draft/CanTime.can", 147),
+        ("draft/CanTime.can", 163),
         ("draft/CanTrade.can", 29),
         ("draft/CanVolunteer.can", 3),
-        ("draft/CanWorkbench.can", 138),
+        ("draft/CanWorkbench.can", 140),
         ("draft/shared/Employees.can", 14),
         ("draft/shared/Locations.can", 55),
         ("draft/shared/Suppliers.can", 6),
@@ -1050,4 +1056,283 @@ fn lane05_component_shape_gaps() {
         assert_eq!(diags.len(), 1, "{name}: {diags:?}");
         assert_eq!(diags[0].code, "E6003", "{name}: {diags:?}");
     }
+}
+
+/// B2: `invocation()` takes the COMPLETE normalized input schema of its
+/// target (DESIGN §2.2), not `action()`'s record-only bindings.
+#[test]
+fn invocation_constructor_complete_inputs() {
+    let catalog = fixture();
+    let given = "app T\nGiven\n Todo { title:text, pr:enum(low,high)=low }\n policy Todo read=members\nWhen\n crud Todo by=members fields=title,pr\n scenario worker(t:Todo, note:text) by=members\n  do\n   let x = 1\n";
+    // Complete scenario inputs, the Workbench `record`+`changes` update
+    // shape, and a bare enum case inside `changes` all check clean.
+    assert_clean(
+        &format!(
+            "{given} scenario caller(t:Todo) by=members\n  do\n   let v = invocation(worker, {{t=t, note=\"hi\"}})\n   let w = invocation(Todo.update, {{record=t, changes={{title=\"x\"}}}})\n   let e = invocation(Todo.update, {{record=t, changes={{pr=high}}}})\nThen\n"
+        ),
+        Some(&catalog),
+    );
+    // A missing required non-record input is E3005, spanning the call.
+    let src = format!(
+        "{given} scenario caller(t:Todo) by=members\n  do\n   let v = invocation(worker, {{t=t}})\nThen\n"
+    );
+    assert_findings(
+        &src,
+        &check(&src, Some(&catalog)),
+        &[("E3005", "invocation(worker, {t=t})", 1)],
+    );
+    // Unknown inputs are E3005 too.
+    let src = format!(
+        "{given} scenario caller(t:Todo) by=members\n  do\n   let v = invocation(worker, {{t=t, note=\"hi\", bogus=1}})\nThen\n"
+    );
+    assert_findings(
+        &src,
+        &check(&src, Some(&catalog)),
+        &[(
+            "E3005",
+            "invocation(worker, {t=t, note=\"hi\", bogus=1})",
+            1,
+        )],
+    );
+    // `action()`'s record-only shape is incomplete here: update needs
+    // its `changes` as well.
+    let src = format!(
+        "{given} scenario caller(t:Todo) by=members\n  do\n   let v = invocation(Todo.update, {{record=t}})\nThen\n"
+    );
+    assert_findings(
+        &src,
+        &check(&src, Some(&catalog)),
+        &[("E3005", "invocation(Todo.update, {record=t})", 1)],
+    );
+    // Non-object arguments never match.
+    let src = format!(
+        "{given} scenario caller(t:Todo) by=members\n  do\n   let v = invocation(worker, 42)\nThen\n"
+    );
+    assert_findings(
+        &src,
+        &check(&src, Some(&catalog)),
+        &[("E3005", "invocation(worker, 42)", 1)],
+    );
+}
+
+/// B3: `invocation()` values are a closed complete-call type distinct
+/// from `action`; `call value {}` carries no replacement arguments.
+#[test]
+fn invocation_result_type_and_call() {
+    let catalog = fixture();
+    let given = "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\n crud Todo by=members fields=title\n";
+    // `call v {}` on a complete invocation value checks clean.
+    let src = format!(
+        "{given} scenario caller(t:Todo) by=members\n  do\n   let v = invocation(Todo.update, {{record=t, changes={{title=\"x\"}}}})\n   call v {{}}\nThen\n"
+    );
+    assert_clean(&src, Some(&catalog));
+    // Any supplied argument is E3009 on its key.
+    let src = format!(
+        "{given} scenario caller(t:Todo) by=members\n  do\n   let v = invocation(Todo.update, {{record=t, changes={{title=\"x\"}}}})\n   call v {{title=\"y\"}}\nThen\n"
+    );
+    let diags = check(&src, Some(&catalog));
+    assert_findings(&src, &diags, &[("E3009", "title", 4)]);
+    assert!(
+        diags[0].message.contains("complete arguments"),
+        "{}",
+        diags[0].message
+    );
+    // Invocation values are not actions: passing one where an action
+    // is expected is E3001, spanning the supplied value.
+    let src = format!(
+        "{given} scenario takes(a:action(Todo.update)) by=members\n  do\n   let x = 1\n scenario caller(t:Todo) by=members\n  do\n   call takes {{a=invocation(Todo.update, {{record=t, changes={{title=\"x\"}}}})}}\nThen\n"
+    );
+    assert_findings(
+        &src,
+        &check(&src, Some(&catalog)),
+        &[(
+            "E3001",
+            "invocation(Todo.update, {record=t, changes={title=\"x\"}})",
+            1,
+        )],
+    );
+    // And action values are not invocations.
+    let src = format!(
+        "{given} scenario takesv(vv:invocation(Todo.update)) by=members\n  do\n   let x = 1\n scenario caller(t:Todo) by=members\n  do\n   call takesv {{vv=action(Todo.update, {{record=t}})}}\nThen\n"
+    );
+    assert_findings(
+        &src,
+        &check(&src, Some(&catalog)),
+        &[("E3001", "action(Todo.update, {record=t})", 1)],
+    );
+}
+
+/// B4: `invocation(...)` in type position is a nonempty distinct closed
+/// set of local enabled user mutation targets (CanWorkbench.can:15).
+#[test]
+fn invocation_type_position() {
+    let catalog = fixture();
+    // The Workbench witness shape checks clean.
+    assert_clean(
+        "app T\nGiven\n Todo { title:text }\n policy Todo read=members\n export contract Proposal {summary:text, call:invocation(Todo.update,worker)?}\nWhen\n crud Todo by=members fields=title\n scenario worker(t:Todo, note:text) by=members\n  do\n   let x = 1\nThen\n",
+        Some(&catalog),
+    );
+    // A read scenario is not a mutation target.
+    let src = "app T\nGiven\n Todo { title:text }\n policy Todo read=members\n export contract Proposal {summary:text, call:invocation(reader)?}\nWhen\n crud Todo by=members fields=title\n scenario reader(t:Todo) read=true by=members -> int\n  do\n   return 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_findings(src, &diags, &[("E3009", "reader", 1)]);
+    assert!(diags[0].message.contains("read"), "{}", diags[0].message);
+    // Duplicate targets are E3009 on the repeat.
+    let src = "app T\nGiven\n Todo { title:text }\n policy Todo read=members\n export contract Proposal {summary:text, call:invocation(worker,worker)}\nWhen\n crud Todo by=members fields=title\n scenario worker(t:Todo, note:text) by=members\n  do\n   let x = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_findings(src, &diags, &[("E3009", "worker", 2)]);
+    assert!(
+        diags[0].message.contains("duplicate"),
+        "{}",
+        diags[0].message
+    );
+    // A model is not a mutation target.
+    let src = "app T\nGiven\n Todo { title:text }\n policy Todo read=members\n export contract Proposal {summary:text, call:invocation(Todo)}\nWhen\n crud Todo by=members fields=title\nThen\n";
+    assert_findings(src, &check(src, Some(&catalog)), &[("E3009", "Todo", 3)]);
+}
+
+/// B5: read scenarios are not action/invocation targets anywhere.
+#[test]
+fn read_scenarios_rejected_as_action_targets() {
+    let catalog = fixture();
+    let given = "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\n crud Todo by=members fields=title\n scenario reader(t:Todo) read=true by=members -> int\n  do\n   return 1\n";
+    // `action()` over a read scenario is E3005.
+    let src = format!(
+        "{given} scenario caller(t:Todo) by=members\n  do\n   let a = action(reader, {{t=t}})\nThen\n"
+    );
+    assert_findings(
+        &src,
+        &check(&src, Some(&catalog)),
+        &[("E3005", "action(reader, {t=t})", 1)],
+    );
+    // `invocation()` over a read scenario is E3005.
+    let src = format!(
+        "{given} scenario caller(t:Todo) by=members\n  do\n   let v = invocation(reader, {{t=t}})\nThen\n"
+    );
+    assert_findings(
+        &src,
+        &check(&src, Some(&catalog)),
+        &[("E3005", "invocation(reader, {t=t})", 1)],
+    );
+    // `action(...)` in type position over a read scenario is E3009.
+    let src = "app T\nGiven\n Todo { title:text }\n policy Todo read=members\n export contract C {a:action(reader)}\nWhen\n crud Todo by=members fields=title\n scenario reader(t:Todo) read=true by=members -> int\n  do\n   return 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_findings(src, &diags, &[("E3009", "reader", 1)]);
+    assert!(diags[0].message.contains("read"), "{}", diags[0].message);
+}
+
+/// M6: `slot`/`preferences`/catalog-item subtrees resolve and type like
+/// their siblings; positional catalog domains are expressions.
+/// Catalog `NAME=word` options stay silent: words are PR5 membership
+/// work (a word is not a name reference), pinned here deliberately.
+#[test]
+fn ui_transparent_groups_resolve() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\nThen\n page /t title=\"T\"\n  modal \"M\" id=dlg\n   slot content\n    text nosuchvar\n  badge nosuchvar2\n";
+    assert_findings(
+        src,
+        &check(src, Some(&catalog)),
+        &[("E2001", "nosuchvar", 1), ("E2001", "nosuchvar2", 1)],
+    );
+    // Option words are catalog vocabulary, not references: silent.
+    assert_clean(
+        "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\nThen\n page /t title=\"T\"\n  badge \"x\" tone=primary\n",
+        Some(&catalog),
+    );
+}
+
+/// M7: `call` on an action value reports missing required inputs that
+/// were not pre-bound at construction.
+#[test]
+fn call_on_action_reports_missing() {
+    let catalog = fixture();
+    let given = "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\n crud Todo by=members fields=title\n scenario worker(t:Todo, note:text) by=members\n  do\n   let x = 1\n";
+    // The pre-bound record is satisfied; the missing note is E3009.
+    let src = format!(
+        "{given} scenario caller(t:Todo) by=members\n  do\n   let a = action(worker, {{t=t}})\n   call a {{}}\nThen\n"
+    );
+    let diags = check(&src, Some(&catalog));
+    assert_findings(&src, &diags, &[("E3009", "{}", 1)]);
+    assert!(
+        diags[0].message.contains("missing required input 'note'"),
+        "{}",
+        diags[0].message
+    );
+    // Supplying the remaining input checks clean.
+    let src = format!(
+        "{given} scenario caller(t:Todo) by=members\n  do\n   let a = action(worker, {{t=t}})\n   call a {{note=\"x\"}}\nThen\n"
+    );
+    assert_clean(&src, Some(&catalog));
+    // CRUD update actions still need their `changes` at the call.
+    let src = format!(
+        "{given} scenario caller(t:Todo) by=members\n  do\n   let au = action(Todo.update, {{record=t}})\n   call au {{}}\nThen\n"
+    );
+    let diags = check(&src, Some(&catalog));
+    assert_findings(&src, &diags, &[("E3009", "{}", 1)]);
+    assert!(
+        diags[0]
+            .message
+            .contains("missing required input 'changes'"),
+        "{}",
+        diags[0].message
+    );
+    // ... and supplying valid `changes` checks clean.
+    let src = format!(
+        "{given} scenario caller(t:Todo) by=members\n  do\n   let au = action(Todo.update, {{record=t}})\n   call au {{changes={{title=\"x\"}}}}\nThen\n"
+    );
+    assert_clean(&src, Some(&catalog));
+}
+
+/// M8: constructor binding failures are `E3005` (overload no-match),
+/// not `E3009`; the entry must say so.
+#[test]
+fn e3009_entry_names_ctor_code() {
+    let catalog = fixture();
+    // The code path: a mistyped `action()` binding is E3005.
+    let src = "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\n crud Todo by=members fields=title\n scenario caller(t:Todo) by=members\n  do\n   let a = action(Todo.update, {record=t, bogus=1})\nThen\n";
+    assert_findings(
+        src,
+        &check(src, Some(&catalog)),
+        &[("E3005", "action(Todo.update, {record=t, bogus=1})", 1)],
+    );
+    // The entry text names the constructor code.
+    let info = explain::lookup("E3009").expect("E3009 entry");
+    assert!(
+        info.explanation.contains("E3005"),
+        "E3009 entry must name the constructor code: {}",
+        info.explanation
+    );
+}
+
+/// PR5B carryover (PR4 scope): the fixture `type=` list is DESIGN
+/// §5's five samples, and quoted message locale keys validate.
+#[test]
+fn fixture_mime_and_quoted_locale_keys() {
+    let catalog = fixture();
+    // `application/json` is the fifth pinned sample (DESIGN §5).
+    assert_clean(
+        "app T\nGiven\n fixture f=file {type=\"application/json\"}\nWhen\nThen\n",
+        Some(&catalog),
+    );
+    // Other types still reject.
+    let src = "app T\nGiven\n fixture f=file {type=\"application/xml\"}\nWhen\nThen\n";
+    assert_findings(
+        src,
+        &check(src, Some(&catalog)),
+        &[("E3015", "\"application/xml\"", 1)],
+    );
+    // Quoted locale keys validate their tag, not an empty string.
+    assert_clean(
+        "app T\nGiven\n message m = \"Hi\"@{\"pt-BR\"=\"oi\"}\nWhen\nThen\n",
+        Some(&catalog),
+    );
+    // ... and invalid quoted tags still report E3016 on the key.
+    let src = "app T\nGiven\n message m = \"Hi\"@{\"toolongtagxx\"=\"oi\"}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_findings(src, &diags, &[("E3016", "\"toolongtagxx\"", 1)]);
+    assert!(
+        diags[0].message.contains("toolongtagxx"),
+        "{}",
+        diags[0].message
+    );
 }

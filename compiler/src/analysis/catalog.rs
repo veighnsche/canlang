@@ -59,6 +59,17 @@
 //! - `canonical user mutation`, `closed object of every record
 //!   parameter`, `singleton action(target)`: the `action` constructor
 //!   forms, checked against canonical operation identities.
+//! - `canonical local user mutation`: the `invocation` target form
+//!   (DESIGN §2.2). `local` is vacuous at the shape level: it parses
+//!   to the same target atom as the older wording (a same-app
+//!   operation, never a bound remote one), so both spellings check
+//!   identically.
+//! - `complete owning input object`: the `invocation` arguments form
+//!   (DESIGN §2.2): the complete normalized input schema of the
+//!   owning operation, not `action`'s record-only bindings.
+//! - `singleton invocation(target)`: the `invocation` result form
+//!   (DESIGN §2.2): a closed complete-call value, distinct from the
+//!   `action` result.
 //! - Any other dotted or plain name (`int`, `text`, `currency`,
 //!   `secret`, ...): a nominal type matched by the type checker.
 //!
@@ -246,6 +257,11 @@ pub enum SigType {
     ActionBindings,
     /// The `action` singleton result form.
     ActionResult,
+    /// The `invocation` arguments form (`complete owning input
+    /// object`): the target's complete normalized input schema.
+    InvocationArgs,
+    /// The `invocation` singleton result form.
+    InvocationResult,
 }
 
 /// Catalog load request: explicit inputs so tests never depend on process
@@ -930,15 +946,18 @@ impl SigParser<'_> {
             self.pos += "closed object of every record parameter".len();
             return Ok(SigType::ActionBindings);
         }
-        // Lane-02's live wording for the same closed identity-input
-        // object (its `invocation` entry); enforced identically.
+        // Lane-02's `invocation` arguments form (DESIGN §2.2): the
+        // complete normalized input schema, checked by its own
+        // matcher (never the record-only `action` bindings).
         if rest.starts_with("complete owning input object") {
             self.pos += "complete owning input object".len();
-            return Ok(SigType::ActionBindings);
+            return Ok(SigType::InvocationArgs);
         }
         // Lane-02 writes both `canonical user mutation` (older entries)
         // and `canonical local user mutation` (live `invocation` entry)
-        // for an untrusted local operation target.
+        // for an untrusted local operation target. The `local` collapse
+        // is deliberately vacuous (N15): same-app operations only, never
+        // bound remote ones, so both spellings check identically.
         if let Some(after) = rest.strip_prefix("canonical ") {
             let after = after.strip_prefix("local ").unwrap_or(after);
             if let Some(tail) = after.strip_prefix("user mutation") {
@@ -950,10 +969,11 @@ impl SigParser<'_> {
             self.pos += "singleton action(target)".len();
             return Ok(SigType::ActionResult);
         }
-        // Lane-02's live constructor result wording.
+        // Lane-02's `invocation` result form (DESIGN §2.2): a closed
+        // complete-call value, distinct from the `action` result.
         if rest.starts_with("singleton invocation(target)") {
             self.pos += "singleton invocation(target)".len();
-            return Ok(SigType::ActionResult);
+            return Ok(SigType::InvocationResult);
         }
         if rest.starts_with('{') {
             self.pos += 1;

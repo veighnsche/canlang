@@ -9,6 +9,12 @@
 //! `DiagnosticResult.complete` stays `false`: effects, examples, UI shape
 //! rules, handler sources and codegen are PR5+. See [`CheckedProgram`] for
 //! the PR5/codegen input contract and the deferred-check inventory.
+//!
+//! Recorded hole (M6): catalog-item `NAME=word` options are catalog
+//! vocabulary, not name references, so neither pass resolves them and
+//! no `E2001` fires for an unknown option word; membership checking
+//! needs the PR5 component catalogs. Positional catalog domains and
+//! `slot`/`preferences` children resolve and type normally.
 
 pub mod catalog;
 pub mod resolve;

@@ -217,7 +217,17 @@ pub enum ResolvedType {
     /// Message descriptor value (a bare message reference).
     Message(SymbolId),
     /// `action(op,…)` value over canonical user mutations.
-    Action { targets: Vec<SymbolId> },
+    /// `bound` names the inputs pre-bound at construction (`Some`
+    /// from the `action()` constructor, `None` for values whose
+    /// construction site is unknown, e.g. action-typed parameters).
+    Action {
+        targets: Vec<SymbolId>,
+        bound: Option<Vec<String>>,
+    },
+    /// `invocation(op,…)` complete-call value (DESIGN §2.2) over
+    /// canonical user mutations. Always carries complete arguments;
+    /// distinct from [`ResolvedType::Action`].
+    Invocation { targets: Vec<SymbolId> },
     /// `delivery(op)` value over one bound operation.
     Delivery { op: SymbolId },
     /// `[T]` array or `C<T>` query/collection domain. `ordered` holds
@@ -289,12 +299,19 @@ impl ResolvedType {
             ResolvedType::Message(id) => {
                 format!("message {}", record_name(tables, module, *id))
             }
-            ResolvedType::Action { targets } => {
+            ResolvedType::Action { targets, .. } => {
                 let ops: Vec<String> = targets
                     .iter()
                     .map(|t| record_name(tables, module, *t))
                     .collect();
                 format!("action({})", ops.join(","))
+            }
+            ResolvedType::Invocation { targets } => {
+                let ops: Vec<String> = targets
+                    .iter()
+                    .map(|t| record_name(tables, module, *t))
+                    .collect();
+                format!("invocation({})", ops.join(","))
             }
             ResolvedType::Delivery { op } => {
                 format!("delivery({})", record_name(tables, module, *op))
@@ -360,8 +377,10 @@ pub fn check_types(
     diags: &mut Vec<Diagnostic>,
 ) -> TypeTable {
     let mut typer = Typer::new(db, catalog, tables, diags);
-    typer.phase1(trees);
+    // Read flags first: phase-1 declared types (`action(...)` /
+    // `invocation(...)` targets) already need the set.
     typer.collect_read_scenarios(trees);
+    typer.phase1(trees);
     typer.phase2(trees);
     typer.check_cycles();
     typer.types.symbol_types = std::mem::take(&mut typer.decl);
@@ -1246,8 +1265,11 @@ impl<'a> Typer<'a> {
         let ty = self.expr(cx, target, None);
         match ty {
             ResolvedType::Operation(id) => self.call_operation(cx, node, target, id, object),
-            ResolvedType::Action { targets } => {
-                self.call_action(cx, node, target, &targets, object);
+            ResolvedType::Action { targets, bound } => {
+                self.call_action(cx, node, target, &targets, bound.as_deref(), object);
+            }
+            ResolvedType::Invocation { targets } => {
+                self.call_invocation(cx, node, target, &targets, object);
             }
             ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
                 if let Some(object) = object {
@@ -1260,7 +1282,7 @@ impl<'a> Typer<'a> {
                 self.diags.push(Diagnostic::error(
                     "E3009",
                     format!(
-                        "call target must be an operation or action, found {}",
+                        "call target must be an operation, action or invocation, found {}",
                         self.show(cx.module, &other)
                     ),
                     tight_span(cx.text, target),
@@ -1400,15 +1422,96 @@ impl<'a> Typer<'a> {
         ) && self.read_scenarios.contains(&id)
     }
 
+    /// Call schema of one action target: scenario/capability
+    /// parameters, or the normalized CRUD inputs (creation fields
+    /// plus the contained `parent`; update `record`/`changes`; delete
+    /// `record`). Reserved and server-owned creation fields are not
+    /// suppliable, so they are absent.
+    fn action_inputs(&self, op: SymbolId) -> Vec<ActionInput> {
+        match &self.tables.symbols[op.0 as usize].kind {
+            SymbolKind::Scenario { params, .. } | SymbolKind::CapabilityOp { params, .. } => params
+                .iter()
+                .map(|p| ActionInput {
+                    name: self.tables.symbols[p.0 as usize].name.clone(),
+                    expected: Some(self.decl_type(*p)),
+                    required: !self.param_has_default(*p),
+                })
+                .collect(),
+            SymbolKind::CrudOp { model, op } => {
+                let (model, op) = (*model, *op);
+                match op {
+                    CrudOp::Create => {
+                        let mut inputs: Vec<ActionInput> = self
+                            .model_fields(model)
+                            .iter()
+                            .filter(|f| {
+                                let name = self.tables.symbols[f.0 as usize].name.as_str();
+                                !is_reserved_name(name) && !self.field_is_server(**f)
+                            })
+                            .map(|f| ActionInput {
+                                name: self.tables.symbols[f.0 as usize].name.clone(),
+                                expected: Some(self.decl_type(*f)),
+                                required: self.field_is_required_input(*f),
+                            })
+                            .collect();
+                        if let SymbolKind::Model {
+                            owner: ModelOwner::ChildOf(parent),
+                            ..
+                        } = &self.tables.symbols[model.0 as usize].kind
+                        {
+                            inputs.push(ActionInput {
+                                name: "parent".to_string(),
+                                expected: Some(ResolvedType::Record {
+                                    symbol: *parent,
+                                    stored: true,
+                                }),
+                                required: true,
+                            });
+                        }
+                        inputs
+                    }
+                    CrudOp::Update => vec![
+                        ActionInput {
+                            name: "record".to_string(),
+                            expected: Some(ResolvedType::Record {
+                                symbol: model,
+                                stored: true,
+                            }),
+                            required: true,
+                        },
+                        ActionInput {
+                            name: "changes".to_string(),
+                            expected: None,
+                            required: true,
+                        },
+                    ],
+                    CrudOp::Delete => vec![ActionInput {
+                        name: "record".to_string(),
+                        expected: Some(ResolvedType::Record {
+                            symbol: model,
+                            stored: true,
+                        }),
+                        required: true,
+                    }],
+                }
+            }
+            _ => Vec::new(),
+        }
+    }
+
     /// `call` against an action value: bindings must fit every
-    /// target's inputs; pre-bound inputs stay lenient (their
-    /// construction site owns them).
+    /// target's inputs. Pre-bound inputs (DESIGN §2.1: every record
+    /// parameter, bound at construction) are satisfied; other
+    /// required inputs missing here are `E3009`. Values of unknown
+    /// provenance (`bound` `None`, e.g. action-typed parameters) stay
+    /// lenient on missing inputs.
     fn call_action(
         &mut self,
         cx: &Ctx<'_, '_>,
         node: &SyntaxNode,
         _target: &SyntaxNode,
         targets: &[SymbolId],
+        bound: Option<&[String]>,
         object: Option<&SyntaxNode>,
     ) {
         // Action targets are user mutations; reads cannot invoke them.
@@ -1427,32 +1530,17 @@ impl<'a> Typer<'a> {
                 .insert(NodeKey::of(node), ResolvedType::Opaque("empty action call"));
             return;
         }
-        let params = match &self.tables.symbols[targets[0].0 as usize].kind {
-            SymbolKind::Scenario { params, .. } | SymbolKind::CapabilityOp { params, .. } => {
-                params.clone()
-            }
-            _ => Vec::new(),
-        };
-        // Every binding key must fit every target; missing inputs are
-        // lenient (possibly pre-bound at construction).
+        let schemas: Vec<Vec<ActionInput>> =
+            targets.iter().map(|op| self.action_inputs(*op)).collect();
+        let mut seen: Vec<String> = Vec::new();
+        // Every binding key must fit every target's schema.
         if let Some(object) = object {
             for (key, key_node, value) in object_entries(object, cx.text) {
-                let mut ok = true;
-                for op in targets {
-                    let op_params = match &self.tables.symbols[op.0 as usize].kind {
-                        SymbolKind::Scenario { params, .. }
-                        | SymbolKind::CapabilityOp { params, .. } => params.clone(),
-                        _ => Vec::new(),
-                    };
-                    if !op_params
-                        .iter()
-                        .any(|p| self.tables.symbols[p.0 as usize].name == key)
-                    {
-                        ok = false;
-                        break;
-                    }
-                }
-                if !ok {
+                seen.push(key.to_string());
+                if !schemas
+                    .iter()
+                    .all(|schema| schema.iter().any(|input| input.name == key))
+                {
                     self.diags.push(Diagnostic::error(
                         "E3009",
                         format!("'{key}' is not an input of every action target"),
@@ -1461,26 +1549,29 @@ impl<'a> Typer<'a> {
                     self.entry_value(cx, key_node, value, None);
                     continue;
                 }
-                if let Some(param) = params
-                    .iter()
-                    .find(|p| self.tables.symbols[p.0 as usize].name == key)
-                {
-                    let expected = self.decl_type(*param);
-                    let (actual, value_span) =
-                        self.entry_value(cx, key_node, value, Some(expected.clone()));
-                    if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                        self.diags.push(Diagnostic::error(
-                            "E3001",
-                            format!(
-                                "'{key}': expected {}, found {}",
-                                self.show(cx.module, &expected),
-                                self.show(cx.module, &actual)
-                            ),
-                            value_span,
-                        ));
+                self.check_action_value(cx, node, targets[0], &schemas[0], key, key_node, value);
+            }
+        }
+        // Missing required inputs are errors only when the bound set is
+        // known (constructor values); unknown provenance stays lenient.
+        if let Some(bound) = bound {
+            for (op, schema) in targets.iter().zip(schemas.iter()) {
+                for input in schema {
+                    if !input.required
+                        || seen.iter().any(|k| k == &input.name)
+                        || bound.iter().any(|k| k == &input.name)
+                    {
+                        continue;
                     }
-                } else {
-                    self.entry_value(cx, key_node, value, None);
+                    self.diags.push(Diagnostic::error(
+                        "E3009",
+                        format!(
+                            "missing required input '{}' to '{}'",
+                            input.name,
+                            record_name(self.tables, cx.module, *op)
+                        ),
+                        tight_span(cx.text, object.unwrap_or(node)),
+                    ));
                 }
             }
         }
@@ -1488,6 +1579,137 @@ impl<'a> Typer<'a> {
             NodeKey::of(node),
             ResolvedType::Opaque("action call result"),
         );
+    }
+
+    /// Check one supplied action-call value against the first target's
+    /// schema entry: typed values match their expectation (`E3001`
+    /// otherwise); `changes` checks as partial set-values.
+    #[allow(clippy::too_many_arguments)]
+    fn check_action_value(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        op: SymbolId,
+        schema: &[ActionInput],
+        key: &str,
+        key_node: &SyntaxNode,
+        value: Option<&SyntaxNode>,
+    ) {
+        let Some(input) = schema.iter().find(|input| input.name == key) else {
+            self.entry_value(cx, key_node, value, None);
+            return;
+        };
+        let SymbolKind::CrudOp { model, op } = &self.tables.symbols[op.0 as usize].kind else {
+            let expected = input.expected.clone().expect("scenario input type");
+            let (actual, value_span) =
+                self.entry_value(cx, key_node, value, Some(expected.clone()));
+            if !actual.is_error() && !self.types_compatible(&actual, &expected) {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    format!(
+                        "'{key}': expected {}, found {}",
+                        self.show(cx.module, &expected),
+                        self.show(cx.module, &actual)
+                    ),
+                    value_span,
+                ));
+            }
+            return;
+        };
+        let (model, op) = (*model, *op);
+        match (&input.expected, key) {
+            (Some(expected), _) => {
+                let (actual, value_span) =
+                    self.entry_value(cx, key_node, value, Some(expected.clone()));
+                if !actual.is_error() && !self.types_compatible(&actual, expected) {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        format!(
+                            "'{key}': expected {}, found {}",
+                            self.show(cx.module, expected),
+                            self.show(cx.module, &actual)
+                        ),
+                        value_span,
+                    ));
+                }
+            }
+            (None, "changes") if matches!(op, CrudOp::Update) => match value {
+                Some(v) if v.kind == SyntaxKind::Object => {
+                    self.check_set_values(cx, node, model, v, false);
+                }
+                _ => {
+                    self.diags.push(Diagnostic::error(
+                        "E3009",
+                        "'changes' must be an object of field updates".to_string(),
+                        tight_span(cx.text, key_node),
+                    ));
+                }
+            },
+            (None, _) => {
+                self.entry_value(cx, key_node, value, None);
+            }
+        }
+    }
+
+    /// `call` against an invocation value (DESIGN §2.2): the value
+    /// carries complete arguments, so `call value {}` takes no
+    /// replacement inputs; any supplied key is `E3009`. Like action
+    /// calls, no call edge is recorded (see [`Typer::call_action`]).
+    fn call_invocation(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        _target: &SyntaxNode,
+        targets: &[SymbolId],
+        object: Option<&SyntaxNode>,
+    ) {
+        // Invocation targets are user mutations; reads cannot invoke them.
+        if self.current_read && !targets.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E3005",
+                "read operations cannot invoke mutations".to_string(),
+                tight_span(cx.text, node),
+            ));
+        }
+        if let Some(object) = object {
+            for (key, key_node, value) in object_entries(object, cx.text) {
+                self.diags.push(Diagnostic::error(
+                    "E3009",
+                    format!(
+                        "invocation carries complete arguments; '{key}' supplies no replacement"
+                    ),
+                    tight_span(cx.text, key_node),
+                ));
+                self.entry_value(cx, key_node, value, None);
+            }
+        }
+        // The singleton target's result when it is statically known.
+        let result = match targets {
+            [op] => match &self.tables.symbols[op.0 as usize].kind {
+                SymbolKind::Scenario { .. } => {
+                    match self.results.get(op).cloned().unwrap_or(None) {
+                        Some(ty) => ty,
+                        None => {
+                            if has_as_binding(node, cx.text) {
+                                self.diags.push(Diagnostic::error(
+                                    "E3009",
+                                    format!(
+                                        "void operation '{}' has no result to bind",
+                                        record_name(self.tables, cx.module, *op)
+                                    ),
+                                    tight_span(cx.text, node),
+                                ));
+                            }
+                            ResolvedType::Error
+                        }
+                    }
+                }
+                SymbolKind::CrudOp { .. } => ResolvedType::Opaque("generated CRUD result"),
+                _ => ResolvedType::Opaque("invocation call result"),
+            },
+            _ => ResolvedType::Opaque("invocation call result"),
+        };
+        self.calls.insert(NodeKey::of(node), result);
     }
 
     /// Check a bindings object against operation parameters: unknown
@@ -2993,9 +3215,13 @@ impl<'a> Typer<'a> {
             let Some(key_node) = key_node else {
                 continue;
             };
-            // Variant keys are language identifiers or quoted tags.
+            // Variant keys are language identifiers or quoted tags
+            // (the parser leaves quoted keys as bare `String` leaves,
+            // not `Literal` nodes).
             let tag = if key_node.kind == SyntaxKind::Literal {
                 string_literal_value(key_node, cx.text).unwrap_or_default()
+            } else if key_node.kind == SyntaxKind::String {
+                string_leaf_value(key_node, cx.text).unwrap_or_default()
             } else {
                 name_text(key_node, cx.text).unwrap_or("").to_string()
             };
@@ -3471,8 +3697,8 @@ impl<'a> Typer<'a> {
 
     // --- Phase 2: call graph -------------------------------------------
 
-    /// Collect `read=true` scenarios before phase 2 (callers may
-    /// precede callees in source).
+    /// Collect `read=true` scenarios before phase 1 (declared
+    /// types and callers may precede callees in source).
     fn collect_read_scenarios(&mut self, trees: &[(SourceId, SyntaxNode)]) {
         for (file, tree) in trees {
             let text = self.text(*file).to_string();
@@ -4955,6 +5181,15 @@ impl<'a> Typer<'a> {
                     }
                 }
             }
+            // Catalog positional domains are expressions, like leaf
+            // domains; `NAME=word` options stay untyped (PR5 words).
+            SyntaxKind::CatalogItem => {
+                for child in kids(node) {
+                    if is_expression(child.kind) {
+                        let _ = self.expr(cx, child, None);
+                    }
+                }
+            }
             _ => {}
         }
         for child in kids(node) {
@@ -5308,7 +5543,11 @@ impl<'a> Typer<'a> {
                         Some(mime)
                             if matches!(
                                 mime.as_str(),
-                                "application/pdf" | "image/png" | "image/jpeg" | "text/plain"
+                                "application/pdf"
+                                    | "image/png"
+                                    | "image/jpeg"
+                                    | "text/plain"
+                                    | "application/json"
                             ) => {}
                         Some(mime) => {
                             self.diags.push(Diagnostic::error(
@@ -5870,6 +6109,17 @@ fn string_literal_value(node: &SyntaxNode, text: &str) -> Option<String> {
     unescape_json(body)
 }
 
+/// Value of a bare `String` token leaf (message locale keys are
+/// leaves, not `Literal` nodes).
+fn string_leaf_value(node: &SyntaxNode, text: &str) -> Option<String> {
+    if node.kind != SyntaxKind::String {
+        return None;
+    }
+    let slice = text.get(node.span.start as usize..node.span.end as usize)?;
+    let body = slice.strip_prefix('"').and_then(|s| s.strip_suffix('"'))?;
+    unescape_json(body)
+}
+
 /// Whether a `Literal` node is the `null` literal.
 fn is_null_literal(node: &SyntaxNode, text: &str) -> bool {
     literal_leaf(node, text)
@@ -5963,6 +6213,18 @@ fn object_entries<'a>(
         entries.push((key, key_node, value));
     }
     entries
+}
+
+/// Claim node for one object entry: its value node, or the key
+/// node for shorthand entries (as `entry_value` types them).
+fn claim_entry_node<'n>(
+    entries: &[(&str, &'n SyntaxNode, Option<&'n SyntaxNode>)],
+    key: &str,
+) -> Option<&'n SyntaxNode> {
+    entries
+        .iter()
+        .find(|(k, _, _)| *k == key)
+        .map(|(_, key_node, value)| value.unwrap_or(*key_node))
 }
 
 /// Whether `name` is reserved record metadata (DESIGN §2) and so
@@ -6312,6 +6574,7 @@ fn is_type_node(kind: SyntaxKind) -> bool {
             | SyntaxKind::EnumType
             | SyntaxKind::ActionType
             | SyntaxKind::DeliveryType
+            | SyntaxKind::InvocationType
     )
 }
 
@@ -6882,6 +7145,7 @@ impl<'a> Typer<'a> {
             }
             SyntaxKind::ActionType => self.resolve_action(file, text, module, node),
             SyntaxKind::DeliveryType => self.resolve_delivery(file, text, module, node),
+            SyntaxKind::InvocationType => self.resolve_invocation(file, text, module, node),
             _ => ResolvedType::Error,
         }
     }
@@ -7144,9 +7408,21 @@ impl<'a> Typer<'a> {
         }
     }
 
+    /// Whether `id` is a statically canonical enabled user mutation
+    /// target: a non-trusted, non-read scenario or an enabled
+    /// generated CRUD operation.
+    fn is_mutation_target(&self, id: SymbolId) -> bool {
+        match &self.tables.symbols[id.0 as usize].kind {
+            SymbolKind::Scenario { trusted, .. } => !*trusted && !self.read_scenarios.contains(&id),
+            SymbolKind::CrudOp { model, op } => self.crud_op_enabled(*model, *op),
+            _ => false,
+        }
+    }
+
     /// Resolve an `ActionType`: every target must be a statically
-    /// canonical enabled user mutation (a non-trusted scenario or an
-    /// enabled generated CRUD operation). Anything else is `E3009`.
+    /// canonical enabled user mutation (a non-trusted, non-read
+    /// scenario or an enabled generated CRUD operation). Anything
+    /// else is `E3009`.
     fn resolve_action(
         &mut self,
         _file: SourceId,
@@ -7170,6 +7446,16 @@ impl<'a> Typer<'a> {
                                 "E3009",
                                 format!(
                                     "action target '{name}' is a trusted handler, not a user mutation"
+                                ),
+                                tight_span(text, child),
+                            ));
+                            bad = true;
+                        } else if self.read_scenarios.contains(&id) {
+                            let name = record_name(self.tables, module, id);
+                            self.diags.push(Diagnostic::error(
+                                "E3009",
+                                format!(
+                                    "action target '{name}' is a read scenario, not a user mutation"
                                 ),
                                 tight_span(text, child),
                             ));
@@ -7228,7 +7514,104 @@ impl<'a> Typer<'a> {
         if bad || targets.is_empty() {
             ResolvedType::Error
         } else {
-            ResolvedType::Action { targets }
+            // Type-position values have unknown construction sites.
+            ResolvedType::Action {
+                targets,
+                bound: None,
+            }
+        }
+    }
+
+    /// Resolve an `InvocationType` (DESIGN §2.2): a nonempty distinct
+    /// closed set of local enabled user mutation targets. Trusted
+    /// handlers, read scenarios, disabled operations, repeats and
+    /// non-operations are `E3009`.
+    fn resolve_invocation(
+        &mut self,
+        _file: SourceId,
+        text: &str,
+        module: ModuleId,
+        node: &SyntaxNode,
+    ) -> ResolvedType {
+        let mut targets = Vec::new();
+        let mut bad = false;
+        for child in kids(node) {
+            if child.kind != SyntaxKind::Path {
+                continue;
+            }
+            let key = NodeKey::of(child);
+            match self.tables.node_symbol.get(&key).copied() {
+                Some(id) => {
+                    let name = record_name(self.tables, module, id);
+                    if targets.contains(&id) {
+                        self.diags.push(Diagnostic::error(
+                            "E3009",
+                            format!("duplicate invocation target '{name}'"),
+                            tight_span(text, child),
+                        ));
+                        bad = true;
+                        continue;
+                    }
+                    match &self.tables.symbols[id.0 as usize].kind {
+                        SymbolKind::Scenario { trusted, .. } => {
+                            if *trusted {
+                                self.diags.push(Diagnostic::error(
+                                    "E3009",
+                                    format!(
+                                        "invocation target '{name}' is a trusted handler, not a user mutation"
+                                    ),
+                                    tight_span(text, child),
+                                ));
+                                bad = true;
+                            } else if self.read_scenarios.contains(&id) {
+                                self.diags.push(Diagnostic::error(
+                                    "E3009",
+                                    format!(
+                                        "invocation target '{name}' is a read scenario, not a user mutation"
+                                    ),
+                                    tight_span(text, child),
+                                ));
+                                bad = true;
+                            } else {
+                                targets.push(id);
+                            }
+                        }
+                        SymbolKind::CrudOp { model, op } => {
+                            if self.crud_op_enabled(*model, *op) {
+                                targets.push(id);
+                            } else {
+                                self.diags.push(Diagnostic::error(
+                                    "E3009",
+                                    format!(
+                                        "invocation target '{name}' is not an enabled operation"
+                                    ),
+                                    tight_span(text, child),
+                                ));
+                                bad = true;
+                            }
+                        }
+                        _ => {
+                            self.diags.push(Diagnostic::error(
+                                "E3009",
+                                format!(
+                                    "invocation target '{name}' is not a canonical user mutation (scenario or Model.create/update/delete)"
+                                ),
+                                tight_span(text, child),
+                            ));
+                            bad = true;
+                        }
+                    }
+                }
+                None => {
+                    // Resolver diagnosed (`E2001`/`E2013`).
+                    bad = true;
+                }
+            }
+        }
+        if bad || targets.is_empty() {
+            ResolvedType::Error
+        } else {
+            ResolvedType::Invocation { targets }
         }
     }
 
@@ -7465,7 +7848,10 @@ impl<'a> Typer<'a> {
                 true
             }
             (ResolvedType::Message(a), ResolvedType::Message(b)) => a == b,
-            (ResolvedType::Action { targets: a }, ResolvedType::Action { targets: b }) => {
+            (ResolvedType::Action { targets: a, .. }, ResolvedType::Action { targets: b, .. }) => {
+                a.iter().all(|t| b.contains(t))
+            }
+            (ResolvedType::Invocation { targets: a }, ResolvedType::Invocation { targets: b }) => {
                 a.iter().all(|t| b.contains(t))
             }
             (ResolvedType::Delivery { op: a }, ResolvedType::Delivery { op: b }) => a == b,
@@ -10477,7 +10863,9 @@ impl<'a> Typer<'a> {
             }
             return ResolvedType::Error;
         }
-        // Helpers are code-generation assets, never callable.
+        // Defensive only: the resolver already reports helper uses
+        // as `E2006` and binds them `Error`, so a helper callee never
+        // reaches this builtin path (N12).
         if catalog.is_helper(id) {
             if cx.strict {
                 self.diags.push(Diagnostic::error(
@@ -11156,7 +11544,11 @@ impl<'a> Typer<'a> {
         if actual.is_error() {
             // Unbound names may still be enum claims.
             if let SigType::EnumCases(cases) = shape {
-                return self.claim_enum_case(cx, arg.value, cases, trial);
+                let claim_as = ResolvedType::Enum {
+                    cases: cases.clone(),
+                    owner: None,
+                };
+                return self.claim_enum_case(cx, arg.value, cases, claim_as, trial);
             }
             return true;
         }
@@ -11247,7 +11639,11 @@ impl<'a> Typer<'a> {
                 {
                     return actual_cases.iter().all(|c| cases.contains(c));
                 }
-                self.claim_enum_case(cx, arg.value, cases, trial)
+                let claim_as = ResolvedType::Enum {
+                    cases: cases.clone(),
+                    owner: None,
+                };
+                self.claim_enum_case(cx, arg.value, cases, claim_as, trial)
             }
             SigType::Object(fields) => {
                 let ResolvedType::Object(actual_fields) = actual else {
@@ -11282,8 +11678,9 @@ impl<'a> Typer<'a> {
             }
             SigType::ActionTarget => self.match_action_target(cx, arg, actual, trial),
             SigType::ActionBindings => self.match_action_bindings(cx, arg, actual, trial),
+            SigType::InvocationArgs => self.match_invocation_args(cx, arg, actual, trial),
             // Results-only shapes never appear as parameters.
-            SigType::ActionResult => false,
+            SigType::ActionResult | SigType::InvocationResult => false,
         }
     }
 
@@ -11372,12 +11769,15 @@ impl<'a> Typer<'a> {
 
     /// Claim an unbound name as one of the expected enum cases.
     /// Wrong spellings record a precise `E3005` for the no-match path
-    /// and fail the trial; bound values fail silently.
+    /// and fail the trial; bound values fail silently. The claim
+    /// records `claim_as` (the expectation: catalog cases carry no
+    /// owner, declared fields/parameters do).
     fn claim_enum_case(
         &mut self,
         cx: &Ctx<'_, '_>,
         value: &SyntaxNode,
         cases: &[String],
+        claim_as: ResolvedType,
         trial: &mut Trial,
     ) -> bool {
         let mut current = value;
@@ -11405,13 +11805,7 @@ impl<'a> Typer<'a> {
                                 // Deferred: only the winning overload's
                                 // claims flush (losers must not suppress
                                 // `E2001` for names they merely resemble).
-                                trial.claimed.push((
-                                    key,
-                                    ResolvedType::Enum {
-                                        cases: cases.to_vec(),
-                                        owner: None,
-                                    },
-                                ));
+                                trial.claimed.push((key, claim_as));
                                 return true;
                             }
                             trial.cases_fail.get_or_insert_with(|| {
@@ -11427,9 +11821,9 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// Match an action target: a non-trusted scenario or an enabled
-    /// CRUD operation; records the operation for the bindings check
-    /// and the `Action` result.
+    /// Match an action target: a non-trusted, non-read scenario or
+    /// an enabled CRUD operation; records the operation for the
+    /// bindings check and the `Action` result.
     fn match_action_target(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -11443,12 +11837,7 @@ impl<'a> Typer<'a> {
         let ResolvedType::Operation(id) = actual else {
             return false;
         };
-        let trusted = match &self.tables.symbols[id.0 as usize].kind {
-            SymbolKind::Scenario { trusted, .. } => *trusted,
-            SymbolKind::CrudOp { model, op } => !self.crud_op_enabled(*model, *op),
-            _ => true,
-        };
-        if trusted {
+        if !self.is_mutation_target(*id) {
             return false;
         }
         let _ = (cx, arg);
@@ -11540,6 +11929,269 @@ impl<'a> Typer<'a> {
             }
             if !self.types_compatible(value, want) {
                 let _ = cx;
+                return false;
+            }
+        }
+        trial.action_bound = Some(expected.iter().map(|(key, _)| key.clone()).collect());
+        true
+    }
+
+    /// Match invocation arguments: a closed object over the target
+    /// operation's COMPLETE normalized input schema (DESIGN §2.2), not
+    /// `action`'s record-only bindings. Scenarios take every parameter
+    /// (defaults omittable); CRUD create takes the creatable fields
+    /// plus the contained `parent`; update takes `{record, changes}`;
+    /// delete takes `{record}`. Bare enum cases claim against their
+    /// expectation; poisoned values stay lenient.
+    fn match_invocation_args(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        arg: &CallArg,
+        actual: &ResolvedType,
+        trial: &mut Trial,
+    ) -> bool {
+        if matches!(actual, ResolvedType::Unknown | ResolvedType::Opaque(_)) {
+            return true;
+        }
+        let ResolvedType::Object(fields) = actual else {
+            return false;
+        };
+        let Some(op) = trial.action_op else {
+            return false;
+        };
+        // Claim nodes for bare enum cases (shorthand entries claim
+        // their key node, as `entry_value` does); absent when the
+        // object arrives through a variable rather than literally.
+        let entries: Vec<(&str, &SyntaxNode, Option<&SyntaxNode>)> =
+            if arg.value.kind == SyntaxKind::Object {
+                object_entries(arg.value, cx.text)
+            } else {
+                Vec::new()
+            };
+        let claim_node = |key: &str| claim_entry_node(&entries, key);
+        match self.tables.symbols[op.0 as usize].kind.clone() {
+            SymbolKind::Scenario { params, .. } => {
+                for (key, _) in fields.iter() {
+                    if !params
+                        .iter()
+                        .any(|p| self.tables.symbols[p.0 as usize].name == *key)
+                    {
+                        return false;
+                    }
+                }
+                for param in &params {
+                    let name = self.tables.symbols[param.0 as usize].name.clone();
+                    let want = self.decl_type(*param);
+                    match fields.iter().find(|(k, _)| *k == name) {
+                        None => {
+                            if !self.param_has_default(*param) {
+                                return false;
+                            }
+                        }
+                        Some((_, value)) => {
+                            if matches!(value, ResolvedType::Unknown | ResolvedType::Opaque(_)) {
+                                continue;
+                            }
+                            if !self.invocation_value_fits(
+                                cx,
+                                claim_node(&name),
+                                value,
+                                &want,
+                                trial,
+                            ) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                true
+            }
+            SymbolKind::CrudOp { model, op } => match op {
+                CrudOp::Create => self.match_invocation_create(cx, model, fields, &entries, trial),
+                CrudOp::Update => self.match_invocation_update(cx, model, fields, &entries, trial),
+                CrudOp::Delete => {
+                    if fields.len() != 1 {
+                        return false;
+                    }
+                    let Some((_, record)) = fields.iter().find(|(k, _)| k == "record") else {
+                        return false;
+                    };
+                    if matches!(record, ResolvedType::Unknown | ResolvedType::Opaque(_)) {
+                        return true;
+                    }
+                    let want = ResolvedType::Record {
+                        symbol: model,
+                        stored: true,
+                    };
+                    self.invocation_value_fits(cx, claim_node("record"), record, &want, trial)
+                }
+            },
+            _ => false,
+        }
+    }
+
+    /// Whether one invocation argument value fits its expectation:
+    /// compatible types, or a bare enum case claimed against an enum
+    /// expectation. Already-diagnosed values stay lenient.
+    fn invocation_value_fits(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        claim: Option<&SyntaxNode>,
+        actual: &ResolvedType,
+        expected: &ResolvedType,
+        trial: &mut Trial,
+    ) -> bool {
+        if self.types_compatible(actual, expected) {
+            return true;
+        }
+        let lenient = matches!(actual, ResolvedType::Error);
+        let Some(node) = claim else {
+            return lenient;
+        };
+        let (base, _) = strip_nullable(expected);
+        let ResolvedType::Enum { cases, .. } = &base else {
+            return lenient;
+        };
+        if self.claim_enum_case(cx, node, cases, expected.clone(), trial) {
+            return true;
+        }
+        lenient
+    }
+
+    /// Invocation arguments for a CRUD create: creatable fields plus
+    /// the contained `parent`, every required input present. The
+    /// actor-context creation rule is construction-site state, not
+    /// value shape, so it does not apply to immutable call values.
+    fn match_invocation_create(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        model: SymbolId,
+        fields: &[(String, ResolvedType)],
+        entries: &[(&str, &SyntaxNode, Option<&SyntaxNode>)],
+        trial: &mut Trial,
+    ) -> bool {
+        let contained_parent = match &self.tables.symbols[model.0 as usize].kind {
+            SymbolKind::Model {
+                owner: ModelOwner::ChildOf(parent),
+                ..
+            } => Some(*parent),
+            _ => None,
+        };
+        for (key, _) in fields.iter() {
+            if key == "parent" {
+                if contained_parent.is_none() {
+                    return false;
+                }
+                continue;
+            }
+            let Some(field) = self.model_field_named(model, key) else {
+                return false;
+            };
+            if is_reserved_name(key) || self.field_is_server(field) {
+                return false;
+            }
+        }
+        for (key, value) in fields.iter() {
+            if matches!(value, ResolvedType::Unknown | ResolvedType::Opaque(_)) {
+                continue;
+            }
+            let want = if key == "parent" {
+                ResolvedType::Record {
+                    symbol: contained_parent.expect("checked parent"),
+                    stored: true,
+                }
+            } else {
+                self.decl_type(self.model_field_named(model, key).expect("checked key"))
+            };
+            if !self.invocation_value_fits(cx, claim_entry_node(entries, key), value, &want, trial)
+            {
+                return false;
+            }
+        }
+        for field in self.model_fields(model) {
+            let name = self.tables.symbols[field.0 as usize].name.clone();
+            if fields.iter().any(|(k, _)| *k == name) {
+                continue;
+            }
+            if self.field_is_required_input(field) {
+                return false;
+            }
+        }
+        if contained_parent.is_some() && !fields.iter().any(|(k, _)| k == "parent") {
+            return false;
+        }
+        true
+    }
+
+    /// Invocation arguments for a CRUD update: exactly `{record,
+    /// changes}` with valid partial set-values. Server-owned fields
+    /// are never suppliable here: construction never adjusts a hook's
+    /// pending record.
+    fn match_invocation_update(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        model: SymbolId,
+        fields: &[(String, ResolvedType)],
+        entries: &[(&str, &SyntaxNode, Option<&SyntaxNode>)],
+        trial: &mut Trial,
+    ) -> bool {
+        if fields.len() != 2 {
+            return false;
+        }
+        let Some((_, record)) = fields.iter().find(|(k, _)| k == "record") else {
+            return false;
+        };
+        let Some((_, changes)) = fields.iter().find(|(k, _)| k == "changes") else {
+            return false;
+        };
+        if !matches!(record, ResolvedType::Unknown | ResolvedType::Opaque(_)) {
+            let want = ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            };
+            if !self.invocation_value_fits(
+                cx,
+                claim_entry_node(entries, "record"),
+                record,
+                &want,
+                trial,
+            ) {
+                return false;
+            }
+        }
+        if matches!(
+            changes,
+            ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_)
+        ) {
+            return true;
+        }
+        let ResolvedType::Object(change_fields) = changes else {
+            return false;
+        };
+        let nested: Vec<(&str, &SyntaxNode, Option<&SyntaxNode>)> =
+            match claim_entry_node(entries, "changes") {
+                Some(node) if node.kind == SyntaxKind::Object => object_entries(node, cx.text),
+                _ => Vec::new(),
+            };
+        for (key, value) in change_fields.iter() {
+            if is_reserved_name(key) {
+                return false;
+            }
+            let Some(field) = self.model_field_named(model, key) else {
+                return false;
+            };
+            if self.field_is_server(field) {
+                return false;
+            }
+            if matches!(value, ResolvedType::Unknown | ResolvedType::Opaque(_)) {
+                continue;
+            }
+            let want = self.decl_type(field);
+            let claim = nested
+                .iter()
+                .find(|(k, _, _)| *k == key)
+                .map(|(_, key_node, nested_value)| nested_value.unwrap_or(*key_node));
+            if !self.invocation_value_fits(cx, claim, value, &want, trial) {
                 return false;
             }
         }
@@ -11636,12 +12288,31 @@ impl<'a> Typer<'a> {
             SigType::Message => ResolvedType::Opaque("message result"),
             SigType::ActionTarget => ResolvedType::Opaque("action target result"),
             SigType::ActionBindings => ResolvedType::Opaque("action bindings result"),
+            SigType::InvocationArgs => ResolvedType::Opaque("invocation arguments result"),
             SigType::ActionResult => match trial.action_op {
-                Some(op) => ResolvedType::Action { targets: vec![op] },
+                Some(op) => ResolvedType::Action {
+                    targets: vec![op],
+                    bound: Some(trial.action_bound.clone().unwrap_or_default()),
+                },
                 None => ResolvedType::Opaque("unbound action result"),
+            },
+            SigType::InvocationResult => match trial.action_op {
+                Some(op) => ResolvedType::Invocation { targets: vec![op] },
+                None => ResolvedType::Opaque("unbound invocation result"),
             },
         }
     }
+}
+
+/// One input of an action target's call schema: its name, the
+/// expected value type (`None` for update `changes`, which checks as
+/// partial set-values instead), and whether the call must supply it
+/// unless pre-bound at construction.
+#[derive(Debug, Clone)]
+struct ActionInput {
+    name: String,
+    expected: Option<ResolvedType>,
+    required: bool,
 }
 
 /// One call argument: optional name plus borrowed value node.
@@ -11691,7 +12362,19 @@ fn loose_equal(a: &ResolvedType, b: &ResolvedType) -> bool {
         ) => ao == bo && (ao.is_some() || ac == bc),
         (ResolvedType::Record { symbol: a, .. }, ResolvedType::Record { symbol: b, .. }) => a == b,
         (ResolvedType::Message(a), ResolvedType::Message(b)) => a == b,
-        (ResolvedType::Action { targets: a }, ResolvedType::Action { targets: b }) => a == b,
+        (
+            ResolvedType::Action {
+                targets: a,
+                bound: ab,
+            },
+            ResolvedType::Action {
+                targets: b,
+                bound: bb,
+            },
+        ) => a == b && ab == bb,
+        (ResolvedType::Invocation { targets: a }, ResolvedType::Invocation { targets: b }) => {
+            a == b
+        }
         (ResolvedType::Delivery { op: a }, ResolvedType::Delivery { op: b }) => a == b,
         (ResolvedType::Array { element: a, .. }, ResolvedType::Array { element: b, .. }) => {
             loose_equal(a, b)
@@ -11733,6 +12416,7 @@ enum SigVar {
 struct Trial {
     bindings: HashMap<SigVar, ResolvedType>,
     action_op: Option<SymbolId>,
+    action_bound: Option<Vec<String>>,
     literal_fail: Option<(Span, String)>,
     cases_fail: Option<(NodeKey, Span, Vec<String>)>,
     /// Enum-case claims, flushed only for the winning overload.
@@ -11746,6 +12430,7 @@ impl Trial {
         Trial {
             bindings: self.bindings.clone(),
             action_op: self.action_op,
+            action_bound: self.action_bound.clone(),
             literal_fail: self.literal_fail.clone(),
             cases_fail: self.cases_fail.clone(),
             claimed: self.claimed.clone(),
@@ -11756,6 +12441,7 @@ impl Trial {
     fn commit(&mut self, fork: Trial) {
         self.bindings = fork.bindings;
         self.action_op = fork.action_op;
+        self.action_bound = fork.action_bound;
         self.claimed = fork.claimed;
         // Precise failures merge: keep the earliest evidence.
         if self.literal_fail.is_none() {

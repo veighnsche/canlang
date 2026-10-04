@@ -1275,6 +1275,19 @@ fn do_colon_recovery() {
 }
 
 #[test]
+fn mapper_rejects_examples_line() {
+    // Mappers take no `examples` line: the E1216 message is mapper-specific.
+    let (_, diags) = assert_codes(
+        "migration V2 from=\"v1\"\n backfill Todo\n  do\n   set row {title=\"x\"}\n  examples\n",
+        &["E1216"],
+    );
+    assert_eq!(
+        diags[0].message,
+        "expected leading require guards plus do (mappers take no examples)"
+    );
+}
+
+#[test]
 fn corpus_given_leaf() {
     let tree = assert_clean(
         "app T\nGiven\n corpus Handbook model=Revision scope=parent.parent title=title content=body,attachments where=live(row) from=deployment.knowledge\nWhen\nThen\n",
@@ -1521,7 +1534,7 @@ fn catalog_items_shape() {
     assert!(count_kind(&tree, SyntaxKind::CatalogItem) >= 8);
     assert!(!has_kind(&tree, SyntaxKind::Error));
     // Unknown words parse identically: the parser asserts shape, never
-    // catalog membership (analysis emits E2xxx for unknown words).
+    // catalog membership (membership checking is PR5 work, not E2xxx).
     let tree = assert_clean(
         "app T\nGiven\n Todo { title:text }\nWhen\nThen\n page /t title=\"T\"\n  frobnicate_widget row.x gizmo=1\n",
     );

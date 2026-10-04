@@ -557,7 +557,7 @@ const CATALOG: [CodeInfo; 83] = [
         code: "E3009",
         title: "invalid-action",
         severity: Severity::Error,
-        explanation: "An action, call or CRUD shape breaks its static contract: `action()` targets must be enabled canonical user mutations with exactly the protected record bindings, calls cannot target trusted handlers or re-enter hooks, hook `event.after` is writable only on its pending record, and CRUD modes/fields/exposure must name enabled operations. Target an enabled user operation with its exact inputs.",
+        explanation: "An action or call shape breaks its static contract: `action(...)`/`invocation(...)` type targets must be enabled canonical user mutations (never trusted handlers or read scenarios), calls cannot target trusted handlers or re-enter hooks, `call` on an action value must supply its remaining required inputs, invocation values take no replacement arguments, hook `event.after` is writable only on its pending record, and CRUD modes/fields/exposure must name enabled operations. Constructor argument mismatches (`action()`/`invocation()` calls) are `E3005`, not this code. Target an enabled user operation with its exact inputs.",
         example_valid: "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\n crud Todo by=members fields=title\nThen\n",
         example_invalid: "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\n crud Todo by=members fields=title delete=bogus\nThen\n",
     },
@@ -678,7 +678,7 @@ const CATALOG: [CodeInfo; 83] = [
         title: "invalid-signature",
         severity: Severity::Error,
         explanation: "A builtin catalog entry's `signature` is not a `;`-separated list of `id(params)->result` overloads over the supported shape subset (or names a different id, or has an empty segment), or a helper signature fails its `id(...)->...` spine check. The examples below are catalog JSON, not source. Fix the entry's signature in the producer file.",
-        example_valid: "{\"language_version\":\"1.0\",\"catalog_version\":\"t\",\"entries\":[]}",
+        example_valid: "{\"language_version\":\"1.0\",\"catalog_version\":\"t\",\"entries\":[{\"id\":\"trim\",\"owner\":\"t\",\"kind\":\"builtin\",\"signature\":\"trim(value:S)->text\",\"effects\":\"pure\",\"availability\":\"implemented\"}]}",
         example_invalid: "{\"language_version\":\"1.0\",\"catalog_version\":\"t\",\"entries\":[{\"id\":\"w\",\"owner\":\"t\",\"kind\":\"builtin\",\"signature\":\"not a signature\",\"effects\":\"pure\",\"availability\":\"implemented\"}]}",
     },
     CodeInfo {
