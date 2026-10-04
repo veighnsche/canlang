@@ -82,6 +82,27 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
+## Slice 17: full replans Chat/Creative (branch muse/frontend-catalog-migration/slice-17-n1-chat-creative, in progress)
+
+Paths: draft/CanChat + draft/CanCreative (.can+.md+.mjs) + this status
+file. Source: lane-N1 drafter output under /tmp/draftN1, applied +
+corrected by coordinator. Coordinator corrections: Profile.create and
+Template.create gain checkbox active; Creative output gallery gains
+empty+pagination (gallery is a collection, GRAMMAR L419). All mirrored in
+witnesses. Kept after verification: details display=drawer (grammar
+exception, base); bare open/regenerate/ask/revoke/generate/from_turn/
+inspect/validate/publish per base bare patterns + row-only checks;
+status x3 on DeliveryResult.status? derives; badge on nullable provider
+Run.state (small labeled domain, Allowance.unit precedent); title leaves
+(base); chat_bubble/progress/loading/range/label/validator composition.
+Given/When byte-identical (splice-verified). node --check clean.
+Census: Chat 9 + Creative 11 collections w/ empty+pagination; 7 pages w/
+breadcrumbs; modal-free (reads + row-only ops + complete bare/placed
+forms). Drift: +134 E1200 (base 2), no E1204. Ok on main. Prototype
+stops byte-identical (pre-existing Given gaps).
+Handoff: (a) array control (attachments/prefix); (b) user refs generated;
+(c) gallery/chat-bubble/progress/loading/range/label/validator renderers.
+
 ## Slice 16: full replans Board/Do/Trade/Table/Report (branch muse/frontend-catalog-migration/slice-16-lane-l, in progress)
 
 Paths: draft/Can{Board,Do,Trade,Table,Report} (.can+.md+.mjs; Do/Report/
