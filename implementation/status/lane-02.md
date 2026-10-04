@@ -505,6 +505,37 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
   (lane-04 services.ts). Consumer fixtures:
   packages/values/conformance/v1/ (PR6).
 - To L4/L6: delivery/file wire mapping joint confirmation (proposed R3).
+- To L1 (RULING REQUEST, audit M3): does L231 "Add/subtract/compare
+  money only with matching currencies" include `==`/`!=`? Lane holds
+  JEV R2c (decidable: cross-currency `==` is false; ordering throws),
+  consistent with the matrix's `==` row ("compatible values") vs
+  ordering row — but if the strict reading is normative, lane will
+  flip `equalMoney` to throw centrally (+ `group` key rule).
+- To L1/L3 (AGREEMENT, audit B2/B3): invocation wire shape (lane
+  proposes `{target, arguments:{name:{type,value}}}`, versions
+  preserved, enforcement at admission) and json exact-scalar
+  carriage + bound value (lane ships JSON-native opaque support,
+  numbers rejected, bound unenforced).
+- Audit m5 REJECTED with reason: L891's reject list is parallel
+  (offsets/choice/skeletons/handlers/custom-fns) — patterns using a
+  listed feature fail; `<b>` is tag syntax in this formatjs-lineage
+  profile, so loud rejection beats silent literal rendering, and
+  `formatPlain` keeps `a<b` expressible.
+- Audit M1 ACCEPTED, reversing the PR4 L213/L219 reading: money
+  aggregation joins total-then-once (order-dependent failure of a
+  commutative sum is a defect under either clause reading; binary
+  `+` chains keep per-op checks). Lesson recorded: always read
+  full DESIGN lines — L219 is a long paragraph and truncated
+  `cut` views hid the sentence during verification.
+- Fix round `muse/lane-02-values/review-fixes`: 3 workers (icu /
+  numeric / repr, disjoint files) implemented M1/M2/m1/m2/m3/m4/
+  m6-as-doc/m7/m8 + B1–B5; M3 filed as L1 ruling (no flip), m5
+  rejected with reason. 743/743, catalog 59/15, §3↔catalog 36/36
+  pinned by a new mirror test, join case green. Bounded review of the
+  new surface: MERGE-WITH-NITS (91 probes, all green); 6 nits applied
+  by coordinator (2 doc precisions, number-arg packaging guard +
+  vector, trim/email-order note, json-undefined note, InvocationWire
+  consumer note). Final: 743/743, catalog 59/15, join green.
 - To L7 (PRETEST JOIN REQUEST with PR6): `tests/integration/
   lane02-values.test.ts` dynamically imports `@canlang/values` dist and
   reports `unsupported` rows when it is absent (root CI today). Request:

@@ -455,6 +455,16 @@ describe("datetime/duration operators and helpers", () => {
     );
   });
 
+  it("pins the comparator result type to -1|0|1", () => {
+    const byDuration: -1 | 0 | 1 = compareDuration(1n, 2n);
+    const byInstant: -1 | 0 | 1 = compareInstant(
+      datetime("2026-10-04T10:00:00Z"),
+      datetime("2026-10-04T11:00:00Z"),
+    );
+    const byDate: -1 | 0 | 1 = compareDate(date("2026-10-01"), date("2026-10-02"));
+    assert.deepEqual([byDuration, byInstant, byDate], [-1, -1, -1]);
+  });
+
   it("satisfies inverse laws between durationBetween and add/subtract", () => {
     const a = datetime("2024-02-29T08:15:30.250Z");
     const b = datetime("2026-10-04T18:45:00Z");

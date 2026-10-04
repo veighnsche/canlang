@@ -159,7 +159,57 @@
       "wire": { "id": "d", "operation": "other" },
       "expectedViolations": [{ "path": ["operation"], "code": "format" }]
     },
-    { "typeId": "int[]", "wire": ["1", "x"], "expectedViolations": [{ "path": [1], "code": "format" }] }
+    { "typeId": "int[]", "wire": ["1", "x"], "expectedViolations": [{ "path": [1], "code": "format" }] },
+    { "typeId": "email", "wire": "a@b", "expected": "a@b" },
+    { "typeId": "email", "wire": "not-an-email", "expectedViolations": [{ "path": [], "code": "format" }] },
+    { "typeId": "email", "wire": " a@b ", "expectedViolations": [{ "path": [], "code": "format" }] },
+    { "typeId": "url", "wire": "ftp://x", "expectedViolations": [{ "path": [], "code": "format" }] },
+    { "typeId": "url", "wire": ":::", "expectedViolations": [{ "path": [], "code": "format" }] },
+    {
+      "typeId": "json",
+      "wire": { "a": "1", "b": true, "c": null },
+      "expected": { "a": "1", "b": true, "c": null }
+    },
+    {
+      "typeId": "json",
+      "wire": ["x", null, { "k": "v" }],
+      "expected": ["x", null, { "k": "v" }]
+    },
+    { "typeId": "json", "wire": "hi", "expected": "hi" },
+    { "typeId": "json", "wire": { "a": 5 }, "expectedViolations": [{ "path": ["a"], "code": "type" }] },
+    { "typeId": "json", "wire": 5, "expectedViolations": [{ "path": [], "code": "type" }] },
+    {
+      "typeId": "invocation",
+      "wire": {
+        "target": "todo.Task.update",
+        "arguments": {
+          "record": { "type": "Todo", "value": { "id": "t1", "version": "007" } },
+          "count": { "type": "int", "value": "5" }
+        }
+      },
+      "expected": {
+        "target": "todo.Task.update",
+        "arguments": {
+          "record": { "type": "Todo", "value": { "id": "t1", "version": "7" } },
+          "count": { "type": "int", "value": "5" }
+        }
+      }
+    },
+    {
+      "typeId": "invocation",
+      "wire": { "target": "", "arguments": {} },
+      "expectedViolations": [{ "path": ["target"], "code": "format" }]
+    },
+    {
+      "typeId": "invocation",
+      "wire": { "target": "t", "arguments": { "n": { "type": "int", "value": "abc" } } },
+      "expectedViolations": [{ "path": ["arguments", "n", "value"], "code": "format" }]
+    },
+    {
+      "typeId": "invocation(A)",
+      "wire": { "target": "B", "arguments": {} },
+      "expectedViolations": [{ "path": ["target"], "code": "format" }]
+    }
   ],
   "builtinCalls": [
     { "id": "count", "args": [{ "$t": "int[]", "$w": ["1", "2", "3"] }], "expected": { "$t": "int", "$w": "3" } },
@@ -741,6 +791,69 @@
       "id": "divideDurationByInt",
       "args": [{ "$t": "duration", "$w": "1000" }, { "$t": "int", "$w": "3" }],
       "expectedError": { "class": "ValueError", "code": "inexact" }
+    },
+    {
+      "id": "choose",
+      "args": [true, { "$t": "int", "$w": "1" }, { "$t": "int", "$w": "2" }],
+      "expected": { "$t": "int", "$w": "1" }
+    },
+    {
+      "id": "choose",
+      "args": [false, { "$t": "int", "$w": "1" }, { "$t": "int", "$w": "2" }],
+      "expected": { "$t": "int", "$w": "2" }
+    },
+    {
+      "id": "choose",
+      "args": ["yes", { "$t": "int", "$w": "1" }, { "$t": "int", "$w": "2" }],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "id": "invocation",
+      "args": [
+        "todo.Task.update",
+        { "record": { "$t": "Todo", "$w": { "id": "t1", "version": "2" } }, "title": "hi" }
+      ],
+      "expected": {
+        "$t": "invocation",
+        "$w": {
+          "target": "todo.Task.update",
+          "arguments": {
+            "record": { "type": "Todo", "value": { "id": "t1", "version": "2" } },
+            "title": { "type": "text", "value": "hi" }
+          }
+        }
+      }
+    },
+    {
+      "id": "invocation",
+      "args": ["", {}],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "id": "divideDurationMs",
+      "args": [{ "$t": "duration", "$w": "7" }, { "$t": "duration", "$w": "2" }],
+      "expected": { "$t": "decimal", "$w": "3.5" }
+    },
+    {
+      "id": "divideDurationMs",
+      "args": [{ "$t": "duration", "$w": "1" }, { "$t": "duration", "$w": "0" }],
+      "expectedError": { "class": "ValueError", "code": "division-by-zero" }
+    },
+    {
+      "id": "sum",
+      "args": [
+        { "$t": "money[]", "$w": [{ "minor": "30", "currency": "USD" }, { "minor": "12", "currency": "USD" }] },
+        "money"
+      ],
+      "expected": { "$t": "money", "$w": { "minor": "42", "currency": "USD" } }
+    },
+    {
+      "id": "sum",
+      "args": [
+        { "$t": "money[]", "$w": [{ "minor": "12", "currency": "USD" }, { "minor": "30", "currency": "USD" }] },
+        "money"
+      ],
+      "expected": { "$t": "money", "$w": { "minor": "42", "currency": "USD" } }
     }
   ],
   "operationSamples": {
@@ -748,11 +861,16 @@
       "contracts": {
         "TodoForm": {
           "fields": {
-            "title": { "type": "text", "min": 1, "max": 140 },
+            "title": { "type": "text", "min": 1, "max": 140, "trim": true },
             "status": { "type": "TodoStatus", "default": "open" },
             "priority": { "type": "int", "min": "1", "max": "5", "default": "3" },
             "due": { "type": "date?" },
             "tags": { "type": "text[]!" }
+          }
+        },
+        "BoundedList": {
+          "fields": {
+            "items": { "type": "text[]", "min": 1 }
           }
         }
       },
@@ -847,6 +965,32 @@
             "tags": { "$omitted": true }
           }
         }
+      },
+      {
+        "typeId": "TodoForm",
+        "mode": "create",
+        "wire": { "title": "  Buy milk  ", "tags": ["home"] },
+        "expected": {
+          "$value": {
+            "title": "Buy milk",
+            "status": "open",
+            "priority": { "$t": "int", "$w": "3" },
+            "due": null,
+            "tags": ["home"]
+          }
+        }
+      },
+      {
+        "typeId": "BoundedList",
+        "mode": "create",
+        "wire": {},
+        "expectedViolations": [{ "path": ["items"], "code": "bound" }]
+      },
+      {
+        "typeId": "BoundedList",
+        "mode": "create",
+        "wire": { "items": ["a"] },
+        "expected": { "$value": { "items": ["a"] } }
       }
     ],
     "inputCases": [

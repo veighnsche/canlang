@@ -56,6 +56,14 @@ function summarize(ast: NormalizedType): AstExpect {
       kind = "action";
       detail = base.targets === null ? "*" : base.targets.join(",");
       break;
+    case "invocation":
+      kind = "invocation";
+      detail = base.targets === null ? "*" : base.targets.join(",");
+      break;
+    case "json":
+      kind = "json";
+      detail = "json";
+      break;
     case "delivery":
       kind = "delivery";
       detail = base.operation ?? "*";
@@ -97,8 +105,9 @@ const ACCEPT: ReadonlyArray<readonly [string, string, string, boolean, boolean, 
   ["secret", "secret", "secret", false, false, false],
   ["action", "action", "*", false, false, false],
   ["delivery", "delivery", "*", false, false, false],
+  ["invocation", "invocation", "*", false, false, false],
+  ["json", "json", "json", false, false, false],
   ["message", "nominal", "message", false, false, false],
-  ["json", "nominal", "json", false, false, false],
   ["enum", "nominal", "enum", false, false, false],
   ["Todo", "nominal", "Todo", false, false, false],
   ["pkg.Todo", "nominal", "pkg.Todo", false, false, false],
@@ -113,6 +122,8 @@ const ACCEPT: ReadonlyArray<readonly [string, string, string, boolean, boolean, 
   ["member|file", "union", "member|file", false, false, false],
   ["action|Todo", "union", "action|Todo", false, false, false],
   ["delivery|Todo", "union", "delivery|Todo", false, false, false],
+  ["invocation|Todo", "union", "invocation|Todo", false, false, false],
+  ["json|Todo", "union", "json|Todo", false, false, false],
   ["message|json", "union", "message|json", false, false, false],
   ["Todo.title|Status", "union", "Todo.title|Status", false, false, false],
   ["int?", "scalar", "int", false, true, false],
@@ -131,6 +142,9 @@ const ACCEPT: ReadonlyArray<readonly [string, string, string, boolean, boolean, 
   ["action(Op)", "action", "Op", false, false, false],
   ["action(A,B)", "action", "A,B", false, false, false],
   ["action(pkg.Op,Other)", "action", "pkg.Op,Other", false, false, false],
+  ["invocation(Op)", "invocation", "Op", false, false, false],
+  ["invocation(A,B)", "invocation", "A,B", false, false, false],
+  ["invocation(pkg.Op,Other)", "invocation", "pkg.Op,Other", false, false, false],
   ["delivery(Op)", "delivery", "Op", false, false, false],
   ["delivery(pkg.Op)", "delivery", "pkg.Op", false, false, false],
   ["enum(a,b)?", "enum", "a,b", false, true, false],
@@ -139,6 +153,12 @@ const ACCEPT: ReadonlyArray<readonly [string, string, string, boolean, boolean, 
   ["enum(a,b)[]!", "enum", "a,b", true, false, true],
   ["action(A)?", "action", "A", false, true, false],
   ["action(A,B)[]", "action", "A,B", true, false, false],
+  ["invocation(A)?", "invocation", "A", false, true, false],
+  ["invocation(A,B)[]", "invocation", "A,B", true, false, false],
+  ["invocation(A,B)[]?", "invocation", "A,B", true, true, false],
+  ["json?", "json", "json", false, true, false],
+  ["json[]", "json", "json", true, false, false],
+  ["json[]?", "json", "json", true, true, false],
   ["delivery(Op)?", "delivery", "Op", false, true, false],
   ["delivery(Op)[]!", "delivery", "Op", true, false, true],
 ];
@@ -175,6 +195,8 @@ const REJECT: ReadonlyArray<readonly [string, string]> = [
   ["A|action(Op)", "`action(...)` cannot be a union arm"],
   ["action(A)|B", "`action(...)` cannot be a union arm"],
   ["A|delivery(Op)", "`delivery(...)` cannot be a union arm"],
+  ["A|invocation(Op)", "`invocation(...)` cannot be a union arm"],
+  ["invocation(A)|B", "`invocation(...)` cannot be a union arm"],
   ["A|", "expected a type path after `|`"],
   ["|A", "expected a type path"],
   ["A||B", "expected a type path after `|`"],
@@ -185,11 +207,15 @@ const REJECT: ReadonlyArray<readonly [string, string]> = [
   ["enum(a b)", 'expected ")" to close `enum(...)`'],
   ["action()", "expected action target"],
   ["action(A,A)", "duplicate action target `A`"],
+  ["invocation()", "expected invocation target"],
+  ["invocation(A,A)", "duplicate invocation target `A`"],
+  ["json(a)", "grouped types are not supported"],
   ["delivery()", "delivery() takes exactly one bound operation"],
   ["delivery(A,B)", "delivery() takes exactly one bound operation"],
   ["delivery(A,)", "delivery() takes exactly one bound operation"],
   ["enum(a", 'expected ")" to close `enum(...)`'],
   ["action(A", 'expected ")" to close `action(...)`'],
+  ["invocation(A", 'expected ")" to close `invocation(...)`'],
   ["delivery(", "delivery() takes exactly one bound operation"],
   ["Todo.", "expected a name after `.`"],
   [".Todo", "expected a type path"],
@@ -201,6 +227,7 @@ const REJECT: ReadonlyArray<readonly [string, string]> = [
   ["A| B", "expected a type path after `|`"],
   ["enum(a, b)", "expected enum case"],
   ["action( A)", "expected action target"],
+  ["invocation( A)", "expected invocation target"],
   ["int[", "unexpected trailing"],
   ["int]", "unexpected trailing"],
   ["A|B[]x", "unexpected trailing"],
@@ -216,9 +243,11 @@ describe("types accept matrix", () => {
     });
   }
 
-  it("accepts a trailing comma inside enum()/action() but prints without it", () => {
+  it("accepts a trailing comma inside enum()/action()/invocation() but prints without it", () => {
     assert.equal(printTypeId(parseTypeId("enum(a,b,)")), "enum(a,b)");
     assert.equal(printTypeId(parseTypeId("action(A,)")), "action(A)");
+    assert.equal(printTypeId(parseTypeId("invocation(A,)")), "invocation(A)");
+    assert.equal(printTypeId(parseTypeId("invocation(A,B,)")), "invocation(A,B)");
   });
 
   it("freezes ASTs and their lists", () => {
@@ -241,6 +270,12 @@ describe("types accept matrix", () => {
       assert.ok(Object.isFrozen(targets.base.targets));
     } else {
       assert.fail("expected action targets");
+    }
+    const invocation = parseTypeId("invocation(A,B)");
+    if (invocation.base.kind === "invocation" && invocation.base.targets !== null) {
+      assert.ok(Object.isFrozen(invocation.base.targets));
+    } else {
+      assert.fail("expected invocation targets");
     }
   });
 });
@@ -268,6 +303,9 @@ describe("type printing helpers", () => {
     assert.equal(printTypeBase(parseTypeId("user").base), "user");
     assert.equal(printTypeBase(parseTypeId("action").base), "action");
     assert.equal(printTypeBase(parseTypeId("action(A,B)").base), "action(A,B)");
+    assert.equal(printTypeBase(parseTypeId("invocation").base), "invocation");
+    assert.equal(printTypeBase(parseTypeId("invocation(A,B)").base), "invocation(A,B)");
+    assert.equal(printTypeBase(parseTypeId("json").base), "json");
     assert.equal(printTypeBase(parseTypeId("delivery").base), "delivery");
     assert.equal(printTypeBase(parseTypeId("delivery(Op)").base), "delivery(Op)");
     assert.equal(printTypeBase(parseTypeId("enum(a,b)").base), "enum(a,b)");

@@ -34,11 +34,28 @@
  *   REQUIRED on every binding; an `action(...)` type restricts the target.
  * - enum(a,b,...): the bare case string.
  * - secret: encode THROWS (never serialized); decode has no valid form.
- * - email/url: accepted as plain strings with NO format validation (no
- *   invented email/URL grammar — recorded here, not validated).
+ * - email: conservative floor — exactly one `@`, non-empty local and
+ *   domain, no whitespace/controls (verification belongs to auth; this
+ *   floor only rejects the clearly-not-an-address shape). Symmetric on
+ *   decode (format violation) and encode (caller error).
+ * - url: valid WHATWG URL with an http:/https: protocol; userinfo is
+ *   legal and allowed (only the protocol is constrained). Symmetric on
+ *   decode (format violation) and encode (caller error).
  * - locale: validated BCP 47, canonicalized on decode AND encode.
  * - timezone: validated pinned-zone membership (Intl/ICU), kept verbatim.
  * - currency: validated pinned-ISO-table membership.
+ * - invocation: `{target, arguments: {name: {type, value}}}` with every
+ *   argument recursively typed-decoded; nested record versions are
+ *   PRESERVED as-present (args can carry read refs needing only IDs per
+ *   DESIGN L340 — requiring versions lane-wide would be over-strict).
+ *   Version/completeness enforcement is L3 admission, which owns op
+ *   schemas. An `invocation(...)` type restricts the target.
+ * - json: opaque bounded JSON, preserved as-is with no key
+ *   canonicalization. JSON-native only (null/string/boolean/array/
+ *   object); numbers are REJECTED (post-parse numbers are already lossy,
+ *   so rejection is the only fail-closed rule). The "bounded" bound is
+ *   unenforced and documented: no normative value exists (agreement
+ *   request filed by the coordinator).
  *
  * Boundaries recorded here:
  * - Violation codes: `type` = wrong JSON shape, `format` = right shape but
@@ -67,6 +84,8 @@
  *   undefined), while array elements must be present values — dropping
  *   an element would shift indices, so `decodeDynamic` on `[undefined]`
  *   fails with a `type` violation instead of shrinking the array.
+ *   Exception: `decodeJsonValue` is strict — `{a: undefined}` fails,
+ *   since leniency there would silently admit non-JSON input.
  * - All outputs (values and wire) are frozen.
  */
 
@@ -74,6 +93,7 @@ import type {
   ActionRef,
   CanValue,
   DeliveryRef,
+  InvocationRef,
   RecordRef,
   UnionValue,
   Violation,
@@ -89,6 +109,7 @@ import {
   isDatetime,
   isDeliveryRef,
   isFileValue,
+  isInvocationRef,
   isMemberRef,
   isMoney,
   isRecordRef,
@@ -99,6 +120,7 @@ import {
   makeDatetime,
   makeDeliveryRef,
   makeFileValue,
+  makeInvocation,
   makeMemberRef,
   makeMoney,
   makeRecordRef,
@@ -428,6 +450,37 @@ function decodeDatetime(ctx: DecodeContext, wire: unknown, path: Path): DecodeOu
   }
 }
 
+/**
+ * Conservative email floor (DESIGN: verification belongs to auth): exactly
+ * one `@`, non-empty local and domain, no whitespace/controls. Everything
+ * else passes — this rejects only the clearly-not-an-address shape.
+ */
+function isEmailFloor(value: string): boolean {
+  if (/[\s\x00-\x1f\x7f]/.test(value)) {
+    return false;
+  }
+  const at = value.indexOf("@");
+  if (at <= 0 || at !== value.lastIndexOf("@") || at === value.length - 1) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * URL rule (DESIGN: URLs limited to HTTP(S)): valid WHATWG URL with an
+ * http:/https: protocol. Userinfo is legal and allowed — only the protocol
+ * is constrained.
+ */
+function isHttpUrl(value: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return false;
+  }
+  return parsed.protocol === "http:" || parsed.protocol === "https:";
+}
+
 function decodeStringlike(
   ctx: DecodeContext,
   kind: "email" | "url" | "locale" | "timezone" | "currency",
@@ -439,7 +492,14 @@ function decodeStringlike(
   }
   switch (kind) {
     case "email":
+      if (!isEmailFloor(wire)) {
+        return failFormat(ctx, path, "email", "an email address (local@domain)", wire);
+      }
+      return wire;
     case "url":
+      if (!isHttpUrl(wire)) {
+        return failFormat(ctx, path, "url", "an http(s) URL", wire);
+      }
       return wire;
     case "locale":
       try {
@@ -672,6 +732,162 @@ function decodeAction(ctx: DecodeContext, targets: readonly string[] | null, wir
   return makeActionRef(target, bindings);
 }
 
+function decodeInvocationArg(
+  ctx: DecodeContext,
+  name: string,
+  wire: unknown,
+  path: Path,
+): CanValue | typeof FAIL {
+  if (!isWireObject(wire)) {
+    failType(ctx, path, `invocation argument ${JSON.stringify(name)}`, "{type, value}", wire);
+    return FAIL;
+  }
+  let ok = checkShape(ctx, wire, path, `invocation argument ${JSON.stringify(name)} {type, value}`, ["type", "value"]);
+  let ast: NormalizedType | null = null;
+  const typeRaw = readKey(wire, "type");
+  if (typeRaw.present) {
+    if (typeof typeRaw.value !== "string") {
+      ok = false;
+      failType(ctx, [...path, "type"], `invocation argument ${JSON.stringify(name)} type`, "a canonical type id", typeRaw.value);
+    } else {
+      try {
+        ast = parseTypeId(typeRaw.value);
+      } catch (err) {
+        ok = false;
+        if (!(err instanceof ValueError)) {
+          throw err;
+        }
+        failFormat(
+          ctx,
+          [...path, "type"],
+          `invocation argument ${JSON.stringify(name)} type`,
+          "a canonical type id",
+          typeRaw.value,
+        );
+      }
+    }
+  }
+  let decoded: DecodeOut = FAIL;
+  const valueRaw = readKey(wire, "value");
+  if (valueRaw.present && ast !== null) {
+    const inner = decodeNode(ast, valueRaw.value, [...path, "value"], ctx);
+    if (inner === FAIL) {
+      ok = false;
+    } else {
+      decoded = inner;
+    }
+  }
+  if (!ok || decoded === FAIL) {
+    return FAIL;
+  }
+  return decoded;
+}
+
+function decodeInvocation(
+  ctx: DecodeContext,
+  targets: readonly string[] | null,
+  wire: unknown,
+  path: Path,
+): DecodeOut {
+  if (!isWireObject(wire)) {
+    return failType(ctx, path, "invocation", "{target, arguments}", wire);
+  }
+  let ok = checkShape(ctx, wire, path, "invocation {target, arguments}", ["target", "arguments"]);
+  const target = decodeIdField(ctx, wire, path, "invocation", "target");
+  if (target === FAIL) {
+    ok = false;
+  } else if (targets !== null && !targets.includes(target)) {
+    ok = false;
+    pushViolation(
+      ctx,
+      [...path, "target"],
+      "format",
+      "invocation target is outside this type's allowlist",
+      `one of: ${targets.join(", ")}`,
+      actualWire(target),
+    );
+  }
+  const args: Record<string, CanValue> = {};
+  const argsRaw = readKey(wire, "arguments");
+  if (argsRaw.present) {
+    const raw = argsRaw.value;
+    if (!isWireObject(raw)) {
+      ok = false;
+      failType(ctx, [...path, "arguments"], "invocation.arguments", "an object of typed arguments", raw);
+    } else {
+      for (const name of presentKeys(raw)) {
+        // `__proto__` would silently set the prototype instead of an own
+        // key on the plain-object accumulator below; reject it so the
+        // argument is never lost. Other dunder names are safe own keys.
+        if (name === "__proto__") {
+          ok = false;
+          pushViolation(
+            ctx,
+            [...path, "arguments", name],
+            "unknown-field",
+            `invocation argument name "__proto__" is reserved`,
+            "any other argument name",
+            actualWire(raw[name]),
+          );
+          continue;
+        }
+        const decoded = decodeInvocationArg(ctx, name, raw[name], [...path, "arguments", name]);
+        if (decoded === FAIL) {
+          ok = false;
+        } else {
+          args[name] = decoded;
+        }
+      }
+    }
+  }
+  if (!ok || target === FAIL) {
+    return FAIL;
+  }
+  return makeInvocation(target, args);
+}
+
+/**
+ * Opaque JSON decode: JSON-native only (null/string/boolean/array/object),
+ * preserved as-is with no key canonicalization and deep-frozen. Numbers
+ * are REJECTED (post-parse numbers are already lossy, so rejection is the
+ * only fail-closed rule), as are bigint/undefined/function/symbol values.
+ * `Object.fromEntries` keeps `__proto__` as a safe own key, so opaque
+ * payloads preserve it (unlike closed shapes, which reserve the name).
+ */
+function decodeJsonValue(ctx: DecodeContext, wire: unknown, path: Path): DecodeOut {
+  if (wire === null || typeof wire === "string" || typeof wire === "boolean") {
+    return wire;
+  }
+  if (Array.isArray(wire)) {
+    const out: CanValue[] = [];
+    let ok = true;
+    for (let index = 0; index < wire.length; index += 1) {
+      const decoded = decodeJsonValue(ctx, wire[index], [...path, index]);
+      if (decoded === FAIL) {
+        ok = false;
+      } else {
+        out.push(decoded);
+      }
+    }
+    return ok ? freezeArray(out) : FAIL;
+  }
+  if (isWireObject(wire)) {
+    const entries: Array<[string, CanValue]> = [];
+    let ok = true;
+    for (const key of Object.keys(wire)) {
+      const decoded = decodeJsonValue(ctx, wire[key], [...path, key]);
+      if (decoded === FAIL) {
+        ok = false;
+      } else {
+        entries.push([key, decoded]);
+      }
+    }
+    // fromEntries defines own properties (safe for `__proto__` keys).
+    return ok ? Object.freeze(Object.fromEntries(entries)) : FAIL;
+  }
+  return failType(ctx, path, "json", "null, text, boolean, array, or object (numbers never appear)", wire);
+}
+
 function decodeModelRef(ctx: DecodeContext, model: string, wire: Record<string, unknown>, path: Path): DecodeOut {
   let ok = true;
   if (!readKey(wire, "id").present) {
@@ -899,6 +1115,10 @@ function decodeBase(ctx: DecodeContext, base: TypeBase, wire: unknown, path: Pat
       return FAIL;
     case "action":
       return decodeAction(ctx, base.targets, wire, path);
+    case "invocation":
+      return decodeInvocation(ctx, base.targets, wire, path);
+    case "json":
+      return decodeJsonValue(ctx, wire, path);
     case "delivery":
       return decodeDelivery(ctx, base.operation, wire, path);
     case "enum":
@@ -1116,6 +1336,7 @@ const KNOWN_VALUE_KINDS: ReadonlySet<string> = new Set([
   "ref",
   "union",
   "action",
+  "invocation",
   "delivery",
   "file",
   "secret",
@@ -1138,6 +1359,146 @@ function isSecretValue(value: unknown): boolean {
 function hasKnownKindTag(value: object): boolean {
   const tag = kindTagOf(value);
   return tag !== null && KNOWN_VALUE_KINDS.has(tag);
+}
+
+/**
+ * Derives the `{type, value}` pair type for one invocation argument from
+ * its runtime kind. Runtime args carry no declared types, so ambiguous
+ * tags normalize to canonical carriers (`int` for bigint durations,
+ * `text` for validated strings) — the VALUE round-trips exactly even
+ * when the wire tag differs from the original. Plain contracts need their
+ * nominal schema and unions need their arms, neither of which is knowable
+ * here, so those throw for schema-aware (L3) encoding; nested arrays are
+ * unrepresentable and heterogeneous arrays fail on their first mismatch.
+ */
+function inferInvocationArgType(value: CanValue, path: Path): string {
+  if (value === null) {
+    return "text?";
+  }
+  if (typeof value === "bigint") {
+    return "int";
+  }
+  if (typeof value === "string") {
+    return "text";
+  }
+  if (typeof value === "boolean") {
+    return "bool";
+  }
+  if (isDecimal(value)) {
+    return "decimal";
+  }
+  if (isMoney(value)) {
+    return "money";
+  }
+  if (isDateValue(value)) {
+    return "date";
+  }
+  if (isDatetime(value)) {
+    return "datetime";
+  }
+  if (isUserRef(value)) {
+    return "user";
+  }
+  if (isMemberRef(value)) {
+    return "member";
+  }
+  if (isRecordRef(value)) {
+    return value.model;
+  }
+  if (isActionRef(value)) {
+    return "action";
+  }
+  if (isInvocationRef(value)) {
+    return "invocation";
+  }
+  if (isDeliveryRef(value)) {
+    return "delivery";
+  }
+  if (isFileValue(value)) {
+    return "file";
+  }
+  if (isUnionValue(value)) {
+    throw encodeError(
+      "invocation contract/union arguments need their schema type (owned by L3 admission)",
+      path,
+    );
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return "text[]";
+    }
+    const first = value[0] as CanValue;
+    if (Array.isArray(first)) {
+      throw encodeError("invocation array arguments cannot nest arrays", [...path, 0]);
+    }
+    return `${inferInvocationArgType(first, [...path, 0])}[]`;
+  }
+  if (typeof value === "object" && value !== null) {
+    if (isSecretValue(value) || kindTagOf(value) === "message") {
+      throw encodeError("invocation arguments cannot carry secrets or message descriptors", path);
+    }
+    if (hasKnownKindTag(value)) {
+      throw encodeError(`malformed tagged value (kind ${JSON.stringify(kindTagOf(value))})`, path);
+    }
+    throw encodeError(
+      "invocation contract/union arguments need their schema type (owned by L3 admission)",
+      path,
+    );
+  }
+  throw encodeError(`cannot encode ${actualWire(value)} as an invocation argument`, path);
+}
+
+function encodeInvocationValue(value: unknown, targets: readonly string[] | null, path: Path): WireValue {
+  if (!isInvocationRef(value)) {
+    throw encodeError("expected an invocation ref", path);
+  }
+  if (targets !== null && !targets.includes(value.target)) {
+    throw encodeError(`invocation target ${JSON.stringify(value.target)} is outside this type's allowlist`, [
+      ...path,
+      "target",
+    ]);
+  }
+  const entries: Array<[string, WireValue]> = [];
+  for (const [name, arg] of Object.entries(value.args)) {
+    // `__proto__` would silently set the prototype instead of an own key
+    // on the accumulator below; reject it like the decoder so the
+    // argument is never lost. Other dunder names are safe own keys.
+    if (name === "__proto__") {
+      throw encodeError('invocation argument name "__proto__" is reserved', [...path, "arguments", name]);
+    }
+    const type = inferInvocationArgType(arg, [...path, "arguments", name, "value"]);
+    const encoded = encodeNode(parseTypeId(type), arg, [...path, "arguments", name, "value"]);
+    entries.push([name, Object.freeze({ type, value: encoded })]);
+  }
+  return Object.freeze({ target: value.target, arguments: Object.freeze(Object.fromEntries(entries)) });
+}
+
+/**
+ * Opaque JSON encode: accepts exactly the JSON-native set decode accepts
+ * and rejects the same set (a hand-built value containing a number, bigint,
+ * undefined, function, or symbol throws `invalid-construction`). Tagged
+ * values nested inside fail naturally through their number/bigint leaves.
+ * Output is a deep-frozen copy, preserved as-is with no canonicalization.
+ */
+function encodeJsonValue(value: unknown, path: Path): WireValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    const out: WireValue[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      out.push(encodeJsonValue(value[index], [...path, index]));
+    }
+    return freezeArray(out);
+  }
+  if (typeof value === "object" && value !== null) {
+    const entries: Array<[string, WireValue]> = [];
+    for (const key of Object.keys(value)) {
+      entries.push([key, encodeJsonValue((value as Record<string, unknown>)[key], [...path, key])]);
+    }
+    return Object.freeze(Object.fromEntries(entries));
+  }
+  throw encodeError(`cannot encode ${actualWire(value)} as json (numbers never appear in json values)`, path);
 }
 
 /**
@@ -1175,6 +1536,9 @@ function encodeDynamic(value: CanValue, path: Path): WireValue {
   }
   if (isActionRef(value)) {
     return encodeActionValue(value, null, path);
+  }
+  if (isInvocationRef(value)) {
+    return encodeInvocationValue(value, null, path);
   }
   if (isDeliveryRef(value)) {
     return encodeDeliveryValue(value, null, path);
@@ -1256,7 +1620,14 @@ function encodeStringlike(name: StringLikeName, value: CanValue, path: Path): Wi
   }
   switch (name) {
     case "email":
+      if (!isEmailFloor(value)) {
+        throw encodeError(`invalid email address ${JSON.stringify(value)}`, path);
+      }
+      return value;
     case "url":
+      if (!isHttpUrl(value)) {
+        throw encodeError(`invalid http(s) URL ${JSON.stringify(value)}`, path);
+      }
       return value;
     case "locale":
       try {
@@ -1328,6 +1699,12 @@ function encodeBase(base: TypeBase, value: CanValue, path: Path): WireValue {
       const action = value as ActionRef;
       return encodeActionValue(action, base.targets, path);
     }
+    case "invocation": {
+      const invocation = value as InvocationRef;
+      return encodeInvocationValue(invocation, base.targets, path);
+    }
+    case "json":
+      return encodeJsonValue(value, path);
     case "delivery": {
       const delivery = value as DeliveryRef;
       return encodeDeliveryValue(delivery, base.operation, path);

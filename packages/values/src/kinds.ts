@@ -5,12 +5,14 @@ import type {
   DatetimeValue,
   DeliveryRef,
   FileValue,
+  InvocationRef,
   MemberRef,
   MoneyValue,
   RecordRef,
   UnionValue,
   UserRef,
 } from "../../contracts/src/values.js";
+import { CURRENCY_MINOR_UNITS } from "./currency-data.js";
 import { ValueError } from "./errors.js";
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -56,13 +58,22 @@ export function isMoney(value: unknown): value is MoneyValue {
   );
 }
 
-/** Checked money-tag constructor. Pins no scale here; money.ts owns arithmetic. */
+/**
+ * Checked money-tag constructor. Pins no scale here; money.ts owns
+ * arithmetic. Makers validate (like makeDate): shape failures are
+ * `invalid-construction`, pinned-ISO-table misses are `unknown-currency`
+ * (matching the money() builtin). The table import is direct from
+ * currency-data.js so this module stays cycle-free (money.ts imports us).
+ */
 export function makeMoney(minor: bigint, currency: string): MoneyValue {
   if (typeof minor !== "bigint") {
     throw new ValueError("invalid-construction", "money minor must be a bigint");
   }
   if (!isCurrencyShape(currency)) {
     throw new ValueError("invalid-construction", `invalid currency code shape: ${currency}`);
+  }
+  if (CURRENCY_MINOR_UNITS[currency] === undefined) {
+    throw new ValueError("unknown-currency", `unknown currency: ${currency}`);
   }
   const value: MoneyValue = { kind: "money", minor, currency };
   return freeze(value);
@@ -139,10 +150,25 @@ export function isDatetime(value: unknown): value is DatetimeValue {
   return hasKind(value, "datetime") && typeof value["ms"] === "bigint";
 }
 
-/** Checked UTC-instant constructor. `ms` is integer milliseconds since the epoch. */
+/**
+ * Supported UTC range, mirrored from temporal.ts (duplicated, not imported:
+ * temporal.ts imports this module, so an import would cycle). First instant
+ * 0001-01-01T00:00:00.000Z through last 9999-12-31T23:59:59.999Z.
+ */
+const DATETIME_MIN_MS = -62135596800000n;
+const DATETIME_MAX_MS = 253402300799999n;
+
+/**
+ * Checked UTC-instant constructor. `ms` is integer milliseconds since the
+ * epoch, range-checked to 0001-9999 like the datetime() builtin
+ * (`out-of-range` outside it; non-bigint is `invalid-construction`).
+ */
 export function makeDatetime(ms: bigint): DatetimeValue {
   if (typeof ms !== "bigint") {
     throw new ValueError("invalid-construction", "datetime ms must be a bigint");
+  }
+  if (ms < DATETIME_MIN_MS || ms > DATETIME_MAX_MS) {
+    throw new ValueError("out-of-range", "datetime outside the supported 0001-9999 range");
   }
   const value: DatetimeValue = { kind: "datetime", ms };
   return freeze(value);
@@ -262,6 +288,45 @@ export function makeActionRef(target: string, bindings: Record<string, RecordRef
     frozen[param] = freezeCopy(binding);
   }
   const value: ActionRef = { kind: "action", target, bindings: freeze(frozen) };
+  return freeze(value);
+}
+
+export function isInvocationRef(value: unknown): value is InvocationRef {
+  if (!hasKind(value, "invocation") || !isNonEmptyString(value["target"])) return false;
+  return isObject(value["args"]);
+}
+
+/**
+ * Invocation packaging (DESIGN §2.2): shapes an already-validated (target,
+ * args) pair with DECODED arg values. Static target/canonicity validation
+ * is lane-01's; version/completeness enforcement is L3 admission, which
+ * owns op schemas — nested record versions are preserved as-present, never
+ * required here (args can carry read refs needing only IDs per DESIGN L340).
+ */
+export function makeInvocation(target: string, args: Record<string, CanValue>): InvocationRef {
+  if (typeof target !== "string" || target.length === 0) {
+    throw new ValueError("invalid-construction", "invocation target must be non-empty");
+  }
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    throw new ValueError("invalid-construction", "invocation args must be a closed record");
+  }
+  const frozen: Record<string, CanValue> = {};
+  for (const [name, arg] of Object.entries(args)) {
+    // `__proto__` would silently set the prototype instead of an own key
+    // on the accumulator below; reject it so the argument is never lost
+    // (mirrors the wire decoder; other dunder names are safe own keys).
+    if (name === "__proto__") {
+      throw new ValueError("invalid-construction", 'invocation argument name "__proto__" is reserved');
+    }
+    if (typeof arg === "number") {
+      throw new ValueError(
+        "invalid-construction",
+        `invocation argument ${name} must be a Can value, not a JS number (exact scalars never route through Number)`,
+      );
+    }
+    frozen[name] = freezeCopy(arg);
+  }
+  const value: InvocationRef = { kind: "invocation", target, args: freeze(frozen) };
   return freeze(value);
 }
 

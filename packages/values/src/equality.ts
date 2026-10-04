@@ -23,7 +23,10 @@
  *   only non-ref inputs throw `invalid-construction`.
  * - `same()` identity: RecordRef = model+id (version ignored: concurrency,
  *   not identity); UserRef/MemberRef/FileValue/DeliveryRef = id only;
- *   ActionRef = target plus bindings identity (it carries no id field).
+ *   ActionRef = target plus bindings identity (it carries no id field);
+ *   InvocationRef = target plus structural arg equality (args are decoded
+ *   values with no declared types, so per-arg comparison is structural via
+ *   `equalNested`; nested refs compare by identity, versions ignored).
  * - Secret values are NEVER equal unless identically referenced (`a === b`);
  *   two distinct secret objects compare false, secret vs non-secret throws.
  * - bigint/Decimal mixes promote exactly via `compareDecimal` (DESIGN L209
@@ -45,6 +48,7 @@ import type {
   CanValue,
   DeliveryRef,
   FileValue,
+  InvocationRef,
   MemberRef,
   RecordRef,
   SecretValue,
@@ -58,6 +62,7 @@ import {
   isDatetime,
   isDeliveryRef,
   isFileValue,
+  isInvocationRef,
   isMemberRef,
   isMoney,
   isRecordRef,
@@ -67,7 +72,7 @@ import {
 import { equalMoney } from "./money.js";
 import { compareDate, compareInstant } from "./temporal.js";
 
-type RefKind = "user" | "member" | "ref" | "file" | "delivery" | "action";
+type RefKind = "user" | "member" | "ref" | "file" | "delivery" | "action" | "invocation";
 
 /** Classifies well-formed refs; malformed or non-ref values yield null. */
 function refKindOf(value: CanValue): RefKind | null {
@@ -77,6 +82,7 @@ function refKindOf(value: CanValue): RefKind | null {
   if (isFileValue(value)) return "file";
   if (isDeliveryRef(value)) return "delivery";
   if (isActionRef(value)) return "action";
+  if (isInvocationRef(value)) return "invocation";
   return null;
 }
 
@@ -100,6 +106,7 @@ const KNOWN_VALUE_KINDS: ReadonlySet<string> = new Set([
   "ref",
   "union",
   "action",
+  "invocation",
   "delivery",
   "file",
   "secret",
@@ -112,9 +119,10 @@ function hasKnownKindTag(value: object): boolean {
 
 /**
  * Reference identity (`same`, DESIGN L992). Refs only: record model+id,
- * user/member/file/delivery id, action target+bindings identity. Versions
- * are concurrency stamps, not identity, and are ignored. Mismatched ref
- * kinds are unequal (false); non-ref inputs are `invalid-construction`.
+ * user/member/file/delivery id, action target+bindings identity,
+ * invocation target+structural-arg identity. Versions are concurrency
+ * stamps, not identity, and are ignored. Mismatched ref kinds are
+ * unequal (false); non-ref inputs are `invalid-construction`.
  */
 export function same(a: CanValue, b: CanValue): boolean {
   const kindA = refKindOf(a);
@@ -154,6 +162,29 @@ export function same(a: CanValue, b: CanValue): boolean {
           return false;
         }
         if (!same(bindingLeft, bindingRight)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    case "invocation": {
+      const left = a as InvocationRef;
+      const right = b as InvocationRef;
+      if (left.target !== right.target) {
+        return false;
+      }
+      const keysLeft = Object.keys(left.args);
+      const keysRight = Object.keys(right.args);
+      if (keysLeft.length !== keysRight.length) {
+        return false;
+      }
+      for (const key of keysLeft) {
+        const argLeft = left.args[key];
+        const argRight = right.args[key];
+        if (argLeft === undefined || argRight === undefined) {
+          return false;
+        }
+        if (!equalNested(argLeft, argRight)) {
           return false;
         }
       }
@@ -297,7 +328,8 @@ function equalInner(a: CanValue, b: CanValue): boolean {
  * `equalMoney` (cross-currency is unequal, never an error); dates/datetimes
  * by their comparators; arrays ordered elementwise; contracts fieldwise;
  * unions by branch plus value; refs by `same` identity; files by id; actions
- * by target plus bindings identity; secrets by identical reference only.
+ * by target plus bindings identity; invocations by target plus structural
+ * arg equality; secrets by identical reference only.
  */
 export function equalValue(typeId: string, a: CanValue, b: CanValue): boolean {
   if (typeof typeId !== "string") {

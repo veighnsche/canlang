@@ -17,6 +17,7 @@ import {
   subtractDecimal,
 } from "../src/decimal.js";
 import { ValueError } from "../src/errors.js";
+import { INT64_MAX, INT64_MIN } from "../src/int.js";
 import { makeMoney } from "../src/kinds.js";
 
 const SEED = 20261005;
@@ -281,6 +282,18 @@ describe("decimal division vectors", () => {
     assertValueError(() => divideDecimal(2n ** 100n, 3n), "overflow");
     assertValueError(() => divideDurationMs(1n, 0n), "division-by-zero");
     assertValueError(() => divideDurationMs(1 as unknown as bigint, 2n), "invalid-construction");
+  });
+
+  it("int64-narrows both duration inputs at entry", () => {
+    // Out-of-range inputs throw on either side, even when the ratio itself
+    // would fit in 38 digits (3/2^100 rounds to 0 at scale 18).
+    assertValueError(() => divideDurationMs(2n ** 100n, 3n), "overflow");
+    assertValueError(() => divideDurationMs(3n, 2n ** 100n), "overflow");
+    assertValueError(() => divideDurationMs(-(2n ** 100n), 3n), "overflow");
+    assertValueError(() => divideDurationMs(3n, -(2n ** 100n)), "overflow");
+    // int64 extremes still divide exactly.
+    assert.deepEqual(divideDurationMs(INT64_MAX, INT64_MAX), new Decimal(1n, 0));
+    assert.deepEqual(divideDurationMs(INT64_MIN, 2n), new Decimal(-(2n ** 62n), 0));
   });
 });
 

@@ -10,6 +10,7 @@ import {
   makeDatetime,
   makeDeliveryRef,
   makeFileValue,
+  makeInvocation,
   makeMemberRef,
   makeMoney,
   makeRecordRef,
@@ -255,6 +256,39 @@ describe("equalValue refs, files, actions, secrets", () => {
     assert.equal(equalValue("a", left, makeActionRef("pkg.Op", {})), false);
   });
 
+  it("compares invocations by target plus structural args, versions ignored", () => {
+    const left = makeInvocation("pkg.Op", { rec: makeRecordRef("M", "1", 1n), n: 5n, s: "x" });
+    const otherVersion = makeInvocation("pkg.Op", { rec: makeRecordRef("M", "1", 2n), n: 5n, s: "x" });
+    assert.equal(equalValue("invocation", left, otherVersion), true);
+    assert.equal(
+      equalValue("invocation", left, makeInvocation("pkg.Other", { rec: makeRecordRef("M", "1", 1n), n: 5n, s: "x" })),
+      false,
+    );
+    assert.equal(
+      equalValue("invocation", left, makeInvocation("pkg.Op", { rec: makeRecordRef("M", "1", 1n), n: 6n, s: "x" })),
+      false,
+    );
+    assert.equal(
+      equalValue("invocation", left, makeInvocation("pkg.Op", { rec: makeRecordRef("M", "1", 1n), n: 5n })),
+      false,
+    );
+    assert.equal(
+      equalValue("invocation", left, makeInvocation("pkg.Op", { rec: makeRecordRef("M", "1", 1n), n: 5n, s: "x", z: 1n })),
+      false,
+    );
+    // Arg order is irrelevant; nested nulls compare by value.
+    const reordered = makeInvocation("pkg.Op", { s: "x", n: 5n, rec: makeRecordRef("M", "1", 9n) });
+    assert.equal(equalValue("invocation", left, reordered), true);
+    assert.equal(
+      equalValue("invocation", makeInvocation("t", { v: null }), makeInvocation("t", { v: null })),
+      true,
+    );
+    assert.equal(
+      equalValue("invocation", makeInvocation("t", { v: null }), makeInvocation("t", { v: 1n })),
+      false,
+    );
+  });
+
   it("never equates secrets except by identical reference", () => {
     const s1 = { kind: "secret" } as SecretValue;
     const s2 = { kind: "secret" } as SecretValue;
@@ -285,6 +319,15 @@ describe("equalValue malformed inputs", () => {
     );
     assertValueError(
       () => equalValue("decimal", { kind: "decimal", coef: 1n, scale: 99 }, new Decimal(1n, 0)),
+      "invalid-construction",
+    );
+    assertValueError(
+      () =>
+        equalValue(
+          "invocation",
+          { kind: "invocation", target: "", args: {} },
+          makeInvocation("t", {}),
+        ),
       "invalid-construction",
     );
   });
@@ -365,11 +408,32 @@ describe("same (reference identity)", () => {
     );
   });
 
+  it("identifies invocations by target plus structural args", () => {
+    assert.equal(
+      same(
+        makeInvocation("pkg.Op", { rec: makeRecordRef("M", "1", 1n), n: 2n }),
+        makeInvocation("pkg.Op", { rec: makeRecordRef("M", "1", 2n), n: 2n }),
+      ),
+      true,
+    );
+    assert.equal(
+      same(makeInvocation("pkg.Op", { n: 1n }), makeInvocation("pkg.Other", { n: 1n })),
+      false,
+    );
+    assert.equal(
+      same(makeInvocation("pkg.Op", { n: 1n }), makeInvocation("pkg.Op", { n: 2n })),
+      false,
+    );
+    assert.equal(same(makeInvocation("pkg.Op", { n: 1n }), makeInvocation("pkg.Op", {})), false);
+  });
+
   it("returns false for mismatched ref kinds", () => {
     assert.equal(same(makeUserRef("u1"), makeMemberRef("u1", makeUserRef("u1"), "t1")), false);
     assert.equal(same(makeUserRef("u1"), makeRecordRef("M", "u1")), false);
     assert.equal(same(makeFileValue("f1"), makeDeliveryRef("f1", "pkg.Op")), false);
     assert.equal(same(makeRecordRef("M", "1"), makeActionRef("pkg.Op", {})), false);
+    assert.equal(same(makeInvocation("t", {}), makeActionRef("t", {})), false);
+    assert.equal(same(makeUserRef("u1"), makeInvocation("t", {})), false);
   });
 
   it("rejects non-refs", () => {
