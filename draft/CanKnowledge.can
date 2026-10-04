@@ -267,61 +267,126 @@ package knowledge label="Company knowledge"@{nl="Bedrijfskennis"}
  Then
   page /knowledge title="Company knowledge"@{nl="Bedrijfskennis"} poll=5s
    require members
-   table Topic as topic columns=name,expert filter=active defaults={active=true} display=split
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
+   table Topic as topic columns=name,expert filter=active defaults={active=true} display=split empty="No topics available"@{nl="Geen onderwerpen beschikbaar"}
+    pagination
     text row.active,row.daily_limit,row.input_tokens,row.output_tokens
     form ask arguments={topic}
-    table row.Document as document columns=name,current display=split
-     details "Current publication"@{nl="Actuele publicatie"}
+     textarea question
+    table row.Document as document columns=name,current display=split empty="No procedures in this topic"@{nl="Geen procedures in dit onderwerp"}
+     pagination
+     collapse "Current publication"@{nl="Actuele publicatie"}
       require document.current!=null and (editorial(actor,document) or readership(actor,topic))
-      text document.current.title,document.current.index
+      badge document.current.index.state
+      text document.current.title
       content document.current.body
+      text document.current.index.checked,document.current.index.detail
       text document.current.attachments
-    table row.Question as question where question.account==actor columns=request_value.question,state,coverage,transport,unfinished display=split
+    table row.Question as question where question.account==actor columns=request_value.question,state,coverage,transport,unfinished display=split empty="No questions yet"@{nl="Nog geen vragen"}
+     pagination
      require row.account==actor
-     text row.used,row.stop_requested,row.request?.error,row.request?.progress?.detail
+     badge row.state
+     status row.transport
+     text row.coverage,row.unfinished,row.used,row.stop_requested,row.request?.error,row.request?.progress?.detail
      content row.answer
-     text "Historical answers keep their original scope. Ask again for current guidance; changed or revoked used sources hide the answer."@{nl="Historische antwoorden behouden hun oorspronkelijke bronselectie. Stel opnieuw een vraag voor actuele uitleg; gewijzigde of ingetrokken gebruikte bronnen verbergen het antwoord."}
+     alert "Historical answers keep their original scope. Ask again for current guidance; changed or revoked used sources hide the answer."@{nl="Historische antwoorden behouden hun oorspronkelijke bronselectie. Stel opnieuw een vraag voor actuele uitleg; gewijzigde of ingetrokken gebruikte bronnen verbergen het antwoord."}
      actions stop,reconcile,release_skipped
      form escalate arguments={question}
-     list question.Escalation as issue
-      text row.reason,row.state,row.resolved_by,row.resolved_at
-      details "Closure explanation"@{nl="Uitleg bij afsluiting"}
+      textarea reason
+      checkbox share
+     list question.Escalation as issue empty="No expert requests"@{nl="Geen expertverzoeken"}
+      pagination
+      badge row.state
+      text row.reason,row.resolved_by,row.resolved_at
+      collapse "Closure explanation"@{nl="Uitleg bij afsluiting"}
        require row.state==dismissed
        text row.note
-      list Revision as guidance where guidance==issue.resolution and live(guidance) and readership(actor,topic)
-       details "Published resolution"@{nl="Gepubliceerde oplossing"}
+      list Revision as guidance where guidance==issue.resolution and live(guidance) and readership(actor,topic) empty="No published resolution available"@{nl="Geen gepubliceerde oplossing beschikbaar"}
+       pagination
+       collapse "Published resolution"@{nl="Gepubliceerde oplossing"}
         text issue.note,guidance.title
         content guidance.body
         text guidance.attachments
   page /knowledge/editor title="Procedure editing"@{nl="Procedures bewerken"}
    require knowledge_author or knowledge_reviewer
+   breadcrumbs
    form create_document
-   table Document as document where editorial(actor,document) columns=name,parent,owner,active,current display=split
+    select topic
+    input name
+   table Document as document where editorial(actor,document) columns=name,parent,owner,active,current display=split empty="No procedures to edit"@{nl="Geen procedures om te bewerken"}
+    pagination
+    text row.name,row.parent,row.owner,row.active,row.current
     form revise arguments={document}
-    actions assign_author,document_status
-    table document.Revision as revision columns=number,title,author,authored,index display=split
+     input title
+     textarea body
+     ## attachments:file[] stays generated: no catalog array control.
+    button opens=assign_author_detail
+    modal "Assign author"@{nl="Auteur aanwijzen"} id=assign_author_detail
+     slot content
+      ## account:user stays generated: no user-picker vocabulary.
+      form assign_author arguments={document=row} display=inline
+    button opens=document_status_detail
+    modal "Set procedure availability"@{nl="Beschikbaarheid procedure instellen"} id=document_status_detail
+     slot content
+      form document_status arguments={document=row} display=inline
+       checkbox active
+    table document.Revision as revision columns=number,title,author,authored,index display=split empty="No revisions yet"@{nl="Nog geen revisies"}
+     pagination
+     badge row.index.state
      content row.body
      text row.attachments
      form publish arguments={revision}
+      textarea reason
      form reindex arguments={revision}
-    table document.Publication as publication columns=revision,reviewer,reviewed,active display=split
+    table document.Publication as publication columns=revision,reviewer,reviewed,active display=split empty="No publication decisions"@{nl="Geen publicatiebesluiten"}
+     pagination
      text row.reason,row.withdrawal,row.withdrawn_by,row.withdrawn_at
      form withdraw arguments={publication}
+      textarea reason
      history
   page /knowledge/expert title="Expert questions"@{nl="Expertvragen"}
    require members
-   table Escalation as issue where issue.parent.parent.expert==actor columns=parent,state,created filter=state display=split
+   breadcrumbs
+   table Escalation as issue where issue.parent.parent.expert==actor columns=parent,state,created filter=state display=split empty="No questions for you"@{nl="Geen vragen voor jou"}
+    pagination
+    badge row.state
     text row.parent.request_value.question,row.parent.account,row.reason
     form resolve arguments={issue}
-    text row.state,row.resolution,row.note,row.resolved_by,row.resolved_at
+     select revision
+     textarea note
+    text row.resolution,row.note,row.resolved_by,row.resolved_at
   page /knowledge/settings title="Knowledge settings"@{nl="Kennisinstellingen"}
    require knowledge_manager
+   breadcrumbs
    form Topic.create
-   table Topic columns=name,expert,profile,active,daily_limit display=split
+    fieldset "Topic"@{nl="Onderwerp"}
+     input name
+     checkbox active
+    fieldset "Model profile"@{nl="Modelprofiel"}
+     input profile
+     input policy_revision
+     input input_tokens
+     input output_tokens
+     input duration
+    fieldset "Budget"@{nl="Budget"}
+     input daily_limit
+    ## expert:user stays generated: no user-picker vocabulary.
+   table Topic columns=name,expert,profile,active,daily_limit display=split empty="No topics configured"@{nl="Geen onderwerpen ingesteld"}
+    pagination
+    text row.name,row.expert,row.profile,row.active,row.daily_limit
     edit
     form Audience.create
-    table row.Audience columns=account,active
+     checkbox active
+     ## account:user stays generated: no user-picker vocabulary.
+    table row.Audience columns=account,active empty="No readers yet"@{nl="Nog geen lezers"}
+     pagination
+     text row.account,row.active
      edit
-    table row.Document as document columns=name,owner,active
+    table row.Document as document columns=name,owner,active empty="No procedures in this topic"@{nl="Geen procedures in dit onderwerp"}
+     pagination
+     ## account:user stays generated: no user-picker vocabulary.
      form assign_author arguments={document}
-    table row.DailyUsage columns=account,day,requests order=-day
+    table row.DailyUsage columns=account,day,requests order=-day empty="No usage recorded"@{nl="Geen verbruik geregistreerd"}
+     pagination
+     progress row.requests max=row.parent.daily_limit

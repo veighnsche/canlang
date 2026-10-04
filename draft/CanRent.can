@@ -27,7 +27,6 @@ package rent_catalog_ui
       input currency
       input hours
       textarea arrival
-      checkbox active
     table Location columns=name,address,timezone,currency,hours empty="No locations yet"@{nl="Nog geen locaties"}
      text row.active
      edit
@@ -1545,7 +1544,6 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       input party_limit
       radio kind
       input hold_for
-      checkbox active
       input timezone
       input currency
       input tax_rate
@@ -1554,12 +1552,8 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       input hourly
       input daily
       radio price_unit
-      input increment
-      input minimum
       textarea terms
       input refund_notice
-      input buffer_before
-      input buffer_after
       textarea accessibility
     table Resource columns=location,name,capacity,hourly,increment,minimum,terms,refund_notice,active filter=location defaults={location=preferences.location} display=split empty="No resources match these filters"@{nl="Geen voorzieningen voldoen aan deze filters"}
      edit

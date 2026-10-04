@@ -11,7 +11,7 @@ emission (lane 1) and route dispatch (lane 6) consume that contract.
 ## B0 wiring (temporary)
 
 This package extends the lane 7 root `tsconfig.base.json` and builds inside
-the root npm workspace (no member lockfile; the root lock stays lane-07-owned).
+the root bun workspace (no member lockfile; the root bun.lock stays lane-07-owned).
 Sources import `../contracts/src/presentation.ts` via an explicit relative
 path — the same workspace-wide member pattern used by state/values/identity
 (the contracts index join serves external consumers; member TS keeps direct
@@ -51,7 +51,7 @@ exact; negative plain numbers use a pinned ASCII hyphen-minus.
 ## Checks
 
 ```sh
-npm install
-npm run typecheck
-npm test
+bun install --frozen-lockfile   # from the repo root
+bun run --filter @canlang/ui typecheck
+bun run --filter @canlang/ui test
 ```

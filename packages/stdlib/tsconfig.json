@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     // Workspace-name producer imports resolve via the root install
-    // (lane-03.yml runs root `npm ci` + builds @canlang/values first).
+    // (lane-03.yml runs root `bun install` + builds @canlang/values first).
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "lib": ["ES2022"],

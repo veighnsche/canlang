@@ -7,14 +7,14 @@ This directory coordinates joins, not a giant replacement test framework.
 
 - `readiness.test.ts` — real harness mechanics (local workerd boot,
   machine-readable report assembly) plus an informational producer-presence
-  table. Always runs under root `npm test`.
+  table. Always runs under root `bun run test`.
 - `b1-team-tasks.md` — the B1 join plan and evidence log: one real connected
   app over local workerd/D1, two users, browser + MCP legs, denied/stale/
   replay rows, inline examples over compiled handlers.
 - `lane02-values.test.ts` — lane-02 contribution (PR6 #48, accepted): values
   conformance join driving the real `@canlang/values` dist with testkit
   report assembly. Root `pretest` builds the dist (`build:joins`), so
-  `npm test` exercises the present path; direct vitest runs without the
+  `bun run test` exercises the present path; direct vitest runs without the
   dist get honest `unsupported` rows, plus two permanent L1/L3 block rows
   either way. L2 owns the pinned catalog count (54) and updates this file
   as the catalog grows.

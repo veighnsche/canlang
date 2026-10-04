@@ -2,7 +2,10 @@
  * example runner is implemented. Typed provider/page/model fixtures are isolated.
  * Source text is untrusted data; canonical owner admission remains authoritative. */
 import {any,all,collect,count,first,group,records,create,set,send,schedule,cancel,call,delivery,hasRole,same,contains,trim,add_days,local_date,date,money,datetime,int64,addDuration,subtractDuration,compareInstant,require as check} from '@canlang/stdlib';
-import {message,renderPage,tabs,tab,table,form,actions,history} from '@canlang/ui';
+import {message,renderPage,tabs,tab,table,form,actions,history,text,breadcrumbs,pagination,badge,fieldset,textarea,input,select,steps,timeline,copy} from '@canlang/ui';
+// Desired lowering: text is existing core; breadcrumbs, pagination, badge,
+// fieldset, textarea, input, select, steps, timeline and copy are proposed
+// @canlang/ui contracts (desired/unimplemented).
 import {can_work} from './employee.mjs';
 import {promote_research} from './crm.mjs';
 const researcher='discover.researcher', reviewer='discover.reviewer';
@@ -124,12 +127,70 @@ settings,settled,eligible,
  "Opportunity.needs_identity_review":async(c,row)=>row.identity_conflict||(row.duplicate_of===null&&await any(records(c,'discover.Opportunity',{parent:row.parent}),other=>!same(other,row)&&other.canonical_url===row.canonical_url&&!same(other.duplicate_of,row)))
  },discoverPage
 };}
-export async function discoverPage(c,b){return renderPage(c,descriptor,()=>[tabs({context:c,children:[
- tab({context:c,caption:message('Plans',{nl:'Plannen'}),children:[form({context:c,operation:'discover.Plan.create'}),table({context:c,model:'discover.Plan',columns:['name','location','active','revision'],renderRow:(row,view)=>[
-  actions({context:view,operations:['discover.start','discover.pause','discover.resume','discover.take_over'],boundArgs:{plan:row}}),form({context:view,operation:'discover.configure',arguments:{plan:row}}),
-  table({context:view,model:'discover.Run',parent:row,columns:['started','complete','stopped','document_slots','analysis_slots'],renderRow:(run,rv)=>[actions({context:rv,operations:['discover.stop'],boundArgs:{run}}),table({context:rv,model:'discover.SourcePass',parent:run,columns:['source','state','requests','detail'],renderRow:(pass,pv)=>[actions({context:pv,operations:['discover.retry'],boundArgs:{pass}}),table({context:pv,model:'discover.PageAttempt',parent:pass,columns:['cursor','take','applied','late','traversal','detail','request']})]})]})]})]}),
- tab({context:c,caption:message('Evidence and review',{nl:'Bewijs en beoordeling'}),children:[table({context:c,model:'discover.Opportunity',columns:['source','key','canonical_url','needs_identity_review','expired','duplicate_of','deal'],renderRow:(row,view)=>[form({context:view,operation:'discover.duplicate',arguments:{opportunity:row}}),form({context:view,operation:'discover.accept_identity',arguments:{opportunity:row}}),table({context:view,model:'discover.Evidence',parent:row,columns:['document','claims','analysis_issue'],renderRow:(e,ev)=>[actions({context:ev,operations:['discover.analyse'],boundArgs:{evidence:e}}),form({context:ev,operation:'discover.review',arguments:{evidence:e}})]}),table({context:view,model:'discover.Conflict',parent:row,columns:['document','observed']}),table({context:view,model:'discover.Review',parent:row,columns:['title','deadline','deadline_note','reviewed_by','reviewed_at'],renderRow:(review,rv)=>[form({context:rv,operation:'discover.promote',arguments:{review}})]}),history({context:view,record:row})]})]}),
-]})]);}
+export async function discoverPage(c,b){return renderPage(c,descriptor,()=>[
+ breadcrumbs({context:c}),
+ tabs({context:c,children:[
+ tab({context:c,caption:message('Plans',{nl:'Plannen'}),children:[
+  form({context:c,operation:'discover.Plan.create',children:[
+   input({context:c,field:'name'}),
+   select({context:c,field:'location'}),
+   textarea({context:c,field:'ted_query'}),
+   textarea({context:c,field:'grants_query'}),
+   textarea({context:c,field:'criteria'})]}),
+  table({context:c,model:'discover.Plan',columns:['name','location','active','revision'],empty:message('No research plans',{nl:'Geen onderzoeksplannen'}),renderRow:(row,view)=>[
+   pagination({context:view}),
+   actions({context:view,operations:['discover.start','discover.pause','discover.resume','discover.take_over'],boundArgs:{plan:row}}),
+   form({context:view,operation:'discover.configure',arguments:{plan:row},children:[
+    fieldset({context:view,caption:message('Sources',{nl:'Bronnen'}),children:[
+     textarea({context:view,field:'ted_query'}),
+     textarea({context:view,field:'grants_query'}),
+     textarea({context:view,field:'criteria'})]}),
+    fieldset({context:view,caption:message('Limits',{nl:'Limieten'}),children:[
+     input({context:view,field:'period'}),
+     input({context:view,field:'lookback_days'}),
+     input({context:view,field:'max_pages'}),
+     input({context:view,field:'max_documents'}),
+     input({context:view,field:'max_analysis'}),
+     input({context:view,field:'output_tokens'})]})]}),
+   table({context:view,model:'discover.Run',parent:row,columns:['started','complete','stopped','document_slots','analysis_slots'],empty:message('No research runs',{nl:'Geen onderzoeksrondes'}),renderRow:(run,rv)=>[
+    pagination({context:rv}),
+    actions({context:rv,operations:['discover.stop'],boundArgs:{run}}),
+    table({context:rv,model:'discover.SourcePass',parent:run,columns:['source','state','requests','detail'],empty:message('No source passes',{nl:'Geen bronrondes'}),renderRow:(pass,pv)=>[
+     pagination({context:pv}),
+     badge({context:pv,value:pass.state}),
+     actions({context:pv,operations:['discover.retry'],boundArgs:{pass}}),
+     table({context:pv,model:'discover.PageAttempt',parent:pass,columns:['cursor','take','applied','late','traversal','detail','request'],empty:message('No page attempts',{nl:'Geen paginapogingen'}),renderRow:(attempt,av)=>[pagination({context:av})]})
+    ]})
+   ]})
+  ]})]}),
+ tab({context:c,caption:message('Evidence and review',{nl:'Bewijs en beoordeling'}),children:[
+  steps({context:c,slots:{item:[()=>[text({context:c,values:[message('Collect',{nl:'Verzamelen'})]})],()=>[text({context:c,values:[message('Analyse',{nl:'Analyseren'})]})],()=>[text({context:c,values:[message('Review',{nl:'Beoordelen'})]})],()=>[text({context:c,values:[message('Promote',{nl:'Promoveren'})]})]]}}),
+  table({context:c,model:'discover.Opportunity',columns:['source','key','canonical_url','needs_identity_review','expired','duplicate_of','deal'],empty:message('No opportunities',{nl:'Geen kansen'}),renderRow:(row,view)=>[
+   pagination({context:view}),
+   form({context:view,operation:'discover.duplicate',arguments:{opportunity:row},children:[
+    select({context:view,field:'canonical'}),
+    textarea({context:view,field:'reason'})]}),
+   form({context:view,operation:'discover.accept_identity',arguments:{opportunity:row},children:[
+    textarea({context:view,field:'reason'})]}),
+   timeline({context:view,model:'discover.Evidence',parent:row,slots:{item:(e,ev)=>[
+    text({context:ev,values:[e.document,e.claims,e.analysis_issue]}),
+    copy({context:ev,value:e.document.key}),
+    actions({context:ev,operations:['discover.analyse'],boundArgs:{evidence:e}}),
+    form({context:ev,operation:'discover.review',arguments:{evidence:e},children:[
+     input({context:ev,field:'title'}),
+     textarea({context:ev,field:'summary'}),
+     input({context:ev,field:'deadline'}),
+     input({context:ev,field:'deadline_zone'}),
+     textarea({context:ev,field:'deadline_note'})]})]}}),
+   table({context:view,model:'discover.Conflict',parent:row,columns:['document','observed'],empty:message('No conflicts',{nl:'Geen conflicten'}),renderRow:(conflict,cv)=>[pagination({context:cv})]}),
+   table({context:view,model:'discover.Review',parent:row,columns:['title','deadline','deadline_note','reviewed_by','reviewed_at'],empty:message('No reviews',{nl:'Geen beoordelingen'}),renderRow:(review,rv)=>[
+    pagination({context:rv}),
+    form({context:rv,operation:'discover.promote',arguments:{review},children:[
+     select({context:rv,field:'customer'}),
+     select({context:rv,field:'contact'}),
+     input({context:rv,field:'value'})]})]}),
+   history({context:view,record:row})]})]})
+ ]})]);}
 
 export const appDefinition = {
   "id": "CanDiscover",
