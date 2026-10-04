@@ -1,8 +1,9 @@
 import { addDuration, choose, count, create, delivery, equalValue, first, hasRole, int64, records, require as check, same, schedule, cancel, send, set, trim } from "@canlang/stdlib";
-import { actions, details, edit, form, history, message, renderPage, table, text } from "@canlang/ui";
+import { actions, badge, breadcrumbs, button, details, diff, edit, form, history, input, message, modal, pagination, renderPage, slot, status, table, tabs, text, textarea } from "@canlang/ui";
 
 // Handwritten desired output. All imports are proposed contracts, not implementations.
 // DESIGN §13 supplies authority, typed values, atomic effects and example conventions.
+// Replan factories (breadcrumbs, tabs, pagination, badge, status, diff, slot, button, modal, input, textarea) are desired.
 // Provider outcomes are evidence; no adapter, transport or UI renderer is implemented here.
 export const AccountsV1 = "sync.AccountsV1";
 const page = {
@@ -178,20 +179,38 @@ export function canApp() {
 
 export async function syncPage(c,bindings) {
   return renderPage(c,page,()=>[
-    form({context:c,operation:"sync.Link.create"}),
-    table({context:c,model:"sync.Link",where:link=>link.enabled===(c.preferences.sync.view==="active"),columns:["remote","enabled","period","latest.created","current.request.status"],renderRow:(link,view)=>[
+    /* desired-unimplemented: breadcrumbs, tabs, pagination, badge, status, diff, slot, button, modal, input, textarea. */
+    breadcrumbs({context:c}),
+    tabs({context:c,selector:"sync.view",value:c.preferences.sync.view}),
+    form({context:c,operation:"sync.Link.create",children:[input({context:c,field:"remote"}),input({context:c,field:"period"})]}),
+    table({context:c,model:"sync.Link",where:link=>link.enabled===(c.preferences.sync.view==="active"),columns:["remote","enabled","period","latest.created","current.request.status"],empty:message("No linked accounts in this view",{nl:"Geen gekoppelde accounts in deze weergave"}),renderRow:(link,view)=>[
+      pagination({context:view}),
+      status({context:view,value:link.current?.request?.status??null}),
+      text({context:view,values:[link.remote,link.enabled,link.period,link.latest?.created??null]}),
       edit({context:view,operation:"sync.Link.update",record:link,fields:["period"]}),
       actions({context:view,operations:["sync.refresh","sync.pause","sync.resume"],boundArgs:{link}}),
       details({context:view,caption:message("Remote account and correction",{nl:"Externe account en correctie"}),display:"drawer",children:[
         text({context:view,values:[link.latest?.value??null,link.latest?.created??null]}),
-        form({context:view,operation:"sync.propose",arguments:{link}}),
-        table({context:view,model:"sync.Proposal",parent:link,columns:["created","submitted_by","decision","outcome","observed_match.created"],renderRow:(proposal,proposalView)=>[
-          text({context:proposalView,values:[proposal.before,proposal.desired,proposal.reviewed_by,proposal.reason]}),
-          actions({context:proposalView,operations:["sync.approve","sync.rebase","sync.acknowledge","sync.close"],boundArgs:{proposal}}),
-          table({context:proposalView,model:"sync.WriteAttempt",parent:proposal,columns:["baseline","value","request.status","request.result","request.error"]}),
+        form({context:view,operation:"sync.propose",arguments:{link},children:[input({context:view,field:"value.name"}),input({context:view,field:"value.phone"}),input({context:view,field:"value.website"})]}),
+        table({context:view,model:"sync.Proposal",parent:link,columns:["created","submitted_by","decision","outcome","observed_match.created"],empty:message("No corrections proposed",{nl:"Geen correcties voorgesteld"}),renderRow:(proposal,proposalView)=>[
+          pagination({context:proposalView}),
+          badge({context:proposalView,value:proposal.decision}),
+          badge({context:proposalView,value:proposal.outcome}),
+          diff({context:proposalView,before:[text({context:proposalView,values:[proposal.before.values]})],after:[text({context:proposalView,values:[proposal.desired]})]}),
+          text({context:proposalView,values:[proposal.before.revision,proposal.reviewed_by,proposal.reason]}),
+          actions({context:proposalView,operations:["sync.approve","sync.rebase","sync.acknowledge"],boundArgs:{proposal}}),
+          button({context:proposalView,opens:"close_proposal"}),
+          modal({context:proposalView,caption:message("Close reviewed correction",{nl:"Beoordeelde correctie sluiten"}),id:"close_proposal",children:[slot({context:proposalView,name:"content",children:[form({context:proposalView,operation:"sync.close",arguments:{proposal},display:"inline",children:[textarea({context:proposalView,field:"reason"})]})]})]}),
+          table({context:proposalView,model:"sync.WriteAttempt",parent:proposal,columns:["baseline","value","request.status","request.result","request.error"],empty:message("No write attempts",{nl:"Geen schrijfpogingen"}),renderRow:(attempt,attemptView)=>[
+            pagination({context:attemptView}),
+            status({context:attemptView,value:attempt.request?.status??null}),
+            text({context:attemptView,values:[attempt.baseline,attempt.value,attempt.request?.result??null,attempt.request?.error??null]})]}),
           history({context:proposalView,record:proposal}),
         ]}),
-        table({context:view,model:"sync.ReadAttempt",parent:link,columns:["created","value","request.status","request.error"]}),
+        table({context:view,model:"sync.ReadAttempt",parent:link,columns:["created","value","request.status","request.error"],empty:message("No observations yet",{nl:"Nog geen waarnemingen"}),renderRow:(attempt,attemptView)=>[
+          pagination({context:attemptView}),
+          status({context:attemptView,value:attempt.request?.status??null}),
+          text({context:attemptView,values:[attempt.created,attempt.value,attempt.request?.error??null]})]}),
       ]}),
     ]}),
   ]);

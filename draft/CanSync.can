@@ -172,16 +172,47 @@ package sync label="CRM synchronization"@{nl="CRM-synchronisatie"}
   # Inspect observations, approve exact corrections and retain unresolved provider outcomes. @{nl="Bekijk waarnemingen, keur exacte correcties goed en bewaar onopgeloste externe uitkomsten."}
   page /sync title="CRM synchronization"@{nl="CRM-synchronisatie"} poll=5s
    require operator or reviewer
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
+   tabs preferences.view
    form Link.create
-   table Link as link where link.enabled==(preferences.view==active) columns=remote,enabled,period,latest.created,current.request.status
+    input remote
+    input period
+   table Link as link where link.enabled==(preferences.view==active) columns=remote,enabled,period,latest.created,current.request.status empty="No linked accounts in this view"@{nl="Geen gekoppelde accounts in deze weergave"}
+    pagination
+    status row.current?.request?.status
+    text row.remote,row.enabled,row.period,row.latest.created
     edit fields=period
     actions refresh,pause,resume
+    ## The drawer exception keeps details display=drawer for the activated record detail.
     details "Remote account and correction"@{nl="Externe account en correctie"} display=drawer
      text link.latest?.value,link.latest?.created
      form propose arguments={link}
-     table link.Proposal as proposal columns=created,submitted_by,decision,outcome,observed_match.created
-      text proposal.before,proposal.desired,proposal.reviewed_by,proposal.reason
-      actions approve,rebase,acknowledge,close
-      table proposal.WriteAttempt columns=baseline,value,request.status,request.result,request.error
+      input value.name
+      input value.phone
+      input value.website
+     table link.Proposal as proposal columns=created,submitted_by,decision,outcome,observed_match.created empty="No corrections proposed"@{nl="Geen correcties voorgesteld"}
+      pagination
+      badge row.decision
+      badge row.outcome
+      diff
+       slot before
+        text row.before.values
+       slot after
+        text row.desired
+      text row.before.revision,row.reviewed_by,row.reason
+      actions approve,rebase,acknowledge
+      button opens=close_proposal
+      modal "Close reviewed correction"@{nl="Beoordeelde correctie sluiten"} id=close_proposal
+       slot content
+        form close arguments={proposal=row} display=inline
+         textarea reason
+      table proposal.WriteAttempt columns=baseline,value,request.status,request.result,request.error empty="No write attempts"@{nl="Geen schrijfpogingen"}
+       pagination
+       status row.request?.status
+       text row.baseline,row.value,row.request?.result,row.request?.error
       history
-     table link.ReadAttempt columns=created,value,request.status,request.error
+     table link.ReadAttempt columns=created,value,request.status,request.error empty="No observations yet"@{nl="Nog geen waarnemingen"}
+      pagination
+      status row.request?.status
+      text row.created,row.value,row.request?.error
