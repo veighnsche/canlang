@@ -91,9 +91,10 @@ async function currentViewer(request) {
   } catch (error) {
     // Credential failures are IdentityError (expired/revoked/unknown);
     // anything else is a store bug and must surface, never masquerade
-    // as an expired session.
+    // as an expired session. The real L6 message threads through so a
+    // future L6 rewording surfaces instead of silently desyncing.
     if (!(error instanceof IdentityError)) throw error;
-    return { viewer: "invalid", sessionToken: token };
+    return { viewer: "invalid", sessionToken: token, detail: error.message };
   }
 }
 
@@ -292,13 +293,15 @@ export default {
       return new Response("method not allowed", { status: 405 });
     }
     if (url.pathname === "/" && request.method === "GET") {
-      const { viewer, sessionToken } = await currentViewer(request);
+      const { viewer, sessionToken, detail } = await currentViewer(request);
       if (viewer === null) {
         return html(await loginPage(makeContext("/", "", null), undefined));
       }
       if (viewer === "invalid" || sessionToken === null) {
+        // `detail` is always set when viewer is "invalid"; the fallback
+        // covers only the defensive null-token arm above.
         return html(
-          await loginPage(makeContext("/", "", null), "Session expired or revoked."),
+          await loginPage(makeContext("/", "", null), detail ?? "Session expired or revoked."),
           403,
         );
       }
