@@ -432,42 +432,75 @@ package maintain
   # Keep assets, overdue inspections and repair verification connected. @{nl="Houd bedrijfsmiddelen, achterstallige inspecties en reparatieverificatie met elkaar verbonden."}
   page /facilities title="Facilities"@{nl="Faciliteiten"}
    require maintenance_manager or technician
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
    card "Asset directory"@{nl="Bedrijfsmiddelenregister"}
     form Asset.create
-    list Asset filter=location,category,retired search=name defaults={location=preferences.location} display=split
+    list Asset filter=location,category,retired search=name defaults={location=preferences.location} display=split empty="No assets match these filters"@{nl="Geen bedrijfsmiddelen voor deze filters"}
+     pagination
+     text row.retired
      edit
+     collapse "Manual"@{nl="Handleiding"}
+      require row.manual!=null
+      link target=row.manual caption="Manual"@{nl="Handleiding"}
      tabs
       tab "Inspection plans and checklists"@{nl="Inspectieplannen en checklists"}
-       table row.Cancellation columns=reason,cutoff,author,at,phase
+       table row.Cancellation columns=reason,cutoff,author,at,phase empty="No cancellations recorded"@{nl="Geen annuleringen vastgelegd"}
+        pagination
         action resume_cancellation
        form Plan.create
-       list row.Plan
+        fieldset "Inspection plan"@{nl="Inspectieplan"}
+         input name
+         input cadence_days
+         calendar next_due
+         toggle active
+       list row.Plan empty="No inspection plans"@{nl="Geen inspectieplannen"}
+        pagination
         edit
-        table row.Inspection columns=due,inspector,result,cancelled,evidence,repair,reminded_at
+        table row.Inspection columns=due,inspector,result,cancelled,evidence,repair,reminded_at empty="No inspections recorded"@{nl="Geen inspecties vastgelegd"}
+         pagination
+         badge row.result
          text row.checklist
          form inspect
+          fieldset "Checklist result"@{nl="Checklistresultaat"}
+           radio result
+           textarea evidence
          form dispatch_visit arguments={inspection=row,location=row.parent.parent.location}
       tab "Repairs and verification"@{nl="Reparaties en verificatie"}
        form Repair.create
-       table row.Repair columns=title,severity,due,state,contractor,block_action,block_state,affected_state,visit_review filter=state,severity defaults={severity=preferences.severity}
+       table row.Repair columns=title,severity,due,state,contractor,block_action,block_state,affected_state,visit_review filter=state,severity defaults={severity=preferences.severity} empty="No repairs match these filters"@{nl="Geen reparaties voor deze filters"}
+        pagination
+        badge row.state
+        badge row.severity
+        badge row.block_state
         edit
         actions assign,start,block,finish,verify,retry_availability,affected_bookings,reopen
         form dispatch_visit arguments={repair=row,location=row.parent.location}
         card "Affected bookings"@{nl="Getroffen boekingen"}
          require row.affected!=null
          text row.affected_state,row.affected.checked_at
-         table row.affected.items columns=reference,from,until,quantity,status,conflict
-        table row.Verification columns=completion,evidence,author,at
-        list row.Assignment
+         table row.affected.items columns=reference,from,until,quantity,status,conflict empty="No affected bookings"@{nl="Geen getroffen boekingen"}
+          pagination
+        table row.Verification columns=completion,evidence,author,at empty="No verifications recorded"@{nl="Geen verificaties vastgelegd"}
+         pagination
+        list row.Assignment empty="No assignments recorded"@{nl="Geen opdrachten vastgelegd"}
+         pagination
          text row.reason,row.contact
-         table row.Notice columns=state,delivery
+         table row.Notice columns=state,delivery empty="No delivery attempts"@{nl="Geen verzendpogingen"}
+          pagination
           action retry_notice
         history
-
   # Submit and follow your own fault report. @{nl="Dien je eigen storingsmelding in en volg deze."}
   page /facilities/my-reports title="My facility reports"@{nl="Mijn storingsmeldingen"}
    require authenticated
+   breadcrumbs
    card "Own fault intake"@{nl="Eigen storing melden"}
     form report
+     fieldset "Fault details"@{nl="Storingsdetails"}
+      input title
+      textarea description
+      file_input photo
    card "Own report outcomes"@{nl="Eigen meldingsresultaten"}
-    table Repair as report where report.reporter==actor columns=title,description,state,due,completion filter=severity,state defaults={severity=preferences.severity}
+    table Repair as report where report.reporter==actor columns=title,description,state,due,completion filter=severity,state defaults={severity=preferences.severity} empty="No own reports match these filters"@{nl="Geen eigen meldingen voor deze filters"}
+     pagination
+     badge row.state
