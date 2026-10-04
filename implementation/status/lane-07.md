@@ -27,6 +27,7 @@ Owner prompt: [lane 07](../prompts/07-platform.md).
 7. Integration cases are contributed per-owner under `tests/integration/`; L7 owns the harness/skeleton and the B1 join, not every case body.
 8. JEV three-rewrite consultation is reserved for genuinely difficult decisions (none at B0; candidates later: row-isolation strategy, activation state machine, report envelope if producers disagree).
 9. Root `tsconfig.check.json` / `vitest.config.ts` cover lane-07 paths plus the full contracts assembly only. Producer packages keep their own runners/tsconfigs (lane 03 uses `node:test`) until their owners route an opt-in; nested per-package locks coexist with the root lock until the owner routes integration to L7. Root `npm run build` builds the contracts assembly including landed producer modules.
+10. Miniflare is pinned to the v4 stable line (`4.20260730.0`, exact, same pin as lane 03) with its flat options API. Lane 07 briefly shipped v5-alpha (`workers[].config` API) in PR2–PR4, then aligned down to v4 for delivery-infrastructure stability and a single workerd binary. Test compatibility dates stay within v4 workerd's range (newest supported: 2026-08-06). A joint v5 migration happens only when v5 stabilizes.
 
 ## Exact desired tree within this ownership
 
@@ -87,7 +88,8 @@ Coordinator works inline for small slices; at most two active implementation sub
 - [x] PR1 `muse/lane-07-platform/plan`: merged as #4 (`14fa6a0`). Root workspace + `@canlang/contracts` + L1/L3 assembly join + root-lock integration of `@canlang/state`.
 - [x] PR2 `muse/lane-07-platform/cloudflare-scaffold`: merged as #9 (`540a281`). Compat check, deploy plan, local dev, worker entry, all-12-module assembly with 5 interim conflict picks, root-lock integration of every workspace.
 - [x] PR3 `muse/lane-07-platform/testkit-scaffold`: merged as #11 (`50a5a18`). Table runner, deterministic accounts, assertions, reports, per-row workerd isolation, L1 loader handoff.
-- [ ] PR4 `muse/lane-07-platform/ci-skeleton`: `integration.yml` + `release.yml` (minimal, growing per milestone), `tests/integration` harness skeleton, `docs/dev-setup.md` verified on this machine.
+- [x] PR4 `muse/lane-07-platform/ci-skeleton`: merged as #14 (`53f6f29`). Integration/release CI, harness skeleton, setup doc, fresh-clone proof.
+- [ ] PR5 `muse/lane-07-platform/release-b1-prep`: live release.yml verification (dispatch), L3 S2 join absorption, B1 harness deepening as producers land.
 - [ ] B1 join: smallest real emitted app → local workerd + D1, two users, browser+MCP legs, denied/stale/replay rows, inline examples over compiled handlers, CLI/LSP same-error check. Blocked on L1 artifact + L3 admission + L6 context; harness ready before producers.
 - [ ] B2–B5: durable-work/file evidence, schema-upgrade orchestration + recovery, coverage mapping, one coherent release (binary + JS libs + editor) with local/emulator/live evidence stated separately.
 
@@ -120,6 +122,8 @@ Active reservations: none (coordinator holds all owned files until first delegat
 - Lane 05 S2 merged as PR #10 (`28f022c`): `presentation.ts` extended (no new barrel collisions), `@canlang/ui` adopted the root workspace and RETIRED its nested lock (L5 follow-up closed). PR3 regenerates the root lock accordingly; ui suite green (101/101).
 - Lane 06 S2 merged as PR #12 (`f092bbb`): identity core; `identity.ts` +3 lines, no new barrel exports, no manifest/lock changes. No lane-07 join action; identity suite green (33/33).
 - Fresh-clone verification (PR4, commit `173e4b6`): clean `git clone` + branch checkout, then `npm ci`, `npm run build`, `npm run typecheck`, `npm test` (44/44), `test_jev.py` (3/3), `cargo build --locked` — all green, no credentials, no extra steps. `docs/dev-setup.md` follows this script verbatim.
+- Release verification (PR5): dispatched `release.yml` on main `53f6f29` (run 37208041505) — all 3 jobs green. Artifacts confirmed: 5 tarballs, `can` binary (193KB), editor zip (11KB). No publishing (by design).
+- L3 S2 survey (PR #15 open): revision-fenced storage with real-D1/DO conformance via miniflare v4; prompted the v4 alignment above (handoff: none needed from L3 — lane 07 moved to their pin). Assembly + lock absorption happen when #15 merges.
 - No lock/manifest integration requests pending beyond the L2/L3/L4/L5 nested-lock follow-ups above. No requests sent yet.
 
 ## PR and verification evidence
@@ -127,6 +131,7 @@ Active reservations: none (coordinator holds all owned files until first delegat
 - PR #4 (branch `muse/lane-07-platform/plan`, reviewed head `c5a48a8`, base `e204d07`, squash-merged as `14fa6a0`): root workspace + `@canlang/contracts` + L1/L3 assembly join. Checks: `npm ci` clean; `npm run build` emits dist (assembly loads versions 1/1/1/1); `npm run typecheck` clean (covers src+test); vitest 10/10; lane-03 standalone flow green (typecheck 0, node:test 2/2); independent read-only subagent review (no blocking findings; 8 nits, 5 fixed incl. test typecheck coverage, 3 accepted/deferred). Limits: no CI on the PR itself (PR4); L3 nested-lock/package-import follow-up pending their ack.
 - PR #9 (branch `muse/lane-07-platform/cloudflare-scaffold`, reviewed head `ffce35c`, base `48dbb77`, squash-merged as `540a281`): `@canlang/cloudflare` (compat, plan, local dev, worker entry) + full 12-module assembly + root-lock integration of all 9 workspaces. Checks: typecheck/build clean; vitest 25/25 (7 files); emitted worker entry import-free; producer suites green (values 19, work/services 7 each, files 5, ui 48, identity 4, interfaces 7); independent review (no blockers; 6 nits fixed + 1 disputed with observed TS2308 evidence kept). Limits: no CI yet; schedules unmapped (OPEN-139); 5 interim conflict picks + 4 nested-lock follow-ups need owner acks.
 - PR #11 (branch `muse/lane-07-platform/testkit-scaffold`, reviewed head `ad86b1c`, base `28f022c`, squash-merged as `50a5a18`): `@canlang/testkit` (§5.1 table runner, accounts, assertions, reports, per-row workerd+D1 isolation) + L5 S2 lock absorption. Checks: typecheck/build clean; vitest 41/41 (12 files); ui suite 101/101; independent review (2 material findings fixed with regression tests + 8 nits fixed). Limits: tables only; L1 loader + L3 engine joins pending; no CI yet.
+- PR #14 (branch `muse/lane-07-platform/ci-skeleton`, reviewed head `bab29b3`, base `f092bbb`, squash-merged as `53f6f29`): integration/release CI, harness skeleton, setup doc. Checks: integration.yml GREEN ON THE PR ITSELF (workspace 22s node 22, tools 8s); fresh-clone verbatim proof (44/44, jev 3/3, cargo); release steps executed locally (5 tarballs with dist, 147KB editor zip, can binary runs); independent review (1 material + 6 nits fixed, incl. private-pack exclusion and producer pre-build). Limits: release.yml never executed remotely yet (PR5 dispatches it); B1 blocked on L1 emission + L3 engine.
 
 ## Remaining work and cleanup
 

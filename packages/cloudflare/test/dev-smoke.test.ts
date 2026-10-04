@@ -8,7 +8,8 @@ describe("local dev smoke", () => {
   it("serves HTTP and round-trips D1 through the Worker binding", async () => {
     const dev = await startLocalDev({
       workerName: "smoke",
-      compatibilityDate: "2026-10-04",
+      // Within miniflare v4 workerd's supported range (newest: 2026-08-06).
+      compatibilityDate: "2026-07-15",
       mainModule: "worker.mjs",
       modules: { "worker.mjs": smokeSource },
       d1Databases: [{ binding: "DB", id: "smoke-db" }],

@@ -7,7 +7,8 @@ const scopeSource = readFileSync(new URL("./fixtures/scope-worker.mjs", import.m
 
 const scopeOptions = {
   workerName: "isolation",
-  compatibilityDate: "2026-10-04",
+  // Within miniflare v4 workerd's supported range (newest: 2026-08-06).
+  compatibilityDate: "2026-07-15",
   mainModule: "worker.mjs",
   modules: { "worker.mjs": scopeSource },
   d1Binding: "DB",
