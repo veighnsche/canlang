@@ -174,6 +174,8 @@ resumability representation.
   transition; archive default vs `remove` vs `none`; references to archived blocked
   for new links, kept for history; evaluation order = written order; audit entries
   automatic with actor/time; expiry disposal blocks on any incoming reference.
+  Post-admission business rejections commit fenced rejected receipts here
+  (S3 landed the replay-read path only; admission rejections throw receiptless).
 - S6: outbox intent + schedule replace/cancel commit atomically with domain writes;
   system-command registry rejects unregistered/raw writes; every writer (membership,
   receipt, cleanup) enters the fence.
