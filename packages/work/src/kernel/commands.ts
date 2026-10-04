@@ -734,6 +734,33 @@ function headFirst(ids: OccurrenceId[], first: OccurrenceId): OccurrenceId[] {
   return [first, ...ids.filter((id) => id !== first).sort(compareIds)];
 }
 
+/** L3 staging bound (`STAGING_MAX_ID_LENGTH`); length is UTF-16 units. */
+const SCHEDULE_KEY_MAX_LENGTH = 128;
+
+/**
+ * L3-visible schedule key for one scoped key, per the settled L3/L4
+ * convention (L3 S9b addendum): slash-joined percent-encoded
+ * `app/ownerPackage/owner/key`. L3 stores keys opaquely in a
+ * key-global map, so producers embed the scope; lineage rows keep the
+ * bare key plus flat scope fields and never decode. Total length over
+ * 128 throws fail-closed (never truncate); L1 codegen must apply the
+ * identical layout.
+ */
+function embedScheduleKey(scope: WorkScope, key: string, what: string): string {
+  const embedded = [
+    encodeURIComponent(scope.app),
+    encodeURIComponent(scope.ownerPackage),
+    encodeURIComponent(scope.owner),
+    encodeURIComponent(key),
+  ].join('/');
+  if (embedded.length > SCHEDULE_KEY_MAX_LENGTH) {
+    throw new KernelTableError(
+      `${what}: embedded schedule key exceeds ${SCHEDULE_KEY_MAX_LENGTH} characters.`,
+    );
+  }
+  return embedded;
+}
+
 /**
  * `work.schedule.put {key, scope, at, event, payload, occurrenceId}`:
  * insert-or-replace one keyed occurrence. Mirrors `putSchedule`: a
@@ -754,6 +781,7 @@ export const workSchedulePutCommand: SystemCommandDef = {
     const event = argString(args, 'event', what);
     const payload = argRecord(args, 'payload', what);
     const occurrenceId = argString(args, 'occurrenceId', what);
+    const l3Key = embedScheduleKey(scope, key, what);
     const entries = await loadKeyedSchedules(ctx, scope, key);
     const previous = selectScheduleHead(entries);
     const writes: DomainWrite[] = [];
@@ -809,11 +837,11 @@ export const workSchedulePutCommand: SystemCommandDef = {
         { nowMs: ctx.now, actor: ctx.actor },
       ),
     });
-    // NOTE: the L3 op below carries the same key string; cross-scope key
-    // collisions are the open L3 scoping handoff, not silently resolved.
+    // The L3 op carries the scope-embedded key (settled convention);
+    // the lineage row above keeps the bare key plus flat scope fields.
     const replace: ScheduleOp = {
       op: 'replace',
-      key,
+      key: l3Key,
       at,
       event: event as OperationName,
       payload,
@@ -840,6 +868,7 @@ export const workScheduleCancelCommand: SystemCommandDef = {
     checkArgs(args, what);
     const key = argString(args, 'key', what);
     const scope = argScope(args, what);
+    const l3Key = embedScheduleKey(scope, key, what);
     const entries = await loadKeyedSchedules(ctx, scope, key);
     const previous = selectScheduleHead(entries);
     const live = entries
@@ -889,7 +918,7 @@ export const workScheduleCancelCommand: SystemCommandDef = {
     if (cancelled !== null) {
       cancelledIds = headFirst(cancelledIds, cancelled);
     }
-    const cancel: ScheduleOp = { op: 'cancel', key };
+    const cancel: ScheduleOp = { op: 'cancel', key: l3Key };
     return {
       writes,
       schedules: [cancel],

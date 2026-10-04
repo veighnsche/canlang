@@ -903,7 +903,7 @@ describe('kernel commands: schedule.put', () => {
     assert.deepEqual(staged.schedules, [
       {
         op: 'replace',
-        key: 'reminder',
+        key: 'CanExpense/expense/team_1/reminder',
         at: NOW + 1000,
         event: 'expense.remind',
         payload: { n: 1 },
@@ -1064,7 +1064,9 @@ describe('kernel commands: schedule.cancel', () => {
       affectedOutboxIds: ['op_1#0'],
     });
     assert.equal(staged.writes?.length, 2);
-    assert.deepEqual(staged.schedules, [{ op: 'cancel', key: 'reminder' }]);
+    assert.deepEqual(staged.schedules, [
+      { op: 'cancel', key: 'CanExpense/expense/team_1/reminder' },
+    ]);
   });
 
   it('cancels the linked head past lexicographic order', async () => {
@@ -1140,6 +1142,73 @@ describe('kernel commands: schedule.cancel', () => {
     });
     assert.equal(staged.writes, undefined);
     assert.equal(staged.schedules, undefined);
+  });
+});
+
+describe('kernel commands: schedule key embedding', () => {
+  it('embeds scope percent-encoded with ownerPackage second', async () => {
+    const ctx = fakeCtx(seed([]));
+    const staged = await workSchedulePutCommand.stage(
+      {
+        key: 'a/b c',
+        scope: { app: 'Can X', owner: 't/1', ownerPackage: 'my pkg' },
+        at: NOW,
+        event: 'e',
+        payload: {},
+        occurrenceId: 'occ_1',
+      },
+      ctx,
+    );
+    assert.deepEqual(staged.schedules, [
+      {
+        op: 'replace',
+        key: 'Can%20X/my%20pkg/t%2F1/a%2Fb%20c',
+        at: NOW,
+        event: 'e',
+        payload: {},
+      },
+    ]);
+  });
+
+  it('holds 128 exactly and fails closed at 129 in put and cancel', async () => {
+    // Prefix 'CanExpense/expense/team_1/' is 26 chars; 102 more hits 128.
+    const okKey = 'k'.repeat(102);
+    assert.equal(`CanExpense/expense/team_1/${okKey}`.length, 128);
+    const ok = await workSchedulePutCommand.stage(
+      {
+        key: okKey,
+        scope: SCOPE,
+        at: NOW,
+        event: 'e',
+        payload: {},
+        occurrenceId: 'occ_1',
+      },
+      fakeCtx(seed([])),
+    );
+    assert.equal(ok.writes?.length, 1);
+    await assert.rejects(
+      runStage(
+        workSchedulePutCommand.stage,
+        {
+          key: 'k'.repeat(103),
+          scope: SCOPE,
+          at: NOW,
+          event: 'e',
+          payload: {},
+          occurrenceId: 'occ_2',
+        },
+        fakeCtx(seed([])),
+      ),
+      /exceeds 128 characters/,
+    );
+    await assert.rejects(
+      runStage(
+        workScheduleCancelCommand.stage,
+        { key: 'k'.repeat(103), scope: SCOPE },
+        fakeCtx(seed([])),
+      ),
+      /exceeds 128 characters/,
+    );
   });
 });
 
