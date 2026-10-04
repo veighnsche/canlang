@@ -62,10 +62,10 @@ package report
     partial,false,null,true -> partial,false,false,0
     lagging,true,null,true -> lagging,true,false,0
     unavailable,false,null,true -> unavailable,false,false,0
-   examples seed=[unavailable] event={delivery_id="report",status=failed,result=null,error=null}
-    event.status,unavailable.checkpoint,unavailable.pending -> unavailable.state,unavailable.checkpoint,unavailable.pending
-    failed,null,true -> unavailable,null,false
-    unknown,null,true -> unavailable,null,false
+   examples seed=[unavailable] event={delivery_id="report",status=failed,result=null,error={code="unavailable",message="Report source unavailable"}}
+    event.status,event.error,unavailable.checkpoint,unavailable.pending -> unavailable.state,unavailable.checkpoint,unavailable.pending
+    failed,{code="unavailable",message="Report source unavailable"},null,true -> unavailable,null,false
+    unknown,null,null,true -> unavailable,null,false
   # Expose the chosen measure with denominator and missing-source state, never an invented zero. @{nl="Toon de gekozen maatstaf met noemer en ontbrekende-bronstatus, nooit een verzonnen nul."}
   scenario measure(run:Run) read=true -> Measure by=manager label="Show report measure"@{nl="Rapportmaatstaf tonen"}
    require run.account==actor and all(run.locations as location,can_work(actor,location)) and (not run.parent.finance_only or finance) and (not (run.parent.metric in [cash,receivable]) or finance)

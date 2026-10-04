@@ -113,6 +113,8 @@ Twenty settled targets (CanGrant excluded while its owner edits) were inspected 
 
 Twelve qualified field-type reuse occurrences remain outside this direct comparison and need resolved owner-type correspondence. The temporary inspection substitutes inert imports to inspect metadata only; it does not execute any imported capability, operation or runtime implementation. Production/scalar/query bodies, permissions, UI, examples and cross-app service journeys remain the rest of E2/E3. All 21 targets have one appDefinition/canApp/exampleFixtures shape, canonical readGrants and no h/Preact or legacy money-comparison spelling; that inventory does not prove uniform semantics.
 
+The existing closed DeliveryError shape is now paired with precise completion-status consistency and safe retry/disclosure meaning. Report's failed/null-error and Rent's failed/string-error fixtures are corrected; unknown/null remains valid and business outcomes are unchanged. Grant's matched/mismatched failed notice witnesses use the same type while preserving approval evidence. These are typed authored fixtures and syntax checks, not provider execution or task 14's separate association decision.
+
 ## Next concrete app correction
 
 **Expense is corrected.** Its source and target now check the noncaller reviewer grant and preserve immutable submitted evidence through withdrawal/correction. Mail causal examples and safe shared-shell discovery are actively assigned, while the next independent E1 requirement/source/target pair is CanGrant. Employee `role:text` still confers no language role assignment.
