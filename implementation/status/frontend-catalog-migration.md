@@ -82,6 +82,52 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
+## Slice 24: close-out — inventory, shell verification, handoffs (branch muse/frontend-catalog-migration/slice-24-closeout, in progress)
+
+Status-only slice. All migration slices merged (5-23, 19 PRs).
+
+INVENTORY (49 draft apps + 2 example files, all migrated):
+badge+migration era — S5 Contract/Stock/Catch/CRM, S6 Refer/Shift/
+Time/Volunteer, S7 Affiliate/Approve/Book, S8 Customer/Desk/Event,
+S9 Expense/Feedback/Field, S10 Grant/Hire/Leave, S11 Loyalty/Mail/
+Maintain, S12 Propose/Purchase/Reception (substantial vocabulary:
+breadcrumbs/modals/tables/cards; see deviation note); full-replan
+era — S13 Invoice, S14 Member, S15 Rent, S16 Board/Do/Trade/Table/
+Report, S17 Chat/Creative, S19 Decide/Discover/Enrich, S20 Gallery/
+Inbox/Knowledge, S21 Sync/Workbench, S22 Check/Learn/Onboard, S23
+Stats/Success + examples/TeamTasks.can + examples/ExpenseFlow.can;
+S18 allowlist fixup. Batch-A rework (Trade/Report/Do/Table/Board +
+Onboard/Check/Learn/Stats/Success) + reference-examples rework:
+COMPLETE — all 10 apps + 2 example files fully replanned with
+faithful witnesses (brief L19/L37 rework bar met).
+SHARED: draft/shared/{Employees,Locations,Suppliers}.can end with
+bare `Then` (no pages) — no frontend, no-change verified.
+SHELL CONSISTENCY (verified main a4b52d5): 123 pages, 123 with
+breadcrumbs (100%); zero `shell navigation=` overrides, zero
+menu/navbar/dock/megamenu page-local shells, zero per-app login/
+config-dialog/user-menu rebuilds, zero raw HTML/CSS (Catch
+mockup_code is catalog code display). Shared right-sidebar shell
+implicit everywhere; no app rebuilds it.
+KNOWN DEVIATION (documented, not a defect): 14 badge-era apps
+(Catch/CRM/Refer/Shift/Time/Volunteer/Affiliate/Approve/Book/
+Customer/Desk/Event/Expense/Feedback) predate the replan census bar
+and lack empty= on ~120 collections (brief never required empty
+states; L1 parses all clean). Backfill = follow-up churn + witness
+parity risk; offered, not taken. All replan-era apps: 100%
+empty+pagination census.
+CONSOLIDATED HANDOFF to 05 (UI): array control; user/member-picker
+vocabulary; duration/money/datetime/currency scalar rendering;
+runtime-option + row-scoped + cross-app-authorized pickers; nested
+param paths (value.*); preference-bound tabs; timeline-order
+vocabulary (renderer-implicit); renderers for gallery/chat-bubble/
+progress(+radial)/loading/range/label/validator/modal/timeline/
+hero/metrics/fab/board/collapse/diff/divider/footer/join/tooltip/
+steps/stat/countdown. All witnesses are desired/unimplemented
+(labeled). To 01 (compiler): form-param binding, steps-row model,
+op-name resolve in analysis (Then E2001s, spec-legal source);
+golden parse clean since #111. Pairs+gaps live per-slice in this
+file + PR bodies #43-#114.
+
 ## Slice 23: full replans Stats/Success/examples (branch muse/frontend-catalog-migration/slice-23-mb-stats-success-examples, in progress)
 
 Paths: draft/Can{Stats,Success} (.can+.md+.mjs) + examples/TeamTasks.
