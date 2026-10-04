@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "This review concerns an unimplemented Can language sketch for notifying someone about physical post held at a workspace. Postal dispatch and financial recovery are outside the decision. The established obligations are authorized staff action, up-to-date verified contact identity, observable failures/uncertainty, and retry deduplication. Its typed mail interface offers send alone: an authored email lookup/reconcile call does not exist. Internal delivery retries preserve both frozen message bytes/destination and the original identity; issuing send again creates another intent. An app can observe a protected receipt's ID, status, result and safe error but cannot read back its request. A timeout/unknown may follow acceptance; a failed typed response can likewise occur after a real send. Neither safe error field establishes absence of effects. Skipped denotes work never dispatched because it became ineligible or superseded. Succeeded establishes provider acceptance, not human reading or physical collection. The present source keeps the latest receipt on an item, and only its matching success advances received to notified. A completed collection, forwarding preparation or return prevents another collection notice; an expired service does not by itself end rights concerning held property. All alternatives that issue a fresh notice must preserve the earlier receipt and a locked staff-only request record containing account, address and rendered content; admission and dispatch must check the exact current recipient/address, staff's location authority, held-item state and latest attempt. They record a reason and actor, do not spend/reset the automatic reminder count, and do not accept pending or succeeded as failure-recovery inputs. Repeating the same user operation replays its receipt. Reapplying a presently succeeded receipt to a still-received item can repair a missed domain callback without contacting a provider. Text supplied by staff is not verified transport evidence; none of the candidates adds a provider-status endpoint. Select a business policy for work left after normal automatic retry, under these same safeguards. This is design advice only, with no deployed engine or authorized live sends.",
+    "questions": {
+      "recovery_policy": {
+        "type": "choice",
+        "instructions": "Choose the most appropriate direction for a concrete source-and-target recovery example, considering operator usefulness, honest unknown outcomes, authoring cost, risk of another email and the missing mail reconciliation API. Do not treat the choice as semantic validation.",
+        "criteria": {
+          "runtime_only": "Limit the app to displaying delivery evidence and applying an already successful notice outcome. Deny replacement sends for all failed, uncertain and skipped recovery cases, relying on existing same-identity runtime attempts. This is the smallest domain policy and avoids staff-triggered duplication, while leaving exhausted or ambiguous cases without an app recovery route pending operational/provider tooling.",
+          "evidenced_resend": "Before a new transmission of the saved message, require a staff declaration that an external provider review found no acceptance; a never-dispatched skipped case only needs its recorded reason. Preserve and freshly observe the prior attempt. The process retains more review evidence but needs outside-system investigation, treats that declaration only as an attestation, and can stall when provider evidence is unavailable.",
+          "acknowledged_resend": "Offer a separately identified additional message for a failed or uncertain latest attempt when authorized staff states a reason and accepts possible duplication; a skipped attempt requires the reason without that acknowledgement. Preserve the original unresolved receipt and immutable request history. Ordinary effects suffice and staff can act, at the explicit cost of potentially repeating an email and retaining additional business records; the original delivery is neither replayed nor declared reconciled."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "recovery_policy": {
+        "type": "choice",
+        "choice": "runtime_only",
+        "confidence": 0.46,
+        "probabilities": {
+          "runtime_only": 0.64,
+          "acknowledged_resend": 0.34,
+          "evidenced_resend": 0.02
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 997,
+      "output_tokens": 52
+    }
+  }
+}
