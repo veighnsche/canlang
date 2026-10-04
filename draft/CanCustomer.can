@@ -7,7 +7,7 @@ app CustomerSales uses=[CanCustomer,CanCRM,CanBook,CanPropose,CanSuccess]
 # Own customer identities, company roles, billing profiles and reviewed aliases. @{nl="Beheer klantidentiteiten, bedrijfsrollen, factuurprofielen en beoordeelde aliassen."}
 package customer
  use rent_catalog {Location,test_site}
- use employee {can_work,test_worker}
+ use employee {Employee,can_work,test_worker}
  use invoice {finance}
  use std {EmailV1 as Mail} from=deployment.mail
  Given
@@ -18,7 +18,7 @@ package customer
   export Contact in Customer { name:text trim min=1, email:email, account:user? label=label_Contact_account, verified:bool=false label="Verified"@{nl="Geverifieerd"}, phone:text?, external_id:text? label="External identity"@{nl="Externe identiteit"} } label=label_Contact
   export BillingProfile in Customer { contact:Contact label=label_Contact, address:text, tax_reference:text? label="Tax reference"@{nl="Belastingreferentie"}, on_account:bool=false label="Approved on-account billing"@{nl="Facturatie op rekening goedgekeurd"}, approved_locations:Location[]=[] label="Approved locations"@{nl="Goedgekeurde locaties"}, approval_reason:text? label="Approval decision"@{nl="Goedkeuringsbesluit"}, approved_by:user? label="Finance decision by"@{nl="Financieel besluit door"}, approved_at:datetime? label="Finance decision at"@{nl="Financieel besluit op"} } label="Billing profile"@{nl="Factuurprofiel"}
   export CompanyRole in Customer { account:user label=label_Contact_account, role:enum(administrator,booker,billing) label={text=label_CompanyRole_role,values={administrator="Administrator"@{nl="Beheerder"},booker="Booker"@{nl="Boeker"},billing="Billing"@{nl="Facturatie"}}}, locations:Location[] label=label_Customer_locations, active:bool=true } label="Company role"@{nl="Bedrijfsrol"}
-  export Invitation in Customer { email:email, role:CompanyRole.role, locations:Location[] label=label_Customer_locations, expires:datetime label="Expires at"@{nl="Verloopt op"}, status:enum(open,accepted,expired,revoked)=open label={text="Status"@{nl="Status"},values={open="Open"@{nl="Open"},accepted="Accepted"@{nl="Geaccepteerd"},expired="Expired"@{nl="Verlopen"},revoked="Revoked"@{nl="Ingetrokken"}}}, accepted_by:user? label="Accepted by"@{nl="Geaccepteerd door"} } label=notice_company_invitation
+  export Invitation in Customer { invited_by:user server=actor label="Invited by"@{nl="Uitgenodigd door"}, email:email, role:CompanyRole.role, locations:Location[] label=label_Customer_locations, expires:datetime label="Expires at"@{nl="Verloopt op"}, status:enum(open,accepted,expired,revoked)=open label={text="Status"@{nl="Status"},values={open="Open"@{nl="Open"},accepted="Accepted"@{nl="Geaccepteerd"},expired="Expired"@{nl="Verlopen"},revoked="Revoked"@{nl="Ingetrokken"}}}, accepted_by:user? label="Accepted by"@{nl="Geaccepteerd door"} } label=notice_company_invitation
   export Alias { from_customer:Customer label="Source customer"@{nl="Bronklant"}, to_customer:Customer label=label_Alias_to_customer, reason:text, approved_by:user server=actor label="Approved by"@{nl="Goedgekeurd door"} } label="Reviewed customer alias"@{nl="Beoordeelde klantalias"}
   Reconciliation in Customer { account:user label=label_Contact_account, revision:int, state:enum(pending,applied,conflict)=pending label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In behandeling"},applied="Applied"@{nl="Toegepast"},conflict="Conflict"@{nl="Conflict"}}}, detail:text? label="Details"@{nl="Details"} } label="Access reconciliation"@{nl="Toegangsafstemming"}
   export event CompanyAccessChanged { customer:Customer, account:user?, revision:int }
@@ -51,13 +51,17 @@ package customer
   invariant CompanyRole: row.parent.kind==company
   invariant Alias: row.from_customer!=row.to_customer
   unique CompanyRole fields=account,role
+  lock Invitation fields=invited_by,email,role,locations,expires
   lock Alias fields=from_customer,to_customer,reason,approved_by
+  export fixture test_directory_manager=user {roles=[customer_manager]}
+  export fixture test_directory_employee=Employee {user=test_directory_manager,home=test_site,locations=[test_site],start=date("2026-10-01"),role="directory operator"}
   export fixture test_company=Customer {name="Example company",kind=company,locations=[test_site]}
   export fixture test_contact=Contact {parent=test_company,name="Example contact",email="customer@example.test",account=self,verified=true}
   export fixture test_admin=CompanyRole {parent=test_company,account=self,role=administrator,locations=[test_site]}
   export fixture test_billing=CompanyRole {parent=test_company,account=self,role=billing,locations=[test_site]}
   export fixture test_booker=CompanyRole {parent=test_company,account=other,role=booker,locations=[test_site]}
   fixture billing_profile=BillingProfile {parent=test_company,contact=test_contact,address="Example address"}
+  fixture company_invitation=Invitation {parent=test_company,email=actor.email,role=booker,locations=[test_site],expires=now+7d}
   fixture duplicate_company=Customer {name="Example company",kind=company,locations=[test_site]}
   fixture reviewed_alias=Alias {from_customer=duplicate_company,to_customer=test_company,reason="Reviewed duplicate"}
   preferences { kind:Customer.kind?, active:bool? }
@@ -72,6 +76,11 @@ package customer
   crud Customer by=customer_manager fields=name,locations,active create_fields=name,kind,locations when=customer_staff(actor,row)
   crud Contact by=customer_manager fields=name,email,phone,external_id when=customer_staff(actor,row.parent)
   crud BillingProfile by=customer_manager fields=contact,address,tax_reference when=customer_staff(actor,row.parent)
+  ## An edited email is a new identity claim; the previous proof/account is historical, not proof for the replacement.
+  scenario contact_email_changed on=Contact.update
+   do
+    if event.before.email!=event.after.email
+     set event.after {account=null,verified=false}
   # Find readable same-kind company candidates without merging identities. @{nl="Vind leesbare bedrijfskandidaten van dezelfde soort zonder identiteiten samen te voegen."}
   export scenario duplicate_customers(name:Customer.name,kind:Customer.kind) read=true -> Customer[] by=customer_manager
    do return Customer archived=include as candidate where candidate.kind==kind and lower(candidate.name)==lower(name)
@@ -105,9 +114,17 @@ package customer
   export scenario claim(contact:Contact) by=authenticated label="Claim own contact"@{nl="Eigen contact koppelen"}
    require actor.email_verified and contact.email==actor.email and contact.parent.active and contact.account==null
    do set contact {account=actor,verified=true}
+   examples seed=[test_directory_employee,test_contact]
+    do
+     call Contact.update {record=test_contact,changes={name="Updated contact",phone="+32000000000"}} by=test_directory_manager
+     test_contact.account,test_contact.verified -> self,true
+     call Contact.update {record=test_contact,changes={email="replacement@example.test"}} by=test_directory_manager
+     test_contact.account,test_contact.verified -> null,false
+     call claim {contact=test_contact} by=self -> error(not_found)
+     test_contact.account,test_contact.verified -> null,false
   # Invite a colleague to an explicit company role without creating a paid seat. @{nl="Nodig een collega uit voor een expliciete bedrijfsrol zonder een betaalde plaats aan te maken."}
   export scenario invite(org:Customer label=label_Customer_kind_company,email:email,role:CompanyRole.role label=label_CompanyRole_role,locations:Location[] label=label_Customer_locations) by=authenticated label="Invite company colleague"@{nl="Bedrijfscollega uitnodigen"}
-   require org.active and org.kind==company and has_role(actor,org,administrator)
+   require actor.email_verified and org.active and org.kind==company and has_role(actor,org,administrator)
    require all(locations as location,location in org.locations and has_location_role(actor,org,administrator,location))
    do
     create Invitation {parent=org,email,role,locations,expires=now+7d} as invitation
@@ -115,6 +132,7 @@ package customer
   # Accept an addressed, unexpired invitation using the current verified account. @{nl="Accepteer een gerichte, niet-verlopen uitnodiging met het huidige geverifieerde account."}
   export scenario accept(invitation:Invitation) by=authenticated label="Accept invitation"@{nl="Uitnodiging accepteren"}
    require actor.email_verified and invitation.email==actor.email and invitation.status==open and invitation.expires>now and invitation.parent.active
+   require has_role(invitation.invited_by,invitation.parent,administrator) and all(invitation.locations as location,location in invitation.parent.locations and has_location_role(invitation.invited_by,invitation.parent,administrator,location))
    require not any(invitation.parent.CompanyRole as grant,grant.account==actor and grant.role==invitation.role and grant.active)
    do
     let previous=first(invitation.parent.CompanyRole as grant where grant.account==actor and grant.role==invitation.role order=grant.id)
@@ -124,6 +142,15 @@ package customer
      set previous {active=true,locations=invitation.locations}
     set invitation {status=accepted,accepted_by=actor}
     emit CompanyAccessChanged {customer=invitation.parent,account=actor,revision=invitation.version+1}
+   examples seed=[test_admin] invitation=company_invitation
+    test_admin.active,invitation.status,invitation.expires -> invitation.status,count(test_company.CompanyRole as grant where grant.account==self and grant.role==booker and grant.active)
+    true,open,now+1d -> accepted,1
+    false,open,now+1d -> error(rule_failed)
+    true,accepted,now+1d -> error(rule_failed)
+    true,open,now -> error(rule_failed)
+   examples seed=[test_admin] invitation=company_invitation
+    test_admin.locations -> invitation.status
+    [] -> error(rule_failed)
   # Remove a company role now, preserving paid bookings and pending reconciliation. @{nl="Verwijder een bedrijfsrol direct met behoud van betaalde boekingen en wachtende afstemming."}
   export scenario remove(grant:CompanyRole label="Company role grant"@{nl="Bedrijfsroltoewijzing"}) by=authenticated label="Remove company role"@{nl="Bedrijfsrol verwijderen"}
    require grant.active and has_role(actor,grant.parent,administrator) and all(grant.locations as location,has_location_role(actor,grant.parent,administrator,location))
