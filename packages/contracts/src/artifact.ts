@@ -72,6 +72,14 @@ export interface ArtifactCallable {
   kind: "operation" | "pure" | "rule" | "handler" | "migration";
   module: string;
   export: string;
+  /**
+   * Path segments into the module's `canApp()` registry object
+   * (DESIGN §13). `["createNote"]` = top-level handler;
+   * `["read","Note.read.1"]` = rule-map entry. Non-empty; every
+   * segment a non-empty string. Exports stay identity consts; the
+   * registry holds implementations — this is the linkage between them.
+   */
+  member: string[];
 }
 
 /**
