@@ -1,0 +1,1 @@
+Syntax-only projection, not original grammar/type acceptance. Omits the full judgment declaration and four sequence suites; removes page polling; replaces delivery association types with text. Blank lines preserve source positions. All other text is retained.

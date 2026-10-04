@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "A typed business-language draft already has source-declared judgments containing NOUL, fixed-choice and ordered-score questions. One declaration derives its bound evaluate(state) interface, literal types, saved specification, full distributions and usage; ordinary asynchronous capabilities, immutable records, delivery receipts and human operations also exist. A new company process-change review needs an LLM to return a typed draft summary and one to eight proposed alternatives from retained evidence. Staff must correct or approve that draft before an explicit evaluation. The same frozen revision must feed fixed evidence-sufficiency and feasibility questions plus a choice among the approved proposals and company-authored none/need-more-information escapes. Proposal IDs must be unique and stable within a revision, bounds enforced without truncation, and returned selections/probabilities checked against exactly that request set. A later revision cannot inherit an earlier selection. Text generation is untrusted evidence transformation; neither generator nor judgment authorizes business execution. TypeSafe documents per-request state and a questions map with choice criteria, selected option, full probability map and confidence. Ollama documents schema-constrained structured output requiring application validation. There is no implementation compatibility requirement. Assess total company authoring and shared semantics for the same workflow, including current permissions, missing/unknown outcomes, provenance and review.",
+    "questions": {
+      "representation": {
+        "type": "choice",
+        "instructions": "Which representation best serves these required mixed fixed-question and changing-candidate evaluations?",
+        "criteria": {
+          "extended": "Extend the existing judgment declaration with a runtime-options choice form while keeping NOUL/score instructions and escape choices source-owned. Derive one closed per-question options input for its existing evaluate operation. Dynamic choices use validated string IDs; unchanged static choices retain literal enums. Freeze the supplied sets with the declaration and validate all result IDs/distributions against that same request. This reuses evaluation machinery but adds typing and request-correlation rules to the declaration.",
+          "capability": "Add a shared standard evaluation capability accepting state, a source-frozen judgment specification and explicit candidate sets, with shared typed answers. Keep the existing declaration for fixed classifiers. Apps bind both questions and results to their immutable review revision using normal records and sends. This needs no new judgment syntax and can reuse normalized schemas, but provides another evaluation entry point and more explicit association of named question answers.",
+          "runtime_spec": "Allow a complete runtime judgment specification as an input to the existing evaluation system, rather than a special dynamic-choice member. Source defaults supply the fixed questions; the reviewed request supplies the final mixed question and option set. Shared validation freezes every specification component and returns generic typed answers. This covers changing questions as well as options, at the cost of broader validation, losing literal types for that interface and reviewing more mutable instructions."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "representation": {
+        "type": "choice",
+        "choice": "extended",
+        "confidence": 0.73,
+        "probabilities": {
+          "runtime_spec": 0.07,
+          "capability": 0.11,
+          "extended": 0.82
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 842,
+      "output_tokens": 41
+    }
+  }
+}

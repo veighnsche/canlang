@@ -1,0 +1,69 @@
+# CanDecide — generated alternatives, reviewed evidence, one judgment
+
+2026-10-04. Accepted draft runtime-choice contract; root owns shared contract adoption. No compiler, provider, renderer or example engine is implemented. The actual triplet is `draft/CanDecide.{can,md,mjs}`; source, desired target and inline expectations are drafts, not executed behavior.
+
+## Company workflow
+
+An operations team considers changing its purchase-request process. Staff retain bounded source notes (current steps, measured delays, stakeholder constraints) and an explicit decision objective. A typed LLM synthesis proposes a state summary, assumptions, information gaps and zero to eight concrete alternatives. These are derived claims, not verified facts. A reviewer compares them with the retained inputs, corrects them if necessary, and freezes an attributed review revision. A separate explicit action sends that exact state and approved alternatives to one judgment: evidence adequacy (NOUL), whole-brief decision readiness under a fixed ordered rubric (score), and the best change (choice with runtime candidates and fixed `none`/`need_more_info` exits). The full result is retained, never only its winner. A human records the actual decision and rationale; no judgment executes the change.
+
+Each new synthesis/review has fresh immutable identity. A selection/result belongs only to its reviewed revision; regeneration cannot substitute new options beneath old probabilities or final decisions. Pending/failed/unknown provider work remains evidence rather than an empty successful choice. Cancellation suppresses undispatched work and later application to the selected revision; it never claims to cancel accepted inference. Input, revision, generation/evaluation count and output-token caps bound this app. It has no browsing or arbitrary tool executor.
+
+## Verified provider facts and fair alternatives
+
+[TypeSafe Choice](https://docs.typesafe.ai/primitives/choice) takes request-local state and a question map whose criteria map contains the option names/descriptions; it returns the selected name, every option's probability and confidence. Therefore dynamic candidates do not require another provider primitive. Its documented capacity is larger than Can's existing portable profile; retain Can's 26-total-option ceiling. [Ollama structured outputs](https://docs.ollama.com/capabilities/structured-outputs) supports a supplied JSON Schema; that does not establish factual truth or replace application validation. The proposed synthesizer derives its structured output schema from its owning result contract, not a JSON string field.
+
+Three fully rewritten equivalent briefs compared: (1) runtime-choice member in the existing judgment; (2) an ordinary shared evaluation capability beside static judgments; (3) an entirely runtime mixed-question specification. All used the same fixed NOUL/score plus variable-choice workflow, human review, strict option validation and evidence duties. Full requests/responses are saved in `../jev/complex-decide-20261004/`.
+
+| Request | Existing judgment extension | Shared capability | Runtime full specification | Confidence |
+|---|---:|---:|---:|---:|
+| 1 | .82 | .11 | .07 | .73 |
+| 2 | .87 | .10 | .03 | .80 |
+| 3 | .78 | .15 | .07 | .67 |
+
+There is no winning-option disagreement. The third wording leaves material .15 probability for the shared capability and lower confidence: that alternative avoids grammar work and is viable if runtime questions themselves become the requirement. Here the fixed source-owned question set remains required, so a second evaluator would add interface/result matching without serving a different function. A fully runtime spec allows more variation than this workflow needs and loses the static types of unchanged questions. These are design judgments, not empirical correctness/token/performance proof. The first ordinary sandbox network call failed without a request result; the same request then completed through normal approved escalation. No rejected private export was retried or rerouted.
+
+## Runtime-choice contract
+
+Extend just the existing choice child with `options=runtime` with an optional authored option map:
+
+```can
+export judgment ChangeReview version=1
+ evidence noul "Does the reviewed evidence adequately support comparing these changes?" yes="Sources support the material claims and constraints" no="Important claims remain unverified or inconsistent"
+ readiness score "How ready is this complete evidence brief for a human decision?" [incomplete="Material sources or constraints are missing",provisional="The alternatives can be compared but important assumptions remain",ready="The source evidence and constraints support a reasoned human decision"]
+ pick choice "Which change best meets the objective with supported benefit, acceptable effort and reversibility? Choose an escape when no candidate is justified." options=runtime {none="Keep the current process; none of the proposed changes is justified",need_more_info="Obtain missing evidence before selecting a change"}
+contract Synthesis {state:text trim min=1 max=12000,choices:ChangeReview.options.pick! max=8}
+```
+
+The unchanged static forms preserve existing semantics. A provided authored map must be nonempty; omitting the map is valid. Authored choices are ordinary fixed options, not mandatory language escape cases. CanDecide deliberately supplies two escapes as company policy. The declaration derives `ChangeReview.pick.option` as `{id:text,description:text}` with the same criterion length bound and IDs matching Can NAME, 1–80 scalars. Authored fixed IDs within a runtime question must satisfy the same NAME-compatible 1–80-scalar ID restriction; static enum declaration names are unchanged. It derives the closed `ChangeReview.options` contract with one required array field for each runtime question, here `pick:ChangeReview.pick.option[]!`; per-question runtime length is `max(0,2 - authored_count)` through `26 - authored_count`. Source static options remain literal enum types. `ChangeReview.pick.choice` resolves to the bounded text ID type, **not a fabricated enum containing model-produced names**. Every result option key uses that type.
+
+For a judgment containing runtime choices, the sole generated operation becomes `evaluate(state:text,options:ChangeReview.options)->ChangeReview`. All fixed and runtime questions share this request and receipt. Questions evaluate independently: the score concerns readiness of the whole decision brief, not feasibility of the candidate selected by another question. Per-candidate feasibility scores would need separate explicitly identified evaluations and are outside this witness. No generic second evaluation operation is added. The compiler derives the options schema and result question shapes from the declaration once. LLM output and human correction inputs reuse `ChangeReview.options.pick`, the generated candidate-array field type, with receiving `!` and company `max=8`. Field-type reuse retains element bounds plus unique-ID, authored-ID disjointness and combined-count validation as value constraints; it does not copy defaults or authority. Element JSON Schema alone cannot establish those array constraints: the generated typed normalizer enforces them before accepting a provider result or input. No app copies ID/description DTOs.
+
+Each runtime array must have distinct IDs, disjoint from all authored IDs of that question. Combined fixed-plus-runtime option count must be 2–26; too few or over-capacity options reject before send; no truncation or deduplication changes meaning. The final options are authored entries in declaration order followed by provided entries in array order. Every question's captions and fixed rules stay in the source language. Runtime state/descriptions are untrusted data, never policy, tool names, source instructions or access grants. IDs are immutable within that approved revision; reuse in another revision does not relate results across revisions.
+
+A runtime declaration derives a pure `ChangeReview.specification(options:ChangeReview.options)->std.JudgmentSpec` function in place of the static declaration's parameterless `ChangeReview.specification` constant. It resolves and validates the same complete question union used by evaluate. Thus the retained normalized `JudgmentSpec` schema stays unchanged, with no missing criteria or app-specific specification wrapper. Its content revision covers the pinned declaration identity/version/source text and the exact ordered runtime IDs/descriptions. Static Inbox keeps its existing constant and evaluate(state) signature.
+
+The adapter validates the whole result against the actual frozen request: exact question/kind coverage, every and only option in each complete union once, finite normalized distributions and existing sum/maximum tolerance, exact fixed rubric descriptions/order/expectation, actual model/usage and specification revision. Unknown winners, missing/extra candidates, malformed/partial results and mismatched revision fail typed completion before an app callback. It must not turn invalid or low-information output into `none`; the model can legitimately select the explicit escape, and people remain free to disagree with any valid recommendation. No confidence threshold grants approval.
+
+## Desired JavaScript mapping
+
+The one judgment descriptor adds `runtime:true` to the dynamic choice question, retaining its existing authored `options:[{id,description}]`; static questions are unchanged. `appDefinition.judgments['decide.ChangeReview']` remains the only declaration metadata. References use `decide.ChangeReview.pick.option`, `decide.ChangeReview.options`, `decide.ChangeReview.pick.choice` and `decide.ChangeReview`.
+
+```js
+const options={pick:review.choices};
+const specification=judgmentSpecification(c,'decide.ChangeReview',options);
+const request=await send(c,'decide.Judge.evaluate',{state:review.state,options});
+```
+
+The existing helper receives a third argument only for a runtime declaration; a missing/extraneous options object fails checking. The adapter independently builds the same pinned specification and copies its verified revision into the normalized result. Ordinary associated delivery correlation, current permissions and lifetime checks remain in force; a text digest is not authority. The app stores immutable approved state, options and specification before sending and relates the returned assessment to that revision. Each generated response schema still uses the existing derived question probability/level element paths.
+
+## Required app/BDD boundaries
+
+The app must include a valid typed synthesizer receipt with generated state/options, a reviewed corrected snapshot, and a valid mixed judgment receipt with fixed NOUL/score plus complete dynamic-option distribution. An actual sequence should request synthesis, retain/review a supplied completed draft where supported by fixture semantics, explicitly evaluate, and record a human decision against that exact immutable review. Do not pretend a sequence mutates a provider receipt: preseeded completion witnesses and genuine user-call journeys have separate claims. Invalid candidate IDs/duplicates/collisions and mismatched judgment results fail typed setup/provider normalization; they cannot satisfy an ordinary business error. Valid stale/noncurrent review, revoked reviewer, pending/unknown result and changed selection are ordinary business guards with separately derived exact codes. Runtime adapter execution and dynamic grammar checking remain unimplemented.
+
+## Bounded independent review and application
+
+The independent primitive reviewer found one concrete mismatch: runtime choice fixed IDs longer than 80 scalars could be declared but not represented in the generated text result. The accepted catalog now rejects those IDs only within runtime questions. The review found no other contract blocker after optional-map and empty-candidate refinement; it did not execute runtime behavior or review this subsequently authored app body. Original consultation responses remain unchanged.
+
+The application uses associated results directly through `Draft.value` and `Review.result`; there are no pure receipt-copy callbacks. Human review freezes the particular original synthesis beside independently corrected state/options and the normalized specification. Human decide freezes the full valid judgment, decision, rationale, actor and time together. Those are immutable business evidence; they do not prolong the delivery receipt's own content lifetime. Missing/expired current results block new review/decision as appropriate while already captured evidence remains subject to its ordinary current record grants. The actual pending-send sequences and the preseeded completed-result human-decision sequence make separate claims.
+
+The independent app review identified two missing specification fences: evaluate now compares the current normalized specification for the approved options with the retained review specification before send; decide requires the available normalized result to carry that same retained revision before capture. Two examples use a valid differently normalized option-set specification to test these guards. They do not simulate a deployment or forge a provider result. Nullable result/judgment projections use safe access at each nullable hop. The unused review input was removed, nullable request error access corrected, and the desired target uses the canonical context-taking format helper. No other material app finding remained in that bounded review; it was source/target inspection, not execution.

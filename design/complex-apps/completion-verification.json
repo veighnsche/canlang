@@ -1,0 +1,59 @@
+{
+  "scope": "Completed draft-design goal: nine named complex apps plus the demonstrated CanDecide extension. Not executable application acceptance or completion of the historical migration.",
+  "checked_at": "2026-10-04T15:34:11.580917+00:00",
+  "app_count": 10,
+  "triplet_file_count": 30,
+  "original_nine": {
+    "evidence": "design/complex-apps/nine-app-verification.json",
+    "unchanged_reviewed_files": 27,
+    "hash_mismatches": []
+  },
+  "CanDecide": {
+    "independent_reviews": "Primitive and app source/target reviews complete; material repairs applied; writer released.",
+    "javascript_syntax": {
+      "command": "node --check draft/CanDecide.mjs",
+      "result": "pass"
+    },
+    "static_descriptors": {
+      "command": "node design/jev/complex-decide-20261004/check-descriptors.cjs",
+      "result": "pass",
+      "models": 3,
+      "scenarios": 5,
+      "operations": 7,
+      "fixtures": 8,
+      "tables": 6,
+      "rows": 16,
+      "sequences": 4
+    },
+    "source_check": "Saved supported-syntax projection passed. Full source is not accepted by the current prototype; projection omits judgment, sequences and polling and substitutes delivery types.",
+    "assessment": "design/jev/complex-decide-20261004/assessment.md",
+    "shared_contract": "design/complex-apps/decide.md#runtime-choice-contract",
+    "remaining_material_review_findings": [],
+    "sha256": {
+      "draft/CanDecide.can": "b0ec5091fd6cfbb88bbca0e07f7a32af36b2753c98ec90ef527ab84681cfad90",
+      "draft/CanDecide.md": "22035813710061c1418c27160b42c0f0a92cd5f9c4fcd52b3ecb6a6bc4e04e8b",
+      "draft/CanDecide.mjs": "4f7da931dc1ebeea283a14085e67e1d7245950a29986f30d9905449b13860e52",
+      "design/complex-apps/decide.md": "11bab179e854fa0219ab51f3c5bdfa4b992dbe10db02328563dc819478757aa0",
+      "design/complex-apps/inbox.md": "798a7d3e7a325669f68a6d014deffde88c7768e39f91074641353be9693a08d2",
+      "DESIGN.md": "469e0b69aff3aff3e0f9182efd0d213ac2b206ae690208bf57b7b8bd10294334",
+      "GRAMMAR.md": "ef75cf3425f5144074112b9c7b909ebcaebf83fed2c0e5262b5344b34ccb5c7c"
+    }
+  },
+  "acceptance": {
+    "requirements_source_and_desired_target": "Present for all ten apps; proposed imports remain explicit contracts.",
+    "business_workflows": "Company-specific permissions, bounded work, success/rejection/recovery, evidence and human decisions remain authored.",
+    "shared_mechanics": "Judgment including runtime choices, associated progress, typed full invocations, corpus and gallery have normative contracts and actual source/target witnesses.",
+    "ui_and_examples": "Shared shell/component contracts and inline translations; meaningful table and sequence expectations retained.",
+    "review": "Focused independent reviews and applied repairs, with named evidence and no unresolved material finding from their bounded scope.",
+    "ownership": "All focused creative writers/reviewers released their paths; final integration owned by root."
+  },
+  "unexecuted": [
+    "BDD and fixture provisioning",
+    "provider behavior and output normalization",
+    "rendered UI and authorization",
+    "concurrent permission/version fences",
+    "deployment and migration",
+    "performance"
+  ],
+  "limits": "Syntax and static correspondence are not runtime correctness, security or performance proof. Production implementation and the older migration remain separately owned."
+}
