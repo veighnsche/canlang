@@ -87,3 +87,9 @@ Return H012 Git/checkout ownership only after the commit containing H013 is publ
 ## H014 — RELEASE-REQUEST — 16:56 UTC scheduled synchronization
 
 H013 was published in a14cb32 and the previous synchronization verified matching main/origin and a clean checkout. Codex now requests Git index/commit/checkout ownership for the next scheduled normal merge/push. Verify zero active writers/reservations, record `RELEASED H014: git-index, commit and checkout integration ownership`, and hold mutations until H015 publication. No new work, workers or sessions; C01/C02 remain pending. Preserve the completed handoff and all other worktrees.
+
+## H015 — CONDITIONAL GIT-RETURN — 16:56 UTC sync publication
+
+H014 release was verified. Normal merge completed without conflicts; all 3 local coordination paths and 27 incoming paths match their committed blobs exactly. All 31 draft JavaScript files pass syntax checks. No app source resolution, implementation or other-worktree mutation was needed; C01/C02 remain pending.
+
+Return Git/checkout ownership only after the commit containing H015 is published on origin/main with no merge/rebase in progress. Verify publication before acknowledgment; hold all mutations until then. Retain the completed handoff awaiting concrete acceptance repairs, with no new work or sessions authorized. Codex ends integration mutations after verified publication. Preserve the attached viewer.
