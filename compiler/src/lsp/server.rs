@@ -3,9 +3,9 @@
 //! Handles `initialize`/`initialized`/`shutdown`/`exit`, document sync with
 //! version tracking, and `hover`/`completion`/`definition`/`references`/
 //! `rename`/`semanticTokens`/`codeAction` driven by the [`LanguageAnalysis`]
-//! trait. Depends only on transport plus the shared `diagnostic` and
-//! `source` types: it never touches syntax or analysis internals, so the
-//! sibling syntax agent's future CST API slots in behind the trait.
+//! trait. [`RealAnalysis`] implements the trait over the shared syntax,
+//! analysis, lint and IDE-query crates; [`StubAnalysis`] keeps the
+//! lifecycle tests hermetic with empty results.
 //!
 //! Version/staleness contract: `didOpen`/`didChange` enqueue one analysis
 //! task per document version; [`Server::pump`] publishes diagnostics only
@@ -13,14 +13,16 @@
 //! cancels stale ones. Diagnostics are therefore never published for an
 //! outdated buffer, and never for a closed one.
 //!
-//! Slice-2a status: [`StubAnalysis`] implements the trait with empty
-//! results. All positions use UTF-16 encoding; only full-text sync is
-//! honored (incremental `range` edits are ignored and documented).
+//! All positions use UTF-16 encoding; only full-text sync is honored
+//! (incremental `range` edits are ignored and documented).
 
+use crate::analysis::catalog::{CATALOG_ENV_VAR, Catalog, CatalogRequest, load_catalog};
 use crate::diagnostic::{Diagnostic, Severity};
+use crate::ide::{fixes, queries, tokens};
+use crate::lint::{DeprecatedSet, LintConfig, RuleSet, collect_fixes, lint_program};
 use crate::lsp::transport as t;
 use crate::lsp::transport::Json;
-use crate::source::{LineIndex, SourceDb, SourceId};
+use crate::source::{LineIndex, SourceDb, SourceId, Span};
 use std::collections::{HashMap, VecDeque};
 
 /// 0-based LSP position (UTF-16 code units).
@@ -105,20 +107,35 @@ pub struct TextEdit {
     pub new_text: String,
 }
 
+/// One file edit within a code action.
+#[derive(Debug, Clone)]
+pub struct FileEdit {
+    /// Document URI the range belongs to.
+    pub uri: String,
+    /// Range to replace.
+    pub range: LspRange,
+    /// Replacement text.
+    pub new_text: String,
+}
+
 /// One code action returned by analysis.
 #[derive(Debug, Clone)]
 pub struct CodeAction {
-    /// Human title, e.g. `Fix indentation`.
+    /// Human title, e.g. "Replace redundant markers".
     pub title: String,
     /// LSP kind, e.g. `quickfix`.
     pub kind: String,
+    /// File edits applied atomically; empty for actions without edits.
+    pub edits: Vec<FileEdit>,
 }
 
 /// Language callbacks behind every LSP data request.
 ///
 /// Each method receives the shared [`SourceDb`] plus the [`SourceId`] of the
-/// current document text, so future real implementations can run syntax and
-/// analysis without the server knowing their types. Positions are UTF-16.
+/// current document text, so backends run syntax and analysis without the
+/// server knowing their types. Positions are UTF-16. Location-returning
+/// methods also take the requesting document URI so single-file backends
+/// can attribute same-file spans without reversing the URI mapping.
 pub trait LanguageAnalysis {
     /// Full-document diagnostics for the current text.
     fn diagnostics(&self, db: &SourceDb, id: SourceId) -> Vec<Diagnostic>;
@@ -127,22 +144,28 @@ pub trait LanguageAnalysis {
     /// Completion items for a position.
     fn completions(&self, db: &SourceDb, id: SourceId, pos: TextPos) -> Vec<CompletionItem>;
     /// Go-to-definition targets for a position.
-    fn definition(&self, db: &SourceDb, id: SourceId, pos: TextPos) -> Vec<DocLocation>;
+    fn definition(&self, db: &SourceDb, id: SourceId, uri: &str, pos: TextPos) -> Vec<DocLocation>;
     /// Reference locations for a position.
-    fn references(&self, db: &SourceDb, id: SourceId, pos: TextPos) -> Vec<DocLocation>;
+    fn references(&self, db: &SourceDb, id: SourceId, uri: &str, pos: TextPos) -> Vec<DocLocation>;
     /// Rename edits for a position and new name.
     fn rename(&self, db: &SourceDb, id: SourceId, pos: TextPos, new_name: &str) -> Vec<TextEdit>;
     /// Raw semantic-token data array (`[line, col, len, type, mods, ...]`).
     fn semantic_tokens(&self, db: &SourceDb, id: SourceId) -> Vec<u32>;
     /// Code actions for a range.
-    fn code_actions(&self, db: &SourceDb, id: SourceId, range: LspRange) -> Vec<CodeAction>;
+    fn code_actions(
+        &self,
+        db: &SourceDb,
+        id: SourceId,
+        uri: &str,
+        range: LspRange,
+    ) -> Vec<CodeAction>;
 }
 
-/// Slice-2a analysis: empty results, documented as unimplemented.
+/// Hermetic analysis for lifecycle tests: empty results.
 ///
-/// Every method returns "no data" (empty vec / `None`); real analysis lands
-/// in later slices. The server treats these as legitimate empty answers,
-/// never as errors.
+/// Every method returns "no data" (empty vec / `None`); the server treats
+/// these as legitimate empty answers, never as errors. Production serving
+/// uses [`RealAnalysis`].
 #[derive(Debug, Default)]
 pub struct StubAnalysis;
 
@@ -156,10 +179,22 @@ impl LanguageAnalysis for StubAnalysis {
     fn completions(&self, _db: &SourceDb, _id: SourceId, _pos: TextPos) -> Vec<CompletionItem> {
         Vec::new()
     }
-    fn definition(&self, _db: &SourceDb, _id: SourceId, _pos: TextPos) -> Vec<DocLocation> {
+    fn definition(
+        &self,
+        _db: &SourceDb,
+        _id: SourceId,
+        _uri: &str,
+        _pos: TextPos,
+    ) -> Vec<DocLocation> {
         Vec::new()
     }
-    fn references(&self, _db: &SourceDb, _id: SourceId, _pos: TextPos) -> Vec<DocLocation> {
+    fn references(
+        &self,
+        _db: &SourceDb,
+        _id: SourceId,
+        _uri: &str,
+        _pos: TextPos,
+    ) -> Vec<DocLocation> {
         Vec::new()
     }
     fn rename(
@@ -174,8 +209,312 @@ impl LanguageAnalysis for StubAnalysis {
     fn semantic_tokens(&self, _db: &SourceDb, _id: SourceId) -> Vec<u32> {
         Vec::new()
     }
-    fn code_actions(&self, _db: &SourceDb, _id: SourceId, _range: LspRange) -> Vec<CodeAction> {
+    fn code_actions(
+        &self,
+        _db: &SourceDb,
+        _id: SourceId,
+        _uri: &str,
+        _range: LspRange,
+    ) -> Vec<CodeAction> {
         Vec::new()
+    }
+}
+
+/// Production analysis: parse plus name/type analysis, lint findings and
+/// IDE queries over the current document text.
+///
+/// Diagnostics merge analysis errors with lint warnings/information for
+/// the requested document only (the lint driver scans the whole session
+/// database, so other files' findings are filtered out). Queries run on
+/// a single-document [`queries::Snapshot`]; cross-file references are
+/// not tracked.
+#[derive(Debug, Default)]
+pub struct RealAnalysis {
+    catalog: Option<Catalog>,
+    /// Catalog load diagnostics, re-anchored to each document on read.
+    catalog_diags: Vec<Diagnostic>,
+}
+
+impl RealAnalysis {
+    /// Backend with an explicit catalog (`None` means builtins do not
+    /// resolve; each use is `E2001`).
+    pub fn new(catalog: Option<Catalog>) -> Self {
+        Self {
+            catalog,
+            catalog_diags: Vec::new(),
+        }
+    }
+
+    /// Backend loading the producer catalog from process state (the
+    /// `CAN_CATALOG` value plus the `./` candidates, as in the CLI). A
+    /// load failure is reported per document as the loader's diagnostic,
+    /// re-anchored to that document's start.
+    pub fn from_process() -> Self {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let request = CatalogRequest {
+            flag: None,
+            env: std::env::var(CATALOG_ENV_VAR).ok(),
+            cwd: &cwd,
+            primary: Span::new(SourceId(0), 0, 0),
+        };
+        let (catalog, catalog_diags) = load_catalog(&request);
+        Self {
+            catalog,
+            catalog_diags,
+        }
+    }
+
+    /// Analyze one document.
+    fn snapshot<'a>(&'a self, db: &'a SourceDb, id: SourceId) -> queries::Snapshot<'a> {
+        queries::Snapshot::analyze(db, id, self.catalog.as_ref())
+    }
+
+    /// Lint configuration: recommended rules with catalog deprecation
+    /// data when a catalog is available.
+    fn lint_config(&self, fix: bool) -> LintConfig {
+        LintConfig {
+            enabled: RuleSet::recommended(),
+            fix,
+            deprecated: self.catalog.as_ref().map(DeprecatedSet::from_catalog),
+        }
+    }
+}
+
+impl LanguageAnalysis for RealAnalysis {
+    fn diagnostics(&self, db: &SourceDb, id: SourceId) -> Vec<Diagnostic> {
+        // Deliberate divergence from `can lint`: the CLI suppresses
+        // lint findings while analysis errors report (one signal per
+        // run), but an editor buffer is always mid-edit, so the server
+        // merges both — errors and lint findings side by side.
+        let snapshot = self.snapshot(db, id);
+        let mut diagnostics: Vec<Diagnostic> = snapshot.diagnostics().to_vec();
+        for mut diagnostic in self.catalog_diags.clone() {
+            diagnostic.primary.file = id;
+            diagnostics.push(diagnostic);
+        }
+        diagnostics.extend(
+            lint_program(snapshot.program(), db, &self.lint_config(false))
+                .into_iter()
+                .filter(|d| d.primary.file == id),
+        );
+        diagnostics.sort_by(|a, b| {
+            (
+                a.primary.file,
+                a.primary.start,
+                a.primary.end,
+                a.code,
+                &a.message,
+            )
+                .cmp(&(
+                    b.primary.file,
+                    b.primary.start,
+                    b.primary.end,
+                    b.code,
+                    &b.message,
+                ))
+        });
+        diagnostics
+    }
+
+    fn hover(&self, db: &SourceDb, id: SourceId, pos: TextPos) -> Option<String> {
+        let snapshot = self.snapshot(db, id);
+        let offset = queries::offset_at_position(snapshot.text(), pos.line, pos.character)?;
+        snapshot.hover_at(offset).map(|h| h.markdown)
+    }
+
+    fn completions(&self, db: &SourceDb, id: SourceId, pos: TextPos) -> Vec<CompletionItem> {
+        let snapshot = self.snapshot(db, id);
+        let Some(offset) = queries::offset_at_position(snapshot.text(), pos.line, pos.character)
+        else {
+            return Vec::new();
+        };
+        snapshot
+            .completions_at(offset)
+            .into_iter()
+            .map(|item| CompletionItem {
+                label: item.label,
+                kind: Some(item.kind.to_string()),
+            })
+            .collect()
+    }
+
+    fn definition(&self, db: &SourceDb, id: SourceId, uri: &str, pos: TextPos) -> Vec<DocLocation> {
+        let snapshot = self.snapshot(db, id);
+        let text = snapshot.text();
+        let index = LineIndex::new(text);
+        let Some(offset) = queries::offset_at_position(text, pos.line, pos.character) else {
+            return Vec::new();
+        };
+        snapshot
+            .definition_at(offset)
+            .into_iter()
+            .filter(|span| span.file == id)
+            .map(|span| DocLocation {
+                uri: uri.to_string(),
+                range: span_to_range(&index, text, span),
+            })
+            .collect()
+    }
+
+    fn references(&self, db: &SourceDb, id: SourceId, uri: &str, pos: TextPos) -> Vec<DocLocation> {
+        let snapshot = self.snapshot(db, id);
+        let text = snapshot.text();
+        let index = LineIndex::new(text);
+        let Some(offset) = queries::offset_at_position(text, pos.line, pos.character) else {
+            return Vec::new();
+        };
+        snapshot
+            .references_at(offset)
+            .into_iter()
+            .filter(|span| span.file == id)
+            .map(|span| DocLocation {
+                uri: uri.to_string(),
+                range: span_to_range(&index, text, span),
+            })
+            .collect()
+    }
+
+    fn rename(&self, db: &SourceDb, id: SourceId, pos: TextPos, new_name: &str) -> Vec<TextEdit> {
+        if !is_valid_name(new_name) {
+            return Vec::new();
+        }
+        let snapshot = self.snapshot(db, id);
+        let text = snapshot.text();
+        let Some(offset) = queries::offset_at_position(text, pos.line, pos.character) else {
+            return Vec::new();
+        };
+        let Some(rename) = snapshot.rename_at(offset) else {
+            return Vec::new();
+        };
+        if rename.sha256 != snapshot.sha256() {
+            return Vec::new();
+        }
+        let index = LineIndex::new(text);
+        rename
+            .spans
+            .into_iter()
+            .filter(|span| span.file == id)
+            .map(|span| TextEdit {
+                range: span_to_range(&index, text, span),
+                new_text: new_name.to_string(),
+            })
+            .collect()
+    }
+
+    fn semantic_tokens(&self, db: &SourceDb, id: SourceId) -> Vec<u32> {
+        let snapshot = self.snapshot(db, id);
+        tokens::semantic_tokens(&snapshot)
+    }
+
+    fn code_actions(
+        &self,
+        db: &SourceDb,
+        id: SourceId,
+        uri: &str,
+        range: LspRange,
+    ) -> Vec<CodeAction> {
+        let snapshot = self.snapshot(db, id);
+        let text = snapshot.text();
+        let Some(start) =
+            queries::offset_at_position(text, range.start.line, range.start.character)
+        else {
+            return Vec::new();
+        };
+        let Some(end) = queries::offset_at_position(text, range.end.line, range.end.character)
+        else {
+            return Vec::new();
+        };
+        let index = LineIndex::new(text);
+        let sha = snapshot.sha256().to_string();
+        let mut actions = Vec::new();
+        // Analysis-diagnostic fixes (none ship today; the mapping stays
+        // so the first real one flows without server changes).
+        for diagnostic in snapshot.diagnostics() {
+            if diagnostic.primary.file != id || !span_overlaps(diagnostic.primary, start, end) {
+                continue;
+            }
+            for fix in fixes::fixes_for(diagnostic, &sha) {
+                actions.push(diagnostic_fix_to_action(uri, &index, text, &fix));
+            }
+        }
+        // Lint safe fixes overlapping the range.
+        for lint_fix in collect_fixes(snapshot.program(), db, &self.lint_config(true)) {
+            if lint_fix.file != id
+                || lint_fix.expected_sha256 != sha
+                || !span_overlaps(lint_fix.span, start, end)
+            {
+                continue;
+            }
+            let fix = fixes::from_lint_fix(&lint_fix);
+            actions.push(diagnostic_fix_to_action(uri, &index, text, &fix));
+        }
+        actions
+    }
+}
+
+/// Convert a byte span to an LSP range (UTF-16).
+fn span_to_range(index: &LineIndex, text: &str, span: Span) -> LspRange {
+    let (start_line, start_char) = index.to_lsp(text, span.start, true);
+    let (end_line, end_char) = index.to_lsp(text, span.end, true);
+    LspRange {
+        start: TextPos {
+            line: start_line,
+            character: start_char,
+        },
+        end: TextPos {
+            line: end_line,
+            character: end_char,
+        },
+    }
+}
+
+/// Whether a byte span overlaps `[start, end)` (or contains the cursor
+/// when the range is empty).
+fn span_overlaps(span: Span, start: u32, end: u32) -> bool {
+    if start >= end {
+        span.start <= start && start < span.end
+    } else {
+        span.start < end && start < span.end
+    }
+}
+
+/// Whether `name` is a valid Can identifier (ASCII `NAME` token).
+fn is_valid_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// Map one IDE fix to a wire code action (edits verified against the
+/// live text hash before responding).
+fn diagnostic_fix_to_action(
+    uri: &str,
+    index: &LineIndex,
+    text: &str,
+    fix: &fixes::DiagnosticFix,
+) -> CodeAction {
+    // `SourceId(0)` below discards the edit's file id: safe only
+    // because callers pre-filter fixes to this same file. Multi-file
+    // fixes must thread the real id through instead.
+    let edits = if crate::source::sha256_hex(text.as_bytes()) == fix.expected_sha256 {
+        fix.edits
+            .iter()
+            .map(|edit| FileEdit {
+                uri: uri.to_string(),
+                range: span_to_range(index, text, Span::new(SourceId(0), edit.start, edit.end)),
+                new_text: edit.new_text.clone(),
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    CodeAction {
+        title: fix.title.clone(),
+        kind: fix.kind.to_string(),
+        edits,
     }
 }
 
@@ -335,26 +674,46 @@ impl<A: LanguageAnalysis> Server<A> {
                     .collect();
                 Json::Arr(items)
             }),
-            "textDocument/definition" => self.with_pos(params, id, |server, doc_id, pos| {
-                Json::Arr(
-                    server
-                        .analysis
-                        .definition(&server.db, doc_id, pos)
-                        .into_iter()
-                        .map(location_json)
-                        .collect(),
-                )
-            }),
-            "textDocument/references" => self.with_pos(params, id, |server, doc_id, pos| {
-                Json::Arr(
-                    server
-                        .analysis
-                        .references(&server.db, doc_id, pos)
-                        .into_iter()
-                        .map(location_json)
-                        .collect(),
-                )
-            }),
+            "textDocument/definition" => {
+                let target = parse_pos_request(params)
+                    .and_then(|(uri, pos)| self.doc_id(&uri).map(|doc| (uri, doc, pos)));
+                match target {
+                    Some((uri, doc_id, pos)) => {
+                        let locations: Vec<Json> = self
+                            .analysis
+                            .definition(&self.db, doc_id, &uri, pos)
+                            .into_iter()
+                            .map(location_json)
+                            .collect();
+                        t::response_ok(id, Json::Arr(locations))
+                    }
+                    None => t::response_err(
+                        Some(id),
+                        t::error_code::INVALID_PARAMS,
+                        "unknown document or bad position",
+                    ),
+                }
+            }
+            "textDocument/references" => {
+                let target = parse_pos_request(params)
+                    .and_then(|(uri, pos)| self.doc_id(&uri).map(|doc| (uri, doc, pos)));
+                match target {
+                    Some((uri, doc_id, pos)) => {
+                        let locations: Vec<Json> = self
+                            .analysis
+                            .references(&self.db, doc_id, &uri, pos)
+                            .into_iter()
+                            .map(location_json)
+                            .collect();
+                        t::response_ok(id, Json::Arr(locations))
+                    }
+                    None => t::response_err(
+                        Some(id),
+                        t::error_code::INVALID_PARAMS,
+                        "unknown document or bad position",
+                    ),
+                }
+            }
             "textDocument/rename" => {
                 let rename = parse_pos_request(params).and_then(|(_, pos)| {
                     params
@@ -418,19 +777,14 @@ impl<A: LanguageAnalysis> Server<A> {
                 match doc_of(params).and_then(|uri| {
                     let doc_id = self.doc_id(&uri)?;
                     let range = params.get("range").and_then(parse_range)?;
-                    Some((doc_id, range))
+                    Some((uri, doc_id, range))
                 }) {
-                    Some((doc_id, range)) => {
+                    Some((uri, doc_id, range)) => {
                         let actions: Vec<Json> = self
                             .analysis
-                            .code_actions(&self.db, doc_id, range)
+                            .code_actions(&self.db, doc_id, &uri, range)
                             .into_iter()
-                            .map(|action| {
-                                Json::Obj(vec![
-                                    ("title".to_string(), Json::Str(action.title)),
-                                    ("kind".to_string(), Json::Str(action.kind)),
-                                ])
-                            })
+                            .map(code_action_json)
                             .collect();
                         t::response_ok(id, Json::Arr(actions))
                     }
@@ -588,6 +942,12 @@ impl<A: LanguageAnalysis> Server<A> {
 }
 
 fn capabilities() -> Json {
+    // The semantic-tokens legend is the single source of truth in
+    // `ide::tokens`; every other provider below is backed by a passing
+    // capability test in `tests/ide.rs`.
+    let (token_types, token_modifiers) = tokens::legend();
+    let token_types: Vec<Json> = token_types.into_iter().map(Json::Str).collect();
+    let token_modifiers: Vec<Json> = token_modifiers.into_iter().map(Json::Str).collect();
     Json::Obj(vec![
         (
             "capabilities".to_string(),
@@ -608,8 +968,8 @@ fn capabilities() -> Json {
                         (
                             "legend".to_string(),
                             Json::Obj(vec![
-                                ("tokenTypes".to_string(), Json::Arr(vec![])),
-                                ("tokenModifiers".to_string(), Json::Arr(vec![])),
+                                ("tokenTypes".to_string(), Json::Arr(token_types)),
+                                ("tokenModifiers".to_string(), Json::Arr(token_modifiers)),
                             ]),
                         ),
                         ("full".to_string(), Json::Bool(true)),
@@ -718,6 +1078,51 @@ fn location_json(location: DocLocation) -> Json {
     ])
 }
 
+/// Serialize one code action, with a `documentChanges` edit when the
+/// action carries edits.
+fn code_action_json(action: CodeAction) -> Json {
+    let mut members = vec![
+        ("title".to_string(), Json::Str(action.title)),
+        ("kind".to_string(), Json::Str(action.kind)),
+    ];
+    if !action.edits.is_empty() {
+        // Edits group by URI so one action can touch several files.
+        let mut by_uri: Vec<(String, Vec<&FileEdit>)> = Vec::new();
+        for edit in &action.edits {
+            match by_uri.iter_mut().find(|(uri, _)| *uri == edit.uri) {
+                Some((_, edits)) => edits.push(edit),
+                None => by_uri.push((edit.uri.clone(), vec![edit])),
+            }
+        }
+        let changes: Vec<Json> = by_uri
+            .into_iter()
+            .map(|(uri, edits)| {
+                let file_edits: Vec<Json> = edits
+                    .into_iter()
+                    .map(|edit| {
+                        Json::Obj(vec![
+                            ("range".to_string(), range_json(edit.range)),
+                            ("newText".to_string(), Json::Str(edit.new_text.clone())),
+                        ])
+                    })
+                    .collect();
+                Json::Obj(vec![
+                    (
+                        "textDocument".to_string(),
+                        Json::Obj(vec![("uri".to_string(), Json::Str(uri))]),
+                    ),
+                    ("edits".to_string(), Json::Arr(file_edits)),
+                ])
+            })
+            .collect();
+        members.push((
+            "edit".to_string(),
+            Json::Obj(vec![("documentChanges".to_string(), Json::Arr(changes))]),
+        ));
+    }
+    Json::Obj(members)
+}
+
 fn doc_of(params: &Json) -> Option<String> {
     params
         .get("textDocument")
@@ -797,7 +1202,7 @@ fn hex_val(byte: u8) -> Option<u8> {
     }
 }
 
-/// Serve LSP over stdio with stub analysis until the real backend lands.
+/// Serve LSP over stdio with the production analysis backend.
 pub fn run_stdio() -> i32 {
     use std::io::{BufReader, BufWriter};
 
@@ -805,7 +1210,7 @@ pub fn run_stdio() -> i32 {
     let stdout = std::io::stdout();
     let mut reader = BufReader::new(stdin.lock());
     let mut writer = BufWriter::new(stdout.lock());
-    let mut server = Server::new(StubAnalysis);
+    let mut server = Server::new(RealAnalysis::from_process());
 
     loop {
         let body = match t::read_message(&mut reader) {
@@ -981,10 +1386,22 @@ mod tests {
                 },
             ]
         }
-        fn definition(&self, _db: &SourceDb, _id: SourceId, _pos: TextPos) -> Vec<DocLocation> {
+        fn definition(
+            &self,
+            _db: &SourceDb,
+            _id: SourceId,
+            _uri: &str,
+            _pos: TextPos,
+        ) -> Vec<DocLocation> {
             Vec::new()
         }
-        fn references(&self, _db: &SourceDb, _id: SourceId, _pos: TextPos) -> Vec<DocLocation> {
+        fn references(
+            &self,
+            _db: &SourceDb,
+            _id: SourceId,
+            _uri: &str,
+            _pos: TextPos,
+        ) -> Vec<DocLocation> {
             Vec::new()
         }
         fn rename(
@@ -999,7 +1416,13 @@ mod tests {
         fn semantic_tokens(&self, _db: &SourceDb, _id: SourceId) -> Vec<u32> {
             Vec::new()
         }
-        fn code_actions(&self, _db: &SourceDb, _id: SourceId, _range: LspRange) -> Vec<CodeAction> {
+        fn code_actions(
+            &self,
+            _db: &SourceDb,
+            _id: SourceId,
+            _uri: &str,
+            _range: LspRange,
+        ) -> Vec<CodeAction> {
             Vec::new()
         }
     }

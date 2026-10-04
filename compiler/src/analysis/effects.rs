@@ -2819,6 +2819,10 @@ impl<'a> Cx<'a> {
             descriptions: Vec::new(),
         };
         let prev_checks = self.checks_on;
+        // NOTE (E4030/W1001 boundary): checks stay off for migration
+        // bodies, so after-`return` in a backfill is diagnosed nowhere
+        // (E4030 off here, W1001 stands down after `return`
+        // everywhere). Pre-existing; narrowing it is follow-up work.
         self.checks_on = false;
         for child in parts {
             match child.kind {

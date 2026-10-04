@@ -12,15 +12,18 @@
 //! `lsp` returns [`DispatchResult::run_lsp`] for [`run`] to serve and
 //! `run|test|build|deploy` spawn the lane-7 producer as a side effect.
 //!
-//! Analysis status (PR6): `check`/`lint` load sources and run the
+//! Analysis status (PR7): `check` loads sources and runs the
 //! [`Analyzer`] hook, whose default implementation is [`CatalogAnalyzer`]
 //! (full pipeline over the producer catalog, `complete=true` via the
-//! [`check::readiness`] gate). `compile` additionally runs the
-//! `codegen` emitter over the checked program and prints the artifact.
-//! [`StubAnalyzer`] remains as the deterministic empty backend behind
-//! the [`dispatch_with`] test seam (diagnostics only: it keeps no
-//! checked program, so `compile` under it reports `E7001`); this module
-//! never fabricates diagnostics to look busy.
+//! [`check::readiness`] gate). `lint` runs the same analysis, then the
+//! [`lint`](crate::lint) driver over the checked program (warnings only,
+//! never blocking). `compile` additionally runs the `codegen` emitter
+//! over the checked program and prints the artifact. `fmt` formats via
+//! the lossless CST ([`format`](crate::format)). [`StubAnalyzer`]
+//! remains as the deterministic empty backend behind the
+//! [`dispatch_with`] test seam (diagnostics only: it keeps no checked
+//! program, so `compile` and `lint` under it report `E7001`); this
+//! module never fabricates diagnostics to look busy.
 
 use crate::analysis::catalog::{CATALOG_ENV_VAR, CatalogRequest, load_catalog};
 use crate::diagnostic::DiagnosticResult;
@@ -226,9 +229,11 @@ fn write_ignoring_broken_pipe(mut sink: impl std::io::Write, bytes: &[u8], name:
     }
 }
 
-/// Dispatch without touching real stdio (see module docs for the two
-/// documented side effects: none here for `lsp`, child spawn for thin
-/// lane-7 entries). Analysis runs the production [`CatalogAnalyzer`].
+/// Dispatch without touching real stdout/stderr (file reads happen
+/// here, as do the `fmt` stdin read and in-place writes when operands
+/// request them; the module docs cover the remaining side effects:
+/// none here for `lsp`, child spawn for thin lane-7 entries).
+/// Analysis runs the production [`CatalogAnalyzer`].
 pub fn dispatch(argv: &[String]) -> DispatchResult {
     // Pre-parse for the `--catalog` flag only (`parse_args` is pure, and
     // `dispatch_with` parses again authoritatively; on a parse error the
@@ -276,7 +281,8 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
         return DispatchResult::ok_stdout(global_help());
     };
     match cmd.as_str() {
-        "check" | "lint" => run_check_like(cmd, &parsed.operands, parsed.format, analyzer),
+        "check" => run_check_like(cmd, &parsed.operands, parsed.format, analyzer),
+        "lint" => run_lint(&parsed.operands, parsed.format, analyzer),
         "compile" => run_compile(&parsed.operands, parsed.format, analyzer),
         "fmt" => {
             if parsed.format_set {
@@ -485,8 +491,8 @@ Usage: can <COMMAND> [OPTIONS] [ARGS...]
 Commands:
   compile   Analyze sources and emit the compile artifact
   check     Analyze sources and report diagnostics
-  lint      Run lint rules over sources (rules land in slice 2b)
-  fmt       Check formatting (unimplemented: reports E7005, never false clean)
+  lint      Run lint rules over sources (warnings only, never blocks)
+  fmt       Format sources in place (or check with --check)
   explain   Print a diagnostic catalog entry: can explain E1001
   lsp       Run the language server over stdio (Content-Length JSON-RPC)
   run       Thin lane-7 entry: exec can-platform run (passthrough)
@@ -509,12 +515,15 @@ Exit codes: 0 clean, 10 errors reported, 2 tool failure.
 
 fn command_help(cmd: &str) -> String {
     match cmd {
-        "check" | "lint" => format!(
+        "check" => format!(
             "can {cmd} — analyze sources and report diagnostics (full pipeline over the producer catalog; result is complete=true)\n\nUsage: can {cmd} [--format=json|text] [--catalog=PATH] FILE.can...\n\nCatalog order: --catalog PATH, CAN_CATALOG, ./can-catalog.json, ./packages/values/dist/catalog.json (emit it with `npm run catalog` in packages/values). Without a catalog, builtin names do not resolve.\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n"
+        ),
+        "lint" => format!(
+            "can {cmd} — analyze sources, then run lint rules over the checked program (recommended rules; warnings/informational only, never blocking)\n\nUsage: can {cmd} [--format=json|text] [--catalog=PATH] FILE.can...\n\nAnalysis errors report diagnostics with exit 10 and no lint findings. On a clean analysis the lint findings print as the diagnostic envelope (exit 0: warnings never block).\n\nExit codes: 0 findings-or-clean, 10 analysis errors reported, 2 tool failure.\n"
         ),
         "compile" => "can compile — analyze sources and emit the compile artifact\n\nUsage: can compile [--format=json|text] [--catalog=PATH] FILE.can...\n\nText lists one emitted module path per line; json prints the artifact envelope. Analysis or emission errors (E6006/E6007/E6008) report diagnostics instead of an artifact.\n\nExit codes: 0 emitted, 10 errors reported, 2 tool failure.\n".to_string(),
         "explain" => "can explain — print a diagnostic catalog entry\n\nUsage: can explain [--format=json|text] CODE\n\nExit codes: 0 printed, 2 unknown code (E7003) or bad usage.\n".to_string(),
-        "fmt" => "can fmt — check formatting (slice 2a: unimplemented)\n\nUsage: can fmt [--check] FILE.can...\n\nAlways reports E7005 until the slice-2b formatter lands; never a false clean.\n".to_string(),
+        "fmt" => "can fmt — format sources canonically\n\nUsage: can fmt [--check] [FILE.can...|-]\n\nFormats each file in place, writing only files that change. With no operands, or `-`, reads stdin and writes the formatted text to stdout. `--check` writes nothing and lists the files that differ instead. Parse failures print the machine-JSON diagnostic envelope on stdout and write nothing. Exit codes: 0 clean, 10 errors or differences reported, 2 tool failure.\n".to_string(),
         "lsp" => "can lsp — run the language server over stdio\n\nUsage: can lsp\n\nSpeaks Content-Length JSON-RPC; see the transport module docs.\n".to_string(),
         "run" | "test" | "build" | "deploy" => format!(
             "can {cmd} — thin lane-7 entry (passthrough to can-platform)\n\nUsage: can {cmd} [ARGS...]\n\nExecs `can-platform {cmd}` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can {cmd} --help` asks the platform tool; use\n`can --help {cmd}` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n"
@@ -689,19 +698,192 @@ fn run_explain(operands: &[String], format: OutputFormat) -> DispatchResult {
     }
 }
 
-fn run_fmt(operands: &[String], _check: bool) -> DispatchResult {
+/// One formatter input: a file (written back in place) or stdin (`dest`
+/// is `None`, rendered to stdout).
+struct FmtInput {
+    /// Display name: the operand path, or `<stdin>`.
+    name: String,
+    /// Input text as read.
+    text: String,
+    /// Where formatted output goes in write mode (`None` means stdout).
+    dest: Option<PathBuf>,
+}
+
+fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
+    let mut inputs = Vec::new();
+    // No operands formats the stdin filter, mirroring rustfmt/gofmt.
+    let resolved: Vec<&str> = if operands.is_empty() {
+        vec!["-"]
+    } else {
+        operands.iter().map(String::as_str).collect()
+    };
+    let mut stdin_used = false;
+    for operand in resolved {
+        if operand == "-" {
+            if stdin_used {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "duplicate `-` (stdin) operand".to_string(),
+                );
+            }
+            stdin_used = true;
+            match std::io::read_to_string(std::io::stdin()) {
+                Ok(text) => inputs.push(FmtInput {
+                    name: "<stdin>".to_string(),
+                    text,
+                    dest: None,
+                }),
+                Err(err) => {
+                    return DispatchResult::tool_error(
+                        "E7002",
+                        format!("cannot read '<stdin>': {err}"),
+                    );
+                }
+            }
+            continue;
+        }
+        match std::fs::read_to_string(operand) {
+            Ok(text) => inputs.push(FmtInput {
+                name: operand.to_string(),
+                text,
+                dest: Some(PathBuf::from(operand)),
+            }),
+            Err(err) => {
+                return DispatchResult::tool_error(
+                    "E7002",
+                    format!("cannot read '{operand}': {err}"),
+                );
+            }
+        }
+    }
+    // Format everything before writing anything: a parse failure anywhere
+    // reports the aggregated envelope and leaves every file untouched.
+    let mut db = SourceDb::new();
+    let mut outputs: Vec<String> = Vec::with_capacity(inputs.len());
+    let mut result = DiagnosticResult::new(
+        tool_version(),
+        crate::LANGUAGE_VERSION,
+        crate::SCHEMA_VERSION,
+    );
+    for input in &inputs {
+        let id = db.add(input.name.clone(), input.text.clone());
+        match crate::format::format_source(id, &input.text) {
+            Ok(formatted) => outputs.push(formatted.text),
+            Err(error) => {
+                outputs.push(String::new());
+                for diagnostic in error.diagnostics {
+                    result.push(diagnostic);
+                }
+            }
+        }
+    }
+    if result.has_errors() {
+        result.add_sources(&db);
+        result.finish();
+        return DispatchResult {
+            code: exit::DIAGNOSTICS,
+            stdout: format!("{}\n", result.to_json()),
+            stderr: String::new(),
+            run_lsp: false,
+        };
+    }
+    if check {
+        let mut differing = Vec::new();
+        for (input, output) in inputs.iter().zip(outputs.iter()) {
+            if *output != input.text {
+                differing.push(input.name.clone());
+            }
+        }
+        if differing.is_empty() {
+            return DispatchResult::ok_stdout(String::new());
+        }
+        return DispatchResult {
+            code: exit::DIAGNOSTICS,
+            stdout: format!("{}\n", differing.join("\n")),
+            stderr: String::new(),
+            run_lsp: false,
+        };
+    }
+    // Sequential writes: a failure aborts with E7007, leaving earlier
+    // files already rewritten (atomic rename hardening is future work).
+    let mut stdout = String::new();
+    for (input, output) in inputs.iter().zip(outputs.iter()) {
+        match &input.dest {
+            None => stdout.push_str(output),
+            Some(path) => {
+                if *output != input.text
+                    && let Err(err) = std::fs::write(path, output)
+                {
+                    return DispatchResult::tool_error(
+                        "E7007",
+                        format!("cannot write '{}': {err}", path.display()),
+                    );
+                }
+            }
+        }
+    }
+    DispatchResult::ok_stdout(stdout)
+}
+
+/// `can lint`: full analysis, then the lint driver over the checked
+/// program. Operand and input failures follow [`run_check_like`]
+/// (`E7001`/`E7002`, exit 2). Analysis errors exit 10 with diagnostics
+/// and no lint findings (one signal per run; the LSP server merges
+/// both instead, since editor buffers are always mid-edit). On a
+/// clean analysis the lint findings (recommended rules;
+/// warnings/informational only) print as the diagnostic envelope
+/// with exit 0 — warnings never block.
+fn run_lint(operands: &[String], format: OutputFormat, analyzer: &dyn Analyzer) -> DispatchResult {
     if operands.is_empty() {
         return DispatchResult::tool_error(
             "E7001",
-            "can fmt expects at least one FILE.can operand".to_string(),
+            "can lint expects at least one FILE.can operand".to_string(),
         );
     }
-    // Stub reports unimplemented (E7005), never a false clean.
-    DispatchResult::tool_error(
-        "E7005",
-        "formatter not implemented in slice 2a (needs the lossless CST); refusing to claim clean"
-            .to_string(),
-    )
+    let mut db = SourceDb::new();
+    for path in operands {
+        let text = match std::fs::read_to_string(path) {
+            Ok(text) => text,
+            Err(err) => {
+                return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
+            }
+        };
+        db.add(path.clone(), text);
+    }
+    let owned = analyzer.analyze_owned(&db, tool_version());
+    let mut result = owned.result;
+    result.finish();
+    if result.has_errors() {
+        return emit_diagnostics(&result, &db, format);
+    }
+    let Some(program) = owned.program else {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can lint needs a pipeline analyzer; this backend keeps no checked program (production dispatch always passes one)".to_string(),
+        );
+    };
+    let config = crate::lint::LintConfig {
+        enabled: crate::lint::RuleSet::recommended(),
+        fix: false,
+        deprecated: owned
+            .catalog
+            .as_ref()
+            .map(crate::lint::DeprecatedSet::from_catalog),
+    };
+    for finding in crate::lint::lint_program(&program, &db, &config) {
+        result.push(finding);
+    }
+    result.finish();
+    let stdout = match format {
+        OutputFormat::Json => format!("{}\n", result.to_json()),
+        OutputFormat::Text => result.to_text(&db),
+    };
+    DispatchResult {
+        code: exit::OK,
+        stdout,
+        stderr: String::new(),
+        run_lsp: false,
+    }
 }
 
 /// Thin lane-7 entry: exec the platform producer with argument passthrough.
