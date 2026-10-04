@@ -45,8 +45,13 @@ function js(source: string): string {
   return `data:text/javascript,${encodeURIComponent(source)}`;
 }
 
-function callable(id: string, module: string, name: string): ArtifactCallable {
-  return { id, kind: "operation", module, export: name };
+function callable(
+  id: string,
+  module: string,
+  name: string,
+  member: string[] = [name],
+): ArtifactCallable {
+  return { id, kind: "operation", module, export: name, member };
 }
 
 describe("invokeCallable (B1 op-execution path)", () => {
@@ -75,30 +80,84 @@ describe("invokeCallable (B1 op-execution path)", () => {
     expect(result.error ?? "").toContain("a.b");
   });
 
-  it("missing export errors naming the export", async () => {
+  it("module without canApp() errors naming module + callable (no mod[export] fallback)", async () => {
+    // The old shape exported implementations directly; the registry shape
+    // keeps exports as identity consts. A direct function export must NOT
+    // be picked up — resolution goes through canApp() + member only.
     const artifact = artifactWith([callable("a.b", "main.js", "create")]);
     const result = await invokeCallable(
-      asmWith({ "main.js": js("export const other = 1;") }),
+      asmWith({ "main.js": js("export function create(ctx) { return 1; }") }),
       artifact,
       "a.b",
       testCtx(),
     );
     expect(result.ok).toBe(false);
-    expect(result.error ?? "").toContain("create");
+    expect(result.error ?? "").toContain("canApp()");
     expect(result.error ?? "").toContain("main.js");
+    expect(result.error ?? "").toContain("a.b");
   });
 
-  it("identity-const export (real compiler shape) errors naming the kind gap", async () => {
+  it("identity-const export + canApp() registry resolves via member (real compiler shape)", async () => {
     // DESIGN 1075: canonical operation exports are qualified identity
     // constants; implementations live in the canApp() registry. The
-    // artifact carries no registry-member linkage yet, so invoking the
-    // const export must fail loud — never call a string, never guess.
-    const artifact = artifactWith([callable("TeamNotes.Note.create", "main.js", "TeamNotes_create")]);
+    // artifact's member path is the linkage between them.
+    const artifact = artifactWith([
+      callable("TeamNotes.Note.create", "main.js", "TeamNotes_create", ["createNote"]),
+    ]);
+    const asm = asmWith({
+      "main.js": js(
+        'export const TeamNotes_create = "TeamNotes.Note.create";' +
+          "export function canApp(){ return { async createNote(ctx, ...args){ return { ctx, args }; } }; }",
+      ),
+    });
+    const ctx = testCtx();
+    const result = await invokeCallable(asm, artifact, "TeamNotes.Note.create", ctx, [1, "two"]);
+    expect(result.ok).toBe(true);
+    const value = result.value as { ctx: unknown; args: unknown[] };
+    expect(value.ctx).toBe(ctx);
+    expect(value.args).toEqual([1, "two"]);
+  });
+
+  it("nested member path resolves through registry maps (dotted rule keys)", async () => {
+    const artifact = artifactWith([
+      callable("app.Note.read", "main.js", "app_read_Note", ["read", "Note.read.1"]),
+    ]);
+    const asm = asmWith({
+      "main.js": js(
+        "export function canApp(){ return { read: { 'Note.read.1': async (ctx, input) => ({ input }) } }; }",
+      ),
+    });
+    const result = await invokeCallable(asm, artifact, "app.Note.read", testCtx(), [{ q: 1 }]);
+    expect(result).toEqual({ ok: true, value: { input: { q: 1 } } });
+  });
+
+  it("missing member segment fails loud naming id + full path + segment", async () => {
+    const artifact = artifactWith([
+      callable("app.Note.read", "main.js", "app_read_Note", ["read", "Note.read.9"]),
+    ]);
+    const result = await invokeCallable(
+      asmWith({
+        "main.js": js("export function canApp(){ return { read: {} }; }"),
+      }),
+      artifact,
+      "app.Note.read",
+      testCtx(),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error ?? "").toContain("app.Note.read");
+    expect(result.error ?? "").toContain('["read","Note.read.9"]');
+    expect(result.error ?? "").toContain('missing segment 1 "Note.read.9"');
+  });
+
+  it("non-function member segment fails loud naming id + full path + segment", async () => {
+    const artifact = artifactWith([
+      callable("TeamNotes.Note.create", "main.js", "TeamNotes_create", ["createNote"]),
+    ]);
     const result = await invokeCallable(
       asmWith({
         "main.js": js(
           'export const TeamNotes_create = "TeamNotes.Note.create";' +
-            "export function canApp(){ return { async createNote(){ return 1; } }; }",
+            'export function canApp(){ return { createNote: "TeamNotes.Note.create" }; }',
         ),
       }),
       artifact,
@@ -106,14 +165,30 @@ describe("invokeCallable (B1 op-execution path)", () => {
       testCtx(),
     );
     expect(result.ok).toBe(false);
-    expect(result.error ?? "").toContain("TeamNotes_create");
-    expect(result.error ?? "").toContain("string, not a function");
+    expect(result.error ?? "").toContain("TeamNotes.Note.create");
+    expect(result.error ?? "").toContain('["createNote"]');
+    expect(result.error ?? "").toContain('segment 0 "createNote" is string, not a function');
+  });
+
+  it("empty member path fails loud with the recompile hint", async () => {
+    const artifact = artifactWith([callable("a.b", "main.js", "create", [])]);
+    const result = await invokeCallable(
+      asmWith({ "main.js": js("export function canApp(){ return {}; }") }),
+      artifact,
+      "a.b",
+      testCtx(),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error ?? "").toContain("a.b");
+    expect(result.error ?? "").toContain("recompile with the fixed `can compile`");
   });
 
   it("success calls fn(ctx, ...args) and returns its value", async () => {
     const artifact = artifactWith([callable("a.b", "main.js", "create")]);
     const asm = asmWith({
-      "main.js": js("export function create(ctx, ...args) { return { ctx, args }; }"),
+      "main.js": js(
+        "export function canApp(){ return { create: (ctx, ...args) => ({ ctx, args }) }; }",
+      ),
     });
     const ctx = testCtx();
     const result = await invokeCallable(asm, artifact, "a.b", ctx, [1, "two"]);
@@ -123,19 +198,12 @@ describe("invokeCallable (B1 op-execution path)", () => {
     expect(value.args).toEqual([1, "two"]);
   });
 
-  it("export 'default' calls the default export (async included)", async () => {
-    const artifact = artifactWith([callable("a.b", "main.js", "default")]);
-    const asm = asmWith({
-      "main.js": js("export default async function (ctx, ...args) { return args.length; }"),
-    });
-    const result = await invokeCallable(asm, artifact, "a.b", testCtx(), ["x", "y"]);
-    expect(result).toEqual({ ok: true, value: 2 });
-  });
-
   it("handler throw becomes { ok: false, error: message }", async () => {
     const artifact = artifactWith([callable("a.b", "main.js", "boom")]);
     const asm = asmWith({
-      "main.js": js('export function boom() { throw new Error("boom"); }'),
+      "main.js": js(
+        "export function canApp(){ return { boom: () => { throw new Error(\"boom\"); } }; }",
+      ),
     });
     const result = await invokeCallable(asm, artifact, "a.b", testCtx());
     expect(result).toEqual({ ok: false, error: "boom" });
@@ -143,7 +211,9 @@ describe("invokeCallable (B1 op-execution path)", () => {
 
   it("non-Error throw stringifies into error", async () => {
     const artifact = artifactWith([callable("a.b", "main.js", "boom")]);
-    const asm = asmWith({ "main.js": js('export function boom() { throw "str-fail"; }') });
+    const asm = asmWith({
+      "main.js": js('export function canApp(){ return { boom: () => { throw "str-fail"; } }; }'),
+    });
     const result = await invokeCallable(asm, artifact, "a.b", testCtx());
     expect(result).toEqual({ ok: false, error: "str-fail" });
   });

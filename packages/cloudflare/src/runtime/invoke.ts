@@ -26,10 +26,15 @@ function message(error: unknown): string {
 }
 
 /**
- * Invoke callable `id` as `fn(ctx, ...args)` where `fn` is the callable's
- * `export` binding of its assembled module (`"default"` selects the
- * default export). Never throws: import and handler failures are
- * returned as `{ ok: false, error }`.
+ * Invoke callable `id` as `fn(ctx, ...args)` where `fn` is resolved through
+ * the module's `canApp()` registry object (DESIGN §13): import the
+ * callable's module, call its `canApp()` export once, then walk the
+ * callable's `member` path segments into the returned registry and require
+ * a function at the end. Module `export` bindings are identity consts
+ * (strings), never implementations — there is deliberately NO fallback to
+ * `mod[export]`. Never throws: every resolution and handler failure is
+ * returned as `{ ok: false, error }`, naming the callable id, the full
+ * member path, and which segment failed.
  */
 export async function invokeCallable(
   asm: AssembledModules,
@@ -68,25 +73,78 @@ export async function invokeCallable(
         `for callable ${JSON.stringify(id)}: ${message(error)}`,
     };
   }
-  const key = callable.export === "default" ? "default" : callable.export;
-  const fn = mod[key];
-  if (typeof fn !== "function") {
-    const reason =
-      fn === undefined
-        ? `has no export ${JSON.stringify(key)}`
-        : `export ${JSON.stringify(key)} is ${typeof fn}, not a function`;
+  const member: unknown = callable.member;
+  if (
+    !Array.isArray(member) ||
+    member.length === 0 ||
+    !member.every((segment) => typeof segment === "string" && segment.length > 0)
+  ) {
     return {
       ok: false,
       error:
-        `module ${JSON.stringify(callable.module)} ${reason} ` +
-        `for callable ${JSON.stringify(id)}`,
+        `callable ${JSON.stringify(id)} has no valid registry member path ` +
+        `(member must be a non-empty array of non-empty strings); ` +
+        "recompile with the fixed `can compile`",
     };
   }
+  const segments = member as string[];
+  const path = JSON.stringify(segments);
+  const canApp: unknown = mod["canApp"];
+  if (typeof canApp !== "function") {
+    return {
+      ok: false,
+      error:
+        `module ${JSON.stringify(callable.module)} has no canApp() registry ` +
+        `for callable ${JSON.stringify(id)} (member path ${path})`,
+    };
+  }
+  let current: unknown;
   try {
-    const value = await (fn as (ctx: HandlerContext, ...args: unknown[]) => unknown)(
-      ctx,
-      ...(args ?? []),
-    );
+    current = (canApp as () => unknown)();
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        `module ${JSON.stringify(callable.module)} canApp() threw ` +
+        `for callable ${JSON.stringify(id)} (member path ${path}): ${message(error)}`,
+    };
+  }
+  for (const [index, segment] of segments.entries()) {
+    if (typeof current !== "object" || current === null) {
+      const parent = index === 0 ? "canApp() registry" : `segment ${index - 1} value`;
+      const actual = current === null ? "null" : typeof current;
+      return {
+        ok: false,
+        error:
+          `callable ${JSON.stringify(id)} member path ${path}: ` +
+          `cannot resolve segment ${index} ${JSON.stringify(segment)} ` +
+          `(${parent} is ${actual}, not an object)`,
+      };
+    }
+    const next: unknown = (current as Record<string, unknown>)[segment];
+    if (next === undefined) {
+      return {
+        ok: false,
+        error:
+          `callable ${JSON.stringify(id)} member path ${path}: ` +
+          `missing segment ${index} ${JSON.stringify(segment)}`,
+      };
+    }
+    const last = index === segments.length - 1;
+    if (last && typeof next !== "function") {
+      const actual = next === null ? "null" : typeof next;
+      return {
+        ok: false,
+        error:
+          `callable ${JSON.stringify(id)} member path ${path}: ` +
+          `segment ${index} ${JSON.stringify(segment)} is ${actual}, not a function`,
+      };
+    }
+    current = next;
+  }
+  const fn = current as (ctx: HandlerContext, ...args: unknown[]) => unknown;
+  try {
+    const value = await fn(ctx, ...(args ?? []));
     return { ok: true, value };
   } catch (error) {
     return { ok: false, error: message(error) };

@@ -221,6 +221,18 @@ function assertArtifactCompatible(artifact: CompileArtifact): void {
         `assembly: unknown callable kind ${JSON.stringify(callable.kind)} for ${JSON.stringify(callable.id)}`,
       );
     }
+    const member: unknown = callable.member;
+    if (
+      !Array.isArray(member) ||
+      member.length === 0 ||
+      !member.every((segment) => typeof segment === "string" && segment.length > 0)
+    ) {
+      throw new Error(
+        `assembly: callable ${JSON.stringify(callable.id)} has no valid member path ` +
+          `(non-empty array of non-empty strings into canApp()); ` +
+          "recompile with the fixed `can compile`",
+      );
+    }
   }
   for (const requirement of artifact.requires) {
     if (typeof requirement.capability !== "string" || requirement.capability.length === 0) {

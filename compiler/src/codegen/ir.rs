@@ -2885,6 +2885,8 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
         IrExpr::Array(items) => items.iter().any(expr_uses_async),
         IrExpr::Object(entries) => entries.iter().any(|(_, v)| expr_uses_async(v)),
         IrExpr::Query(query) => {
+            // A query always awaits its `records()` call now; the
+            // sub-expression checks stay OR-ed for nested async.
             query.parent.as_ref().is_some_and(|p| expr_uses_async(p))
                 || query
                     .where_pred
@@ -2892,6 +2894,7 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
                     .is_some_and(|p| expr_uses_async(p))
                 || query.limit.as_ref().is_some_and(|p| expr_uses_async(p))
                 || query.archived.as_ref().is_some_and(|p| expr_uses_async(p))
+                || true
         }
         IrExpr::Message(message) => message.params.iter().any(|p| expr_uses_async(&p.value)),
         IrExpr::Format { descriptor, .. } => expr_uses_async(descriptor),
@@ -4820,13 +4823,15 @@ impl<'a> Cx<'a> {
                 )
             })
             .copied();
+        let mut operation_target: Option<SymbolId> = None;
         if let Some(target) = target
-            && let Some(operation) = self.decode_operation_ref(scope.module, target)
+            && let Some(op) = self.resolve_operation_target(scope.module, target)
         {
+            operation_target = Some(op);
             props.push((
                 "operation".to_string(),
                 TypedExpr::new(
-                    IrExpr::Text(operation),
+                    IrExpr::Text(self.canonical(op)),
                     ResolvedType::Scalar(Scalar::Text),
                     target.span,
                 ),
@@ -4880,6 +4885,35 @@ impl<'a> Cx<'a> {
                 _ => {}
             }
         }
+        // Absent `fields=` defaults from the resolved target op (explicit
+        // wins; unresolvable targets keep no prop and stay loud in ui).
+        let has_fields = props.iter().any(|(name, _)| name == "fields");
+        if !has_fields
+            && let Some(op) = operation_target
+            && let Some(defaults) = self.default_form_fields(op)
+            && !defaults.is_empty()
+        {
+            let span = target.map(|t| t.span).unwrap_or(node.span);
+            props.push((
+                "fields".to_string(),
+                TypedExpr::new(
+                    IrExpr::Array(
+                        defaults
+                            .iter()
+                            .map(|f| {
+                                TypedExpr::new(
+                                    IrExpr::Text(f.clone()),
+                                    ResolvedType::Scalar(Scalar::Text),
+                                    span,
+                                )
+                            })
+                            .collect(),
+                    ),
+                    ResolvedType::Unknown,
+                    span,
+                ),
+            ));
+        }
         let children = self.decode_ui_children(scope, node, row_ctx);
         Some(IrUi {
             factory: "form".to_string(),
@@ -4893,6 +4927,13 @@ impl<'a> Cx<'a> {
     /// Resolve a `Model.op`/`scenario` operation reference to its
     /// canonical identity (total).
     fn decode_operation_ref(&mut self, module: ModuleId, node: &SyntaxNode) -> Option<String> {
+        self.resolve_operation_target(module, node)
+            .map(|id| self.canonical(id))
+    }
+
+    /// Resolve a `Model.op`/`scenario`/`Cap.op` operation reference to
+    /// its target symbol (`None` when unresolvable).
+    fn resolve_operation_target(&self, module: ModuleId, node: &SyntaxNode) -> Option<SymbolId> {
         match node.kind {
             SyntaxKind::Member => {
                 let parts = kids(node);
@@ -4909,17 +4950,15 @@ impl<'a> Cx<'a> {
                     "delete" => CrudOp::Delete,
                     _ => {
                         // Capability operations (`Cap.op`).
-                        let id = self.capability_op(module, &base_name, &op)?;
-                        return Some(self.canonical(id));
+                        return self.capability_op(module, &base_name, &op);
                     }
                 };
-                let id = self.program.symbols.iter().find_map(|s| match &s.kind {
+                self.program.symbols.iter().find_map(|s| match &s.kind {
                     SymbolKind::CrudOp { model: m, op: o } if *m == model && *o == crud_op => {
                         Some(s.id)
                     }
                     _ => None,
-                })?;
-                Some(self.canonical(id))
+                })
             }
             SyntaxKind::NameRef | SyntaxKind::Path => {
                 let name = match node.kind {
@@ -4928,9 +4967,57 @@ impl<'a> Cx<'a> {
                 };
                 let (id, _) = self.resolve_member(module, &name)?;
                 match self.program.symbols.get(id.0 as usize).map(|s| &s.kind) {
-                    Some(SymbolKind::Scenario { .. }) => Some(self.canonical(id)),
+                    Some(SymbolKind::Scenario { .. }) => Some(id),
                     _ => None,
                 }
+            }
+            _ => None,
+        }
+    }
+
+    /// Default `fields` for a form whose `fields=` attribute is absent:
+    /// create/update CRUD ops default to the target model's stored field
+    /// names in schema order (derived fields are computed, never inputs);
+    /// scenarios with inputs default to their parameter names. Delete ops,
+    /// capability ops and unknown targets stay loud (no default).
+    fn default_form_fields(&self, op: SymbolId) -> Option<Vec<String>> {
+        match &self.program.symbols.get(op.0 as usize)?.kind {
+            SymbolKind::CrudOp { model, op } => match op {
+                CrudOp::Create | CrudOp::Update => {
+                    let fields = match &self.program.symbols.get(model.0 as usize)?.kind {
+                        SymbolKind::Model { fields, .. } => fields.clone(),
+                        _ => return None,
+                    };
+                    Some(
+                        fields
+                            .iter()
+                            .filter_map(|id| {
+                                let field = self.program.symbols.get(id.0 as usize)?;
+                                match &field.kind {
+                                    SymbolKind::Field { .. } => Some(field.name.clone()),
+                                    _ => None,
+                                }
+                            })
+                            .collect(),
+                    )
+                }
+                CrudOp::Delete => None,
+            },
+            SymbolKind::Scenario { params, .. } => {
+                if params.is_empty() {
+                    return None;
+                }
+                Some(
+                    params
+                        .iter()
+                        .filter_map(|id| {
+                            self.program
+                                .symbols
+                                .get(id.0 as usize)
+                                .map(|symbol| symbol.name.clone())
+                        })
+                        .collect(),
+                )
             }
             _ => None,
         }

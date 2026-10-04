@@ -43,6 +43,7 @@ use canlang_compiler::analysis::check_program;
 use canlang_compiler::codegen::artifact::{self, CompileArtifact};
 use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
 use canlang_compiler::diagnostic::{Diagnostic, DiagnosticResult, Severity};
+use canlang_compiler::json::Json;
 use canlang_compiler::source::{SourceDb, Span};
 use canlang_compiler::{LANGUAGE_VERSION, SCHEMA_VERSION};
 use std::path::PathBuf;
@@ -308,6 +309,21 @@ fn validate_artifact(artifact: &CompileArtifact, expected_sha: &str, failures: &
                 callable.id, callable.export, callable.module
             ));
         }
+        // F1: the explicit `member` path is non-empty and every segment
+        // resolves against the emitted `canApp()` registry text.
+        if callable.member.is_empty() {
+            failures.push(format!("callable {} has empty member path", callable.id));
+        }
+        for segment in &callable.member {
+            if segment.is_empty() {
+                failures.push(format!("callable {} has empty member segment", callable.id));
+            } else if !module.js.contains(segment) {
+                failures.push(format!(
+                    "callable {} member segment {segment:?} absent from {}",
+                    callable.id, callable.module
+                ));
+            }
+        }
     }
     // Pages: exactly the 2 declared descriptors, exports resolved.
     if artifact.pages.len() != 2 {
@@ -380,6 +396,25 @@ fn validate_artifact(artifact: &CompileArtifact, expected_sha: &str, failures: &
         Ok(parsed) => {
             if parsed.get("artifact_version").and_then(|v| v.as_i64()) != Some(1) {
                 failures.push("artifact JSON artifact_version != 1".to_string());
+            }
+            // F1: every callable carries an explicit `member` path
+            // (non-empty array of non-empty strings).
+            match parsed.get("callables") {
+                Some(Json::Arr(items)) if !items.is_empty() => {
+                    for item in items {
+                        match item.get("member") {
+                            Some(Json::Arr(segments))
+                                if !segments.is_empty()
+                                    && segments
+                                        .iter()
+                                        .all(|s| matches!(s, Json::Str(t) if !t.is_empty())) => {}
+                            _ => failures.push(format!(
+                                "callable JSON lacks a non-empty member string array: {item:?}"
+                            )),
+                        }
+                    }
+                }
+                _ => failures.push("artifact JSON callables is not a non-empty array".to_string()),
             }
         }
         Err(e) => failures.push(format!("artifact JSON does not parse: {e:?}")),
