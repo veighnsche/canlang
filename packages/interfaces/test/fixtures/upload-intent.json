@@ -1,0 +1,19 @@
+{
+  "description": "Upload intent round-trip for an expense receipt: intent request carries the caller-generated upload_id and the target slot; the response returns opaque same-origin destinations, never storage credentials.",
+  "request": {
+    "upload_id": "upload_7f3a2b1c9d4e",
+    "operation": "CanExpense.Expense.create",
+    "field": "/receipt",
+    "arguments": { "amount": { "minor": "2500", "currency": "EUR" } },
+    "name": "receipt.pdf",
+    "type": "application/pdf",
+    "size": "184320"
+  },
+  "response": {
+    "intent_id": "intent_9e8d7c6b5a4f",
+    "content": "https://expense.example.com/files/content/intent_9e8d7c6b5a4f",
+    "finalize": "https://expense.example.com/files/finalize/intent_9e8d7c6b5a4f",
+    "expires_at": "2026-10-04T16:00:00.000Z"
+  },
+  "finalized": { "file": "file_c1d2e3f4a5b6" }
+}

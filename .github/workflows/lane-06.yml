@@ -1,0 +1,44 @@
+# Lane 06 CI: build + test owned packages only. Self-contained until L7 join J1
+# provides the root workspace; then this workflow adopts the shared install.
+name: lane-06
+
+on:
+  push:
+    branches:
+      - 'muse/lane-06-identity-interfaces/**'
+    paths:
+      - 'packages/identity/**'
+      - 'packages/interfaces/**'
+      - 'packages/contracts/src/identity.ts'
+      - 'packages/contracts/src/wire.ts'
+      - '.github/workflows/lane-06.yml'
+  pull_request:
+    paths:
+      - 'packages/identity/**'
+      - 'packages/interfaces/**'
+      - 'packages/contracts/src/identity.ts'
+      - 'packages/contracts/src/wire.ts'
+      - '.github/workflows/lane-06.yml'
+
+jobs:
+  contracts-conformance:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [identity, interfaces]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: packages/${{ matrix.package }}/package-lock.json
+      - name: Install
+        working-directory: packages/${{ matrix.package }}
+        run: npm ci
+      - name: Build
+        working-directory: packages/${{ matrix.package }}
+        run: npm run build
+      - name: Test
+        working-directory: packages/${{ matrix.package }}
+        run: npm run test
