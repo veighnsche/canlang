@@ -1,0 +1,906 @@
+{
+  "meta": {
+    "version": 1,
+    "valuesRevision": "742c618 PR5",
+    "contractVersion": 1
+  },
+  "wireSamples": [
+    { "typeId": "int", "wire": "9007199254740993", "expected": "9007199254740993" },
+    { "typeId": "int", "wire": "007", "expected": "7" },
+    { "typeId": "int", "wire": "-0", "expected": "0" },
+    { "typeId": "int", "wire": "9223372036854775807", "expected": "9223372036854775807" },
+    { "typeId": "int", "wire": "-9223372036854775808", "expected": "-9223372036854775808" },
+    { "typeId": "decimal", "wire": "1.50", "expected": "1.5" },
+    { "typeId": "decimal", "wire": "0.000", "expected": "0" },
+    { "typeId": "decimal", "wire": "123", "expected": "123" },
+    { "typeId": "money", "wire": { "minor": "007", "currency": "USD" }, "expected": { "minor": "7", "currency": "USD" } },
+    { "typeId": "money", "wire": { "minor": "-0", "currency": "EUR" }, "expected": { "minor": "0", "currency": "EUR" } },
+    { "typeId": "duration", "wire": "1500", "expected": "1500" },
+    { "typeId": "duration", "wire": "007", "expected": "7" },
+    { "typeId": "date", "wire": "2026-02-28", "expected": "2026-02-28" },
+    { "typeId": "datetime", "wire": "2026-03-08T07:30:00.000Z", "expected": "2026-03-08T07:30:00.000Z" },
+    { "typeId": "text", "wire": "hello", "expected": "hello" },
+    { "typeId": "bool", "wire": true, "expected": true },
+    { "typeId": "user", "wire": { "id": "u1" }, "expected": { "id": "u1" } },
+    { "typeId": "file", "wire": { "id": "f1" }, "expected": { "id": "f1" } },
+    {
+      "typeId": "member",
+      "wire": { "id": "m1", "user": { "id": "u1" }, "team": "t1" },
+      "expected": { "id": "m1", "user": { "id": "u1" }, "team": "t1" }
+    },
+    {
+      "typeId": "delivery",
+      "wire": { "id": "d1", "operation": "send" },
+      "expected": { "id": "d1", "operation": "send" }
+    },
+    {
+      "typeId": "delivery(send)",
+      "wire": { "id": "d1", "operation": "send" },
+      "expected": { "id": "d1", "operation": "send" }
+    },
+    { "typeId": "Todo", "wire": { "id": "t1" }, "expected": { "id": "t1" } },
+    { "typeId": "Todo", "wire": { "id": "t1", "version": "007" }, "expected": { "id": "t1", "version": "7" } },
+    {
+      "typeId": "user|Todo",
+      "wire": { "type": "user", "value": { "id": "u1" } },
+      "expected": { "type": "user", "value": { "id": "u1" } }
+    },
+    {
+      "typeId": "user|Todo",
+      "wire": { "type": "Todo", "value": { "id": "t1", "version": "007" } },
+      "expected": { "type": "Todo", "value": { "id": "t1", "version": "7" } }
+    },
+    {
+      "typeId": "action",
+      "wire": { "target": "close", "bindings": { "todo": { "id": "t1", "version": "007" } } },
+      "expected": { "target": "close", "bindings": { "todo": { "id": "t1", "version": "7" } } }
+    },
+    { "typeId": "action", "wire": { "target": "ping", "bindings": {} }, "expected": { "target": "ping", "bindings": {} } },
+    {
+      "typeId": "action(inspect,close)",
+      "wire": { "target": "close", "bindings": {} },
+      "expected": { "target": "close", "bindings": {} }
+    },
+    { "typeId": "enum(open,done)", "wire": "open", "expected": "open" },
+    { "typeId": "locale", "wire": "en-us", "expected": "en-US" },
+    { "typeId": "timezone", "wire": "America/New_York", "expected": "America/New_York" },
+    { "typeId": "currency", "wire": "USD", "expected": "USD" },
+    { "typeId": "email", "wire": "a@b.com", "expected": "a@b.com" },
+    { "typeId": "url", "wire": "https://x.example/a", "expected": "https://x.example/a" },
+    { "typeId": "int[]", "wire": ["1", "007", "-0"], "expected": ["1", "7", "0"] },
+    { "typeId": "int?", "wire": "5", "expected": "5" },
+    { "typeId": "int?", "wire": null, "expected": null },
+    { "typeId": "text[]?", "wire": null, "expected": null },
+    { "typeId": "int", "wire": "9223372036854775808", "expectedViolations": [{ "path": [], "code": "bound" }] },
+    { "typeId": "int", "wire": 42, "expectedViolations": [{ "path": [], "code": "type" }] },
+    { "typeId": "int", "wire": "1s", "expectedViolations": [{ "path": [], "code": "format" }] },
+    { "typeId": "decimal", "wire": "abc", "expectedViolations": [{ "path": [], "code": "format" }] },
+    {
+      "typeId": "decimal",
+      "wire": "123456789012345678901234567890123456789",
+      "expectedViolations": [{ "path": [], "code": "bound" }]
+    },
+    {
+      "typeId": "money",
+      "wire": { "minor": "1", "currency": "XXX" },
+      "expectedViolations": [{ "path": ["currency"], "code": "format" }]
+    },
+    {
+      "typeId": "money",
+      "wire": { "minor": "1.5", "currency": "USD" },
+      "expectedViolations": [{ "path": ["minor"], "code": "format" }]
+    },
+    {
+      "typeId": "money",
+      "wire": { "currency": "USD" },
+      "expectedViolations": [{ "path": ["minor"], "code": "required" }]
+    },
+    {
+      "typeId": "money",
+      "wire": { "minor": "1", "currency": "USD", "x": 1 },
+      "expectedViolations": [{ "path": ["x"], "code": "unknown-field" }]
+    },
+    { "typeId": "duration", "wire": "1500.5", "expectedViolations": [{ "path": [], "code": "format" }] },
+    { "typeId": "date", "wire": "2026-02-30", "expectedViolations": [{ "path": [], "code": "format" }] },
+    {
+      "typeId": "datetime",
+      "wire": "2026-03-08T07:30:00.000+00:00",
+      "expectedViolations": [{ "path": [], "code": "format" }]
+    },
+    { "typeId": "datetime", "wire": "2026-03-08T07:30:00Z", "expectedViolations": [{ "path": [], "code": "format" }] },
+    { "typeId": "timezone", "wire": "Mars/Olympus", "expectedViolations": [{ "path": [], "code": "format" }] },
+    { "typeId": "currency", "wire": "XXX", "expectedViolations": [{ "path": [], "code": "format" }] },
+    {
+      "typeId": "secret",
+      "wire": "anything",
+      "expectedViolations": [{ "path": [], "code": "type" }],
+      "encodeRefused": true,
+      "encodeError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "typeId": "action",
+      "wire": { "target": "t", "bindings": { "p": { "id": "r" } } },
+      "expectedViolations": [{ "path": ["bindings", "p", "version"], "code": "required" }]
+    },
+    {
+      "typeId": "action",
+      "wire": { "target": "t", "bindings": { "p": { "id": "r", "version": "x" } } },
+      "expectedViolations": [{ "path": ["bindings", "p", "version"], "code": "format" }]
+    },
+    {
+      "typeId": "action(inspect)",
+      "wire": { "target": "other", "bindings": {} },
+      "expectedViolations": [{ "path": ["target"], "code": "format" }]
+    },
+    {
+      "typeId": "Todo|Note",
+      "wire": { "type": "Other", "value": {} },
+      "expectedViolations": [{ "path": ["type"], "code": "type" }]
+    },
+    {
+      "typeId": "Todo|Note",
+      "wire": { "type": "Todo" },
+      "expectedViolations": [{ "path": ["value"], "code": "required" }]
+    },
+    {
+      "typeId": "member",
+      "wire": { "id": "m", "user": { "id": "u" } },
+      "expectedViolations": [{ "path": ["team"], "code": "required" }]
+    },
+    { "typeId": "enum(a,b)", "wire": "c", "expectedViolations": [{ "path": [], "code": "format" }] },
+    {
+      "typeId": "Todo",
+      "wire": { "id": "t", "version": "1", "z": 0 },
+      "expectedViolations": [{ "path": ["z"], "code": "unknown-field" }]
+    },
+    { "typeId": "int", "wire": null, "expectedViolations": [{ "path": [], "code": "type" }] },
+    {
+      "typeId": "delivery(send)",
+      "wire": { "id": "d", "operation": "other" },
+      "expectedViolations": [{ "path": ["operation"], "code": "format" }]
+    },
+    { "typeId": "int[]", "wire": ["1", "x"], "expectedViolations": [{ "path": [1], "code": "format" }] }
+  ],
+  "builtinCalls": [
+    { "id": "count", "args": [{ "$t": "int[]", "$w": ["1", "2", "3"] }], "expected": { "$t": "int", "$w": "3" } },
+    { "id": "count", "args": [{ "$t": "int[]", "$w": [] }], "expected": { "$t": "int", "$w": "0" } },
+    {
+      "id": "flatten",
+      "args": [[[{ "$t": "int", "$w": "1" }, { "$t": "int", "$w": "2" }], [{ "$t": "int", "$w": "3" }]]],
+      "expected": { "$t": "int[]", "$w": ["1", "2", "3"] }
+    },
+    {
+      "id": "flatten",
+      "args": [[{ "$t": "int", "$w": "1" }]],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "id": "sum",
+      "args": [{ "$t": "int[]", "$w": ["1", "2", "3"] }, "int"],
+      "expected": { "$t": "int", "$w": "6" }
+    },
+    {
+      "id": "sum",
+      "args": [{ "$t": "decimal[]", "$w": ["1.5", "2.25"] }, "decimal"],
+      "expected": { "$t": "decimal", "$w": "3.75" }
+    },
+    {
+      "id": "sum",
+      "args": [{ "$t": "duration[]", "$w": ["1000", "2000"] }, "duration"],
+      "expected": { "$t": "duration", "$w": "3000" }
+    },
+    {
+      "id": "sum",
+      "args": [
+        { "$t": "money[]", "$w": [{ "minor": "100", "currency": "USD" }, { "minor": "50", "currency": "USD" }] },
+        "money",
+        "USD"
+      ],
+      "expected": { "$t": "money", "$w": { "minor": "150", "currency": "USD" } }
+    },
+    {
+      "id": "sum",
+      "args": [
+        { "$t": "money[]", "$w": [{ "minor": "100", "currency": "USD" }, { "minor": "50", "currency": "USD" }] },
+        "money"
+      ],
+      "expected": { "$t": "money", "$w": { "minor": "150", "currency": "USD" } }
+    },
+    {
+      "id": "sum",
+      "args": [{ "$t": "money[]", "$w": [] }, "money", "USD"],
+      "expected": { "$t": "money", "$w": { "minor": "0", "currency": "USD" } }
+    },
+    {
+      "id": "sum",
+      "args": [{ "$t": "money[]", "$w": [] }, "money"],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "id": "sum",
+      "args": [
+        { "$t": "money[]", "$w": [{ "minor": "1", "currency": "USD" }, { "minor": "1", "currency": "EUR" }] },
+        "money"
+      ],
+      "expectedError": { "class": "ValueError", "code": "currency-mismatch" }
+    },
+    { "id": "sum", "args": [{ "$t": "int[]", "$w": [] }, "int"], "expected": { "$t": "int", "$w": "0" } },
+    {
+      "id": "sum",
+      "args": [{ "$t": "int[]", "$w": [] }, "furlongs"],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "id": "min",
+      "args": [{ "$t": "int[]", "$w": ["3", "1", "2"] }],
+      "expected": { "$t": "int", "$w": "1" }
+    },
+    { "id": "min", "args": [{ "$t": "int[]", "$w": [] }], "expected": { "$t": "int?", "$w": null } },
+    {
+      "id": "min",
+      "args": [{ "$t": "money[]", "$w": [{ "minor": "100", "currency": "USD" }, { "minor": "50", "currency": "USD" }] }],
+      "expected": { "$t": "money", "$w": { "minor": "50", "currency": "USD" } }
+    },
+    {
+      "id": "min",
+      "args": [{ "$t": "money[]", "$w": [{ "minor": "1", "currency": "USD" }, { "minor": "1", "currency": "EUR" }] }],
+      "expectedError": { "class": "ValueError", "code": "currency-mismatch" }
+    },
+    {
+      "id": "max",
+      "args": [{ "$t": "int[]", "$w": ["3", "1", "2"] }],
+      "expected": { "$t": "int", "$w": "3" }
+    },
+    { "id": "max", "args": [{ "$t": "int[]", "$w": [] }], "expected": { "$t": "int?", "$w": null } },
+    {
+      "id": "any",
+      "args": [{ "$t": "int[]", "$w": ["1", "2", "3"] }, { "$fn": "gt", "arg": { "$t": "int", "$w": "2" } }],
+      "expected": { "$t": "bool", "$w": true }
+    },
+    {
+      "id": "any",
+      "args": [{ "$t": "int[]", "$w": [] }, { "$fn": "gt", "arg": { "$t": "int", "$w": "2" } }],
+      "expected": { "$t": "bool", "$w": false }
+    },
+    {
+      "id": "all",
+      "args": [{ "$t": "int[]", "$w": ["1", "2", "3"] }, { "$fn": "lt", "arg": { "$t": "int", "$w": "10" } }],
+      "expected": { "$t": "bool", "$w": true }
+    },
+    {
+      "id": "all",
+      "args": [{ "$t": "int[]", "$w": [] }, { "$fn": "lt", "arg": { "$t": "int", "$w": "10" } }],
+      "expected": { "$t": "bool", "$w": true }
+    },
+    {
+      "id": "all",
+      "args": [{ "$t": "int[]", "$w": ["3", "3"] }, { "$fn": "eq", "arg": { "$t": "int", "$w": "3" } }],
+      "expected": { "$t": "bool", "$w": true }
+    },
+    {
+      "id": "all",
+      "args": [{ "$t": "int[]", "$w": ["1", "30"] }, { "$fn": "lt", "arg": { "$t": "int", "$w": "10" } }],
+      "expected": { "$t": "bool", "$w": false }
+    },
+    {
+      "id": "first",
+      "args": [{ "$t": "int[]", "$w": ["7", "8"] }],
+      "expected": { "$t": "int", "$w": "7" }
+    },
+    { "id": "first", "args": [{ "$t": "int[]", "$w": [] }], "expected": { "$t": "int?", "$w": null } },
+    {
+      "id": "group",
+      "args": [{ "$t": "int[]", "$w": ["1", "2", "1"] }, { "$fn": "identity" }],
+      "expected": {
+        "$value": [
+          { "key": { "$t": "int", "$w": "1" }, "items": [{ "$t": "int", "$w": "1" }, { "$t": "int", "$w": "1" }] },
+          { "key": { "$t": "int", "$w": "2" }, "items": [{ "$t": "int", "$w": "2" }] }
+        ]
+      }
+    },
+    {
+      "id": "at",
+      "args": [{ "$t": "int[]", "$w": ["10", "20"] }, { "$t": "int", "$w": "1" }],
+      "expected": { "$t": "int", "$w": "20" }
+    },
+    {
+      "id": "at",
+      "args": [{ "$t": "int[]", "$w": ["10"] }, { "$t": "int", "$w": "5" }],
+      "expected": { "$t": "int?", "$w": null }
+    },
+    {
+      "id": "at",
+      "args": [{ "$t": "int[]", "$w": ["10"] }, 1],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    { "id": "abs", "args": [{ "$t": "int", "$w": "-5" }], "expected": { "$t": "int", "$w": "5" } },
+    { "id": "abs", "args": [{ "$t": "decimal", "$w": "-1.50" }], "expected": { "$t": "decimal", "$w": "1.5" } },
+    {
+      "id": "abs",
+      "args": [{ "$t": "money", "$w": { "minor": "-100", "currency": "USD" } }],
+      "expected": { "$t": "money", "$w": { "minor": "100", "currency": "USD" } }
+    },
+    {
+      "id": "abs",
+      "args": [{ "$t": "int", "$w": "-9223372036854775808" }],
+      "expectedError": { "class": "ValueError", "code": "overflow" }
+    },
+    {
+      "id": "round",
+      "args": [{ "$t": "decimal", "$w": "2.5" }, 0],
+      "expected": { "$t": "decimal", "$w": "2" }
+    },
+    {
+      "id": "round",
+      "args": [{ "$t": "decimal", "$w": "3.5" }, 0],
+      "expected": { "$t": "decimal", "$w": "4" }
+    },
+    { "id": "round", "args": [{ "$t": "int", "$w": "5" }, 0], "expected": { "$t": "decimal", "$w": "5" } },
+    {
+      "id": "round",
+      "args": [{ "$t": "decimal", "$w": "1.5" }, 19],
+      "expectedError": { "class": "ValueError", "code": "out-of-range" }
+    },
+    { "id": "lower", "args": ["AbC DeF"], "expected": { "$t": "text", "$w": "abc def" } },
+    { "id": "upper", "args": ["AbC"], "expected": { "$t": "text", "$w": "ABC" } },
+    { "id": "upper", "args": ["ß"], "expected": { "$t": "text", "$w": "SS" } },
+    { "id": "trim", "args": ["\t hi \n"], "expected": { "$t": "text", "$w": "hi" } },
+    { "id": "contains", "args": ["hello", "ell"], "expected": { "$t": "bool", "$w": true } },
+    { "id": "contains", "args": ["hello", "ELL"], "expected": { "$t": "bool", "$w": false } },
+    { "id": "starts_with", "args": ["hello", "he"], "expected": { "$t": "bool", "$w": true } },
+    { "id": "join", "args": [["a", "b"], ", "], "expected": { "$t": "text", "$w": "a, b" } },
+    { "id": "join", "args": [[], ", "], "expected": { "$t": "text", "$w": "" } },
+    {
+      "id": "format",
+      "args": ["Hello, {name}! You have {n} todos.", { "name": "Ada", "n": { "$t": "int", "$w": "3" } }],
+      "expected": { "$t": "text", "$w": "Hello, Ada! You have 3 todos." }
+    },
+    {
+      "id": "format",
+      "args": [{ "$message": { "source": "Hi", "variants": { "fr": "Salut" } } }, { "locale": "fr", "appDefault": "en" }],
+      "expected": { "$raw": { "text": "Salut", "locale": "fr" } }
+    },
+    {
+      "id": "format",
+      "args": ["{x}", {}],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "id": "format",
+      "args": ["{m}", { "m": { "$t": "money", "$w": { "minor": "1", "currency": "USD" } } }],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "id": "app_url",
+      "args": ["/dashboard", "https://app.example.com"],
+      "expected": { "$t": "url", "$w": "https://app.example.com/dashboard" }
+    },
+    {
+      "id": "app_url",
+      "args": ["/a\\b", "https://app.example.com"],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "id": "overlaps",
+      "args": [
+        { "$t": "date", "$w": "2026-01-01" },
+        { "$t": "date", "$w": "2026-02-01" },
+        { "$t": "date", "$w": "2026-01-15" },
+        { "$t": "date", "$w": "2026-03-01" }
+      ],
+      "expected": { "$t": "bool", "$w": true }
+    },
+    {
+      "id": "overlaps",
+      "args": [
+        { "$t": "date", "$w": "2026-01-01" },
+        { "$t": "date", "$w": "2026-01-01" },
+        { "$t": "date", "$w": "2026-01-01" },
+        { "$t": "date", "$w": "2026-02-01" }
+      ],
+      "expected": { "$t": "bool", "$w": false }
+    },
+    {
+      "id": "overlaps",
+      "args": [
+        { "$t": "datetime", "$w": "2026-01-01T00:00:00.000Z" },
+        { "$t": "datetime", "$w": "2026-01-02T00:00:00.000Z" },
+        { "$t": "datetime", "$w": "2026-01-01T12:00:00.000Z" },
+        { "$t": "datetime", "$w": "2026-01-03T00:00:00.000Z" }
+      ],
+      "expected": { "$t": "bool", "$w": true }
+    },
+    {
+      "id": "local_date",
+      "args": [{ "$t": "datetime", "$w": "2026-06-01T00:30:00.000Z" }, "America/New_York"],
+      "expected": { "$t": "date", "$w": "2026-05-31" }
+    },
+    {
+      "id": "local_date",
+      "args": [{ "$t": "datetime", "$w": "2026-06-01T00:30:00.000Z" }, "Mars/Olympus"],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "id": "local_instant",
+      "args": [{ "$t": "date", "$w": "2026-03-08" }, "02:30", "America/New_York", "earlier"],
+      "expectedError": { "class": "ValueError", "code": "nonexistent-time" }
+    },
+    {
+      "id": "local_instant",
+      "args": [{ "$t": "date", "$w": "2026-11-01" }, "01:30", "America/New_York", "earlier"],
+      "expected": { "$t": "datetime", "$w": "2026-11-01T05:30:00.000Z" }
+    },
+    {
+      "id": "local_instant",
+      "args": [{ "$t": "date", "$w": "2026-11-01" }, "01:30", "America/New_York", "later"],
+      "expected": { "$t": "datetime", "$w": "2026-11-01T06:30:00.000Z" }
+    },
+    {
+      "id": "local_instant",
+      "args": [{ "$t": "date", "$w": "2026-06-01" }, "12:00", "America/New_York", "earlier"],
+      "expected": { "$t": "datetime", "$w": "2026-06-01T16:00:00.000Z" }
+    },
+    {
+      "id": "add_days",
+      "args": [{ "$t": "date", "$w": "2026-01-31" }, { "$t": "int", "$w": "1" }],
+      "expected": { "$t": "date", "$w": "2026-02-01" }
+    },
+    {
+      "id": "add_months",
+      "args": [{ "$t": "date", "$w": "2026-01-31" }, { "$t": "int", "$w": "1" }],
+      "expected": { "$t": "date", "$w": "2026-02-28" }
+    },
+    {
+      "id": "date_year",
+      "args": [{ "$t": "date", "$w": "2026-02-28" }],
+      "expected": { "$t": "int", "$w": "2026" }
+    },
+    {
+      "id": "weekday",
+      "args": [{ "$t": "date", "$w": "2026-10-04" }],
+      "expected": { "$t": "int", "$w": "7" }
+    },
+    {
+      "id": "dates",
+      "args": [
+        { "$t": "date", "$w": "2026-01-01" },
+        { "$t": "date", "$w": "2026-01-04" },
+        { "$t": "int", "$w": "10" }
+      ],
+      "expected": { "$t": "date[]", "$w": ["2026-01-01", "2026-01-02", "2026-01-03"] }
+    },
+    {
+      "id": "dates",
+      "args": [
+        { "$t": "date", "$w": "2026-01-01" },
+        { "$t": "date", "$w": "2026-01-04" },
+        { "$t": "int", "$w": "2" }
+      ],
+      "expectedError": { "class": "ValueError", "code": "limit-exceeded" }
+    },
+    {
+      "id": "money",
+      "args": [{ "$t": "int", "$w": "5" }, "USD"],
+      "expected": { "$t": "money", "$w": { "minor": "500", "currency": "USD" } }
+    },
+    {
+      "id": "money",
+      "args": [{ "$t": "decimal", "$w": "1.235" }, "USD"],
+      "expected": { "$t": "money", "$w": { "minor": "124", "currency": "USD" } }
+    },
+    {
+      "id": "money",
+      "args": [{ "$t": "int", "$w": "5" }, "XXX"],
+      "expectedError": { "class": "ValueError", "code": "unknown-currency" }
+    },
+    { "id": "date", "args": ["2026-02-28"], "expected": { "$t": "date", "$w": "2026-02-28" } },
+    {
+      "id": "date",
+      "args": ["2026-02-30"],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "id": "datetime",
+      "args": ["2026-03-08T07:30:00.000Z"],
+      "expected": { "$t": "datetime", "$w": "2026-03-08T07:30:00.000Z" }
+    },
+    {
+      "id": "datetime",
+      "args": ["2026-03-08T02:30:00.000-05:00"],
+      "expected": { "$t": "datetime", "$w": "2026-03-08T07:30:00.000Z" }
+    },
+    {
+      "id": "datetime",
+      "args": ["2026-03-08T07:30:00.0001Z"],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "id": "action",
+      "args": ["close", { "todo": { "$t": "Todo", "$w": { "id": "t1", "version": "3" } } }],
+      "expected": { "$t": "action", "$w": { "target": "close", "bindings": { "todo": { "id": "t1", "version": "3" } } } }
+    },
+    {
+      "id": "action",
+      "args": ["close", { "todo": { "$t": "Todo", "$w": { "id": "t1" } } }],
+      "expectedError": { "class": "ValueError", "code": "invalid-construction" }
+    },
+    {
+      "id": "addMoney",
+      "args": [
+        { "$t": "money", "$w": { "minor": "100", "currency": "USD" } },
+        { "$t": "money", "$w": { "minor": "50", "currency": "USD" } }
+      ],
+      "expected": { "$t": "money", "$w": { "minor": "150", "currency": "USD" } }
+    },
+    {
+      "id": "addMoney",
+      "args": [
+        { "$t": "money", "$w": { "minor": "100", "currency": "USD" } },
+        { "$t": "money", "$w": { "minor": "100", "currency": "EUR" } }
+      ],
+      "expectedError": { "class": "ValueError", "code": "currency-mismatch" }
+    },
+    {
+      "id": "subtractMoney",
+      "args": [
+        { "$t": "money", "$w": { "minor": "100", "currency": "USD" } },
+        { "$t": "money", "$w": { "minor": "50", "currency": "USD" } }
+      ],
+      "expected": { "$t": "money", "$w": { "minor": "50", "currency": "USD" } }
+    },
+    {
+      "id": "multiplyMoney",
+      "args": [{ "$t": "money", "$w": { "minor": "100", "currency": "USD" } }, { "$t": "int", "$w": "3" }],
+      "expected": { "$t": "money", "$w": { "minor": "300", "currency": "USD" } }
+    },
+    {
+      "id": "multiplyMoney",
+      "args": [{ "$t": "money", "$w": { "minor": "100", "currency": "USD" } }, { "$t": "decimal", "$w": "0.335" }],
+      "expected": { "$t": "money", "$w": { "minor": "34", "currency": "USD" } }
+    },
+    {
+      "id": "compareMoney",
+      "args": [
+        { "$t": "money", "$w": { "minor": "100", "currency": "USD" } },
+        { "$t": "money", "$w": { "minor": "50", "currency": "USD" } }
+      ],
+      "expected": { "$raw": 1 }
+    },
+    {
+      "id": "compareMoney",
+      "args": [
+        { "$t": "money", "$w": { "minor": "1", "currency": "USD" } },
+        { "$t": "money", "$w": { "minor": "1", "currency": "EUR" } }
+      ],
+      "expectedError": { "class": "ValueError", "code": "currency-mismatch" }
+    },
+    {
+      "id": "equalMoney",
+      "args": [
+        { "$t": "money", "$w": { "minor": "100", "currency": "USD" } },
+        { "$t": "money", "$w": { "minor": "100", "currency": "EUR" } }
+      ],
+      "expected": { "$t": "bool", "$w": false }
+    },
+    {
+      "id": "equalMoney",
+      "args": [
+        { "$t": "money", "$w": { "minor": "100", "currency": "USD" } },
+        { "$t": "money", "$w": { "minor": "100", "currency": "USD" } }
+      ],
+      "expected": { "$t": "bool", "$w": true }
+    },
+    {
+      "id": "negateMoney",
+      "args": [{ "$t": "money", "$w": { "minor": "100", "currency": "USD" } }],
+      "expected": { "$t": "money", "$w": { "minor": "-100", "currency": "USD" } }
+    },
+    {
+      "id": "divideDecimal",
+      "args": [{ "$t": "int", "$w": "7" }, { "$t": "int", "$w": "2" }],
+      "expected": { "$t": "decimal", "$w": "3.5" }
+    },
+    {
+      "id": "divideDecimal",
+      "args": [
+        { "$t": "money", "$w": { "minor": "100", "currency": "USD" } },
+        { "$t": "money", "$w": { "minor": "50", "currency": "USD" } }
+      ],
+      "expected": { "$t": "decimal", "$w": "2" }
+    },
+    {
+      "id": "divideDecimal",
+      "args": [{ "$t": "int", "$w": "7" }, { "$t": "int", "$w": "0" }],
+      "expectedError": { "class": "ValueError", "code": "division-by-zero" }
+    },
+    {
+      "id": "durationBetween",
+      "args": [
+        { "$t": "datetime", "$w": "2026-01-01T00:00:01.000Z" },
+        { "$t": "datetime", "$w": "2026-01-01T00:00:00.000Z" }
+      ],
+      "expected": { "$t": "duration", "$w": "1000" }
+    },
+    {
+      "id": "compareInstant",
+      "args": [
+        { "$t": "datetime", "$w": "2026-01-02T00:00:00.000Z" },
+        { "$t": "datetime", "$w": "2026-01-01T00:00:00.000Z" }
+      ],
+      "expected": { "$raw": 1 }
+    },
+    {
+      "id": "compareDate",
+      "args": [{ "$t": "date", "$w": "2026-01-01" }, { "$t": "date", "$w": "2026-01-02" }],
+      "expected": { "$raw": -1 }
+    },
+    {
+      "id": "compareDecimal",
+      "args": [{ "$t": "decimal", "$w": "1.5" }, { "$t": "decimal", "$w": "1.50" }],
+      "expected": { "$raw": 0 }
+    },
+    {
+      "id": "addDuration",
+      "args": [{ "$t": "duration", "$w": "1000" }, { "$t": "duration", "$w": "2000" }],
+      "expected": { "$t": "duration", "$w": "3000" }
+    },
+    {
+      "id": "addDuration",
+      "args": [{ "$t": "datetime", "$w": "2026-01-01T00:00:00.000Z" }, { "$t": "duration", "$w": "1000" }],
+      "expected": { "$t": "datetime", "$w": "2026-01-01T00:00:01.000Z" }
+    },
+    {
+      "id": "subtractDuration",
+      "args": [{ "$t": "duration", "$w": "3000" }, { "$t": "duration", "$w": "2000" }],
+      "expected": { "$t": "duration", "$w": "1000" }
+    },
+    {
+      "id": "subtractDuration",
+      "args": [{ "$t": "datetime", "$w": "2026-01-01T00:00:01.000Z" }, { "$t": "duration", "$w": "1000" }],
+      "expected": { "$t": "datetime", "$w": "2026-01-01T00:00:00.000Z" }
+    },
+    {
+      "id": "same",
+      "args": [
+        { "$t": "Todo", "$w": { "id": "t1", "version": "1" } },
+        { "$t": "Todo", "$w": { "id": "t1", "version": "2" } }
+      ],
+      "expected": { "$t": "bool", "$w": true }
+    },
+    {
+      "id": "same",
+      "args": [{ "$t": "user", "$w": { "id": "u" } }, { "$t": "file", "$w": { "id": "u" } }],
+      "expected": { "$t": "bool", "$w": false }
+    },
+    {
+      "id": "equalValue",
+      "args": ["int", { "$t": "int", "$w": "1" }, { "$t": "int", "$w": "1" }],
+      "expected": { "$t": "bool", "$w": true }
+    },
+    {
+      "id": "equalValue",
+      "args": ["decimal", { "$t": "decimal", "$w": "1.5" }, { "$t": "decimal", "$w": "1.50" }],
+      "expected": { "$t": "bool", "$w": true }
+    },
+    {
+      "id": "equalValue",
+      "args": [
+        "money",
+        { "$t": "money", "$w": { "minor": "100", "currency": "USD" } },
+        { "$t": "money", "$w": { "minor": "100", "currency": "EUR" } }
+      ],
+      "expected": { "$t": "bool", "$w": false }
+    },
+    { "id": "int64", "args": [{ "$bigint": "42" }], "expected": { "$t": "int", "$w": "42" } },
+    {
+      "id": "int64",
+      "args": [{ "$bigint": "9223372036854775808" }],
+      "expectedError": { "class": "ValueError", "code": "overflow" }
+    },
+    {
+      "id": "addDecimal",
+      "args": [{ "$t": "decimal", "$w": "1.5" }, { "$t": "decimal", "$w": "2.25" }],
+      "expected": { "$t": "decimal", "$w": "3.75" }
+    },
+    {
+      "id": "addDecimal",
+      "args": [{ "$t": "int", "$w": "1" }, { "$t": "decimal", "$w": "2.5" }],
+      "expected": { "$t": "decimal", "$w": "3.5" }
+    },
+    {
+      "id": "subtractDecimal",
+      "args": [{ "$t": "decimal", "$w": "5.5" }, { "$t": "decimal", "$w": "2.25" }],
+      "expected": { "$t": "decimal", "$w": "3.25" }
+    },
+    {
+      "id": "multiplyDecimal",
+      "args": [{ "$t": "decimal", "$w": "1.5" }, { "$t": "int", "$w": "2" }],
+      "expected": { "$t": "decimal", "$w": "3" }
+    },
+    {
+      "id": "negateDecimal",
+      "args": [{ "$t": "decimal", "$w": "1.50" }],
+      "expected": { "$t": "decimal", "$w": "-1.5" }
+    },
+    {
+      "id": "divideMoney",
+      "args": [{ "$t": "money", "$w": { "minor": "100", "currency": "USD" } }, { "$t": "int", "$w": "4" }],
+      "expected": { "$t": "money", "$w": { "minor": "25", "currency": "USD" } }
+    },
+    {
+      "id": "divideMoney",
+      "args": [{ "$t": "money", "$w": { "minor": "100", "currency": "USD" } }, { "$t": "int", "$w": "0" }],
+      "expectedError": { "class": "ValueError", "code": "division-by-zero" }
+    },
+    {
+      "id": "divideDurationByInt",
+      "args": [{ "$t": "duration", "$w": "1000" }, { "$t": "int", "$w": "4" }],
+      "expected": { "$t": "duration", "$w": "250" }
+    },
+    {
+      "id": "divideDurationByInt",
+      "args": [{ "$t": "duration", "$w": "1000" }, { "$t": "int", "$w": "3" }],
+      "expectedError": { "class": "ValueError", "code": "inexact" }
+    }
+  ],
+  "operationSamples": {
+    "schema": {
+      "contracts": {
+        "TodoForm": {
+          "fields": {
+            "title": { "type": "text", "min": 1, "max": 140 },
+            "status": { "type": "TodoStatus", "default": "open" },
+            "priority": { "type": "int", "min": "1", "max": "5", "default": "3" },
+            "due": { "type": "date?" },
+            "tags": { "type": "text[]!" }
+          }
+        }
+      },
+      "enums": {
+        "TodoStatus": { "cases": ["open", "doing", "done"] }
+      },
+      "operations": {
+        "listTodos": {
+          "inputs": {
+            "status": { "type": "TodoStatus?" },
+            "limit": { "type": "int", "min": "1", "max": "100", "default": "25" }
+          }
+        },
+        "completeTodo": {
+          "inputs": {
+            "todo": { "type": "Todo" },
+            "note": { "type": "text", "max": 280 }
+          },
+          "mutation": true
+        }
+      }
+    },
+    "valueCases": [
+      {
+        "typeId": "TodoForm",
+        "mode": "create",
+        "wire": { "title": "Buy milk", "tags": ["home"] },
+        "expected": {
+          "$value": {
+            "title": "Buy milk",
+            "status": "open",
+            "priority": { "$t": "int", "$w": "3" },
+            "due": null,
+            "tags": ["home"]
+          }
+        }
+      },
+      {
+        "typeId": "TodoForm",
+        "mode": "create",
+        "wire": { "title": "Plan trip", "status": "doing", "priority": "5", "due": "2026-12-31", "tags": [] },
+        "expected": {
+          "$value": {
+            "title": "Plan trip",
+            "status": "doing",
+            "priority": { "$t": "int", "$w": "5" },
+            "due": { "$t": "date", "$w": "2026-12-31" },
+            "tags": []
+          }
+        }
+      },
+      {
+        "typeId": "TodoForm",
+        "mode": "create",
+        "wire": { "title": "x" },
+        "expectedViolations": [{ "path": ["tags"], "code": "required" }]
+      },
+      {
+        "typeId": "TodoForm",
+        "mode": "create",
+        "wire": { "title": "", "tags": [] },
+        "expectedViolations": [{ "path": ["title"], "code": "bound" }]
+      },
+      {
+        "typeId": "TodoForm",
+        "mode": "create",
+        "wire": { "title": "x", "tags": [], "priority": "0" },
+        "expectedViolations": [{ "path": ["priority"], "code": "bound" }]
+      },
+      {
+        "typeId": "TodoForm",
+        "mode": "create",
+        "wire": { "title": "x", "tags": [], "bogus": 1 },
+        "expectedViolations": [{ "path": ["bogus"], "code": "unknown-field" }]
+      },
+      {
+        "typeId": "TodoForm",
+        "mode": "create",
+        "wire": { "title": "x", "tags": [], "status": "archived" },
+        "expectedViolations": [{ "path": ["status"], "code": "format" }]
+      },
+      {
+        "typeId": "TodoForm",
+        "mode": "update",
+        "wire": { "title": "New" },
+        "expected": {
+          "$value": {
+            "title": "New",
+            "status": { "$omitted": true },
+            "priority": { "$omitted": true },
+            "due": { "$omitted": true },
+            "tags": { "$omitted": true }
+          }
+        }
+      }
+    ],
+    "inputCases": [
+      {
+        "op": "listTodos",
+        "args": {},
+        "expected": { "$value": { "status": null, "limit": { "$t": "int", "$w": "25" } } }
+      },
+      {
+        "op": "listTodos",
+        "args": { "status": "doing", "limit": "10" },
+        "expected": { "$value": { "status": "doing", "limit": { "$t": "int", "$w": "10" } } }
+      },
+      {
+        "op": "listTodos",
+        "args": { "bogus": 1 },
+        "expectedViolations": [{ "path": ["bogus"], "code": "unknown-argument" }]
+      },
+      {
+        "op": "listTodos",
+        "args": { "limit": "0" },
+        "expectedViolations": [{ "path": ["limit"], "code": "bound" }]
+      },
+      {
+        "op": "listTodos",
+        "args": { "operation_id": "x" },
+        "expectedViolations": [{ "path": ["operation_id"], "code": "unknown-argument" }]
+      },
+      {
+        "op": "completeTodo",
+        "args": { "todo": { "id": "t1", "version": "3" }, "note": "done", "operation_id": "op-1" },
+        "expected": {
+          "$value": {
+            "todo": { "$t": "Todo", "$w": { "id": "t1", "version": "3" } },
+            "note": "done",
+            "operation_id": "op-1"
+          }
+        }
+      },
+      {
+        "op": "completeTodo",
+        "args": { "todo": { "id": "t1", "version": "3" }, "note": "done" },
+        "expectedViolations": [{ "path": ["operation_id"], "code": "required" }]
+      },
+      {
+        "op": "completeTodo",
+        "args": { "todo": { "id": "t1" }, "note": "done", "operation_id": "op-1" },
+        "expectedViolations": [{ "path": ["todo", "version"], "code": "required" }]
+      },
+      {
+        "op": "completeTodo",
+        "args": { "todo": { "id": "t1", "version": "3" }, "note": "done", "operation_id": "op-1", "bogus": 1 },
+        "expectedViolations": [{ "path": ["bogus"], "code": "unknown-argument" }]
+      }
+    ]
+  }
+}
