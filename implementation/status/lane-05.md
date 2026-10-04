@@ -463,10 +463,10 @@ Semantic helpers and CSS used inside other renderers do NOT count as selectable 
 | 36 | mask | Mask | impl | mask | MaskProps | C5 |
 | 37 | megamenu | Megamenu | impl | megamenu | MegamenuProps | C6 |
 | 38 | menu | Menu | impl | menu | MenuProps | C6 |
-| 39 | mockup_browser | Browser mockup | impl | mockupBrowser | MockupBrowserProps | C3 |
+| 39 | mockup_browser | Browser mockup | impl | mockupBrowser | MockupBrowserProps | C8 |
 | 40 | mockup_code | Code mockup | impl | mockupCode | MockupCodeProps | C3 |
-| 41 | mockup_phone | Phone mockup | impl | mockupPhone | MockupPhoneProps | C3 |
-| 42 | mockup_window | Window mockup | impl | mockupWindow | MockupWindowProps | C3 |
+| 41 | mockup_phone | Phone mockup | impl | mockupPhone | MockupPhoneProps | C8 |
+| 42 | mockup_window | Window mockup | impl | mockupWindow | MockupWindowProps | C8 |
 | 43 | modal | Modal | impl | modal | ModalProps | C5 |
 | 44 | navbar | Navbar | impl | navbar | NavbarProps | C6 |
 | 45 | otp | OTP | impl | otp | OtpProps | C4 |

@@ -243,9 +243,9 @@ describe("authority journeys", () => {
         assert.ok(login.includes('name="username"'), "login username renders");
         for (const path of [app.openPath, app.restrictedPath]) {
           const title = titleFor(app, path, locale);
-          if (path !== "/") {
-            assert.ok(!login.includes(`href="${path}"`), `${path} leaks into login`);
-          }
+          // Login carries `next` as a hidden input value, never as a link:
+          // no page href may appear, including the root path itself.
+          assert.ok(!login.includes(`href="${path}"`), `${path} leaks into login`);
           assert.ok(!login.includes(title), `${title} leaks into login`);
         }
         assert.ok(!login.includes(FORBIDDEN_FIELD));
@@ -411,7 +411,7 @@ describe("interaction journeys", () => {
     });
   }
 
-  it("5xx/429 none-swaps leave unsaved input and focus untouched", async () => {
+  it("5xx/429 declare none-swaps so responses never wipe user input", async () => {
     const swaps = validationStatusSwaps("#task-form");
     for (const status of ["5xx", "429"]) {
       const entry = swaps.find((swap) => swap.status === status);
@@ -419,8 +419,10 @@ describe("interaction journeys", () => {
       assert.equal(entry.swap, "none", `${status} must never wipe user input`);
       assert.equal(entry.target, "#task-form");
     }
-    // The request markup carries the none-swaps, so a 5xx/429 response swaps
-    // nothing; the dispatcher surfaces those as banners/toasts instead.
+    // The request markup carries the none-swaps; "none" means htmx performs
+    // no DOM mutation by contract, so unsaved values and focus survive by
+    // construction. Runtime behavior is a browser/htmx join (L7); here we
+    // prove the declaration plus the swap target it names.
     const attrs = hxAttrs({
       method: "post",
       href: "/todos",
@@ -438,17 +440,10 @@ describe("interaction journeys", () => {
     });
     const page = await loadHtml(region);
     try {
-      const input = page.document.querySelector("#j1-title") as unknown as {
-        value: string;
-        focus(): void;
-      } | null;
-      assert.ok(input !== null, "form control must exist");
-      input.value = "unsaved draft";
-      input.focus();
-      // A "none" swap applies no markup: assert the survived state directly.
-      assert.equal(input.value, "unsaved draft");
-      const activeId = (page.document.activeElement as { id: string } | null)?.id;
-      assert.equal(activeId, "j1-title");
+      const form = page.document.querySelector("#task-form");
+      assert.ok(form !== null, "declared swap target renders");
+      const input = page.document.querySelector("#j1-title");
+      assert.ok(input !== null, "unsaved user input lives inside the untouched target");
     } finally {
       await page.close();
     }
@@ -523,17 +518,34 @@ describe("interaction journeys", () => {
       brand: "CanApp",
       idPrefix: "can-login",
     });
+    // Focus is a markup contract browsers honor (autofocus); happy-dom does
+    // not apply autofocus on load, so assert the emitted attribute, the
+    // linked label, and first-focusable order — never focus() then read back.
+    assert.ok(login.includes('id="can-login-username"'), "username input renders");
+    assert.ok(
+      login.includes('name="username" type="text" autocomplete="username" required autofocus'),
+      "username input carries autofocus",
+    );
     const loginPage = await loadHtml(login);
     try {
-      const username = loginPage.document.querySelector(
-        "input#can-login-username",
-      ) as unknown as { focus(): void } | null;
+      const username = loginPage.document.querySelector("input#can-login-username");
       assert.ok(username !== null);
-      username.focus();
-      const activeId = (loginPage.document.activeElement as { id: string } | null)?.id;
-      assert.equal(activeId, "can-login-username");
+      assert.ok(
+        (username as { hasAttribute(name: string): boolean }).hasAttribute("autofocus"),
+        "parsed username keeps autofocus",
+      );
       const label = loginPage.document.querySelector("label[for='can-login-username']");
       assert.ok(label !== null, "username label links to the input");
+      const focusables = [...loginPage.document.querySelectorAll("input,button")].filter(
+        (node) =>
+          (node as unknown as { getAttribute(name: string): string | null }).getAttribute("type") !==
+          "hidden",
+      );
+      assert.equal(
+        (focusables[0] as unknown as { id: string }).id,
+        "can-login-username",
+        "username is the first focusable control",
+      );
     } finally {
       await loginPage.close();
     }
