@@ -1,6 +1,6 @@
 # Complex company-app draft completion
 
-Active Codex goal, 2026-10-04. The user assigned the creative design **and actual drafts** to Codex/Astra. The nine named apps are mandatory; further apps are added only for demonstrated business or capability gaps. This is separate from the seven human-launched production implementation lanes.
+Completed draft scope, 2026-10-04: the nine named apps plus the user-requested CanDecide witness. The user assigned the creative design **and actual drafts** to Codex/Astra. Further apps belong in a new scope only for demonstrated business or capability gaps. This is separate from the seven human-launched production implementation lanes.
 
 ## Outcome
 
@@ -21,6 +21,7 @@ Read [the initial research](AI-AND-SERVICE-DRAFTS.md), current REQUIREMENTS/DESI
 | CanKnowledge | Authorized revisioned retrieval/citations, stale indexes, grounded answers and owner escalation | Astra knowledge | Actual triplet written and independently reviewed |
 | CanEnrich | Bounded provider waterfall, retained paid successes, per-field provenance and reviewed application | Root; independent Astra review | Actual triplet written and independently reviewed |
 | CanWorkbench | Closed canonical tool set, bounded steps/spend, exact-argument approval and fresh authority at invocation | Astra workbench; independent review | Actual triplet written and independently reviewed |
+| CanDecide | LLM-generated state and alternatives, reviewed corrections, fixed NOUL/score and runtime choices, attributed human decision | Astra decision writer; independent primitive/app review | Actual triplet written and independently reviewed |
 
 Root owns shared contract consolidation and cross-app consistency; each app owner owns only its named triplet and focused design/evidence. H007/H008 explicitly released these app paths and the old Muse Git index to Codex; independent human-launched work may still use the shared checkout, so commits are path-restricted. H007 is acknowledged and explicitly releases N01–N09 and all affected app paths to Codex/Astra, preventing accidental Muse dispatch. Do not edit Muse's checklist or reserved sources. No new Muse session is launched.
 
@@ -35,7 +36,7 @@ Root owns shared contract consolidation and cross-app consistency; each app owne
 
 Each accepted contract must have a concrete source and desired-JS witness, one owner, ordinary failure semantics and consumers. Consult JEV for difficult choices with three equivalent, fully reworded balanced payloads; retain probabilities/uncertainty and investigate disagreement. Existing rejected payloads are not bypassed. Research providers from primary sources; classifier advice cannot establish API behavior.
 
-## Completion per app
+## Verified completion criteria for the original nine
 
 - [x] Requirements cover purpose/adoption, users/permissions, data/ownership, workflows, UI/settings, interfaces, background work, errors and limits; company policy is explicit where it matters.
 - [x] The actual `.can` defines every required transition and recovery path with canonical operations; shared infrastructure is not duplicated as company models/handlers merely to hide a primitive gap.
@@ -91,4 +92,22 @@ All nine named triplets are complete at the declared draft stage and have focuse
 
 The new primitives are not placeholders for missing app behavior: actual sources use judgment, associated progress, full invocations, corpus and gallery; corresponding JavaScript descriptors/calls derive their shared schemas. Company budgets, publication, decisions, routing, conflict recovery and authorization remain explicit. Cross-app review repaired Unicode trimming, fixture dependency lowering, receipt disclosure, query ordering, result metadata and lazy UI builders.
 
-CanDecide remains the one user-requested extension in progress. Its generated state/dynamic choice contract is not included in this nine-app acceptance or treated as already implemented. The persistent goal stays active until that new witness is resolved and reviewed too. The broader historical portfolio/migration has separate outstanding work.
+CanDecide is the one user-requested extension beyond these nine. Its separate acceptance below preserves the original nine-app evidence without implying that their checks covered the later addition. The broader historical portfolio/migration has separate outstanding work.
+
+## CanDecide draft acceptance
+
+The accepted extension keeps one judgment surface: fixed NOUL/score and `options=runtime` choices share one frozen request. Generated candidate types and the full specification derive from the declaration. Fixed choices are optional in the language; this app explicitly supplies `none` and `need_more_info`, so empty model proposal lists are honest supported outcomes. Three balanced consultations favored the extension with .82/.87/.78 probability; the independently identified fixed-ID/result-bound mismatch is repaired. These are draft design evidence, not claims of executed inference.
+
+The [actual source](../draft/CanDecide.can), [requirements](../draft/CanDecide.md) and [desired JavaScript](../draft/CanDecide.mjs) satisfy the same draft checklist above. Six example tables contain 16 rows; four sequences distinguish pending work from a seeded completed evaluation, cover corrected and empty candidate sets, invalidate superseded reviews and retain human disagreement. Ordinary delivery results replace pure result-copy callbacks; immutable evidence is captured by the human review/decision operations.
+
+Independent primitive and app reviews are complete and their material findings are repaired: constrained parameter types reuse owning fields; specification revisions are checked before sending and before deciding; nullable observations are explicit; CRUD metadata names its actual admission function. The [bounded assessment](jev/complex-decide-20261004/assessment.md) records what was checked and what remains unexecuted.
+
+- `372def7`: reviewed Knowledge corpus, source/target/requirements and shared consolidation of the original nine, with precise check boundaries and file hashes.
+
+## Final scope and evidence
+
+All ten app triplets and their accepted shared contracts are complete at the draft-design stage. [Final acceptance evidence](complex-apps/completion-verification.json) confirms that the original nine still match their reviewed hashes and identifies the accepted CanDecide files. All focused writers have released their paths. No unresolved material finding remains from these bounded reviews; this is not a claim that every possible defect has been disproved.
+
+The added language capabilities have actual witnesses: `judgment` and runtime choices, associated delivery progress, full typed operation invocations, `corpus`, and `gallery`. Routing thresholds, generation/research budgets, review and publication rules, synchronization conflict decisions and human approval stay company business logic. Ordinary provider transport, receipt validation, permission propagation and shared UI behavior have one documented contract instead of per-app callback plumbing.
+
+JavaScript syntax and static descriptor checks pass; supported-source projections have explicit exclusions. Provider calls, receipt provisioning, BDD execution, rendering, deployment, security under concurrency and performance remain implementation-stage validation. This completion closes the ten-app goal, not the separate historical migration or production lanes.
