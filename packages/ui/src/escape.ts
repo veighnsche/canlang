@@ -85,5 +85,5 @@ export function csvFormulaProtect(cell: string): string {
  */
 export function isolate(value: string): string {
   assertString(value, "isolate");
-  return `⁨${value}⁩`;
+  return `\u2068${value}\u2069`;
 }

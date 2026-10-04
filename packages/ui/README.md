@@ -11,19 +11,31 @@ emission (lane 1) and route dispatch (lane 6) consume that contract.
 ## B0 wiring (temporary)
 
 This package extends the lane 7 root `tsconfig.base.json` and builds inside
-the root npm workspace (no member lockfile; the root lock stays lane-07-owned
-and CI syncs it ephemerally). `presentation.ts` is not yet joined into
-`@canlang/contracts`, so sources import it via an explicit relative path —
-the same temporary wiring as the lane 06 precedent. No duplicate definitions:
-the contract file is the single source of truth. This wiring retires at the L7
-join (interface request in `implementation/status/lane-05.md`).
+the root npm workspace (no member lockfile; the root lock stays lane-07-owned).
+Sources import `../contracts/src/presentation.ts` via an explicit relative
+path — the same workspace-wide member pattern used by state/values/identity
+(the contracts index join serves external consumers; member TS keeps direct
+module imports). No duplicate definitions: the contract file is the single
+source of truth.
 
 ## Layout
 
 - `src/escape.ts` — HTML/attribute/URL escaping, CSV formula protection, bidi isolation.
 - `src/messages.ts` — message descriptors, RFC 4647 lookup, ICU-profile formatting.
-- Later slices: `navigation`, `shell`, `components`, `forms`, `collections`,
-  `htmx`, `settings`, `review`, `catalog`.
+- `src/navigation.ts` — pure discovery shaping over dispatcher admission outcomes.
+- `src/shell.ts` — renderPage: drawer shell, account menu, settings frame, partials.
+- `src/components.ts` — card/title/text/content, shared states, text values, row headings.
+- `src/collections.ts` — list/table renderers over the authorized query runner.
+- `src/catalog.ts` — versioned machine-readable component catalog.
+- `themes.css` — pinned `can-{mode}-{accent}` daisyUI themes + density rules.
+- Later slices: `forms`, `htmx`, `settings`, `review` (+ controls in `collections`).
+
+## Themes and class audit
+
+`themes.css` pins nine themes against daisyUI 5.7.47 (exact devDependency).
+`test/themes.test.ts` audits theme-name coverage, variable names against the
+installed daisyUI, the pinned version, and every markup class used in src
+(daisyUI bundle, reviewed tailwind utilities, or `can-*` structural hooks).
 
 ## Exactness seams (lane 2)
 
