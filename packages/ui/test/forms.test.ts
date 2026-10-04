@@ -261,6 +261,16 @@ describe("form hidden fields and roots", () => {
 });
 
 describe("form field widgets", () => {
+  it("honors labelCaption overrides like explicit controls", async () => {
+    const html = await form(
+      makeFormProps({
+        fields: [field("a", { label: "Original", labelCaption: "Override" })],
+      }),
+    );
+    assert.ok(html.includes(">Override<"), "override rendered");
+    assert.ok(!html.includes("Original"), "declared label replaced");
+  });
+
   it("renders text, email and url inputs with escaped values", async () => {
     const html = await form(
       makeFormProps({
