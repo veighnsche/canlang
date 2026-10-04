@@ -19,18 +19,41 @@ import {
   set,
 } from "@canlang/stdlib";
 import {
+  accordion,
   actions,
+  badge,
+  board,
+  breadcrumbs,
+  button,
+  calendar,
   card,
+  checkbox,
+  collapse,
+  copy,
+  diff,
+  divider,
   edit,
+  fieldset,
+  file_input,
+  filter,
   form,
   history,
+  input,
+  link,
   list,
   message,
+  modal,
+  pagination,
   renderPage,
+  slot,
   tab,
   table,
   tabs,
   text,
+  textarea,
+  timeline,
+  tooltip,
+  validator,
 } from "@canlang/ui";
 import { can_work, Employee } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -44,6 +67,15 @@ import { Location } from "./rent_catalog.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * UI sections mirror the replanned CanExpense.can Then: breadcrumbs, in-context
+ * saved-default filters, fieldset-grouped intake with typed controls, status
+ * badges, receipt download links, receipt-first edit suites, withdraw/decide/
+ * reimburse/link modals, annotated correction action, gated correction diffs,
+ * decision/reimbursement accordion timelines with copyable references, a
+ * status-grouped review board, empty states and paginated collections.
+ * Lowercase UI factories take one props object; slots are prop arrays. All UI
+ * imports and calls are desired/unimplemented. This file passes node --check
+ * (syntax only) and never runs.
  */
 
 const reviewerCaption = message("Reviewer", { nl: "Beoordelaar" });
@@ -690,6 +722,8 @@ export async function minePage(c, bindings) {
     c,
     minePageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Claim intake", { nl: "Declaratie aanmaken" }),
@@ -698,18 +732,41 @@ export async function minePage(c, bindings) {
             context: c, model: Employee,
             where: (claimant) => same(claimant.user, c.actor) && claimant.active,
             renderRow: (claimant, claimantView) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: claimantView }),
               list({
                 context: claimantView, model: Location,
                 where: async (site) => await can_work(claimantView, claimantView.actor, site),
                 renderRow: (site, siteView) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: siteView }),
                   form({
                     context: siteView, operation: "expense.reviewer_choices", arguments: { location: site },
                     renderResult: (result, resultView) => [
                       list({
                         context: resultView, rows: result, columns: ["name", "user", "role", "home"],
                         renderRow: (candidate, candidateView) => [
-                          form({ context: candidateView, operation: "expense.Expense.create",
-                            arguments: { parent: claimant, location: site, reviewer: candidate.user } }),
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: candidateView }),
+                          form({
+                            context: candidateView, operation: "expense.Expense.create",
+                            arguments: { parent: claimant, location: site, reviewer: candidate.user },
+                            display: "inline",
+                            /* desired-unimplemented: placed controls move the generated fields. */
+                            children: [
+                              fieldset({
+                                context: candidateView,
+                                caption: message("Claim details", { nl: "Declaratiegegevens" }),
+                                children: [
+                                  input({ context: candidateView, field: "category" }),
+                                  textarea({ context: candidateView, field: "purpose" }),
+                                  input({ context: candidateView, field: "authorization" }),
+                                  calendar({ context: candidateView, field: "business_date" }),
+                                  file_input({ context: candidateView, field: "receipt" }),
+                                ],
+                              }),
+                            ],
+                          }),
                         ],
                       }),
                     ],
@@ -720,6 +777,8 @@ export async function minePage(c, bindings) {
           }),
         ],
       }),
+      /* desired-unimplemented: filter edits the owned saved-default preference. */
+      filter({ context: c, preference: "expense.status" }),
       list({
         context: c,
         model: "expense.Expense",
@@ -728,11 +787,16 @@ export async function minePage(c, bindings) {
         filter: ["status", "location", "category", "business_date"],
         defaults: { status: c.preferences.expense.status },
         display: "split",
+        empty: message("No claims yet.", { nl: "Nog geen declaraties." }),
         renderRow: (expense, view) => [
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: view }),
           card({
             context: view,
             title: message("Own claim and receipt", { nl: "Eigen declaratie en bon" }),
             children: [
+              /* desired-unimplemented: badge presents the readable typed value. */
+              badge({ context: view, value: expense.status }),
               text({
                 context: view,
                 values: [
@@ -742,24 +806,75 @@ export async function minePage(c, bindings) {
                   expense.business_date,
                   expense.amount,
                   expense.receipt,
-                  expense.status,
                   expense.submission,
                   expense.decision,
                   expense.withdrawal,
                 ],
               }),
-              edit({ context: view, operation: "expense.Expense.update", record: expense }),
-              actions({
+              /* desired-unimplemented: link downloads the non-null receipt file. */
+              link({
                 context: view,
-                operations: ["expense.submit", "expense.withdraw", "expense.correct"],
-                boundArgs: { expense },
+                target: expense.receipt,
+                caption: message("Download receipt", { nl: "Bon downloaden" }),
               }),
-              form({ context: view, operation: "expense.transcribe_receipt", arguments: { expense } }),
+              edit({
+                context: view,
+                operation: "expense.Expense.update",
+                record: expense,
+                /* desired-unimplemented: placed control moves the generated field. */
+                children: [file_input({ context: view, field: "receipt" })],
+              }),
+              /* desired-unimplemented: divider structures the dense card. */
+              divider({ context: view, caption: message("Actions", { nl: "Acties" }) }),
+              actions({ context: view, operations: ["expense.submit"], boundArgs: { expense } }),
+              /* desired-unimplemented: button opens activates the local modal. */
+              button({ context: view, opens: "withdraw_claim" }),
+              /* desired-unimplemented: modal declares the local activation identity. */
+              modal({
+                context: view,
+                caption: message("Withdraw unavailable review", { nl: "Onbeschikbare beoordeling intrekken" }),
+                id: "withdraw_claim",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "expense.withdraw",
+                        arguments: { expense },
+                        display: "inline",
+                        /* desired-unimplemented: placed control moves the generated field. */
+                        children: [textarea({ context: view, field: "reason" })],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              /* desired-unimplemented: tooltip annotates the canonical action. */
+              tooltip({
+                context: view,
+                caption: message("Create one correction draft from this claim", { nl: "Maak één correctieconcept van deze declaratie" }),
+                children: [actions({ context: view, operations: ["expense.correct"], boundArgs: { expense } })],
+              }),
+              form({
+                context: view,
+                operation: "expense.transcribe_receipt",
+                arguments: { expense },
+                /* desired-unimplemented: placed controls move the generated fields. */
+                children: [
+                  input({ context: view, field: "source" }),
+                  calendar({ context: view, field: "spent_on" }),
+                  input({ context: view, field: "merchant" }),
+                ],
+              }),
               list({
                 context: view,
                 model: "expense.ReceiptExtract",
                 parent: expense,
                 renderRow: (extract, extractView) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: extractView }),
                   text({
                     context: extractView,
                     values: [extract.source, extract.merchant, extract.amount, extract.spent_on],
@@ -768,29 +883,84 @@ export async function minePage(c, bindings) {
               }),
             ],
           }),
-          list({
-            context: view,
-            model: "expense.Decision",
-            parent: expense,
-            renderRow: (row, v) =>
-              text({
-                context: v,
-                values: [
-                  row.submission,
-                  row.amount,
-                  row.receipt,
-                  row.approved,
-                  row.reason,
-                  row.decided_at,
+          same(expense.corrects, null)
+            ? null
+            : card({
+                context: view,
+                title: message("Correction comparison", { nl: "Vergelijking correctie" }),
+                children: [
+                  /* desired-unimplemented: diff renders its two authorized slots. */
+                  diff({
+                    context: view,
+                    before: [
+                      text({
+                        context: view,
+                        values: [
+                          expense.corrects.purpose,
+                          expense.corrects.amount,
+                          expense.corrects.receipt,
+                        ],
+                      }),
+                    ],
+                    after: [
+                      text({
+                        context: view,
+                        values: [expense.purpose, expense.amount, expense.receipt],
+                      }),
+                    ],
+                  }),
                 ],
               }),
-          }),
-          list({
+          /* desired-unimplemented: accordion holds one open collapse child. */
+          accordion({
             context: view,
-            model: "expense.Reimbursement",
-            parent: expense,
-            renderRow: (row, v) =>
-              text({ context: v, values: [row.reference, row.amount, row.paid, row.reason] }),
+            children: [
+              collapse({
+                context: view,
+                caption: message("Recorded decisions", { nl: "Vastgelegde besluiten" }),
+                children: [
+                  /* desired-unimplemented: timeline renders one item per row. */
+                  timeline({
+                    context: view,
+                    model: "expense.Decision",
+                    parent: expense,
+                    renderItem: (row, v) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: v }),
+                      text({
+                        context: v,
+                        values: [
+                          row.submission,
+                          row.amount,
+                          row.receipt,
+                          row.approved,
+                          row.reason,
+                          row.decided_at,
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              collapse({
+                context: view,
+                caption: reimbursementCaption,
+                children: [
+                  timeline({
+                    context: view,
+                    model: "expense.Reimbursement",
+                    parent: expense,
+                    renderItem: (row, v) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: v }),
+                      text({ context: v, values: [row.reference, row.amount, row.paid, row.reason] }),
+                      /* desired-unimplemented: copy moves the reference to the clipboard. */
+                      copy({ context: v, value: row.reference }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
           }),
           history({ context: view, record: expense }),
         ],
@@ -804,19 +974,29 @@ export async function reviewPage(c, bindings) {
     c,
     reviewPageDescriptor,
     () => [
-      table({
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
+      /* desired-unimplemented: filter edits the owned saved-default preference. */
+      filter({ context: c, preference: "expense.status" }),
+      board({
         context: c,
         model: "expense.Expense",
-        columns: ["parent", "location", "purpose", "business_date", "amount", "receipt", "status"],
+        by: "status",
+        columns: ["parent", "location", "purpose", "business_date", "amount", "receipt"],
         order: ["business_date"],
+        search: ["purpose"],
         filter: ["status", "location", "category", "business_date"],
         defaults: { status: c.preferences.expense.status },
-        display: "split",
+        empty: message("No assigned submissions.", { nl: "Geen toegewezen declaraties." }),
         renderRow: (expense, view) => [
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: view }),
           card({
             context: view,
             title: message("Frozen claim review", { nl: "Vastgelegde declaratie beoordelen" }),
             children: [
+              /* desired-unimplemented: badge presents the readable typed value. */
+              badge({ context: view, value: expense.status }),
               text({
                 context: view,
                 values: [
@@ -829,16 +1009,82 @@ export async function reviewPage(c, bindings) {
                   expense.decided_at,
                 ],
               }),
-              actions({
+              /* desired-unimplemented: button opens activates the local modal. */
+              button({ context: view, opens: "decide_claim" }),
+              /* desired-unimplemented: modal declares the local activation identity. */
+              modal({
                 context: view,
-                operations: ["expense.decide", "expense.reimburse"],
-                boundArgs: { expense },
+                caption: message("Record decision", { nl: "Besluit vastleggen" }),
+                id: "decide_claim",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "expense.decide",
+                        arguments: { expense },
+                        display: "inline",
+                        /* desired-unimplemented: placed controls move the generated fields. */
+                        children: [
+                          fieldset({
+                            context: view,
+                            caption: message("Decision", { nl: "Besluit" }),
+                            children: [
+                              checkbox({ context: view, field: "approve" }),
+                              textarea({ context: view, field: "reason" }),
+                            ],
+                          }),
+                          /* desired-unimplemented: validator places the owning outlet. */
+                          validator({ context: view, field: "approve" }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              button({ context: view, opens: "reimburse_claim" }),
+              modal({
+                context: view,
+                caption: message("Record reimbursement", { nl: "Vergoeding vastleggen" }),
+                id: "reimburse_claim",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "expense.reimburse",
+                        arguments: { expense },
+                        display: "inline",
+                        /* desired-unimplemented: placed controls move the generated fields. */
+                        children: [
+                          fieldset({
+                            context: view,
+                            caption: message("Payment evidence", { nl: "Betalingsbewijs" }),
+                            children: [
+                              input({ context: view, field: "reference" }),
+                              calendar({ context: view, field: "paid" }),
+                              textarea({ context: view, field: "reason" }),
+                            ],
+                          }),
+                          /* desired-unimplemented: validator places the owning outlet. */
+                          validator({ context: view, field: "reference" }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
               }),
               list({
                 context: view,
                 model: "expense.ReceiptExtract",
                 parent: expense,
                 renderRow: (extract, extractView) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: extractView }),
                   text({
                     context: extractView,
                     values: [extract.source, extract.merchant, extract.amount, extract.spent_on],
@@ -858,7 +1104,9 @@ export async function reviewPage(c, bindings) {
                     context: view,
                     model: "expense.Decision",
                     parent: expense,
-                    renderRow: (row, v) =>
+                    renderRow: (row, v) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: v }),
                       text({
                         context: v,
                         values: [
@@ -871,6 +1119,7 @@ export async function reviewPage(c, bindings) {
                           row.decided_at,
                         ],
                       }),
+                    ],
                   }),
                 ],
               }),
@@ -882,11 +1131,14 @@ export async function reviewPage(c, bindings) {
                     context: view,
                     model: "expense.Reimbursement",
                     parent: expense,
-                    renderRow: (row, v) =>
+                    renderRow: (row, v) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: v }),
                       text({
                         context: v,
                         values: [row.reference, row.amount, row.paid, row.reason, row.recorded_by],
                       }),
+                    ],
                   }),
                 ],
               }),
@@ -905,8 +1157,45 @@ export async function reviewPage(c, bindings) {
             columns: ["parent", "location", "purpose", "amount", "receipt", "status"],
             filter: ["parent", "location", "category", "business_date"],
             display: "split",
-            renderRow: (expense, view) =>
-              actions({ context: view, operations: ["expense.reimburse"], boundArgs: { expense } }),
+            empty: message("No pending reimbursements.", { nl: "Geen openstaande vergoedingen." }),
+            renderRow: (expense, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
+              button({ context: view, opens: "reimburse_queue" }),
+              modal({
+                context: view,
+                caption: message("Record reimbursement", { nl: "Vergoeding vastleggen" }),
+                id: "reimburse_queue",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "expense.reimburse",
+                        arguments: { expense },
+                        display: "inline",
+                        /* desired-unimplemented: placed controls move the generated fields. */
+                        children: [
+                          fieldset({
+                            context: view,
+                            caption: message("Payment evidence", { nl: "Betalingsbewijs" }),
+                            children: [
+                              input({ context: view, field: "reference" }),
+                              calendar({ context: view, field: "paid" }),
+                              textarea({ context: view, field: "reason" }),
+                            ],
+                          }),
+                          /* desired-unimplemented: validator places the owning outlet. */
+                          validator({ context: view, field: "reference" }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
           }),
         ],
       }),
@@ -920,6 +1209,11 @@ export async function reviewPage(c, bindings) {
             columns: ["parent", "reference", "amount", "paid", "reason", "recorded_by"],
             order: ["-paid"],
             filter: ["paid"],
+            empty: message("No accounting entries.", { nl: "Geen boekhoudregels." }),
+            renderRow: (row, w) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: w }),
+            ],
           }),
         ],
       }),
@@ -929,24 +1223,45 @@ export async function reviewPage(c, bindings) {
 
 export async function historicalPage(c,bindings) {
   return renderPage(c,historicalPageDescriptor,()=>[
+    /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+    breadcrumbs({ context: c }),
     hasRole(c,"expense.finance") ? card({context:c,title:message("Retain source records",{nl:"Bronrecords bewaren"}),children:[
       form({context:c,operation:"expense.retain_legacy",import:"csv",review:"expense.legacy_matches"}),
     ]}) : null,
     card({context:c,title:message("Find a source record",{nl:"Een bronrecord zoeken"}),children:[
       form({context:c,operation:"expense.legacy_matches",renderResult:(result,view)=>[
-        list({context:view,rows:result,columns:["source","external_id","location"],renderRow:(row,itemView)=>[
-          text({context:itemView,values:[row.claim.actor,row.claim.status,row.claim.receipt]}),
-        ]}),
+        list({context:view,rows:result,columns:["source","external_id","location"],
+          empty:message("No source matches.",{nl:"Geen bronovereenkomsten."}),
+          renderRow:(row,itemView)=>[
+            /* desired-unimplemented: pagination consumes this collection cursor. */
+            pagination({ context: itemView }),
+            text({context:itemView,values:[row.claim.actor,row.claim.status,row.claim.receipt]}),
+          ]}),
       ]}),
     ]}),
-    table({context:c,model:"expense.LegacyExpense",columns:["source","external_id","location"],display:"split",renderRow:(entry,view)=>[
-      text({context:view,values:[entry.claim.actor,entry.claim.reviewer,entry.claim.decision_time_original,entry.claim.decided_at,entry.claim.paid,entry.claim.status,entry.claim.purpose,entry.claim.amount,entry.claim.receipt,entry.claim.receipt_issue]}),
-      hasRole(view,"expense.finance") ? card({context:view,title:message("Current access mapping",{nl:"Huidige toegangstoewijzing"}),children:[
-        actions({context:view,operations:["expense.link_legacy"],boundArgs:{entry}}),
-        text({context:view,values:[entry.access_reason,entry.attestation,entry.imported_by,entry.imported_at,entry.source_evidence]}),
-        history({context:view,record:entry}),
-      ]}) : null,
-    ]}),
+    table({context:c,model:"expense.LegacyExpense",columns:["source","external_id","location"],display:"split",
+      empty:message("No historical records.",{nl:"Geen historische records."}),
+      renderRow:(entry,view)=>[
+        /* desired-unimplemented: pagination consumes this collection cursor. */
+        pagination({ context: view }),
+        text({context:view,values:[entry.claim.actor,entry.claim.reviewer,entry.claim.decision_time_original,entry.claim.decided_at,entry.claim.paid,entry.claim.status,entry.claim.purpose,entry.claim.amount,entry.claim.receipt,entry.claim.receipt_issue]}),
+        hasRole(view,"expense.finance") ? card({context:view,title:message("Current access mapping",{nl:"Huidige toegangstoewijzing"}),children:[
+          /* desired-unimplemented: button opens activates the local modal. */
+          button({ context: view, opens: "map_access" }),
+          /* desired-unimplemented: modal declares the local activation identity. */
+          modal({context:view,caption:message("Change historical access",{nl:"Historische toegang wijzigen"}),id:"map_access",children:[
+            slot({context:view,name:"content",children:[
+              form({context:view,operation:"expense.link_legacy",arguments:{entry},display:"inline",
+                /* desired-unimplemented: placed control moves the generated field. */
+                children:[textarea({context:view,field:"reason"})]}),
+            ]}),
+          ]}),
+          /* desired-unimplemented: link downloads the non-null source file. */
+          link({context:view,target:entry.source_evidence,caption:message("Download source export",{nl:"Bronexport downloaden"})}),
+          text({context:view,values:[entry.access_reason,entry.attestation,entry.imported_by,entry.imported_at,entry.source_evidence]}),
+          history({context:view,record:entry}),
+        ]}) : null,
+      ]}),
   ]);
 }
 
