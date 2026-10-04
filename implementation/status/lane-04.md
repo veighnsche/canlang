@@ -120,15 +120,17 @@ Each PR: rebase on current `origin/main`, focused checks exercising the change, 
 
 ## Progress and file reservations
 
-- 2026-10-04: S1 in progress. Reserved: `implementation/status/lane-04.md` (coordinator).
+- 2026-10-04: S1 merged (PR #1, squash `50b46b4`). S2 in review (PR #5) on `muse/lane-04-work-services-files/contracts`, rebased onto `origin/main@14fa6a0`. Review NEEDS-CHANGES fixed (typed capability decls, receipt `id`, cancel/reconcile, no `due` state). CI adapted to the L7 root workspace (`npm install` pattern per lane-03; per-package `npm ci` fails under `packages/*` workspaces); local proof: workspace install + typecheck clean + 19/19 tests. Root-lock drift from local proof restored to HEAD (L7-owned, unstaged). Toolchain: typescript@5.9.3, @types/node@24.19.1, node 24, `node:test` glob discovery (`node --test test/` does not discover `.ts`). `node_modules/` untracked per package; root `.gitignore` still needed from L7. Next reservations: S3 `packages/work/src/**` (worker-A), S4 `packages/services/src/{http,mail}/**` (worker-B).
 
 ## Interface requests and handoffs
 
 - 2026-10-04, to L3/L6/L7/L1/L2 (all unlaunched): requests listed above; no producer PRs to read yet. Consumer-side test-only fixtures will be explicit and replaced at joins.
+- 2026-10-04, producer arrivals: L3 `state.ts` v0 merged (`fb8cf1f`, PR #3) with `OperationId`/`Revision`/`InvocationContext` — S8 join target; S2 stays self-contained with no cross-contract imports. L7 B0 PR #4 (root workspace) open — my standalone packages absorb into it later; rebase if it merges first. L1 B0 PR #2 open (no lane-4 impact yet).
+- 2026-10-04, to L7 (HANDSHAKE): PR #4 merged (`14fa6a0`) with root workspace `packages/*`, root lock, `tsconfig.base.json`, lane-scoped vitest/check configs. My PR #5 adds workspaces `@canlang/work`, `@canlang/services`, `@canlang/files` (devDeps typescript@^5.9.0, @types/node@^24 — root already carries typescript@^5.9.3). Request: absorb the three packages into the root lock after PR #5 merges; I will then switch `lane-04.yml` to root `npm ci` + workspace scripts. My packages keep `node:test` per L7's documented opt-in rule; root-check join deferred with an extends-compatible tsconfig later. L1 B0 also merged (`e204d07`, PR #2); no lane-4 impact.
 
 ## PR and verification evidence
 
-- No PRs yet. Per-slice entries record reviewed head, checks, merged PR and material limitations.
+- PR #1 (S1 plan): head `aa04129`, docs-only single owned file, `mergeStateStatus=CLEAN`, no CI configured yet, self-reviewed diff, squash-merged as `50b46b4`. Limitation: plan only; all implementation pending.
 
 ## Remaining work and cleanup
 
