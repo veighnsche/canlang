@@ -541,6 +541,31 @@ export const appDefinition = {
       },
     },
   },
+  pure: {
+    "maintain.plan_eligible": {
+      handler: "plan_eligible",
+      inputs: { plan: { type: "maintain.Plan" } },
+      result: "bool",
+    },
+    "maintain.matches_cancellation": {
+      handler: "matches_cancellation",
+      inputs: {
+        change: { type: "maintain.Cancellation" },
+        inspection: { type: "maintain.Inspection" },
+      },
+      result: "bool",
+    },
+    "maintain.inspection_superseded": {
+      handler: "inspection_superseded",
+      inputs: { inspection: { type: "maintain.Inspection" } },
+      result: "bool",
+    },
+    "maintain.inspection_pending": {
+      handler: "inspection_pending",
+      inputs: { inspection: { type: "maintain.Inspection" } },
+      result: "bool",
+    },
+  },
   events: {
     "maintain.CancellationStep": { fields: { cancellation: { type: Cancellation } } },
     "maintain.Reminder": {
