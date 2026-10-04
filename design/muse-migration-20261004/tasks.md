@@ -33,12 +33,12 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
 
 ## Tasks
 
-- [ ] **M00 — Native goal, ownership and inbox acknowledgment**
+- [x] **M00 — Native goal, ownership and inbox acknowledgment**
   - Prerequisites: None
   - Owner / files / interfaces: Muse coordinator; this checklist progress; read monitor/inbox only
   - Changes / traceability: Q3/Q4; create native goal, verify selected model/MAX, record session/goal identity; acknowledge H001 and assign nonoverlapping tasks.
   - Acceptance: Native goal exists before delegation, exact reservations and no competing Muse coordinator.
-  - Evidence: pending.
+  - Evidence: goal-01a106e7-cffe-7b52-a3e5-858eff4a04fe session 01a106e7-49b5-7543-b54f-eb6ad9540769; peer_sessions=[] no competing coordinator; workspace /Users/vince/Projects/canlang main f5dddbe clean; approval bypassed/sandbox off/worktree off; H001 acknowledged; first reservations D01/D02/D03 disjoint.
 
 - [ ] **D01 — Book notification delivery association**
   - Prerequisites: M00; exclusive ownership of this pair
@@ -296,4 +296,9 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
 
 Coordinator-only progress during execution. Record task ID, assigned writer, reserved/released paths, result/evidence and commit; record H-message acknowledgments here.
 
-- Launch pending; no task claimed complete.
+- M00 complete: coordinator session 01a106e7-49b5-7543-b54f-eb6ad9540769 goal goal-01a106e7-cffe-7b52-a3e5-858eff4a04fe; workspace /Users/vince/Projects/canlang main f5dddbe clean; peer_sessions=[]; approval bypassed/sandbox off/worktree off shared checkout; model route Muse Spark MAX per launch intent, no downgrade, no second coordinator.
+- ACK H001 NOTE initial scope: accepted. Ready D01-D10 plus J01/J03/J04/J06 immediate, J02 gated on D06, J05 gated on D09. Blocked A01-A06/N01-N10 await READY with linked contract/witness; no proposal adoption. Max 3 active agents, exact-path commits, writers released at handoff.
+- RESERVED D01: draft/CanBook.can, draft/CanBook.md — writer 01a106e9-5e60-7ab0-baaa-f3a392f581ac (D01 CanBook/1) batch 1 active, no .mjs in scope.
+- RESERVED D02: draft/CanCatch.can, draft/CanCatch.md — writer 01a106e9-5fa5-7173-b4db-affb9fe22fe7 (D02 CanCatch/2) batch 1 active, no .mjs in scope.
+- RESERVED D03: draft/CanDesk.can, draft/CanDesk.md — writer 01a106e9-60b0-7df1-8514-c73fee43624e (D03 CanDesk/3) batch 1 active, no .mjs in scope.
+- QUEUED ready disjoint: D04/D05/D06/D07/D08/D09/D10, J01/J03/J04/J06. J02 waits D06 release; J05 waits D09 release.
