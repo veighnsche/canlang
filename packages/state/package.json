@@ -1,0 +1,24 @@
+{
+  "name": "@canlang/state",
+  "version": "0.1.0",
+  "description": "CanLang authoritative state engine: canonical invocation, queries, mutations, fenced storage (internal package, lane 03)",
+  "type": "module",
+  "main": "./dist/state/src/index.js",
+  "types": "./dist/state/src/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test \"dist/state/test/**/*.test.js\"",
+    "clean": "rm -rf dist/"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
