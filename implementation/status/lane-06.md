@@ -204,11 +204,13 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
 
 ## Integration joins
 
-- J1 (needs L7): swap test-relative contract imports for @canlang/contracts
-  workspace imports; adopt root tsconfig.base. Request: contracts manifest +
-  index.ts assembly + root workspace accepting packages/identity,
-  packages/interfaces (exact package.json changes will be attached to the
-  S1 PR description).
+- J1 (needs L7; workspace landed in #4, follow-up routed via PR #6): (a)
+  re-export identity/wire from packages/contracts/src/index.ts; (b) run root
+  `npm install` to lock the new members (devDeps match lane-03 exactly:
+  @types/node 26.6.4, typescript 5.9.3, engines node>=22); (c) add
+  packages/identity + packages/interfaces to tsconfig.check.json include
+  (both tsconfigs extend tsconfig.base.json). Our tests then switch from
+  relative to @canlang/contracts imports. No root file is touched by lane 06.
 - J2 (needs L3): bind identity store port to fenced D1 tables; use canonical
   invocation callable in HTTP/MCP dispatch. Request: membership/session
   table contract + invocation port signature with a two-user witness.
@@ -237,13 +239,17 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
 
 ## PR and verification evidence
 
-- S1 (in progress): branch muse/lane-06-identity-interfaces/plan. Local
-  checks 2026-10-04: `npm test` in packages/identity 4/4 pass, in
-  packages/interfaces 7/7 pass (tsc strict + node:test, Node v24.21.0).
-  Temp decisions pending L7 J1: relative contract imports in test-only
-  code; package-local tsconfig esnext/bundler (no contracts package.json
-  yet); package-local lockfiles (L7 deletes at workspace assembly).
-  PR URL + review + merge sha: to be recorded.
+- S1 (in progress): branch muse/lane-06-identity-interfaces/plan, PR
+  https://github.com/veighnsche/canlang/pull/6. Independent read-only
+  subagent review: REQUEST-CHANGES (MCP flat-projection framing in wire.ts
+  comments) — all findings addressed (framing corrected, SealedActionHandle
+  spelling labeled lane-06, retryable cites DESIGN section 7, test/CI
+  hardening incl. owned-import guard). After L7 B0 (#4) merged, rebased and
+  adapted: tsconfigs extend tsconfig.base.json (NodeNext), member lockfiles
+  removed (single root lock), CI installs at root workspace ephemerally.
+  Local checks 2026-10-04 post-adaptation: `npm test --workspace
+  @canlang/identity --workspace @canlang/interfaces` 4/4 + 7/7 pass
+  (Node v24.21.0). Merge sha: to be recorded.
 
 ## Remaining work and cleanup
 
