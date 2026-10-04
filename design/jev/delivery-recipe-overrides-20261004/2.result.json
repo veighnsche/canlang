@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Consider an unimplemented DSL whose ordinary test tables load selected fixtures and references, evaluate row values on unmodified initial context, and apply independent selector changes together. A delivery fixture resolves a real bound operation and accepts a complete normalized input request with status/result/error. The isolated framework supplies app/team owner, originating authority, canonical target, opaque identity and revision. Its pending, success, failure, uncertainty and skipped snapshots must respectively have null/null, typed result/null, null/safe error, null/optional safe error and null/null payloads. File results cannot bypass receiving-store finalization or the operation, delivery and field-path provenance checks; neither a raw reference nor someone else's upload proves that. Today model snapshot selectors exist but delivery recipe fields cannot vary, producing five or six declarations with equal request bodies. We need equally independent expected assertions for every state, no live transport or later receipt mutation, and concise source without fixture inheritance, a new constructor or write API. Draft syntax can change freely. Only generic language facts are supplied here.",
+    "questions": {
+      "fixture_contract": {
+        "type": "choice",
+        "instructions": "Compare all options for the same completeness, authorization/provenance safety, token economy and unambiguous setup order; report a choice with calibrated residual uncertainty.",
+        "criteria": {
+          "separate_recipes": "Continue authoring one full target recipe per legal initial outcome. Dependency resolution and validation are unchanged and each snapshot is visible, at the cost of repeating identical normalized requests and declarations.",
+          "initial_selectors": "Extend existing table path notation solely for top-level status/result/error of a directly named target recipe. Build an immutable baseline setup view, compute every row cell there, detect alias/ancestor conflicts, merge independent initial attributes into one full planned request/envelope, then validate and finalize its isolated protected receipt including any file results. Do not select through a domain association, alter request/identity/binding/authority, or permit mutations between sequence steps. This saves repeated receipts but requires clearly specified initial planning before final provisioning.",
+          "factor_existing_fields": "Reuse existing business-record frozen fields or declared message content for the input values of each unchanged complete receipt recipe. No receipt override capability is added; repeated literal data may shrink. Per-status recipe structure remains, references can form a cycle if that record already associates the same receipt, and no generic reusable input-value fixture currently exists."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "fixture_contract": {
+        "type": "choice",
+        "choice": "initial_selectors",
+        "confidence": 0.91,
+        "probabilities": {
+          "initial_selectors": 0.94,
+          "separate_recipes": 0.05,
+          "factor_existing_fields": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 769,
+      "output_tokens": 51
+    }
+  }
+}

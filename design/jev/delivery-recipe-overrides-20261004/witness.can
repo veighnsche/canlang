@@ -1,0 +1,41 @@
+## Standalone desired-contract witness; no provider or fixture runner executes here.
+app DeliveryRecipeWitness uses=[delivery_recipe_witness]
+package delivery_recipe_witness
+ use std {EmailV1 as Mail,DeliveryResult} from=deployment.mail
+ use delivery_recipe_witness {FilesV1 as Files} from=deployment.files
+ Given
+  export capability FilesV1 version=1
+   produce(source:text) -> file
+  Item { owner:user server=actor, decision:enum(approved,rejected)=approved, notice:delivery(Mail.send)?, artifact:delivery(Files.produce)? }
+  policy Item read=members where=row.owner==actor
+  lock Item fields=decision
+  fixture mail_attempt=Mail.send {request={to="recipient@example.test",subject="Decision",body="Approved"}}
+  fixture file_attempt=Files.produce {request={source="fixed-document"}}
+  fixture document=file {}
+  fixture item=Item {notice=mail_attempt,artifact=file_attempt}
+ When
+  scenario notice_status(item:Item) read=true -> DeliveryResult.status? by=members
+   require item.owner==actor
+   do return item.notice?.status
+   ## Selectors initialize one full recipe envelope before provisioning, never a live receipt.
+   examples item=item
+    mail_attempt.status,mail_attempt.result,mail_attempt.error -> result,item.decision
+    pending,null,null -> pending,approved
+    succeeded,{reference="accepted-mail"},null -> succeeded,approved
+    failed,null,{code="provider",message="Rejected"} -> failed,approved
+    unknown,null,null -> unknown,approved
+    unknown,null,{code="timeout",message="Acceptance uncertain"} -> unknown,approved
+    skipped,null,null -> skipped,approved
+   examples item=item
+    item.notice -> result,item.decision
+    null -> null,approved
+  scenario artifact_result(item:Item) read=true -> file? by=members
+   require item.owner==actor
+   do return item.artifact?.result
+   ## File fixture bytes/finalization and receiving result-path provenance remain required setup.
+   examples item=item
+    file_attempt.status,file_attempt.result,file_attempt.error -> result,item.decision
+    succeeded,document,null -> document,approved
+    failed,null,{code="provider",message="Rejected"} -> null,approved
+    unknown,null,null -> null,approved
+ Then
