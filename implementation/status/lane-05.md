@@ -310,10 +310,13 @@ Note (S3): L7's new integration check runs `npm ci`, so the lane-05 daisyUI
 devDep required a root-lock sync to merge. Applied mechanically via
 `npm install --package-lock-only` (11-line daisyui-only addition, verified
 with local `npm ci` + 183/183); the lockfile stays L7-owned and this sync is
-flagged for L7 review in the PR. Main is independently red on `integration`
-(lanes 02/03 runs failing at the same step window); if integration stays red
-for non-lane-05 reasons after our sync, that is L7's gate to repair, not a
-lane-05 merge blocker beyond our own green checks.
+flagged for L7 review in the PR. The remaining `integration`/`workspace`
+failure is lane 03's unsynced miniflare@4 dep (red on main since #15; lanes
+15/17/19/20/13 all merged with it red, so it is not a required gate).
+Update on rebase: L7 joined presentation into the contracts index on main;
+member TS keeps relative module imports workspace-wide (state/values/identity
+precedent), so lane 05 keeps its direct import and the B0-retirement request
+is closed. tsconfig.check.json inclusion for packages/ui still pending.
 
 ## Remaining work and cleanup
 
