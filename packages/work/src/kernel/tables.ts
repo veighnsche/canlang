@@ -81,6 +81,8 @@ export interface DispatchRowData {
   readonly errorMessage: string | null;
   /** Retry availability (`computeBackoff` notBeforeMs), if deferred. */
   readonly availableAtMs: number | null;
+  /** First provider-attempt start (claim time), for horizon checks. */
+  readonly firstAttemptAtMs: number | null;
 }
 
 /** Execution receipt per admitted occurrence. */
@@ -274,6 +276,7 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
     errorCode: checkNullableString(data, 'errorCode', 'work.dispatch'),
     errorMessage: checkNullableString(data, 'errorMessage', 'work.dispatch'),
     availableAtMs: checkNullableInstant(data, 'availableAtMs', 'work.dispatch'),
+    firstAttemptAtMs: checkNullableInstant(data, 'firstAttemptAtMs', 'work.dispatch'),
   };
 }
 
@@ -432,6 +435,7 @@ export function newDispatchRow(
     errorCode: null,
     errorMessage: null,
     availableAtMs: null,
+    firstAttemptAtMs: null,
   };
   return newRow(input.intentId, data as unknown as Record<string, unknown>, meta, 'work.dispatch');
 }

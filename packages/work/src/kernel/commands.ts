@@ -200,6 +200,18 @@ export const workDispatchClaimCommand: SystemCommandDef = {
       return { result: { claimed: false, reason: 'guard-false', intentId } };
     }
     if (data.state === 'pending') {
+      // Defensive: pending rows normally carry no deferral (requeue
+      // clears it), but a future path must never jump the backoff.
+      if (data.availableAtMs !== null && data.availableAtMs > ctx.now) {
+        return {
+          result: {
+            claimed: false,
+            reason: 'deferred',
+            intentId,
+            availableAtMs: data.availableAtMs,
+          },
+        };
+      }
       const writes = [
         updateWrite(
           row,
@@ -311,6 +323,8 @@ export const workDispatchRecordAttemptCommand: SystemCommandDef = {
         ...data,
         state: stateValue as OutboxItemState,
         attempts: data.attempts + 1,
+        // First attempt start anchors the retry horizon; later attempts keep it.
+        firstAttemptAtMs: data.firstAttemptAtMs ?? data.claimedAtMs ?? ctx.now,
         claimId: null,
         claimedAtMs: null,
         ...(guardVerdict !== undefined ? { guardVerdict } : {}),
@@ -327,6 +341,92 @@ export const workDispatchRecordAttemptCommand: SystemCommandDef = {
       writes: [updateWrite(row, next, ctx, WORK_DISPATCH_MODEL, what)],
       ...(ack ? { outboxAck: [intentId] } : {}),
       result: { recorded: true, intentId, state: next.state, attempts: next.attempts },
+    };
+  },
+};
+
+/**
+ * `work.dispatch.requeue {intentId, maxAttempts, horizonMs}`: return an
+ * uncertain/failed row to pending for its next attempt, or dead-letter
+ * it when the retry budget is exhausted. Exhaustion mirrors
+ * `computeBackoff` exactly (attempt cap OR horizon reached); deferrals
+ * hold until `availableAtMs`. Dead-lettering here keeps `dead` a
+ * visible fenced outcome rather than dispatcher-side mutation.
+ */
+export const workDispatchRequeueCommand: SystemCommandDef = {
+  name: 'work.dispatch.requeue',
+  stage: async (args, ctx) => {
+    const what = 'work.dispatch.requeue';
+    checkArgs(args, what);
+    const intentId = argString(args, 'intentId', what);
+    const maxAttemptsValue = args['maxAttempts'];
+    if (
+      typeof maxAttemptsValue !== 'number' ||
+      !Number.isInteger(maxAttemptsValue) ||
+      maxAttemptsValue < 1
+    ) {
+      throw new KernelTableError(`${what}: maxAttempts must be an integer >= 1.`);
+    }
+    const horizonMs = argInstant(args, 'horizonMs', what);
+    const { row, data } = await loadDispatchRow(ctx, intentId, what);
+    if (data.state !== 'uncertain' && data.state !== 'failed') {
+      return {
+        result: {
+          requeued: false,
+          dead: false,
+          intentId,
+          reason: 'not-retryable',
+          state: data.state,
+        },
+      };
+    }
+    const exhausted =
+      data.attempts >= maxAttemptsValue ||
+      (data.firstAttemptAtMs !== null &&
+        ctx.now - data.firstAttemptAtMs >= horizonMs);
+    if (exhausted) {
+      return {
+        writes: [
+          updateWrite(
+            row,
+            { ...data, state: 'dead' },
+            ctx,
+            WORK_DISPATCH_MODEL,
+            what,
+          ),
+        ],
+        result: { requeued: false, dead: true, intentId, attempts: data.attempts },
+      };
+    }
+    if (data.availableAtMs !== null && data.availableAtMs > ctx.now) {
+      return {
+        result: {
+          requeued: false,
+          dead: false,
+          intentId,
+          reason: 'deferred',
+          availableAtMs: data.availableAtMs,
+        },
+      };
+    }
+    return {
+      writes: [
+        updateWrite(
+          row,
+          {
+            ...data,
+            state: 'pending',
+            deliveryId: null,
+            errorCode: null,
+            errorMessage: null,
+            availableAtMs: null,
+          },
+          ctx,
+          WORK_DISPATCH_MODEL,
+          what,
+        ),
+      ],
+      result: { requeued: true, dead: false, intentId, attempts: data.attempts },
     };
   },
 };
@@ -731,6 +831,7 @@ export const workEveryAdvanceSlotCommand: SystemCommandDef = {
 export const WORK_SYSTEM_COMMANDS: readonly SystemCommandDef[] = [
   workDispatchClaimCommand,
   workDispatchRecordAttemptCommand,
+  workDispatchRequeueCommand,
   workDispatchReleaseCommand,
   workDispatchSupersedeCommand,
   workOccurrencePutReceiptCommand,

@@ -35,6 +35,7 @@ import {
   WORK_SYSTEM_COMMANDS,
   workDispatchClaimCommand,
   workDispatchRecordAttemptCommand,
+  workDispatchRequeueCommand,
   workDispatchReleaseCommand,
   workDispatchSupersedeCommand,
   workEveryAdvanceSlotCommand,
@@ -105,10 +106,10 @@ function dispatchRow(
 }
 
 describe('kernel commands: registry shape', () => {
-  it('exports 8 uniquely named dot-namespaced commands', () => {
-    assert.equal(WORK_SYSTEM_COMMANDS.length, 8);
+  it('exports 9 uniquely named dot-namespaced commands', () => {
+    assert.equal(WORK_SYSTEM_COMMANDS.length, 9);
     const names = WORK_SYSTEM_COMMANDS.map((command) => command.name);
-    assert.equal(new Set(names).size, 8);
+    assert.equal(new Set(names).size, 9);
     for (const name of names) {
       assert.match(name, /^work\.[a-z-]+\.[a-z-]+$/);
     }
@@ -222,6 +223,27 @@ describe('kernel commands: dispatch.claim', () => {
     });
   });
 
+  it('defers pending rows with a future availability', async () => {
+    const row = dispatchRow('op_1#0', { availableAtMs: NOW + 5000 });
+    const ctx = fakeCtx(seed([{ model: WORK_DISPATCH_MODEL, row }]));
+    const staged = await workDispatchClaimCommand.stage(
+      {
+        intentId: 'op_1#0',
+        claimId: 'claim_1',
+        claimedAtMs: NOW,
+        maxClaimAgeMs: MAX_AGE,
+      },
+      ctx,
+    );
+    assert.deepEqual(staged.result, {
+      claimed: false,
+      reason: 'deferred',
+      intentId: 'op_1#0',
+      availableAtMs: NOW + 5000,
+    });
+    assert.equal(staged.writes, undefined);
+  });
+
   it('throws loudly on missing rows and bad args', async () => {
     const ctx = fakeCtx(seed([]));
     await assert.rejects(
@@ -276,6 +298,7 @@ describe('kernel commands: dispatch.record-attempt', () => {
         ...readDispatchRow(row),
         state: 'uncertain',
         attempts: 3,
+        firstAttemptAtMs: NOW,
         claimId: null,
         claimedAtMs: null,
         deliveryId: null,
@@ -416,6 +439,145 @@ describe('kernel commands: dispatch.record-attempt', () => {
         ctx,
       ),
       /must be pending, delivered/,
+    );
+  });
+});
+
+describe('kernel commands: dispatch.requeue', () => {
+  it('returns ready uncertain/failed rows to pending with cleared outcome', async () => {
+    const uncertain = dispatchRow('op_1#0', {
+      state: 'uncertain',
+      attempts: 1,
+      firstAttemptAtMs: NOW - 500,
+      errorCode: 'provider_transient',
+      errorMessage: 'boom',
+      availableAtMs: NOW - 1,
+    });
+    const failed = dispatchRow('op_1#1', {
+      state: 'failed',
+      attempts: 2,
+      firstAttemptAtMs: NOW - 500,
+      deliveryId: null,
+      errorCode: 'provider_rejected',
+      errorMessage: 'no',
+      availableAtMs: null,
+    });
+    const ctx = fakeCtx(
+      seed([
+        { model: WORK_DISPATCH_MODEL, row: uncertain },
+        { model: WORK_DISPATCH_MODEL, row: failed },
+      ]),
+    );
+    for (const intentId of ['op_1#0', 'op_1#1']) {
+      const staged = await workDispatchRequeueCommand.stage(
+        { intentId, maxAttempts: 8, horizonMs: 3_600_000 },
+        ctx,
+      );
+      assert.deepEqual(staged.result, {
+        requeued: true,
+        dead: false,
+        intentId,
+        attempts: intentId === 'op_1#0' ? 1 : 2,
+      });
+      const write = staged.writes?.[0];
+      assert.equal(write?.kind, 'update');
+      if (write?.kind === 'update') {
+        const data = readDispatchRow(write.row);
+        assert.equal(data.state, 'pending');
+        assert.equal(data.deliveryId, null);
+        assert.equal(data.errorCode, null);
+        assert.equal(data.errorMessage, null);
+        assert.equal(data.availableAtMs, null);
+        // Horizon anchor survives across attempts.
+        assert.equal(data.firstAttemptAtMs, NOW - 500);
+      }
+    }
+  });
+
+  it('holds deferred rows and dead-letters exhausted ones', async () => {
+    const deferred = dispatchRow('op_1#0', {
+      state: 'uncertain',
+      attempts: 1,
+      firstAttemptAtMs: NOW - 500,
+      availableAtMs: NOW + 60_000,
+    });
+    const capped = dispatchRow('op_1#1', {
+      state: 'failed',
+      attempts: 8,
+      firstAttemptAtMs: NOW - 500,
+    });
+    const timedOut = dispatchRow('op_1#2', {
+      state: 'uncertain',
+      attempts: 2,
+      firstAttemptAtMs: NOW - 3_600_000,
+    });
+    const ctx = fakeCtx(
+      seed([
+        { model: WORK_DISPATCH_MODEL, row: deferred },
+        { model: WORK_DISPATCH_MODEL, row: capped },
+        { model: WORK_DISPATCH_MODEL, row: timedOut },
+      ]),
+    );
+    const held = await workDispatchRequeueCommand.stage(
+      { intentId: 'op_1#0', maxAttempts: 8, horizonMs: 3_600_000 },
+      ctx,
+    );
+    assert.deepEqual(held.result, {
+      requeued: false,
+      dead: false,
+      intentId: 'op_1#0',
+      reason: 'deferred',
+      availableAtMs: NOW + 60_000,
+    });
+    assert.equal(held.writes, undefined);
+    for (const intentId of ['op_1#1', 'op_1#2']) {
+      const dead = await workDispatchRequeueCommand.stage(
+        { intentId, maxAttempts: 8, horizonMs: 3_600_000 },
+        ctx,
+      );
+      assert.deepEqual(dead.result, {
+        requeued: false,
+        dead: true,
+        intentId,
+        attempts: intentId === 'op_1#1' ? 8 : 2,
+      });
+      const write = dead.writes?.[0];
+      assert.equal(write?.kind, 'update');
+      if (write?.kind === 'update') {
+        assert.equal(readDispatchRow(write.row).state, 'dead');
+      }
+    }
+  });
+
+  it('refuses non-retryable rows and validates the budget', async () => {
+    const pending = dispatchRow('op_1#0');
+    const ctx = fakeCtx(seed([{ model: WORK_DISPATCH_MODEL, row: pending }]));
+    const refused = await workDispatchRequeueCommand.stage(
+      { intentId: 'op_1#0', maxAttempts: 8, horizonMs: 3_600_000 },
+      ctx,
+    );
+    assert.deepEqual(refused.result, {
+      requeued: false,
+      dead: false,
+      intentId: 'op_1#0',
+      reason: 'not-retryable',
+      state: 'pending',
+    });
+    await assert.rejects(
+      runStage(
+        workDispatchRequeueCommand.stage,
+        { intentId: 'op_1#0', maxAttempts: 0, horizonMs: 1000 },
+        ctx,
+      ),
+      /maxAttempts must be an integer >= 1/,
+    );
+    await assert.rejects(
+      runStage(
+        workDispatchRequeueCommand.stage,
+        { intentId: 'ghost', maxAttempts: 8, horizonMs: 1000 },
+        ctx,
+      ),
+      KernelTableError,
     );
   });
 });

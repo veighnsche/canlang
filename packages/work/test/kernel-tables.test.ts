@@ -75,6 +75,7 @@ describe('kernel tables: dispatch rows', () => {
       errorCode: null,
       errorMessage: null,
       availableAtMs: null,
+      firstAttemptAtMs: null,
     });
   });
 
