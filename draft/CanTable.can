@@ -135,32 +135,85 @@ package cafe
   # Run a host floor view with separate waiting, upcoming and actual occupancy evidence. @{nl="Bedien het café met afzonderlijk bewijs van wachten, toekomstige reserveringen en werkelijk gebruik."}
   page /cafe title="Café host"@{nl="Cafébediening"}
    require host
+   breadcrumbs
    form Cafe.create
-   list Cafe as cafe where preferences.cafe==null or cafe==preferences.cafe
+    input name
+    select location
+   list Cafe as cafe where preferences.cafe==null or cafe==preferences.cafe empty="No cafés available."@{nl="Geen cafés beschikbaar."}
+    pagination
     card "Café and table definitions"@{nl="Café- en tafeldefinities"}
      edit
      text cafe.location
      form Table.create
-     table row.Table columns=name,zone,seats,active
+      fieldset "Dining table"@{nl="Cafétafel"}
+       input name
+       input zone
+       input seats
+       checkbox active
+     table row.Table columns=name,zone,seats,active empty="No tables defined yet."@{nl="Nog geen tafels gedefinieerd."}
+      pagination
       edit
       history
     card "Walk-in intake"@{nl="Invoer van binnenlopende gasten"}
      form Booking.create display=inline
+      ## Seating interval and table come from the reserve/seat flows.
+      input name
+      input contact
+      input party
+      textarea notes
+      input priority
     card "Waiting, reservations and physical occupancy"@{nl="Wachten, reserveringen en werkelijke bezetting"}
      tabs preferences.view
-     table row.Booking as booking where preferences.view==all or (preferences.view==waiting and booking.state==waiting) or (preferences.view==reservations and booking.state==reserved) or (preferences.view==occupancy and booking.seated!=null and booking.cleared==null) columns=name,party,priority,arrived,table,from,until,estimated_until,seated,cleared,state,overdue,conflict order=-priority,arrived filter=state display=split
+     table row.Booking as booking where preferences.view==all or (preferences.view==waiting and booking.state==waiting) or (preferences.view==reservations and booking.state==reserved) or (preferences.view==occupancy and booking.seated!=null and booking.cleared==null) columns=name,party,priority,arrived,table,from,until,estimated_until,seated,cleared,state,overdue,conflict order=-priority,arrived filter=state display=split empty="No bookings match this view."@{nl="Geen boekingen voor deze weergave."}
+      pagination
       badge row.state
+      ## Overdue estimates and table conflicts keep their own notices; elapsed estimates never release occupancy.
+      alert
+       require row.overdue
+       text "Seating estimate exceeded; the table stays occupied until staff clear it."@{nl="Zitschatting overschreden; de tafel blijft bezet tot het personeel deze vrijgeeft."}
+      alert
+       require row.conflict
+       text "This reservation conflicts with an uncleared party on the same table."@{nl="Deze reservering botst met een niet-vrijgegeven groep aan dezelfde tafel."}
       edit
-      actions reserve,seat,clear,cancel
-      details "Guest and planned interval evidence"@{nl="Gastgegevens en geplande tijdvakken"}
+      button opens=reserve_table
+      modal "Reserve dining table"@{nl="Cafétafel reserveren"} id=reserve_table
+       slot content
+        form reserve arguments={booking=row} display=inline
+         fieldset "Reservation interval"@{nl="Reserveringstijdvak"}
+          select table
+          input from
+          input until
+          textarea reason
+      button opens=record_seating
+      modal "Record seating"@{nl="Plaatsnemen vastleggen"} id=record_seating
+       slot content
+        form seat arguments={booking=row} display=inline
+         fieldset "Seating"@{nl="Plaatsnemen"}
+          select table
+          input estimated_until
+      button opens=clear_table
+      modal "Clear dining table"@{nl="Cafétafel vrijgeven"} id=clear_table
+       slot content
+        form clear arguments={booking=row} display=inline
+         textarea reason
+      button opens=cancel_booking
+      modal "Cancel booking"@{nl="Boeking annuleren"} id=cancel_booking
+       slot content
+        form cancel arguments={booking=row} display=inline
+         fieldset "Cancellation"@{nl="Annulering"}
+          checkbox missed
+          textarea reason
+      collapse "Guest and planned interval evidence"@{nl="Gastgegevens en geplande tijdvakken"}
        text row.contact,row.notes,row.reason
-      details "Uncleared diners affecting this reservation"@{nl="Niet-vrijgegeven gasten die deze reservering raken"}
+      collapse "Uncleared diners affecting this reservation"@{nl="Niet-vrijgegeven gasten die deze reservering raken"}
        require booking.conflict
-       table cafe.Booking as occupant where occupant.table==booking.table and occupant.seated!=null and occupant.cleared==null columns=name,party,table,seated,estimated_until,overdue
+       table cafe.Booking as occupant where occupant.table==booking.table and occupant.seated!=null and occupant.cleared==null columns=name,party,table,seated,estimated_until,overdue empty="No uncleared diners."@{nl="Geen niet-vrijgegeven gasten."}
+        pagination
         form clear arguments={booking=row}
-      details "Upcoming reservations affected by this occupancy"@{nl="Toekomstige reserveringen geraakt door deze bezetting"}
+      collapse "Upcoming reservations affected by this occupancy"@{nl="Toekomstige reserveringen geraakt door deze bezetting"}
        require booking.seated!=null and booking.cleared==null
-       table cafe.Booking as upcoming where upcoming.state==reserved and upcoming.table==booking.table and upcoming.conflict columns=name,party,table,from,until,conflict order=from
+       table cafe.Booking as upcoming where upcoming.state==reserved and upcoming.table==booking.table and upcoming.conflict columns=name,party,table,from,until,conflict order=from empty="No affected upcoming reservations."@{nl="Geen geraakte toekomstige reserveringen."}
+        pagination
         form reserve arguments={booking=row}
         form cancel arguments={booking=row}
       history

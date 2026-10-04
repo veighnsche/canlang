@@ -82,6 +82,67 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
+## Slice 17: full replans Chat/Creative (branch muse/frontend-catalog-migration/slice-17-n1-chat-creative, in progress)
+
+Paths: draft/CanChat + draft/CanCreative (.can+.md+.mjs) + this status
+file. Source: lane-N1 drafter output under /tmp/draftN1, applied +
+corrected by coordinator. Coordinator corrections: Creative output gallery
+gains empty+pagination (gallery is a collection, GRAMMAR L419). All
+mirrored in witnesses. Kept after verification: details display=drawer
+(grammar exception, base); bare open/regenerate/ask/revoke/generate/
+from_turn/inspect/validate/publish per base bare patterns + row-only
+checks; status x3 on DeliveryResult.status? derives; badge on nullable
+provider Run.state (small labeled domain, Allowance.unit precedent);
+title leaves (base); chat_bubble/progress/loading/range/label/validator
+composition. Given/When byte-identical (splice-verified, blank-before-Then
+separator removed per review N2). node --check clean.
+Census: Chat 9 + Creative 11 collections w/ empty+pagination; 7 pages w/
+breadcrumbs; modal-free (reads + row-only ops + complete bare/placed
+forms). Drift: +134 E1200 (base 2), no E1204. Ok on main. Prototype
+stops byte-identical (pre-existing Given gaps).
+Handoff: (a) array control (attachments/prefix); (b) user refs generated;
+(c) gallery/chat-bubble/progress/loading/range/label/validator renderers.
+Independent review verdict BLOCKERS: B1/B2 — coordinator's added
+`checkbox active` in Profile.create/Template.create bound a non-param
+(`active` excluded from `create_fields`, update-only; Allowance.create
+and Budget.create correctly omitted it). Removed + mirrors removed; N1
+stale gallery header reworded, N3 `.md` "moved"->"placed". RULE REFINED:
+create-form placement allowlist is `create_fields` (or `fields=` when no
+`create_fields`), never full table columns; never invent fields.
+CROSS-SLICE AUDIT (same class): merged slice 15 Rent Resource.create
+places 5 non-create params (active/increment/minimum/buffer_before/
+buffer_after); merged slice 14 Member Content.create places staff_only
+(not in crud fields at all). Invoice + L verified clean. Fixup slice
+queued after this merge. Future review prompts gain explicit check:
+create-form placement ⊆ `create_fields` ?? `fields=`.
+
+## Slice 16: full replans Board/Do/Trade/Table/Report (branch muse/frontend-catalog-migration/slice-16-lane-l, in progress)
+
+Paths: draft/Can{Board,Do,Trade,Table,Report} (.can+.md+.mjs; Do/Report/
+Trade .mjs new) + this status file. Source: lane-L drafter output under
+/tmp/draftL, applied + corrected by coordinator. Coordinator corrections:
+chunks re-indented +2 (drafter wrote col-0); breadcrumbs moved after
+require (8 pages); Board timeline slot-item pagination removed (pagination
+only in collection suites; timeline is not a collection per GRAMMAR);
+Board paper button gated (nullable file); Agenda.create += title/position/
+discussion; Action.create += owner ## note; Do/Report state text deduped
+(badge suffices, base had both); Task.create += location/description/due;
+Template.create += location; Post.create += location/category/amount/
+contact; Cafe.create += location; Table.create += seats; Booking.create +=
+contact/party/notes/priority (interval/table stay flow-owned). All mirrored
+in witnesses (ternary-gate convention for the paper button). .md wording
+aligned. Given/When byte-identical (splice-verified). node --check clean.
+Census: 27 collections w/ empty+pagination; 9 pages w/ breadcrumbs; 9
+modals w/ button/inline (Do/Report modal-free: reads + row-only ops).
+Drift: +166 E1200 (base 30), no E1204. Ok on main. Prototype stops at
+first breadcrumbs per file (new catalog); base stops at pre-existing
+badge/identifier gaps. Catalog rulings recorded: tabs preferences.view
+legal (UI-COMPONENTS Tabs row); gallery IS a collection (GRAMMAR L419 ->
+pagination required; N1-Creative fix queued); timeline is not.
+Handoff: (a) array control; (b) user-picker vocabulary (owner/account/
+assignee generated); (c) modal/timeline/hero/metrics/fab/chat-bubble/
+board renderers.
+
 ## Slice 15: full replan Rent (branch muse/frontend-catalog-migration/slice-15-rent, in progress)
 
 Paths: draft/CanRent (.can+.md+.mjs) + this status file. Source: lane-K

@@ -36,10 +36,10 @@ Provider previews, URLs, paths and asset IDs are not Can files. The shared adapt
 
 ## UI and composition
 
-- Image studio: canonical generation form, live run/receipt feedback, shared image thumbnail galleries, stop/reconcile/release controls and own budget summary.
-- Chat to image: readable conversation/branch/turn context and explicit generation action.
-- Unresolved image jobs: safe recovery independently of private content access.
-- Workflow templates: upload, typed inspection, mapping edit, immutable validation/publication and budget administration.
+- Image studio: breadcrumbs; inline generation form grouped into image-prompt and size/context inputs; run list with pagination, generation-state badge, submission/stop/recovery receipt statuses, unfinished-run loading, finalized-output galleries and stop/reconcile/release controls; own budget table with pagination.
+- Chat to image: breadcrumbs; readable conversation/branch nesting with turns as chat bubbles; each turn carries the generation form with placed template, negative and size inputs; every level paginated.
+- Unresolved image jobs: breadcrumbs; run table with pagination, receipt status and recovery controls, independent of private content access.
+- Workflow templates: breadcrumbs; notice describing upload/inspect/map/validate/publish; grouped template creation (graph upload, input mapping, output/duration limits); owned templates with pagination, edit, inspect, validation, candidate inputs and immutable revisions with publish; budget creation with placed cap/parallel inputs and budget administration with typed cap/parallel/active edits.
 
 `CanCreative` selects `[chat,creative]`; `CanGallery` selects `[chat,creative,gallery]`. There is no reverse Chat dependency or import cycle. The standard `gallery ... image=image` component supplies authorized thumbnails, keyboard preview and original-file access; the app does not author browser transport, CSS, a gallery widget or provider credentials. Inline English/Dutch captions and normal shared UI states apply.
 
