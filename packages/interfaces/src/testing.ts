@@ -28,6 +28,11 @@ import type {
   FileKernel,
   FileUseInfo,
   HttpDeps,
+  IngressBinding,
+  IngressBindings,
+  IngressDeps,
+  IngressSink,
+  IngressVerifier,
   KernelAppendOutcome,
   KernelCompleteOutcome,
   KernelCreateOutcome,
@@ -37,6 +42,7 @@ import type {
   McpFilesInfo,
   McpPermissions,
   MutationOutcome,
+  OAuthDeps,
   OperationDescriptor,
   OperationInputShape,
   OperationInvoker,
@@ -48,6 +54,7 @@ import type {
   UploadBinding,
   UploadDeps,
   UploadReceiver,
+  VerifiedIngressEnvelope,
 } from './ports.js';
 import { systemInterfacesClock } from './ports.js';
 
@@ -365,6 +372,115 @@ export interface TestUploadDeps {
   readonly identity: IdentityFixture;
 }
 
+/* ------------------------------------------------------------------ */
+/* S7 ingress + OAuth doubles.                                       */
+/* ------------------------------------------------------------------ */
+
+export function createFakeBindings(bindings: readonly IngressBinding[]): IngressBindings {
+  const byNamespace = new Map(bindings.map((b) => [b.namespace, b]));
+  return { bindingFor: (namespace: string) => byNamespace.get(namespace) ?? null };
+}
+
+export function createTestBinding(overrides: Partial<IngressBinding> = {}): IngressBinding {
+  return {
+    namespace: 'acme-billing',
+    adapter: 'test-hmac',
+    team: 'team-1',
+    owner: 'team-1',
+    ...overrides,
+  };
+}
+
+export function createTestEnvelope(overrides: Partial<VerifiedIngressEnvelope> = {}): VerifiedIngressEnvelope {
+  return {
+    namespace: 'acme-billing',
+    producerEventId: 'evt-1',
+    operationKind: 'charge',
+    requestDigest: 'sha256:abc',
+    deliveryId: null,
+    ...overrides,
+  };
+}
+
+/** Scripted verifier: per-namespace envelope or null (fail closed). */
+export function createFakeVerifier(
+  results: Record<string, VerifiedIngressEnvelope | null>,
+): IngressVerifier & { calls: Array<{ binding: IngressBinding; bytes: number }> } {
+  const calls: Array<{ binding: IngressBinding; bytes: number }> = [];
+  return {
+    calls,
+    async verify(binding, input) {
+      calls.push({ binding, bytes: input.body.length });
+      return results[binding.namespace] ?? null;
+    },
+  };
+}
+
+/** Recording sink with a scripted accept flag. */
+export function createFakeSink(accepted = true): IngressSink & {
+  calls: Array<{ context: unknown; event: unknown }>;
+} {
+  const calls: Array<{ context: unknown; event: unknown }> = [];
+  return {
+    calls,
+    async accept(context, event) {
+      calls.push({ context, event });
+      return { accepted };
+    },
+  };
+}
+
+export interface TestIngressDeps {
+  readonly deps: IngressDeps;
+  readonly logger: Logger & { calls: RecordedLog[] };
+  readonly verifier: IngressVerifier & { calls: Array<{ binding: IngressBinding; bytes: number }> };
+  readonly sink: IngressSink & { calls: Array<{ context: unknown; event: unknown }> };
+}
+
+export function createTestIngressDeps(opts: {
+  bindings?: readonly IngressBinding[];
+  verify?: Record<string, VerifiedIngressEnvelope | null>;
+  accepted?: boolean;
+} = {}): TestIngressDeps {
+  const logger = createRecordingLogger();
+  const verifier = createFakeVerifier(opts.verify ?? {});
+  const sink = createFakeSink(opts.accepted ?? true);
+  return {
+    logger,
+    verifier,
+    sink,
+    deps: {
+      bindings: createFakeBindings(opts.bindings ?? [createTestBinding()]),
+      verifier,
+      sink,
+      logger,
+      clock: systemInterfacesClock,
+    },
+  };
+}
+
+export interface TestOAuthDeps {
+  readonly deps: OAuthDeps;
+  readonly logger: Logger & { calls: RecordedLog[] };
+  readonly identity: IdentityFixture;
+}
+
+/** Assemble OAuthDeps with a real identity fixture. */
+export async function createTestOAuthDeps(): Promise<TestOAuthDeps> {
+  const logger = createRecordingLogger();
+  const identity = await createIdentityFixture({});
+  return {
+    logger,
+    identity,
+    deps: {
+      identity: createTestIdentityDeps(identity),
+      limiter: createMemoryRateLimiter(),
+      logger,
+      clock: systemInterfacesClock,
+    },
+  };
+}
+
 /** Assemble UploadDeps from fakes with a real identity fixture. */
 export async function createTestUploadDeps(opts: {
   usesFiles?: boolean;
@@ -417,6 +533,11 @@ export async function createTestDeps(opts: {
       identity: createTestIdentityDeps(identity),
       secureCookies: opts.secureCookies ?? false,
       uploads: { files: createFakeFileUseInfo(false), kernel: createFakeKernel({}) },
+      ingress: {
+        bindings: createFakeBindings([]),
+        verifier: createFakeVerifier({}),
+        sink: createFakeSink(),
+      },
     },
   };
 }
