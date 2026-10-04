@@ -85,6 +85,58 @@ const advocateOptions = (c) => ({
  * payment ledger. Install the explicitly documented committed-event bindings;
  * no provider/ingress implementation is implied by these handwritten targets.
  */
+const referralsPageDescriptor = {
+  owner: "refer",
+  path: "/referrals",
+  title: message("Referrals", { nl: "Verwijzingen" }),
+  description: message(
+    "Share your configured referral destination and trace earned, paid and owed balances.",
+    {
+      nl: "Deel de ingestelde verwijzingsbestemming en volg verdiende, betaalde en verschuldigde saldi.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    check(hasRole(c, "authenticated") && c.actor.email_verified, "forbidden");
+    return {};
+  },
+  render: referralsPage,
+};
+
+const workPageDescriptor = {
+  owner: "refer",
+  path: "/referrals/work",
+  title: message("Referral rewards", { nl: "Verwijzingsbeloningen" }),
+  description: message("Review cash rewards and evidence actual external settlement.", {
+    nl: "Beoordeel geldbeloningen en leg bewijs van daadwerkelijke externe uitbetaling vast.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "refer.program_manager") || hasRole(c, "refer.finance"), "forbidden");
+    return {};
+  },
+  render: workPage,
+};
+
+const sharePageDescriptor = {
+  owner: "refer",
+  path: "/referrals/share/{Advocate.id}",
+  title: message("Referral invitation", { nl: "Verwijzingsuitnodiging" }),
+  nav: "none",
+  description: message(
+    "A shared link discloses only its public code and configured destination; capture requires verified customer authority.",
+    {
+      nl: "Een gedeelde link toont alleen de openbare code en ingestelde bestemming; vastlegging vereist geverifieerde klantbevoegdheid.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    const { row } = routeBindings;
+    check(row.parent.active, "forbidden");
+    return { row };
+  },
+  render: sharePage,
+};
+
 export const appDefinition = {
   id: "CanRefer",
   uses: ["refer"],
@@ -410,9 +462,9 @@ export const appDefinition = {
   },
   handlers: { "refer.qualify": { handler: "qualify", on: "refer.Sales.qualification" } },
   pages: [
-    { path: "/referrals", render: referralsPage },
-    { path: "/referrals/work", render: workPage },
-    { path: "/referrals/share/{Advocate.id}", nav: "none", render: sharePage },
+    referralsPageDescriptor,
+    workPageDescriptor,
+    sharePageDescriptor,
   ],
   disabled: ["refer.Program.delete"],
   compositions: {
@@ -904,23 +956,11 @@ export async function latest_capture(c, customer, person, location, product) {
   );
 }
 
-export async function sharePage(c, row) {
-  check(row.parent.active);
+export async function sharePage(c, bindings) {
+  const { row } = bindings;
   return renderPage(
     c,
-    {
-      owner: "refer",
-      path: "/referrals/share/{Advocate.id}",
-      title: message("Referral invitation", { nl: "Verwijzingsuitnodiging" }),
-      nav: "none",
-      record: row,
-      description: message(
-        "A shared link discloses only its public code and configured destination; capture requires verified customer authority.",
-        {
-          nl: "Een gedeelde link toont alleen de openbare code en ingestelde bestemming; vastlegging vereist geverifieerde klantbevoegdheid.",
-        },
-      ),
-    },
+    sharePageDescriptor,
     () => [
       text({ context: c, values: [row.code, row.parent.destination] }),
       form({ context: c, operation: capture, arguments: { advocate: row }, fields: ["customer"] }),
@@ -928,21 +968,10 @@ export async function sharePage(c, row) {
   );
 }
 
-export async function referralsPage(c) {
-  check(hasRole(c, "authenticated") && c.actor.email_verified, "forbidden");
+export async function referralsPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "refer",
-      path: "/referrals",
-      title: message("Referrals", { nl: "Verwijzingen" }),
-      description: message(
-        "Share your configured referral destination and trace earned, paid and owed balances.",
-        {
-          nl: "Deel de ingestelde verwijzingsbestemming en volg verdiende, betaalde en verschuldigde saldi.",
-        },
-      ),
-    },
+    referralsPageDescriptor,
     () => [
       card({
         context: c,
@@ -1028,18 +1057,10 @@ export async function referralsPage(c) {
   );
 }
 
-export async function workPage(c) {
-  check(hasRole(c, "refer.program_manager") || hasRole(c, "refer.finance"), "forbidden");
+export async function workPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "refer",
-      path: "/referrals/work",
-      title: message("Referral rewards", { nl: "Verwijzingsbeloningen" }),
-      description: message("Review cash rewards and evidence actual external settlement.", {
-        nl: "Beoordeel geldbeloningen en leg bewijs van daadwerkelijke externe uitbetaling vast.",
-      }),
-    },
+    workPageDescriptor,
     () => [
       card({
         context: c,

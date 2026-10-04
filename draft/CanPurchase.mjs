@@ -77,6 +77,38 @@ const rejectedCaption = message("Rejected quantity", { nl: "Afgekeurd aantal" })
 
 const receivedCaption = message("Received at", { nl: "Ontvangen op" });
 
+const minePageDescriptor = {
+  owner: "purchase",
+  path: "/purchasing/mine",
+  title: message("My requests", { nl: "Mijn aanvragen" }),
+  description: message("Submit and follow your own purchase authorization.", {
+    nl: "Dien je eigen inkoopautorisatie in en volg deze.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "members"), "forbidden");
+    return {};
+  },
+  render: minePage,
+};
+
+const purchasingPageDescriptor = {
+  owner: "purchase",
+  path: "/purchasing",
+  title: purchasingCaption,
+  description: message(
+    "Maintain supplier records and view affordable commitments and actual spending.",
+    { nl: "Beheer leveranciers en bekijk betaalbare toezeggingen en werkelijke uitgaven." },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(
+      hasRole(c, buyer) || hasRole(c, budget_manager) || hasRole(c, "purchase.approver"),
+      "forbidden",
+    );
+    return {};
+  },
+  render: purchasingPage,
+};
+
 export const appDefinition = {
   id: "CanPurchase",
   uses: ["supplier", "purchase"],
@@ -721,8 +753,8 @@ export const appDefinition = {
     },
   },
   pages: [
-    { path: "/purchasing/mine", render: minePage },
-    { path: "/purchasing", render: purchasingPage },
+    minePageDescriptor,
+    purchasingPageDescriptor,
   ],
   disabled: [
     "purchase.Budget.delete",
@@ -1482,18 +1514,10 @@ export function canApp() {
  * require the full dependency grant; the UI must withhold partial cross-site totals.
  * Inline BDD and provider execution remain unimplemented authored expectations.
  */
-export async function minePage(c) {
-  check(hasRole(c, "members"), "forbidden");
+export async function minePage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "purchase",
-      path: "/purchasing/mine",
-      title: message("My requests", { nl: "Mijn aanvragen" }),
-      description: message("Submit and follow your own purchase authorization.", {
-        nl: "Dien je eigen inkoopautorisatie in en volg deze.",
-      }),
-    },
+    minePageDescriptor,
     () => [
       card({
         context: c,
@@ -1535,22 +1559,10 @@ export async function minePage(c) {
   );
 }
 
-export async function purchasingPage(c) {
-  check(
-    hasRole(c, buyer) || hasRole(c, budget_manager) || hasRole(c, "purchase.approver"),
-    "forbidden",
-  );
+export async function purchasingPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "purchase",
-      path: "/purchasing",
-      title: purchasingCaption,
-      description: message(
-        "Maintain supplier records and view affordable commitments and actual spending.",
-        { nl: "Beheer leveranciers en bekijk betaalbare toezeggingen en werkelijke uitgaven." },
-      ),
-    },
+    purchasingPageDescriptor,
     () => [
       card({
         context: c,

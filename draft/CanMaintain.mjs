@@ -64,6 +64,38 @@ export const inspect = "maintain.inspect";
 export const work = "maintain.work";
 export const work_detail = "maintain.work_detail";
 
+const facilitiesPageDescriptor = {
+  owner: "maintain",
+  path: "/facilities",
+  title: message("Facilities", { nl: "Faciliteiten" }),
+  description: message("Keep assets, overdue inspections and repair verification connected.", {
+    nl: "Houd bedrijfsmiddelen, achterstallige inspecties en reparatieverificatie met elkaar verbonden.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(
+      hasRole(c, "maintain.maintenance_manager") || hasRole(c, "maintain.technician"),
+      "forbidden",
+    );
+    return {};
+  },
+  render: facilitiesPage,
+};
+
+const reportsPageDescriptor = {
+  owner: "maintain",
+  path: "/facilities/my-reports",
+  title: message("My facility reports", { nl: "Mijn storingsmeldingen" }),
+  description: message("Submit and follow your own fault report.", {
+    nl: "Dien je eigen storingsmelding in en volg deze.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    check(hasRole(c, "authenticated"), "forbidden");
+    return {};
+  },
+  render: reportsPage,
+};
+
 export const appDefinition = {
   id: "CanMaintain",
   uses: ["maintain"],
@@ -788,8 +820,8 @@ export const appDefinition = {
   },
   disabled: ["maintain.Asset.delete", "maintain.Plan.delete", "maintain.Repair.delete"],
   pages: [
-    { path: "/facilities", render: facilitiesPage },
-    { path: "/facilities/my-reports", render: reportsPage },
+    facilitiesPageDescriptor,
+    reportsPageDescriptor,
   ],
 };
 
@@ -1443,20 +1475,10 @@ export function canApp() {
  * them before serialization. That async integration, renderer, field/row grant
  * enforcement and full-page/fragment behavior remain unimplemented and unverified.
  */
-export async function facilitiesPage(c) {
-  check(
-    hasRole(c, "maintain.maintenance_manager") || hasRole(c, "maintain.technician"),
-    "forbidden",
-  );
+export async function facilitiesPage(c, bindings) {
   return renderPage(
     c,
-    {
-      path: "/facilities",
-      title: message("Facilities", { nl: "Faciliteiten" }),
-      description: message("Keep assets, overdue inspections and repair verification connected.", {
-        nl: "Houd bedrijfsmiddelen, achterstallige inspecties en reparatieverificatie met elkaar verbonden.",
-      }),
-    },
+    facilitiesPageDescriptor,
     () =>
       card({
         context: c,
@@ -1644,17 +1666,10 @@ export async function facilitiesPage(c) {
       }),
   );
 }
-export async function reportsPage(c) {
-  check(hasRole(c, "authenticated"), "forbidden");
+export async function reportsPage(c, bindings) {
   return renderPage(
     c,
-    {
-      path: "/facilities/my-reports",
-      title: message("My facility reports", { nl: "Mijn storingsmeldingen" }),
-      description: message("Submit and follow your own fault report.", {
-        nl: "Dien je eigen storingsmelding in en volg deze.",
-      }),
-    },
+    reportsPageDescriptor,
     () => [
       card({
         context: c,
