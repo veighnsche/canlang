@@ -12,9 +12,13 @@ package crm label="Sales"@{nl="Verkoop"}
  use member_terms {Membership,Term}
  use member_plans {Plan}
  Given
-  role salesperson label="Salesperson"@{nl="Verkoper"}
+  export role salesperson label="Salesperson"@{nl="Verkoper"}
   contract Pipeline { count:int, total:money } label="Pipeline summary"@{nl="Samenvatting verkoopkansen"}
-  Deal { customer:Customer, contact:Contact, title:text trim min=1, location:Location, owner:user server=actor label="Responsible person"@{nl="Verantwoordelijke"}, value:money label="Value"@{nl="Waarde"}, stage:enum(lead,qualified,proposal,won,lost)=lead label={text=label_Deal_stage,values={lead="Lead"@{nl="Lead"},qualified="Qualified"@{nl="Gekwalificeerd"},proposal="Proposal"@{nl="Offertefase"},won="Won"@{nl="Gewonnen"},lost="Lost"@{nl="Verloren"}}}, seats:int=1 min=1 label="Seats"@{nl="Plaatsen"}, desired_start:date? label="Desired start date"@{nl="Gewenste startdatum"}, duration:text? label="Desired duration"@{nl="Gewenste duur"}, workspace:text? label="Workspace needs"@{nl="Werkplekbehoefte"}, source:text? label="Source reference"@{nl="Bronreferentie"}, next_action:datetime? label="Next action time"@{nl="Tijd volgende actie"}, notes:text?, lost_reason:text? label="Loss reason"@{nl="Reden verloren kans"}, outcome_reference:text? label=label_Deal_outcome_reference } label="Sales opportunity"@{nl="Verkoopkans"}
+  export Deal { customer:Customer, contact:Contact, title:text trim min=1, location:Location, owner:user server=actor label="Responsible person"@{nl="Verantwoordelijke"}, value:money label="Value"@{nl="Waarde"}, stage:enum(lead,qualified,proposal,won,lost)=lead label={text=label_Deal_stage,values={lead="Lead"@{nl="Lead"},qualified="Qualified"@{nl="Gekwalificeerd"},proposal="Proposal"@{nl="Offertefase"},won="Won"@{nl="Gewonnen"},lost="Lost"@{nl="Verloren"}}}, seats:int=1 min=1 label="Seats"@{nl="Plaatsen"}, desired_start:date? label="Desired start date"@{nl="Gewenste startdatum"}, duration:text? label="Desired duration"@{nl="Gewenste duur"}, workspace:text? label="Workspace needs"@{nl="Werkplekbehoefte"}, source:text? label="Source reference"@{nl="Bronreferentie"}, next_action:datetime? label="Next action time"@{nl="Tijd volgende actie"}, notes:text?, lost_reason:text? label="Loss reason"@{nl="Reden verloren kans"}, outcome_reference:text? label=label_Deal_outcome_reference } label="Sales opportunity"@{nl="Verkoopkans"}
+  export contract ResearchLead { customer:Customer, contact:Contact, location:Location, title:Deal.title, value:money, notes:text } label="Reviewed research lead"@{nl="Beoordeelde onderzoekskans"}
+  ResearchIntake { source:text unique, input:ResearchLead, deal:Deal } label="Research promotion evidence"@{nl="Bewijs onderzoeksoverdracht"}
+  policy ResearchIntake read=salesperson and can_work(actor,row.deal.location)
+  lock ResearchIntake fields=source,input,deal
   Activity in Deal { kind:enum(call,email,note,tour,quote,sale) label={text="Kind"@{nl="Soort"},values={call="Call"@{nl="Telefoongesprek"},email="Email"@{nl="E-mail"},note="Note"@{nl="Notitie"},tour="Tour"@{nl="Rondleiding"},quote="Quote"@{nl="Offerte"},sale="Confirmed sale"@{nl="Bevestigde verkoop"}}}, body:text trim min=1, link:url? label="Reviewed source link"@{nl="Beoordeelde bronlink"}, appointment:Appointment? label="Tour appointment"@{nl="Rondleidingafspraak"}, revision:Revision? label="Quote revision"@{nl="Offerteversie"}, author:user server=actor label="Author"@{nl="Auteur"}, occurred:datetime server=now } label="Sales activity"@{nl="Verkoopactiviteit"}
   Sale { deal:Deal, booking:Booking? unique, term:Term? unique, recorded_by:user server=actor label="Recorded by"@{nl="Vastgelegd door"}, recorded_at:datetime server=now label="Recorded at"@{nl="Vastgelegd op"} } label="Confirmed sale evidence"@{nl="Bewijs bevestigde verkoop"}
   policy Sale read=salesperson and can_work(actor,row.deal.location)
@@ -27,6 +31,7 @@ package crm label="Sales"@{nl="Verkoop"}
   lock Activity fields=kind,body,link,appointment,revision,author,occurred
   fixture colleague=Employee {user=other,home=test_worker.home,locations=test_worker.locations,start=test_worker.start,role=test_worker.role}
   fixture prospect=Deal {customer=test_company,contact=test_contact,title="Office",location=test_site,owner=self,value=money(500,"EUR")}
+  fixture research_intake=ResearchIntake {source="discover:existing",input={customer=test_company,contact=test_contact,location=test_site,title="Office",value=money(500,"EUR"),notes="Reviewed evidence"},deal=prospect}
   fixture sale_plan=Plan {name="Coworking",price=money(500,"EUR"),locations=[test_site],products=["coworking"],access_hours="Business hours",seats=6}
   fixture sale_membership=Membership {parent=test_company,account=self,plan=sale_plan,anchor=date("2026-10-01"),timezone="UTC"}
   fixture paid_term=Term {parent=sale_membership,source="crm-win-term",from=datetime("2026-10-01T00:00:00Z"),until=datetime("2026-11-01T00:00:00Z"),price=money(500,"EUR"),locations=[test_site],products=["coworking"],access_hours="Business hours",mail=false,seats=6,paid=true,cycle=1}
@@ -45,6 +50,27 @@ package crm label="Sales"@{nl="Verkoop"}
     salesperson,self -> self
     salesperson,other -> error(rule_failed)
   crud Activity by=salesperson fields=kind,body update=none delete=none when=can_work(actor,row.parent.location) and row.kind in [call,email,note]
+  # Promote reviewed research once under current sales authority; reused identity must preserve the reviewed input. @{nl="Draag beoordeeld onderzoek eenmaal over met actuele verkooprechten; hergebruikte identiteit moet de beoordeelde invoer behouden."}
+  export scenario promote_research(source:text,input:ResearchLead) -> Deal by=salesperson label="Promote reviewed research"@{nl="Beoordeeld onderzoek overdragen"}
+   require starts_with(source,"discover:") and source!="discover:" and can_work(actor,input.location) and input.customer.active and input.contact.parent==input.customer and input.value.minor>=0 and input.value.currency==input.location.currency
+   do
+    let existing=first(ResearchIntake as intake where intake.source==source)
+    if existing!=null
+     require existing.input==input and can_work(actor,existing.deal.location)
+     return existing.deal
+    create Deal {customer=input.customer,contact=input.contact,location=input.location,title=input.title,value=input.value,notes=input.notes,source} as deal
+    create ResearchIntake {source,input,deal} as intake
+    return deal
+   examples seed=[test_worker] source="discover:new" input={customer=test_company,contact=test_contact,location=test_site,title="Office",value=money(500,"EUR"),notes="Reviewed evidence"}
+    as,input.customer.active,input.value -> count(ResearchIntake),result.source,result.stage
+    salesperson,true,money(500,"EUR") -> 1,"discover:new",lead
+    salesperson,false,money(500,"EUR") -> error(rule_failed)
+    salesperson,true,money(500,"USD") -> error(rule_failed)
+    members,true,money(500,"EUR") -> error(forbidden)
+   examples seed=[test_worker,research_intake] source="discover:existing" input={customer=test_company,contact=test_contact,location=test_site,title="Office",value=money(500,"EUR"),notes="Reviewed evidence"}
+    as,input.title -> count(ResearchIntake),result==prospect
+    salesperson,"Office" -> 1,true
+    salesperson,"Different approval" -> error(rule_failed)
   # Advance a live deal without claiming inventory or payment. @{nl="Zet een actieve verkoopkans vooruit zonder voorraad of betaling te claimen."}
   scenario advance(deal:Deal,stage:Deal.stage label=label_Deal_stage) by=salesperson label="Advance stage"@{nl="Fase vooruitzetten"}
    require can_work(actor,deal.location) and ((deal.stage==lead and stage==qualified) or (deal.stage==qualified and stage==proposal))
