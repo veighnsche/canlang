@@ -89,12 +89,12 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: No redundant pure receipt-status mirror remains for the selected notice. Source/existing target, authorized projection/UI and examples agree; focused checks and compact diff evidence. If the mapping needs a new rule, report the exact design question and work on another ready task.
   - Evidence: pending.
 
-- [ ] **D08 — Reception notification delivery association**
+- [x] **D08 — Reception notification delivery association**
   - Prerequisites: M00; exclusive ownership of this pair
   - Owner / files / interfaces: Muse implementation agent; draft/CanReception.can, draft/CanReception.md; DESIGN §8.1 (read-only)
   - Changes / traceability: Q1/Q2; apply the settled association to the inspected notification/notice callback only. Preserve business guards, immutable inputs, diagnostics, audience-safe id/status/result/error leaves and meaningful examples. Do not wholesale-convert all raw IDs.
   - Acceptance: No redundant pure receipt-status mirror remains for the selected notice. Source/existing target, authorized projection/UI and examples agree; focused checks and compact diff evidence. If the mapping needs a new rule, report the exact design question and work on another ready task.
-  - Evidence: pending.
+  - Evidence: writer 01a106f4-105e-79b1-a7d5-325dfb6472d1 released. notice_delivery text?→delivery(Mail.send)? + use std {DeliveryResult}, stored notice_state→derived status? (Delivered=succeeded; skipped now distinct, was merged into failed), host/guest policy +notice_delivery.status leaf only, 3 producers store handle (resend supersedes), pure notice_result removed. Eligibility/device IDs untouched. No examples pre-existed for notice; none stale. Coordinator verified no stale refs, projection parse exit 0 (only pre-existing sequence projected out); no design question.
 
 - [ ] **D09 — Rent notification delivery association**
   - Prerequisites: M00; exclusive ownership of this pair
@@ -301,7 +301,9 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - RESERVED D01: draft/CanBook.can, draft/CanBook.md — writer 01a106e9-5e60-7ab0-baaa-f3a392f581ac (D01 CanBook/1) batch 1 active, no .mjs in scope.
 - RESERVED D02: draft/CanCatch.can, draft/CanCatch.md — writer 01a106e9-5fa5-7173-b4db-affb9fe22fe7 (D02 CanCatch/2) batch 1 active, no .mjs in scope.
 - RESERVED D03: draft/CanDesk.can, draft/CanDesk.md — writer 01a106e9-60b0-7df1-8514-c73fee43624e (D03 CanDesk/3) batch 1 active, no .mjs in scope.
-- QUEUED ready disjoint: D10, J01/J02/J03/J04/J06. J02 unblocked by D06 release; J05 waits D09 release.
+- QUEUED ready disjoint: J01/J02/J03/J04/J06. J02 unblocked by D06 release; J05 waits D09 release.
+- DONE D08: writer 01a106f4-105e-79b1-a7d5-325dfb6472d1 RELEASED draft/CanReception.can, draft/CanReception.md. Inbox re-read: H001+H002 only.
+- RESERVED D10: draft/CanSuccess.can, draft/CanSuccess.md — writer pending spawn batch 5, no .mjs in scope.
 - DONE D06: writer 01a106f0-8288-7af3-9d03-2340cfca77f1 RELEASED draft/CanLoyalty.can, draft/CanLoyalty.md, draft/CanLoyalty.mjs. Inbox re-read: H001+H002 only.
 - RESERVED D09: draft/CanRent.can, draft/CanRent.md, draft/CanRent.mjs — writer pending spawn batch 5. J05 gated on D09 release. Note: notice callback only; history/capture, money, charge/refund work excluded.
 - DONE D04: writer 01a106ee-0d5e-78e0-82aa-3296498e1fad RELEASED draft/CanEvent.can, draft/CanEvent.md. Inbox re-read after results: H001+H002 only.
