@@ -2,7 +2,7 @@
  * TEST-ONLY miniflare worker for the Durable Object storage suite.
  *
  * Plain JS on purpose: miniflare loads it via `scriptPath` with no build
- * step. It imports the BUILT adapter (`dist/...`, produced by `npm run
+ * step. It imports the BUILT adapter (`dist/...`, produced by `bun run
  * build` before tests run) so the suite exercises worker A's real
  * `createDOStorage` against workerd's real DO SQLite engine
  * (`state.storage.sql` + `transactionSync`).
