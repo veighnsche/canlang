@@ -33,4 +33,25 @@ describe("local dev smoke", () => {
       await dev.dispose();
     }
   }, 120000);
+
+  it("treats the main module as the entry for multi-module workers", async () => {
+    const dev = await startLocalDev({
+      workerName: "multi",
+      // Within miniflare v4 workerd's supported range (newest: 2026-08-06).
+      compatibilityDate: "2026-07-15",
+      mainModule: "main.mjs",
+      modules: {
+        "helper.mjs": `export function greeting() { return "from-helper"; }`,
+        "main.mjs": `import { greeting } from "./helper.mjs";
+export default { async fetch() { return Response.json({ greeting: greeting() }); } }`,
+      },
+    });
+    try {
+      const response = await dev.dispatch("/");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ greeting: "from-helper" });
+    } finally {
+      await dev.dispose();
+    }
+  }, 120000);
 });
