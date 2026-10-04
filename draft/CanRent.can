@@ -14,22 +14,59 @@ package rent_catalog_ui
   # Author location descriptions and arrival information. @{nl="Schrijf locatiebeschrijvingen en aankomstinformatie."}
   page /workspace/catalog title="Workspace catalog"@{nl="Werkplekcatalogus"} order=6
    require catalog_owner
+   breadcrumbs
+   ## Inline view of the owning bool preference; shared dialog stays canonical. UC prefs panel + toggle.
+   preferences
+    toggle arrival_open
    card "Location catalog"@{nl="Locatiecatalogus"}
     form Location.create
-    table Location columns=name,address,timezone,currency,hours
+     fieldset
+      input name
+      textarea address
+      input timezone
+      input currency
+      input hours
+      textarea arrival
+      checkbox active
+    table Location columns=name,address,timezone,currency,hours empty="No locations yet"@{nl="Nog geen locaties"}
+     text row.active
      edit
-     details "Arrival information"@{nl="Aankomstinformatie"} open=preferences.arrival_open
+      fieldset
+       checkbox active
+       textarea arrival
+     collapse "Arrival information"@{nl="Aankomstinformatie"} open=preferences.arrival_open
       text row.arrival
      form WeeklyHours.create
-     table row.WeeklyHours columns=weekday,opens,closes,close_after
+      fieldset
+       input weekday
+       input opens
+       input closes
+       input close_after
+       radio fold
+     table row.WeeklyHours columns=weekday,opens,closes,close_after empty="No weekly hours yet"@{nl="Nog geen weekopeningstijden"}
       edit
+      pagination
      form ClosedDate.create
-     table row.ClosedDate columns=day,reason
+      fieldset
+       calendar day
+       textarea reason
+     table row.ClosedDate columns=day,reason empty="No closed dates yet"@{nl="Nog geen sluitingsdagen"}
       edit
+      pagination
      form DateHours.create
-     table row.DateHours columns=day,opens,closes,close_after,closed
+      fieldset
+       calendar day
+       input opens
+       input closes
+       input close_after
+       checkbox closed
+       radio fold
+     table row.DateHours columns=day,opens,closes,close_after,closed empty="No date hours yet"@{nl="Nog geen datumtijden"}
       edit
+      pagination
      history
+     pagination
+
 # Coordinate capacity, buffers, holds and downtime at each resource's single owner. @{nl="Coördineer capaciteit, buffers, tijdelijke reserveringen en uitval bij de enige eigenaar van elke voorziening."}
 package rent_reservations label="Workspace reservations"@{nl="Werkplekreserveringen"}
  use rent_catalog {Location,WeeklyHours,ClosedDate,DateHours,LocationPolicy,policy_open,is_open,catalog_owner,test_site,open_site,sunday_site,recorded_site}
@@ -1402,98 +1439,273 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
   # Read retained booking evidence under current staff or explicitly mapped account access. @{nl="Lees bewaard reserveringsbewijs met huidige medewerkersrechten of toegang voor een uitdrukkelijk gekoppeld account."}
   page /workspace/history title="Historical booking evidence"@{nl="Historisch reserveringsbewijs"}
    require authenticated
+   breadcrumbs
    card "Retain source bookings"@{nl="Bronreserveringen bewaren"}
     require reservation_manager
     form retain_legacy import=csv review=legacy_matches
+     fieldset
+      input source
+      input external_id
+      select location
+      file_input source_evidence
+      textarea attestation
    form legacy_matches
-    list result columns=source,external_id,location
-   table LegacyBooking archived=include as entry columns=source,external_id,location display=split
+    list result columns=source,external_id,location empty="No matching retained bookings"@{nl="Geen overeenkomende bewaarde reserveringen"}
+     copy row.source
+     copy row.external_id
+     pagination
+   table LegacyBooking archived=include as entry columns=source,external_id,location display=split empty="No retained bookings"@{nl="Geen bewaarde reserveringen"}
+    copy entry.source
+    copy entry.external_id
     text entry.facts.customer_source,entry.facts.customer_external_id,entry.facts.resource_source,entry.facts.resource_external_id,entry.facts.actor,entry.facts.from_original,entry.facts.until_original,entry.facts.from,entry.facts.until,entry.facts.status,entry.facts.payment,entry.facts.quantity,entry.facts.amount,entry.customer,entry.resource
     card "Current mapping and source evidence"@{nl="Huidige koppeling en bronbewijs"}
      require reservation_manager or finance
-     action link_legacy
-     text entry.account,entry.mapping_reason,entry.source_evidence,entry.attestation,entry.imported_by,entry.imported_at
+     button opens=link_legacy_booking
+     link target=entry.source_evidence caption="Original source artifact"@{nl="Oorspronkelijk bronbestand"}
+     text entry.account,entry.mapping_reason,entry.attestation,entry.imported_by,entry.imported_at
+     modal "Map historical booking"@{nl="Historische reservering koppelen"} id=link_legacy_booking
+      slot content
+       form link_legacy arguments={entry=row} display=inline
+        fieldset
+         select customer
+         select resource
+         textarea reason
+         ## account:user? keeps its generated picker (no authorized user-directory lookup proven).
      history
+    pagination
   page /workspace/refund-review title="Booking finance exceptions"@{nl="Financiële reserveringsuitzonderingen"} order=8
    require billing
-   list Booking as booking where booking.refund_state in [review,unknown,pending] display=split
-    text row.customer,row.from,row.until,row.total,row.status,row.payment,row.allowance,row.refund_state
-    actions reconcile_booking,refund_review
+   breadcrumbs
+   alert "Refunds need finance review"@{nl="Terugbetalingen vereisen beoordeling"}
+   list Booking as booking where booking.refund_state in [review,unknown,pending] display=split empty="No finance exceptions"@{nl="Geen financiële uitzonderingen"}
+    badge row.status
+    badge row.payment
+    badge row.allowance
+    badge row.refund_state
+    text row.customer,row.from,row.until,row.total
+    copy row.source
+    actions reconcile_booking
+    button opens=booking_refund
+    modal "Refund booking exception"@{nl="Reserveringsuitzondering terugbetalen"} id=booking_refund
+     slot content
+      form refund_review arguments={booking=row} display=inline
+       fieldset
+        textarea reason
     history
-   list Booking as booking where booking.status in [confirmed,occupied,completed,no_show] display=split
-    action adjust
-    list row.Movement as movement where movement.credit_due!=null and movement.credit_due.minor>0
-     text row.credit_due,row.state
-     action refund_movement_credit
-     table row.MovementCredit columns=charge_source,amount,state,reason
-    list row.Adjustment
-     text row.amount,row.reason,row.state,row.new_until
-     action refund_adjustment
+    pagination
+   list Booking as booking where booking.status in [confirmed,occupied,completed,no_show] display=split empty="No confirmed bookings"@{nl="Geen bevestigde reserveringen"}
+    badge row.status
+    copy row.source
+    button opens=booking_adjust
+    modal "Charge booking adjustment"@{nl="Reserveringscorrectie factureren"} id=booking_adjust
+     slot content
+      form adjust arguments={booking=row} display=inline
+       fieldset
+        ## proposed: money as input's "appropriate scalar"; checker confirms.
+        input amount
+        textarea reason
+    list row.Movement as movement where movement.credit_due!=null and movement.credit_due.minor>0 empty="No movement credits"@{nl="Geen verplaatsingstegoeden"}
+     badge row.state
+     text row.credit_due
+     button opens=movement_credit_refund
+     modal "Refund movement credit"@{nl="Verplaatsingstegoed terugbetalen"} id=movement_credit_refund
+      slot content
+       form refund_movement_credit arguments={movement=row} display=inline
+        fieldset
+         input charge_source
+         ## proposed: money as input's "appropriate scalar"; checker confirms.
+         input amount
+         textarea reason
+     table row.MovementCredit columns=charge_source,amount,state,reason empty="No movement credit refunds"@{nl="Geen terugbetalingen van verplaatsingstegoed"}
+      pagination
+     pagination
+    list row.Adjustment empty="No adjustments"@{nl="Geen correcties"}
+     badge row.state
+     text row.amount,row.reason,row.new_until
+     button opens=adjustment_refund
+     modal "Refund adjustment exception"@{nl="Correctie-uitzondering terugbetalen"} id=adjustment_refund
+      slot content
+       form refund_adjustment arguments={adjustment=row} display=inline
+        fieldset
+         textarea reason
+     pagination
+    history
+    pagination
   # Author published resource rates and commercial policy under catalog authority. @{nl="Stel gepubliceerde tarieven en commerciële voorwaarden op onder catalogusbevoegdheid."}
   page /workspace/resources title="Resource catalog"@{nl="Voorzieningencatalogus"} order=7
    require catalog_owner
+   breadcrumbs
    card "Resource catalog and rates"@{nl="Voorzieningencatalogus en tarieven"}
     form Resource.create
-    table Resource columns=location,name,capacity,hourly,increment,minimum,terms,refund_notice,active filter=location defaults={location=preferences.location} display=split
+     fieldset
+      select location
+      input name
+      checkbox pooled
+      input capacity
+      input party_limit
+      radio kind
+      input hold_for
+      checkbox active
+      input timezone
+      input currency
+      input tax_rate
+      input discount_rate
+      input cancellation_fee
+      input hourly
+      input daily
+      radio price_unit
+      input increment
+      input minimum
+      textarea terms
+      input refund_notice
+      input buffer_before
+      input buffer_after
+      textarea accessibility
+    table Resource columns=location,name,capacity,hourly,increment,minimum,terms,refund_notice,active filter=location defaults={location=preferences.location} display=split empty="No resources match these filters"@{nl="Geen voorzieningen voldoen aan deze filters"}
      edit
-     details policy_title
+      fieldset
+       checkbox active
+       textarea terms
+     collapse policy_title
       text row.amenities,row.accessibility,row.buffer_before,row.buffer_after
      history
+     pagination
   # Discover space and enter local-time intervals before creating a hold. @{nl="Vind ruimte en voer tijdvakken in lokale tijd in voordat je tijdelijk reserveert."}
   page /workspace title="Available workspace"@{nl="Beschikbare werkplekken"} order=1
+   breadcrumbs
    card "Discover workspace"@{nl="Werkplekken ontdekken"}
-    table Resource as resource where resource.active columns=location,name,kind,pooled,capacity,party_limit,hourly,daily,price_unit,amenities,accessibility filter=location,kind,pooled defaults={location=preferences.location} search=name display=split
-     details policy_title
+    accordion
+     collapse "Holds and confirmation"@{nl="Reserveren en bevestigen"}
+      text "A hold expires at its shown expiry."@{nl="Een tijdelijke reservering verloopt op het getoonde tijdstip."}
+      text "Confirmation needs payment and any allowance."@{nl="Bevestiging vereist betaling en een eventueel tegoed."}
+     collapse "Cancellation and refunds"@{nl="Annuleren en terugbetalen"}
+      text "Cancellation stops future access."@{nl="Annuleren stopt toekomstige toegang."}
+      text "Refunds follow the frozen terms."@{nl="Terugbetalingen volgen de vastgelegde voorwaarden."}
+    divider
+    table Resource as resource where resource.active columns=location,name,kind,pooled,capacity,party_limit,hourly,daily,price_unit,amenities,accessibility filter=location,kind,pooled defaults={location=preferences.location} search=name display=split empty="No resources match these filters"@{nl="Geen voorzieningen voldoen aan deze filters"}
+     collapse policy_title
       text row.timezone,row.currency,row.increment,row.minimum,row.terms,row.refund_notice
      card "Check an hourly interval"@{nl="Een tijdvak per uur controleren"}
       require row.price_unit==hour
       form available
-       text result.available,result.total,result.terms,result.refund_before
+       text result.available
+       ## total:money caption from DS-9.1 shared vocabulary.
+       stat result.total
+       content result.terms
+       text result.refund_before
        card "Hold this interval"@{nl="Dit tijdvak tijdelijk reserveren"}
         require result.available
         form hold arguments={resource=result.resource,from=result.from,until=result.until,quantity=result.quantity,attendees=result.attendees}
+         fieldset
+          select customer
+          ## proposed: email as input's "appropriate scalar"; checker confirms.
+          input email
+          checkbox use_allowance
+          validator email
      card "Check local workspace days"@{nl="Lokale werkplekdagen controleren"}
       require row.price_unit==day
       form available_days
-       text result.available,result.total,result.terms
+       text result.available
+       stat result.total
+       content result.terms
        card "Hold these days"@{nl="Deze dagen tijdelijk reserveren"}
         require result.available
         form hold_days arguments={resource=result.resource,start=result.start,end=result.end,quantity=result.quantity,attendees=result.attendees}
+         fieldset
+          select customer
+          input email
+          checkbox use_allowance
+     pagination
   # Manage availability, current holds and affected downtime. @{nl="Beheer beschikbaarheid, huidige tijdelijke reserveringen en getroffen uitval."}
   page /workspace/reservations title="Reservations"@{nl="Reserveringen"} order=5
    require reservation_manager
+   breadcrumbs
    card "Availability and booking evidence"@{nl="Beschikbaarheids- en reserveringsbewijs"}
-    list Resource filter=location,active defaults={location=preferences.location} display=split
+    list Resource filter=location,active defaults={location=preferences.location} display=split empty="No resources match these filters"@{nl="Geen voorzieningen voldoen aan deze filters"}
      edit
      tabs
       tab "Resource windows"@{nl="Beschikbaarheidsvensters"}
        form DayCalendar.create
-       table row.DayCalendar columns=day,opens,closes,closed
+        fieldset
+         calendar day
+         input opens
+         input closes
+         checkbox closed
+         radio fold
+       table row.DayCalendar columns=day,opens,closes,closed empty="No day calendars yet"@{nl="Nog geen dagkalenders"}
         edit
+        pagination
        form Window.create
-       table row.Window columns=from,until,closed,reason
+        fieldset
+         input from
+         input until
+         checkbox closed
+         textarea reason
+       table row.Window columns=from,until,closed,reason empty="No availability windows"@{nl="Geen beschikbaarheidsvensters"}
         edit
+        pagination
       tab "Booking outcomes"@{nl="Reserveringsresultaten"}
-       table row.Booking columns=customer,from,until,quantity,status,payment,allowance
+       ## GR board: by= one enum field; status visible via grouping.
+       board row.Booking by=status columns=customer,from,until,quantity,payment,allowance empty="No bookings yet"@{nl="Nog geen reserveringen"}
         history
+        pagination
       tab "Capacity and desks"@{nl="Capaciteit en bureaus"}
        form revise_capacity
-       table row.CapacityRevision columns=capacity,effective,reason
+        fieldset
+         ## proposed: int as input's "appropriate scalar"; checker confirms.
+         input capacity
+         textarea reason
+       table row.CapacityRevision columns=capacity,effective,reason empty="No capacity revisions yet"@{nl="Nog geen capaciteitsrevisies"}
+        pagination
        form Desk.create
-       table row.Desk columns=name,active
+        fieldset
+         input name
+         checkbox active
+       table row.Desk columns=name,active empty="No desks yet"@{nl="Nog geen bureaus"}
         edit
-       list row.VenueReservation
-        text row.source,row.from,row.until,row.quantity,row.status
-       list row.QuoteHold
-        text row.source,row.from,row.until,row.quantity,row.expires,row.active
-       list row.Conflict where not row.resolved
+        pagination
+       list row.VenueReservation empty="No venue reservations"@{nl="Geen ruimtereserveringen"}
+        badge row.status
+        text row.source,row.from,row.until,row.quantity
+        copy row.source
+        pagination
+       list row.QuoteHold empty="No quote holds"@{nl="Geen offertereserveringen"}
+        text row.active
+        text row.source,row.from,row.until,row.quantity,row.expires
+        copy row.source
+        pagination
+       alert "Conflicts need manager review"@{nl="Conflicten vereisen beoordeling"}
+       list row.Conflict where not row.resolved empty="No unresolved conflicts"@{nl="Geen onopgeloste conflicten"}
         text row.booking,row.reason
-        action resolve_conflict
+        button opens=conflict_resolve
+        modal "Resolve reservation conflict"@{nl="Reserveringsconflict oplossen"} id=conflict_resolve
+         slot content
+          form resolve_conflict arguments={conflict=row} display=inline
+           fieldset
+            textarea evidence
+        pagination
       tab "Repair blocks and restoration"@{nl="Reparatieblokkades en herstel"}
-       form block
-       list row.Downtime
-        text row.from,row.until,row.reason,row.active,row.verified_by,row.verification
-        action restore
+       button opens=repair_block
+       modal "Block for repair"@{nl="Blokkeren voor reparatie"} id=repair_block
+        slot content
+         form block arguments={resource=row} display=inline
+          fieldset
+           input from
+           input until
+           textarea reason
+       list row.Downtime empty="No repair blocks"@{nl="Geen reparatieblokkades"}
+        text row.active
+        text row.from,row.until,row.reason,row.verified_by,row.verification
+        copy row.source
+        button opens=downtime_restore
+        modal "Restore availability"@{nl="Beschikbaarheid herstellen"} id=downtime_restore
+         slot content
+          form restore arguments={downtime=row} display=inline
+           fieldset
+            textarea evidence
+        pagination
+     pagination
+
 # Fulfill received payments and allowances without treating provider requests as success. @{nl="Verwerk ontvangen betalingen en tegoeden zonder provideraanvragen als succes te behandelen."}
 package rent_fulfillment label="Workspace fulfillment"@{nl="Werkplekuitvoering"}
  use rent_reservations {Booking,ReservationChanged,prepare,arrive,depart,cancel_booking,move,reception,assign_desk,fulfill_free,no_show,confirm_account,extend,reconcile_booking,reconcile_allowance,move_days,move_membership,move_membership_days,abandon_movement,reconcile_movement,retry_movement_cleanup,resend_notice}
@@ -1521,26 +1733,156 @@ package rent_fulfillment label="Workspace fulfillment"@{nl="Werkplekuitvoering"}
   # Show fulfillment, money and actual occupancy as separate recorded outcomes. @{nl="Toon uitvoering, betalingen en werkelijk gebruik als afzonderlijk vastgelegde resultaten."}
   page /workspace/my-bookings title="My bookings"@{nl="Mijn reserveringen"} order=2
    require authenticated
+   breadcrumbs
    card "Your booking outcomes"@{nl="Jouw reserveringsresultaten"}
-    list Booking as booking where booking.account==actor order=booking.from display=split
-     text row.from,row.until,row.total,row.monetary_due,row.service_due,row.allowance_units,row.included_units,row.status,row.payment,row.allowance
-     actions request,fulfill_free,reconcile_booking,reconcile_allowance,move,move_days,move_membership,move_membership_days,extend,cancel
-     details "Frozen commercial terms"@{nl="Vastgelegde commerciële voorwaarden"}
+    ## Static process guide; steps never define or execute a workflow. UC steps/item schema.
+    steps
+     slot item
+      text "Hold"@{nl="Reserveren"}
+     slot item
+      text "Request"@{nl="Aanvragen"}
+     slot item
+      text "Confirm"@{nl="Bevestigen"}
+     slot item
+      text "Arrive"@{nl="Aankomen"}
+     slot item
+      text "Depart"@{nl="Vertrekken"}
+    divider
+    list Booking as booking where booking.account==actor order=booking.from display=split empty="No bookings yet"@{nl="Nog geen reserveringen"}
+     badge row.status
+     badge row.payment
+     badge row.allowance
+     badge row.refund_state
+     stat row.total
+     text row.from,row.until,row.monetary_due,row.service_due,row.allowance_units,row.included_units
+     copy row.source
+     actions reconcile_booking,reconcile_allowance
+     join
+      button opens=request_payment
+     join
+      button opens=move_hold
+      button opens=move_days_hold
+      button opens=move_member
+      button opens=move_member_days
+     join
+      button opens=booking_extend
+      button opens=booking_cancel
+      button opens=free_confirm
+     modal "Request payment and allowance"@{nl="Betaling en tegoed aanvragen"} id=request_payment
+      slot content
+       form request arguments={booking=row} display=inline
+        fieldset
+         checkbox use_allowance
+     modal "Move held booking"@{nl="Tijdelijke reservering verplaatsen"} id=move_hold
+      slot content
+       form move arguments={booking=row} display=inline
+        fieldset
+         input from
+         input until
+     modal "Move workspace days"@{nl="Werkplekdagen verplaatsen"} id=move_days_hold
+      slot content
+       form move_days arguments={booking=row} display=inline
+        fieldset
+         calendar start
+         calendar end
+     modal "Move member workspace"@{nl="Ledenwerkplek verplaatsen"} id=move_member
+      slot content
+       form move_membership arguments={booking=row} display=inline
+        fieldset
+         input from
+         input until
+     modal "Move member workspace days"@{nl="Ledenwerkplekdagen verplaatsen"} id=move_member_days
+      slot content
+       form move_membership_days arguments={booking=row} display=inline
+        fieldset
+         calendar start
+         calendar end
+     modal "Extend booking"@{nl="Reservering verlengen"} id=booking_extend
+      slot content
+       form extend arguments={booking=row} display=inline
+        fieldset
+         input until
+         textarea reason
+         ## proposed: money as input's "appropriate scalar"; checker confirms.
+         input amount
+     modal "Cancel booking"@{nl="Reservering annuleren"} id=booking_cancel
+      slot content
+       form cancel arguments={booking=row} display=inline
+        fieldset
+         textarea reason
+     modal "Confirm free booking"@{nl="Gratis reservering bevestigen"} id=free_confirm
+      slot content
+       form fulfill_free arguments={booking=row} display=inline
+        fieldset
+         textarea reason
+     collapse "Frozen commercial terms"@{nl="Vastgelegde commerciële voorwaarden"}
       text row.terms,row.refund_before,row.expires,row.checked_in,row.checked_out,row.cancellation_reason
-     list row.Movement
-      text row.intervals,row.state,row.outcome
+     list row.Movement empty="No workspace moves"@{nl="Geen werkplekverplaatsingen"}
+      badge row.state
+      text row.intervals,row.outcome
       actions abandon_movement,reconcile_movement,retry_movement_cleanup
-     list row.Notice
-      text row.kind,row.state,row.subject
-      action resend_notice
+      pagination
+     list row.Notice empty="No correspondence yet"@{nl="Nog geen correspondentie"}
+      status row.state
+      text row.kind,row.subject
+      tooltip "Retry delivery"@{nl="Opnieuw verzenden"}
+       action resend_notice
+      pagination
      history
+     pagination
   # Resolve physical arrivals, departures and late-payment exceptions. @{nl="Los werkelijke aankomsten, vertrekken en uitzonderingen bij late betaling op."}
   page /workspace/arrivals title="Workspace arrivals"@{nl="Werkplekaankomsten"} order=3
    require reception
+   breadcrumbs
    card "Physical arrivals and departures"@{nl="Werkelijke aankomsten en vertrekken"}
-    table Booking columns=customer,from,until,status,checked_in,checked_out,overdue filter=status display=split
-     actions request,fulfill_free,confirm_account,check_in,check_out,no_show,assign_desk,cancel
+    table Booking columns=customer,from,until,status,checked_in,checked_out,overdue filter=status display=split empty="No bookings to handle"@{nl="Geen reserveringen om af te handelen"}
+     actions check_in,check_out
+     join
+      button opens=request_payment_arrival
+      button opens=free_confirm_arrival
+      button opens=account_confirm
+     modal "Request payment and allowance"@{nl="Betaling en tegoed aanvragen"} id=request_payment_arrival
+      slot content
+       form request arguments={booking=row} display=inline
+        fieldset
+         checkbox use_allowance
+     modal "Confirm free booking"@{nl="Gratis reservering bevestigen"} id=free_confirm_arrival
+      slot content
+       form fulfill_free arguments={booking=row} display=inline
+        fieldset
+         textarea reason
+     modal "Confirm on account"@{nl="Op rekening bevestigen"} id=account_confirm
+      slot content
+       form confirm_account arguments={booking=row} display=inline
+        fieldset
+         textarea reason
+     dropdown
+      slot trigger
+       text "More actions"@{nl="Meer acties"}
+      slot content
+       button opens=booking_no_show
+       button opens=booking_cancel_arrival
+       button opens=desk_assign
+     modal "Record no-show"@{nl="Niet verschijnen vastleggen"} id=booking_no_show
+      slot content
+       form no_show arguments={booking=row} display=inline
+        fieldset
+         textarea reason
+     modal "Cancel booking"@{nl="Reservering annuleren"} id=booking_cancel_arrival
+      slot content
+       form cancel arguments={booking=row} display=inline
+        fieldset
+         textarea reason
+     modal "Assign pool desk"@{nl="Poolbureau toewijzen"} id=desk_assign
+      slot content
+       form assign_desk arguments={booking=row} display=inline
+        fieldset
+         select desk
+         input from
+         input until
      history
+     pagination
+
 # Read the resource owner's local booking and occupancy records under existing grants. @{nl="Lees lokale reserverings- en bezettingsgegevens van de voorzieningseigenaar met de bestaande bevoegdheden."}
 package rent_reporting label="Workspace occupancy"@{nl="Werkplekbezetting"}
  use rent_reservations {Resource,Booking,resource_report,reservation_manager}
@@ -1552,13 +1894,18 @@ package rent_reporting label="Workspace occupancy"@{nl="Werkplekbezetting"}
   # Keep booked intervals and actual occupancy visible as distinct evidence. @{nl="Houd gereserveerde tijdvakken en werkelijke bezetting zichtbaar als afzonderlijk bewijs."}
   page /workspace/occupancy title="Local occupancy"@{nl="Lokale bezetting"} order=4
    require authenticated
+   breadcrumbs
    card "Booked agenda and physical occupancy"@{nl="Reserveringsagenda en werkelijke bezetting"}
-    calendar Booking as booking where preferences.location==null or booking.parent.location==preferences.location start=from end=until
-     text row.quantity,row.status,row.checked_in,row.checked_out
+    calendar Booking as booking where preferences.location==null or booking.parent.location==preferences.location start=from end=until empty="No bookings in this view"@{nl="Geen reserveringen in deze weergave"}
+     badge row.status
+     text row.quantity,row.checked_in,row.checked_out
+     pagination
    card "Resource capacity"@{nl="Voorzieningscapaciteit"}
-    table Resource columns=location,name,capacity filter=location defaults={location=preferences.location}
+    table Resource columns=location,name,capacity filter=location defaults={location=preferences.location} empty="No resources match these filters"@{nl="Geen voorzieningen voldoen aan deze filters"}
      card "Current source checkpoint"@{nl="Huidig broncontrolepunt"}
       require reservation_manager
       form resource_report
        text result.checkpoint
-       table result.rows columns=from,until,metric,quantity,unit,provisional
+       table result.rows columns=from,until,metric,quantity,unit,provisional empty="No measures in this window"@{nl="Geen maatstaven in dit venster"}
+        pagination
+     pagination
