@@ -8,11 +8,17 @@ Assess whether CanLang lets companies and department staff obtain their own tail
 
 Own exactly **F004–F006, F008; E007, E009, E026–E060, E086–E090, E102 (47 items)**. The current root [EVALUATION.md](../../../EVALUATION.md), especially “Orchestrator ownership,” “Dependencies and handoffs,” and “Working method and deliverable,” controls routing. A owns adoption synthesis and experiments; C owns interfaces and JavaScript. Contributions do not transfer item ownership. Follow the shared [AGENTS.md](../../../AGENTS.md) rules without reproducing its full checklist.
 
+Apply the shared [fair comparison rules](../../../EVALUATION.md#fair-comparison-rules) to source arrangements, primitives and alternatives. Use A's company outcomes and compare equivalent behavior with fair library reuse; distinguish scope limits, design defects and unimplemented guarantees. Keeping and changing a rule face the same evidence standard.
+
+The [draft-only boundary](../../../EVALUATION.md#draft-only-product-evaluation) is mandatory: `.can` and `.md` specify the product, and `.mjs` files are handwritten desired outputs. Assess contract coherence, coverage and feasibility; do not count missing compiler, library or infrastructure implementations as defects or reasons to reject Can. Execution-dependent observations remain unverified without becoming negative results.
+
 ## Start with a usable rule handoff
 
 Use the captured [baseline](../baseline-20261004T041647Z/README.md) and its snapshot as source evidence. First reconcile E007: identify conflicting rules, their authority, and whether they are explicit user requirements, assistant proposals, inherited conventions or measured necessities. Publish a small rule table promptly for A’s generation/edit experiments and C’s target comparisons. Do not turn incidental terminology updates into the evaluation’s center.
 
 Start static inspections immediately: canonical primitives/defaults (E026–E030), grammar (E031–E035), and example meaning (E086–E090). Send early permission/order ambiguities and proposed expected outcomes to A/C with citations. Then build E009 traces for A’s selected journeys: business requirement → owning declaration → operation/guard/effect → interface binding → inline expectation. Record missing links explicitly rather than checking keywords.
+
+For A's suite-replacement journey, assess shared record authority, identity and permission continuity, cross-app workflow outcomes, contract changes and recovery under the existing composition items. Determine whether smaller app boundaries help focused changes or merely move complexity into integration; do not assume separate deployments.
 
 ## Sources and representative candidates
 
@@ -34,4 +40,6 @@ Make three fresh whole-request versions, rewriting context, instructions, questi
 
 ## Future outputs and stopping boundary
 
-Write the future owned report at `design/evaluation/LANGUAGE.md` and evidence under `design/evaluation/evidence/language/`; these are output paths, not existing evidence links. Structure it as scope/methods; per-owned-item results with evidence/uncertainty; consolidated findings with company impact, smallest remedy and tradeoff; handoffs/open dependencies. Cite baseline paths and lines, distinguish inspection from executed behavior, and label proposed APIs or deferred implementation honestly. Keep baseline/live Can, MJS and design sources unchanged. Only bounded scratch experiments belong under evidence; no implementation, broad redesign or new verification framework. Finish by reporting the report path and any missing dependency to Root.
+For every supported negative result, follow the shared [improvement-feedback requirement](../../../EVALUATION.md#improvement-feedback-for-negative-findings): explain the cause, propose a concrete improvement, identify benefit and tradeoff, and specify re-evaluation under the same criteria. Supply these recommendations to A; E102 resolves difficult alternatives without presuming that added syntax is the remedy.
+
+Write the future owned report at `design/evaluation/LANGUAGE.md` and evidence under `design/evaluation/evidence/language/`; these are output paths, not existing evidence links. Structure it as scope/methods; per-owned-item results with evidence/uncertainty; consolidated findings with company impact, smallest remedy and tradeoff; handoffs/open dependencies. Cite baseline paths and lines, distinguish inspection from executed behavior, and mark implementation-dependent claims unverified rather than design defects. Keep baseline/live Can, MJS and design sources unchanged. Only bounded scratch experiments belong under evidence; no implementation, broad redesign or new verification framework. Finish by reporting the report path and any missing evaluation dependency to Root; implementation availability is not such a dependency.
