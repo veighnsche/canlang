@@ -1,0 +1,20 @@
+{
+  "state": {
+    "context": "The hospitality draft uses host authorization and currently stores Cafe together with its Table and Booking children on implicit D1. A DO requirement exists only in its companion prose. The actual imported employee.can_work function queries mutable D1 Employee records. DESIGN disallows reading those remote business decisions during a DO mutation because one transaction has one owner. A DO implementation would need locally authoritative, revision-aware employee eligibility state that has not been declared. D1 instead already specifies a global optimistic concurrency fence. Keep adoption, minimal authoring and all required workflows, leaving compiler/runtime construction outside this task. For the candidate design, reservations preserve from/until and physical seating gains its own estimated_until. Any uncleared occupants deny subsequent seating even past that estimate. Reservation confirmation checks interval conflicts separately, permitting future planning during current occupancy. Show reservations affected by occupancy that is already due, extends beyond their start, or has exceeded its estimate using existing text/details. Store a reason for each confirmed relocation or cancellation. Reject inactive or undersized table definitions while reservations or actual occupants remain; retain cleared history without freezing present capacity. Enforce shared constraints with invariants and attribute edits through normal host history. Neither Badge nor Alert is an authored primitive.",
+    "canonical_source": "export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))\nscenario reserve(booking:Booking,table:Table,from:datetime,until:datetime) by=host\nrequire can_work(actor,booking.parent.location) and booking.state==waiting and table.parent==booking.parent and booking.party<=table.seats and from<until and available(table,from,until,booking)"
+  },
+  "questions": {
+    "placement": {
+      "type": "choice",
+      "instructions": "Determine which proposed placement best supports correct caf\u00e9 operations within the present one-owner boundary, weighing parallelism against added design complexity.",
+      "criteria": {
+        "d1": "Place all hospitality state on the current default D1 and amend the DO statement. Employee eligibility joins remain owner-local under the existing revision protocol, though all database mutations contend.",
+        "do": "Preserve DO-per-caf\u00e9 routing by introducing authoritative versioned staff-work state at that owner and specifying propagation/revocation. Independent owners improve contention but add source and implementation obligations."
+      }
+    },
+    "workflow": {
+      "type": "noul",
+      "instructions": "Are the described state distinctions and shared guards sufficient to retain uncleared diners, support documented moves/cancellations, display upcoming clashes and avoid binding current table sizes to completed history?"
+    }
+  }
+}

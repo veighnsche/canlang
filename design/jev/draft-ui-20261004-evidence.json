@@ -1,0 +1,32 @@
+{
+  "source_hashes": {
+    "AGENTS.md": "503025c141ee4b80f92c1ed04fb0e71b98e50c2f4aab6144c3747bc181f01882",
+    "REQUIREMENTS.md": "694bab220daaacc68194a7ef0a1d610a0d1200247457c92bffc5551679a3e57d",
+    "DESIGN.md": "c023690186830fe202344053567cd68fa3be8e411294ee4fc63ab74f099b5635",
+    "GRAMMAR.md": "68bd218e6617aa489d24a533a2a6dd4df226ed61f8a40eb1ebae80f1c5d5ba0b",
+    "DECISIONS.md": "0cd9625d163e9d31f371330d603b75635fe493f3c84956985f7611e2b13a7471",
+    "draft/CanDo.can": "51c7dcda393b74a0eb5db954f90115caa45f3549719feb13c07ee3c635684b6d",
+    "draft/CanDo.md": "db184ef718dd6e5c145eccfaed4d3ff2b36f4e23bcc0642eab0d9e374573e5e2",
+    "draft/CanRent.can": "1cd2b84de8bcdcdfd9d779eb6219a0ac6c36185c1750c8b23dab9d53412a4dc2",
+    "draft/CanRent.mjs": "a120b779984a725e7d8670209c174c138441023fc7a9e3febcf0d0e1b2ae14ca",
+    "draft/CanHire.can": "74430c5a5d52c8c965c185f9549f908a3b6b41513d09890ac6f041e5ae0b4cf7",
+    "draft/CanHire.mjs": "9af87270eb739619b74e809e688669360c331d34e2af67ce4eff267ed5cdc395",
+    "draft/CanGrant.can": "f36f52b94bf40c8e50af2e5ded9a11b1d3a494b4b098ee67432ad9f87da48c77",
+    "draft/MIGRATION.md": "451758d42480b36b55fc4464faa4572a58ad73fcd27387f71b3600eb6418260b"
+  },
+  "primary_docs": [
+    {
+      "url": "https://htmx.org/attributes/hx-trigger/",
+      "finding": "Periodic GET polling and document-hidden filtering are documented mechanisms, not authorization or draft preservation."
+    },
+    {
+      "url": "https://htmx.org/attributes/hx-sync/",
+      "finding": "Drop/abort/replace/queue request coordination is documented; this does not prove noninterference with mutations."
+    },
+    {
+      "url": "https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type=datetime-local)",
+      "finding": "datetime-local values have no timezone offset; the browser control does not identify a DST-fold instant."
+    }
+  ],
+  "status": "Draft-only source/research evidence. No compiler, renderer or app execution; no shared source edits."
+}

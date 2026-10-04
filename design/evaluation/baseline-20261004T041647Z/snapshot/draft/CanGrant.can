@@ -1,0 +1,190 @@
+# Optionally help a workspace operator run a funded startup or community program that awards monetary support to selected applicants. @{nl="Help een werkplekbeheerder desgewenst een gefinancierd startup- of gemeenschapsprogramma te organiseren dat geselecteerde aanvragers financiële steun toekent."}
+app CanGrant uses=[grant]
+
+# Keep applicant records private and reserve only affordable monetary award commitments. @{nl="Houd aanvragen privé en leg alleen betaalbare financiële toezeggingen vast."}
+package grant
+ use rent_catalog {Location,test_site}
+ use employee {Employee,can_work,test_worker}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  message heading_program_budget = "Program budget"@{nl="Programmabudget"}
+  message label_reviewer = "Reviewer"@{nl="Beoordelaar"}
+  message label_Application_received = "Received at"@{nl="Ontvangen op"}
+  message label_Application_override_reason = "Deadline override reason"@{nl="Reden deadline-uitzondering"}
+  preferences { location:Location?, application_state:Application.state? label="Application state"@{nl="Aanvraagstatus"} }
+  role coordinator label="Program coordinator"@{nl="Programmacoördinator"}
+  role reviewer label=label_reviewer
+  contract Question { key:text trim min=1, prompt:text trim min=1 } label="Eligibility question"@{nl="Toelatingsvraag"}
+  contract Answer { question:text trim min=1, value:text trim min=1 } label="Recorded answer"@{nl="Vastgelegd antwoord"}
+  contract AwardItem { application:text, title:text, amount:money, decided_at:datetime }
+  contract AwardBatch { items:AwardItem[]! }
+  derive complete_answers(questions:Question[],answers:Answer[]):bool = count(questions)==count(answers) and all(questions as question,count(answers as answer where answer.question==question.key)==1)
+  Grant { location:Location, name:text, terms:text label="Terms"@{nl="Voorwaarden"}, questions:Question[]! label="Questions"@{nl="Vragen"}, criteria:text label="Selection criteria"@{nl="Selectiecriteria"}, budget:money label="Budget"@{nl="Budget"}, closes:datetime label="Closing deadline"@{nl="Sluitingsdatum"}, timezone:timezone, published:bool=false label="Published"@{nl="Gepubliceerd"} } label="Funded program"@{nl="Financieringsprogramma"}
+  Application in Grant { account:user label="Account"@{nl="Account"}, email:email, title:text trim min=1, description:text trim min=1, questions:Question[]! label="Frozen questions"@{nl="Vastgelegde vragen"}, correction:Application? label="Corrects application"@{nl="Corrigeert aanvraag"}, answers:Answer[] label="Answers"@{nl="Antwoorden"}, amount:money, reviewer:user label=label_reviewer, received:datetime? label=label_Application_received, receipt_evidence:text? label="Receipt evidence"@{nl="Ontvangstbewijs"}, override_reason:text? label=label_Application_override_reason, state:enum(draft,submitted,approved,rejected,withdrawn,superseded)=draft label={text="State"@{nl="Status"},values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved="Approved"@{nl="Goedgekeurd"},rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"},superseded="Superseded"@{nl="Vervangen"}}}, decision:text? label="Decision"@{nl="Besluit"}, decided_by:user? label="Decided by"@{nl="Besloten door"}, decided_at:datetime? label="Decided at"@{nl="Besloten op"} } label="Application"@{nl="Aanvraag"}
+  Comment in Application { body:text trim min=1, author:user server=actor, recorded:datetime server=now } label="Private reviewer comment"@{nl="Privéopmerking beoordelaar"}
+  Withdrawal in Application { reason:text trim min=1, author:user server=actor, recorded:datetime server=now } label="Award withdrawal"@{nl="Intrekking toezegging"}
+  derive Grant.requested:money = sum(row.Application as application where application.state in [submitted,approved,rejected,withdrawn] select application.amount,row.budget.currency) label="Requested amount"@{nl="Aangevraagd bedrag"}
+  derive Grant.withdrawn:money = sum(row.Application as application where application.state==withdrawn select application.amount,row.budget.currency) label="Withdrawn amount"@{nl="Ingetrokken bedrag"}
+  derive Grant.committed:money = sum(row.Application as application where application.state==approved select application.amount,row.budget.currency) label="Committed amount"@{nl="Vastgelegd bedrag"}
+  derive Grant.remaining:money = row.budget-row.committed label="Remaining"@{nl="Resterend"}
+  policy Grant read=public where=row.published fields=location,name,terms,questions,criteria,closes,timezone
+  policy Grant read=coordinator and can_work(actor,row.location)
+  policy Grant read=reviewer where=can_work(actor,row.location) and any(row.Application as application,application.reviewer==actor and application.state==submitted) fields=location,name,terms,questions,criteria,closes,timezone
+  policy Application read=authenticated where=row.account==actor
+  policy Application read=reviewer where=row.reviewer==actor and row.state==submitted and can_work(actor,row.parent.location)
+  policy Application read=coordinator and can_work(actor,row.parent.location)
+  policy Comment read=reviewer where=row.parent.reviewer==actor and row.parent.state==submitted and row.parent.account!=actor and can_work(actor,row.parent.parent.location)
+  policy Comment read=coordinator and can_work(actor,row.parent.parent.location)
+  policy Withdrawal read=authenticated where=row.parent.account==actor or (coordinator and can_work(actor,row.parent.parent.location))
+  unique Application fields=correction where=row.state==draft
+  invariant Grant: count(row.questions)>0 and count(group(row.questions as question,question.key))==count(row.questions) and row.budget.minor>=0 and row.remaining.minor>=0
+  invariant Application: row.amount.currency==row.parent.budget.currency and row.amount.minor>0 and (row.correction==null or (row.correction.parent==row.parent and row.correction.account==row.account))
+  lock Application fields=account,questions,correction
+  lock Application fields=decision,decided_by,decided_at when=row.decided_at!=null
+  lock Comment fields=body,author,recorded
+  lock Withdrawal fields=reason,author,recorded
+  lock Application fields=email,title,description,answers,amount,reviewer,received,receipt_evidence,override_reason when=row.state!=draft
+  fixture colleague=Employee {user=other,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer"}
+  fixture program=Grant {location=test_site,name="Startup fund",terms="Cash award",questions=[Question {key="purpose",prompt="Purpose"}],criteria="Impact",budget=money(100,"EUR"),closes=datetime("2099-01-01T09:00:00Z"),timezone="Europe/Brussels",published=true}
+  fixture corrected=Application {parent=program,account=other,correction=submitted,email="applicant@example.test",title="Corrected project",description="Clarified business",questions=submitted.questions,answers=submitted.answers,amount=money(60,"EUR"),reviewer=self}
+  fixture submitted=Application {parent=program,account=other,email="applicant@example.test",title="Project",description="New business",questions=program.questions,answers=[Answer {question="purpose",value="Launch"}],amount=money(60,"EUR"),reviewer=self,received=datetime("2026-10-01T09:00:00Z"),state=submitted}
+ When
+  crud Grant by=coordinator fields=name,terms,questions,criteria,budget,closes,published create_fields=location,name,terms,questions,criteria,budget,closes,timezone when=can_work(actor,row.location) delete=none
+  crud Comment by=reviewer fields=body update=none delete=none when=row.parent.reviewer==actor and row.parent.state==submitted and row.parent.account!=actor and can_work(actor,row.parent.parent.location)
+  crud Application by=authenticated fields=email,title,description,answers,amount,reviewer create=none when=row.account==actor and row.state==draft and row.parent.published and now<=row.parent.closes delete=none
+   examples update record=submitted changes={answers=[]}
+    as,record.account,record.state,changes.answers -> count(record.answers)
+    members,self,draft,[] -> 0
+    members,self,draft,[Answer {question="purpose",value=""}] -> error(validation)
+    members,other,draft,[] -> error(rule_failed)
+  # Start your private draft with the program's frozen question definitions. @{nl="Begin je privéconcept met de vastgelegde vraagdefinities van het programma."}
+  scenario apply(grant:Grant,email:email,title:Application.title,description:Application.description,amount:money,assignee:user label=label_reviewer) by=authenticated label="Start application"@{nl="Aanvraag beginnen"}
+   require grant.published and now<=grant.closes and assignee!=actor and can_work(assignee,grant.location)
+   do create Application {parent=grant,account=actor,email,title,description,questions=grant.questions,amount,reviewer=assignee} as application
+   examples seed=[colleague] grant=program email="applicant@example.test" title="Project" description="New business" amount=money(60,"EUR") assignee=other
+    as,assignee,grant.closes -> count(grant.Application)
+    members,other,datetime("2099-01-01T09:00:00Z") -> 1
+    members,self,datetime("2099-01-01T09:00:00Z") -> error(rule_failed)
+    members,other,datetime("2000-01-01T09:00:00Z") -> error(rule_failed)
+  # Make a private correction without reopening or deleting the previous intake. @{nl="Maak een privécorrectie zonder de eerdere aanvraag te heropenen of te verwijderen."}
+  scenario correct(application:Application) by=authenticated label="Create correction draft"@{nl="Correctieconcept maken"}
+   require application.account==actor and application.state in [submitted,rejected] and application.parent.published and now<=application.parent.closes
+   require not any(application.parent.Application as replacement,replacement.correction==application and replacement.state in [draft,submitted,approved])
+   do create Application {parent=application.parent,account=actor,correction=application,email=application.email,title=application.title,description=application.description,questions=application.questions,answers=application.answers,amount=application.amount,reviewer=application.reviewer} as replacement
+   examples application=submitted
+    as,application.account,application.state -> application.state,count(application.parent.Application)
+    members,self,submitted -> submitted,2
+    members,self,rejected -> rejected,2
+    members,other,submitted -> error(rule_failed)
+    members,self,approved -> error(rule_failed)
+  # Submit your application at authoritative receipt time with the required recorded answers. @{nl="Dien je aanvraag in met het gezaghebbende ontvangsttijdstip en de vereiste vastgelegde antwoorden."}
+  scenario submit(application:Application) by=authenticated
+   require application.account==actor and application.state==draft and now<=application.parent.closes and application.parent.published and application.reviewer!=actor and can_work(application.reviewer,application.parent.location) and complete_answers(application.questions,application.answers)
+   do
+    if application.correction!=null
+     require application.correction.state in [submitted,rejected]
+     if application.correction.state==submitted
+      set application.correction {state=superseded}
+    set application {state=submitted,received=now}
+   examples seed=[colleague] application=submitted
+    as,application.account,application.reviewer,application.state,application.answers,application.parent.closes -> application.state,application.received
+    members,self,other,draft,[Answer {question="purpose",value="Launch"}],datetime("2099-01-01T09:00:00Z") -> submitted,now
+    members,self,self,draft,[Answer {question="purpose",value="Launch"}],datetime("2099-01-01T09:00:00Z") -> error(rule_failed)
+    members,self,other,draft,[],datetime("2099-01-01T09:00:00Z") -> error(rule_failed)
+    members,self,other,draft,[Answer {question="wrong",value="Launch"}],datetime("2099-01-01T09:00:00Z") -> error(rule_failed)
+    members,self,other,draft,[Answer {question="purpose",value="Launch"},Answer {question="purpose",value="Again"}],datetime("2099-01-01T09:00:00Z") -> error(rule_failed)
+    members,self,other,draft,[Answer {question="purpose",value="Launch"}],datetime("2000-01-01T09:00:00Z") -> error(rule_failed)
+   examples seed=[colleague] application=corrected
+    as,application.account,submitted.account,application.reviewer,submitted.state -> application.state,submitted.state,submitted.received,application.received
+    members,self,self,other,submitted -> submitted,superseded,datetime("2026-10-01T09:00:00Z"),now
+    members,self,self,other,rejected -> submitted,rejected,datetime("2026-10-01T09:00:00Z"),now
+    members,self,self,other,approved -> error(rule_failed)
+  # Enter an externally received application for its actual applicant before recording receipt evidence. @{nl="Voer een extern ontvangen aanvraag in voor de echte aanvrager en leg het ontvangstbewijs vast."}
+  scenario intake(grant:Grant,applicant:user,email:email,title:Application.title,description:Application.description,answers:Answer[],amount:money,assignee:user label=label_reviewer,received:datetime label=label_Application_received,evidence:text,override_reason:text? label=label_Application_override_reason) by=coordinator label="External applicant intake"@{nl="Externe aanvraag invoeren"}
+   require can_work(actor,grant.location)
+   do
+    create Application {parent=grant,account=applicant,email,title,description,questions=grant.questions,answers,amount,reviewer=assignee} as application
+    call external {application,received,evidence,override_reason}
+  # Record an evidenced external receipt with an explicit late override where needed. @{nl="Registreer een bewezen externe ontvangst, indien nodig met een expliciete uitzondering op de deadline."}
+  scenario external(application:Application,received:datetime label=label_Application_received,evidence:text,override_reason:text? label=label_Application_override_reason) by=coordinator label="Record external receipt"@{nl="Externe ontvangst registreren"}
+   require can_work(actor,application.parent.location) and application.state==draft and trim(evidence)!="" and received<=now and (received<=application.parent.closes or (override_reason!=null and trim(override_reason)!=""))
+   require application.reviewer!=application.account and can_work(application.reviewer,application.parent.location) and complete_answers(application.questions,application.answers)
+   do
+    if application.correction!=null
+     require application.correction.state in [submitted,rejected]
+     if application.correction.state==submitted
+      set application.correction {state=superseded}
+    set application {state=submitted,received,receipt_evidence=evidence,override_reason}
+   examples seed=[test_worker] application=submitted received=datetime("2026-10-01T09:00:00Z") evidence="Signed receipt"
+    as,application.state,application.answers,application.parent.closes,override_reason -> application.state,application.received,application.override_reason
+    coordinator,draft,[Answer {question="purpose",value="Launch"}],datetime("2099-01-01T09:00:00Z"),null -> submitted,datetime("2026-10-01T09:00:00Z"),null
+    coordinator,draft,[Answer {question="purpose",value="Launch"}],datetime("2000-01-01T09:00:00Z"),null -> error(rule_failed)
+    coordinator,draft,[Answer {question="purpose",value="Launch"}],datetime("2000-01-01T09:00:00Z"),"Documented exception" -> submitted,datetime("2026-10-01T09:00:00Z"),"Documented exception"
+    coordinator,draft,[],datetime("2099-01-01T09:00:00Z"),null -> error(rule_failed)
+  # Decide exactly a submitted application without self-review or overspending. @{nl="Beoordeel uitsluitend een ingediende aanvraag, zonder zelfbeoordeling of budgetoverschrijding."}
+  scenario decide(application:Application,approve:bool label="Approve"@{nl="Goedkeuren"},reason:text) by=reviewer label="Record decision"@{nl="Besluit vastleggen"}
+   require application.reviewer==actor and application.account!=actor and application.state==submitted and can_work(actor,application.parent.location) and trim(reason)!=""
+   do
+    if approve
+     require application.amount<=application.parent.remaining
+     set application {state=approved,decision=reason,decided_by=actor,decided_at=now}
+    else
+     set application {state=rejected,decision=reason,decided_by=actor,decided_at=now}
+    send Mail.send {to=application.email,subject=format("Award decision"@{nl="Besluit over aanvraag"},locale=null),body=reason} as notice
+   examples seed=[test_worker] application=submitted approve=true reason="Meets criteria"
+    as,application.account,application.amount -> application.state,program.remaining
+    reviewer,other,money(60,"EUR") -> approved,money(40,"EUR")
+    reviewer,self,money(60,"EUR") -> error(rule_failed)
+    reviewer,other,money(101,"EUR") -> error(rule_failed)
+    members,other,money(60,"EUR") -> error(forbidden)
+  # Withdraw an approved commitment by a reasoned coordinator decision; this is not a disbursement. @{nl="Trek een goedgekeurde toezegging in met een gemotiveerd coördinatorbesluit; dit is geen uitbetaling."}
+  scenario withdraw(application:Application,reason:text) by=coordinator label="Withdraw"@{nl="Intrekken"}
+   require can_work(actor,application.parent.location) and application.state==approved and trim(reason)!=""
+   do
+    create Withdrawal {parent=application,reason} as withdrawal
+    set application {state=withdrawn}
+   examples seed=[test_worker] application=submitted reason="Funding cancelled"
+    as,application.state,application.decision -> application.state,application.decision,count(application.Withdrawal),program.remaining
+    coordinator,approved,"Meets criteria" -> withdrawn,"Meets criteria",1,money(100,"EUR")
+    coordinator,withdrawn,"Meets criteria" -> error(rule_failed)
+  # Export authorized approved commitments with exact currency and decision time. @{nl="Exporteer toegestane goedgekeurde toezeggingen met exacte valuta en besluittijd."}
+  scenario award_export(grant:Grant) read=true -> AwardBatch by=coordinator label="Export awards"@{nl="Toezeggingen exporteren"}
+   require can_work(actor,grant.location)
+   do return AwardBatch {items=grant.Application as application where application.state==approved and application.decided_at!=null select AwardItem {application=application.id,title=application.title,amount=application.amount,decided_at=application.decided_at}}
+ Then
+  # Discover the published cash-award terms and use private applicant intake. @{nl="Bekijk de gepubliceerde subsidievoorwaarden en gebruik de private aanvraagprocedure."}
+  page /awards title="Funded programs"@{nl="Financieringsprogramma's"}
+   card "Published programs and terms"@{nl="Gepubliceerde programma's en voorwaarden"}
+    list Grant order=closes filter=location,closes defaults={location=preferences.location}
+     text row.name,row.location,row.terms,row.questions,row.criteria,row.closes,row.timezone
+     form apply arguments={grant=row}
+   card "Own application intake and status"@{nl="Eigen aanvraag en status"}
+    require authenticated
+    table Application as application where application.account==actor columns=title,amount,state,decision,received,correction filter=state defaults={state=preferences.application_state}
+     edit
+     text row.questions,row.answers
+     actions submit,correct
+     table row.Withdrawal columns=reason,author,recorded
+     history
+
+  # Review assigned applications and visible monetary commitments. @{nl="Beoordeel toegewezen aanvragen en zichtbare financiële toezeggingen."}
+  page /awards/review title="Award review"@{nl="Aanvragen beoordelen"}
+   require reviewer or coordinator
+   card heading_program_budget
+    require coordinator
+    form Grant.create
+    form intake
+   card "Assigned applications and decisions"@{nl="Toegewezen aanvragen en besluiten"}
+    list Grant order=closes filter=location,closes defaults={location=preferences.location} display=split
+     card heading_program_budget
+      require coordinator and can_work(actor,row.location)
+      edit
+      metrics row.budget,row.requested,row.committed,row.withdrawn,row.remaining
+      form award_export arguments={grant=row}
+       table result.items columns=application,title,amount,decided_at
+     table row.Application columns=title,description,questions,answers,amount,received,receipt_evidence,override_reason,state,decision,decided_by,decided_at order=received filter=state,reviewer defaults={state=preferences.application_state}
+      actions decide,external,withdraw
+      form Comment.create
+      table row.Comment columns=body,author,recorded
+      table row.Withdrawal columns=reason,author,recorded
+      history

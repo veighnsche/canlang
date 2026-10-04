@@ -1,0 +1,187 @@
+{
+  "request": {
+    "state": "Assess alternatives for canlang application assembly; the candidate design has not been adopted. The project has no working compiler or runtime. Product priorities in REQUIREMENTS.md outrank provisional design text: adoption comes first, with dependable compact AI generation and no required boilerplate. The supported product is tailored company software built around CRUD, access control, rules and workflows, excluding specialized telemetry engines and visual editors. workerd and Cloudflare capabilities belong to the language. PatternFly bounds HTML/CSS presentation, HTMX supplies usual interaction, and MCP shares canonical business operations with the browser. Every basic primitive has one prescribed form. One shared app context serves logical packages independently of file layout. Authoritative models, their CRUD and policies have a single package owner. Contracts and exported-name lists must not be duplicated. # attaches a declaration description, ## introduces a comment, and every app needs its own canonical description. Generated MCP schemas and documentation reuse these declarations; tool and browser execution enforce identical principal, team, record and field permissions. Isolated inline BDD cases supply their own expectations through the real operation schema; apps do not repeat shared runtime testing. Compactness cannot erase business edge cases, and missing mechanisms cannot be hidden behind imagined helpers or new scaffolding. Source inspections and JEV opinions do not demonstrate execution or adoption.\n\nAn earlier JEV answer, consultation 06, supported package-only files with thin app entries and enumerated build inputs. That question assumed only one app declaration was permitted across all loaded sources. The implementation consequently moved app identity out of the business files, made 47 repetitive draft/apps/*.can shells, and authored draft/builds.json to list entry points, requirements, executable inputs and schema-only inputs for each profile. No compiler reads this manifest. The user has rejected both this directory of wrappers and the manifest; historical advice and current DESIGN.md cannot protect that assumption. The business portfolio described useful combinations but did not require wrapper files for every variation. AGENTS.md records these failures and asks for three independently reworded consultations carrying identical evidence and choices; compare semantic equivalence and complete wording before calls, retain requests/responses, and examine disagreement. Standing permission covers JEV calls and relevant project design information. This review itself does not approve migration of sources or redesign of the deferred shared directory.\n\nThe existing draft/CanDo.can implements package todo. draft/CanRent.can holds rent_catalog_ui, rent_reservations, rent_fulfillment and rent_reporting. Some authoritative packages are in draft/shared, whose organization is outside this task. Packages contain models, policies, generated CRUD, scenarios, browser pages and trusted handlers. Exports make named types or operations visible; use package.Symbol with optional as Alias imports them. A plain import resolves executable local ownership. In contrast, use invoice.BillingV1 as Billing from=deployment.billing names a versioned remote interface with an explicitly asynchronous service binding. It must not load the provider's executable package. Packages imply neither separate services nor separate databases/auth/deployments; assembled applications offer one browser and MCP endpoint with common team/auth context.\n\nAll 47 shells repeat app identity/description, context, runtime workerd, database D1, auth email password, teams and theme mode=system accent=blue density=comfortable. Another common line in 46 shells declares files R2 with a guessed MIME allowlist and 10MiB cap. These repetitions motivate a language mechanism, not another registry. The candidate restores each app's name and # text directly in its business source, permits several app declarations in a project, and deploys only the selected app. Proposed spellings include '# Manage reservations.\\napp CanRent uses=[rent_catalog_ui,rent_reservations,rent_fulfillment,rent_reporting]' before the existing packages and '# Manage a workspace.\\napp Workspace uses=[CanRent,CanMember]' in a real composed product source. Membership adds a package to a product without granting privileges. These are draft spellings, not accepted syntax. Small apps should retain an implicit package. Need an economical rule for single named-package membership that does not change meaning when code moves between files.\n\nA caller may specify a source entry and select an app name when needed, within a defined or supplied project root. No arbitrary ancestor traversal is proposed. An index derived by the compiler from .can declarations can resolve app/package names without a manually maintained registry. Indexed neighbors are only discovered: declared composition and imports decide compilation/deployment. Name collisions cause diagnostics. External interface-only dependencies never introduce remote models, routes or handlers into the local app. Packages retain semantics after file moves.\n\nDependency behavior remains a real choice. CanDo uses employee.staff and rent_catalog.Location; those references need the true owning rules without making the todo product expose all personnel/rental features. Selected product packages therefore need distinguishing from dependency packages. One option includes an entire dependency package internally, retaining policies, CRUD, hooks and trusted handlers, while mounting only selected pages/tools by default and allowing explicitly referenced operations through the same authorized interface. Another slices declarations using a fully defined reachability model. Handlers may maintain required canonical state; removing them because their page is unselected is unsafe. A package can mix a useful helper with unrelated public workflows or resource requirements. Do not assume safe tree shaking. In any option CRUD must obey the owner's invariants and UI/MCP cannot use separate permissions or invocation identities.\n\nPotential language-version defaults are workerd, D1, standard email/password auth with teams, PatternFly/HTMX/MCP and the common theme, leaving context for genuine exceptions and resources. file values need R2, but permissible MIME types and sizes are business choices; the repeated allowlist is not evidence of a universal policy. Explicit queues, DO and scheduled integrations remain necessary where their semantics demand it. Composing CanRent with CanMember must include any shared local authority only once. Conflicting nondefault authentication/resource requirements require a stated policy rather than silent replacement; typed deployed services continue to need binding/mapping and cannot become local providers automatically. Evaluate a minimal feasible design and identify undecided behavior, without claiming executable validation.",
+    "questions": {
+      "deployment_boundary": {
+        "type": "choice",
+        "instructions": "What deterministic boundary between sources and deployment best respects the product priorities and the rejected generated shells?",
+        "criteria": {
+          "selected_app": "Allow many app definitions within a project and deploy one selected definition. Keep each identity with its business source; derive its assembly/dependencies from composition/import edges.",
+          "one_project_app": "Limit each project to a single app definition. Reuse ordinary imports, but maintain separate projects for focused products and their combined forms.",
+          "packages_only": "Remove app definitions as composable source entities and supply package selection together with derived application identity at the command line.",
+          "unresolved": "Available evidence does not settle a single source/deployment rule."
+        }
+      },
+      "composition_syntax": {
+        "type": "choice",
+        "instructions": "Compare these explicit assembly notations for token cost, symbol-kind ambiguity and dependable agent output. Treat uses as one candidate rather than an established choice.",
+        "criteria": {
+          "app_attribute": "Write app Workspace uses=[CanRent,CanMember], resolving member kinds through distinct app/package namespaces or another unambiguous naming rule; keep use Symbol for declaration imports.",
+          "app_use_block": "Write app Workspace with an indented use CanRent / use CanMember body. Interpret use according to whether it occurs in an app body or a package importing a symbol.",
+          "app_members_attribute": "Write app Workspace packages=[rent_reservations,member_terms,...]. Admit only package composition, requiring flattened package membership instead of nested app references.",
+          "unresolved": "Grammar or evidence is too incomplete to select any of these notations."
+        }
+      },
+      "single_package_membership": {
+        "type": "choice",
+        "instructions": "Which single-package rule saves avoidable tokens while keeping membership stable across file relocation?",
+        "criteria": {
+          "implicit_main_or_list": "Use implicit main for compact apps; when packages are named, require an explicit app membership list, including the one-package case.",
+          "name_identity": "Automatically associate an app with the canonically same-named package; only extra membership requires explicit assembly. This derives from names rather than shared file placement.",
+          "lexical_app_scope": "Indent owned package declarations under the app. Their lexical scope records membership; externally located packages enter through explicit import/composition.",
+          "same_file": "Treat all packages located in the app declaration file as members; splitting source then requires explicit membership edits.",
+          "unresolved": "Neither compactness nor file-independent identity has a sufficiently resolved rule here."
+        }
+      },
+      "source_resolution": {
+        "type": "choice",
+        "instructions": "How should cross-file symbols be found when an authored manifest or registry is unwanted and discovery must not imply execution?",
+        "criteria": {
+          "derived_index": "Accept a known project root and an entry/app selector, derive a .can symbol index in that scope, and follow assembly/import references for actual inclusion. Report collisions; do not search ancestors or activate neighbors.",
+          "source_paths": "Put relative file paths on cross-file .can composition/import edges. Resolve without a whole-project index, accepting path edits when sources move.",
+          "cli_source_list": "Have the build caller enumerate every source file, then resolve symbol references only in that explicitly supplied collection.",
+          "unresolved": "Further rules for discovery scope are needed before one option can be justified."
+        }
+      },
+      "local_dependency_semantics": {
+        "type": "choice",
+        "instructions": "Choose the least complex sound treatment of a purely local dependency when canonical hooks, policies and trusted events may depend on its other declarations.",
+        "criteria": {
+          "whole_package_internal": "Compile the owning package once in full for internal behavior. Preserve model guards/CRUD/hooks/trusted handlers; only selected members contribute default UI/MCP surfaces, with explicitly referenced operations using the common authorized invocation. Acknowledge unrelated internals/resources at package granularity without promising tree shaking.",
+          "declaration_closure": "Prune to reachable declarations using specified effect/dependency rules that account for invariants, hooks, handlers and event roots. Keep exposure governed by product selection, but require a complete slicing model before relying on this.",
+          "whole_package_public": "Compile each local dependency fully and expose all its permitted pages/tools. Avoid extra exposure by moving reusable helpers into different packages.",
+          "unresolved": "Public exposure, handler retention and dependency invocation require further specification to choose safely."
+        }
+      },
+      "default_context": {
+        "type": "choice",
+        "instructions": "For this CRUD company-software target, which pinned/shared context policy best combines deterministic auth/infrastructure with low boilerplate? There are no usage or performance measurements.",
+        "criteria": {
+          "standard_team_defaults": "Language-version defaults include workerd, D1, email/password auth and teams, PatternFly/HTMX/MCP, and the common theme. Context records supported differences, source retains business permissions/rules, and only fully defined mechanical resources are inferred.",
+          "presentation_storage_defaults": "Default workerd, D1, UI/MCP and appearance; keep auth and team selection explicit once per app because identity/account policies vary. Require resource/theme declarations only for deviations.",
+          "explicit_context": "Keep once-per-app explicit runtime, storage, auth, team and theme declarations in every independent product as required configuration.",
+          "unresolved": "Authentication and team defaults need more agreement before selecting this policy."
+        }
+      },
+      "file_policy": {
+        "type": "choice",
+        "instructions": "file values imply storage, but MIME/size constraints vary by business. Which canonical policy is justified?",
+        "criteria": {
+          "infer_storage_explicit_policy": "Derive required R2 from file use; demand an app/model declaration of accepted formats and size limits, retaining shared runtime authorization/security guarantees.",
+          "explicit_files_binding": "Apps that handle files declare files R2 types=... max=... once in context, while file-free apps omit it. Do not invent a common business allowlist.",
+          "bounded_default_override": "Pin conservative MIME and size constraints globally and permit explicit app exceptions. Document that the fallback can fail to match an application requirement.",
+          "unresolved": "The evidence does not establish a valid default file policy."
+        }
+      },
+      "composition_conflicts": {
+        "type": "choice",
+        "instructions": "How should combined products share local authorities, keep service interfaces external, and resolve incompatible context/resource requirements?",
+        "criteria": {
+          "dedupe_reject_conflicts": "Canonical package identity deduplicates executable local dependencies. Bound interfaces contribute schemas and explicit service bindings without provider execution. Incompatibility is a diagnostic requiring a supported explicit resolution, with no silent override or new wrapper registry.",
+          "outer_override": "Deduplicate local packages and keep remote interfaces external; let the selected outer app replace every nested context setting even when incompatible.",
+          "nested_deployments": "Provision separate databases/auth/runtimes for nested app members and automatically coordinate them as services.",
+          "unresolved": "A concrete context merge contract must precede the decision."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "single_package_membership": {
+        "type": "choice",
+        "choice": "name_identity",
+        "confidence": 0.55,
+        "probabilities": {
+          "implicit_main_or_list": 0.08,
+          "lexical_app_scope": 0.01,
+          "unresolved": 0.27,
+          "name_identity": 0.64,
+          "same_file": 0.0
+        }
+      },
+      "source_resolution": {
+        "type": "choice",
+        "choice": "derived_index",
+        "confidence": 1.0,
+        "probabilities": {
+          "cli_source_list": 0.0,
+          "unresolved": 0.0,
+          "derived_index": 1.0,
+          "source_paths": 0.0
+        }
+      },
+      "local_dependency_semantics": {
+        "type": "choice",
+        "choice": "whole_package_internal",
+        "confidence": 1.0,
+        "probabilities": {
+          "whole_package_internal": 1.0,
+          "declaration_closure": 0.0,
+          "unresolved": 0.0,
+          "whole_package_public": 0.0
+        }
+      },
+      "default_context": {
+        "type": "choice",
+        "choice": "standard_team_defaults",
+        "confidence": 0.97,
+        "probabilities": {
+          "unresolved": 0.01,
+          "presentation_storage_defaults": 0.01,
+          "explicit_context": 0.0,
+          "standard_team_defaults": 0.98
+        }
+      },
+      "file_policy": {
+        "type": "choice",
+        "choice": "explicit_files_binding",
+        "confidence": 0.59,
+        "probabilities": {
+          "bounded_default_override": 0.0,
+          "unresolved": 0.07,
+          "explicit_files_binding": 0.69,
+          "infer_storage_explicit_policy": 0.24
+        }
+      },
+      "composition_conflicts": {
+        "type": "choice",
+        "choice": "dedupe_reject_conflicts",
+        "confidence": 0.99,
+        "probabilities": {
+          "outer_override": 0.0,
+          "dedupe_reject_conflicts": 1.0,
+          "nested_deployments": 0.0,
+          "unresolved": 0.0
+        }
+      },
+      "deployment_boundary": {
+        "type": "choice",
+        "choice": "selected_app",
+        "confidence": 0.99,
+        "probabilities": {
+          "selected_app": 1.0,
+          "unresolved": 0.0,
+          "one_project_app": 0.0,
+          "packages_only": 0.0
+        }
+      },
+      "composition_syntax": {
+        "type": "choice",
+        "choice": "app_attribute",
+        "confidence": 0.67,
+        "probabilities": {
+          "app_attribute": 0.74,
+          "app_use_block": 0.06,
+          "unresolved": 0.17,
+          "app_members_attribute": 0.03
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 3208,
+      "output_tokens": 455
+    }
+  }
+}

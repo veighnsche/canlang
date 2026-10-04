@@ -1,0 +1,17 @@
+{
+  "state": "Evaluate a formatting direction for canlang, an AI-authored language for CRUD-centered company SaaS. Adoption ranks first, with token economy, dependable generation and a simple design as supporting aims. People-oriented wrapping has lower priority. The requested style minimizes line count and favors long lines. Existing rules establish single-space nesting, prohibit tabs, terminate statements at line breaks except inside (), [] or {}, and allow semicolons between simple statements. Indented blocks express compound scope; one Given/When/Then arrangement belongs to each package. Metadata introduced by # must stay attached to the following equally indented declaration, whereas ## is a line comment. Embedded BDD tables keep their authored headers and independent expectation rows. Nested presentation, conditionals, loops and then bodies all depend on scope. The compiler/runtime has not been built; tokenization and agent success have not been measured.\n\nThe suggested default layout retains this grammar. Field sets, parameter lists, import members and expressions remain on wide lines. Eliminate purely decorative spacing and automatic wrapping at a display width. Consecutive related simple statements may be separated by semicolons on one line only within the same enclosing block, maintaining their order and all authorization, guards, mutations and assertions. Line boundaries still serve necessary statement termination, block nesting, #/## attachment and BDD row structure. Leave statements with different scopes apart and keep scenario and then; no alternative block-brace mechanism is introduced. A then body that currently has set task {done=true} on one indented line and set task {completed_at=now} on the next can instead have set task {done=true}; set task {completed_at=now} at that body's indentation, without altering its then parent. The example and fixed identifiers describe the existing constructs. Reducing physical rows is the user's objective, but its effect on model token counts and generation robustness remains an empirical question. Account for density-related downsides as well as compactness when answering. The review is advisory and does not request changes to sources.",
+  "questions": {
+    "wide_layout": {
+      "type": "noul",
+      "instructions": "Given the specified audience and constraints, should the default formatting prefer long declarations and related semicolon-separated actions over optional line breaks?"
+    },
+    "scope_preservation": {
+      "type": "noul",
+      "instructions": "Does limiting joins to the same scope and preserving order, nesting, metadata/comment attachment and BDD rows allow this layout rewrite without changing execution or test semantics?"
+    },
+    "line_count_evidence": {
+      "type": "noul",
+      "instructions": "Can a smaller line count by itself demonstrate a token-economy gain or a higher rate of correct agent output?"
+    }
+  }
+}

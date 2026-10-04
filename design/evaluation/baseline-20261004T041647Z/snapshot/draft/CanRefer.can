@@ -1,0 +1,234 @@
+# Help workspace members and advocates earn fixed cash rewards for bringing in qualifying new workspace customers. @{nl="Help werkplekleden en ambassadeurs vaste geldbeloningen te verdienen voor het aanbrengen van nieuwe klanten die aan de voorwaarden voldoen."}
+app CanRefer uses=[refer]
+
+# Trace qualifying referral rewards and broker commissions through distinct settlement evidence. @{nl="Volg verwijzingsbeloningen en bemiddelingscommissies die aan de voorwaarden voldoen met afzonderlijk uitbetalingsbewijs."}
+app ReferralsPartners uses=[CanRefer,CanAffiliate]
+
+# Credit fixed cash referrals from trusted qualification and record evidenced manual settlement. @{nl="Ken vaste verwijzingsbeloningen toe op basis van vertrouwde kwalificatie en leg handmatige uitbetalingen met bewijs vast."}
+package refer
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use std {EmailV1 as Mail} from=deployment.mail
+ use invoice {SalesV1 as Sales,Qualification} from=deployment.qualified_sales
+ use customer {test_company}
+ use sales_attribution {Capture,capture}
+ Given
+  preferences { program:Program? label=label_Program }
+  message balances_title = "Earned and paid rewards"@{nl="Verdiende en uitbetaalde beloningen"}
+  message label_Program = "Referral program"@{nl="Verwijzingsprogramma"}
+  message label_Credit = "Reward credit"@{nl="Beloningstegoed"}
+  message label_Credit_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Settlement_paid = "Payment date"@{nl="Betaaldatum"}
+  message label_Settlement_method = "Payment method"@{nl="Betaalmethode"}
+  role program_manager label="Program manager"@{nl="Programmabeheerder"}
+  role finance label="Finance"@{nl="Financiën"}
+  export Program { name:text, locations:Location[] label="Locations"@{nl="Locaties"}, products:text[]! label="Products"@{nl="Producten"}, reward:money label="Cash reward"@{nl="Geldbeloning"}, destination:url label="Referral destination"@{nl="Verwijzingsbestemming"}, window:duration=30d label="Attribution window"@{nl="Toewijzingstermijn"}, active:bool=true } label=label_Program
+  export Advocate in Program { account:user server=actor label="User account"@{nl="Gebruikersaccount"}, email:email, code:text unique label="Referral code"@{nl="Verwijzingscode"} } label="Advocate"@{nl="Ambassadeur"}
+  SourceEvidence { advocate:Advocate, source:text unique label=label_Credit_source, value:Qualification, reversed:bool=false label="Source disqualified"@{nl="Bron gediskwalificeerd"}, reason:text? } label="Source qualification evidence"@{nl="Bronkwalificatiebewijs"}
+  lock Advocate fields=account,email,code
+  lock SourceEvidence fields=advocate,source
+  Credit in Advocate { source:text unique label=label_Credit_source, customer:text label="Customer reference"@{nl="Klantreferentie"}, amount:money, reversal:Credit? label="Reversal reference"@{nl="Terugboekingsreferentie"}, qualification:text label="Qualification evidence"@{nl="Kwalificatiebewijs"} } label=label_Credit
+  Settlement in Advocate { payment_source:text label="Payment source"@{nl="Betaalbron"}, source:text unique label=label_Credit_source, amount:money, reference:text, paid:date label=label_Settlement_paid, method:text label=label_Settlement_method, evidence:text, author:user server=actor label="Recorded by"@{nl="Vastgelegd door"} } label="Cash settlement"@{nl="Uitbetaling"}
+  Allocation in Settlement { credit:Credit label=label_Credit, amount:money } label="Payment allocation"@{nl="Betalingstoewijzing"}
+  derive Advocate.earned:money = sum(row.Credit as credit select credit.amount,row.parent.reward.currency) label="Earned rewards"@{nl="Verdiende beloningen"}
+  derive Advocate.paid:money = sum(row.Settlement as settlement select settlement.amount,row.parent.reward.currency) label="Paid rewards"@{nl="Uitbetaalde beloningen"}
+  derive Advocate.owed:money = max([money(0,row.parent.reward.currency),row.paid-row.earned]) label="Owed rewards"@{nl="Verschuldigde beloningen"}
+  derive Advocate.available:money = max([money(0,row.parent.reward.currency),row.earned-row.paid]) label="Available reward balance"@{nl="Beschikbaar beloningssaldo"}
+  policy Program read=public fields=name,reward,destination,active
+  policy Program read=program_manager or finance where=all(row.locations as location,can_work(actor,location))
+  policy Advocate read=public fields=code,parent
+  policy SourceEvidence read=program_manager or finance where=all(row.advocate.parent.locations as location,can_work(actor,location))
+  policy Advocate read=authenticated where=actor.email_verified and row.account==actor
+  policy Advocate read=program_manager or finance where=all(row.parent.locations as location,can_work(actor,location))
+  policy Credit read=authenticated where=actor.email_verified and row.parent.account==actor
+  policy Credit read=program_manager or finance where=all(row.parent.parent.locations as location,can_work(actor,location))
+  policy Settlement read=authenticated where=actor.email_verified and row.parent.account==actor
+  policy Settlement read=finance where=all(row.parent.parent.locations as location,can_work(actor,location))
+  policy Allocation read=authenticated where=actor.email_verified and row.parent.parent.account==actor
+  policy Allocation read=finance where=all(row.parent.parent.parent.locations as location,can_work(actor,location))
+  invariant Program: row.reward.minor>0 and starts_with(row.destination,"https://") and row.window>0m and count(row.locations)>0 and count(row.products)>0 and all(Credit as credit where credit.parent.parent==row,credit.amount.currency==row.reward.currency)
+  invariant Advocate: not any(Advocate as advocate,advocate.id!=row.id and advocate.code==row.code)
+  unique Settlement fields=payment_source,reference
+  invariant Allocation: row.amount.currency==row.credit.amount.currency and row.amount.minor>0 and row.credit.parent==row.parent.parent and sum(Allocation as allocation where allocation.credit==row.credit select allocation.amount,row.amount.currency)<=row.credit.amount
+  lock Credit fields=source,customer,amount,reversal,qualification
+  lock Settlement fields=payment_source,source,amount,reference,paid,method,evidence,author
+  lock Allocation fields=credit,amount
+  export fixture campaign=Program {name="Advocates",locations=[test_site],products=["meeting","membership"],reward=money(100,"EUR"),destination="https://example.test/"}
+  export fixture advocate=Advocate {parent=campaign,account=other,email="advocate@example.test",code="share"}
+  export fixture captured=Capture {parent=test_company,advocate,code="share",program=format("refer.Program:{id}",{id=campaign.id}),account=self,captured=datetime("2026-10-01T00:00:00Z"),window=30d,source="capture"}
+  fixture reward_paid=Settlement {parent=advocate,payment_source="operator-bank",source="settled",amount=money(100,"EUR"),reference="external-1",paid=date("2026-10-03"),method="Bank transfer",evidence="Statement"}
+  fixture earned=Credit {parent=advocate,source="sale",customer="new-company",amount=money(100,"EUR"),qualification="Completed paid booking"}
+  fixture observed=SourceEvidence {advocate,source="sale",value={source="sale",revision=1,customer=test_company.id,account=self,location=test_site.id,product="meeting",amount=money(1000,"EUR"),purchased_at=datetime("2026-10-01T01:00:00Z"),occurred=datetime("2026-10-02T00:00:00Z"),milestone=completed,attribution="share",exclusive_program=format("refer.Program:{id}",{id=campaign.id}),attributed_at=datetime("2026-10-01T00:00:00Z"),attribution_window=30d,first_customer=true,history_known=true}}
+ When
+  crud Program by=program_manager fields=name,locations,products,reward,destination,window,active when=all(row.locations as location,can_work(actor,location)) delete=none
+  # Create your verified own advocate identity and public referral code. @{nl="Maak je eigen geverifieerde ambassadeursidentiteit en openbare verwijzingscode aan."}
+  scenario join(program:Program) by=authenticated label="Join program"@{nl="Deelnemen aan programma"}
+   require actor.email_verified and program.active and not any(program.Advocate as advocate,advocate.account==actor)
+   do create Advocate {parent=program,email=actor.email,code=operation.id} as advocate
+  # Allocate affordable earned rewards to the same external payment evidence once. @{nl="Wijs betaalbare verdiende beloningen eenmalig toe aan hetzelfde externe betalingsbewijs."}
+  scenario settle(advocate:Advocate,amount:money,payment_source:text label="Payment source"@{nl="Betaalbron"},reference:text,paid:date label=label_Settlement_paid,method:text label=label_Settlement_method,evidence:text) by=finance -> Settlement label="Record cash settlement"@{nl="Uitbetaling vastleggen"}
+   require amount.currency==advocate.parent.reward.currency and amount.minor>0 and trim(payment_source)!="" and trim(reference)!="" and trim(method)!="" and trim(evidence)!="" and paid<=local_date(now,team.timezone) and all(advocate.parent.locations as location,can_work(actor,location))
+   do
+    let existing=first(Settlement as settlement where settlement.payment_source==payment_source and settlement.reference==reference order=settlement.id)
+    if existing!=null
+     require existing.parent==advocate and existing.amount==amount and existing.paid==paid and existing.method==method and existing.evidence==evidence
+     return existing
+    require amount<=advocate.available
+    create Settlement {parent=advocate,source=operation.id,amount,payment_source,reference,paid,method,evidence} as settlement
+    for credit in advocate.Credit as item where item.amount.minor>0 order=item.created limit=500
+     let remaining=amount-sum(settlement.Allocation as allocation select allocation.amount,amount.currency)
+     let unpaid=credit.amount-sum(Allocation as allocation where allocation.credit==credit select allocation.amount,amount.currency)
+     let part=min([remaining,unpaid])
+     if part.minor>0
+      create Allocation {parent=settlement,credit,amount=part} as allocation
+    require sum(settlement.Allocation as allocation select allocation.amount,amount.currency)==amount
+    return settlement
+   examples seed=[test_worker,earned] advocate=advocate payment_source="operator-bank" reference="external-1" paid=date("2026-10-03") method="Bank transfer" evidence="Statement"
+    as,amount -> advocate.available,count(advocate.Settlement)
+    finance,money(100,"EUR") -> money(0,"EUR"),1
+    finance,money(101,"EUR") -> error(rule_failed)
+    program_manager,money(50,"EUR") -> error(forbidden)
+   examples seed=[test_worker,earned,reward_paid] advocate=advocate payment_source="operator-bank" reference="external-1" paid=date("2026-10-03") method="Bank transfer" evidence="Statement"
+    as,amount -> count(advocate.Settlement)
+    finance,money(100,"EUR") -> 1
+    finance,money(50,"EUR") -> error(rule_failed)
+  scenario qualify on=Sales.qualification
+   do
+    let prior=first(SourceEvidence as candidate where candidate.source==event.value.source order=candidate.id)
+    if prior!=null
+     require prior.value.customer==event.value.customer and prior.value.account==event.value.account and prior.value.location==event.value.location and prior.value.product==event.value.product and prior.value.amount==event.value.amount and prior.value.purchased_at==event.value.purchased_at and prior.value.attribution==event.value.attribution and prior.value.exclusive_program==event.value.exclusive_program and prior.value.attributed_at==event.value.attributed_at and prior.value.attribution_window==event.value.attribution_window
+     if event.value.revision==prior.value.revision
+      require prior.value==event.value
+    for advocate in Advocate as advocate where advocate.code==event.value.attribution limit=1
+     require event.value.revision>0 and event.value.exclusive_program==format("refer.Program:{id}",{id=advocate.parent.id}) and event.value.account!=advocate.account and event.value.amount.currency==advocate.parent.reward.currency
+     if prior==null
+      create SourceEvidence {advocate,source=event.value.source,value=event.value,reversed=event.value.milestone==reversed} as created_evidence
+     else
+      require prior.advocate==advocate
+      if event.value.revision>prior.value.revision
+       set prior {value=event.value,reversed=prior.reversed or event.value.milestone==reversed}
+     let evidence=first(SourceEvidence as evidence where evidence.source==event.value.source order=evidence.id)
+     require evidence!=null
+     if event.value.revision==evidence.value.revision
+      let credit=first(advocate.Credit as credit where credit.source==event.value.source and credit.reversal==null order=credit.id)
+      if credit!=null
+       require credit.customer==event.value.customer
+      if evidence.reversed or (credit!=null and (not event.value.first_customer or not event.value.history_known))
+       set evidence {reversed=true}
+       if credit!=null and not any(advocate.Credit as item,item.reversal==credit)
+        create Credit {parent=advocate,source=format("{source}:reversal",{source=credit.source}),customer=credit.customer,amount=-credit.amount,reversal=credit,qualification="Source disqualification"} as reversal
+      else
+       if event.value.milestone in [completed,cancellation_passed] and event.value.first_customer and event.value.history_known and credit==null
+        require advocate.parent.active and event.value.product in advocate.parent.products and any(advocate.parent.locations as location,location.id==event.value.location) and event.value.amount.minor>0 and event.value.occurred<=now
+        require any(Capture as capture,capture.parent.id==event.value.customer and capture.advocate==advocate and capture.code==event.value.attribution and capture.program==event.value.exclusive_program and capture.account==event.value.account and capture.captured==event.value.attributed_at and capture.window==event.value.attribution_window and capture.captured<=event.value.purchased_at and event.value.purchased_at<=capture.captured+capture.window and event.value.purchased_at<=event.value.occurred)
+        if not any(Credit as item,item.customer==event.value.customer and item.parent.parent==advocate.parent and item.reversal==null)
+         create Credit {parent=advocate,source=event.value.source,customer=event.value.customer,amount=advocate.parent.reward,qualification="Verified first paid customer and completed source"} as credit
+         send Mail.send {to=advocate.email,subject=format("Referral qualified"@{nl="Verwijzing gekwalificeerd"},locale=null),body=advocate.parent.name} as notice
+   examples seed=[captured] event={value={source="sale",revision=1,customer=test_company.id,account=self,location=test_site.id,product="meeting",amount=money(1000,"EUR"),purchased_at=datetime("2026-10-01T01:00:00Z"),occurred=datetime("2026-10-02T00:00:00Z"),milestone=completed,attribution="share",exclusive_program=format("refer.Program:{id}",{id=campaign.id}),attributed_at=datetime("2026-10-01T00:00:00Z"),attribution_window=30d,first_customer=true,history_known=true}}
+    event.value.first_customer,event.value.history_known,event.value.product,event.value.attributed_at -> count(advocate.Credit),advocate.available
+    true,true,"meeting",datetime("2026-10-01T00:00:00Z") -> 1,money(100,"EUR")
+    false,true,"meeting",datetime("2026-10-01T00:00:00Z") -> 0,money(0,"EUR")
+    true,false,"meeting",datetime("2026-10-01T00:00:00Z") -> 0,money(0,"EUR")
+    true,true,"office",datetime("2026-10-01T00:00:00Z") -> error(rule_failed)
+    true,true,"meeting",datetime("2026-09-01T00:00:00Z") -> error(rule_failed)
+   examples seed=[earned,reward_paid] event={value={source="sale",revision=2,customer="new-company",account=self,location=test_site.id,product="meeting",amount=money(1000,"EUR"),purchased_at=datetime("2026-10-01T01:00:00Z"),occurred=datetime("2026-10-02T00:00:00Z"),milestone=reversed,attribution="share",exclusive_program=format("refer.Program:{id}",{id=campaign.id}),attributed_at=datetime("2026-10-01T00:00:00Z"),attribution_window=30d,first_customer=true,history_known=true}}
+    event.value.milestone -> count(advocate.Credit),advocate.available,advocate.owed,count(advocate.Settlement)
+    reversed -> 2,money(0,"EUR"),money(100,"EUR"),1
+   examples seed=[captured,observed] event={value=observed.value}
+    observed.reversed,event.value.revision,event.value.amount -> count(advocate.Credit),advocate.available
+    false,1,money(1000,"EUR") -> 1,money(100,"EUR")
+    true,2,money(1000,"EUR") -> 0,money(0,"EUR")
+    false,1,money(999,"EUR") -> error(rule_failed)
+   examples seed=[captured,observed,earned] event={value=observed.value}
+    earned.customer,event.value.customer -> count(advocate.Credit)
+    test_company.id,test_company.id -> 1
+    test_company.id,"conflicting-customer" -> error(rule_failed)
+  # Reject an attributed source with an accountable reason while preserving all payment evidence. @{nl="Wijs een toegewezen bron met een verantwoordbare reden af en behoud al het betalingsbewijs."}
+  scenario reject_source(evidence:SourceEvidence,reason:text) by=program_manager label="Reject source qualification"@{nl="Bronkwalificatie afwijzen"}
+   require all(evidence.advocate.parent.locations as location,can_work(actor,location)) and trim(reason)!=""
+   do
+    set evidence {reversed=true,reason}
+    let credit=first(evidence.advocate.Credit as credit where credit.source==evidence.source and credit.reversal==null order=credit.id)
+    if credit!=null and not any(evidence.advocate.Credit as item,item.reversal==credit)
+     create Credit {parent=evidence.advocate,source=format("{source}:reversal",{source=credit.source}),customer=credit.customer,amount=-credit.amount,reversal=credit,qualification=reason} as reversal
+   examples seed=[test_worker,observed,earned] evidence=observed reason="Duplicate attribution"
+    as,reason -> evidence.reversed,count(advocate.Credit)
+    program_manager,"Duplicate attribution" -> true,2
+    program_manager,"" -> error(rule_failed)
+    finance,"Duplicate attribution" -> error(forbidden)
+ Then
+  # Share your configured referral destination and trace earned, paid and owed balances. @{nl="Deel de ingestelde verwijzingsbestemming en volg verdiende, betaalde en verschuldigde saldi."}
+  page /referrals title="Referrals"@{nl="Verwijzingen"}
+   require authenticated and actor.email_verified
+   card "Programs and your referral code"@{nl="Programma's en je verwijzingscode"}
+    list Program
+     action join
+    list Advocate as advocate where advocate.account==actor and (preferences.program==null or advocate.parent==preferences.program)
+     copy app_url(format("/referrals/share/{id}",{id=row.id}))
+     text row.code,row.parent.destination
+     card balances_title
+      metrics row.earned,row.paid,row.available,row.owed
+     tabs
+      tab "Qualification and reversal evidence"@{nl="Kwalificatie- en terugboekingsbewijs"}
+       table row.Credit columns=source,amount,reversal,qualification
+      tab "External payment evidence"@{nl="Bewijs van externe betalingen"}
+       table row.Settlement columns=amount,payment_source,reference,paid,method,evidence
+  # Review cash rewards and evidence actual external settlement. @{nl="Beoordeel geldbeloningen en leg bewijs van daadwerkelijke externe uitbetaling vast."}
+  page /referrals/work title="Referral rewards"@{nl="Verwijzingsbeloningen"}
+   require program_manager or finance
+   card "Program maintenance"@{nl="Programmabeheer"}
+    form Program.create
+    list Program
+     edit
+   card balances_title
+    list Advocate as advocate where preferences.program==null or advocate.parent==preferences.program
+     metrics row.earned,row.paid,row.available,row.owed
+     table SourceEvidence as source where source.advocate==advocate columns=source,value.milestone,value.history_known,value.first_customer,reversed,reason
+      action reject_source
+     card "Record a cash settlement"@{nl="Een uitbetaling vastleggen"}
+      form settle
+     history
+  # A shared link discloses only its public code and configured destination; capture requires verified customer authority. @{nl="Een gedeelde link toont alleen de openbare code en ingestelde bestemming; vastlegging vereist geverifieerde klantbevoegdheid."}
+  page /referrals/share/{Advocate.id} title="Referral invitation"@{nl="Verwijzingsuitnodiging"} nav=none
+   require row.parent.active
+   text row.code,row.parent.destination
+   form capture arguments={advocate=row} fields=customer
+
+# Capture one verified customer choice for either an advocate or a contracted partner. @{nl="Leg één geverifieerde klantkeuze vast voor een ambassadeur of een contractpartner."}
+package sales_attribution
+ use customer {Customer,owns,has_role,test_company,test_contact,test_admin}
+ use rent_catalog {Location}
+ use refer {Advocate,advocate as test_advocate}
+ use affiliate {Partner,broker as test_broker}
+ Given
+  export Capture in Customer { advocate:Advocate?, partner:Partner?, code:text label="Attribution code"@{nl="Toewijzingscode"}, program:text label="Exclusive program"@{nl="Exclusief programma"}, account:user server=actor, captured:datetime server=now label="Capture time"@{nl="Vastleggingstijd"}, window:duration label="Attribution window"@{nl="Toewijzingstermijn"}, source:text unique label="Capture reference"@{nl="Vastleggingsreferentie"} } label="Captured attribution"@{nl="Vastgelegde toewijzing"}
+  invariant Capture: (row.advocate!=null and row.partner==null) or (row.advocate==null and row.partner!=null)
+  lock Capture fields=advocate,partner,code,program,account,captured,window,source
+  policy Capture read=authenticated where=row.account==actor and (owns(actor,row.parent) or has_role(actor,row.parent,administrator) or has_role(actor,row.parent,booker))
+  export derive latest_capture(customer:Customer,person:user,location:Location,product:text):Capture? = first(customer.Capture as capture where capture.account==person and capture.captured+capture.window>=now and ((capture.advocate!=null and capture.advocate.parent.active and capture.advocate.account!=person and location in capture.advocate.parent.locations and product in capture.advocate.parent.products) or (capture.partner!=null and capture.partner.active and capture.partner.account!=person and location in capture.partner.locations and product in capture.partner.products)) order=-capture.captured)
+ When
+  # Freeze the current origin policy only for your verified customer identity. @{nl="Leg het huidige bronbeleid alleen vast voor je geverifieerde klantidentiteit."}
+  export scenario capture(customer:Customer,advocate:Advocate?,partner:Partner?) by=authenticated -> Capture label="Use attribution code"@{nl="Toewijzingscode gebruiken"}
+   require actor.email_verified and customer.active
+   require owns(actor,customer) or has_role(actor,customer,administrator) or has_role(actor,customer,booker)
+   require (advocate!=null and partner==null) or (advocate==null and partner!=null)
+   do
+    if advocate!=null
+     require advocate.parent.active and advocate.account!=actor
+     create Capture {parent=customer,advocate,code=advocate.code,program=format("refer.Program:{id}",{id=advocate.parent.id}),window=advocate.parent.window,source=operation.id} as captured
+     return captured
+    require partner.active and partner.account!=actor
+    create Capture {parent=customer,partner,code=partner.id,program=format("affiliate.Partner:{id}",{id=partner.id}),window=partner.window,source=operation.id} as captured
+    return captured
+   examples seed=[test_contact,test_admin] advocate=test_advocate customer=test_company
+    as,advocate.account,advocate.parent.active -> count(customer.Capture)
+    members,other,true -> 1
+    members,self,true -> error(rule_failed)
+    members,other,false -> error(rule_failed)
+    public,other,true -> error(forbidden)
+   examples seed=[test_contact,test_admin] partner=test_broker customer=test_company
+    as,partner.account,partner.active -> count(customer.Capture)
+    members,other,true -> 1
+    members,self,true -> error(rule_failed)
+    members,other,false -> error(rule_failed)
+ Then

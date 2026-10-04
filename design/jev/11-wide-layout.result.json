@@ -1,0 +1,41 @@
+{
+  "request": {
+    "state": "Review a proposed canlang source-layout policy. Its primary objective is adoption; compact token use, reliable AI generation and simplicity serve that objective. AI authors this CRUD business-SaaS DSL, and human-oriented pretty printing is secondary. The user wants wide source with the fewest necessary physical lines. Current grammar uses one space per indentation level, tabs are invalid, newlines end statements outside (), [] and {}, and semicolons separate simple statements. Compound bodies use indentation. Each package retains exactly one Given/When/Then structure. Required # descriptions attach to the next declaration at the same indentation; ## comments consume their line. Inline BDD examples contain independently authored column headings and expected-result rows. Branches, loops, effect blocks and nested UI components have scoped bodies. There is no implemented compiler or runtime and no tokenizer or agent-generation benchmark.\n\nThe candidate is a preferred canonical formatting policy using current syntax: keep fields, arguments, expressions and enumerated imports wide; avoid decorative blank lines and arbitrary width-based wrapping; put related simple statements of the same lexical block on one line with semicolons. Preserve execution order, explicit guards, permissions, effects and test expectations. Keep newlines wherever the existing grammar needs statement separation, indentation scope, description/comment attachment or example-table rows. Do not place differently scoped statements together, remove wrappers such as scenario/then, or invent braces for blocks. For example an indented body containing set task {done=true} followed by set task {completed_at=now} may use the single body line set task {done=true}; set task {completed_at=now}, with the enclosing then and its indentation retained. All quoted technical words and the snippet illustrate the same current grammar, not a new syntax proposal. Fewer physical lines are a requested layout target; a claim of fewer model tokens or more reliable generation is unmeasured. Judge the property asked, including any tradeoff from dense lines, and return uncertain yes probabilities where evidence is insufficient. This consultation does not authorize file migration.",
+    "questions": {
+      "wide_layout": {
+        "type": "noul",
+        "instructions": "Is favoring wide declarations and same-block semicolon sequences, while retaining all grammar-required newlines, a defensible default layout for the stated AI-native adoption goal?"
+      },
+      "scope_preservation": {
+        "type": "noul",
+        "instructions": "Can the stated compaction preserve program and inline-test meaning when statement order, block indentation, descriptions/comments and example-row boundaries are retained exactly?"
+      },
+      "line_count_evidence": {
+        "type": "noul",
+        "instructions": "Is reducing physical source lines alone sufficient evidence of lower model-token cost or improved AI-generation reliability?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "wide_layout": {
+        "type": "noul",
+        "noul": 0.76
+      },
+      "scope_preservation": {
+        "type": "noul",
+        "noul": 0.87
+      },
+      "line_count_evidence": {
+        "type": "noul",
+        "noul": 0.06
+      }
+    },
+    "usage": {
+      "input_tokens": 773,
+      "output_tokens": 60
+    }
+  }
+}

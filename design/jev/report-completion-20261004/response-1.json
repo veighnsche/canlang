@@ -1,0 +1,52 @@
+{
+  "request": {
+    "state": {
+      "context": "Review how the reporting draft can obtain real bounded business measures. These are authored proposals, not working services. Preserve source permissions, saved request meaning, exact currencies and explicit missing coverage; do not infer unseen historical state.",
+      "evidence": "Rent already exports resource_report(resource:Resource,from:datetime,until:datetime) read=true scope=authority -> ReportBatch by=reservation_manager. Its ResourcePolicy/LocationPolicy snapshots yield fresh or partial checkpoints. Invoice owns monotone ledger_revision, succeeded Attempt.received, locked ExternalPayment/ExternalRefund and emitted InvoiceSettlement. Member Term freezes location/range and exposes paid/cancellation state; Maintain Repair and Field Job have current states/due dates. These four latter report reads do not exist yet. All sources currently share default D1. Report fixtures do not create production Definition records. Source role names remain distinct package-qualified grants.",
+      "constraints": "Contribution {source:text,revision:int,location:text,from:datetime,until:datetime,metric:enum(booked_minutes,saleable_minutes,excluded_minutes,occupied_minutes,cash,receivable,renewal,backlog),quantity:decimal,unit:text,amount:money?,provisional:bool=false,reversal:text?}; ReportBatch {checkpoint:Checkpoint,rows:Contribution[]!}; Checkpoint {source:text,revision:text,generated:datetime,state:enum(fresh,lagging,partial,unavailable),complete:bool}"
+    },
+    "questions": {
+      "sourcing": {
+        "type": "choice",
+        "instructions": "Choose the most suitable completion for the supplied sources and constraints.",
+        "criteria": {
+          "local": "Invoke actual exported authority reads at the default D1 owner, retain full frozen request specifications and bounded batches, and recheck each owning role and location before reading a cache. Author finite report choices as enums/pure values, so no undeclared database initialization is required. Invoice balance snapshots are captured at real ledger emissions; receipt evidence supplies signed cash. Local composition couples producer interfaces and fails the refresh explicitly if a required producer fails.",
+          "bound": "Export the same real owner reads through authenticated bound operations, freeze individual deliveries and source outcomes, then assemble a run after correlated completions. This supports independent deployments and partial source status, but needs explicit installed authorization/commit mappings and more asynchronous state, which are not implemented here.",
+          "viewer": "Build measures directly from permission-filtered model reads under the caller. This minimizes dedicated source operations and inherits field grants, but absent rows cannot establish complete confidential coverage and present balances cannot reproduce earlier as-of state without saved evidence."
+        }
+      },
+      "cache_history": {
+        "type": "noul",
+        "instructions": "Does a frozen cache plus read-time role/location checks suffice for scoped historical reports if snapshots missing before baseline remain partial and cash reversals are summed rather than discarded?",
+        "criteria": {
+          "true": "The stated evidence and checks support exact available history without granting omitted source data or presenting partial history as zero.",
+          "false": "The supplied design still lacks a necessary coverage, authorization or reversal condition for that claim."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "sourcing": {
+        "type": "choice",
+        "choice": "local",
+        "confidence": 0.97,
+        "probabilities": {
+          "bound": 0.02,
+          "viewer": 0.01,
+          "local": 0.97
+        }
+      },
+      "cache_history": {
+        "type": "noul",
+        "noul": 0.28
+      }
+    },
+    "usage": {
+      "input_tokens": 961,
+      "output_tokens": 58
+    }
+  }
+}

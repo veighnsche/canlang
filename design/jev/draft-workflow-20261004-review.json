@@ -1,0 +1,205 @@
+{
+  "review": "All three request variants preserve facts, source guards, options and constraints. No reversal identified on reread. Disagreement concerns no-op revision cost versus source rewrite, full scope coverage versus authoritative enumeration, and leading versus body guard outcomes. NOUL bundle probabilities stay low; no rationale is supplied and no threshold is used. Final wording conditions unsupported root routing on a diagnostic, preserves compatible handler contract identity, and excludes final-difference/hook future-version inconsistency.",
+  "results": [
+    {
+      "variant": "a",
+      "model": "jev-1.13.0",
+      "answers": {
+        "policy": {
+          "type": "choice",
+          "choice": "authority",
+          "confidence": 0.53,
+          "probabilities": {
+            "unresolved": 0.17,
+            "viewer": 0.14,
+            "authority": 0.69
+          }
+        },
+        "versions": {
+          "type": "choice",
+          "choice": "write_intent",
+          "confidence": 0.36,
+          "probabilities": {
+            "unresolved": 0.35,
+            "write_intent": 0.57,
+            "live_dirty": 0.08
+          }
+        },
+        "ticks": {
+          "type": "choice",
+          "choice": "per_scope",
+          "confidence": 0.31,
+          "probabilities": {
+            "per_scope": 0.54,
+            "unresolved": 0.35,
+            "d1_first": 0.11
+          }
+        },
+        "requires": {
+          "type": "choice",
+          "choice": "business_error",
+          "confidence": 0.78,
+          "probabilities": {
+            "unresolved": 0.11,
+            "business_error": 0.86,
+            "leading_skip": 0.03
+          }
+        },
+        "files": {
+          "type": "choice",
+          "choice": "receiver_finalize",
+          "confidence": 0.92,
+          "probabilities": {
+            "unresolved": 0.06,
+            "receiver_finalize": 0.94,
+            "provider_reference": 0.0,
+            "reject_remote_file": 0.0
+          }
+        },
+        "coherence": {
+          "type": "noul",
+          "noul": 0.36
+        }
+      },
+      "usage": {
+        "input_tokens": 4906,
+        "output_tokens": 236
+      }
+    },
+    {
+      "variant": "b",
+      "model": "jev-1.13.0",
+      "answers": {
+        "files": {
+          "type": "choice",
+          "choice": "receiver_finalize",
+          "confidence": 0.54,
+          "probabilities": {
+            "receiver_finalize": 0.66,
+            "unresolved": 0.22,
+            "provider_reference": 0.11,
+            "reject_remote_file": 0.01
+          }
+        },
+        "coherence": {
+          "type": "noul",
+          "noul": 0.36
+        },
+        "policy": {
+          "type": "choice",
+          "choice": "authority",
+          "confidence": 0.6,
+          "probabilities": {
+            "authority": 0.73,
+            "viewer": 0.13,
+            "unresolved": 0.14
+          }
+        },
+        "versions": {
+          "type": "choice",
+          "choice": "unresolved",
+          "confidence": 0.3,
+          "probabilities": {
+            "write_intent": 0.31,
+            "unresolved": 0.54,
+            "live_dirty": 0.15
+          }
+        },
+        "ticks": {
+          "type": "choice",
+          "choice": "per_scope",
+          "confidence": 0.27,
+          "probabilities": {
+            "unresolved": 0.41,
+            "per_scope": 0.52,
+            "d1_first": 0.07
+          }
+        },
+        "requires": {
+          "type": "choice",
+          "choice": "leading_skip",
+          "confidence": 0.4,
+          "probabilities": {
+            "leading_skip": 0.59,
+            "unresolved": 0.12,
+            "business_error": 0.29
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 4888,
+        "output_tokens": 237
+      }
+    },
+    {
+      "variant": "c",
+      "model": "jev-1.13.0",
+      "answers": {
+        "policy": {
+          "type": "choice",
+          "choice": "authority",
+          "confidence": 0.54,
+          "probabilities": {
+            "viewer": 0.02,
+            "authority": 0.69,
+            "unresolved": 0.29
+          }
+        },
+        "versions": {
+          "type": "choice",
+          "choice": "write_intent",
+          "confidence": 0.5,
+          "probabilities": {
+            "write_intent": 0.66,
+            "live_dirty": 0.07,
+            "unresolved": 0.27
+          }
+        },
+        "ticks": {
+          "type": "choice",
+          "choice": "unresolved",
+          "confidence": 0.72,
+          "probabilities": {
+            "d1_first": 0.02,
+            "per_scope": 0.17,
+            "unresolved": 0.81
+          }
+        },
+        "requires": {
+          "type": "choice",
+          "choice": "business_error",
+          "confidence": 0.19,
+          "probabilities": {
+            "unresolved": 0.32,
+            "business_error": 0.46,
+            "leading_skip": 0.22
+          }
+        },
+        "files": {
+          "type": "choice",
+          "choice": "receiver_finalize",
+          "confidence": 0.86,
+          "probabilities": {
+            "reject_remote_file": 0.01,
+            "receiver_finalize": 0.89,
+            "unresolved": 0.06,
+            "provider_reference": 0.04
+          }
+        },
+        "coherence": {
+          "type": "noul",
+          "noul": 0.33
+        }
+      },
+      "usage": {
+        "input_tokens": 4953,
+        "output_tokens": 238
+      }
+    }
+  ],
+  "failed_attempt": {
+    "variant": "a",
+    "mode": "normal sandbox",
+    "result": "Jev connection failed before saved response; no CLI retry performed. Explicit authorized network escalation subsequently made the successful consultation."
+  }
+}

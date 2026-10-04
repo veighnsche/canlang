@@ -1,0 +1,101 @@
+{
+  "request": {
+    "state": {
+      "task": "Assess concrete schema-evolution notation for canlang, an AI-authored CRUD and business-workflow DSL on workerd/Cloudflare. Adoption, token economy, a single canonical primitive and explicit destructive migrations are requirements. No authored wrapper/build manifest/schema copies, arbitrary SQL/JS or verification framework is wanted. The user authorizes research, design and adoption in documentation; stop on concrete invalidity. There is no compiler, parser, runtime, installed predecessor, Git history or executed BDD suite in this checkout. Code below is illustrative, not an actual old TeamTasks deployment. Classifier judgments are advice, not authority or implementation proof.",
+      "existing": "Apps select logical owning packages, including implicit packages named by small apps. Files have no namespace or initialization meaning; composition deduplicates local owners and bound imports include schemas only. Each package has one Given/When/Then body. Models have immutable IDs/team/parent and tracked versions/attribution/archive state. by and on separate user operations from trusted handlers. Pure expressions and require/do with let/if/set exist. Ordinary for limit rejects excessive work, never resumes or truncates. D1 fenced transactions and DO-local transactions do not supply atomic owner transfer. Pre-state locks forbid editing protected fields or removing locked records except canonical expired disposal; archived/expired stored rows still affect references and uniqueness. Section11 demands explicit versioned rename/removal/backfill/enum/owner/semantic changes but gives no notation, and overstates automatic optional/default/index safety.",
+      "boundary": "Candidate top-level migration Owner from=\"<installed-owner-snapshot-id>\" references a logical package or implicit app; Owner is not a physical storage authority or a second namespace declaration. It sits in real .can business source and is another top-level terminator after a complete implicit Given/When/Then body, never interrupting incomplete sections. The compiler discovers relevant transitions for target local owners and installed local owners removed from the target; unrelated neighboring transitions and remote providers stay inert. A When-scoped declaration keeps maintenance beside workflows/imports with fewer top-level grammar changes, but complete owner removal needs an additional boundary or an otherwise unnecessary empty owner shell. A compiler-generated deployment plan can keep .can smaller and resemble platform practice; source intent/backfill mapping then needs a reviewed external authoring channel. No manifest or copied schema is needed merely to review generated output. Deferral remains possible.",
+      "versions": "from is a compiler-issued content-addressed immutable owner snapshot, containing canonical schema/constraints/lifetimes/locks, effective language version, physical binding/routing and persisted declaration contracts. Installed release and queued occurrence contracts are tracked as well: equal columns do not imply equal handler behavior. Current declarations supply the target snapshot, excluding migration bodies to avoid self-reference; the transition/body digest and application/progress ledger are generated. Every old logical owner is retained, explicitly renamed once, or explicitly dropped, with at most one predecessor per target. Multiple owners contribute one compiler-derived selected deployment plan, not competing plans merely because they share a baseline. At most one exact matching transition per owner/baseline is selected. Missing/mismatched artifacts, duplicate consumption, collisions or ambiguous edges block an upgrade. Applied transition artifacts cannot be edited or retargeted. Source may retain current predecessor alternatives while generated applied history is stored separately; no required handwritten timestamp/sequence/version on all apps. Fresh installation creates current schema without past artifacts, parses transition syntax/current target names and does not claim inactive before paths were typechecked.",
+      "mapping": "rename before.Model to Model and rename before.Model.field to Model.field are explicit one-to-one identity maps; drop before.Model[.field] is an explicit removal. Unchanged names copy exactly, and compatible null/context-free constant defaults initialize new fields. backfill TargetModel binds read-only before to each old row after model identity mapping, and partial desired row to its target. Leading require and do reuse pure let/require/if/else/set row only. A missing required field must be definitely assigned on every path before reading/activation; target derives are read-only. No actor/time/random/provider call, whole-model query, other-record lookup, CRUD hook or ordinary operation is available. Row values can use stored components of that old row and its opaque reference identities; assigning a reference requires a known unchanged/renamed model mapping with preserved owner boundary. The compiler owns complete iteration/staging/checkpoints, not a renamed for limit loop. Each row is evaluated against frozen old state, not earlier staged output. This subset rejects record split/merge, populating new models from old rows, team/containment changes, D1/DO/namespace transfer and arbitrary queued payload conversion. New models initially contain no rows. An expression-only backfill is shorter but current expressions lack conditionals for enum cases; it would need a conditional expression primitive. A maintenance scenario reuses existing effects but needs explicit old/new typing plus a new complete bounded execution contract.",
+      "safety": "rename owner maps the exact predecessor logical prefix to the header target while preserving physical authority, scope, containment, IDs, file identities and role grants. drop owner explicitly removes its predecessor and requires target absence. Neither is a cross-deployment/Cloudflare class transfer or public wire alias; bound consumers need separate compatible installation. Old locks apply to original pre-state: rename preserves protected values; rewriting/removing still-locked evidence is rejected. New locked fields may be initialized before desired locks apply. Include archived rows without unarchiving. Expired content cannot be read/backfilled/resurrected; affected incompatible retained expiry backlog must first be safely disposed by old lifecycle rules. References/retained uniqueness and target invariants/lifetimes are checked over the complete state, not query-visible subsets. Metadata-only renames preserve record versions. Actual stored-value initialization or transformation, including automatic null/constant materialization, advances a changed row version once with trusted migration attribution; affected job bindings enter compatibility checks. Prefix mapping preserves grants only to valid surviving target roles; removed or changed role grants require explicit reconciliation or block. Schema drop is not a promise of immediate erasure from audit/receipts/providers; canonical retention and replay identities remain. File references preserve actual immutable objects and authorized ownership; release references before retryable collection, never recreate bytes.",
+      "execution": "Deployment is maintenance-only, never by/on/export/MCP, and compilation alone performs nothing. Quiesce relevant admissions/writers, cleanup and dispatch, freeze old input, prepare target staging in resumable bounded runtime work, validate all target rows/constraints, then activate. Before activation, staging failure leaves installed data/release selected. Multi-authority preparation/activation is not one transaction; after partial activation keep admissions closed and resume, never reopen old code against mixed layouts. DO completeness requires authoritative owner inventory; the current eventual directory is insufficient, so unsupported rollout blocks. Old code/runtime writers must be fenced from changed layout. Incompatible queued work blocks unless drained/reconciled or explicitly invalidate before.handler for an inventoried old asynchronous trusted handler. Invalidation affects undispatched pending occurrences/intents only, records skipped migration disposition and retains replay identity. In-flight/accepted/uncertain external work cannot be called cancelled and needs reconciliation or compatible retained contract. Inventory actual release contracts, even older than the immediate schema predecessor; unavailable metadata blocks. Completed receipts retain old identity/schema and safe outcome, never reexecute. New interface revisions invalidate old bound action handles. No online zero-downtime or cross-owner rollback is claimed.",
+      "classification": "Automatic compatibility is conditional: empty model additions, nullable/context-free constant fields and nonunique query indexes can qualify only with preserved ownership/references/history/locks and valid complete stored state. Dynamic actor/random/clock/business snapshot defaults do not invent historical data. Adding unique constraints, tightening invariants/types/enum sets, stored-to-derived removal, semantic data conversion and owner changes require an explicit transition. A creation-default edit does not rewrite existing values. Storage compatibility and UI/MCP/bound/pending-contract compatibility are separate. Existing Member frozen calendar backfill, Leave stored-year removal and Catch payload split have missing historical facts; do not fabricate their old schemas or deployed versions. Documentation may demonstrate before/target models and the placeholder snapshot, but no live app transition is authored without its actual predecessor.",
+      "research": "Official D1 migrations track sequential SQL files/applied records, but canlang may generate these rather than author another language. D1 batch is transactional and rolls back failed statement sequences, not an entire multi-batch rollout. SQLite ALTER has constraints and may need table rebuilds; actual Cloudflare engine support must be pinned rather than assumed from latest SQLite. Durable Object class lifecycle is provider configuration, distinct from row schemas; current exports reconciliation cannot make arbitrary data-owner transfer atomic. Sources: https://developers.cloudflare.com/d1/reference/migrations/ ; https://developers.cloudflare.com/d1/worker-api/d1-database/ ; https://www.sqlite.org/lang_altertable.html ; https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/ . These establish implementation considerations, not feasibility proof.",
+      "code": {
+        "top_level": [
+          "migration TeamTasks from=\"<installed-owner-snapshot-id>\"",
+          " rename before.Todo.label to Todo.title",
+          " backfill Todo",
+          "  do",
+          "   if before.done",
+          "    set row {priority=low}",
+          "   else",
+          "    set row {priority=normal}",
+          " drop before.Todo.legacy"
+        ],
+        "when_alternative": [
+          "When",
+          " migration TaskV2 from=\"<installed-owner-snapshot-id>\""
+        ],
+        "identity": [
+          "rename owner",
+          "drop owner"
+        ],
+        "jobs": "invalidate before.notice",
+        "field_expression_alternative": "backfill Todo.priority=expr",
+        "current_for": "for record in Todo limit=100"
+      }
+    },
+    "questions": {
+      "boundary": {
+        "type": "choice",
+        "instructions": "Which single declaration boundary best fits the stated schema-evolution intent and owner-removal requirements?",
+        "criteria": {
+          "top_level_owner": "Use one top-level owner-keyed transition with exact predecessor matching, adding discovery/termination rules while covering full owner removal.",
+          "package_when": "Put named migrations in owning When sections, preserving workflow locality but adding a removal boundary or retaining an empty owner shell.",
+          "deployment_plan": "Use only reviewed compiler-generated deployment plans with an external mapping/intent channel, avoiding migration syntax in business source.",
+          "unresolved": "Leave the boundary open if these alternatives fail the constraints."
+        }
+      },
+      "mapping": {
+        "type": "choice",
+        "instructions": "Which typed value-transformation form best balances expressive reuse, source cost and bounded migration semantics?",
+        "criteria": {
+          "row_mapper": "Use backfill row bodies with explicit old/desired views and existing ordered pure require/do/if/set statements.",
+          "field_expression": "Use field expression recipes and add conditional expressions for required branching.",
+          "maintenance_scenario": "Use maintenance scenarios with old/new record types and specified complete bounded execution.",
+          "unresolved": "Defer transformation notation if no proposal is coherent."
+        }
+      },
+      "coherence": {
+        "type": "noul",
+        "instructions": "Is the specified top-level row-mapper subset coherent about exact snapshots, one-to-one logical identity, old locks/files/retention, whole-state activation and pending-contract handling while explicitly rejecting unsupported transfers?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "boundary": {
+        "type": "choice",
+        "choice": "top_level_owner",
+        "confidence": 0.85,
+        "probabilities": {
+          "unresolved": 0.0,
+          "top_level_owner": 0.89,
+          "package_when": 0.11,
+          "deployment_plan": 0.0
+        }
+      },
+      "mapping": {
+        "type": "choice",
+        "choice": "row_mapper",
+        "confidence": 0.87,
+        "probabilities": {
+          "unresolved": 0.0,
+          "maintenance_scenario": 0.01,
+          "field_expression": 0.09,
+          "row_mapper": 0.9
+        }
+      },
+      "coherence": {
+        "type": "noul",
+        "noul": 0.86
+      }
+    },
+    "usage": {
+      "input_tokens": 2793,
+      "output_tokens": 124
+    }
+  }
+}

@@ -1,0 +1,1 @@
+Checked all three complete requests before sending: identical book signature and guards, same appointment/rental distinction, sole resource authority, buffers/windows/maintenance/occupancy, no fake payments or read expansion, same two alternatives and their tradeoffs. Every explanatory prose field and criterion rewritten.

@@ -1,0 +1,20 @@
+{
+  "state": {
+    "context": "This caf\u00e9 package is unfinished review source rather than an executable system. Its Cafe/Table/Booking records have ordinary D1 placement, while its markdown specifies DO coordination. The employee.can_work dependency evaluates changeable D1 Employee data. An operation must evaluate and commit inside a single authority under DESIGN; switching the caf\u00e9 root to a Durable Object therefore needs an authoritative version-tracked work permission copy, which is absent today. The existing D1 plan fences all database writes optimistically. Favor approachable compact declarations and complete business requirements; building runtime machinery is excluded. Candidate business changes keep planned from/until intact and store seating estimates separately as estimated_until. An uncleared seated group always rejects another seating; future planned intervals may be booked when reservation intervals do not overlap. Due reservations, estimates extending into them, and elapsed occupancy estimates expose affected rows through text/details. Confirmed moves and cancellations require recorded explanations. Table disabling or capacity below a live reserved/seated party is rejected, but cleared historic parties remain evidence without blocking later table changes. Invariants enforce these conditions on every write, with staff attribution through history. Badge and Alert are not available source components.",
+    "canonical_source": "export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))\nscenario reserve(booking:Booking,table:Table,from:datetime,until:datetime) by=host\nrequire can_work(actor,booking.parent.location) and booking.state==waiting and table.parent==booking.parent and booking.party<=table.seats and from<until and available(table,from,until,booking)"
+  },
+  "questions": {
+    "placement": {
+      "type": "choice",
+      "instructions": "Select an authority arrangement consistent with the supplied mutation constraints, considering scalability as well as extra mechanisms.",
+      "criteria": {
+        "d1": "Use default D1 for caf\u00e9 decisions and update the prose that asked for DOs. Mutable employee work checks stay in the same fenced database, at the cost of shared contention.",
+        "do": "Keep caf\u00e9-root Durable Objects after adding revisioned authoritative work-grant copies with defined revocation semantics. This isolates concurrency but requires additional modeling and delivery infrastructure."
+      }
+    },
+    "workflow": {
+      "type": "noul",
+      "instructions": "Will these candidate rules keep physical seats occupied until clearance, provide reasoned reservation changes and surface conflicts while allowing later capacity edits after historical bookings finish?"
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "request": {
+    "state": {
+      "context": "The design specifies a proposed row for CRUD when, yet leaves aggregate-query visibility during that check unstated. Ordered scenario effects and final invariants already have defined roles; handwritten JS targets disagree about creating before checking. Rent interval reports reveal another gap: each booking owns an interval array, and a query returns arrays of arrays. Existing pure reads offer immutable bindings, groups, ordered queries and duration totals, with no expansion operation or mutable collection builder.",
+      "candidate": "Candidate admission semantics prepare normalized values including defaults, evaluate when using those proposed fields and the pre-write provisional store, and only then apply create/update. Commit invariants remain final-state checks. The JS library effect receives a pure when callback; source grammar is unchanged. Proposed flatten accepts a bounded collection of homogeneous collections and returns their elements in outer-then-inner order, exactly one nesting level. It preserves duplicates, rejects mixed types and performs no conversion. Empty input returns empty; every traversal and output bound applies, with explicit overflow failure.",
+      "actual_crud_examples": "  crud Product by=product_owner fields=name,published create_fields=name,location,owner when=row.owner==actor and (row.location==null or can_work(actor,row.location)) delete=none\n  crud Suggestion by=authenticated fields=title,description,category when=row.author==actor and not row.hidden and row.parent.published\n  crud Vote by=authenticated fields=account create=none update=none delete=remove when=row.account==actor\n  crud Grant by=coordinator fields=name,terms,questions,criteria,budget,closes,published create_fields=location,name,terms,questions,criteria,budget,closes,timezone when=can_work(actor,row.location) delete=none\n  crud Application by=authenticated fields=title,description,answers,amount,reviewer create_fields=email,title,description,answers,amount,reviewer when=row.account==actor and row.state==draft and row.parent.published and now<=row.parent.closes delete=none"
+    },
+    "questions": {
+      "admission": {
+        "type": "choice",
+        "instructions": "Select the consistent meaning for CRUD checks while preserving the separate final-invariant responsibility.",
+        "criteria": {
+          "prewrite": "Prepare the candidate, check it against current state before applying its write, then stage the change. Field expressions use proposed values while collection counts retain pre-write membership.",
+          "staged": "Apply the proposal provisionally before checking and discard it on rejection. Both fields and query counts observe the candidate and final invariants may cover similar ground."
+        }
+      },
+      "flatten": {
+        "type": "noul",
+        "instructions": "Can this explicit bounded one-level expansion cover nested booking intervals without storage scaffolding or implicit flattening of all query results?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "admission": {
+        "type": "choice",
+        "choice": "prewrite",
+        "confidence": 0.93,
+        "probabilities": {
+          "staged": 0.03,
+          "prewrite": 0.97
+        }
+      },
+      "flatten": {
+        "type": "noul",
+        "noul": 0.63
+      }
+    },
+    "usage": {
+      "input_tokens": 882,
+      "output_tokens": 55
+    }
+  }
+}

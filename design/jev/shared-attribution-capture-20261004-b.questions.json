@@ -1,0 +1,17 @@
+{
+  "state": {
+    "context": "The existing data supports Advocate and Partner as distinct origins, while the billing/customer and booking/term consumers are common. Only Advocate currently has an actual customer-authorized attribution capture. Can already supports nullable model refs, immutable fields and canonical scenarios. A public identifier is not purchaser authority. Source creation must verify customer identity, snapshot an eligible selection and leave first-customer money decisions to Invoice.",
+    "candidate": "Declare sales_attribution in the current referral business source. Its Capture belongs to Customer, points to exactly one advocate or partner, and stores the selected code, program, user, capture instant and window immutably. A single capture scenario checks verified Customer ownership, active origin and self-referral exclusion, choosing the correct origin window. Public origin screens use that operation; latest_capture selects the existing record. Bookings/terms accept just an optional Capture and validate its scope/account/expiry."
+  },
+  "questions": {
+    "capture": {
+      "type": "choice",
+      "instructions": "Which design keeps purchase attribution verifiable and stable while avoiding duplicated source signatures and unnecessary authored structure?",
+      "criteria": {
+        "shared": "Share one capture model, permission path and canonical operation using nullable typed origin references. Consumer input stays uniform at the cost of local dependencies on both real origin declarations.",
+        "union": "Retain two typed capture owners and let source signatures accept a union. Preserves separate ownership but repeats capture mechanics and adds case-specific consumer handling.",
+        "raw": "Accept a common plain attribution payload rather than a verified stored capture. Fewer declarations require a real external verifier to establish account/origin checks and snapshot authenticity."
+      }
+    }
+  }
+}

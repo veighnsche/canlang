@@ -1,0 +1,98 @@
+{
+  "request": {
+    "state": {
+      "request": "The user asks whether introducing first-class fragment declarations and render references is better or worse for AI coding agents, and explicitly requests JEV consultation. Evaluate adoption through source token economy and reliable agent generation/editing. There is no implemented compiler/runtime or measured agent benchmark. This is advisory design judgment, not proof of performance.",
+      "existing_design": "Then declares pages and supported PatternFly components. Runtime automatically derives render regions and HTMX fragment responses for forms/actions. Ordinary navigation returns a full page. No source hx-* attributes or separate rendering implementation. Existing reference apps do not show repeated component subtrees across different pages. Rendering always rechecks current record/field policy and team context.",
+      "candidate_examples": {
+        "automatic": "Then\n  page / title=\"Tasks\"\n    list Todo\n      edit\n      delete",
+        "extracted": "Then\n  fragment tasks\n    list Todo\n      edit\n      delete\n  page / title=\"Tasks\"\n    render tasks",
+        "inline_name": "Then\n  page / title=\"Tasks\"\n    list Todo id=tasks\n      edit\n      delete"
+      },
+      "tradeoffs": [
+        "Automatic regions keep one-use code local and shortest. Agents do not choose names/targets but generated boundaries must have a documented stable runtime contract. Reusing the same subtree on multiple pages repeats source unless a reuse form exists.",
+        "Extracted fragments provide a stable reusable symbol and a single update location when multiple pages genuinely share the same subtree. They add declarations, render references and potentially explicit typed parameters; agents may over-extract one-use content or introduce name/scope errors.",
+        "Inline id naming provides an explicit boundary/target without moving code elsewhere. It adds an attribute and uniqueness/scope rules but does not deduplicate cross-page markup.",
+        "No new primitive may bypass authorization or generate a separate business operation. Source fragment/render/id syntax is only a proposal, not currently part of the chosen design. Public standalone fragment routes are not required just to support generated HTMX interactions.",
+        "A reusable parameterized fragment cannot infer a parent record from whichever page most recently rendered it; its record bindings must be explicit, typed and checked. Common team/auth context should remain shared.",
+        "The user strongly opposes unnecessary layers and repeated tokens. Token cost should be considered over both initial generation and later edits; number of files/keywords alone does not measure reliability."
+      ]
+    },
+    "questions": {
+      "single_use": {
+        "type": "choice",
+        "instructions": "For a one-page app whose task list is rendered in exactly one place, choose the most justified source form for AI generation and later ordinary edits.",
+        "criteria": {
+          "automatic": "Keep components inline and let runtime generate partial boundaries/targets. No extra source symbol; rely on a documented runtime region contract.",
+          "extracted": "Declare the named fragment separately and render it once, paying naming/reference tokens for explicit reuse identity and location.",
+          "inline_name": "Keep the component inline with an explicit id attribute, paying naming tokens for target identity without extraction.",
+          "unresolved": "The given evidence does not justify choosing one form."
+        }
+      },
+      "actual_reuse": {
+        "type": "choice",
+        "instructions": "For an identical substantial subtree rendered by three pages and frequently changed together, choose the most justified form, assuming reusable-fragment inputs are explicit and typed.",
+        "criteria": {
+          "repeat_inline": "Repeat each page's subtree, preserving local context and eliminating render references at the cost of repeated tokens and coordinated edits.",
+          "shared_fragment": "Define one named reusable fragment and render it from each page with typed bindings, reducing repetition at the cost of names/parameters and navigation.",
+          "inline_name": "Name each inline subtree but retain separate copies, providing target identity and local context without cross-page deduplication.",
+          "unresolved": "The given evidence does not justify choosing one form."
+        }
+      },
+      "v1_policy": {
+        "type": "choice",
+        "instructions": "Choose a v1 policy for this repository given its current reference apps, user priorities and lack of empirical agent measurements.",
+        "criteria": {
+          "automatic_only_now": "Keep automatic inline regions in v1; defer reusable fragments until a concrete app demonstrates repeated content worth extracting. Current syntax stays smaller; future repetition might require an extension.",
+          "optional_reuse_now": "Add fragment/render now as optional typed reuse, retaining automatic inline defaults. Covers later repeated UI but introduces scope/name rules before a current app demonstrates the need.",
+          "mandatory_fragments_now": "Require named fragment/render for updateable regions, making boundaries explicit uniformly at the cost of more declarations/references in simple apps.",
+          "optional_inline_names_now": "Add optional inline id naming now, retain automatic defaults, and defer reusable-fragment extraction. Addresses explicit targeting but not source deduplication.",
+          "unresolved": "Evidence is insufficient; defer this decision pending a targeted agent benchmark."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "single_use": {
+        "type": "choice",
+        "choice": "automatic",
+        "confidence": 0.98,
+        "probabilities": {
+          "automatic": 0.98,
+          "inline_name": 0.02,
+          "unresolved": 0.0,
+          "extracted": 0.0
+        }
+      },
+      "actual_reuse": {
+        "type": "choice",
+        "choice": "shared_fragment",
+        "confidence": 1.0,
+        "probabilities": {
+          "shared_fragment": 1.0,
+          "unresolved": 0.0,
+          "repeat_inline": 0.0,
+          "inline_name": 0.0
+        }
+      },
+      "v1_policy": {
+        "type": "choice",
+        "choice": "automatic_only_now",
+        "confidence": 0.88,
+        "probabilities": {
+          "automatic_only_now": 0.9,
+          "optional_inline_names_now": 0.08,
+          "unresolved": 0.0,
+          "mandatory_fragments_now": 0.0,
+          "optional_reuse_now": 0.02
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1372,
+      "output_tokens": 170
+    }
+  }
+}

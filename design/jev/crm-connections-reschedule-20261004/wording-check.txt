@@ -1,0 +1,1 @@
+Three full requests retain identical exact source, caller guards, independent-owner facts, required overlapping/failure/late-result/cancel behavior, and alternatives/costs. Each brief, instruction, option description, NOUL question and criteria map has been freshly rewritten and checked pairwise distinct. Options remain semantically equivalent.

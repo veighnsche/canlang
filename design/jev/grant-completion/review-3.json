@@ -1,0 +1,34 @@
+{
+  "request": {
+    "state": "For this cash-award application, payouts are excluded. Existing Application.account is user server=actor, and fields of submitted intake are locked. submit(application:Application) by=authenticated enforces own draft, now<=parent.closes, reviewer distinct from actor, and count matching. external(application:Application,received:datetime,evidence:text,override_reason:text?) by=coordinator enforces can_work, draft, nonempty evidence, received<=now, and timely receipt unless a reasoned exception is present. decide(application:Application,approve:bool,reason:text) by=reviewer permits only assigned workplace-eligible reviewers of submitted nonself applications with reasons; affordable remaining budget is required for approval. Missing functionality comprises typed exact answer matching, private revised intake and resubmission, and preservation of decision evidence. Contracts/query expressions/locks/atomic create and set are already specified. Copy stable question keys with their prompts into the application; use Answer objects with a key and required nonblank text, checking one entry per saved question. Permit a private correction to submitted or rejected intake before closing; resubmission uses another server receipt and retires a submitted predecessor at that point. Keep rejected decisions and attributable withdrawal evidence locked. Compiler/runtime behavior is not proven.",
+    "questions": {
+      "correction": {
+        "type": "choice",
+        "instructions": "Choose the revision structure most suitable for these fixed requirements, considering both operational clarity and authoring overhead.",
+        "criteria": {
+          "linked": "Preserve the existing intake record and create its corrected Application using a correction reference and copied frozen questions. Block parallel unfinished corrected drafts. At valid resubmission, change a predecessor still under review to superseded in the same atomic operation; leave rejected decisions unchanged. Extra application rows and linkage predicates are the tradeoff.",
+          "reopen": "Keep one Application record by reopening it as draft while first saving the old decision and received time in immutable evidence records. Submit it again against current server time. The applicant sees one identity; the tradeoff is altering lock transitions, evidence-read paths and decision fields on that current record."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "correction": {
+        "type": "choice",
+        "choice": "linked",
+        "confidence": 0.81,
+        "probabilities": {
+          "reopen": 0.09,
+          "linked": 0.91
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 717,
+      "output_tokens": 34
+    }
+  }
+}

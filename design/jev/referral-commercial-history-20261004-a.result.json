@@ -1,0 +1,39 @@
+{
+  "request": {
+    "state": {
+      "context": "The current Qualification is an Invoice-owned declaration without a producer. Invoice owns Customer invoices and real collected/refunded amounts, Rent owns booking completion, and Member owns term cancellation status. CanRefer already checks exclusive_program/account but lacks captured-time and first-customer evidence. Public referral codes carry no authentication. Draft-only workflows may be changed; no running adapters or new infrastructure are in scope.",
+      "candidate": "Keep one authoritative first-customer decision over Invoice customer commercial history. Refer captures a code only for a verified Customer account and retains the last capture within its window. Rent and Member freeze that Capture into their sale and emit source milestones. Invoice verifies frozen source/amount/customer against its payment ledger and publishes Qualification after payment and milestone evidence agree. Customer history must be explicitly complete; absent legacy baseline is unknown and cannot earn a first-customer reward. A monotone source record preserves reversal-before-qualification and rejects conflicting replay."
+    },
+    "questions": {
+      "ownership": {
+        "type": "choice",
+        "instructions": "Select the owner strategy that best preserves verified new-customer eligibility, replay safety, implementation economy and customer privacy.",
+        "criteria": {
+          "invoice": "Invoice combines its authoritative payment history with source-owned milestones and verified Refer capture. Requires narrow source integration and a reviewed historical baseline; gives one cross-product eligibility decision.",
+          "source": "Rent and Member each decide new-customer qualification from their own payment/completion records and capture. Reduces centralized work, but requires synchronizing history across products to avoid inconsistent first-customer decisions.",
+          "consumer": "Refer accepts a source first_customer boolean and captured time without checking authoritative history. Keeps consumers compact and shifts correctness entirely to an explicitly implemented trusted producer."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "ownership": {
+        "type": "choice",
+        "choice": "invoice",
+        "confidence": 0.97,
+        "probabilities": {
+          "source": 0.01,
+          "invoice": 0.98,
+          "consumer": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 640,
+      "output_tokens": 38
+    }
+  }
+}

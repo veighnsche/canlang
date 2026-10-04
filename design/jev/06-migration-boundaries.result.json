@@ -1,0 +1,90 @@
+{
+  "request": {
+    "state": {
+      "task": "Migrate all .can files against changed Markdown requirements and current DESIGN.md. There are 39 requirement modules, 35 old sources, four new modules, and seven accepted portfolio compositions. User explicitly requires attention to consolidations/internal splits. They call the design adviser Jeff, interpreted as JEV. No compiler/runtime exists. Do not invent business helpers, parallel canonical models, extra admin interfaces, or new deployment layers.",
+      "evidence": [
+        "PORTFOLIO.md retains all focused filenames, gives one canonical owner per customer/employee/location/supplier model, and requires composed builds with one app/context. A build's explicit source-file set must contain exactly one app declaration.",
+        "Named package blocks can be split into files; there is no include/file-import grammar. use imports symbols from the explicit build source set. Independent entry points plus package-only files can provide both composed and focused source sets without duplicating model declarations.",
+        "WORKSPACE_OPERATOR.md requires authorized CSV export of primary operational records with scoped fields, version, currency/unit labels and partial-data handling. Current UI catalogue has collections but no CSV output contract.",
+        "Customer organization invitation acceptance must match a verified account/email; auth primitive promises verified email but DESIGN exposes actor as a user reference without a declared email property.",
+        "These are demonstrated common requirements, not hypothetical extension requests. Most app-specific workflows can be expressed with existing typed contracts and create/set/guards/events/adapter intents. External and cross-authority success must remain pending until verified results.",
+        "No measured runtime test exists; structural source checks cannot be presented as compiler execution or acceptance-test success."
+      ]
+    },
+    "questions": {
+      "source_layout": {
+        "type": "choice",
+        "instructions": "Choose the least duplicative source layout that obeys current composition and canonical ownership requirements, subject to the user's pending layout preference.",
+        "criteria": {
+          "packages_entries": "Keep focused filenames as package sources; use thin standalone/composed app entry points and explicit build source sets. Model/operation definitions occur once, context once per build.",
+          "full_apps": "Retain app/context inside each focused source and separately duplicate or transform business package bodies for composed builds.",
+          "single_mega_app": "Put all 39 modules into one mandatory deployment regardless of optional products or accepted application compositions.",
+          "unresolved": "Insufficient evidence to select a layout."
+        }
+      },
+      "csv": {
+        "type": "choice",
+        "instructions": "Choose how to address the concrete common CSV export requirement during migration without creating per-app exporters or inventing undeclared syntax.",
+        "criteria": {
+          "shared_contract": "Specify one canonical collection-export runtime contract, reusing authorized collection queries/fields and explicit freshness limits; keep common plumbing implicit, document this small design completion.",
+          "per_app": "Declare independent custom CSV adapter capabilities and row-formatting contracts for each app.",
+          "record_gap": "Keep v1 unchanged, document CSV as a requirement not representable by the present runtime contract, and make no claim those requirements are satisfied.",
+          "unresolved": "Evidence does not justify a choice."
+        }
+      },
+      "actor_email": {
+        "type": "choice",
+        "instructions": "Choose a precise source-visible authentication fact sufficient for own-account verified-email invitation acceptance, avoiding a duplicated identity lookup layer.",
+        "criteria": {
+          "own_context": "Expose read-only actor.email and actor.email_verified from the canonical auth admission context, only for the authenticated caller; no global user directory or editable verification flag.",
+          "custom_adapter": "Create a custom async identity-verification capability for each consumer, persisting lookup completion before inviting/accepting.",
+          "record_gap": "Keep v1 unchanged and mark verified-email matching as not expressible in current source semantics.",
+          "unresolved": "Evidence does not justify a choice."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "source_layout": {
+        "type": "choice",
+        "choice": "packages_entries",
+        "confidence": 1.0,
+        "probabilities": {
+          "packages_entries": 1.0,
+          "full_apps": 0.0,
+          "unresolved": 0.0,
+          "single_mega_app": 0.0
+        }
+      },
+      "csv": {
+        "type": "choice",
+        "choice": "shared_contract",
+        "confidence": 0.73,
+        "probabilities": {
+          "per_app": 0.0,
+          "unresolved": 0.0,
+          "record_gap": 0.2,
+          "shared_contract": 0.8
+        }
+      },
+      "actor_email": {
+        "type": "choice",
+        "choice": "own_context",
+        "confidence": 0.98,
+        "probabilities": {
+          "own_context": 0.99,
+          "unresolved": 0.0,
+          "record_gap": 0.01,
+          "custom_adapter": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1137,
+      "output_tokens": 154
+    }
+  }
+}

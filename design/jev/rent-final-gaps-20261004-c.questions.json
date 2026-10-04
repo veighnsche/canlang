@@ -1,0 +1,18 @@
+{
+  "state": {
+    "instructions": "Judge these concrete rental alternatives with the provided source facts. No classification can substitute for implementation or validation.",
+    "context": "Capacity presently includes expired provisional rows until a timer changes status; confirmed space and uncleared occupants remain reserved. Invoice cancellation and allowance release dispatched on expiry carry potentially final or unknown commitments. Historical aggregates use changing catalog data. Typed snapshot rows with locks, synchronous precommit CRUD hooks, and written scenario effects already exist in the design; neither new lifecycle timing nor a runtime convenience primitive is available. Reports cannot claim knowledge before their first saved policy.",
+    "actual_code": "derive busy(b:Booking):bool = b.status in [held,pending,confirmed,occupied] or (b.checked_in!=null and (b.checked_out==null or now<b.checked_out+b.departure_buffer)); scenario money on=SettlementObserved; scenario expire on=HoldDue; BillingV1.cancel(source:text,reason:text) -> OperationOutcome; Settlement {source:text,invoice:text,revision:int,amount:money,collected:money,refunded:money,collection_pending:bool,refund_pending:bool,state:Invoice.state,recorded_at:datetime}; scenario source_cancel on=BillingRequests.cancel creates BillingCancellation fence, disables pending collection attempts, sends Payments.cancel; received funds leave invoice issued with needs_review; uncertain zero funds become void_pending; settled zero funds become void. Membership.reserve(value:Entitlement) -> AllowanceOutcome; Membership.release(source:text,customer:text,restore_consumed:bool) -> AllowanceOutcome; Entitlement.previous_source permits staged replacement. CRUD hooks run on proposed state before invariants/locks/commit. Scenarios do not run CRUD hooks."
+  },
+  "questions": {
+    "repair": {
+      "type": "choice",
+      "instructions": "Which plan handles delayed expiry, late paid admission and policy history while respecting the supplied restrictions?",
+      "criteria": {
+        "fenced": "Exclude expired held/pending rows but count confirmations and actual possession. Reacquire after full settlement only if capacity is available and issued invoice evidence has no cancel/refund/released-allowance fence. Capture immutable owner calendar/resource/booking evidence using the existing CRUD hook timing and explicit mutations; split historical segments at effective changes, returning partial when initial evidence is absent.",
+        "review_only": "Rely on timer-driven status for provisional occupancy, send all expired funds to finance and retain permanently partial reconstruction from present settings. It is simpler to author and store, at the cost of required expiry and eligible late-payment behavior.",
+        "optimistic": "Make expired provisional stock free, restore paid bookings whenever capacity allows even after cancellation or membership release, and use current calendars for previous periods. Fewer records make this economical, but accepted external actions and past availability may be contradicted."
+      }
+    }
+  }
+}

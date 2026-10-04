@@ -1,0 +1,45 @@
+{
+  "request": {
+    "state": {
+      "context": "CanTable is a draft host-controlled hospitality app. Cafe, Table and Booking currently inherit default D1; the requirements prose nevertheless requests Durable Objects. Imported employee.can_work scans mutable Employee rows in D1. DESIGN permits only one storage authority per mutation and rejects cross-owner decision reads; binding Cafe to a DO would violate this without a versioned local work-grant projection. No such projection exists. D1 already has a shared optimistic revision fence. Adoption, simple source and token economy matter, and no runtime implementation is in scope. The proposed workflow retains reservation from/until, adds estimated_until for seating, blocks seating while an earlier party is physically uncleared, admits nonoverlapping future reservations independently of current occupancy, flags due/estimate-overlapping/overdue conflicts, and records required reasons when moving or cancelling confirmed reservations. Active reservations or physical occupants prevent table deactivation and insufficient capacity; historical cleared parties do not constrain current capacity. Source invariants cover shared paths and host history attributes changes. Component text/details show the affected reservation rows; there is no authored Badge/Alert primitive.",
+      "canonical_source": "export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))\nscenario reserve(booking:Booking,table:Table,from:datetime,until:datetime) by=host\nrequire can_work(actor,booking.parent.location) and booking.state==waiting and table.parent==booking.parent and booking.party<=table.seats and from<until and available(table,from,until,booking)"
+    },
+    "questions": {
+      "placement": {
+        "type": "choice",
+        "instructions": "Choose the storage design that makes the stated workflows valid under current language ownership rules while balancing contention and implementation/source burden.",
+        "criteria": {
+          "d1": "Revise the draft DO requirement to the existing D1 authority, keeping live employee eligibility and hospitality writes within its revision fence; accept possible database-wide contention.",
+          "do": "Retain per-café DO authority and first design a versioned local employee-eligibility projection and its revocation behavior; gain per-owner concurrency while increasing language/source and integration work."
+        }
+      },
+      "workflow": {
+        "type": "noul",
+        "instructions": "Does the proposed business model preserve real occupancy, explicit conflict resolution and reservation editing without silently rewriting confirmed commitments or freezing historical table capacity?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "placement": {
+        "type": "choice",
+        "choice": "d1",
+        "confidence": 0.91,
+        "probabilities": {
+          "d1": 0.95,
+          "do": 0.05
+        }
+      },
+      "workflow": {
+        "type": "noul",
+        "noul": 0.84
+      }
+    },
+    "usage": {
+      "input_tokens": 793,
+      "output_tokens": 50
+    }
+  }
+}

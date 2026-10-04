@@ -1,0 +1,1 @@
+The exact current hold by/guards and proposed guard code are identical in all three requests. All explanatory prose differs; facts, alternatives and yes/no property are preserved. Checked before dispatch.

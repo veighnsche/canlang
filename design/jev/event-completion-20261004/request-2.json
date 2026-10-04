@@ -1,0 +1,34 @@
+{
+  "state": {
+    "context": "Evaluate the supplied source facts as fixed evidence and the three candidate policies as choices still under review. Favor no option by label: assess admission consistency, asynchronous failure handling, authoring burden and delivery/refund completeness. Execution and D1 performance have not been demonstrated.",
+    "evidence": {
+      "RoomsV1": "hold(value:RoomRequest); stage(value:RoomRequest,previous_source:text,previous_revision:int); confirm(source:text,resource:text); release(source:text,resource:text,reason:text); event changed {value:OperationOutcome}",
+      "RoomRequest": "{source:text,revision:int=1,resource:text,customer:text,account:user,from:datetime,until:datetime,quantity:int,price:money?,terms:text?}",
+      "provider": "A stage accepts only a confirmed predecessor at its exact version with unchanged resource, customer, account and quantity. The candidate keeps its predecessor booked and counts their shared interval once. confirm marks only the new reservation confirmed. release installs an arrival fence and acknowledges absent sources too. Commercial price/terms must both be null for hold/stage.",
+      "BillingV1": "charge(value:Charge)->OperationOutcome; cancel(source:text,reason:text)->OperationOutcome; refund(source:text,amount:money,reason:text)->OperationOutcome; reconcile(source:text)->Settlement?; event settled {value:Settlement}",
+      "Settlement": "{source,invoice,revision,amount,collected,refunded,collection_pending,refund_pending,state,recorded_at}",
+      "billing": "BillingCancellation is saved by cancel, whose reported state may be released, pending or unavailable when funds need review. A refund cannot exceed received-minus-returned funds or proceed while attempts are pending/unknown. Source, amount and currency authenticate cumulative monotonically versioned settlement.",
+      "permissions": "Authenticated callers and organizer role enter register; staff also pass can_work(actor,event.location). check_in enters admit under can_work; finance alone requests discretionary refunds with current can_work. Canonical caller email and verification support own-account tickets. Other-person email is supplied contact data and scoped staff validates ownership or a location booker/administrator grant for that person.",
+      "requirements": "No payment is fabricated for free admission. A paid ticket captures its price and cutoff. held/pending/confirmed consume event places rather than venue occupancy. After expiry a full late payment can recover a place only before the event under issued state with neither cancel fence nor uncertain refund; failed fulfillment retains money review and return requests. Cancellation is terminal for admission. Changes preserve the previous room until adoption of a confirmed successor, and mail results belong to current change revisions. D1 hosts eligibility and tickets together; a DO transition would need prohibited atomic remote joins or a new snapshot boundary."
+    }
+  },
+  "questions": {
+    "architecture": {
+      "type": "choice",
+      "instructions": "Among these alternatives, which most closely meets the event requirements and existing service obligations?",
+      "criteria": {
+        "staged": "Use default D1 for ticket decisions alongside current eligibility. For replacement, stage against the confirmed version when retaining a resource, otherwise hold a new source at the destination; confirm before switching frozen event details and releasing the old source. Preserve ticket-policy snapshots, invoice fences, cumulative money observations and versioned notices. Additional state buys predecessor retention when replacement fails.",
+        "in_place": "Leave ticket admission on D1 and send RoomsV1.move for the current source, changing the event projection only on a correlated committed confirmation. Snapshot ticket terms and maintain financial and mail outcomes. Fewer replacement records simplify authoring, while immutable-source mismatches and delayed or failed movement require provider-compatible handling.",
+        "do": "Make the ticket ledger a Durable Object and retain staged venue replacement plus reconciled invoicing. Bring versioned staff/customer eligibility into that owner before approving admission. Serialization becomes localized; a missing eligibility synchronization/revocation agreement and extra state are its costs."
+      }
+    },
+    "fences": {
+      "type": "noul",
+      "instructions": "With exactly these provider contracts, does the D1 staged proposal preserve the prior venue when its candidate fails and keep cancelled tickets from becoming admissible again?",
+      "criteria": {
+        "true": "Independent predecessor/candidate records plus verified adoption, correlation and terminal guards support both behaviors.",
+        "false": "At least one required source fence, ordering rule or final-status condition is absent from the supplied proposal."
+      }
+    }
+  }
+}

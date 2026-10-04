@@ -1,0 +1,1 @@
+All three explanatory contexts and question instructions are newly worded. They preserve the same existing primitives, wire bounds, grouping alternatives, authority, replay/time/retention rules, health/notification behavior and implementation limits. This is a coherence question, not selection between alternatives. Agreement is advice only.

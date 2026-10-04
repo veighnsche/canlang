@@ -1,0 +1,34 @@
+{
+  "request": {
+    "state": "The time package owns staff entries under Employee and stores a rate snapshot. Today correct permits project_manager with can_work(actor,entry.project.location), entry.state in [rejected,approved,exported], a valid interval and trim(reason)!=\"\"; it merely adds Entry and Correction, leaving both an overlapping original and its invoice source live. bill is also by=project_manager: can_work, approved, billable, a customer and amount.minor>0 are required. The invoice owner's actual BillingV1 exposes charge(value:Charge)->OperationOutcome; cancel(source:text,reason:text)->OperationOutcome; refund(source:text,amount:money,reason:text)->OperationOutcome; reconcile(source:text)->Settlement?; settled carries {value:Settlement}. That value reports source/invoice/revision/amount/collected/refunded/collection_pending/refund_pending/state/recorded_at. A source cancellation fences subsequent charges, stops collections and returns released for void without retained collected funds; existing collection instead produces unavailable. Unknown/pending attempts block refunds, and finance must handle some external or split payments. Enqueue/completion information alone cannot establish financial completion. Each candidate must preserve the source record, manager attribution and reason, and prohibit new replacement billing before the prior obligation is resolved without uncertainty. Neither may add cross-owner atomicity or implemented-import claims. The local PeriodReview proposal fixes the interval and completed draft Entry membership, submits the snapshot together, rechecks manager work grants for bulk approval, and records rejections/withdrawals before returning rows to draft. Every interval mutation must apply half-open overlap rules, allowing only a recorded project_manager exception. Work is limited to desired Can and JS drafts in the existing D1 owner.",
+    "questions": {
+      "time_correction": {
+        "type": "choice",
+        "instructions": "Compare both implementations for safe money handling, retained decisions and maintainable authored behavior using only the supplied capabilities; your selection does not verify code.",
+        "criteria": {
+          "A": "Retire the old charge through cancel, observe its cumulative settlement, request the outstanding refund explicitly, then obtain fresh release evidence before exporting the replacement with a new source. Either sign of correction follows one workflow, at the expense of refunding and collecting again and possible manual finance work.",
+          "B": "Preserve the first invoice and settle the difference: an increase creates another source charge, a decrease asks for a partial refund, and delta settlement is checked before completion. Fewer money round trips are possible, while revision accumulation, allocation correctness and active-interval/source tracking become additional business state."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "time_correction": {
+        "type": "choice",
+        "choice": "A",
+        "confidence": 0.44,
+        "probabilities": {
+          "A": 0.72,
+          "B": 0.28
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 819,
+      "output_tokens": 34
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "request": {
+    "state": "Consider whether a wide, few-line style suits canlang. This SaaS DSL targets business applications founded on CRUD and is written by AI. Maximizing adoption is the governing requirement; efficient tokens, consistent AI output and low complexity contribute to it. Layout designed for humans is subordinate. The user requests line breaks only where necessary. Today's language assigns one space to each block depth and rejects tabs. A newline closes a statement when not enclosed in (), [] or {}; a semicolon can divide simple statements. Compound constructs need indented children. Packages each preserve a single Given/When/Then skeleton. A # metadata line describes its next peer-level declaration, and ## ignores the remainder of its source line. BDD example headers and expected-value rows are authored explicitly rather than inferred. UI descendants, loop iterations, conditional arms and lowercase then blocks possess lexical scope. No executable compiler/runtime or token/generation evaluation exists yet.\n\nAssess a layout preference rather than revised business semantics. Keep declarations' fields, call arguments, explicit grouped imports and expressions horizontal. Omit gratuitous empty lines and wrapping solely to satisfy a column width. Related simple actions sharing a block can occupy a semicolon-delimited line; all original ordering, access decisions, prerequisites, state effects and expected outcomes must survive. Retain breaks used by statement boundaries, nesting, metadata or ordinary-comment attachment and the row-based test format. Different depths must not collapse together. Neither scenario nor then is removed, and block delimiters are not replaced with a new brace form. Concretely, the two child statements set task {done=true} and set task {completed_at=now} beneath then can become its one child line set task {done=true}; set task {completed_at=now}, leaving then and the body's indentation in place. These stable technical names and code express existing syntax. Compact physical source is desirable here, while any tokenizer savings or AI reliability improvement is still unknown. Weigh crowded-line costs without assuming agreement establishes correctness. This request asks for judgments only, not implementation.",
+    "questions": {
+      "wide_layout": {
+        "type": "noul",
+        "instructions": "Is a horizontal style with minimal discretionary newlines and same-scope statement packing appropriate as the ordinary canlang layout under these product goals?"
+      },
+      "scope_preservation": {
+        "type": "noul",
+        "instructions": "Would the described formatting-only changes keep behavior and authored expectations intact if lexical depth, action sequence, description/comment boundaries and table rows remain unchanged?"
+      },
+      "line_count_evidence": {
+        "type": "noul",
+        "instructions": "Without tokenizer measurements or generation trials, does having fewer physical lines establish fewer model tokens or more dependable AI authoring?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "scope_preservation": {
+        "type": "noul",
+        "noul": 0.9
+      },
+      "line_count_evidence": {
+        "type": "noul",
+        "noul": 0.21
+      },
+      "wide_layout": {
+        "type": "noul",
+        "noul": 0.67
+      }
+    },
+    "usage": {
+      "input_tokens": 776,
+      "output_tokens": 60
+    }
+  }
+}

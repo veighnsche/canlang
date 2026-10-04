@@ -1,0 +1,17 @@
+{
+  "state": {
+    "instructions": "Assess this bounded draft repair; classified advice will not prove execution.",
+    "facts": "hold records pending for requested allowance, whereas prepare can default its use flag off; the paid-before-reserve sequence becomes review and is not recovered by the pending-only completion. consume can confirm without renewed availability. Booking currently grants scoped reservation_manager reads or authenticated account ownership, while reception-controlled arrive requires can_work and fulfilled money/allowance. Cancellation preserves uncleared occupancy, and capacity stays with one resource authority. BillingV1 declares charge/cancel/refund and settled. MembershipV1 declares reserve/consume/release/eligibility and changed. Neither declares reconcile.",
+    "actual_code": "scenario arrive(booking:Booking) by=reception; require can_work(actor,booking.parent.location) and booking.status==confirmed and booking.payment==paid and booking.allowance in [not_required,consumed]; policy Booking read=reservation_manager and can_work(actor,row.parent.location); policy Booking read=authenticated where=row.account==actor"
+  },
+  "questions": {
+    "coordination": {
+      "type": "noul",
+      "instructions": "Do persisted allowance choice, pending payment-first coordination, current free checks preceding consume and confirmation, exact completion correlation and terminal-status preservation on delayed failures provide the stated repairs while keeping send outcomes separate from business success?"
+    },
+    "reception_read": {
+      "type": "noul",
+      "instructions": "Would adding only the reception UI-required Booking fields under reception plus can_work, without altering existing own/manager grants or action checks, resolve the read/action mismatch with bounded disclosure?"
+    }
+  }
+}

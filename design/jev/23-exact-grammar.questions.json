@@ -1,0 +1,59 @@
+{
+  "state": {
+    "task": "Assess an exact grammar for canlang before its first parser. This AI-authored workerd SaaS DSL prioritizes adoption, compact source, canonical primitives and preserved business behavior. The checkout has 44 sources/4418 physical lines and no parser, checker or runtime. Classifications advise; they do not prove validity. Stop on concrete invalidity rather than broaden acceptance to pass the corpus.",
+    "layout": "UTF-8 with LF/CRLF, case-sensitive ASCII names, JSON double-quoted strings and longest-match punctuation/units. Balanced (), [] and {} join physical lines; continuation indentation creates no block. Suites add exactly one space; tabs/backslash joining fail. Full physical-line # attaches metadata to the next eligible same-column declaration/field; ## is ignored, including in continued braces. Inline hash comments are unsupported. Field metadata survives joined newlines. Commas separate fields/arguments/cells, with optional trailing commas in bracketed lists. A logical line has either one compound header or semicolon-separated leaf statements; empty/trailing semicolons and a child block on a semicolon sequence fail. Wide leaf declarations/effects remain supported.",
+    "keywords": "Every identifier-shaped token is NAME. Fixed syntax positions recognize introducers/operators, while field/parameter/declared names, type paths and names after dot accept contextual words. At expression-primary position true/false/null are literals and not is unary; infix/query words operate in their grammatical slots. Select productions by syntax shape, never capitalization or resolved types. Globally reserving words simplifies exclusions but renames actual from/until/event/action/order uses; contextual handling requires exact lookahead.",
+    "types": "Parse type paths uniformly, later resolving named types or declared model/contract/event/computed-field value types. Reuse conveys representation/nullability and normalization/value bounds, never source creation defaults/server initialization, storage uniqueness, ownership or policies. Candidate: flat named-path union, at most one array suffix followed by nullable-container suffix; enum(...) and action(...) are atoms, not union arms. T[]! is field creation metadata outside the value type, only on nonnullable arrays. Scalar !, T?[] nullable-element arrays, T[][] nesting and grouped types are outside this initial subset. A|B[]? means nullable array of union elements. Union names must semantically denote tagged named values, not primitive alternatives. Recursive/grouped types express richer data but need additional nesting/nullability semantics and checker/parser work. Reused resolved types and creation rules require semantic validation.",
+    "queries": "Parse a complete ordinary value expression as domain, followed optionally in order by archived=include, as NAME, where value-expression, order=value-expression, select value-expression. A tail has at least one clause; repeat/reordering fails. Ordinary operators form the domain before this low-binding tail. Parenthesize a query used in larger arithmetic. Clause values stop at subsequent clauses or enclosing comma/closer/header attribute/binding; parentheses and call arguments nest queries. any/all/group expose their first query alias in the second expression; ordinary calls do not infer this scope. A for binding differs from the query alias. UI order/columns/filter/fields are selector lists separate from a single query order expression, preserving argument/example commas. Replacing the tail with mandatory query(...) shows extent explicitly but adds per-use tokens and source migration; it would supersede, not coexist with, the current query form.",
+    "forms": "Each header has a closed allowed attribute set. Current-depth NAME= starts the next attribute only after a complete expression; nested calls/objects retain their delimiters. Unknown/duplicate attrs fail. Calls allow positional args then unique named args; no later positional input and no assignment expression. Schema colon fields, equals/shorthand values and typed route braces are different productions. Packages have one ordered Given/When/Then triple; empty sections are valid. Leading require guards precede one do body: inline simple sequences or an indented body permitting compounds, then separate examples. Inline if/for and orphan else fail. Stock's pre-do let is invalid: move it and subsequent guards into block do preserving by and order. UI title accepts an expression; text/content/metrics accept expression lists. Exclude expression indexing/optional calls, keeping at(array,index) canonical. Comparisons cannot chain and unparenthesized ?? mixed with and/or fails.",
+    "parser": "Implement a compact Python-standard-library syntax AST parser with spans, delimiter-aware logical lines, recursive declarations/types/statements and Pratt expressions plus query tails. Parse every accepted field/type/attribute/body/example/route; no raw-tail fallback, unknown-head skipping or semantic-driven AST selection. Exercise all 44 sources and absent-feature cases: semicolons, unions, field metadata, contexts, routes and migrations. Diagnostics show file/line/column and expectation. Names/imports/types, permissions/constraints, runtime behavior and BDD execution remain unimplemented. CanOnboard's missing required fixture category remains semantic. Syntax acceptance is not full language or app compliance.",
+    "research": "Primary technique sources: https://docs.python.org/3/reference/lexical_analysis.html for logical lines, bracket joining and soft keywords; https://github.com/munificent/craftinginterpreters/blob/master/book/parsing-expressions.md for recursive-descent ASTs and precedence. Borrow machinery, not Python whitespace/keyword semantics. Corpus evidence: CanRent:49 combines array concatenation and nested/outer queries; ExpenseFlow:60 separates query and second sum argument; CanMember:59 named fold; CanTable:59 UI selector order; CanStock:57 misplaced let; ExpenseFlow:6-14 continued schema. Corpus contains no semicolons, unions, migrations or tabs; it alone cannot exercise every designed production.",
+    "code": {
+      "query": "all([from]+(resource.Booking as b where busy(b) select b.reserved_from) as point,quantity+sum(resource.Booking as b where b.reserved_from<=point select b.quantity)<=resource.capacity)",
+      "arguments": "sum(selected as expense select expense.amount,currency)",
+      "named": "local_instant(date(\"2026-10-01\"),\"00:00\",zone,fold=earlier)",
+      "reuse": "scenario summarize(currency:currency,status:Expense.status) read=true -> Summary by=members",
+      "ui": "table row.Booking columns=customer,from,until order=-priority,arrived filter=state",
+      "inline": "do set todo {done=true}; return todo.id",
+      "types": [
+        "text",
+        "text?",
+        "Member[]!",
+        "A|B[]?",
+        "text?[]",
+        "text[][]",
+        "text!"
+      ],
+      "stock": "scenario post(item:Item,location:Location,value:StockReceipt) by=stock_staff\n require can_work(actor,location) and item.active and value.location==location.id and value.sku==item.sku and value.unit==item.unit and value.quantity>0\n let receipt=first(Receipt as receipt where receipt.source==value.source order=receipt.id)\n require receipt!=null and receipt.accepted==value.quantity and receipt.parent.sku==value.sku and receipt.parent.unit==value.unit and receipt.parent.parent.location==location and receipt.parent.parent.reference==value.order\n require not any(Movement as movement,movement.source==value.source)\n do create Movement {parent=item,location,quantity=value.quantity,reason=\"Accepted purchase receipt\",source=value.source,order=value.order,actor} as movement"
+    },
+    "suffix_resolution": "Suffixes apply to the resolved reused value type, not just its spelling: adding [] to a nullable or array type is invalid in this subset; adding ? to an already nullable type is redundant invalid syntax. A reused array can accept field-only ! when its resolved type is nonnullable, for example items:Contract.rows!; initialization metadata is still not copied. Known scalar ! is rejected, and unresolved qualified paths require checker validation rather than parser claims."
+  },
+  "questions": {
+    "query": {
+      "type": "choice",
+      "instructions": "Which sole query spelling best fits these parsing and adoption constraints?",
+      "criteria": {
+        "contextual_tail": "Retain low-binding ordered query tails with exact context delimiters and a separate UI-selector production.",
+        "explicit_wrapper": "Replace them with mandatory query(...) to show extent at additional per-use syntax and migration cost.",
+        "unresolved": "Defer if neither form is coherent for the demonstrated expressions."
+      }
+    },
+    "types": {
+      "type": "choice",
+      "instructions": "Which type-suffix scope should the initial grammar commit to?",
+      "criteria": {
+        "flat_bounded": "Use named unions, one array then nullable-container suffix and field-only required-array metadata; reject uncontracted nesting.",
+        "recursive_grouped": "Define recursive grouped union/array/nullable types now, supporting richer values with additional semantics and implementation.",
+        "unresolved": "Keep suffix scope open if both proposals fail the stated needs."
+      }
+    },
+    "reuse": {
+      "type": "noul",
+      "instructions": "Is uniform syntactic type-path parsing followed by semantic field-value reuse coherent without copying creation, uniqueness or authority rules?"
+    },
+    "coherence": {
+      "type": "noul",
+      "instructions": "Are the supplied layout, contextual word roles, expression/attribute/query boundaries and inline/block rules deterministic enough for the stated syntax-only AST parser, with invalid forms rejected rather than guessed?"
+    }
+  }
+}

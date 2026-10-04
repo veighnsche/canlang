@@ -1,0 +1,351 @@
+# Help prospective and existing workspace customers book site tours, sales consultations, and onboarding appointments. @{nl="Help toekomstige en bestaande werkplekklanten rondleidingen, verkoopgesprekken en onboardingafspraken boeken."}
+app CanBook uses=[appointments]
+
+# Coordinate customer appointments with host commitments and separately held rooms. @{nl="Coördineer klantafspraken met gastheerverplichtingen en afzonderlijk vastgehouden ruimtes."}
+package appointments
+ use customer {Customer,Contact,owns,has_role,test_company,test_contact}
+ use rent_catalog {Location,is_open,test_site,open_site}
+ use employee {Employee,can_work,test_worker}
+ use std {EmailV1 as Mail} from=deployment.mail
+ use rent_reservations {RoomsV1 as Rooms} from=deployment.rooms
+ use shift {ScheduleV1 as StaffSchedule} from=deployment.staff_schedule
+ Given
+  role host_manager label="Host manager"@{nl="Gastheerbeheerder"}
+  export Calendar { location:Location, host:Employee label=label_Calendar_host, timezone:timezone, duration:duration=30m, hours:text label="Opening hours"@{nl="Openingstijden"}, instructions:text, cutoff:duration=1h label="Cancellation cutoff"@{nl="Annuleringsgrens"}, active:bool=true } label="Host calendar"@{nl="Gastheerkalender"}
+  export Window in Calendar { from:datetime label=label_Window_from, until:datetime label=label_Window_until, available:bool=true label="Available"@{nl="Beschikbaar"} } label="Availability window"@{nl="Beschikbaarheidsvenster"}
+  export Type in Calendar { name:text, duration:duration, room:text? label="Room"@{nl="Ruimte"} } label="Appointment type"@{nl="Afspraaktype"}
+  export Appointment in Type { customer:Customer label="Customer"@{nl="Klant"}, contact:Contact label="Contact"@{nl="Contactpersoon"}, from:datetime label=label_Window_from, until:datetime label=label_Window_until, duration:duration, source:text unique label="Source reference"@{nl="Bronreferentie"}, host:user label=label_Calendar_host, state:enum(pending,confirmed,cancelled,attended,no_show,unavailable)=pending label={text="Appointment state"@{nl="Afspraakstatus"},values={pending="Pending"@{nl="In behandeling"},confirmed="Confirmed"@{nl="Bevestigd"},cancelled="Cancelled"@{nl="Geannuleerd"},attended=label_Appointment_state_attended,no_show="No show"@{nl="Niet verschenen"},unavailable="Unavailable"@{nl="Niet beschikbaar"}}}, host_ok:bool=false label="Host confirmed"@{nl="Gastheer bevestigd"}, room_ok:bool=false label="Room confirmed"@{nl="Ruimte bevestigd"}, host_delivery:text? label="Host request reference"@{nl="Referentie gastheerverzoek"}, room_delivery:text? label="Room request reference"@{nl="Referentie ruimteverzoek"}, reservation_account:user server=actor label="Reservation principal"@{nl="Reserveringsaccount"}, active_source:text label="Active reservation source"@{nl="Actieve reserveringsbron"}, room_snapshot:text? label="Frozen venue reference"@{nl="Vastgelegde ruimtereferentie"}, reason:text? } label="Appointment"@{nl="Afspraak"}
+  WeeklyHours in Calendar { weekday:int min=1 max=7, opens:text="09:00", closes:text="18:00", fold:enum(earlier,later)=earlier } label="Weekly opening hours"@{nl="Wekelijkse openingstijden"}
+  ClosedDay in Calendar { day:date unique, reason:text } label="Holiday or closed day"@{nl="Feestdag of sluitingsdag"}
+  Attempt in Appointment { source:text unique, kind:enum(initial,movement) label={text="Request kind"@{nl="Verzoeksoort"},values={initial="Initial booking"@{nl="Eerste boeking"},movement="Reschedule"@{nl="Verplaatsing"}}}, from:datetime, until:datetime, previous_source:text?, previous_host_revision:int=1, previous_room_revision:int=1, requested_by:user server=actor, state:enum(pending,active,failed,cancelled,retired,released)=pending label={text="Reservation attempt"@{nl="Reserveringspoging"},values={pending="Pending"@{nl="In behandeling"},active="Active"@{nl="Actief"},failed="Failed"@{nl="Mislukt"},cancelled="Cancelled"@{nl="Geannuleerd"},retired="Previous slot awaiting release"@{nl="Vorige afspraak wacht op vrijgave"},released="Released"@{nl="Vrijgegeven"}}}, host_ok:bool=false, room_ok:bool=false, host_unknown:bool=false, room_unknown:bool=false, host_revision:int=1, room_revision:int=1, host_delivery:text?, room_delivery:text?, room_confirmation:text?, host_release:text?, room_release:text?, host_released:bool=false, room_released:bool=false } label="Reservation attempt"@{nl="Reserveringspoging"}
+  Notice in Appointment { kind:enum(confirmation,reminder) label={text="Notice kind"@{nl="Berichtsoort"},values={confirmation="Confirmation"@{nl="Bevestiging"},reminder="Reminder"@{nl="Herinnering"}}}, source:text, delivery:text unique, state:enum(pending,delivered,failed,unknown,skipped)=pending label={text="Delivery"@{nl="Verzending"},values={pending="Pending"@{nl="In behandeling"},delivered="Delivered"@{nl="Afgeleverd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}} } label="Appointment notice delivery"@{nl="Verzending afspraakbericht"}
+  derive available(calendar:Calendar,from:datetime,until:datetime):bool = is_open(calendar.location,from,until) and from<until and local_date(from,calendar.timezone)==local_date(until-1ms,calendar.timezone) and any(calendar.WeeklyHours as hours,hours.weekday==weekday(local_date(from,calendar.timezone)) and local_instant(local_date(from,calendar.timezone),hours.opens,calendar.timezone,fold=hours.fold)<=from and until<=local_instant(local_date(from,calendar.timezone),hours.closes,calendar.timezone,fold=hours.fold)) and not any(calendar.ClosedDay as closure,closure.day==local_date(from,calendar.timezone)) and any(calendar.Window as window,window.available and window.from<=from and until<=window.until) and not any(calendar.Window as window,not window.available and overlaps(from,until,window.from,window.until))
+  event Reminder { appointment:Appointment, revision:int }
+  policy Calendar read=public fields=location,timezone,duration,hours,instructions,cutoff,active
+  policy Window read=public
+  policy WeeklyHours read=public
+  policy ClosedDay read=public
+  policy Attempt read=host_manager and can_work(actor,row.parent.parent.parent.location)
+  policy Attempt read=authenticated where=row.parent.contact.account==actor and row.parent.contact.verified
+  policy Notice read=host_manager and can_work(actor,row.parent.parent.parent.location)
+  policy Notice read=authenticated where=row.parent.contact.account==actor and row.parent.contact.verified
+  policy Type read=public
+  policy Appointment read=host_manager and can_work(actor,row.parent.parent.location)
+  policy Appointment read=authenticated where=row.contact.account==actor and row.contact.verified
+  invariant WeeklyHours: row.opens<row.closes and local_instant(date("2000-01-03"),row.opens,row.parent.timezone,fold=row.fold)<local_instant(date("2000-01-03"),row.closes,row.parent.timezone,fold=row.fold)
+  invariant Attempt: row.from<row.until and row.until-row.from==row.parent.duration
+  lock Attempt fields=source,kind,from,until,previous_source,previous_host_revision,previous_room_revision,requested_by
+  lock Notice fields=kind,source,delivery
+  invariant Type: row.duration>0m
+  invariant Window: row.from<row.until
+  invariant Appointment: row.from<row.until and row.until-row.from==row.duration and row.contact.parent==row.customer
+  lock Appointment fields=customer,contact,duration,source,host,room_snapshot,reservation_account
+  export fixture host_calendar=Calendar {location=test_site,host=test_worker,timezone="Europe/Brussels",hours="09:00–18:00",instructions="Reception"}
+  export fixture tour=Type {parent=host_calendar,name="Tour",duration=30m}
+  export fixture booked=Appointment {parent=tour,customer=test_company,contact=test_contact,from=datetime("2099-01-01T09:00:00Z"),until=datetime("2099-01-01T09:30:00Z"),duration=30m,source="tour",active_source="tour",host=self,state=confirmed,host_ok=true,room_ok=true}
+  fixture opening=WeeklyHours {parent=host_calendar,weekday=4}
+  fixture closure=ClosedDay {parent=host_calendar,day=date("2099-01-02"),reason="Holiday"}
+  fixture published=Window {parent=host_calendar,from=datetime("2099-01-01T09:00:00Z"),until=datetime("2099-01-01T18:00:00Z")}
+  fixture original=Attempt {parent=booked,source="tour",kind=initial,from=datetime("2099-01-01T09:00:00Z"),until=datetime("2099-01-01T09:30:00Z"),state=active,host_ok=true,room_ok=true,room_released=true}
+  fixture candidate=Attempt {parent=booked,source="move",kind=movement,from=datetime("2099-01-01T10:00:00Z"),until=datetime("2099-01-01T10:30:00Z"),previous_source="tour",host_delivery="move-host",room_ok=true,room_released=true}
+  preferences { location:Location?, appointment_state:Appointment.state? label="Initial appointment state filter"@{nl="Eerste filter afspraakstatus"} }
+  message label_Calendar_host = "Host"@{nl="Gastheer"}
+  message label_Window_from = "From"@{nl="Vanaf"}
+  message label_Window_until = "Until"@{nl="Tot"}
+  message label_Appointment_state_attended = "Attended"@{nl="Aanwezig"}
+ When
+  crud Calendar by=host_manager fields=duration,hours,instructions,cutoff,active create_fields=location,host,timezone,duration,hours,instructions,cutoff when=can_work(actor,row.location) delete=none
+  crud Window by=host_manager fields=from,until,available when=can_work(actor,row.parent.location) delete=none
+  crud WeeklyHours by=host_manager fields=weekday,opens,closes,fold when=can_work(actor,row.parent.location) delete=remove
+  crud ClosedDay by=host_manager fields=day,reason when=can_work(actor,row.parent.location) delete=remove
+  crud Type by=host_manager fields=name,duration,room when=can_work(actor,row.parent.location) delete=none
+  # Freeze duration and venue, then acquire both resources before confirmation. @{nl="Leg duur en ruimte vast en verkrijg beide voorzieningen vóór bevestiging."}
+  export scenario book(type:Type,customer:Customer,contact:Contact,from:datetime label=label_Window_from) by=authenticated label="Book appointment"@{nl="Afspraak boeken"}
+   require type.parent.active and type.parent.host.active and from>=now and contact.parent==customer
+   require (contact.account==actor and contact.verified) or (host_manager and can_work(actor,type.parent.location))
+   require any(type.parent.Window as window,window.available and window.from<=from and from+type.duration<=window.until)
+   require available(type.parent,from,from+type.duration)
+   do
+    create Appointment {parent=type,customer,contact,from,until=from+type.duration,duration=type.duration,source=operation.id,active_source=operation.id,host=type.parent.host.user,room_snapshot=type.room} as visit
+    create Attempt {parent=visit,source=operation.id,kind=initial,from,until=visit.until,room_ok=type.room==null,room_released=type.room==null} as attempt
+    send StaffSchedule.reserve {value={source=attempt.source,employee=visit.host,location=type.parent.location.id,from,until=attempt.until,skill="host",kind=appointment,revision=1}} as host_hold
+    set attempt {host_delivery=host_hold.id}
+    set visit {host_delivery=host_hold.id}
+    if visit.room_snapshot!=null
+     send Rooms.hold {value={source=attempt.source,resource=visit.room_snapshot,customer=customer.id,account=visit.reservation_account,from,until=attempt.until,quantity=1,revision=1}} as room_hold
+     set attempt {room_delivery=room_hold.id}
+     set visit {room_delivery=room_hold.id}
+    else
+     set visit {room_ok=true}
+   examples seed=[test_worker,open_site,opening,published,closure] type=tour customer=test_company contact=test_contact from=datetime("2099-01-01T09:00:00Z")
+    as,closure.day -> count(Appointment as visit where visit.source==operation.id)
+    members,date("2099-01-02") -> 1
+    members,date("2099-01-01") -> error(rule_failed)
+    public,date("2099-01-02") -> error(forbidden)
+  # Stage a replacement while the original host and venue remain allocated. @{nl="Bereid vervanging voor terwijl de oorspronkelijke gastheer en ruimte gereserveerd blijven."}
+  export scenario reschedule(visit:Appointment,from:datetime label=label_Window_from) by=authenticated or host_manager label="Reschedule appointment"@{nl="Afspraak verplaatsen"}
+   require visit.state==confirmed and from>=now and from!=visit.from
+   require (visit.contact.account==actor and visit.contact.verified and now<visit.from-visit.parent.parent.cutoff) or (host_manager and can_work(actor,visit.parent.parent.location))
+   require visit.parent.parent.active and available(visit.parent.parent,from,from+visit.duration)
+   require not any(visit.Attempt as attempt,attempt.state in [pending,failed,cancelled,retired])
+   do
+    let previous=first(visit.Attempt as attempt where attempt.source==visit.active_source and attempt.state==active order=attempt.id)
+    require previous!=null
+    create Attempt {parent=visit,source=operation.id,kind=movement,from,until=from+visit.duration,previous_source=previous.source,previous_host_revision=previous.host_revision,previous_room_revision=previous.room_revision,room_ok=visit.room_snapshot==null,room_released=visit.room_snapshot==null} as attempt
+    send StaffSchedule.stage {value={source=attempt.source,employee=visit.host,location=visit.parent.parent.location.id,from,until=attempt.until,skill="host",kind=appointment,revision=1},previous_source=previous.source,previous_revision=previous.host_revision} as host_hold
+    set attempt {host_delivery=host_hold.id}
+    if visit.room_snapshot!=null
+     send Rooms.stage {value={source=attempt.source,resource=visit.room_snapshot,customer=visit.customer.id,account=visit.reservation_account,from,until=attempt.until,quantity=1,revision=1},previous_source=previous.source,previous_revision=previous.room_revision} as room_hold
+     set attempt {room_delivery=room_hold.id}
+   examples seed=[test_worker,open_site,opening,published,original] visit=booked
+    as,from -> visit.from,count(visit.Attempt)
+    members,datetime("2099-01-01T10:00:00Z") -> datetime("2099-01-01T09:00:00Z"),2
+    members,datetime("2099-01-01T09:00:00Z") -> error(rule_failed)
+    public,datetime("2099-01-01T10:00:00Z") -> error(forbidden)
+  # Cancel the active reservation and all pending candidates with recoverable releases. @{nl="Annuleer de actieve reservering en alle wachtende kandidaten met herstelbare vrijgave."}
+  export scenario cancel(appointment:Appointment,reason:text) by=authenticated or host_manager
+   require appointment.state in [pending,confirmed] and trim(reason)!=""
+   require (appointment.contact.account==actor and appointment.contact.verified and now<appointment.from-appointment.parent.parent.cutoff) or (host_manager and can_work(actor,appointment.parent.parent.location))
+   do
+    set appointment {state=cancelled,reason}
+    cancel appointment.id
+    for attempt in appointment.Attempt as item where item.state in [pending,active] limit=100
+     set attempt {state=cancelled}
+   examples seed=[test_worker,original] appointment=booked reason="Changed plans"
+    as,appointment.state -> appointment.state
+    members,confirmed -> cancelled
+    members,cancelled -> error(rule_failed)
+    public,confirmed -> error(forbidden)
+  # Abandon a pending replacement while keeping the currently confirmed appointment. @{nl="Stop een wachtende vervanging en behoud de huidige bevestigde afspraak."}
+  scenario discard_reschedule(visit:Appointment) by=authenticated or host_manager label="Keep original appointment"@{nl="Oorspronkelijke afspraak behouden"}
+   require visit.state==confirmed
+   require (visit.contact.account==actor and visit.contact.verified) or (host_manager and can_work(actor,visit.parent.parent.location))
+   do
+    for attempt in visit.Attempt as item where item.kind==movement and item.state==pending limit=100
+     set attempt {state=cancelled}
+   examples seed=[test_worker,original,candidate] visit=booked
+    as -> candidate.state,visit.from,visit.state
+    members -> cancelled,datetime("2099-01-01T09:00:00Z"),confirmed
+    public -> error(forbidden)
+  # Retry failed resource cleanup without reopening or changing the retained original slot. @{nl="Probeer mislukte vrijgave opnieuw zonder de behouden oorspronkelijke afspraak te wijzigen."}
+  scenario retry_cleanup(appointment:Appointment) by=authenticated or host_manager label="Retry reservation cleanup"@{nl="Vrijgave opnieuw proberen"}
+   require (appointment.contact.account==actor and appointment.contact.verified) or (host_manager and can_work(actor,appointment.parent.parent.location))
+   do
+    for attempt in appointment.Attempt as item where item.state in [failed,cancelled,retired] limit=100
+     if not attempt.host_released
+      set attempt {host_release=null}
+     if not attempt.room_released
+      set attempt {room_release=null}
+  # Record an attendance outcome without altering a paid workspace reservation. @{nl="Leg aanwezigheid vast zonder een betaalde werkplekreservering te wijzigen."}
+  export scenario attendance(appointment:Appointment,attend:bool label=label_Appointment_state_attended,reason:text) by=host_manager label="Record attendance"@{nl="Aanwezigheid vastleggen"}
+   require can_work(actor,appointment.parent.parent.location) and appointment.state==confirmed and now>=appointment.from and trim(reason)!=""
+   do
+    if attend
+     set appointment {state=attended,reason}
+    else
+     set appointment {state=no_show,reason}
+  scenario host_result on=StaffSchedule.reserve.completed
+   do
+    for attempt in Attempt as item where item.host_delivery==event.delivery_id and item.state==pending limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==attempt.source and event.result.revision==1 and event.result.state==confirmed
+      set attempt {host_ok=true,host_unknown=false,host_revision=event.result.revision}
+     else
+      if event.status==failed or (event.status==succeeded and event.result!=null and event.result.state in [unavailable,failed,released])
+       set attempt {state=failed,host_unknown=false}
+       if attempt.kind==initial and attempt.parent.state==pending
+        set attempt.parent {state=unavailable}
+      else
+       set attempt {host_unknown=true}
+  scenario host_staged on=StaffSchedule.stage.completed
+   do
+    for attempt in Attempt as item where item.host_delivery==event.delivery_id and item.state==pending limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==attempt.source and event.result.revision==1 and event.result.state==confirmed
+      set attempt {host_ok=true,host_unknown=false,host_revision=event.result.revision}
+     else
+      if event.status==failed or (event.status==succeeded and event.result!=null and event.result.state in [unavailable,failed,released])
+       set attempt {state=failed,host_unknown=false}
+       if attempt.kind==initial and attempt.parent.state==pending
+        set attempt.parent {state=unavailable}
+      else
+       set attempt {host_unknown=true}
+   examples seed=[test_worker,original,candidate] event={delivery_id="move-host",status=succeeded,result={source="move",revision=1,state=unavailable,reference=null,detail="Host unavailable"},error=null}
+    event.result.state -> candidate.state,booked.from,booked.state
+    unavailable -> failed,datetime("2099-01-01T09:00:00Z"),confirmed
+    confirmed -> pending,datetime("2099-01-01T09:00:00Z"),confirmed
+  scenario room_result on=Rooms.hold.completed
+   do
+    for attempt in Attempt as item where item.room_delivery==event.delivery_id and item.state==pending limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==attempt.source and event.result.revision==1 and event.result.state in [pending,confirmed] and attempt.state==pending
+      if attempt.room_confirmation==null
+       require attempt.parent.room_snapshot!=null
+       send Rooms.confirm {source=attempt.source,resource=attempt.parent.room_snapshot} as confirmation
+       set attempt {room_confirmation=confirmation.id,room_revision=event.result.revision}
+     else
+      if event.status==failed or (event.status==succeeded and event.result!=null and event.result.state in [unavailable,failed,released])
+       set attempt {state=failed,room_unknown=false}
+       if attempt.kind==initial and attempt.parent.state==pending
+        set attempt.parent {state=unavailable}
+      else
+       set attempt {room_unknown=true}
+  scenario room_staged on=Rooms.stage.completed
+   do
+    for attempt in Attempt as item where item.room_delivery==event.delivery_id and item.state==pending limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==attempt.source and event.result.revision==1 and event.result.state in [pending,confirmed] and attempt.state==pending
+      if attempt.room_confirmation==null
+       require attempt.parent.room_snapshot!=null
+       send Rooms.confirm {source=attempt.source,resource=attempt.parent.room_snapshot} as confirmation
+       set attempt {room_confirmation=confirmation.id,room_revision=event.result.revision}
+     else
+      if event.status==failed or (event.status==succeeded and event.result!=null and event.result.state in [unavailable,failed,released])
+       set attempt {state=failed,room_unknown=false}
+       if attempt.kind==initial and attempt.parent.state==pending
+        set attempt.parent {state=unavailable}
+      else
+       set attempt {room_unknown=true}
+  scenario room_confirmed on=Rooms.confirm.completed
+   do
+    for attempt in Attempt as item where item.room_confirmation==event.delivery_id and item.state==pending limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==attempt.source and event.result.revision>=attempt.room_revision and event.result.state==confirmed
+      set attempt {room_ok=true,room_unknown=false,room_revision=event.result.revision}
+     else
+      if event.status==failed or (event.status==succeeded and event.result!=null and event.result.state in [unavailable,failed,released])
+       set attempt {state=failed,room_unknown=false}
+       if attempt.kind==initial and attempt.parent.state==pending
+        set attempt.parent {state=unavailable}
+      else
+       set attempt {room_unknown=true}
+  scenario host_changed on=StaffSchedule.changed
+   do
+    for attempt in Attempt as item where item.source==event.value.source and item.state==pending limit=1
+     if event.value.revision==1 and event.value.state==confirmed
+      set attempt {host_ok=true,host_unknown=false,host_revision=event.value.revision}
+     if event.value.state in [unavailable,failed,released]
+      set attempt {state=failed,host_unknown=false}
+      if attempt.kind==initial and attempt.parent.state==pending
+       set attempt.parent {state=unavailable}
+  scenario venue_changed on=Rooms.changed
+   do
+    for attempt in Attempt as item where item.source==event.value.source and item.state==pending limit=1
+     if event.value.revision>=attempt.room_revision and event.value.state==pending and attempt.room_confirmation==null
+      require attempt.parent.room_snapshot!=null
+      send Rooms.confirm {source=attempt.source,resource=attempt.parent.room_snapshot} as confirmation
+      set attempt {room_confirmation=confirmation.id,room_unknown=false,room_revision=event.value.revision}
+     if event.value.revision>=attempt.room_revision and event.value.state==confirmed
+      set attempt {room_ok=true,room_unknown=false,room_revision=event.value.revision}
+     if event.value.state in [unavailable,failed,released]
+      set attempt {state=failed,room_unknown=false}
+      if attempt.kind==initial and attempt.parent.state==pending
+       set attempt.parent {state=unavailable}
+  scenario ready on=every(1m)
+   do
+    for attempt in Attempt as item where item.state==pending and item.host_ok and item.room_ok and not item.host_unknown and not item.room_unknown limit=100
+     let appointment=attempt.parent
+     if (attempt.kind==initial and appointment.state==pending) or (attempt.kind==movement and appointment.state==confirmed and appointment.active_source==attempt.previous_source)
+      if attempt.previous_source!=null
+       for previous in appointment.Attempt as item where item.source==attempt.previous_source and item.state==active limit=1
+        set previous {state=retired}
+      cancel appointment.id
+      set appointment {from=attempt.from,until=attempt.until,active_source=attempt.source,state=confirmed,host_ok=true,room_ok=true,host_delivery=attempt.host_delivery,room_delivery=attempt.room_delivery}
+      set attempt {state=active}
+      send Mail.send {to=appointment.contact.email,subject=format("Appointment confirmed"@{nl="Afspraak bevestigd"},locale=null),body=appointment.parent.parent.instructions} when=appointment.state==confirmed and appointment.active_source==attempt.source as confirmed_notice
+      create Notice {parent=appointment,kind=confirmation,source=attempt.source,delivery=confirmed_notice.id} as notice
+      if appointment.from>now+1h
+       schedule appointment.id at=appointment.from-1h event=Reminder {appointment,revision=appointment.version+1}
+     else
+      set attempt {state=cancelled}
+   examples seed=[test_worker,original,candidate]
+    candidate.host_ok,candidate.state -> booked.from,booked.state
+    true,pending -> datetime("2099-01-01T10:00:00Z"),confirmed
+    false,pending -> datetime("2099-01-01T09:00:00Z"),confirmed
+    true,cancelled -> datetime("2099-01-01T09:00:00Z"),confirmed
+  scenario cleanup on=every(1m)
+   do
+    for attempt in Attempt as item where item.state in [failed,cancelled,retired] limit=100
+     if not attempt.host_released and attempt.host_release==null
+      send StaffSchedule.release {source=attempt.source,revision=attempt.host_revision} as release
+      set attempt {host_release=release.id}
+     if not attempt.room_released and attempt.room_release==null
+      require attempt.parent.room_snapshot!=null
+      send Rooms.release {source=attempt.source,resource=attempt.parent.room_snapshot,reason="Appointment resource cleanup"} as release
+      set attempt {room_release=release.id}
+     if attempt.host_released and attempt.room_released
+      set attempt {state=released}
+  scenario host_released on=StaffSchedule.release.completed
+   do
+    for attempt in Attempt as item where item.host_release==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==attempt.source and event.result.state==released
+      set attempt {host_released=true}
+  scenario room_released on=Rooms.release.completed
+   do
+    for attempt in Attempt as item where item.room_release==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==attempt.source and event.result.state==released
+      set attempt {room_released=true}
+  scenario remind on=Reminder
+   require event.appointment.state==confirmed and event.appointment.version==event.revision
+   do
+    send Mail.send {to=event.appointment.contact.email,subject=format("Appointment reminder"@{nl="Afspraakherinnering"},locale=null),body=event.appointment.parent.parent.instructions} when=event.appointment.state==confirmed and event.appointment.version==event.revision as delivery
+    create Notice {parent=event.appointment,kind=reminder,source=event.appointment.active_source,delivery=delivery.id} as notice
+  scenario notice_result on=Mail.send.completed
+   do
+    for notice in Notice as item where item.delivery==event.delivery_id limit=1
+     if event.status==succeeded
+      set notice {state=delivered}
+     else
+      if event.status==failed
+       set notice {state=failed}
+      else
+       if event.status==skipped
+        set notice {state=skipped}
+       else
+        set notice {state=unknown}
+ Then
+  # Choose a location, appointment type and published host window. @{nl="Kies een locatie, afspraaktype en gepubliceerd gastheervenster."}
+  page /appointments title="Appointments"@{nl="Afspraken"}
+   card "Published host windows"@{nl="Gepubliceerde gastheervensters"}
+    list Calendar columns=location,timezone,duration,active filter=location,active defaults={location=preferences.location} display=split
+     text row.timezone,row.hours,row.instructions,row.cutoff
+     table row.WeeklyHours columns=weekday,opens,closes
+     table row.ClosedDay columns=day,reason
+     table row.Window columns=from,until,available order=from
+     list row.Type
+      text row.name,row.duration
+      form book
+   card "Own appointments"@{nl="Eigen afspraken"}
+    table Appointment columns=from,until,duration,state,reason order=from filter=state defaults={state=preferences.appointment_state} display=split
+     actions cancel,reschedule,discard_reschedule,retry_cleanup
+     details "Appointment coordination"@{nl="Afspraakafstemming"}
+      text row.host_ok,row.room_ok,row.host_delivery,row.room_delivery
+      list row.Attempt columns=kind,from,until,state,host_ok,room_ok,host_unknown,room_unknown,host_released,room_released
+      list row.Notice columns=kind,state
+  # Maintain availability and record attendance under host grants. @{nl="Beheer beschikbaarheid en leg aanwezigheid vast binnen gastheerbevoegdheden."}
+  page /appointments/hosts title="Host calendars"@{nl="Gastheerkalenders"}
+   require host_manager
+   card "Calendar intake"@{nl="Kalender aanmaken"}
+    form Calendar.create
+   list Calendar display=split
+    card "Calendar configuration"@{nl="Kalenderinstellingen"}
+     text row.location,row.timezone,row.hours,row.instructions,row.cutoff
+     edit
+    tabs
+     tab "Weekly hours and holidays"@{nl="Wekelijkse uren en feestdagen"}
+      form WeeklyHours.create
+      list row.WeeklyHours columns=weekday,opens,closes
+       edit
+       delete
+      form ClosedDay.create
+      list row.ClosedDay columns=day,reason
+       edit
+       delete
+     tab "Dated availability"@{nl="Gedateerde beschikbaarheid"}
+      form Window.create
+      list row.Window order=from
+       edit
+     tab "Appointment types"@{nl="Afspraaktypen"}
+      form Type.create
+      list row.Type
+       edit
+   card "Appointment agenda"@{nl="Afsprakenagenda"}
+    calendar Appointment start=from end=until filter=state defaults={state=preferences.appointment_state}
+     text row.state,row.duration,row.host_ok,row.room_ok
+     actions attendance,cancel,reschedule,discard_reschedule,retry_cleanup
+     history

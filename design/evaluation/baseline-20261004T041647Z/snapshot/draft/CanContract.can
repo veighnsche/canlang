@@ -1,0 +1,173 @@
+# Help workspace managers track customer occupancy agreements, property agreements, and supplier contracts with their obligations and notice dates. @{nl="Help werkplekbeheerders klantgebruiksovereenkomsten, vastgoedovereenkomsten en leverancierscontracten met verplichtingen en opzegdata volgen."}
+app CanContract uses=[agreements]
+
+# Retain executed agreement terms, renewals and obligation evidence without changing inventory. @{nl="Bewaar ondertekende overeenkomstvoorwaarden, verlengingen en verplichtingsbewijs zonder voorraad te wijzigen."}
+package agreements
+ use customer {Customer}
+ use supplier {Supplier}
+ use rent_catalog {Location,test_site}
+ use employee {Employee,can_work,test_worker}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  role legal label="Legal reviewer"@{nl="Juridisch beoordelaar"}
+  role property_manager label="Property manager"@{nl="Vastgoedbeheerder"}
+  role sales label="Sales"@{nl="Verkoop"}
+  role finance label="Finance"@{nl="Financiën"}
+  export Agreement { title:text, category:enum(customer,landlord,supplier) label={text="Category"@{nl="Categorie"},values={customer=label_Agreement_category_customer,landlord="Landlord"@{nl="Verhuurder"},supplier=label_Agreement_category_supplier}}, location:Location, customer:Customer? label=label_Agreement_category_customer, supplier:Supplier? label=label_Agreement_category_supplier, counterparty:text label="Counterparty"@{nl="Wederpartij"}, owner:Employee label="Responsible person"@{nl="Verantwoordelijke"}, email:email, resource:text? label="Resource reference"@{nl="Middelreferentie"}, active:bool=true } label="Agreement"@{nl="Overeenkomst"}
+  contract ExecutedParties { title:text, counterparty:text, owner:user, location:text, address:text }
+  export Term in Agreement { snapshot:ExecutedParties?, timezone:timezone?, executed_by:user?, executed_at:datetime?, expired:bool=false label="Expired"@{nl="Verlopen"}, notice_suppressed:bool=false, file:file, from:date label=label_Term_from, until:date label=label_Term_until, notice_days:int=30 min=0 label=label_Term_notice_days, pricing:text label=label_Term_pricing, currency:currency, previous:Term? label="Previous term"@{nl="Vorige termijn"}, executed:bool=false label="Executed"@{nl="Ondertekend"}, terminated:bool=false label="Terminated"@{nl="Beëindigd"}, reason:text? } label="Agreement term"@{nl="Overeenkomsttermijn"}
+  Obligation in Term { title:text, due:date, done:bool=false, completed_by:user? label="Completed by"@{nl="Afgerond door"}, completed_at:datetime? label="Completion time"@{nl="Afgerond op"} } label="Obligation"@{nl="Verplichting"}
+  Amendment in Term { text:text label="Text"@{nl="Tekst"}, file:file?, author:user server=actor label="Author"@{nl="Auteur"} } label="Agreement amendment"@{nl="Overeenkomstaanvulling"}
+  NoticeDelivery in Term { obligation:Obligation?, revision:int, delivery:text unique, state:enum(pending,delivered,failed,unknown)=pending label={text="Reminder delivery"@{nl="Herinneringsbezorging"},values={pending="Pending"@{nl="In afwachting"},delivered="Delivered"@{nl="Bezorgd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"}}} } label="Reminder outcome"@{nl="Herinneringsresultaat"}
+  event Notice { term:Term, revision:int }
+  event Expire { term:Term, at:datetime }
+  event ObligationDue { obligation:Obligation, revision:int }
+  derive allowed(person:user,agreement:Agreement):bool = can_work(person,agreement.location) and (legal(person) or (sales(person) and agreement.category==customer) or (property_manager(person) and agreement.category==landlord) or (finance(person) and agreement.category==supplier))
+  derive Term.notice_date:date = add_days(row.until,-row.notice_days) label="Notice deadline"@{nl="Opzegdeadline"}
+  policy Agreement read=legal or (sales and row.category==customer) or (property_manager and row.category==landlord) or (finance and row.category==supplier) where=allowed(actor,row)
+  policy Term read=legal or (sales and row.parent.category==customer) or (property_manager and row.parent.category==landlord) or (finance and row.parent.category==supplier) where=allowed(actor,row.parent)
+  policy Obligation read=legal or sales or property_manager or finance where=allowed(actor,row.parent.parent)
+  policy Amendment read=legal or sales or property_manager or finance where=allowed(actor,row.parent.parent)
+  policy NoticeDelivery read=legal or sales or property_manager or finance where=allowed(actor,row.parent.parent)
+  invariant Agreement: ((row.category==customer and row.customer!=null and row.supplier==null) or (row.category==supplier and row.supplier!=null and row.customer==null) or (row.category==landlord and row.customer==null))
+  invariant Term: row.from<=row.until and (row.previous==null or row.previous.parent==row.parent) and (not row.executed or (row.snapshot!=null and row.timezone!=null and row.executed_by!=null and row.executed_at!=null))
+  lock Term fields=snapshot,timezone,executed_by,executed_at,file,from,until,notice_days,pricing,currency,previous when=row.executed
+  lock Amendment fields=text,file,author
+  lock NoticeDelivery fields=obligation,revision,delivery
+  fixture signed_file=file {}
+  fixture renewal_file=file {}
+  fixture property_agreement=Agreement {title="Workspace lease",category=landlord,location=test_site,counterparty="Property owner",owner=test_worker,email="owner@example.test"}
+  fixture current_term=Term {snapshot={title="Workspace lease",counterparty="Property owner",owner=self,location=test_site.id,address=test_site.address},timezone=test_site.timezone,executed_by=self,executed_at=datetime("2026-01-01T00:00:00Z"),parent=property_agreement,file=signed_file,from=date("2026-01-01"),until=date("2098-12-31"),pricing="EUR 1000 monthly",currency="EUR"}
+  preferences { location:Location? }
+  invariant preferences: row.location==null or can_work(actor,row.location)
+  message label_Agreement_category_customer = "Customer"@{nl="Klant"}
+  message label_Agreement_category_supplier = "Supplier"@{nl="Leverancier"}
+  message label_Term_from = "From"@{nl="Vanaf"}
+  message label_Term_until = "Until"@{nl="Tot"}
+  message label_Term_notice_days = "Notice period in days"@{nl="Opzegtermijn in dagen"}
+  message label_Term_pricing = "Pricing terms"@{nl="Prijsafspraken"}
+ When
+  crud Agreement by=legal or sales or property_manager or finance fields=title,owner,email,active create_fields=title,category,location,customer,supplier,counterparty,owner,email,resource when=allowed(actor,row) and row.owner.active and can_work(row.owner.user,row.location) delete=none
+  crud Term by=legal or sales or property_manager or finance fields=file,from,until,notice_days,pricing,currency create_fields=file,from,until,notice_days,pricing,currency,previous when=allowed(actor,row.parent) and not row.executed delete=none
+  crud Obligation by=legal or sales or property_manager or finance fields=title,due when=allowed(actor,row.parent.parent) and not row.parent.terminated and not row.done delete=none
+  crud Amendment by=legal fields=text,file update=none delete=none when=allowed(actor,row.parent.parent)
+  # Freeze the executed file and calendar dates and arm one notice reminder. @{nl="Leg het ondertekende bestand en de kalenderdatums vast en activeer één opzegherinnering."}
+  scenario execute(term:Term) by=legal label="Execute agreement"@{nl="Overeenkomst ondertekenen"}
+   require allowed(actor,term.parent) and not term.executed and term.parent.active
+   do
+    let timezone=term.parent.location.timezone
+    set term {executed=true,timezone,executed_by=actor,executed_at=now,snapshot={title=term.parent.title,counterparty=term.parent.counterparty,owner=term.parent.owner.user,location=term.parent.location.id,address=term.parent.location.address}}
+    let expiry=local_instant(add_days(term.until,1),"00:00",timezone,fold=earlier)
+    if expiry<=now
+     set term {expired=true}
+    else
+     schedule format("term-expiry-{id}",{id=term.id}) at=expiry event=Expire {term,at=expiry}
+    let notice=local_instant(add_days(term.until,-term.notice_days),"00:00",timezone,fold=earlier)
+    if notice>now
+     schedule term.id at=notice event=Notice {term,revision=term.version+1}
+   examples term=current_term
+    as,term.executed -> term.executed,term.file,term.from,term.until
+    legal,false -> true,signed_file,date("2026-01-01"),date("2098-12-31")
+    legal,true -> error(rule_failed)
+    property_manager,false -> error(forbidden)
+  # Record a new term linked to the previous executed agreement without extending a booking. @{nl="Leg een nieuwe termijn vast die naar de vorige ondertekende overeenkomst verwijst zonder een boeking te verlengen."}
+  export scenario renew(term:Term,file:file,from:date label=label_Term_from,until:date label=label_Term_until,notice_days:int label=label_Term_notice_days,pricing:text label=label_Term_pricing,currency:currency) by=legal label="Record renewal"@{nl="Verlenging vastleggen"}
+   require allowed(actor,term.parent) and term.executed and from<=until and notice_days>=0
+   do
+    create Term {parent=term.parent,file,from,until,notice_days,pricing,currency,previous=term} as renewal
+    set term {notice_suppressed=true}
+    cancel term.id
+   examples term=current_term file=renewal_file from=date("2099-01-01") notice_days=30 pricing="EUR 1100 monthly" currency="EUR"
+    as,term.executed,until -> term.file,term.from,term.until,term.pricing,term.executed,count(term.parent.Term),any(term.parent.Term as renewal,renewal.id!=term.id and renewal.previous==term and renewal.file==renewal_file and renewal.file!=term.file and renewal.from==date("2099-01-01") and renewal.until==date("2099-12-31") and renewal.notice_days==30 and renewal.pricing=="EUR 1100 monthly" and renewal.currency=="EUR" and not renewal.executed)
+    legal,true,date("2099-12-31") -> signed_file,date("2026-01-01"),date("2098-12-31"),"EUR 1000 monthly",true,2,true
+    legal,false,date("2099-12-31") -> error(rule_failed)
+    legal,true,date("2098-12-31") -> error(rule_failed)
+    property_manager,true,date("2099-12-31") -> error(forbidden)
+  # Record termination while preserving executed terms and prior obligations. @{nl="Leg beëindiging vast met behoud van ondertekende voorwaarden en eerdere verplichtingen."}
+  scenario terminate(term:Term,reason:text) by=legal label="Terminate term"@{nl="Termijn beëindigen"}
+   require allowed(actor,term.parent) and term.executed and not term.terminated and trim(reason)!=""
+   do
+    set term {terminated=true,reason}
+    cancel term.id
+  # Complete an obligation with an attributable actor and time. @{nl="Rond een verplichting af met een herleidbare uitvoerder en tijd."}
+  scenario complete(obligation:Obligation) by=legal or sales or property_manager or finance
+   require allowed(actor,obligation.parent.parent) and not obligation.done and not obligation.parent.terminated
+   do
+    set obligation {done=true,completed_by=actor,completed_at=now}
+    cancel obligation.id
+  scenario arm on=Obligation.create
+   do
+    let due=local_instant(event.after.due,"00:00",event.after.parent.timezone??event.after.parent.parent.location.timezone,fold=earlier)
+    schedule event.after.id at=max([now+1ms,due]) event=ObligationDue {obligation=event.after,revision=event.after.version}
+  scenario rearm on=Obligation.update
+   do
+    cancel event.after.id
+    if not event.after.done and not event.after.parent.terminated
+     let due=local_instant(event.after.due,"00:00",event.after.parent.timezone??event.after.parent.parent.location.timezone,fold=earlier)
+     schedule event.after.id at=max([now+1ms,due]) event=ObligationDue {obligation=event.after,revision=event.after.version}
+  scenario expire on=Expire
+   do
+    if event.term.executed and not event.term.terminated and not event.term.expired and event.term.timezone!=null and event.at==local_instant(add_days(event.term.until,1),"00:00",event.term.timezone,fold=earlier) and event.at<=now
+     set event.term {expired=true}
+   examples event={term=current_term,at=local_instant(add_days(current_term.until,1),"00:00",test_site.timezone,fold=earlier)}
+    event.term.executed,event.term.terminated -> event.term.expired
+    false,false -> false
+    true,true -> false
+  scenario notice on=Notice
+   do
+    if event.term.version==event.revision and event.term.executed and event.term.snapshot!=null and not event.term.terminated and not event.term.expired and not event.term.notice_suppressed and event.term.parent.active
+     send Mail.send {to=event.term.parent.email,subject=format("Agreement notice deadline"@{nl="Opzegdeadline overeenkomst"},locale=null),body=event.term.snapshot.title} when=event.term.version==event.revision and not event.term.terminated and not event.term.expired and not event.term.notice_suppressed and event.term.parent.active as delivery
+     create NoticeDelivery {parent=event.term,revision=event.revision,delivery=delivery.id} as notice
+  scenario due on=ObligationDue
+   do
+    if event.obligation.version==event.revision and not event.obligation.done and not event.obligation.parent.terminated and event.obligation.parent.parent.active
+     send Mail.send {to=event.obligation.parent.parent.email,subject=format("Agreement obligation due"@{nl="Deadline overeenkomstverplichting"},locale=null),body=event.obligation.title} when=event.obligation.version==event.revision and not event.obligation.done and not event.obligation.parent.terminated and event.obligation.parent.parent.active as delivery
+     create NoticeDelivery {parent=event.obligation.parent,obligation=event.obligation,revision=event.revision,delivery=delivery.id} as notice
+  scenario delivered on=Mail.send.completed
+   do
+    for notice in NoticeDelivery as row where row.delivery==event.delivery_id limit=1
+     if event.status==succeeded
+      set notice {state=delivered}
+     else
+      if event.status==failed or event.status==skipped
+       set notice {state=failed}
+      else
+       set notice {state=unknown}
+ Then
+  # Retrieve executed terms, amendments and current obligation queues. @{nl="Haal ondertekende voorwaarden, aanvullingen en huidige verplichtingswachtrijen op."}
+  page /agreements title="Agreements"@{nl="Overeenkomsten"}
+   require legal or sales or property_manager or finance
+   card "Upcoming notice deadlines"@{nl="Aankomende opzegdeadlines"}
+    table Term as term where term.executed and not term.terminated and not term.expired and not term.notice_suppressed columns=parent,notice_date,until order=notice_date
+   card "Open obligations"@{nl="Open verplichtingen"}
+    table Obligation as obligation where not obligation.done and not obligation.parent.terminated columns=parent,title,due order=due
+     action complete
+   card "Agreement intake"@{nl="Overeenkomst aanmaken"}
+    form Agreement.create
+   list Agreement columns=title,category,location,owner,counterparty,active filter=category,location,owner defaults={location=preferences.location} search=title display=split
+    card "Agreement parties"@{nl="Overeenkomstpartijen"}
+     text row.counterparty,row.owner,row.customer,row.supplier,row.resource
+     edit
+     form Term.create
+    list row.Term order=until
+     card "Recorded term"@{nl="Vastgelegde termijn"}
+      text row.file,row.from,row.until,row.pricing,row.currency,row.notice_days,row.notice_date,row.executed,row.expired,row.terminated,row.reason,row.timezone,row.snapshot
+      edit
+      actions execute,renew,terminate
+     tabs
+      tab "Obligations"@{nl="Verplichtingen"}
+       form Obligation.create
+       table row.Obligation columns=title,due,done order=due filter=done
+        edit
+        action complete
+        details "Obligation completion"@{nl="Afronding verplichting"}
+         text row.completed_by,row.completed_at
+      tab "Reminder outcomes"@{nl="Herinneringsresultaten"}
+       table row.NoticeDelivery columns=obligation,revision,state
+      tab "Amendments"@{nl="Aanvullingen"}
+       form Amendment.create
+       list row.Amendment
+        text row.text,row.file,row.author
+     details "Term history"@{nl="Termijnhistorie"}
+      text row.previous
+      history

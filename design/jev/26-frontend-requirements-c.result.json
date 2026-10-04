@@ -1,0 +1,79 @@
+{
+  "request": {
+    "state": {
+      "task": "Assess the browser-facing requirements of the canlang SaaS drafts. The requested common layout places a logo over automatically produced page links in a collapsible left sidebar, with the account control anchored below them. Account options include a settings dialog whose sections have their own sidebar. Personal configuration needs a first-class mechanism that really stores values and checks them. For this stage, authorization covers edits to the 39 draft/Can*.md requirements documents exclusively; .can sources, parser code, root language specifications and runtime implementation are outside the edit scope.",
+      "evidence": "Separate public, customer and staff destinations appear in the draft portfolio, which also contains 7 composed offerings. The current i18n design includes messages belonging to source owners, translated page captions, common runtime wording and a persisted interface-language choice; it has no running renderer. Global links cannot supply the required record binding for detail destinations like /offers/{Revision.id} or /finance/invoice/{Invoice.id}. Nested static landing destinations, including /tasks/my-work and /expenses/review, can be visited directly. Existing canonical actions and team/company/record access grants still govern execution: appearing in navigation confers no access.",
+      "shell": "A selected deployment, including a composition, gets a single common frame. Selected pages are deduplicated by identity, and package inclusion does not produce additional nested frames. Put application identity/logo first, then page links; allow the link region to scroll while keeping the account/context control at the foot. On desktop, collapse retains accessible icon labels and current-state indication; on mobile, the sidebar becomes an overlay drawer that can be dismissed. Link generation draws on each page's existing route, translated title and availability. The candidate default includes accessible static navigation destinations, leaves out record-parameterized details and auth/callback endpoints, and can later accommodate declared placement changes without copying an entire menu. Ordering, grouping and usable parent destinations still need defined rules.",
+      "preferences": "One own-user facility belonging to the runtime provides security/account functions and language/appearance choices across apps. Signed-in values are stored for the principal within the relevant application scope; unsigned-in presentation selections are confined to the browser. Where an app needs additional personal sections, those sections use typed constraints/defaults and the canonical actions of their owner, avoiding another implementation of business behavior. Saving checks input, retains entered values on validation failure, exposes stale-write outcomes and offers reset for the applicable preferences. Changing presentation keeps unfinished business form edits and has no effect on access grants, company/team authority, business timezones, currencies or records already in history. Account edits proceed through established authentication flows instead of general CRUD over the user directory.",
+      "limits": "Business administration is warranted in six areas: company-role management in Customer, paid plans in Member, published catalog/policy management in Rent, Loyalty's reward program, Feedback's moderation/roadmap and moderation in Trade. The remaining 33 modules need no additional administration console. Developers continue to maintain technical endpoints/keys, quotas, retry behavior, retention and report-source setup. Existing prohibitions on settings in Table and Reception should specifically exclude business/technical consoles, allowing the shared personal controls without a contradiction. The presence of a reception device does not establish a grant for anonymous kiosk use.",
+      "risks": "Restricting automatic links to usable destinations avoids repeated source, but requires precise eligibility and ordering semantics, including treatment of pages requiring record context. Starting with every page and explicitly removing unsuitable ones exposes exceptions at the cost of potentially repeated exclusions. An independently authored navigation hierarchy permits full placement decisions, but repeats route, caption and access information despite the requested reduction in repetition. Common preference storage avoids duplicating schemas, while requiring a defined first-class ownership boundary and scoped additions. Self-owned CRUD in each app retains existing mechanisms, yet replicates the baseline definitions and makes account behavior harder to integrate. Accessibility and implementability cannot be established by selecting either approach.",
+      "research": "The supplied primary references are https://daisyui.com/components/drawer/ for responsive and collapsible sidebar markup, plus https://daisyui.com/components/menu/ and https://daisyui.com/components/modal/ for component building blocks rather than a complete application interaction. Modal keyboard and focus obligations are described at https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/. The navigation-disclosure example at https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/ explains its distinction from application-menu interaction. ADMIN_SURFACES.md already differentiates shared personal/account functions from business administration. REQUIREMENTS.md currently specifies a Navbar shell, so these document edits must identify the sidebar as a future staged target and cannot assert that the existing sources implement it.",
+      "implementation": "Within this document-only stage, place the common target in CanDo.md and link the other app requirement documents to that description. This temporary documentation location neither makes CanDo a source/runtime dependency nor permanently transfers language authority there. Add each app's particular destinations, page components and contents/actions, audience and record-detail behavior, relevant personal settings and frontend acceptance journeys. Retain the established business rules and explicitly leave source syntax/runtime alignment to subsequent work. This stage calls for no additional requirements document, app wrapper, general-purpose administration dashboard, component acquisition or verification framework.",
+      "code": {
+        "detail": "/offers/{Revision.id}",
+        "index": "/tasks/my-work",
+        "composition": "app Workspace uses=[CanRent,CanMember,CanReport]"
+      }
+    },
+    "questions": {
+      "navigation": {
+        "type": "choice",
+        "instructions": "Select the rule for obtaining sidebar links that most effectively satisfies both useful navigation and the specified constraints on authored source and repetition.",
+        "criteria": {
+          "eligible_pages": "Generate links for accessible static navigation destinations, omit detail/auth/callback categories, and allow declared placement exceptions; this requires eligibility and ordering rules.",
+          "all_then_exclude": "Begin with links for all pages, then explicitly exclude details and other inappropriate destinations; exceptions stay explicit, with repeated exclusions as the tradeoff.",
+          "menu_tree": "Maintain a separately authored hierarchy of page references; this supplies direct placement decisions while repeating navigation structure.",
+          "unresolved": "Leave navigation policy undecided when none of the listed approaches fulfills the requirements."
+        }
+      },
+      "configuration": {
+        "type": "choice",
+        "instructions": "Choose one underlying mechanism for first-class personal configuration that remains compatible with canonical operation ownership.",
+        "criteria": {
+          "runtime_primitive": "Provide one runtime-owned own-user facility, adding typed personal sections within scope and using canonical save/auth actions; defining its primitive and state boundary is the tradeoff.",
+          "per_app_crud": "Give each app self-owned preference records through standard CRUD and generated settings presentation; baseline schema repetition and separate account integration are the tradeoffs.",
+          "unresolved": "Keep the mechanism open if both candidates leave the ownership, access or presentation separation unsatisfied."
+        }
+      },
+      "coherence": {
+        "type": "noul",
+        "instructions": "Does the proposed sidebar and personal-settings target, applied through app-specific requirements edits alone, fit together consistently with public/customer/staff access, accessible modal interaction, canonical business operations and avoidance of unnecessary technical or administration consoles?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "navigation": {
+        "type": "choice",
+        "choice": "eligible_pages",
+        "confidence": 0.98,
+        "probabilities": {
+          "unresolved": 0.0,
+          "all_then_exclude": 0.01,
+          "menu_tree": 0.0,
+          "eligible_pages": 0.99
+        }
+      },
+      "configuration": {
+        "type": "choice",
+        "choice": "runtime_primitive",
+        "confidence": 1.0,
+        "probabilities": {
+          "unresolved": 0.0,
+          "per_app_crud": 0.0,
+          "runtime_primitive": 1.0
+        }
+      },
+      "coherence": {
+        "type": "noul",
+        "noul": 0.82
+      }
+    },
+    "usage": {
+      "input_tokens": 1843,
+      "output_tokens": 121
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "state": {
+    "context": "The invoice app must support authorized repeat payments, bounded transient-failure retry and obsolete-link shutdown without treating a timeout as unpaid. Its sole existing payment binding exposes collection, refund and reconciliation, returning four outcome statuses and an optional URL. Other draft apps use invoice services rather than this payment capability. This change defines contracts only.",
+    "candidate": "Candidate signatures add customer and nullable consent to collect, plus cancel(reference) returning PaymentState. With no consent, collection creates an interactive flow; with consent it attempts authorized off-session payment. The adapter checks that authorization belongs to the selected merchant/team and customer and permits the requested money at the actual send boundary. Unavailable automatic authorization produces failed with action_required. An earlier eligibility read would be informational and must still be rechecked. Receipts gain a strictly advancing attempt revision and failure classification transient/action_required/permanent/cancelled only when failed. Link cancellation prevents new checkout use, preserving pending or unknown status until accepted payment is resolved. cancelled denotes proven absence of a charge. Conflicting later success is financial evidence requiring review. Reusing a reference with a different request is invalid."
+  },
+  "questions": {
+    "consent": {
+      "type": "choice",
+      "instructions": "Choose the smaller sufficient consent interface while retaining current authorization and honest eligibility information.",
+      "criteria": {
+        "dispatch": "Perform the authorization check within collect against the identified customer; return action_required when automatic collection cannot proceed, leaving interactive checkout available through the same operation.",
+        "preflight": "Expose an authorization lookup before collect and validate again on collection. Earlier explanations improve the interface, but add stale observations and another contract."
+      }
+    },
+    "retry_contract": {
+      "type": "noul",
+      "instructions": "Can invoice code use these cancellation outcomes, failure classifications and ordered receipts to distinguish a retryable definite failure from required customer interaction and unresolved payment acceptance?"
+    }
+  }
+}

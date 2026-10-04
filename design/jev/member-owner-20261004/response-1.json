@@ -1,0 +1,40 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Evaluate an owner-contract repair using the supplied source evidence and requirements.",
+      "facts": "CanMember currently has the exact user operations below, but MembershipV1 has no trusted ingress mappings. Rent books discontinuous published day intervals and hour increments. Paid grants expire without rollover. Unit rules and same-currency monetary overage must be frozen. Replacement must retain the old allocation until every replacement owner has accepted. Bindings verify producer and owner namespace; trusted handlers have actor=null. Billing is asynchronous. A classifier recommendation supplies advice only.",
+      "actual_code": "scenario reserve(membership:Membership,product:text,from:datetime,until:datetime,quantity:int,source:text) by=authenticated; require membership.parent.active and (membership.parent.kind==individual or has_role(actor,membership.parent,booker) or has_role(actor,membership.parent,administrator)); require from>=now and from<until and quantity>0 and not membership.paused and not membership.revoked; require membership.account==actor or has_role(actor,membership.parent,booker) or has_role(actor,membership.parent,administrator). scenario consume(source:text) by=authenticated selects allocation.source==source and allocation.account==actor. scenario release(source:text) by=authenticated selects allocation.source==source and allocation.account==actor and allocation.state==reserved."
+    },
+    "questions": {
+      "replacement": {
+        "type": "choice",
+        "instructions": "Which design best preserves these requirements while keeping one canonical owner workflow?",
+        "criteria": {
+          "staged": "Declare typed exact-interval requests with customer routing and frozen unit basis; reserve whole aligned hour units or one unit per day interval, quote uncovered units in money, retain a prior allocation through staging, and atomically exchange it only on a subsequent owner commit. This adds staged-state and tombstone records and demands careful overlap accounting.",
+          "independent": "Reserve the replacement as an independent full allocation until all owners accept, then release the prior allocation. This has simpler ledger accounting and protects prior reservations but can reject a valid replacement when the paid pool cannot temporarily cover both.",
+          "release_first": "Release the original allocation before reserving the replacement. This minimizes temporary unit pressure and reduces staged-state complexity, but failed replacement may lose the original benefit and recovery can compete with other bookings."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "replacement": {
+        "type": "choice",
+        "choice": "staged",
+        "confidence": 0.89,
+        "probabilities": {
+          "staged": 0.93,
+          "independent": 0.07,
+          "release_first": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 790,
+      "output_tokens": 43
+    }
+  }
+}

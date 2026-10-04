@@ -1,0 +1,162 @@
+# Help workspace staff coordinate daily opening, closing, room preparation, and customer follow-up tasks. @{nl="Help werkplekpersoneel dagelijkse openings-, sluitings-, ruimtevoorbereidings- en klantopvolgingstaken coördineren."}
+app CanDo uses=[todo]
+
+# Track ordinary tasks and route federated work to its owning business operation. @{nl="Volg gewone taken en leid werk uit bronsystemen naar de eigen bedrijfsoperatie."}
+package todo
+ use rent_catalog {Location}
+ use employee {can_work,staff,test_worker}
+ use std {ErrorsV1 as Catch} from=deployment.errors
+ use todo {WorkSourcesV1 as WorkSources} from=deployment.work_sources
+ use maintain {inspect,work as maintenance_work,work_detail as maintenance_detail} from=deployment.maintenance
+ use success {complete as complete_account,work as accounts_work,work_detail as accounts_detail} from=deployment.accounts
+ use onboard {complete as complete_step,work as onboarding_work,work_detail as onboarding_detail} from=deployment.onboarding
+ use board {complete as complete_board,work as board_work,work_detail as board_detail} from=deployment.board
+ use volunteer {complete as complete_volunteer,work as volunteering_work,work_detail as volunteering_detail} from=deployment.volunteering
+ Given
+  export contract WorkItem { source:text label=label_WorkItem_source, reference:text, revision:int, location:text?, title:text, detail:text? label=label_WorkItem_detail, due:datetime?, state:enum(open,done,stale,unavailable) label={text=label_WorkItem_state,values={open="Open"@{nl="Open"},done="Done"@{nl="Gereed"},stale=label_WorkItem_state_stale,unavailable=label_WorkItem_state_unavailable}}, action:action(inspect,complete_account,complete_step,complete_board,complete_volunteer)? label="Source action"@{nl="Bronactie"} } label="Source work item"@{nl="Werk uit bronsysteem"}
+  export contract WorkSourceState { source:text label=label_WorkItem_source, state:enum(fresh,stale,unavailable) label={text=label_WorkItem_state,values={stale=label_WorkItem_state_stale,unavailable=label_WorkItem_state_unavailable,fresh=label_WorkSourceState_state_fresh}}, detail:text? label=label_WorkItem_detail } label=source_freshness_caption
+  export contract WorkBatch { items:WorkItem[] max=500 label=label_WorkBatch_items, states:WorkSourceState[]! min=5 max=5 label="Source states"@{nl="Bronstatussen"} } label="Source work batch"@{nl="Bundel werk uit bronsystemen"}
+  derive source_names():text[] = ["maintenance","accounts","onboarding","board","volunteering"]
+  # Map the five imported owner work/detail reads explicitly under verified principal/team delegation; source names and action targets stay closed. @{nl="Koppel de vijf geïmporteerde bron- en detaillezingen expliciet met geverifieerde gebruiker-/teamdelegatie; bronnamen en actiedoelen blijven begrensd."}
+  export capability WorkSourcesV1 version=1
+   work(account:user,locations:text[]) -> WorkBatch
+  role task_manager label="Checklist manager"@{nl="Checklistbeheerder"}
+  export Task { location:Location?, title:text trim min=1, description:text?, due:datetime?, priority:enum(low,normal,high)=normal label={text="Task priority"@{nl="Taakprioriteit"},values={low="Low"@{nl="Laag"},normal="Normal"@{nl="Normaal"},high="High"@{nl="Hoog"}}}, assignee:user? label="Assignee"@{nl="Toegewezen aan"}, done:bool=false, completed_by:user? label="Completed by"@{nl="Afgerond door"}, completed_at:datetime? label="Completion time"@{nl="Afgerond op"} } label="Task"@{nl="Taak"}
+  Comment in Task { body:text trim min=1, author:user server=actor label="Author"@{nl="Auteur"} } label="Task comment"@{nl="Taakreactie"}
+  Template { name:text, location:Location? } label=label_Template
+  TemplateTask in Template { title:text, offset:duration=0m label="Due offset"@{nl="Deadlineverschuiving"}, priority:Task.priority=normal } label="Template task"@{nl="Sjabloontaak"}
+  Generation { template:Template label=label_Template, reference:text unique, due:datetime } label="Checklist generation"@{nl="Checklistgeneratie"}
+  WorkView { account:user label="Account"@{nl="Account"}, items:WorkItem[] label=label_WorkBatch_items, sources:WorkSourceState[] label="Sources"@{nl="Bronnen"}, state:enum(pending,fresh,partial,unavailable)=pending label={text=label_WorkItem_state,values={unavailable=label_WorkItem_state_unavailable,fresh=label_WorkSourceState_state_fresh,pending="Pending"@{nl="In behandeling"},partial="Partial"@{nl="Gedeeltelijk"}}}, current:bool=true label="Current projection"@{nl="Actuele projectie"}, expires:datetime=now+25h label="Projection expiry"@{nl="Vervaltijd projectie"}, requested:datetime label="Requested at"@{nl="Aangevraagd op"}, delivery:text unique label="Delivery reference"@{nl="Afleverreferentie"} } label="My work projection"@{nl="Projectie mijn werk"}
+  policy Task read=members and staff(actor) where=row.location==null or can_work(actor,row.location)
+  policy Comment read=members and staff(actor) where=row.parent.location==null or can_work(actor,row.parent.location)
+  policy Template read=task_manager and staff(actor) where=row.location==null or can_work(actor,row.location)
+  policy TemplateTask read=task_manager and staff(actor) where=row.parent.location==null or can_work(actor,row.parent.location)
+  policy Generation read=task_manager and staff(actor) where=row.template.location==null or can_work(actor,row.template.location)
+  policy WorkView read=members where=row.account==actor
+  unique WorkView fields=account where=row.current
+  retain WorkView until=row.expires
+  lock WorkView fields=account,requested,delivery
+  invariant Task: row.assignee==null or (active_member(row.assignee,team) and staff(row.assignee))
+  lock Comment fields=body,author
+  fixture open_task=Task {title="Opening checks",assignee=self}
+  fixture work_view=WorkView {account=self,requested=datetime("2026-10-03T09:00:00Z"),delivery="work-test"}
+  preferences { location:Location?, done:bool?, view:enum(all,today,overdue)=all label={text="Task view"@{nl="Taakweergave"},values={all="All tasks"@{nl="Alle taken"},today="Due today"@{nl="Vandaag verschuldigd"},overdue="Overdue"@{nl="Te laat"}}} }
+  invariant preferences: row.location==null or can_work(actor,row.location)
+  message source_freshness_caption = "Source freshness"@{nl="Actualiteit bron"}
+  message label_WorkItem_source = "Source reference"@{nl="Bronreferentie"}
+  message label_WorkItem_detail = "Details"@{nl="Details"}
+  message label_WorkItem_state = "State"@{nl="Status"}
+  message label_WorkItem_state_stale = "Stale"@{nl="Verouderd"}
+  message label_WorkItem_state_unavailable = "Unavailable"@{nl="Niet beschikbaar"}
+  message label_WorkSourceState_state_fresh = "Fresh"@{nl="Actueel"}
+  message label_WorkBatch_items = "Items"@{nl="Items"}
+  message label_Template = "Checklist template"@{nl="Checklistsjabloon"}
+ When
+  crud Task by=members fields=location,title,description,due,priority,assignee when=staff(actor) and (row.location==null or can_work(actor,row.location))
+  crud Comment by=members fields=body update=none delete=none when=staff(actor) and (row.parent.location==null or can_work(actor,row.parent.location))
+  crud Template by=task_manager fields=name,location when=staff(actor) and (row.location==null or can_work(actor,row.location))
+  crud TemplateTask by=task_manager fields=title,offset,priority when=staff(actor) and (row.parent.location==null or can_work(actor,row.parent.location)) delete=remove
+  # Complete an ordinary task with actor and time. @{nl="Rond een gewone taak af met uitvoerder en tijd."}
+  scenario complete(task:Task) by=members
+   require staff(actor) and (task.location==null or can_work(actor,task.location)) and not task.done
+   do set task {done=true,completed_by=actor,completed_at=now}
+   examples seed=[test_worker] task=open_task
+    task.done -> task.done,task.completed_by
+    false -> true,self
+    true -> error(rule_failed)
+  # Reopen ordinary work; federated approvals use their source operation. @{nl="Heropen gewoon werk; goedkeuringen uit bronsystemen gebruiken hun eigen operatie."}
+  scenario reopen(task:Task) by=members
+   require staff(actor) and task.done and (task.location==null or can_work(actor,task.location))
+   do set task {done=false,completed_by=null,completed_at=null}
+  # Copy a checklist once without changing existing generated tasks. @{nl="Kopieer een checklist één keer zonder bestaande gegenereerde taken te wijzigen."}
+  scenario generate(template:Template,due:datetime) by=task_manager label="Generate tasks from checklist"@{nl="Taken uit checklist genereren"}
+   require staff(actor) and (template.location==null or can_work(actor,template.location))
+   do
+    create Generation {template,reference=operation.id,due} as generation
+    for item in template.TemplateTask limit=100
+     create Task {location=template.location,title=item.title,due=due+item.offset,priority=item.priority} as task
+  # Request only work the current actor can perform at its source. @{nl="Vraag uitsluitend werk op dat de huidige uitvoerder bij de bron mag uitvoeren."}
+  scenario refresh(locations:text[] label="Locations"@{nl="Locaties"}) by=members
+   require staff(actor)
+   require not any(WorkView as view,view.account==actor and view.current and view.state==pending)
+   do
+    for previous in WorkView as view where view.account==actor and view.current limit=1
+     set previous {current=false,state=unavailable,items=[],sources=[]}
+    send WorkSources.work {account=actor,locations} as delivery
+    create WorkView {account=actor,requested=now,delivery=delivery.id} as view
+  scenario work_result on=WorkSources.work.completed
+   do
+    for view in WorkView as v where v.delivery==event.delivery_id and v.current and v.state==pending limit=1
+     set view {state=unavailable,items=[],sources=[],expires=now+1m}
+     if active_member(view.account,team) and staff(view.account) and event.status==succeeded and event.result!=null
+      let batch=event.result
+      let valid_sources=count(batch.states)==count(source_names()) and all(source_names() as source,count(batch.states as entry where entry.source==source)==1)
+      if valid_sources and all(batch.items as item,any(batch.states as entry,entry.source==item.source) and (item.action==null or (item.state==open and any(batch.states as entry,entry.source==item.source and entry.state==fresh))))
+       set view {items=batch.items,sources=batch.states}
+       if all(batch.states as entry,entry.state==fresh)
+        set view {state=fresh}
+       else
+        if not all(batch.states as entry,entry.state==unavailable)
+         set view {state=partial}
+   examples seed=[work_view,test_worker]
+    event -> work_view.state
+    {delivery_id="work-test",status=succeeded,result=WorkBatch {states=[WorkSourceState {source="maintenance",state=fresh},WorkSourceState {source="accounts",state=fresh},WorkSourceState {source="onboarding",state=fresh},WorkSourceState {source="board",state=fresh},WorkSourceState {source="volunteering",state=fresh}]},error=null} -> fresh
+    {delivery_id="work-test",status=succeeded,result=WorkBatch {states=[WorkSourceState {source="maintenance",state=fresh},WorkSourceState {source="accounts",state=unavailable},WorkSourceState {source="onboarding",state=fresh},WorkSourceState {source="board",state=fresh},WorkSourceState {source="volunteering",state=fresh}]},error=null} -> partial
+    {delivery_id="work-test",status=succeeded,result=WorkBatch {states=[WorkSourceState {source="maintenance",state=stale},WorkSourceState {source="accounts",state=stale},WorkSourceState {source="onboarding",state=stale},WorkSourceState {source="board",state=stale},WorkSourceState {source="volunteering",state=stale}]},error=null} -> partial
+    {delivery_id="work-test",status=succeeded,result=WorkBatch {states=[WorkSourceState {source="maintenance",state=unavailable},WorkSourceState {source="accounts",state=unavailable},WorkSourceState {source="onboarding",state=unavailable},WorkSourceState {source="board",state=unavailable},WorkSourceState {source="volunteering",state=unavailable}]},error=null} -> unavailable
+    {delivery_id="work-test",status=succeeded,result=WorkBatch {states=[WorkSourceState {source="maintenance",state=fresh},WorkSourceState {source="accounts",state=fresh},WorkSourceState {source="onboarding",state=fresh},WorkSourceState {source="board",state=fresh},WorkSourceState {source="board",state=fresh}]},error=null} -> unavailable
+    {delivery_id="work-test",status=failed,result=null,error={code="unavailable",message="Source unavailable"}} -> unavailable
+    {delivery_id="other-work",status=failed,result=null,error={code="unavailable",message="Source unavailable"}} -> pending
+  scenario removed on=teams.member_removed
+   do
+    for task in Task as t where t.assignee==event.user limit=500
+     set task {assignee=null}
+  scenario report_error on=instrumentation.error
+   do send Catch.report {event=event} as delivery
+ Then
+  # Add tasks quickly and follow location, due date and ownership. @{nl="Voeg taken snel toe en volg locatie, deadline en eigenaarschap."}
+  page /tasks title="Tasks"@{nl="Taken"}
+   require members
+   card "Quick task entry"@{nl="Snel een taak toevoegen"}
+    form Task.create display=inline
+   tabs preferences.view
+   table Task as task where preferences.view==all or (task.due!=null and ((preferences.view==today and local_date(task.due,team.timezone)==local_date(now,team.timezone)) or (preferences.view==overdue and task.due<now and not task.done))) columns=title,assignee,due,priority,done order={by=preferences.view,default=[due],cases={all=[-created]}} filter=location,assignee,priority,done defaults={location=preferences.location,done=preferences.done} search=title display=split
+    card "Current task"@{nl="Huidige taak"}
+     text row.title,row.description,row.assignee,row.due,row.priority,row.done,row.completed_by,row.completed_at
+     edit
+     actions complete,reopen
+    card "Attributed comments"@{nl="Toegeschreven reacties"}
+     form Comment.create
+     list row.Comment
+      text row.body,row.author
+    history
+  # Keep unavailable source work visible without granting source authority. @{nl="Houd niet-beschikbaar bronwerk zichtbaar zonder bronbevoegdheid te verlenen."}
+  page /tasks/my-work title="My work"@{nl="Mijn werk"} poll=5s refresh=refresh
+   require members
+   card "Refresh source work"@{nl="Werk uit bronsystemen vernieuwen"}
+    form refresh display=inline
+   list WorkView as view where view.account==actor and view.current order=-view.requested
+    text row.state,row.requested
+    card source_freshness_caption
+     table row.sources columns=source,state,detail
+    card "Authorized work and actions"@{nl="Toegestaan werk en acties"}
+     table row.items columns=title,source,location,due,state filter=source,location,due,state
+      content row.detail
+      form row.action
+    text "Submit refresh once to enable automatic source refresh while this page remains open."@{nl="Vernieuw één keer om automatisch bronwerk te vernieuwen zolang deze pagina geopend blijft."}
+  # Author scoped checklists and generate independent dated tasks. @{nl="Beheer toegestane checklists en genereer zelfstandige gedateerde taken."}
+  page /tasks/checklists title="Checklist templates"@{nl="Checklistsjablonen"}
+   require task_manager
+   card "Template intake"@{nl="Sjabloon aanmaken"}
+    form Template.create
+   list Template columns=name,location search=name display=split
+    card "Template and generation"@{nl="Sjabloon en generatie"}
+     text row.name,row.location
+     edit
+     delete
+     form generate
+    card "Template items"@{nl="Sjabloonitems"}
+     form TemplateTask.create
+     table row.TemplateTask columns=title,offset,priority order=offset
+      edit
+      delete

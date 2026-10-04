@@ -1,0 +1,166 @@
+# Help workspace members suggest improvements to facilities, amenities, and booking services and see the operator's response. @{nl="Help werkplekleden verbeteringen voorstellen voor faciliteiten, voorzieningen en boekingsdiensten en het antwoord van de exploitant bekijken."}
+app CanFeedback uses=[feedback]
+
+# Collect owned suggestions and votes while reserving moderation and roadmap decisions for product owners. @{nl="Verzamel eigen suggesties en stemmen en reserveer moderatie en roadmapbesluiten voor productverantwoordelijken."}
+package feedback
+ use rent_catalog {Location}
+ use employee {can_work}
+ use desk {open_request}
+ Given
+  role product_owner label="Product owner"@{nl="Productverantwoordelijke"}
+  Product { name:text, location:Location?, owner:user label="Responsible person"@{nl="Verantwoordelijke"}, published:bool=true label="Published"@{nl="Gepubliceerd"} } label="Product"@{nl="Product"}
+  Suggestion in Product { title:text trim min=1 max=300, description:text trim min=1 max=5000, category:text trim min=1 max=100 label="Category"@{nl="Categorie"}, author:user server=actor label="Author"@{nl="Auteur"}, status:enum(proposed,planned,shipped,declined)=proposed label={text=label_Suggestion_status,values={proposed="Proposed"@{nl="Voorgesteld"},planned="Planned"@{nl="Gepland"},shipped="Shipped"@{nl="Opgeleverd"},declined="Declined"@{nl="Afgewezen"}}}, hidden:bool=true label=label_Suggestion_hidden, moderation_reason:text? label="Moderation reason"@{nl="Moderatiegrond"}, response:text? label=label_Suggestion_response, duplicate:Suggestion? label=label_Suggestion_duplicate } label=label_Suggestion
+  Vote in Suggestion { account:user server=actor label="Account"@{nl="Account"}, active:bool=true, cast_at:datetime server=now label="Last vote time"@{nl="Laatste stemtijd"} } label="Own vote"@{nl="Eigen stem"}
+  contract Card { suggestion:Suggestion label=label_Suggestion, title:text, status:Suggestion.status, response:text? label=label_Suggestion_response, duplicate:Suggestion? label=label_Suggestion_duplicate, votes:int label="Votes"@{nl="Stemmen"} } label="Published suggestion"@{nl="Gepubliceerde suggestie"}
+  contract Roadmap { items:Card[]! label="Items"@{nl="Items"} } label="Published roadmap"@{nl="Gepubliceerde roadmap"}
+  policy Product read=public where=row.published
+  policy Product read=product_owner where=row.owner==actor
+  policy Suggestion read=public where=row.parent.published and not row.hidden fields=title,description,category,status,response
+  policy Suggestion read=authenticated where=row.author==actor
+  policy Suggestion read=product_owner where=row.parent.owner==actor
+  policy Vote read=authenticated where=row.account==actor
+  unique Vote fields=account
+  invariant Suggestion: row.duplicate==null or (row.duplicate!=row and row.duplicate.parent==row.parent and row.duplicate.duplicate==null)
+  lock Suggestion fields=author
+  lock Vote fields=account
+  fixture product=Product {name="Facilities",owner=other}
+  fixture suggestion=Suggestion {parent=product,title="Phone booths",description="Add booths",category="Amenity",hidden=false}
+  fixture root=Suggestion {parent=product,title="Quiet calls",description="Improve call spaces",category="Amenity",hidden=false}
+  fixture own_vote=Vote {parent=suggestion,cast_at=now-1m}
+  fixture foreign_vote=Vote {parent=suggestion,account=other,cast_at=now-1m}
+  fixture recent=Suggestion {parent=product,title="Bike storage",description="Add a rack",category="Amenity"}
+  fixture recent2=Suggestion {parent=product,title="Water",description="Add a fountain",category="Amenity"}
+  fixture recent3=Suggestion {parent=product,title="Desks",description="Add sit-stand desks",category="Amenity"}
+  fixture recent4=Suggestion {parent=product,title="Lighting",description="Adjust desk lights",category="Amenity"}
+  fixture recent5=Suggestion {parent=product,title="Plants",description="Add greenery",category="Amenity"}
+  preferences { location:Location?, category:Suggestion.category?, status:Suggestion.status? }
+  message label_Suggestion = "Suggestion"@{nl="Suggestie"}
+  message label_Suggestion_status = "Status"@{nl="Status"}
+  message label_Suggestion_hidden = "Hidden"@{nl="Verborgen"}
+  message label_Suggestion_response = "Staff response"@{nl="Antwoord medewerker"}
+  message label_Suggestion_duplicate = "Duplicate suggestion"@{nl="Dubbele suggestie"}
+ When
+  crud Product by=product_owner fields=name,published create_fields=name,location,owner when=row.owner==actor and (row.location==null or can_work(actor,row.location)) delete=none
+  crud Suggestion by=authenticated fields=title,description,category when=row.author==actor and row.parent.published and (not row.hidden or row.moderation_reason==null)
+   examples create parent=product title="Air quality" description="Improve ventilation" category="Amenity"
+    as,parent.published -> count(product.Suggestion),count(product.Suggestion as item where not item.hidden)
+    members,true -> 1,0
+    members,false -> error(rule_failed)
+    public,true -> error(forbidden)
+   examples create seed=[recent,recent2,recent3,recent4,recent5] parent=product title="Air quality" description="Improve ventilation" category="Amenity"
+    as -> count(product.Suggestion)
+    members -> error(rule_failed)
+   examples update record=suggestion
+    as,changes.title,record.author -> suggestion.title,suggestion.hidden
+    members,"More booths",self -> "More booths",true
+    members,"More booths",other -> error(rule_failed)
+   examples delete record=suggestion
+    as -> suggestion.archived_at!=null
+    members -> true
+  crud Vote by=authenticated fields=active create=none update=none delete=none
+  ## Only this canonical creation path creates suggestions; archived submissions remain in the hourly allowance.
+  scenario contribution_limit on=Suggestion.create
+   do require count(Suggestion archived=include as item where item.author==event.after.author and item.created>now-1h)<=5
+  ## Contributor edits return previously public text to review; audit history retains the earlier moderation reason.
+  scenario review_edited on=Suggestion.update
+   do set event.after {hidden=true,moderation_reason=null}
+  # Cast or restore your own vote after the account-wide ten-second cooldown; identities stay private. @{nl="Breng je eigen stem uit of herstel die na de accountbrede wachttijd van tien seconden; identiteiten blijven privé."}
+  scenario vote(suggestion:Suggestion) -> Vote by=authenticated label="Vote"@{nl="Stemmen"}
+   require suggestion.parent.published and not suggestion.hidden
+   require not any(Vote archived=include as vote,vote.account==actor and vote.cast_at>now-10s)
+   do
+    let existing=first(suggestion.Vote as vote where vote.account==actor)
+    if existing!=null
+     set existing {active=true,cast_at=now}
+     return existing
+    create Vote {parent=suggestion} as vote
+    return vote
+   examples suggestion=suggestion
+    as,suggestion.hidden -> count(suggestion.Vote as item where item.active)
+    members,false -> 1
+    members,true -> error(rule_failed)
+    public,false -> error(forbidden)
+   examples seed=[own_vote,foreign_vote] suggestion=suggestion
+    as,own_vote.active,own_vote.cast_at -> count(suggestion.Vote),count(suggestion.Vote as item where item.active),result==own_vote,foreign_vote.account
+    members,true,now-1m -> 2,2,true,other
+    members,false,now-1m -> 2,2,true,other
+    members,false,now -> error(rule_failed)
+  # Withdraw only your own vote, retaining its identity and cooldown across retries. @{nl="Trek uitsluitend je eigen stem in en behoud de identiteit en wachttijd bij herhaling."}
+  scenario unvote(vote:Vote) by=authenticated label="Withdraw own vote"@{nl="Eigen stem intrekken"}
+   require vote.account==actor
+   do set vote {active=false}
+   examples seed=[foreign_vote] vote=own_vote
+    as,vote.active -> vote.active,count(suggestion.Vote as item where item.active),foreign_vote.active
+    members,true -> false,1,true
+    members,false -> false,1,true
+   examples vote=foreign_vote
+    as -> vote.active
+    members -> error(rule_failed)
+  # Record an operator roadmap decision without changing authorship or votes. @{nl="Leg een exploitantbesluit over de roadmap vast zonder auteurschap of stemmen te wijzigen."}
+  scenario roadmap(suggestion:Suggestion,status:Suggestion.status label=label_Suggestion_status,response:text label=label_Suggestion_response,duplicate:Suggestion? label=label_Suggestion_duplicate) by=product_owner label="Record roadmap decision"@{nl="Roadmapbesluit vastleggen"}
+   require suggestion.parent.owner==actor and trim(response)!=""
+   do set suggestion {status,response,duplicate}
+   examples seed=[own_vote,foreign_vote] suggestion=suggestion status=planned response="Two booths this quarter" duplicate=root
+    as,suggestion.parent.owner,duplicate.duplicate -> suggestion.status,suggestion.duplicate,suggestion.author,count(suggestion.Vote as item where item.active)
+    product_owner,self,null -> planned,root,self,2
+    members,self,null -> error(forbidden)
+    product_owner,other,null -> error(rule_failed)
+    product_owner,self,suggestion -> error(rule_failed)
+  # Hide abusive content with a reason under product-owner moderation. @{nl="Verberg misbruik met een reden binnen moderatie door de productverantwoordelijke."}
+  scenario moderate(suggestion:Suggestion,hidden:bool label=label_Suggestion_hidden,reason:text) by=product_owner label="Moderate suggestion"@{nl="Suggestie modereren"}
+   require suggestion.parent.owner==actor and trim(reason)!=""
+   do set suggestion {hidden,moderation_reason=reason}
+   examples suggestion=suggestion hidden=true reason="Private contact details"
+    as,suggestion.parent.owner -> suggestion.hidden,suggestion.moderation_reason,suggestion.author
+    product_owner,self -> true,"Private contact details",self
+    members,self -> error(forbidden)
+   examples suggestion=suggestion hidden=false reason="Reviewed for public roadmap"
+    as,suggestion.parent.owner -> suggestion.hidden,suggestion.moderation_reason
+    product_owner,self -> false,"Reviewed for public roadmap"
+  # Expose public aggregate counts, excluding voter identities and hidden content. @{nl="Toon openbare geaggregeerde aantallen zonder stemmeridentiteiten of verborgen inhoud."}
+  scenario published(product:Product) read=true scope=authority -> Roadmap by=public label="Read published roadmap"@{nl="Gepubliceerde roadmap lezen"}
+   require product.published
+   do return Roadmap {items=product.Suggestion as suggestion where not suggestion.hidden select Card {suggestion,title=suggestion.title,status=suggestion.status,response=suggestion.response,duplicate=first(product.Suggestion as item where item==suggestion.duplicate and not item.hidden),votes=count(suggestion.Vote as vote where vote.active)}}
+   examples seed=[own_vote,foreign_vote] product=product
+    as,suggestion.hidden,own_vote.active -> count(result.items),sum(result.items as item select item.votes)
+    public,false,true -> 1,2
+    public,false,false -> 1,1
+    public,true,true -> 0,0
+   examples seed=[suggestion,root] product=product
+    as,suggestion.duplicate,root.hidden -> first(result.items)?.duplicate
+    public,root,true -> null
+ Then
+  # Browse a public roadmap with counts that expose no voter records. @{nl="Bekijk een openbare roadmap met aantallen die geen stemmerrecords blootgeven."}
+  page /feedback title="Suggestions"@{nl="Suggesties"}
+   list Product filter=location defaults={location=preferences.location} search=name
+    text row.name
+    card "Urgent private issue"@{nl="Dringend privéprobleem"}
+     text "Use private support for incidents. Never put access instructions or anyone’s contact details in a suggestion. New suggestions await owner review."@{nl="Gebruik privésupport voor incidenten. Zet nooit toegangsinstructies of contactgegevens van anderen in een suggestie. Nieuwe suggesties wachten op beoordeling door de verantwoordelijke."}
+     form open_request arguments={priority=urgent}
+    card "Contribution intake"@{nl="Bijdrage aanmaken"}
+     form Suggestion.create
+    card "Published roadmap and aggregate votes"@{nl="Gepubliceerde roadmap en stemtotalen"}
+     form published
+      table result.items columns=title,status,response,duplicate,votes order=-votes
+    details "Suggestions and your votes"@{nl="Suggesties en je eigen stemmen"}
+     list row.Suggestion filter=category,status defaults={category=preferences.category,status=preferences.status}
+      content row.description
+      text row.status,row.response
+      edit
+      action vote
+      list row.Vote
+       text row.active
+       action unvote
+  # Moderate suggestions and record only authorized roadmap commitments. @{nl="Modereer suggesties en leg uitsluitend toegestane roadmaptoezeggingen vast."}
+  page /feedback/moderation title="Moderation and roadmap"@{nl="Moderatie en roadmap"}
+   require product_owner
+   card "Product intake"@{nl="Product aanmaken"}
+    form Product.create
+   list Product as product where product.owner==actor filter=location defaults={location=preferences.location} search=name
+    edit
+    list row.Suggestion filter=hidden,status defaults={status=preferences.status} display=split
+     card "Suggestion and roadmap outcome"@{nl="Suggestie en roadmapuitkomst"}
+      content row.description
+      text row.status,row.response,row.hidden,row.moderation_reason,row.duplicate
+      actions roadmap,moderate
+     history

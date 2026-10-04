@@ -1,0 +1,59 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Review these source-backed options as a classifier; do not infer missing feeds or treat a preferred answer as evidence.",
+      "facts": "Membership exposes actual term eligibility alongside snapshotted mail purchases and location lists. There is no declared mail push interface. Independent configured paid mail services are also allowed. Prospective receipt/match/forward must enforce current entitlement; evidence-based collection/return of held items survives service expiration. Dispatch planning captures its destination and version, asynchronous responses require exact identity, payment status cannot establish dispatch, history visibility ends 180 days following resolution, and open physical items have no timer-driven disposal. The requested changes are authored source and desired JavaScript only.",
+      "actual_code": "export derive eligible_term(person:user,term:Term,at:datetime):bool = eligible_account(person,term.parent.parent) and not term.parent.paused and not term.parent.revoked and term.paid and term.from<=at and at<term.until and ((term.parent.parent.kind==individual and term.parent.account==person) or any(term.Seat as seat,seat.account==person and seat.active)); Term has mail:bool, locations:Location[]!, from:datetime, until:datetime. export capability BillingV1 version=1: charge(value:Charge) -> OperationOutcome; reconcile(source:text) -> Settlement?; event settled {value:Settlement}. Service currently has location, recipient, from, until, instructions, forwarding, revision, verified, source. scenario collect(item:Item,collector:user,evidence:text) by=mail_staff; require can_work(actor,item.location) and item.state in [received,notified,collection_ready] and trim(evidence)!=\"\" and item.service!=null; require (item.service.recipient.account==collector and item.service.recipient.verified) or any(item.service.Delegate as delegate,delegate.account==collector and delegate.active)."
+    },
+    "questions": {
+      "authority": {
+        "type": "choice",
+        "instructions": "Pick the preferable mechanism for proving new mail-handling rights.",
+        "criteria": {
+          "direct": "An optional Term reference is checked using eligible_term, the purchased mail boolean and covered location; absence of that reference requires explicit staff-entered standalone paid proof. This avoids a new provider and eventual-update lag, but needs access to bounded canonical owner declarations and a setup action.",
+          "feed": "Introduce producer-owned mail snapshots through a new capability with verified revisioned events and consumer subscriptions. Deployment independence and active invalidations improve, but new CanMember exports plus freshness/reconciliation logic must be designed.",
+          "manual": "Treat reviewed local payment evidence as the only entitlement authority. Simpler dependency management and standalone operation result, but membership termination can remain unknown until the next human review."
+        }
+      },
+      "dispatch": {
+        "type": "choice",
+        "instructions": "Select the forwarding state model that best meets the evidence obligations.",
+        "criteria": {
+          "separate": "Add a Dispatch contained by Item whose source, destination, instruction revision and fee never change; update only processing outcomes and record Handling rows bound to it. Explicit correlation costs one extra meaningful business model.",
+          "handling": "Make the original Handling entity carry both captured forwarding inputs and mutable result status with selective locks. Fewer entities are needed, but its current invariant that every handling row is immutable must change.",
+          "append": "Represent each forwarding stage as another immutable Handling row with a common string reference, finding the latest applicable stage when processing. Existing entity count stays fixed, with more complex uniqueness and delayed-result validation."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "authority": {
+        "type": "choice",
+        "choice": "direct",
+        "confidence": 0.91,
+        "probabilities": {
+          "feed": 0.04,
+          "manual": 0.02,
+          "direct": 0.94
+        }
+      },
+      "dispatch": {
+        "type": "choice",
+        "choice": "separate",
+        "confidence": 0.78,
+        "probabilities": {
+          "separate": 0.85,
+          "handling": 0.04,
+          "append": 0.11
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1055,
+      "output_tokens": 77
+    }
+  }
+}

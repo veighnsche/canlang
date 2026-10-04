@@ -1,0 +1,34 @@
+{
+  "state": {
+    "context": "Use the attached interface and permission observations without inventing adapters or guarantees. Treat every workflow below as a tentative candidate. Weigh capacity correctness, late-outcome defenses, scope of authorization, compactness and the visible completion of refunds/notices; neither a working runtime nor contention evidence exists.",
+    "evidence": {
+      "RoomsV1": "hold(value:RoomRequest); stage(value:RoomRequest,previous_source:text,previous_revision:int); confirm(source:text,resource:text); release(source:text,resource:text,reason:text); event changed {value:OperationOutcome}",
+      "RoomRequest": "{source:text,revision:int=1,resource:text,customer:text,account:user,from:datetime,until:datetime,quantity:int,price:money?,terms:text?}",
+      "provider": "Confirmed predecessor status and its current version are prerequisites to stage; resource/customer/account/quantity must match. Overlap is deduplicated while the prior reservation remains active. Separate confirmation does not clear that predecessor. Releasing any source establishes a pre-arrival tombstone, including when no reservation exists. hold and stage accept only null price and terms.",
+      "BillingV1": "charge(value:Charge)->OperationOutcome; cancel(source:text,reason:text)->OperationOutcome; refund(source:text,amount:money,reason:text)->OperationOutcome; reconcile(source:text)->Settlement?; event settled {value:Settlement}",
+      "Settlement": "{source,invoice,revision,amount,collected,refunded,collection_pending,refund_pending,state,recorded_at}",
+      "billing": "The cancel ingress persists a source BillingCancellation and reports released, pending, or unavailable for collected funds awaiting resolution. Refund rejects unresolved attempts and any request above the remaining collected balance. Ledger snapshots report cumulative amounts with source/amount/currency checks and increasing revisions.",
+      "permissions": "register admits authenticated or organizer actors, with can_work(actor,event.location) for staff. Admission uses check_in plus can_work. finance and current location eligibility govern refund requests. Self service verifies actor.email_verified and actor.email; a different account has no such exposed facts, so its contact address remains staff input and its customer ownership/location booker/administrator eligibility is checked.",
+      "requirements": "Zero-price tickets skip collection. Purchases preserve original price and policy deadline. Only held/pending/confirmed use the ticket ledger, separate from room possession. Future issued late purchases recover released places solely without cancellation/refund fences or uncertainty; unfulfillable funds remain visible for reconciliation/refund. Terminal cancelled tickets never revive. A material revision keeps incumbent space until confirmed replacement selection and saves revision-associated delivery results. D1 keeps current staff/customer predicates with ticket authority; DO ownership would demand an absent eligibility snapshot contract rather than permitted atomic cross-owner queries."
+    }
+  },
+  "questions": {
+    "architecture": {
+      "type": "choice",
+      "instructions": "Select the candidate most compatible with the given service semantics and Event journeys.",
+      "criteria": {
+        "staged": "Retain D1 as admission owner so live customer and worker rules share its fence. Replace a venue through same-resource stage or different-resource hold under a fresh source; separately confirm, adopt the captured change, and release its predecessor. Keep frozen refund/price terms, cancellation acknowledgements, ordered balances and change-specific mail receipts. The state model is larger and failed candidates leave the predecessor intact.",
+        "in_place": "Use D1 for places and mutate the incumbent room source through RoomsV1.move, adopting returned schedule details after matching confirmation. Keep ticket snapshots and billing/mail bookkeeping. Avoiding a separate candidate reduces source size, but immutable request identities and out-of-order movement results need an answer consistent with the existing owner.",
+        "do": "Move places to a Durable Object while applying identical staged room and evidenced money logic. Admission would rely on revision-bearing copies of customer/staff rules from D1. This offers per-event serialization at the cost of synchronization state and an unspecified revocation/snapshot boundary."
+      }
+    },
+    "fences": {
+      "type": "noul",
+      "instructions": "Are failed replacements harmless to the incumbent venue and cancelled admissions fenced against late money under the D1 staged candidate, using only these documented guarantees?",
+      "criteria": {
+        "true": "Distinct replacement records, matching provider revisions and ordered adoption/terminal checks provide both specified properties.",
+        "false": "The given design does not demonstrate the necessary correlation, ordering or irreversible-admission conditions for one or both properties."
+      }
+    }
+  }
+}

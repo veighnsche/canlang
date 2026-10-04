@@ -1,0 +1,18 @@
+{
+  "state": {
+    "context": "CanLang drafts use provider-confirmed invoice evidence to activate reservations and membership terms. The present Settlement publishes an individual amount and invoice row.version. Successful child payment attempts need not write the invoice, so distinct outcomes can carry one revision. A consumer may miss events or receive them out of order. Partial refunds must not be mistaken for full original charges. Imports and owning handlers are authored now; transport and payment libraries remain unimplemented.",
+    "candidate": "Consider one replacement Settlement snapshot: source, invoice, monotone ledger revision, original amount, cumulative collected/refunded money, unresolved collection/refund flags, invoice state, recorded_at. The owner advances its ledger revision on every relevant attempt/credit/external payment/void transition, publishes only committed snapshots and serves reconcile(source) from that same authority. Consumers reject older revisions and derive business eligibility from totals and uncertainty. This adds an owner ledger counter but no new DSL syntax. An unknown source returns null; absence never proves cancellation before a charge arrives.",
+    "actual_source": "  export contract Settlement { source:text label=label_Charge_source, invoice:text label=\"Invoice reference\"@{nl=\"Factuurreferentie\"}, revision:int, amount:money, received:datetime label=label_Settlement_received, state:enum(paid,refunded,void,unknown) label={text=label_Settlement_state,values={paid=label_Settlement_state_paid,refunded=\"Refunded\"@{nl=\"Terugbetaald\"},void=label_Settlement_state_void,unknown=label_Settlement_state_unknown}} } label=\"Settlement outcome\"@{nl=\"Afwikkelingsresultaat\"}\n  derive Invoice.received:money = sum(row.Attempt as attempt where attempt.kind==collection and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalPayment as payment select payment.amount,row.currency) label=\"Received payments\"@{nl=\"Ontvangen betalingen\"}\n  derive Invoice.refunded:money = sum(row.Attempt as attempt where attempt.kind==refund and attempt.status==succeeded select attempt.amount,row.currency) label=\"Refunded amount\"@{nl=\"Terugbetaald bedrag\"}\n  scenario apply_result on=ProviderReceipt\n        emit InvoiceSettlement {value={source=attempt.parent.source,invoice=attempt.parent.id,revision=attempt.parent.version,amount=attempt.amount,received=now,state=paid}}\n        emit InvoiceSettlement {value={source=attempt.parent.source,invoice=attempt.parent.id,revision=attempt.parent.version,amount=attempt.amount,received=now,state=refunded}}"
+  },
+  "questions": {
+    "representation": {
+      "type": "choice",
+      "instructions": "Which evidence contract best supports correct replay, bounded consumer complexity, exact partial refunds and clear owner responsibility?",
+      "criteria": {
+        "snapshot": "One cumulative snapshot shared by events and reconciliation; consumers retain the greatest ledger revision. More fields per event, but no replay completeness assumption.",
+        "deltas": "Keep incremental payment events, add unique event IDs and complete replay checkpoints; every consumer maintains a deduplicated ledger. Smaller events and detailed history, with more consumer state and replay obligations.",
+        "dual": "Retain delta events for notifications and define a separate cumulative reconciliation DTO. Supports both event styles but creates two contracts and requires consumers to reconcile before decisions."
+      }
+    }
+  }
+}

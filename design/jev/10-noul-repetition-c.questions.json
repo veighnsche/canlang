@@ -1,0 +1,29 @@
+{
+  "state": "This review tests proposed canlang compactness rules as separate yes/no properties. The supported product is typed business CRUD software with access rules and workflows; adoption and dependable economical AI generation outrank old assistant grammar choices. The stack is workerd/Cloudflare, standard PatternFly/HTMX, and a generated app MCP surface. Preserve a single Given/When/Then structure per package and attached BDD expectations written independently of implementation. Compiler/runtime and real tokenizer or generation experiments are absent. Measured source includes 39 business drafts, 3 shared packages and 2 reference apps, or 44 .can files. Relevant recurrence is scenario 254, lowercase then 254 (154 standalone and 100 inline), qualified imports 305, model in team 46, role in=team 67, field ! 816 with 18 required-array markers. A completed normalization already removed common R2 and matching CRUD/lock attributes; size is now 311132 bytes across 4002 code lines. The remaining candidate grammar has not been adopted.\n\nIn the current field syntax a scalar's mandatory non-null value is marked !. Nullable ? gives null by omission, =expr initializes an omitted creation input, server=expr excludes client initialization, and a bare scalar is rejected. Array omission yields [] unless marked []!, while operation input p:T already means required. The proposed field default removes only scalar required punctuation and preserves array/null/default/server semantics; implementing it entails a complete source and design update.\n\nDefault teams/authentication are already app context. Models separately choose in team, in Parent or in app, and the role mechanism currently accepts only in=team. A candidate supplies the team scope without repeating it on bare models/roles and retains explicit non-team alternatives. It does not change default-denied access, by caller authorization, on source verification, role assignment, field/input limits, invariants or business conditions.\n\nCurrent operation declarations in When use scenario plus typed parameters and by, or a handler name with on, and a lowercase then boundary for effects. The suggested syntax instead uses the named typed/source declaration and direct sequential statements inside When, removing scenario and lowercase then. Uppercase BDD sections, operation descriptions and identities, and example attachment continue. Effects including writes and external intents are not observable until atomic commit; require failure discards all provisional changes. Grammar removal is sound only if it preserves evaluation order, trusted/user separation and test scope.\n\nThe present use package.Symbol import explicitly selects an exported definition and can alias it. Executable local dependencies preserve canonical owning behavior internally without publishing an entire dependency product. A from=deployment.binding dependency is a schema-only remote interface, never provider code. Grouping such as use employee {can_work,staff,test_worker} would still enumerate imports and aliases, only combining equal consumer/provider/binding cases. This yields 167 groups versus 305 lines and roughly 2001 fewer UTF-8 bytes for the illustration; no tokenizer or agent-quality evidence accompanies the estimate. Concrete parser/diagnostic rules remain to be finished. No blanket name search, wildcard export, guessed service connection or automatic authority is permitted.\n\nEarlier three choice-based judgments preferred compression but their scalar-requiredness strength depended on phrasing. The human now requests NOUL questions, so evaluate each proposal/property on its own and keep returned probabilities as uncertainty instead of rounding into approval or picking a winner. The project instructions require three equivalent reviews with fully rewritten prose and authorize JEV calls in advance. Removed wrappers/build inventories must stay absent and shared-folder changes remain postponed. A candidate needs complete canonical syntax before the app source rewrite; neither review agreement nor probability demonstrates execution correctness.",
+  "questions": {
+    "scalar_required_default": {
+      "type": "noul",
+      "instructions": "Is scalar requiredness implied by bare T a semantics-preserving compact convention under the described nullable, initialized, server-owned and mandatory-array exceptions, with complete migration?"
+    },
+    "model_team_default": {
+      "type": "noul",
+      "instructions": "Can team supply omitted stored-model ownership without changing behavior, provided non-team containment/app ownership and every permission remain explicit?"
+    },
+    "role_team_default": {
+      "type": "noul",
+      "instructions": "Can roles inherit their already-exclusive team scope without granting roles to anyone or changing the caller/source authorization model?"
+    },
+    "implicit_operation_declaration": {
+      "type": "noul",
+      "instructions": "Does the specified When location plus typed name/by or handler-name/on distinguish operation declarations reliably enough to make scenario redundant?"
+    },
+    "direct_operation_body": {
+      "type": "noul",
+      "instructions": "Is the lowercase then marker unnecessary for semantic separation when bodies retain statement order, provisional effects, whole-operation rejection and independent examples?"
+    },
+    "explicit_import_grouping": {
+      "type": "noul",
+      "instructions": "Is the exact-member grouped import approach equivalent to individual imports for ownership, aliases, visibility and schema-only remote bindings, while cutting repeated qualifiers in the measured same-consumer/provider/binding groups?"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "request": {
+    "state": {
+      "context": "Review the precise grammar proposal for two user-authorized canlang changes, not whether to override that authorization. This AI-authored CRUD business-SaaS DSL prioritizes adoption, compact tokens, reliable generation and simplicity. No compiler/runtime or tokenizer benchmark exists. Scenarios retain do, one-space nesting, explicit by/on authority and atomic checked mutations. There is no general line compaction or compound-assignment/match/type-alias change.\nCurrent fields distinguish required scalar T!, nullable T? default null, T=expr creation defaults, T server=expr protected initialization, arrays T[] default [], and required arrays T[]!. Operation parameters already use bare T as required. Proposal: bare scalar T without a default/server value is required and non-null; scalar ! becomes invalid redundant syntax. Keep ?, explicit defaults, server values, secret rules, [] defaults and []! unchanged. Model/contract/event fields follow this rule; defaults do not make a field client-required and updates still distinguish omitted from explicit null. Source masking found 798 scalar marks and 18 required-array marks; comparisons != and metadata/quoted strings are excluded from edits.\nProposal null operators: x?.field is read-only field access on a nullable receiver; null receiver gives null, otherwise normal typed/authorized access runs and failures remain errors. Ordinary dot still needs a non-null receiver. Optional results flatten nullability and each nullable hop needs ?. again. No optional call, indexing or mutation targets are added. L ?? R requires compatible underlying types and a nullable L, evaluates L once and R only if L is null, and returns a non-null type when R is non-null or nullable otherwise. It is right-associative and below or in precedence; mixing ?? with unparenthesized and/or is forbidden. Addition binds more tightly, so (until ?? now)-from needs grouping. Equality of a safe access to a statically proven non-null value narrows traversed receivers in the true continuation, including later and operands; comparison to null or != must not produce that same true-branch fact. Neither operator masks authorization/type/business errors or adds truthiness. ?? replaces coalesce as the sole null-fallback spelling.\nMigration is limited to removing scalar suffixes, four coalesce calls and three event-result null guards followed by source equality to a record ID known non-null. Existing fallback values are now or money(0,validated_currency), pure and total for these typed inputs; none changes an effect or permission decision. The ID comparisons reject a null result under both spellings and allow subsequent result-field access only after equality succeeds. Group arithmetic/query contexts explicitly. Other null checks remain. Removing coalesce changes the generic fallback evaluation contract to explicit laziness, so don't claim compatibility for arbitrary unreviewed calls. New precedence/narrowing rules add grammar work and may be missed by an implementation; samples are not compiled tests. Identify possible contradictions or omissions in the supplied cases without assuming every migration/implementation is correct.",
+      "examples": {
+        "old_fields": "Item in team {title:text!,note:text?,active:bool=true,tags:text[],attachments:file[]!,author:user server=actor}",
+        "new_fields": "Item in team {title:text,note:text?,active:bool=true,tags:text[],attachments:file[]!,author:user server=actor}",
+        "old_duration": "coalesce(row.until,now)-row.from",
+        "new_duration": "(row.until ?? now)-row.from",
+        "old_result_check": "event.result!=null and event.result.source==revision.id",
+        "new_result_check": "event.result?.source==revision.id"
+      }
+    },
+    "questions": {
+      "field_modes": {
+        "type": "noul",
+        "instructions": "Does this rule set define non-null required scalars and the retained nullable/default/server/array field modes consistently without conflicting creation or update meanings?"
+      },
+      "null_rules": {
+        "type": "noul",
+        "instructions": "Are the proposed optional-field, fallback, precedence and comparison-narrowing rules sufficiently defined for the illustrated typed reads, with permission errors remaining distinct from absence?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "field_modes": {
+        "type": "noul",
+        "noul": 0.73
+      },
+      "null_rules": {
+        "type": "noul",
+        "noul": 0.67
+      }
+    },
+    "usage": {
+      "input_tokens": 1116,
+      "output_tokens": 38
+    }
+  }
+}

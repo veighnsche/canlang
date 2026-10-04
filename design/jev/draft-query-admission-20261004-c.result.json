@@ -1,0 +1,46 @@
+{
+  "request": {
+    "state": {
+      "context": "CRUD predicates are documented as proposed-row conditions, but their self-visibility in model scans is ambiguous across current JavaScript drafts. Source scenarios already preserve effect order and end-of-transaction invariants. For Rent reports, selecting each booking interval list creates nested lists; immutable pure reads have group/order/sum but cannot concatenate a data-dependent number of child lists with a mutable accumulator.",
+      "candidate": "The proposed rule validates/defaults a candidate, checks its when condition before adding that write to owner state, then stages it. Queries retain all earlier transaction changes, not the candidate; final invariants include the completed write. A proposed create/set predicate option expresses this ordering without extending authored CRUD syntax. The accompanying builtin flatten removes exactly one collection layer, retains duplicates and stable iteration order, and requires one element type. It returns an empty typed array for empty input. Existing bounded work and size rules cover both input traversal and output; excess is an error, never partial success.",
+      "actual_crud_examples": "  crud Product by=product_owner fields=name,published create_fields=name,location,owner when=row.owner==actor and (row.location==null or can_work(actor,row.location)) delete=none\n  crud Suggestion by=authenticated fields=title,description,category when=row.author==actor and not row.hidden and row.parent.published\n  crud Vote by=authenticated fields=account create=none update=none delete=remove when=row.account==actor\n  crud Grant by=coordinator fields=name,terms,questions,criteria,budget,closes,published create_fields=location,name,terms,questions,criteria,budget,closes,timezone when=can_work(actor,row.location) delete=none\n  crud Application by=authenticated fields=title,description,answers,amount,reviewer create_fields=email,title,description,answers,amount,reviewer when=row.account==actor and row.state==draft and row.parent.published and now<=row.parent.closes delete=none"
+    },
+    "questions": {
+      "admission": {
+        "type": "choice",
+        "instructions": "Choose how to resolve candidate visibility in CRUD admission without blurring the invariant boundary.",
+        "criteria": {
+          "prewrite": "Use candidate field values but the provisional database before this specific write for when; apply the write only after acceptance. Membership-sensitive aggregates therefore exclude this candidate.",
+          "staged": "Expose the staged candidate to when queries and field reads, with transactional rollback on rejection. Admission aggregates then operate on post-write membership."
+        }
+      },
+      "flatten": {
+        "type": "noul",
+        "instructions": "Does adding this single explicit flatten builtin close the nested report-list gap while avoiding temporary records and preserving normal nested projection semantics?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "admission": {
+        "type": "choice",
+        "choice": "prewrite",
+        "confidence": 0.76,
+        "probabilities": {
+          "prewrite": 0.88,
+          "staged": 0.12
+        }
+      },
+      "flatten": {
+        "type": "noul",
+        "noul": 0.46
+      }
+    },
+    "usage": {
+      "input_tokens": 877,
+      "output_tokens": 55
+    }
+  }
+}

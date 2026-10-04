@@ -1,0 +1,37 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "context": "Assess support-to-facilities routing using the supplied owner operation. Adoption favors short, readily generated business source and one canonical fault reporting path. A successful transfer must preserve the support Ticket and capture a Repair reference without copying private staff notes or mutating reservations. Desk admits its team-scoped support actors only where can_work(actor,ticket.location) holds. report uses a verified signed-in reporter and records that account, never substituting the support customer. Model imports and operation calls preserve source read rules and by guards, so support membership supplies no manager powers. An exported Asset/report with a declared Repair result changes symbol access only. Any route must reject a different asset location and an existing Ticket.repair.",
+      "canonical_source": "scenario report(asset:Asset,title:text,description:text,photo:file?) by=authenticated; require actor.email_verified and not asset.retired and trim(title)!=\"\" and trim(description)!=\"\"; do create Repair {parent=asset,title,description,photo,reporter=actor,reporter_email=actor.email} as repair. policy Asset read=authenticated where=not row.retired fields=location,identifier,name. policy Repair read=authenticated where=row.reporter==actor fields=title,description,severity,state,due,completion,reporter. policy Repair read=maintenance_manager or technician where=can_work(actor,row.parent.location)."
+    },
+    "questions": {
+      "handoff": {
+        "type": "choice",
+        "instructions": "Choose the approach whose tradeoffs most closely meet the stated business and language requirements; the selection is advisory, not a runtime test.",
+        "criteria": {
+          "reuse": "Make Asset and the established report importable and return its created Repair. Invoke it from Desk as the same principal, passing the Ticket subject with a separately authored description/photo, then retain Ticket.repair. Existing admission checks and reporting semantics remain one path, while the staff reporter gains no authority over others' repairs and note content is not implicitly copied.",
+          "dedicated": "Introduce report_from_support under maintenance ownership, gated by support, can_work and matching location, and let Desk store its returned Repair. This explicitly models support-origin intake and its policy but creates an additional reporting operation and a dependency on Desk's role alongside the unchanged ordinary report."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "handoff": {
+        "type": "choice",
+        "choice": "reuse",
+        "confidence": 0.92,
+        "probabilities": {
+          "dedicated": 0.04,
+          "reuse": 0.96
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 760,
+      "output_tokens": 33
+    }
+  }
+}

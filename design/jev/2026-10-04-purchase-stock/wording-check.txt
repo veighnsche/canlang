@@ -1,0 +1,1 @@
+All context, instruction, question and option prose differs pairwise. Manual equivalence review: identical original locks, authority, guards, owner transaction limits, required journeys, additive/rewrite/defer alternatives and balanced benefits/costs. No approval threshold.

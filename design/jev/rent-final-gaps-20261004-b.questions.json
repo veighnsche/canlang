@@ -1,0 +1,18 @@
+{
+  "state": {
+    "instructions": "Assess the rental changes from supplied evidence alone; treat the classifier result as advice rather than a runtime demonstration.",
+    "context": "Timer delay presently extends held and pending capacity past its expiry, whereas confirmed use and physical possession require protection. Expiration sends cancel to invoicing and release to membership, whose results may be accepted or unresolved. Past report values are based on editable opening policy. The established language offers model copies, locks, proposed-state CRUD hooks and explicit non-CRUD effects, with no additional hook scheduling or helper assumed. Snapshotless history must be identified as incomplete.",
+    "actual_code": "derive busy(b:Booking):bool = b.status in [held,pending,confirmed,occupied] or (b.checked_in!=null and (b.checked_out==null or now<b.checked_out+b.departure_buffer)); scenario money on=SettlementObserved; scenario expire on=HoldDue; BillingV1.cancel(source:text,reason:text) -> OperationOutcome; Settlement {source:text,invoice:text,revision:int,amount:money,collected:money,refunded:money,collection_pending:bool,refund_pending:bool,state:Invoice.state,recorded_at:datetime}; scenario source_cancel on=BillingRequests.cancel creates BillingCancellation fence, disables pending collection attempts, sends Payments.cancel; received funds leave invoice issued with needs_review; uncertain zero funds become void_pending; settled zero funds become void. Membership.reserve(value:Entitlement) -> AllowanceOutcome; Membership.release(source:text,customer:text,restore_consumed:bool) -> AllowanceOutcome; Entitlement.previous_source permits staged replacement. CRUD hooks run on proposed state before invariants/locks/commit. Scenarios do not run CRUD hooks."
+  },
+  "questions": {
+    "repair": {
+      "type": "choice",
+      "instructions": "Select the alternative that fulfills the rental requirements with the most defensible finance, allowance and historical boundaries.",
+      "criteria": {
+        "fenced": "Test expires directly for provisional capacity while retaining confirmed/possessed occupancy. Admit a paid expired booking again only after issued-state invoice evidence and absent cancellation, refund and allowance-release fences, plus availability. Persist owned calendar, resource and booking policy rows through existing CRUD hooks and scenario effects; use effective cuts and disclose unknown prebaseline ranges.",
+        "review_only": "Let scheduled expiration determine when held/pending stock disappears; require finance handling for all expired payments and mark all old current-policy reports partial. Fewer records and transitions are needed, but safe automatic reacquisition and timely expiry eligibility are missing.",
+        "optimistic": "Use the deadline for availability, accept any fully paid expired booking if room exists despite prior owner cancellation or release, and apply today\u2019s policy retrospectively. The compact workflow sacrifices provider fences and trustworthy past measures."
+      }
+    }
+  }
+}

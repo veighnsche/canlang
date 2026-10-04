@@ -1,0 +1,51 @@
+{
+  "request": {
+    "state": {
+      "context": "Choose the most useful next syntax investigation for canlang, not an automatically adopted feature. This AI-written CRUD business-SaaS DSL prioritizes adoption through compact tokens, reliable generation and simplicity. It has one-space blocks, one Given/When/Then per package, typed scenarios with do bodies, explicit permissions, atomic checked set mutations and inline authored BDD examples. There is no compiler/runtime or tokenizer/agent benchmark. Current grammar already has named field shorthand {name}, field-type references Model.field carrying constraints, pure derivations and SQL-like where/order/select queries; these are existing features, not candidates to reinvent.\nFive possible borrowings have been researched from official language documentation. Kotlin uses non-null types by default and T? for nullable types. Candidate required_scalars would make bare scalar fields required, keeping ?, defaults, server initialization and array behavior unchanged; canlang currently requires ! on a scalar with no default/server value, whereas parameters already use bare required types. An earlier corpus audit counted 798 scalar ! marks and 18 required-array marks. It could remove many repeated declarations, but changes stored-field grammar and needs an explicit consistent migration; arrays default [] and must retain their required-input distinction.\nKotlin safe navigation and ECMAScript nullish fallback motivate null_ops: ?. and ?? for pure nullable reads instead of repeated null checks/coalesce calls. They might shorten data access but introduce precedence, short-circuit and nullable-result rules; absence must not become an authorization grant. Python augmented assignment motivates compound_updates: set counter {value+=1} within the existing set primitive, meaning the current checked field addition. It removes repeated receiver/field text, but requires clear simultaneous-field evaluation and overflow/money/lock/version semantics; do not copy Python in-place overloading or permit direct storage assignment. A limited scan found seven simple same-variable +/- update candidates, not all nested-record updates.\nRust exhaustive match motivates enum_match: closed-enum branching with an arm for every state, keeping effects under do. It may reveal missed workflow states and reduce repeated if chains, but adds branch grammar, and exhaustive intent may create explicit cases without useful action. CUE reusable constrained definitions motivate refinements: an illustrative type ShortText = text trim min=1 max=120 reused in field declarations. This may centralize repeated validation; however Model.field already reuses constraints, nominal versus structural identity is unspecified, and aliases could obscure app-specific rules or add unnecessary names. Borrowing these ideas does not import another language's runtime, general macros or object model. The proposed spellings are sketches, not current legal canlang.\nRank only what deserves the next focused design review, considering frequency, semantic precision and grammar cost. Defer is a valid choice if none has sufficient evidence; choosing a candidate does not authorize migration or claim measured token savings.",
+      "official_references": {
+        "kotlin": "https://kotlinlang.org/docs/null-safety.html",
+        "javascript": "https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-binary-logical-operators",
+        "python": "https://docs.python.org/3/reference/simple_stmts.html#augmented-assignment-statements",
+        "rust": "https://doc.rust-lang.org/book/ch06-02-match.html",
+        "cue": "https://cuelang.org/docs/tour/basics/constraints/"
+      }
+    },
+    "questions": {
+      "review_priority": {
+        "type": "choice",
+        "instructions": "Which candidate deserves the next focused syntax-design review for the stated goals and evidence?",
+        "criteria": {
+          "required_scalars": "Investigate required bare scalar types while preserving all nullable/default/server and array exceptions.",
+          "null_ops": "Investigate safe navigation and a short null-only fallback operator for pure expressions.",
+          "compound_updates": "Investigate compound arithmetic fields within the existing set mutation.",
+          "enum_match": "Investigate exhaustive branching restricted to closed state enums.",
+          "refinements": "Investigate named reusable constrained scalar types.",
+          "defer": "Do not prioritize a new form until more concrete evidence establishes its need."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "review_priority": {
+        "type": "choice",
+        "choice": "required_scalars",
+        "confidence": 0.81,
+        "probabilities": {
+          "defer": 0.01,
+          "null_ops": 0.08,
+          "compound_updates": 0.06,
+          "enum_match": 0.01,
+          "required_scalars": 0.84,
+          "refinements": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1193,
+      "output_tokens": 72
+    }
+  }
+}

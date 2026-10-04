@@ -1,0 +1,22 @@
+{
+  "state": {
+    "context": "Choose between three body notations for canlang, the AI-generated language for CRUD-centered company SaaS. Maximizing adoption governs the design, aided by economical tokens, dependable generation and low complexity. The language tools have not been built and no tokenization or agent generation/revision trials exist. Familiar wording does not demonstrate model reliability.\nAn operation signature has typed parameters with either by authorization or on verified ingress. Today lowercase then prefixes semicolon-delimited simple statements or opens a deeper body. Checks can stand before it and within it: observed sources contain 254 introducers, including 100 inline and 154 block forms; 34 requires are inside these blocks. Depth increases by a single space. Transaction failure discards provisional work for a require at any point, independently of then; pure read operations retain typed-return restrictions. Capitalized Given/When/Then stays at package level with Then for presentation. Authored assertions remain isolated in examples, and metadata/comments stay #/##.\nA direct body avoids the recurring introducer and outdents children once without changing their relative nesting. It could save 154 wrapper lines and repeated words, while risking scope errors or production/test confusion unless examples is reserved distinctly. Keeping then avoids a rename and retains a dedicated existing parse container; its sequence/result meaning can blur execution versus BDD expectations or capitalized Then. Switching to do keeps all inline/block depth, dataflow, order, access, rollback and test scope. It may signal body execution clearly, yet sound effect-specific in reads and require generators to change their learned spelling. The rename saves 508 UTF-8 bytes across 254 markers and no lines/depth, with unmeasured model-token differences. Preservation requires full specification and a correct migration for any choice; none is proved safe by these samples or adds transaction semantics or permission. The goal is one canonical syntax rather than parallel equivalents.\nHypothetical entities and a fixture illustrate each notation without successful compilation. Weigh both benefits and potential errors, including the possibility of an unresolved preference. Earlier answers and expectations of agreement are not supplied.",
+    "examples": {
+      "then_body": "scenario finish(item:Item) by=members\n require item.status==open\n then\n  let selected=item.Part\n  require count(selected)>0\n  set item {status=done}\n examples item=fixture_item\n  item.status -> item.status\n  open -> done",
+      "do_body": "scenario finish(item:Item) by=members\n require item.status==open\n do\n  let selected=item.Part\n  require count(selected)>0\n  set item {status=done}\n examples item=fixture_item\n  item.status -> item.status\n  open -> done",
+      "direct_body": "scenario finish(item:Item) by=members\n require item.status==open\n let selected=item.Part\n require count(selected)>0\n set item {status=done}\n examples item=fixture_item\n  item.status -> item.status\n  open -> done"
+    }
+  },
+  "questions": {
+    "body_spelling": {
+      "type": "choice",
+      "instructions": "Select the best canonical scenario-body notation after weighing the described advantages and risks.",
+      "criteria": {
+        "direct": "Use the scenario itself as the ordered executable container with no body-marker word.",
+        "unresolved": "Leave the relative preference open because available facts do not support selecting a spelling.",
+        "do": "Rename the existing container keyword to do without altering its inline or nested rules.",
+        "then": "Continue using then for the current explicit execution-body container."
+      }
+    }
+  }
+}

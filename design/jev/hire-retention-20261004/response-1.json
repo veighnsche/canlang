@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Judge this demonstrated draft language gap. Candidate belongs to Vacancy at one storage owner. Requirements prescribe personal-data/attachment expiry 180 days after vacancy closure and no expiry from this policy while it remains open. Vacancy.close records closed_at=now with open=false; explicit reopening clears closed_at and restores intake only for unexpired candidates, and later reclosure starts a new interval. Expired data can never be resurrected even if physical cleanup remains pending: owner admission evaluates overdue expiry before allowing configuration writes. DESIGN7.1 currently requires retain Model until=expr to yield a nonnull datetime; no independent lifetime is the behavior of an absent declaration, and child deadlines cannot exceed finite ancestor deadlines. Dependencies must remain bounded and owner-local, excluding now,actor,operation and randomness. Current expression grammar has no ternary. A typed pure derive already supports block if/return, so a nullable datetime can be computed without new expression syntax. Physical cleanup, incoming-reference blocks, archived records, snapshots/outbox/files, replay and locks retain their existing lifetime rules. Runtime support does not yet exist. Advice is not approval.",
+    "questions": {
+      "closure_lifetime": {
+        "type": "choice",
+        "instructions": "Which bounded repair best preserves the requested closure lifecycle with the existing syntax?",
+        "criteria": {
+          "nullable_deadline": "Allow retain until to return datetime?; null supplies no independent deadline, while a finite ancestor still constrains a contained child. Compute the value with an existing nullable pure derive and if/return (closed_at plus retention_days when nonnull, otherwise null). It reuses syntax and lets null deadlines cover more models, requiring explicit semantic checks for null/ancestor transitions and no resurrection.",
+          "condition_clause": "Keep retain until nonnull and introduce a separate condition attribute controlling when retention is active. It expresses closure directly but expands retention syntax and creates two expressions whose activation/deadline and ancestor transitions need validation.",
+          "finite_intake": "Give each candidate a finite deadline at intake and renew it if a vacancy stays open. This uses current nonnull declarations but requires extra renewal work, can expire open applicants and changes the specified closure-only lifetime."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "closure_lifetime": {
+        "type": "choice",
+        "choice": "nullable_deadline",
+        "confidence": 1.0,
+        "probabilities": {
+          "finite_intake": 0.0,
+          "nullable_deadline": 1.0,
+          "condition_clause": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 721,
+      "output_tokens": 50
+    }
+  }
+}

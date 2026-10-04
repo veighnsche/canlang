@@ -1,0 +1,21 @@
+{
+  "state": {
+    "context": "CanLang says CRUD when predicates receive proposed create/update rows, but does not specify whether their collection scans already include the staged write. Scenarios have ordered guards/effects and final-state invariants. Desired JS currently uses inconsistent before/after-create guards. Separately, Rent reporting needs daily intervals stored as arrays on bookings; projecting those arrays gives a nested collection. The language has immutable let, queries, group, ordering and duration sum but no flatten and no mutable accumulator in pure reads.",
+    "candidate": "For CRUD, construct and normalize the candidate without staging; run when against that candidate with queries seeing the preceding provisional owner state, then stage the write. Final invariants still inspect final state. Proposed shared create/set callbacks carry this pure predicate; this changes no Can syntax. For collection expansion add flatten(domain:C<C<T>>)->T[]: one level, stable outer/inner order, homogeneous T, no deduplication/coercion, empty input yields empty, all source/input/output work limits apply and overflow fails rather than truncates. No recursive flatten or implicit query behavior.",
+    "actual_crud_examples": "  crud Product by=product_owner fields=name,published create_fields=name,location,owner when=row.owner==actor and (row.location==null or can_work(actor,row.location)) delete=none\n  crud Suggestion by=authenticated fields=title,description,category when=row.author==actor and not row.hidden and row.parent.published\n  crud Vote by=authenticated fields=account create=none update=none delete=remove when=row.account==actor\n  crud Grant by=coordinator fields=name,terms,questions,criteria,budget,closes,published create_fields=location,name,terms,questions,criteria,budget,closes,timezone when=can_work(actor,row.location) delete=none\n  crud Application by=authenticated fields=title,description,answers,amount,reviewer create_fields=email,title,description,answers,amount,reviewer when=row.account==actor and row.state==draft and row.parent.published and now<=row.parent.closes delete=none"
+  },
+  "questions": {
+    "admission": {
+      "type": "choice",
+      "instructions": "Which CRUD admission meaning is clearer and keeps proposed-field guards distinct from final invariants?",
+      "criteria": {
+        "prewrite": "Evaluate normalized candidate fields against the owner state before this write, then stage it. Query aggregates exclude the candidate until staging; proposed-row field reads still see its defaults and changes.",
+        "staged": "Stage the candidate first, then evaluate when against the resulting provisional state, rolling back on failure. Query aggregates include the candidate and can overlap final invariant checks."
+      }
+    },
+    "flatten": {
+      "type": "noul",
+      "instructions": "Is the one-level bounded flatten contract sufficient to express this nested interval expansion without introducing temporary business models or silently changing ordinary query projection?"
+    }
+  }
+}

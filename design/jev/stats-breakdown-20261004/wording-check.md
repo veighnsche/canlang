@@ -1,0 +1,1 @@
+Three full contexts, instructions and both alternatives have fresh wording. Facts, constraints, actual existing primitives, provider weighting evidence and the competing benefits/costs are held constant. No agreement threshold is defined.

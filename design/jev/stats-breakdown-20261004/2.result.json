@@ -1,0 +1,34 @@
+{
+  "request": {
+    "state": "Assess the remaining CanStats design boundary. The implemented-language draft currently specifies analytics writes but not reads; there is no deployed implementation. Typed bound capabilities already express asynchronous service calls with caller delegation and completion/result records. Stats keeps authoritative accepted-event identities and exact visitor/session summaries in D1 while sending nonidentifying dimensions to Analytics Engine. Weighted breakdowns, disclosure-safe health and explicit partial/estimated results are actual app requirements. The official provider guidance requires each row's _sample_interval for weighted counts via sum; multiplying by one uniform factor is wrong. This work may edit contracts/examples only, not create compiler/runtime/provider code. Goals include compact first-class Cloudflare use, a canonical path per primitive and avoidance of compensating scaffolding. One proposal uses a finite DimensionsV1.read(site,UTC bounds,dimension,configured goals) contract mapped to the declared dataset. Results expose at most200 keys plus full denominators,sampled/complete flags,time; private caller projections validate correlation and output, ignore superseded completions and expire, with polling only rereading them. This reuses current mechanisms but authors another app-specific report contract. Another proposal makes aggregate reads a standard schema-derived surface of analytics bindings with those same authority/asynchrony/coverage guarantees. That adds shared language-service design now and may remove repeated wrappers later. Weighted results never supply distinct people/session sums or prove paid sales.",
+    "questions": {
+      "read_boundary": {
+        "type": "choice",
+        "instructions": "Choose the more proportionate location for aggregate-read semantics under these requirements and existing mechanisms.",
+        "criteria": {
+          "app_capability": "Use the already specified capability mechanism for one constrained Stats report adapter. Its manual schemas/projections keep the present design bounded and explicit, at the cost of application text and possible later commonization.",
+          "shared_analytics": "Extend the existing analytics service surface with a schema-derived typed aggregate query contract. This centralizes repeated read logic and improves first-class authoring while expanding shared design work for authorization, queued reads and estimates."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "read_boundary": {
+        "type": "choice",
+        "choice": "shared_analytics",
+        "confidence": 0.24,
+        "probabilities": {
+          "app_capability": 0.38,
+          "shared_analytics": 0.62
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 710,
+      "output_tokens": 41
+    }
+  }
+}

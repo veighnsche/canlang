@@ -1,0 +1,39 @@
+{
+  "request": {
+    "state": {
+      "context": "The available business data divides authority: Invoice records collections and refunds for customers, Rent records completed bookings, Member records cancellation-qualified terms. The existing Invoice Qualification/SalesV1 pair has no producing scenario. Refer excludes self-attribution and checks the program but does not yet record authenticated captures or verify first-customer eligibility. Public code possession is not a credential. We are completing draft contracts and business source, with adapters and execution infrastructure excluded.",
+      "candidate": "An explicit Invoice historical-completeness record determines whether first-customer claims are even decidable; missing imported-history evidence blocks that reward. Customer-authorized Refer captures persist code/time/window and select the latest eligible capture. Source booking and term records freeze the chosen capture, then publish real owner milestones. Invoice joins those facts to immutable billed identity, positive settled money and its aggregate customer history, producing one Qualification stream. Stable source payload checks, strictly ordered revisions and permanent reversal memory prevent replay resurrection."
+    },
+    "questions": {
+      "ownership": {
+        "type": "choice",
+        "instructions": "Choose an ownership plan by weighing cross-product new-customer accuracy, authorization/disclosure boundaries, compact source and handling of duplicate or reordered work.",
+        "criteria": {
+          "invoice": "Let Invoice make the common first-customer determination from its own payments plus verified capture and product milestones. Needs small source events and history review, and establishes a single shared eligibility authority.",
+          "source": "Place the determination separately in booking and membership owners. Each workflow is locally straightforward, although complete synchronized commercial history must be added for cross-product correctness.",
+          "consumer": "Make Refer rely on the producer-supplied first_customer flag and attribution clock alone. Requires little consumer source, but its correctness depends on an actual producer implementing all historical verification."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "ownership": {
+        "type": "choice",
+        "choice": "invoice",
+        "confidence": 0.99,
+        "probabilities": {
+          "source": 0.0,
+          "consumer": 0.0,
+          "invoice": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 654,
+      "output_tokens": 38
+    }
+  }
+}

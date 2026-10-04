@@ -1,0 +1,51 @@
+{
+  "request": {
+    "state": {
+      "brief": "Assess two possible canonical formatting policies for canlang. Adoption is the primary requirement; token efficiency, reliable AI generation and simplicity support it. AI writes this CRUD-centered business-SaaS language. Human readability is secondary, but generation, later agent edits and diagnosis still matter. The user has proposed wide source with the minimum physical lines. Treat that preference as the policy under review, not as evidence of its effects. No implemented compiler/runtime, token counts, agent edit trials or reliability measurements are available. Give a NOUL probability for each property without treating this review as a source migration.",
+      "grammar": "The current specification assigns one space per indentation level and rejects tabs. Newlines terminate statements outside (), [] and {}; semicolons separate simple statements; compound statements require indented blocks. Each package has one Given/When/Then structure. # descriptions occupy source lines and attach to the next declaration at the same depth; ## comments ignore the rest of their line. Nested if/else, for, then and UI bodies have scope. BDD examples retain authored headings and expected-result rows. The phrase simple statement is used in the spec; there is no implemented parser establishing every legal header/body combination. Changes must keep permissions, guards, effect order, aliases, description attachment and independent test expectations. These are obligations to check, not assumed achievements.",
+      "policies": "Minimum-line policy: keep fields, arguments, expressions and grouped imports horizontal; remove blank lines; combine every grammar-eligible sequence of simple statements at one depth using semicolons. Keep breaks required for compound scope, #/## lines and BDD rows; this does not replace indentation, remove scenario/then or add block braces. Separate-statement policy: keep declarations wide but put simple workflow statements on individual lines and use blank lines between major declarations; retain the same grammar and business data. Both alternatives are intended to be a single canonical formatter, not new competing language primitives.",
+      "tradeoffs": "Minimum-line potential benefits: fewer newlines and repeated indentation, more local content in one source view and less formatter-driven wrapping. Its potential costs: semicolon tokens can offset whitespace savings; long sequences can make an omitted separator, skipped guard or wrong binding harder to notice; line-oriented patches may replace unrelated actions together; line-only diagnostics can identify a larger span. Separate-statement potential benefits: narrower patch targets, visible statement boundaries and scope transitions, and more localized line diagnostics. Its potential costs: extra separators/indentation, larger physical sources, and possible needless fragmentation of related actions. Neither advantage is measured here; more lines can also expose indentation mistakes, and column-aware diagnostics or precise edits could mitigate dense-line costs. Minimum line count and minimum model-token count are different quantities.",
+      "examples": {
+        "minimum_line_body": "then\n let selected=Expense as expense where expense.amount.currency==currency and expense.status==status; return Summary {count=count(selected),total=sum(selected as expense select expense.amount,currency)}",
+        "separate_statement_body": "then\n let selected=Expense as expense where expense.amount.currency==currency and expense.status==status\n return Summary {count=count(selected),total=sum(selected as expense select expense.amount,currency)}"
+      },
+      "example_limits": "The paired then bodies use current semicolon syntax and the same expressions. They illustrate one local join, not a successful proof across the corpus. Real sources also include multiline record declarations, # metadata, inline then effects, nested loops/branches, scoped UI components and BDD tables. A general formatting policy must handle these cases; do not infer safety solely from this simple pair."
+    },
+    "questions": {
+      "recommended_default": {
+        "type": "noul",
+        "instructions": "Should minimum-line formatting be the canonical default instead of separate simple-statement lines, considering the supplied adoption aims, potential benefits and concrete failure risks?"
+      },
+      "grammar_sufficiency": {
+        "type": "noul",
+        "instructions": "Does the written grammar provide sufficiently precise boundaries to apply the proposed minimum-line policy across declarations, workflow blocks, metadata/comments, UI nesting and BDD examples without further separator or scope rules?"
+      },
+      "performance_support": {
+        "type": "noul",
+        "instructions": "Does the supplied evidence support concluding that minimum-line formatting would lower model-token consumption or improve correct AI generation and revision relative to the separate-statement policy?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "recommended_default": {
+        "type": "noul",
+        "noul": 0.36
+      },
+      "grammar_sufficiency": {
+        "type": "noul",
+        "noul": 0.2
+      },
+      "performance_support": {
+        "type": "noul",
+        "noul": 0.09
+      }
+    },
+    "usage": {
+      "input_tokens": 1138,
+      "output_tokens": 58
+    }
+  }
+}

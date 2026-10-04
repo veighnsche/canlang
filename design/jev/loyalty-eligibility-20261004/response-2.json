@@ -1,0 +1,39 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Compare the alternatives against the supplied facts without inferring approvals or working runtime behavior.",
+      "facts": "The loyalty requirements cover repeat purchases that are paid and completed rather than first-customer referrals alone. Program membership is an Account deliberately created for a Customer by staff. Present source omits products and compares exclusive_program to a raw Program.id, which cannot match producers. SalesV1.qualification belongs to Invoice and carries source/revision/customer/account/location/product/milestone plus attribution. Rent announces paid, completed and reversed booking stages; Member announces the same for paid membership periods. Invoice supplies confirmed collection/refund qualification. Captures currently yield null or refer.Program:<id> or affiliate.Partner:<id>; loyalty routing is absent. Portfolio says common attribution must not unintentionally mint rewards across programs and keeps loyalty points distinct from commissions, referral cash and membership units. Intentional membership in multiple loyalty programs is not prohibited. Location and explicit product criteria are owner-set. Duplicate and out-of-order source messages require pinned routing data, increasing revisions, permanent reversal evidence, authorized enrollment and a single credit per enrolled source. A disabled program must still record later reversal."
+    },
+    "questions": {
+      "eligibility": {
+        "type": "choice",
+        "instructions": "Select the eligibility rule that preserves repeat-customer perks, distinct owners and deliberate reward composition.",
+        "criteria": {
+          "enrollment": "Authorize points through staff-created Account enrollment and explicitly matched Program locations/products, independently of cash capture routing. More than one matching enrollment is a deliberate points offer, and prior source credits remain reversible after configuration changes. Cash attribution and loyalty can coexist; published terms and enrollment must communicate that policy.",
+          "unattributed": "Require no commercial exclusive_program attribution before considering enrolled matching Program locations/products. Attributed referral/partner purchases then cannot earn loyalty, even when they are repeat purchases. The remaining enrolled programs can still overlap, so this filter alone does not ensure only one points program.",
+          "exclusive_capture": "Add loyalty-owned identifiers to the source capture/routing protocol and use one mutually exclusive reward destination across points and cash. Unified routing prevents reward combinations, but requires amendments to shared producer owners and an extra capture path not specified by current enrollment requirements."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "eligibility": {
+        "type": "choice",
+        "choice": "enrollment",
+        "confidence": 1.0,
+        "probabilities": {
+          "unattributed": 0.0,
+          "exclusive_capture": 0.0,
+          "enrollment": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 744,
+      "output_tokens": 48
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "request": {
+    "state": {
+      "context": "Compare the proposed reporting mechanisms against the listed real declaration facts. Avoid treating a service name or fixture as an installed producer or production seed. Keep the same source grants and preserve query snapshots, currency boundaries and visible incompleteness; execution is out of scope.",
+      "evidence": "A real resource_report(resource:Resource,from:datetime,until:datetime) in Rent already returns ReportBatch as exported read=true scope=authority by=reservation_manager; its ResourcePolicy/LocationPolicy history explicitly reports partial baselines. Invoice retains ledger_revision ordering, verified succeeded Attempt.received, locked external receipt/refund evidence and actual InvoiceSettlement events. Member owns immutable Term range/location alongside mutable fulfillment/cancellation; Maintain and Field own Repair/Job due-state. New reporting operations are needed for these other owners. Their current authority is default D1. Definition examples are test seeds only, and source grants are separate qualified roles.",
+      "constraints": "Contribution {source:text,revision:int,location:text,from:datetime,until:datetime,metric:enum(booked_minutes,saleable_minutes,excluded_minutes,occupied_minutes,cash,receivable,renewal,backlog),quantity:decimal,unit:text,amount:money?,provisional:bool=false,reversal:text?}; ReportBatch {checkpoint:Checkpoint,rows:Contribution[]!}; Checkpoint {source:text,revision:text,generated:datetime,state:enum(fresh,lagging,partial,unavailable),complete:bool}"
+    },
+    "questions": {
+      "sourcing": {
+        "type": "choice",
+        "instructions": "Select the alternative that most closely matches the reporting requirements and source reality.",
+        "criteria": {
+          "local": "Call concrete exported authority operations within D1 and capture immutable inputs/results with current-role/current-location checks on later access. Report choices come from a finite enum and typed pure constants, avoiding assumed record provisioning. Append invoice as-of evidence at each real ledger emission and include negative refund contributions. Source APIs share one composition, and a failed required read produces a failed refresh rather than a synthetic batch.",
+          "bound": "Bind those concrete canonical reads to external owners, keep each delivery identity, and accept only authenticated matching source completions before projecting the run. Independent deployment and source-by-source completeness are benefits; the exact delegation/commit adapters and the enlarged workflow state have yet to be supplied.",
+          "viewer": "Read only ordinary authorized business models and aggregate them in the report. Reusing policy-filtered reads lowers producer overhead, but hidden records mean full-source coverage cannot be asserted, and past receivables cannot use mutable current invoice values."
+        }
+      },
+      "cache_history": {
+        "type": "noul",
+        "instructions": "With incomplete baseline periods explicitly marked and negative refund rows included, do frozen requests and current owner-grant gates establish the proposed cache/history boundary?",
+        "criteria": {
+          "true": "The supplied constraints permit exact known-source measures while preserving revocation and unknown coverage.",
+          "false": "The supplied reasoning omits an essential cache authorization, historical evidence or signed-reversal protection."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "sourcing": {
+        "type": "choice",
+        "choice": "bound",
+        "confidence": 0.41,
+        "probabilities": {
+          "viewer": 0.02,
+          "bound": 0.61,
+          "local": 0.37
+        }
+      },
+      "cache_history": {
+        "type": "noul",
+        "noul": 0.4
+      }
+    },
+    "usage": {
+      "input_tokens": 952,
+      "output_tokens": 58
+    }
+  }
+}

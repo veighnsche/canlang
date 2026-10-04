@@ -1,0 +1,1 @@
+The three requests retain identical source signatures, current bugs, owner boundary, physical-possession constraint and proposed narrow grants/state repairs. Context, instructions and both questions are freshly worded. Only exact technical identifiers/code are repeated. Checked before dispatch. No thresholds or authorization inference.

@@ -1,0 +1,65 @@
+{
+  "request": {
+    "state": "Evaluate independent properties of the open canlang repetition proposals using NOUL. This project prioritizes adoption through reliable low-token AI authoring of typed CRUD business SaaS with permissions and workflows. workerd/Cloudflare services and bounded PatternFly/HTMX presentation underpin one app MCP interface. The package-level Given/When/Then declaration model and in-source BDD checks with authored outcomes must survive. No parser/runtime has executed the sources, and neither model-token efficiency nor agent generation has been benchmarked. The audited inventory contains 44 .can files (39 app drafts, three canonical shared files, two examples). Counts are 254 scenario, 254 lowercase then (154 block-only and 100 inline), 305 individually qualified imports, 46 explicit team models, 67 team role scopes, and 816 mandatory-field exclamation marks including 18 required-array cases. Already-applied cleanup removes uniform R2 and redundant CRUD/lock setup, leaving 311132 UTF-8 bytes and 4002 code lines. The candidates below remain open rather than accepted notation.\n\nScalar fields currently must carry ! for non-null required input, ? for nullable/null fallback, a creation assignment default or server initialization. Undecorated scalars are invalid; arrays have [] defaults unless []! requires input. Existing typed operation parameters p:T are mandatory without !. The proposed scalar convention aligns fields with parameters while keeping nullable/default/server/array distinctions, with simultaneous source/spec conversion required.\n\nThe app baseline includes accounts and teams. Stored model declarations nevertheless spell team, parent or app ownership; role declarations permit only team. Removing repeated team qualifiers would make bare model and role scope team while parent/app choices remain visible. This cannot grant a policy, role membership or invocation privilege. Unspecified read access is denied; explicit by and trusted on remain separate, with all invariants/allowlists/team rules and business preconditions intact.\n\nA When operation now begins with scenario and a typed signature plus by, or a verified on source, then places effects after lowercase then. One proposed short form identifies the operation through its signature/source declaration in When and places guards/effects in a direct ordered body, dropping both introducers. It preserves uppercase section meanings, stable identities, descriptions and attached expected examples. Transactional evaluation holds writes/sends/results provisional until commit; any failed require aborts provisional state and delivery. Compression needs a precise grammar preserving that ordering and source restrictions.\n\nImports currently name exported package.Symbol, optionally as Alias. Local import closure retains owning executable behavior but does not automatically expose the whole dependency's pages/tools. The from=deployment.binding form instead supplies external schemas with explicit service wiring and excludes provider execution. The suggested group spelling use employee {can_work,staff,test_worker} keeps exact symbol selection, aliases and each bound/unbound distinction; groups share consumer package, provider and deployed binding. Measured grouping would take 305 lines to 167 and remove approximately 2001 source bytes, not a measured number of AI tokens. Individual imports already support discoverability, so parser ambiguity and diagnostics matter; the candidate's complete grammar is pending. It includes no implicit project-wide lookup, service installation, wildcard visibility or inferred authority.\n\nPrior reworded choice reviews favored these ideas, but estimates for scalar requiredness varied. The user directs NOUL now: assess properties separately and report raw yes probabilities without a winning-menu choice or automatic decision threshold. Three semantically matching but freshly phrased requests are required by AGENTS.md and have standing authorization. Keep wrappers/hand-maintained source manifests deleted, leave shared-directory redesign deferred, and define actual syntax before migration. Advisory agreement cannot replace implementation evidence.",
+    "questions": {
+      "scalar_required_default": {
+        "type": "noul",
+        "instructions": "Would the proposed undecorated required-scalar convention retain the existing null/default/server distinctions and required-array exception if both spec and sources migrate together?"
+      },
+      "model_team_default": {
+        "type": "noul",
+        "instructions": "Would an implicit team owner on otherwise-unscoped models preserve the current ownership behavior with parent/app exceptions still declared and policy enforcement identical?"
+      },
+      "role_team_default": {
+        "type": "noul",
+        "instructions": "Is omitting in=team from roles semantically equivalent when team is their sole supported scope and assignment/invocation privileges do not change?"
+      },
+      "implicit_operation_declaration": {
+        "type": "noul",
+        "instructions": "Are typed named signatures with explicit by/on in When enough to mark declarations rather than effects, permitting removal of scenario without losing the specified operation boundaries?"
+      },
+      "direct_operation_body": {
+        "type": "noul",
+        "instructions": "Would removing just the lowercase then wrapper leave direct statement bodies equivalent under the provided sequential, transactional, caller/source and example-nesting rules?"
+      },
+      "explicit_import_grouping": {
+        "type": "noul",
+        "instructions": "Can package grouping of explicitly enumerated names keep aliases/visibility and distinct deployed interfaces intact, reducing owner-prefix repetition when only identical consumer/provider/binding groups merge?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "scalar_required_default": {
+        "type": "noul",
+        "noul": 0.84
+      },
+      "model_team_default": {
+        "type": "noul",
+        "noul": 0.49
+      },
+      "role_team_default": {
+        "type": "noul",
+        "noul": 0.76
+      },
+      "implicit_operation_declaration": {
+        "type": "noul",
+        "noul": 0.38
+      },
+      "direct_operation_body": {
+        "type": "noul",
+        "noul": 0.24
+      },
+      "explicit_import_grouping": {
+        "type": "noul",
+        "noul": 0.74
+      }
+    },
+    "usage": {
+      "input_tokens": 1282,
+      "output_tokens": 116
+    }
+  }
+}

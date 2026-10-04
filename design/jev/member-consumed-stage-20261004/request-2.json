@@ -1,0 +1,13 @@
+{
+  "state": {
+    "instructions": "Assess whether the included owner exchange keeps the former consumed benefit safe.",
+    "facts": "Rent currently consumes allowances when confirming, rather than at first physical use. The membership owner has no authoritative arrival or rental cancellation evidence. The proposed caller remains by=authenticated with own-booking, checked_in==null and now<refund_before guards. Its adapter authenticates the producer/customer scope and immutable request, accepting restore_consumed only through that operation. Old consumed coverage survives staging, only extra demand in the same paid grant is held, and expired credit never rolls forward. Capacity and monetary decisions finish before commit. No runtime implementation exists.",
+    "actual_code": "CanRent: send Membership.consume {source=booking.source,customer=booking.customer.id} as consume before confirmed admission. Existing move by=authenticated requires booking.account==actor and booking.status in [held,confirmed] and booking.allowance==not_required and booking.checked_in==null. Proposed consumer stage replaces allowance==not_required with owner-coordinated staging and requires booking.checked_in==null and now<booking.refund_before before restore_consumed=true. CanMember: previous.state==reserved or (previous.state==consumed and value.restore_consumed); previous.value.account==value.account; previous.value.location==value.location; previous.value.product==value.product; previous.value.unit==value.unit; previous.value.duration==value.duration; previous.value.rate==value.rate. Same-grant credit uses old.state in [reserved,consumed]. One staged successor permitted. commit captures prior phase, records Reversal for consumed old units, releases old, and assigns captured phase to new allocations in one owner transaction. release(staged) releases only new held units. consume/release(previous) reject while a staged successor exists."
+  },
+  "questions": {
+    "preservation": {
+      "type": "noul",
+      "instructions": "Under these explicit binding and consumer obligations, does compensation leave the predecessor consumed rights unchanged while refusing caller-invented restoration permission?"
+    }
+  }
+}

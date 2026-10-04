@@ -1,0 +1,99 @@
+{
+  "request": {
+    "state": {
+      "task": "Evaluate a fully specified canlang grammar ahead of implementing its initial parser. The language is an AI-written SaaS DSL targeting workerd; easy adoption, concise programs, one canonical primitive for each task, and intact business requirements are priorities. There are 44 source files totaling 4418 physical lines in this checkout, and a parser, checker, and runtime have not been built. Your classifications are recommendations rather than evidence that the language is valid. A concrete invalid case should halt acceptance instead of prompting looser rules merely to accommodate existing files.",
+      "layout": "Files use UTF-8 and either LF or CRLF, with case-sensitive ASCII identifiers, JSON-style double-quoted strings, and maximal-munch punctuation and unit tokens. Physical lines continue while (), [], or {} remain balanced but open; indentation on those continuation lines does not introduce suites. A suite increases indentation by precisely one space. Reject tabs and backslash continuations. A # occupying a physical source line supplies metadata to the next eligible declaration or field at that column; ## supplies an ignored comment, also inside continued brace forms. Hash comments appended to source text are unavailable. Joining lines must retain field descriptions. Field, argument, and table-cell separators are commas; bracket-delimited lists may end with a comma. Each logical line contains either a compound statement's header or a sequence of leaf statements separated by semicolons. Reject empty semicolon entries, a final semicolon, and an indented child attached to a semicolon sequence. Long leaf declarations and effects are still accepted.",
+      "keywords": "Lex all words with identifier spelling as NAME tokens. Introducers and operators receive their syntactic meaning only in fixed grammar positions; contextual spellings remain legal for authored declaration, parameter, and field names, along type paths, and after a dot. When a primary expression begins, true, false, and null denote literals, while not introduces a unary expression. Other operator and query words act as syntax in the positions that admit them. Syntax structure, rather than uppercase spelling or resolved symbol types, chooses the production. Reserving all such words would make exclusions easier to state but would force changes to real uses of from, until, event, action, and order. Supporting context-dependent words instead demands precise lookahead.",
+      "types": "Treat every type path alike during parsing, then resolve whether it names a type or the value type of an authored model, contract, event, or computed field. Field-type reuse carries the representation, nullable status, normalization, and value limits. It does not carry creation defaults, server-provided initialization, storage uniqueness, ownership, or access policies. The proposed restricted grammar admits flat unions of named paths and no more than one array suffix, optionally followed by a suffix making the array container nullable. enum(...) and action(...) are atomic forms and cannot be union members. For a nonnullable array field, T[]! marks creation requirements outside the value type. This first subset excludes scalar !, nullable-element T?[] arrays, nested T[][] arrays, and grouped types. A|B[]? denotes a nullable array whose elements use the union type. Semantic checking must establish that union identifiers designate tagged named values rather than primitive choices. Recursive grouping permits more elaborate values but requires further rules for nested containers and nullable levels, together with more parser and checker implementation. Resolved reused types and input-creation obligations also need semantic checks.",
+      "queries": "An ordinary value expression is parsed in full as the collection domain. It may then take a tail whose optional clauses occur in this sequence: archived=include, as NAME, where value-expression, order=value-expression, select value-expression. At least one clause is necessary for a tail; duplicated or out-of-order clauses are errors. The ordinary operators bind inside the domain ahead of this low-precedence tail. Put parentheses around a query that contributes to a larger arithmetic expression. A clause's value ends at a following clause, an enclosing comma or closing delimiter, a header attribute, or a binding. Parenthesized expressions and call arguments permit nested queries. In any, all, and group, the alias of the first query is available to the second expression; no equivalent scope is inferred for general function calls. A loop variable introduced by for is distinct from an alias introduced in its query. UI order, columns, filter, and fields use their own selector-list grammar, whereas query order accepts one expression, keeping commas available for arguments and example columns. Requiring query(...) instead would make the extent visible, at the expense of extra syntax for each use and migration of existing programs. That replacement would be the only query form, not an additional alternative alongside tails.",
+      "forms": "Headers enumerate the attributes they permit. Once an expression is complete, a NAME= token pair at that delimiter depth begins another attribute; calls and objects nested within the expression keep their own boundaries. Attributes that are unknown or repeated are rejected. Function calls admit positional arguments first and then distinct named arguments, never a positional argument after a named one; assignment expressions are absent. Colon-separated schema fields, equals-based or shorthand value fields, and route braces containing types have separate productions. A package supplies exactly one Given, When, Then sequence in that order, allowing sections with no declarations. Initial require checks come before a single do body. That body is either an inline sequence of simple statements or an indented suite that can contain compounds; examples follow separately. Reject inline if or for and else without its matching conditional. Stock's let before do is illegal; relocate it and its following guards into an indented do without changing the by expression or execution order. UI title takes an expression, and text, content, and metrics take expression lists. Expression indexing and optional calls are excluded, with at(array,index) remaining the canonical access operation. Reject comparison chains and unparenthesized combinations of ?? with and or or.",
+      "parser": "Build a small syntax-AST parser using only Python's standard library: retain source spans, assemble delimiter-aware logical lines, parse declarations, types, and statements recursively, and use Pratt parsing for expressions with query tails. All allowed fields, types, attributes, bodies, examples, and routes must be parsed structurally. Do not preserve unparsed tails, skip unfamiliar leading words, or choose AST forms through semantic resolution. Cover every one of the 44 source files and add cases for designed features absent from them: semicolons, unions, descriptions on fields, contexts, routes, and migrations. Report a diagnostic's source file, line, column, and expected syntax. Symbol, import, and type resolution; permission and constraint checking; runtime execution; and running BDD examples are still outside this implementation. The omitted required category in CanOnboard's fixture is a semantic problem. Successful syntax parsing does not certify language-wide or application-requirement compliance.",
+      "research": "The implementation techniques are supported by primary references: https://docs.python.org/3/reference/lexical_analysis.html describes logical lines, implicit bracket continuations, and soft keywords, while https://github.com/munificent/craftinginterpreters/blob/master/book/parsing-expressions.md describes expression precedence and recursive-descent AST construction. Adopt those techniques without adopting Python's indentation or keyword rules. Relevant source cases are CanRent:49 for an array concatenation serving nested and outer queries; ExpenseFlow:60 for the boundary between a query and sum's next argument; CanMember:59 for named fold; CanTable:59 for UI ordering selectors; CanStock:57 for let in the wrong body position; and ExpenseFlow:6-14 for a schema spanning physical lines. Existing files contain no semicolons, unions, migrations, or tabs, so corpus coverage cannot demonstrate all specified productions.",
+      "code": {
+        "query": "all([from]+(resource.Booking as b where busy(b) select b.reserved_from) as point,quantity+sum(resource.Booking as b where b.reserved_from<=point select b.quantity)<=resource.capacity)",
+        "arguments": "sum(selected as expense select expense.amount,currency)",
+        "named": "local_instant(date(\"2026-10-01\"),\"00:00\",zone,fold=earlier)",
+        "reuse": "scenario summarize(currency:currency,status:Expense.status) read=true -> Summary by=members",
+        "ui": "table row.Booking columns=customer,from,until order=-priority,arrived filter=state",
+        "inline": "do set todo {done=true}; return todo.id",
+        "types": [
+          "text",
+          "text?",
+          "Member[]!",
+          "A|B[]?",
+          "text?[]",
+          "text[][]",
+          "text!"
+        ],
+        "stock": "scenario post(item:Item,location:Location,value:StockReceipt) by=stock_staff\n require can_work(actor,location) and item.active and value.location==location.id and value.sku==item.sku and value.unit==item.unit and value.quantity>0\n let receipt=first(Receipt as receipt where receipt.source==value.source order=receipt.id)\n require receipt!=null and receipt.accepted==value.quantity and receipt.parent.sku==value.sku and receipt.parent.unit==value.unit and receipt.parent.parent.location==location and receipt.parent.parent.reference==value.order\n require not any(Movement as movement,movement.source==value.source)\n do create Movement {parent=item,location,quantity=value.quantity,reason=\"Accepted purchase receipt\",source=value.source,order=value.order,actor} as movement"
+      },
+      "suffix_resolution": "After field reuse resolves, extra suffixes must respect the same value limits: [] cannot wrap an existing nullable/array value, and a second optional ? is rejected as redundant. Required field creation may use ! directly after a reused nonnullable array path such as items:Contract.rows!, without inheriting the old field's creation mode. Bare builtin scalar ! fails; the checker must settle unknown qualified cases that syntax alone cannot classify."
+    },
+    "questions": {
+      "query": {
+        "type": "choice",
+        "instructions": "Choose the single query notation that best satisfies the described adoption goals and parsing boundaries.",
+        "criteria": {
+          "contextual_tail": "Keep ordered tails with low precedence, specified contextual terminators, and distinct productions for UI selectors.",
+          "explicit_wrapper": "Require query(...) in their place, making query extent explicit while adding syntax at each occurrence and necessitating source conversion.",
+          "unresolved": "Leave the decision unsettled if both notations are inconsistent with the illustrated expressions."
+        }
+      },
+      "types": {
+        "type": "choice",
+        "instructions": "Select the scope of type suffixes to settle for the first grammar.",
+        "criteria": {
+          "flat_bounded": "Adopt named unions followed by at most one array and a nullable-container suffix, treating required-array notation as field metadata and rejecting nesting lacking a defined contract.",
+          "recursive_grouped": "Specify grouped, recursive union, array, and nullable forms immediately to represent richer data, accepting the extra semantic definitions and implementation work.",
+          "unresolved": "Do not settle suffix behavior if neither alternative meets the requirements provided."
+        }
+      },
+      "reuse": {
+        "type": "noul",
+        "instructions": "Can identical parsing of type paths, with field-value reuse resolved afterward, remain coherent while excluding inherited creation behavior, uniqueness, and authority rules?"
+      },
+      "coherence": {
+        "type": "noul",
+        "instructions": "Do the given layout rules, contextual identifiers, expression/query/attribute limits, and inline-versus-suite rules define deterministic parsing for the proposed syntax-only AST implementation, rejecting invalid notation without inference?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "query": {
+        "type": "choice",
+        "choice": "contextual_tail",
+        "confidence": 1.0,
+        "probabilities": {
+          "contextual_tail": 1.0,
+          "explicit_wrapper": 0.0,
+          "unresolved": 0.0
+        }
+      },
+      "types": {
+        "type": "choice",
+        "choice": "flat_bounded",
+        "confidence": 1.0,
+        "probabilities": {
+          "recursive_grouped": 0.0,
+          "flat_bounded": 1.0,
+          "unresolved": 0.0
+        }
+      },
+      "reuse": {
+        "type": "noul",
+        "noul": 0.87
+      },
+      "coherence": {
+        "type": "noul",
+        "noul": 0.71
+      }
+    },
+    "usage": {
+      "input_tokens": 2771,
+      "output_tokens": 130
+    }
+  }
+}

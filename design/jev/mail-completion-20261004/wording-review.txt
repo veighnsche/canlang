@@ -1,0 +1,1 @@
+Reviewed equivalent facts, constraints, alternatives and tradeoffs across three requests. Exact canonical evidence repeated intentionally. Every instruction, facts paragraph, question and option description is freshly worded. Pairwise string-difference checks passed; semantic equivalence reviewed before dispatch. Advice is not validation or approval.

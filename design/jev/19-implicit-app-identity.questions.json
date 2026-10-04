@@ -1,0 +1,48 @@
+{
+  "state": {
+    "context": "Choose a namespace rule for canlang's small apps, not a runtime implementation. This AI-authored company-CRUD DSL prioritizes adoption, compact tokens, reliable generation and one canonical form per primitive. The user authorizes research, validation with stopping for concrete invalidity, brainstorming, consolidation, planning and implementation. Extra package wrappers, authored build manifests and central connections files are forbidden solutions. Existing app Name already declares a project identity. Named apps/packages share a flat namespace; use provider {Symbol as Alias} imports exported symbols, while uses selects products and their contexts. Each package owns its models/policies/roles/operations; files do not define identity. One selected deployment app supplies one UI/MCP server. The corpus has 44 files, 48 apps and 49 named packages, only one implicit app TeamTasks, and no app/package name overlaps. There is no compiler/parser/runtime or tokenizer/agent benchmark.\nThe current assistant rule gives every small app a hidden main package and rejects composing two such apps. Existing generated names include main.Model.operation. Candidate direct_app makes the small app's package identity exactly its authored app name, e.g. Tasks.Todo. One indexed declaration has application selection and owning-body views of the same identity, rather than two conflicting declarations. A distinct named package/app cannot reuse that identity. uses=[Tasks] expands the app and includes its explicit context; use Tasks {Todo} imports only exported owning-body symbols, with existing executable versus bound/schema-only semantics and no automatic context/pages/all-tools selection. Explicit apps with uses have no aggregate importable package. No implicit exports, role merging, data copies, new storage owners or permission grants are introduced.\nDirect rules allow several implicit apps in a file. Each bare app has optional context immediately after the app, package imports before Given, and one complete ordered Given/When/Then; its body ends at the next top-level app/package or EOF. An app with uses cannot additionally have an implicit body. Canonical package identity is deduplicated across products/imports/diamonds and stays constant standalone, composed or moved to another file. Model/role/event/handler/schedule/operation/type identities all use that owner, and by/on, parent/team/storage rules remain. Composition does not automatically prefix routes or resource bindings: duplicate normalized routes and conflicting explicit resources remain errors. Independent deployments still own independent runtime state. Direct_app costs: app renames change the implicit API/storage declaration identity, and extracting a same-named explicit package while retaining that app name conflicts with the existing global namespace. These need explicit identity migration, not automatic data transfer or alias compatibility. There are no existing source references to synthetic main; one business string main must remain untouched.\nAlternative app_main uses Tasks.main, stable under composition and file moves, but adds a synthetic segment, qualified provider grammar and does not avoid app-rename/refactoring costs. Alternative composer_alias keeps main locally and aliases members in uses; it allows short assembly labels and retention of standalone main tool spelling. Changing only wire prefixes leaves internal model/role ownership collisions; rekeying internal identities by assembly resolves those collisions but breaks standalone/composed identity stability and complicates diamond deduplication and receipts. Unresolved means select no policy if evidence is insufficient, retaining this gap for further analysis. Required wrappers have already been ruled out by the user rather than offered as a valid solution. Go's official spec distinguishes import access names from the imported package and requires imported/exported access; its filesystem conventions are not canlang rules. MCP recommends unique case-sensitive server tool names with ASCII letters, digits, underscore, hyphen and dot. These support explicit canonical naming but neither source validates this DSL. Evaluate all stated costs and any concrete contradiction.",
+    "examples": {
+      "direct": "# Track work.\napp Tasks\nGiven\n export Todo {title:text}\n role reviewer\n policy Todo read=members\nWhen\n crud Todo by=members fields=title\nThen\n page /tasks title=\"Tasks\"\n  list Todo\n# Keep notes.\napp Notes\nGiven\n Note {text:text}\n role reviewer\n policy Note read=members\nWhen\n crud Note by=members fields=text\nThen\n page /notes title=\"Notes\"\n  list Note\n# Use both apps.\napp Office uses=[Tasks,Notes]",
+      "direct_import": "use Tasks {Todo}",
+      "direct_names": [
+        "Tasks.Todo",
+        "Tasks.reviewer",
+        "Tasks.Todo.create"
+      ],
+      "hierarchy_import": "use Tasks.main {Todo}",
+      "hierarchy_names": [
+        "Tasks.main.Todo",
+        "Tasks.main.reviewer",
+        "Tasks.main.Todo.create"
+      ],
+      "alias_composition": "app Office uses=[Tasks as work,Notes as notes]",
+      "alias_names": [
+        "main.Todo.create",
+        "work.Todo.create"
+      ],
+      "diamond": "app Bundle uses=[Tasks,Notes]\napp Office uses=[Tasks,Bundle]",
+      "same_id_invalid": "app Tasks uses=[Tasks]\npackage Tasks",
+      "route_collision": "Tasks declares page /; Notes declares page /"
+    },
+    "references": {
+      "go_imports": "https://go.dev/ref/spec#Import_declarations",
+      "mcp_names": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool-names"
+    }
+  },
+  "questions": {
+    "identity_choice": {
+      "type": "choice",
+      "instructions": "Which identity convention best meets the constraints and tradeoffs given?",
+      "criteria": {
+        "direct_app": "Use the existing app identifier directly for its implicit owning package and current grouped import form.",
+        "app_main": "Use an app-qualified synthetic main namespace with corresponding qualified provider imports.",
+        "composer_alias": "Keep local main names and add assembly aliases/prefixes, with the required internal rekeying semantics.",
+        "unresolved": "Leave the choice open because these facts do not establish an adequate namespace policy."
+      }
+    },
+    "direct_coherence": {
+      "type": "noul",
+      "instructions": "Are the supplied direct-app rules internally coherent for composition, imports, ownership and unique identities without an identified concrete conflict?"
+    }
+  }
+}

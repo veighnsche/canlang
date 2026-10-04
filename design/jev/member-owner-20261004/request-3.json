@@ -1,0 +1,18 @@
+{
+  "state": {
+    "instructions": "Judge the alternatives solely from the included contract details and business constraints.",
+    "facts": "The source excerpt preserves the actual authenticated operations and guard predicates. MembershipV1 presently has no corresponding trusted receiving handlers. Rent requires exact nonadjacent day access windows and increment-based hourly periods. Benefits remain tied to expiring paid grants with no carryover; conversion rules and monetary excess charges are frozen in their original currency. A change cannot discard original entitlement before every new resource agrees. The installed adapter establishes producer and owner scope, while ingress execution has actor=null. Invoicing completes asynchronously. Your output is advisory and cannot establish implementation correctness.",
+    "actual_code": "scenario reserve(membership:Membership,product:text,from:datetime,until:datetime,quantity:int,source:text) by=authenticated; require membership.parent.active and (membership.parent.kind==individual or has_role(actor,membership.parent,booker) or has_role(actor,membership.parent,administrator)); require from>=now and from<until and quantity>0 and not membership.paused and not membership.revoked; require membership.account==actor or has_role(actor,membership.parent,booker) or has_role(actor,membership.parent,administrator). scenario consume(source:text) by=authenticated selects allocation.source==source and allocation.account==actor. scenario release(source:text) by=authenticated selects allocation.source==source and allocation.account==actor and allocation.state==reserved."
+  },
+  "questions": {
+    "replacement": {
+      "type": "choice",
+      "instructions": "Choose the alternative most compatible with the required ownership and replacement semantics.",
+      "criteria": {
+        "staged": "Accept exact windows and unit data under a verified customer namespace. Charge whole aligned hour units or individual day windows, calculate uncovered usage as money, and preserve the earlier booking during staging until commit swaps its allocations. This requires additional stage/fence persistence and precise credit treatment for overlapping periods.",
+        "independent": "Allocate the entire new usage without crediting old usage, then discard the earlier allocation once all new resources agree. This avoids exchange-accounting complications and keeps old rights intact, but double temporary demand can prevent admissible modifications.",
+        "release_first": "Discard the existing reservation first and then allocate its successor. This needs fewer staged records and conserves temporary balance, at the cost of potentially losing a still-valid original reservation when the successor fails or another consumer spends released units."
+      }
+    }
+  }
+}

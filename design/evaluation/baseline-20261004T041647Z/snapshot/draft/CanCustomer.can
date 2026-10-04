@@ -1,0 +1,256 @@
+# Provide the workspace operator's customer identity and company-administration package. @{nl="Bied de klantidentiteit en het bedrijfsbeheerpakket van de werkplekexploitant."}
+app CanCustomer uses=[customer]
+
+# Manage customers, company roles, sales opportunities, appointments, offers and account follow-up. @{nl="Beheer klanten, bedrijfsrollen, verkoopkansen, afspraken, offertes en accountopvolging."}
+app CustomerSales uses=[CanCustomer,CanCRM,CanBook,CanPropose,CanSuccess]
+
+# Own customer identities, company roles, billing profiles and reviewed aliases. @{nl="Beheer klantidentiteiten, bedrijfsrollen, factuurprofielen en beoordeelde aliassen."}
+package customer
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use invoice {finance}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  role customer_manager label="Customer manager"@{nl="Klantbeheerder"}
+  role customer_reader label="Customer directory reader"@{nl="Lezer klantendirectory"}
+  role billing_reader label="Billing reader"@{nl="Lezer factuurgegevens"}
+  export Customer { name:text trim min=1, kind:enum(individual,company) label={text="Customer kind"@{nl="Klantsoort"},values={individual="Individual"@{nl="Particulier"},company=label_Customer_kind_company}}, locations:Location[] label=label_Customer_locations, active:bool=true } label="Customer"@{nl="Klant"}
+  export Contact in Customer { name:text trim min=1, email:email, account:user? label=label_Contact_account, verified:bool=false label="Verified"@{nl="Geverifieerd"}, phone:text?, external_id:text? label="External identity"@{nl="Externe identiteit"} } label=label_Contact
+  export BillingProfile in Customer { contact:Contact label=label_Contact, address:text, tax_reference:text? label="Tax reference"@{nl="Belastingreferentie"}, on_account:bool=false label="Approved on-account billing"@{nl="Facturatie op rekening goedgekeurd"}, approved_locations:Location[]=[] label="Approved locations"@{nl="Goedgekeurde locaties"}, approval_reason:text? label="Approval decision"@{nl="Goedkeuringsbesluit"}, approved_by:user? label="Finance decision by"@{nl="Financieel besluit door"}, approved_at:datetime? label="Finance decision at"@{nl="Financieel besluit op"} } label="Billing profile"@{nl="Factuurprofiel"}
+  export CompanyRole in Customer { account:user label=label_Contact_account, role:enum(administrator,booker,billing) label={text=label_CompanyRole_role,values={administrator="Administrator"@{nl="Beheerder"},booker="Booker"@{nl="Boeker"},billing="Billing"@{nl="Facturatie"}}}, locations:Location[] label=label_Customer_locations, active:bool=true } label="Company role"@{nl="Bedrijfsrol"}
+  export Invitation in Customer { email:email, role:CompanyRole.role, locations:Location[] label=label_Customer_locations, expires:datetime label="Expires at"@{nl="Verloopt op"}, status:enum(open,accepted,expired,revoked)=open label={text="Status"@{nl="Status"},values={open="Open"@{nl="Open"},accepted="Accepted"@{nl="Geaccepteerd"},expired="Expired"@{nl="Verlopen"},revoked="Revoked"@{nl="Ingetrokken"}}}, accepted_by:user? label="Accepted by"@{nl="Geaccepteerd door"} } label=notice_company_invitation
+  export Alias { from_customer:Customer label="Source customer"@{nl="Bronklant"}, to_customer:Customer label=label_Alias_to_customer, reason:text, approved_by:user server=actor label="Approved by"@{nl="Goedgekeurd door"} } label="Reviewed customer alias"@{nl="Beoordeelde klantalias"}
+  Reconciliation in Customer { account:user label=label_Contact_account, revision:int, state:enum(pending,applied,conflict)=pending label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In behandeling"},applied="Applied"@{nl="Toegepast"},conflict="Conflict"@{nl="Conflict"}}}, detail:text? label="Details"@{nl="Details"} } label="Access reconciliation"@{nl="Toegangsafstemming"}
+  export event CompanyAccessChanged { customer:Customer, account:user?, revision:int }
+  event InvitationExpiry { invitation:Invitation }
+  export derive has_role(person:user,org:Customer,role:CompanyRole.role):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)
+  export derive has_location_role(person:user,org:Customer,role:CompanyRole.role,location:Location):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active and location in grant.locations)
+  export derive owns(person:user,org:Customer):bool = org.kind==individual and any(org.Contact as contact,contact.account==person and contact.verified)
+  derive customer_staff(person:user,org:Customer):bool = any(org.locations as location,can_work(person,location))
+  policy Customer read=customer_reader or billing_reader where=customer_staff(actor,row) fields=name,kind,locations,active
+  policy Customer read=customer_manager and customer_staff(actor,row)
+  policy Customer read=authenticated where=owns(actor,row) or has_role(actor,row,administrator) or has_role(actor,row,booker) or has_role(actor,row,billing)
+  policy Contact read=authenticated where=actor.email_verified and row.email==actor.email fields=name,email,account,verified
+  policy Contact read=customer_reader or billing_reader where=customer_staff(actor,row.parent) fields=name,email,phone,verified
+  policy Contact read=customer_manager and customer_staff(actor,row.parent)
+  policy Contact read=authenticated where=row.account==actor or has_role(actor,row.parent,administrator)
+  policy CompanyRole read=authenticated where=row.account==actor or has_role(actor,row.parent,administrator)
+  policy CompanyRole read=customer_manager and customer_staff(actor,row.parent)
+  policy Invitation read=authenticated where=has_role(actor,row.parent,administrator) or (actor.email_verified and row.email==actor.email)
+  policy Invitation read=customer_manager and customer_staff(actor,row.parent)
+  policy Customer read=finance where=customer_staff(actor,row) fields=name,kind,locations,active
+  policy Contact read=finance where=customer_staff(actor,row.parent) fields=name,email,phone,verified
+  policy BillingProfile read=finance where=customer_staff(actor,row.parent)
+  policy BillingProfile read=billing_reader where=customer_staff(actor,row.parent)
+  policy BillingProfile read=authenticated where=owns(actor,row.parent) or has_role(actor,row.parent,billing)
+  policy BillingProfile read=customer_manager and customer_staff(actor,row.parent)
+  policy Alias read=customer_manager and customer_staff(actor,row.from_customer) and customer_staff(actor,row.to_customer)
+  policy Reconciliation read=customer_manager and customer_staff(actor,row.parent)
+  policy Reconciliation read=authenticated where=has_role(actor,row.parent,administrator)
+  invariant BillingProfile: row.contact.parent==row.parent and (not row.on_account or (count(row.approved_locations)>0 and row.approved_by!=null and row.approved_at!=null and row.approval_reason!=null))
+  invariant CompanyRole: row.parent.kind==company
+  invariant Alias: row.from_customer!=row.to_customer
+  unique CompanyRole fields=account,role
+  lock Alias fields=from_customer,to_customer,reason,approved_by
+  export fixture test_company=Customer {name="Example company",kind=company,locations=[test_site]}
+  export fixture test_contact=Contact {parent=test_company,name="Example contact",email="customer@example.test",account=self,verified=true}
+  export fixture test_admin=CompanyRole {parent=test_company,account=self,role=administrator,locations=[test_site]}
+  export fixture test_billing=CompanyRole {parent=test_company,account=self,role=billing,locations=[test_site]}
+  export fixture test_booker=CompanyRole {parent=test_company,account=other,role=booker,locations=[test_site]}
+  fixture billing_profile=BillingProfile {parent=test_company,contact=test_contact,address="Example address"}
+  fixture duplicate_company=Customer {name="Example company",kind=company,locations=[test_site]}
+  fixture reviewed_alias=Alias {from_customer=duplicate_company,to_customer=test_company,reason="Reviewed duplicate"}
+  preferences { kind:Customer.kind?, active:bool? }
+  message notice_company_invitation = "Company invitation"@{nl="Bedrijfsuitnodiging"}
+  message label_Customer_kind_company = "Company"@{nl="Bedrijf"}
+  message label_Customer_locations = "Locations"@{nl="Locaties"}
+  message label_Contact = "Contact"@{nl="Contactpersoon"}
+  message label_Contact_account = "Account"@{nl="Account"}
+  message label_CompanyRole_role = "Role"@{nl="Rol"}
+  message label_Alias_to_customer = "Target customer"@{nl="Doelklant"}
+ When
+  crud Customer by=customer_manager fields=name,locations,active create_fields=name,kind,locations when=customer_staff(actor,row)
+  crud Contact by=customer_manager fields=name,email,phone,external_id when=customer_staff(actor,row.parent)
+  crud BillingProfile by=customer_manager fields=contact,address,tax_reference when=customer_staff(actor,row.parent)
+  # Find readable same-kind company candidates without merging identities. @{nl="Vind leesbare bedrijfskandidaten van dezelfde soort zonder identiteiten samen te voegen."}
+  export scenario duplicate_customers(name:Customer.name,kind:Customer.kind) read=true -> Customer[] by=customer_manager
+   do return Customer archived=include as candidate where candidate.kind==kind and lower(candidate.name)==lower(name)
+   examples seed=[test_worker,test_company] kind=company
+    as,name -> count(result)
+    customer_manager,"example company" -> 1
+    customer_manager,"Different company" -> 0
+  # Review exact contact-email candidates under current directory grants. @{nl="Beoordeel kandidaten met hetzelfde contactadres onder de huidige directoryrechten."}
+  export scenario duplicate_contacts(email:Contact.email) read=true -> Contact[] by=customer_manager
+   do return Contact archived=include as candidate where candidate.email==email
+   examples seed=[test_worker,test_contact]
+    as,email -> count(result)
+    customer_manager,"customer@example.test" -> 1
+    customer_manager,"new@example.test" -> 0
+  # Approve or revoke invoicing at explicitly reviewed customer locations. @{nl="Keur facturatie op expliciet beoordeelde klantlocaties goed of trek deze in."}
+  export scenario approve_account(profile:BillingProfile,approve:bool,locations:Location[],reason:text) by=finance label="Review on-account eligibility"@{nl="Geschiktheid voor facturatie op rekening beoordelen"}
+   require profile.parent.active and trim(reason)!="" and customer_staff(actor,profile.parent)
+   require all(locations as location,location in profile.parent.locations and can_work(actor,location))
+   require all(profile.approved_locations as location,can_work(actor,location)) and (not approve or count(locations)>0)
+   do
+    if approve
+     set profile {on_account=true,approved_locations=locations,approval_reason=reason,approved_by=actor,approved_at=now}
+    else
+     set profile {on_account=false,approved_locations=[],approval_reason=reason,approved_by=actor,approved_at=now}
+   examples seed=[test_worker] profile=billing_profile locations=[test_site] reason="Finance reviewed"
+    as,approve -> profile.on_account
+    finance,true -> true
+    finance,false -> false
+    customer_manager,true -> error(forbidden)
+  # Claim only a contact addressed to your own verified account. @{nl="Koppel alleen een contact dat aan je eigen geverifieerde account is gericht."}
+  export scenario claim(contact:Contact) by=authenticated label="Claim own contact"@{nl="Eigen contact koppelen"}
+   require actor.email_verified and contact.email==actor.email and contact.parent.active and contact.account==null
+   do set contact {account=actor,verified=true}
+  # Invite a colleague to an explicit company role without creating a paid seat. @{nl="Nodig een collega uit voor een expliciete bedrijfsrol zonder een betaalde plaats aan te maken."}
+  export scenario invite(org:Customer label=label_Customer_kind_company,email:email,role:CompanyRole.role label=label_CompanyRole_role,locations:Location[] label=label_Customer_locations) by=authenticated label="Invite company colleague"@{nl="Bedrijfscollega uitnodigen"}
+   require org.active and org.kind==company and has_role(actor,org,administrator)
+   require all(locations as location,location in org.locations and has_location_role(actor,org,administrator,location))
+   do
+    create Invitation {parent=org,email,role,locations,expires=now+7d} as invitation
+    send Mail.send {to=email,subject=format(notice_company_invitation,locale=null),body=format("Sign in with your verified email to review your company invitation."@{nl="Meld je aan met je geverifieerde e-mailadres om je bedrijfsuitnodiging te bekijken."},locale=null)} as notice
+  # Accept an addressed, unexpired invitation using the current verified account. @{nl="Accepteer een gerichte, niet-verlopen uitnodiging met het huidige geverifieerde account."}
+  export scenario accept(invitation:Invitation) by=authenticated label="Accept invitation"@{nl="Uitnodiging accepteren"}
+   require actor.email_verified and invitation.email==actor.email and invitation.status==open and invitation.expires>now and invitation.parent.active
+   require not any(invitation.parent.CompanyRole as grant,grant.account==actor and grant.role==invitation.role and grant.active)
+   do
+    let previous=first(invitation.parent.CompanyRole as grant where grant.account==actor and grant.role==invitation.role order=grant.id)
+    if previous==null
+     create CompanyRole {parent=invitation.parent,account=actor,role=invitation.role,locations=invitation.locations} as grant
+    else
+     set previous {active=true,locations=invitation.locations}
+    set invitation {status=accepted,accepted_by=actor}
+    emit CompanyAccessChanged {customer=invitation.parent,account=actor,revision=invitation.version+1}
+  # Remove a company role now, preserving paid bookings and pending reconciliation. @{nl="Verwijder een bedrijfsrol direct met behoud van betaalde boekingen en wachtende afstemming."}
+  export scenario remove(grant:CompanyRole label="Company role grant"@{nl="Bedrijfsroltoewijzing"}) by=authenticated label="Remove company role"@{nl="Bedrijfsrol verwijderen"}
+   require grant.active and has_role(actor,grant.parent,administrator) and all(grant.locations as location,has_location_role(actor,grant.parent,administrator,location))
+   require grant.role!=administrator or count(grant.parent.CompanyRole as role where role.active and role.role==administrator)>1
+   do
+    set grant {active=false}
+    create Reconciliation {parent=grant.parent,account=grant.account,revision=grant.version+1} as pending
+    emit CompanyAccessChanged {customer=grant.parent,account=grant.account,revision=grant.version+1}
+   examples seed=[test_admin] grant=test_booker
+    grant.role -> grant.active
+    booker -> false
+  # Recover company administration through a scoped operator action with a reason. @{nl="Herstel bedrijfsbeheer via een beperkte exploitantactie met een reden."}
+  export scenario recover(org:Customer label=label_Customer_kind_company,account:user label=label_Contact_account,reason:text) by=customer_manager label="Recover company administration"@{nl="Bedrijfsbeheer herstellen"}
+   require customer_staff(actor,org) and trim(reason)!="" and org.kind==company
+   do
+    let previous=first(org.CompanyRole as grant where grant.account==account and grant.role==administrator order=grant.id)
+    if previous==null
+     create CompanyRole {parent=org,account,role=administrator,locations=org.locations} as grant
+    else
+     set previous {active=true,locations=org.locations}
+  # Record an alias without transferring account grants or rewriting old documents. @{nl="Leg een alias vast zonder accountrechten over te dragen of oude documenten te herschrijven."}
+  export scenario alias(source:Customer label="Source reference"@{nl="Bronreferentie"},target:Customer label=label_Alias_to_customer,reason:text) by=customer_manager label="Record reviewed alias"@{nl="Beoordeelde alias vastleggen"}
+   require source!=target and customer_staff(actor,source) and customer_staff(actor,target) and trim(reason)!=""
+   require not any(Alias as a,a.from_customer==source or a.to_customer==source or a.from_customer==target)
+   do create Alias {from_customer=source,to_customer=target,reason} as mapping
+   examples seed=[test_worker] source=duplicate_company target=test_company
+    as,source,reason -> count(Alias)
+    customer_manager,duplicate_company,"Reviewed duplicate" -> 1
+    customer_manager,test_company,"Reviewed duplicate" -> error(rule_failed)
+    customer_manager,duplicate_company,"" -> error(rule_failed)
+    members,duplicate_company,"Reviewed duplicate" -> error(forbidden)
+   examples seed=[test_worker,reviewed_alias] source=duplicate_company target=test_company reason="Reviewed duplicate"
+    as -> count(Alias)
+    customer_manager -> error(rule_failed)
+  ## Recompute customer-wide access from current owner state; account=null invalidates all watches, not a synthetic person.
+  scenario customer_created_access on=Customer.created
+   do
+    for changed in Customer archived=include as row where row.id==event.id limit=1
+     emit CompanyAccessChanged {customer=changed,account=null,revision=event.version}
+  scenario customer_updated_access on=Customer.updated
+   do
+    for changed in Customer archived=include as row where row.id==event.id limit=1
+     emit CompanyAccessChanged {customer=changed,account=null,revision=event.version}
+  scenario customer_deleted_access on=Customer.deleted
+   do
+    for changed in Customer archived=include as row where row.id==event.id limit=1
+     emit CompanyAccessChanged {customer=changed,account=null,revision=event.version}
+  scenario contact_created_access on=Contact.created
+   do
+    for changed in Contact archived=include as row where row.id==event.id limit=1
+     emit CompanyAccessChanged {customer=changed.parent,account=null,revision=event.version}
+  scenario contact_updated_access on=Contact.updated
+   do
+    for changed in Contact archived=include as row where row.id==event.id limit=1
+     emit CompanyAccessChanged {customer=changed.parent,account=null,revision=event.version}
+  scenario contact_deleted_access on=Contact.deleted
+   do
+    for changed in Contact archived=include as row where row.id==event.id limit=1
+     emit CompanyAccessChanged {customer=changed.parent,account=null,revision=event.version}
+  scenario companyrole_created_access on=CompanyRole.created
+   do
+    for changed in CompanyRole archived=include as row where row.id==event.id limit=1
+     emit CompanyAccessChanged {customer=changed.parent,account=null,revision=event.version}
+  scenario companyrole_updated_access on=CompanyRole.updated
+   do
+    for changed in CompanyRole archived=include as row where row.id==event.id limit=1
+     emit CompanyAccessChanged {customer=changed.parent,account=null,revision=event.version}
+  scenario companyrole_deleted_access on=CompanyRole.deleted
+   do
+    for changed in CompanyRole archived=include as row where row.id==event.id limit=1
+     emit CompanyAccessChanged {customer=changed.parent,account=null,revision=event.version}
+  scenario invitation_created on=Invitation.create
+   do schedule event.after.id at=event.after.expires event=InvitationExpiry {invitation=event.after}
+  scenario expire on=InvitationExpiry
+   do
+    if event.invitation.status==open and event.invitation.expires<=now
+     set event.invitation {status=expired}
+
+ Then
+  # Maintain customers and review duplicates under location scope. @{nl="Beheer klanten en beoordeel dubbelen binnen locatiebevoegdheden."}
+  page /customers title="Customers"@{nl="Klanten"}
+   require customer_manager
+   card "Customer intake"@{nl="Klant aanmaken"}
+    form Customer.create import=csv review=duplicate_customers
+   list Customer columns=name,kind,locations,active search=name filter=kind,active defaults={kind=preferences.kind,active=preferences.active} display=split
+    card "Canonical customer identity"@{nl="Canonieke klantidentiteit"}
+     edit
+     actions alias,recover
+    tabs
+     tab "Contacts"@{nl="Contactpersonen"}
+      form Contact.create import=csv review=duplicate_contacts
+      table row.Contact columns=name,email,phone,account,verified
+       edit
+     tab "Billing profiles"@{nl="Factuurprofielen"}
+      form BillingProfile.create
+      table row.BillingProfile columns=contact,address,tax_reference,on_account
+       edit
+    history
+  # Review invoicing eligibility without granting membership or recording payment. @{nl="Beoordeel facturatiegeschiktheid zonder lidmaatschap te verlenen of betaling vast te leggen."}
+  page /customers/billing-approvals title="Billing approvals"@{nl="Facturatiegoedkeuringen"}
+   require finance
+   table BillingProfile columns=parent,contact,on_account,approved_locations,approval_reason,approved_by,approved_at
+    action approve_account
+    history
+  # Manage only your company's grants; paid seats are a separate operation. @{nl="Beheer uitsluitend de rechten van je bedrijf; betaalde plaatsen zijn een afzonderlijke operatie."}
+  page /companies/{Customer.id} title="Company people"@{nl="Bedrijfsleden"}
+   require authenticated and has_role(actor,row,administrator)
+   card "Company role invitation"@{nl="Uitnodiging bedrijfsrol"}
+    text row.name
+    form invite
+   card "Current company grants"@{nl="Huidige bedrijfsrechten"}
+    list row.CompanyRole columns=account,role,locations,active
+     action remove
+   card "Invitation outcomes"@{nl="Uitnodigingsuitkomsten"}
+    list row.Invitation
+     text row.email,row.role,row.locations,row.status,row.expires
+   details "Independent access reconciliation"@{nl="Afzonderlijke toegangsafstemming"}
+    list row.Reconciliation
+     text row.state,row.detail
+  # Review your addressed invitations without purchasing benefits or staff access. @{nl="Beoordeel je gerichte uitnodigingen zonder voordelen of personeelstoegang te kopen."}
+  page /company-invitations title="Invitations"@{nl="Uitnodigingen"}
+   require authenticated
+   card "Own contact claim"@{nl="Eigen contact koppelen"}
+    list Contact
+     text row.name,row.email,row.verified
+     action claim
+   card "Addressed company invitations"@{nl="Gerichte bedrijfsuitnodigingen"}
+    list Invitation as invitation where invitation.email==actor.email and invitation.status==open
+     text row.email,row.role,row.locations,row.expires,row.status
+     action accept

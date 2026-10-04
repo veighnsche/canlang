@@ -1,0 +1,27 @@
+{
+  "state": {
+    "brief": "Review a proposed source-format default against an alternative for canlang, the AI-authored DSL for CRUD business SaaS. Its overriding product aim is adoption, supported by low token use, dependable generation and low complexity. Presentation for human readers ranks lower; agents still need to revise programs and resolve diagnostics. The proposal is to favor width and minimize physical line breaks. The user asking for that style does not establish that it improves these outcomes. A compiler and runtime are absent, as are tokenizer benchmarks and agent generation/edit results. Return yes probabilities as advice only; no implementation is requested.",
+    "grammar": "Today a block depth adds a single space, tabs are invalid, and line endings divide statements unless enclosed in (), [] or {}. A semicolon divides simple statements, while compound forms require children at a deeper indentation. Packages preserve their single Given/When/Then sequence. A # source line supplies metadata to the following peer declaration; ## consumes the remaining line as a comment. Conditions with else arms, iteration, then effects and descendant UI controls rely on lexical nesting. Inline BDD tables contain explicit column labels and independently written expected rows. Although simple statements are mentioned, a working parser has not specified or exercised every declaration-header/body interaction. Access rules, prerequisites, action sequence, names/aliases, metadata links and test assertions must survive any rewrite; that survival is a requirement rather than a premise.",
+    "policies": "Separate-statement approach: retain horizontal field/argument/import declarations, give each simple workflow action its own line and separate major declarations with empty lines. Minimum-line approach: avoid empty lines and width-based wrapping, retain horizontal declarations, and join all allowable runs of same-depth simple actions with semicolons. Necessary line breaks for compound children, descriptions/comments and table rows remain in the minimum-line approach. Both use the existing constructs and aim to define one ordinary format; neither introduces brace-delimited blocks, discards scenario or then, nor creates alternative SaaS mechanisms.",
+    "tradeoffs": "Possible gains from separate statement lines include focused line-based patches, easier location of action/scope boundaries, and smaller ranges named by diagnostics. Possible losses include additional newline/indentation material, longer source files and splitting logically connected work. Packing lines may cut whitespace and indentation repetition, put more adjacent logic together and avoid automatic wrap expansion. It may also spend tokens on semicolons, obscure a missing delimiter, overlooked prerequisite or incorrect alias, enlarge the area replaced by a line edit, and put many actions at one line-number diagnostic. These are hypotheses rather than observed results. An expanded layout can still suffer mistaken indentation; tools using columns or accurate substring replacements may lessen wide-layout problems. Physical rows and model-token expense must be considered separately.",
+    "examples": {
+      "separate_statement_body": "then\n let selected=Expense as expense where expense.amount.currency==currency and expense.status==status\n return Summary {count=count(selected),total=sum(selected as expense select expense.amount,currency)}",
+      "minimum_line_body": "then\n let selected=Expense as expense where expense.amount.currency==currency and expense.status==status; return Summary {count=count(selected),total=sum(selected as expense select expense.amount,currency)}"
+    },
+    "example_limits": "The two samples express the same intended actions through the existing then and separator forms. This is one illustrative pair, without parser confirmation or corpus-wide evidence. Other drafts contain record fields across lines, descriptions, one-line then effects, nested conditional/loop bodies, hierarchical UI and authored BDD rows; they remain relevant to deciding a global default."
+  },
+  "questions": {
+    "recommended_default": {
+      "type": "noul",
+      "instructions": "After weighing both layouts against the product objectives and their possible costs, do you recommend the line-minimizing approach rather than the statement-per-line approach as the standard format?"
+    },
+    "grammar_sufficiency": {
+      "type": "noul",
+      "instructions": "Are the current specification boundaries enough to determine safe joins throughout headers, scoped actions, descriptions/comments, UI descendants and example tables without adding clarification to delimiter or nesting semantics?"
+    },
+    "performance_support": {
+      "type": "noul",
+      "instructions": "Is there adequate evidence here to infer a token-cost or correct-agent-output advantage for packed lines over individually separated statements during initial generation and later edits?"
+    }
+  }
+}

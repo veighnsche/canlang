@@ -1,0 +1,41 @@
+{
+  "request": {
+    "state": {
+      "context": "Canlang currently spells three conditions require. Given uses require Model: predicate to declare a pure row invariant enforced on affected proposed final state through every write path, including relevant dependency changes. Preferences also permit pure value constraints. When uses require expr [message=expr] before or inside do, evaluates in written order, and rejects the whole provisional operation with safe rule_failed and rollback, including trusted handlers. Then uses require expr to gate the enclosing page/container: denied pages are unavailable and failed groups are omitted; server permissions still apply. Migration backfill uses execution guards too. The user asks whether only the Given form or only the When/Then forms should become asserts, never both. This is discussion; no rename is authorized. Rust assert! panics on false and is used for tests/runtime invariants; TypeScript asserts declares assertion-function signatures and supports control-flow narrowing. These conventions may aid familiarity or mislead about Canlang failure semantics. Exact spellings below are proposed replacements only; behavior is fixed.",
+      "aim": "Compare clarity of invariant versus contextual guard, programmer expectations, everyday business failure, small vocabulary, and migration of drafts/parser/highlighter. Do not assume that a lexical distinction is required or that an assertion must panic in Canlang."
+    },
+    "questions": {
+      "spelling": {
+        "type": "choice",
+        "instructions": "Which vocabulary best balances the stated semantics and readability? Evaluate all tradeoffs without treating a familiar spelling as equivalent runtime behavior. Treat the answer as naming advice, not implementation permission.",
+        "criteria": {
+          "keep": "Keep require everywhere. Retains a compact consistent condition word and existing sources, but readers must use context/colon to distinguish persistent invariants, operation checks, and display gates.",
+          "given_asserts": "Use asserts Model: predicate in Given only; retain require in When/Then and backfill. Separates declarative constraints from operational/display checks using familiar assertion terminology, but adds a keyword and may suggest point checks, tests, or assertion failures.",
+          "when_then_asserts": "Keep require in Given; replace require by asserts for When/Then and analogous backfill guards. Makes execution/display checking visibly separate with recognizable assertion language, but adds vocabulary and can imply unexpected failures for routine business denial or hidden content.",
+          "given_invariant": "Use invariant Model: predicate in Given only, retaining require for When/Then and backfill. Directly names the persistent constraint and separates it from contextual guards, but introduces a more technical and longer word plus source/tooling migration."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "spelling": {
+        "type": "choice",
+        "choice": "given_invariant",
+        "confidence": 0.36,
+        "probabilities": {
+          "given_invariant": 0.53,
+          "given_asserts": 0.04,
+          "keep": 0.42,
+          "when_then_asserts": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 808,
+      "output_tokens": 57
+    }
+  }
+}

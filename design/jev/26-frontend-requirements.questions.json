@@ -1,0 +1,42 @@
+{
+  "state": {
+    "task": "Review frontend requirements for canlang SaaS drafts. The user requires a language-owned collapsible left sidebar with logo above automatic page navigation and the account entry at the bottom. Its account menu opens a settings dialog with internal sidebar navigation. Own-user configuration must be first class and have actual persistence/validation logic. The immediate authorized edit is only all 39 draft/Can*.md requirement files; no .can, parser, root language rules or runtime changes are allowed in this stage.",
+    "evidence": "The drafts have distinct staff/customer/public pages and 7 portfolio compositions. Existing i18n defines source-owned messages, localized page labels, runtime controls and saved UI language preference, but no renderer runs. Parameterized detail routes such as /offers/{Revision.id} and /finance/invoice/{Invoice.id} cannot be meaningful unbound global navigation. Static nested index pages such as /tasks/my-work and /expenses/review are usable destinations. Team/company/record grants and canonical operations remain binding; sidebar visibility is not authorization.",
+    "shell": "Use one shared shell per selected deployment/composition; deduplicate selected page identities rather than nesting shells per package. Logo/app identity is at the top; navigation below; user/context entry stays at the bottom while long navigation scrolls. Desktop supports collapse with accessible icon names/current state; mobile uses a dismissible overlay drawer. Generated links reuse page route, localized title and availability. The proposed default selects accessible static navigation pages, excludes parameterized detail/auth/callback surfaces, and permits actual declared navigation differences later without a copied menu definition. Page order/grouping and accessible parent links require specification.",
+    "preferences": "A runtime-owned own-user primitive supplies account/security and language/appearance controls once. Authenticated preferences persist for the principal and appropriate app scope; anonymous presentation choices remain browser-local. Optional app-specific personal sections reuse typed defaults, constraints and canonical owning actions rather than creating a second business logic path. Settings save validates, preserves invalid input, reports stale updates and can reset appropriate preferences. Presentation changes preserve unsaved business forms and never change permissions, team/company authority, business timezone, currency or historical records. Account changes use canonical authentication workflows, not generic user-directory CRUD.",
+    "limits": "Six modules have justified business administration: Customer company roles, Member paid plans, Rent published catalog/policies, Loyalty reward program, Feedback roadmap/moderation and Trade moderation. The other 33 do not need new administration consoles. Technical keys/endpoints/quotas/retention/retry/report-source configuration remains developer maintenance. Table and Reception have wording banning settings areas that must be narrowed to business/technical consoles so shared personal preferences are not contradictory. A receptionist device is not evidence of anonymous kiosk authority.",
+    "risks": "Inferring usable navigation saves tokens but needs explicit eligibility/ordering rules and handles pages gated by record context. Adding every page then excluding details makes exceptions visible but can repeat exclusions. A separate authored menu tree gives complete placement control while duplicating route/title/access facts against the repetition goal. Shared preference state reduces copied schemas but needs a first-class boundary and scoped extensions. Per-app self-owned CRUD preferences reuse existing mechanisms while multiplying base definitions and complicating account semantics. Neither option proves accessibility or runtime feasibility.",
+    "research": "Primary evidence supplied: https://daisyui.com/components/drawer/ supports responsive/collapsible sidebar markup; https://daisyui.com/components/menu/ and https://daisyui.com/components/modal/ supply component foundations, not complete app behavior. https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/ specifies modal focus/keyboard responsibilities. https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/ distinguishes navigation disclosure from application-menu behavior. Existing ADMIN_SURFACES.md separates personal/shared account controls from business administration. Existing REQUIREMENTS.md still has a Navbar shell: this pass must label the sidebar as a staged target rather than claim existing source conformance.",
+    "implementation": "Record the shared target once in CanDo.md for this scoped requirements pass, with other app documents linking to it; this creates no source/runtime dependency on CanDo and is not a permanent move of language authority. Each document receives concrete app-specific sidebar destinations, page component/content/actions, audience/detail rules, meaningful personal configuration only, and frontend acceptance journeys. Keep existing business rules intact and state that syntax/runtime alignment is later work. No new requirement file, app wrapper, generic admin dashboard, component download or verification framework is needed.",
+    "code": {
+      "detail": "/offers/{Revision.id}",
+      "index": "/tasks/my-work",
+      "composition": "app Workspace uses=[CanRent,CanMember,CanReport]"
+    }
+  },
+  "questions": {
+    "navigation": {
+      "type": "choice",
+      "instructions": "Which navigation derivation policy best preserves usable sidebar destinations and the given source/repetition constraints?",
+      "criteria": {
+        "eligible_pages": "Derive links from accessible static navigation pages, with details/auth/callbacks excluded by category and optional declared placement differences; accept eligibility/order semantics.",
+        "all_then_exclude": "Derive every page by default and explicitly opt unsuitable/detail destinations out; accept repeated exclusions in exchange for visible exceptions.",
+        "menu_tree": "Author a separate navigation tree referencing pages; accept repeated structure while providing direct placement control.",
+        "unresolved": "Postpone this policy if these alternatives cannot meet the stated requirements."
+      }
+    },
+    "configuration": {
+      "type": "choice",
+      "instructions": "Which sole foundation fits first-class own-user configuration and the existing canonical operation requirement?",
+      "criteria": {
+        "runtime_primitive": "Use a shared runtime-owned own-user primitive with scoped typed personal extensions and canonical save/auth actions; accept the new primitive/state boundary.",
+        "per_app_crud": "Model each app own-user preferences using ordinary self-owned CRUD and generated settings views; accept repeated base schemas and separate account integration.",
+        "unresolved": "Defer the foundation if neither resolves ownership, permission and presentation boundaries."
+      }
+    },
+    "coherence": {
+      "type": "noul",
+      "instructions": "Is the supplied sidebar/settings target and app-specific requirements-only migration coherent with public/customer/staff permissions, modal accessibility, canonical business actions and the ban on unnecessary developer/admin consoles?"
+    }
+  }
+}

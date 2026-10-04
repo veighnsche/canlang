@@ -1,0 +1,17 @@
+{
+  "state": {
+    "instructions": "Assess the eligibility boundary from the provided application evidence; advice is not authorization or execution proof.",
+    "facts": "CanLoyalty rewards repeat paid/completed workspace sales, not only newly referred customers. Staff deliberately enroll a Customer through Account in Program. The draft has no product filter and wrongly requires exclusive_program==Program.id. Invoice SalesV1.qualification is the declared verified financial source. Qualification includes source, revision, customer, account, location, product, milestone and attribution fields. Rent emits paid/completed/reversed booking lifecycle; Member emits those stages for paid membership terms; Invoice verifies actual collected money and reversals before publishing. Real capture producers set exclusive_program to null, refer.Program:<id>, or affiliate.Partner:<id>, never loyalty IDs. PORTFOLIO requires that shared attribution not accidentally reward multiple programs; it separates points/perks from referral/affiliate cash and member allowances. No requirement forbids intentional enrollment in several loyalty programs. Program locations and new explicit products are configurable. Source revisions, immutable routing evidence, monotone reversal tombstones, scoped authorized enrollment and one earning per source/account must survive duplicate/reordered events and late reversals after deactivation."
+  },
+  "questions": {
+    "eligibility": {
+      "type": "choice",
+      "instructions": "Which policy best meets the stated loyalty behavior, ownership separation and unintended-reward restriction?",
+      "criteria": {
+        "enrollment": "Use deliberate staff enrollment plus explicit Program product/location matching as independent loyalty authorization. Do not use commercial cash-attribution routing as loyalty enrollment. Multiple configured enrolled programs may intentionally award points; changing enrollment/policy cannot erase source reversal evidence. This permits intentional cash-plus-points benefits, so terms and enrollment must make that distinction explicit.",
+        "unattributed": "Accept loyalty earnings only when Qualification.exclusive_program is null, then apply deliberate enrollment and Program product/location matching. This prevents cash-attributed sales earning points, including legitimate repeat customers using referral or partner attribution; multiple enrolled loyalty programs can still award unless separately constrained.",
+        "exclusive_capture": "Extend the canonical source attribution contract and capture producers with owner-qualified loyalty routing, then make loyalty mutually exclusive with referral and affiliate rewards. This offers one sale-wide reward destination, but changes other owners, excludes combined benefits and adds a capture mechanism beyond current loyalty enrollment."
+      }
+    }
+  }
+}

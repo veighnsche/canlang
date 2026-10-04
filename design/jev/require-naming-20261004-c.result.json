@@ -1,0 +1,41 @@
+{
+  "request": {
+    "state": {
+      "context": "The draft distinguishes roles through placement even though each currently starts with require. Given require Model: predicate establishes a pure row condition across affected proposed final state for all write mechanisms and rechecks dependencies as needed; pure preference-value validation exists as well. When require expr [message=expr] may lead do or occur during its body, checks in authored order, and yields safe rule_failed rejection with full tentative rollback if false, also for trusted handlers. Within Then, require expr restricts the current render container: groups disappear when ineligible and denied pages cannot be used; backend permission checks remain binding. Backfill follows the execution-guard pattern. The user is asking about a potential naming change to asserts on either the Given side or the When/Then side, excluding a change to both; this question is not an instruction to edit syntax. For comparison, Rust assert! triggers panic when false and serves tests and runtime invariants, whereas TypeScript assertion-function signatures use asserts and narrow types in control flow. Borrowing the words supplies associations, not Canlang semantics. No candidate changes enforcement behavior.",
+      "aim": "Assess ease of reading, permanence versus local evaluation, conventional programmer associations, routine business denials and render availability, minimal language vocabulary, and the draft/parser/highlighting edits a rename entails. Neither vocabulary splitting nor panic-based assertions is a imposed requirement."
+    },
+    "questions": {
+      "spelling": {
+        "type": "choice",
+        "instructions": "Recommend one of the candidate spellings from the supplied evidence, considering competing benefits and risks even-handedly. This response is advisory and does not approve code or language changes.",
+        "criteria": {
+          "keep": "Leave all require spellings intact. The vocabulary stays small and no conversion is needed; recognizing lasting constraints separately from business gates and UI conditions continues to rely on syntax and section context.",
+          "given_asserts": "Change Given alone to asserts Model: predicate; keep require in scenario, presentation and backfill checks. Familiar assertion wording would mark permanent declaration roles separately, at the expense of another token, migration, and possible associations with tests or point-in-time failures.",
+          "when_then_asserts": "Retain Given require while introducing asserts for scenario and presentation checks, including equivalent maintenance guards. The familiar checking name flags local evaluation; it brings an additional keyword and migration, and may poorly signal expected rule rejection or render suppression.",
+          "given_invariant": "Replace Given require with invariant Model: predicate while preserving require for contextual execution/rendering/backfill conditions. This makes the lasting rule explicit, although it expands vocabulary using a technical longer term and requires source and tooling changes."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "spelling": {
+        "type": "choice",
+        "choice": "keep",
+        "confidence": 0.74,
+        "probabilities": {
+          "given_asserts": 0.14,
+          "keep": 0.81,
+          "given_invariant": 0.04,
+          "when_then_asserts": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 831,
+      "output_tokens": 54
+    }
+  }
+}

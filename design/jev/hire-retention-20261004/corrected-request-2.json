@@ -1,0 +1,14 @@
+{
+  "state": "Assess a missing lifetime mechanism from these facts. The hire owner stores Vacancy and its contained Candidate records. Candidate privacy policy requires disposal 180 days following vacancy closure, with no separate countdown for an open vacancy. Explicit close sets open=false and timestamps closed_at; an authorized reopen resets closed_at, accepts further intake and may alter only still-live candidate lifetimes. A subsequent close begins its own closure period. Admission must process due expiry before reopening, so data awaiting deletion cannot become live again. The current retain rule mandates a pure nonnullable datetime. Omitted retain means no independent expiry; contained rows remain subject to any finite ancestor deadline. Lifetime expressions have bounded same-owner dependencies and cannot use caller identity, sliding clock, operation state or random values. Neither a conditional value expression nor a block derive is supported: derive syntax requires =expr. Ordinary scenario effects already support if/set, allowing a nullable stored Vacancy.retention_until to be set at closure and cleared by explicit reopening on the vacancy after due candidate expiry has been applied. Existing disposal, archived-state, reference, file/audit/outbox, lock and receipt rules still apply. These are design sources only; there is no implemented runtime. Treat classification as advisory.",
+  "questions": {
+    "closure_lifetime": {
+      "type": "choice",
+      "instructions": "Select the smallest faithful language adjustment among the alternatives.",
+      "criteria": {
+        "nullable_deadline": "Extend the existing retain expression type to nullable datetime, interpreting null as absent independent expiry without removing a finite containing deadline. Read a nullable stored Vacancy.retention_until, populated with now+retention_days*1d during close and reset to null once during explicit reopen, which cannot resurrect expired children. There is no new grammar; validation must account for nullable deadline changes, ancestors and irreversible expiry.",
+        "condition_clause": "Add a retention activation predicate alongside a mandatory datetime expression. The close state becomes an explicit condition, at the cost of additional syntax and coordinated validation of predicate changes, dates and containing lifetimes.",
+        "finite_intake": "Assign a concrete intake-time expiry and periodically extend it for open applications. Nonnullable retention remains untouched, but renewal becomes a new process and open candidates can expire contrary to closure-driven requirements."
+      }
+    }
+  }
+}

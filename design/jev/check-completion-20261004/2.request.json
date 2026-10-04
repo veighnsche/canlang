@@ -1,0 +1,19 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "instructions": "Classify the storage alternatives using only the facts provided here. Do not research, infer an implemented runtime, or regard a recommendation as validation.",
+    "facts": "canlang targets economical adoption with compact, reliable SaaS declarations. First-class Cloudflare services are a user requirement, whereas the CanCheck line splitting D1 configuration/history from DO heartbeat authority was introduced in its draft and was not a user demand. Current ownership is D1 for Check/Transition and for Employee/Location. DESIGN confines each mutation to one authority, requires a moved root group to share its DO, and disallows pretending mutable cross-owner queries are atomic. The shown can_work implementation determines genuine location access; its Employee data is absent from the trusted role/membership snapshot. The proposed D1 fence commits all writes in one batch. Timers already have a D1 dispatcher path and a DO-alarm path. Neither path has been implemented or benchmarked. Completion still needs durable receipt responses, initial and repeated missed heartbeats, grace periods, recovery, pause/resume, timer revisions, separate notification outcomes, retention, and trusted technical provisioning with no product UI/MCP surface. Developer writes must participate in normal owner fencing. These behaviors are expressible with D1 authority; D1 contention remains unknown.",
+    "actual_code": "scenario pause(check:Check) by=operations\n require check.location==null or can_work(actor,check.location)\n do\n  set check {enabled=false,state=paused,revision=check.revision+1}\n  cancel check.id\nscenario resume(check:Check) by=operations\n require check.location==null or can_work(actor,check.location)\n do\n  let revision=check.revision+1\n  set check {enabled=true,state=new,armed=now,revision}\n  schedule check.id at=now+check.period+check.grace event=Deadline {check,revision}\nexport derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))"
+  },
+  "questions": {
+    "storage": {
+      "type": "choice",
+      "instructions": "Which revision best balances adoption and small language surface with unchanged access restrictions, truthful atomicity and honest performance limits?",
+      "criteria": {
+        "d1": "Retain D1 authority for the check root and its health/alert children, retain can_work, and correct the provisional split-owner requirement. Use the existing shared timer dispatcher. It adds no authorization contract, but throughput under the whole-database fence and delayed dispatch still require a prototype.",
+        "do_snapshot": "Choose a DO for each complete check group and add a newly specified D1 Employee-grant admission snapshot. Per-check ordering and alarms become local, at the cost of extra language/runtime authorization work and a revocation interval that is not atomic with the Employee row.",
+        "defer": "Decline to resolve placement now, explicitly keeping the authorization/split-owner mismatch open. This reserves judgment until implementation evidence arrives, but prevents closing a behavior that D1 can already describe and leaves contradictory draft text intact."
+      }
+    }
+  }
+}

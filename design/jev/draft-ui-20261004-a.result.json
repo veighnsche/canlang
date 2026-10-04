@@ -1,0 +1,166 @@
+{
+  "request": {
+    "state": {
+      "purpose": "Review bounded frontend refinements for an AI-authored CRUD SaaS DSL on workerd. Adoption, compact source, one canonical primitive and server permissions/rules/workflows govern the decision. This is a draft proposal exercise, not renderer/compiler/runtime implementation or permission to select a general frontend framework.",
+      "baseline": "Current DESIGN sections 9 and 9.1 use daisyUI prefabs, HTMX and an implicit shell. Apps have no raw HTML/classes/hx attributes. Pages, scoped collections, forms, actions, typed results, settings and localization already exist. The JavaScript targets import proposed unimplemented lower-case @canlang/ui server factories accepting one props object and children arrays. They do not implement async data preparation or a serializer.",
+      "facts": "The supplied source slices are exact current declarations. CanDo has an enum saved view whose one shared table filters All/Today/Overdue but sorts every view by -created. Its requirement calls for stated due-view ordering; MIGRATION.md:176 identifies the fixed-order limitation. UI ordering currently accepts signed selector lists, not preference dispatch; every-case maps and explicit default-plus-exception maps are competing ways to extend that existing slot without copying a collection body.",
+      "polling": "CanDo refresh(locations:text[]) is by=members and requires staff(actor). It sends WorkSources.work and creates WorkView; work_result changes that row after a verified completion. WorkView reads require members and row.account==actor. WorkSourcesV1 exports work(account:user,locations:text[]) -> WorkBatch, not a source-change event. The requirement at CanDo.md:58 asks to re-request SOURCE projections on source changes/configured polling. A GET reread only notices stored changes, never invokes refresh or asks a source again. Existing every(duration), trusted events and send can express background mechanics only after an actual source/identity contract is supplied; actor=null cannot bypass this user operation. Missing delegated background authority/events stay an app integration gap. The proposed poll attribute is constant 1s..1h, omitted by default, GET-only, paused while hidden/inactive, nonoverlapping, reauthorized and query/context-bound. It preserves still-authorized dirty forms, discards revoked/private data, distinguishes read failure from source freshness and needs no client business store. Page/collection poll sites cannot nest. Page-only polling is smaller but rereads a wider region; scoped collection polling narrows work but expands header eligibility. Keeping manual reload avoids periodic reads and new notation but does not deliver automatic display updates.",
+      "ordering": "One option is order=preferences.view followed by an exhaustive enum-case map of nonempty signed selector lists. Every owned preference case appears once and all arms must reference readable sortable fields; changing view resets its cursor and retains surviving filters/drafts. A rival closed order object has by, an explicit default selector list and a cases map of exceptions; it can save repeated arms but newly added cases silently use the written default. Both are presentation-only and select static query shapes, append record ID as tie-breaker, retain original array index as an array tie-breaker, place nulls last, and leave ordinary query ordering unchanged. Neither requires copied tabs/collections or general comparator code.",
+      "datetime": "The HTML Standard says datetime-local contains no zone offset. Existing DSL datetime values are UTC instants, output uses business/team timezones, and local_instant rejects gaps and requires explicit earlier/later for folds. Actual hold and schedule signatures are supplied unchanged. Shared generated controls can show local date/time with an explicit form-level IANA zone initially team.timezone (UTC without a team), validate through pinned timezone data, reject nonexistent times and ask which offset/instant for ambiguous times. An existing instant survives a presentation-zone change; an unresolved wall-time draft is reinterpreted only with visible confirmation. Only normalized instants enter operation inputs; this control does not assign a business timezone field, modify preferences or infer which unrelated record timezone is authoritative. RFC3339-with-offset input instead is simple and exact but less convenient for local scheduling. An optional authored form zone override can initialize a readable resource-specific zone precisely but adds a source attribute and binding rules. No current source or library contract automatically performs that override.",
+      "filters": "The proposed shared filter contract uses one condition per declared field and AND across fields. Exact scalar/string-like, bool/enum and authorized references allow eq/ne; int/decimal/duration/date/datetime/money additionally allow lt/lte/gt/gte/between. between has inclusive ordered lower/upper values; single-ended operators need one value. Nullable supported fields also allow is_null/not_null; no condition means unrestricted, distinct from testing null. Other comparisons exclude null and withheld fields never count as null. Money operands require a currency, range endpoints share it, and comparisons select that currency without conversion. Inputs retain exact integer/decimal/money and instant types. Unknown fields/operators/shapes fail; arrays, contracts/unions, json, files, secrets and actions are not direct filterable fields. Current policy/field grants precede filtering, ordering, counts and export; rows lacking a required field grant are excluded before that condition, not evaluated against hidden values. Search remains literal declared-field search. Browser controls and MCP/list/export reuse this finite contract. An alternative equality-plus-null baseline is smaller but removes range behavior already promised for dates; a broader operator surface, including membership and string matching, is useful but requires additional bounded type/permission semantics. Uniform filter rules need no new app notation.",
+      "labels": "For shared headings/reference pickers, a proposed finite rule uses the first readable nonempty exact title:text, then name:text, else the localized model caption plus full opaque ID. Identity is available as secondary text for every choice, even equal names; no shortened suffix is treated as unique. It never reads unreadable identifying fields, infers labels from arbitrary names, traverses relationships to seek a label, exposes email-directory fields or includes secrets. A readable reference whose target is unreadable can show only its already-readable typed identity. User/member references use safe IDs unless canonical granted identity presentation is available. This same rule applies to saved references and filters. ID-only labels are deterministic and minimal but less usable; an authored typed instance-label expression provides domain-specific identity with disclosure checking but adds notation and required per-model decisions. Current declaration label= means static caption, not a row expression.",
+      "evidence": "Primary references: https://htmx.org/attributes/hx-trigger/ documents periodic GET polling and a hidden-document filter; https://htmx.org/attributes/hx-sync/ describes dropping/aborting overlapping requests; https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type=datetime-local) specifies offset-free local input. These support feasible library behavior, not workerd compatibility, correct authorization, DST handling, preserved drafts or measured cost. The exact source anchors are DESIGN.md:160,183,318-336,476-494,524-559; GRAMMAR.md:101-110,360-394; draft/CanDo.md:35,58; draft/MIGRATION.md:176. No executable compiler, prefab library or localization runtime is present.",
+      "constraints": "Choose between real alternatives using source size, declared meaning, safe permissions, useful CRUD SaaS behavior and shared implementation cost. All choices retain canonical operations and source guards, server truth, daisyUI/HTMX and the existing localization/preference boundaries. Do not count the source-refresh gap as solved by GET polling. No approval thresholds or accuracy guarantee follows from your probability estimates; leave a dimension unresolved when its contract is contradictory.",
+      "source_code": {
+        "refresh": "  scenario refresh(locations:text[] label=\"Locations\"@{nl=\"Locaties\"}) by=members\n   require staff(actor)\n   do\n    send WorkSources.work {account=actor,locations} as delivery\n    create WorkView {account=actor,requested=now,delivery=delivery.id} as view\n  scenario work_result on=WorkSources.work.completed\n   do\n    for view in WorkView as v where v.delivery==event.delivery_id limit=1\n     set view {state=unavailable,items=[],sources=[]}\n     if event.status==succeeded and event.result!=null\n      let batch=event.result\n      let valid_sources=count(batch.states)==count(source_names()) and all(source_names() as source,count(batch.states as entry where entry.source==source)==1)\n      if valid_sources and all(batch.items as item,any(batch.states as entry,entry.source==item.source) and (item.action==null or (item.state==open and any(batch.states as entry,entry.source==item.source and entry.state==fresh))))\n       set view {items=batch.items,sources=batch.states}\n       if all(batch.states as entry,entry.state==fresh)\n        set view {state=fresh}\n       else\n        if not all(batch.states as entry,entry.state==unavailable)\n         set view {state=partial}",
+        "capability": "  derive source_names():text[] = [\"maintenance\",\"accounts\",\"onboarding\",\"board\",\"volunteering\"]\n  export capability WorkSourcesV1 version=1\n   work(account:user,locations:text[]) -> WorkBatch",
+        "projection_policy": "  policy WorkView read=members where=row.account==actor",
+        "task_view": "   tabs preferences.view\n   table Task as task where preferences.view==all or (task.due!=null and ((preferences.view==today and local_date(task.due,team.timezone)==local_date(now,team.timezone)) or (preferences.view==overdue and task.due<now and not task.done))) columns=title,assignee,due,priority,done order=-created filter=location,assignee,priority,done defaults={location=preferences.location,done=preferences.done} search=title display=split",
+        "work_page": "  page /tasks/my-work title=\"My work\"@{nl=\"Mijn werk\"}\n   require members\n   card \"Refresh source work\"@{nl=\"Werk uit bronsystemen vernieuwen\"}\n    form refresh display=inline\n   list WorkView as view where view.account==actor order=-view.requested\n    text row.state,row.requested\n    card source_freshness_caption\n     table row.sources columns=source,state,detail\n    card \"Authorized work and actions\"@{nl=\"Toegestaan werk en acties\"}\n     table row.items columns=title,source,location,due,state filter=source,location,due,state\n      content row.detail\n      form row.action\n    text \"Refresh after an action to read its current source state.\"@{nl=\"Vernieuw na een actie om de huidige bronstatus te lezen.\"}",
+        "hold": "  scenario hold(resource:Resource,customer:Customer,from:datetime label=label_RoomRequest_from,until:datetime label=label_RoomRequest_until,quantity:int,email:email,use_allowance:bool=false label=label_hold_use_allowance) by=authenticated label=\"Hold workspace\"@{nl=\"Werkplek tijdelijk reserveren\"}\n   require actor.email_verified and customer.active and resource.location in customer.locations\n   require (reservation_manager and can_work(actor,resource.location)) or (customer.kind==individual and owns(actor,customer)) or has_location_role(actor,customer,booker,resource.location) or has_location_role(actor,customer,administrator,resource.location)\n   require from>=now and from<until and quantity>0 and until-from>=resource.minimum and (until-from)%resource.increment==0m\n   require free(resource,from-resource.buffer_before,until+resource.buffer_after,quantity,null)\n   do\n    create Booking {parent=resource,customer,account=actor,email,from,until,quantity,rate=resource.hourly,total=resource.hourly*((until-from)/1h)*quantity,terms=resource.terms,refund_before=from-resource.refund_notice,reserved_from=from-resource.buffer_before,reserved_until=until+resource.buffer_after,expires=now+15m,source=operation.id} as booking",
+        "interview": "  scenario schedule(candidate:Candidate,interviewer:Employee label=label_interviewer,from:datetime label=label_Interview_from,until:datetime label=label_Interview_until,timezone:timezone) by=recruiter label=\"Schedule interview\"@{nl=\"Gesprek plannen\"}\n   require can_work(actor,candidate.parent.location) and candidate.stage in [applied,interview] and interviewer.active and from>=now and from<until\n   do\n    create Interview {parent=candidate,interviewer,from,until,timezone,source=operation.id} as interview\n    send StaffSchedule.reserve {value={source=interview.source,employee=interviewer.user,location=candidate.parent.location.id,from,until,skill=\"interview\",kind=interview,revision=interview.version}} as delivery",
+        "grant_filter": "    list Grant order=closes filter=location,closes defaults={location=preferences.location}\n     text row.name,row.location,row.terms,row.questions,row.criteria,row.closes,row.timezone\n     form Application.create"
+      },
+      "proposed_syntax": {
+        "poll": "page /tasks/my-work title=\"My work\"@{nl=\"Mijn werk\"} poll=5s\n require members\n list WorkView as view where view.account==actor order=-view.requested",
+        "scoped_poll": "list WorkView as view where view.account==actor order=-view.requested poll=5s",
+        "exhaustive_order": "order=preferences.view {all=[-created],today=[due],overdue=[due]}",
+        "fallback_order": "order={by=preferences.view,default=[due],cases={all=[-created]}}",
+        "filter_ops": [
+          "eq",
+          "ne",
+          "lt",
+          "lte",
+          "gt",
+          "gte",
+          "between",
+          "is_null",
+          "not_null"
+        ]
+      }
+    },
+    "questions": {
+      "poll": {
+        "type": "choice",
+        "instructions": "Select the smallest useful authored GET-reread surface for these asynchronous views. Weigh narrower region requests against eligible-header complexity; all options keep refresh mutations explicit and leave missing source delegation unresolved.",
+        "criteria": {
+          "scoped": "Permit optional constant poll on pages and record/typed collections, with the common suspension, authorization, no-overlap and draft rules. This allows a small WorkView region but adds eligible header sites and rejects nested poll owners.",
+          "page_only": "Add poll only to page headers with the same protected GET contract. This is a simpler eligibility rule and encompasses noncollection read regions, while broader page rereads may do more work.",
+          "manual": "Keep current manual operations and ordinary reload without authored polling. This saves new syntax and recurring traffic but cannot meet automatic display rereading by itself.",
+          "unresolved": "Leave the new GET-reread spelling unsettled if its state-preservation/security obligations cannot be bounded from the evidence."
+        }
+      },
+      "order": {
+        "type": "choice",
+        "instructions": "Which extension of the existing UI order slot best expresses a saved view with different static sort lists while retaining one collection body?",
+        "criteria": {
+          "exhaustive": "Use an owned enum selector followed by a complete case-to-selector-list map. Exhaustiveness makes additions explicit and avoids a fallback rule, but equal arms may repeat short order lists.",
+          "fallback": "Use the closed by/default/cases object, checking a default list and only exceptional enum cases. Repeated sorts can shrink, but new enum cases receive its written default without a mandatory new arm.",
+          "unresolved": "Postpone preference-sensitive ordering because neither finite dispatch form has sufficiently clear checking or query-state semantics."
+        }
+      },
+      "datetime": {
+        "type": "choice",
+        "instructions": "Choose the canonical generated datetime entry approach, balancing unambiguous instant conversion, local scheduling usability and new authored attributes.",
+        "criteria": {
+          "shared_zone": "Use uniform local-time controls with an explicit form-level IANA zone initially team/UTC and visible fold resolution. It needs pinned exact conversion but no app syntax; resource/sibling business timezone meanings are not inferred.",
+          "offset_input": "Require offset-bearing RFC3339 entry without a local-zone initializer. It is exact with less local conversion machinery but makes ordinary local scheduling harder.",
+          "authored_zone": "Provide a form-level readable zone initializer plus the same explicit controls/conversion. It can match resource-specific context precisely, but adds an authored attribute, disclosure checking and binding decisions.",
+          "unresolved": "Do not finalize datetime controls while the zone and unresolved wall-time rules remain contradictory."
+        }
+      },
+      "filters": {
+        "type": "choice",
+        "instructions": "Pick the uniform generated filter boundary that best preserves currently promised SaaS reads without giving clients arbitrary predicates.",
+        "criteria": {
+          "finite": "Pin the described equality/order/null matrix and exact range/currency rules across browser/MCP/export. It satisfies date ranges and money comparison while requiring a closed typed request validator.",
+          "equality_only": "Start with equality and supported null predicates. This reduces operator implementation/validation but does not supply the range behavior already described for generated collections.",
+          "broader": "Also expose bounded membership and string-match operators. They cover more ad hoc reads but need additional operand-type, null, permission and indexing contracts beyond this proposal.",
+          "unresolved": "Keep operator rules open until unsupported types or field-grant behavior are resolved."
+        }
+      },
+      "labels": {
+        "type": "choice",
+        "instructions": "Choose a deterministic shared instance-label rule under current read permissions, distinguishing static model captions from record identity.",
+        "criteria": {
+          "exact_defaults": "Use the readable exact title/name sequence and full-ID fallback, with secondary identity on choices. It avoids new source fields but the finite default may be less descriptive for other domain identities.",
+          "id_only": "Render type caption and full opaque ID for all references/headings. It has no identifying-field guesswork or extra label reads, but is harder for people to recognize.",
+          "authored": "Add an optional typed record-label expression with full-ID fallback and disclosure checking. It enables precise domain captions, while introducing notation and model authoring work.",
+          "unresolved": "Leave label selection unresolved if the safe reference and duplicate-name guarantees cannot be made precise."
+        }
+      },
+      "coherent": {
+        "type": "noul",
+        "instructions": "Is the bounded package coherent as a draft refinement, given exact server rechecks, no implicit source mutation/delegation, finite order/filter rules, explicit datetime conversion, current-grant labels and acknowledged absent implementations?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "datetime": {
+        "type": "choice",
+        "choice": "shared_zone",
+        "confidence": 0.95,
+        "probabilities": {
+          "shared_zone": 0.97,
+          "offset_input": 0.0,
+          "authored_zone": 0.01,
+          "unresolved": 0.02
+        }
+      },
+      "filters": {
+        "type": "choice",
+        "choice": "finite",
+        "confidence": 1.0,
+        "probabilities": {
+          "finite": 1.0,
+          "equality_only": 0.0,
+          "broader": 0.0,
+          "unresolved": 0.0
+        }
+      },
+      "labels": {
+        "type": "choice",
+        "choice": "exact_defaults",
+        "confidence": 1.0,
+        "probabilities": {
+          "exact_defaults": 1.0,
+          "authored": 0.0,
+          "id_only": 0.0,
+          "unresolved": 0.0
+        }
+      },
+      "coherent": {
+        "type": "noul",
+        "noul": 0.78
+      },
+      "poll": {
+        "type": "choice",
+        "choice": "page_only",
+        "confidence": 0.43,
+        "probabilities": {
+          "page_only": 0.57,
+          "scoped": 0.42,
+          "manual": 0.01,
+          "unresolved": 0.0
+        }
+      },
+      "order": {
+        "type": "choice",
+        "choice": "exhaustive",
+        "confidence": 0.58,
+        "probabilities": {
+          "fallback": 0.27,
+          "exhaustive": 0.72,
+          "unresolved": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 4572,
+      "output_tokens": 262
+    }
+  }
+}

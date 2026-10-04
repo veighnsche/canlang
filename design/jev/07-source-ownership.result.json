@@ -1,0 +1,80 @@
+{
+  "request": {
+    "state": "39 revised app requirements share mutable employee, customer-role, location, supplier and billing records. DESIGN.md mandates one owner per mutation, forbids mutable remote dependencies/invariants across D1 and DO, and permits admission-time auth/role/team-membership snapshots only. Our new source drafts put resource, staff, ticket, cafe and volunteer roots in separate DOs but their guards read canonical D1 employee/customer/location models. That does not satisfy the chosen ownership rule. D1's database-wide revision fence can coordinate co-deployed CRUD records and their business invariants, subject to prototype contention verification. App Markdown explicitly requested DOs for several coordination cases. User asks to migrate all sources according to current design, not invent remote atomic transactions or clone identities. Other concrete gaps: month-end anchored membership recurrence and weekday/holiday calendars exceed add_days alone; trusted retention handlers cannot delete technical intake data when deletion requires enabled end-user CRUD, which those requirements expressly forbid. No compiler/runtime exists; do not claim tests executed.",
+    "questions": {
+      "ownership": {
+        "type": "choice",
+        "instructions": "Select a valid migration choice under present grammar and explicit canonical ownership, retaining any infrastructure requirement discrepancy in the migration report.",
+        "criteria": {
+          "d1": "Co-deploy related mutable business records at D1 default owner, use its revision fence for all invariants, retain asynchronous verified external workflows. Explicitly record app-specific DO placement as unmet architecture requirements pending an ownership design change/prototype.",
+          "copies": "Keep DO roots and duplicate mutable employee/location/company policies into each authority, treating synchronization as immediate revocation.",
+          "pretend": "Keep cross-owner business reads in DO mutations and claim the owner directory or atomic calls make them transactional.",
+          "stop": "Stop every app migration until a different storage model is designed.",
+          "unresolved": "Insufficient evidence."
+        }
+      },
+      "calendar": {
+        "type": "choice",
+        "instructions": "Select how to handle calendar requirements without inventing undeclared helpers during this source migration.",
+        "criteria": {
+          "gap": "Keep current builtin set and represent explicitly dated terms/calendar days, recording automatic anchored monthly recurrence as a concrete unresolved requirement.",
+          "builtins": "Extend current design now with a fully specified minimal calendar builtin set before claiming calendar requirements met.",
+          "unresolved": "Insufficient evidence."
+        }
+      },
+      "retention": {
+        "type": "choice",
+        "instructions": "Select how to handle forbidden technical CRUD alongside retention deletion in the current effect grammar.",
+        "criteria": {
+          "gap": "Leave technical records without user CRUD and document retention as a source-design gap requiring a canonical trusted cleanup rule; do not fake deletion through user tools.",
+          "crud": "Expose owner technical deletion CRUD despite explicit no-technical-CRUD requirement.",
+          "runtime": "Assume undeclared automatic retention for arbitrary business models.",
+          "unresolved": "Insufficient evidence."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "ownership": {
+        "type": "choice",
+        "choice": "d1",
+        "confidence": 1.0,
+        "probabilities": {
+          "pretend": 0.0,
+          "d1": 1.0,
+          "copies": 0.0,
+          "unresolved": 0.0,
+          "stop": 0.0
+        }
+      },
+      "calendar": {
+        "type": "choice",
+        "choice": "gap",
+        "confidence": 0.99,
+        "probabilities": {
+          "builtins": 0.0,
+          "unresolved": 0.0,
+          "gap": 1.0
+        }
+      },
+      "retention": {
+        "type": "choice",
+        "choice": "gap",
+        "confidence": 1.0,
+        "probabilities": {
+          "crud": 0.0,
+          "runtime": 0.0,
+          "unresolved": 0.0,
+          "gap": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 942,
+      "output_tokens": 145
+    }
+  }
+}

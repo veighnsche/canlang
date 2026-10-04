@@ -1,0 +1,169 @@
+{
+  "request": {
+    "state": {
+      "task": "Assess a bounded specification revision for canlang’s SaaS source language, rather than implementation work. Economical AI generation, human adoption, a single mechanism for each business primitive and unchanged application behavior are the priorities. The checker and runtime remain absent. Treat your classifications as recommendations and compare the competing designs without presuming correctness.",
+      "evidence": "Do not reopen preferences: GRAMMAR:427 settles its parsing precedence. A syntax-tree inventory covered 44 current sources. CanExpense:46-60 uses approved both as a boolean parameter and as an Expense.status case. The progress definitions in CanOnboard:15, CanLearn:23 and CanSuccess:21 divide integer counts, with max([1,count(...)]) ensuring a nonempty literal domain. CanStats:64 divides goals and identified counts by total. Hourly pricing in CanTime:21 and allowance consumption in CanMember:162 divide durations; CanRent:82 takes their remainder. The eight explicit parameter defaults are literal values. Body locals and query aliases never hide scenario parameters in this corpus. row/event aliases and before/result/owner parameters occur outside the corresponding injected contexts; CanCatch:62 specifically names an input owner, hiding the built-in actor predicate in its value expressions. No existing example table has an established overlapping-selector defect to repair.",
+      "names": "Proposed resolution is lexical-first: a bound authored name cannot be repurposed as an enum case merely because a target expects one; only a missing binding permits the unique expected case. In Expense, change only the decision boolean’s name from approved to approve, preserving the approved enum wire value and Decision.approved field. Reject two authored definitions in one scope while allowing a nested block or query to hide an outer authored binding; resolve each initializer before installing its new local. Protect actor/team/now/operation and whichever row/event/preferences/result/before facts are injected in the present context. Outside that context those spellings remain usable identifiers. Disallow package definitions of the closed builtin names; a local value can hide a callable or actor predicate, and an incompatible reference is rejected. Evaluate pure parameter defaults in signature order, exposing earlier resolved inputs and the fixed facts at their pre-authority types, excluding self/later inputs and body names. Existing query purity and information-disclosure restrictions still apply.",
+      "numeric": "Under the candidate matrix, division of two integers or two durations yields decimal. Mixed numeric overloads widen integers exactly, with no general-purpose conversion. Compute decimal arithmetic mathematically, quantize ties-to-even at 18 fractional digits if needed, then reject a value exceeding 38 significant digits. Special floating values do not exist. Reject overflowing integral arithmetic, zero denominators, currency mismatches and invalid inputs. A money-valued operation performs one rounding to the currency’s minor units, and a money ratio checks matching currency. Remainder for integer/millisecond operands follows division truncated toward zero, so its sign follows the dividend. A duration divided by an integer must produce integral milliseconds exactly. Bytes support comparisons without arithmetic. Require millisecond-representable datetime inputs, rejecting finer nonzero RFC3339 fractions. Comparisons allow exact integer/decimal matching and compatible validated textual subtypes but do not order enum cases. Any pair absent from the table is invalid.",
+      "catalog": "Every one of the present 32 builtin identifiers appears in the proposed catalog. The C notation refers only to bounded ordered array/query values; O describes nonnull ordered scalars, with currency agreement for money and scalar-codepoint ordering for strings. K specifies typed-equality group keys and one group for equal null keys; groups and their members follow first-encounter order. A nonempty literal array is the sole static nonempty proof in this refinement, keeping max([1,count(...)]) nonnull while leaving ordinary min/max and first optional. Empty number/duration totals are zero; a money total omits currency only for that static nonempty case and checks each entry’s currency. abs fails at the negative signed boundary; round uses half-even with scale between 0 and 18. A negative or absent array index produces null. Pin Unicode full default case conversion and White_Space endpoint removal to the language release; text predicates are exact case-sensitive scalar matches with neither normalization nor locale changes. Measure string lengths in scalars. join respects order and yields an empty string for no items. Literal-template format performs named Display substitution, recognizes doubled braces, diagnoses missing or malformed slots and prints scalars canonically without locale; localized format preserves DESIGN:9.1 and needs a locale argument, whose null value pins app default. overlaps returns false if either half-open date/instant interval is empty or reversed. Existing calendar/fold semantics, action binding validation, live membership lookup and server-default-only random_secret stay in force. This introduces no callable predicates, public generics or conversion facility.",
+      "examples": "The proposed example contract first evaluates cells against unchanged seed data and resolves their binding/fixture targets. Apply mutually independent row assignments as a batch and validate the resulting fixture state once. Existing common bindings remain initial values that table columns can override. Diagnose same-target assignments reached through aliases, duplicate or ancestor/descendant selectors, and editing a reference edge while another column traverses it; identical cell values do not make those overlaps legal. Keep request.* envelope patches separate from fixture modifications. Such conflicts fail setup or compilation and cannot fulfill error(code). An alternative treats the columns as sequential patches: it supports intentional replacements followed by field changes, at the cost of setup behavior depending on their order.",
+      "research": "The primary Unicode chapter-3 rules distinguish complete/contextual case mappings from language tailoring, and UAX44 separately defines the White_Space property. The decimal arithmetic specification supplies rounded quotient versus truncated integer quotient/remainder definitions. Those sources inform this limited design rather than automatically importing their complete standards. Consulted URLs are https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/ , https://www.unicode.org/reports/tr44/ and https://www.speleotrove.com/decimal/daops.html ; data releases are language-version-pinned.",
+      "canonical_source": "  scenario decide(expense:Expense,approved:bool label=label_Expense_status_approved,reason:text) by=reviewer label=\"Record decision\"@{nl=\"Besluit vastleggen\"}\n   require expense.status==submitted and expense.reviewer==actor and expense.parent.user!=actor and can_work(actor,expense.location) and (approved or trim(reason)!=\"\")\n   do\n    create Decision {parent=expense,submission=expense.submission,amount=expense.amount,receipt=expense.receipt,reviewer=actor,approved,reason,decided_at=now} as decision\n    if approved\n     set expense {status=approved,decision=reason,decided_by=actor,decided_at=now}\n    else\n     set expense {status=rejected,decision=reason,decided_by=actor,decided_at=now}\n   examples seed=[other_worker] expense=claim\n    as,expense.parent,expense.status,expense.reviewer,expense.submission,approved,reason -> expense.status,expense.receipt,expense.decided_by,count(expense.Decision),any(expense.Decision as decision,decision.submission==1 and decision.amount==money(25,\"EUR\") and decision.receipt==receipt and decision.reviewer==self and decision.approved==approved and decision.reason==reason)\n    reviewer,other_worker,submitted,self,1,true,\"Checked the journey\" -> approved,receipt,self,1,true\n    reviewer,other_worker,submitted,self,1,false,\"Clarify the journey\" -> rejected,receipt,self,1,true\n    reviewer,other_worker,submitted,self,1,false,\"\" -> error(rule_failed)\n    reviewer,test_worker,submitted,self,1,true,\"Checked the journey\" -> error(rule_failed)\n    members,test_worker,submitted,self,1,true,\"Checked the journey\" -> error(forbidden)",
+      "signatures": [
+        "count(domain:C<T>)->int",
+        "sum(domain:C<int>)->int; sum(domain:C<decimal>)->decimal",
+        "sum(domain:C<duration>)->duration; sum(domain:C<money>,currency:currency)->money; sum(domain:nonempty C<money>)->money",
+        "min(domain:C<O>)->O?; max(domain:C<O>)->O?; min(domain:nonempty C<O>)->O; max(domain:nonempty C<O>)->O",
+        "any(domain:C<T> as x,predicate:bool in x scope)->bool; all(domain:C<T> as x,predicate:bool in x scope)->bool",
+        "first(domain:ordered C<T>)->T?",
+        "group(domain:C<T> as x,key:K in x scope)->C<{key:K,items:T[]}>",
+        "at(array:T[],index:int)->T?",
+        "abs(value:int)->int; abs(value:decimal)->decimal; abs(value:duration)->duration; abs(value:money)->money",
+        "round(value:int,scale:int)->decimal; round(value:decimal,scale:int)->decimal",
+        "lower(value:S)->text; upper(value:S)->text; trim(value:S)->text",
+        "contains(value:S,needle:text)->bool; starts_with(value:S,prefix:text)->bool; join(values:C<S>,separator:text)->text",
+        "format(template:text,values:closed object of Display)->text; format(descriptor:message,locale:locale?)->text",
+        "active_member(person:user,team:Team)->bool",
+        "overlaps(aStart:date,aEnd:date,bStart:date,bEnd:date)->bool; overlaps(aStart:datetime,aEnd:datetime,bStart:datetime,bEnd:datetime)->bool",
+        "local_date(value:datetime,zone:timezone)->date",
+        "local_instant(date:date,time:text,zone:timezone,fold:enum(earlier,later))->datetime",
+        "add_days(value:date,days:int)->date; add_months(value:date,months:int)->date",
+        "date_year(value:date)->int; weekday(value:date)->int; dates(from:date,until:date,limit:int)->date[]",
+        "money(value:int,currency:currency)->money; money(value:decimal,currency:currency)->money",
+        "date(value:text)->date; datetime(value:text)->datetime",
+        "action(target:canonical user mutation,bindings:closed object of every record parameter)->singleton action(target)",
+        "random_secret()->secret"
+      ],
+      "operand_matrix": [
+        "int (+,-,*) int -> int; int / int -> decimal; int % int -> int",
+        "(int|decimal) (+,-,*,/) decimal -> decimal; decimal (+,-,*,/) int -> decimal",
+        "money (+,-) money -> money; money (*,/) (int|decimal) -> money; (int|decimal) * money -> money; money / money -> decimal",
+        "duration (+,-,%) duration -> duration; duration / duration -> decimal; duration * int -> duration; int * duration -> duration; duration / int -> duration",
+        "datetime (+,-) duration -> datetime; duration + datetime -> datetime; datetime - datetime -> duration",
+        "compatible ordered sequences + compatible ordered sequences -> same-element ordered sequence",
+        "unary - : int|decimal|duration|money -> same type; not:bool->bool; and/or:bool,bool->bool",
+        "==/!= : same compatible representation -> bool; </<=/>/>= : same O -> bool; in:T,C<T>->bool",
+        "O = int|decimal|duration|money|date|datetime|text|email|url|locale|timezone|currency|byte quantity",
+        "K = text|bool|int|decimal|enum|email|url|locale|timezone|currency|date|datetime|duration|money|user|member|same-model record identity, with optional nullability",
+        "S = text|email|url|locale|timezone|currency",
+        "Display = nonnull text|email|url|locale|timezone|currency|bool|enum|int|decimal|money|date|datetime",
+        "C<T>, nonempty, ordered, K, S, O, Display = specification metanotation, not authored types or first-class functions"
+      ]
+    },
+    "questions": {
+      "enum": {
+        "type": "choice",
+        "instructions": "For the shown Expense source, which binding rule should be adopted?",
+        "criteria": {
+          "lexical_first": "Let a declared lexical value take precedence and change the boolean input’s identifier. Interpretation stays uniform, with one existing input rename required.",
+          "expected_enum_first": "Use the contextual enum case when its type is expected despite an incompatible same-name binding. The authored signature stays, while reference meaning becomes type-sensitive.",
+          "defer": "Make no selection when both designs fall short of the supplied needs."
+        }
+      },
+      "shadowing": {
+        "type": "choice",
+        "instructions": "How should nested value scopes handle reused names?",
+        "criteria": {
+          "nested_scopes": "Allow child-scope hiding of authored names, reject duplicate bindings locally and protect injected facts. Familiar naming survives at the price of maintaining scope extents.",
+          "no_authored_shadow": "Disallow every redeclaration of a visible name, including outer authored variables. Resolution is simpler, but authors must use more unique identifiers.",
+          "defer": "Leave scope policy undecided unless one proposal is defensible."
+        }
+      },
+      "defaults": {
+        "type": "choice",
+        "instructions": "How much parameter dependency should defaults permit?",
+        "criteria": {
+          "earlier_only": "Resolve defaults in declaration order from prior inputs and pre-authority fixed facts only. No dependency solver is needed, but later-input references fail.",
+          "acyclic_graph": "Resolve defaults from any inputs through an acyclic dependency graph. Forward references and signature movement work, with more evaluation/diagnostic machinery.",
+          "defer": "Withhold a decision if neither dependency model is acceptable."
+        }
+      },
+      "division": {
+        "type": "choice",
+        "instructions": "Choose the integer quotient contract for these business calculations.",
+        "criteria": {
+          "decimal_ratio": "Return decimal from int/int under the fixed precision rules. Count percentages need no edits, although the quotient type differs from its operands.",
+          "integer_quotient": "Use truncating int/int while retaining decimal mixed operands and duration ratios. Conventional integer behavior remains, but ratio formulas must mark decimal arithmetic explicitly.",
+          "defer": "Do not commit if the numeric semantics remain incoherent."
+        }
+      },
+      "selectors": {
+        "type": "choice",
+        "instructions": "What should conflicting table-column assignments mean?",
+        "criteria": {
+          "reject_overlap": "Resolve targets against original fixtures and diagnose aliased or prefix-overlapping assignments. Setup is order-independent, excluding deliberate successive refinements.",
+          "ordered_patches": "Interpret cells in header order and let later patches refine earlier ones. Layered fixture edits are possible, with column rearrangement affecting results.",
+          "defer": "Select neither while the setup implications are unsettled."
+        }
+      },
+      "catalog": {
+        "type": "noul",
+        "instructions": "Is the complete proposed builtin/operand catalog internally consistent while retaining the existing language instead of adding authored generics, free callbacks or general casts?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "enum": {
+        "type": "choice",
+        "choice": "lexical_first",
+        "confidence": 0.99,
+        "probabilities": {
+          "defer": 0.0,
+          "lexical_first": 1.0,
+          "expected_enum_first": 0.0
+        }
+      },
+      "shadowing": {
+        "type": "choice",
+        "choice": "nested_scopes",
+        "confidence": 1.0,
+        "probabilities": {
+          "defer": 0.0,
+          "no_authored_shadow": 0.0,
+          "nested_scopes": 1.0
+        }
+      },
+      "defaults": {
+        "type": "choice",
+        "choice": "earlier_only",
+        "confidence": 1.0,
+        "probabilities": {
+          "defer": 0.0,
+          "earlier_only": 1.0,
+          "acyclic_graph": 0.0
+        }
+      },
+      "division": {
+        "type": "choice",
+        "choice": "decimal_ratio",
+        "confidence": 0.9,
+        "probabilities": {
+          "integer_quotient": 0.06,
+          "defer": 0.01,
+          "decimal_ratio": 0.93
+        }
+      },
+      "selectors": {
+        "type": "choice",
+        "choice": "reject_overlap",
+        "confidence": 1.0,
+        "probabilities": {
+          "defer": 0.0,
+          "ordered_patches": 0.0,
+          "reject_overlap": 1.0
+        }
+      },
+      "catalog": {
+        "type": "noul",
+        "noul": 0.8
+      }
+    },
+    "usage": {
+      "input_tokens": 3772,
+      "output_tokens": 231
+    }
+  }
+}

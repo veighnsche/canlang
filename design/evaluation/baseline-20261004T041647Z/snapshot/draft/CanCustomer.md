@@ -1,0 +1,80 @@
+# CanCustomer requirements
+
+Inherits [canlang requirements](../REQUIREMENTS.md), [workspace operator context](WORKSPACE_OPERATOR.md), and [portfolio composition](PORTFOLIO.md). Companion draft: [CanCustomer.can](CanCustomer.can).
+
+## Purpose and Adoption Goal
+
+Provide the workspace operator's customer identity and company-administration package. Adoption depends on a company being able to manage its people and billing contacts without duplicating its account across sales, membership, booking, and finance.
+
+## Users and Permissions
+
+Authorized customer administrators invite and remove people in their own customer organization and grant the explicitly defined administrator, booker, or billing-contact roles. Billing contacts read only the organization billing records granted by finance; a booker can book on behalf of permitted colleagues without reading invoices by default. Operator customer managers handle individual/company account maintenance under location and functional scope. Neither role is an operator employee invitation or a membership purchase.
+
+## Data and Ownership
+
+Own the canonical individual customer, customer organization, contact, verified account/contact link, organization role grant, expiring invitation, billing profile, and attributed merge/alias history. Separate contact information from an authenticated identity. Store active/archived state, applicable service locations, and externally referenced IDs. CanMember owns paid seats/benefits; CanInvoice snapshots the applicable billing profile at issuance. Historical snapshots are not overwritten when a company changes address.
+
+## Workflows and Business Rules
+
+Invite a verified person with explicit role and scope; accepting consumes the invitation once and cannot infer authority from a matching email domain. Prevent removal of the last active company administrator without an authorized operator recovery action and retained reason. Membership-seat assignment is a separate authorized operation at CanMember; inviting an administrator does not consume or grant a paid seat unless explicitly requested.
+
+Removing an organization role immediately revokes its organization read/action permissions. Reconcile dependent seats, future organization bookings, and visitor-host permissions with visible pending/conflict outcomes; do not silently cancel a paid reservation or erase the person's independently owned account. A stale invitation or booking action after removal must fail current authorization. Resolve duplicate contacts/companies through authorized reviewed aliases, never automatic email-name matching; preserve financial and booking references and do not transfer roles during a merge.
+
+## Pages and Interactions
+
+Use the [shared shell and personal configuration](../REQUIREMENTS.md#standard-shell-and-personal-configuration). Declared sidebar pages are Customers (`/customers`) for scoped operator managers and Invitations (`/company-invitations`) for authenticated invitees. Company people (`/companies/{Customer.id}`) opens for the selected own company; contact/duplicate/billing details stay contextual. Use daisyUI; protected company administration remains separate from own-user settings.
+
+| Page or logical destination | Components and content layout | Canonical actions and conditions |
+| --- | --- | --- |
+| Customers and contacts | Search Input, individual/company and active/location filters, Table/List and identity Card; contact/account relationship and billing-profile Fieldsets. | Scoped operator maintenance searches, edits, archives and exports authorized records; distinguish contact email from a verified account. Individual customers require no company account. |
+| Company people | Own-company heading; role/location Table and invitation Fieldset; invitation status/expiry Badges; separate reconciliation Alert/List and membership-seat link Cards. | Verified company administrators invite/remove and manage explicit administrator/booker/billing grants only within their company/scope. Existing operations enforce last-administrator protection. Paid seats call CanMember separately. |
+| Invitations | Addressed invitation Cards with company, role, scope, expiry and accept Button; own contact/account claim summary. | Current verified invitees claim/accept only eligible addressed records once. Matching email domains never grant authority; stale invitations fail current checks. |
+| Duplicate and billing context | Reviewed duplicate Table with proposed alias, affected references and reason Fieldset; authorized billing-contact/profile Card and historical-reference List. | Canonical reviewed aliases preserve financial/booking references and never transfer roles. Billing visibility follows its own grants; operator recovery requires authority and a retained reason. |
+
+Show invitation acceptance independently from seat/booking/reception reconciliation. Removal immediately removes local access while pending/conflict dependent outcomes remain visible; never imply that a paid reservation was cancelled. Empty states offer only authorized actions. Pending mutations prevent repetition; stale role or last-administrator conflicts retain the intended edit and explain the server outcome. Preserve unsaved fields after validation failures. On mobile stack people and invitation Cards, keeping role, scope and expiry visible; keep other-company records and ungranted billing content out of both views and downloads.
+
+## Personal Configuration
+
+Inherit the shared own-user dialog and base settings. Remember authorized directory filters and people-list density. Roles, colleagues' contacts, billing profiles, seats and reconciliation are business-page content; none belongs in personal configuration. No general settings console is required.
+
+## Admin and Management Surfaces
+
+End-user admin is required for company access administration. A verified company administrator must invite/remove colleagues and assign company booker/billing roles without granting operator staff access. Ordinary customers cannot manage someone else's organization authority.
+
+Provide an own-company people/invitation/role view for the verified company administrator. Operator customer maintenance remains ordinary customer-management work. Seat controls call CanMember's permitted operation; this role cannot change prices, paid evidence, or another company. See [end-user administration scope](ADMIN_SURFACES.md).
+
+## Interfaces and Integrations
+
+Use D1 and shared verified authentication. The composed customer/sales app owns these records once; CRM, account follow-up, proposals, booking, and invoicing reference them rather than creating another customer directory. Standalone apps use a configured scoped reference/role lookup capability. Organization-role reads identify operator, organization, user, action, and revision and return allowed/denied/unavailable with no implicit staff privilege.
+
+## Background Actions
+
+Expire invitations and persist organization-role changes before notices or downstream reconciliation. Retry seat/reception/booking reconciliation with the same removal or assignment identity. A notice accepted by email delivery is not proof of invitation acceptance.
+
+## Error Handling
+
+Reject cross-organization role edits, unverified account impersonation, stale invitations, unauthorized merges, and references outside the caller's scope. A downstream failure leaves local revocation effective and dependent actions visibly pending; it cannot silently restore access. Conflicting contact/source identities require staff review.
+
+## Scope and Completion
+
+A company administrator can invite two colleagues, give one billing access, assign available paid seats through CanMember, and remove a colleague without exposing another company or losing historical invoices. Retried invitations/removals preserve one result. Individual customers can book without a company account. Operator employee identities remain owned by the people context.
+
+Frontend completion additionally requires these journeys:
+
+- A verified company administrator invites colleagues with distinct billing/booker scope, sees invitation acceptance separately from CanMember seat assignment, and cannot grant operator staff access or inspect another company.
+- Removing a colleague revokes local access immediately while visible reconciliation remains pending/conflicted; a stale action fails, historical invoices remain, and removing the last active administrator requires the documented recovery boundary.
+
+## Composition and Ownership
+
+This is the canonical customer package in the customer/sales composition, alongside CanCRM, CanBook, CanPropose, and CanSuccess. It can supply a small standalone customer-administration interface where necessary, but adding this requirement does not mandate a new directory deployment for every app.
+
+
+The directory exports Alias, CompanyRole and Invitation and its existing claim/invite/accept/remove/recover/alias operations so CRM can present canonical customer resolution and account controls. Their original customer-manager, verified-email, company-administrator, location and last-administrator guards remain intact. A CRM salesperson grant confers no customer-management or company-administrator authority. Alias evidence keeps both old and canonical identities without rewriting documents, contacts or company roles; inline examples cover authorized review, self-alias and blank-reason rejection, unauthorized callers and repeated mappings. The duplicate-company fixture represents a distinct directory identity required by this review operation. Exported visibility is not an additional read/write grant or an implementation.
+
+Finance eligibility is owned by BillingProfile and changed only through exported `approve_account`, guarded by the actual exported invoice.finance role and active employee location scope. Approval freezes an explicit nonempty location set; later customer-location additions do not expand it. Replacing or revoking a grant also requires authority over its previous locations. Customer managers cannot edit the approval through ordinary CRUD. Decision reason/account/time remain attributable; approval does not mean payment or membership. The Billing approvals page is derived navigation under its own finance guard. New fulfillment must check active customer, current approval and the specific approved location; revocation does not rewrite already accepted debts.
+
+Customer/contact CSV intake is authored on existing forms with schema-derived `import=csv` and exported `duplicate_customers`/`duplicate_contacts` reads. Matching is review evidence, never automatic aliasing or merging. New candidates discovered after a prior imported row commits return the later row for explicit review. Owner operations retain customer_manager/location guards. The new form attributes await syntax-prototype support; read scenarios and business bodies remain ordinary existing syntax.
+
+### Access invalidation coverage
+
+`CompanyAccessChanged.account=null` invalidates all live access watches for the named customer. Committed customer/contact/company-role create, update and archive changes trigger a current-state recomputation, including recovery, scope edits and identity changes. The event revision identifies its source observation; it is not a single counter across unrelated models. Consumers re-read current authority and publish their own ordered eligibility evidence. Entitlement consumers additionally reject inactive or archived customers; identity-role predicates retain their existing meanings so billing/history access is not silently removed. Record history and billing evidence remain subject to their separate read grants.

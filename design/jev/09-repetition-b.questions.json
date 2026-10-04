@@ -1,0 +1,81 @@
+{
+  "state": "Evaluate a measured syntax-repetition audit for canlang. Adoption and compact reliable AI authoring govern this CRUD company-SaaS DSL. The user has specifically rejected copied upload setup and directed a uniform R2 baseline. A previous migration eliminated runtime/auth/team/theme setup yet mistakenly kept the common file declaration as obligatory app policy. The corpus comprises 44 .can sources: 39 app drafts, three canonical shared files and two examples, totaling 315177 UTF-8 bytes, 4077 substantive code lines and 370 descriptive # lines. Counts excluding literal/comment text include 254 then, 254 scenario, 305 use, 249 policy, 428 require, 273 by=, 1136 row, 816 parent, 665 actor, 700 text, and 50 occurrences of each uppercase Given/When/Then. The exact files R2 types=\"application/pdf,image/png,image/jpeg,text/plain\" max=10MiB occurs 38 times. There are 39 context sections, and only CanCatch/CanStats add non-file resources named ErrorJobs, WebJobs and WebDimensions. Existing versioned defaults cover workerd/D1, email-password accounts, teams, PatternFly/HTMX/MCP and normal appearance.\n\nInspection also found five redundant explicit delete=archive settings and five equal fields/create_fields lists. Among 71 locks, 53 predicate clauses are when=true. There are zero same-name import aliases. Models spell in team 46 times; roles spell in=team 67 times. Required field syntax uses 816 exclamation markers, including 18 array markers necessary to distinguish mandatory array input from an omitted default []. Under the current grammar an unmodified scalar declaration is invalid, while !, ?, default assignment or server initialization defines it; operation inputs already use an undecorated p:T as mandatory. There are 28 server=actor and 11 server=now expressions, often recording a business action rather than creation, so ordinary metadata is not automatically substitutable. The 29 by=members and 20 read=members expressions express access; 72 delete=none/remove settings intentionally differ from archival. Reused employee/location names are local dependencies, not permission to teach the compiler specific apps.\n\nA When section currently declares scenario plus a typed operation name and by authorization, or an on verified source for a trusted handler. require guards precede inline then statements or an indented then body. Transactions defer every external delivery until commit; rejection cancels provisional writes/intents. A proposed alternative removes redundant scenario and lowercase then words because section placement and signature identify an operation. Its body retains ordered guards/effects, explicit by/on, typed parameters, and attached independent examples; uppercase Given/When/Then stays intact. No change may move a condition after an effect, confuse example nesting or publish a source handler as a user operation. The candidate grammar is not accepted merely because it is described here.\n\nPackage exports/use imports currently distinguish executable local owners from schema-only external imports with from=deployment.binding, excluding provider execution. Naming one package followed by an explicit set of member names/aliases/bindings could reduce repeated import prefixes. Automatically resolving arbitrary names instead could obscure dependencies and cause collisions or extra inclusion. Current bounded presentation already derives conventional style, controls, validation, pagination and HTMX. A selected page/form/action expresses intent; mounting every permitted CRUD action by default may alter that intent. Frequent row, actor, event, parent references encode lexical relationships.\n\nThere is no implemented compiler/runtime, and source size is not a measured model-token benchmark. Three differently worded but equivalent reviews are mandated by AGENTS.md and standing authorization covers JEV. Do not restore the deleted app wrappers or authored build registry; leave the deferred shared directory organization alone. This work will remove uniform R2 boilerplate and attributes identical to a known/defaulted meaning; treat more extensive grammar compression as proposed until a complete adoption/migration decision. Classify alternatives by source economy without lost permissions, workflow state, BDD checks or frozen historical evidence. Earlier assistant design rules are open to revision.",
+  "questions": {
+    "r2_default": {
+      "type": "choice",
+      "instructions": "Assess whether the exact current upload limits can be a language-version default: infer R2 only from runtime-reachable file types, allow changed types/max in context, and retain access/content validation plus composed-policy conflict errors.",
+      "criteria": {
+        "coherent": "The default as described matches the existing effective upload configuration without expanding authority.",
+        "needs_change": "The proposal contains a concrete mismatch in effective limits or binding behavior.",
+        "unresolved": "Its semantics do not provide enough information for a conclusion."
+      }
+    },
+    "existing_redundancy": {
+      "type": "choice",
+      "instructions": "Decide how to handle restated defaults and equal CRUD allowlists; omission of a lock predicate would mean always locked, with exceptions unchanged.",
+      "criteria": {
+        "normalize": "Elide default archival, duplicated create_fields and always-true lock conditions while preserving distinct lists/modes; establish true as the lock default.",
+        "keep": "Continue to spell each matching value/list or true predicate explicitly.",
+        "unresolved": "Elision is not yet justified by the available rules."
+      }
+    },
+    "required_scalar": {
+      "type": "choice",
+      "instructions": "Compare required scalar notation, ensuring mandatory arrays and optional/defaulted fields keep their meanings.",
+      "criteria": {
+        "required_default": "Make an undecorated scalar type mandatory; nullability, defaults and server values use their existing modifiers. Leave array omission as [] and retain []! for mandatory arrays, with consistent spec/source migration.",
+        "explicit_marker": "Retain ! for mandatory scalar fields and treat undecorated scalars as errors, leaving other field semantics intact.",
+        "unresolved": "Need stronger compatibility/generation information before selecting either."
+      }
+    },
+    "team_scope": {
+      "type": "choice",
+      "instructions": "Pick team-scope expression under already-defaulted team apps without hiding parent/app ownership or record access.",
+      "criteria": {
+        "team_defaults": "Omitted model scope means team and role scope is implicitly team. Explicit parent/app alternatives and permission clauses remain required where they differ.",
+        "explicit_scopes": "Models and roles restate their team scope individually even though that is the app baseline.",
+        "unresolved": "Ownership/scope detail is too incomplete to decide."
+      }
+    },
+    "operation_markers": {
+      "type": "choice",
+      "instructions": "Choose a minimal operation declaration/body syntax while preserving type checking, caller/source authorization, evaluation order and inline BDD expectations.",
+      "criteria": {
+        "remove_both": "Within When a typed named signature plus explicit by/on identifies the operation; omit scenario and lowercase then, retaining uppercase section semantics and scoped independent examples under one specified syntax.",
+        "remove_then": "Keep the scenario word for declaration identity and omit only then, so ordered statements form its direct body.",
+        "keep_both": "Retain both scenario and then as explicit grammar boundaries.",
+        "unresolved": "No choice follows until the signature/order grammar is better specified."
+      }
+    },
+    "imports": {
+      "type": "choice",
+      "instructions": "How should repeated import-owner prefixes be compressed while keeping selected symbols and service bindings knowable?",
+      "criteria": {
+        "group_explicit": "Enumerate symbols together by package, including aliases and explicit deployed bindings, with the same export access and no global discovery inference; specify the canonical grouping form before editing sources.",
+        "keep_individual": "Preserve one qualified import per symbol because its repetition aids dependency navigation.",
+        "implicit_lookup": "Automatically search the whole project for any bare identifier and infer service edges with no authored imports.",
+        "unresolved": "Do not settle grouping without a concrete grammar and token/reliability evidence."
+      }
+    },
+    "access_and_guards": {
+      "type": "choice",
+      "instructions": "Choose handling of repeated membership, work/location access and state checks in this business corpus.",
+      "criteria": {
+        "preserve_and_factor": "Retain explicit authorization/source boundaries and default denial; factor only demonstrated identical typed pure predicates with the same inputs/context, never implied employee or location eligibility.",
+        "default_members": "Treat a missing permission or by clause as ordinary member access to remove common policy text.",
+        "guess_guards": "Generate guards from suggestive role/field names instead of declaring the rules.",
+        "unresolved": "There is not enough access-policy detail to select an approach."
+      }
+    },
+    "presentation_and_metadata": {
+      "type": "choice",
+      "instructions": "Where should existing UI/default metadata stop replacing business declarations?",
+      "criteria": {
+        "preserve_intent": "Reuse canonical component behavior and standard creation attribution only for exact semantic equivalence; preserve deliberate control exposure and historical business action/snapshot values.",
+        "automatic_all": "Populate pages with all authorized mutation controls and replace business author/time fields with record creation data.",
+        "infer_names": "Select operation controls and attribution behavior from inferred app/entity/property names.",
+        "unresolved": "UI intent and historical attribution require additional evidence."
+      }
+    }
+  }
+}

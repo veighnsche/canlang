@@ -1,0 +1,17 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "context": "Please assess a missing reference-admission rule in CanLang, a token-economical SaaS language. The written semantics separate read policies from mutation by clauses and require guards; those guards may examine bounded owner-authority data. Viewer queries and exposed mutation records remain read-filtered. Record input versions, team and storage isolation, expiration, generic confidential-safe failures and existence-hiding read lookup are already required. What is not stated is whether an external mutation reference additionally needs a viewer read grant before its own operation evaluates. The supplied actual Board.complete source illustrates a team member without board privileges targeting someone else\u2019s Action through an opaque ID that the normal picker would conceal. A solution should retain safety without proliferating operations, repeating permission expressions or adding needless visibility. Only design drafts are available, not tested implementations.",
+    "canonical_source": "policy Action read=members where=row.owner==actor\nexport scenario complete(action:Action) by=members or secretary\n require (action.owner==actor or secretary) and not action.done and action.parent.outcome==accepted\n do set action {done=true,completed_by=actor,completed_at=now}"
+  },
+  "questions": {
+    "admission": {
+      "type": "choice",
+      "instructions": "Compare the two policies for this DSL: account for mutation-only permissions and guessing a hidden reference, rather than assuming either policy is automatically safe.",
+      "criteria": {
+        "operation_authority": "Retain independent write permission: first authorize by, then resolve only correctly typed, unexpired, version-valid references at the permitted team/storage owner and run the operation\u2019s own guards/invariants. No general viewer-read gate is added. UI searches and response projections still enforce read policy. The example returns a nondisclosing rule_failed, and deliberate blind mutations remain expressible; the tradeoff is exposure of guarded entry points to guessed same-owner IDs and reliance on correct guards and safe output.",
+        "read_prerequisite": "Introduce a universal visibility gate for externally provided mutation references after by but before guards, in addition to unchanged tenant, lifetime, revision and write constraints. Hidden records in the example produce not_found, limiting guessed-ID access to write logic. In exchange, a read-grant revocation also prevents a write, and legitimate nonreading writers require broader visibility or an explicit exception mechanism."
+      }
+    }
+  }
+}

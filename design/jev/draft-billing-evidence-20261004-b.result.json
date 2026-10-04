@@ -1,0 +1,40 @@
+{
+  "request": {
+    "state": {
+      "context": "In the current Can sources, reservation and paid-term eligibility depends on billing outcomes. Settlement.amount refers to one receipt, while its revision comes from the parent invoice. A change to a child Attempt does not necessarily increment that parent version. Deliveries can arrive late, repeat, or be absent; refunds may cover only part of a charge. This round defines source contracts and desired output, without implementing provider delivery or financial libraries.",
+      "candidate": "The candidate replaces Settlement with source and invoice identifiers, an invoice-ledger sequence, original charge money, total collected and total refunded, two flags for unsettled collection/refund attempts, current invoice status and observation time. Relevant child/credit/external-receipt/status changes advance the owned sequence. Emitted values and reconcile(source) use identical committed owner state. Consumers ignore lower sequences and check money plus unresolved attempts. The counter is explicit application state, requiring no language extension. A missing source yields null and cannot establish that future charge admission is cancelled.",
+      "actual_source": "  export contract Settlement { source:text label=label_Charge_source, invoice:text label=\"Invoice reference\"@{nl=\"Factuurreferentie\"}, revision:int, amount:money, received:datetime label=label_Settlement_received, state:enum(paid,refunded,void,unknown) label={text=label_Settlement_state,values={paid=label_Settlement_state_paid,refunded=\"Refunded\"@{nl=\"Terugbetaald\"},void=label_Settlement_state_void,unknown=label_Settlement_state_unknown}} } label=\"Settlement outcome\"@{nl=\"Afwikkelingsresultaat\"}\n  derive Invoice.received:money = sum(row.Attempt as attempt where attempt.kind==collection and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalPayment as payment select payment.amount,row.currency) label=\"Received payments\"@{nl=\"Ontvangen betalingen\"}\n  derive Invoice.refunded:money = sum(row.Attempt as attempt where attempt.kind==refund and attempt.status==succeeded select attempt.amount,row.currency) label=\"Refunded amount\"@{nl=\"Terugbetaald bedrag\"}\n  scenario apply_result on=ProviderReceipt\n        emit InvoiceSettlement {value={source=attempt.parent.source,invoice=attempt.parent.id,revision=attempt.parent.version,amount=attempt.amount,received=now,state=paid}}\n        emit InvoiceSettlement {value={source=attempt.parent.source,invoice=attempt.parent.id,revision=attempt.parent.version,amount=attempt.amount,received=now,state=refunded}}"
+    },
+    "questions": {
+      "representation": {
+        "type": "choice",
+        "instructions": "Select the representation with the best balance of ordering safety, limited downstream state, partial-refund accuracy and ownership clarity.",
+        "criteria": {
+          "snapshot": "Use cumulative state for both published outcomes and reconcile results, accepting only newer ledger sequences. Payloads grow, while consumers need no complete event stream.",
+          "deltas": "Use receipt deltas with stable IDs and a replay-completeness boundary. Each application deduplicates and folds its own balance; messages remain compact but downstream accounting and replay expand.",
+          "dual": "Expose delta notifications and an additional cumulative status shape. Existing event idioms remain possible, at the cost of parallel DTOs and status reads before business admission."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "representation": {
+        "type": "choice",
+        "choice": "snapshot",
+        "confidence": 0.84,
+        "probabilities": {
+          "deltas": 0.07,
+          "snapshot": 0.9,
+          "dual": 0.03
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1008,
+      "output_tokens": 40
+    }
+  }
+}

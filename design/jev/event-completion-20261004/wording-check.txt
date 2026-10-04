@@ -1,0 +1,1 @@
+Same interface facts, scopes, guarantees, alternatives and tradeoffs across all three requests. Context, instructions and each option/property criterion independently rewritten. Exact signatures and fixed source evidence preserved. Source facts checked in CanRent.can, CanInvoice.can, CanCustomer.can and DESIGN.md before submission. No probability is an approval threshold.

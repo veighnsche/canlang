@@ -1,0 +1,40 @@
+{
+  "request": {
+    "state": {
+      "context": "The billing draft currently forwards per-attempt monetary outcomes tagged with Invoice.version to apps that decide booking and membership access. Invoice.version can remain unchanged when only its Attempt child is updated. Distributed outcomes need to tolerate reordered, missing and duplicated delivery, and a partial refund differs from the original invoice amount. Only draft source/interfaces are in scope, not running payment or transport code.",
+      "candidate": "Proposed uniform evidence includes the billing source, invoice ID, strictly advancing accounting revision, frozen charge amount, aggregate receipts and refunds, pending-or-unknown flags for each direction, invoice lifecycle value and recorded timestamp. Every pertinent attempt, credit, external receipt or void update advances the owner counter; event publication and reconcile(source) expose the committed snapshot. Applications keep the latest revision and decide from exact totals and uncertainty. This uses normal owned fields and scenarios. No invoice found means a nullable result, never a tombstone for a still-in-flight charge.",
+      "actual_source": "  export contract Settlement { source:text label=label_Charge_source, invoice:text label=\"Invoice reference\"@{nl=\"Factuurreferentie\"}, revision:int, amount:money, received:datetime label=label_Settlement_received, state:enum(paid,refunded,void,unknown) label={text=label_Settlement_state,values={paid=label_Settlement_state_paid,refunded=\"Refunded\"@{nl=\"Terugbetaald\"},void=label_Settlement_state_void,unknown=label_Settlement_state_unknown}} } label=\"Settlement outcome\"@{nl=\"Afwikkelingsresultaat\"}\n  derive Invoice.received:money = sum(row.Attempt as attempt where attempt.kind==collection and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalPayment as payment select payment.amount,row.currency) label=\"Received payments\"@{nl=\"Ontvangen betalingen\"}\n  derive Invoice.refunded:money = sum(row.Attempt as attempt where attempt.kind==refund and attempt.status==succeeded select attempt.amount,row.currency) label=\"Refunded amount\"@{nl=\"Terugbetaald bedrag\"}\n  scenario apply_result on=ProviderReceipt\n        emit InvoiceSettlement {value={source=attempt.parent.source,invoice=attempt.parent.id,revision=attempt.parent.version,amount=attempt.amount,received=now,state=paid}}\n        emit InvoiceSettlement {value={source=attempt.parent.source,invoice=attempt.parent.id,revision=attempt.parent.version,amount=attempt.amount,received=now,state=refunded}}"
+    },
+    "questions": {
+      "representation": {
+        "type": "choice",
+        "instructions": "Choose among the same three evidence strategies considering replay correctness, consumer work, partial money reversals and the provider boundary.",
+        "criteria": {
+          "snapshot": "Publish and query one aggregate Settlement type with an owner accounting revision. Larger snapshots replace the need for downstream receipt reconstruction.",
+          "deltas": "Continue delta settlements with immutable IDs plus a verified replay watermark. Consumers reconstruct balances safely only by retaining deduplication and complete-stream state.",
+          "dual": "Keep delta messages alongside a different aggregate query response. This offers both forms but duplicates the interface model and makes admission depend on extra reconciliation."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "representation": {
+        "type": "choice",
+        "choice": "snapshot",
+        "confidence": 0.74,
+        "probabilities": {
+          "dual": 0.02,
+          "snapshot": 0.83,
+          "deltas": 0.15
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 975,
+      "output_tokens": 40
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "request": {
+    "state": {
+      "brief": "Review three syntactic ways to check a particular users package-owned team role. CanLang prioritizes adoption and small nonrepetitive source. Its current plain salesperson predicate addresses actor; active_member(person,team) already supports explicit membership subjects. The CRM draft needs a candidate owner to satisfy can_work for its location AND hold crm.salesperson. Employee eligibility does not establish that role. Team owners assign these roles, whose package names remain distinct even after import; bringing a symbol into scope confers no permission.",
+      "contract": "The proposed invariant across choices is a static declared-role identity plus a nonnull user, evaluated only in the resolved trusted team. Missing, inactive and outside-team members fail the test, and ownership alone does not substitute for a declared-role grant. An unavailable team is diagnosed, not discovered from users. No dynamic role strings or persisted role values, membership listing or alternative role table is added. Consult authorization state under admission snapshot and fenced commit semantics without expanding record grants. Testing the supplied user leaves actor and its nullable type unchanged. Direct literal actor checks use the existing bare predicate; subject expressions that happen to equal actor are still valid. Apply normal lexical shadowing and require the usual export/use visibility for foreign role declarations.",
+      "source": "  role salesperson label=\"Salesperson\"@{nl=\"Verkoper\"}\n  crud Deal by=salesperson fields=title,owner,value,seats,desired_start,duration,workspace,source,next_action,notes when=can_work(actor,row.location) and can_work(row.owner,row.location) and row.customer.active and row.stage in [lead,qualified,proposal] create_fields=customer,contact,title,location,value,seats,desired_start,duration,workspace,source,next_action,notes delete=none\n  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))"
+    },
+    "questions": {
+      "syntax": {
+        "type": "choice",
+        "instructions": "Which candidate is the best match when concise writing, unambiguous reading, checker work and one authoritative mechanism are considered together, including each candidates drawbacks?",
+        "criteria": {
+          "role_call": "A declared role gains the special expression salesperson(person). Existing call syntax keeps the expression short, while the checker must distinguish this subject application from the roles ordinary bare boolean use; no first-class callable role values result.",
+          "builtin": "A dedicated in_role(person,salesperson) accepts only a resolved role declaration in the second position. The distinction is explicit and roles stay non-callable, but the builtin catalog grows and declaration-valued operand handling is required.",
+          "membership": "An overload active_member(person,team,role=salesperson) checks both membership and assignment. One existing builtin covers both needs, although the form repeats team context and adds optional static-role resolution to membership checking."
+        }
+      },
+      "authority": {
+        "type": "noul",
+        "instructions": "Does the specified common behavior avoid a second role authority and adequately define scoped membership, assigned roles, visibility, concurrent revocation and non-impersonation?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "syntax": {
+        "type": "choice",
+        "choice": "role_call",
+        "confidence": 0.39,
+        "probabilities": {
+          "role_call": 0.59,
+          "membership": 0.12,
+          "builtin": 0.29
+        }
+      },
+      "authority": {
+        "type": "noul",
+        "noul": 0.46
+      }
+    },
+    "usage": {
+      "input_tokens": 960,
+      "output_tokens": 57
+    }
+  }
+}

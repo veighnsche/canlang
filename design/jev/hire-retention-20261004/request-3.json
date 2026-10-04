@@ -1,0 +1,14 @@
+{
+  "state": "Consider the documented lifetime mismatch, without claiming execution. Vacancy contains Candidate and both are owner-local. The business deadline is closure time plus 180 days for applicant personal information and attachments; an open vacancy imposes no independent candidate expiry. close stores now in closed_at and makes open false. Explicit reopen may clear that timestamp and reenable intake for records that have not expired; reclosing establishes another closure anchor. Evaluation of due expiry precedes a write, and pending physical disposal never permits revival. Currently DESIGN7.1 accepts only nonnull datetime for retain until. The lack of retain already means no independent deadline; finite parent lifetimes still apply to children. Pure lifetime dependencies must be bounded at the same owner, without actor, random, operation or moving now. Grammar does not have a ternary, whereas pure typed derives can use block if and return to produce datetime?. Existing incoming-reference blocking, archive/lock constraints, disposal scheduling, file/content expiry and replay retention continue unchanged. None of this has runtime implementation. The assessment supplies advice only.",
+  "questions": {
+    "closure_lifetime": {
+      "type": "choice",
+      "instructions": "Choose a repair for this lifecycle that is proportionate to the existing language.",
+      "criteria": {
+        "nullable_deadline": "Accept datetime? in the current retain until form: a null value adds no independent deadline and does not defeat ancestor expiry. A named nullable derive uses existing if/return to calculate the closure-based date or null. This avoids a new syntactic form but requires defined null-to-finite transitions, ancestor validation and expiry-before-write protection.",
+        "condition_clause": "Introduce a distinct active-condition clause for retention while retaining the nonnullable date contract. It makes conditional activation explicit, yet grows the grammar and needs consistent checks across the activation expression, timestamp and parent deadline.",
+        "finite_intake": "Keep the current form by setting an expiry on intake and renewing while intake stays open. It preserves the nonnull type at the expense of renewal operations and a possible loss of open candidates, departing from the requested after-closure rule."
+      }
+    }
+  }
+}

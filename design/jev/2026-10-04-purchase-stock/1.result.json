@@ -1,0 +1,39 @@
+{
+  "request": {
+    "state": {
+      "task": "Review the purchasing and stock evidence representation for canlang. This is a classifier consultation; use only supplied evidence.",
+      "evidence": "Existing Request.amount locks after submission; Budget.committed sums approved amount. Line quantity/unit_price lock after any Receipt. Receipt accepted quantities are immutable; receive is buyer with can_work(actor,line.parent.location), active ordered/part_received state and remaining-quantity guard. cancel and close are budget_manager with location authority. Stock.post is stock_staff; availability is a location ledger sum. The requirement allows authorized increases, amended order quantities, partial cancellation preserving actual spend, linked returns with stock-shortage failures, and configured payable evidence export; no automatic vendor payment. Mutations are owner transactions; cross-owner sends use durable correlated deliveries. Shared metadata retains actor/time and row versions. All implementations are proposed targets."
+    },
+    "questions": {
+      "evidence_model": {
+        "type": "choice",
+        "instructions": "Which representation best preserves historical approval/receipt evidence while completing these workflows?",
+        "criteria": {
+          "additive": "Keep frozen Request.amount and Line.quantity/unit_price. Append authorized Increase and Amendment records; derive authorized amount and ordered quantity. Record Return linked to Receipt, post its identified negative stock movement, and keep money adjustments separate. Close partial cancellations with evidenced actual cost. Store immutable supplier invoice evidence before optional accounting export. Costs: more record types and derived aggregates; benefits: immutable original terms and explicit authority.",
+          "rewrite": "Change original approved Request.amount and received Line.quantity through new privileged operations and history, while keeping receipts immutable. Use linked returns and supplier invoice snapshots. Costs: relax original locks and reconstruct original terms from history; benefits: fewer business records and direct current totals.",
+          "defer": "Leave amendments, partial cancellation and returns unavailable until infrastructure exists. Benefits: no new unimplemented contracts; costs: required authored business journeys stay missing."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "evidence_model": {
+        "type": "choice",
+        "choice": "additive",
+        "confidence": 1.0,
+        "probabilities": {
+          "rewrite": 0.0,
+          "defer": 0.0,
+          "additive": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 666,
+      "output_tokens": 44
+    }
+  }
+}

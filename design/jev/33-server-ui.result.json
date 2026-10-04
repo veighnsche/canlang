@@ -1,0 +1,86 @@
+{
+  "request": {
+    "state": {
+      "task": "Recommend the server-side UI representation for 20 handwritten CanLang JavaScript output targets. This is a desired-output design exercise, not a compiler or dependency implementation. The user says the current imported helper calls are too abstract and wants a more one-to-one translation. Large HTML strings were rejected as unreadable. Preact was raised as a possibility, not approved as an existing decision. Authoritative business state and permissions remain server-owned. The human has separately reopened evaluation of nonauthoritative browser business state/logic; this representation question neither bans nor approves that architecture. The current example baseline remains server-rendered HTMX while that distinct evaluation proceeds, with no frontend-state implementation authorized.",
+      "source": "CanLang is a concise AI-authored CRUD/business SaaS DSL on workerd. Its bounded UI catalog is canonical and uses daisyUI/HTMX. Current source declarations contain pages, cards, lists/tables/boards, text, details/drawers, canonical edit/actions/forms, history, metrics, tabs, calendar and copy. A single canonical operation schema supplies forms and MCP; page guards, current read grants, parent/record/parameter bindings, order/search/filter/defaults and inline EN/NL messages must survive output. Shared shell, standard components, widgets, data access, authorization, typed display, i18n and full-page/fragment response behavior remain proposed library contracts, with implementations omitted. No new app workflows or DSL notation are requested.",
+      "current": "The current desired output calls positional helpers such as card(view,caption,()=>[...]), board(view,model,options,(row,view)=>[...]) and form(view,operation,{arguments:...}). These are marked proposed/unimplemented, but the user cannot readily inspect the declaration-to-output shape. All output examples must stay valid JavaScript .mjs beside their .can files. A JSX-only artifact would need an additional transformation or different target file, whereas h() calls and tagged templates are JavaScript directly. Emitted output verbosity is separate from authored DSL token efficiency.",
+      "evidence": "Preact's official h(type,props,...children)/createElement creates virtual nodes (https://preactjs.com/guide/v11/api-reference/). Its separate preact-render-to-string package serializes trees synchronously, with asynchronous and Web Streams alternatives documented (https://preactjs.com/guide/v11/server-side-rendering/). Server serialization does not require invoking render/hydrate in a browser; a server-only dependency can produce HTML consumed by HTMX. HTM is an existing tagged-template library binding to h(), producing trees rather than manually concatenated HTML (https://github.com/developit/htm). It adds markup parsing/caching machinery and HTML-like literal syntax, which may still conflict with the user's readability concern about large strings. The docs do not establish these dependencies' pinned-version workerd compatibility or bundle costs; that requires a later concrete build check.",
+      "htmx": "HTMX sends requests from ordinary HTML attributes and normally consumes HTML responses; hx-post, hx-target and hx-swap express operation/region behavior (https://htmx.org/docs/). The server checks current authorization and selects full page or authorized fragment; HX-Request is presentation input, not authority. Focus, unsaved controls, open drawers/tabs and form errors need normal/shared behavior; HTMX does not make these concerns disappear, nor require a separate business-state store. Neither a vnode tree nor raw element expansion supplies these semantics automatically. The research and output examples must not claim any omitted contract is implemented.",
+      "alternatives": "All representation options keep unchanged server business logic, owning operation metadata, exact values, permissions, translations, HTMX behavior and omitted shared implementations. The first question concerns component granularity. Catalog trees map source primitives to named imported components with explicit props and nesting, exposing declaration structure but leaving component HTML inside the library. Native-element trees expand app-specific layout into real HTML/daisyUI classes and visible HTMX attributes, retaining specialized canonical forms/history/collection controls as necessary; they show markup but produce longer output and repeat standard layout details. Collection renderRow props retain record/view bindings; ordinary vnode children cannot be callbacks. The second question concerns JavaScript notation independently: direct h() calls need only Preact and its serializer but can be verbose, whereas short HTM tagged trees look like markup and avoid JSX compilation while adding a parsing/cache dependency and HTML-like literals. Either notation can express either granularity. Leave a dimension unresolved if its evidence or the human meaning is insufficient. The output choice is reviewable rather than a permanent language rule. No renderer/framework implementation, browser application or authored manifest is being built.",
+      "client_evidence": "Distinguish presentation state (focus, open tabs/drawers, selections, pending indicators), temporary business inputs/drafts not yet saved, nonauthoritative caches of readable persisted records, optimistic provisional business changes, and browser execution of business predicates/derivations. The actual UI requirements demand preservation of drafts and pending/error feedback. CanCRM stage/outcome rules, CanApprove current revision/reviewer assignments, CanTable availability, CanStock balances and CanLeave coverage need authoritative current data. Feedback explicitly asks for confirmed vote feedback rather than an unconfirmed count increment. Form-field constraints can support immediate schema-derived browser validation; full guards/invariants still run on the canonical server operation for browser and MCP. Pure client previews or caches could reduce latency, avoid reads and coordinate views without changing authority, but need exact numeric/time behavior, permission-safe data, invalidation, concurrent-change reconciliation and visible pending/failure states. No measured latency, device cost, cache-hit behavior or authored offline/cross-page transaction requirement demonstrates a general store need. This does not prove such a store would be useless.",
+      "client_sources": "The HTML standard provides local constraint-validation APIs (https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#the-constraint-validation-api). HTMX documents request synchronization, pending disabled controls and preservation, with limitations for text focus/caret (https://htmx.org/attributes/hx-sync/, https://htmx.org/attributes/hx-disabled-elt/, https://htmx.org/attributes/hx-preserve/). TanStack describes both UI-only optimistic display and cache updates with cancellation/snapshot/rollback/refetch (https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates); React likewise documents provisional optimistic state and failed-action recovery (https://react.dev/reference/react/useOptimistic). These establish feasible capabilities and real coordination costs, not measured suitability or a library selection. One CanLang semantic compiler could emit server JS plus selected client projections/assets from the same checked declarations; multiple output artifacts do not require multiple DSL compilers, although more client semantics increase analysis, protocol and runtime work. Existing bundlers/library build tools are separate from language semantics. Browser state/logic is being evaluated, not implemented in this task.",
+      "async_scope": "Preact ordinary vnode children do not automatically execute async collection/guard callbacks or await Promise children. Existing CanLang pages include async can_work checks and protected collection scopes. Any imported server component must explicitly prepare bounded authorized data and renderRow context or use a documented supported async-rendering path; this is a missing library contract common to all tree choices, not a reason for a client store."
+    },
+    "questions": {
+      "granularity": {
+        "type": "choice",
+        "instructions": "Choose the component granularity best suited to a readable source-to-output mapping. Weigh visible declaration structure and real markup against generated detail and shared canonical responsibilities. Do not assume correctness from named components or expanded HTML. Keep the separate client-state evaluation open and do not implement that architecture here.",
+        "criteria": {
+          "catalog": "Use recognizable imported catalog components with named props and nested vnode trees. Favor a close source-primitive mapping and shared standard behavior; accept that actual component HTML stays outside the app example and may still feel too abstract.",
+          "native": "Expand app-specific layout into native HTML nodes, daisyUI classes and HTMX attributes, keeping specialized canonical operation forms and standard controls imported where needed. Favor concrete markup inspection; accept larger output, repeated layout detail and a less direct one-node-per-primitive mapping.",
+          "unresolved": "Defer this granularity choice because the human boundary between one-to-one mapping and excessive abstraction is unclear. Present a compact actual-source comparison before bulk UI rewrites."
+        }
+      },
+      "notation": {
+        "type": "choice",
+        "instructions": "Independently select the notation for valid JavaScript vnode trees at the chosen granularity. Compare existing dependencies, inspectability and direct .mjs syntax without treating a tagged template as manual string concatenation or assuming it avoids the user’s readability concern.",
+        "criteria": {
+          "h": "Emit ordinary Preact h(type,props,...children) calls and use its existing server serializer. This avoids a markup-parser or JSX step and exposes actual JavaScript structure, while deeper trees can be syntactically noisy.",
+          "htm": "Use existing HTM bound to Preact for short compositional tagged vnode trees, serialized server-side. This offers HTML-like reading without JSX compilation, while adding a parser/cache dependency and markup literals that could reproduce the user’s string concern.",
+          "unresolved": "Postpone choosing between h() and HTM because their readability tradeoff cannot be settled from the current evidence; show a small side-by-side source example."
+        }
+      },
+      "client_scope": {
+        "type": "choice",
+        "instructions": "Which browser behavior scope should CanLang target first for these current apps? Weigh responsiveness, reduced reads and coordinated views against adoption, authored-token efficiency, one canonical operation, output/runtime/compiler cost and data freshness. Preserve server authority and browser/MCP parity in every option; do not turn the prior anti-store preference into an immutable ban.",
+        "criteria": {
+          "server_baseline": "Keep server-rendered HTMX with shared presentation/draft/pending/error behavior and native schema-derived field validation. Avoid a general persisted-record cache or business-rule projection initially. Favor a smaller coordination surface while accepting request latency for cross-field or persisted-data feedback.",
+          "derived_preview": "Add shared client previews from canonical pure, permission-safe declarations, such as cross-field feedback or exact totals, alongside drafts/presentation behavior. Retain server revalidation and no general record store. Favor immediate feedback without reauthoring rules, while adding projection eligibility, exact adapters and generated client behavior.",
+          "hydrated_store": "Introduce a general nonauthoritative browser record cache, optimistic updates and eligible client rules derived from canonical declarations, with authoritative server operations. Favor coordinated fast views and fewer round trips, while adding synchronization, rollback/invalidation, client delivery and permission-change handling.",
+          "unresolved": "Do not choose a client behavior scope yet; compare concrete UX/latency needs and prototype costs before deciding whether expanded previews or a broad browser store repay their complexity."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "granularity": {
+        "type": "choice",
+        "choice": "native",
+        "confidence": 0.12,
+        "probabilities": {
+          "catalog": 0.41,
+          "unresolved": 0.18,
+          "native": 0.41
+        }
+      },
+      "notation": {
+        "type": "choice",
+        "choice": "h",
+        "confidence": 0.3,
+        "probabilities": {
+          "htm": 0.02,
+          "h": 0.54,
+          "unresolved": 0.44
+        }
+      },
+      "client_scope": {
+        "type": "choice",
+        "choice": "server_baseline",
+        "confidence": 0.51,
+        "probabilities": {
+          "derived_preview": 0.09,
+          "server_baseline": 0.63,
+          "unresolved": 0.28,
+          "hydrated_store": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 2691,
+      "output_tokens": 137
+    }
+  }
+}

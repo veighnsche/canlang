@@ -1,0 +1,12 @@
+{
+  "poll_disagreement": "A and C select page_only; B selects scoped. Every prompt distinguishes GET reread from guarded source refresh, preserves 1s..1h/no-overlap/hidden/access/draft rules, describes both scope benefits/costs and states the missing delegated source workflow. No fact reversal was found. No rationale was returned. Wording sensitivity remains possible; majority is not proof. Recommend page_only as the narrower review candidate because the demonstrated adoption needs one CanDo page, while collection-specific savings have not been measured. Retain scoped as a real alternative.",
+  "order_disagreement": "A selects exhaustive, B/C fallback. All requests preserve exhaustive additions versus explicit fallback behavior, same static selectors/tie/null/cursor rules, and the same one-collection requirement. The supplied examples measure 65 Unicode characters for exhaustive versus 64 for fallback; this is not a model-token or maintenance benchmark. Recommend fallback as a review candidate because it makes the default explicit and writes only actual exceptions; do not infer correctness or acceptance from classifier probabilities.",
+  "coherence_uncertainty": "NOUL values are 0.78, 0.74, 0.84. Runtime, authorization, DST, callback preparation and full/fragment behavior remain unimplemented. No threshold or averaging converts these probabilities into approval.",
+  "invalid_candidates_stopped": "Never poll POST refresh, infer a WorkSources.changed event, use trusted actor=null as the guarded member caller, or claim GET polling meets CanDo.md:58. Do not infer resource/sibling timezone authority. Do not test hidden fields as null, compare money through currency conversion, treat clipped IDs as unique, or duplicate UI bodies solely to obtain different saved-view ordering.",
+  "preflight": "All 35 explanatory string leaves differ pairwise. Source snippets/proposed syntax are identical. Question types and option sets match. Manual review found equivalent facts and balanced costs/benefits. Rewording does not demonstrate removal of framing bias.",
+  "calls": "The sandboxed first attempt failed before obtaining a response. Three authorized network calls then succeeded; requests/responses are saved without headers/credentials.",
+  "usage": {
+    "input_tokens": 13683,
+    "output_tokens": 780
+  }
+}

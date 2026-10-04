@@ -1,0 +1,22 @@
+{
+  "state": {
+    "brief": "Choose a minimal additional subject form for declared team-role predicates in an AI-authored SaaS DSL. Adoption, a single canonical spelling and no repeated role tables matter. Existing bare salesperson means the current actor has crm.salesperson; active_member(person,team) checks another user membership. CRM must restrict assignment to active staff at the deal location who also have the declared salesperson role. Existing can_work checks employee/team/location, not that declared role. The role remains owner-assigned and package-qualified; importing it grants no privileges.",
+    "contract": "All alternatives evaluate one statically resolved role against a supplied nonnull user in the current verified team. Inactive, absent or other-team membership yields false, including an owner without the explicit role; no team means a type/context error. There is no role string, role value storage, account enumeration or second assignment mechanism. Reads use the current admission authorization snapshot and commit fence; predicates do not grant record access. An explicit subject check never narrows actor to authenticated and cannot impersonate that subject. Bare actor predicates remain the sole spelling for a literal actor check. A non-actor expression may evaluate to the actor at runtime. Lexical shadowing still follows the existing rules. Calling imported roles requires normal exported visibility.",
+    "source": "  role salesperson label=\"Salesperson\"@{nl=\"Verkoper\"}\n  crud Deal by=salesperson fields=title,owner,value,seats,desired_start,duration,workspace,source,next_action,notes when=can_work(actor,row.location) and can_work(row.owner,row.location) and row.customer.active and row.stage in [lead,qualified,proposal] create_fields=customer,contact,title,location,value,seats,desired_start,duration,workspace,source,next_action,notes delete=none\n  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))"
+  },
+  "questions": {
+    "syntax": {
+      "type": "choice",
+      "instructions": "Which of these three source forms best fits the constraints, weighing clarity, checker complexity, token cost and reuse without assuming any option is approved?",
+      "criteria": {
+        "role_call": "salesperson(person): extend a role declaration with a one-user call form. Reuses call grammar and short owner names; requires roles to have both a bare boolean interpretation and a special subject-call meaning, without making them ordinary first-class functions.",
+        "builtin": "in_role(person,salesperson): introduce a closed builtin whose second operand must resolve statically to a role declaration. Keeps role declarations non-callable and makes subject testing explicit, but adds a builtin and special declaration-operand checking.",
+        "membership": "active_member(person,team,role=salesperson): add an optional static role operand to the existing membership builtin. Reuses one entry point but repeats the team and combines membership-only and role-specific signatures."
+      }
+    },
+    "authority": {
+      "type": "noul",
+      "instructions": "Does the shared predicate contract above cover current team membership, explicit assignment, import identity, snapshot revocation and actor non-impersonation without introducing a second role authority?"
+    }
+  }
+}

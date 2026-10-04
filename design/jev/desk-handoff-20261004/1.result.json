@@ -1,0 +1,37 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "context": "Compare two ways to hand off a support ticket to maintenance. Requirements prioritize economical generation, simple canonical operations, retained Ticket and returned Repair identity, and no leakage of private notes or unrelated booking changes. Desk support is a team role restricted with can_work(actor,ticket.location). The existing report creates a fault attributed to its verified authenticated caller, not to the ticket customer. Imported records and calls keep owning read grants and authorization; a support role alone does not grant maintenance management. Exporting Asset and report and declaring its Repair result extends visibility, not permissions. The handoff must require the asset location to equal the ticket location and avoid a second repair for a ticket already linked.",
+      "canonical_source": "scenario report(asset:Asset,title:text,description:text,photo:file?) by=authenticated; require actor.email_verified and not asset.retired and trim(title)!=\"\" and trim(description)!=\"\"; do create Repair {parent=asset,title,description,photo,reporter=actor,reporter_email=actor.email} as repair. policy Asset read=authenticated where=not row.retired fields=location,identifier,name. policy Repair read=authenticated where=row.reporter==actor fields=title,description,severity,state,due,completion,reporter. policy Repair read=maintenance_manager or technician where=can_work(actor,row.parent.location)."
+    },
+    "questions": {
+      "handoff": {
+        "type": "choice",
+        "instructions": "Which alternative better fits these constraints, considering its concrete benefits and costs rather than presumed correctness?",
+        "criteria": {
+          "reuse": "Export the current report and its Repair return; Desk calls it with the unchanged actor, explicit ticket subject and staff-entered description/photo, and stores the result in Ticket.repair. This keeps one report workflow and its existing guards; support remains unable to manage another person's repairs or forward private notes automatically.",
+          "dedicated": "Add a maintenance-owned report_from_support operation with by=support and can_work plus same-location checks, returning Repair for Desk to retain. This makes the handoff-specific policy explicit and can distinguish its origin; it also adds another report entry point and requires a cross-package support dependency while existing report remains."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "handoff": {
+        "type": "choice",
+        "choice": "reuse",
+        "confidence": 0.41,
+        "probabilities": {
+          "reuse": 0.71,
+          "dedicated": 0.29
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 742,
+      "output_tokens": 33
+    }
+  }
+}

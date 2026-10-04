@@ -1,0 +1,30 @@
+{
+  "state": "Review the attached chosen v1 DSL design and its two reference sources. The goal is adoption through compact reliable AI generation for ordinary CRUD business SaaS. Judge the actual attached semantics, not an imagined implementation. The 35 older drafts are explicitly not migrated or claimed executable. This is a final consistency consultation, not proof of security, compilation, or performance. Use needs_change when the attached text itself contradicts the narrow property in the question, unresolved when evidence is insufficient, and coherent only when the property is stated consistently.",
+  "questions": {
+    "replay": {
+      "type": "choice",
+      "instructions": "Do the stated receipt-before-version/default ordering, explicit-input digest, retained defaults, deterministic DO root routing, and identity age horizon consistently prevent a successful replay from becoming a fresh business operation?",
+      "criteria": {"coherent":"These design rules are mutually consistent for this property.","needs_change":"The text contains a contradiction that breaks this property.","unresolved":"The text is insufficient to judge this property."}
+    },
+    "schedule_cancel": {
+      "type": "choice",
+      "instructions": "Can different operations in the same package replace/cancel the same owner schedule, including suppressing its undispatched delivery intents, without claiming recall after provider-call admission?",
+      "criteria": {"coherent":"The namespace and dispatch rules consistently support this.","needs_change":"A stated namespace or dispatch rule prevents this.","unresolved":"The text is insufficient to judge this."}
+    },
+    "source_privilege": {
+      "type": "choice",
+      "instructions": "Are user tools and trusted handlers structurally distinct, with one operation registry and no user argument granting source status, team membership, or hidden field access?",
+      "criteria": {"coherent":"The invocation and projection rules consistently establish this boundary.","needs_change":"An explicitly allowed path contradicts this boundary.","unresolved":"The text is insufficient to judge this boundary."}
+    },
+    "example_core": {
+      "type": "choice",
+      "instructions": "Do TeamTasks.can and ExpenseFlow.can use declared core constructs with resolvable record variables, typed operation inputs, typed local-collection queries, and lexical form result scope? Do not assume an implementation exists.",
+      "criteria": {"coherent":"Both sources are consistent with those stated core rules.","needs_change":"An example uses a construct or scope contrary to those rules.","unresolved":"The design lacks enough information to judge these example constructs."}
+    },
+    "d1_claim": {
+      "type": "choice",
+      "instructions": "Does the design honestly distinguish a proposed D1 optimistic revision-fenced batch strategy from a native interactive transaction or proven performance result, and prohibit side effects before commit?",
+      "criteria": {"coherent":"The design makes that distinction and effect boundary consistently.","needs_change":"The text instead relies on native interactive D1 transactions or claims unmeasured performance.","unresolved":"The text is insufficient to judge this."}
+    }
+  }
+}

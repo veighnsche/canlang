@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Compare these approaches using the stated constraints and code. Do not infer a working runtime from a preferred answer.",
+      "facts": "Availability changes belong to CanRent alone. Each repair captures block_source, block_resource, the time bounds and the manager release evidence. A provider can commit despite an unknown transport result. Provider amendments make equal requests repeatable and report versioned source outcomes through changed. Only location-authorized maintenance_manager recovery is allowed. A pending unknown restoration blocks reopening; old completion evidence survives.",
+      "actual_code": "scenario block(repair:Repair,from:datetime,until:datetime?) by=maintenance_manager; require can_work(actor,repair.parent.location) and repair.parent.resource!=null and repair.state!=fixed and repair.block_state in [none,released] and (until==null or from<until); scenario verify(repair:Repair,evidence:text) by=maintenance_manager; require can_work(actor,repair.parent.location) and repair.state==awaiting_verification and repair.completion!=null and trim(evidence)!=\"\"; RoomsV1.downtime(source:text,resource:text,from:datetime,until:datetime?)->std.OperationOutcome; RoomsV1.restore(source:text,resource:text,evidence:text)->std.OperationOutcome; RoomsV1.changed{value:OperationOutcome}"
+    },
+    "questions": {
+      "recovery": {
+        "type": "choice",
+        "instructions": "Choose the correlation policy most compatible with recovery after an ambiguous transport outcome.",
+        "criteria": {
+          "frozen": "Keep the original business source and frozen target/payload for manager-triggered repeats, bind completion to the active delivery, and process authenticated source updates in revision order. It requires real idempotent owner behavior and gives no assurance of eventual success.",
+          "new_source": "Issue another business source on every retry. Attempts remain distinct, yet an earlier uncertain commit can produce multiple blocks whose release ownership is harder to determine."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "recovery": {
+        "type": "choice",
+        "choice": "frozen",
+        "confidence": 0.94,
+        "probabilities": {
+          "new_source": 0.03,
+          "frozen": 0.97
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 710,
+      "output_tokens": 36
+    }
+  }
+}

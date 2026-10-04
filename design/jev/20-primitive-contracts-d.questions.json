@@ -1,0 +1,94 @@
+{
+  "state": {
+    "context": "Evaluate three proposed additions to canlang, a company-record and workflow language authored by AI agents. The objectives are adoption, compact tokens, dependable generation, and one canonical route for each primitive. The user authorized research and implementation unless concrete invalidity appears. Models, structural contracts/tagged unions, field-schema reuse, pure derivations, owner transactions, locks, by/on separation, call/send, persistent schedule and shared form/action/MCP generation already exist. No parser, compiler, runtime, executed acceptance suite, tokenizer comparison or agent benchmark exists. Adding scaffolding, a service registry document, repeated owner signatures, or editable opaque JSON is outside the requirements. Choose among the alternatives on their benefits and implementation costs; classifier outputs confer neither permission nor proof.",
+    "calendar": "Current local_date, local_instant, add_days and schedule support explicit dated work, daily spacing and durable wakeups; the closed builtin vocabulary cannot obtain Gregorian months, calendar years, weekdays or finite date lists. CanMember needs month-end clamping with restoration from its original anchor. CanLeave needs cross-year allocation and complete calendar coverage. CanBook needs weekly/holiday expansion; CanRent requires atomic segments for daily pricing. The candidate adds exactly add_months(date,int)->date, date_year(date)->int, weekday(date)->int, dates(from,until,limit)->date[]. Month addition selects the target Gregorian month and clamps the original day there; recurrence computes each absolute offset from the immutable initial anchor, never from a previously clamped boundary. Weekdays use ISO Monday=1 through Sunday=7. Date enumeration is ascending and half-open, empty for equal endpoints, and rejects reversed endpoints, overflow, nonpositive limits and counts exceeding the limit; it never truncates. add_days remains calendar-day date arithmetic; duration days remain elapsed 24 hours. local_instant still requires earlier/later fold for ambiguity and rejects nonexistent local times. Temporal documents clamping/rejecting overflow, whereas RFC5545 skips invalid recurrence dates; adopting RRULE would require an explicit billing-policy reconciliation. Authoritative pre-expanded dates retain current grammar but move calculation and authority to their producer. RRULE provides interchange at the expense of a parser and broader policy surface. Deferring remains possible. Four helper signatures require new typing/budget contracts while leaving schedule intact. Initial source changes cover manager-defined term boundaries and Leave years/coverage only. Renewal admission/recovery, host/location hours and complete segment-level holds remain business implementation work. Date values use proleptic Gregorian years 0001\u20139999; out-of-domain arithmetic rejects.",
+    "retention": "delete currently needs enabled generated CRUD deletion, leaving technical histories without a cleanup route. Decoupling trusted delete alone cannot solve this: locks prohibit all removal and archival keeps identifiers and attachments. Preserve absent/disabled user CRUD. Proposed retain Model until=expr supplies a pure, non-null row-scoped datetime with bounded owner-local dependencies; no sliding now or caller/operation/random dependence is allowed. At deadline<=admitted now, the runtime irreversibly expires the row and contained subtree, archived rows included, under the owner fence. This expressly permits disposal of expired locked records, never editing their fields or deleting them early. Children inherit a finite ancestor lifetime unless separately declared; explicit child expiry must not exceed any finite ancestor expiry. Check affected configuration and writes in the proposed final transaction state, rejecting conflicts/oversized dependency work. Catch separates RawPayload files from normalized Occurrence: receipt age defaults to30d, Issue last activity to90d, and raw_days<=issue_days is checked. Activity advances only when now exceeds existing last_activity, preventing older retried admissions from moving it backwards. Stats uses validated activity30d and rechecks queued event age; Check adds developer-controlled90d history. Setting changes affect unexpired rows and never revive expired storage; expired queries and downloads deny content. Cleanup makes resumable bounded runtime progress without turning for limit into slicing. Stored incoming references outside an atomic removal set block disposal, even when their source is archived/expired. Eligible owner-local expired cycles can be removed together within budget; incompatible or cross-owner work stays visibly blocked. Uniqueness remains reserved until physical removal; conflicting-key admission may perform bounded eligible disposal or return a retryable retention block. Commit reference release before retryable R2 removal and preserve objects with other valid attachments. Expiry also disposes local audit, receipt and outbox copies, skipping undispatched work requiring expired content while retaining only safe attribution/outcomes and owner-scoped keyed replay digests through the source retry horizon. Provider-accepted copies cannot be recalled. Mapping verifies the source namespace and preserves a stable producer event ID; public browser keys do not authenticate visitors or make event content trustworthy. Duplicate history expiry cannot create a fresh ingestion; unseen expired/old work rejects, and deployments lacking stable source identity or bounded retries reject that ingress contract. Backlog, blockers, errors and physical-erasure delay remain observable. Independent model deletion policy with trusted handlers offers explicit timing but needs reviewed expiry/lock and bounded batching rules. External TTL shifts cleanup externally but needs relational/reference/audit synchronization. Declarative expiry adds dependency and lifecycle machinery, and is not already valid unchanged syntax. Universal TTL, broad maintenance authority and lock bypass are excluded. Deleting a replay digest also requires verifiable old-occurrence age rejection or a retained safe tombstone; forgetting identity cannot enable old work anew.",
+    "delegation": "The starting CanDo design carried source/operation strings and opaque JSON, lacks owner input forms/reference-safe matching, loses delivery information and equates transport success with freshness. Demonstrated owners include maintain.inspect(inspection,answers,result,evidence) authorized by technician, and completion actions from success, onboard, board and volunteer with their actual guards. The finite action(Target,...) type names only statically imported user-callable mutation operations; demonstrated read forms remain ordinary static forms. action(Target,{record bindings}) constructs without execution, binds every record parameter and version, and does not partially bind business arguments. Remaining business inputs feed the shared existing form. Strings, arbitrary schemas and ambient targets cannot become actions, nor can construction manufacture remote trust. Export declarations in their owners and bind imports explicitly; owner signatures, constraints, results and descriptions generate the interfaces. Trusted WorkSources projections contain sealed handles tied to configured source binding, target/interface revision, principal/team and protected record/version. Reject unknown origins, target substitutions, tampering, expired/stale projections and access loss. form row.action renders canonical inputs, hides protected bindings and has no submit for null. Per-target generated forms validate the selected schema; dynamic call/send arguments must satisfy every target possible in their action type. Local calls preserve owner atomicity; remote sends remain asynchronous, using correlation/receipt identity over binding, target, record, revision, principal, team and operation_id. queued/pending/failed/conflict/unknown/fulfilled are separate; fulfilled is owner commit rather than work completion. Invalidate the previous handle and obtain an owner projection before changing the source work state. Downstream credentials must be audience-specific, never forwarded incoming tokens or actor/team request fields. Exposed per-target MCP schemas retain canonical business types and a closed ordinary-versus-action_handle envelope. Record-only binding leaves stable input sets; opaque JSON remains noneditable. WorkBatch bounds items and requires unique statuses for its finite expected sources, so successful transport cannot hide missing freshness. Existing refresh is retained, with no claimed automatic polling or source adapter. Owner-input projections plus a closed perform union/router avoid copied signatures but require variant/routing upkeep. Static typed owner forms reuse more grammar while repeating source layout and requiring explicit remote dispatch/narrowing. Action values incur typing, storage, sealing, dispatch and interface-change costs; they reduce per-source input duplication without supplying integrations. Actual bindings are deployment.accounts for success completion and deployment.board for board completion. Authorized plain-text detail must supply the actual business instructions, including a frozen inspection checklist; neither schema derivation nor the renderer invents that context.",
+    "review": "The earlier A-C inspection example said by=members, incorrectly; the real maintain.inspect declaration uses by=technician. Those saved consultations remain limited by that supplied error and are not rewritten. Whole typed event values are legal common inputs to trusted-handler examples; the runtime supplies their verified source envelope, without adding production privilege. File fixture/finalization coverage is still unresolved, and none of these changes removes other migration limits or completes application requirements.",
+    "examples": {
+      "calendar": [
+        "add_months(date(\"2099-01-31\"),1) == date(\"2099-02-28\")",
+        "add_months(date(\"2099-01-31\"),2) == date(\"2099-03-31\")",
+        "dates(date(\"2099-12-30\"),date(\"2100-01-03\"),4)",
+        "local_instant(date(\"2026-03-29\"),\"02:30\",\"Europe/Brussels\",fold=earlier)"
+      ],
+      "retention": [
+        "retain Issue until=row.last_activity+row.parent.issue_days*1d",
+        "RawPayload in Occurrence {payload:file}",
+        "retain RawPayload until=row.parent.received+row.parent.parent.parent.raw_days*1d",
+        "lock RawPayload fields=payload",
+        "require Project: row.raw_days<=row.issue_days",
+        "retain AcceptedEvent until=row.occurred+30d",
+        "retain Transition until=row.occurred+row.parent.history_days*1d"
+      ],
+      "delegation": [
+        "use maintain {inspect} from=deployment.maintenance",
+        "use success {complete as complete_account} from=deployment.accounts",
+        "action(inspect,complete_account,complete_step,complete_board,complete_volunteer)?",
+        "action(inspect,{inspection=row})",
+        "form row.action",
+        "export scenario inspect(inspection:Inspection,answers:text[],result:Inspection.result,evidence:text) by=technician",
+        "use board {complete as complete_board} from=deployment.board",
+        "export contract WorkBatch { items:WorkItem[] max=500, states:WorkSourceState[]! min=5 max=5 }",
+        "derive source_names():text[] = [\"maintenance\",\"accounts\",\"onboarding\",\"board\",\"volunteering\"]"
+      ],
+      "old_problem": [
+        "delete record",
+        "lock Occurrence fields=event_id,occurred,received,message,stack,payload",
+        "perform(source:text,operation:text,revision:int,inputs:json) -> OperationOutcome"
+      ]
+    },
+    "references": {
+      "temporal": "https://tc39.es/proposal-temporal/docs/plaindate.html",
+      "rfc5545": "https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10",
+      "mcp_tools": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools",
+      "mcp_auth": "https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#access-token-privilege-restriction",
+      "html_forms": "https://html.spec.whatwg.org/multipage/forms.html",
+      "htmx": "https://htmx.org/docs/#configuring-response-handling"
+    }
+  },
+  "questions": {
+    "calendar_choice": {
+      "type": "choice",
+      "instructions": "Which date-calculation direction should be selected for the stated requirements?",
+      "criteria": {
+        "pure_helpers": "Add the four bounded pure date helpers and reuse existing durable schedule.",
+        "expanded_dates": "Retain existing date vocabulary and receive authoritative expanded dates from producers.",
+        "rrule": "Introduce RRULE recurrence with reconciled month-end and zone policies.",
+        "unresolved": "Postpone a calendar choice if the candidates remain inadequate or contradictory."
+      }
+    },
+    "retention_choice": {
+      "type": "choice",
+      "instructions": "Which disposal approach best serves these lifecycle constraints?",
+      "criteria": {
+        "declared_expiry": "Author retain lifetimes and provide bounded owner-runtime expiry/disposal.",
+        "trusted_delete": "Decouple model deletion semantics from CRUD and author trusted handlers with explicit expiry and batching contracts.",
+        "external_ttl": "Use external TTL machinery with specified synchronization of records, references and evidence.",
+        "unresolved": "Keep retention unsettled when none of the proposed approaches is coherent."
+      }
+    },
+    "delegation_choice": {
+      "type": "choice",
+      "instructions": "Which operation-input approach is the strongest fit for this source queue?",
+      "criteria": {
+        "bounded_action": "Expose finite mutation action references to canonical forms and dispatch.",
+        "input_union": "Derive input variants and maintain a closed router through perform.",
+        "static_forms": "Use static typed owner forms for each supported source.",
+        "unresolved": "Defer a delegation choice pending resolution of type or authority defects."
+      }
+    },
+    "calendar_contract": {
+      "type": "noul",
+      "instructions": "Are original-anchor month boundaries, bounded date expansion and existing zone rules mutually consistent in the proposed helper specification?"
+    },
+    "retention_contract": {
+      "type": "noul",
+      "instructions": "Do declared lifetimes coexist consistently with immutable fields, owner commits, references, uniqueness and replay/file/copy disposal?"
+    },
+    "delegation_contract": {
+      "type": "noul",
+      "instructions": "Is the proposed finite-mutation action contract coherent about input schemas, protected records, current owner authority and separate work state?"
+    }
+  }
+}

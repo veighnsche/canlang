@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Compare two app-source designs without assuming either is already safe or executable.",
+      "facts": "The exact CanBook book operation appears below, preserving its by expression and every guard. Requirement: appointments differ from monetary workspace reservations while their rooms use CanRent as the sole resource capacity owner. Both must apply window/buffer/repair/physical occupancy limits. Neither synthetic payment nor enlarged commercial viewing is allowed for appointment success. Existing Booking stores mandatory customer/account/email, immutable prices/policy, payment and allowance outcomes with own/manager/reception policies. Current RoomsV1 hold/confirm/move/release interface lacks provider ingress.",
+      "canonical_book": "  export scenario book(type:Type,customer:Customer,contact:Contact,from:datetime label=label_Window_from) by=authenticated label=\"Book appointment\"@{nl=\"Afspraak boeken\"}\n   require type.parent.active and type.parent.host.active and from>=now and contact.parent==customer\n   require (contact.account==actor and contact.verified) or (host_manager and can_work(actor,type.parent.location))\n   require any(type.parent.Window as window,window.available and window.from<=from and from+type.duration<=window.until)\n   do\n    create Appointment {parent=type,customer,contact,from,until=from+type.duration,duration=type.duration,source=operation.id,host=type.parent.host.user} as appointment\n    send StaffSchedule.reserve {value={source=appointment.source,employee=appointment.host,location=type.parent.location.id,from,until=appointment.until,skill=\"host\",kind=appointment,revision=appointment.version}} as host_hold\n    set appointment {host_delivery=host_hold.id}\n    if type.room!=null\n     send Rooms.hold {value={source=appointment.source,resource=type.room,customer=customer.id,account=actor,from,until=appointment.until,quantity=1}} as room_hold\n     set appointment {room_delivery=room_hold.id}\n    else\n     set appointment {room_ok=true}\n"
+    },
+    "questions": {
+      "representation": {
+        "type": "choice",
+        "instructions": "Select the better way to represent an appointment room claim under these constraints.",
+        "criteria": {
+          "venue": "Declare VenueReservation alongside Booking beneath Resource; retain claim correlation, revision, span, seat quantity and lifecycle, omitting monetary fields. One availability decision counts both models under one owner and role-specific reads. Extra model/query work is the cost; semantic separation prevents misleading payment records.",
+          "tagged": "Use purpose=appointment in the existing Booking model. The verified appointment service may confirm the noncommercial purpose with explicit distinct evidence, not a fake paid event. Model reuse reduces record types but makes mandatory fields, commercial history and read/access permissions purpose-dependent."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "representation": {
+        "type": "choice",
+        "choice": "venue",
+        "confidence": 0.97,
+        "probabilities": {
+          "tagged": 0.02,
+          "venue": 0.98
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 905,
+      "output_tokens": 32
+    }
+  }
+}

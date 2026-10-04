@@ -1,0 +1,34 @@
+{
+  "advisory_only": true,
+  "responses": [
+    {
+      "request": 1,
+      "choice": "minimal",
+      "confidence": 0.35,
+      "probabilities": {
+        "minimal": 0.68,
+        "explicit": 0.32
+      }
+    },
+    {
+      "request": 2,
+      "choice": "explicit",
+      "confidence": 0.83,
+      "probabilities": {
+        "explicit": 0.92,
+        "minimal": 0.08
+      }
+    },
+    {
+      "request": 3,
+      "choice": "explicit",
+      "confidence": 0.38,
+      "probabilities": {
+        "explicit": 0.69,
+        "minimal": 0.31
+      }
+    }
+  ],
+  "disagreement_investigation": "The first consultation preferred the smaller option at low confidence. Inspection of its own option text shows it would omit required unmetered leave recording, notices and revocation reconciliation. Requirements therefore preclude that incomplete alternative regardless of the vote. The bundle framing also combines separate choices and gives the minimal alternative documented omissions rather than an independently complete contender; it cannot establish that every specific explicit field or mechanism is optimal. Final source decisions were checked against current contracts and requirements, including the now-exported EmployeeChanged hook provided by its owner, recorded timezone, viewer preview and one configurable-name Roster invariant. Agreement is advice and no thresholds were used.",
+  "execution_limits": "Requests and complete responses are saved. Network attempts in the sandbox failed without responses; the same saved requests succeeded under standing authorized network execution. Parser/node checks and existing oxfmt native formatting do not execute application behavior."
+}

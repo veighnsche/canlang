@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Assess this finite choice on authoritative space allocation from current source evidence.",
+      "facts": "Appointments do not constitute paid CanRent sales. The canonical CanBook book signature and ordered conditions below are exact. Reservation demand from that workflow shares each resource owner with customer rentals and must obey identical windows, buffers, maintenance and possession. Confirming a visit cannot imply money receipt or broader rental data access. Booking currently needs customer/account/email, frozen commercial terms and payment/allowance state and own/manager/reception viewing. RoomsV1 declares hold/confirm/move/release without source ingress implementation.",
+      "canonical_book": "  export scenario book(type:Type,customer:Customer,contact:Contact,from:datetime label=label_Window_from) by=authenticated label=\"Book appointment\"@{nl=\"Afspraak boeken\"}\n   require type.parent.active and type.parent.host.active and from>=now and contact.parent==customer\n   require (contact.account==actor and contact.verified) or (host_manager and can_work(actor,type.parent.location))\n   require any(type.parent.Window as window,window.available and window.from<=from and from+type.duration<=window.until)\n   do\n    create Appointment {parent=type,customer,contact,from,until=from+type.duration,duration=type.duration,source=operation.id,host=type.parent.host.user} as appointment\n    send StaffSchedule.reserve {value={source=appointment.source,employee=appointment.host,location=type.parent.location.id,from,until=appointment.until,skill=\"host\",kind=appointment,revision=appointment.version}} as host_hold\n    set appointment {host_delivery=host_hold.id}\n    if type.room!=null\n     send Rooms.hold {value={source=appointment.source,resource=type.room,customer=customer.id,account=actor,from,until=appointment.until,quantity=1}} as room_hold\n     set appointment {room_delivery=room_hold.id}\n    else\n     set appointment {room_ok=true}\n"
+    },
+    "questions": {
+      "representation": {
+        "type": "choice",
+        "instructions": "Which data approach better satisfies the distinct visit and commercial booking semantics?",
+        "criteria": {
+          "venue": "Use a child VenueReservation for noncommercial appointment claims, retaining identity/revision/time/quantity/status only. Count it inside the very same availability function and resource transaction, and grant only appointment-relevant reads. It incurs an additional record type and combined scans while avoiding commercial price/payment assertions.",
+          "tagged": "Add an appointment discriminator to Booking and admit scoped service confirmation without a paid-provider claim. This shares existing storage and state machinery but needs conditional commercial fields and narrowly separated read/admission rules; setting a zero price cannot be presented as provider-paid."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "representation": {
+        "type": "choice",
+        "choice": "venue",
+        "confidence": 0.69,
+        "probabilities": {
+          "tagged": 0.15,
+          "venue": 0.85
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 901,
+      "output_tokens": 32
+    }
+  }
+}

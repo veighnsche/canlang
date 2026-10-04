@@ -1,0 +1,17 @@
+{
+  "state": {
+    "task": "Assess a proposed canlang purchasing/stock closure using the facts provided here. Do not infer facts from external knowledge.",
+    "evidence": "The current purchasing schema freezes Request.amount on submission, and committed budgets include that amount while approved. Once a Receipt exists, Line quantity and unit_price cannot change. Receipt acceptance remains locked. The buyer receive operation requires can_work(actor,line.parent.location), ordered/part_received state and sufficient outstanding quantity. budget_manager owns cancel/close and checks the request location. stock_staff owns Stock.post and stock sufficiency uses each location ledger. Required completion covers separately authorized increases, order amendments, preserving spend during partial cancellation, attributable returns failing on unavailable stock, and optional payable evidence delivery without paying vendors. Effects commit within one owner; remote sends retain correlated durable delivery evidence. Actor/time/version metadata is shared. The JavaScript dependencies are proposed, not implemented."
+  },
+  "questions": {
+    "evidence_model": {
+      "type": "choice",
+      "instructions": "Select the historical-data strategy that fits these constraints most closely.",
+      "criteria": {
+        "additive": "Retain original request amount and line quantity/price; add Increase and Amendment evidence and compute current authorization/quantities from them. A Return belongs to its Receipt and queues an identified stock deduction. Financial adjustments are independent. Partial cancellation closes against evidenced actual spend. Optional external export follows a frozen supplier invoice record. Advantages: original terms stay intact and approval is explicit; drawbacks: extra models and aggregation.",
+        "rewrite": "Allow privileged scenarios to revise submitted request amount and already-received line quantity, retaining originals through history rather than locks. Preserve receipts, linked returns and frozen supplier invoices. Advantages: fewer models and simple current values; drawbacks: lock relaxation and reliance on history to recover terms.",
+        "defer": "Keep the current exclusions for order amendments, partial cancellation and returns until infrastructure is delivered. Advantages: avoids introducing proposed dependencies; drawbacks: required source workflows remain absent."
+      }
+    }
+  }
+}

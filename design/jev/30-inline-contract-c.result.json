@@ -1,0 +1,66 @@
+{
+  "request": {
+    "state": {
+      "task": "Inline wording with translations indexed by explicit language tags is already approved by the user, as in title=\"Tasks\"@{nl=\"Taken\",de=\"Aufgaben\"}. The requested work covers the entire draft corpus and stale documentation; keep that accepted direction fixed. The design still must support adoption, economical tokens, legible # prose, a sole canonical mechanism, absent boilerplate, preserved business behavior and genuine reuse. Evaluate the remaining questions about attaching labels and determining their language owner before coding. The available parser checks syntax only and neither checks application types nor runs applications.",
+      "evidence": "The owner-aware audit locates 1892 generated-caption destinations: fields account for 913, enum members for 374, models for 164, scenario inputs for 145, scenarios for 144, roles for 67, contracts for 35, packages for 24, derivations for 22, boolean members for 2 and generated CRUD operations for 2. Of the 1521 caption rows, 256 address multiple destinations and thereby save 371 repeated translations. The 724 named texts consist of 699 used once and 25 used twice. All 373 description assets are constant texts with a single consumer. Every one of the 51 owner-level tables currently supplies en and nl, without missing cells. The one typed ICU plural asset has multiple consumers, and two exported word assets are consumed across owners. Descriptions are the sole consumers of 48 import lines for messages; one other asset-only import carries the shared add and field_title wording between owners. Reusable enum field schemas already transport their member captions; captions from exact standard identifiers/types and common runtime text need no authoring.",
+      "representation": "A message descriptor comprises a source string followed by @{locale=STRING-or-null,...}. Simple locale identifiers admit NAME keys; regional identifiers admit quoted STRING keys, for example @{\"pt-BR\"=\"Tarefas\"}. This construct does not localize arbitrary objects or data. Without a suffix, a quoted string retains ordinary literal behavior; with empty @{}, it explicitly becomes a descriptor containing only source text. Keep descriptions as unquoted # prose, with at most one suffix at the end of the last prose line translating the whole newline-joined description. To write the marker itself, put a backslash immediately before @{; consume that escape backslash alone and keep all other prose backslashes intact. The existing #= path form remains available for reused static descriptions. Derive message-asset identity from its canonical owner and slot rather than textual offsets, externally visible operation identifiers or author-specified keys.",
+      "source_scope": "Authored source language belongs to the logical app/package and is fixed as en by default; the declaration can override it through source=\"other-tag\" in its header. That setting covers the owner's description and message values, also when a composing app contains no Given block. Composition and imports retain the language tags established by each original owner. Moving files leaves owner identity and language intact. Locale defaults in context select fallback/viewer preferences but do not select authored language. Resolve and canonicalize BCP47 identifiers, prohibit variant duplicates including a variant naming the owner's source language, and identify gaps in translation coverage. Today's corpus is English and consequently requires no overrides.",
+      "shared_and_typed": "Retire compulsory locale-column messages blocks in favor of individual Given declarations spelled [export] message name[(typed_parameters)] = followed by the identical inline descriptor form. Author names only when there is genuine reuse: preserve the existing 25 reused names and use shared assets for the grouped caption bindings. Put all single-consumer descriptions and UI wording at their use sites and eliminate names/imports left without consumers. Retain declared parameter types on named ICU assets. For parameterized anonymous descriptors, reuse the existing postfix invocation syntax with explicit named actual arguments, obtaining their types from the supplied expressions. Require explicit valid bindings for every placeholder occurring in any variant; never capture names implicitly. Shared baseline behavior and inherited schema assets remain unwritten defaults. Preserve the meanings of persisted data, fixture inputs, machine identifiers, guards, effects, policies, queries and current BDD observations. Runtime message handling, ICU validation and rendering have not been implemented.",
+      "label_alternatives": "Under the compound proposal, every authored declaration caption uses a trailing label= attribute. Its scalar form accepts constant source text, a descriptor or a path to shared wording. A field/input that needs boolean or enum captions can instead supply the closed shape {text=caption,values={case=caption,...}} under that same attribute, leaving text out when its caption is unchanged. Case-map keys denote stable wire values, and inherited case-label overrides use this shape too. For CRUD, the closed shape is label={create=caption,update=caption,delete=caption}, restricted to enabled operations. Model, contract, role, package, scenario and derived-field captions continue to use scalars. The required object interpretation is bounded, and enum grammar stays as it is. Alternatively, separate attributes provide label= for the caption, labels={case=...} for members, and create_label/update_label/delete_label for CRUD captions. Those slots are individually explicit at the cost of extra attribute identifiers and productions. The owner-adjacent binding approach maintains current grouped destinations and uniform member/action targets while placing translated values directly in bindings; it repeats target identities and keeps caption metadata apart from the declarations being captioned. All options leave wire identifiers and business permissions intact.",
+      "sketches": {
+        "compound": "message done = \"Done\"@{nl=\"Klaar\"}\nTodo {title:text,done:bool=false label={text=done,values={true=done,false=\"Open\"@{nl=\"Open\"}}}} label=\"Task\"@{nl=\"Taak\"}\ncrud Todo by=members fields=title,done label={create=\"Add work\"@{nl=\"Werk toevoegen\"}}",
+        "separate": "message done = \"Done\"@{nl=\"Klaar\"}\nTodo {title:text,done:bool=false label=done labels={true=done,false=\"Open\"@{nl=\"Open\"}}} label=\"Task\"@{nl=\"Taak\"}\ncrud Todo by=members fields=title,done create_label=\"Add work\"@{nl=\"Werk toevoegen\"}",
+        "bindings": "Todo {title:text,done:bool=false}\nlabel Todo = \"Task\"@{nl=\"Taak\"}\nlabel Todo.done,Todo.done.true = \"Done\"@{nl=\"Klaar\"}\nlabel Todo.done.false = \"Open\"@{nl=\"Open\"}\nlabel Todo.create = \"Add work\"@{nl=\"Werk toevoegen\"}\ncrud Todo by=members fields=title,done"
+      }
+    },
+    "questions": {
+      "labels": {
+        "type": "choice",
+        "instructions": "Select the canonical way to attach captions that best accommodates the approved inline approach, the observed field/member/action destinations, inherited caption behavior and the limits on repeated wording. Compare syntax overhead with readability and proximity to the owning declaration. Use unresolved when the evidence does not justify these contracts.",
+        "criteria": {
+          "compound": "Use one owner-level label attribute: a scalar handles an ordinary caption, while a restricted object handles caption/member combinations or CRUD operation slots. Trade context-dependent closed shapes for fewer attribute identifiers without altering enum grammar.",
+          "separate": "Give the owning declarations separate attributes for their captions, member captions and each CRUD operation caption. Trade more attribute identifiers and grammar productions for explicit slot naming and less shape interpretation that depends on context.",
+          "bindings": "Retain caption bindings adjacent to owners, supporting grouped destination paths and inline descriptors. Trade duplicated path identities and detached metadata for one uniform destination model and immediate reuse of existing groups.",
+          "unresolved": "Withhold a representation choice if the evidence about language ownership, overriding inherited captions or attaching metadata is insufficient to establish a single canonical contract."
+        }
+      },
+      "scope": {
+        "type": "noul",
+        "instructions": "Does fixing authored source language to en unless the logical owner explicitly overrides it give consistent descriptor semantics for composing-app descriptions and imported wording, while keeping deployment defaults/viewer language independent and retaining canonical ownership when files move?"
+      },
+      "typed": {
+        "type": "noul",
+        "instructions": "Assuming the required checks on placeholders, types and provenance are implemented, is it feasible to invoke anonymous inline ICU descriptors through the existing postfix form using explicit named arguments and expression-derived argument types, together with typed reusable message declarations, while avoiding implicit lexical capture and preserving normal string/data meanings?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "typed": {
+        "type": "noul",
+        "noul": 0.88
+      },
+      "labels": {
+        "type": "choice",
+        "choice": "compound",
+        "confidence": 0.86,
+        "probabilities": {
+          "bindings": 0.06,
+          "compound": 0.9,
+          "unresolved": 0.02,
+          "separate": 0.02
+        }
+      },
+      "scope": {
+        "type": "noul",
+        "noul": 0.92
+      }
+    },
+    "usage": {
+      "input_tokens": 2108,
+      "output_tokens": 83
+    }
+  }
+}

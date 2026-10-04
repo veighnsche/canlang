@@ -1,0 +1,22 @@
+{
+  "state": {
+    "context": "Compare three canonical scenario-body spellings for canlang. Adoption is primary; token efficiency, reliable AI generation and simple SaaS primitives support it. AI authors this CRUD business-SaaS DSL. There is no implemented compiler/runtime or measured tokenizer, generation or editing benchmark. Do not infer actual AI performance from word familiarity.\nCurrent typed scenario headers use by for callers or on for trusted sources. Lowercase then introduces inline simple statements separated by semicolons or an indented block. Leading requires may precede it, and further requires may occur inside. The corpus has 254 markers: 154 standalone and 100 inline, with 34 requires inside marker-owned bodies. One space defines a nesting level. Atomic rollback on any failed check belongs to the mutation, not its body marker; read scenarios are pure with typed returns. Uppercase Given/When/Then remains the package structure, with Then defining presentation. Independent BDD observations are attached test-only examples; # descriptions and ## comments remain.\nRetain then: preserve current spelling, dedicated container and source familiarity; its result/sequence connotation can overlap expected BDD outcomes or uppercase Then. Rename to do: preserve the exact container, inline/block forms, statement order, scopes, permissions and examples attachment; the execution connotation may help, but may sound mutation-specific even for pure reads and requires learned spelling to change. This removes two UTF-8 bytes per marker, 508 total, but no lines/depth; tokenizer effects are unknown. Direct body: omit the marker and flatten its subtree once while keeping inner nesting. It removes 154 container lines and recurring words but requires careful dedenting and a distinct reserved examples boundary. All alternatives must preserve behavior; that is an obligation, not a proven migration result. None adds atomicity or authority, and only one form would be canonical.\nThe paired fragments use schematic types/fixtures, not compiled equivalence evidence. Consider all advantages and failure risks. Select a preference or leave it unresolved when support is insufficient. No previous review probabilities or predicted consensus are evidence here.",
+    "examples": {
+      "then_body": "scenario finish(item:Item) by=members\n require item.status==open\n then\n  let selected=item.Part\n  require count(selected)>0\n  set item {status=done}\n examples item=fixture_item\n  item.status -> item.status\n  open -> done",
+      "do_body": "scenario finish(item:Item) by=members\n require item.status==open\n do\n  let selected=item.Part\n  require count(selected)>0\n  set item {status=done}\n examples item=fixture_item\n  item.status -> item.status\n  open -> done",
+      "direct_body": "scenario finish(item:Item) by=members\n require item.status==open\n let selected=item.Part\n require count(selected)>0\n set item {status=done}\n examples item=fixture_item\n  item.status -> item.status\n  open -> done"
+    }
+  },
+  "questions": {
+    "body_spelling": {
+      "type": "choice",
+      "instructions": "Which body spelling is preferable under the supplied goals, semantics and tradeoffs?",
+      "criteria": {
+        "then": "Keep lowercase then as the explicit inline/block body introducer.",
+        "do": "Replace lowercase then with do while retaining the same body structure and behavior.",
+        "direct": "Remove the introducer and make ordered executable statements direct scenario children.",
+        "unresolved": "The evidence does not justify preferring one of the three spellings."
+      }
+    }
+  }
+}

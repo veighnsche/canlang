@@ -1,0 +1,89 @@
+{
+  "request": {
+    "state": {
+      "task": "Assess proposed native localization syntax for canlang ahead of its parser implementation. This workerd-based language targets AI-written CRUD business SaaS, prioritizing adoption, fewer tokens and one canonical primitive per task. The requested design keeps translations with business source while permitting shared wording. Its present implementation consists of 44 .can files, an AST syntax parser and 25 parser tests: semantic checking, compilation, rendering, message execution and BDD execution do not exist. Your assessment is design guidance and cannot establish working software.",
+      "evidence": "Observed authored text comprises 87 page-title literals, 87 descriptions on pages, 189 on scenarios, 50 on apps and 47 on packages. Outbound effects use 24 literal email subjects representing 23 distinct subjects, three literal email bodies, and three literal alert messages; business-data expressions supply many other bodies. The 1263 string literals in the source have 414 unique values. Reception, for example, is both stored fixture content and a page heading, so collecting literals or globally identifying words by their English spelling cannot preserve semantic distinctions. Runtime-generated CRUD, authentication and team controls, together with field and enum labels, also need localization coverage. The current grammar restricts title, submit, empty and guard-message attributes to STRING, whereas other presentation positions already accept expressions.",
+      "candidate": "The tabular proposal places a single messages declaration in Given for each owning logical package or implicit app. Its header lists quoted BCP 47 tags separated by commas. Every named row may declare typed parameters, with a nonempty parameter list when present, and supplies one JSON-string pattern cell per column. The first locale requires a pattern that serves as that message's source fallback; subsequent cells may explicitly be null for an absent translation. A shared message without parameters uses existing export and grouped use visibility instead of a t() wrapper. Calling a parameterized declaration constructs an immutable message descriptor, not a stored mutable record and not translated arbitrary text. Ordinary string literals retain literal-text semantics. The competing keyed form preserves these owners, messages and effects, but each row spells locale=pattern entries: repeating tags permits sparse extensions without maintaining positional columns. A third approach using source-text keys was excluded before asking you because it merges distinct data and meanings present in the corpus.",
+      "bindings": "A messages row spelled for path = pattern cells assigns an unparameterized display label to an actual model, field, role, user operation or enum value belonging to that owner. The same target form, for path = message_path, can use an existing unparameterized message instead. Inline patterns and message references are the two values of one binding mechanism. Another package cannot change labels on a foreign schema. A field that reuses a type obtains that type's value labels, except where its own receiving owner explicitly supplies a replacement binding. Version-pinned runtime catalogs cover Save, Cancel, Delete, authentication, pagination and errors, avoiding repeated app definitions. Localized metadata is introduced explicitly by #= message_path, which preserves static zero-parameter resolution and the attachment behavior of #. Existing # prose remains literal metadata; a message reference cannot share that description with prose or another reference. UI and guard attributes that currently accept text literals gain a literal-or-message expression category rather than an unrestricted configuration-translation facility.",
+      "imports": "Ordinary use groups currently include their provider's entire executable package, more than shared wording requires. When every imported member is a message symbol, inclusion is limited to pure message assets and the parameter schemas reachable from them; it brings no provider models, handlers, pages, context or MCP tools. Groups also containing production business symbols continue to include the whole owner under existing rules. A composed app currently lacks a business package and an import scope. The proposal therefore allows message-only grouped use declarations following its optional context, giving that app access to its metadata messages. Their spelling stays the existing import form, without an app wrapper or automatic cross-package visibility. These message imports cannot carry a deployment binding, and qualified references must still satisfy explicit visibility.",
+      "locales": "Unless context locale default=STRING changes it, the language version fixes the app default to en. Offered locales comprise that default and columns in reachable authored message tables. Composition combines explicitly supplied defaults and rejects disagreement; each message keeps its original canonical owner. Resolution first applies RFC 4647 lookup to the requested locale, next tries the app default, and finally uses the message's source variant. An absent cell falls back for the complete message. Formatting and plural rules belong to the variant actually chosen rather than to a requested locale with no available translation. Browser presentation chooses an authenticated or anonymous user's UI preference, then Accept-Language, then the app default. An MCP connection fixes its preference or uses the app default; the design adds neither invented protocol metadata nor per-tool locale inputs. Only presentation changes with locale: tool names, enum transport values, IDs, currency facts, timestamps, access rules and business predicates remain fixed. Recipient preferences may use the new locale type, whose values are validated canonical BCP 47 language tags.",
+      "output": "An unparameterized named message is a value reference; messages declaring parameters are instantiated through the ordinary typed-call form. Only presentation, description and diagnostic destinations render descriptors implicitly, and they apply the existing disclosure-dependency checks used for other visible values. For outbound content, an explicit overload of the existing builtin renders format(message_descriptor,locale=locale_or_null). A null argument selects the app default, not the initiating person's UI locale. Machine substitution through format(template,values) keeps its present meaning. Rendered messages retain presentation provenance: they may neither determine authorization, queries, business transitions or correlation/identity values, nor enter ordinary business-model storage. Outbound payload and audit intents preserve rendered content, the selected locale and the release for retries. A release pins both locale data and message assets. HTML rendering escapes substituted values, isolates their bidi direction, and supplies the effective lang/dir; raw HTML, JavaScript authored by translators and pluggable custom formatters are excluded. Locale display leaves the business timezone intact for dates and the exact amount and currency intact for money, without conversion or modification of authority data.",
+      "formats": "One format option is ICU MessageFormat: it offers concise placeholders, plural, select and selectordinal patterns, with established JavaScript implementations, apostrophe escaping and a bounded formatting profile that must be pinned precisely. The other is the Unicode-standard MF2, whose structured messages, explicit declarations and selector annotations are richer but can restate facts already in typed signatures. In UTS35 48.2, MF2's date/time functions still have Draft status; assuming all upstream formatting functions are stable would therefore be incorrect. Both alternatives require compiler checks for pattern validity, variable declarations, selector typing, fallback branches and the permitted option set, along with a release-pinned runtime/formatter adapter. Catalog cells are parsed as strings by the initial syntax parser; that stage cannot establish message-pattern validity. Selecting a source design does not entail downloading an engine, framework or vendor package. The scoped implementation is specification, grammar, parser acceptance and illustrative source, leaving message evaluation to future runtime work.",
+      "research": "You receive the following primary-source evidence rather than performing research. The ICU message guide at https://unicode-org.github.io/icu/userguide/format_parse/messages/ and FormatJS syntax documentation at https://formatjs.github.io/docs/core-concepts/icu-syntax/ cover whole plural/select messages and available parser implementations. Unicode's MF2 report at https://unicode.org/reports/tr35/tr35-messageFormat.html describes selector annotations, fallback variants and the distinction between stable and Draft features. Fluent's terms guide at https://projectfluent.org/fluent/guide/terms.html explains reusable terms and risks around grammatical case. RFC4647 at https://www.rfc-editor.org/rfc/rfc4647 specifies lookup and defaulting for complete content; W3C's https://www.w3.org/International/questions/qa-html-dir addresses directional markup. Cloudflare's web-standards documentation, https://developers.cloudflare.com/workers/runtime-apis/web-standards/, records Intl support for locale-sensitive numbers, dates and times. Intl availability in workerd is not evidence that a message engine is installed.",
+      "code": {
+        "table": "messages \"en\",\"nl\"\n export add = \"Add\",\"Toevoegen\"\n task_count(n:int) = \"{n, plural, one {# task} other {# tasks}}\",\"{n, plural, one {# taak} other {# taken}}\"\n for Todo.title = \"Title\",\"Titel\"\n for Todo.create = add",
+        "keyed": "message add {\"en\"=\"Add\",\"nl\"=\"Toevoegen\"}",
+        "use": "use TeamTasks {add,task_count}\npage /notes title=notes_title\n form Note.create submit=add\n text task_count(count(Note))",
+        "metadata": "#= office_description\napp TeamOffice uses=[TeamTasks,TeamNotes]\nuse TeamTasks {office_description}",
+        "recipient": "format(reminder(customer.name),locale=customer.preferred_locale)",
+        "mf2": ".input {$n :integer} .match $n one {{1 task}} * {{{$n} tasks}}"
+      }
+    },
+    "questions": {
+      "layout": {
+        "type": "choice",
+        "instructions": "Select the one source layout that best accommodates the specified ownership, token budget and editing requirements.",
+        "criteria": {
+          "table": "An owner's messages header states each locale once, reducing row syntax; column changes require positional meanings to remain correct.",
+          "keyed": "Each owned message identifies its locale entries explicitly, making independent additions possible while paying for repeated locale tags.",
+          "unresolved": "Keep representation undecided when both proposed spellings fail to form a coherent answer to these needs."
+        }
+      },
+      "format": {
+        "type": "choice",
+        "instructions": "Choose the single bounded pattern language to specify in canlang's initial message contract.",
+        "criteria": {
+          "icu": "Choose the established ICU MessageFormat approach, retaining concise plural/select forms and a fixed quoting/formatting profile despite constraints in its older syntax.",
+          "mf2": "Choose Unicode MF2's structured declarations and annotated selection, bearing the added tokens and making an explicit pinned choice about Draft date/time functionality.",
+          "unresolved": "Do not fix a pattern format if the provided material is insufficient to justify either of the two contracts."
+        }
+      },
+      "sharing": {
+        "type": "noul",
+        "instructions": "Can the described canonical ownership, export/use visibility, message-only dependency inclusion and composed-app metadata scope operate coherently without schema copying, bringing in business execution, or implicitly granting authority?"
+      },
+      "semantics": {
+        "type": "noul",
+        "instructions": "Are complete-message fallback, explicit freezing for recipient output, target display bindings and the separation of message values from text mutually coherent while leaving machine identities and business authorization unchanged?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "layout": {
+        "type": "choice",
+        "choice": "table",
+        "confidence": 0.25,
+        "probabilities": {
+          "keyed": 0.49,
+          "unresolved": 0.01,
+          "table": 0.5
+        }
+      },
+      "format": {
+        "type": "choice",
+        "choice": "icu",
+        "confidence": 0.96,
+        "probabilities": {
+          "icu": 0.98,
+          "mf2": 0.0,
+          "unresolved": 0.02
+        }
+      },
+      "sharing": {
+        "type": "noul",
+        "noul": 0.81
+      },
+      "semantics": {
+        "type": "noul",
+        "noul": 0.9
+      }
+    },
+    "usage": {
+      "input_tokens": 2657,
+      "output_tokens": 116
+    }
+  }
+}

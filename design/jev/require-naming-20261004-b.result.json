@@ -1,0 +1,41 @@
+{
+  "request": {
+    "state": {
+      "context": "One Canlang token, require, presently serves several roles. Its Given declaration, require Model: predicate, defines a side-effect-free rule over row, enforced for affected final-state records on all mutation routes with relevant dependency rechecks; preference values can likewise be constrained. In When, require expr [message=expr] appears ahead of do or among its statements, follows source order, and on failure returns a safe rule_failed business error while discarding all tentative work, trusted execution included. A Then require expr controls its surrounding render scope: false excludes a group or denies a page, without overriding backend authorization. Backfill mappers also contain execution checks. The author is exploring asserts for one side of the Given versus When/Then divide and rules out renaming both sides; no source alteration was requested. Rust assert! fails by panic and supports testing/runtime invariants. TypeScript uses asserts in assertion signatures for flow-sensitive type refinement. Those associations offer recognition but do not specify Canlang outcomes. All replacement words are hypothetical and must keep behavior identical.",
+      "aim": "Weigh recognition, distinction between enduring data rules and immediate conditions, expected rejection/visibility behavior, vocabulary size, and costs of updating draft source, parser and highlighting. A single shared word remains a valid possibility, and Canlang need not inherit panic semantics."
+    },
+    "questions": {
+      "spelling": {
+        "type": "choice",
+        "instructions": "Select the naming arrangement with the strongest overall fit to these facts. Balance advantages and disadvantages of each proposal; the classification conveys a recommendation and cannot authorize a migration.",
+        "criteria": {
+          "keep": "Continue using require in each location. Avoids extra terminology and migration while emphasizing shared condition enforcement; the section and colon still carry the difference between state rules, operation guards and presentation eligibility.",
+          "given_asserts": "Rename only Given constraints to asserts Model: predicate, keeping require for operations, UI and maintenance checks. The new token highlights declarative enforcement and recalls assertions; its extra vocabulary may also evoke individual test assertions or failure conventions.",
+          "when_then_asserts": "Reserve require for Given and write asserts in When, Then and matching backfill guard positions. Recognition of a checking verb can distinguish immediate checks from state declarations; ordinary rejection and omitted UI can clash with assertion expectations, and sources/tools need a new word.",
+          "given_invariant": "Spell only the Given rule invariant Model: predicate and leave require in scenarios, rendering and backfill. Its name explicitly expresses a durable constraint rather than a local guard; the term is longer and more specialized, with consequent draft/parser/editor updates."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "spelling": {
+        "type": "choice",
+        "choice": "keep",
+        "confidence": 0.5,
+        "probabilities": {
+          "keep": 0.63,
+          "given_asserts": 0.13,
+          "given_invariant": 0.19,
+          "when_then_asserts": 0.05
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 824,
+      "output_tokens": 54
+    }
+  }
+}

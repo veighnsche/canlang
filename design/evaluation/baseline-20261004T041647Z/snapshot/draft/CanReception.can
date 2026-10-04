@@ -1,0 +1,346 @@
+# Help workspace reception register expected visitors, check arrivals/departures, and track physical keys/cards. @{nl="Help de receptie verwachte bezoekers te registreren, aankomst en vertrek te controleren en fysieke sleutels en kaarten bij te houden."}
+app CanReception uses=[reception]
+
+# Record scoped guest admission and physical credentials with separate device-confirmed outcomes. @{nl="Registreer gasttoelating en fysieke toegangsmiddelen binnen scope met afzonderlijke apparaatbevestigde resultaten."}
+package reception
+ use rent_catalog {Location,DateHours,is_open,test_site}
+ use customer {Customer,Contact,CompanyAccessChanged,has_role,owns,test_company,test_contact,test_admin}
+ use employee {can_work,test_worker}
+ use std {EmailV1 as Mail} from=deployment.mail
+ use member_terms {MembershipV1 as Membership,AccessEvidence} from=deployment.membership
+ use reception {DeviceV1 as Devices} from=deployment.devices
+ Given
+  message notice_visitor_invitation = "Visitor invitation"@{nl="Bezoekersuitnodiging"}
+  message label_preferences_queue_expected = "Expected"@{nl="Verwacht"}
+  message label_DeviceState_source = "Source reference"@{nl="Bronreferentie"}
+  message label_DeviceState_desired = "Desired state"@{nl="Gewenste status"}
+  message label_DeviceState_desired_active = "Active"@{nl="Actief"}
+  message label_DeviceState_desired_revoked = "Revoked"@{nl="Ingetrokken"}
+  message label_DeviceState_confirmed = "Confirmed outcome"@{nl="Bevestigd resultaat"}
+  message label_DeviceState_confirmed_pending = "Pending"@{nl="In afwachting"}
+  message label_DeviceState_confirmed_failed = "Failed"@{nl="Mislukt"}
+  message label_DeviceState_confirmed_unknown = "Unknown"@{nl="Onbekend"}
+  message label_Visit_guest = "Guest"@{nl="Gast"}
+  message label_Visit_from = "Start"@{nl="Begin"}
+  message label_Visit_until = "End"@{nl="Einde"}
+  message label_Visit_purpose = "Purpose"@{nl="Doel"}
+  message label_Issue_holder = "Holder"@{nl="Houder"}
+  preferences { location:Location?, queue:enum(all,expected,today,on_site,overdue)=all label={text="Visitor queue"@{nl="Bezoekerswachtrij"},values={all="All visitors"@{nl="Alle bezoekers"},expected=label_preferences_queue_expected,today="Today"@{nl="Vandaag"},on_site="On site"@{nl="Aanwezig"},overdue="Overdue"@{nl="Te laat"}}} }
+  export contract DeviceState { source:text label=label_DeviceState_source, revision:int, observation:int min=1, desired:enum(active,revoked) label={text=label_DeviceState_desired,values={active=label_DeviceState_desired_active,revoked=label_DeviceState_desired_revoked}}, confirmed:enum(pending,active,revoked,failed,unknown) label={text=label_DeviceState_confirmed,values={active=label_DeviceState_desired_active,revoked=label_DeviceState_desired_revoked,pending=label_DeviceState_confirmed_pending,failed=label_DeviceState_confirmed_failed,unknown=label_DeviceState_confirmed_unknown}}, reference:text? } label="Device outcome"@{nl="Apparaatresultaat"}
+  export capability DeviceV1 version=1
+   apply(source:text,device:text,credential:text,holder:text,location:text,until:datetime,desired:DeviceState.desired,revision:int) -> DeviceState
+   reconcile(source:text) -> DeviceState
+   event changed { value:DeviceState }
+  role receptionist label="Receptionist"@{nl="Receptionist"}
+  role access_staff label="Access staff"@{nl="Toegangsmedewerker"}
+  Visit in Customer { policy:GuestPolicy, notice_delivery:text?, notice_state:enum(none,pending,delivered,failed,unknown)=none label="Invitation delivery"@{nl="Uitnodigingsbezorging"}, access_review:bool=false label="Admission needs review"@{nl="Toegang vereist beoordeling"}, reminder_at:datetime?, location:Location, guest:Contact label=label_Visit_guest, host:user label="Host"@{nl="Gastheer of gastvrouw"}, from:datetime label=label_Visit_from, until:datetime label=label_Visit_until, purpose:text label=label_Visit_purpose, source:text label=label_DeviceState_source, eligibility:AccessEvidence? label="Eligibility evidence"@{nl="Geschiktheidsbewijs"}, eligibility_delivery:text? label="Eligibility request"@{nl="Geschiktheidsaanvraag"}, state:enum(invited,expected,arrived,departed,cancelled,refused)=invited label={text="State"@{nl="Status"},values={expected=label_preferences_queue_expected,invited="Invited"@{nl="Uitgenodigd"},arrived="Arrived"@{nl="Aangekomen"},departed="Departed"@{nl="Vertrokken"},cancelled="Cancelled"@{nl="Geannuleerd"},refused="Refused"@{nl="Geweigerd"}}}, identity_evidence:text? label="Identity-check evidence"@{nl="Bewijs identiteitscontrole"}, arrived:datetime? label="Arrival time"@{nl="Aankomsttijd"}, departed:datetime? label="Departure time"@{nl="Vertrektijd"}, reason:text? } label=notice_visitor_invitation
+  GuestPolicy in Location { host_present:bool=false label="Host must be present"@{nl="Gastheer moet aanwezig zijn"}, visitor_days:int=90 min=1 label="Visitor retention days"@{nl="Bewaartermijn bezoekers in dagen"}, credential_days:int=365 min=90 label="Credential evidence days"@{nl="Bewaartermijn sleutelbewijs in dagen"}, reminder_before:duration? label="Arrival reminder lead time"@{nl="Tijd vóór aankomstherinnering"} } label="Visitor policy"@{nl="Bezoekersbeleid"}
+  unique GuestPolicy fields=parent
+  HostPresence in Customer { location:Location, account:user, from:datetime server=now, until:datetime, evidence:text, recorded_by:user server=actor, ended:datetime? } label="Recorded host presence"@{nl="Vastgelegde aanwezigheid gastheer"}
+  Credential { location:Location, identifier:text unique label="Identifier"@{nl="Identificatie"}, device:text? label="Device"@{nl="Apparaat"}, active:bool=true } label="Key or card"@{nl="Sleutel of kaart"}
+  Issue in Credential { delivery:text?, reconcile_delivery:text?, observation:int=0, audit_days:int=365 min=90, device:text?, credential:text, visit:Visit, holder:text label=label_Issue_holder, until:datetime label=label_Visit_until, desired:enum(active,revoked)=active label={text=label_DeviceState_desired,values={active=label_DeviceState_desired_active,revoked=label_DeviceState_desired_revoked}}, confirmed:enum(pending,active,revoked,failed,unknown)=pending label={text=label_DeviceState_confirmed,values={active=label_DeviceState_desired_active,revoked=label_DeviceState_desired_revoked,pending=label_DeviceState_confirmed_pending,failed=label_DeviceState_confirmed_failed,unknown=label_DeviceState_confirmed_unknown}}, source:text unique label=label_DeviceState_source, issued_by:user server=actor label="Issued by"@{nl="Uitgegeven door"}, returned:datetime? label="Returned at"@{nl="Geretourneerd op"}, lost_reason:text? label="Loss reason"@{nl="Reden van verlies"}, evidence:text, revoke_evidence:text? label="Revocation evidence"@{nl="Intrekkingsbewijs"}, revision:int=1 } label="Credential issue"@{nl="Sleuteluitgifte"}
+  policy GuestPolicy read=authenticated
+  policy HostPresence read=receptionist and can_work(actor,row.location)
+  policy HostPresence read=authenticated where=row.account==actor
+  policy Visit read=receptionist and can_work(actor,row.location)
+  policy Visit read=authenticated where=row.host==actor or (row.guest.account==actor and row.guest.verified) fields=location,guest,host,from,until,purpose,state,reason,notice_state,access_review
+  policy Visit read=access_staff and can_work(actor,row.location) fields=location,guest,host,from,until,state
+  policy Credential read=access_staff and can_work(actor,row.location)
+  policy Issue read=access_staff and can_work(actor,row.parent.location)
+  invariant GuestPolicy: row.reminder_before==null or row.reminder_before>=0m
+  invariant HostPresence: row.from<row.until and trim(row.evidence)!=""
+  invariant Visit: row.from<row.until and row.guest.parent==row.parent and row.policy.parent==row.location
+  invariant Issue: trim(row.evidence)!=""
+  unique Issue fields=parent where=row.returned==null and row.lost_reason==null and row.desired==active
+  lock Issue fields=device,credential,visit,holder,until,source,issued_by,evidence,audit_days
+  lock Visit fields=parent,policy,guest,host,location,from,until,source
+  lock HostPresence fields=location,account,from,until,evidence,recorded_by
+  retain Visit until=row.until+row.policy.visitor_days*1d
+  retain HostPresence until=row.until+90d
+  retain Issue until=max([row.until,row.returned??row.until])+row.audit_days*1d
+  event DeviceObserved { issue:Issue, value:DeviceState }
+  event VisitorReminder { visit:Visit, at:datetime }
+  event VisitRefresh { visit:Visit }
+  event CredentialCheck { issue:Issue }
+  derive current_access(visit:Visit):bool = visit.parent.active and visit.parent.archived_at==null and visit.location.active and visit.eligibility!=null and visit.eligibility.eligible and visit.eligibility.source==visit.id and visit.eligibility.customer==visit.parent.id and visit.eligibility.account==visit.host and visit.eligibility.location==visit.location.id and visit.eligibility.at==visit.from and visit.eligibility.until>=visit.until and visit.eligibility.checked_at>=now-1m and visit.eligibility.checked_at<=now and is_open(visit.location,max([now,visit.from]),visit.until) and (owns(visit.host,visit.parent) or has_role(visit.host,visit.parent,booker) or has_role(visit.host,visit.parent,administrator))
+  derive guest_count(visit:Visit):int = count(Visit as other where other.id!=visit.id and other.host==visit.host and other.location==visit.location and other.state in [expected,arrived] and overlaps(other.from,other.until,visit.from,visit.until))
+  fixture admission_day=DateHours {parent=test_site,day=local_date(now,test_site.timezone),opens="00:00",closes="00:00",close_after=1}
+  fixture policy=GuestPolicy {parent=test_site}
+  fixture arrival=Visit {parent=test_company,policy,location=test_site,guest=test_contact,host=self,from=datetime("2020-01-01T00:00:00Z"),until=datetime("2099-01-01T00:00:00Z"),purpose="Meeting",source="booking",state=arrived}
+  fixture key=Credential {location=test_site,identifier="Key A"}
+  fixture active_issue=Issue {parent=key,visit=arrival,holder="Guest",credential="Key A",until=datetime("2099-01-01T00:00:00Z"),source="issue",evidence="Physical handover",confirmed=active}
+ When
+  crud GuestPolicy by=access_staff fields=host_present,visitor_days,credential_days,reminder_before when=can_work(actor,row.parent) delete=none
+  crud Credential by=access_staff fields=identifier,device,active create_fields=location,identifier,device when=can_work(actor,row.location) delete=none
+  # Invite an owned guest and request current host entitlement; this reserves no room. @{nl="Nodig een eigen gast uit en vraag het huidige gastheerrecht aan; dit reserveert geen ruimte."}
+  scenario invite(customer:Customer,guest:Contact label=label_Visit_guest,location:Location,from:datetime label=label_Visit_from,until:datetime label=label_Visit_until,purpose:text label=label_Visit_purpose,source:text label=label_DeviceState_source) by=authenticated label="Invite guest"@{nl="Gast uitnodigen"}
+   require actor.email_verified and customer.active and customer.archived_at==null and guest.parent==customer and location in customer.locations and location.active and is_open(location,from,until) and from>=now and from<until and trim(purpose)!=""
+   require owns(actor,customer) or has_role(actor,customer,booker) or has_role(actor,customer,administrator)
+   do
+    let policy=first(GuestPolicy as row where row.parent==location order=row.id)
+    require policy!=null
+    create Visit {parent=customer,policy,guest,host=actor,location,from,until,purpose,source} as visit
+    send Membership.eligibility {source=visit.id,customer=customer.id,account=actor,location=location.id,at=from,until} as delivery
+    set visit {eligibility_delivery=delivery.id}
+    schedule format("visitor-check-{id}",{id=visit.id}) at=max([now+1m,from-1h]) event=VisitRefresh {visit}
+  scenario eligible on=Membership.eligibility.completed
+   do
+    for visit in Visit as item where item.eligibility_delivery==event.delivery_id limit=1
+     set visit {eligibility_delivery=null}
+     if event.status==succeeded and event.result!=null and event.result.source==visit.id and event.result.customer==visit.parent.id and event.result.account==visit.host and event.result.location==visit.location.id and event.result.at==visit.from and event.result.until==visit.until
+      if visit.eligibility==null or event.result.revision>visit.eligibility.revision
+       set visit {eligibility=event.result,access_review=not event.result.eligible}
+      if visit.state==invited and current_access(visit) and guest_count(visit)<visit.eligibility.guest_limit
+       set visit {state=expected,access_review=false}
+       send Mail.send {to=visit.guest.email,subject=format(notice_visitor_invitation,locale=null),body=visit.location.arrival} when=visit.state==expected and current_access(visit) as notice
+       set visit {notice_delivery=notice.id,notice_state=pending}
+       if visit.policy.reminder_before!=null and visit.from-visit.policy.reminder_before>now
+        let reminder_at=visit.from-visit.policy.reminder_before
+        set visit {reminder_at}
+        schedule format("visitor-{id}",{id=visit.id}) at=reminder_at event=VisitorReminder {visit,at=reminder_at}
+      if not current_access(visit) and visit.state==expected
+       set visit {state=invited,access_review=true}
+     else
+      set visit {access_review=true}
+  scenario membership_changed on=Membership.changed
+   do
+    for visit in Visit as row where row.id==event.value.source and row.parent.id==event.value.customer and row.host==event.value.account and row.location.id==event.value.location and row.from==event.value.at and row.until==event.value.until and (row.eligibility==null or event.value.revision>row.eligibility.revision) limit=1
+     set visit {eligibility=event.value,access_review=not event.value.eligible}
+     if not event.value.eligible and visit.state==expected
+      set visit {state=invited}
+  scenario customer_changed on=CompanyAccessChanged
+   do
+    for visit in event.customer.Visit as row where row.state in [invited,expected,arrived] limit=100
+     if not visit.parent.active or not (owns(visit.host,visit.parent) or has_role(visit.host,visit.parent,booker) or has_role(visit.host,visit.parent,administrator))
+      set visit {access_review=true,eligibility=null}
+      if visit.state==expected
+       set visit {state=invited}
+  # Refresh evidence without replacing the invitation identity or assuming remote success. @{nl="Ververs bewijs zonder de uitnodigingsidentiteit te vervangen of extern succes aan te nemen."}
+  scenario refresh(visit:Visit) by=authenticated or receptionist label="Refresh eligibility"@{nl="Geschiktheid verversen"}
+   require visit.host==actor or (receptionist and can_work(actor,visit.location))
+   require visit.state in [invited,expected,arrived] and visit.until>now
+   do
+    send Membership.eligibility {source=visit.id,customer=visit.parent.id,account=visit.host,location=visit.location.id,at=visit.from,until=visit.until} as delivery
+    set visit {eligibility_delivery=delivery.id,access_review=true}
+  scenario refresh_due on=VisitRefresh
+   do
+    let visit=event.visit
+    if visit.state in [invited,expected,arrived] and visit.until>now
+     if visit.state==expected and visit.from>now
+      if visit.policy.reminder_before==null
+       if visit.reminder_at!=null
+        cancel format("visitor-{id}",{id=visit.id})
+        set visit {reminder_at=null}
+      else
+       let at=visit.from-visit.policy.reminder_before
+       if at>now and visit.reminder_at!=at
+        set visit {reminder_at=at}
+        schedule format("visitor-{id}",{id=visit.id}) at=at event=VisitorReminder {visit,at}
+     if visit.eligibility_delivery==null
+      send Membership.eligibility {source=visit.id,customer=visit.parent.id,account=visit.host,location=visit.location.id,at=visit.from,until=visit.until} as delivery
+      set visit {eligibility_delivery=delivery.id}
+     schedule format("visitor-check-{id}",{id=visit.id}) at=min([visit.until,now+1m]) event=VisitRefresh {visit}
+  # Record current physical host presence with reception evidence. @{nl="Leg huidige fysieke aanwezigheid van de gastheer vast met receptiebewijs."}
+  scenario host_arrived(customer:Customer,account:user,location:Location,until:datetime,evidence:text) by=receptionist label="Record host presence"@{nl="Aanwezigheid gastheer registreren"}
+   require can_work(actor,location) and customer.active and location in customer.locations and until>now and trim(evidence)!=""
+   require owns(account,customer) or has_role(account,customer,booker) or has_role(account,customer,administrator)
+   do create HostPresence {parent=customer,account,location,until,evidence} as presence
+  # End a recorded host presence without changing any room occupancy. @{nl="Beëindig vastgelegde aanwezigheid zonder ruimtebezetting te wijzigen."}
+  scenario host_departed(presence:HostPresence) by=receptionist label="Record host departure"@{nl="Vertrek gastheer registreren"}
+   require can_work(actor,presence.location) and presence.ended==null
+   do set presence {ended=now}
+  # Record identity-check evidence and admit only currently verified eligibility. @{nl="Registreer identiteitscontrolebewijs en laat uitsluitend bezoekers met momenteel geverifieerde geschiktheid toe."}
+  scenario arrive(visit:Visit,evidence:text) by=receptionist label="Record arrival"@{nl="Aankomst registreren"}
+   require can_work(actor,visit.location) and visit.state==expected and visit.from<=now and now<visit.until and trim(evidence)!=""
+   require current_access(visit) and not visit.access_review and guest_count(visit)<visit.eligibility.guest_limit
+   require not visit.policy.host_present or any(visit.parent.HostPresence as presence,presence.account==visit.host and presence.location==visit.location and presence.from<=now and presence.until>now and presence.ended==null)
+   do set visit {state=arrived,identity_evidence=evidence,arrived=now}
+   examples seed=[test_worker] visit=arrival evidence="Identity checked"
+    as,visit.state,visit.eligibility -> visit.state
+    receptionist,expected,null -> error(rule_failed)
+    receptionist,cancelled,null -> error(rule_failed)
+    access_staff,expected,null -> error(forbidden)
+   examples seed=[test_worker,test_admin,admission_day] visit=arrival evidence="Identity checked"
+    visit.state,visit.from,visit.until,visit.eligibility,as -> visit.state,visit.identity_evidence
+    expected,now,now+1ms,{source=arrival.id,customer=test_company.id,account=self,location=test_site.id,at=now,until=now+1ms,guest_limit=1,eligible=true,revision=1,checked_at=now},receptionist -> arrived,"Identity checked"
+    expected,now,now+1ms,{source=arrival.id,customer=test_company.id,account=self,location=test_site.id,at=now,until=now+1ms,guest_limit=0,eligible=true,revision=1,checked_at=now},receptionist -> error(rule_failed)
+    expected,now,now+1ms,{source=arrival.id,customer=test_company.id,account=self,location=test_site.id,at=now,until=now+1ms,guest_limit=1,eligible=true,revision=1,checked_at=now-2m},receptionist -> error(rule_failed)
+  # Resolve a recorded visitor departure without clearing room occupancy. @{nl="Registreer het vertrek van een bezoeker zonder ruimtebezetting vrij te geven."}
+  scenario depart(visit:Visit,evidence:text) by=receptionist label="Record departure"@{nl="Vertrek registreren"}
+   require can_work(actor,visit.location) and visit.state==arrived and trim(evidence)!=""
+   do set visit {state=departed,departed=now,reason=evidence}
+  # Cancel future admission while keeping arrived guests and outstanding credentials visible. @{nl="Annuleer toekomstige toegang en houd aanwezige gasten en uitstaande toegangsmiddelen zichtbaar."}
+  scenario cancel(visit:Visit,reason:text) by=authenticated or receptionist
+   require trim(reason)!="" and (visit.host==actor or (receptionist and can_work(actor,visit.location)))
+   require visit.state in [invited,expected]
+   do set visit {state=cancelled,reason}
+  # Refuse an expected arrival with an attributable reason. @{nl="Weiger een verwachte aankomst met een herleidbare reden."}
+  scenario refuse(visit:Visit,reason:text) by=receptionist label="Refuse arrival"@{nl="Toegang weigeren"}
+   require can_work(actor,visit.location) and visit.state in [invited,expected] and trim(reason)!=""
+   do set visit {state=refused,reason}
+  # Reserve a physical credential once and request optional device rights separately. @{nl="Reserveer een fysiek toegangsmiddel één keer en vraag optionele apparaatrechten afzonderlijk aan."}
+  scenario issue(credential:Credential,visit:Visit,holder:text label=label_Issue_holder,evidence:text) by=access_staff label="Issue credential"@{nl="Toegangsmiddel uitgeven"}
+   require can_work(actor,credential.location) and credential.active and visit.location==credential.location and visit.state==arrived and now<visit.until and current_access(visit) and not visit.access_review and trim(evidence)!=""
+   require not visit.policy.host_present or any(visit.parent.HostPresence as presence,presence.account==visit.host and presence.location==visit.location and presence.from<=now and presence.until>now and presence.ended==null)
+   require not any(credential.Issue as issue,issue.returned==null or issue.confirmed!=revoked)
+   do
+    create Issue {parent=credential,device=credential.device,credential=credential.identifier,audit_days=visit.policy.credential_days,visit,holder,until=visit.until,source=operation.id,evidence} as issue
+    schedule format("credential-check-{id}",{id=issue.id}) at=min([issue.until,now+1m]) event=CredentialCheck {issue}
+    if issue.device!=null
+     send Devices.apply {source=issue.source,device=issue.device,credential=issue.credential,holder,location=credential.location.id,until=issue.until,desired=active,revision=issue.revision} when=issue.desired==active and issue.until>now and current_access(issue.visit) and issue.visit.state==arrived as delivery
+     set issue {delivery=delivery.id}
+    else
+     set issue {confirmed=active}
+  # Record physical return and keep device revocation pending until confirmed. @{nl="Registreer fysieke teruggave en houd apparaatintrekking in afwachting tot bevestiging."}
+  scenario return_key(issue:Issue,evidence:text) by=access_staff label="Record credential return"@{nl="Sleutelretour registreren"}
+   require can_work(actor,issue.parent.location) and issue.returned==null and trim(evidence)!=""
+   do
+    set issue {returned=now,desired=revoked,revision=issue.revision+1,observation=0,confirmed=pending}
+    if issue.device!=null
+     send Devices.apply {source=issue.source,device=issue.device,credential=issue.credential,holder=issue.holder,location=issue.parent.location.id,until=issue.until,desired=revoked,revision=issue.revision} as delivery
+     set issue {delivery=delivery.id}
+    else
+     set issue {confirmed=revoked}
+   examples seed=[test_worker] issue=active_issue
+    as,evidence -> issue.desired,issue.confirmed
+    access_staff,"Returned at desk" -> revoked,revoked
+    access_staff,"" -> error(rule_failed)
+    receptionist,"Returned at desk" -> error(forbidden)
+  # Mark a lost credential outstanding and request revocation rather than reporting a return. @{nl="Markeer een verloren toegangsmiddel als uitstaand en vraag intrekking aan in plaats van teruggave te melden."}
+  scenario lost(issue:Issue,reason:text) by=access_staff label="Record lost credential"@{nl="Verloren sleutel registreren"}
+   require can_work(actor,issue.parent.location) and issue.returned==null and trim(reason)!=""
+   do
+    set issue.parent {active=false}
+    set issue {lost_reason=reason,desired=revoked,revision=issue.revision+1,observation=0,confirmed=pending}
+    if issue.device!=null
+     send Devices.apply {source=issue.source,device=issue.device,credential=issue.credential,holder=issue.holder,location=issue.parent.location.id,until=issue.until,desired=revoked,revision=issue.revision} as delivery
+     set issue {delivery=delivery.id}
+    else
+     set issue {confirmed=unknown}
+  # Record evidenced manual revocation for a physical credential without hardware integration. @{nl="Registreer bewezen handmatige intrekking voor een fysiek toegangsmiddel zonder hardware-integratie."}
+  scenario manual_revoke(issue:Issue,evidence:text) by=access_staff label="Record manual revocation"@{nl="Handmatige intrekking registreren"}
+   require can_work(actor,issue.parent.location) and issue.device==null and issue.desired==revoked and trim(evidence)!=""
+   do set issue {confirmed=revoked,revoke_evidence=evidence}
+  scenario device_result on=Devices.changed
+   do
+    for issue in Issue as item where item.source==event.value.source and item.revision==event.value.revision limit=1
+     emit DeviceObserved {issue,value=event.value}
+  scenario device_applied on=Devices.apply.completed
+   do
+    for issue in Issue as row where row.delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      emit DeviceObserved {issue,value=event.result}
+     else
+      if issue.observation==0
+       set issue {confirmed=unknown}
+  scenario device_reconciled on=Devices.reconcile.completed
+   do
+    for issue in Issue as row where row.reconcile_delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      emit DeviceObserved {issue,value=event.result}
+     else
+      if issue.observation==0
+       set issue {confirmed=unknown}
+  scenario device_observed on=DeviceObserved
+   require event.value.source==event.issue.source and event.value.revision==event.issue.revision and event.value.desired==event.issue.desired
+   do
+    if event.value.observation>event.issue.observation
+     set event.issue {confirmed=event.value.confirmed,observation=event.value.observation}
+   examples seed=[active_issue] event={issue=active_issue,value={source="issue",revision=1,observation=2,desired=active,confirmed=active,reference=null}}
+    active_issue.observation,event.value.observation,event.value.desired -> active_issue.observation,active_issue.confirmed
+    1,2,active -> 2,active
+    3,2,active -> 3,active
+    1,2,revoked -> error(rule_failed)
+  # Reconcile uncertain hardware state with the same source and desired revision. @{nl="Verifieer onzekere apparaatstatus met dezelfde bron en gewenste revisie."}
+  scenario reconcile_device(issue:Issue) by=access_staff label="Check device outcome"@{nl="Apparaatresultaat controleren"}
+   require can_work(actor,issue.parent.location) and issue.device!=null
+   do
+    send Devices.reconcile {source=issue.source} as delivery
+    set issue {reconcile_delivery=delivery.id}
+  # Retry the current device intent while preserving its provider identity. @{nl="Probeer de huidige apparaatactie opnieuw met behoud van de provideridentiteit."}
+  scenario retry_device(issue:Issue) by=access_staff label="Retry device intent"@{nl="Apparaatactie opnieuw proberen"}
+   require can_work(actor,issue.parent.location) and issue.device!=null and issue.confirmed in [failed,unknown,pending]
+   require issue.desired==revoked or (issue.until>now and issue.visit.state==arrived and current_access(issue.visit) and not issue.visit.access_review)
+   do
+    send Devices.apply {source=issue.source,device=issue.device,credential=issue.credential,holder=issue.holder,location=issue.parent.location.id,until=issue.until,desired=issue.desired,revision=issue.revision} when=issue.desired==revoked or (issue.until>now and issue.visit.state==arrived and current_access(issue.visit)) as delivery
+    set issue {delivery=delivery.id}
+  scenario revoke_expired on=CredentialCheck
+   do
+    let issue=event.issue
+    if issue.desired==active
+     if issue.until<=now or issue.visit.state in [cancelled,refused,departed] or issue.visit.access_review or not current_access(issue.visit)
+      set issue {desired=revoked,revision=issue.revision+1,observation=0,confirmed=pending}
+      if issue.device!=null
+       send Devices.apply {source=issue.source,device=issue.device,credential=issue.credential,holder=issue.holder,location=issue.parent.location.id,until=issue.until,desired=revoked,revision=issue.revision} as delivery
+       set issue {delivery=delivery.id}
+      else
+       set issue {confirmed=unknown}
+     else
+      schedule format("credential-check-{id}",{id=issue.id}) at=min([issue.until,now+1m]) event=CredentialCheck {issue}
+  scenario notice_result on=Mail.send.completed
+   do
+    for visit in Visit as row where row.notice_delivery==event.delivery_id limit=1
+     if event.status==succeeded
+      set visit {notice_state=delivered}
+     else
+      if event.status==failed or event.status==skipped
+       set visit {notice_state=failed}
+      else
+       set visit {notice_state=unknown}
+  # Resend current arrival instructions for the existing authorized invitation. @{nl="Verstuur actuele aankomstinstructies opnieuw voor de bestaande toegestane uitnodiging."}
+  scenario resend(visit:Visit) by=authenticated or receptionist label="Resend invitation"@{nl="Uitnodiging opnieuw versturen"}
+   require visit.host==actor or (receptionist and can_work(actor,visit.location))
+   require visit.state==expected and visit.until>now and current_access(visit) and not visit.access_review
+   do
+    send Mail.send {to=visit.guest.email,subject=format(notice_visitor_invitation,locale=null),body=visit.location.arrival} when=visit.state==expected and current_access(visit) as notice
+    set visit {notice_delivery=notice.id,notice_state=pending}
+  scenario remind on=VisitorReminder
+   do
+    if event.visit.state==expected and event.visit.reminder_at==event.at and event.at<=now and event.visit.policy.reminder_before!=null and event.visit.from-event.visit.policy.reminder_before==event.at and event.visit.from>now and current_access(event.visit)
+     send Mail.send {to=event.visit.guest.email,subject=format(notice_visitor_invitation,locale=null),body=event.visit.location.arrival} when=event.visit.state==expected and event.visit.from>now and current_access(event.visit) as notice
+     set event.visit {notice_delivery=notice.id,notice_state=pending}
+ Then
+  # Record expected guests, on-site evidence and unresolved departures. @{nl="Registreer verwachte gasten, aanwezigheidsbewijs en onopgeloste vertrekken."}
+  page /reception title="Reception"@{nl="Receptie"}
+   require receptionist
+   card "Host presence"@{nl="Aanwezigheid gastheer"}
+    form host_arrived
+    table HostPresence columns=location,account,from,until,ended
+     action host_departed
+   card "Expected and on-site visits"@{nl="Verwachte en aanwezige bezoekers"}
+    tabs preferences.queue
+    table Visit as visit where preferences.queue==all or (preferences.queue==expected and visit.state==expected) or (preferences.queue==today and local_date(visit.from,team.timezone)==local_date(now,team.timezone)) or (preferences.queue==on_site and visit.state==arrived and visit.departed==null) or (preferences.queue==overdue and visit.state==arrived and visit.until<now) columns=location,guest,host,from,until,state,arrived,departed order=from filter=location,state search=purpose defaults={location=preferences.location}
+     details "Physical arrival and departure history"@{nl="Geschiedenis van fysieke aankomst en vertrek"} display=drawer
+      text row.purpose,row.identity_evidence,row.reason,row.eligibility?.eligible,row.eligibility?.until,row.eligibility?.checked_at,row.eligibility?.guest_limit,row.access_review,row.notice_state
+      actions refresh,arrive,depart,refuse,cancel,resend
+      history
+
+  # Track physical issue, return, loss and device uncertainty separately. @{nl="Volg fysieke uitgifte, teruggave, verlies en apparaatonzekerheid afzonderlijk."}
+  page /reception/credentials title="Keys and cards"@{nl="Sleutels en kaarten"}
+   require access_staff
+   card "Visitor rules"@{nl="Bezoekersregels"}
+    form GuestPolicy.create
+    list GuestPolicy
+     edit
+   card "Credential catalog"@{nl="Toegangsmiddelenregister"}
+    form Credential.create
+   card "Issue and device outcomes"@{nl="Uitgifte- en apparaatresultaten"}
+    list Credential filter=location,active defaults={location=preferences.location} display=split
+     edit
+     form issue
+     table row.Issue columns=holder,until,desired,confirmed,returned,lost_reason
+      details "Credential issue detail"@{nl="Details sleuteluitgifte"} display=drawer
+       text row.visit,row.evidence,row.revoke_evidence,row.issued_by
+       actions return_key,lost,manual_revoke,reconcile_device,retry_device
+       history
+
+  # See only your invitations and current arrival instructions. @{nl="Bekijk uitsluitend je eigen uitnodigingen en huidige aankomstinstructies."}
+  page /reception/mine title="My visitors"@{nl="Mijn bezoekers"}
+   require authenticated
+   card "Own visitor invitations"@{nl="Eigen bezoekersuitnodigingen"}
+    form invite
+   card "Window and state"@{nl="Tijdvenster en status"}
+    list Visit
+     text row.location,row.guest,row.host,row.purpose,row.from,row.until,row.state
+     actions refresh,cancel,resend
+     text row.notice_state,row.access_review

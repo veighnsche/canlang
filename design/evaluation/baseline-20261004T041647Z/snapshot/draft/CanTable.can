@@ -1,0 +1,165 @@
+# Optionally help reception or café staff seat guests at an on-site workspace café or restaurant. @{nl="Help desgewenst receptie- of cafémedewerkers gasten te plaatsen in het werkplekcafé of restaurant."}
+app CanTable uses=[cafe]
+
+# Keep café waiting, interval reservations and actual occupied tables distinct. @{nl="Houd wachtende cafégasten, tijdvakreserveringen en werkelijk bezette tafels gescheiden."}
+package cafe
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ Given
+  preferences { cafe:Cafe? label=label_Cafe, view:enum(all,waiting,reservations,occupancy)=all label={text="Initial view"@{nl="Beginweergave"},values={waiting=label_Booking_state_waiting,all="All"@{nl="Alles"},reservations="Reservations"@{nl="Reserveringen"},occupancy="Physical occupancy"@{nl="Werkelijke bezetting"}}} }
+  message label_Cafe = "Café"@{nl="Café"}
+  message label_Table = "Dining table"@{nl="Cafétafel"}
+  message label_Booking_state_waiting = "Waiting"@{nl="Wachtend"}
+  message label_Booking_state_no_show = "No-show"@{nl="Niet verschenen"}
+  role host label="Café host"@{nl="Cafémedewerker"}
+  Cafe { location:Location, name:text } label=label_Cafe
+  Table in Cafe { name:text, zone:text label="Table zone"@{nl="Tafelzone"}, seats:int min=1 label="Seats"@{nl="Zitplaatsen"}, active:bool=true } label=label_Table
+  Booking in Cafe { name:text, contact:text? label="Guest contact"@{nl="Contactgegevens gast"}, party:int min=1 label="Party size"@{nl="Aantal gasten"}, notes:text?, arrived:datetime server=now label="Arrival time"@{nl="Aankomsttijd"}, priority:int=0 label="Queue priority"@{nl="Wachtrijprioriteit"}, table:Table? label=label_Table, from:datetime? label="Reserved from"@{nl="Gereserveerd vanaf"}, until:datetime? label="Reserved until"@{nl="Gereserveerd tot"}, estimated_until:datetime? label="Estimated seating end"@{nl="Geschat einde van het tafelgebruik"}, seated:datetime? label="Actual seating time"@{nl="Werkelijk zitmoment"}, cleared:datetime? label="Actual clearance time"@{nl="Werkelijk vrijgavemoment"}, state:enum(waiting,reserved,seated,cleared,cancelled,no_show)=waiting label={text="State"@{nl="Status"},values={waiting=label_Booking_state_waiting,reserved="Reserved"@{nl="Gereserveerd"},seated="Seated"@{nl="Zittend"},cleared="Cleared"@{nl="Vrijgegeven"},cancelled="Cancelled"@{nl="Geannuleerd"},no_show=label_Booking_state_no_show}}, reason:text? } label="Booking"@{nl="Reservering"}
+  policy Cafe read=host and can_work(actor,row.location)
+  policy Table read=host and can_work(actor,row.parent.location)
+  policy Booking read=host and can_work(actor,row.parent.location)
+  invariant Table: not any(row.parent.Booking as booking,booking.table==row and (booking.state==reserved or (booking.seated!=null and booking.cleared==null)) and (not row.active or booking.party>row.seats))
+  invariant Booking: row.table==null or row.table.parent==row.parent
+  invariant Booking: (row.from==null and row.until==null) or (row.from!=null and row.until!=null and row.from<row.until)
+  invariant Booking: row.state!=reserved or (row.table!=null and row.from!=null and row.until!=null and row.party<=row.table.seats and available(row.table,row.from,row.until,row))
+  invariant Booking: row.seated==null or (row.table!=null and row.estimated_until!=null and row.seated<row.estimated_until and (row.cleared==null or row.seated<=row.cleared))
+  invariant Booking: row.state!=seated or (row.seated!=null and row.cleared==null and row.table!=null and row.table.active and row.party<=row.table.seats and not any(row.parent.Booking as booking,booking!=row and booking.table==row.table and booking.seated!=null and booking.cleared==null))
+  invariant Booking: row.state!=cleared or (row.seated!=null and row.cleared!=null)
+  invariant Booking: not (row.state in [cancelled,no_show]) or trim(row.reason??"")!=""
+  derive available(table:Table,from:datetime,until:datetime,skip:Booking?):bool = table.active and not any(table.parent.Booking as booking,booking!=skip and booking.table==table and booking.state in [reserved,seated] and booking.from!=null and booking.until!=null and overlaps(from,until,booking.from,booking.until))
+  derive Booking.overdue:bool = row.seated!=null and row.cleared==null and row.estimated_until!=null and row.estimated_until<=now label="Seating estimate exceeded"@{nl="Zitschatting overschreden"}
+  derive Booking.conflict:bool = row.state==reserved and row.table!=null and row.from!=null and any(row.parent.Booking as booking,booking!=row and booking.table==row.table and booking.seated!=null and booking.cleared==null and (row.from<=now or booking.overdue or (booking.estimated_until!=null and booking.estimated_until>row.from))) label="Occupied table conflict"@{nl="Conflict met bezette tafel"}
+  fixture cafe=Cafe {location=test_site,name="Café"}
+  fixture table=Table {parent=cafe,name="1",zone="Main",seats=4}
+  fixture spare=Table {parent=cafe,name="2",zone="Main",seats=4}
+  fixture walk_in=Booking {parent=cafe,name="Walk-in",party=2}
+  fixture diners=Booking {parent=cafe,name="Guest",party=2,table=table,seated=now-1h,estimated_until=now-1m,state=seated}
+  fixture upcoming=Booking {parent=cafe,name="Reservation",party=2,table=table,from=now+30m,until=now+1h,state=reserved}
+ When
+  crud Cafe by=host fields=name create_fields=location,name when=can_work(actor,row.location) delete=none
+  crud Table by=host fields=name,zone,seats,active when=can_work(actor,row.parent.location) delete=none
+   examples update seed=[test_worker,upcoming] record=table changes={seats=4}
+    as,changes.seats,changes.active -> record.seats,record.active,upcoming.state
+    host,3,true -> 3,true,reserved
+    host,1,true -> error(rule_failed)
+    host,4,false -> error(rule_failed)
+   examples update seed=[test_worker,diners] record=table changes={active=true}
+    as,changes.active,changes.seats -> record.active,record.seats,diners.cleared
+    host,false,4 -> error(rule_failed)
+    host,true,1 -> error(rule_failed)
+    host,true,3 -> true,3,null
+   examples update seed=[test_worker,diners] record=table changes={active=false,seats=1}
+    as,diners.state,diners.cleared -> record.active,record.seats,diners.state
+    host,cleared,now -> false,1,cleared
+   examples update seed=[test_worker] record=table changes={active=false,seats=1}
+    as -> record.active,record.seats
+    host -> false,1
+    members -> error(forbidden)
+  crud Booking by=host fields=name,contact,party,notes,priority when=can_work(actor,row.parent.location) and row.state in [waiting,reserved] delete=none
+   examples create seed=[test_worker] parent=cafe name="Walk-in" party=2
+    as -> first(cafe.Booking).state,first(cafe.Booking).table,first(cafe.Booking).from,first(cafe.Booking).seated
+    host -> waiting,null,null,null
+    members -> error(forbidden)
+   examples update seed=[test_worker] record=upcoming changes={party=3,notes="Window requested"}
+    as,changes.party -> record.party,record.notes,record.state
+    host,3 -> 3,"Window requested",reserved
+    host,5 -> error(rule_failed)
+    members,3 -> error(forbidden)
+  # Confirm or move a suitable reservation; changing a confirmed interval requires a recorded reason. @{nl="Bevestig of verplaats een geschikte reservering; wijziging van een bevestigd tijdvak vereist een vastgelegde reden."}
+  scenario reserve(booking:Booking,table:Table,from:datetime label="From"@{nl="Van"},until:datetime label="Until"@{nl="Tot"},reason:text?) by=host label="Reserve dining table"@{nl="Cafétafel reserveren"}
+   require can_work(actor,booking.parent.location) and booking.state in [waiting,reserved] and (booking.state==waiting or trim(reason??"")!="") and table.parent==booking.parent and booking.party<=table.seats and from>=now and from<until and available(table,from,until,booking)
+   do set booking {table,from,until,state=reserved,reason}
+   examples seed=[test_worker] booking=walk_in table=table from=now+30m until=now+1h reason=null
+    as,table.seats,table.active,test_worker.active -> booking.state,booking.from,booking.seated
+    host,4,true,true -> reserved,now+30m,null
+    host,1,true,true -> error(rule_failed)
+    host,4,false,true -> error(rule_failed)
+    members,4,true,true -> error(forbidden)
+    host,4,true,false -> error(rule_failed)
+   examples seed=[test_worker] booking=upcoming table=spare from=now+1h until=now+2h reason="Move away from overrun"
+    as,reason -> booking.table,booking.from,booking.reason
+    host,"Move away from overrun" -> spare,now+1h,"Move away from overrun"
+    host," " -> error(rule_failed)
+   examples seed=[test_worker,upcoming,diners] booking=walk_in table=table from=now+1h until=now+2h reason=null
+    as,from -> booking.state,upcoming.conflict,diners.cleared,diners.overdue
+    host,now+1h -> reserved,true,null,true
+    host,now+45m -> error(rule_failed)
+  # Record actual seating only at a currently clear suitable table. @{nl="Leg werkelijk plaatsnemen alleen aan een momenteel vrije geschikte tafel vast."}
+  scenario seat(booking:Booking,table:Table,estimated_until:datetime label="Estimated seating end"@{nl="Geschat einde van het tafelgebruik"}) by=host label="Record seating"@{nl="Plaatsnemen vastleggen"}
+   require can_work(actor,booking.parent.location) and booking.state in [waiting,reserved] and (booking.state==waiting or booking.table==table) and table.parent==booking.parent and booking.party<=table.seats and estimated_until>now and available(table,now,estimated_until,booking) and not any(booking.parent.Booking as other,other.table==table and other.seated!=null and other.cleared==null)
+   do set booking {table,seated=now,estimated_until,state=seated}
+   examples seed=[test_worker] booking=walk_in table=table estimated_until=now+1h
+    as,estimated_until -> booking.state,booking.seated,booking.from,booking.until,booking.estimated_until
+    host,now+1h -> seated,now,null,null,now+1h
+    host,now -> error(rule_failed)
+    members,now+1h -> error(forbidden)
+   examples seed=[test_worker,diners,upcoming] booking=walk_in table=table estimated_until=now+10m
+    as -> diners.overdue,upcoming.conflict
+    host -> error(rule_failed)
+   examples seed=[test_worker] booking=upcoming table=table estimated_until=now+2h
+    as -> booking.table,booking.from,booking.until,booking.estimated_until
+    host -> table,now+30m,now+1h,now+2h
+  # Clear only this currently seated party; elapsed estimates cannot perform this action. @{nl="Geef alleen deze momenteel zittende groep vrij; verstreken schattingen kunnen deze handeling niet uitvoeren."}
+  scenario clear(booking:Booking,reason:text) by=host label="Clear dining table"@{nl="Cafétafel vrijgeven"}
+   require can_work(actor,booking.parent.location) and booking.state==seated and booking.cleared==null and trim(reason)!=""
+   do set booking {state=cleared,cleared=now,reason}
+   examples seed=[test_worker,upcoming] booking=diners reason="Table cleared"
+    as,reason -> booking.state,booking.cleared,booking.reason,upcoming.conflict
+    host,"Table cleared" -> cleared,now,"Table cleared",false
+    host," " -> error(rule_failed)
+    members,"Table cleared" -> error(forbidden)
+   examples seed=[test_worker] booking=diners reason="Table cleared"
+    as,request.booking.version -> booking.state
+    host,0 -> error(conflict)
+   examples seed=[test_worker] booking=walk_in reason="Wrong party"
+    as -> booking.state
+    host -> error(rule_failed)
+  # Resolve a waiting or reserved cancellation or no-show with a reason. @{nl="Verwerk een annulering of niet-verschenen groep met een reden bij een wachtende of gereserveerde boeking."}
+  scenario cancel(booking:Booking,missed:bool label=label_Booking_state_no_show,reason:text) by=host
+   require can_work(actor,booking.parent.location) and booking.state in [waiting,reserved] and trim(reason)!=""
+   do
+    if missed
+     set booking {state=no_show,reason}
+    else
+     set booking {state=cancelled,reason}
+   examples seed=[test_worker,diners] booking=upcoming missed=false reason="Occupied table; guest declined relocation"
+    as,missed,reason -> booking.state,booking.reason,diners.cleared
+    host,false,"Guest declined relocation" -> cancelled,"Guest declined relocation",null
+    host,true,"Guest did not arrive" -> no_show,"Guest did not arrive",null
+    host,true," " -> error(rule_failed)
+    members,false,"Guest declined relocation" -> error(forbidden)
+   examples seed=[test_worker] booking=diners missed=false reason="Still dining"
+    as -> booking.state
+    host -> error(rule_failed)
+ Then
+  # Run a host floor view with separate waiting, upcoming and actual occupancy evidence. @{nl="Bedien het café met afzonderlijk bewijs van wachten, toekomstige reserveringen en werkelijk gebruik."}
+  page /cafe title="Café host"@{nl="Cafébediening"}
+   require host
+   form Cafe.create
+   list Cafe as cafe where preferences.cafe==null or cafe==preferences.cafe
+    card "Café and table definitions"@{nl="Café- en tafeldefinities"}
+     edit
+     text cafe.location
+     form Table.create
+     table row.Table columns=name,zone,seats,active
+      edit
+      history
+    card "Walk-in intake"@{nl="Invoer van binnenlopende gasten"}
+     form Booking.create display=inline
+    card "Waiting, reservations and physical occupancy"@{nl="Wachten, reserveringen en werkelijke bezetting"}
+     tabs preferences.view
+     table row.Booking as booking where preferences.view==all or (preferences.view==waiting and booking.state==waiting) or (preferences.view==reservations and booking.state==reserved) or (preferences.view==occupancy and booking.seated!=null and booking.cleared==null) columns=name,party,priority,arrived,table,from,until,estimated_until,seated,cleared,state,overdue,conflict order=-priority,arrived filter=state display=split
+      edit
+      actions reserve,seat,clear,cancel
+      details "Guest and planned interval evidence"@{nl="Gastgegevens en geplande tijdvakken"}
+       text row.contact,row.notes,row.reason
+      details "Uncleared diners affecting this reservation"@{nl="Niet-vrijgegeven gasten die deze reservering raken"}
+       require booking.conflict
+       table cafe.Booking as occupant where occupant.table==booking.table and occupant.seated!=null and occupant.cleared==null columns=name,party,table,seated,estimated_until,overdue
+        form clear arguments={booking=row}
+      details "Upcoming reservations affected by this occupancy"@{nl="Toekomstige reserveringen geraakt door deze bezetting"}
+       require booking.seated!=null and booking.cleared==null
+       table cafe.Booking as upcoming where upcoming.state==reserved and upcoming.table==booking.table and upcoming.conflict columns=name,party,table,from,until,conflict order=from
+        form reserve arguments={booking=row}
+        form cancel arguments={booking=row}
+      history

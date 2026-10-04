@@ -1,0 +1,167 @@
+# Help the workspace operator detect missed check-ins from scheduled booking reconciliation, invoice reminders, reporting imports, and maintenance jobs. @{nl="Help de werkplekexploitant ontbrekende signalen detecteren van geplande boekingsafstemming, factuurherinneringen, rapportimports en onderhoudstaken."}
+app CanCheck uses=[check]
+
+# Monitor durable heartbeat receipts without treating health as proof of successful business work. @{nl="Bewaak opgeslagen heartbeatontvangsten zonder gezondheid als bewijs van geslaagd bedrijfswerk te behandelen."}
+package check
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use check {PingV1 as Pings} from=deployment.pings
+ use catch {AlertsV1 as Alerts} from=deployment.alerts
+ Given
+  export contract Heartbeat { check:text label="Check reference"@{nl="Controlereferentie"}, token:secret } label="Heartbeat receipt"@{nl="Heartbeatontvangst"}
+  export capability PingV1 version=1
+   event received { value:Heartbeat }
+  role operations label="Operations"@{nl="Operations"}
+  Check { name:text, application:text label=label_Check_application, purpose:text label="Purpose"@{nl="Doel"}, location:Location?, owner:user label="Responsible person"@{nl="Verantwoordelijke"}, period:duration label="Expected period"@{nl="Verwachte periode"}, grace:duration=0m label="Grace period"@{nl="Respijtperiode"}, history_days:int=90 min=1 label="History retention days"@{nl="Bewaartermijn historie in dagen"}, token:secret server=random_secret() unique, alert:url label="Alert destination"@{nl="Meldingsbestemming"}, enabled:bool=true, last_ping:datetime? label="Last durable heartbeat"@{nl="Laatste opgeslagen heartbeat"}, due:datetime? label="Next authoritative deadline"@{nl="Volgende gezaghebbende deadline"}, armed:datetime server=now label="Deadline anchor"@{nl="Startpunt deadline"}, revision:int=1, state:enum(new,up,late,down,paused)=new label={text="State"@{nl="Status"},values={new="Never pinged"@{nl="Nog geen heartbeat"},up="Up"@{nl="Actief"},late="Late"@{nl="Te laat"},down="Down"@{nl="Uitgevallen"},paused="Paused"@{nl="Gepauzeerd"}}} } label="Job check"@{nl="Taakcontrole"}
+  Transition in Check { from:Check.state label="From"@{nl="Vanaf"}, to:Check.state label="To"@{nl="Naar"}, occurred:datetime server=now } label="Health transition"@{nl="Gezondheidsovergang"}
+  Notice in Check { kind:enum(down,recovery,configuration), transition:Transition?, revision:int, delivery:text?, outcome:DeliveryResult.status=pending label="Notification outcome"@{nl="Meldingsresultaat"}, detail:text?, occurred:datetime server=now } label="Notification delivery"@{nl="Meldingsbezorging"}
+  event Deadline { check:Check, revision:int }
+  policy Check read=operations where=row.location==null or can_work(actor,row.location) fields=name,application,purpose,location,owner,period,grace,enabled,last_ping,due,armed,revision,state
+  policy Transition read=operations where=row.parent.location==null or can_work(actor,row.parent.location)
+  policy Notice read=operations where=row.parent.location==null or can_work(actor,row.parent.location)
+  invariant Check: row.period>0m and row.grace>=0m and starts_with(row.alert,"https://")
+  lock Transition fields=from,to,occurred
+  retain Transition until=row.occurred+row.parent.history_days*1d
+  retain Notice until=row.occurred+row.parent.history_days*1d
+  lock Notice fields=kind,transition,revision,occurred
+  fixture heartbeat=Check {name="Reconcile",application="Billing",purpose="Job heartbeat",owner=self,period=5m,alert="https://example.test/alert"}
+  fixture foreign_check=Check {name="Import reporting",application="Reporting",purpose="Reporting imports",owner=other,period=1h,alert="https://example.test/report-alert"}
+  fixture notification=Notice {parent=heartbeat,kind=recovery,revision=1,delivery="alert-test"}
+  preferences { application:text? label=label_Check_application, location:Location? }
+  invariant preferences: row.location==null or can_work(actor,row.location)
+  message label_Check_application = "Application"@{nl="Applicatie"}
+ When
+  # Pause deadlines and alerts while retaining the last durable receipt. @{nl="Pauzeer deadlines en meldingen met behoud van de laatst opgeslagen ontvangst."}
+  scenario pause(check:Check) by=operations
+   require (check.location==null or can_work(actor,check.location)) and check.enabled
+   do
+    create Transition {parent=check,from=check.state,to=paused} as transition
+    set check {enabled=false,state=paused,due=null,revision=check.revision+1}
+    cancel check.id
+   examples seed=[test_worker] check=heartbeat
+    as,check.location,check.enabled,check.state,test_worker.active -> check.enabled,check.state,check.due
+    operations,null,true,new,true -> false,paused,null
+    operations,test_site,true,new,true -> false,paused,null
+    operations,test_site,true,new,false -> error(rule_failed)
+    operations,null,false,paused,true -> error(rule_failed)
+    members,null,true,new,true -> error(forbidden)
+  # Resume with a fresh first-period deadline rather than an obsolete alarm. @{nl="Hervat met een nieuwe eerste-periodedeadline in plaats van een verouderd alarm."}
+  scenario resume(check:Check) by=operations
+   require (check.location==null or can_work(actor,check.location)) and not check.enabled
+   do
+    let revision=check.revision+1
+    let due=now+check.period+check.grace
+    create Transition {parent=check,from=check.state,to=new} as transition
+    set check {enabled=true,state=new,armed=now,due,revision}
+    schedule check.id at=due event=Deadline {check,revision}
+   examples check=heartbeat
+    as,check.enabled,check.state -> check.enabled,check.state,check.armed,check.due,check.revision
+    operations,false,paused -> true,new,now,now+5m,2
+    operations,true,up -> error(rule_failed)
+    members,false,paused -> error(forbidden)
+  scenario ping on=Pings.received
+   do
+    let check=first(Check as row where row.id==event.value.check)
+    require check!=null
+    require check.token==event.value.token
+    set check {last_ping=now}
+    if check.enabled
+     if check.state!=up
+      create Transition {parent=check,from=check.state,to=up} as transition
+      if check.state in [down,late]
+       create Notice {parent=check,kind=recovery,transition,revision=check.revision+1} as notice
+       send Alerts.notify {value={source=notice.id,destination=check.alert,message=format("Job heartbeat recovered"@{nl="Heartbeat van taak hersteld"},locale=null)}} when=check.enabled and check.state==up as delivery
+       set notice {delivery=delivery.id}
+     let revision=check.revision+1
+     let due=now+check.period
+     set check {armed=now,state=up,due,revision}
+     schedule check.id at=due event=Deadline {check,revision}
+   examples seed=[heartbeat] event={value={check=heartbeat.id,token=heartbeat.token}}
+    event.value.check,event.value.token,heartbeat.state,heartbeat.enabled -> heartbeat.state,heartbeat.last_ping,heartbeat.revision,heartbeat.due,count(heartbeat.Notice)
+    heartbeat.id,heartbeat.token,new,true -> up,now,2,now+5m,0
+    heartbeat.id,heartbeat.token,down,true -> up,now,2,now+5m,1
+    heartbeat.id,heartbeat.token,late,true -> up,now,2,now+5m,1
+    heartbeat.id,heartbeat.token,paused,false -> paused,now,1,null,0
+    "unknown",heartbeat.token,new,true -> error(rule_failed)
+    heartbeat.id,foreign_check.token,new,true -> error(rule_failed)
+   examples seed=[notification] event={value={check=heartbeat.id,token=heartbeat.token}}
+    heartbeat.state,heartbeat.revision -> heartbeat.state,heartbeat.revision,notification.outcome,count(heartbeat.Notice)
+    up,2 -> up,3,pending,1
+  ## Trusted developer maintenance admits canonical model create/update candidates
+  ## through these hooks and all owner rules; it is not enabled product CRUD.
+  scenario initial on=Check.create
+   do
+    if event.after.enabled
+     set event.after {armed=now,state=new,due=now+event.after.period+event.after.grace}
+     schedule event.after.id at=event.after.due event=Deadline {check=event.after,revision=event.after.revision}
+    else
+     set event.after {state=paused,due=null}
+  scenario configured on=Check.update
+   do
+    if event.before.name!=event.after.name or event.before.application!=event.after.application or event.before.purpose!=event.after.purpose or event.before.location!=event.after.location or event.before.owner!=event.after.owner or event.before.period!=event.after.period or event.before.grace!=event.after.grace or event.before.history_days!=event.after.history_days or event.before.token!=event.after.token or event.before.alert!=event.after.alert or event.before.enabled!=event.after.enabled
+     set event.after {revision=event.before.revision+1}
+     if event.before.period!=event.after.period or event.before.grace!=event.after.grace or event.before.enabled!=event.after.enabled
+      if event.after.enabled
+       set event.after {armed=now,state=new,due=now+event.after.period+event.after.grace}
+      else
+       set event.after {state=paused,due=null}
+      if event.before.state!=event.after.state
+       create Transition {parent=event.after,from=event.before.state,to=event.after.state} as transition
+     if event.after.enabled and event.after.due!=null
+      schedule event.after.id at=event.after.due event=Deadline {check=event.after,revision=event.after.revision}
+     else
+      cancel event.after.id
+     if event.after.enabled
+      create Notice {parent=event.after,kind=configuration,revision=event.after.revision} as notice
+      send Alerts.notify {value={source=notice.id,destination=event.after.alert,message=format("Job check configuration changed"@{nl="Configuratie van taakcontrole gewijzigd"},locale=null)}} when=event.after.enabled as delivery
+      set notice {delivery=delivery.id}
+  scenario deadline on=Deadline
+   require event.check.enabled and event.check.revision==event.revision and event.check.due!=null and now>=event.check.due
+   do
+    if now>=event.check.armed+event.check.period+event.check.grace
+     if event.check.state!=down
+      create Transition {parent=event.check,from=event.check.state,to=down} as transition
+      set event.check {state=down,due=null}
+      create Notice {parent=event.check,kind=down,transition,revision=event.check.revision} as notice
+      send Alerts.notify {value={source=notice.id,destination=event.check.alert,message=format("Job heartbeat missed"@{nl="Heartbeat van taak ontbreekt"},locale=null)}} when=event.check.enabled and event.check.state==down as delivery
+      set notice {delivery=delivery.id}
+    else
+     if event.check.state!=late
+      create Transition {parent=event.check,from=event.check.state,to=late} as transition
+     let due=event.check.armed+event.check.period+event.check.grace
+     set event.check {state=late,due}
+     schedule event.check.id at=due event=Deadline {check=event.check,revision=event.check.revision}
+   examples event={check=heartbeat,revision=1}
+    heartbeat.state,heartbeat.armed,heartbeat.grace,heartbeat.enabled,event.revision,heartbeat.due -> heartbeat.state,heartbeat.due,count(heartbeat.Notice)
+    new,now-5m,0m,true,1,now -> down,null,1
+    up,now-5m,1m,true,1,now -> late,now+1m,0
+    late,now-6m,1m,true,1,now -> down,null,1
+    down,now-5m,0m,true,1,null -> error(rule_failed)
+    up,now,0m,true,1,now+5m -> error(rule_failed)
+    up,now-5m,0m,true,0,now -> error(rule_failed)
+    paused,now-5m,0m,false,1,null -> error(rule_failed)
+  scenario delivered on=Alerts.notify.completed
+   do
+    let notice=first(Notice as row where row.delivery==event.delivery_id)
+    require notice!=null
+    set notice {outcome=event.status,detail=event.error?.message}
+   examples event={delivery_id="alert-test",status=failed,result=null,error={code="provider",message="Delivery rejected"}} seed=[notification]
+    event.delivery_id,event.status -> notification.outcome,notification.detail,heartbeat.state
+    "alert-test",failed -> failed,"Delivery rejected",new
+    "alert-test",unknown -> unknown,"Delivery rejected",new
+    "unrelated",failed -> error(rule_failed)
+ Then
+  # Read configured checks and perform only authorized pause and resume. @{nl="Lees geconfigureerde controles en voer uitsluitend toegestane pauze- en hervatacties uit."}
+  page /job-health title="Job health"@{nl="Taakgezondheid"}
+   require operations
+   table Check columns=name,application,location,owner,state,enabled,last_ping,due,period,grace order=name search=name filter=application,location,state defaults={application=preferences.application,location=preferences.location} display=split
+    card "Current recorded health"@{nl="Huidige vastgelegde gezondheid"}
+     text row.purpose,row.state,row.enabled,row.last_ping,row.due,row.armed,row.revision
+     card "No heartbeat received yet"@{nl="Nog geen heartbeat ontvangen"}
+      require row.last_ping==null
+     metrics row.period,row.grace
+     actions pause,resume
+    details "Transition and recovery history"@{nl="Overgangs- en herstelhistorie"}
+     table row.Transition columns=from,to,occurred order=-occurred
+     table row.Notice columns=kind,outcome,detail,occurred order=-occurred
+     history

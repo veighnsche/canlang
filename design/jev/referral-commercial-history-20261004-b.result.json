@@ -1,0 +1,39 @@
+{
+  "request": {
+    "state": {
+      "context": "Invoice currently exports only the sales payload and inbound capability. Bookings can prove their completion and memberships their cancellation boundary; neither owns the other product history. Actual money evidence belongs to Invoice. Refer currently recognizes exclusive program and different account, but has no verified capture clock or first-sale rule. Visiting a public code proves neither identity nor a purchase. Changes here describe executable draft scenarios, not provider/runtime implementation.",
+      "candidate": "Use Invoice as the shared customer-commercial-history authority, retaining an explicit complete-history baseline and refusing unknown historical state. Refer writes immutable captures under verified customer permission; the latest still-valid capture wins. A booking/term freezes that capture and reports its own milestone. Invoice checks that immutable commercial source against billed customer/amount and real receipts/refunds before broadcasting Qualification. Ordered revisions, source identity checks and reversal tombstones protect reordered/replayed messages."
+    },
+    "questions": {
+      "ownership": {
+        "type": "choice",
+        "instructions": "Which placement most directly supports private, evidenced first-customer rules across products while keeping the authored workflow and replay obligations small?",
+        "criteria": {
+          "invoice": "Centralize the first-customer judgement in Invoice using actual payment records, upstream milestones and Refer captures. Adds precise producer handoffs and historical review but avoids two competing customer histories.",
+          "source": "Have both product owners classify first customers using their local records. Simpler isolated source handlers need an additional reliable cross-product history synchronization before their answers can agree.",
+          "consumer": "Trust the incoming captured timestamp and first_customer assertion inside Refer. Minimal receiver logic requires a real trusted producer to carry the entire authoritative-history obligation."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "ownership": {
+        "type": "choice",
+        "choice": "invoice",
+        "confidence": 0.98,
+        "probabilities": {
+          "invoice": 0.99,
+          "source": 0.0,
+          "consumer": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 617,
+      "output_tokens": 38
+    }
+  }
+}

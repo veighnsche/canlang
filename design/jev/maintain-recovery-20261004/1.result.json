@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Review a maintenance recovery choice with all supplied evidence; classification cannot establish executable correctness.",
+      "facts": "Room ownership remains in CanRent. A repair freezes block_resource, block_source, interval and release evidence. Transport may be unknown after provider acceptance. The provider is being authored to treat identical downtime/restore requests idempotently and emit source-correlated monotone changed outcomes. A maintenance_manager with can_work controls recovery. Reopening must not race an uncertain release; previous completion remains history.",
+      "actual_code": "scenario block(repair:Repair,from:datetime,until:datetime?) by=maintenance_manager; require can_work(actor,repair.parent.location) and repair.parent.resource!=null and repair.state!=fixed and repair.block_state in [none,released] and (until==null or from<until); scenario verify(repair:Repair,evidence:text) by=maintenance_manager; require can_work(actor,repair.parent.location) and repair.state==awaiting_verification and repair.completion!=null and trim(evidence)!=\"\"; RoomsV1.downtime(source:text,resource:text,from:datetime,until:datetime?)->std.OperationOutcome; RoomsV1.restore(source:text,resource:text,evidence:text)->std.OperationOutcome; RoomsV1.changed{value:OperationOutcome}"
+    },
+    "questions": {
+      "recovery": {
+        "type": "choice",
+        "instructions": "Which recovery strategy best maintains source correlation and recoverability under uncertain acceptance?",
+        "criteria": {
+          "frozen": "Reuse the frozen source/resource/payload when an authorized manager retries, correlate the current delivery, and accept verified newer source outcomes. This needs explicit idempotent provider handlers and cannot prove eventual delivery.",
+          "new_source": "Allocate a new business source for each recovery request. This isolates attempt identity but can create a second independent block after unknown acceptance and makes release targeting harder."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "recovery": {
+        "type": "choice",
+        "choice": "frozen",
+        "confidence": 1.0,
+        "probabilities": {
+          "frozen": 1.0,
+          "new_source": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 703,
+      "output_tokens": 36
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "request": {
+    "state": "Consider two ways to complete the Stats draft, not executable software. Analytics Engine weighting uses row-varying _sample_interval; Cloudflare's count formula is sum(_sample_interval). CanStats is required to show those sampled dimension estimates separately from its exact D1 accepted-event and identity metrics, disclose unavailable/partial data, and keep visitor/session identifiers out of telemetry. Today analytics declarations define write, whereas bound versioned capabilities already offer delegated typed async operations and completion handling. There is no existing analytics query contract. The user's priorities are first-class Cloudflare facilities, no parallel canonical mechanisms, short source and no extra wrappers as a substitute for resolving a missing primitive. The proposed app capability DimensionsV1.read accepts one site/dataset mapping, bounded dates, enumerated dimension and allowed goals; returns up to200 groups, overall weighted denominators and sample/completeness/generation metadata. A private per-caller Breakdown stores correlation, validates results, supersedes requests and expires; polling reads it without restarting queries. That uses specified primitives but adds contract/projection text to this app. The competing shared analytics aggregate-read extension derives typed fields from the binding and must preserve the same checks, async outcomes and sampling disclosure. It would require new common semantics while potentially reducing future duplicated adapters. Neither choice is implemented, sums distinct identities across dimensions, or trusts browser conversions as ledger outcomes.",
+    "questions": {
+      "read_boundary": {
+        "type": "choice",
+        "instructions": "Select a draft direction considering reuse, canonical authoring, authority and the cost of another shared service contract.",
+        "criteria": {
+          "app_capability": "Retain the finite application-owned report capability and its private completion record. Current language constructs cover it, although the application carries result/async contracts that other analytics consumers may repeat.",
+          "shared_analytics": "Add aggregate query semantics to the canonical analytics declaration so source/result field types follow its schema. It offers reusable compact reads, but shared permission/asynchrony/coverage rules must be settled before calling the design complete."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "read_boundary": {
+        "type": "choice",
+        "choice": "app_capability",
+        "confidence": 0.71,
+        "probabilities": {
+          "shared_analytics": 0.14,
+          "app_capability": 0.86
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 698,
+      "output_tokens": 41
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "state": "The grant app manages monetary promises only. Current owner initialization is account:user server=actor; intake is immutable outside draft. The authenticated submit scenario accepts Application and checks ownership, draft status, server time before closing, a different reviewer and equal answer counts. Coordinator external accepts Application, datetime received, text evidence and nullable text override_reason; it checks can_work, draft state, evidence, nonfuture receipt and deadline or explicit override. Assigned reviewer decide takes Application, bool approve and text reason; it excludes applicant self-review, requires submitted state and can_work, and guards positive approval with remaining funds. We must finish private correction/resubmission, typed answer completeness and unchangeable decisions without changing authoritative deadline semantics. Available mechanisms include structural contracts, pure queries, conditional locks and atomic record effects. Freeze keyed question definitions in intake; text-valued Answer entries must match every key once. Corrections begin privately before closing, and fresh receipt time controls their submission. Only successful replacement submission retires the old submitted version; rejected outcomes and withdrawal records keep their evidence. These are draft contracts with no executable runtime.",
+  "questions": {
+    "correction": {
+      "type": "choice",
+      "instructions": "Which approach to correcting an application better balances the stated evidence, privacy, deadline and source-size obligations?",
+      "criteria": {
+        "linked": "Append an Application linked by correction to the earlier Application, preserving the former question snapshot and values. Allow only one unfinished replacement at a time. A new submission checks server closing time and atomically marks an eligible submitted predecessor superseded; rejected evidence is untouched. This adds record linkage, rows and bounded lookup conditions.",
+        "reopen": "Reuse Application identity by setting submitted or rejected state to draft after archiving receipt and decision in locked history. Subsequent submission records a new server receipt. This reduces rows in the applicant overview but requires different intake-lock handling, history access and current decision-state bookkeeping."
+      }
+    }
+  }
+}

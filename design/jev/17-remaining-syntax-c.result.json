@@ -1,0 +1,42 @@
+{
+  "request": {
+    "state": {
+      "context": "The choice concerns sequencing further canlang work. It must not be read as acceptance of an extension. This language serves agents creating tailored CRUD company applications: records, authorization, rules and workflows with builtin daisyUI/HTMX browser views and an application MCP endpoint. Its aims are adoption, economical source tokens and consistent AI generation through a single spelling for each primitive. Repeated wrapper apps and authored compilation manifests violate those aims. A corpus of 44 .can files exercises the design. There is not yet a compiler parser or runtime, and no agent benchmark or model-token experiment. Existing constructs cover semicolons for simple statements, indentation of one space, context-dependent reserved words, grouped explicit imports, required scalars, null-access/fallback operators, do bodies and source-local BDD tables.\nFour candidate directions have concrete tradeoffs. Ownership simplification would investigate eliminating in team on ordinary models and in=team on roles; containment and app-wide scope retain separate meanings. Fewer repeated tokens would come at the cost of changing how omitted scope is interpreted and defining exceptions; ownership must not stand in for permission. Small-app composability would revisit implicit main package identity, currently present in generated tool names. Joining two separately implicit apps now forces them to introduce named packages. An alternative naming scheme could reduce this rewrite requirement but must keep references and tool identities stable without a manifest or wrapper source.\nCompleting missing contracts would address the documented calendar renewal anchoring/timezones/month-end rules, retention actions when end-user deletion is disabled, typed delegated forms for CanDo and finalized-file fixtures for operation examples. Those may need refinements to current date/schedule/delete/contract/fixture primitives rather than additional syntax. They improve ability to express required business behavior while introducing semantics that must be bounded to CRUD SaaS. Grammar implementation would formalize and parse what already exists, checking declaration and expression boundaries, contextual identifiers, field-type shapes and query clauses against actual sources. It can reveal integration ambiguities before new notation is adopted, but source parsing cannot certify runtime or application completeness and later gaps may still require revising that grammar. Exhaustive match, augmented updates and reusable scalar aliases have not been adopted.\nEvaluate which direction should receive attention immediately, allowing the others later and allowing postponement if the evidence does not justify selecting. This assessment supplies no migration authorization."
+    },
+    "questions": {
+      "next_focus": {
+        "type": "choice",
+        "instructions": "Which activity should lead the following design/implementation round on the supplied facts?",
+        "criteria": {
+          "composition": "Start by revisiting implicit main identity under multi-app composition.",
+          "scope": "Start by evaluating team-default ownership shorthand.",
+          "parser": "Start by making current syntax precise and exercising it with a parser.",
+          "defer": "Wait for additional evidence rather than nominate a leading activity.",
+          "coverage": "Start by defining recurrence, trusted cleanup, delegated forms and completed-file examples."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "next_focus": {
+        "type": "choice",
+        "choice": "parser",
+        "confidence": 0.89,
+        "probabilities": {
+          "coverage": 0.06,
+          "scope": 0.0,
+          "defer": 0.03,
+          "composition": 0.0,
+          "parser": 0.91
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 904,
+      "output_tokens": 54
+    }
+  }
+}

@@ -1,0 +1,7 @@
+# Purchase and stock evidence consultation
+
+Three fresh requests compare additive frozen Increase/Amendment evidence with privileged original-term rewrites and deferring required workflows. Every context, instruction, question and option description was rewritten; facts, original source authorities/guards and alternatives were preserved. The wording/equivalence check is saved beside the full requests and complete responses. The initial sandbox network call failed; the first consultation was then made through the authorized API path.
+
+JEV chose `additive` in all three consultations. Returned confidence/probabilities are preserved exactly: first confidence 1.0, probabilities additive 1.0/rewrite 0.0/defer 0.0; second confidence 0.99, probabilities additive 1.0/rewrite 0.0/defer 0.0; third confidence 0.99, probabilities additive 0.99/rewrite 0.01/defer 0.0. No automatic approval threshold or bias-removal claim is used. No choice disagreement required investigation.
+
+The adopted source keeps original request/line evidence, appends authorization and order changes, stores linked returns and evidenced partial cancellation, and freezes supplier invoice evidence for real accounting export. The stock projection ingress/outcome mapping uses existing DESIGN §8 committed-causation rules. Agreement is advice; source/target review and bounded syntax checks remain distinct from execution proof.

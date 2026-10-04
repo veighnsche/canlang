@@ -1,0 +1,35 @@
+{
+  "state": {
+    "context": "The task is to assess and, if valid, enact a limited syntax simplification in canlang. The user wants research, validation with a stop for invalidity, exploration, consolidation, planning and implementation. Agents generate this company CRUD SaaS language; its product goals favor adoption, compact token use, reliable generated code and one expression of each primitive. Inventory shows 44 .can files, 46 models explicitly in team, 67 role declarations all in=team and 116 models explicitly in their parent. No app-wide or already scope-free stored models occur in those files. Roles have no v1 scope other than team. No parser/compiler/runtime or measured tokenizer/agent benchmark is available, so inspection cannot establish executed correctness.\nExisting model declarations require a choice of in team, in Parent or in app. The proposed change makes Model {...} a stored team model when declared in Given; role Name retains the existing team-role meaning. Keeping in Parent and in app is essential. Omitted scope is fixed by language version instead of context configuration, source directory, import origin, composition choice or an adjacent model. The same selected-app team resolution remains authoritative and missing team context supplies no automatically created team. Public record routes use their established record-derived team, and trusted events still provide verified team context. With Model at=Binding {...}, the binding sets storage placement without altering default ownership.\nPreservation obligations include unchanged fields, package identity/export visibility and owner-controlled role assignment. Imported roles do not merge with equal local names, and declaring a role is not an access grant. Model-reference fields stay ordinary relations; only explicit containment introduces immutable parent linkage and inherited team/storage ownership. The default must never turn app scope implicit because of public policy or UI access. It is limited to stored model declarations, leaving contracts, events, capability schemas, fixtures and object/contract/model constructors as existing values rather than tenant-owned records. Missing read policies still deny; explicit by versus on, membership, field access, uniqueness, reference checks, invariants, locks and admission boundaries remain. The corpus can be migrated by deleting its 113 team qualifiers without further business, policy or example edits. Canonicality would reject the obsolete explicit team qualifier on models or roles and offer the short declaration; unimplemented nonteam role scopes stay invalid. The specification's current No omitted ownership sentence must be revised deliberately.\nCompare all tradeoffs. Team defaults for both forms reduce repeated notation but make accidental omission of child or app ownership produce a valid differently scoped model and introduce a convention to learn. Keeping everything explicit exposes each boundary and catches missing model scopes, while paying repeated source cost. Shortening only role declarations saves a qualifier whose scope cannot vary in v1, but leaves the model repetition. Postponement provides a chance to obtain running parser/runtime evidence before revision but leaves documented repetition unresolved. Frequency alone proves neither model-token savings nor adoption. External research reinforces separate access enforcement: OWASP's authorization guidance requires denial absent permissions and checks for each request; PostgreSQL's row-security documentation separates table shape from access policies and describes unmatched-policy denial after enforcement is enabled. This does not mean Cloudflare D1 implements that database feature, nor prove canlang's proposed runtime. Look for concrete contradictions rather than treating an unenforced specification as tested behavior.",
+    "examples": {
+      "old_team_model": "export Task in team { title:text, project:Project? }",
+      "new_team_model": "export Task { title:text, project:Project? }",
+      "old_team_role": "export role reviewer in=team",
+      "new_team_role": "export role reviewer",
+      "child": "Line in Invoice { amount:money }",
+      "app_scope": "Setting in app { value:text }",
+      "storage_binding": "Calendar at=Schedule { name:text }",
+      "value_types": "contract Address { city:text }\nevent Notice { title:text }\nfixture task=Task {title=\"Draft\"}"
+    },
+    "references": {
+      "authorization": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+      "row_security": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html"
+    }
+  },
+  "questions": {
+    "scope_choice": {
+      "type": "choice",
+      "instructions": "Which of these four scope conventions is the best choice under this evidence?",
+      "criteria": {
+        "explicit": "Continue spelling every current model ownership choice and the team-only role scope.",
+        "both_defaults": "Default stored model and role declarations to team, preserving explicit parent/app ownership and making repeated default spellings invalid.",
+        "defer": "Hold notation steady until implementation-based evidence can assess this proposal.",
+        "roles_only": "Shorten role declarations only, leaving team scope required on stored models."
+      }
+    },
+    "preservation": {
+      "type": "noul",
+      "instructions": "Would the precise rules and bounded edit described here keep the same effective ownership and permissions for the examples, with no identified contradiction?"
+    }
+  }
+}

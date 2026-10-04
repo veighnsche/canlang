@@ -1,0 +1,37 @@
+{
+  "state": {
+    "task": "Assess a minimal seamless i18n migration of existing canlang drafts. The AI-authored CRUD SaaS DSL prioritizes adoption, token economy and one canonical primitive. Its existing i18n design owns en/nl message tables in business packages, has for-path labels, #= descriptions, grouped message-only imports, literal user data and explicit format(message,locale=target). Only syntax parsing is implemented; no checker, renderer, formatter or BDD engine exists.",
+    "facts": "The 42 draft .can files comprise 39 app sources and 3 shared sources, 46 app declarations and 47 packages. There are 85 explicit UI literals (83 titles and 2 text items), 361 descriptions (46 apps, 47 packages, 184 user operations, 1 handler, 83 pages), 161 models, 35 contracts, 1071 model fields, 217 contract fields, 66 roles and 461 user-operation parameters. Eighty model/contract enum fields contain 338 enum values. These are syntax candidate counts, not resolved exposed surfaces. No draft has messages or recipient locale preferences.",
+    "labels": "Explicitly binding every generated label can copy common Title/Name/Yes/No and verb wording across packages. A bounded runtime vocabulary alternative keys complete phrases by label kind, exact identifier, and where necessary actual resolved scalar type. Candidate common fields include name/title/description/email/phone/address/timezone/currency/location/quantity/count/active/enabled/done; money amount/price/total and temporal from/until require type checks. Candidate operation verbs include submit/cancel/assign/reopen/complete/publish/pause/resume/refresh. Reviewed neutral enum statuses can default, but ambiguous/domain labels require explicit for bindings. Unknown exposed labels need authored translations; no dynamic identifier splitting, English-string lookup, or automatic translation. Models/contracts/roles have authored domain labels. Explicit owner binding takes precedence over reused field-value labels, then bounded runtime defaults. Existing export/use handles actual shared custom words; no new std imports or catalogs per app.",
+    "risks": "The source demonstrates real ambiguity: source means marketing origin in CRM/analytics and correlation identity elsewhere; Transition.from in CanCheck is a reused state rather than a datetime. Enum meanings also depend on domain. Defaults reduce repetition but require a pinned finite list, exposure/type analysis and owner overrides. The competing all-explicit binding approach makes wording decisions visible and preserves the previous contract, but needs many repeated rows or export/import references. Localizing only explicit UI strings reduces migration scope but leaves generated English labels. None is already proven correct or guaranteed token-optimal.",
+    "outbound": "Twenty-nine human-message send sites contain 30 literal subject/body/message cells. The drafts do not store recipient locales; viewer language is intentionally unavailable in business scope. Converting fixed notice text via format(notice,locale=null) selects the app default, currently en, and freezes content/locale/release before retries. This is not recipient-specific language. Adding preference fields/snapshots and writable paths would change business schemas, beyond a presentation-preserving migration. Dynamic entered titles/reasons/bodies, fixtures, durable English audit text, URLs, identifiers, enum wire codes, machine templates and guard/effect order remain unchanged.",
+    "sink": "Standard EmailV1.send subject/body are human-output sinks. Custom catch.AlertsV1.notify has value:Alert with source:text,destination:url,message:text, but the checker cannot infer a sink from a field name. A registered implementation adapter may classify a checked exact field path such as value.message on its pinned capability signature as human outbound content. That classification is implementation contract metadata, not authored .can scaffolding or a universal message-field rule; source/destination and other keys remain ordinary text. Unregistered/mismatched sink paths must reject formatted presentation values. Adapter behavior still needs implementation and testing.",
+    "research": "Primary evidence supplied: https://guides.rubyonrails.org/i18n.html describes model/attribute translations reused by generated forms and scoped overrides; this does not prove canlang defaults. https://unicode-org.github.io/icu/userguide/format_parse/messages/ recommends whole-message translation rather than sentence concatenation. https://projectfluent.org/fluent/guide/terms.html demonstrates shared terms and grammatical-case constraints. https://www.w3.org/International/questions/qa-html-dir covers runtime direction markup. Existing DESIGN 9.1 provides whole-message fallback and pinned catalogs. No catalog/engine download, new source folder, business schema change or verification framework is proposed.",
+    "code": {
+      "catalog": "messages \"en\",\"nl\"\n export app_description = \"Manage team work.\",\"Beheer teamwerk.\"\n for Work = \"Work item\",\"Werkitem\"\n for Work.source = \"Marketing source\",\"Marketingbron\"\n reminder = \"Task reminder\",\"Taakherinnering\"",
+      "metadata": "#= app_description\napp WorkApp uses=[work]\nuse work {app_description}",
+      "send": "send Mail.send {to=task.email,subject=format(reminder,locale=null),body=task.title} as notice",
+      "ambiguous": "Transition in Check { from:Check.state, to:Check.state, occurred:datetime server=now }"
+    }
+  },
+  "questions": {
+    "labels": {
+      "type": "choice",
+      "instructions": "Which single generated-label policy best meets the documented constraints and demonstrated draft surfaces?",
+      "criteria": {
+        "bounded_defaults": "Use a finite version-pinned whole-phrase vocabulary for reviewed kind/name/type matches, with owning for overrides and authored unknown/domain labels; accept the added default/coverage semantics.",
+        "explicit_bindings": "Keep every business label explicit through owning message bindings and exports/imports; accept repeated labels/references and more migration source in exchange for visible local meaning.",
+        "literal_only": "Translate authored UI literals/descriptions first and defer generated-label localization; accept partially English generated forms and tools.",
+        "unresolved": "Defer if no alternative resolves the concrete ambiguity and requirements."
+      }
+    },
+    "outbound": {
+      "type": "noul",
+      "instructions": "Is explicit app-default formatting of fixed human notices, while retaining stored/dynamic business content and avoiding invented recipient preferences, coherent for this presentation-preserving migration?"
+    },
+    "sink": {
+      "type": "noul",
+      "instructions": "Does checked adapter classification of exact human-output paths on a pinned custom capability provide a coherent provenance boundary without treating arbitrary text keys as localizable or adding app-authored scaffolding?"
+    }
+  }
+}

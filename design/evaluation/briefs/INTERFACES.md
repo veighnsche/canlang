@@ -1,0 +1,33 @@
+# Assignment brief: C — Interfaces and JavaScript
+
+## Mission and authority
+
+Act as orchestrator C using **gpt-6.1-sol / ultra**. Evaluate whether interfaces and generated targets help companies adopt their own departmental SaaS: staff need usable browser/chatbot workflows, and companies need economical deployment and maintenance. Source brevity matters only with preserved behavior. Challenge assistant-created restrictions and proposed alternatives alike.
+
+Own exactly **F007, F009–F014; E061–E085, E091–E097 (39 items)**. The live [EVALUATION.md](../../../EVALUATION.md) owns routing, dependencies and shared reporting rules; [AGENTS.md](../../../AGENTS.md) governs design consultations. This brief assigns future evaluation, not implementation. Root updates checklist progress; A owns integrated adoption conclusions; B owns language/business semantics.
+
+Use the [captured baseline](../baseline-20261004T041647Z/README.md), especially its [snapshot](../baseline-20261004T041647Z/snapshot). Cite snapshot file paths and lines; identify later evidence separately. Keep baseline and live Can, MJS and design files unchanged. Save bounded scratch experiments only as evidence. Do not implement a renderer, compiler or library, or propagate a brainstormed renderer choice.
+
+## First actions and evidence anchors
+
+First read the shared ownership/handoff table and reuse the baseline inventory. Build compact item results connecting declarations, target occurrences, staff actions and missing evidence within the owned report. Request A’s initial company briefs and selected journeys (E001–E005, E008), and B’s rule interpretations (E007). Begin static inspection while those arrive; delay only dependent conclusions.
+
+Read baseline [REQUIREMENTS.md](../baseline-20261004T041647Z/snapshot/REQUIREMENTS.md) for audience, adoption and interface constraints, and [DESIGN.md](../baseline-20261004T041647Z/snapshot/DESIGN.md): §§1, 4–5 and 7 establish composition, authorization, canonical actions and replay boundaries; §§8–10 cover services, browser presentation, internationalization and MCP; §§11–13 distinguish output responsibility, incomplete implementation and desired JavaScript. Pair with baseline [GRAMMAR.md](../baseline-20261004T041647Z/snapshot/GRAMMAR.md): “Tokens and layout,” “Files, composition and sections,” “Inline messages, labels and locales,” “When declarations and execution,” “Presentation and routes,” “Personal configuration and presentation boundaries,” and both verification/refinement boundaries. Consult [DECISIONS.md](../baseline-20261004T041647Z/snapshot/DECISIONS.md) for provenance rather than treating historical alternatives as current rules.
+
+Coordinate candidate journeys with A, rather than constructing another app catalogue. Baseline [draft](../baseline-20261004T041647Z/snapshot/draft) offers CanExpense.can/.md/.mjs for employee submission, manager exception and attachment handling; CanLeave.can/.md/.mjs for calendars and authorization; CanRent.can/.md/.mjs for external access and uncertain outcomes; CanBoard or CanTable triples for filtering and tailoring. These are candidates, not selected companies. Use A’s chosen cases and experiment artifacts; extend equivalent-construct checks across applicable targets without duplicating every experiment.
+
+Publish early handoffs: interface/metadata repetitions to B’s F005–F006/E026–E030 and A’s E015/E021–E025; capability/deployment assumptions to A’s F015/E013/E098–E100; source/target mismatches with precise occurrences to B. Receive B’s expected permission, ordering, version, failure and example behavior before closing E069/E073/E077/E080/E091–E095.
+
+## Bounded work and responsibility
+
+Delegate independent evidence gathering with exclusive subdirectories, while retaining sole report ownership. Suggested tasks: citation extraction on Luna Low; UI/localization traces and bounded provider research on Sol Medium; MCP, source-to-MJS correspondence and responsibility tradeoffs on Sol High; consequential authorization-preservation questions on Astra High. Use the available GPT-6.1 Sol revision and check model-selection policy when dispatching. Ultra coordinates independent perspectives and reconciliation; it does not propagate to workers.
+
+B determines canonical source meaning and primitive/default defects. C determines whether presentation, MCP and targets preserve that meaning, and which proposed compiler/library/runtime/provider responsibility contains duplicated or hidden work. A measures generation/edit tokens and combines provider facts with company workloads and support obligations. Share one actor/action trace; do not open competing semantic audits.
+
+For E061–E065/F012–F014 and E094/E096–E097, research actual provider capabilities and current pricing from primary documentation when evaluated. Record retrieval dates, limitations, service/setup requirements and workload assumptions. Compare existing workerd/web/Cloudflare capabilities with proposed custom work; provider bills are inputs to A’s ownership economics. Proposed `@canlang/stdlib`, `@canlang/ui`, source and JavaScript contracts are not available implementations. Syntax/static checks prove neither executed behavior nor performance nor user usability.
+
+## JEV and completion
+
+C owns design-adviser consultations for its hard questions, using existing [tools/jev.py](../../../tools/jev.py), without a new caller. A owns mock-company consultations; supply balanced usability, capability and cost evidence. JEV cannot research. Make three fresh whole-request rewrites covering context, instructions, questions, options and criteria, preserving facts/alternatives and exact necessary identifiers. Verify semantic equivalence and wording differences before sending. Review full prompts, alternatives and counterevidence for bias; include no preferred result or earlier votes. Choose `noul`, `choice` or `score` to fit the question. Save raw requests/responses and all returned probabilities/uncertainty; investigate disagreement. Agreement remains advice, not proof. Avoid repeatedly attaching unrewritten explanatory context.
+
+Future outputs: sole report `design/evaluation/INTERFACES.md`; evidence under `design/evaluation/evidence/interfaces/`. Follow the shared report structure: scope/methods; every owned item’s result, evidence and uncertainty; consolidated findings with company impact, smallest remedy and tradeoff; handoffs/open dependencies. Distinguish language defects, app omissions, target drift and deferred implementation. Route findings to A’s consolidation and B’s E102 comparison; explicitly mark company-fit conclusions awaiting A, semantic conclusions awaiting B, and claims awaiting execution or staff evidence.

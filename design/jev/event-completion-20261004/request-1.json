@@ -1,0 +1,34 @@
+{
+  "state": {
+    "context": "Choose an event workflow using the documented interfaces; the facts below are source observations, while the alternatives are proposed authored behavior. Compare simplicity, safety during late messages, location eligibility and complete attendee outcomes. There is no runtime implementation or measured contention result.",
+    "evidence": {
+      "RoomsV1": "hold(value:RoomRequest); stage(value:RoomRequest,previous_source:text,previous_revision:int); confirm(source:text,resource:text); release(source:text,resource:text,reason:text); event changed {value:OperationOutcome}",
+      "RoomRequest": "{source:text,revision:int=1,resource:text,customer:text,account:user,from:datetime,until:datetime,quantity:int,price:money?,terms:text?}",
+      "provider": "stage requires confirmed previous version, identical resource/customer/account/quantity; stages candidate while preserving predecessor and deduplicating overlap. confirm confirms candidate but does not release previous. release fences source before arrival, returns released even when absent. hold/stage require price=null and terms=null.",
+      "BillingV1": "charge(value:Charge)->OperationOutcome; cancel(source:text,reason:text)->OperationOutcome; refund(source:text,amount:money,reason:text)->OperationOutcome; reconcile(source:text)->Settlement?; event settled {value:Settlement}",
+      "Settlement": "{source,invoice,revision,amount,collected,refunded,collection_pending,refund_pending,state,recorded_at}",
+      "billing": "cancel commits BillingCancellation; returns released/pending/unavailable, including collected-money review. Refund rejects outstanding pending/unknown attempts and excess refund amount. Settlement is cumulative, source/amount/currency correlated and monotone.",
+      "permissions": "register by=authenticated or organizer, organizer path requires can_work(actor,event.location). admit by=check_in requires can_work. refund request by=finance requires can_work. Own registration uses actor.email and actor.email_verified. Other account contact cannot use actor facts; staff checks current owning customer or location booker/administrator subject grant.",
+      "requirements": "Free tickets bypass billing; paid tickets freeze price and refund cutoff. Capacity held/pending/confirmed distinct from room occupancy. Expired late full payment may reacquire capacity only while future/issued/no cancellation fence/no refund uncertainty; otherwise retain review and request return of evidenced funds. Cancelled tickets cannot revive. Material changes retain prior reservation until confirmed candidate adoption, current revision notices and delivery outcomes. D1 default admits employee/customer reads; moving ticket authority to DO would require cross-owner eligibility snapshots, forbidden atomic joins."
+    }
+  },
+  "questions": {
+    "architecture": {
+      "type": "choice",
+      "instructions": "Which design best satisfies the stated event and owner constraints?",
+      "criteria": {
+        "staged": "Keep tickets and eligibility at D1; obtain a distinct staged candidate on the same resource or a hold on a different resource, confirm it, adopt its frozen schedule, then release the predecessor. Freeze billing terms and retain cancellation fences, settlement evidence and revision-bound notice receipts. This uses more explicit workflow state but preserves old availability through candidate failure.",
+        "in_place": "Keep D1 ticket capacity, request RoomsV1.move for the selected existing source and update the event only after a matching confirmed response. Retain frozen ticket terms and billing/notice evidence. This has less candidate bookkeeping but changed-source arguments and replacement failure/reordered outcomes must be resolved against the provider rules.",
+        "do": "Place tickets at a Durable Object authority and use the same staged venue and evidenced billing workflows. Copy employee/customer eligibility with revisions before admission. This localizes ticket serialization, but needs a currently absent cross-owner snapshot/revocation contract and increases synchronization state."
+      }
+    },
+    "fences": {
+      "type": "noul",
+      "instructions": "Does the stated D1 staged alternative maintain the original venue on candidate failure and prevent terminal ticket resurrection, assuming only the supplied provider guarantees?",
+      "criteria": {
+        "true": "The candidate and original remain separately represented; authoritative adoption and source/version fences establish the stated protections.",
+        "false": "The supplied steps lack a necessary ordering, correlation or terminal-state check to establish either protection."
+      }
+    }
+  }
+}

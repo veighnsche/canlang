@@ -1,0 +1,65 @@
+{
+  "request": {
+    "state": "Reassess open canlang syntax proposals through independent yes/no questions, not a choice menu. Adoption through compact dependable AI generation is the principal goal. The language is for company CRUD SaaS with typed records, policies, workflows, workerd/Cloudflare, PatternFly/HTMX and one app MCP interface. Each package has one Given/When/Then structure; inline BDD tables keep independently authored expectations through actual operations. There is no implemented compiler or runtime and no actual tokenizer/generation benchmark. A corpus audit covers 44 .can files: 39 business app drafts, three shared package sources, two reference apps. It found 254 scenario declarations, 254 lowercase then markers (154 standalone blocks, 100 inline), 305 qualified import lines, 46 model in team qualifiers, 67 role in=team qualifiers and 816 field ! markers, including 18 required-array exceptions. Uniform R2 setup and known redundant CRUD/lock attributes have already been removed; current sources total 311132 bytes and 4002 code lines. The remaining questions assess proposals, not already-adopted grammar.\n\nCurrent fields use scalar ! to mean required non-null, ? nullable default null, =expr creation default, and server=expr server initialization. Bare scalar fields are errors. Arrays normally default [], whereas []! requires an input. Operation parameters already use bare p:T as required. A candidate makes only bare scalar fields required by default, retaining all other meanings and migrating declarations/spec consistently.\n\nApp auth and teams are defaulted, but models currently require in team/in Parent/in app; roles only support in=team. Candidate default scope is team for bare models and roles, with parent/app exceptions explicit. Scope never grants access. Policies deny without explicit grants; by authorizes user operations and on identifies verified sources. Preserve invariants, field allowlists, source/team boundaries and business guards.\n\nUnder When, scenario name(parameters) by=... or scenario name on=Source declares behavior. Preconditions precede a lowercase then effect wrapper. Candidate syntax would use the typed named declaration directly in When, with mandatory by/on, and direct ordered body statements, omitting both scenario and lowercase then. Uppercase Given/When/Then, operation identity/description and examples attachment remain. Writes, external delivery intents and results are provisional until atomic commit; failed require rolls back the operation. Dropping wrappers must not change ordering, trusted-handler exposure or examples scope.\n\nExisting imports select exported package.Symbol with optional alias. Plain imports include authoritative local packages internally without mounting their whole product; from=deployment.binding is schema-only external service import and never provider execution. Candidate grouping explicitly lists symbols after one package name, e.g. use employee {can_work,staff,test_worker}, retaining aliases and grouping only identical consumer/provider/deployment binding. That would reduce 305 import lines to 167 groups and about 2001 bytes with this spelling; actual model-token savings and generation reliability are unmeasured. Current explicit imports contain hidden costs but provide obvious lookup/diagnostics; a grouped parser/diagnostic grammar is not yet fully specified. No automatic global lookup, wildcard export, privilege, external connection or service inference is proposed.\n\nEarlier three choice consultations preferred these candidates but showed wording-sensitive required-scalar confidence. The user now requires type noul. Ask each property independently, retain probability rather than selecting a winner or rounding to automatic approval. AGENTS.md requires three freshly worded equivalent reviews; standing authorization covers JEV. App wrappers/build manifests stay removed, shared-folder organization remains deferred. Exact proposed syntax must be specified before a source migration, and agreement is not executable proof.",
+    "questions": {
+      "scalar_required_default": {
+        "type": "noul",
+        "instructions": "Can required scalar fields use bare T instead of T! while preserving the stated nullable/default/server and mandatory-array semantics through a consistent grammar/source migration?"
+      },
+      "model_team_default": {
+        "type": "noul",
+        "instructions": "Does defaulting only unspecified model ownership to team preserve ownership semantics when in Parent/in app remain explicit and all access rules are unchanged?"
+      },
+      "role_team_default": {
+        "type": "noul",
+        "instructions": "Can the only supported team role scope be implicit without changing role assignment, membership or invocation authorization?"
+      },
+      "implicit_operation_declaration": {
+        "type": "noul",
+        "instructions": "Within When, does a named typed signature with mandatory by or a named verified on declaration sufficiently identify an operation without the scenario keyword, given the described boundaries?"
+      },
+      "direct_operation_body": {
+        "type": "noul",
+        "instructions": "Can an operation directly contain its ordered guard/effect statements without lowercase then while retaining atomic rollback, source separation and examples scope as described?"
+      },
+      "explicit_import_grouping": {
+        "type": "noul",
+        "instructions": "Does explicitly grouping imports by the same consumer/provider/binding preserve dependency visibility, aliases and external service boundaries while reducing repeated package qualification in this corpus?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "scalar_required_default": {
+        "type": "noul",
+        "noul": 0.65
+      },
+      "model_team_default": {
+        "type": "noul",
+        "noul": 0.64
+      },
+      "role_team_default": {
+        "type": "noul",
+        "noul": 0.48
+      },
+      "implicit_operation_declaration": {
+        "type": "noul",
+        "noul": 0.61
+      },
+      "direct_operation_body": {
+        "type": "noul",
+        "noul": 0.59
+      },
+      "explicit_import_grouping": {
+        "type": "noul",
+        "noul": 0.78
+      }
+    },
+    "usage": {
+      "input_tokens": 1254,
+      "output_tokens": 116
+    }
+  }
+}

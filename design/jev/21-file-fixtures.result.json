@@ -1,0 +1,97 @@
+{
+  "request": {
+    "state": {
+      "task": "Review finalized-file fixtures for inline BDD in canlang, an AI-authored CRUD/business-workflow DSL. Adoption, low token repetition and one canonical mechanism per primitive are requirements. The user authorizes design and draft adoption after research, but asks to stop if concrete invalidity is discovered. There is no compiler, parser, runtime, BDD execution, generation benchmark or tokenizer measurement. JEV is a classifier: all evidence is supplied here; judgments are advice rather than permission or proof. Assess benefits and costs for all alternatives without assuming the proposed shortcut works.",
+      "current": "Given currently permits fixture name=Model {fields}; scenarios or CRUD have attached examples tables. Fixtures can depend on imported/exported fixtures, with cycles rejected, required fields supplied, defaults and stored invariants checked. Each row starts with a fresh team, self and other accounts in that team, outsider in another team. Records are seeded as self; server actor defaults resolve to self. as selects self membership/roles or public/outsider. Initial record-field overrides must produce valid stored data; setup failure cannot satisfy error(code). The actual owning operation is invoked exactly once with its real by authority, guards, validation and commit. Expected observations use reloaded records, normal result and pure queries; do-local names are inaccessible. Error rows assert exact codes and no added domain writes/events/outbox. Test declarations are absent from production and MCP. Fixtures currently cannot construct a required file: file is opaque, immutable and finalized; the closed production builtin list has no file constructor. Null only tests absence. CanExpense and CanContract have required attachments and no inline example tables; their migration explicitly records this missing contract.",
+      "files": "Selected runtime file use implies R2 and a pinned default allowlist application/pdf,image/png,image/jpeg,text/plain with max10MiB. Context declares deviations. Runtime authorizes intent, checks type/size/quota and actual supported content, uploads, finalizes, then attaches. A MIME label or raw R2Object is not a completed DSL attachment. Partial uploads cannot attach. Attachment accepts a finalized upload belonging to current app/team/principal or an existing attachment the caller may read; destination limits are checked again. Possessing an ID is no grant. Downloads use an authorized owning record and field. Completed unreferenced objects expire and are collected after the receipt/attachment horizon. Production file values do not expose bytes, MIME or size for business expressions.",
+      "proposal": "Extend the existing test-only fixture declaration with RHS file. Pinned-sample option: fixture receipt=file {} provisions an actual language-version-pinned minimal valid PDF; type=\"image/png\" selects a different supported sample. This is a setup recipe, never a file literal, pure expression, runtime constructor or tool parameter. Optional owner=other or owner=outsider changes upload ownership to an existing test identity; omission uses selected app, row team and self. Do not infer type from whichever allowlist happens to be configured. Effective file policy and real content/finalization rules apply in isolated storage. Unsupported type, rejected policy/size/quota, bad sample, invalid seeded attachment or record invariant fails setup. Initial record attachments use the normal attachment check as self; foreign unattached fixtures may instead be operation inputs so actual rejection is observed. File fixtures load automatically when referenced, with existing dependency/import/export rules. Two declarations yield distinct immutable upload references even with identical bytes; reuse preserves identity, and setup retries preserve it. Physical byte deduplication must not merge reference identity. Take rejection baseline after provisioning; rejected operations leave attachment relationships unchanged as well as other domain state. Each example row isolates and cleans its own storage, never live R2/network. A file-only test declaration cannot provision production R2. This specifies implementation work, not a claim that objects were created now. Valid sample fixtures support business outcomes, not arbitrary content/size boundaries, incomplete uploads, content detection or finalizer transport tests; those remain shared-runtime tests. Upload-intent authorization runs as the chosen fixture owner: self/other use the fresh row team, while outsider uses its own other team, always within the selected app. This creates no extra role or privilege. Only type and owner are fixture attributes; unknown attributes or owner names are errors.",
+      "alternatives": "Pinned valid samples require versioned bytes, validators and test finalization but avoid app-authored binary payloads. Authored relative-path assets give arbitrary inspectable real content and fidelity; they need path-root, bundling and relocation rules plus actual asset files, which are legitimate test data rather than inherently forbidden scaffolding. Embedded UTF-8/base64 bytes are hermetic and allow arbitrary content; PDF/image data can be large and less readable, and encoding/size grammar is needed. A single selected provenance is canonical; do not combine several input routes merely for flexibility. Deferral avoids committing an incomplete mechanism while leaving positive attachment BDD unavailable. For sample selection, a fixed PDF default saves repeated MIME text and is stable under policy edits but needs an override where PDF is forbidden; requiring type everywhere is explicit and policy-independent but repeats common metadata; inferring a type from allowed formats omits text and adapts to policy, but policy edits can silently change test bytes/format.",
+      "observations": "Useful cases preserve expense receipts through submission and copy them into reviewer decisions with by=reviewer and the actual distinct-claimant/assigned-reviewer guards. Agreement renewal with by=legal creates a new Term referencing a distinct new file and previous old Term, leaving the executed old file unchanged. No invented result.renewal or result.decision is available; queries observe the persisted children. File ownership setup and real operation permission are separate. The scope is docs plus targeted existing app fixtures/examples, not new business operations or a verification framework.",
+      "research": "Cloudflare Workers R2 API accepts actual bytes/streams for put and returns object metadata; contentType is supplied metadata, and multipart completion differs from an unfinished upload. Current Workers testing storage isolation is per test file, so per-example-row isolation must be implemented explicitly by canlang. W3C File construction creates immutable bytes with name/type metadata but does not authorize or finalize an app attachment. Primary references: https://developers.cloudflare.com/r2/api/workers/workers-api-reference/ ; https://developers.cloudflare.com/workers/testing/vitest-integration/isolation-and-concurrency/ ; https://w3c.github.io/FileAPI/#file-constructor . These facts do not prove a canlang fixture implementation.",
+      "code": {
+        "minimal": "fixture receipt=file {}",
+        "format": "fixture image=file {type=\"image/png\"}",
+        "foreign": "fixture foreign=file {owner=other}",
+        "asset_alternative": "fixture receipt=file {source=\"fixtures/receipt.pdf\"}",
+        "bytes_alternative": "fixture receipt=file {type=\"application/pdf\",bytes=base64(\"...\")}",
+        "expense": [
+          "Expense in Employee {receipt:file,...}",
+          "scenario submit(expense:Expense) by=members",
+          "require expense.parent.user==actor and expense.parent.active and expense.status==draft and expense.reviewer!=actor and can_work(expense.reviewer,expense.location)",
+          "do set expense {status=submitted,submission=expense.submission+1}",
+          "scenario decide(expense:Expense,approved:bool,reason:text) by=reviewer",
+          "require expense.status==submitted and expense.reviewer==actor and expense.parent.user!=actor and can_work(actor,expense.location) and (approved or trim(reason)!=\"\")",
+          "create Decision {parent=expense,submission=expense.submission,amount=expense.amount,receipt=expense.receipt,reviewer=actor,approved,reason,decided_at=now} as decision"
+        ],
+        "agreement": [
+          "scenario renew(term:Term,file:file,from:date,until:date,notice_days:int,pricing:text,currency:currency) by=legal",
+          "require allowed(actor,term.parent) and term.executed and from<=until and notice_days>=0",
+          "create Term {parent=term.parent,file,from,until,notice_days,pricing,currency,previous=term} as renewal",
+          "derive allowed(person:user,agreement:Agreement):bool = can_work(person,agreement.location) and (legal or (sales and agreement.category==customer) or (property_manager and agreement.category==landlord) or (finance and agreement.category==supplier))"
+        ]
+      }
+    },
+    "questions": {
+      "provenance": {
+        "type": "choice",
+        "instructions": "Which single source of fixture bytes best serves the demonstrated opaque attachment workflows under these constraints?",
+        "criteria": {
+          "pinned_sample": "Provision version-pinned valid sample bytes through isolated finalization, accepting their limited content fidelity.",
+          "authored_asset": "Load one relative-path authored asset, specifying its path and bundle contracts for arbitrary inspectable bytes.",
+          "embedded_bytes": "Embed UTF-8/base64 byte payloads in the one file-fixture form, with explicit encoding and bounds.",
+          "unresolved": "Defer byte provenance because the described alternatives are inadequate or internally inconsistent."
+        }
+      },
+      "sample_selector": {
+        "type": "choice",
+        "instructions": "If samples are selected, which format-selection rule has the best tradeoff between compactness, stability and clarity?",
+        "criteria": {
+          "fixed_pdf": "Use a version-fixed PDF sample by default and explicit type only for another supported format; reject policies excluding the chosen type.",
+          "explicit_type": "Require the MIME type in every sample fixture, avoiding a format default while repeating that attribute.",
+          "infer_policy": "Pick deterministically from the effective allowlist, omitting type while coupling sample content to policy changes.",
+          "unresolved": "Leave sample format selection undecided if these contracts are insufficient."
+        }
+      },
+      "coherence": {
+        "type": "noul",
+        "instructions": "Does the pinned-sample contract coherently preserve file finalization, distinct reference identity, setup/invocation separation, attachment authority and test-only row isolation, without turning a fixture into a production file literal?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "provenance": {
+        "type": "choice",
+        "choice": "pinned_sample",
+        "confidence": 0.98,
+        "probabilities": {
+          "pinned_sample": 0.99,
+          "authored_asset": 0.01,
+          "embedded_bytes": 0.0,
+          "unresolved": 0.0
+        }
+      },
+      "sample_selector": {
+        "type": "choice",
+        "choice": "fixed_pdf",
+        "confidence": 0.99,
+        "probabilities": {
+          "fixed_pdf": 0.99,
+          "explicit_type": 0.01,
+          "infer_policy": 0.0,
+          "unresolved": 0.0
+        }
+      },
+      "coherence": {
+        "type": "noul",
+        "noul": 0.82
+      }
+    },
+    "usage": {
+      "input_tokens": 2526,
+      "output_tokens": 128
+    }
+  }
+}

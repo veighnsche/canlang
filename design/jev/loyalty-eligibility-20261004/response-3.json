@@ -1,0 +1,39 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Judge this design selection using only the enclosed evidence; recommendations neither approve changes nor demonstrate executable correctness.",
+      "facts": "Customers must be able to gain loyalty points for recurring financially qualified completed sales. Account under Program records intentional staff enrollment for a Customer. Existing CanLoyalty lacks product eligibility and incorrectly equates exclusive_program with Program.id. The trusted Invoice SalesV1.qualification contract exposes sale identity/revision, customer, account, location, product, lifecycle milestone and attribution. Booking owner Rent and membership owner Member publish paid/completed/reversed lifecycle facts; Invoice establishes payment and refund evidence. Their capture values are null, refer.Program:<id> and affiliate.Partner:<id>, with no loyalty value. Portfolio bars unintended multiprogram rewards caused by shared attribution, while retaining separate ownership of perks, referral money, commissions and member units. Multiple intentional points enrollments are not banned. Programs configure locations and need explicit products. Preserve immutable source association, revision ordering, irreversible reversal markers, location-authorized enrollment and idempotent credit per account/source. Source corrections must work even after a program stops accepting earnings."
+    },
+    "questions": {
+      "eligibility": {
+        "type": "choice",
+        "instructions": "Choose the approach most consistent with recurring loyalty, explicit composition and each owner’s responsibility.",
+        "criteria": {
+          "enrollment": "Treat scoped staff enrollment and Program location/product criteria as the explicit permission to earn loyalty, apart from referral/affiliate attribution. Several matching enrolled programs represent intended points awards. Keep reversal access to old credits when policy changes. This supports points alongside a cash-attributed sale and needs terms/enrollment to expose that intentional combination.",
+          "unattributed": "Limit points to sales whose exclusive_program is absent and whose enrolled Program matches product/location. This disallows loyalty on referral/affiliate-attributed repeat sales; it does not remove overlaps between intentional points enrollments. Such exclusion would become a new business restriction.",
+          "exclusive_capture": "Broaden the common capture protocol to route loyalty IDs as a single exclusive reward program together with referral/affiliate IDs. One global destination simplifies exclusivity, yet removes combinations, alters other owners and introduces a loyalty capture workflow beyond the existing staff enrollment offer."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "eligibility": {
+        "type": "choice",
+        "choice": "enrollment",
+        "confidence": 1.0,
+        "probabilities": {
+          "unattributed": 0.0,
+          "exclusive_capture": 0.0,
+          "enrollment": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 749,
+      "output_tokens": 48
+    }
+  }
+}

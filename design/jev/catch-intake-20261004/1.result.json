@@ -1,0 +1,25 @@
+{
+  "request": {
+    "state": "CanCatch is a CanLang JavaScript-error triage draft. Existing primitives supply typed verified capability events, queued owner work, default D1 owner fence, finalized files, lifetime expiry and current viewer grants. No SDK/runtime/adapter implementation exists. We must finish contracts, not build those systems. Proposed intake resolves project from configured key/source (browser key grants intake only); accepts at most 256KiB UTF8, required id/message/time and bounded optional stack/environment/release/fingerprint. Redaction/URL credential-query-fragment removal precedes persistence and fingerprinting. SHA256 canonical JSON grouping distinguishes explicit fingerprint, exception-type+recognized normalized frame list, or normalized message fallback; version+environment joins fingerprint in Issue identity, release stays occurrence context. No source-map fetching. Admission rejects >5min future or >7d old events; processing rechecks window. Per-project accepted-unique UTC-day quota, content-bound identity receipt and durable queue intent share owner admission. Safe dedupe digests survive content lifetime and enforce retry age. 202 confirms durable intent, not processing. Verified monotonic revisioned cumulative health snapshots show accepted/rejected/dropped/processing_failed; identical revision conflicts fail, absent health is unknown. New/regression Notice rows track outbound outcome separately, disabled project suppresses undispatched alerts. Deleted projects cannot be recreated by queued reports. CanDo std.ErrorsV1 maps to this adapter instead of embedding vendor SDK logic in compiler. Arbitrary/freeform exception content remains untrusted despite pinned redaction; versioned parsing/redaction test vectors and execution are still required. Assess design consistency, not proof.",
+    "questions": {
+      "coherence": {
+        "type": "noul",
+        "instructions": "Assess whether the specified normalization, authority, retention and delivery boundaries are mutually consistent as a draft. Report uncertainty; do not treat runtime absence as evidence of correct execution."
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "coherence": {
+        "type": "noul",
+        "noul": 0.6
+      }
+    },
+    "usage": {
+      "input_tokens": 663,
+      "output_tokens": 22
+    }
+  }
+}

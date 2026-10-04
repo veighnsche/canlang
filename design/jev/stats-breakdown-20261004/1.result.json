@@ -1,0 +1,34 @@
+{
+  "request": {
+    "state": "CanLang's current analytics binding has typed write only. Existing versioned capability imports support asynchronous typed reads, delegated authority, completion events and private result projections. CanStats already writes minimized Analytics Engine dimensions and uses D1 for exact event/visitor/session counts. Its requirements explicitly demand weighted dimension breakdowns with coverage, health and no identifiers in Analytics Engine. Cloudflare documents per-row _sample_interval and sum(_sample_interval) for estimated counts; one constant sample multiplier is insufficient. Source has no analytic read primitive yet. No runtime/compiler/adapter implementation is authorized in this draft round. User wants first-class Cloudflare services, one canonical mechanism where possible, token efficiency and no invented scaffolding to hide a language gap. Candidate draft uses DimensionsV1.read over one declared dataset/site, closed dimension enumeration, UTC range and allowed goals; provider result includes <=200 grouped rows, whole-query weighted denominators, sampling/completeness/time. Caller-only Breakdown records correlate and validate typed completions, reject mismatches, supersede old requests and expire. Existing page polling reads stored results, never issues another read. This costs per-app schema/projection code but needs no new query syntax. Alternative is to extend the analytics primitive with a shared typed aggregate read contract inferred from its schema, with equivalent asynchronous/current-grant/coverage semantics; that needs global contract decisions but reduces future adapter repetition. Neither approach computes unique visitors from weighted groups or treats browser goals as financial proof.",
+    "questions": {
+      "read_boundary": {
+        "type": "choice",
+        "instructions": "Which boundary should the draft adopt now, balancing the stated first-class-service goal and actual implementation scope?",
+        "criteria": {
+          "app_capability": "Keep analytics write and express Stats reporting through the existing typed DimensionsV1 capability and caller result projection. It has explicit privacy/weighting contracts without new language syntax, but repeats read schema and asynchronous bookkeeping in the app and can postpone a shared service gap.",
+          "shared_analytics": "Define a canonical aggregate read on analytics bindings now, deriving field types and result metadata from declarations. It can shorten future apps and keep Cloudflare reads first-class, but requires exact query, async authority, sampling and result-shape semantics before this app can be finalized."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "read_boundary": {
+        "type": "choice",
+        "choice": "app_capability",
+        "confidence": 0.97,
+        "probabilities": {
+          "app_capability": 0.98,
+          "shared_analytics": 0.02
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 749,
+      "output_tokens": 41
+    }
+  }
+}

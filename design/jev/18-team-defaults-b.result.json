@@ -1,0 +1,62 @@
+{
+  "request": {
+    "state": {
+      "context": "Evaluate a bounded canlang proposal, not a runtime certification. This DSL is written by agents for company records, permissions and workflows; adoption, token efficiency, dependable generation and a single canonical spelling for SaaS primitives guide decisions. Its user authorizes investigation through implementation if validation reveals no invalidity. The present corpus has 44 sources containing 46 team models, 67 exclusively team-scoped roles and 116 child models. No stored declarations already omit scope and none use app scope. There is no implementation of parsing or execution and no measured agent/tokenizer result. At present model ownership is stated with in team, in Parent or in app; roles have only in=team.\nA candidate replaces ordinary stored Given declarations with Model {...} and roles with role Name. Parent containment continues to require in Parent and global-to-app data requires in app. The new default would be pinned by language version and never inherited from file location, another declaration, package setup or importing/composing app. Data remains owned within the selected application's existing team-resolution mechanism; absence of usable team context cannot manufacture one. Existing public lookups resolve the record team, and trusted handlers use verified occurrence context. Model at=Binding {...} still explicitly selects its storage binding while receiving team ownership; these are separate concepts.\nRetain exported visibility, qualified role/model identities and owner-assigned role membership. Same-named roles in distinct packages remain different and a role declaration grants no assignment. Record-reference fields are relationships, not implicit protected parent bindings. Explicit children keep inherited owner/team/storage, while explicit in app is never guessed from public access or permission wording. Only stored declarations get the default: contracts, declared events, capability value schemas, test fixtures and expression constructors retain structural/test/value semantics. Authorization is unchanged: no read grant means denial; by/on conditions, membership enforcement, field allowances, locks, uniqueness, invariants, references and admission checks keep their present meanings. A current source migration would remove exactly 113 repeated team qualifiers and leave all other text, including authored examples and policies, intact. To preserve one notation, redundant in team and role in=team become source errors with the shorter correction; other role ownership forms remain unsupported. The old prohibition on omitted ownership must consequently be replaced.\nThere are genuine alternatives. A joint model/role default removes both repetitions but permits an erroneously omitted containment/app clause to denote a different valid team model, and requires familiarity with that convention. A role-only reduction removes a scope with no v1 alternative while retaining visible mandatory model boundaries; its cost is continued repeated model scope. Unchanged explicit notation helps inspection and rejects models lacking scope but carries both repeated qualifiers. Waiting for a parser/runtime allows executable evidence first while delaying a compact-source improvement supported by actual examples. These costs are not settled by source occurrence counts. Research provides relevant principles only: OWASP calls for default denial and per-request permission validation, while PostgreSQL treats enforced row policies separately from table declaration and denies unmatched access when row security is active. Neither source establishes D1 RLS or validates canlang execution. Judge the proposal for actual inconsistent cases rather than assuming those principles are implemented.",
+      "examples": {
+        "old_team_model": "export Task in team { title:text, project:Project? }",
+        "new_team_model": "export Task { title:text, project:Project? }",
+        "old_team_role": "export role reviewer in=team",
+        "new_team_role": "export role reviewer",
+        "child": "Line in Invoice { amount:money }",
+        "app_scope": "Setting in app { value:text }",
+        "storage_binding": "Calendar at=Schedule { name:text }",
+        "value_types": "contract Address { city:text }\nevent Notice { title:text }\nfixture task=Task {title=\"Draft\"}"
+      },
+      "references": {
+        "authorization": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+        "row_security": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html"
+      }
+    },
+    "questions": {
+      "scope_choice": {
+        "type": "choice",
+        "instructions": "On these facts, which ownership notation should be chosen?",
+        "criteria": {
+          "roles_only": "Use short team-role declarations while continuing to require each model ownership clause.",
+          "defer": "Await running implementation evidence before changing the required scope notation.",
+          "both_defaults": "Make stored models and roles team-scoped by omission, with explicit containment/app scope and no redundant old spellings.",
+          "explicit": "Retain all current team qualifiers along with the explicit nonteam model forms."
+        }
+      },
+      "preservation": {
+        "type": "noul",
+        "instructions": "Is there a coherent preservation of current model scope, qualified roles and access checks under the proposed migration and retained exceptions?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "scope_choice": {
+        "type": "choice",
+        "choice": "both_defaults",
+        "confidence": 0.94,
+        "probabilities": {
+          "roles_only": 0.03,
+          "both_defaults": 0.95,
+          "defer": 0.01,
+          "explicit": 0.01
+        }
+      },
+      "preservation": {
+        "type": "noul",
+        "noul": 0.85
+      }
+    },
+    "usage": {
+      "input_tokens": 1300,
+      "output_tokens": 69
+    }
+  }
+}

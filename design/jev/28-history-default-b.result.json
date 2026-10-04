@@ -1,0 +1,44 @@
+{
+  "request": {
+    "state": "During source work, a common construction was about to recur: history_open:bool=false plus a caption binding and details around history in several owners. There are 46 history controls in the unchanged drafts. Repetition conflicts with the adoption and token goals. Keep history bounded, currently authorized and projected through readable fields; a setting cannot alter grants, record selection, retention or business state. The candidate instead makes history a single standard Collapse with runtime wording and a closed default, whose initial expansion is selected once in shared personal Appearance. Signed-in users retain that base presentation choice; visitors retain it locally in the browser. No source production is added. Distinct domain evidence sections and genuinely app-specific preferences continue to use details/preferences. The settings and renderer contracts have no executable implementation.",
+    "questions": {
+      "placement": {
+        "type": "choice",
+        "instructions": "Where should this history preference live under the supplied common-behavior and access boundaries?",
+        "criteria": {
+          "shared": "Make expansion a base Appearance setting and generate the ordinary history Collapse; avoid per-owner field/caption/group copies while adopting uniform behavior.",
+          "per_owner": "Keep separate owner-specific preference declarations and explicit history groups; retain independent scope at the cost of repeated definitions.",
+          "omit": "Leave history closed initially without a saved expansion option; reduce setup while foregoing that preference."
+        }
+      },
+      "boundary": {
+        "type": "noul",
+        "instructions": "If shared Appearance changes only whether the same permitted history control starts expanded, are disclosure and business semantics retained?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "placement": {
+        "type": "choice",
+        "choice": "shared",
+        "confidence": 1.0,
+        "probabilities": {
+          "omit": 0.0,
+          "per_owner": 0.0,
+          "shared": 1.0
+        }
+      },
+      "boundary": {
+        "type": "noul",
+        "noul": 0.84
+      }
+    },
+    "usage": {
+      "input_tokens": 576,
+      "output_tokens": 56
+    }
+  }
+}

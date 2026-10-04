@@ -1,0 +1,129 @@
+{
+  "request": {
+    "state": {
+      "task": "Advise on finishing canlang v1, a new AI-authored DSL for companies replacing CRUD-centered business SaaS. We are writing a precise design, not implementing its compiler now. Adoption, concise source, predictable generation and one canonical primitive matter. Existing 35 drafts mix real constructs with English pseudocode. Preserve user requirements: Given/When/Then per logical package, packages independent of files, workerd, Cloudflare services, PatternFly HTML/CSS, HTMX, one app MCP server, # documentation and ## ordinary comments. Do not assume any option is preferred just because it is listed first.",
+      "evidence": {
+        "typing": "Current reschedule(appointment,start) uses typed Appointment.start later; source names alone do not establish parameter types. Other parameters refer to unrelated models, unions, or arbitrary JSON fields. MCP needs a definite JSON input schema. Each model already has typed fields.",
+        "scope": "Current draft Deal.stage sometimes denotes an instance field, sometimes a query column. Nested UI lists use row ambiguously; some guard fields are unqualified. Repeated fully qualified field paths cost tokens, but guessing a record can alter authorization or writes.",
+        "sources": "CanShift declares a human role scheduler and has by=scheduler workflows. Other apps have scheduler background handlers. Provider callbacks and team-removal hooks must not appear as user MCP tools.",
+        "effects": "Existing lines concatenate set/create/freeze/history/emit effects without separators. Actual English helper phrases sometimes have no declaration. User permits useful compactness but forbids invented business behavior.",
+        "storage": "Cloudflare D1 exposes atomic SQL batches, not a JavaScript read/branch/write transaction callback. Pure workflow evaluation can happen between a read and a guarded commit. A global internal revision incremented by every app mutation, checked inside the final atomic batch before writes/receipt/outbox, can conservatively detect even phantom changes. All effects must be deferred until commit. Durable Object local storage transactions are an alternative for authoritative coordination. Cross-service atomicity is unavailable. No throughput benchmarks exist yet."
+      }
+    },
+    "questions": {
+      "operation_types": {
+        "type": "choice",
+        "instructions": "Which rule gives v1 definite tool schemas with a compact predictable source?",
+        "criteria": {
+          "explicit": "Type every scenario parameter, allowing Model.field as an exact type reference; defaults can infer literal primitive types. No inference from arbitrary body usage.",
+          "usage_inference": "Infer all parameter types from name and body usage; require annotations only when the compiler encounters ambiguity.",
+          "unresolved": "The supplied evidence does not justify either rule."
+        }
+      },
+      "record_scope": {
+        "type": "choice",
+        "instructions": "Which field-binding rule is preferable for correctness and local readability?",
+        "criteria": {
+          "lexical": "Allow bare fields only in a statically established current-record scope; otherwise require explicit record aliases. Never interpret a type name as a current record.",
+          "qualified": "Require an explicit receiver for every field reference, even inside a known record scope.",
+          "contextual": "Retain model-name current records and infer an implicit receiver from whatever declarations are in scope.",
+          "unresolved": "No option is justified."
+        }
+      },
+      "trusted_sources": {
+        "type": "choice",
+        "instructions": "How should user workflows and trusted handlers be distinguished for MCP?",
+        "criteria": {
+          "on_source": "Keep by= for user predicates; use on= for typed trusted triggers on the same scenario primitive. A triggered handler is not a user tool.",
+          "qualified_by": "Use by= for both, but require a reserved source namespace for trusted callers and another namespace for roles.",
+          "infer": "Infer whether a caller is a user or system from its name and surrounding declarations.",
+          "unresolved": "No option is justified."
+        }
+      },
+      "statement_boundary": {
+        "type": "choice",
+        "instructions": "Which effect grammar best balances compactness and unambiguous parsing?",
+        "criteria": {
+          "separators": "Separate statements by newline or semicolon, with indentation for blocks. Prohibit unseparated command chains and undeclared helper phrases.",
+          "newline_only": "Require every statement on its own line, including short related assignments.",
+          "keyword_chain": "Keep unseparated effects and treat effect keywords as implicit statement boundaries.",
+          "unresolved": "No option is justified."
+        }
+      },
+      "default_storage": {
+        "type": "choice",
+        "instructions": "Given small business scope, choose the most coherent default design while retaining explicit authority declarations.",
+        "criteria": {
+          "d1_fenced": "Keep D1 default and specify guarded optimistic commits using a runtime-controlled revision, bounded pure evaluation, atomic write/receipt/outbox batch, and bounded retries. Document coarse contention and require a runtime prototype before claiming performance.",
+          "d1_sql_subset": "Keep D1 default but restrict its workflows to statements fully expressible in one SQL batch; procedural workflows must use a declared Durable Object authority.",
+          "do_default": "Change the default mutable store to Durable Object SQLite; use D1 only as a read projection when requested.",
+          "unresolved": "Evidence is insufficient to select a storage design."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "operation_types": {
+        "type": "choice",
+        "choice": "explicit",
+        "confidence": 1.0,
+        "probabilities": {
+          "unresolved": 0.0,
+          "usage_inference": 0.0,
+          "explicit": 1.0
+        }
+      },
+      "record_scope": {
+        "type": "choice",
+        "choice": "lexical",
+        "confidence": 0.94,
+        "probabilities": {
+          "contextual": 0.01,
+          "lexical": 0.96,
+          "unresolved": 0.0,
+          "qualified": 0.03
+        }
+      },
+      "trusted_sources": {
+        "type": "choice",
+        "choice": "on_source",
+        "confidence": 0.8,
+        "probabilities": {
+          "on_source": 0.85,
+          "unresolved": 0.05,
+          "qualified_by": 0.1,
+          "infer": 0.0
+        }
+      },
+      "statement_boundary": {
+        "type": "choice",
+        "choice": "separators",
+        "confidence": 0.99,
+        "probabilities": {
+          "unresolved": 0.0,
+          "separators": 1.0,
+          "keyword_chain": 0.0,
+          "newline_only": 0.0
+        }
+      },
+      "default_storage": {
+        "type": "choice",
+        "choice": "d1_fenced",
+        "confidence": 0.95,
+        "probabilities": {
+          "d1_sql_subset": 0.03,
+          "d1_fenced": 0.96,
+          "unresolved": 0.0,
+          "do_default": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1493,
+      "output_tokens": 252
+    }
+  }
+}

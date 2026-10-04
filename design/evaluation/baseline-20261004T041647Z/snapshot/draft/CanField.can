@@ -1,0 +1,224 @@
+# Help the workspace operator dispatch technicians, cleaners, and setup staff for on-site service visits. @{nl="Help de werkplekbeheerder technici, schoonmakers en inrichtingsteams in te plannen voor servicebezoeken op locatie."}
+app CanField uses=[field]
+
+# Dispatch qualified staff through the shared schedule and retain visit reports for source verification. @{nl="Plan gekwalificeerd personeel via de gedeelde planning en bewaar bezoekrapporten voor bronverificatie."}
+package field label="Service visits"@{nl="Servicebezoeken"}
+ use customer {Customer,test_company}
+ use rent_catalog {Location,test_site}
+ use employee {Employee,can_work,test_worker}
+ use maintain {Repair,Inspection,inspect as record_inspection}
+ use std {EmailV1 as Mail} from=deployment.mail
+ use shift {ScheduleV1 as StaffSchedule} from=deployment.staff_schedule
+ Given
+  message label_preferences_skill = "Required skill"@{nl="Vereiste vaardigheid"}
+  message label_Job_from = "Start"@{nl="Begin"}
+  message label_Job_until = "End"@{nl="Einde"}
+  message label_Job_before = "Time before visit"@{nl="Tijd voor bezoek"}
+  message label_Job_after = "Time after visit"@{nl="Tijd na bezoek"}
+  message label_Job_contact = "Contact"@{nl="Contact"}
+  message label_Job_state = "State"@{nl="Status"}
+  message label_Job_state_pending = "Pending"@{nl="In afwachting"}
+  message label_Report_photo = "Photo"@{nl="Foto"}
+  preferences { location:Location?, state:Job.state?, skill:text? label=label_preferences_skill }
+  invariant preferences: row.location==null or can_work(actor,row.location)
+  role dispatcher label="Dispatcher"@{nl="Planner"}
+  role technician label="Technician"@{nl="Technicus"}
+  export Job { schedule_source:text?, schedule_revision:int=1 min=1, release_delivery:text?, released:bool=false, customer:Customer, location:Location, repair:Repair?, inspection:Inspection?, employee:Employee, from:datetime label=label_Job_from, until:datetime label=label_Job_until, before:duration=0m label=label_Job_before, after:duration=0m label=label_Job_after, skill:text label=label_preferences_skill, address:text, instructions:text, contact:email label=label_Job_contact, source:text unique label="Source reference"@{nl="Bronreferentie"}, state:enum(pending,planned,in_progress,blocked,done,cancelled)=pending label={text=label_Job_state,values={pending=label_Job_state_pending,planned="Planned"@{nl="Gepland"},in_progress="In progress"@{nl="In uitvoering"},blocked="Blocked"@{nl="Geblokkeerd"},done="Done"@{nl="Gereed"},cancelled="Cancelled"@{nl="Geannuleerd"}}}, schedule_delivery:text? label="Schedule request"@{nl="Planningsaanvraag"}, schedule_reference:text? label="Schedule reference"@{nl="Planningsreferentie"}, blocked_reason:text? label="Blocking reason"@{nl="Blokkeerreden"} } label="Service visit"@{nl="Servicebezoek"}
+  Replacement in Job { source:text unique, previous_source:text, previous_revision:int, employee:Employee, from:datetime, until:datetime, delivery:text unique, requested_version:int, state:enum(pending,applied,failed,unknown,discarded)=pending label={text="Replacement state"@{nl="Vervangingsstatus"},values={pending="Pending"@{nl="In afwachting"},applied="Applied"@{nl="Toegepast"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},discarded="Discarded"@{nl="Verworpen"}}}, release_delivery:text?, released:bool=false label="Released"@{nl="Vrijgegeven"} } label="Replacement request"@{nl="Vervangingsaanvraag"}
+  export Report in Job { correction:Report? label="Corrects report"@{nl="Corrigeert verslag"}, author:user server=actor label="Author"@{nl="Auteur"}, notes:text trim min=1, photo:file? label=label_Report_photo, completed:datetime server=now label="Completed at"@{nl="Afgerond op"} } label="Visit report"@{nl="Bezoekrapport"}
+  export event ReportSubmitted { report:Report }
+  lock Report fields=correction,author,notes,photo,completed
+  lock Job fields=customer,location,repair,inspection,source,address,instructions,contact,before,after,skill
+  lock Replacement fields=source,previous_source,previous_revision,employee,from,until,requested_version
+  policy Job read=dispatcher and can_work(actor,row.location)
+  policy Job read=technician where=row.employee.user==actor and row.employee.active
+  policy Replacement read=dispatcher and can_work(actor,row.parent.location)
+  policy Report read=dispatcher and can_work(actor,row.parent.location)
+  policy Report read=technician where=row.parent.employee.user==actor and row.parent.employee.active
+  invariant Job: (row.repair==null or row.repair.parent.location==row.location) and row.before>=0m and row.after>=0m and row.from<row.until
+  fixture technician_employee=Employee {user=self,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Technician",skills=["repair"]}
+  fixture visit=Job {customer=test_company,location=test_site,employee=technician_employee,from=datetime("2099-01-01T09:00:00Z"),until=datetime("2099-01-01T10:00:00Z"),skill="repair",address="Frozen site address",instructions="Meet reception",contact="customer@example.test",source="visit",state=planned}
+  fixture replacement=Replacement {parent=visit,source="replacement",previous_source="visit",previous_revision=1,employee=technician_employee,from=datetime("2099-01-01T11:00:00Z"),until=datetime("2099-01-01T12:00:00Z"),delivery="replacement-delivery",requested_version=1}
+ When
+  # Freeze dispatch instructions and request a qualified employee commitment. @{nl="Leg bezoekinstructies vast en vraag een inzet van een gekwalificeerde medewerker aan."}
+  export scenario dispatch(customer:Customer,location:Location,repair:Repair?,inspection:Inspection?,employee:Employee,from:datetime label=label_Job_from,until:datetime label=label_Job_until,skill:text label=label_preferences_skill,address:text,instructions:text,contact:email label=label_Job_contact,before:duration=0m label=label_Job_before,after:duration=0m label=label_Job_after) by=dispatcher label="Dispatch visit"@{nl="Bezoek inplannen"}
+   require customer.active and location in customer.locations and (repair==null or repair.parent.location==location) and (inspection==null or (inspection.parent.parent.location==location and inspection.inspector==employee.user and inspection.result==pending)) and can_work(actor,location) and employee.active and can_work(employee.user,location) and skill in employee.skills and from<until and from>=now and before>=0m and after>=0m
+   do
+    create Job {customer,location,repair,inspection,employee,from,until,skill,address,instructions,contact,before,after,source=operation.id} as job
+    send StaffSchedule.reserve {value={source=job.source,employee=employee.user,location=location.id,from,until,before,after,skill,kind=visit,revision=job.schedule_revision}} as delivery
+    set job {schedule_delivery=delivery.id}
+  # Start only your current confirmed visit. @{nl="Start alleen je huidige bevestigde bezoek."}
+  scenario start(job:Job) by=technician label="Start"@{nl="Starten"}
+   require job.employee.user==actor and job.employee.active and can_work(actor,job.location) and job.skill in job.employee.skills and job.state==planned and not any(job.Replacement as pending,pending.state in [pending,unknown])
+   do set job {state=in_progress}
+   examples job=visit
+    as,job.state -> job.state
+    technician,planned -> in_progress
+    technician,cancelled -> error(rule_failed)
+    dispatcher,planned -> error(forbidden)
+  # Record an access or work blocker without pretending the repair passed. @{nl="Registreer een toegangs- of werkblokkade zonder te doen alsof de reparatie is goedgekeurd."}
+  scenario block(job:Job,reason:text) by=technician label="Record blocker"@{nl="Blokkade registreren"}
+   require job.employee.user==actor and job.employee.active and can_work(actor,job.location) and job.state in [planned,in_progress] and trim(reason)!=""
+   do set job {state=blocked,blocked_reason=reason}
+  # Retain an attributable notes or photo report and release unused schedule time. @{nl="Bewaar een herleidbaar verslag met notities of foto en geef ongebruikte planningstijd vrij."}
+  scenario complete(job:Job,notes:text,photo:file? label=label_Report_photo,answers:Inspection.answers=[],result:Inspection.result?) by=technician
+   require job.employee.user==actor and job.employee.active and can_work(actor,job.location) and job.state in [in_progress,blocked] and not any(job.Replacement as pending,pending.state in [pending,unknown]) and trim(notes)!=""
+   do
+    if job.inspection!=null
+     require result!=null
+     call record_inspection {inspection=job.inspection,answers,result,evidence=notes}
+    else
+     require count(answers)==0 and result==null
+    create Report {parent=job,notes,photo} as report
+    set job {state=done}
+    emit ReportSubmitted {report}
+    send StaffSchedule.release {source=job.schedule_source??job.source,revision=job.schedule_revision} as release
+    set job {release_delivery=release.id,released=false}
+    send Mail.send {to=job.contact,subject=format("Visit completed"@{nl="Bezoek afgerond"},locale=null),body=notes} when=job.state==done as notice
+  # Cancel only this visit's reservation with a reason. @{nl="Annuleer alleen de reservering van dit bezoek, met een reden."}
+  scenario cancel(job:Job,reason:text) by=dispatcher
+   require can_work(actor,job.location) and job.state in [pending,planned,in_progress,blocked] and trim(reason)!=""
+   do
+    set job {state=cancelled,blocked_reason=reason}
+    for replacement in job.Replacement as row where row.state in [pending,unknown] limit=100
+     set replacement {state=discarded}
+    send StaffSchedule.release {source=job.schedule_source??job.source,revision=job.schedule_revision} as release
+    set job {release_delivery=release.id,released=false}
+  # Stage a new assignment while preserving the current confirmed commitment. @{nl="Reserveer een nieuwe toewijzing en behoud de huidige bevestigde inzet."}
+  scenario reassign(job:Job,employee:Employee,from:datetime label=label_Job_from,until:datetime label=label_Job_until) by=dispatcher label="Reassign"@{nl="Opnieuw toewijzen"}
+   require can_work(actor,job.location) and employee.active and can_work(employee.user,job.location) and job.skill in employee.skills and (job.inspection==null or job.inspection.inspector==employee.user) and from>=now and from<until and job.state in [planned,blocked]
+   require job.schedule_reference!=null and not any(job.Replacement as replacement,replacement.state in [pending,unknown])
+   do
+    send StaffSchedule.stage {value={source=operation.id,employee=employee.user,location=job.location.id,from,until,before=job.before,after=job.after,skill=job.skill,kind=visit,revision=1},previous_source=job.schedule_source??job.source,previous_revision=job.schedule_revision} as delivery
+    create Replacement {parent=job,source=operation.id,previous_source=job.schedule_source??job.source,previous_revision=job.schedule_revision,employee,from,until,delivery=delivery.id,requested_version=job.version} as replacement
+  # Discard an uncertain candidate without cancelling the retained assignment. @{nl="Verwerp een onzekere kandidaat zonder de behouden toewijzing te annuleren."}
+  scenario discard_reassignment(replacement:Replacement,reason:text) by=dispatcher label="Discard reassignment"@{nl="Hertoewijzing verwerpen"}
+   require can_work(actor,replacement.parent.location) and replacement.state in [pending,unknown] and trim(reason)!=""
+   do set replacement {state=discarded}
+  # Retry only the original initial reservation identity after a definite rejection. @{nl="Probeer alleen de oorspronkelijke eerste reserveringsidentiteit opnieuw na een definitieve afwijzing."}
+  scenario retry(job:Job) by=dispatcher label="Retry scheduling"@{nl="Planning opnieuw proberen"}
+   require can_work(actor,job.location) and job.state==blocked and job.schedule_reference==null and job.employee.active and can_work(job.employee.user,job.location) and job.from>now
+   do
+    send StaffSchedule.reserve {value={source=job.source,employee=job.employee.user,location=job.location.id,from=job.from,until=job.until,before=job.before,after=job.after,skill=job.skill,kind=visit,revision=job.schedule_revision}} as delivery
+    set job {state=pending,schedule_delivery=delivery.id,blocked_reason=null}
+  # Append an attributable correction while retaining every earlier report. @{nl="Voeg een herleidbare correctie toe en behoud ieder eerder verslag."}
+  scenario correct(report:Report,notes:text,photo:file? label=label_Report_photo) by=technician label="Correct report"@{nl="Verslag corrigeren"}
+   require report.parent.employee.user==actor and report.parent.employee.active and can_work(actor,report.parent.location) and report.parent.state==done and trim(notes)!=""
+   do
+    create Report {parent=report.parent,correction=report,notes,photo} as correction
+    emit ReportSubmitted {report=correction}
+  scenario schedule_result on=StaffSchedule.reserve.completed
+   do
+    for job in Job as item where item.schedule_delivery==event.delivery_id limit=1
+     if job.state==pending
+      if event.status==succeeded and event.result!=null and event.result.source==job.source and event.result.revision==job.schedule_revision and event.result.state==confirmed
+       set job {state=planned,schedule_reference=event.result.reference,schedule_source=job.source}
+      else
+       if event.status==failed or (event.status==succeeded and event.result!=null and event.result.source==job.source and event.result.state in [failed,unavailable,released])
+        set job {state=blocked,blocked_reason="Scheduling unavailable"}
+       else
+        set job {blocked_reason="Scheduling outcome unknown"}
+  scenario replacement_result on=StaffSchedule.stage.completed
+   do
+    for replacement in Replacement as row where row.delivery==event.delivery_id and row.state in [pending,unknown] limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==replacement.source and event.result.revision==1 and event.result.state==confirmed
+      if replacement.parent.version==replacement.requested_version and replacement.parent.state in [planned,blocked] and replacement.employee.active and can_work(replacement.employee.user,replacement.parent.location) and replacement.parent.skill in replacement.employee.skills and (replacement.parent.inspection==null or (replacement.parent.inspection.inspector==replacement.employee.user and replacement.parent.inspection.result==pending))
+       set replacement.parent {employee=replacement.employee,from=replacement.from,until=replacement.until,state=planned,blocked_reason=null,schedule_source=replacement.source,schedule_revision=1,schedule_reference=event.result.reference}
+       set replacement {state=applied}
+      else
+       set replacement {state=discarded}
+     else
+      if event.status==failed or (event.status==succeeded and event.result!=null and event.result.source==replacement.source and event.result.state in [failed,unavailable,released])
+       set replacement {state=failed}
+      else
+       set replacement {state=unknown}
+   examples seed=[test_worker,replacement] event={delivery_id="replacement-delivery",status=succeeded,result={source="replacement",revision=1,state=confirmed,reference="commitment",detail=null},error=null}
+    event.result.state,visit.state -> replacement.state,visit.state
+    confirmed,planned -> applied,planned
+    unavailable,planned -> failed,planned
+    confirmed,cancelled -> discarded,cancelled
+  ## A verified schedule change can resolve a timed-out delivery, but cannot revive cancelled work.
+  scenario schedule_changed on=StaffSchedule.changed
+   do
+    let outcome=event.value
+    for job in Job as row where (row.schedule_source??row.source)==outcome.source and row.schedule_revision==outcome.revision limit=1
+     if job.state==pending and outcome.state==confirmed and job.employee.active and can_work(job.employee.user,job.location) and job.skill in job.employee.skills
+      set job {state=planned,schedule_reference=outcome.reference,schedule_source=outcome.source,blocked_reason=null}
+     if job.state in [pending,planned,in_progress] and outcome.state in [released,failed,unavailable]
+      set job {state=blocked,blocked_reason=outcome.detail??"Staffing commitment unavailable"}
+     if job.state in [done,cancelled] and outcome.state==released
+      set job {released=true}
+    for replacement in Replacement as row where row.source==outcome.source and outcome.revision==1 and row.state in [pending,unknown] limit=1
+     if outcome.state==confirmed
+      if replacement.parent.version==replacement.requested_version and replacement.parent.state in [planned,blocked] and replacement.employee.active and can_work(replacement.employee.user,replacement.parent.location) and replacement.parent.skill in replacement.employee.skills and (replacement.parent.inspection==null or (replacement.parent.inspection.inspector==replacement.employee.user and replacement.parent.inspection.result==pending))
+       set replacement.parent {employee=replacement.employee,from=replacement.from,until=replacement.until,state=planned,blocked_reason=null,schedule_source=replacement.source,schedule_revision=1,schedule_reference=outcome.reference}
+       set replacement {state=applied}
+      else
+       set replacement {state=discarded}
+     if outcome.state in [released,failed,unavailable]
+      set replacement {state=failed}
+    for replacement in Replacement as row where not row.released and outcome.state==released and ((row.state==applied and row.previous_source==outcome.source and outcome.revision>=row.previous_revision) or (row.state in [failed,discarded] and row.source==outcome.source and outcome.revision>=1)) limit=100
+     set replacement {released=true}
+   examples seed=[replacement] event={value={source="replacement",revision=1,state=confirmed,reference="commitment",detail=null}}
+    replacement.state,visit.state -> replacement.state,visit.state
+    unknown,planned -> applied,planned
+    unknown,cancelled -> discarded,cancelled
+    discarded,cancelled -> discarded,cancelled
+  scenario cleanup on=every(1m)
+   do
+    let replacement=first(Replacement as row where row.state in [applied,failed,discarded] and not row.released and row.release_delivery==null order=row.id)
+    if replacement!=null
+     if replacement.state==applied
+      send StaffSchedule.release {source=replacement.previous_source,revision=replacement.previous_revision} as delivery
+      set replacement {release_delivery=delivery.id}
+     else
+      send StaffSchedule.release {source=replacement.source,revision=1} as delivery
+      set replacement {release_delivery=delivery.id}
+    let job=first(Job as row where row.state in [done,cancelled] and not row.released and row.release_delivery==null order=row.id)
+    if job!=null
+     send StaffSchedule.release {source=job.schedule_source??job.source,revision=job.schedule_revision} as delivery
+     set job {release_delivery=delivery.id}
+  scenario released on=StaffSchedule.release.completed
+   do
+    for replacement in Replacement as row where row.release_delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null and event.result.state==released and ((replacement.state==applied and event.result.source==replacement.previous_source and event.result.revision>=replacement.previous_revision) or (replacement.state in [failed,discarded] and event.result.source==replacement.source and event.result.revision>=1))
+      set replacement {released=true}
+    for job in Job as row where row.release_delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null and event.result.state==released and event.result.source==(job.schedule_source??job.source) and event.result.revision>=job.schedule_revision
+      set job {released=true}
+  # Retry fenced cleanup without creating another staffing request. @{nl="Probeer begrensde vrijgave opnieuw zonder een nieuwe personeelsaanvraag te maken."}
+  scenario retry_cleanup(job:Job) by=dispatcher label="Retry schedule release"@{nl="Planningsvrijgave opnieuw proberen"}
+   require can_work(actor,job.location)
+   do
+    if job.state in [done,cancelled] and not job.released
+     set job {release_delivery=null}
+    for replacement in job.Replacement as row where row.state in [applied,failed,discarded] and not row.released limit=100
+     set replacement {release_delivery=null}
+ Then
+  # Dispatch by skill and location and resolve blocked work. @{nl="Plan op vaardigheid en locatie en los geblokkeerd werk op."}
+  page /dispatch title="Service dispatch"@{nl="Serviceplanning"}
+   require dispatcher
+   card "Dispatch intake"@{nl="Bezoeken inplannen"}
+    form dispatch
+   card "Dated service agenda"@{nl="Serviceagenda"}
+    calendar Job start=from end=until filter=location,state,skill defaults={location=preferences.location,state=preferences.state,skill=preferences.skill}
+     details "Visit detail"@{nl="Bezoekdetails"} display=drawer
+      text row.customer,row.location,row.employee,row.from,row.until,row.skill,row.address,row.instructions,row.state,row.blocked_reason,row.repair
+      actions reassign,retry,cancel,retry_cleanup
+      table row.Replacement columns=employee,from,until,state,released
+       form discard_reassignment
+      table row.Report columns=author,notes,photo,completed,correction
+      form correct
+      history
+
+  # Complete only your current assigned visits from a compact field view. @{nl="Rond alleen je huidige toegewezen bezoeken af vanuit een compacte mobiele weergave."}
+  page /dispatch/mine title="My visits"@{nl="Mijn bezoeken"}
+   require technician
+   card "Assigned visits"@{nl="Toegewezen bezoeken"}
+    list Job as job where job.employee.user==actor order=job.from filter=location,state,skill defaults={location=preferences.location,state=preferences.state,skill=preferences.skill} display=split
+     text row.location,row.from,row.until,row.skill,row.address,row.instructions,row.state,row.blocked_reason,row.repair,row.inspection
+     text row.inspection?.checklist
+     actions start,block,complete
+     table row.Report columns=author,notes,photo,completed,correction
+      form correct
+     history

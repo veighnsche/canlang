@@ -1,0 +1,39 @@
+{
+  "request": {
+    "state": {
+      "context": "A source sale can belong exclusively to a broker agreement or a referral program. Current Refer Capture proves verified customer selection for Advocate, but there is no corresponding Partner producer. The DSL has locked fields, optional record refs and ordinary user scenarios. Capturing a code may not replace authentication; source admission still needs current customer rights and a valid prior choice. Invoice remains authoritative for money and first-customer history.",
+      "candidate": "Add a sales_attribution package to the existing CanRefer.can source, not a new wrapper. Its Customer-owned Capture records nullable Advocate and Partner refs with exactly one selected, plus frozen code/program/account/captured/window. One capture operation validates customer ownership and email, active origin and nonself attribution, then snapshots the applicable owner window. Both public origin pages bind it. One latest_capture function and one optional source Capture parameter serve all origins with owner/account/expiry checks."
+    },
+    "questions": {
+      "capture": {
+        "type": "choice",
+        "instructions": "Select a representation considering accountable capture, fixed historical meaning, economy of source declarations and actual owner dependencies.",
+        "criteria": {
+          "shared": "Adopt a single Capture with typed optional origins and one guarded creation operation. Shared inputs are small; the common package must reference the actual Advocate and Partner owners.",
+          "union": "Create a capture in each origin owner and use their bounded union at purchase. Separate modules remain independent, with duplicated admission/persistence and explicit union dispatch downstream.",
+          "raw": "Carry ordinary code, program and timestamp fields without a persisted authorized capture. This is concise only if an external implemented verifier supplies equivalent provenance."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "capture": {
+        "type": "choice",
+        "choice": "shared",
+        "confidence": 1.0,
+        "probabilities": {
+          "raw": 0.0,
+          "union": 0.0,
+          "shared": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 615,
+      "output_tokens": 38
+    }
+  }
+}

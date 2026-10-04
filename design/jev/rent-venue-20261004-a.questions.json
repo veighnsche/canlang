@@ -1,0 +1,17 @@
+{
+  "state": {
+    "instructions": "Choose a bounded reservation data representation from these supplied facts, weighing both alternatives.",
+    "facts": "CanBook appointments are distinct from paid workspace rentals. Its actual book authority/guards are supplied verbatim. Both room requests and CanRent customer bookings must reserve scarce capacity in one resource authority using the same buffers/windows/downtime/physical checks. No appointment confirmation may fabricate a payment or expand commercial-booking reads. Current Booking requires customer/account/email, locked price/terms, payment/allowance and own/manager/reception grants. RoomsV1 has hold/confirm/move/release but no authored ingress.",
+    "canonical_book": "  export scenario book(type:Type,customer:Customer,contact:Contact,from:datetime label=label_Window_from) by=authenticated label=\"Book appointment\"@{nl=\"Afspraak boeken\"}\n   require type.parent.active and type.parent.host.active and from>=now and contact.parent==customer\n   require (contact.account==actor and contact.verified) or (host_manager and can_work(actor,type.parent.location))\n   require any(type.parent.Window as window,window.available and window.from<=from and from+type.duration<=window.until)\n   do\n    create Appointment {parent=type,customer,contact,from,until=from+type.duration,duration=type.duration,source=operation.id,host=type.parent.host.user} as appointment\n    send StaffSchedule.reserve {value={source=appointment.source,employee=appointment.host,location=type.parent.location.id,from,until=appointment.until,skill=\"host\",kind=appointment,revision=appointment.version}} as host_hold\n    set appointment {host_delivery=host_hold.id}\n    if type.room!=null\n     send Rooms.hold {value={source=appointment.source,resource=type.room,customer=customer.id,account=actor,from,until=appointment.until,quantity=1}} as room_hold\n     set appointment {room_delivery=room_hold.id}\n    else\n     set appointment {room_ok=true}\n"
+  },
+  "questions": {
+    "representation": {
+      "type": "choice",
+      "instructions": "Which representation should store delegated appointment room capacity?",
+      "criteria": {
+        "venue": "Sibling VenueReservation in Resource stores source/revision/intervals/quantity/status, without prices or payment. Extend the same free capacity computation to count it. Scope reads to its actual venue roles/account. This separates commercial records and avoids fake financial outcomes but adds one domain model and mixed occupancy scans.",
+        "tagged": "Tag Booking with purpose=appointment and let trusted scoped appointment ingress fulfill that purpose without paid-provider evidence. Reuse interval/state/owner storage and common scans, but conditional required fields, price snapshots and read/access grants must exclude accidental commercial disclosure or fabricated zero payment."
+      }
+    }
+  }
+}

@@ -1,0 +1,343 @@
+# Help workspace managers authorize furniture, supplies, repairs, and other spending against location or project budgets. @{nl="Help werkplekmanagers meubels, benodigdheden, reparaties en andere uitgaven binnen locatie- of projectbudgetten te autoriseren."}
+app CanPurchase uses=[supplier,purchase]
+
+# Own supplier identities, affordable purchase commitments, partial receipts and spending evidence. @{nl="Beheer leveranciersidentiteiten, betaalbare inkooptoezeggingen, gedeeltelijke ontvangsten en uitgavenbewijs."}
+package purchase label=page_purchasing_title
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use supplier {Supplier,buyer,budget_manager}
+ use stock {StockV1 as Stock,StockReceipt} from=deployment.stock
+ use purchase {PayableEvidenceV1 as Accounting} from=deployment.accounting
+ use std {OperationOutcome}
+ Given
+  message page_purchasing_title = "Purchasing"@{nl="Inkoop"}
+  message label_Request_state = "State"@{nl="Status"}
+  message label_Request_state_approved = "Approved"@{nl="Goedgekeurd"}
+  message label_Request_state_cancelled = "Cancelled"@{nl="Geannuleerd"}
+  message label_Request_state_closed = "Closed"@{nl="Afgesloten"}
+  message label_Request_actual = "Actual spend"@{nl="Werkelijke uitgaven"}
+  message label_Receipt_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Receipt_accepted = "Accepted quantity"@{nl="Geaccepteerd aantal"}
+  message label_Receipt_rejected = "Rejected quantity"@{nl="Afgekeurd aantal"}
+  message label_Receipt_received = "Received at"@{nl="Ontvangen op"}
+  preferences { location:Location?, supplier:Supplier?, state:Request.state? }
+  invariant preferences: row.location==null or can_work(actor,row.location)
+  export contract PayableEvidence { source:text, order:text, supplier:text, supplier_name:text, supplier_contact:email, location:text, invoice:text, amount:money, issued:date, evidence:text, revision:int }
+  ## PayableEvidenceV1.record must retain source/digest identity, acknowledge identical replay and reject conflicting evidence. This draft requires a configured real accounting binding; it never requests vendor payment.
+  export capability PayableEvidenceV1 version=1
+   record(value:PayableEvidence) -> OperationOutcome
+  role approver label="Purchase approver"@{nl="Inkoopbeoordelaar"}
+  Budget { name:text, locations:Location[] label="Locations"@{nl="Locaties"}, total:money, active:bool=true } label="Budget"@{nl="Budget"}
+  Request in Budget { location:Location, supplier:Supplier, requester:user server=actor label="Requester"@{nl="Aanvrager"}, reviewer:user label="Reviewer"@{nl="Beoordelaar"}, purpose:text label="Purpose"@{nl="Doel"}, category:text label="Category"@{nl="Categorie"}, required_by:date label="Required by"@{nl="Nodig op"}, amount:money, state:enum(draft,submitted,approved,rejected,cancelled,closed)=draft label={text=label_Request_state,values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved=label_Request_state_approved,rejected="Rejected"@{nl="Afgewezen"},cancelled=label_Request_state_cancelled,closed=label_Request_state_closed}}, decision:text? label="Decision"@{nl="Besluit"}, actual:money? label=label_Request_actual, evidence:text? } label="Purchase request"@{nl="Inkoopaanvraag"}
+  Order in Request { reference:text unique, supplier_name:text label="Frozen supplier name"@{nl="Vastgelegde leveranciersnaam"}, supplier_contact:email label="Supplier email"@{nl="E-mailadres leverancier"}, location:Location, state:enum(ordered,part_received,received,cancelled,closed)=ordered label={text=label_Request_state,values={cancelled=label_Request_state_cancelled,closed=label_Request_state_closed,ordered="Ordered"@{nl="Besteld"},part_received="Part received"@{nl="Gedeeltelijk ontvangen"},received="Received"@{nl="Ontvangen"}}} } label="Supplier order"@{nl="Leveranciersbestelling"}
+  Line in Order { sku:text label="SKU"@{nl="SKU"}, unit:text label="Unit"@{nl="Eenheid"}, quantity:int min=1, unit_price:money label="Unit price"@{nl="Eenheidsprijs"} } label="Line item"@{nl="Regel"}
+  export Receipt in Line { source:text unique label=label_Receipt_source, accepted:int min=0 label=label_Receipt_accepted, rejected:int=0 min=0 label=label_Receipt_rejected, received:date label=label_Receipt_received, evidence:text, posting:enum(pending,confirmed,failed,unknown)=pending label={text="Stock posting outcome"@{nl="Resultaat voorraadboeking"},values={pending="Pending"@{nl="In afwachting"},confirmed="Confirmed"@{nl="Bevestigd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"}}}, delivery:text? label="Delivery reference"@{nl="Verzendingsreferentie"}, revision:int=1, attempts:int=0 min=0 max=3 } label="Delivery receipt"@{nl="Ontvangstregistratie"}
+  Increase in Request { amount:money, reason:text, source:text unique } label="Authorization increase"@{nl="Autorisatieverhoging"}
+  Amendment in Line { quantity:int, reason:text, source:text unique } label="Order amendment"@{nl="Bestelwijziging"}
+  export Return in Receipt { source:text unique, quantity:int min=1, returned:date, evidence:text, revision:int=1, posting:Receipt.posting=pending, delivery:text?, attempts:int=0 min=0 max=3 } label="Supplier return"@{nl="Leveranciersretour"}
+  Payable in Order { source:text unique, invoice:text, amount:money, issued:date, evidence:text, revision:int=1, posting:Receipt.posting=pending, delivery:text?, attempts:int=0 min=0, reference:text? } label="Supplier invoice evidence"@{nl="Leveranciersfactuurbewijs"}
+  Adjustment in Budget { request:Request, amount:money, reason:text, source:text unique label=label_Receipt_source } label="Spending adjustment"@{nl="Uitgavenaanpassing"}
+  derive Budget.committed:money = sum(row.Request as request where request.state==approved select request.authorized,row.total.currency) label="Committed amount"@{nl="Vastgelegd bedrag"}
+  derive Budget.spent:money = sum(row.Request as request where request.state==closed select (request.actual ?? money(0,row.total.currency)),row.total.currency)+sum(row.Adjustment as adjustment select adjustment.amount,row.total.currency) label=label_Request_actual
+  derive Budget.remaining:money = row.total-row.committed-row.spent label="Remaining"@{nl="Resterend"}
+  derive Request.authorized:money = row.amount+sum(row.Increase as increase select increase.amount,row.amount.currency) label="Authorized amount"@{nl="Geautoriseerd bedrag"}
+  derive Line.ordered:int = row.quantity+sum(row.Amendment as amendment select amendment.quantity) label="Ordered quantity"@{nl="Besteld aantal"}
+  derive Receipt.returned:int = sum(row.Return as returned select returned.quantity) label="Returned quantity"@{nl="Geretourneerd aantal"}
+  derive Line.accepted:int = sum(row.Receipt as receipt select receipt.accepted) label=label_Receipt_accepted
+  policy Budget read=budget_manager or approver where=any(row.locations as location,can_work(actor,location))
+  policy Budget read=members where=row.active and any(row.locations as location,can_work(actor,location)) fields=name,active
+  policy Request read=members where=row.requester==actor
+  policy Request read=approver where=row.reviewer==actor and can_work(actor,row.location) and row.state!=draft
+  policy Request read=buyer or budget_manager where=can_work(actor,row.location)
+  policy Order read=buyer or budget_manager where=can_work(actor,row.location)
+  policy Line read=buyer or budget_manager where=can_work(actor,row.parent.location)
+  policy Receipt read=buyer or budget_manager where=can_work(actor,row.parent.parent.location)
+  policy Increase read=buyer or budget_manager where=can_work(actor,row.parent.location)
+  policy Amendment read=buyer or budget_manager where=can_work(actor,row.parent.parent.location)
+  policy Return read=buyer or budget_manager where=can_work(actor,row.parent.parent.parent.location)
+  policy Payable read=buyer or budget_manager where=can_work(actor,row.parent.location)
+  policy Adjustment read=budget_manager where=any(row.parent.locations as location,can_work(actor,location))
+  invariant Budget: row.total.minor>=0 and row.remaining.minor>=0
+  invariant Request: row.amount.minor>0 and row.amount.currency==row.parent.total.currency and row.location in row.parent.locations and row.location in row.supplier.locations
+  invariant Order: sum(row.Line as line select line.unit_price*line.ordered,row.parent.amount.currency)<=row.parent.authorized
+  invariant Adjustment: row.request.parent==row.parent and row.request.state==closed and (row.request.actual ?? money(0,row.amount.currency))+sum(row.parent.Adjustment as adjustment where adjustment.request==row.request select adjustment.amount,row.amount.currency)>=money(0,row.amount.currency)
+  invariant Line: row.unit_price.currency==row.parent.parent.amount.currency and row.unit_price.minor>=0 and row.accepted<=row.ordered
+  invariant Receipt: row.accepted+row.rejected>0 and trim(row.evidence)!="" and row.returned<=row.accepted
+  invariant Receipt: not any(Receipt as other,other!=row and other.source==row.source) and not any(Return as returned,returned.source==row.source)
+  invariant Return: not any(Return as other,other!=row and other.source==row.source) and not any(Receipt as receipt,receipt.source==row.source) and trim(row.evidence)!=""
+  invariant Increase: row.amount.currency==row.parent.amount.currency and row.amount.minor>0 and trim(row.reason)!=""
+  invariant Amendment: row.quantity>0 and trim(row.reason)!=""
+  invariant Payable: row.amount.currency==row.parent.parent.amount.currency and row.amount.minor>=0 and trim(row.invoice)!="" and trim(row.evidence)!=""
+  invariant Payable: not any(Payable as other,other!=row and other.source==row.source)
+  unique Payable fields=invoice
+  lock Request fields=location,supplier,requester,reviewer,purpose,category,required_by,amount when=row.state!=draft
+  lock Request fields=state,actual,evidence,decision when=row.state==closed
+  lock Order fields=reference,supplier_name,supplier_contact,location
+  lock Line fields=sku,unit,quantity,unit_price when=count(row.Receipt)>0
+  lock Receipt fields=source,accepted,rejected,received,evidence,revision
+  lock Increase fields=amount,reason,source
+  lock Amendment fields=quantity,reason,source
+  lock Return fields=source,quantity,returned,evidence,revision
+  lock Payable fields=source,invoice,amount,issued,evidence,revision
+  lock Adjustment fields=request,amount,reason,source
+  fixture vendor=Supplier {name="Supplies",contact="vendor@example.test",locations=[test_site]}
+  fixture budget=Budget {name="Furniture",locations=[test_site],total=money(100,"EUR")}
+  fixture submission=Request {parent=budget,location=test_site,supplier=vendor,requester=other,reviewer=self,purpose="Chairs",category="Equipment",required_by=date("2099-01-01"),amount=money(60,"EUR"),state=submitted}
+  fixture purchase_order=Order {parent=submission,reference="PO-1",supplier_name="Supplies",supplier_contact="vendor@example.test",location=test_site}
+  fixture purchase_line=Line {parent=purchase_order,sku="boxes",unit="box",quantity=6,unit_price=money(10,"EUR")}
+  fixture goods_receipt=Receipt {parent=purchase_line,source="delivery-A",accepted=2,received=date("2099-01-02"),evidence="Delivery A",posting=confirmed}
+  fixture extra_authorization=Increase {parent=submission,amount=money(20,"EUR"),reason="More chairs",source="authorization-2"}
+ When
+  crud Budget by=budget_manager fields=name,total,active create_fields=name,locations,total when=all(row.locations as location,can_work(actor,location)) delete=none
+  crud Request by=members fields=location,supplier,reviewer,purpose,category,required_by,amount when=row.requester==actor and row.state==draft and can_work(actor,row.location) delete=none
+  crud Line by=buyer fields=sku,unit,quantity,unit_price when=can_work(actor,row.parent.location) and row.parent.state==ordered and row.parent.parent.state==approved and count(row.Receipt)==0 delete=none
+  # Submit frozen purchasing terms for one eligible reviewer. @{nl="Dien vastgelegde inkoopvoorwaarden in voor één bevoegde beoordelaar."}
+  scenario submit(request:Request) by=members
+   require request.requester==actor and request.state==draft and request.supplier.active and request.location in request.supplier.locations and can_work(actor,request.location) and request.reviewer!=actor and can_work(request.reviewer,request.location)
+   do set request {state=submitted}
+  # Reserve the approved amount atomically without self-review or budget overspend. @{nl="Reserveer het goedgekeurde bedrag atomair, zonder zelfbeoordeling of budgetoverschrijding."}
+  scenario decide(request:Request,approve:bool label=label_Request_state_approved,reason:text) by=approver label="Record decision"@{nl="Besluit vastleggen"}
+   require request.reviewer==actor and request.requester!=actor and request.state==submitted and can_work(actor,request.location) and trim(reason)!=""
+   do
+    if approve
+     require request.parent.active and request.amount<=request.parent.remaining
+     set request {state=approved,decision=reason}
+    else
+     set request {state=rejected,decision=reason}
+   examples seed=[test_worker] request=submission approve=true reason="Within budget"
+    as,request.amount,request.requester -> request.state,budget.remaining
+    approver,money(60,"EUR"),other -> approved,money(40,"EUR")
+    approver,money(101,"EUR"),other -> error(rule_failed)
+    approver,money(60,"EUR"),self -> error(rule_failed)
+    members,money(60,"EUR"),other -> error(forbidden)
+  # Issue one supplier order against an existing committed authorization. @{nl="Plaats één leveranciersbestelling tegen een bestaande vastgelegde autorisatie."}
+  scenario order(request:Request,reference:text) by=buyer label="Place supplier order"@{nl="Leveranciersbestelling plaatsen"}
+   require can_work(actor,request.location) and request.state==approved and request.supplier.active and count(request.Order)==0
+   do create Order {parent=request,reference,supplier_name=request.supplier.name,supplier_contact=request.supplier.contact,location=request.location} as order
+  # Authorize an affordable increase while preserving the original approval. @{nl="Autoriseer een betaalbare verhoging en behoud de oorspronkelijke goedkeuring."}
+  scenario increase(request:Request,amount:money,reason:text) by=budget_manager
+   require request.state==approved and request.requester!=actor and can_work(actor,request.location) and request.parent.active and amount.currency==request.amount.currency and amount.minor>0 and amount<=request.parent.remaining and trim(reason)!=""
+   do create Increase {parent=request,amount,reason,source=operation.id} as increase
+   examples seed=[test_worker] request=submission reason="Extra chairs"
+    as,request.state,amount -> request.amount,request.authorized,budget.remaining
+    budget_manager,approved,money(20,"EUR") -> money(60,"EUR"),money(80,"EUR"),money(20,"EUR")
+    budget_manager,approved,money(41,"EUR") -> error(rule_failed)
+    budget_manager,approved,money(20,"USD") -> error(rule_failed)
+    members,approved,money(20,"EUR") -> error(forbidden)
+  # Append additional ordered units within the committed authorization. @{nl="Voeg bestelde eenheden toe binnen de vastgelegde autorisatie."}
+  scenario amend(line:Line,quantity:int,reason:text) by=buyer
+   require can_work(actor,line.parent.location) and line.parent.parent.state==approved and line.parent.state in [ordered,part_received,received] and quantity>0 and trim(reason)!=""
+   do
+    create Amendment {parent=line,quantity,reason,source=operation.id} as amendment
+    set line.parent {state=part_received}
+   examples seed=[test_worker,goods_receipt,extra_authorization] line=purchase_line reason="More boxes"
+    as,line.parent.parent.state,quantity -> line.quantity,line.ordered,line.accepted
+    buyer,approved,2 -> 6,8,2
+    buyer,approved,3 -> error(rule_failed)
+    buyer,closed,1 -> error(rule_failed)
+    members,approved,1 -> error(forbidden)
+  # Accept a physical delivery once and replay its saved evidence without receiving it again. @{nl="Accepteer een fysieke levering één keer en herhaal het opgeslagen bewijs zonder opnieuw te ontvangen."}
+  scenario receive(line:Line,source:text label=label_Receipt_source,accepted:int label=label_Receipt_accepted,rejected:int label=label_Receipt_rejected,received:date label=label_Receipt_received,evidence:text) -> Receipt by=buyer label="Record receipt"@{nl="Ontvangst registreren"}
+   require can_work(actor,line.parent.location) and trim(source)!="" and accepted>=0 and rejected>=0 and accepted+rejected>0 and trim(evidence)!=""
+   do
+    let previous=first(Receipt as receipt where receipt.source==source order=receipt.id)
+    if previous!=null
+     require previous.parent==line and previous.accepted==accepted and previous.rejected==rejected and previous.received==received and previous.evidence==evidence
+     return previous
+    require line.parent.parent.state==approved and line.parent.state in [ordered,part_received] and accepted<=line.ordered-line.accepted
+    create Receipt {parent=line,source,accepted,rejected,received,evidence} as receipt
+    if accepted>0
+     send Stock.post {value={source,order=line.parent.reference,sku=line.sku,unit=line.unit,location=line.parent.location.id,quantity=accepted,revision=receipt.revision,reversal=null}} as delivery
+     set receipt {delivery=delivery.id,attempts=1}
+    else
+     set receipt {posting=confirmed}
+    set line.parent {state=part_received}
+    if all(line.parent.Line as item,item.accepted==item.ordered)
+     set line.parent {state=received}
+    return receipt
+   examples seed=[test_worker,goods_receipt] line=purchase_line rejected=0 received=date("2099-01-02")
+    as,line.parent.parent.state,line.parent.state,source,accepted,evidence -> count(Receipt),line.accepted,line.parent.state,result.posting
+    buyer,approved,part_received,"delivery-B",4,"Delivery B" -> 2,6,received,pending
+    buyer,closed,cancelled,"delivery-A",2,"Delivery A" -> 1,2,cancelled,confirmed
+    buyer,approved,part_received,"delivery-A",2,"Changed proof" -> error(rule_failed)
+    buyer,approved,part_received,"delivery-B",5,"Delivery B" -> error(rule_failed)
+    members,approved,part_received,"delivery-B",1,"Delivery B" -> error(forbidden)
+  # Record a linked supplier return and wait for its usable-stock reversal. @{nl="Registreer een gekoppelde leveranciersretour en wacht op de terugboeking van bruikbare voorraad."}
+  scenario return_goods(receipt:Receipt,source:text,quantity:int,returned:date,evidence:text) -> Return by=buyer label="Return goods"@{nl="Goederen retourneren"}
+   require can_work(actor,receipt.parent.parent.location) and quantity>0 and trim(source)!="" and trim(evidence)!=""
+   do
+    let previous=first(Return as item where item.source==source order=item.id)
+    if previous!=null
+     require previous.parent==receipt and previous.quantity==quantity and previous.returned==returned and previous.evidence==evidence
+     return previous
+    require receipt.posting==confirmed and quantity<=receipt.accepted-receipt.returned
+    create Return {parent=receipt,source,quantity,returned,evidence} as returned_goods
+    send Stock.post {value={source,order=receipt.parent.parent.reference,sku=receipt.parent.sku,unit=receipt.parent.unit,location=receipt.parent.parent.location.id,quantity=-quantity,revision=returned_goods.revision,reversal=receipt.source}} as delivery
+    set returned_goods {delivery=delivery.id,attempts=1}
+    return returned_goods
+   examples seed=[test_worker,goods_receipt] receipt=goods_receipt source="return-A" returned=date("2099-01-03") evidence="Supplier return"
+    as,receipt.posting,quantity -> count(Return),receipt.accepted,receipt.returned,result.posting
+    buyer,confirmed,1 -> 1,2,1,pending
+    buyer,confirmed,3 -> error(rule_failed)
+    buyer,pending,1 -> error(rule_failed)
+    members,confirmed,1 -> error(forbidden)
+  # Close evidenced actual spend; unused commitment returns once. @{nl="Sluit bewezen werkelijke uitgaven af; ongebruikte toezegging keert één keer terug."}
+  scenario close(request:Request,actual:money label=label_Request_actual,evidence:text) by=budget_manager label="Close spending"@{nl="Uitgaven afsluiten"}
+   require request.state==approved and can_work(actor,request.location) and actual.currency==request.amount.currency and actual.minor>=0 and actual<=request.authorized and trim(evidence)!=""
+   do
+    set request {state=closed,actual,evidence}
+    for order in request.Order limit=100
+     set order {state=closed}
+  # Cancel the outstanding order while retaining received goods and evidenced spending. @{nl="Annuleer het openstaande deel en behoud ontvangen goederen en bewezen uitgaven."}
+  scenario cancel(request:Request,actual:money,evidence:text,reason:text) by=budget_manager
+   require request.state==approved and can_work(actor,request.location) and actual.currency==request.amount.currency and actual.minor>=0 and actual<=request.authorized and trim(evidence)!="" and trim(reason)!=""
+   do
+    set request {state=closed,actual,evidence,decision=reason}
+    for order in request.Order limit=100
+     set order {state=cancelled}
+   examples seed=[test_worker,goods_receipt] request=submission evidence="Accepted goods cost" reason="Cancel outstanding boxes"
+    as,request.state,actual -> request.amount,request.actual,budget.committed,budget.spent,budget.remaining,purchase_order.state,goods_receipt.accepted
+    budget_manager,approved,money(20,"EUR") -> money(60,"EUR"),money(20,"EUR"),money(0,"EUR"),money(20,"EUR"),money(80,"EUR"),cancelled,2
+    budget_manager,approved,money(61,"EUR") -> error(rule_failed)
+    budget_manager,approved,money(20,"USD") -> error(rule_failed)
+    budget_manager,closed,money(20,"EUR") -> error(rule_failed)
+    members,approved,money(20,"EUR") -> error(forbidden)
+  # Freeze supplier invoice evidence separately from customer invoices and payments. @{nl="Leg leveranciersfactuurbewijs vast, gescheiden van klantfacturen en betalingen."}
+  scenario record_payable(order:Order,source:text,invoice:text,amount:money,issued:date,evidence:text) -> Payable by=budget_manager
+   require can_work(actor,order.location) and order.parent.state==closed and amount.currency==order.parent.amount.currency and amount.minor>=0 and trim(source)!="" and trim(invoice)!="" and trim(evidence)!=""
+   do
+    let previous=first(order.Payable as payable where payable.invoice==invoice order=payable.id)
+    if previous!=null
+     require previous.source==source and previous.amount==amount and previous.issued==issued and previous.evidence==evidence
+     return previous
+    require sum(order.Payable as payable select payable.amount,amount.currency)+amount<=(order.parent.actual??money(0,amount.currency))+sum(order.parent.parent.Adjustment as adjustment where adjustment.request==order.parent select adjustment.amount,amount.currency)
+    create Payable {parent=order,source,invoice,amount,issued,evidence} as payable
+    return payable
+   examples seed=[test_worker,goods_receipt] order=purchase_order source="payable-1" invoice="SUP-001" issued=date("2099-01-03") evidence="Supplier invoice"
+    as,order.parent.state,order.parent.actual,amount -> count(Payable),result.invoice,result.amount
+    budget_manager,closed,money(20,"EUR"),money(20,"EUR") -> 1,"SUP-001",money(20,"EUR")
+    budget_manager,closed,money(20,"EUR"),money(21,"EUR") -> error(rule_failed)
+    budget_manager,closed,money(20,"EUR"),money(20,"USD") -> error(rule_failed)
+    budget_manager,approved,money(20,"EUR"),money(20,"EUR") -> error(rule_failed)
+  # Export the frozen payable evidence to configured accounting without initiating payment. @{nl="Exporteer het vastgelegde factuurbewijs naar ingestelde boekhouding zonder betaling te starten."}
+  scenario export_payable(payable:Payable) by=budget_manager
+   require can_work(actor,payable.parent.location) and payable.posting!=confirmed
+   do
+    send Accounting.record {value={source=payable.source,order=payable.parent.reference,supplier=payable.parent.parent.supplier.id,supplier_name=payable.parent.supplier_name,supplier_contact=payable.parent.supplier_contact,location=payable.parent.location.id,invoice=payable.invoice,amount=payable.amount,issued=payable.issued,evidence=payable.evidence,revision=payable.revision}} as delivery
+    set payable {delivery=delivery.id,posting=pending,attempts=payable.attempts+1}
+  # Record an attributed spend adjustment with the same affordability constraint. @{nl="Registreer een herleidbare uitgavenaanpassing met dezelfde betaalbaarheidsvoorwaarde."}
+  scenario adjust(request:Request,amount:money,reason:text) by=budget_manager label="Adjust spending"@{nl="Uitgaven aanpassen"}
+   require request.state==closed and can_work(actor,request.location) and amount.currency==request.parent.total.currency and trim(reason)!=""
+   do create Adjustment {parent=request.parent,request,amount,reason,source=operation.id} as adjustment
+  # Requeue the original receipt after resolving an exhausted stock delivery. @{nl="Zet de oorspronkelijke ontvangst opnieuw klaar na herstel van een uitgeputte voorraadlevering."}
+  scenario retry_stock(receipt:Receipt) by=buyer
+   require can_work(actor,receipt.parent.parent.location) and receipt.accepted>0 and receipt.posting!=confirmed and receipt.attempts==3
+   do set receipt {attempts=0,posting=pending}
+  # Requeue a linked return without changing its source, quantity or evidence. @{nl="Zet een gekoppelde retour opnieuw klaar zonder bron, aantal of bewijs te wijzigen."}
+  scenario retry_return(returned:Return) by=buyer
+   require can_work(actor,returned.parent.parent.parent.location) and returned.posting!=confirmed and returned.attempts==3
+   do set returned {attempts=0,posting=pending}
+  # Retry one receipt and one return at a time with stable facts and bounded attempts. @{nl="Herhaal telkens één ontvangst en één retour met vaste gegevens en begrensde pogingen."}
+  scenario reconcile_stock on=every(5m)
+   do
+    let receipt=first(Receipt as item where item.accepted>0 and item.posting!=confirmed and item.attempts<3 order=item.created)
+    if receipt!=null
+     send Stock.post {value={source=receipt.source,order=receipt.parent.parent.reference,sku=receipt.parent.sku,unit=receipt.parent.unit,location=receipt.parent.parent.location.id,quantity=receipt.accepted,revision=receipt.revision,reversal=null}} as delivery
+     set receipt {delivery=delivery.id,posting=pending,attempts=receipt.attempts+1}
+    let returned=first(Return as item where item.posting!=confirmed and item.attempts<3 order=item.created)
+    if returned!=null
+     send Stock.post {value={source=returned.source,order=returned.parent.parent.parent.reference,sku=returned.parent.parent.sku,unit=returned.parent.parent.unit,location=returned.parent.parent.parent.location.id,quantity=-returned.quantity,revision=returned.revision,reversal=returned.parent.source}} as delivery
+     set returned {delivery=delivery.id,posting=pending,attempts=returned.attempts+1}
+  scenario stock_result on=Stock.post.completed
+   do
+    for receipt in Receipt as item where item.delivery==event.delivery_id and item.posting!=confirmed limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==receipt.source and event.result.revision==receipt.revision and event.result.state==confirmed and event.result.reference!=null
+      set receipt {posting=confirmed}
+     else
+      if event.status==succeeded and event.result!=null and event.result.source==receipt.source and event.result.revision==receipt.revision and event.result.state==pending
+       set receipt {posting=pending}
+      else
+       if event.status==failed
+        set receipt {posting=failed}
+       else
+        set receipt {posting=unknown}
+    for returned in Return as item where item.delivery==event.delivery_id and item.posting!=confirmed limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==returned.source and event.result.revision==returned.revision and event.result.state==confirmed and event.result.reference!=null
+      set returned {posting=confirmed}
+     else
+      if event.status==succeeded and event.result!=null and event.result.source==returned.source and event.result.revision==returned.revision and event.result.state==pending
+       set returned {posting=pending}
+      else
+       if event.status==failed
+        set returned {posting=failed}
+       else
+        set returned {posting=unknown}
+  scenario stock_changed on=Stock.changed
+   do
+    for receipt in Receipt as item where item.source==event.value.source and item.revision==event.value.revision and item.posting!=confirmed limit=1
+     if event.value.state==confirmed and event.value.reference!=null
+      set receipt {posting=confirmed}
+     else
+      if event.value.state==failed
+       set receipt {posting=failed}
+    for returned in Return as item where item.source==event.value.source and item.revision==event.value.revision and item.posting!=confirmed limit=1
+     if event.value.state==confirmed and event.value.reference!=null
+      set returned {posting=confirmed}
+     else
+      if event.value.state==failed
+       set returned {posting=failed}
+  scenario payable_result on=Accounting.record.completed
+   do
+    for payable in Payable as item where item.delivery==event.delivery_id and item.posting!=confirmed limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==payable.source and event.result.revision==payable.revision and event.result.state==confirmed and event.result.reference!=null
+      set payable {posting=confirmed,reference=event.result.reference}
+     else
+      if event.status==failed
+       set payable {posting=failed}
+      else
+       set payable {posting=unknown}
+ Then
+  # Submit and follow your own purchase authorization. @{nl="Dien je eigen inkoopautorisatie in en volg deze."}
+  page /purchasing/mine title="My requests"@{nl="Mijn aanvragen"}
+   require members
+   card "Own requests"@{nl="Eigen aanvragen"}
+    form Request.create
+    list Request as request where request.requester==actor order=request.required_by filter=state,location,supplier defaults={state=preferences.state,location=preferences.location,supplier=preferences.supplier} display=split
+     edit
+     action submit
+     text row.purpose,row.amount,row.required_by,row.state,row.decision,row.actual,row.evidence
+
+  # Maintain supplier records and view affordable commitments and actual spending. @{nl="Beheer leveranciers en bekijk betaalbare toezeggingen en werkelijke uitgaven."}
+  page /purchasing title=page_purchasing_title
+   require buyer or budget_manager or approver
+   card "Supplier directory"@{nl="Leveranciersregister"}
+    form Supplier.create
+    table Supplier columns=name,contact,locations,active
+     edit
+   card "Review and order queue"@{nl="Beoordelings- en bestelwachtrij"}
+    list Request filter=state,location,supplier defaults={state=preferences.state,location=preferences.location,supplier=preferences.supplier} display=split
+     text row.purpose,row.amount,row.authorized,row.required_by,row.state,row.decision
+     details "Purchase authorization"@{nl="Inkoopautorisatie"} display=drawer
+      edit
+      actions submit,decide,order,increase,close,cancel,adjust
+      list row.Order
+       form Line.create
+       actions record_payable
+       table row.Payable columns=invoice,amount,issued,evidence,posting,reference
+        action export_payable
+       table row.Line columns=sku,unit,quantity,ordered,accepted,unit_price
+        edit
+        actions amend
+        form receive
+        table row.Receipt columns=source,accepted,rejected,returned,received,posting,evidence order=-received
+         actions return_goods,retry_stock
+         table row.Return columns=source,quantity,returned,evidence,posting
+          action retry_return
+         history
+      history
+   card "Budget commitments"@{nl="Budgettoezeggingen"}
+    form Budget.create
+    list Budget display=split
+     metrics row.total,row.committed,row.spent,row.remaining
+     edit
+     form Request.create

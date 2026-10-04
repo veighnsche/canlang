@@ -1,0 +1,97 @@
+{
+  "request": {
+    "state": {
+      "task": "Assess a missing BDD input kind in canlang: finalized attachments for inline SaaS behavior examples. AI agents author this CRUD/workflow DSL for companies. Favor adoption, reduced repeated tokens and one standard mechanism for a primitive. The requested work includes research and draft implementation, with a stop on demonstrated invalidity. No grammar implementation, compiler, runtime, executable case suite, token measurement or agent-generation evidence is available. This consultation provides the facts a classifier cannot research. Recommendations must be evaluated separately from correctness and authorization; compare all candidates including their implementation burden.",
+      "current": "Present setup uses fixture name=Model {fields} in Given, then an examples table under the actual CRUD/scenario. Existing fixture exports/imports and dependency materialization reject cycles and honor required values, defaults and stored invariants. Per-row identities are self and other within a new team, plus outsider from a separate team. Initial records and server actor stamps use self. The as column picks the applicable self membership/role or public/outsider caller. Fixture-field variation describes initial stored data, whose invalidity is a setup error rather than error(code). One real operation invocation follows its by permission, requirements, validation and commit. Reloaded fixture state, pure queries and the standard result are observable; execution-body locals are not. Exact rejection rows require no added domain writes, emissions or outbox work. Test sources vanish from deployed code/tool descriptions. No pure constructor can manufacture the opaque immutable finalized file type. Consequently a required file has no fixture value today, whereas null can only model absence. Both CanExpense and CanContract lack case tables, and their migration status expressly leaves finalized-file setup unresolved.",
+      "files": "R2 is inferred for runtime file declarations under the common policy: PDF, PNG, JPEG and plain text MIME types, max10MiB, overridden only by context differences. Intent authorization precedes checked format/size/quota, byte upload, completion and destination attachment. A label supplied as MIME does not demonstrate content validity, and neither an R2 metadata return nor unfinished upload is a DSL completed attachment. Ownership by the active app/team/principal permits a completed upload to attach; alternatively the caller must read an existing attachment. The destination revalidates its limits. IDs alone are not access tokens. Record-and-field read permission governs downloads. Completed unused objects expire and are physically collected only after relevant receipt/attachment horizons. The language does not let business logic read byte content, MIME properties or byte lengths.",
+      "proposal": "Broaden fixture setup to the file RHS while retaining the sole declaration. The sample approach gives fixture receipt=file {} a language-version-fixed, valid minimal PDF byte payload, genuinely uploaded and finalized in test storage. type=\"image/png\" requests another pinned supported payload. It denotes a test provisioning recipe rather than a value literal usable in production, a pure constructor or an MCP input form. By default use self, its fresh team and the selected app; explicit owner=other or owner=outsider selects a predefined test account. Avoid choosing formats by allowlist order. Apply effective limits, supported-content validation and real finalization during setup; unsupported type, policy denial, exceeding size/quota, defective sample, invalid destination attachment or stored invariant is a setup failure. Initial record attachment is evaluated as self with ordinary rules. Pass a valid unattached foreign file as input when testing invocation rejection, instead of encoding unauthorized starting data. File dependencies resolve with the existing fixture names, imports and exports. Separate declarations represent different immutable upload references even for the same bytes; using one declaration repeatedly keeps that reference, including across internal setup retries. Storage deduplication may share data, never reference identity. Baseline rejection checks begin after file provisioning and include unchanged attachment relationships. Every row requires its own isolated storage lifecycle and cleanup, with no live bucket, provider or network access. Production inference ignores test-only file declarations. Implementation of these rules remains future work; defining source notation is not producing finalized objects now. Business attachment cases can use the samples, but arbitrary content fidelity, format-detection defects, boundary sizes, incomplete uploads and finalization transport are shared-runtime concerns. The selected owner is the provisioning principal for normal upload-intent checks, without supplemental grants. Keep the selected app and derive team from the predefined account: row team for self/other, outsider's different team for outsider. The file recipe accepts type and owner alone; unrecognized properties or accounts fail.",
+      "alternatives": "A versioned sample catalog minimizes authored payloads at the cost of correct pinned byte resources and validators/finalizer integration, without arbitrary document fidelity. A relative-path authored asset offers inspectable arbitrary content and real documents; such assets are valid test material but need declared path boundaries, bundling and relocation handling. Inline UTF-8/base64 offers a self-contained arbitrary payload with potential binary-source bloat and review difficulty plus encoding/limit syntax. Author one of these provenance routes, avoiding competing fixture APIs. Deferring can preserve an honest unresolved state while continuing to prevent valid attachment success cases. With sample provenance, fixed default PDF eliminates routine type repetition and resists implicit change on policy edits; excluding PDF requires another explicit type. Always naming MIME makes the selection visible and insensitive to policies while consuming repeated tokens. Allowlist-derived choice adapts without an attribute but links sample-byte changes to altered file policy.",
+      "observations": "Receipt identity is meaningful when expense submit retains it and the review operation snapshots it into a Decision. The review is genuinely by=reviewer with assignment, submission and distinct claimant checks. The renew mutation is genuinely by=legal and must produce a new Term pointing to both a distinct file and the old executed Term, preserving the old attachment. Return members named renewal/decision are not declared, so persisted queries supply those assertions. Test upload ownership does not waive either operation authority or attachment checks. Limit adoption to the specification and selected existing application case data, without modifying business behavior or building layers of verification.",
+      "research": "Official Cloudflare R2 documentation exposes writes of concrete streams/bytes and metadata results, including caller-provided contentType and distinct multipart completion. Current Cloudflare testing documents isolation at file scope, not automatically for every row in a canlang examples table. W3C File constructors associate immutable content with filename/type metadata; this is separate from an authenticated finalized attachment lifecycle. Evidence URLs: https://developers.cloudflare.com/r2/api/workers/workers-api-reference/ ; https://developers.cloudflare.com/workers/testing/vitest-integration/isolation-and-concurrency/ ; https://w3c.github.io/FileAPI/#file-constructor . None implements or validates this proposed DSL contract.",
+      "code": {
+        "minimal": "fixture receipt=file {}",
+        "format": "fixture image=file {type=\"image/png\"}",
+        "foreign": "fixture foreign=file {owner=other}",
+        "asset_alternative": "fixture receipt=file {source=\"fixtures/receipt.pdf\"}",
+        "bytes_alternative": "fixture receipt=file {type=\"application/pdf\",bytes=base64(\"...\")}",
+        "expense": [
+          "Expense in Employee {receipt:file,...}",
+          "scenario submit(expense:Expense) by=members",
+          "require expense.parent.user==actor and expense.parent.active and expense.status==draft and expense.reviewer!=actor and can_work(expense.reviewer,expense.location)",
+          "do set expense {status=submitted,submission=expense.submission+1}",
+          "scenario decide(expense:Expense,approved:bool,reason:text) by=reviewer",
+          "require expense.status==submitted and expense.reviewer==actor and expense.parent.user!=actor and can_work(actor,expense.location) and (approved or trim(reason)!=\"\")",
+          "create Decision {parent=expense,submission=expense.submission,amount=expense.amount,receipt=expense.receipt,reviewer=actor,approved,reason,decided_at=now} as decision"
+        ],
+        "agreement": [
+          "scenario renew(term:Term,file:file,from:date,until:date,notice_days:int,pricing:text,currency:currency) by=legal",
+          "require allowed(actor,term.parent) and term.executed and from<=until and notice_days>=0",
+          "create Term {parent=term.parent,file,from,until,notice_days,pricing,currency,previous=term} as renewal",
+          "derive allowed(person:user,agreement:Agreement):bool = can_work(person,agreement.location) and (legal or (sales and agreement.category==customer) or (property_manager and agreement.category==landlord) or (finance and agreement.category==supplier))"
+        ]
+      }
+    },
+    "questions": {
+      "provenance": {
+        "type": "choice",
+        "instructions": "What canonical byte-origin option is preferable for the attachment behavior that this DSL can presently observe?",
+        "criteria": {
+          "pinned_sample": "Finalize a language-version-controlled valid byte specimen in isolated tests, with bounded specimen fidelity.",
+          "authored_asset": "Use a concrete relative asset containing any desired bytes and define its packaging/location rules.",
+          "embedded_bytes": "Supply textual or base64 content inside the fixture itself under a bounded encoding contract.",
+          "unresolved": "Avoid settling provenance when the available options fail to meet the constraints."
+        }
+      },
+      "sample_selector": {
+        "type": "choice",
+        "instructions": "Assuming the specimen approach, which selection semantics best reconcile small source, predictability and explicitness?",
+        "criteria": {
+          "fixed_pdf": "Omission means the pinned PDF specimen; a different format needs type, and incompatible app policy causes setup rejection.",
+          "explicit_type": "Make each specimen declare MIME, retaining visible intent at a repeated-token cost.",
+          "infer_policy": "Determine the specimen from the effective allowed-format set, so policy edits may alter specimen bytes.",
+          "unresolved": "Retain an open format decision if these alternatives do not provide an adequate contract."
+        }
+      },
+      "coherence": {
+        "type": "noul",
+        "instructions": "Can this sample fixture remain test-only while consistently enforcing completion, identity distinction, upload/attachment authority, setup failures and isolated row storage before invoking unchanged business behavior?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "provenance": {
+        "type": "choice",
+        "choice": "pinned_sample",
+        "confidence": 0.99,
+        "probabilities": {
+          "embedded_bytes": 0.0,
+          "authored_asset": 0.0,
+          "pinned_sample": 1.0,
+          "unresolved": 0.0
+        }
+      },
+      "sample_selector": {
+        "type": "choice",
+        "choice": "fixed_pdf",
+        "confidence": 0.98,
+        "probabilities": {
+          "infer_policy": 0.0,
+          "unresolved": 0.0,
+          "explicit_type": 0.01,
+          "fixed_pdf": 0.99
+        }
+      },
+      "coherence": {
+        "type": "noul",
+        "noul": 0.51
+      }
+    },
+    "usage": {
+      "input_tokens": 2514,
+      "output_tokens": 128
+    }
+  }
+}

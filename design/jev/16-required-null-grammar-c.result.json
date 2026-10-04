@@ -1,0 +1,43 @@
+{
+  "request": {
+    "state": {
+      "context": "Check the defined semantics of two planned canlang grammar changes following explicit user direction. Adoption is the main goal for its AI-written business CRUD SaaS, with efficient tokens, dependable generation and simple primitives supporting it. There is no runtime/parser or empirically established token/generation improvement. Scope stays within the two changes: do bodies, one-space blocks, explicit by/on authorization and whole-mutation rollback persist; match, aliases, compound arithmetic and broad line packing are not being added. Judgments are advisory rather than a user-approval substitute.\nBefore this change, required stored scalars have T!, nullable fields have T? default null, T=expr provides a creation value, T server=expr supplies protected data, arrays T[] start empty, and T[]! demands array input. Required parameters use bare T. Under the proposed rule an uninitialized bare scalar is required/non-null, scalar ! is rejected, and all remaining default/nullable/server/secret/array modes keep their meanings. Model, contract and event schemas use the same convention. No missing required value is inferred, and update omission retains its distinction from null. Masking metadata and quoted strings while excluding != identified 798 scalar suffixes plus 18 array-input suffixes.\nThe pure expression vocabulary gains x?.field for nullable receivers only. It returns null when the receiver is null and otherwise applies the ordinary access/type/authorization behavior, including its errors. A nullable result remains nullable once, further nullable hops require ?., and standard dot still requires narrowing. Optional calls/indexes/assignment are absent. For compatible types L ?? R evaluates nullable L exactly once; R runs only on null. Its result loses optionality only if R is non-null. The operator supersedes coalesce, groups to the right below or, requires parentheses when combined directly with and/or, and needs explicit grouping ahead of arithmetic. Safe-access equality to a statically non-null comparison value permits true-continuation narrowing for all traversed receivers, including later and terms. Comparing to null or using != grants no corresponding true-branch narrowing. Null handling cannot suppress denied access, invalid types, business failures or introduce boolean coercion.\nThe concrete migration replaces scalar bangs, four coalesce uses with total pure now/money(0,validated_currency) fallbacks, and three explicit event-result presence/equality checks whose right side is a non-null record ID. For these checks an absent result is false in either form, while a true equality establishes a valid receiver for subsequent member use. Preserve grouping inside arithmetic and query selection; leave other null predicates and every effect/permission decision in place. Explicit laziness is a newly stated fallback contract, so equivalence is claimed only for these inspected total fallbacks, not unknown old calls. These grammar additions and narrowing facts may be implemented incorrectly; no sample demonstrates compilation. Examine the specified cases for contradictions and underspecified boundaries without treating intended invariants as proof of all implementations.",
+      "examples": {
+        "old_fields": "Item in team {title:text!,note:text?,active:bool=true,tags:text[],attachments:file[]!,author:user server=actor}",
+        "new_fields": "Item in team {title:text,note:text?,active:bool=true,tags:text[],attachments:file[]!,author:user server=actor}",
+        "old_duration": "coalesce(row.until,now)-row.from",
+        "new_duration": "(row.until ?? now)-row.from",
+        "old_result_check": "event.result!=null and event.result.source==revision.id",
+        "new_result_check": "event.result?.source==revision.id"
+      }
+    },
+    "questions": {
+      "field_modes": {
+        "type": "noul",
+        "instructions": "Do these field-presence and initialization conventions fit together without ambiguity in the supplied scalar, nullable, protected, defaulted and array cases?"
+      },
+      "null_rules": {
+        "type": "noul",
+        "instructions": "For the displayed expressions, is there a consistent account of optional access, lazy fallback, grouping and receiver narrowing that preserves the distinction between null and failed access?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "field_modes": {
+        "type": "noul",
+        "noul": 0.52
+      },
+      "null_rules": {
+        "type": "noul",
+        "noul": 0.74
+      }
+    },
+    "usage": {
+      "input_tokens": 1114,
+      "output_tokens": 38
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "state": {
+    "context": "Identify which syntax idea, if any, merits the next targeted review for canlang. It is an AI-authored DSL for CRUD-centered company SaaS, with adoption as the leading goal and token economy, dependable generation and low complexity supporting it. Today it uses single-space nesting, one package Given/When/Then skeleton, typed scenario/do execution, explicit access decisions, checked atomic set writes and embedded independently written behavior examples. Executable tools and empirical token/generation evaluations are absent. Field punning such as {name}, reusable Model.field validation/types, pure helper derivations and declarative SQL-shaped query clauses already exist and are not additions.\nOfficial documentation offers five candidate ideas. Refinements draws on CUE constrained reusable definitions, illustrated as type ShortText = text trim min=1 max=120 for multiple fields. Shared validation could avoid copying bounds, but existing field-type reuse may suffice; new aliases could conceal differences in business validation, and structural/nominal identity needs definition. Enum_match borrows Rust exhaustive state branching: every member of a closed enum gets an arm, with action effects remaining inside do. It could surface omitted states and shorten chains of repeated comparisons, yet expands branching grammar and can force empty/unhelpful cases.\nCompound_updates borrows the Python += spelling only inside canonical set, e.g. set counter {value+=1}. It could avoid repeating the record/field for additions and subtraction; a narrow corpus scan identified seven simple same-variable cases and did not cover nested-record paths. Simultaneous field evaluation, checked overflow, money, locks and versions still require defined behavior; Python's overloadable in-place mutations and bare storage assignment would not be inherited. Null_ops adapts Kotlin ?. plus ECMAScript ?? for pure reads and fallback. Shorter nullable expressions are possible, but precedence, nullable propagation and short-circuit behavior must be specified; null handling never grants private access.\nRequired_scalars follows Kotlin non-null defaults: bare stored scalar types would mean required inputs, while nullable ?, creation defaults, server values and current array defaults/exceptions retain their meanings. Bare required operation parameters already use this convention; current stored scalars instead need ! without a default/server expression. The earlier audit found 798 scalar markers and 18 required-array exceptions. This candidate can reduce common repeated suffixes but needs a complete declaration/spec migration without altering array input requirements. None of these sketches is adopted syntax, and no borrowed object system, arbitrary macros or general runtime is proposed.\nSelect a first investigation rather than an approved implementation. Weigh expected occurrence benefits against parsing/semantic costs without equating source brevity to measured model-token gains. Leave the decision open if comparative evidence is inadequate.",
+    "official_references": {
+      "kotlin": "https://kotlinlang.org/docs/null-safety.html",
+      "javascript": "https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-binary-logical-operators",
+      "python": "https://docs.python.org/3/reference/simple_stmts.html#augmented-assignment-statements",
+      "rust": "https://doc.rust-lang.org/book/ch06-02-match.html",
+      "cue": "https://cuelang.org/docs/tour/basics/constraints/"
+    }
+  },
+  "questions": {
+    "review_priority": {
+      "type": "choice",
+      "instructions": "Select the most worthwhile first investigation, balancing likely reuse against additional grammar and semantic commitments.",
+      "criteria": {
+        "refinements": "Examine shared scalar validation definitions for repeated field constraints.",
+        "enum_match": "Examine a closed-enum match form that requires all states to be covered.",
+        "defer": "Postpone new syntax because the supplied comparisons do not establish a priority.",
+        "compound_updates": "Examine += and -= field updates only as part of canonical set.",
+        "null_ops": "Examine nullable-member access plus compact null fallback in read expressions.",
+        "required_scalars": "Examine dropping scalar ! through non-null required field defaults, retaining other field modes."
+      }
+    }
+  }
+}

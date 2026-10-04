@@ -1,0 +1,61 @@
+{
+  "request": {
+    "state": {
+      "request": "The user explicitly wants tests mixed into business logic while remaining token-effective. Current canlang has typed models, read policies, canonical CRUD and typed scenario operations; no compiler or runtime exists. Given/When/Then are package sections, not a test suite. Need actual executed behavior examples alongside operations without generating expectations from their implementation.",
+      "proposal": "One examples table nested in the operation. Target action and input types are inherited. A shared fixture declared once in package Given supplies valid model state. Example header lists changing input/pre-state selectors on the left and expected post-state/result expressions on the right. Rows give concrete values; error(code) expects rejection and no committed domain/outbox effects. Fresh isolated state per row, fixed clock/IDs; runtime identity/team actors reused. No app test framework, copied API signatures, magical fixture constraint solver, or live external calls.",
+      "example": "fixture pending=Expense {purpose=\"Travel\",amount=money(25,EUR),submitted_by=other,status=submitted}; within scenario approve(expense:Expense): examples expense=pending; header as,expense.status,expense.submitted_by -> expense.status; rows reviewer,submitted,other -> approved; reviewer,draft,other -> error(rule_failed); members,submitted,other -> error(forbidden); reviewer,submitted,self -> error(rule_failed)."
+    },
+    "questions": {
+      "form": {
+        "type": "choice",
+        "instructions": "Choose the smallest defensible inline testing form for the user's goals.",
+        "criteria": {
+          "tables": "Attached examples tables with explicit shared fixtures and independent expected values; operation is inherited.",
+          "triples": "Repeat Given/When/Then in a standalone test block for every test, naming the operation again.",
+          "generated_only": "Infer expected results from the implementation and generate tests without authored expected values.",
+          "unresolved": "No alternative is justified by this context."
+        }
+      },
+      "semantics": {
+        "type": "choice",
+        "instructions": "Does the proposal define useful behavioral checks while keeping test expectations distinct from production mutations?",
+        "criteria": {
+          "coherent": "Yes: rows seed state and invoke the real operation, then independently check authored outcomes; they do not redefine business effects.",
+          "needs_change": "No: a stated rule makes the expectations tautological or substitutes testing behavior for the real operation.",
+          "unresolved": "Insufficient evidence to decide."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "form": {
+        "type": "choice",
+        "choice": "tables",
+        "confidence": 1.0,
+        "probabilities": {
+          "generated_only": 0.0,
+          "unresolved": 0.0,
+          "triples": 0.0,
+          "tables": 1.0
+        }
+      },
+      "semantics": {
+        "type": "choice",
+        "choice": "coherent",
+        "confidence": 0.97,
+        "probabilities": {
+          "unresolved": 0.01,
+          "needs_change": 0.02,
+          "coherent": 0.97
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 823,
+      "output_tokens": 95
+    }
+  }
+}

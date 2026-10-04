@@ -1,0 +1,22 @@
+{
+  "state": {
+    "brief": "Assess how CanLang should express whether an account other than the caller holds an existing team role. The language targets compact AI-generated business apps and avoids alternative mechanisms for the same primitive. Today salesperson is a caller test and active_member accepts a person plus team. CRM owner selection needs both can_work location eligibility and crm.salesperson assignment; the former alone does not check the latter. Roles are owned by packages and assigned by team owners. Visibility through use cannot assign authority.",
+    "contract": "For each candidate, the role symbol is fixed during source resolution; the user argument is nonnullable and evaluated in the verified current team. Return false for a removed, missing or foreign-team member, and for team owners lacking this specific assignment. A missing team is invalid context rather than an implicit team search. Do not allow strings, stored role objects, user-directory enumeration or parallel role storage. Authorization facts share admission snapshot/fenced commit rules and do not expose business records. Supplying a subject does not authenticate actor, change its identity or narrow its nullable type. Keep bare role names for direct actor tests; other expressions are allowed even when their runtime identity equals actor. Existing lexical lookup and exported/imported identity rules continue unchanged.",
+    "source": "  role salesperson label=\"Salesperson\"@{nl=\"Verkoper\"}\n  crud Deal by=salesperson fields=title,owner,value,seats,desired_start,duration,workspace,source,next_action,notes when=can_work(actor,row.location) and can_work(row.owner,row.location) and row.customer.active and row.stage in [lead,qualified,proposal] create_fields=customer,contact,title,location,value,seats,desired_start,duration,workspace,source,next_action,notes delete=none\n  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))"
+  },
+  "questions": {
+    "syntax": {
+      "type": "choice",
+      "instructions": "Select the strongest expression design among the alternatives using brevity, understandable semantics, implementation burden and fit with canonical primitives as comparable considerations.",
+      "criteria": {
+        "role_call": "Use salesperson(person), allowing a role symbol in callee position with exactly one user. This is concise and parses as an existing call, but assigns distinct boolean and callable interpretations to the declaration and needs a dedicated checker rule rather than general function values.",
+        "builtin": "Use in_role(person,salesperson), a new fixed builtin accepting a statically named role in its second slot. This separates caller predicates from subject checks, at the cost of another builtin and special symbol-argument semantics.",
+        "membership": "Use active_member(person,team,role=salesperson), extending membership testing with a static optional role keyword. It avoids a new entry name but couples two test shapes and requires the already resolved team to be written again."
+      }
+    },
+    "authority": {
+      "type": "noul",
+      "instructions": "Is this common semantics sufficiently specified to retain one role authority while handling current membership, explicit grants, import resolution, revocation fencing and unchanged caller identity?"
+    }
+  }
+}

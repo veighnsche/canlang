@@ -1,0 +1,30 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Assess the proposed guard modification from canonical source facts.",
+      "facts": "The requested journey includes location-authorized reception walk-ins and separately approved on-account eligibility. hold currently sets account to the caller; assigned customers therefore cannot access reception-created bookings. The proposal retains all existing manager/customer checks and the true reception actor for attribution. A non-null account needs reception and can_work and is a valid user reference, but its relationship to customer is still unchecked.",
+      "current_code": "  scenario hold(resource:Resource,customer:Customer,from:datetime label=label_RoomRequest_from,until:datetime label=label_RoomRequest_until,quantity:int,email:email,attendees:int=1 label=\"Attendees\"@{nl=\"Deelnemers\"},use_allowance:bool=false label=label_hold_use_allowance) by=authenticated label=\"Hold workspace\"@{nl=\"Werkplek tijdelijk reserveren\"}\n   require actor.email_verified and customer.active and resource.location in customer.locations\n   require (reservation_manager and can_work(actor,resource.location)) or (customer.kind==individual and owns(actor,customer)) or has_location_role(actor,customer,booker,resource.location) or has_location_role(actor,customer,administrator,resource.location)\n   require resource.price_unit==hour and attendees>0 and attendees<=resource.party_limit and from>=now and from<until and quantity>0 and until-from>=resource.minimum and (until-from)%resource.increment==0m\n   require free(resource,from-resource.buffer_before,until+resource.buffer_after,quantity,null)\n",
+      "proposed_code": "scenario hold(...,account:user?=null) by=authenticated or reception; require actor.email_verified and customer.active and resource.location in customer.locations; require account==null or (reception and can_work(actor,resource.location)); require (reception and can_work(actor,resource.location)) or (reservation_manager and can_work(actor,resource.location)) or (customer.kind==individual and owns(actor,customer)) or has_location_role(actor,customer,booker,resource.location) or has_location_role(actor,customer,administrator,resource.location); create Booking {account=account ?? actor}; prepare by=authenticated or reception; require (booking.account==actor or (reception and can_work(actor,booking.parent.location))) and booking.status==held and booking.billing_delivery==null and now<booking.expires; actor remains true admitting account in receipt/history."
+    },
+    "questions": {
+      "customer_account": {
+        "type": "noul",
+        "instructions": "Must the proposed optional user selection additionally verify customer ownership or appropriate company membership to satisfy the stated privacy and real-account requirements?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "customer_account": {
+        "type": "noul",
+        "noul": 0.76
+      }
+    },
+    "usage": {
+      "input_tokens": 855,
+      "output_tokens": 21
+    }
+  }
+}

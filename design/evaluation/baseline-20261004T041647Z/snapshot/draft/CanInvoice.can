@@ -1,0 +1,703 @@
+# Help the workspace operator issue readable invoices for day offices, desks, meeting rooms, memberships, and approved add-ons. @{nl="Help de werkplekbeheerder leesbare facturen uit te geven voor dagkantoren, bureaus, vergaderruimten, lidmaatschappen en goedgekeurde extra diensten."}
+app CanInvoice uses=[invoice]
+
+# Manage customer receivables, private employee claims and affordable supplier purchasing. @{nl="Beheer klantvorderingen, private personeelsdeclaraties en betaalbare leveranciersinkoop."}
+app Finance uses=[CanInvoice,CanExpense,CanPurchase,CanReport]
+
+# Own frozen customer invoices, full-balance collection and evidenced refunds. @{nl="Beheer vastgelegde klantfacturen, inning van het volledige saldo en bewezen terugbetalingen."}
+package invoice label="Invoices"@{nl="Facturen"}
+ use customer {Customer,BillingProfile,owns,has_role,test_company,test_contact,test_billing}
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use std {PaymentState,OperationOutcome}
+ use std {EmailV1 as Mail} from=deployment.mail
+ use std {PaymentsV1 as Payments} from=deployment.payments
+ use invoice {BillingIngressV1 as BillingRequests} from=deployment.billing_ingress
+ use invoice {DocumentsV1 as Documents} from=deployment.documents
+ use invoice {SalesIngressV1 as SalesRequests} from=deployment.sales_ingress
+ Given
+  message notice_invoice_issued = "Invoice issued"@{nl="Factuur uitgegeven"}
+  message page_finance_invoice_Invoice_id_title = "Invoice"@{nl="Factuur"}
+  message label_Charge_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Charge_customer = "Customer"@{nl="Klant"}
+  message label_Charge_consent = "Recurrence consent"@{nl="Toestemming voor herhaling"}
+  message label_Settlement_received = "Received at"@{nl="Ontvangen op"}
+  message label_Settlement_state = "State"@{nl="Status"}
+  message label_Settlement_state_paid = "Paid"@{nl="Betaald"}
+  message label_Settlement_state_void = "Void"@{nl="Ongeldig"}
+  message label_Settlement_state_unknown = "Unknown"@{nl="Onbekend"}
+  message label_DocumentLine_tax = "Tax"@{nl="Belasting"}
+  message label_DocumentLine_discount = "Discount"@{nl="Korting"}
+  message label_InvoiceDocument_issuer = "Issuer"@{nl="Uitgever"}
+  message label_InvoiceDocument_recipient = "Recipient"@{nl="Ontvanger"}
+  message label_InvoiceDocument_tax_reference = "Tax reference"@{nl="Belastingreferentie"}
+  message label_InvoiceDocument_number = "Invoice number"@{nl="Factuurnummer"}
+  message label_InvoiceDocument_issued_at = "Issued at"@{nl="Uitgegeven op"}
+  message label_InvoiceDocument_credits = "Credits"@{nl="Credits"}
+  message label_PdfResult_document = "Generate document"@{nl="Document genereren"}
+  message label_Attempt = "Payment attempt"@{nl="Betaalpoging"}
+  message label_Attempt_delivery = "Delivery reference"@{nl="Verzendingsreferentie"}
+  message label_Credit_author = "Author"@{nl="Auteur"}
+  preferences { location:Location?, currency:currency? }
+  export contract Charge { source:text label=label_Charge_source, customer:text label=label_Charge_customer, location:text, description:text, amount:money, due:date, issuer:text?, terms:text?, items:DocumentLine[]?, consent:text? label=label_Charge_consent } label="Charge"@{nl="Kostenpost"}
+  export contract Settlement { source:text, invoice:text, revision:int, amount:money, collected:money, refunded:money, collection_pending:bool, refund_pending:bool, state:Invoice.state, recorded_at:datetime } label="Invoice settlement snapshot"@{nl="Momentopname factuurafwikkeling"}
+  export capability BillingV1 version=1
+   charge(value:Charge) -> OperationOutcome
+   cancel(source:text,reason:text) -> OperationOutcome
+   refund(source:text,amount:money,reason:text) -> OperationOutcome
+   reconcile(source:text) -> Settlement?
+   event settled { value:Settlement }
+  export contract SaleMilestone { source:text, revision:int min=1, customer:text, account:user, location:text, product:text, amount:money, purchased_at:datetime, occurred:datetime, milestone:enum(paid,completed,cancellation_passed,reversed), attribution:text?, exclusive_program:text?, attributed_at:datetime?, attribution_window:duration? }
+  export contract Qualification { source:text, revision:int min=1, customer:text, account:user, location:text, product:text, amount:money, purchased_at:datetime, occurred:datetime, milestone:SaleMilestone.milestone, attribution:text?, exclusive_program:text?, attributed_at:datetime?, attribution_window:duration?, first_customer:bool, history_known:bool }
+  export capability SalesV1 version=1
+   event qualification { value:Qualification }
+  export capability SalesIngressV1 version=1
+   event observed { value:SaleMilestone }
+  export event SaleQualification { value:Qualification }
+  CommercialHistory in Customer { complete:bool=false label="Complete commercial history reviewed"@{nl="Volledige commerciële historiek beoordeeld"}, first_invoice:Invoice? label="First paid invoice"@{nl="Eerste betaalde factuur"}, evidence:text } label="Customer commercial history"@{nl="Commerciële klanthistoriek"}
+  unique CommercialHistory fields=parent
+  CommercialSale in Customer { source:text unique, value:SaleMilestone, source_revision:int, revision:int=0, reversed:bool=false, effective:SaleMilestone.milestone=paid, last:Qualification? }
+  lock CommercialSale fields=source
+  event SaleCheck { sale:CommercialSale }
+  invariant CommercialSale: not any(CommercialSale as sale,sale.id!=row.id and sale.source==row.source)
+  policy CommercialHistory read=finance where=all(row.parent.locations as location,can_work(actor,location))
+  policy CommercialSale read=finance where=all(row.parent.locations as location,can_work(actor,location))
+  export contract DocumentLine { title:text, quantity:decimal, price:money, tax:money label=label_DocumentLine_tax, discount:money label=label_DocumentLine_discount, unit:text?, from:datetime?, until:datetime?, location:text?, reference:text? } label="Document line"@{nl="Documentregel"}
+  export contract DocumentCredit { amount:money, reason:text } label="Document credit"@{nl="Documentcredit"}
+  export contract DocumentPayment { reference:text, amount:money, kind:Attempt.kind, state:text label=label_Settlement_state, received:datetime? label=label_Settlement_received } label="Document payment"@{nl="Documentbetaling"}
+  export contract InvoiceDocument { issuer:text label=label_InvoiceDocument_issuer, recipient:text label=label_InvoiceDocument_recipient, address:text, tax_reference:text? label=label_InvoiceDocument_tax_reference, number:text label=label_InvoiceDocument_number, issued_at:datetime label=label_InvoiceDocument_issued_at, due:date, currency:currency, lines:DocumentLine[]! label="Lines"@{nl="Regels"}, credits:DocumentCredit[]! label=label_InvoiceDocument_credits, payments:DocumentPayment[]! label="Payments"@{nl="Betalingen"}, terms:text?, total:money } label="Issued invoice document"@{nl="Uitgegeven factuurdocument"}
+  export contract PdfResult { source:text label=label_Charge_source, document:file label=label_PdfResult_document, revision:int } label="PDF result"@{nl="PDF-resultaat"}
+  export capability DocumentsV1 version=1
+   invoice(source:text,snapshot:InvoiceDocument,revision:int) -> PdfResult
+   receipt(source:text,snapshot:InvoiceDocument,revision:int) -> PdfResult
+  export role finance label="Finance staff"@{nl="Financieel medewerker"}
+  Defaults { issuer:text label=label_InvoiceDocument_issuer, attempt_limit:int=3 min=1 max=10, retry_delay:duration=2d, retry_window:duration=14d } label="Invoice defaults"@{nl="Factuurstandaarden"}
+  export capability BillingIngressV1 version=1
+   event charge { value:Charge }
+   event cancel { source:text, reason:text }
+   event refund { source:text, amount:money, reason:text }
+   event reconcile { source:text }
+  export event ChargeOutcome { value:OperationOutcome }
+  export event CancelOutcome { value:OperationOutcome }
+  export event RefundOutcome { value:OperationOutcome }
+  export event ReconcileOutcome { source:text, value:Settlement? }
+  BillingCancellation { source:text unique, reason:text }
+  lock BillingCancellation fields=source,reason
+  export Invoice in Customer { first_paid_at:datetime?, attempt_limit:int=3 min=1 max=10, retry_delay:duration=2d, retry_until:datetime?, next_collection:datetime?, ledger_revision:int=0 min=0, location:Location, source:text unique label=label_Charge_source, issuer:text label=label_InvoiceDocument_issuer, recipient:text label=label_InvoiceDocument_recipient, recipient_email:email label="Recipient email"@{nl="E-mailadres ontvanger"}, address:text, tax_reference:text? label=label_InvoiceDocument_tax_reference, currency:currency, description:text, terms:text?, source_items:DocumentLine[]?, due:date, number:text? label=label_InvoiceDocument_number, state:enum(draft,issued,void_pending,void)=draft label={text=label_Settlement_state,values={void=label_Settlement_state_void,draft="Draft"@{nl="Concept"},issued="Issued"@{nl="Uitgegeven"},void_pending="Void pending"@{nl="Ongeldigverklaring in afwachting"}}}, total:money, issued_at:datetime? label=label_InvoiceDocument_issued_at, consent:text? label=label_Charge_consent, needs_review:bool=false label="Needs review"@{nl="Beoordeling nodig"} } label=page_finance_invoice_Invoice_id_title
+  Line in Invoice { description:text, position:int=0 min=0, quantity:decimal=1 min=0, unit:text?, service_from:datetime?, service_until:datetime?, service_location:text?, service_reference:text?, price:money, tax:money label=label_DocumentLine_tax, discount:money label=label_DocumentLine_discount } label="Line item"@{nl="Regel"}
+  Attempt in Invoice { mode:enum(interactive,automatic)=interactive, requested:datetime server=now, outcome_at:datetime?, provider_revision:int=0 min=0, failure:PaymentState.failure, disabled:bool=false, reference:text unique, amount:money, kind:enum(collection,refund) label={text="Payment kind"@{nl="Betalingssoort"},values={collection="Collection"@{nl="Inning"},refund="Refund"@{nl="Terugbetaling"}}}, payment:text? label=label_Attempt, status:PaymentState.status=pending label={text="Status"@{nl="Status"},values={unknown=label_Settlement_state_unknown,pending="Pending"@{nl="In afwachting"},succeeded="Succeeded"@{nl="Geslaagd"},failed="Failed"@{nl="Mislukt"}}}, provider_reference:text? label="Provider reference"@{nl="Providerreferentie"}, checkout:url? label="Payment link"@{nl="Betaallink"}, received:datetime? label=label_Settlement_received, delivery:text? label=label_Attempt_delivery, reason:text? } label=label_Attempt
+  PaymentRequest in Attempt { kind:enum(cancel,reconcile), delivery:text unique }
+  lock PaymentRequest fields=kind,delivery
+  Credit in Invoice { source:text unique label=label_Charge_source, amount:money, reason:text, author:user? label=label_Credit_author } label="Credit adjustment"@{nl="Creditcorrectie"}
+  ExternalPayment in Invoice { reference:text unique, amount:money, received:datetime label=label_Settlement_received, evidence:text, author:user server=actor label=label_Credit_author } label="External payment"@{nl="Externe betaling"}
+  Document in Invoice { revision:int, kind:enum(invoice,receipt)=invoice, file:file, generated:datetime server=now label="Generated at"@{nl="Gegenereerd op"} } label="Invoice document"@{nl="Factuurdocument"}
+  DocumentRequest in Invoice { status:enum(pending,succeeded,failed,unknown)=pending, error:text?, revision:int, kind:Document.kind=invoice, delivery:text unique label=label_Attempt_delivery } label="Document request"@{nl="Documentaanvraag"}
+  ExternalRefund in Invoice { payment:ExternalPayment, reference:text unique, amount:money, received:datetime, evidence:text, reason:text, author:user server=actor } label="External refund evidence"@{nl="Bewijs externe terugbetaling"}
+  event ProviderReceipt { value:PaymentState }
+  export event InvoiceSettlement { value:Settlement }
+  event Overdue { invoice:Invoice, revision:int }
+  event CollectionDue { invoice:Invoice }
+  event ReconcileDue { attempt:Attempt }
+  derive first_receipt(invoice:Invoice):datetime? = min((invoice.Attempt as attempt where attempt.kind==collection and attempt.status==succeeded and attempt.received!=null select attempt.received)+(invoice.ExternalPayment as payment select payment.received))
+  derive first_paid_invoice(customer:Customer):Invoice? = first(customer.Invoice as invoice where invoice.received.minor>0 and first_receipt(invoice)!=null order=first_receipt(invoice))
+  derive settlement(invoice:Invoice):Settlement = Settlement {source=invoice.source,invoice=invoice.id,revision=invoice.ledger_revision,amount=invoice.total,collected=invoice.received,refunded=invoice.refunded,collection_pending=any(invoice.Attempt as attempt,attempt.kind==collection and attempt.status in [pending,unknown]),refund_pending=any(invoice.Attempt as attempt,attempt.kind==refund and attempt.status in [pending,unknown]),state=invoice.state,recorded_at=now}
+  derive issued_snapshot(invoice:Invoice,number:text,issued_at:datetime):InvoiceDocument = InvoiceDocument {issuer=invoice.issuer,recipient=invoice.recipient,address=invoice.address,tax_reference=invoice.tax_reference,number,issued_at,due=invoice.due,currency=invoice.currency,lines=invoice.Line as line order=line.position select DocumentLine {title=line.description,quantity=line.quantity,price=line.price,tax=line.tax,discount=line.discount,unit=line.unit,from=line.service_from,until=line.service_until,location=line.service_location,reference=line.service_reference},credits=invoice.Credit as credit select DocumentCredit {amount=credit.amount,reason=credit.reason},payments=(invoice.Attempt as payment select DocumentPayment {reference=payment.reference,amount=payment.amount,kind=payment.kind,state=format("{status}",{status=payment.status}),received=payment.received})+(invoice.ExternalPayment as payment select DocumentPayment {reference=payment.reference,amount=payment.amount,kind=collection,state="succeeded",received=payment.received})+(invoice.ExternalRefund as evidence select DocumentPayment {reference=evidence.reference,amount=evidence.amount,kind=refund,state="succeeded",received=evidence.received}),terms=invoice.terms,total=invoice.total}
+  derive Invoice.collection_pending:bool = any(row.Attempt as attempt,attempt.kind==collection and attempt.status in [pending,unknown])
+  derive Invoice.refund_pending:bool = any(row.Attempt as attempt,attempt.kind==refund and attempt.status in [pending,unknown])
+  derive Invoice.settled:bool = row.state==issued and row.balance.minor==0 and not row.collection_pending and not row.refund_pending and row.refund_due.minor==0 label="Settled"@{nl="Afgewikkeld"}
+  derive Invoice.credits:money = sum(row.Credit as credit select credit.amount,row.currency) label=label_InvoiceDocument_credits
+  derive Invoice.received:money = sum(row.Attempt as attempt where attempt.kind==collection and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalPayment as payment select payment.amount,row.currency) label="Received payments"@{nl="Ontvangen betalingen"}
+  derive Invoice.refunded:money = sum(row.Attempt as attempt where attempt.kind==refund and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalRefund as refund select refund.amount,row.currency) label="Refunded amount"@{nl="Terugbetaald bedrag"}
+  derive Invoice.balance:money = max([money(0,row.currency),row.total-row.credits-row.received]) label="Outstanding balance"@{nl="Openstaand saldo"}
+  derive Invoice.refund_due:money = max([money(0,row.currency),row.received-row.refunded-(row.total-row.credits)]) label="Refund due"@{nl="Terug te betalen"}
+  policy Invoice read=finance and can_work(actor,row.location)
+  policy Invoice read=authenticated where=row.state!=draft and (owns(actor,row.parent) or has_role(actor,row.parent,billing)) fields=location,source,issuer,recipient,recipient_email,address,tax_reference,currency,description,terms,due,number,state,total,issued_at,needs_review,credits,received,refunded,balance,refund_due,collection_pending,refund_pending,settled
+  policy Document read=finance and can_work(actor,row.parent.location)
+  policy Document read=authenticated where=row.parent.state!=draft and (owns(actor,row.parent.parent) or has_role(actor,row.parent.parent,billing))
+  policy DocumentRequest read=finance and can_work(actor,row.parent.location)
+  policy DocumentRequest read=authenticated where=row.parent.state!=draft and (owns(actor,row.parent.parent) or has_role(actor,row.parent.parent,billing)) fields=revision,kind,status,error
+  policy Line read=finance and can_work(actor,row.parent.location)
+  policy Line read=authenticated where=row.parent.state!=draft and (owns(actor,row.parent.parent) or has_role(actor,row.parent.parent,billing))
+  policy Attempt read=finance and can_work(actor,row.parent.location)
+  policy Attempt read=authenticated where=row.parent.state!=draft and (owns(actor,row.parent.parent) or has_role(actor,row.parent.parent,billing)) fields=reference,amount,kind,status,failure,checkout,received,reason
+  policy Credit read=finance and can_work(actor,row.parent.location)
+  policy Credit read=authenticated where=row.parent.state!=draft and (owns(actor,row.parent.parent) or has_role(actor,row.parent.parent,billing))
+  policy ExternalPayment read=finance and can_work(actor,row.parent.location)
+  policy ExternalPayment read=authenticated where=row.parent.state!=draft and (owns(actor,row.parent.parent) or has_role(actor,row.parent.parent,billing)) fields=reference,amount,received
+  invariant Invoice: not any(Invoice as other,other!=row and other.source==row.source)
+  invariant Invoice: row.number==null or not any(Invoice as other,other!=row and other.number==row.number)
+  invariant Invoice: row.state==draft or (row.number!=null and row.issued_at!=null)
+  invariant Invoice: row.total.currency==row.currency and row.total.minor>=0 and row.credits<=row.total
+  policy ExternalRefund read=finance and can_work(actor,row.parent.location)
+  policy ExternalRefund read=authenticated where=row.parent.state!=draft and (owns(actor,row.parent.parent) or has_role(actor,row.parent.parent,billing)) fields=reference,amount,received,reason
+  invariant ExternalRefund: row.payment.parent==row.parent and row.amount.currency==row.parent.currency and row.amount.minor>0 and trim(row.reference)!="" and trim(row.evidence)!="" and trim(row.reason)!=""
+  invariant Line: row.quantity>=0 and (row.quantity>0 or row.price*row.quantity+row.tax-row.discount==money(0,row.parent.currency)) and ((row.service_from==null and row.service_until==null) or (row.service_from!=null and row.service_until!=null and row.service_from<row.service_until)) and row.price.currency==row.parent.currency and row.tax.currency==row.parent.currency and row.discount.currency==row.parent.currency and row.price.minor>=0 and row.tax.minor>=0 and row.discount.minor>=0 and row.price*row.quantity+row.tax>=row.discount
+  invariant Attempt: row.amount.currency==row.parent.currency and row.amount.minor>0
+  invariant Credit: row.amount.currency==row.parent.currency and row.amount.minor>0 and trim(row.reason)!=""
+  invariant ExternalPayment: row.amount.currency==row.parent.currency and row.amount.minor>0 and trim(row.evidence)!=""
+  lock Invoice fields=attempt_limit,retry_delay,retry_until,consent,location,source,issuer,recipient,recipient_email,address,tax_reference,currency,description,terms,source_items,due,number,total,issued_at when=row.state!=draft
+  lock Line fields=description,position,quantity,unit,service_from,service_until,service_location,service_reference,price,tax,discount when=row.parent.state!=draft
+  lock Document fields=revision,kind,file,generated
+  lock DocumentRequest fields=revision,kind,delivery
+  lock ExternalRefund fields=payment,reference,amount,received,evidence,reason,author
+  lock Credit fields=source,amount,reason,author
+  lock ExternalPayment fields=reference,amount,received,evidence,author
+  lock Attempt fields=mode,requested,reference,amount,kind,payment,reason
+  fixture test_invoice=Invoice {parent=test_company,location=test_site,source="invoice-test",issuer="Operator",recipient="Company",recipient_email="customer@example.test",address="1 Road",currency="EUR",description="Room",due=date("2099-01-02"),total=money(100,"EUR"),state=issued,number="INV-TEST",issued_at=datetime("2099-01-01T00:00:00Z")}
+  fixture test_payment=Attempt {parent=test_invoice,reference="provider-test",amount=money(100,"EUR"),kind=collection}
+  fixture test_credit=Credit {parent=test_invoice,source="credit-test",amount=money(20,"EUR"),reason="Agreed correction",author=self}
+  fixture test_defaults=Defaults {issuer="Operator"}
+  fixture test_profile=BillingProfile {parent=test_company,contact=test_contact,address="1 Road"}
+  fixture test_external=ExternalPayment {parent=test_invoice,reference="bank-test",amount=money(100,"EUR"),received=datetime("2026-10-01T00:00:00Z"),evidence="Bank statement",author=self}
+  fixture customer_history=CommercialHistory {parent=test_company,complete=true,first_invoice=test_invoice,evidence="Reviewed complete ledger"}
+  fixture commercial_sale=CommercialSale {parent=test_company,source="invoice-test",source_revision=1,value={source="invoice-test",revision=1,customer=test_company.id,account=self,location=test_site.id,product="meeting",amount=money(100,"EUR"),purchased_at=datetime("2026-10-01T00:00:00Z"),occurred=datetime("2026-10-02T00:00:00Z"),milestone=completed,attribution="share",exclusive_program="refer.Program:reviewed",attributed_at=datetime("2026-10-01T00:00:00Z"),attribution_window=30d}}
+ When
+  crud Invoice by=finance fields=location,issuer,recipient,address,tax_reference,description,due create_fields=location,source,issuer,recipient,recipient_email,address,tax_reference,currency,description,due,total when=can_work(actor,row.location) and row.state==draft delete=none
+  crud Line by=finance fields=description,position,quantity,unit,service_from,service_until,service_location,service_reference,price,tax,discount when=can_work(actor,row.parent.location) and row.parent.state==draft delete=remove
+   examples create seed=[test_worker] parent=test_invoice description="Item" position=1 quantity=1 price=money(100,"EUR") tax=money(0,"EUR") discount=money(0,"EUR")
+    as,test_invoice.state,request.quantity,request.tax -> count(test_invoice.Line)
+    finance,draft,1,money(0,"EUR") -> 1
+    finance,draft,0,money(0,"EUR") -> 1
+    finance,draft,0,money(10,"EUR") -> error(rule_failed)
+    finance,issued,1,money(0,"EUR") -> error(rule_failed)
+  # Issue the exact line, recipient and pricing snapshot under a unique invoice number. @{nl="Geef de exacte regel-, ontvanger- en prijsmomentopname uit onder een uniek factuurnummer."}
+  scenario issue(invoice:Invoice,number:text label=label_InvoiceDocument_number) by=finance label="Issue invoice"@{nl="Factuur uitgeven"}
+   require can_work(actor,invoice.location) and invoice.state==draft and count(invoice.Line)>0 and trim(number)!=""
+   require not any(Invoice as other,other.number==number)
+   do
+    let defaults=first(Defaults as setting order=setting.id)
+    require defaults!=null and defaults.retry_delay>0m and defaults.retry_window>0m
+    let total=sum(invoice.Line as line select line.price*line.quantity+line.tax-line.discount,invoice.currency)
+    set invoice {state=issued,total,number,issued_at=now,attempt_limit=defaults.attempt_limit,retry_delay=defaults.retry_delay,retry_until=now+defaults.retry_window,ledger_revision=invoice.ledger_revision+1}
+    emit InvoiceSettlement {value=settlement(invoice)}
+    send Mail.send {to=invoice.recipient_email,subject=format(notice_invoice_issued,locale=null),body=invoice.description+" "+app_url(format("/finance/invoice/{invoice}",{invoice=invoice.id}))} when=invoice.state==issued as notice
+    schedule invoice.id at=local_instant(add_days(invoice.due,1),"00:00",invoice.location.timezone,fold=earlier) event=Overdue {invoice,revision=invoice.version+1}
+  # Render the issued invoice and its current credit and collection evidence to an immutable document version. @{nl="Genereer een onveranderlijke documentversie van de uitgegeven factuur en haar huidige credit- en betalingsbewijzen."}
+  scenario document(invoice:Invoice) by=finance or authenticated label=label_PdfResult_document
+   require invoice.state!=draft and invoice.number!=null and invoice.issued_at!=null and (owns(actor,invoice.parent) or has_role(actor,invoice.parent,billing) or (finance and can_work(actor,invoice.location)))
+   do
+    send Documents.invoice {source=invoice.id,revision=invoice.version,snapshot=issued_snapshot(invoice,invoice.number,invoice.issued_at)} as delivery
+    create DocumentRequest {parent=invoice,revision=invoice.version,delivery=delivery.id} as request
+   examples seed=[test_contact,test_billing,test_profile] invoice=test_invoice
+    as,test_profile.address -> test_invoice.address,test_invoice.total,count(test_invoice.DocumentRequest)
+    members,"Later billing address" -> "1 Road",money(100,"EUR"),1
+    public,"Later billing address" -> error(forbidden)
+  scenario document_result on=Documents.invoice.completed
+   do
+    for request in DocumentRequest as row where row.delivery==event.delivery_id and row.kind==invoice limit=1
+     if event.status==succeeded and event.result?.source==request.parent.id and event.result.revision==request.revision
+      if not any(request.parent.Document as document,document.revision==request.revision and document.kind==request.kind)
+       create Document {parent=request.parent,revision=request.revision,kind=request.kind,file=event.result.document} as document
+      set request {status=succeeded,error=null}
+     else
+      if event.status==succeeded
+       set request {status=failed,error=null}
+      if event.status in [failed,unknown]
+       if event.status==failed
+        set request {status=failed,error=event.error?.message}
+       else
+        set request {status=unknown,error=event.error?.message}
+  # Generate a separate receipt only for evidenced full settlement. @{nl="Genereer een afzonderlijk betalingsbewijs alleen na bewezen volledige betaling."}
+  scenario receipt(invoice:Invoice) by=finance or authenticated label="Generate receipt"@{nl="Betalingsbewijs genereren"}
+   require invoice.state==issued and invoice.number!=null and invoice.issued_at!=null and invoice.balance.minor==0 and invoice.received.minor>0
+   require owns(actor,invoice.parent) or has_role(actor,invoice.parent,billing) or (finance and can_work(actor,invoice.location))
+   require not any(invoice.Attempt as attempt,attempt.kind==collection and attempt.status in [pending,unknown])
+   do
+    send Documents.receipt {source=invoice.id,revision=invoice.version,snapshot=issued_snapshot(invoice,invoice.number,invoice.issued_at)} as delivery
+    create DocumentRequest {parent=invoice,revision=invoice.version,kind=receipt,delivery=delivery.id} as request
+   examples seed=[test_contact,test_billing,test_payment] invoice=test_invoice
+    as,test_payment.status -> count(test_invoice.DocumentRequest)
+    members,succeeded -> 1
+    members,unknown -> error(rule_failed)
+    members,failed -> error(rule_failed)
+  scenario receipt_result on=Documents.receipt.completed
+   do
+    for request in DocumentRequest as row where row.delivery==event.delivery_id and row.kind==receipt limit=1
+     if event.status==succeeded and event.result?.source==request.parent.id and event.result.revision==request.revision
+      if not any(request.parent.Document as document,document.revision==request.revision and document.kind==receipt)
+       create Document {parent=request.parent,revision=request.revision,kind=receipt,file=event.result.document} as document
+      set request {status=succeeded,error=null}
+     else
+      if event.status==succeeded
+       set request {status=failed,error=null}
+      if event.status in [failed,unknown]
+       if event.status==failed
+        set request {status=failed,error=event.error?.message}
+       else
+        set request {status=unknown,error=event.error?.message}
+  # Collect only the current full remaining balance, with no second uncertain checkout. @{nl="In alleen het huidige volledige resterende saldo, zonder tweede onzekere betaalpoging."}
+  scenario collect(invoice:Invoice) by=authenticated or finance label="Collect payment"@{nl="Betaling innen"}
+   require invoice.state==issued and invoice.balance.minor>0 and (has_role(actor,invoice.parent,billing) or owns(actor,invoice.parent) or (finance and can_work(actor,invoice.location)))
+   require not any(invoice.Attempt as attempt,attempt.kind==collection and (attempt.status in [pending,unknown] or (attempt.status==failed and attempt.failure==permanent)))
+   do
+    cancel format("{invoice}:collection",{invoice=invoice.id})
+    set invoice {next_collection=null}
+    create Attempt {parent=invoice,reference=operation.id,amount=invoice.balance,kind=collection} as attempt
+    send Payments.collect {customer=invoice.parent.id,amount=attempt.amount,reference=attempt.reference,consent=null} when=invoice.state==issued and invoice.balance==attempt.amount and not attempt.disabled as delivery
+    set attempt {delivery=delivery.id}
+    set invoice {ledger_revision=invoice.ledger_revision+1}
+    emit InvoiceSettlement {value=settlement(invoice)}
+   examples seed=[test_contact,test_billing] invoice=test_invoice
+    as,invoice.state -> count(test_invoice.Attempt)
+    members,issued -> 1
+    members,void -> error(rule_failed)
+    public,issued -> error(forbidden)
+   examples seed=[test_contact,test_billing,test_payment] invoice=test_invoice
+    as,test_payment.status,test_payment.failure -> count(test_invoice.Attempt)
+    members,pending,null -> error(rule_failed)
+    members,unknown,null -> error(rule_failed)
+    members,failed,action_required -> 2
+    members,failed,transient -> 2
+    members,failed,permanent -> error(rule_failed)
+  # Record full external collection only after all uncertain attempts have been resolved. @{nl="Registreer volledige externe betaling pas nadat alle onzekere pogingen zijn opgelost."}
+  scenario record_payment(invoice:Invoice,amount:money,reference:text,received:datetime label=label_Settlement_received,evidence:text) by=finance label="Record external payment"@{nl="Externe betaling registreren"}
+   require can_work(actor,invoice.location) and invoice.state==issued and amount==invoice.balance and amount.minor>0 and trim(reference)!="" and trim(evidence)!="" and received<=now
+   require not any(invoice.Attempt as attempt,attempt.status in [pending,unknown]) and not any(ExternalPayment as payment,payment.reference==reference)
+   do
+    create ExternalPayment {parent=invoice,amount,reference,received,evidence} as payment
+    set invoice {ledger_revision=invoice.ledger_revision+1}
+    emit InvoiceSettlement {value=settlement(invoice)}
+   examples seed=[test_worker,test_payment] invoice=test_invoice amount=money(100,"EUR") reference="new-bank-reference" received=datetime("2026-10-01T00:00:00Z") evidence="Bank statement"
+    as,test_payment.status,amount,evidence -> test_invoice.received,test_invoice.balance
+    finance,failed,money(100,"EUR"),"Bank statement" -> money(100,"EUR"),money(0,"EUR")
+    finance,unknown,money(100,"EUR"),"Bank statement" -> error(rule_failed)
+    finance,failed,money(90,"EUR"),"Bank statement" -> error(rule_failed)
+    finance,failed,money(100,"EUR"),"" -> error(rule_failed)
+  # Credit an issued balance without rewriting lines or pretending a refund completed. @{nl="Crediteer een uitgegeven saldo zonder regels te herschrijven of te doen alsof een terugbetaling is voltooid."}
+  scenario credit(invoice:Invoice,amount:money,reason:text) by=finance label="Credit invoice"@{nl="Factuur crediteren"}
+   require can_work(actor,invoice.location) and invoice.state==issued and amount.minor>0 and amount.currency==invoice.currency and amount<=invoice.total-invoice.credits and trim(reason)!=""
+   do
+    create Credit {parent=invoice,source=operation.id,amount,reason,author=actor} as credit
+    for attempt in invoice.Attempt as pending where pending.kind==collection and pending.status in [pending,unknown] limit=100
+     set attempt {disabled=true,checkout=null}
+     send Payments.cancel {reference=attempt.reference} as delivery
+     create PaymentRequest {parent=attempt,kind=cancel,delivery=delivery.id} as request
+    if invoice.refund_due.minor>0
+     set invoice {needs_review=true}
+    set invoice {ledger_revision=invoice.ledger_revision+1}
+    emit InvoiceSettlement {value=settlement(invoice)}
+   examples seed=[test_worker,test_payment] invoice=test_invoice amount=money(20,"EUR") reason="Agreed correction"
+    as,test_payment.status -> test_invoice.total,test_invoice.balance,test_invoice.refund_due,test_payment.disabled
+    finance,unknown -> money(100,"EUR"),money(80,"EUR"),money(0,"EUR"),true
+    finance,succeeded -> money(100,"EUR"),money(0,"EUR"),money(20,"EUR"),false
+    public,unknown -> error(forbidden)
+  # Request the evidenced overpayment refund separately from the credit decision. @{nl="Vraag de bewezen terugbetaling van een overbetaling afzonderlijk van het creditbesluit aan."}
+  scenario refund(invoice:Invoice,payment:Attempt label=label_Attempt,amount:money,reason:text) by=finance label="Refund payment"@{nl="Betaling terugbetalen"}
+   require can_work(actor,invoice.location) and payment.parent==invoice and payment.kind==collection and payment.status==succeeded and amount<=invoice.refund_due and amount.minor>0 and trim(reason)!=""
+   require amount<=payment.amount-sum(invoice.Attempt as old where old.kind==refund and old.payment==payment.reference and old.status==succeeded select old.amount,invoice.currency)
+   require not any(invoice.Attempt as attempt,attempt.status in [pending,unknown])
+   do
+    create Attempt {parent=invoice,reference=operation.id,amount,kind=refund,payment=payment.reference,reason} as refund
+    send Payments.refund {payment=payment.reference,amount,reference=refund.reference} as delivery
+    set refund {delivery=delivery.id}
+    set invoice {ledger_revision=invoice.ledger_revision+1}
+    emit InvoiceSettlement {value=settlement(invoice)}
+   examples seed=[test_worker,test_payment,test_credit] invoice=test_invoice payment=test_payment amount=money(20,"EUR") reason="Credit refund"
+    as,test_payment.status -> count(test_invoice.Attempt),test_invoice.refunded,test_invoice.refund_due
+    finance,succeeded -> 2,money(0,"EUR"),money(20,"EUR")
+    finance,unknown -> error(rule_failed)
+    public,succeeded -> error(forbidden)
+  # Record an external refund only with a unique bank reference and its original payment evidence. @{nl="Leg een externe terugbetaling alleen vast met een unieke bankreferentie en het oorspronkelijke betalingsbewijs."}
+  scenario record_refund(invoice:Invoice,payment:ExternalPayment,amount:money,reference:text,received:datetime,evidence:text,reason:text) by=finance label="Record external refund"@{nl="Externe terugbetaling registreren"}
+   require can_work(actor,invoice.location) and payment.parent==invoice and invoice.state==issued and amount<=invoice.refund_due and amount.minor>0
+   require trim(reference)!="" and received<=now and trim(evidence)!="" and trim(reason)!=""
+   require amount<=payment.amount-sum(invoice.ExternalRefund as old where old.payment==payment select old.amount,invoice.currency)
+   require not any(invoice.Attempt as attempt,attempt.status in [pending,unknown]) and not any(ExternalRefund as old,old.reference==reference)
+   do
+    create ExternalRefund {parent=invoice,payment,amount,reference,received,evidence,reason} as refund
+    set invoice {ledger_revision=invoice.ledger_revision+1}
+    emit InvoiceSettlement {value=settlement(invoice)}
+   examples seed=[test_worker,test_external,test_credit] invoice=test_invoice payment=test_external amount=money(20,"EUR") reference="refund-bank-reference" received=datetime("2026-10-02T00:00:00Z") evidence="Refund bank statement" reason="Credit refunded"
+    as,amount,evidence -> test_invoice.refunded,test_invoice.refund_due
+    finance,money(20,"EUR"),"Refund bank statement" -> money(20,"EUR"),money(0,"EUR")
+    finance,money(10,"EUR"),"Refund bank statement" -> money(10,"EUR"),money(10,"EUR")
+    finance,money(20,"EUR"),"" -> error(rule_failed)
+  # Stop new collection immediately and reconcile an accepted payment before final void. @{nl="Stop nieuwe inning onmiddellijk en stem een geaccepteerde betaling af vóór de definitieve ongeldigverklaring."}
+  scenario void(invoice:Invoice,reason:text) by=finance label="Void invoice"@{nl="Factuur ongeldig maken"}
+   require can_work(actor,invoice.location) and invoice.state==issued and invoice.received.minor==0 and trim(reason)!=""
+   do
+    if not any(BillingCancellation as fence,fence.source==invoice.source)
+     create BillingCancellation {source=invoice.source,reason} as fence
+    if any(invoice.Attempt as attempt,attempt.kind==collection and attempt.status in [pending,unknown])
+     set invoice {state=void_pending}
+     for attempt in invoice.Attempt as pending where pending.kind==collection and pending.status in [pending,unknown] limit=100
+      set attempt {disabled=true,checkout=null}
+      send Payments.cancel {reference=attempt.reference} as delivery
+      create PaymentRequest {parent=attempt,kind=cancel,delivery=delivery.id} as request
+    else
+     set invoice {state=void}
+    set invoice {next_collection=null,ledger_revision=invoice.ledger_revision+1}
+    emit InvoiceSettlement {value=settlement(invoice)}
+    cancel invoice.id
+    cancel format("{invoice}:collection",{invoice=invoice.id})
+   examples seed=[test_worker,test_payment] invoice=test_invoice reason="Booking cancelled"
+    as,test_payment.status -> test_invoice.state,test_payment.disabled
+    finance,unknown -> void_pending,true
+    finance,failed -> void,false
+    finance,succeeded -> error(rule_failed)
+  scenario result on=Payments.changed
+   do emit ProviderReceipt {value=event}
+  scenario apply_result on=ProviderReceipt
+   do
+    for attempt in Attempt as item where item.reference==event.value.reference limit=1
+     require attempt.amount==event.value.amount
+     if attempt.status!=succeeded and event.value.revision>attempt.provider_revision
+      if attempt.status==failed and event.value.status==succeeded
+       set attempt.parent {needs_review=true}
+      set attempt {status=event.value.status,provider_revision=max([attempt.provider_revision,event.value.revision]),failure=event.value.failure,provider_reference=event.value.provider_reference,outcome_at=now}
+      if not attempt.disabled
+       set attempt {checkout=event.value.checkout_url}
+      if event.value.status==succeeded
+       set attempt {received=now,checkout=null}
+       if attempt.kind==collection
+        if attempt.parent.state in [void_pending,void]
+         set attempt.parent {state=issued,needs_review=true}
+        if attempt.parent.refund_due.minor>0
+         set attempt.parent {needs_review=true}
+        cancel attempt.parent.id
+        cancel format("{invoice}:collection",{invoice=attempt.parent.id})
+        set attempt.parent {next_collection=null}
+      if attempt.parent.state==void_pending and not any(attempt.parent.Attempt as pending,pending.status in [pending,unknown]) and attempt.parent.received.minor==0
+       set attempt.parent {state=void}
+      if attempt.kind==collection and event.value.status==failed and attempt.parent.state==issued and attempt.parent.balance.minor>0
+       send Mail.send {to=attempt.parent.recipient_email,subject=format("Invoice payment needs attention"@{nl="Factuurbetaling vereist aandacht"},locale=null),body=app_url(format("/finance/invoice/{invoice}",{invoice=attempt.parent.id}))} when=attempt.parent.state==issued and attempt.parent.balance.minor>0 and attempt.status==failed as notice
+       if attempt.mode==automatic and event.value.failure==transient and attempt.parent.consent!=null and attempt.parent.retry_until!=null and now+attempt.parent.retry_delay<=attempt.parent.retry_until and count(attempt.parent.Attempt as previous where previous.kind==collection and previous.mode==automatic)<attempt.parent.attempt_limit
+        set attempt.parent {next_collection=now+attempt.parent.retry_delay}
+        schedule format("{invoice}:collection",{invoice=attempt.parent.id}) at=now+attempt.parent.retry_delay event=CollectionDue {invoice=attempt.parent}
+      set attempt.parent {ledger_revision=attempt.parent.ledger_revision+1}
+      emit InvoiceSettlement {value=settlement(attempt.parent)}
+   examples seed=[test_payment,test_credit] event={value=PaymentState {reference="provider-test",revision=1,provider_reference="verified-charge",amount=money(100,"EUR"),status=succeeded,checkout_url=null,failure=null}}
+    test_payment.status,event.value.amount -> test_invoice.received,test_invoice.refund_due,test_invoice.needs_review,test_invoice.ledger_revision
+    unknown,money(100,"EUR") -> money(100,"EUR"),money(20,"EUR"),true,1
+    failed,money(100,"EUR") -> money(100,"EUR"),money(20,"EUR"),true,1
+    succeeded,money(100,"EUR") -> money(100,"EUR"),money(20,"EUR"),false,0
+    unknown,money(90,"EUR") -> error(rule_failed)
+  scenario collected on=Payments.collect.completed
+   do
+    for attempt in Attempt as row where row.delivery==event.delivery_id and row.kind==collection limit=1
+     if event.status==succeeded and event.result!=null
+      require event.result.reference==attempt.reference and event.result.amount==attempt.amount
+      emit ProviderReceipt {value=event.result}
+     else
+      if attempt.status in [pending,unknown] and event.status in [failed,unknown]
+       set attempt {status=unknown,outcome_at=now}
+       if attempt.parent.state==void_pending and not any(attempt.parent.Attempt as pending,pending.status in [pending,unknown]) and attempt.parent.received.minor==0
+        set attempt.parent {state=void}
+       set attempt.parent {ledger_revision=attempt.parent.ledger_revision+1}
+       emit InvoiceSettlement {value=settlement(attempt.parent)}
+     if attempt.status in [pending,unknown] and event.status==skipped
+      set attempt {status=failed,failure=cancelled,outcome_at=now,checkout=null,disabled=true}
+      if attempt.parent.state==void_pending and not any(attempt.parent.Attempt as pending,pending.status in [pending,unknown]) and attempt.parent.received.minor==0
+       set attempt.parent {state=void}
+      set attempt.parent {ledger_revision=attempt.parent.ledger_revision+1}
+      emit InvoiceSettlement {value=settlement(attempt.parent)}
+  scenario refunded on=Payments.refund.completed
+   do
+    for attempt in Attempt as row where row.delivery==event.delivery_id and row.kind==refund limit=1
+     if event.status==succeeded and event.result!=null
+      require event.result.reference==attempt.reference and event.result.amount==attempt.amount
+      emit ProviderReceipt {value=event.result}
+     else
+      if attempt.status in [pending,unknown] and event.status in [failed,unknown]
+       set attempt {status=unknown,outcome_at=now}
+       set attempt.parent {ledger_revision=attempt.parent.ledger_revision+1}
+       emit InvoiceSettlement {value=settlement(attempt.parent)}
+  scenario checkout_cancelled on=Payments.cancel.completed
+   do
+    for request in PaymentRequest as row where row.delivery==event.delivery_id and row.kind==cancel limit=1
+     let attempt=request.parent
+     if event.status==succeeded and event.result!=null
+      require event.result.reference==attempt.reference and event.result.amount==attempt.amount
+      emit ProviderReceipt {value=event.result}
+  scenario reconciled on=Payments.reconcile.completed
+   do
+    for request in PaymentRequest as row where row.delivery==event.delivery_id and row.kind==reconcile limit=1
+     let attempt=request.parent
+     if event.status==succeeded and event.result!=null
+      require event.result.reference==attempt.reference and event.result.amount==attempt.amount
+      emit ProviderReceipt {value=event.result}
+  scenario start_reconciliation on=Attempt.create
+   do schedule format("reconcile-{id}",{id=event.after.id}) at=now+5m event=ReconcileDue {attempt=event.after}
+  scenario reconcile on=ReconcileDue
+   do
+    let attempt=event.attempt
+    if attempt.status in [pending,unknown]
+     send Payments.reconcile {reference=attempt.reference} as delivery
+     create PaymentRequest {parent=attempt,kind=reconcile,delivery=delivery.id} as request
+     schedule format("reconcile-{id}",{id=attempt.id}) at=now+5m event=ReconcileDue {attempt}
+   examples event={attempt=test_payment}
+    test_payment.status -> count(test_payment.PaymentRequest)
+    pending -> 1
+    unknown -> 1
+    succeeded -> 0
+    failed -> 0
+  scenario automatic_collection on=CollectionDue
+   do
+    let invoice=event.invoice
+    if invoice.state==issued and invoice.balance.minor>0 and invoice.consent!=null and invoice.retry_until!=null and now<=invoice.retry_until and not any(BillingCancellation as fence,fence.source==invoice.source)
+     set invoice {next_collection=null}
+     if not any(invoice.Attempt as attempt,attempt.kind==collection and (attempt.status in [pending,unknown] or (attempt.status==failed and attempt.failure!=transient))) and count(invoice.Attempt as attempt where attempt.kind==collection and attempt.mode==automatic)<invoice.attempt_limit
+      create Attempt {parent=invoice,reference=operation.id,amount=invoice.balance,kind=collection,mode=automatic} as attempt
+      send Payments.collect {customer=invoice.parent.id,amount=attempt.amount,reference=attempt.reference,consent=invoice.consent} when=invoice.state==issued and invoice.balance==attempt.amount and invoice.consent!=null and not attempt.disabled and invoice.retry_until!=null and now<=invoice.retry_until as delivery
+      set attempt {delivery=delivery.id}
+      set invoice {ledger_revision=invoice.ledger_revision+1}
+      emit InvoiceSettlement {value=settlement(invoice)}
+   examples seed=[test_payment] event={invoice=test_invoice}
+    test_invoice.consent,test_invoice.retry_until,test_payment.mode,test_payment.status,test_payment.failure,test_invoice.attempt_limit -> count(test_invoice.Attempt)
+    "mandate",datetime("2099-01-20T00:00:00Z"),automatic,failed,transient,3 -> 2
+    "mandate",datetime("2099-01-20T00:00:00Z"),automatic,failed,transient,1 -> 1
+    "mandate",datetime("2099-01-20T00:00:00Z"),automatic,unknown,null,3 -> 1
+    "mandate",datetime("2099-01-20T00:00:00Z"),automatic,failed,action_required,3 -> 1
+    null,datetime("2099-01-20T00:00:00Z"),automatic,failed,transient,3 -> 1
+    "mandate",datetime("2020-01-20T00:00:00Z"),automatic,failed,transient,3 -> 1
+  scenario overdue on=Overdue
+   require event.invoice.state==issued and event.invoice.balance.minor>0
+   do send Mail.send {to=event.invoice.recipient_email,subject=format("Invoice overdue"@{nl="Factuur achterstallig"},locale=null),body=event.invoice.description+" "+app_url(format("/finance/invoice/{invoice}",{invoice=event.invoice.id}))} when=event.invoice.state==issued and event.invoice.balance.minor>0 as notice
+   examples seed=[test_payment] event={invoice=test_invoice,revision=1}
+    test_payment.status -> test_invoice.balance
+    failed -> money(100,"EUR")
+    succeeded -> error(rule_failed)
+  # Review complete customer payment history before allowing a first-customer claim. @{nl="Beoordeel de volledige betaalhistoriek van de klant voordat een eersteklantaanspraak wordt toegestaan."}
+  scenario review_commercial_history(customer:Customer,complete:bool,first_invoice:Invoice?,evidence:text) by=finance label="Review customer commercial history"@{nl="Commerciële klanthistoriek beoordelen"}
+   require all(customer.locations as location,can_work(actor,location)) and trim(evidence)!=""
+   require first_invoice==null or (first_invoice.parent==customer and first_invoice.received.minor>0)
+   require not complete or (all(customer.Invoice as invoice,invoice.received.minor==0 or first_receipt(invoice)!=null) and first_invoice==first_paid_invoice(customer))
+   do
+    let history=first(customer.CommercialHistory as history order=history.id)
+    if history==null
+     create CommercialHistory {parent=customer,complete,first_invoice,evidence} as history
+    else
+     set history {complete,first_invoice,evidence}
+    for sale in customer.CommercialSale as sale limit=500
+     emit SaleCheck {sale}
+   examples seed=[test_worker,test_external] customer=test_company complete=true first_invoice=test_invoice evidence="Reviewed complete ledger"
+    as,complete -> count(customer.CommercialHistory)
+    finance,true -> 1
+    finance,false -> 1
+    members,true -> error(forbidden)
+  scenario observe_commercial_payment on=InvoiceSettlement
+   do
+    for invoice in Invoice as invoice where invoice.id==event.value.invoice limit=1
+     if invoice.received.minor>0
+      let history=first(invoice.parent.CommercialHistory as history order=history.id)
+      if history==null
+       create CommercialHistory {parent=invoice.parent,complete=false,first_invoice=first_paid_invoice(invoice.parent),evidence="Unreviewed customer payment history"} as history
+      else
+       if history.first_invoice==null
+        set history {first_invoice=first_paid_invoice(invoice.parent)}
+      if invoice.first_paid_at==null
+       let received=first_receipt(invoice)
+       if received!=null
+        set invoice {first_paid_at=received}
+     for sale in invoice.parent.CommercialSale as sale limit=500
+      emit SaleCheck {sale}
+  scenario observe_commercial_sale on=SalesRequests.observed
+   require event.value.revision>0 and event.value.amount.minor>0 and event.value.purchased_at<=event.value.occurred and event.value.occurred<=now
+   require (event.value.attribution==null and event.value.exclusive_program==null and event.value.attributed_at==null and event.value.attribution_window==null) or (event.value.attribution!=null and event.value.exclusive_program!=null and event.value.attributed_at!=null and event.value.attribution_window!=null and event.value.attribution_window>0m and event.value.attributed_at<=event.value.purchased_at and event.value.purchased_at<=event.value.attributed_at+event.value.attribution_window)
+   do
+    let customer=first(Customer as customer where customer.id==event.value.customer order=customer.id)
+    require customer!=null
+    let prior=first(customer.CommercialSale as sale where sale.source==event.value.source order=sale.id)
+    if prior==null
+     create CommercialSale {parent=customer,source=event.value.source,value=event.value,source_revision=event.value.revision,reversed=event.value.milestone==reversed} as created_sale
+    else
+     require prior.value.customer==event.value.customer and prior.value.account==event.value.account and prior.value.location==event.value.location and prior.value.product==event.value.product and prior.value.amount==event.value.amount and prior.value.purchased_at==event.value.purchased_at and prior.value.attribution==event.value.attribution and prior.value.exclusive_program==event.value.exclusive_program and prior.value.attributed_at==event.value.attributed_at and prior.value.attribution_window==event.value.attribution_window
+     if event.value.revision==prior.source_revision
+      require prior.value==event.value
+     if event.value.revision>prior.source_revision
+      set prior {value=event.value,source_revision=event.value.revision,reversed=prior.reversed or event.value.milestone==reversed}
+    let sale=first(customer.CommercialSale as sale where sale.source==event.value.source order=sale.id)
+    require sale!=null
+    emit SaleCheck {sale}
+   examples seed=[commercial_sale] event={value=commercial_sale.value}
+    event.value.revision,event.value.product,event.value.milestone -> commercial_sale.source_revision,commercial_sale.reversed
+    1,"meeting",completed -> 1,false
+    2,"meeting",reversed -> 2,true
+    1,"office",completed -> error(rule_failed)
+  scenario publish_commercial_qualification on=SaleCheck
+   do
+    let sale=event.sale
+    let invoice=first(sale.parent.Invoice as invoice where invoice.source==sale.source order=invoice.id)
+    if invoice!=null
+     require invoice.parent.id==sale.value.customer and invoice.location.id==sale.value.location and invoice.currency==sale.value.amount.currency and invoice.total+sum(invoice.Credit as credit select credit.amount,invoice.currency)==sale.value.amount
+     let history=first(sale.parent.CommercialHistory as history order=history.id)
+     let known=history!=null and history.complete and history.first_invoice==first_paid_invoice(sale.parent) and all(sale.parent.Invoice as invoice,invoice.received.minor==0 or first_receipt(invoice)!=null)
+     let paid_at=first_receipt(invoice)
+     let first_customer=known and history.first_invoice==invoice and sale.value.attributed_at!=null and invoice.first_paid_at!=null and paid_at!=null and sale.value.attributed_at<=paid_at
+     if sale.reversed or invoice.refunded.minor>0 or invoice.state==void
+      set sale {reversed=true}
+     if sale.reversed or (invoice.state==issued and invoice.received>=sale.value.amount and invoice.refunded.minor==0 and not invoice.collection_pending and not invoice.refund_pending and not invoice.needs_review)
+      if sale.reversed
+       set sale {effective=reversed}
+      else
+       set sale {effective=sale.value.milestone}
+      let value=Qualification {source=sale.source,revision=sale.revision+1,customer=sale.value.customer,account=sale.value.account,location=sale.value.location,product=sale.value.product,amount=sale.value.amount,purchased_at=sale.value.purchased_at,occurred=sale.value.occurred,milestone=sale.effective,attribution=sale.value.attribution,exclusive_program=sale.value.exclusive_program,attributed_at=sale.value.attributed_at,attribution_window=sale.value.attribution_window,first_customer,history_known=known}
+      if sale.last==null or sale.last.milestone!=value.milestone or sale.last.first_customer!=value.first_customer or sale.last.history_known!=value.history_known
+       set sale {revision=value.revision,last=value}
+       emit SaleQualification {value}
+   examples seed=[test_external,customer_history] event={sale=commercial_sale}
+    customer_history.complete,test_invoice.first_paid_at,commercial_sale.reversed -> commercial_sale.last?.milestone,commercial_sale.last?.first_customer
+    true,datetime("2026-10-01T00:00:00Z"),false -> completed,true
+    false,datetime("2026-10-01T00:00:00Z"),false -> completed,false
+    true,null,false -> completed,false
+    true,datetime("2026-10-01T00:00:00Z"),true -> reversed,true
+  scenario source_charge on=BillingRequests.charge
+   require event.value.amount.minor>=0 and not any(BillingCancellation as fence,fence.source==event.value.source)
+   do
+    let customer=first(Customer as customer where customer.id==event.value.customer order=customer.id)
+    let location=first(Location as location where location.id==event.value.location order=location.id)
+    let defaults=first(Defaults as setting order=setting.id)
+    require customer!=null and customer.active and location!=null and location in customer.locations and defaults!=null and defaults.retry_delay>0m and defaults.retry_window>0m and event.value.amount.currency==location.currency
+    let profile=first(customer.BillingProfile as profile order=profile.id)
+    require profile!=null
+    let previous=first(Invoice as invoice where invoice.source==event.value.source order=invoice.id)
+    if previous!=null
+     require previous.parent==customer and previous.location==location and previous.total==event.value.amount and previous.description==event.value.description and previous.due==event.value.due and previous.consent==event.value.consent and previous.terms==event.value.terms and previous.source_items==event.value.items and (event.value.issuer==null or previous.issuer==event.value.issuer)
+     emit ChargeOutcome {value={source=previous.source,revision=previous.ledger_revision,state=confirmed,reference=previous.id}}
+    else
+     create Invoice {parent=customer,location,source=event.value.source,issuer=event.value.issuer??defaults.issuer,recipient=customer.name,recipient_email=profile.contact.email,address=profile.address,tax_reference=profile.tax_reference,currency=location.currency,description=event.value.description,terms=event.value.terms,source_items=event.value.items,due=event.value.due,total=event.value.amount,consent=event.value.consent,number=format("INV-{source}",{source=event.value.source}),attempt_limit=defaults.attempt_limit,retry_delay=defaults.retry_delay,retry_until=now+defaults.retry_window} as invoice
+     if event.value.items==null
+      create Line {parent=invoice,description=event.value.description,position=1,price=event.value.amount,tax=money(0,location.currency),discount=money(0,location.currency),service_location=location.id,service_reference=event.value.source} as line
+     else
+      require count(event.value.items)>0 and all(event.value.items as item,item.price.currency==location.currency and item.tax.currency==location.currency and item.discount.currency==location.currency)
+      require sum(event.value.items as item select item.price*item.quantity+item.tax-item.discount,location.currency)==event.value.amount
+      for item in event.value.items limit=100
+       create Line {parent=invoice,description=item.title,position=count(invoice.Line)+1,quantity=item.quantity,unit=item.unit,service_from=item.from,service_until=item.until,service_location=item.location,service_reference=item.reference,price=item.price,tax=item.tax,discount=item.discount} as line
+     set invoice {state=issued,issued_at=now,ledger_revision=1}
+     if invoice.consent!=null and invoice.balance.minor>0
+      set invoice {next_collection=now}
+      schedule format("{invoice}:collection",{invoice=invoice.id}) at=now event=CollectionDue {invoice}
+     emit InvoiceSettlement {value=settlement(invoice)}
+     schedule invoice.id at=local_instant(add_days(invoice.due,1),"00:00",invoice.location.timezone,fold=earlier) event=Overdue {invoice,revision=1}
+     emit ChargeOutcome {value={source=invoice.source,revision=invoice.ledger_revision,state=confirmed,reference=invoice.id}}
+     send Mail.send {to=invoice.recipient_email,subject=format(notice_invoice_issued,locale=null),body=invoice.description+" "+app_url(format("/finance/invoice/{invoice}",{invoice=invoice.id}))} when=invoice.state==issued as notice
+   examples seed=[test_defaults,test_profile,test_contact,test_invoice] event={value=Charge {source="invoice-test",customer=test_company.id,location=test_site.id,description="Room",amount=money(100,"EUR"),due=date("2099-01-02"),issuer="Operator",terms=null,items=null,consent=null}}
+    event.value.amount,event.value.description -> count(Invoice),test_invoice.total
+    money(100,"EUR"),"Room" -> 1,money(100,"EUR")
+    money(90,"EUR"),"Room" -> error(rule_failed)
+    money(100,"EUR"),"Changed service" -> error(rule_failed)
+  scenario source_cancel on=BillingRequests.cancel
+   require trim(event.reason)!=""
+   do
+    if not any(BillingCancellation as fence,fence.source==event.source)
+     create BillingCancellation {source=event.source,reason=event.reason} as fence
+    let invoice=first(Invoice as row where row.source==event.source order=row.id)
+    if invoice==null
+     emit CancelOutcome {value={source=event.source,revision=1,state=released,reference=null,detail=null}}
+    else
+     for attempt in invoice.Attempt as pending where pending.kind==collection and pending.status in [pending,unknown] limit=100
+      set attempt {disabled=true,checkout=null}
+      send Payments.cancel {reference=attempt.reference} as delivery
+      create PaymentRequest {parent=attempt,kind=cancel,delivery=delivery.id} as request
+     set invoice {next_collection=null}
+     cancel invoice.id
+     cancel format("{invoice}:collection",{invoice=invoice.id})
+     if invoice.received.minor>0
+      set invoice {needs_review=true,ledger_revision=invoice.ledger_revision+1}
+      emit CancelOutcome {value={source=event.source,revision=invoice.ledger_revision,state=unavailable,reference=invoice.id,detail="Collected funds require an evidenced refund"}}
+     else
+      if any(invoice.Attempt as attempt,attempt.status in [pending,unknown])
+       set invoice {state=void_pending,ledger_revision=invoice.ledger_revision+1}
+       emit CancelOutcome {value={source=event.source,revision=invoice.ledger_revision,state=pending,reference=invoice.id,detail=null}}
+      else
+       set invoice {state=void,ledger_revision=invoice.ledger_revision+1}
+       emit CancelOutcome {value={source=event.source,revision=invoice.ledger_revision,state=released,reference=invoice.id,detail=null}}
+     emit InvoiceSettlement {value=settlement(invoice)}
+   examples seed=[test_payment] event={source="invoice-test",reason="Source cancelled"}
+    test_payment.status -> test_invoice.state,test_payment.disabled
+    unknown -> void_pending,true
+    failed -> void,false
+    succeeded -> issued,false
+  scenario source_refund on=BillingRequests.refund
+   require trim(event.reason)!="" and event.amount.minor>0
+   do
+    let invoice=first(Invoice as row where row.source==event.source order=row.id)
+    require invoice!=null and event.amount.currency==invoice.currency and event.amount<=invoice.received-invoice.refunded
+    require not any(invoice.Attempt as attempt,attempt.status in [pending,unknown])
+    let extra_credit=max([money(0,invoice.currency),event.amount-invoice.refund_due])
+    if extra_credit.minor>0
+     create Credit {parent=invoice,source=operation.id,amount=extra_credit,reason=event.reason,author=null} as credit
+    let payment=first(invoice.Attempt as candidate where candidate.kind==collection and candidate.status==succeeded and event.amount<=candidate.amount-sum(invoice.Attempt as old where old.kind==refund and old.payment==candidate.reference and old.status==succeeded select old.amount,invoice.currency) order=candidate.received)
+    if payment==null
+     set invoice {needs_review=true,ledger_revision=invoice.ledger_revision+1}
+     emit InvoiceSettlement {value=settlement(invoice)}
+     emit RefundOutcome {value={source=invoice.source,revision=invoice.ledger_revision,state=unavailable,reference=invoice.id,detail="Finance must evidence external or split refunds against original payments"}}
+    else
+     create Attempt {parent=invoice,reference=operation.id,amount=event.amount,kind=refund,payment=payment.reference,reason=event.reason} as refund
+     send Payments.refund {payment=payment.reference,amount=event.amount,reference=refund.reference} as delivery
+     set refund {delivery=delivery.id}
+     set invoice {ledger_revision=invoice.ledger_revision+1}
+     emit InvoiceSettlement {value=settlement(invoice)}
+     emit RefundOutcome {value={source=invoice.source,revision=invoice.ledger_revision,state=pending,reference=refund.reference,detail=null}}
+  scenario source_reconcile on=BillingRequests.reconcile
+   do
+    let invoice=first(Invoice as row where row.source==event.source order=row.id)
+    if invoice==null
+     emit ReconcileOutcome {source=event.source,value=null}
+    else
+     require invoice.state!=draft
+     emit ReconcileOutcome {source=event.source,value=settlement(invoice)}
+ Then
+  # Keep own issued invoices and payment outcomes reachable after membership expiry. @{nl="Houd eigen uitgegeven facturen en betalingsresultaten bereikbaar na afloop van het lidmaatschap."}
+  page /finance/my-invoices title="My invoices"@{nl="Mijn facturen"}
+   require authenticated
+   card "Issued invoices"@{nl="Uitgegeven facturen"}
+    list Invoice as invoice where invoice.state!=draft and (owns(actor,invoice.parent) or has_role(actor,invoice.parent,billing)) order=-issued_at filter=location,currency empty="No own invoices match these filters"@{nl="Geen eigen facturen voldoen aan deze filters"} defaults={location=preferences.location,currency=preferences.currency} display=split
+     text row.number,row.description,row.total,row.balance,row.state,row.settled,row.collection_pending,row.due,row.currency
+     actions collect,document,receipt
+     tabs
+      tab "Documents and lines"@{nl="Documenten en regels"}
+       table row.Document columns=kind,revision,file,generated
+       table row.DocumentRequest columns=kind,revision,status,error
+       table row.Line columns=description,quantity,unit,service_from,service_until,service_location,service_reference,price,tax,discount
+      tab "Own payment outcomes"@{nl="Eigen betalingsresultaten"}
+       table row.Attempt columns=kind,amount,status,checkout,received
+
+  # Review receivables, failed collections, credits and separate refund outcomes. @{nl="Bekijk vorderingen, mislukte inningen, credits en afzonderlijke terugbetalingsresultaten."}
+  page /finance/invoices title="Customer invoices"@{nl="Klantfacturen"}
+   require finance
+   card "Customer selection"@{nl="Klantselectie"}
+    list Customer
+     form Invoice.create
+   card "Invoice drafts and lines"@{nl="Conceptfacturen en regels"}
+    table Invoice columns=number,location,recipient,total,balance,refund_due,state,settled,collection_pending,refund_pending,next_collection,due,needs_review filter=location,state,currency,due search=recipient empty="No invoices match these filters"@{nl="Geen facturen voldoen aan deze filters"} defaults={location=preferences.location,currency=preferences.currency} display=split
+     edit
+     tabs
+      tab "Invoice lines"@{nl="Factuurregels"}
+       form Line.create
+       table row.Line columns=description,quantity,unit,service_from,service_until,service_location,service_reference,price,tax,discount
+        edit
+        delete
+      tab "Collection queue"@{nl="Inningswachtrij"}
+       text row.due,row.balance,row.next_collection,row.collection_pending,row.refund_pending,row.needs_review
+       actions collect
+       table row.Attempt columns=mode,requested,outcome_at,amount,status,failure,checkout,received
+      tab "Collection and refund evidence"@{nl="Innings- en terugbetalingsbewijs"}
+       actions issue,document,receipt,collect,record_payment,credit,refund,record_refund,void
+       table row.Attempt columns=mode,requested,outcome_at,kind,amount,status,failure,checkout,received
+       table row.ExternalPayment columns=reference,amount,received,evidence
+       table row.ExternalRefund columns=reference,amount,received,evidence,reason
+       history
+
+  # Print the exact issued invoice rather than current customer-directory data. @{nl="Druk de exacte uitgegeven factuur af in plaats van huidige gegevens uit het klantenregister."}
+  page /finance/invoice/{Invoice.id} title=page_finance_invoice_Invoice_id_title
+   require authenticated
+   card "Frozen issuer and recipient"@{nl="Vastgelegde uitgever en ontvanger"}
+    text row.issuer,row.recipient,row.address,row.tax_reference,row.number,row.issued_at,row.due,row.currency
+    content row.terms
+   card "Itemized charges"@{nl="Gespecificeerde kosten"}
+    table row.Line columns=description,quantity,unit,service_from,service_until,service_location,service_reference,price,tax,discount
+   card "Balance and refund obligation"@{nl="Saldo en terugbetalingsverplichting"}
+    metrics row.total,row.credits,row.received,row.refunded,row.balance,row.refund_due
+    text row.settled,row.collection_pending,row.refund_pending
+   card "Documents and adjustments"@{nl="Documenten en correcties"}
+    actions document,receipt,collect
+    table row.Document columns=kind,revision,file,generated
+    table row.DocumentRequest columns=kind,revision,status,error
+    table row.Credit columns=amount,reason
+    table row.Attempt columns=kind,amount,status,checkout,received,reason
+   card "Customer commercial history"@{nl="Commerciële klanthistoriek"}
+    require finance
+    table row.parent.CommercialHistory columns=complete,first_invoice,evidence
+    form review_commercial_history arguments={customer=row.parent}
+   history

@@ -1,0 +1,60 @@
+{
+  "state": {
+    "task": "Update the actual CanLang drafts with detailed frontends and seamless English/Dutch localization. Adoption, token efficiency, preserved business behavior and one canonical way per SaaS primitive govern the design. Human authorship is not the target. The prior requirements pass specifies one implicit collapsible left sidebar, branding above derived page links, account menu below, and a settings dialog with internal sections. No app wrappers, build manifests, extra catalogs, copied auth/team schemas or duplicate operation contracts are allowed.",
+    "evidence": "The 42 draft sources contain 83 pages, 114 forms, 86 tables, 115 lists and no card/details groups or authored nav. Eighty pages are static navigation candidates, three are contextual routes. Thirty-nine app requirement documents now specify app-specific layouts and meaningful personal configuration. Existing syntax supports responsive card groups, Collapse details, generated mutation form drawers, typed collections, filters, action bindings and automatic HTMX regions. It lacks personal preferences, tabs, selected-row split panels, detail drawer selection and filter defaults. Sources have 361 descriptions, 85 explicit UI literals, 1288 owned model/contract fields, 461 user-operation parameters, 184 user operations and 338 directly declared enum values. A conservative label vocabulary matches 376 fields and 123 parameters; raw declaration counts exceed proven displayed surfaces. The repository has a syntax parser, not an executable renderer/resolver/BDD engine.",
+    "research": "daisyUI Drawer, Modal and Tab provide markup/CSS foundations; WAI-ARIA dialog and tabs patterns specify focus, keyboard and selection duties. HTMX requires explicit error response swap configuration. Rails i18n demonstrates reusable schema attribute translations. None of this evidence proves CanLang automatic label semantics or runtime correctness. Existing CanLang source-owned messages, typed ICU descriptors, #= descriptions, pure exports and explicit outbound format(message,locale=null) remain canonical; stored user/business text is never translated.",
+    "preferences": "Proposed unnamed Given preferences {fields} occurs at most once per logical owner. Its fields are typed scalar/enum values or nullable authorized record references; nonnullable fields need constant defaults. Arrays, files, secrets, actions, objects and nested schemas are excluded. Shared account/language/appearance/security settings are implicit and are not copied into this schema. Runtime stores only the authenticated user own selected-app/team-context values, generates settings controls/save/reset, validates on save and use and rechecks referenced record access. Anonymous views use schema defaults. Existing require preferences: row... supplies pure preference validation. preferences.field can affect Then presentation, authorized UI read selections or preference validation, never business guards, transitions, durable business fields, schedules or authority. Revoked references are safely ignored/reset with feedback. Every extension field needs a real view consumer. No authored preference CRUD or business MCP tool is created. Extension storage identity is (user,selected app,canonical owner,current team or none); composition deduplicates the same owner into one settings section. Base account settings remain shared.",
+    "ui": "Keep existing grouping and canonical forms. Extend list/table with display=split for one authorized selected-row pane; mobile uses a drawer and preserves the same row scope. Extend details with display=drawer and open=boolean presentation expression; default remains Collapse, and details retains enclosing bindings. All collections may use defaults={filter=preferences.field}; keys must already appear in filter, explicit URL/control values win, null means no initial restriction and current policy is rechecked. Add tabs with optional enum-preference selector. Bound tabs preferences.view can be a leaf whose selected enum labels are derived and whose value feeds existing UI reads; block children tab enum_case associate content with exact distinct cases. Unbound tabs requires tab caption suites and retains only transient view selection. Tabs may not mutate business enum fields. No drag/drop, charts, arbitrary HTML or new polling/query helpers. Static accessible pages generate nav in declaration order; dynamic detail routes are excluded, page-local nav=none and order=int are exceptions. Optional group=caption supplies an actual grouping difference. Composition yields one shell; hiding links never grants permission. Remove authored nav/link trees: page-derived navigation and its page-local exceptions are the sole navigation mechanism, and the corpus has no nav declarations to migrate. open is allowed only on default Collapse details; drawers open only for the one selected/activated record. Bound tab selection uses the same canonical preference save immediately, with version validation and visible failure/restored accepted selection; no alternate writer is introduced. A bound tab block contains every declared enum case exactly once.",
+    "localization": "Use one existing messages table per owner, source English plus Dutch. Add a comma-separated target list to canonical for bindings so one complete label serves several owned targets with the same meaning. Duplicate/foreign targets remain errors. Bindings can name the owner caption with for package, the settings section with for preferences, and preference fields/cases. Pin a finite field/parameter identifier-and-type vocabulary plus standard verbs/booleans once in runtime; never split identifiers, infer translations from English, or change machine IDs. The reviewed field set is name,title,description,body,subject,reason,notes,instructions,evidence,reference,phone,address:text; email,timezone,currency:their scalar; quantity,count:int/decimal; active,enabled,done:bool; amount,price,total:money; duration:duration; at,occurred,created_at,updated_at:datetime; due:date/datetime; revision:int; file:file. location defaults only for text or the exact shared Location symbol. Parameter names equal to their referenced model name ignoring first-letter case inherit that owned model caption; renamed meanings need explicit bindings. Do not infer enum meanings beyond bool. Other exposed schema/operation/role captions, domain enum values, layout text and descriptions remain explicit. Exported schemas carry labels and pure message assets. Outbound literal notices use typed patterns and explicit app-default format; dynamic stored notices remain data. A custom capability human-text sink must be explicitly classified on its pinned exact signature, not guessed from a field named message. The exact common operation verbs are submit,cancel,assign,reopen,complete,publish,pause,resume,refresh; generated CRUD verbs remain shared runtime vocabulary.",
+    "alternatives": "Unnamed preferences reserves one contextual declaration shape and derives identity, reducing repeated names but allowing one extension schema per owner. Named preferences offers multiple named groups and explicit references at additional token and state-surface cost. Ordinary own-user models reuse CRUD but copy schemas and account integration and expose a second path for personal settings. Finite reviewed labels remove repeated common bindings but need versioned exact semantics and may need meaning overrides. Fully authored labels expose each caption directly but repeat common phrases. Generic identifier-to-label/translation inference has the lowest authored count but ambiguous names and unstable generated wording. Grouped for targets reduce repeated complete messages but require target-list validation.",
+    "code": [
+      "preferences { location:Location?, view:enum(all,today,overdue)=all, show_history:bool=false }",
+      "require preferences: row.location==null or can_work(actor,row.location)",
+      "tabs preferences.view",
+      "table Task columns=title,due filter=location defaults={location=preferences.location} display=split",
+      "details activity_title display=drawer",
+      "for Task.title,TemplateTask.title = \"Title\",\"Titel\"",
+      "for preferences = \"Tasks\",\"Taken\"",
+      "page /tasks title=tasks_title order=2",
+      "details history_title open=preferences.show_history"
+    ]
+  },
+  "questions": {
+    "preference_shape": {
+      "type": "choice",
+      "instructions": "Which one personal-extension declaration best meets the supplied source and runtime constraints?",
+      "criteria": {
+        "unnamed": "Use one derived-identity preferences schema per owner with runtime canonical save/reset and presentation-only use; accept the one-schema boundary.",
+        "named": "Permit named personal schemas and explicit references with the same ownership/validation limits; accept extra names and multiple groups.",
+        "ordinary_model": "Use ordinary own-user models/CRUD and settings bindings; accept authored schemas and account integration.",
+        "unresolved": "Do not settle a shape if none preserves the stated constraints."
+      }
+    },
+    "label_policy": {
+      "type": "choice",
+      "instructions": "Which label policy best fits predictable full localization and repetition limits in this corpus?",
+      "criteria": {
+        "finite_defaults": "Pin the supplied exact identifier/type labels and type-caption reuse; author domain meanings and overrides explicitly.",
+        "explicit_labels": "Require explicit owned bindings for all captions, including repeated common labels; share complete messages as needed.",
+        "generic_inference": "Generate labels and translations from arbitrary identifiers using normalization/inference; accept ambiguous domain meaning.",
+        "unresolved": "Defer label policy if these options do not establish predictable coverage."
+      }
+    },
+    "ui_boundary": {
+      "type": "noul",
+      "instructions": "Does the proposed UI boundary keep preferences, tabs, filter initialization and record detail layouts as presentation while preserving canonical operations and current row/field authorization?",
+      "criteria": {
+        "true": "The described rules preserve these boundaries without an alternate business-write or authorization path.",
+        "false": "A described rule permits or leaves an unresolved competing business-write or authorization path."
+      }
+    },
+    "grouped_labels": {
+      "type": "noul",
+      "instructions": "Is extending the existing for binding to several owned targets with one identical complete meaning coherent with typed source-owned localization and the no-duplicate-contract rule?",
+      "criteria": {
+        "true": "The extension retains target ownership, uniqueness, complete-message meaning and canonical binding semantics.",
+        "false": "The extension conflicts with those rules or supplies an unresolved alternate binding mechanism."
+      }
+    }
+  }
+}

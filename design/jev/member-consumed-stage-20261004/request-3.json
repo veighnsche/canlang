@@ -1,0 +1,13 @@
+{
+  "state": {
+    "instructions": "Classify the safety claim against the exact workflow facts shown.",
+    "facts": "Benefit consumption in Rent happens during confirmation ahead of arrival. Membership has no physical-use ledger and cannot evaluate Rent refund policy. A planned authenticated replacement action checks the booking owner, checked_in==null and now<refund_before. The installed receiving adapter verifies originating producer, customer route and request identity; consumed reversal is permitted solely for that guarded source operation. Staging retains existing consumption and charges only additional units within its original grant. No credit moves into a later period. Commit follows resource and money acceptance. This is authored design, not executed behavior.",
+    "actual_code": "CanRent: send Membership.consume {source=booking.source,customer=booking.customer.id} as consume before confirmed admission. Existing move by=authenticated requires booking.account==actor and booking.status in [held,confirmed] and booking.allowance==not_required and booking.checked_in==null. Proposed consumer stage replaces allowance==not_required with owner-coordinated staging and requires booking.checked_in==null and now<booking.refund_before before restore_consumed=true. CanMember: previous.state==reserved or (previous.state==consumed and value.restore_consumed); previous.value.account==value.account; previous.value.location==value.location; previous.value.product==value.product; previous.value.unit==value.unit; previous.value.duration==value.duration; previous.value.rate==value.rate. Same-grant credit uses old.state in [reserved,consumed]. One staged successor permitted. commit captures prior phase, records Reversal for consumed old units, releases old, and assigns captured phase to new allocations in one owner transaction. release(staged) releases only new held units. consume/release(previous) reject while a staged successor exists."
+  },
+  "questions": {
+    "preservation": {
+      "type": "noul",
+      "instructions": "Given those required guards and adapter restrictions, will a rejected staged change retain its initial consumed allocation without enabling unverified restoration?"
+    }
+  }
+}

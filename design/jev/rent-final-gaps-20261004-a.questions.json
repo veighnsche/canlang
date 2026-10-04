@@ -1,0 +1,18 @@
+{
+  "state": {
+    "instructions": "Evaluate bounded repairs to rental capacity, settlement recovery, and historical policy measurement using the attached owner declarations. Classification does not establish execution.",
+    "context": "Expired held/pending bookings currently keep consuming capacity until their timer arrives. Confirmed reservations and uncleared possession must remain busy. Expiry dispatches invoice cancellation and membership release; both can be irreversible or uncertain. Historical reporting currently consults mutable calendars and rates. Existing syntax supports typed stored snapshots, immutable locks, precommit CRUD hooks and explicit scenario effects; no new timing or runtime helper is proposed. Earlier periods lacking snapshots remain partial.",
+    "actual_code": "derive busy(b:Booking):bool = b.status in [held,pending,confirmed,occupied] or (b.checked_in!=null and (b.checked_out==null or now<b.checked_out+b.departure_buffer)); scenario money on=SettlementObserved; scenario expire on=HoldDue; BillingV1.cancel(source:text,reason:text) -> OperationOutcome; Settlement {source:text,invoice:text,revision:int,amount:money,collected:money,refunded:money,collection_pending:bool,refund_pending:bool,state:Invoice.state,recorded_at:datetime}; scenario source_cancel on=BillingRequests.cancel creates BillingCancellation fence, disables pending collection attempts, sends Payments.cancel; received funds leave invoice issued with needs_review; uncertain zero funds become void_pending; settled zero funds become void. Membership.reserve(value:Entitlement) -> AllowanceOutcome; Membership.release(source:text,customer:text,restore_consumed:bool) -> AllowanceOutcome; Entitlement.previous_source permits staged replacement. CRUD hooks run on proposed state before invariants/locks/commit. Scenarios do not run CRUD hooks."
+  },
+  "questions": {
+    "repair": {
+      "type": "choice",
+      "instructions": "Which approach best preserves actual owner obligations while adding the required recovery and historical evidence?",
+      "criteria": {
+        "fenced": "Bound provisional busy by expires; late payment rechecks capacity only for issued invoices with no accepted local cancel/refund or allowance release; hold money in finance review otherwise. Save immutable calendar/resource/booking snapshots at owning CRUD hooks and explicit scenario writes; partition by their effective boundaries and mark missing baseline partial.",
+        "review_only": "Keep expired provisional status busy until timer processing and route every expired settlement to finance; continue current-policy reconstruction with historical reports always partial. This avoids new state and snapshot storage but omits delayed-timer admission and safe late recovery.",
+        "optimistic": "Release busy on expiry, confirm late money when capacity is free even if cancellation/release has begun, and reconstruct past saleability from current policy. This minimizes storage and recovery states but can undo owner fences and misstate historical availability."
+      }
+    }
+  }
+}

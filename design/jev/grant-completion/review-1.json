@@ -1,0 +1,34 @@
+{
+  "request": {
+    "state": "CanGrant awards cash commitments, not disbursements. Its current Application has server=actor account; submitted intake fields lock when state!=draft; submit(application:Application) by=authenticated requires owner, draft, now<=grant.closes, distinct reviewer and answer count. external(application:Application,received:datetime,evidence:text,override_reason:text?) by=coordinator currently checks workplace access, draft, evidence, received<=now and timely receipt or recorded override. decide(application:Application,approve:bool,reason:text) by=reviewer requires assigned nonself reviewer, submitted state, workplace access and nonblank reason; approval checks remaining budget. New requirements are private corrections, typed complete answers, frozen decisions and server deadlines. Existing contracts, queries, locks and create/set support both choices. Question keys and prompts will be copied into each draft; Answer carries question key and nonblank text; complete validation matches each frozen key exactly once. A corrected draft is allowed before close from submitted/rejected and is private until a fresh server-timed submission; an original submitted record becomes superseded only then. Rejected decisions and withdrawal evidence remain immutable. No runtime has been implemented.",
+    "questions": {
+      "correction": {
+        "type": "choice",
+        "instructions": "Select a correction representation that best preserves intake evidence and the existing access/deadline rules while keeping authored logic simple.",
+        "criteria": {
+          "linked": "Create a separate Application with correction pointing to its predecessor. Copy its frozen questions and editable values; never reopen submitted intake. Prevent multiple pending correction drafts. Submission atomically supersedes a still-submitted predecessor and rechecks receipt deadline. Rejection remains final evidence. Costs: additional rows, linkage and query guards.",
+          "reopen": "Move the original submitted/rejected Application back to draft, copy its receipt and decision into immutable history records, and resubmit with new authoritative receipt. Costs: revise current intake lock semantics, history projections and current-row decision lifecycle; benefits: one continuing application identity and smaller applicant list."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "correction": {
+        "type": "choice",
+        "choice": "linked",
+        "confidence": 0.97,
+        "probabilities": {
+          "reopen": 0.02,
+          "linked": 0.98
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 702,
+      "output_tokens": 34
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "request": {
+    "state": {
+      "task": "Evaluate a proposed change to CanLang; implementation is outside this request. The user found abstract #= references harder to read than informative # descriptions and therefore asks to place translatable wording in source at the point of use whenever practical. The design should favor adoption, efficient token use, few lines, a single canonical mechanism and faithful business meaning. Description metadata uses #, whereas ## marks comments that are discarded. Requiring catalogs originated with the assistant and has no status as a user requirement. Novelty and brevity alone are insufficient reasons to prefer an alternative.",
+      "audit": "An analysis resolving references within AST owner scopes examined 44 sources. It counted 724 named message rows, with 699 used once and 25 used twice. Each of the 373 static description messages has a sole use and is referenced nowhere else. Moving descriptions inline could eliminate 48 imports used exclusively for descriptions: 1720 Unicode characters with line endings included. Generated labels occupy 1521 rows for 1892 targets. Of these, 256 grouped rows share translations for 371 additional targets rather than copying them. Named messages supply eighteen label bindings; two exported words have consumers in different owners, and one ICU plural with typed input is shared between uses. For one matched CanDo example, an inline proposal reduces physical lines from 42 to 32 and Unicode characters from 2344 to 2081. This does not measure model tokens. The inventory describes source structure and cannot establish semantic compliance or executable behavior.",
+      "research": "ICU formatting need not depend on user-authored catalog keys: FormatJS IntlMessageFormat can receive either the message text itself or a parsed AST (https://formatjs.github.io/docs/intl-messageformat/). To accommodate grammatical rearrangement, ICU advises translating complete messages that contain explicit placeholders (https://unicode-org.github.io/icu/userguide/format_parse/messages/). Fluent explains shared terms that have practical uses, together with restrictions imposed by grammatical context (https://projectfluent.org/fluent/guide/terms.html). These references substantiate possible implementation and meaningful reuse; they do not endorse any specific CanLang spelling.",
+      "existing": "Under the current design, a messages table declares en,nl locale columns once per owner; its rows hold typed messages with names and bindings to generated-label targets. A #= reference must identify a static message requiring zero arguments. Plain # descriptions and ordinary string expressions retain literal meaning. Expression lists already use commas as separators. The | token currently denotes a union of named types and has no expression-operator meaning. Inline caption attributes are unavailable on fields, parameters, enum cases and generated CRUD controls. Composition can produce an app with no Given section, whose description currently depends on importing a message from a different owner. Only a syntax parser exists: semantic message checking, ICU processing, rendering, compilation and BDD execution are absent.",
+      "common_contract": "Every inline candidate must use a single representation of message values across descriptions, captions, UI wording and text intended for human outbound communication. Supply canonical label slots on declarations, or in neighboring metadata owned by a control when that control lacks an authored declaration. Existing finite runtime vocabulary and inherited schema/type captions should remain implicit. Message names and exports are warranted only where an asset is actually reused; keep grouped target bindings or another equivalent sharing mechanism so that 371 labels are not copied. Explicit argument binding and validation remain necessary for typed placeholders and plurals, and the current reusable named ICU declarations already establish that boundary. Being a string must not automatically localize business values, routes, identifiers or fixture content. Assets generated from canonical owner/slot information can support both browser and MCP without source-authored keys, while operation and schema machine identities remain unchanged. Merely moving wording inline cannot certify locale completeness, valid ICU, correct permissions or functioning runtime behavior.",
+      "tradeoffs": "With a suffix form, the original text remains visible beside its use and each translation carries a language tag. The costs are duplicated tags, rules for escaping its marker, and a definition of the source language separate from the deployment default. A possible policy pins English as the baseline and allows an explicit owner-level change for other source languages; no such policy has been settled. A fully keyed bundle states the language of every variant locally, at the expense of repeated tags and quotation marks around descriptions. Positional variants save tag repetition but tie all values to the locale columns: changing their count or order affects every value. Their header must belong to the logical source owner, including composed apps, rather than being inferred from a file or deployment. Named tables already provide explicit asset identities, reuse and centralized review of locales, while imposing names, references and metadata imports on prose that has only one use. None of the inline sketches is implemented. Their precise punctuation and the grammar for caption slots are still undecided.",
+      "sketches": {
+        "suffix": "# Manage team tasks. @{nl=\"Beheer teamtaken.\"}\npage /tasks title=\"Tasks\"@{nl=\"Taken\"}",
+        "keyed": "# {en=\"Manage team tasks.\",nl=\"Beheer teamtaken.\"}\npage /tasks title=message{en=\"Tasks\",nl=\"Taken\"}",
+        "positional": "locales \"en\",\"nl\"\n# \"Manage team tasks.\"|\"Beheer teamtaken.\"\npage /tasks title=(\"Tasks\"|\"Taken\")",
+        "named": "#= app_description\npage /tasks title=tasks_title\nmessages \"en\",\"nl\"\n app_description = \"Manage team tasks.\",\"Beheer teamtaken.\"\n tasks_title = \"Tasks\",\"Taken\""
+      }
+    },
+    "questions": {
+      "feasible": {
+        "type": "noul",
+        "instructions": "Assuming the necessary syntax, semantic checking and runtime implementation are supplied, can static descriptions and messages used once be authored at their source sites without losing the stated type rules, sharing rules or machine identities? Assess technical possibility; do not equate it with current parser acceptance or evidence that complete applications work."
+      },
+      "placement": {
+        "type": "choice",
+        "instructions": "Choose the representation that best balances readable inline wording and reduced repetition with independent owners, clear language assignment and demonstrated sharing. Consider every stated benefit and cost, and choose unresolved when the evidence does not justify ranking an option first. The outcome identifies a design direction; it does not approve incomplete punctuation or grammar.",
+        "criteria": {
+          "suffix": "Write the original wording directly beside its use, adding translations with explicit language keys, and keep names where an asset is truly shared. Local readability and adding languages independently must be weighed against repeated tags, a source-language contract, and handling reserved markers and escapes.",
+          "keyed": "Place a bundle at the use site that explicitly identifies the source language as well as each translation, retaining assets that are actually shared. Clear local language identification avoids reliance on column positions or an inferred source language, with the cost of recurring tags and quotes around description prose.",
+          "positional": "Use a locale-column declaration owned by each logical source owner to interpret inline variants by position, reserving names for assets with multiple uses. Less repeated language tagging comes with coordinated edits to those columns and a need to define the header for composed apps.",
+          "named": "Maintain mandatory named rows in tables and references at every translatable use. Existing reuse, user-authored asset names and locale review in grouped tables come with indirection for one-use wording and imports needed to supply metadata.",
+          "unresolved": "Do not choose a representation while unanswered contracts for source language, label slots or ownership leave the alternatives without sufficient grounds for a defensible preference."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "feasible": {
+        "type": "noul",
+        "noul": 0.85
+      },
+      "placement": {
+        "type": "choice",
+        "choice": "unresolved",
+        "confidence": 0.28,
+        "probabilities": {
+          "positional": 0.01,
+          "named": 0.01,
+          "suffix": 0.18,
+          "keyed": 0.37,
+          "unresolved": 0.43
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1907,
+      "output_tokens": 79
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Inspect the following CanRent coordination repair against its authored grants and state.",
+      "facts": "Current hold optionally writes allowance=pending; prepare defaults false. Payment first currently enters review, reservation completion only consumes pending bookings, and consumption lacks a current free check. arrive is by=reception with can_work and paid/consumed checks; Booking reads allow only scoped reservation_manager or own authenticated account. Capacity admission is one resource owner. Cancellation must retain physical occupancy. BillingV1 supplies charge/cancel/refund/settled; MembershipV1 supplies reserve/consume/release/eligibility/changed, without reconcile.",
+      "actual_code": "scenario arrive(booking:Booking) by=reception; require can_work(actor,booking.parent.location) and booking.status==confirmed and booking.payment==paid and booking.allowance in [not_required,consumed]; policy Booking read=reservation_manager and can_work(actor,row.parent.location); policy Booking read=authenticated where=row.account==actor"
+    },
+    "questions": {
+      "coordination": {
+        "type": "noul",
+        "instructions": "Does preserving pending paid coordination until allowance completion, checking free before consume and again before confirm, correlating deliveries, and ignoring late failures for terminal bookings repair these race paths without representing provider delivery as fulfillment?"
+      },
+      "reception_read": {
+        "type": "noul",
+        "instructions": "Should the reception page receive only its location-scoped required Booking fields through an explicit read grant while retaining existing own/manager grants and operational guards?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "coordination": {
+        "type": "noul",
+        "noul": 0.41
+      },
+      "reception_read": {
+        "type": "noul",
+        "noul": 0.71
+      }
+    },
+    "usage": {
+      "input_tokens": 568,
+      "output_tokens": 42
+    }
+  }
+}

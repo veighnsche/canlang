@@ -1,0 +1,327 @@
+# Help workspace managers roster reception, community, sales, and facilities staff across locations and arrange replacements. @{nl="Help werkplekbeheerders receptie-, community-, verkoop- en facilitaire medewerkers over locaties in te roosteren en vervanging te regelen."}
+app CanShift uses=[shift]
+
+# Review private leave and publish conflict-aware staff rotas and swaps. @{nl="Beoordeel privéverlof en publiceer conflictbewuste personeelsroosters en dienstruilen."}
+app StaffScheduling uses=[CanLeave,CanShift]
+
+# Own the operator-wide employee commitment ledger, published duty coverage and guarded swaps. @{nl="Beheer het locatieoverstijgende inzetregister, gepubliceerde dienstbezetting en bewaakte dienstruilen."}
+package shift label="Staff scheduling"@{nl="Personeelsplanning"}
+ use employee {Employee,EmployeeChanged,can_work,test_worker}
+ use rent_catalog {Location,test_site}
+ use shift {ScheduleIngressV1 as ScheduleRequests} from=deployment.schedule_ingress
+ use std {OperationOutcome}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  preferences { location:Location? }
+  message title_roster = "Staff roster"@{nl="Personeelsrooster"}
+  message label_CommitmentRequest_source = "Source reference"@{nl="Bronreferentie"}
+  message label_CommitmentRequest_employee = "Employee"@{nl="Medewerker"}
+  message label_CommitmentRequest_from = "From"@{nl="Van"}
+  message label_CommitmentRequest_until = "Until"@{nl="Tot"}
+  message label_CommitmentRequest_before = "Travel buffer before"@{nl="Reisbuffer vooraf"}
+  message label_CommitmentRequest_after = "Travel buffer after"@{nl="Reisbuffer achteraf"}
+  message label_CommitmentRequest_skill = "Required skill"@{nl="Vereiste vaardigheid"}
+  message label_CommitmentRequest_kind = "Kind"@{nl="Soort"}
+  message label_CommitmentRequest_kind_duty = "Staff duty"@{nl="Personeelsdienst"}
+  message label_CommitmentRequest_kind_visit = "Service visit"@{nl="Servicebezoek"}
+  message label_CommitmentRequest_kind_appointment = "Host appointment"@{nl="Hostafspraak"}
+  message label_CommitmentRequest_kind_absence = "Absence"@{nl="Afwezigheid"}
+  message label_CommitmentRequest_kind_interview = "Interview"@{nl="Sollicitatiegesprek"}
+  message label_Duty_role = "Work role"@{nl="Werkrol"}
+  message label_Duty_override_reason = "Coverage override reason"@{nl="Reden voor bezettingsafwijking"}
+  message label_Swap_substitute = "Proposed substitute"@{nl="Voorgestelde vervanger"}
+  export contract CommitmentRequest { source:text label=label_CommitmentRequest_source, employee:user label=label_CommitmentRequest_employee, location:text, from:datetime label=label_CommitmentRequest_from, until:datetime label=label_CommitmentRequest_until, before:duration=0m label=label_CommitmentRequest_before, after:duration=0m label=label_CommitmentRequest_after, skill:text label=label_CommitmentRequest_skill, kind:enum(duty,visit,appointment,absence,interview) label={text=label_CommitmentRequest_kind,values={duty=label_CommitmentRequest_kind_duty,visit=label_CommitmentRequest_kind_visit,appointment=label_CommitmentRequest_kind_appointment,absence=label_CommitmentRequest_kind_absence,interview=label_CommitmentRequest_kind_interview}}, revision:int } label="Employee commitment request"@{nl="Aanvraag personeelsinzet"}
+  export capability ScheduleV1 version=1
+   reserve(value:CommitmentRequest) -> OperationOutcome
+   stage(value:CommitmentRequest,previous_source:text,previous_revision:int) -> OperationOutcome
+   release(source:text,revision:int) -> OperationOutcome
+   event changed { value:OperationOutcome }
+  role scheduler label="Scheduler"@{nl="Roosterplanner"}
+  Roster { name:text unique } label=title_roster
+  Availability in Roster { employee:Employee label=label_CommitmentRequest_employee, from:datetime label=label_CommitmentRequest_from, until:datetime label=label_CommitmentRequest_until, available:bool=true label="Available for work"@{nl="Beschikbaar voor werk"} } label="Employee availability"@{nl="Medewerkersbeschikbaarheid"}
+  Commitment in Roster { employee:Employee label=label_CommitmentRequest_employee, location:Location, from:datetime label=label_CommitmentRequest_from, until:datetime label=label_CommitmentRequest_until, before:duration=0m label=label_CommitmentRequest_before, after:duration=0m label=label_CommitmentRequest_after, skill:text label=label_CommitmentRequest_skill, kind:enum(duty,visit,appointment,absence,interview) label={text=label_CommitmentRequest_kind,values={duty=label_CommitmentRequest_kind_duty,visit=label_CommitmentRequest_kind_visit,appointment=label_CommitmentRequest_kind_appointment,absence=label_CommitmentRequest_kind_absence,interview=label_CommitmentRequest_kind_interview}}, source:text unique label=label_CommitmentRequest_source, previous:Commitment? label="Retained predecessor"@{nl="Behouden voorganger"}, revision:int=1, active:bool=true, conflict:bool=false label="Commitment conflict"@{nl="Inzetconflict"} } label="Employee commitment"@{nl="Personeelsinzet"}
+  Release in Roster { source:text unique label=label_CommitmentRequest_source, revision:int min=1 } label="Released source fence"@{nl="Vrijgavegrens bron"}
+  lock Release fields=source
+  Duty in Commitment { role:text label=label_Duty_role, published:bool=false label="Published"@{nl="Gepubliceerd"}, published_revision:int=0 label="Published revision"@{nl="Gepubliceerde versie"}, published_by:user? label="Published by"@{nl="Gepubliceerd door"}, override_reason:text? label=label_Duty_override_reason } label="Published duty"@{nl="Gepubliceerde dienst"}
+  Coverage in Roster { location:Location, role:text label=label_Duty_role, from:datetime label=label_CommitmentRequest_from, until:datetime label=label_CommitmentRequest_until, minimum:int=1 min=1 label="Minimum staff"@{nl="Minimumbezetting"} } label="Coverage requirement"@{nl="Bezettingsvereiste"}
+  Swap in Duty { substitute:Employee label=label_Swap_substitute, original:Employee label="Original employee"@{nl="Oorspronkelijke medewerker"}, revision:int, state:enum(open,accepted,rejected,obsolete)=open label={text="State"@{nl="Status"},values={open="Open"@{nl="Open"},accepted="Accepted"@{nl="Geaccepteerd"},rejected="Rejected"@{nl="Afgewezen"},obsolete="Superseded"@{nl="Achterhaald"}}} } label="Shift swap"@{nl="Dienstruil"}
+  event DutyNotice { duty:Duty, recipient:user, revision:int, kind:enum(published,changed,cancelled,swap_request,swap_accepted,swap_rejected) label={text="Roster notice kind"@{nl="Soort roosterbericht"},values={published="Published"@{nl="Gepubliceerd"},changed="Changed"@{nl="Gewijzigd"},cancelled="Cancelled"@{nl="Geannuleerd"},swap_request="Swap request"@{nl="Ruilverzoek"},swap_accepted="Swap accepted"@{nl="Ruil geaccepteerd"},swap_rejected="Swap declined"@{nl="Ruil afgewezen"}}}, swap:Swap? }
+  Notice in Duty { recipient:user, revision:int, kind:DutyNotice.kind, delivery:text unique, state:enum(pending,succeeded,failed,unknown,skipped)=pending label={text="Notice delivery"@{nl="Berichtverzending"},values={pending="Pending"@{nl="In afwachting"},succeeded="Sent"@{nl="Verzonden"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}} } label="Roster notice"@{nl="Roosterbericht"}
+  export capability ScheduleIngressV1 version=1
+   event reserve { roster:Roster, employee:Employee, location:Location, value:CommitmentRequest }
+   event stage { roster:Roster, employee:Employee, location:Location, value:CommitmentRequest, previous_source:text, previous_revision:int }
+   event release { roster:Roster, source:text, revision:int }
+  export event ReservationOutcome { value:OperationOutcome }
+  policy Roster read=scheduler
+  policy Availability read=scheduler
+  policy Availability read=members where=row.employee.user==actor
+  policy Commitment read=scheduler and can_work(actor,row.location)
+  policy Commitment read=members where=row.employee.user==actor and (row.kind!=duty or any(row.Duty as duty,duty.published))
+  policy Duty read=scheduler and can_work(actor,row.parent.location)
+  policy Duty read=members where=row.published and row.parent.employee.user==actor
+  policy Coverage read=scheduler and can_work(actor,row.location)
+  policy Swap read=scheduler
+  policy Swap read=members where=row.substitute.user==actor or row.original.user==actor
+  policy Notice read=scheduler and can_work(actor,row.parent.parent.location)
+  policy Notice read=members where=row.recipient==actor
+  invariant Roster: count(Roster)==1
+  invariant Coverage: row.from<row.until
+  invariant Availability: row.from<row.until
+  invariant Commitment: row.from<row.until and row.before>=0m and row.after>=0m
+  derive Coverage.met:bool = coverage_met(row.parent,row,null) label="Coverage met"@{nl="Bezetting gehaald"}
+  derive fits(roster:Roster,employee:Employee,from:datetime,until:datetime,before:duration,after:duration,skip:Commitment?):bool = employee.active and any(roster.Availability as window,window.employee==employee and window.available and window.from<=from-before and until+after<=window.until) and not any(roster.Availability as window,window.employee==employee and not window.available and overlaps(from-before,until+after,window.from,window.until)) and not any(roster.Commitment as existing,existing!=skip and existing.employee==employee and existing.active and overlaps(from-before,until+after,existing.from-existing.before,existing.until+existing.after))
+  derive eligible(commitment:Commitment):bool = commitment.active and commitment.employee.active and can_work(commitment.employee.user,commitment.location) and (commitment.kind==absence or commitment.skill in commitment.employee.skills) and (commitment.kind==absence or (any(commitment.parent.Availability as window,window.employee==commitment.employee and window.available and window.from<=commitment.from-commitment.before and commitment.until+commitment.after<=window.until) and not any(commitment.parent.Availability as window,window.employee==commitment.employee and not window.available and overlaps(commitment.from-commitment.before,commitment.until+commitment.after,window.from,window.until))))
+  derive coverage_met(roster:Roster,window:Coverage,publishing:Duty?):bool = all([window.from]+flatten(roster.Commitment as item where item.kind==duty and item.location==window.location select [item.from,item.until]) as instant,instant<window.from or instant>=window.until or count(Duty as duty where duty.parent.parent==roster and duty.role==window.role and duty.parent.location==window.location and duty.parent.employee.role==duty.role and (duty.published or duty==publishing) and not duty.parent.conflict and eligible(duty.parent) and duty.parent.from<=instant and instant<duty.parent.until)>=window.minimum)
+  derive previous_work(roster:Roster,employee:Employee,from:datetime,skip:Commitment?):Commitment? = first(roster.Commitment as item where item!=skip and item.active and item.employee==employee and item.kind!=absence and item.until<=from order=-item.until)
+  derive next_work(roster:Roster,employee:Employee,until:datetime,skip:Commitment?):Commitment? = first(roster.Commitment as item where item!=skip and item.active and item.employee==employee and item.kind!=absence and until<=item.from order=item.from)
+  derive travel_entered(roster:Roster,employee:Employee,location:Location,from:datetime,until:datetime,before:duration,after:duration,skip:Commitment?):bool = ((previous_work(roster,employee,from,skip)?.location??location)==location or before>0m or (previous_work(roster,employee,from,skip)?.after??0m)>0m) and ((next_work(roster,employee,until,skip)?.location??location)==location or after>0m or (next_work(roster,employee,until,skip)?.before??0m)>0m)
+  lock Swap fields=substitute,original,revision
+  fixture roster=Roster {name="Operator"}
+  fixture substitute=Employee {user=other,home=test_site,start=date("2026-10-01"),role="Reception",skills=["reception"]}
+  fixture assignment=Commitment {parent=roster,employee=test_worker,location=test_site,from=datetime("2099-01-01T09:00:00Z"),until=datetime("2099-01-01T17:00:00Z"),skill="reception",kind=duty,source="duty"}
+  fixture duty=Duty {parent=assignment,role="Reception",published=true}
+  fixture working=Availability {parent=roster,employee=test_worker,from=datetime("2099-01-01T08:00:00Z"),until=datetime("2099-01-01T18:00:00Z")}
+  fixture replacement_hours=Availability {parent=roster,employee=substitute,from=datetime("2099-01-01T08:00:00Z"),until=datetime("2099-01-01T18:00:00Z")}
+  fixture target=Coverage {parent=roster,location=test_site,role="Reception",from=datetime("2099-01-01T09:00:00Z"),until=datetime("2099-01-01T17:00:00Z")}
+  fixture afternoon=Commitment {parent=roster,employee=substitute,location=test_site,from=datetime("2099-01-01T13:00:00Z"),until=datetime("2099-01-01T17:00:00Z"),skill="reception",kind=duty,source="afternoon"}
+  fixture afternoon_duty=Duty {parent=afternoon,role="Reception",published=true}
+  fixture proposed=Swap {parent=duty,substitute=test_worker,original=substitute,revision=1}
+ When
+  crud Roster by=scheduler fields=name delete=none
+   examples create name="Operator"
+    as -> count(Roster)
+    scheduler -> 1
+   examples create seed=[roster] name="Second roster"
+    as -> count(Roster)
+    scheduler -> error(rule_failed)
+  crud Availability by=members fields=from,until,available create_fields=employee,from,until,available when=row.employee.user==actor and row.employee.active delete=none
+  crud Coverage by=scheduler fields=role,from,until,minimum create_fields=location,role,from,until,minimum when=can_work(actor,row.location) delete=none
+  # Reserve draft duty at the single operator schedule, including entered travel buffers. @{nl="Reserveer conceptdiensten in het enige exploitantrooster, inclusief ingevoerde reisbuffers."}
+  scenario assign(roster:Roster,employee:Employee,location:Location,from:datetime label=label_CommitmentRequest_from,until:datetime label=label_CommitmentRequest_until,role:text label=label_Duty_role,skill:text label=label_CommitmentRequest_skill,before:duration=0m label=label_CommitmentRequest_before,after:duration=0m label=label_CommitmentRequest_after) by=scheduler
+   require can_work(actor,location) and can_work(employee.user,location) and employee.role==role and skill in employee.skills and from<until and before>=0m and after>=0m and fits(roster,employee,from,until,before,after,null) and travel_entered(roster,employee,location,from,until,before,after,null)
+   do
+    create Commitment {parent=roster,employee,location,from,until,before,after,skill,kind=duty,source=operation.id} as commitment
+    create Duty {parent=commitment,role} as duty
+  # Publish coverage or preserve an attributed reason for the visible gap. @{nl="Publiceer bezetting of behoud een toegeschreven reden voor het zichtbare tekort."}
+  scenario publish(duty:Duty,override_reason:text? label=label_Duty_override_reason) by=scheduler
+   require can_work(actor,duty.parent.location) and eligible(duty.parent) and duty.parent.employee.role==duty.role and not duty.parent.conflict and not duty.published
+   do
+    require override_reason==null or trim(override_reason)!=""
+    require override_reason!=null or all(duty.parent.parent.Coverage as window,window.location!=duty.parent.location or window.role!=duty.role or not overlaps(duty.parent.from,duty.parent.until,window.from,window.until) or coverage_met(duty.parent.parent,window,duty))
+    set duty.parent {revision=duty.parent.revision+1}
+    set duty {published=true,published_revision=duty.parent.revision,published_by=actor,override_reason}
+    emit DutyNotice {duty,recipient=duty.parent.employee.user,revision=duty.parent.revision,kind=published}
+   examples seed=[working,target] duty=duty override_reason=null
+    as,duty.published,assignment.employee.skills,assignment.employee.role -> duty.published
+    scheduler,false,["reception"],"Reception" -> true
+    scheduler,false,[],"Reception" -> error(rule_failed)
+   examples seed=[working,replacement_hours,target,afternoon_duty] duty=duty override_reason=null
+    as,duty.published,assignment.until,assignment.employee.skills,assignment.employee.role -> duty.published
+    scheduler,false,datetime("2099-01-01T13:00:00Z"),["reception"],"Reception" -> true
+    scheduler,false,datetime("2099-01-01T12:00:00Z"),["reception"],"Reception" -> error(rule_failed)
+  # Request a replacement against the current published assignment. @{nl="Vraag vervanging aan voor de huidige gepubliceerde dienst."}
+  scenario request_swap(duty:Duty,substitute:Employee label=label_Swap_substitute) by=members label="Request shift swap"@{nl="Dienstruil aanvragen"}
+   require duty.published and duty.parent.active and duty.parent.until>now and duty.parent.employee.user==actor and substitute.user!=actor and substitute.active and substitute.role==duty.role and can_work(substitute.user,duty.parent.location) and duty.parent.skill in substitute.skills
+   do
+    create Swap {parent=duty,substitute,original=duty.parent.employee,revision=duty.parent.version} as swap
+    emit DutyNotice {duty,recipient=substitute.user,revision=duty.parent.revision,kind=swap_request,swap}
+  # Accept only your current available substitution and invalidate competing requests. @{nl="Accepteer alleen je huidige beschikbare vervanging en maak concurrerende aanvragen ongeldig."}
+  scenario accept(swap:Swap) by=members label="Accept shift swap"@{nl="Dienstruil accepteren"}
+   require swap.state==open and swap.parent.parent.until>now and swap.substitute.user==actor and swap.substitute.active and swap.parent.parent.employee==swap.original and swap.parent.parent.version==swap.revision and swap.substitute.role==swap.parent.role and can_work(swap.substitute.user,swap.parent.parent.location) and swap.parent.parent.skill in swap.substitute.skills
+   require fits(swap.parent.parent.parent,swap.substitute,swap.parent.parent.from,swap.parent.parent.until,swap.parent.parent.before,swap.parent.parent.after,swap.parent.parent) and travel_entered(swap.parent.parent.parent,swap.substitute,swap.parent.parent.location,swap.parent.parent.from,swap.parent.parent.until,swap.parent.parent.before,swap.parent.parent.after,swap.parent.parent)
+   require not any(swap.parent.parent.parent.Commitment as dependent,dependent.active and dependent.employee==swap.original and dependent.kind in [visit,appointment,interview] and overlaps(dependent.from,dependent.until,swap.parent.parent.from,swap.parent.parent.until))
+   do
+    set swap.parent.parent {employee=swap.substitute,revision=swap.parent.parent.revision+1}
+    set swap {state=accepted}
+    set swap.parent {published_revision=swap.parent.parent.revision}
+    emit DutyNotice {duty=swap.parent,recipient=swap.original.user,revision=swap.parent.parent.revision,kind=swap_accepted,swap}
+    emit DutyNotice {duty=swap.parent,recipient=swap.substitute.user,revision=swap.parent.parent.revision,kind=swap_accepted,swap}
+    for other in swap.parent.Swap as item where item!=swap and item.state==open limit=100
+     set other {state=obsolete}
+  # Decline your own proposed swap while leaving the duty unchanged. @{nl="Wijs je eigen voorgestelde dienstruil af en laat de dienst ongewijzigd."}
+  scenario decline(swap:Swap) by=members label="Decline shift swap"@{nl="Dienstruil afwijzen"}
+   require swap.substitute.user==actor and swap.state==open
+   do
+    set swap {state=rejected}
+    emit DutyNotice {duty=swap.parent,recipient=swap.original.user,revision=swap.parent.parent.revision,kind=swap_rejected,swap}
+   examples swap=proposed
+    as,swap.state -> swap.state,assignment.employee
+    members,open -> rejected,test_worker
+    members,accepted -> error(rule_failed)
+    public,open -> error(forbidden)
+  # Release a duty only after dependent appointments and visits have been resolved. @{nl="Geef een dienst pas vrij nadat afhankelijke afspraken en bezoeken zijn opgelost."}
+  scenario cancel(duty:Duty,reason:text) by=scheduler
+   require can_work(actor,duty.parent.location) and duty.parent.active and trim(reason)!=""
+   require not any(duty.parent.parent.Commitment as dependent,dependent.active and dependent.employee==duty.parent.employee and dependent.kind in [visit,appointment,interview] and overlaps(dependent.from,dependent.until,duty.parent.from,duty.parent.until))
+   do
+    set duty.parent {active=false,revision=duty.parent.revision+1}
+    for swap in duty.Swap as item where item.state==open limit=100
+     set swap {state=obsolete}
+    if duty.published
+     emit DutyNotice {duty,recipient=duty.parent.employee.user,revision=duty.parent.revision,kind=cancelled}
+  # Resolve an attributed duty conflict after connected visits and appointments have been handled. @{nl="Los een toegeschreven dienstconflict op nadat verbonden bezoeken en afspraken zijn afgehandeld."}
+  scenario reconcile(duty:Duty,employee:Employee,from:datetime,until:datetime,before:duration=0m,after:duration=0m,reason:text) by=scheduler label="Resolve roster conflict"@{nl="Roosterconflict oplossen"}
+   require can_work(actor,duty.parent.location) and duty.parent.active and trim(reason)!="" and can_work(employee.user,duty.parent.location) and employee.role==duty.role and duty.parent.skill in employee.skills and from<until and before>=0m and after>=0m
+   require fits(duty.parent.parent,employee,from,until,before,after,duty.parent) and travel_entered(duty.parent.parent,employee,duty.parent.location,from,until,before,after,duty.parent)
+   require not any(duty.parent.parent.Commitment as dependent,dependent.active and dependent.employee==duty.parent.employee and dependent.kind in [visit,appointment,interview] and overlaps(dependent.from,dependent.until,duty.parent.from,duty.parent.until))
+   do
+    let original=duty.parent.employee
+    set duty.parent {employee,from,until,before,after,conflict=false,revision=duty.parent.revision+1}
+    for swap in duty.Swap as item where item.state==open limit=100
+     set swap {state=obsolete}
+    if duty.published
+     require all(duty.parent.parent.Coverage as window,window.location!=duty.parent.location or window.role!=duty.role or not overlaps(duty.parent.from,duty.parent.until,window.from,window.until) or coverage_met(duty.parent.parent,window,duty))
+     set duty {published_revision=duty.parent.revision,override_reason=reason,published_by=actor}
+     emit DutyNotice {duty,recipient=original.user,revision=duty.parent.revision,kind=changed}
+     if employee!=original
+      emit DutyNotice {duty,recipient=employee.user,revision=duty.parent.revision,kind=changed}
+  scenario employee_changed on=EmployeeChanged
+   do
+    for commitment in Commitment as item where item.active and item.until+item.after>now and item.employee==event.employee limit=500
+     if not eligible(commitment) or any(commitment.Duty as duty,duty.role!=commitment.employee.role)
+      set commitment {conflict=true}
+      emit ReservationOutcome {value={source=commitment.source,revision=commitment.revision,state=unavailable,reference=commitment.id}}
+    for swap in Swap as item where item.state==open and item.parent.parent.until>now and (item.original==event.employee or item.substitute==event.employee) limit=500
+     if not can_work(swap.substitute.user,swap.parent.parent.location) or not can_work(swap.original.user,swap.parent.parent.location) or swap.substitute.role!=swap.parent.role or swap.original.role!=swap.parent.role or not (swap.parent.parent.skill in swap.substitute.skills)
+      set swap {state=obsolete}
+   examples seed=[assignment,proposed] event={employee=test_worker,active=false,revision=2}
+    event.employee.active -> assignment.conflict,proposed.state
+    false -> true,obsolete
+  scenario member_removed on=teams.member_removed
+   do
+    for commitment in Commitment as item where item.active and item.until+item.after>now and item.employee.user==event.user limit=500
+     set commitment {conflict=true}
+     emit ReservationOutcome {value={source=commitment.source,revision=commitment.revision,state=unavailable,reference=commitment.id}}
+    for swap in Swap as item where item.state==open and item.parent.parent.until>now and (item.original.user==event.user or item.substitute.user==event.user) limit=500
+     set swap {state=obsolete}
+   examples seed=[assignment,proposed] event={team_id=team.id,membership_id="removed",user=self}
+    event.user -> assignment.conflict,proposed.state
+    self -> true,obsolete
+  scenario availability_changed on=Availability.update
+   do
+    for commitment in event.after.parent.Commitment as item where item.active and item.until+item.after>now and item.employee==event.after.employee limit=500
+     if not eligible(commitment)
+      set commitment {conflict=true}
+      emit ReservationOutcome {value={source=commitment.source,revision=commitment.revision,state=unavailable,reference=commitment.id}}
+    for swap in Swap as item where item.state==open and item.parent.parent.parent==event.after.parent and item.substitute==event.after.employee and item.parent.parent.until>now limit=500
+     if not fits(swap.parent.parent.parent,swap.substitute,swap.parent.parent.from,swap.parent.parent.until,swap.parent.parent.before,swap.parent.parent.after,swap.parent.parent) or not travel_entered(swap.parent.parent.parent,swap.substitute,swap.parent.parent.location,swap.parent.parent.from,swap.parent.parent.until,swap.parent.parent.before,swap.parent.parent.after,swap.parent.parent)
+      set swap {state=obsolete}
+  scenario availability_created on=Availability.create
+   do
+    for commitment in event.after.parent.Commitment as item where item.active and item.until+item.after>now and item.employee==event.after.employee limit=500
+     if not eligible(commitment)
+      set commitment {conflict=true}
+      emit ReservationOutcome {value={source=commitment.source,revision=commitment.revision,state=unavailable,reference=commitment.id}}
+    for swap in Swap as item where item.state==open and item.parent.parent.parent==event.after.parent and item.substitute==event.after.employee and item.parent.parent.until>now limit=500
+     if not fits(swap.parent.parent.parent,swap.substitute,swap.parent.parent.from,swap.parent.parent.until,swap.parent.parent.before,swap.parent.parent.after,swap.parent.parent) or not travel_entered(swap.parent.parent.parent,swap.substitute,swap.parent.parent.location,swap.parent.parent.from,swap.parent.parent.until,swap.parent.parent.before,swap.parent.parent.after,swap.parent.parent)
+      set swap {state=obsolete}
+  scenario duty_notice on=DutyNotice
+   do
+    send Mail.send {to=event.recipient.email,subject=format("Your staff roster changed"@{nl="Je personeelsrooster is gewijzigd"},locale=null),body=format("Review your current shifts and swap decisions."@{nl="Bekijk je huidige diensten en ruilbesluiten."},locale=null)} when=active_member(event.recipient,team) and event.duty.parent.revision==event.revision and (event.kind in [cancelled,swap_rejected] or (eligible(event.duty.parent) and not event.duty.parent.conflict)) and ((event.kind==cancelled and not event.duty.parent.active) or (event.kind!=cancelled and event.duty.parent.active and (event.kind!=swap_request or (event.swap!=null and event.swap.state==open)))) as delivery
+    create Notice {parent=event.duty,recipient=event.recipient,revision=event.revision,kind=event.kind,delivery=delivery.id} as notice
+  scenario notice_result on=Mail.send.completed
+   do
+    for notice in Notice as item where item.delivery==event.delivery_id limit=1
+     set notice {state=event.status}
+  scenario reserve_connected on=ScheduleRequests.reserve
+   require event.employee.user==event.value.employee and event.location.id==event.value.location and event.employee.active and event.value.from<event.value.until and event.value.before>=0m and event.value.after>=0m and event.value.revision>0
+   require can_work(event.employee.user,event.location) and (event.value.kind==absence or event.value.skill in event.employee.skills)
+   do
+    require not any(event.roster.Release as released,released.source==event.value.source and released.revision>=event.value.revision)
+    let previous=first(event.roster.Commitment as item where item.source==event.value.source order=item.id)
+    if previous!=null and previous.revision>=event.value.revision
+     require previous.revision==event.value.revision and previous.active and previous.employee==event.employee and previous.location==event.location and previous.kind==event.value.kind and previous.skill==event.value.skill and previous.from==event.value.from and previous.until==event.value.until and previous.before==event.value.before and previous.after==event.value.after
+     emit ReservationOutcome {value={source=previous.source,revision=previous.revision,state=confirmed,reference=previous.id}}
+    else
+     let conflicts=event.roster.Commitment as item where item!=previous and item.active and item.employee==event.employee and overlaps(event.value.from-event.value.before,event.value.until+event.value.after,item.from-item.before,item.until+item.after)
+     let available=any(event.roster.Availability as window,window.employee==event.employee and window.available and window.from<=event.value.from-event.value.before and event.value.until+event.value.after<=window.until) and not any(event.roster.Availability as window,window.employee==event.employee and not window.available and overlaps(event.value.from-event.value.before,event.value.until+event.value.after,window.from,window.until))
+     let compatible=all(conflicts as item,item.kind==duty and not item.conflict and eligible(item) and item.location==event.location and item.from<=event.value.from and event.value.until<=item.until and event.value.kind in [visit,appointment,interview])
+     if event.value.kind!=absence and (not available or not compatible or not travel_entered(event.roster,event.employee,event.location,event.value.from,event.value.until,event.value.before,event.value.after,previous))
+      emit ReservationOutcome {value={source=event.value.source,revision=event.value.revision,state=unavailable,detail="Employee commitment unavailable"}}
+     else
+      if previous==null
+       create Commitment {parent=event.roster,employee=event.employee,location=event.location,from=event.value.from,until=event.value.until,before=event.value.before,after=event.value.after,skill=event.value.skill,kind=event.value.kind,source=event.value.source,revision=event.value.revision} as commitment
+       emit ReservationOutcome {value={source=commitment.source,revision=commitment.revision,state=confirmed,reference=commitment.id}}
+      else
+       set previous {employee=event.employee,location=event.location,from=event.value.from,until=event.value.until,before=event.value.before,after=event.value.after,skill=event.value.skill,kind=event.value.kind,revision=event.value.revision,active=true}
+       emit ReservationOutcome {value={source=previous.source,revision=event.value.revision,state=confirmed,reference=previous.id}}
+      if event.value.kind==absence
+       for conflict in conflicts limit=100
+        set conflict {conflict=true}
+        emit ReservationOutcome {value={source=conflict.source,revision=conflict.revision,state=unavailable,reference=conflict.id}}
+  ## Stage a fresh candidate while retaining the current commitment and compatible duty coverage.
+  scenario stage_connected on=ScheduleRequests.stage
+   require event.employee.user==event.value.employee and event.location.id==event.value.location and event.employee.active and event.value.from<event.value.until and event.value.before>=0m and event.value.after>=0m and event.value.revision==1 and event.value.source!=event.previous_source
+   require can_work(event.employee.user,event.location) and event.value.skill in event.employee.skills
+   do
+    let previous=first(event.roster.Commitment as item where item.source==event.previous_source order=item.id)
+    require previous!=null and previous.location==event.location and previous.kind==event.value.kind and previous.revision==event.previous_revision
+    let release_fence=first(event.roster.Release as item where item.source==event.value.source order=item.id)
+    let candidate=first(event.roster.Commitment as item where item.source==event.value.source order=item.id)
+    if release_fence!=null
+     emit ReservationOutcome {value={source=event.value.source,revision=release_fence.revision,state=released,reference=event.value.source}}
+    else
+     if candidate!=null
+      require candidate.active and candidate.previous==previous and candidate.revision==event.value.revision and candidate.employee==event.employee and candidate.location==event.location and candidate.kind==event.value.kind and candidate.skill==event.value.skill and candidate.from==event.value.from and candidate.until==event.value.until and candidate.before==event.value.before and candidate.after==event.value.after
+      emit ReservationOutcome {value={source=candidate.source,revision=candidate.revision,state=confirmed,reference=candidate.id}}
+     else
+      require previous.active and not any(event.roster.Commitment as item,item.active and item.previous==previous)
+      let conflicts=event.roster.Commitment as item where item!=previous and item.active and item.employee==event.employee and overlaps(event.value.from-event.value.before,event.value.until+event.value.after,item.from-item.before,item.until+item.after)
+      let available=any(event.roster.Availability as window,window.employee==event.employee and window.available and window.from<=event.value.from-event.value.before and event.value.until+event.value.after<=window.until) and not any(event.roster.Availability as window,window.employee==event.employee and not window.available and overlaps(event.value.from-event.value.before,event.value.until+event.value.after,window.from,window.until))
+      let compatible=all(conflicts as item,item.kind==duty and not item.conflict and eligible(item) and item.location==event.location and item.from<=event.value.from and event.value.until<=item.until and event.value.kind in [visit,appointment,interview])
+      if not available or not compatible or not travel_entered(event.roster,event.employee,event.location,event.value.from,event.value.until,event.value.before,event.value.after,previous)
+       emit ReservationOutcome {value={source=event.value.source,revision=event.value.revision,state=unavailable,detail="Employee commitment unavailable"}}
+      else
+       create Commitment {parent=event.roster,employee=event.employee,location=event.location,from=event.value.from,until=event.value.until,before=event.value.before,after=event.value.after,skill=event.value.skill,kind=event.value.kind,source=event.value.source,previous,revision=event.value.revision} as candidate
+       emit ReservationOutcome {value={source=candidate.source,revision=candidate.revision,state=confirmed,reference=candidate.id}}
+  scenario release_connected on=ScheduleRequests.release
+   require event.revision>0
+   do
+    let release_fence=first(event.roster.Release as item where item.source==event.source order=item.id)
+    if release_fence==null
+     create Release {parent=event.roster,source=event.source,revision=event.revision} as released_source
+    else
+     if event.revision>release_fence.revision
+      set release_fence {revision=event.revision}
+    for commitment in event.roster.Commitment as item where item.source==event.source and item.active limit=1
+     require event.revision>=commitment.revision
+     set commitment {active=false,revision=event.revision}
+    emit ReservationOutcome {value={source=event.source,revision=event.revision,state=released,reference=event.source}}
+ Then
+  # Plan drafts, publish coverage and resolve current commitments. @{nl="Plan concepten, publiceer bezetting en los huidige inzetverplichtingen op."}
+  page /roster title=title_roster
+   require scheduler
+   form Roster.create
+   list Roster
+    card "Roster assignment"@{nl="Roostertoewijzing"}
+     form assign
+    card "Dated employee commitments"@{nl="Gedateerde personeelsinzet"}
+     calendar row.Commitment start=from end=until filter=location,kind,conflict defaults={location=preferences.location}
+      text row.employee,row.skill,row.active,row.conflict
+      list row.Duty
+       text row.role,row.published_revision,row.override_reason,row.published_by
+     actions publish,cancel,reconcile
+     history
+     table row.Notice columns=kind,revision,state
+    card "Coverage requirements"@{nl="Bezettingsvereisten"}
+     form Coverage.create
+     table row.Coverage columns=location,role,from,until,minimum,met filter=location defaults={location=preferences.location}
+      edit
+  # Maintain your availability separately from hidden roster drafts. @{nl="Beheer je beschikbaarheid afzonderlijk van verborgen conceptroosters."}
+  page /roster/mine title="My shifts"@{nl="Mijn diensten"}
+   require members
+   card "Your availability"@{nl="Jouw beschikbaarheid"}
+    form Availability.create
+    list Availability
+     text row.from,row.until,row.available
+     edit
+   card "Published duties and swap decisions"@{nl="Gepubliceerde diensten en ruilbesluiten"}
+    list Duty display=split
+     text row.parent.location,row.parent.from,row.parent.until,row.parent.skill,row.role,row.published,row.published_revision,row.parent.before,row.parent.after,row.parent.conflict
+     history
+     table row.Notice columns=kind,revision,state
+     form request_swap
+     list row.Swap
+      text row.substitute,row.original,row.state
+      actions accept,decline
+      history

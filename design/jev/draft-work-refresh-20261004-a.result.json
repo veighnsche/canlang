@@ -1,0 +1,51 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "context": "CanDo requirements require current permitted work after a domain action, source change and configured polling. The actual source below has explicit refresh and an asynchronous completion handler; page poll=5s only performs authorized GET rendering. DESIGN forbids GET polling from sending remote operations, writing data or creating schedules. WorkSources is a declared external capability with deployment-installed implementation, not an existing adapter. Its five owners must implement explicit authorized list/detail projections matching canonical completion guards and protecting private fields. A user/account ID establishes no authority: delegation must bind verified principal, team, intended owner audience, current grants and bounded expiry. Browser bearer credentials cannot be forwarded. Action values need their specified owner seal and protected record/version bindings. Both options below preserve this boundary and existing domain action guards, and neither is implemented. Supply an assessment of the tradeoffs for a compact SaaS DSL; do not presume that a classifier result proves a protocol.",
+      "canonical_source": "  export contract WorkItem { source:text label=label_WorkItem_source, reference:text, revision:int, location:text?, title:text, detail:text? label=label_WorkItem_detail, due:datetime?, state:enum(open,done,stale,unavailable) label={text=label_WorkItem_state,values={open=\"Open\"@{nl=\"Open\"},done=\"Done\"@{nl=\"Gereed\"},stale=label_WorkItem_state_stale,unavailable=label_WorkItem_state_unavailable}}, action:action(inspect,complete_account,complete_step,complete_board,complete_volunteer)? label=\"Source action\"@{nl=\"Bronactie\"} } label=\"Source work item\"@{nl=\"Werk uit bronsysteem\"}\n  export contract WorkSourceState { source:text label=label_WorkItem_source, state:enum(fresh,stale,unavailable) label={text=label_WorkItem_state,values={stale=label_WorkItem_state_stale,unavailable=label_WorkItem_state_unavailable,fresh=label_WorkSourceState_state_fresh}}, detail:text? label=label_WorkItem_detail } label=source_freshness_caption\n  export contract WorkBatch { items:WorkItem[] max=500 label=label_WorkBatch_items, states:WorkSourceState[]! min=5 max=5 label=\"Source states\"@{nl=\"Bronstatussen\"} } label=\"Source work batch\"@{nl=\"Bundel werk uit bronsystemen\"}\n  derive source_names():text[] = [\"maintenance\",\"accounts\",\"onboarding\",\"board\",\"volunteering\"]\n  export capability WorkSourcesV1 version=1\n   work(account:user,locations:text[]) -> WorkBatch\n  role task_manager label=\"Checklist manager\"@{nl=\"Checklistbeheerder\"}\n  scenario refresh(locations:text[] label=\"Locations\"@{nl=\"Locaties\"}) by=members\n   require staff(actor)\n   do\n    send WorkSources.work {account=actor,locations} as delivery\n    create WorkView {account=actor,requested=now,delivery=delivery.id} as view\n  scenario work_result on=WorkSources.work.completed\n   do\n    for view in WorkView as v where v.delivery==event.delivery_id limit=1\n     set view {state=unavailable,items=[],sources=[]}\n     if event.status==succeeded and event.result!=null\n      let batch=event.result\n      let valid_sources=count(batch.states)==count(source_names()) and all(source_names() as source,count(batch.states as entry where entry.source==source)==1)\n      if valid_sources and all(batch.items as item,any(batch.states as entry,entry.source==item.source) and (item.action==null or (item.state==open and any(batch.states as entry,entry.source==item.source and entry.state==fresh))))\n       set view {items=batch.items,sources=batch.states}\n       if all(batch.states as entry,entry.state==fresh)\n        set view {state=fresh}\n       else\n        if not all(batch.states as entry,entry.state==unavailable)\n         set view {state=partial}\n   examples seed=[work_view]\n    event -> work_view.state\n    {delivery_id=\"work-test\",status=succeeded,result=WorkBatch {states=[WorkSourceState {source=\"maintenance\",state=fresh},WorkSourceState {source=\"accounts\",state=fresh},WorkSourceState {source=\"onboarding\",state=fresh},WorkSourceState {source=\"board\",state=fresh},WorkSourceState {source=\"volunteering\",state=fresh}]},error=null} -> fresh\n    {delivery_id=\"work-test\",status=succeeded,result=WorkBatch {states=[WorkSourceState {source=\"maintenance\",state=fresh},WorkSourceState {source=\"accounts\",state=unavailable},WorkSourceState {source=\"onboarding\",state=fresh},WorkSourceState {source=\"board\",state=fresh},WorkSourceState {source=\"volunteering\",state=fresh}]},error=null} -> partial\n    {delivery_id=\"work-test\",status=succeeded,result=WorkBatch {states=[WorkSourceState {source=\"maintenance\",state=stale},WorkSourceState {source=\"accounts\",state=stale},WorkSourceState {source=\"onboarding\",state=stale},WorkSourceState {source=\"board\",state=stale},WorkSourceState {source=\"volunteering\",state=stale}]},error=null} -> partial\n    {delivery_id=\"work-test\",status=succeeded,result=WorkBatch {states=[WorkSourceState {source=\"maintenance\",state=unavailable},WorkSourceState {source=\"accounts\",state=unavailable},WorkSourceState {source=\"onboarding\",state=unavailable},WorkSourceState {source=\"board\",state=unavailable},WorkSourceState {source=\"volunteering\",state=unavailable}]},error=null} -> unavailable\n    {delivery_id=\"work-test\",status=succeeded,result=WorkBatch {states=[WorkSourceState {source=\"maintenance\",state=fresh},WorkSourceState {source=\"accounts\",state=fresh},WorkSourceState {source=\"onboarding\",state=fresh},WorkSourceState {source=\"board\",state=fresh},WorkSourceState {source=\"board\",state=fresh}]},error=null} -> unavailable\n    {delivery_id=\"work-test\",status=failed,result=null,error={code=\"unavailable\",message=\"Source unavailable\"}} -> unavailable\n    {delivery_id=\"other-work\",status=failed,result=null,error={code=\"unavailable\",message=\"Source unavailable\"}} -> pending\n"
+    },
+    "questions": {
+      "freshness_owner": {
+        "type": "choice",
+        "instructions": "Which bounded freshness contract best satisfies automatic owner refresh without duplicating domain operations or expanding the language unnecessarily?",
+        "criteria": {
+          "adapter": "Extend the existing WorkSources capability with a bounded watch request/result: account, location filter and interval produce an opaque watch identity, expiry, sequence and initial WorkBatch; authenticated changed events carry that identity, increasing sequence and a new complete batch. The installed adapter owns source invalidation, action outcomes and periodic re-reads under current delegated grants. CanDo correlates request/watch/sequence and clears action values on expiry or unavailable evidence. This centralizes refresh but adds lease, sequencing, renewal and service delegation obligations.",
+          "session": "Keep WorkSources.work and the canonical refresh mutation. Add one finite shared UI refresh-trigger contract which submits that canonical operation after completed actions, authenticated source invalidation and the configured interval while an authorized user session is active; page polling itself remains GET-only. Each POST uses the current session, existing parameters and admission checks. This avoids standing adapter leases but needs bounded browser triggers, request supersession, saved filter bindings and source-event delivery; closed sessions cannot refresh.",
+          "defer": "Retain explicit refresh and mark automatic source freshness incomplete until either contract is fully specified. It avoids premature authority or UI assumptions, but does not fulfill the requested automatic action/change/poll refresh journey."
+        }
+      },
+      "existing_automatic": {
+        "type": "noul",
+        "instructions": "Does the current authored explicit refresh plus page GET polling alone implement automatic source re-reading after an action, source invalidation and a configured interval?",
+        "criteria": {
+          "true": "Every required automatic refresh follows from the supplied source and existing GET contract without additional behavior.",
+          "false": "At least one required automatic source refresh lacks an authored trigger or owning protocol in the supplied declarations."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "freshness_owner": {
+        "type": "choice",
+        "choice": "adapter",
+        "confidence": 0.33,
+        "probabilities": {
+          "session": 0.41,
+          "defer": 0.04,
+          "adapter": 0.55
+        }
+      },
+      "existing_automatic": {
+        "type": "noul",
+        "noul": 0.09
+      }
+    },
+    "usage": {
+      "input_tokens": 2261,
+      "output_tokens": 62
+    }
+  }
+}

@@ -1,0 +1,177 @@
+{
+  "request": {
+    "state": "Review token-saving candidates using observed canlang source rather than hypothetical apps. This language aims at adoption through reliable economical AI generation of CRUD business SaaS. The human explicitly wants the repeated R2 configuration to become implicit. The last source update had already defaulted workerd, D1, email/password authentication, teams, PatternFly/HTMX/MCP and theme but incorrectly demanded identical per-app upload policy. Across 39 app drafts, 3 shared sources and 2 reference apps there are 44 .can files, 315177 UTF-8 bytes, 4077 code lines excluding blanks/comments and 370 # description lines. With literal/comment words removed the inventory is: use 305, scenario 254, then 254, require 428, policy 249, by= 273, text 700, actor 665, row 1136, parent 816; Given, When and Then appear 50 times apiece. All 38 upload declarations read files R2 types=\"application/pdf,image/png,image/jpeg,text/plain\" max=10MiB. Of 39 context blocks, the only additional bindings occur in CanCatch/CanStats as ErrorJobs, WebJobs and WebDimensions.\n\nThe same inspection identifies 5 delete=archive clauses that restate a defined default, 5 create_fields sequences identical to fields, and 53 always-true guards among 71 locks. No alias repeats an imported symbol's original name. Team model scope is spelled in team on 46 declarations; team roles add in=team 67 times. There are 816 required field ! markers, with 18 specifically preserving required arrays instead of the implicit empty-array default. Bare scalar declarations currently fail unless they specify !, ?, a default or server initialization. By contrast, typed scenario inputs p:T are already required without punctuation. server=actor appears 28 times and server=now 11, but these fields can denote a later business attribution/time and are not necessarily creation metadata. Access choices include 29 by=members and 20 read=members; deletion is deliberately disabled or permanent in 72 delete=none/remove clauses. Shared employee/location imports are authored dependencies rather than standard business facts the compiler can invent.\n\nCurrent When grammar requires scenario name(parameters) by=... for a caller operation or scenario name on=... for source-triggered behavior, followed by guards and a lowercase then statement/block. Entire operation evaluation is atomic; sends enqueue provisional intents and nothing dispatches before commit. A candidate short form would infer the declaration from a named typed signature within When, remove scenario and the lowercase then wrapper, and retain ordered require/effect statements. It must keep mandatory typed parameters and by/on distinction, independent fixtures/examples, and the uppercase Given/When/Then package and BDD model. A compression must neither reorder evaluation nor change example scope or privileges. This new notation has only been proposed.\n\nExisting explicit symbol imports and declaration exports preserve one owner. Local imports bring executable packages; from=deployment.binding marks external interface-only imports and never includes provider implementation. Combining imports by package while enumerating the exact symbols, aliases and bindings could save prefixes. Unqualified automatic lookup is a different alternative with potential ambiguity, concealed graph edges and unintended compilation. Presentation already makes common controls/styles/validation/pagination/HTMX implicit. Chosen forms and actions expose intentional business work; auto-presenting all permissible mutations can change workflow. Expressions containing row/event/actor/parent refer to specific lexical data, so frequent occurrence does not alone justify elision.\n\nNo compiler or runtime exists, and the audit measures syntax/bytes rather than actual AI-token costs. AGENTS.md demands three new equivalently framed consultations with differing prose; user authorization for JEV is standing. Wrappers and a manual build manifest must stay deleted, and the shared-folder redesign is postponed. Immediate implementation is the standard R2 policy and redundant/default-equivalent attributes; broad grammar revisions require clear proposal status or an explicitly recorded complete migration. Assess minimal semantics-preserving reductions without erasing business rules, permission decisions, immutable evidence or authored BDD expectations; the previous assistant-created grammar is not immutable.",
+    "questions": {
+      "r2_default": {
+        "type": "choice",
+        "instructions": "Judge the specified common file policy: existing MIME list and 10MiB are pinned defaults, file use in executable types derives R2, only deviations need context, and authorization/format checking/context conflict checks remain.",
+        "criteria": {
+          "coherent": "This retains the upload behavior currently spelled out while removing redundant declarations.",
+          "needs_change": "A stated rule makes the baseline differ from the old policy or leaves needed storage undefined.",
+          "unresolved": "Cannot establish preservation from these rules."
+        }
+      },
+      "existing_redundancy": {
+        "type": "choice",
+        "instructions": "Select treatment of archival defaults, identical create/update field lists and unconditional locks, without erasing differences.",
+        "criteria": {
+          "normalize": "Use the already-defined archive/create-field defaults and add true as the omitted lock condition; remove only matching attributes and retain explicit exceptions.",
+          "keep": "Require repeated default attributes and duplicated field lists for clarity even when their meanings coincide.",
+          "unresolved": "The audit is not enough to justify such normalization."
+        }
+      },
+      "required_scalar": {
+        "type": "choice",
+        "instructions": "Choose a default for scalar field requiredness that remains distinct from array omission and nullable/default/server fields.",
+        "criteria": {
+          "required_default": "An unmarked scalar field is required. Keep ?/= /server behavior and empty-array defaults, with []! preserving required arrays. Adoption requires the design and all sources to change together.",
+          "explicit_marker": "Continue to mark required scalars ! and reject missing requiredness modifiers, preserving the current grammar.",
+          "unresolved": "Available data cannot resolve generation/compatibility tradeoffs."
+        }
+      },
+      "team_scope": {
+        "type": "choice",
+        "instructions": "Determine whether a team baseline can remove repeated model/role scope qualifiers while preserving alternative ownership and access control.",
+        "criteria": {
+          "team_defaults": "Default bare model ownership and role scope to team; retain explicit in Parent/in app and all business permissions.",
+          "explicit_scopes": "Spell team ownership on every model and team role regardless of the surrounding baseline.",
+          "unresolved": "A further ownership specification is necessary."
+        }
+      },
+      "operation_markers": {
+        "type": "choice",
+        "instructions": "Decide the canonical amount of declaration/effect marking required for named operations in When.",
+        "criteria": {
+          "remove_both": "Use typed named signatures with mandatory by/on to distinguish operations; remove both scenario and lowercase then. Ordered effects/guards, uppercase BDD sections and independent attached examples remain specified.",
+          "remove_then": "Only drop lowercase then and keep scenario as the operation introducer.",
+          "keep_both": "Preserve both introducers to state the declaration/effect boundary explicitly.",
+          "unresolved": "Cannot choose without additional grammar/order detail."
+        }
+      },
+      "imports": {
+        "type": "choice",
+        "instructions": "Select a dependency notation strategy that saves repeated qualification without implicit service or symbol selection.",
+        "criteria": {
+          "group_explicit": "One grouped package import explicitly lists all symbols/aliases/bindings and obeys existing visibility; adopt a fully defined single grouping grammar before migration, with no automatic bare-name search.",
+          "keep_individual": "Leave individually qualified imports as the canonical source pattern despite recurring prefixes.",
+          "implicit_lookup": "Eliminate imports and resolve bare symbols/services through project-wide automatic lookup.",
+          "unresolved": "The grouping proposal needs syntax and empirical token/generation evidence to be chosen."
+        }
+      },
+      "access_and_guards": {
+        "type": "choice",
+        "instructions": "Evaluate safe opportunities to shorten frequent access and workflow guards.",
+        "criteria": {
+          "preserve_and_factor": "Business checks and explicit by/on continue under denied-by-default access. Share a pure function only for proven identical parameterized logic in matching context; do not manufacture work/location policy.",
+          "default_members": "Assume members for absent read/by declarations and remove their repetitive access checks.",
+          "guess_guards": "Use names of fields or roles to synthesize eligibility without explicit guards.",
+          "unresolved": "The evidence does not settle access factoring."
+        }
+      },
+      "presentation_and_metadata": {
+        "type": "choice",
+        "instructions": "Select how much automatic presentation and creation metadata may replace explicit controls and evidence.",
+        "criteria": {
+          "preserve_intent": "Implicit behavior stays within existing component defaults and semantically identical creation facts; preserve selected workflow actions and separate business attribution/time/snapshots.",
+          "automatic_all": "Every enabled permitted mutation gains a visible control and every business author/time is derived from creation metadata.",
+          "infer_names": "App/entity/field naming drives guessed controls and actor/time rules.",
+          "unresolved": "More product-intent/history evidence is needed."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "access_and_guards": {
+        "type": "choice",
+        "choice": "preserve_and_factor",
+        "confidence": 1.0,
+        "probabilities": {
+          "unresolved": 0.0,
+          "guess_guards": 0.0,
+          "default_members": 0.0,
+          "preserve_and_factor": 1.0
+        }
+      },
+      "presentation_and_metadata": {
+        "type": "choice",
+        "choice": "preserve_intent",
+        "confidence": 1.0,
+        "probabilities": {
+          "unresolved": 0.0,
+          "preserve_intent": 1.0,
+          "infer_names": 0.0,
+          "automatic_all": 0.0
+        }
+      },
+      "r2_default": {
+        "type": "choice",
+        "choice": "coherent",
+        "confidence": 0.88,
+        "probabilities": {
+          "unresolved": 0.01,
+          "coherent": 0.92,
+          "needs_change": 0.07
+        }
+      },
+      "existing_redundancy": {
+        "type": "choice",
+        "choice": "normalize",
+        "confidence": 0.95,
+        "probabilities": {
+          "unresolved": 0.02,
+          "normalize": 0.96,
+          "keep": 0.02
+        }
+      },
+      "required_scalar": {
+        "type": "choice",
+        "choice": "required_default",
+        "confidence": 0.2,
+        "probabilities": {
+          "unresolved": 0.12,
+          "required_default": 0.47,
+          "explicit_marker": 0.41
+        }
+      },
+      "team_scope": {
+        "type": "choice",
+        "choice": "team_defaults",
+        "confidence": 0.7,
+        "probabilities": {
+          "unresolved": 0.12,
+          "team_defaults": 0.81,
+          "explicit_scopes": 0.07
+        }
+      },
+      "operation_markers": {
+        "type": "choice",
+        "choice": "remove_both",
+        "confidence": 0.92,
+        "probabilities": {
+          "unresolved": 0.02,
+          "keep_both": 0.04,
+          "remove_both": 0.94,
+          "remove_then": 0.0
+        }
+      },
+      "imports": {
+        "type": "choice",
+        "choice": "group_explicit",
+        "confidence": 1.0,
+        "probabilities": {
+          "unresolved": 0.0,
+          "keep_individual": 0.0,
+          "group_explicit": 1.0,
+          "implicit_lookup": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 2345,
+      "output_tokens": 394
+    }
+  }
+}

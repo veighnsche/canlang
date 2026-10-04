@@ -1,0 +1,22 @@
+{
+  "state": {
+    "context": "Assess a canonical body spelling for canlang scenarios from three candidates. This AI-authored CRUD SaaS DSL targets adoption through concise tokens, consistent generation and simple primitives. No executable compiler/runtime or empirically measured token, generation or maintenance outcomes are available. Semantic familiarity is a hypothesis about agents rather than an observed advantage.\nScenario declarations retain typed inputs and distinguish user by from trusted on. Currently then can open nested statements or prefix simple semicolon-separated ones. Validation occurs on either side: 254 markers consist of 154 standalone and 100 inline uses, with 34 requires inside their blocks. Nesting uses one space. Failed checks roll back a whole provisional mutation regardless of position, and the marker itself does not establish atomicity. Read scenarios remain pure and require a typed result. Uppercase Given/When/Then survives with Then governing presentation, and actual test observations belong to attached test-only examples. # annotations and ## comments are unchanged.\nRenaming to do changes only the word, retaining body boundaries, forms, action/check order, lexical names, authorization and test attachment. Its execution association could distinguish body code from BDD observations; it could also sound unnecessarily effectful for read-only code and demand a new learned spelling. It saves 508 UTF-8 bytes over 254 markers, with zero line/depth reduction and unknown tokenizer effect. Retaining then needs no spelling migration and maintains an existing explicit body delimiter, while retaining potential result/sequence and uppercase/BDD connotation overlap. Omitting the container gives direct ordered children, moving its subtree out once; this avoids 154 container lines and repeated words but needs careful nesting migration and a clearly reserved examples boundary. Required expressiveness and semantics must survive whichever design is chosen; no sample proves equivalence. None supplies new atomicity or authority. These are competing canonical choices, not multiple supported forms.\nIllustrative models and fixtures show structural differences without a compiled program. Include costs as well as gains and retain uncertainty when comparative support is thin. Prior classifier results and a consensus forecast are absent from the evidence.",
+    "examples": {
+      "then_body": "scenario finish(item:Item) by=members\n require item.status==open\n then\n  let selected=item.Part\n  require count(selected)>0\n  set item {status=done}\n examples item=fixture_item\n  item.status -> item.status\n  open -> done",
+      "do_body": "scenario finish(item:Item) by=members\n require item.status==open\n do\n  let selected=item.Part\n  require count(selected)>0\n  set item {status=done}\n examples item=fixture_item\n  item.status -> item.status\n  open -> done",
+      "direct_body": "scenario finish(item:Item) by=members\n require item.status==open\n let selected=item.Part\n require count(selected)>0\n set item {status=done}\n examples item=fixture_item\n  item.status -> item.status\n  open -> done"
+    }
+  },
+  "questions": {
+    "body_spelling": {
+      "type": "choice",
+      "instructions": "Taking these product aims and competing consequences together, which notation should define scenario bodies?",
+      "criteria": {
+        "do": "Adopt do in place of then, preserving the existing container boundaries and semantics.",
+        "then": "Preserve the present lowercase then body marker and its current forms.",
+        "unresolved": "Withhold a preferred notation because comparative support is insufficient.",
+        "direct": "Drop the extra marker and order executable children directly inside each scenario."
+      }
+    }
+  }
+}

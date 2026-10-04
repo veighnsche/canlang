@@ -1,0 +1,89 @@
+{
+  "request": {
+    "state": {
+      "task": "Assess a language-native internationalization facility for canlang ahead of adding its grammar. This language targets AI-written CRUD SaaS applications on workerd and prioritizes uptake, economical source tokens, and one canonical mechanism for each primitive. The requested capability keeps translated wording beside business declarations and supports reuse across owners. The repository currently contains 44 sources, an AST-producing syntax parser, and 25 parser tests. Name/type checking, compilation, rendering, message evaluation, and inline BDD execution have not been implemented. Your assessment supplies design advice and cannot establish that generated applications execute correctly.",
+      "evidence": "Observed source surfaces include 87 page-title literals accompanied by 87 page descriptions, 189 descriptions on scenarios, 50 on apps, and 47 on packages. Email subjects account for 24 literals representing 23 unique texts; email bodies and alert messages each contribute three literals. Numerous outbound bodies instead come from expressions over business data. The complete corpus contains 1263 string literals with 414 unique values. Reception names both stored fixture content and a page title, demonstrating that scanning literals or assigning global English-word identifiers loses semantic distinctions. The runtime also generates CRUD/auth/team controls and schema-field/enum display labels. At present, title, submit, empty, and guard-message attributes accept only STRING, whereas other presentation positions accept expressions.",
+      "candidate": "A logical package, including an implicit app owner, receives one messages table in Given. Its header lists quoted BCP 47 locales separated by commas. Each named row optionally has a nonempty typed parameter signature and contains one JSON-string pattern cell per header column; null is permitted only in subsequent columns to mark a missing translation. Column one supplies the mandatory source-language fallback for every row. Existing grouped use imports exported messages with zero arguments, avoiding a t() intermediary. Calling a parameterized row constructs an immutable message descriptor, neither a mutable record nor an instruction to translate arbitrary text. Ordinary string literals retain their current literal meaning. The competing keyed design preserves ownership and behavior but annotates each row's patterns with locale= keys: tags recur, yet adding sparse translations does not require repositioning columns. A source-text-key overlay is excluded because identical corpus text serves different business and display meanings.",
+      "bindings": "The table also accepts for path = pattern cells to assign a parameterless display label to an existing owner-local model, field, role, user operation, or enum member. Writing for path = message_path assigns an already declared parameterless message instead. Both right-hand sides are values within the same target-binding feature. A consumer cannot change a foreign owner's schema labels. Field-type reuse carries its value labels forward unless the receiving owner supplies an explicit binding of its own. Language-pinned runtime catalogs provide ordinary Save/Cancel/Delete/auth/pagination/error wording; app sources do not restate it. For descriptions, #= message_path selects a localized zero-argument message under the same attachment and static visibility rules as #. Plain # descriptions remain untranslated prose. Combining such a reference with literal description lines or another reference is invalid. The text-bearing UI and guard attributes accept literals or message expressions, without extending localization to arbitrary configuration properties.",
+      "imports": "Pulling in shared wording must not trigger the current plain-import rule that includes an entire executable owner. When every member of a grouped import is a message symbol, its closure contains only message assets and parameter-schema dependencies; the provider's models, handlers, pages, app context, and MCP tools are excluded. A group that also imports production business symbols continues to include the executable owner under existing rules. Composed apps currently lack a business package and import scope. Allow message-only groups using the existing use spelling after their optional context so localized app metadata can resolve its messages. This introduces neither an authored wrapper nor unrestricted qualified lookup. Message imports cannot use a deployment binding; an explicit visible import remains necessary for qualified references.",
+      "locales": "The language version fixes en as the app's default locale. Authors omit it unless overriding it with context locale default=STRING. Offer the default together with locales named by reachable authored table columns. During composition, merge authored default settings and diagnose incompatible ones, preserving each message's canonical owner. Resolve a requested message locale through RFC 4647 lookup, followed by app-default lookup and finally the row's source-language variant. An absent translation selects an entire fallback message, and its selected locale governs plural and formatting behavior rather than the missing requested locale. For browser UI, try an authenticated or anonymous viewer's saved choice, browser Accept-Language, then the app default. MCP uses its pinned connection preference or the app default, requiring neither fabricated protocol metadata nor additional locale tool parameters. The new locale type represents recipient preferences. Localized presentation leaves tool names, enum serialization, record IDs, currencies, timestamps, permission checks, and business predicates unchanged. Validate and canonicalize this type as BCP 47 language tags.",
+      "output": "A zero-parameter named message is a value reference; other messages take the existing typed call form. Resolve descriptors automatically only at presentation, description, and diagnostic destinations, enforcing the disclosure dependencies that already apply to displayed values. Outbound wording is explicitly rendered through the format overload format(message_descriptor,locale=locale_or_null). A nullable explicit target falls back to the app default, never to the initiating viewer's preference. Preserve the existing machine-template call format(template,values). The resulting text retains presentation provenance: it is invalid in authorization logic, queries, business transitions, correlation or identity fields, and ordinary stored business models. Canonical outbound payload and audit intents retain it together with the selected locale and pinned release before any retries. Pin both locale data and message assets by release. For HTML, escape values, isolate inserted bidirectional content, and emit the effective lang/dir. Raw HTML, translator JavaScript, and custom formatter plugins are unavailable. Date display retains the business timezone, while money display preserves its exact amount and currency; neither formatting nor locale selection alters authority-bearing data.",
+      "formats": "Established ICU MessageFormat implementations in JavaScript support concise placeholder, plural, select, and selectordinal patterns. Choosing it entails pinning its apostrophe-quoting rules and a limited formatter profile. Unicode MF2 supplies standardized structured messages, explicit declarations, and annotated selectors, at the cost of additional declaration tokens that may restate typed signature information. UTS35 48.2 still marks MF2 date/time functions Draft; a claim that all upstream formatter features are stable would therefore be false. Whichever format is chosen needs compiler checks for pattern syntax, declared variables, selector types, required fallback cases, and permitted options, plus a version-pinned message engine/runtime adapter. This implementation round only adds source grammar, parser support, examples, and specification: parsing catalog cells as strings establishes no valid message syntax and implements no formatter engine. The chosen source contract does not require acquiring an engine, framework, or vendor package in this round.",
+      "research": "Use the following provided primary references as evidence, since the classifier cannot retrieve them: the ICU message guide at https://unicode-org.github.io/icu/userguide/format_parse/messages/ and FormatJS syntax documentation at https://formatjs.github.io/docs/core-concepts/icu-syntax/ describe complete plural/select patterns and available parser implementations. The Unicode MF2 specification at https://unicode.org/reports/tr35/tr35-messageFormat.html covers selector annotations, fallback variants, and stable versus Draft features. Fluent terms at https://projectfluent.org/fluent/guide/terms.html illustrate reusable wording and grammatical-case concerns. https://www.rfc-editor.org/rfc/rfc4647 defines lookup and defaulting for whole content, and https://www.w3.org/International/questions/qa-html-dir explains directional HTML markup. Cloudflare's web-standard runtime reference at https://developers.cloudflare.com/workers/runtime-apis/web-standards/ documents Intl date/time/number localization. Intl availability on workerd is not evidence that a message engine is installed.",
+      "code": {
+        "table": "messages \"en\",\"nl\"\n export add = \"Add\",\"Toevoegen\"\n task_count(n:int) = \"{n, plural, one {# task} other {# tasks}}\",\"{n, plural, one {# taak} other {# taken}}\"\n for Todo.title = \"Title\",\"Titel\"\n for Todo.create = add",
+        "keyed": "message add {\"en\"=\"Add\",\"nl\"=\"Toevoegen\"}",
+        "use": "use TeamTasks {add,task_count}\npage /notes title=notes_title\n form Note.create submit=add\n text task_count(count(Note))",
+        "metadata": "#= office_description\napp TeamOffice uses=[TeamTasks,TeamNotes]\nuse TeamTasks {office_description}",
+        "recipient": "format(reminder(customer.name),locale=customer.preferred_locale)",
+        "mf2": ".input {$n :integer} .match $n one {{1 task}} * {{{$n} tasks}}"
+      }
+    },
+    "questions": {
+      "layout": {
+        "type": "choice",
+        "instructions": "Select the source layout that best balances the documented ownership rules, editing requirements, and source-token cost.",
+        "criteria": {
+          "table": "Use an owner-local messages table with one header for locale columns. Row definitions are shorter, while positional edits must keep translations aligned with their locales.",
+          "keyed": "Associate an explicit locale key with every pattern in each owned message. Translations can grow independently, while repeated tags increase source length.",
+          "unresolved": "Postpone the layout decision when neither offered spelling satisfies the stated requirements coherently."
+        }
+      },
+      "format": {
+        "type": "choice",
+        "instructions": "Choose the one restricted pattern language that should define the initial canlang message contract.",
+        "criteria": {
+          "icu": "Choose mature ICU MessageFormat for concise plural/select patterns, fixing a quoting and formatter subset while retaining limitations of its older notation.",
+          "mf2": "Choose standardized Unicode MF2 for structured declarations and selectors, accepting annotation overhead and explicitly pinning how Draft date/time features are handled.",
+          "unresolved": "Keep pattern selection undecided when the evidence provided is insufficient to justify either specified contract."
+        }
+      },
+      "sharing": {
+        "type": "noul",
+        "instructions": "Does the described ownership and export/use scheme, including pure message dependencies and metadata imports for composed apps, fit together without schema duplication, provider business execution, or ungranted authority?"
+      },
+      "semantics": {
+        "type": "noul",
+        "instructions": "Are whole-message locale fallback, explicit freezing for recipient delivery, schema display bindings, and the separation of messages from ordinary text mutually consistent while preserving machine identities and authorization behavior?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "layout": {
+        "type": "choice",
+        "choice": "table",
+        "confidence": 0.79,
+        "probabilities": {
+          "unresolved": 0.0,
+          "table": 0.86,
+          "keyed": 0.14
+        }
+      },
+      "format": {
+        "type": "choice",
+        "choice": "icu",
+        "confidence": 0.92,
+        "probabilities": {
+          "unresolved": 0.03,
+          "icu": 0.94,
+          "mf2": 0.03
+        }
+      },
+      "sharing": {
+        "type": "noul",
+        "noul": 0.81
+      },
+      "semantics": {
+        "type": "noul",
+        "noul": 0.87
+      }
+    },
+    "usage": {
+      "input_tokens": 2605,
+      "output_tokens": 116
+    }
+  }
+}

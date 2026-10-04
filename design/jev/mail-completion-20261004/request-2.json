@@ -1,0 +1,27 @@
+{
+  "state": {
+    "instructions": "Assess the supplied mail workflow alternatives without assuming an implementation; returned uncertainty must remain visible.",
+    "facts": "The current membership owner publishes its paid-term predicate, bought mail flag and covered locations; it has not declared mail-change delivery. Requirements also allow a configured independent service entitlement. Admissions for receiving, linking or sending onward need current payment rights, whereas already stored items need explicit pickup/return resolution even after expiry. A dispatch destination is captured in advance; later callbacks use that capture, charges are independent of transport evidence, completed identifiable records have a 180-day lifetime, and pending physical property cannot vanish on a timer. Work is limited to draft contracts, not runtime/adapters.",
+    "actual_code": "export derive eligible_term(person:user,term:Term,at:datetime):bool = eligible_account(person,term.parent.parent) and not term.parent.paused and not term.parent.revoked and term.paid and term.from<=at and at<term.until and ((term.parent.parent.kind==individual and term.parent.account==person) or any(term.Seat as seat,seat.account==person and seat.active)); Term has mail:bool, locations:Location[]!, from:datetime, until:datetime. export capability BillingV1 version=1: charge(value:Charge) -> OperationOutcome; reconcile(source:text) -> Settlement?; event settled {value:Settlement}. Service currently has location, recipient, from, until, instructions, forwarding, revision, verified, source. scenario collect(item:Item,collector:user,evidence:text) by=mail_staff; require can_work(actor,item.location) and item.state in [received,notified,collection_ready] and trim(evidence)!=\"\" and item.service!=null; require (item.service.recipient.account==collector and item.service.recipient.verified) or any(item.service.Delegate as delegate,delegate.account==collector and delegate.active)."
+  },
+  "questions": {
+    "authority": {
+      "type": "choice",
+      "instructions": "Select the service-authority approach most suitable here.",
+      "criteria": {
+        "direct": "Reference Term when present and combine eligible_term with its mail purchase and site coverage at new admissions; an unlinked service instead needs staff-authored proof of standalone payment. Existing declarations suffice, while cross-package owner queries and deliberate configuration are necessary.",
+        "feed": "Author a dedicated mail entitlement integration, emit owner changes with ordered revisions, and retain receiving watches. It enables separately deployed owners and pushed revocation, at the price of membership-provider edits and defined freshness rejection.",
+        "manual": "Rely exclusively on recorded staff payment evidence and scheduled human reassessment. It has fewer integration contracts and works standalone, but timely membership cancellation is not established."
+      }
+    },
+    "dispatch": {
+      "type": "choice",
+      "instructions": "Choose the data arrangement for frozen forwarding and later results.",
+      "criteria": {
+        "separate": "Place an immutable instruction/destination/revision/fee/source core on a Dispatch child with changeable outcome fields; link appended Handling evidence to that child. Correlation and invoice identity become direct, with an additional domain entity.",
+        "handling": "Extend Handling with changeable transport and billing outcomes and lock only its captured inputs. It reuses the entity, while weakening its existing complete immutability promise.",
+        "append": "Keep intent and final Handling entries entirely immutable and join them by a common text identity with newest-entry queries. This avoids another entity, but correctness depends on unambiguous key selection and old-response checks."
+      }
+    }
+  }
+}

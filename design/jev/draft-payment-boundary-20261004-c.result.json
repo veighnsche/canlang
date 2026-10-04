@@ -1,0 +1,45 @@
+{
+  "request": {
+    "state": {
+      "context": "The business specification asks invoices to renew with genuine consent, retry definite transient failures within a finite policy, and revoke outdated checkout access while keeping uncertain money visible. PaymentsV1 currently supports collect/refund/reconcile, four states and a nullable checkout link; the only direct source consumer is CanInvoice. Runtime and vendor code remain out of scope.",
+      "candidate": "The reviewed design uses collect(customer,amount,reference,consent=null) and a new cancel(reference) with the same PaymentState as refund and reconcile. Absent consent selects an interactive payment; supplied consent requests off-session use. Actual collection must verify current merchant/team/customer ownership, permitted currency/amount and authorization lifetime/scope. Unsupported or withdrawn permission becomes a definite action_required failure. Preflight eligibility could be queried separately but would not authorize the later collection. Receipt metadata adds an increasing attempt revision and an optional failed-only enum with transient, action_required, permanent and cancelled. Disabling checkout never turns already accepted uncertainty into failure; cancel stays pending/unknown until known, and cancelled asserts no debit. Later authenticated contradictory success is retained for review. A stable reference cannot be rebound to new inputs."
+    },
+    "questions": {
+      "consent": {
+        "type": "choice",
+        "instructions": "Select the consent API boundary that remains authoritative with the least unnecessary surface.",
+        "criteria": {
+          "dispatch": "Make collect itself validate the supplied customer/consent and report action_required where needed; use its existing interactive mode for customer recovery.",
+          "preflight": "Provide both a consent eligibility read and collect-time enforcement; this offers advance explanations at the cost of extra API and stale-read semantics."
+        }
+      },
+      "retry_contract": {
+        "type": "noul",
+        "instructions": "Are revisioned outcomes with these failure and cancellation meanings adequate for a separately authored invoice retry policy to avoid confusing transient failure, required interaction and still-uncertain money?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "consent": {
+        "type": "choice",
+        "choice": "dispatch",
+        "confidence": 1.0,
+        "probabilities": {
+          "preflight": 0.0,
+          "dispatch": 1.0
+        }
+      },
+      "retry_contract": {
+        "type": "noul",
+        "noul": 0.69
+      }
+    },
+    "usage": {
+      "input_tokens": 658,
+      "output_tokens": 52
+    }
+  }
+}

@@ -1,0 +1,1 @@
+The three full requests preserve the same owner facts, options, tradeoffs and technical evidence. All instructions, context, question and option prose were freshly rewritten; exact identifiers/code stay fixed. Missing history remains partial in every fenced alternative. Invoice cancellation and membership release are not assumed reversible. Agreement is advice only.

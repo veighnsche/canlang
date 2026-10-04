@@ -1,0 +1,257 @@
+# Help the workspace operator pay brokers, relocation agencies, and commercial partners for qualifying workspace sales. @{nl="Help de werkplekexploitant makelaars, relocatiebureaus en commerciële partners betalen voor kwalificerende werkplekverkopen."}
+app CanAffiliate uses=[affiliate]
+
+# Track qualified broker commissions through provider allocation and bank-payout outcomes. @{nl="Volg gekwalificeerde makelaarscommissies via providertoewijzing en bankuitbetaling."}
+package affiliate
+ use rent_catalog {Location,test_site}
+ use employee {can_work,test_worker}
+ use invoice {SalesV1 as Sales,Qualification} from=deployment.qualified_sales
+ use affiliate {CommissionV1 as Commissions} from=deployment.commissions
+ use sales_attribution {capture}
+ Given
+  export contract CommissionResult { source:text label=label_CommissionResult_source, revision:int min=1, amount:money, account:text label=label_CommissionResult_account, allocation:enum(pending,unknown,allocated,failed,reversed) label={text=label_CommissionResult_allocation,values={pending=label_CommissionResult_allocation_pending,unknown=label_CommissionResult_allocation_unknown,allocated=label_CommissionResult_allocation_allocated,failed=label_CommissionResult_allocation_failed,reversed=label_CommissionResult_allocation_reversed}}, bank:enum(not_started,pending,in_transit,succeeded,failed,returned) label={text=label_CommissionResult_bank,values={pending=label_CommissionResult_allocation_pending,failed=label_CommissionResult_allocation_failed,not_started=label_CommissionResult_bank_not_started,in_transit=label_CommissionResult_bank_in_transit,succeeded=label_CommissionResult_bank_succeeded,returned=label_CommissionResult_bank_returned}}, transfer:text? label=label_CommissionResult_transfer, payout:text? label=label_CommissionResult_payout } label="Commission settlement outcome"@{nl="Uitkomst commissieverrekening"}
+  export contract AccountState { partner:text, account:text, revision:int min=1, state:enum(pending,action_required,ready,disabled), link:url?, expires:datetime? }
+  export capability CommissionV1 version=1
+   onboard(partner:text,account:text?,email:email) -> AccountState
+   account(partner:text,account:text) -> AccountState
+   event account_changed { value:AccountState }
+   settle(source:text,account:text,amount:money) -> CommissionResult
+   reconcile(source:text) -> CommissionResult
+   event changed { value:CommissionResult }
+  role partner_manager label="Partner manager"@{nl="Partnerbeheerder"}
+  role finance label="Finance"@{nl="Financiën"}
+  export Partner { window:duration=30d label="Attribution window"@{nl="Toewijzingstermijn"}, provider_revision:int=0, onboarding_delivery:text?, account_delivery:text?, onboarding_url:url?, onboarding_expires:datetime?, provider_state:AccountState.state=pending label={text="Provider eligibility"@{nl="Providergeschiktheid"},values={pending="Pending"@{nl="In afwachting"},action_required="Action required"@{nl="Actie vereist"},ready="Ready"@{nl="Gereed"},disabled="Disabled"@{nl="Uitgeschakeld"}}}, name:text, account:user label=label_CommissionResult_account, email:email, locations:Location[] label="Locations"@{nl="Locaties"}, products:text[]! label="Products"@{nl="Producten"}, rate:decimal min=0 max=1 label=label_Partner_rate, agreement:text label=label_Partner_agreement, milestone:enum(paid,completed,cancellation_passed) label={text="Qualification milestone"@{nl="Kwalificatiemijlpaal"},values={paid="Paid"@{nl="Betaald"},completed="Completed"@{nl="Voltooid"},cancellation_passed="Cancellation window passed"@{nl="Annuleringsperiode verstreken"}}}, provider_account:text? label="Provider account"@{nl="Provideraccount"}, onboarded:bool=false label="Provider onboarding complete"@{nl="Providerregistratie voltooid"}, active:bool=true } label="Partner"@{nl="Partner"}
+  SourceEvidence in Partner { source:text unique, value:Qualification, reversed:bool=false }
+  lock SourceEvidence fields=source
+  invariant SourceEvidence: not any(SourceEvidence as evidence,evidence.id!=row.id and evidence.source==row.source)
+  Sale in Partner { product:text, milestone:Partner.milestone, qualified_at:datetime, source:text unique label=label_CommissionResult_source, revision:int, customer:text label="Customer"@{nl="Klant"}, location:text, amount:money, rate:decimal label=label_Partner_rate, agreement:text label=label_Partner_agreement, commission:money label="Commission"@{nl="Commissie"}, reversed:bool=false label=label_CommissionResult_allocation_reversed } label="Qualified sale"@{nl="Gekwalificeerde verkoop"}
+  Adjustment in Partner { sale:Sale label="Sale"@{nl="Verkoop"}, amount:money, source:text unique label=label_CommissionResult_source, reason:text } label="Commission adjustment"@{nl="Commissiecorrectie"}
+  Settlement in Partner { last:CommissionResult?, account:text, result_revision:int=0, reconcile_delivery:text?, review:bool=false label="Needs finance review"@{nl="Financiële beoordeling nodig"}, source:text unique label=label_CommissionResult_source, amount:money, allocation:enum(pending,unknown,allocated,failed,reversed)=pending label={text=label_CommissionResult_allocation,values={pending=label_CommissionResult_allocation_pending,unknown=label_CommissionResult_allocation_unknown,allocated=label_CommissionResult_allocation_allocated,failed=label_CommissionResult_allocation_failed,reversed=label_CommissionResult_allocation_reversed}}, bank:enum(not_started,pending,in_transit,succeeded,failed,returned)=not_started label={text=label_CommissionResult_bank,values={pending=label_CommissionResult_allocation_pending,failed=label_CommissionResult_allocation_failed,not_started=label_CommissionResult_bank_not_started,in_transit=label_CommissionResult_bank_in_transit,succeeded=label_CommissionResult_bank_succeeded,returned=label_CommissionResult_bank_returned}}, transfer:text? label=label_CommissionResult_transfer, payout:text? label=label_CommissionResult_payout, delivery:text label="Delivery reference"@{nl="Afleverreferentie"} } label="Commission settlement"@{nl="Commissieverrekening"}
+  event AccountObserved { partner:Partner, value:AccountState }
+  event SettlementObserved { settlement:Settlement, value:CommissionResult }
+  event SettlementCheck { settlement:Settlement }
+  derive available(partner:Partner,currency:currency):money = sum(partner.Sale as sale where sale.commission.currency==currency select sale.commission,currency)+sum(partner.Adjustment as adjustment where adjustment.amount.currency==currency select adjustment.amount,currency)-sum(partner.Settlement as settlement where settlement.amount.currency==currency and settlement.allocation in [pending,unknown,allocated] select settlement.amount,currency)
+  policy Partner read=public fields=name,active
+  policy Partner read=partner_manager or finance where=all(row.locations as location,can_work(actor,location))
+  policy Partner read=authenticated where=actor.email_verified and row.account==actor fields=name,account,locations,products,rate,agreement,milestone,onboarded,active,provider_state,onboarding_url,onboarding_expires
+  policy Sale read=partner_manager or finance where=all(row.parent.locations as location,can_work(actor,location))
+  policy Sale read=authenticated where=actor.email_verified and row.parent.account==actor fields=source,location,product,milestone,qualified_at,amount,rate,agreement,commission,reversed
+  policy Adjustment read=partner_manager or finance where=all(row.parent.locations as location,can_work(actor,location))
+  policy Adjustment read=authenticated where=actor.email_verified and row.parent.account==actor
+  policy Settlement read=finance where=all(row.parent.locations as location,can_work(actor,location))
+  policy Settlement read=authenticated where=actor.email_verified and row.parent.account==actor
+  invariant Partner: row.window>0m and count(row.locations)>0 and count(row.products)>0 and trim(row.agreement)!=""
+  lock Sale fields=source,customer,location,product,milestone,qualified_at,amount,rate,agreement,commission
+  lock Adjustment fields=sale,amount,source,reason
+  lock Settlement fields=source,account,amount,delivery
+  export fixture broker=Partner {name="Broker",account=other,email="broker@example.test",locations=[test_site],products=["office"],rate=0.1,agreement="v1",milestone=completed,provider_account="connected",onboarded=true,provider_state=ready}
+  fixture sale=Sale {parent=broker,source="sale",revision=1,customer="company",location=test_site.id,product="office",milestone=completed,qualified_at=datetime("2026-10-01T00:00:00Z"),amount=money(1000,"EUR"),rate=0.1,agreement="v1",commission=money(100,"EUR")}
+  fixture payout=Settlement {parent=broker,source="payout",account="connected",amount=money(100,"EUR"),delivery="transfer-delivery"}
+  fixture attributed=SourceEvidence {parent=broker,source="qualified",value={source="qualified",revision=1,customer="company",account=self,location=test_site.id,product="office",amount=money(1000,"EUR"),purchased_at=datetime("2026-10-01T01:00:00Z"),occurred=datetime("2026-10-02T00:00:00Z"),milestone=completed,attribution=broker.id,exclusive_program=format("affiliate.Partner:{id}",{id=broker.id}),attributed_at=datetime("2026-10-01T00:00:00Z"),attribution_window=30d,first_customer=true,history_known=true}}
+  preferences { reversed:bool? label=label_CommissionResult_allocation_reversed }
+  message label_CommissionResult_source = "Source reference"@{nl="Bronreferentie"}
+  message label_CommissionResult_account = "Account"@{nl="Account"}
+  message label_CommissionResult_allocation = "Allocation state"@{nl="Toewijzingsstatus"}
+  message label_CommissionResult_allocation_pending = "Pending"@{nl="In behandeling"}
+  message label_CommissionResult_allocation_unknown = "Unknown"@{nl="Onbekend"}
+  message label_CommissionResult_allocation_allocated = "Allocated"@{nl="Toegewezen"}
+  message label_CommissionResult_allocation_failed = "Failed"@{nl="Mislukt"}
+  message label_CommissionResult_allocation_reversed = "Reversed"@{nl="Teruggedraaid"}
+  message label_CommissionResult_bank = "Bank delivery"@{nl="Bankuitbetaling"}
+  message label_CommissionResult_bank_not_started = "Not started"@{nl="Niet gestart"}
+  message label_CommissionResult_bank_in_transit = "In transit"@{nl="Onderweg"}
+  message label_CommissionResult_bank_succeeded = "Succeeded"@{nl="Geslaagd"}
+  message label_CommissionResult_bank_returned = "Returned"@{nl="Teruggestort"}
+  message label_CommissionResult_transfer = "Transfer reference"@{nl="Overboekingsreferentie"}
+  message label_CommissionResult_payout = "Payout reference"@{nl="Uitbetalingsreferentie"}
+  message label_Partner_rate = "Rate"@{nl="Tarief"}
+  message label_Partner_agreement = "Agreement"@{nl="Overeenkomst"}
+ When
+  crud Partner by=partner_manager fields=name,email,locations,products,rate,agreement,milestone,window,active create_fields=name,account,email,locations,products,rate,agreement,milestone,window when=all(row.locations as location,can_work(actor,location)) delete=none
+  # Reserve affordable commission while provider uncertainty remains reserved. @{nl="Reserveer betaalbare commissie en houd onzekere providerbedragen gereserveerd."}
+  scenario settle(partner:Partner,amount:money) by=finance label="Settle commission"@{nl="Commissie verrekenen"}
+   require all(partner.locations as location,can_work(actor,location)) and partner.active and partner.onboarded and partner.provider_state==ready and partner.provider_account!=null and amount.minor>0 and amount<=available(partner,amount.currency)
+   do
+    send Commissions.settle {source=operation.id,account=partner.provider_account,amount} as delivery
+    create Settlement {parent=partner,source=operation.id,account=partner.provider_account,amount,delivery=delivery.id} as settlement
+    schedule format("commission-{id}",{id=settlement.id}) at=now+5m event=SettlementCheck {settlement}
+   examples seed=[test_worker,sale] partner=broker
+    as,amount -> available(broker,"EUR"),count(broker.Settlement)
+    finance,money(100,"EUR") -> money(0,"EUR"),1
+    finance,money(101,"EUR") -> error(rule_failed)
+    partner_manager,money(50,"EUR") -> error(forbidden)
+  scenario qualification on=Sales.qualification
+   do
+    for partner in Partner as row where row.id==event.value.attribution limit=1
+     require event.value.revision>0
+     require event.value.exclusive_program==format("affiliate.Partner:{id}",{id=partner.id}) and event.value.account!=partner.account
+     let prior=first(partner.SourceEvidence as row where row.source==event.value.source order=row.id)
+     if prior==null
+      create SourceEvidence {parent=partner,source=event.value.source,value=event.value,reversed=event.value.milestone==reversed} as created_evidence
+     else
+      require prior.value.customer==event.value.customer and prior.value.account==event.value.account and prior.value.location==event.value.location and prior.value.product==event.value.product and prior.value.amount==event.value.amount and prior.value.purchased_at==event.value.purchased_at and prior.value.attribution==event.value.attribution and prior.value.exclusive_program==event.value.exclusive_program and prior.value.attributed_at==event.value.attributed_at and prior.value.attribution_window==event.value.attribution_window
+      if event.value.revision==prior.value.revision
+       require prior.value==event.value
+      if event.value.revision>prior.value.revision
+       set prior {value=event.value,reversed=prior.reversed or event.value.milestone==reversed}
+     let evidence=first(partner.SourceEvidence as evidence where evidence.source==event.value.source order=evidence.id)
+     require evidence!=null
+     let existing=first(partner.Sale as sale where sale.source==event.value.source order=sale.id)
+     if existing==null
+      if not evidence.reversed and event.value.revision==evidence.value.revision and event.value.milestone!=reversed
+       require partner.active and event.value.product in partner.products and any(partner.locations as location,location.id==event.value.location) and event.value.amount.minor>0 and event.value.occurred<=now and event.value.revision>0
+       if event.value.milestone==partner.milestone
+        create Sale {parent=partner,source=event.value.source,revision=event.value.revision,customer=event.value.customer,location=event.value.location,product=event.value.product,milestone=partner.milestone,qualified_at=event.value.occurred,amount=event.value.amount,rate=partner.rate,agreement=partner.agreement,commission=event.value.amount*partner.rate} as sale
+     else
+      require existing.customer==event.value.customer and existing.location==event.value.location and existing.product==event.value.product and existing.amount==event.value.amount
+      if event.value.revision>existing.revision
+       if event.value.milestone==reversed and not existing.reversed
+        create Adjustment {parent=partner,sale=existing,amount=-existing.commission,source=format("{source}:reversal",{source=existing.source}),reason="Source disqualification"} as adjustment
+        set existing {reversed=true}
+       set existing {revision=event.value.revision}
+   examples seed=[attributed] event={value=attributed.value}
+    attributed.reversed,event.value.revision,event.value.amount -> count(broker.Sale),available(broker,"EUR")
+    false,1,money(1000,"EUR") -> 1,money(100,"EUR")
+    true,2,money(1000,"EUR") -> 0,money(0,"EUR")
+    false,1,money(999,"EUR") -> error(rule_failed)
+   examples seed=[sale,attributed] event={value=attributed.value}
+    sale.source,event.value.revision,event.value.milestone,broker.active -> count(broker.Adjustment),available(broker,"EUR")
+    "qualified",2,reversed,false -> 1,money(0,"EUR")
+    "qualified",1,completed,true -> 0,money(100,"EUR")
+  # Open the verified partner's provider-hosted account flow without handling banking details. @{nl="Open de providerregistratie voor de geverifieerde partner zonder bankgegevens te verwerken."}
+  scenario onboard(partner:Partner) by=authenticated label="Complete provider onboarding"@{nl="Providerregistratie voltooien"}
+   require actor.email_verified and partner.account==actor and partner.active
+   do
+    send Commissions.onboard {partner=partner.id,account=partner.provider_account,email=partner.email} as delivery
+    set partner {onboarding_delivery=delivery.id,onboarding_url=null,onboarding_expires=null}
+   examples partner=broker
+    as,partner.account,partner.active -> partner.onboarding_url
+    members,self,true -> null
+    members,other,true -> error(rule_failed)
+    members,self,false -> error(rule_failed)
+  # Refresh the current provider eligibility without creating a replacement payout destination. @{nl="Ververs de providergeschiktheid zonder een nieuwe uitbetalingsbestemming te maken."}
+  scenario refresh_account(partner:Partner) by=authenticated or finance label="Refresh provider status"@{nl="Providerstatus verversen"}
+   require (actor.email_verified and partner.account==actor) or (finance and all(partner.locations as location,can_work(actor,location)))
+   require partner.provider_account!=null
+   do
+    send Commissions.account {partner=partner.id,account=partner.provider_account} as delivery
+    set partner {account_delivery=delivery.id}
+  scenario onboarded on=Commissions.onboard.completed
+   do
+    for partner in Partner as row where row.onboarding_delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      emit AccountObserved {partner,value=event.result}
+  scenario account_result on=Commissions.account.completed
+   do
+    for partner in Partner as row where row.account_delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      emit AccountObserved {partner,value=event.result}
+  scenario account_changed on=Commissions.account_changed
+   do
+    for partner in Partner as row where row.id==event.value.partner limit=1
+     emit AccountObserved {partner,value=event.value}
+  scenario account_observed on=AccountObserved
+   require event.value.partner==event.partner.id and (event.partner.provider_account==null or event.partner.provider_account==event.value.account)
+   require (event.value.link==null and event.value.expires==null) or (event.value.link!=null and event.value.expires!=null)
+   require event.value.revision>0
+   do
+    if event.value.revision==event.partner.provider_revision
+     require event.partner.provider_account==event.value.account and event.partner.provider_state==event.value.state and event.partner.onboarding_url==event.value.link and event.partner.onboarding_expires==event.value.expires
+    if event.value.revision>event.partner.provider_revision
+     set event.partner {provider_account=event.value.account,provider_revision=event.value.revision,provider_state=event.value.state,onboarded=event.value.state==ready,onboarding_url=event.value.link,onboarding_expires=event.value.expires}
+   examples event={partner=broker,value={partner=broker.id,account="connected",revision=1,state=ready,link=null,expires=null}}
+    event.partner.provider_revision,event.value.account,event.value.revision,event.value.state -> broker.onboarded,broker.provider_revision
+    0,"connected",1,ready -> true,1
+    2,"connected",1,disabled -> true,2
+    0,"wrong-account",1,ready -> error(rule_failed)
+  scenario result on=Commissions.changed
+   do
+    for settlement in Settlement as row where row.source==event.value.source limit=1
+     emit SettlementObserved {settlement,value=event.value}
+  scenario settled on=Commissions.settle.completed
+   do
+    for settlement in Settlement as row where row.delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      emit SettlementObserved {settlement,value=event.result}
+     else
+      if settlement.result_revision==0
+       set settlement {allocation=unknown}
+  scenario reconciled on=Commissions.reconcile.completed
+   do
+    for settlement in Settlement as row where row.reconcile_delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      emit SettlementObserved {settlement,value=event.result}
+  scenario settlement_observed on=SettlementObserved
+   require event.value.source==event.settlement.source and event.value.amount==event.settlement.amount and event.value.account==event.settlement.account
+   require event.value.revision>0 and (event.value.allocation!=allocated or event.value.transfer!=null)
+   do
+    if event.value.revision==event.settlement.result_revision and event.settlement.last!=null
+     require event.settlement.last==event.value
+    if event.value.revision>event.settlement.result_revision
+     set event.settlement {last=event.value}
+     if event.value.allocation==failed and (event.settlement.allocation==allocated or event.settlement.transfer!=null)
+      set event.settlement {review=true,result_revision=event.value.revision,bank=event.value.bank,payout=event.value.payout}
+     else
+      set event.settlement {result_revision=event.value.revision,allocation=event.value.allocation,bank=event.value.bank,transfer=event.value.transfer,payout=event.value.payout}
+   examples seed=[sale] event={settlement=payout,value={source="payout",revision=2,amount=money(100,"EUR"),account="connected",allocation=allocated,bank=failed,transfer="transfer",payout=null}}
+    event.settlement.allocation,event.settlement.transfer,event.value.allocation -> event.settlement.allocation,available(broker,"EUR"),event.settlement.review
+    allocated,"transfer",allocated -> allocated,money(0,"EUR"),false
+    pending,null,failed -> failed,money(100,"EUR"),false
+    allocated,"transfer",failed -> allocated,money(0,"EUR"),true
+  # Reconcile a settlement by its frozen identity, including later bank returns. @{nl="Controleer een verrekening via de vaste identiteit, ook bij latere bankretouren."}
+  scenario refresh_settlement(settlement:Settlement) by=authenticated or finance label="Refresh settlement"@{nl="Verrekening verversen"}
+   require (actor.email_verified and settlement.parent.account==actor) or (finance and all(settlement.parent.locations as location,can_work(actor,location)))
+   do
+    send Commissions.reconcile {source=settlement.source} as delivery
+    set settlement {reconcile_delivery=delivery.id}
+  scenario reconcile on=SettlementCheck
+   do
+    let settlement=event.settlement
+    if settlement.allocation in [pending,unknown] or settlement.bank in [pending,in_transit]
+     send Commissions.reconcile {source=settlement.source} as delivery
+     set settlement {reconcile_delivery=delivery.id}
+     schedule format("commission-{id}",{id=settlement.id}) at=now+5m event=SettlementCheck {settlement}
+ Then
+  # Maintain agreement rates and inspect source sales without repricing previous commission. @{nl="Beheer overeenkomsttarieven en bekijk bronverkopen zonder eerdere commissies te herberekenen."}
+  page /partners title="Partners"@{nl="Partners"}
+   require partner_manager or finance
+   card "Partner intake"@{nl="Partner aanmaken"}
+    form Partner.create
+   list Partner columns=name,agreement,rate,milestone,onboarded,active filter=active search=name display=split
+    card "Partner terms"@{nl="Partnervoorwaarden"}
+     edit
+     text row.agreement,row.milestone,row.onboarded
+     actions settle,refresh_account
+     text row.provider_state
+    tabs
+     tab "Sales and adjustments"@{nl="Verkopen en correcties"}
+      table row.Sale columns=source,location,amount,rate,commission,reversed filter=reversed,qualified_at,amount.currency defaults={reversed=preferences.reversed}
+       details "Frozen sale evidence"@{nl="Vastgelegd verkoopbewijs"}
+        text row.agreement,row.revision,row.customer
+      table row.Adjustment columns=sale,amount,reason
+     tab "Allocation and bank delivery"@{nl="Toewijzing en bankuitbetaling"}
+      table row.Settlement columns=amount,allocation,bank,transfer,payout,review
+       details "Settlement identity"@{nl="Identiteit verrekening"}
+        text row.source,row.delivery
+        action refresh_settlement
+    history
+  # Trace only your broker terms and distinguish connected-account allocation from bank receipt. @{nl="Bekijk uitsluitend je makelaarsvoorwaarden en onderscheid toewijzing aan het gekoppelde account van bankontvangst."}
+  page /partners/mine title="My commissions"@{nl="Mijn commissies"}
+   require authenticated and actor.email_verified
+   list Partner as partner where partner.account==actor display=split
+    card "Own agreement"@{nl="Eigen overeenkomst"}
+     text row.name,row.rate,row.agreement,row.milestone,row.onboarded,row.provider_state
+     actions onboard,refresh_account
+     copy app_url(format("/partners/share/{id}",{id=row.id}))
+     card "Provider onboarding"@{nl="Providerregistratie"}
+      require row.onboarding_expires!=null and row.onboarding_expires>now
+      text row.onboarding_url
+    table row.Sale columns=source,location,amount,rate,agreement,commission,reversed filter=reversed,qualified_at,amount.currency defaults={reversed=preferences.reversed}
+    table row.Adjustment columns=sale,amount,reason
+    table row.Settlement columns=amount,allocation,bank,transfer,payout,review
+     action refresh_settlement
+  # A partner link records a verified customer attribution without exposing broker terms or banking data. @{nl="Een partnerlink legt geverifieerde klanttoewijzing vast zonder makelaarsvoorwaarden of bankgegevens te tonen."}
+  page /partners/share/{Partner.id} title="Partner introduction"@{nl="Partnerintroductie"} nav=none
+   require row.active
+   text row.name
+   form capture arguments={partner=row} fields=customer

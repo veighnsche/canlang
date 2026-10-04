@@ -1,0 +1,17 @@
+{
+  "state": {
+    "task": "Judge the evidence model for finishing the canlang purchase and stock drafts from this bounded account; this is not a research request.",
+    "evidence": "Source currently locks submitted Request.amount, whose approved values form Budget commitments. Receipt presence locks Line quantity/unit_price; accepted Receipt evidence never changes. A buyer receives only with can_work(actor,line.parent.location), ordered/part_received status and outstanding quantity. Location-scoped budget_manager operations perform cancellation and closure. Stock.post belongs to stock_staff and enforces location-derived stock availability. The requested journeys need affordable authorization increases, quantity amendments, cancellation after partial delivery retaining actual spend, receipt-linked returns with shortage rejection, and configured supplier payable export excluding automated vendor payment. Owner mutation transactions are local; cross-owner projections use durable sends correlated with delivery IDs. Common metadata tracks actor, time and versions. Desired JS contracts have no runtime implementation."
+  },
+  "questions": {
+    "evidence_model": {
+      "type": "choice",
+      "instructions": "Which of these evidence approaches should be used for the described completion?",
+      "criteria": {
+        "additive": "Leave submitted amount and original line terms locked. Maintain append-only Increase/Amendment evidence to derive effective authorization/order quantity. Append receipt-owned Return evidence and project a uniquely identified stock reversal, with separate evidenced money corrections. Record actual spend when cancelling a partially fulfilled order. Freeze supplier invoice evidence for optional accounting delivery. Tradeoff: additional models/derives in exchange for intact originals and auditable authority.",
+        "rewrite": "Add privileged paths that alter submitted amounts and receipted line quantities, relying on immutable history to recover prior versions. Continue immutable receipts, linked returns and invoice snapshots. Tradeoff: simpler current-state storage and fewer models, but original field locks change and term reconstruction depends on history.",
+        "defer": "Wait for implementation infrastructure before authoring increases, partial cancellation or returns. Tradeoff: no extra proposed dependencies, but the requested business completion does not occur."
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "request": {
+    "state": "The draft update exposed prospective boilerplate in several apps: a history_open:bool=false field, its translated label and a details wrapper around the existing history primitive. The baseline contains 46 uses of history. The language prioritizes adoption and compact source by defining uniform setup once. Audit entries must still be bounded, checked against current record access and limited to currently readable fields. Initial expansion cannot affect business state, query selection, permissions or expiry. One alternative gives history its standard named Collapse, closed by default, and supplies the expansion preference through shared user Appearance. Logged-in accounts persist this base display choice; anonymous browsers keep it locally. Existing syntax suffices. App-specific evidence and real layout differences can still use details or owned preferences. This describes future settings/renderer behavior, not working code.",
+    "questions": {
+      "placement": {
+        "type": "choice",
+        "instructions": "Select the home for a repeated history-expansion preference given these source and access requirements.",
+        "criteria": {
+          "shared": "Provide it once in base Appearance and let canonical history supply its label/Collapse; use consistent behavior without recurring owner scaffolding.",
+          "per_owner": "Author a history field and display binding for every owner that needs it; pay repetition to obtain individually scoped preferences.",
+          "omit": "Keep the default closed view and exclude persistence of expansion; save declarations but remove the requested personal choice."
+        }
+      },
+      "boundary": {
+        "type": "noul",
+        "instructions": "Would changing solely the initial expansion of an otherwise unchanged authorized history view through the shared setting leave business actions and disclosure rules intact?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "placement": {
+        "type": "choice",
+        "choice": "shared",
+        "confidence": 1.0,
+        "probabilities": {
+          "omit": 0.0,
+          "shared": 1.0,
+          "per_owner": 0.0
+        }
+      },
+      "boundary": {
+        "type": "noul",
+        "noul": 0.89
+      }
+    },
+    "usage": {
+      "input_tokens": 593,
+      "output_tokens": 56
+    }
+  }
+}

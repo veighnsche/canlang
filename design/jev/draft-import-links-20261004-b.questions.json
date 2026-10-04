@@ -1,0 +1,28 @@
+{
+  "state": {
+    "context": "The CanLang drafts need a reusable CSV intake journey for CRM contacts/customers. They already have typed operation declarations, one CRUD mechanism, form generation, read grants, inline examples and export. Export cannot be treated as parsing or reviewed mutation. Keep source short and preserve the attached real customer_manager checks and field-limited contact reads.",
+    "candidate": "For the form alternative, a CSV mode accompanies the canonical mutation rather than defining another mutation. review refers to a pure existing read whose required parameter names/types come from a compatible subset of the target inputs and bound records. Its array result obeys record/field policies. Rows can be corrected or omitted; valid cells, current grants and visible candidates are checked before an explicit confirmation. Display names are never used to silently resolve IDs, and matches are never merged automatically. Execute selected rows sequentially through their ordinary owner operations with one stable operation identity per row and fresh authorization. Each row has its own transaction, so report completed, failed, pending and unknown states independently. Replays keep the original row identity; modifying an already successful input needs a newly reviewed row. Before each invocation, refresh the pure candidate lookup and require another confirmation if the candidate set changed, including after earlier imported rows committed. Candidate review is advisory business review, not a uniqueness invariant. Reuse existing typed ID/version, currency/date and array wire rules; CSV cannot change protected bound parents/identity. Uploaded UTF-8 bytes are short-lived bounded intake, not attachable files. Adopt RFC4180 comma/header/quoted-field conventions, plus explicit LF/BOM acceptance, without auto-detecting formats. The form submits existing operations also used by MCP; import-session transport does not introduce alternate CRUD authority.",
+    "url_candidate": "The proposal response view can use existing record-route syntax /offers/respond/{Revision.id}, with the opaque ID resolving team and recipient policies authorizing reads. No source primitive turns its relative text into a trusted absolute email link. Routes have no symbolic declaration names; deployment has the approved public origin. A proposed pure app_url(path:text)->url prefixes a validated local path with that origin. Accept one leading slash and encoded query/fragment suffixes; refuse fully qualified or double-slash URLs, userinfo, backslash, malformed encoding and decoded dot segments. Use configured origin/prefix, never request Host. The generated URL carries no authorization and the existing route still verifies its visitor. This adds neither an authored route registry nor repeated domain configuration.",
+    "exact_source": "  policy Contact read=authenticated where=actor.email_verified and row.email==actor.email fields=name,email,account,verified\n  policy Contact read=customer_reader or billing_reader where=customer_staff(actor,row.parent) fields=name,email,phone,verified\n  policy Contact read=customer_manager and customer_staff(actor,row.parent)\n  policy Contact read=authenticated where=row.account==actor or has_role(actor,row.parent,administrator)\n  policy Contact read=finance where=customer_staff(actor,row.parent) fields=name,email,phone,verified\n  crud Customer by=customer_manager fields=name,locations,active create_fields=name,kind,locations when=customer_staff(actor,row)\n  crud Contact by=customer_manager fields=name,email,phone,external_id when=customer_staff(actor,row.parent)\n| Next actions and contact transfer | Overdue/upcoming Table showing date, salesperson and deal; CSV import Fieldset with row-validation Table and duplicate preview, plus scoped export Button. | Resolve/import only authorized valid rows; never silently merge duplicate contacts. Related tour/proposal/account actions use their declared owning operations. |",
+    "reference": "https://www.rfc-editor.org/rfc/rfc4180"
+  },
+  "questions": {
+    "csv_form": {
+      "type": "choice",
+      "instructions": "Which design best balances concise source, authoritative schemas, disclosure boundaries, predictable partial results and understandable agent authoring?",
+      "criteria": {
+        "form": "Use form attributes import=csv and review=readScenario, keeping the existing target input schema and a pure candidate lookup accepting a matching named input subset. This avoids a separate operation wrapper, while expanding what a form declaration configures.",
+        "scenario": "Write a typed batch operation that calls a standard CSV parsing service and performs each row. The steps and customization are explicit, at the expense of input duplication or new reflection types and extra wrapper scenarios.",
+        "automatic": "Offer importing on all compatible mutation forms automatically and recognize only unique-key matches and identical normalized input rows. Source overhead disappears, but the current nonunique contact-email and case-insensitive company-name review requirement still needs customization."
+      }
+    },
+    "csv_semantics": {
+      "type": "noul",
+      "instructions": "Are the proposed form rules adequate for one owning schema and permission path, renewed candidate review, independent row outcomes and idempotent replay, with no batch-atomicity claim?"
+    },
+    "app_url": {
+      "type": "noul",
+      "instructions": "Can this constrained app_url behavior produce trustworthy absolute app links while preserving route authorization and avoiding invented deployment addresses?"
+    }
+  }
+}

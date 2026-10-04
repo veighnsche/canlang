@@ -1,0 +1,20 @@
+{
+  "state": {
+    "context": "CanInvoice requires consented recurring collection, finite retries only after definite retryable failures, and disabling obsolete checkout while uncertain provider acceptance is reconciled. Current std.PaymentsV1 has collect(amount,reference), refund(payment,amount,reference), reconcile(reference), PaymentState with status pending/unknown/succeeded/failed and optional checkout. Only CanInvoice currently calls this capability. No provider library is being implemented.",
+    "candidate": "Propose collect(customer:text,amount:money,reference:text,consent:text?=null), cancel(reference:text)->PaymentState and the existing refund/reconcile. Null consent requests interactive checkout; nonnull asks off-session collection. The installed provider validates mandate against the bound merchant/team/customer, exact amount/currency, validity and scope at dispatch; missing, revoked or unsupported consent yields definite failed/action_required, never fabricated acceptance. A preflight authorization query could improve UI but cannot replace dispatch validation. Extend PaymentState with monotone per-attempt revision and nullable failure enum(transient,action_required,permanent,cancelled), present only for definite failure. cancel disables future checkout but returns pending/unknown while accepted money is unresolved; failed/cancelled means definitive no collection. A verified later successful receipt must be retained and reviewed, not discarded. Same reference with changed inputs is rejected."
+  },
+  "questions": {
+    "consent": {
+      "type": "choice",
+      "instructions": "Which minimal consent surface fits exact authority and avoids duplicate checks becoming false guarantees?",
+      "criteria": {
+        "dispatch": "Validate customer-bound consent atomically inside collect; unsupported automatic payment returns action_required and ordinary manual checkout remains possible. No separate preflight API.",
+        "preflight": "Add an authorization query as well as dispatch validation. It can explain eligibility before a payment attempt but introduces another interface and stale read handling."
+      }
+    },
+    "retry_contract": {
+      "type": "noul",
+      "instructions": "Does the described cancel/failure/revision contract distinguish safe retry, user action and unresolved accepted funds sufficiently for the invoice to author its retry policy without guessing provider success?"
+    }
+  }
+}

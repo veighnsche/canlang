@@ -1,0 +1,44 @@
+{
+  "request": {
+    "state": "The ongoing migration found another repeated candidate: generic history_open:bool=false, its label binding and a details/history wrapper would be copied in multiple apps. The original draft corpus already has 46 canonical history controls. Adoption/token efficiency require common setup once. History remains currently authorized, bounded and field-projected; no preference may change grants, queries, retention or business state. Proposed default: canonical history renders one runtime-labeled Collapse, initially closed, with a shared own-user Appearance choice for initial history expansion. Authenticated choice is shared base presentation state; anonymous choice stays browser-local. This requires no new authored syntax. Domain evidence groups and app-specific presentation differences still use existing details/preferences when actually needed. Renderer/base settings remain unimplemented.",
+    "questions": {
+      "placement": {
+        "type": "choice",
+        "instructions": "Which canonical placement fits the repeated history choice and the given authorization/token constraints?",
+        "criteria": {
+          "shared": "Put the common history expansion choice in runtime Appearance and derive each history control without copied schema/labels/wrapper; accept one standard behavior.",
+          "per_owner": "Declare each owner history preference and bind wrappers; accept repeated setup for independently scoped choice.",
+          "omit": "Offer no persistent expansion choice and keep history initially closed; accept losing this personal behavior."
+        }
+      },
+      "boundary": {
+        "type": "noul",
+        "instructions": "Does the shared-choice proposal preserve current history disclosure and business behavior when its only effect is initial expansion of the same authorized control?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "placement": {
+        "type": "choice",
+        "choice": "shared",
+        "confidence": 1.0,
+        "probabilities": {
+          "omit": 0.0,
+          "per_owner": 0.0,
+          "shared": 1.0
+        }
+      },
+      "boundary": {
+        "type": "noul",
+        "noul": 0.91
+      }
+    },
+    "usage": {
+      "input_tokens": 572,
+      "output_tokens": 56
+    }
+  }
+}

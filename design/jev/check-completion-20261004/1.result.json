@@ -1,0 +1,40 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "instructions": "Assess a canlang heartbeat storage decision from this supplied evidence. You are a classifier: do not assume missing implementation or treat advice as correctness proof.",
+      "facts": "The primary goal is adoption through simple, token-efficient SaaS syntax. The user requires first-class Cloudflare integration; no direct user instruction selects Durable Objects for CanCheck. An assistant-authored app requirement says D1 configuration/history and one Durable Object per check for receipts/deadlines/state. DESIGN permits one authoritative owner per mutation: related root/children move together; cross-owner mutable reads cannot become an atomic transaction. The existing Check, Transition, employee Employee and rent_catalog Location are D1-owned. can_work is the actual location authorization boundary below. Role/membership admission snapshots do not include Employee location grants. D1 uses a database revision fence and atomic batch; schedules use the shared D1 due dispatcher or a local DO alarm. These contracts are unimplemented. Heartbeat requirements are durable ping acknowledgement, first/later missed deadlines, grace, recovery, pause/resume, revision fencing, correlated delivery outcomes, retention and trusted developer provisioning outside UI/MCP. Raw database writes cannot bypass the fence. Single owner D1 can express those rules. No runtime benchmark proves acceptable contention.",
+      "actual_code": "scenario pause(check:Check) by=operations\n require check.location==null or can_work(actor,check.location)\n do\n  set check {enabled=false,state=paused,revision=check.revision+1}\n  cancel check.id\nscenario resume(check:Check) by=operations\n require check.location==null or can_work(actor,check.location)\n do\n  let revision=check.revision+1\n  set check {enabled=true,state=new,armed=now,revision}\n  schedule check.id at=now+check.period+check.grace event=Deadline {check,revision}\nexport derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))"
+    },
+    "questions": {
+      "storage": {
+        "type": "choice",
+        "instructions": "Select the smallest defensible draft correction that preserves the real guards and heartbeat rules while respecting owner consistency. Weigh simplicity/adoption, authorization fidelity, transactional honesty and capacity uncertainty.",
+        "criteria": {
+          "d1": "Keep authoritative Check, Transition and alert evidence in D1 with existing employee guards; revise the assistant-authored split-storage statement and use shared due dispatch. Avoids a new access mechanism; database-wide fence contention and dispatch latency need future measurements.",
+          "do_snapshot": "Move the whole check group to per-check DO and design a new snapshot of D1 employee location permissions for admission. Gains per-check serialization/alarm isolation; introduces a new authorization mechanism and non-atomic revocation relative to Employee changes, and must replace the current ownership claim.",
+          "defer": "Keep current draft storage unspecified and flag split storage plus authorization conflict as unresolved. Avoids choosing without benchmark evidence; leaves otherwise expressible heartbeat completion blocked and does not resolve the inconsistent assistant-authored requirement."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "storage": {
+        "type": "choice",
+        "choice": "d1",
+        "confidence": 0.99,
+        "probabilities": {
+          "defer": 0.0,
+          "do_snapshot": 0.0,
+          "d1": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 964,
+      "output_tokens": 42
+    }
+  }
+}

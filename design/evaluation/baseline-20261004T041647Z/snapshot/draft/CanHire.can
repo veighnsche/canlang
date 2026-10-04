@@ -1,0 +1,331 @@
+# Help the workspace operator recruit receptionists, community managers, sales staff, and facilities technicians for specific locations. @{nl="Help de werkplekbeheerder receptionisten, communitymanagers, verkopers en facilitaire technici voor specifieke locaties te werven."}
+app CanHire uses=[hire]
+
+# Recruit employees, prepare onboarding and acknowledge published training versions. @{nl="Werf medewerkers, bereid hun inwerking voor en bevestig gepubliceerde opleidingsversies."}
+app PeopleDevelopment uses=[CanHire,CanOnboard,CanLearn]
+
+# Keep vacancy intake, interview feedback and reviewed hiring handoff private. @{nl="Houd vacatureaanmeldingen, gespreksfeedback en de beoordeelde aanstellingsoverdracht privé."}
+package hire label="Recruitment"@{nl="Werving"}
+ use rent_catalog {Location,test_site}
+ use employee {Employee,hr,can_work,test_worker}
+ use onboard {Template,start,test_template}
+ use std {EmailV1 as Mail} from=deployment.mail
+ use shift {ScheduleV1 as StaffSchedule} from=deployment.staff_schedule
+ Given
+  message heading_own_application_outcomes = "Own application outcomes"@{nl="Eigen sollicitatieresultaten"}
+  message label_interviewer = "Interviewer"@{nl="Interviewer"}
+  message label_Candidate_application = "Application text"@{nl="Sollicitatietekst"}
+  message label_Candidate_cv = "CV attachment"@{nl="CV-bijlage"}
+  message label_Candidate_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Candidate_stage_interview = "Interview"@{nl="Sollicitatiegesprek"}
+  message label_Interview_from = "Start"@{nl="Begin"}
+  message label_Interview_until = "End"@{nl="Einde"}
+  message label_Interview_feedback = "Interview feedback"@{nl="Gespreksfeedback"}
+  preferences { location:Location?, stage:Candidate.stage? }
+  role recruiter label="Recruiter"@{nl="Recruiter"}
+  role interviewer label=label_interviewer
+  Vacancy { location:Location, title:text trim min=1, description:text, employment:text label="Employment type"@{nl="Dienstverband"}, skills:text[] label="Skills"@{nl="Vaardigheden"}, owner:user server=actor label="Owner"@{nl="Eigenaar"}, published:bool=false label="Published"@{nl="Gepubliceerd"}, open:bool=true label="Open"@{nl="Open"}, retention_days:int=180 min=1 label="Candidate retention days"@{nl="Bewaartermijn kandidaten in dagen"}, retention_until:datetime? label="Candidate expiry"@{nl="Vervaldatum kandidaten"}, closed_at:datetime? label="Closed at"@{nl="Gesloten op"} } label="Vacancy"@{nl="Vacature"}
+  Candidate in Vacancy { account:user? label="Account"@{nl="Account"}, name:text, email:email, application:text label=label_Candidate_application, cv:file? label=label_Candidate_cv, source:text label=label_Candidate_source, stage:enum(applied,interview,offer,hired,rejected,withdrawn)=applied label={text="Hiring stage"@{nl="Sollicitatiefase"},values={applied="Applied"@{nl="Gesolliciteerd"},interview=label_Candidate_stage_interview,offer="Offer"@{nl="Aanbod"},hired="Hired"@{nl="Aangenomen"},rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"}}}, reason:text?, previous_stage:Candidate.stage? label="Previous active stage"@{nl="Vorige actieve fase"}, onboarding_reference:text? label="Onboarding reference"@{nl="Inwerkreferentie"}, identity_review:text? label="Reviewed account evidence"@{nl="Bewijs beoordeeld account"} } label="Candidate"@{nl="Kandidaat"}
+  Interview in Candidate { interviewer:Employee label=label_interviewer, from:datetime label=label_Interview_from, until:datetime label=label_Interview_until, timezone:timezone, notes:text?, feedback:text? label=label_Interview_feedback, state:enum(pending,confirmed,cancelled,unavailable,failed)=pending label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In afwachting"},confirmed="Confirmed"@{nl="Bevestigd"},cancelled="Cancelled"@{nl="Geannuleerd"},unavailable="Unavailable"@{nl="Niet beschikbaar"},failed="Failed"@{nl="Mislukt"}}}, previous:Interview? label="Retained interview"@{nl="Behouden gesprek"}, source:text unique label=label_Candidate_source, release_delivery:text? label="Release reference"@{nl="Vrijgavereferentie"}, release_state:enum(none,pending,released,failed,unknown)=none label={text="Reservation release"@{nl="Reservering vrijgeven"},values={none="Not requested"@{nl="Niet aangevraagd"},pending="Pending"@{nl="In afwachting"},released="Released"@{nl="Vrijgegeven"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"}}}, delivery:text? label="Delivery reference"@{nl="Verzendingsreferentie"}, notice_delivery:text? label="Reminder reference"@{nl="Herinneringsreferentie"}, notice_state:enum(none,pending,succeeded,failed,unknown,skipped)=none label={text="Reminder delivery"@{nl="Verzending herinnering"},values={none="Not requested"@{nl="Niet aangevraagd"},pending="Pending"@{nl="In afwachting"},succeeded="Sent"@{nl="Verzonden"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}} } label=label_Candidate_stage_interview
+  event InterviewAccepted { interview:Interview }
+  event InterviewReminder { interview:Interview, revision:int }
+  policy Vacancy read=public where=row.published and row.open fields=location,title,description,employment,skills
+  policy Vacancy read=recruiter and can_work(actor,row.location)
+  policy Candidate read=hr fields=name,email,account,stage,onboarding_reference,identity_review
+  policy Candidate read=recruiter and can_work(actor,row.parent.location)
+  policy Candidate read=authenticated where=row.account==actor fields=name,email,application,cv,stage,reason
+  policy Candidate read=interviewer where=any(row.Interview as interview,interview.interviewer.user==actor and interview.state==confirmed and interview.interviewer.active) fields=name,application,cv,stage
+  policy Interview read=recruiter and can_work(actor,row.parent.parent.location)
+  policy Interview read=interviewer where=row.interviewer.user==actor and row.interviewer.active
+  retain Candidate until=row.parent.retention_until
+  unique Candidate fields=email
+  lock Candidate fields=cv
+  lock Interview fields=interviewer,from,until,timezone,previous,source
+  invariant Vacancy: row.open==(row.closed_at==null) and row.open==(row.retention_until==null)
+  invariant Interview: row.from<row.until
+  fixture vacancy=Vacancy {location=test_site,title="Reception",description="Reception role",employment="Full-time"}
+  fixture applicant=Candidate {parent=vacancy,account=self,name="Applicant",email="applicant@example.test",application="Application",source="Verified intake"}
+  fixture booked=Interview {parent=applicant,interviewer=test_worker,from=datetime("2099-01-01T09:00:00Z"),until=datetime("2099-01-01T10:00:00Z"),timezone="Europe/Brussels",state=confirmed,source="original-interview"}
+  fixture proposed=Interview {parent=applicant,interviewer=test_worker,from=datetime("2099-01-01T10:00:00Z"),until=datetime("2099-01-01T11:00:00Z"),timezone="Europe/Brussels",previous=booked,source="replacement-interview",delivery="move-interview"}
+ When
+  crud Vacancy by=recruiter fields=title,description,employment,skills,published create_fields=location,title,description,employment,skills when=can_work(actor,row.location) delete=none
+  # Close new intake and record the fixed recruitment-retention deadline. @{nl="Sluit nieuwe aanmeldingen en leg de vaste bewaartermijn voor werving vast."}
+  scenario close(vacancy:Vacancy) by=recruiter label="Close vacancy"@{nl="Vacature sluiten"}
+   require can_work(actor,vacancy.location) and vacancy.open
+   do
+    let deadline=now+vacancy.retention_days*1d
+    require all(vacancy.Candidate as candidate,all(candidate.Interview as interview,interview.until<=deadline or (interview.state in [cancelled,failed,unavailable] and interview.release_state==released))) message="Resolve interview commitments beyond the retention deadline before closing."@{nl="Los gespreksreserveringen na de bewaartermijn op voordat je sluit."}
+    set vacancy {open=false,closed_at=now,retention_until=deadline}
+   examples seed=[test_worker] vacancy=vacancy
+    as,vacancy.open -> vacancy.open,vacancy.closed_at,vacancy.retention_until
+    recruiter,true -> false,now,now+180d
+    public,true -> error(forbidden)
+   examples seed=[test_worker,booked] vacancy=vacancy
+    as -> vacancy.open
+    recruiter -> error(rule_failed)
+  # Reopen vacancy intake while preserving prior candidate outcomes. @{nl="Heropen de vacature-intake met behoud van eerdere kandidaatresultaten."}
+  scenario reopen_vacancy(vacancy:Vacancy) by=recruiter label="Reopen vacancy"@{nl="Vacature heropenen"}
+   require can_work(actor,vacancy.location) and not vacancy.open
+   do set vacancy {open=true,closed_at=null,retention_until=null}
+   examples seed=[test_worker] vacancy=vacancy
+    as,vacancy.open,vacancy.closed_at,vacancy.retention_until -> vacancy.open,vacancy.closed_at,vacancy.retention_until
+    recruiter,false,datetime("2099-01-01T00:00:00Z"),datetime("2099-06-30T00:00:00Z") -> true,null,null
+    recruiter,true,null,null -> error(rule_failed)
+  # Apply once to a published open vacancy using your verified account. @{nl="Solliciteer één keer op een gepubliceerde open vacature met je geverifieerde account."}
+  scenario apply(vacancy:Vacancy,name:text,application:text label=label_Candidate_application,cv:file? label=label_Candidate_cv) by=authenticated label="Apply"@{nl="Solliciteren"}
+   require actor.email_verified and vacancy.open and vacancy.published and trim(name)!="" and trim(application)!="" and not any(vacancy.Candidate as candidate,candidate.email==actor.email)
+   do create Candidate {parent=vacancy,account=actor,name,email=actor.email,application,cv,source="Verified intake"} as candidate
+  # Record recruiter-entered intake and its actual source. @{nl="Registreer een door de recruiter ingevoerde kandidaat en de werkelijke bron."}
+  scenario intake(vacancy:Vacancy,name:text,email:email,application:text label=label_Candidate_application,cv:file? label=label_Candidate_cv,source:text label=label_Candidate_source) by=recruiter label="Record candidate intake"@{nl="Kandidaat registreren"}
+   require can_work(actor,vacancy.location) and vacancy.open and trim(source)!=""
+   do create Candidate {parent=vacancy,name,email,application,cv,source} as candidate
+  # Request one interviewer reservation rather than relying on a local interview calendar. @{nl="Vraag één interviewerreservering aan in plaats van op een lokale gesprekskalender te vertrouwen."}
+  scenario schedule(candidate:Candidate,interviewer:Employee label=label_interviewer,from:datetime label=label_Interview_from,until:datetime label=label_Interview_until,timezone:timezone) by=recruiter label="Schedule interview"@{nl="Gesprek plannen"}
+   require can_work(actor,candidate.parent.location) and candidate.stage in [applied,interview] and interviewer.active and can_work(interviewer.user,candidate.parent.location) and from>=now and from<until and (candidate.parent.retention_until==null or until<=candidate.parent.retention_until)
+   do
+    create Interview {parent=candidate,interviewer,from,until,timezone,source=operation.id} as booking
+    send StaffSchedule.reserve {value={source=booking.source,employee=interviewer.user,location=candidate.parent.location.id,from,until,skill="interview",kind=interview,revision=1}} as delivery
+    set booking {delivery=delivery.id}
+  # Retain the confirmed interview until its staged replacement is accepted. @{nl="Behoud het bevestigde gesprek totdat de voorbereide vervanging is aanvaard."}
+  scenario reschedule(booking:Interview,from:datetime label=label_Interview_from,until:datetime label=label_Interview_until,timezone:timezone) by=recruiter label="Reschedule interview"@{nl="Gesprek verplaatsen"}
+   require can_work(actor,booking.parent.parent.location) and booking.parent.stage in [applied,interview] and booking.state==confirmed and booking.interviewer.active and from>=now and from<until and (booking.parent.parent.retention_until==null or until<=booking.parent.parent.retention_until) and (from!=booking.from or until!=booking.until or timezone!=booking.timezone)
+   require not any(booking.parent.Interview as item,item.previous==booking and item.state==pending)
+   do
+    create Interview {parent=booking.parent,interviewer=booking.interviewer,from,until,timezone,previous=booking,source=operation.id} as replacement
+    send StaffSchedule.stage {value={source=replacement.source,employee=replacement.interviewer.user,location=replacement.parent.parent.location.id,from,until,skill="interview",kind=interview,revision=1},previous_source=booking.source,previous_revision=1} as delivery
+    set replacement {delivery=delivery.id}
+   examples seed=[test_worker] booking=booked until=datetime("2099-01-01T11:00:00Z") timezone="Europe/Brussels"
+    as,from -> booking.state,count(booking.parent.Interview)
+    recruiter,datetime("2099-01-01T10:00:00Z") -> confirmed,2
+    recruiter,datetime("2099-01-01T12:00:00Z") -> error(rule_failed)
+    public,datetime("2099-01-01T10:00:00Z") -> error(forbidden)
+  # Cancel one current interview and any staged replacement without losing its source fence. @{nl="Annuleer een huidig gesprek en eventuele voorbereide vervanging met behoud van de brongrens."}
+  scenario cancel_interview(interview:Interview,reason:text) by=recruiter label="Cancel interview"@{nl="Gesprek annuleren"}
+   require can_work(actor,interview.parent.parent.location) and interview.state in [pending,confirmed] and trim(reason)!=""
+   do
+    set interview {state=cancelled,notes=reason}
+    cancel interview.id
+    send StaffSchedule.release {source=interview.source,revision=2} as release
+    set interview {release_delivery=release.id,release_state=pending}
+    for replacement in interview.parent.Interview as item where item.previous==interview and item.state==pending limit=100
+     set replacement {state=cancelled}
+     cancel replacement.id
+     send StaffSchedule.release {source=replacement.source,revision=2} as replacement_release
+     set replacement {release_delivery=replacement_release.id,release_state=pending}
+   examples seed=[test_worker] interview=booked reason="Candidate unavailable"
+    as,interview.state -> interview.state,interview.release_state
+    recruiter,confirmed -> cancelled,pending
+    recruiter,cancelled -> error(rule_failed)
+    public,confirmed -> error(forbidden)
+  # Retry an unresolved release through the same canonical scheduler source fence. @{nl="Herhaal een onopgeloste vrijgave via dezelfde canonieke scheduler-brongrens."}
+  scenario retry_release(interview:Interview) by=recruiter label="Retry release"@{nl="Vrijgave herhalen"}
+   require can_work(actor,interview.parent.parent.location) and interview.state in [cancelled,failed,unavailable] and interview.release_state in [failed,unknown]
+   do
+    send StaffSchedule.release {source=interview.source,revision=2} as release
+    set interview {release_delivery=release.id,release_state=pending}
+  # Save feedback only from the currently assigned active interviewer. @{nl="Bewaar uitsluitend feedback van de momenteel toegewezen actieve interviewer."}
+  scenario feedback(interview:Interview,notes:text) by=interviewer label=label_Interview_feedback
+   require interview.interviewer.user==actor and interview.interviewer.active and interview.state==confirmed and interview.parent.stage in [applied,interview,offer] and trim(notes)!=""
+   do set interview {feedback=notes}
+  # Record a hiring outcome without granting staff privileges. @{nl="Registreer een aanstellingsresultaat zonder personeelsrechten toe te kennen."}
+  scenario decide(candidate:Candidate,stage:Candidate.stage,reason:text) by=recruiter label="Record decision"@{nl="Besluit vastleggen"}
+   require can_work(actor,candidate.parent.location) and stage in [offer,hired,rejected] and trim(reason)!="" and candidate.stage in [applied,interview,offer]
+   do
+    if stage==rejected
+     set candidate {previous_stage=candidate.stage}
+    set candidate {stage,reason}
+    if stage in [hired,rejected]
+     for interview in candidate.Interview as item where item.state in [pending,confirmed] limit=100
+      set interview {state=cancelled}
+      cancel interview.id
+      send StaffSchedule.release {source=interview.source,revision=2} as release
+      set interview {release_delivery=release.id,release_state=pending}
+  # Restore the recorded active stage without erasing application history. @{nl="Herstel de vastgelegde actieve fase zonder sollicitatiehistorie te wissen."}
+  scenario reopen_application(candidate:Candidate,reason:text) by=recruiter label="Reopen application"@{nl="Sollicitatie heropenen"}
+   require can_work(actor,candidate.parent.location) and candidate.stage in [rejected,withdrawn] and candidate.previous_stage in [applied,interview,offer] and trim(reason)!=""
+   do set candidate {stage=candidate.previous_stage,reason}
+   examples seed=[test_worker] candidate=applicant reason="Reviewed correction"
+    as,candidate.stage,candidate.previous_stage -> candidate.stage
+    recruiter,rejected,offer -> offer
+    recruiter,withdrawn,interview -> interview
+    recruiter,hired,offer -> error(rule_failed)
+  # Match a reviewed hire to the HR-created account identity and start one readiness checklist. @{nl="Koppel een beoordeelde aanstelling aan de door HR gemaakte accountidentiteit en start één inwerkchecklist."}
+  scenario handoff(candidate:Candidate,employee:Employee,template:Template,evidence:text label="Verified identity review"@{nl="Beoordeling geverifieerde identiteit"}) by=hr label="Review onboarding handoff"@{nl="Inwerkoverdracht beoordelen"}
+   require candidate.stage==hired and candidate.onboarding_reference==null and employee.active and active_member(employee.user,team) and employee.home==candidate.parent.location and (candidate.account==null or candidate.account==employee.user) and trim(evidence)!=""
+   do
+    call start {employee,template}
+    set candidate {account=employee.user,onboarding_reference=employee.id,identity_review=evidence}
+   examples seed=[test_worker] candidate=applicant employee=test_worker template=test_template evidence="Verified account matched to the accepted candidate"
+    as,candidate.stage,candidate.account -> candidate.onboarding_reference
+    hr,hired,self -> employee.id
+    hr,offer,self -> error(rule_failed)
+    hr,hired,other -> error(rule_failed)
+    recruiter,hired,self -> error(forbidden)
+  # Withdraw your application and cancel current interview commitments. @{nl="Trek je sollicitatie in en annuleer huidige gespreksreserveringen."}
+  scenario withdraw(candidate:Candidate) by=authenticated label="Withdraw"@{nl="Intrekken"}
+   require candidate.account==actor and candidate.stage in [applied,interview,offer]
+   do
+    set candidate {previous_stage=candidate.stage,stage=withdrawn}
+    for interview in candidate.Interview as item where item.state in [pending,confirmed] limit=100
+     set interview {state=cancelled}
+     cancel interview.id
+     send StaffSchedule.release {source=interview.source,revision=1} as release
+   examples candidate=applicant
+    as,candidate.stage -> candidate.stage
+    members,applied -> withdrawn
+    members,hired -> error(rule_failed)
+    public,applied -> error(forbidden)
+  scenario reservation on=StaffSchedule.reserve.completed
+   do
+    for interview in Interview as item where item.delivery==event.delivery_id and item.previous==null and item.state==pending limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==interview.source and event.result.revision==1 and event.result.state==confirmed
+      emit InterviewAccepted {interview}
+     else
+      if event.status==failed or (event.status==succeeded and event.result!=null and event.result.source==interview.source and event.result.state in [unavailable,failed,released])
+       if event.result!=null and event.result.state==unavailable
+        set interview {state=unavailable}
+       else
+        set interview {state=failed}
+       send StaffSchedule.release {source=interview.source,revision=2} as release
+       set interview {release_delivery=release.id,release_state=pending}
+  scenario replacement_reserved on=StaffSchedule.stage.completed
+   do
+    for interview in Interview as item where item.delivery==event.delivery_id and item.previous!=null and item.state==pending limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==interview.source and event.result.revision==1 and event.result.state==confirmed
+      emit InterviewAccepted {interview}
+     else
+      if event.status==failed or (event.status==succeeded and event.result!=null and event.result.source==interview.source and event.result.state in [unavailable,failed,released])
+       if event.result!=null and event.result.state==unavailable
+        set interview {state=unavailable}
+       else
+        set interview {state=failed}
+       send StaffSchedule.release {source=interview.source,revision=2} as release
+       set interview {release_delivery=release.id,release_state=pending}
+   examples seed=[test_worker,booked,proposed] event={delivery_id="move-interview",status=succeeded,result={source="replacement-interview",revision=1,state=unavailable,reference=null,detail="Interviewer unavailable"},error=null}
+    event.result.state -> proposed.state,booked.state
+    unavailable -> unavailable,confirmed
+    confirmed -> pending,confirmed
+  scenario reservation_changed on=StaffSchedule.changed
+   do
+    for interview in Interview as item where item.source==event.value.source and item.state==pending limit=1
+     if event.value.revision==1 and event.value.state==confirmed
+      emit InterviewAccepted {interview}
+     else
+      if event.value.state in [unavailable,failed,released]
+       if event.value.state==unavailable
+        set interview {state=unavailable}
+       else
+        set interview {state=failed}
+       send StaffSchedule.release {source=interview.source,revision=2} as release
+       set interview {release_delivery=release.id,release_state=pending}
+    for interview in Interview as item where item.source==event.value.source and item.release_state in [pending,failed,unknown] limit=1
+     if event.value.state==released and event.value.revision>=2
+      set interview {release_state=released}
+  scenario accept_interview on=InterviewAccepted
+   do
+    let booking=event.interview
+    if booking.state==pending
+     if booking.from>now and can_work(booking.interviewer.user,booking.parent.parent.location) and booking.parent.stage in [applied,interview] and booking.interviewer.active and (booking.previous==null or booking.previous.state==confirmed)
+      set booking {state=confirmed}
+      set booking.parent {stage=interview}
+      if booking.previous!=null
+       set booking.previous {state=cancelled}
+       cancel booking.previous.id
+       send StaffSchedule.release {source=booking.previous.source,revision=2} as release
+       set booking.previous {release_delivery=release.id,release_state=pending}
+      if booking.from>now+1h
+       schedule booking.id at=booking.from-1h event=InterviewReminder {interview=booking,revision=1}
+     else
+      set booking {state=cancelled}
+      send StaffSchedule.release {source=booking.source,revision=2} as release
+      set booking {release_delivery=release.id,release_state=pending}
+   examples seed=[test_worker,booked,proposed] event={interview=proposed}
+    event.interview.state,event.interview.previous.state -> proposed.state,booked.state,applicant.stage
+    pending,confirmed -> confirmed,cancelled,interview
+    cancelled,confirmed -> cancelled,confirmed,applied
+    pending,cancelled -> cancelled,cancelled,applied
+  scenario released on=StaffSchedule.release.completed
+   do
+    for interview in Interview as item where item.release_delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==interview.source and event.result.revision>=2 and event.result.state==released
+      set interview {release_state=released}
+     else
+      if event.status==failed
+       set interview {release_state=failed}
+      else
+       set interview {release_state=unknown}
+  scenario remind on=InterviewReminder
+   require event.interview.state==confirmed and event.revision==1 and event.interview.parent.stage in [applied,interview,offer] and event.interview.interviewer.active
+   do
+    send Mail.send {to=event.interview.parent.email,subject=format("Interview reminder"@{nl="Herinnering sollicitatiegesprek"},locale=null),body=event.interview.parent.parent.title} when=event.interview.state==confirmed and event.interview.parent.stage in [applied,interview,offer] as notice
+    set event.interview {notice_delivery=notice.id,notice_state=pending}
+  scenario reminder_result on=Mail.send.completed
+   do
+    for interview in Interview as item where item.notice_delivery==event.delivery_id limit=1
+     if event.status==succeeded
+      set interview {notice_state=succeeded}
+     else
+      if event.status==failed
+       set interview {notice_state=failed}
+      else
+       if event.status==skipped
+        set interview {notice_state=skipped}
+       else
+        if event.status==unknown
+         set interview {notice_state=unknown}
+        else
+         set interview {notice_state=pending}
+ Then
+  # Find published vacancies and submit your own application. @{nl="Vind gepubliceerde vacatures en dien je eigen sollicitatie in."}
+  page /careers title="Careers"@{nl="Vacatures"}
+   card "Published vacancies"@{nl="Gepubliceerde vacatures"}
+    list Vacancy as vacancy where vacancy.published and vacancy.open filter=location search=title defaults={location=preferences.location}
+     text row.title,row.location,row.description,row.employment,row.skills
+     form apply
+
+  # Follow your own submission without private interviewer feedback. @{nl="Volg je eigen sollicitatie zonder private interviewerfeedback."}
+  page /careers/mine title="My applications"@{nl="Mijn sollicitaties"}
+   require authenticated
+   card heading_own_application_outcomes
+    table Candidate as candidate where candidate.account==actor columns=name,stage,reason filter=stage defaults={stage=preferences.stage}
+     details heading_own_application_outcomes display=drawer
+      text row.application,row.cv
+      action withdraw
+
+  # Coordinate private candidates and restricted interview evidence. @{nl="Coördineer private kandidaten en afgeschermd gespreksbewijs."}
+  page /hiring title="Hiring"@{nl="Werving"}
+   require recruiter
+   card "Vacancy authoring"@{nl="Vacatures beheren"}
+    form Vacancy.create
+    list Vacancy filter=location search=title defaults={location=preferences.location} display=split
+     edit
+     actions close,reopen_vacancy
+     form intake
+     list row.Candidate filter=stage defaults={stage=preferences.stage}
+      text row.name,row.application,row.cv,row.stage
+      card "Recruiter decision"@{nl="Besluit van de recruiter"}
+       require recruiter and can_work(actor,row.parent.location)
+       text row.reason
+      actions schedule,decide,reopen_application
+      list row.Interview order=from
+       details "Interview evidence"@{nl="Gespreksbewijs"} display=drawer
+        text row.from,row.until,row.timezone,row.state,row.feedback,row.release_state,row.notice_state
+        action reschedule
+        actions cancel_interview,retry_release
+        form feedback
+      history
+
+  # Review hired account identity using the canonical HR employee creation and checklist workflow. @{nl="Beoordeel de aangenomen accountidentiteit via de canonieke HR-medewerker- en checklistworkflow."}
+  page /hiring/handoff title="Hiring handoff"@{nl="Wervingsoverdracht"}
+   require hr
+   card "Reviewed employee identity"@{nl="Beoordeelde medewerkeridentiteit"}
+    form Employee.create
+    list Candidate as candidate where candidate.stage==hired and candidate.onboarding_reference==null
+     text row.name,row.email,row.account
+     form handoff
+  # Record private feedback only for your own active confirmed interview assignment. @{nl="Registreer private feedback alleen voor je eigen actieve bevestigde gesprekstoewijzing."}
+  page /hiring/interviews title="My interviews"@{nl="Mijn gesprekken"}
+   require interviewer
+   list Interview as interview where interview.interviewer.user==actor and interview.interviewer.active and interview.state==confirmed order=from
+    text row.parent.name,row.parent.application,row.parent.cv,row.from,row.until,row.timezone,row.feedback
+    form feedback

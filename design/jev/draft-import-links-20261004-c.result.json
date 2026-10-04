@@ -1,0 +1,58 @@
+{
+  "request": {
+    "state": {
+      "context": "We are completing CSV row-review requirements in a token-efficient business DSL. Models and scenarios are the sole operation/schema owners; UI and MCP reuse them, and policy-limited reads are mandatory. Current customer/contact CRUD in the evidence uses customer_manager and location checks. The language specifies exports but lacks intake parsing/review semantics. CRM explicitly requests duplicates to remain visible rather than being silently merged.",
+      "candidate": "The proposed extension keeps mutation authority in the original form target. A review attribute resolves to an already declared pure read operation whose required named arguments match available target inputs and protected bindings by type; candidates are a model-record array filtered by current grants. CSV preview supports editing and excluding rows, validates input cells, presents matches and waits for an explicit reviewed selection. It neither merges candidates nor resolves reference labels as identities. For each selected row, reevaluate authority and candidate results before a single invocation using a durable row identity, preserving source order. A changed candidate set returns that row for confirmation, including matches created by prior successes. Transactions are per row; success is not rolled back because another row fails. Outcomes include failure, pending and uncertainty with replay under unchanged identities. A changed input after success is a distinct reviewed row. Review does not assert database uniqueness or replace guards. Existing typed reference/version and scalar/array wire encodings remain authoritative, and protected bound fields are not CSV inputs. The shared parser consumes bounded temporary UTF-8 text, separate from attachment storage. Its exact profile is RFC4180 comma-delimited headed records and double-quote escaping, additionally accepting LF and initial BOM rather than dialect heuristics. Browser intake mechanics still dispatch the ordinary MCP-capable operations, not independent CRUD writes.",
+      "url_candidate": "A separate outbound-link issue arises at a proposed /offers/respond/{Revision.id} page expressed with the existing record-route grammar. Opaque record identity resolves scope while verified-recipient grants determine access. Only relative text can currently be composed and pages have no independent symbolic names. The configured deployment public origin could be exposed through pure app_url(path:text)->url. It would accept a slash-prefixed local path with encoded query/fragment, reject absolute or protocol-relative URLs, embedded credentials, backslashes, bad encoding and decoded dot traversal, then use the trusted deployment origin and mount prefix. Request Host is never a source. Links convey no access; all existing visitor/record guards remain. This avoids both a new route-name inventory and authored repeated origin strings.",
+      "exact_source": "  policy Contact read=authenticated where=actor.email_verified and row.email==actor.email fields=name,email,account,verified\n  policy Contact read=customer_reader or billing_reader where=customer_staff(actor,row.parent) fields=name,email,phone,verified\n  policy Contact read=customer_manager and customer_staff(actor,row.parent)\n  policy Contact read=authenticated where=row.account==actor or has_role(actor,row.parent,administrator)\n  policy Contact read=finance where=customer_staff(actor,row.parent) fields=name,email,phone,verified\n  crud Customer by=customer_manager fields=name,locations,active create_fields=name,kind,locations when=customer_staff(actor,row)\n  crud Contact by=customer_manager fields=name,email,phone,external_id when=customer_staff(actor,row.parent)\n| Next actions and contact transfer | Overdue/upcoming Table showing date, salesperson and deal; CSV import Fieldset with row-validation Table and duplicate preview, plus scoped export Button. | Resolve/import only authorized valid rows; never silently merge duplicate contacts. Related tour/proposal/account actions use their declared owning operations. |",
+      "reference": "https://www.rfc-editor.org/rfc/rfc4180"
+    },
+    "questions": {
+      "csv_form": {
+        "type": "choice",
+        "instructions": "Select among these mechanisms considering source economy, reuse of the canonical operation, clarity for AI authors, access control and well-defined failure reporting.",
+        "criteria": {
+          "form": "Attach import=csv plus an optional review read-scenario reference to the canonical form. Derive all row inputs from its target and use a compatible named subset for candidate lookup. The advantage is little repeated schema; the cost is more semantic obligations in the form primitive.",
+          "scenario": "Introduce application batch scenarios using a shared CSV parser interface. This exposes row control flow and supports bespoke intake, but entails additional callable wrappers and duplicated input contracts unless reflection is added.",
+          "automatic": "Make importing implicit for all representable mutations, using unique constraints and exact normalized row equality for duplicate hints. It is token-free, but those hints do not express current nonunique email and lowercased-company-name matching."
+        }
+      },
+      "csv_semantics": {
+        "type": "noul",
+        "instructions": "Does this complete form proposal retain canonical input/permission ownership and cover changed matches, row-level failure and replay without an unsupported all-or-nothing guarantee?"
+      },
+      "app_url": {
+        "type": "noul",
+        "instructions": "Would the described app_url primitive close the absolute-link gap with a trusted origin and unchanged permissions, without assuming an address not configured by deployment?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "csv_form": {
+        "type": "choice",
+        "choice": "form",
+        "confidence": 0.97,
+        "probabilities": {
+          "automatic": 0.0,
+          "form": 0.98,
+          "scenario": 0.02
+        }
+      },
+      "csv_semantics": {
+        "type": "noul",
+        "noul": 0.93
+      },
+      "app_url": {
+        "type": "noul",
+        "noul": 0.89
+      }
+    },
+    "usage": {
+      "input_tokens": 1352,
+      "output_tokens": 76
+    }
+  }
+}

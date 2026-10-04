@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Assess the alternatives only from this complete description; treat your selection as advice rather than implementation evidence.",
+      "facts": "CanRent is the availability authority. Maintenance retains the original block_resource and block_source together with its requested times and verification text. Delivery uncertainty can follow a successful owner write. The revised provider will replay matching requests safely and publish ordered changed notifications carrying the source. Recovery is restricted to a maintenance_manager satisfying can_work. Unresolved restore prevents recurrence reopening, while historical completion is retained.",
+      "actual_code": "scenario block(repair:Repair,from:datetime,until:datetime?) by=maintenance_manager; require can_work(actor,repair.parent.location) and repair.parent.resource!=null and repair.state!=fixed and repair.block_state in [none,released] and (until==null or from<until); scenario verify(repair:Repair,evidence:text) by=maintenance_manager; require can_work(actor,repair.parent.location) and repair.state==awaiting_verification and repair.completion!=null and trim(evidence)!=\"\"; RoomsV1.downtime(source:text,resource:text,from:datetime,until:datetime?)->std.OperationOutcome; RoomsV1.restore(source:text,resource:text,evidence:text)->std.OperationOutcome; RoomsV1.changed{value:OperationOutcome}"
+    },
+    "questions": {
+      "recovery": {
+        "type": "choice",
+        "instructions": "Select the safer business-identity rule for recovery when request acceptance is unresolved.",
+        "criteria": {
+          "frozen": "Authorized retries preserve the stored source, resource and arguments; completions match the newest delivery and subsequent authenticated higher-revision source updates reconcile state. Correctness depends on authored provider idempotency, with no eventual-success claim.",
+          "new_source": "A fresh source denotes every retry. Per-attempt separation is clear, but an accepted uncertain earlier request may leave an additional block and ambiguous restoration responsibility."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "recovery": {
+        "type": "choice",
+        "choice": "frozen",
+        "confidence": 0.99,
+        "probabilities": {
+          "frozen": 0.99,
+          "new_source": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 708,
+      "output_tokens": 36
+    }
+  }
+}

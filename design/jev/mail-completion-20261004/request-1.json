@@ -1,0 +1,27 @@
+{
+  "state": {
+    "instructions": "Compare mail draft completion choices using only the facts below; probabilities are advisory.",
+    "facts": "Paid membership exports live eligibility and its purchased mail/location fields, but no mail entitlement feed. Standalone configured service records are permitted by requirements. New receipt, matching and forwarding require active paid authority; unresolved historical items still permit recorded collection or return. Destinations must freeze before dispatch, late results must correlate, fees cannot prove delivery, immutable handling remains for 180 days after completion, unresolved items never expire automatically. No runtime or adapter implementation is authorized.",
+    "actual_code": "export derive eligible_term(person:user,term:Term,at:datetime):bool = eligible_account(person,term.parent.parent) and not term.parent.paused and not term.parent.revoked and term.paid and term.from<=at and at<term.until and ((term.parent.parent.kind==individual and term.parent.account==person) or any(term.Seat as seat,seat.account==person and seat.active)); Term has mail:bool, locations:Location[]!, from:datetime, until:datetime. export capability BillingV1 version=1: charge(value:Charge) -> OperationOutcome; reconcile(source:text) -> Settlement?; event settled {value:Settlement}. Service currently has location, recipient, from, until, instructions, forwarding, revision, verified, source. scenario collect(item:Item,collector:user,evidence:text) by=mail_staff; require can_work(actor,item.location) and item.state in [received,notified,collection_ready] and trim(evidence)!=\"\" and item.service!=null; require (item.service.recipient.account==collector and item.service.recipient.verified) or any(item.service.Delegate as delegate,delegate.account==collector and delegate.active)."
+  },
+  "questions": {
+    "authority": {
+      "type": "choice",
+      "instructions": "Which entitlement design best fits these constraints?",
+      "criteria": {
+        "direct": "Link an optional real Term and evaluate eligible_term plus Term.mail and location on each new handling admission; otherwise require staff-recorded standalone paid evidence. This uses existing exports and avoids feed lag, but requires bounded owning-package reads and explicit setup.",
+        "feed": "Add a mail-specific verified provider capability and producer events with revisions and consumer watches. This provides deployment separation and owner notifications but requires source changes in CanMember and explicit stale-evidence admission rules.",
+        "manual": "Use only staff-entered paid service evidence with periodic review. This supports independent deployments and reduces provider dependencies but cannot immediately reflect paid membership revocation."
+      }
+    },
+    "dispatch": {
+      "type": "choice",
+      "instructions": "Which forwarding representation best preserves correlation and immutable evidence?",
+      "criteria": {
+        "separate": "Create a frozen Dispatch record under Item, lock destination/instruction revision/fee/source, keep outcome state mutable, and append immutable Handling evidence referencing that dispatch. This gives explicit late-result and fee correlation but adds one business record.",
+        "handling": "Store forwarding intent and all later outcome fields in the existing Handling record, protecting the frozen fields conditionally. This reduces record kinds but replaces the present always-immutable handling contract.",
+        "append": "Append intent and dispatch Handling rows with a shared textual key, and query the latest row per item. This keeps every row immutable and avoids a new model but needs careful ambiguity and stale-key checks."
+      }
+    }
+  }
+}

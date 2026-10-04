@@ -1,0 +1,39 @@
+{
+  "request": {
+    "state": {
+      "context": "Rent and Member must consume real attribution for both broker partners and member advocates. Refer currently has a verified Customer capture linked to Advocate; Affiliate Partner has no capture producer. Nullable record references and locked snapshot fields already exist in Can. Codes alone do not authenticate purchasers. Customer account ownership and verified email must be checked; the source freezes a selected capture before purchase and payment history stays with Invoice.",
+      "candidate": "Use one sales_attribution package inside the existing CanRefer.can file, one Capture in Customer with nullable advocate/partner origin refs and frozen code/program/account/time/window, one authenticated capture operation and one latest_capture derive. Validate exactly one active nonself origin plus authorized Customer before writing. Snapshot Program.window or Partner.window. Both origin pages bind that same operation. Source operations take one optional Capture and recheck owner/account/window at admission."
+    },
+    "questions": {
+      "capture": {
+        "type": "choice",
+        "instructions": "Compare the alternatives for verified origin eligibility, immutable attribution, compact consumer inputs and clear ownership.",
+        "criteria": {
+          "shared": "One stored Capture and one validating operation with optional Advocate/Partner references. Reuses source inputs and policies but locally links the two actual origin owners.",
+          "union": "Separate owner-specific captures with one closed source union. Keeps origins independent but duplicates capture admission/storage and requires consumer dispatch over two record schemas.",
+          "raw": "One shared structural code/program/time input with no persisted verified capture. Compact integration but leaves proof of purchase-time customer/origin verification to a separately implemented trusted mechanism."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "capture": {
+        "type": "choice",
+        "choice": "shared",
+        "confidence": 0.99,
+        "probabilities": {
+          "raw": 0.01,
+          "shared": 0.99,
+          "union": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 599,
+      "output_tokens": 38
+    }
+  }
+}

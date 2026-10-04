@@ -1,0 +1,40 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Assess the proposed membership integration against the complete facts provided here.",
+      "facts": "The quoted reserve/consume/release source has user grants; its exported MembershipV1 currently lacks authenticated owner-side ingress. Rental use includes separated calendar-day windows and duration-aligned hourly uses. Allowances end at their paid period and never roll forward. Their unit conversion and currency overage are immutable snapshots. During modification, the prior reservation must survive until all replacement resources accept. Trusted inputs run with actor=null after producer/resource authorization by the adapter. Collection returns later. Treat classification as guidance, not verification.",
+      "actual_code": "scenario reserve(membership:Membership,product:text,from:datetime,until:datetime,quantity:int,source:text) by=authenticated; require membership.parent.active and (membership.parent.kind==individual or has_role(actor,membership.parent,booker) or has_role(actor,membership.parent,administrator)); require from>=now and from<until and quantity>0 and not membership.paused and not membership.revoked; require membership.account==actor or has_role(actor,membership.parent,booker) or has_role(actor,membership.parent,administrator). scenario consume(source:text) by=authenticated selects allocation.source==source and allocation.account==actor. scenario release(source:text) by=authenticated selects allocation.source==source and allocation.account==actor and allocation.state==reserved."
+    },
+    "questions": {
+      "replacement": {
+        "type": "choice",
+        "instructions": "Select the approach that most closely meets the stated behavior with a single authoritative path.",
+        "criteria": {
+          "staged": "Use an owner-routed interval payload that identifies the customer and unit snapshot. Determine integral aligned hourly usage or one day per exact window, return a currency quote for unused coverage, and keep old units until explicit commit exchanges reservations. Extra staging and cancellation-fence data are necessary, and overlap arithmetic needs scrutiny.",
+          "independent": "Hold both versions separately at their full unit demand and free the old version after replacement acceptance everywhere. Ledger logic stays direct and the original remains protected, while insufficient headroom can block an otherwise feasible change.",
+          "release_first": "Return old units before trying the new reservation. The temporary demand is smaller and there is less staging machinery; however, a rejected replacement can destroy prior coverage and reacquisition is exposed to concurrent spending."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "replacement": {
+        "type": "choice",
+        "choice": "independent",
+        "confidence": 0.48,
+        "probabilities": {
+          "independent": 0.65,
+          "staged": 0.35,
+          "release_first": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 795,
+      "output_tokens": 44
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "state": {
+    "context": "Select an immediate investigation, not a new rule. The product is an AI-authored DSL for business records, access control, invariants and workflows, supplying daisyUI with HTMX and one generated MCP service per app. Adoption depends on token economy, simple canonical primitives and reliable agent output. App wrapper directories and manually maintained build inventories are rejected. Forty-four .can examples exist, while executable parsing and execution do not; there are no measured tokenizer or agent-quality results. Present notation already covers grouped imports, scalar requiredness by default, nullable reads/fallbacks, do operation bodies, embedded behavior cases, contextual keywords, one-space nesting and semicolons between simple statements.\nOne possible starting point is completing the grammar and implementing source parsing. This tests the interaction of existing statement boundaries, word reuse, field types and queries and may catch ambiguities earlier. It provides no runtime or business-coverage proof, and missing capabilities may only emerge after that work. Another is closing four concrete expressiveness issues: calendar anchoring at month end with timezone handling, trusted cleanup despite disabled user deletion, schema-driven remote operation forms needed by CanDo, and completed-file test fixtures. Existing scheduling, dates, deletion, contracts and fixtures could supply these with refined semantics; every addition still costs design work and must fit business CRUD.\nTwo other opportunities concern repeated declarations and app reuse. Stored team records currently spell in team; roles explicitly carry in=team; contained records and application-wide data use different scope declarations. A team default could cut repeated text but needs an unambiguous meaning for omission and exception forms, retaining independent permission checks. Small source apps omit package wrappers and acquire main identity, which also participates in MCP tool names. Two such apps currently cannot compose without explicitly naming their packages. Removing that restriction could preserve short sources under reuse but requires stable identities and well-defined naming/import collisions rather than new wrapper or manifest files. Match branches, compound field arithmetic and constrained aliases are still merely proposals.\nCompare these as the next focus under the same goals, not as mutually exclusive lifetime plans. No source edits should be inferred from the selected focus."
+  },
+  "questions": {
+    "next_focus": {
+      "type": "choice",
+      "instructions": "Where should the next focused round start given these tradeoffs?",
+      "criteria": {
+        "parser": "First turn the current notation into a precise grammar and working draft parser.",
+        "coverage": "First close the four identified business-expression and testing contract holes.",
+        "composition": "First make implicit-package app composition work with stable naming.",
+        "scope": "First investigate omission of routine team-scope declarations.",
+        "defer": "Postpone picking a direction while obtaining further relevant evidence."
+      }
+    }
+  }
+}

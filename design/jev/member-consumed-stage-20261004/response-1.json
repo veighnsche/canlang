@@ -1,0 +1,29 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Inspect the supplied staged-change contract for the stated preservation property.",
+      "facts": "A rental confirmation consumes benefit units before physical arrival. Membership cannot observe physical occupancy or rental refund rules. Planned replacement consumer admission is an authenticated own-booking action, with checked_in==null and now<refund_before. The verified installed binding fixes producer and customer namespace, preserves request digest, and admits consumed restoration only from that guarded rental workflow. Membership keeps old consumed units, reserves only positive extra same-period demand, and cannot create rollover credit. Money and resource acceptance precede its commit. The proposal is unimplemented.",
+      "actual_code": "CanRent: send Membership.consume {source=booking.source,customer=booking.customer.id} as consume before confirmed admission. Existing move by=authenticated requires booking.account==actor and booking.status in [held,confirmed] and booking.allowance==not_required and booking.checked_in==null. Proposed consumer stage replaces allowance==not_required with owner-coordinated staging and requires booking.checked_in==null and now<booking.refund_before before restore_consumed=true. CanMember: previous.state==reserved or (previous.state==consumed and value.restore_consumed); previous.value.account==value.account; previous.value.location==value.location; previous.value.product==value.product; previous.value.unit==value.unit; previous.value.duration==value.duration; previous.value.rate==value.rate. Same-grant credit uses old.state in [reserved,consumed]. One staged successor permitted. commit captures prior phase, records Reversal for consumed old units, releases old, and assigns captured phase to new allocations in one owner transaction. release(staged) releases only new held units. consume/release(previous) reject while a staged successor exists."
+    },
+    "questions": {
+      "preservation": {
+        "type": "noul",
+        "instructions": "Does this described contract preserve the original consumed allocation through a failed staged replacement without treating arbitrary client restoration as authority?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "preservation": {
+        "type": "noul",
+        "noul": 0.84
+      }
+    },
+    "usage": {
+      "input_tokens": 665,
+      "output_tokens": 22
+    }
+  }
+}

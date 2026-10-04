@@ -1,0 +1,168 @@
+{
+  "request": {
+    "state": {
+      "goal": "Choose coherent v1 boundaries for an AI-written, token-efficient CRUD business SaaS DSL. Adoption is primary. No compiler/runtime exists yet. Prefer one canonical primitive, no per-app infrastructure boilerplate. Runtime is workerd; Cloudflare services, PatternFly HTML/CSS and MCP are first class. # above any declaration is its canonical description; ## is a code comment.",
+      "evidence": [
+        "35 drafts include CRM, invoices, stock, reservations, approvals and team tasks. Some earlier observability drafts are explicitly outside supported scope. A language specification must not silently implement free-form English effects.",
+        "Each package owns one Given/When/Then. Small apps use implicit main; multiple packages can share a file or be separate. One app deployment and MCP endpoint. Root app context declares runtime/auth/teams/bindings once.",
+        "Existing policy write rules duplicate CRUD by predicates and conflict with legitimate scenario-controlled fields. Read policies may differ by role or record and field. Custom scenarios must not inherit arbitrary generic CRUD writable fields.",
+        "Some aggregate/read results intentionally expose a statistic without exposing raw rows. Others must respect viewer row and field permissions. Ambiguous implicit privilege is unacceptable.",
+        "PatternFly HTML/CSS is available, but React charts and complete drag/drop calendars are not automatically HTML/CSS components. Language targets ordinary business apps; arbitrary HTML, CSS and JS are not required.",
+        "D1 is default. An optional Durable Object should own a related model group, including canonical CRUD, guards, receipts and jobs. Cross-owner atomic commits cannot be promised. A DO mirror is not authoritative.",
+        "Canonical low-level create/set effects are necessary for business workflows. Implicit snapshot/freeze/history/immutable variants currently overlap. Generated audit history already exists.",
+        "MCP operations share authorization with UI. Team context must always be validated; models and schemas cannot guess team or identity from tool inputs. Browser users may switch teams through the generated shell. OAuth consent can select a team."
+      ]
+    },
+    "questions": {
+      "permissions": {
+        "type": "choice",
+        "instructions": "Choose the simplest permission decomposition that supports realistic approval workflows without duplicate authorization declarations.",
+        "criteria": {
+          "read_plus_operations": "Model policy defines readable rows/fields; CRUD by plus field lists and scenario by define allowed writes. All writes still check tenant scope, typed relations and invariants. Returned data always requires read permission.",
+          "read_write_plus_operations": "Model policy defines read and write ceilings; each CRUD/scenario also defines by. Scenarios changing otherwise protected fields need an explicit additional privileged-write rule.",
+          "unresolved": "Insufficient evidence to choose."
+        }
+      },
+      "authority": {
+        "type": "choice",
+        "instructions": "Choose canonical source ownership for optional Durable Object-backed data.",
+        "criteria": {
+          "model": "A model declares at=Authority, descendants inherit; all operations infer the owner. Mixing owner instances in one mutation fails. No per-operation atomic block.",
+          "operation": "Every operation selects atomic at=Authority and compiler checks model consistency; CRUD must repeat that selection.",
+          "unresolved": "Insufficient evidence to choose."
+        }
+      },
+      "presentation": {
+        "type": "choice",
+        "instructions": "Choose a bounded v1 presentation catalog suitable for ordinary target business apps.",
+        "criteria": {
+          "composed": "Lists/tables/forms/cards plus enum-grouped card boards, date-grouped agenda calendars, metrics/history. No drag/drop, rich text, arbitrary HTML/CSS/JS or React chart dependencies. Fixed theme/layout options.",
+          "base_only": "Only lists/tables/forms/cards in v1; defer boards, calendars and metrics even as simple compositions.",
+          "full_freedom": "Include arbitrary HTML/CSS/JS as an escape hatch for missing UI behavior.",
+          "unresolved": "Insufficient evidence to choose."
+        }
+      },
+      "mcp_team": {
+        "type": "choice",
+        "instructions": "Choose MCP team context for scoped business operations.",
+        "criteria": {
+          "connection": "OAuth connection selects and binds one team. All tool calls revalidate membership. A different team requires a separate/re-authorized connection. Tool schemas omit repeated team arguments.",
+          "argument": "Every business tool accepts a team identifier, revalidated each call. One connection may operate across teams.",
+          "unresolved": "Insufficient evidence to choose."
+        }
+      },
+      "freeze_snapshot": {
+        "type": "choice",
+        "instructions": "Choose a canonical way to preserve submitted values and prevent subsequent changes without overlapping primitives.",
+        "criteria": {
+          "explicit_copy_lock": "Use create/set with typed structural values for snapshots; one declarative lock Model fields=... when=predicate evaluated on pre-state blocks later edits. Automatic audit history, no separate snapshot/freeze/immutable verbs.",
+          "runtime_verbs": "Provide separate snapshot and freeze effects plus immutable declarations, precisely define their overlaps and retained-field behavior.",
+          "unresolved": "Insufficient evidence to choose."
+        }
+      },
+      "query_privilege": {
+        "type": "choice",
+        "instructions": "Choose an explicit rule for private state needed by business guards and authorized aggregate reports.",
+        "criteria": {
+          "split_context": "Pure read scenarios run as viewer by default; explicit scope=authority allows intentionally declassified typed results. Mutation guards/effects can inspect authority state but returned records still project permissions; arbitrary private scalar returns require an explicit declared report/output grant.",
+          "viewer_everywhere": "All queries use caller read policies, including guards and invariants; runtime must separately recover full authority state for specific built-in invariants.",
+          "authority_everywhere": "Every scenario can query full tenant data and return arbitrary scalar results; scenario by alone grants all resulting information.",
+          "unresolved": "Insufficient evidence to choose."
+        }
+      },
+      "draft_migration": {
+        "type": "choice",
+        "instructions": "Choose the honest deliverable for finalizing language design when 35 legacy drafts contain unresolved application-specific pseudo-operations and no compiler exists.",
+        "criteria": {
+          "spec_examples": "Finish a normative v1 language/runtime contract and a few concrete reference examples; explicitly mark legacy drafts as needing migration. Do not claim they compile or fulfill app requirements.",
+          "rewrite_all": "Translate all 35 drafts now before freezing design, accepting substantial additional business-logic work and no executable validation.",
+          "keep_ambiguous": "Preserve existing draft syntax as valid even where semantics are undefined, for source compatibility.",
+          "unresolved": "Insufficient evidence to choose."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "permissions": {
+        "type": "choice",
+        "choice": "read_plus_operations",
+        "confidence": 0.72,
+        "probabilities": {
+          "read_plus_operations": 0.81,
+          "read_write_plus_operations": 0.18,
+          "unresolved": 0.01
+        }
+      },
+      "authority": {
+        "type": "choice",
+        "choice": "model",
+        "confidence": 0.84,
+        "probabilities": {
+          "model": 0.9,
+          "operation": 0.01,
+          "unresolved": 0.09
+        }
+      },
+      "presentation": {
+        "type": "choice",
+        "choice": "composed",
+        "confidence": 0.86,
+        "probabilities": {
+          "base_only": 0.1,
+          "composed": 0.9,
+          "unresolved": 0.0,
+          "full_freedom": 0.0
+        }
+      },
+      "mcp_team": {
+        "type": "choice",
+        "choice": "connection",
+        "confidence": 0.64,
+        "probabilities": {
+          "argument": 0.23,
+          "connection": 0.76,
+          "unresolved": 0.01
+        }
+      },
+      "freeze_snapshot": {
+        "type": "choice",
+        "choice": "explicit_copy_lock",
+        "confidence": 1.0,
+        "probabilities": {
+          "explicit_copy_lock": 1.0,
+          "unresolved": 0.0,
+          "runtime_verbs": 0.0
+        }
+      },
+      "query_privilege": {
+        "type": "choice",
+        "choice": "split_context",
+        "confidence": 0.99,
+        "probabilities": {
+          "viewer_everywhere": 0.0,
+          "authority_everywhere": 0.0,
+          "split_context": 1.0,
+          "unresolved": 0.0
+        }
+      },
+      "draft_migration": {
+        "type": "choice",
+        "choice": "spec_examples",
+        "confidence": 1.0,
+        "probabilities": {
+          "rewrite_all": 0.0,
+          "keep_ambiguous": 0.0,
+          "unresolved": 0.0,
+          "spec_examples": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1801,
+      "output_tokens": 335
+    }
+  }
+}

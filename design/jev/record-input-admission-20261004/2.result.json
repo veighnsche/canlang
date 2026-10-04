@@ -1,0 +1,37 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "context": "The design under review is an AI-authored business DSL whose data-reading grants are distinct from the permissions and guards on mutations. Its current text permits owner-bounded authority inspection inside write decisions, applies viewer policies to read queries and serialized mutation records, enforces tenant/storage/expiry boundaries and versioned mutation references, and calls for safe nondisclosing errors plus existence-hiding read endpoints. An unresolved detail is admission of a client-provided record reference when the caller cannot read that record. The concrete Board.complete excerpt involves a member of the correct team, lacking any governance role, submitting a different member’s Action by guessed ID; ordinary form lookup would not show it. Avoid extra operation variants, redundant policies or gratuitous read grants while retaining security and behavior. These are draft contracts with no runtime validation yet.",
+      "canonical_source": "policy Action read=members where=row.owner==actor\nexport scenario complete(action:Action) by=members or secretary\n require (action.owner==actor or secretary) and not action.done and action.parent.outcome==accepted\n do set action {done=true,completed_by=actor,completed_at=now}"
+    },
+    "questions": {
+      "admission": {
+        "type": "choice",
+        "instructions": "Choose the more coherent contract for these facts, weighing opaque-reference abuse against authorized writes that intentionally do not reveal their records.",
+        "criteria": {
+          "operation_authority": "Use by and the authored write rules as authorization, validating reference type, expected revision, expiry and permitted tenant/storage owner at admission. Reading the target is not an additional universal condition. Separate viewer lookups and response field grants still hide data. Purposeful mutation-only access stays possible; however guessed references reach carefully bounded guards, whose errors/results must disclose nothing confidential. In the shown same-team example, the explicit ownership check yields rule_failed.",
+          "read_prerequisite": "Admit a supplied target only when the caller also has a current read grant to that row, following by and before the operation body. Preserve all other write, version and ownership constraints; reject the illustrated hidden Action as not_found. Guessing private IDs cannot reach write guards, at the cost of coupling writing to visibility and requiring expanded read permissions or a separately designed escape hatch for blind-write workflows."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "admission": {
+        "type": "choice",
+        "choice": "operation_authority",
+        "confidence": 0.54,
+        "probabilities": {
+          "operation_authority": 0.77,
+          "read_prerequisite": 0.23
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 748,
+      "output_tokens": 43
+    }
+  }
+}

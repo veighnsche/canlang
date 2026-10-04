@@ -1,0 +1,48 @@
+{
+  "state": {
+    "context": "This review concerns a bounded design change, not proof of a working compiler. Canlang serves AI-generated company CRUD applications with permissions and workflows. Adoption, token economy, reliable generation and one canonical syntax per primitive are goals. The user authorizes investigation, validation with a stop on invalidity, exploration, consolidation, planning and enactment. Wrapper-only packages, hand-maintained build inventories and a central connections file cannot solve the problem. Existing source already names each app. Across 44 files there are 48 apps, 49 named packages, one implicit app TeamTasks and no app/package identifier overlap. Parsing and execution remain unimplemented and there is no measured agent or model-token outcome. The common project name space is flat for apps and named packages. Exported symbols use grouped use imports, product membership uses uses, declarations belong to authoritative packages, and one selected deployment app generates one browser and MCP interface. Names must survive moving sources.\nThe flaw is the assistant-imposed main owner for all implicit bodies, which forbids composing two small apps. Generated tool names currently use main.Model.operation. Three candidate mechanisms and nonselection are compared. App.main gives each small body a distinct qualified synthetic owner, stable across file moves and assembly selection. It lengthens qualified names, requires dotted provider grammar and still couples ownership to app renames and later extraction. Composer aliases preserve main within standalone apps and can provide concise labels when assembling products. Only changing tool display prefixes fails to separate internal model/role identities; assembly-based rekeying separates them but changes ownership identities when composing and complicates diamond reuse and receipts. Nonselection leaves the issue open if evidence cannot establish a suitable rule; requiring wrapper packages is not a permitted candidate.\nThe direct option removes hidden main identity and uses the app identifier for its own implicit package. One project index entry serves app selection and owning-body lookup; it is not another declaration that duplicates the app name. Distinct authored apps or named packages with that name remain erroneous. Existing use Tasks {Todo} imports exported members of that body, locally or as an explicitly bound schema interface, without bringing the app's context or wholesale product surface. Existing uses=[Tasks] assembles that app and its context. An app defined with uses has no combined package namespace to import. Role declarations remain qualified and separate, exports stay explicit, and neither names nor composition grant permissions or create extra stores or copies.\nFor direct ownership, each bare app has optional immediately following context, imports before Given and one complete ordered Given/When/Then sequence; the body finishes at the next top-level app/package or end of input. Several such apps may share a file. An app declaring uses also declaring an implicit sequence is invalid. Canonical package deduplication applies to direct, nested, diamond and import paths. Owning names qualify models/types/roles/events/handlers/schedules/operations and do not change with the selected composition or file path. Existing by/on, team and parent ownership, and storage placement remain. Route paths and named bindings are not transformed; actual normalized route collisions and incompatible explicit contexts still fail. Distinct deployments retain distinct runtime state. Direct coupling is a real cost: an app rename changes implicit API/storage declaration names, and an explicit extracted package of the same name would collide with an unchanged app under the existing namespace. Identity migration must be explicit, with no assumed transfer or compatibility alias. There are no existing synthetic-main source references, while one literal main value is unrelated business data.\nOfficial research is advisory context: Go's import specification separates dependency identity and local access naming and requires export/import visibility for qualified access; its source-directory model is not imposed here. MCP tool-name guidance recommends case-sensitive unique names per server, with ASCII letters/digits/underscore/hyphen/dot. These principles do not demonstrate a canlang implementation. Consider the full tradeoffs and look for an actual contradictory case.",
+    "examples": {
+      "direct": "# Track work.\napp Tasks\nGiven\n export Todo {title:text}\n role reviewer\n policy Todo read=members\nWhen\n crud Todo by=members fields=title\nThen\n page /tasks title=\"Tasks\"\n  list Todo\n# Keep notes.\napp Notes\nGiven\n Note {text:text}\n role reviewer\n policy Note read=members\nWhen\n crud Note by=members fields=text\nThen\n page /notes title=\"Notes\"\n  list Note\n# Use both apps.\napp Office uses=[Tasks,Notes]",
+      "direct_import": "use Tasks {Todo}",
+      "direct_names": [
+        "Tasks.Todo",
+        "Tasks.reviewer",
+        "Tasks.Todo.create"
+      ],
+      "hierarchy_import": "use Tasks.main {Todo}",
+      "hierarchy_names": [
+        "Tasks.main.Todo",
+        "Tasks.main.reviewer",
+        "Tasks.main.Todo.create"
+      ],
+      "alias_composition": "app Office uses=[Tasks as work,Notes as notes]",
+      "alias_names": [
+        "main.Todo.create",
+        "work.Todo.create"
+      ],
+      "diamond": "app Bundle uses=[Tasks,Notes]\napp Office uses=[Tasks,Bundle]",
+      "same_id_invalid": "app Tasks uses=[Tasks]\npackage Tasks",
+      "route_collision": "Tasks declares page /; Notes declares page /"
+    },
+    "references": {
+      "go_imports": "https://go.dev/ref/spec#Import_declarations",
+      "mcp_names": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool-names"
+    }
+  },
+  "questions": {
+    "identity_choice": {
+      "type": "choice",
+      "instructions": "Which candidate should replace the current implicit-owner restriction?",
+      "criteria": {
+        "app_main": "Adopt app-qualified main identities and spell qualified providers in imports.",
+        "direct_app": "Reuse each small app name as its owning package identity without a synthetic namespace segment.",
+        "unresolved": "Choose no replacement yet if the alternatives leave an unresolved contradiction.",
+        "composer_alias": "Introduce member aliases and define the resulting internal-identity changes as well as tool prefixes."
+      }
+    },
+    "direct_coherence": {
+      "type": "noul",
+      "instructions": "Is direct app-derived ownership sufficiently specified here to avoid contradictory import, composition or authorization meanings for these examples?"
+    }
+  }
+}

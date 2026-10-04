@@ -1,0 +1,37 @@
+{
+  "request": {
+    "state": {
+      "instructions": "Evaluate an owner-local reservation-state proposal using these source facts.",
+      "facts": "An allowance choice is stored as pending during hold but prepare can omit the request because its flag defaults to false. A first-arriving paid event sets review; reserve completion accepts only pending for consumption. No free decision runs at final consumption. arrive grants reception and tests can_work, paid and consumed; existing Booking viewing grants scoped reservation_manager and authenticated owner only. Physical presence persists through cancellation. Each resource decides capacity. BillingV1 has charge/cancel/refund plus settled; MembershipV1 exposes reserve/consume/release/eligibility plus changed, and neither interface provides reconcile.",
+      "actual_code": "scenario arrive(booking:Booking) by=reception; require can_work(actor,booking.parent.location) and booking.status==confirmed and booking.payment==paid and booking.allowance in [not_required,consumed]; policy Booking read=reservation_manager and can_work(actor,row.parent.location); policy Booking read=authenticated where=row.account==actor"
+    },
+    "questions": {
+      "coordination": {
+        "type": "noul",
+        "instructions": "Would it correct those ordering failures to keep a paid awaiting-allowance booking pending, honor the saved choice in prepare, re-evaluate free at consumption request and confirmation, match source/delivery identities and leave terminal statuses unchanged on delayed failure, without claiming sends establish success?"
+      },
+      "reception_read": {
+        "type": "noul",
+        "instructions": "Is a new narrowly field-limited, location-checked reception Booking read policy appropriate for its existing UI and operation scope, with own and manager reads and mutation guards preserved?"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "coordination": {
+        "type": "noul",
+        "noul": 0.34
+      },
+      "reception_read": {
+        "type": "noul",
+        "noul": 0.63
+      }
+    },
+    "usage": {
+      "input_tokens": 594,
+      "output_tokens": 42
+    }
+  }
+}

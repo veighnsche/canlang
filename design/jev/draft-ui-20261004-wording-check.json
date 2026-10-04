@@ -1,0 +1,5 @@
+{
+  "explanatory_leaves_pairwise_distinct": 35,
+  "source_code_and_proposed_syntax_equal": true,
+  "manual_semantic_review": "Each context preserves product scope, current exact source facts, proposed constants/rules, alternatives and competing benefits/costs. Each question preserves type and alternatives. No candidate is described as proven, authorized by classification, or a solution to automatic source re-projection. Runtime implementation, performance and background delegation remain absent."
+}

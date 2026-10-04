@@ -1,0 +1,17 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "context": "Evaluate the interface used when reception turns a service conversation into a facility repair. The design must minimize authoring cost and retain canonical fault reporting, keep the original Ticket linked to the resulting Repair, protect notes, and leave bookings untouched. Desk has team-scoped support authorization with can_work(actor,ticket.location). Present report requires a verified authenticated account and attributes its new Repair to that caller rather than to the customer mentioned by a ticket. Import visibility never adds record grants; calls still enforce the provider's by and rules, and support is not a maintenance_manager grant. Adding exports for Asset/report and a Repair response does not widen those policies. Both candidates must enforce equal ticket/asset locations and disallow replacing an already recorded repair.",
+    "canonical_source": "scenario report(asset:Asset,title:text,description:text,photo:file?) by=authenticated; require actor.email_verified and not asset.retired and trim(title)!=\"\" and trim(description)!=\"\"; do create Repair {parent=asset,title,description,photo,reporter=actor,reporter_email=actor.email} as repair. policy Asset read=authenticated where=not row.retired fields=location,identifier,name. policy Repair read=authenticated where=row.reporter==actor fields=title,description,severity,state,due,completion,reporter. policy Repair read=maintenance_manager or technician where=can_work(actor,row.parent.location)."
+  },
+  "questions": {
+    "handoff": {
+      "type": "choice",
+      "instructions": "For these facts, which proposal offers the preferable balance of policy clarity, reuse, and required business behavior? Treat the answer as design advice only.",
+      "criteria": {
+        "reuse": "Expose Asset and report through existing imports, add the Repair return to report, and call it from Desk without changing caller identity. Supply the subject from the ticket and explicit staff description/photo, then save the Repair reference. Reporting retains its current guards and one operation; staff cannot administer other reporters' records and no private note is sent implicitly.",
+        "dedicated": "Author maintenance.report_from_support with support authorization and can_work/location constraints and return Repair to the ticket. Origin-specific authorization becomes directly visible and support intake can be distinguished, at the cost of a second fault-reporting path and a maintenance dependency on the support role while report continues to exist."
+      }
+    }
+  }
+}

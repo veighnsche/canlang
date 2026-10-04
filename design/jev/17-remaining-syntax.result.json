@@ -1,0 +1,42 @@
+{
+  "request": {
+    "state": {
+      "context": "Assess what to tackle next, rather than adopt a syntax proposal. Canlang targets AI-generated company CRUD SaaS with permissions, rules, workflows, daisyUI/HTMX presentation and an app MCP interface. Adoption, compact tokens and dependable generation are the goals; one canonical way per primitive, no wrapper app files or authored build manifest. Current syntax includes one-space blocks, semicolon-separated simple statements, contextual keywords, typed declarations, grouped imports, required bare scalars, nullable operators, scenarios with do, and inline BDD examples. There are 44 source drafts and no parser or runtime; neither tokenizer savings nor agent reliability has been measured.\nScope review: team models explicitly say in team and team roles say in=team; parent containment and app ownership have distinct forms. Making team scope implicit could remove repeated declarations but would change omitted-scope semantics and needs clear exceptions without implicitly granting permission. Composition review: small apps have an implicit main package; tool names include that package identity. Current composition rejects two distinct implicit main packages, requiring named-package rewrites. Resolving this could ease reuse of small apps, but needs stable collision-free identity, import and tool naming rules, with no scaffolding files.\nCoverage review: documented missing contracts include anchored calendar recurrence/month-end/timezone behavior, trusted retention deletion where user CRUD deletion is disabled, typed delegated operation forms in CanDo, and finalized-file fixtures for inline examples. Existing date, schedule, delete, type and fixture mechanisms may be extended instead of adding constructs. This can make required business behavior expressible, but each contract brings semantic obligations and must remain within CRUD-business scope. Parser review: prose specifies lexical rules, expressions and effects, but no executable parser exists. Completing precise grammar and parsing current sources could discover ambiguities around boundaries, contextual words, types and queries before further changes. Parsing alone would neither execute business behavior nor establish requirement coverage, and might expose missing primitives later. Additional match, compound update and scalar-alias proposals remain unadopted.\nChoose the next main work item on this evidence; all other items may still follow. None of these alternatives is already authorized as a source migration by this assessment."
+    },
+    "questions": {
+      "next_focus": {
+        "type": "choice",
+        "instructions": "Which next work item best balances compactness, business expressiveness and reliable AI generation?",
+        "criteria": {
+          "scope": "Review team ownership defaults and their explicit exceptions first.",
+          "composition": "Resolve composable identity for implicit small-app packages first.",
+          "coverage": "Specify the documented recurrence, retention, delegation and file-fixture gaps first.",
+          "parser": "Complete the existing grammar and build an initial parser against the drafts first.",
+          "defer": "Keep the current design pending more evidence before selecting a next work item."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "next_focus": {
+        "type": "choice",
+        "choice": "parser",
+        "confidence": 0.82,
+        "probabilities": {
+          "parser": 0.86,
+          "coverage": 0.11,
+          "defer": 0.0,
+          "composition": 0.02,
+          "scope": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 869,
+      "output_tokens": 54
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "instructions": "Judge the supplied heartbeat architecture choices as a classifier. Base the result on the written evidence rather than outside knowledge, assumed APIs, or a claim that agreement establishes execution.",
+      "facts": "Adoption is canlang's priority; simplicity and efficient authored tokens serve it. The human requested first-class Cloudflare support, not a CanCheck-specific DO architecture. A provisional assistant requirement nevertheless assigns configuration/history to D1 and check timing/health to DOs. Existing declarations place Check and Transition alongside D1 Employee and Location. One mutation must use one authoritative owner under DESIGN; DO containment moves a related group together and mutable queries to another owner have no atomic guarantee. Actual pause/resume guards call can_work as quoted, and its employee-location facts are not covered by the role/active-membership context snapshot. The unbuilt D1 runtime specifies optimistic revision fencing plus a rollback-safe batch. It also specifies common D1 scheduled-work dispatch; DO alarms are another existing placement-dependent path. No contention or latency results are available. Required business behavior includes acknowledgement only after stored ping acceptance, first/subsequent missed deadlines, grace and recovery, pause/resume, persistent timer revisions, delivery correlation distinct from health, history lifetime and developer-only provisioning outside UI/MCP. Maintenance must obey owner commit/fence semantics. A D1-only authoritative group can represent this full behavior.",
+      "actual_code": "scenario pause(check:Check) by=operations\n require check.location==null or can_work(actor,check.location)\n do\n  set check {enabled=false,state=paused,revision=check.revision+1}\n  cancel check.id\nscenario resume(check:Check) by=operations\n require check.location==null or can_work(actor,check.location)\n do\n  let revision=check.revision+1\n  set check {enabled=true,state=new,armed=now,revision}\n  schedule check.id at=now+check.period+check.grace event=Deadline {check,revision}\nexport derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))"
+    },
+    "questions": {
+      "storage": {
+        "type": "choice",
+        "instructions": "Pick a proportionate source/requirements fix, taking account of authorization equivalence, consistency, adoption cost and the lack of performance evidence.",
+        "criteria": {
+          "d1": "Leave the authoritative check and related transition/notice records at D1, with the existing location permission evaluation, and amend the mistaken draft split-storage sentence. Schedule through the standard due-work dispatcher. This is smaller than inventing another grant path, while database fence contention and timer lag remain unmeasured limitations.",
+          "do_snapshot": "Rehome all check-owned records together in one DO per check and introduce explicit admission snapshots of D1 employee location grants. This offers isolated ordering and direct alarms, but creates a new access contract and cannot retain atomic Employee revocation at the check owner.",
+          "defer": "Report ownership as unresolved rather than changing the draft architecture now. It avoids a premature performance conclusion, yet leaves the known contradictory split requirement and delays completion despite a viable existing D1 model."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "storage": {
+        "type": "choice",
+        "choice": "d1",
+        "confidence": 0.99,
+        "probabilities": {
+          "do_snapshot": 0.0,
+          "defer": 0.0,
+          "d1": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 978,
+      "output_tokens": 42
+    }
+  }
+}

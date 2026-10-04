@@ -1,0 +1,52 @@
+{
+  "request": {
+    "state": {
+      "context": "Assess concrete completion alternatives for report sourcing using only the supplied owner observations. No compiler, adapter or runtime is being implemented. Account for authorization revocation, immutable report inputs, money separation and truthful absence of old evidence.",
+      "evidence": "The existing Rent resource_report(resource:Resource,from:datetime,until:datetime) is an exported read=true scope=authority operation returning ReportBatch under reservation_manager. Saved ResourcePolicy and LocationPolicy evidence determines complete versus partial coverage. Invoice has increasing ledger_revision, authenticated succeeded Attempt.received and immutable ExternalPayment/ExternalRefund, with InvoiceSettlement emissions. Fixed Term location/range plus live paid/cancellation status belong to Member; live due-state Repair and Job belong to Maintain/Field. No producer exists for those latter owners yet. D1 is their common placement. Test Definition fixtures provide no live initialization, and equal role spellings do not merge package identities.",
+      "constraints": "Contribution {source:text,revision:int,location:text,from:datetime,until:datetime,metric:enum(booked_minutes,saleable_minutes,excluded_minutes,occupied_minutes,cash,receivable,renewal,backlog),quantity:decimal,unit:text,amount:money?,provisional:bool=false,reversal:text?}; ReportBatch {checkpoint:Checkpoint,rows:Contribution[]!}; Checkpoint {source:text,revision:text,generated:datetime,state:enum(fresh,lagging,partial,unavailable),complete:bool}"
+    },
+    "questions": {
+      "sourcing": {
+        "type": "choice",
+        "instructions": "Which of these approaches best fulfills the draft reporting journeys within its actual primitives?",
+        "criteria": {
+          "local": "Use exported scoped authority producers through ordinary D1 calls, save their bounded results alongside the complete captured query, and deny cached reads after any source-role or location revocation. Fixed enum definitions and pure specifications replace records needing nonexistent seeding. Record invoice checkpoints at canonical ledger changes and calculate signed receipts from retained payment evidence. The shared deployment has tighter interface dependencies and any required read failure rejects that refresh.",
+          "bound": "Route those real read operations through authenticated deployment bindings, storing source-specific receipts and validating each completion before merging its run. Separate owners can contribute explicit partial outcomes; installation must supply authorization/result mappings, and additional asynchronous bookkeeping remains proposed.",
+          "viewer": "Aggregate the caller-visible canonical rows without new authority read boundaries. Source grants are automatically applied and source code shrinks, while filtered-out confidential records prevent a completeness proof and historical balances still require actual checkpoints."
+        }
+      },
+      "cache_history": {
+        "type": "noul",
+        "instructions": "Can saved requests and renewed source permission checks support reproducible authorized reports when unavailable prebaseline facts stay incomplete and signed refunds remain in the aggregation?",
+        "criteria": {
+          "true": "Available checkpoint evidence and renewed grants establish the bounded claim without inventing totals from missing history.",
+          "false": "Some required permission, historical coverage or signed-correction rule remains unestablished by the proposal."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "sourcing": {
+        "type": "choice",
+        "choice": "local",
+        "confidence": 0.86,
+        "probabilities": {
+          "local": 0.91,
+          "bound": 0.09,
+          "viewer": 0.0
+        }
+      },
+      "cache_history": {
+        "type": "noul",
+        "noul": 0.51
+      }
+    },
+    "usage": {
+      "input_tokens": 951,
+      "output_tokens": 58
+    }
+  }
+}

@@ -1,0 +1,1 @@
+Three requests preserve source code, two alternative keys, requirements and tradeoffs. Instructions, context facts, question and both option descriptions differ completely. Source facts were read from the current files; exact technical identifiers are retained. Advice is not implementation proof.

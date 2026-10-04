@@ -1,0 +1,17 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "context": "CanLang is a compact SaaS DSL with separate read policies and operation by/require authorization. Existing design says policies grant reads, mutations can inspect bounded authority state for their rules, read queries filter before results, and returned changed records obey current read grants. It requires team/storage/lifetime boundaries, expected versions on mutation record inputs, confidential-value-free errors and existence hiding on ordinary read lookups. It does not explicitly settle whether every externally supplied mutation record ID must first pass read policy. Board.complete is an actual example below: a same-team member without a board role attempts another member\u2019s Action. UI pickers already hide unreadable rows, but a client can manually submit an opaque ID. The language prefers one canonical operation and no unnecessary privilege grants or duplicate permission rules; security and correct stated behavior must be preserved. No implementation or evidence of executed behavior exists.",
+    "canonical_source": "policy Action read=members where=row.owner==actor\nexport scenario complete(action:Action) by=members or secretary\n require (action.owner==actor or secretary) and not action.done and action.parent.outcome==accepted\n do set action {done=true,completed_by=actor,completed_at=now}"
+  },
+  "questions": {
+    "admission": {
+      "type": "choice",
+      "instructions": "Which admission rule better fits the stated language boundaries, considering both legitimate write-without-read workflows and the risk of acting on guessed IDs?",
+      "criteria": {
+        "operation_authority": "Check operation by, resolve typed IDs only within the authorized owner/team and lifetime/version boundaries, then enforce the declared mutation guards and invariants. Do not add a blanket read-policy prerequisite. This permits intentional writes without record disclosure and leaves one explicit write policy, but safe guards and outputs become critical and callers may attempt guessed same-owner IDs. Keep pickers/read endpoints and returned records read-filtered; the Board case fails its owner guard with generic rule_failed.",
+        "read_prerequisite": "After operation by, require every client-supplied mutation record reference to pass the caller\u2019s current row-read policy before guards, then apply the usual owner/version/invariant/write checks. The Board attempt becomes existence-hiding not_found. This adds a defense against guessed hidden records, but intentional blind writes need extra read grants or another explicitly specified exception, and read-policy changes can remove otherwise authorized write operations."
+      }
+    }
+  }
+}
