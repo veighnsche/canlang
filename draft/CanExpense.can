@@ -357,61 +357,147 @@ package expense label="Expenses"@{nl="Onkosten"}
  Then
   # Submit your receipts and see their private decision history. @{nl="Dien je bonnen in en bekijk hun privébesluithistorie."}
   page /expenses/mine title="My expenses"@{nl="Mijn onkosten"}
+   breadcrumbs
    require members
    card "Claim intake"@{nl="Declaratie aanmaken"}
     list Employee as claimant where claimant.user==actor and claimant.active
+     pagination
      list Location as site where can_work(actor,site)
+      pagination
       form reviewer_choices arguments={location=site}
        list result as candidate columns=name,user,role,home
-        form Expense.create arguments={parent=claimant,location=site,reviewer=candidate.user}
-   list Expense as expense where expense.parent.user==actor order=-expense.business_date filter=status,location,category,business_date defaults={status=preferences.status} display=split
+        pagination
+        form Expense.create arguments={parent=claimant,location=site,reviewer=candidate.user} display=inline
+         fieldset "Claim details"@{nl="Declaratiegegevens"}
+          input category
+          textarea purpose
+          input authorization
+          calendar business_date
+          file_input receipt
+   ## In-context saved default for the own-claims status filter below; the toolbar keeps current-view control.
+   filter preferences.status
+   list Expense as expense where expense.parent.user==actor order=-expense.business_date filter=status,location,category,business_date defaults={status=preferences.status} display=split empty="No claims yet."@{nl="Nog geen declaraties."}
+    pagination
     card "Own claim and receipt"@{nl="Eigen declaratie en bon"}
-     text row.purpose,row.authorization,row.corrects,row.business_date,row.amount,row.receipt,row.status,row.submission,row.decision,row.withdrawal
+     badge row.status
+     text row.purpose,row.authorization,row.corrects,row.business_date,row.amount,row.receipt,row.submission,row.decision,row.withdrawal
+     link target=row.receipt caption="Download receipt"@{nl="Bon downloaden"}
      edit
-     actions submit,withdraw,correct
+      file_input receipt
+     divider "Actions"@{nl="Acties"}
+     action submit
+     button opens=withdraw_claim
+     modal "Withdraw unavailable review"@{nl="Onbeschikbare beoordeling intrekken"} id=withdraw_claim
+      slot content
+       form withdraw arguments={expense=row} display=inline
+        textarea reason
+     tooltip "Create one correction draft from this claim"@{nl="Maak één correctieconcept van deze declaratie"}
+      action correct
+     ## Receipt transcription stays on the claim (amount keeps its generated money control).
      form transcribe_receipt
+      input source
+      calendar spent_on
+      input merchant
      list row.ReceiptExtract
+      pagination
       text row.source,row.merchant,row.amount,row.spent_on
-    list row.Decision
-     text row.submission,row.amount,row.receipt,row.approved,row.reason,row.decided_at
-    list row.Reimbursement
-     text row.reference,row.amount,row.paid,row.reason
+    card "Correction comparison"@{nl="Vergelijking correctie"}
+     require row.corrects!=null
+     diff
+      slot before
+       text row.corrects.purpose,row.corrects.amount,row.corrects.receipt
+      slot after
+       text row.purpose,row.amount,row.receipt
+    accordion
+     collapse "Recorded decisions"@{nl="Vastgelegde besluiten"}
+      timeline row.Decision
+       slot item
+        pagination
+        text row.submission,row.amount,row.receipt,row.approved,row.reason,row.decided_at
+     collapse evidenced_reimbursement_caption
+      timeline row.Reimbursement
+       slot item
+        pagination
+        text row.reference,row.amount,row.paid,row.reason
+        copy row.reference
     history
   # Review assigned claims and record evidenced reimbursement under finance grants. @{nl="Beoordeel toegewezen declaraties en leg onderbouwde vergoeding vast binnen financiële bevoegdheden."}
   page /expenses/review title="Expense review"@{nl="Onkostenbeoordeling"}
+   breadcrumbs
    require reviewer or finance
-   table Expense columns=parent,location,purpose,business_date,amount,receipt,status order=business_date filter=status,location,category,business_date defaults={status=preferences.status} display=split
+   ## In-context saved default for the review-queue status filter below.
+   filter preferences.status
+   board Expense by=status columns=parent,location,purpose,business_date,amount,receipt order=business_date search=purpose filter=status,location,category,business_date defaults={status=preferences.status} empty="No assigned submissions."@{nl="Geen toegewezen declaraties."}
+    pagination
     card "Frozen claim review"@{nl="Vastgelegde declaratie beoordelen"}
+     badge row.status
      text row.authorization,row.corrects,row.submission,row.reviewer,row.decision,row.decided_by,row.decided_at
-     actions decide,reimburse
+     button opens=decide_claim
+     modal "Record decision"@{nl="Besluit vastleggen"} id=decide_claim
+      slot content
+       form decide arguments={expense=row} display=inline
+        fieldset "Decision"@{nl="Besluit"}
+         checkbox approve
+         textarea reason
+        validator approve
+     button opens=reimburse_claim
+     modal "Record reimbursement"@{nl="Vergoeding vastleggen"} id=reimburse_claim
+      slot content
+       form reimburse arguments={expense=row} display=inline
+        fieldset "Payment evidence"@{nl="Betalingsbewijs"}
+         input reference
+         calendar paid
+         textarea reason
+        validator reference
      list row.ReceiptExtract
+      pagination
       text row.source,row.merchant,row.amount,row.spent_on
     tabs
      tab "Recorded decisions"@{nl="Vastgelegde besluiten"}
       list row.Decision
+       pagination
        text row.submission,row.amount,row.receipt,row.reviewer,row.approved,row.reason,row.decided_at
      tab evidenced_reimbursement_caption
       list row.Reimbursement
+       pagination
        text row.reference,row.amount,row.paid,row.reason,row.recorded_by
    card "Awaiting reimbursement"@{nl="Wacht op vergoeding"}
-    table Expense as expense where expense.status==approved columns=parent,location,purpose,amount,receipt,status filter=parent,location,category,business_date display=split
-     actions reimburse
+    table Expense as expense where expense.status==approved columns=parent,location,purpose,amount,receipt,status filter=parent,location,category,business_date display=split empty="No pending reimbursements."@{nl="Geen openstaande vergoedingen."}
+     pagination
+     button opens=reimburse_queue
+     modal "Record reimbursement"@{nl="Vergoeding vastleggen"} id=reimburse_queue
+      slot content
+       form reimburse arguments={expense=row} display=inline
+        fieldset "Payment evidence"@{nl="Betalingsbewijs"}
+         input reference
+         calendar paid
+         textarea reason
+        validator reference
    card "Accounting evidence"@{nl="Boekhoudbewijs"}
-    table Reimbursement columns=parent,reference,amount,paid,reason,recorded_by order=-paid filter=paid
+    table Reimbursement columns=parent,reference,amount,paid,reason,recorded_by order=-paid filter=paid empty="No accounting entries."@{nl="Geen boekhoudregels."}
+     pagination
   # Retain historical evidence separately from current approvals and payment actions. @{nl="Bewaar historisch bewijs afzonderlijk van huidige goedkeuringen en betalingsacties."}
   page /expenses/history title="Historical expense evidence"@{nl="Historisch onkostenbewijs"}
+   breadcrumbs
    require authenticated
    card "Retain source records"@{nl="Bronrecords bewaren"}
     require finance
     form retain_legacy import=csv review=legacy_matches
    card "Find a source record"@{nl="Een bronrecord zoeken"}
     form legacy_matches
-     list result columns=source,external_id,location
+     list result columns=source,external_id,location empty="No source matches."@{nl="Geen bronovereenkomsten."}
+      pagination
       text row.claim.actor,row.claim.status,row.claim.receipt
-   table LegacyExpense as entry columns=source,external_id,location display=split
+   table LegacyExpense as entry columns=source,external_id,location display=split empty="No historical records."@{nl="Geen historische records."}
+    pagination
     text entry.claim.actor,entry.claim.reviewer,entry.claim.decision_time_original,entry.claim.decided_at,entry.claim.paid,entry.claim.status,entry.claim.purpose,entry.claim.amount,entry.claim.receipt,entry.claim.receipt_issue
     card "Current access mapping"@{nl="Huidige toegangstoewijzing"}
      require finance
-     action link_legacy
+     button opens=map_access
+     modal "Change historical access"@{nl="Historische toegang wijzigen"} id=map_access
+      slot content
+       form link_legacy arguments={entry=entry} display=inline
+        textarea reason
+     link target=entry.source_evidence caption="Download source export"@{nl="Bronexport downloaden"}
      text entry.access_reason,entry.attestation,entry.imported_by,entry.imported_at,entry.source_evidence
      history

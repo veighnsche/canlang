@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    // Workspace-name producer imports resolve via the root install
+    // (lane-03.yml runs root `npm ci` + builds @canlang/values first).
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "rootDir": ".",
+    "outDir": "dist",
+    "noEmitOnError": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

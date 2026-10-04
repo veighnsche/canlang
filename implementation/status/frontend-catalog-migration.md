@@ -82,7 +82,65 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
-## Slice 7: full replans Affiliate/Approve/Book (branch muse/frontend-catalog-migration/slice-07-replan-g1, in progress)
+## Slice 9: full replans Expense/Feedback/Field (branch muse/frontend-catalog-migration/slice-09-replan-h1, in progress)
+
+Paths: draft/CanExpense (.can+.md+.mjs), CanFeedback (.can+.md+.mjs), CanField (.can+.md;
+no .mjs: gap) + this status file. Source: lane-H spec (/tmp/laneH-spec.md), applied +
+heavily corrected by coordinator.
+Coordinator corrections to spec: breadcrumbs + pagination added on every page/collection
+(spec omits breadcrumbs, places one pagination); Expense transcribe_receipt form +
+ReceiptExtract lists restored on mine + review pages (spec dropped the op and both
+lists); Feedback product_choices() derive structure + choice.* paths + arguments kept
+(spec rewrote bindings to direct Product queries); Feedback decision-history and
+operator-decisions/withdrawals subtrees restored (spec dropped both ops' UI); Feedback
+Product.update explicit form kept (spec's bare edit cannot bind: row is a choice);
+Feedback details converted to collapse (drawer exception kept in Field); Feedback swap
+on-slot gains the status badge (exclusive display, no duplication); Field correct moved
+into the dispatch report row suite (former drawer-level form had no report in scope:
+latent binding fix); Field blocked_reason kept in text + gated alert (cancelled rows
+keep their reason; browse vs attention, same as Event terms); review board gains
+purpose search, moderation queue title search (new affordances over shown data).
+Given/When byte-identical (single Then hunk per file at each Then line: Expense L357,
+Feedback L261, Field L197). Witnesses: full-file desired lowerings, node --check clean.
+Verified against catalog: board, timeline+item with sequence operand (lane-G G4 deferral
+was overcautious: no toolbar attrs used), accordion/collapse-only, diff before/after,
+tooltip-annotated action, filter on owned pref, validator outlet, swap off/on with
+readable-bool display-only, select for references, toggle for bool, alert string + suite
+forms, empty=, drawer exception. New literals carry nl variants.
+Drift: +90 E1200 (Expense 40, Feedback 22, Field 28) + 1 E1204 (Expense direct-child
+`calendar spent_on`: same L1 control-form gap as Book). All three ok on main. Prototype:
+Expense/Feedback stop at pre-existing BDD gaps byte-identical; Field baseline parsed
+clean, now stops at breadcrumbs (expected).
+Handoff: (a) select reference-candidate sourcing (duplicate); (b) nullable inputs
+(Expense authorization text?, Field report photo file?); (c) gated-suite suppression
+semantic (failed require suppresses owner); (d) timeline/board/modal/swap/indicator
+renderers; (e) Field witness missing (descriptors in spec §3).
+
+## Slice 8: full replans Customer/Desk/Event (merged as b6fd936, PR #77)
+
+Paths: draft/CanCustomer/CanDesk/CanEvent (.can+.md each; no .mjs anywhere: Desk has none
+per owner .md, Customer/Event never had targets) + this status file.
+Source: lane-G read-only planning spec (/tmp/laneG-spec.md), applied + corrected by coordinator.
+Coordinator corrections to spec: breadcrumbs + pagination added on every page/collection (spec
+omitted); Desk `calendar due` (2x) and Event `calendar from/until/sales_until/refund_before`
+(9x: create/edit/change) all rejected (datetime fields, incl. nullable due); Event discovery
+keeps row.terms (visitors review terms before registering) alongside the modal decision-time
+alert; Event `action abandon` kept (required reason: arg-incomplete for button).
+Given/When byte-identical (single Then hunk per file at each Then line: Customer L227, Desk
+L182, Event L526). Verified: fieldset message-path caption (DESIGN line 704), divider
+omission (UI-COMPONENTS), chat_bubble header/content/footer slots, customer Message policy
+excludes notes (no kind predicate on mine page), all 8 message fields preserved per bubble,
+progress int/max bounds, `as` row bindings, modal/slot row-chain use.
+Drift: +111 E1200 (Customer 40, Desk 37, Event 34); no E1204 (no control-form calendar
+authored, consistent with slice-7 analysis). All three files ok on main. Prototype parser:
+all stop at pre-existing Given/When gaps byte-identical on baseline.
+Handoff to 01/05/owners: (a) Event.available public readability (derive not in public Event
+fields; counts non-public registrations); (b) nullable badge targets (Message.state,
+charge_status); (c) nullable email/text inputs (register email, Contact phone/external_id,
+BillingProfile tax_reference); (d) slots inherit the enclosing row/result chain
+(chat_bubble/modal/stat interpretation); (e) bare-form implicit row binding.
+
+## Slice 7: full replans Affiliate/Approve/Book (merged as 807e5ec, PR #73)
 
 Paths: draft/CanAffiliate (.can+.md), CanApprove (.can+.md+.mjs), CanBook (.can+.md) + this status file.
 Source: lane-G read-only planning spec (/tmp/laneG-spec.md), applied + corrected by coordinator.
