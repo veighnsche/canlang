@@ -113,10 +113,18 @@ leaves. Given/When byte-identical (cmp-verified). node --check +
 import-vs-usage scan clean. Census: 15 collections w/
 empty+pagination (2+7+6; timelines/steps unpaginated); 5 pages w/
 breadcrumbs; 4 modals (Learn 1, Onboard 3; Check modal-free).
-Drift: TBD E1200 (no E1204). Prototype stops byte-identical
-(pre-existing Given gaps). Handoff: (a) array control
-(locations/targets/skills); (b) user refs generated; (c)
-sequence-steps/timeline/alert-suite/progress/stat renderers.
+Drift: +0 E1200 — L1 catalog parsing LANDED (lane-01 #111);
+golden_corpus_parses_clean PASSES with these replans in corpus.
+`can check` (new analysis part 1) on Then: Check fully clean;
+Learn/Onboard Then E2001s are all unimplemented name-binding in
+01's analysis (placed-control->param, op refs, steps-row rebind,
+all spec-legal per GRAMMAR/UI-COMPONENTS L213/L218) + pre-existing
+classes (local_date, E3013 title, require hr, import cascade).
+Zero real source errors; gap list handed to 01. Prototype stops
+byte-identical (pre-existing Given gaps). Handoff: (a) array
+control (locations/skills); (b) user refs generated; (c)
+sequence-steps/timeline/alert-suite/progress/stat renderers;
+(d) 01: form-param binding, steps-row model, op-name resolve.
 
 ## Slice 21: full replans Sync/Workbench (branch muse/frontend-catalog-migration/slice-21-n2b-sync-workbench, in progress)
 
