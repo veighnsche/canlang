@@ -80,6 +80,24 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #35 docs handoff: reviewed head d241592 (substance reviewed at 88733c7; delta was the reviewer's own 3-line status fix + conflict-free rebase onto fb226e0), tools+workspace green, squash-merged as 2451d85. URL: https://github.com/veighnsche/canlang/pull/35
 - PR #39 slice 1 examples: reviewed head 730b2a7 (substance fefe3a3 approve-with-nits; delta was the 2 requested status nits), tools+workspace green, squash-merged as fab9ba0. URL: https://github.com/veighnsche/canlang/pull/39. Golden-corpus impact live on main: 2 E1200 (badge lines), L1 track.
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
+- PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
+
+## Slice 5: full replans Contract/Stock/Catch/CRM (branch muse/frontend-catalog-migration/slice-05-replan-1, in progress)
+
+Paths: draft/CanContract (.can+.md), CanStock (.can+.md+.mjs), CanCatch (.can+.md), CanCRM (.can+.md+.mjs) + this status file.
+Workers (disjoint, no git): W-E Contract/Stock; W-F Catch/CRM. Calibration slice: 2 apps per worker.
+Replan bar: per-app frontend plan (users/tasks, pages+composition, families/bindings, states, defaults, source-target map);
+complete Then rewrite with the full vocabulary where journeys warrant; faithful .mjs with actual desired composition and
+minimal proposed @canlang/ui contracts labeled desired/unimplemented; .md updates; handoff notes (behaviors, acceptance,
+exact gaps/owners). Given/When byte-identical; shared shell untouched; drift measured centrally by coordinator.
+Outcome: all 4 Then-only verified (hunks start Contract L154/Then L153, Stock L167/Then L166, Catch L171/Then L170,
+CRM L140/Then L139). Coordinator fixes: removed 1 computed-query badge (Catch indicator count(...where...)) with
+.md correction; 1 Contract pagination indent fix. Witnesses: CRM + Stock faithful desired .mjs (node --check clean,
+proposed @canlang/ui labeled desired/unimplemented, no await-L5 leftovers); Catch/Contract have no .mjs (gap).
+Drift: +142 E1200 (Contract 36, Stock 30, Catch 30, CRM 46) over 26 baseline = 168 across 16 files; test fails on
+main too (untouched baseline files FAIL in this run), recorded L1 gap, never gates drafting. Prototype parser:
+Stock/CRM stop at breadcrumbs (expected new vocab); Contract/Catch stop at pre-existing Given type-gap errors
+(byte-identical on HEAD baseline). Handoff: reviewed .can/desired-.mjs pairs + exact gaps to 05/01 via PR.
 
 ## Steering: draft-first full replans (received 2026-10-04 ~17:45)
 
