@@ -1,0 +1,48 @@
+{
+  "request": {
+    "state": {
+      "context": "Can is an AI-authored typed business-app language. The user wants every daisyUI component represented in source syntax because the current narrow presentation vocabulary limits agents. Official daisyUI documentation currently lists 68 components at 5.7.47. Can currently provides semantic pages, forms, actions, collections, cards, details, tabs and metrics, generating other controls through shared defaults. Its normative grammar rejects unknown presentation heads and attributes. Current syntax tooling lags documented extensions; the Rust CLI is a scaffold and the presentation lane records no implemented library. This decision concerns a source-language contract, not a working renderer.",
+      "constraints": "All alternatives must expose the entire verified catalog, retain schema-derived form inputs and canonical operation invocation, preserve policies/guards/versions and escaped authorized data, and reuse the shared page descriptors, preferences and default shell. No app-authored HTML, CSS, JavaScript, component imports, duplicate input schemas or second write API. The old component allowlist may change. Full vocabulary does not promise that upstream CSS implements interactions or business logic. Calendar styling needs a date-control adapter and differs from Can agenda collections; OTP does not supply authentication; theme control and pagination must use existing setting/cursor state. New interaction behavior and grammar/checker coverage require implementation whichever syntax is selected.",
+      "evaluation": "Compare adoption, reliable agent discovery, authored token cost, deterministic contextual parsing, useful diagnostics, preservation of canonical binding rules and ongoing implementation cost. There is no compatibility requirement for a deployed language; existing draft readability and migration effort still matter. Neither shorter source nor a classifier answer proves runtime behavior.",
+      "sources": [
+        "https://daisyui.com/components/",
+        "REQUIREMENTS.md",
+        "DESIGN.md §9",
+        "GRAMMAR.md Presentation and routes",
+        "implementation/status/lane-05.md"
+      ],
+      "technical_evidence": "form_header = \"form\" expr attributes ;\ncollection_head = \"list\" | \"table\" | \"board\" | \"calendar\" | \"gallery\" ;"
+    },
+    "questions": {
+      "surface": {
+        "type": "choice",
+        "instructions": "Which source notation best balances those same goals while making every catalog component selectable?",
+        "criteria": {
+          "direct": "Introduce contextual component headers using familiar names such as badge, tooltip, rating and modal, alongside existing semantic constructs. Catalog-defined typed payloads, slots and parent constraints bind inputs to their owning forms and controls to canonical actions/settings/routes. This is concise and recognizable, but enlarges grammar/checking and creates collisions such as field-bound versus agenda calendar that must be specified.",
+          "generic": "Use component NAME as one presentation production with a complete typed component catalog. The catalog defines payloads, slots, parent constraints and the same canonical bindings; existing semantic constructs remain. This centralizes dispatch and versioning, but adds a repeated introducer and can obscure individual errors or encourage unchecked prop bags unless checking is equally precise.",
+          "mixed": "Keep semantic forms/actions/collections and select all applicable components through explicit display=NAME choices, adding a present NAME header for components with no existing semantic owner. Apply the same typed catalog, slots, parent constraints and canonical authority. This reduces some new grammar and preserves bindings visibly, but creates two component-selection shapes and may require nesting or extra source to express compositions."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "surface": {
+        "type": "choice",
+        "choice": "direct",
+        "confidence": 0.11,
+        "probabilities": {
+          "mixed": 0.27,
+          "generic": 0.32,
+          "direct": 0.41000000000000003
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 986,
+      "output_tokens": 38
+    }
+  }
+}
