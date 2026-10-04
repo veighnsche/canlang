@@ -48,10 +48,11 @@ function fail(
   process.exit(2);
 }
 
+const USAGE_TEXT =
+  `Usage: ${PLATFORM_CLI_NAME} <${COMMANDS.join("|")}> --artifact <path> [--env <name>]`;
+
 function usage(detail: string): never {
-  process.stderr.write(
-    `Usage: ${PLATFORM_CLI_NAME} <${COMMANDS.join("|")}> --artifact <path> [--env <name>]\n`,
-  );
+  process.stderr.write(`${USAGE_TEXT}\n`);
   fail(null, "usage", detail);
 }
 
@@ -64,11 +65,10 @@ interface ParsedArgs {
 function parse(argv: string[]): ParsedArgs {
   const [command, ...rest] = argv;
   if (command === "--help" || command === "-h") {
-    process.stderr.write(
-      `Usage: ${PLATFORM_CLI_NAME} <${COMMANDS.join("|")}> --artifact <path> [--env <name>]\n` +
-        `\n` +
-        `Delegation target for thin 'can' entries. Prints one JSON envelope.\n`,
-    );
+    // Help is human-facing but still emits the envelope: thin entries can
+    // JSON.parse stdout unconditionally on every path.
+    process.stderr.write(`${USAGE_TEXT}\nDelegation target for thin 'can' entries.\n`);
+    emit({ ok: true, name: PLATFORM_CLI_NAME, version: PLATFORM_CLI_VERSION, usage: USAGE_TEXT });
     process.exit(0);
   }
   if (command === undefined) {
@@ -85,11 +85,16 @@ function parse(argv: string[]): ParsedArgs {
   let env: string | null = null;
   for (let i = 0; i < rest.length; i += 1) {
     const flag = rest[i];
-    if (flag === "--artifact" && i + 1 < rest.length) {
-      artifact = rest[i + 1] as string;
-      i += 1;
-    } else if (flag === "--env" && i + 1 < rest.length) {
-      env = rest[i + 1] as string;
+    if (flag === "--artifact" || flag === "--env") {
+      if (i + 1 >= rest.length) usage(`missing value for ${flag}`);
+      const value = rest[i + 1] as string;
+      if (flag === "--artifact") {
+        if (artifact !== null) usage("duplicate --artifact");
+        artifact = value;
+      } else {
+        if (env !== null) usage("duplicate --env");
+        env = value;
+      }
       i += 1;
     } else {
       usage(`unexpected argument ${JSON.stringify(flag)}`);
@@ -113,10 +118,11 @@ async function main(): Promise<void> {
   if (!(await artifactExists(args.artifact))) {
     fail(args.command, "missing-artifact", `artifact not readable: ${args.artifact}`);
   }
-  // Producer gates: every command needs a real L1 CompileArtifact first;
-  // run/test additionally need the L3 invocation engine. Until those land,
-  // report the exact unmet contract (PLAN: thin entries exec or print a
-  // precise missing-producer error).
+  // Producer gates, checked in dependency order: every command needs a real
+  // L1 CompileArtifact first; run/test additionally need the L3 invocation
+  // engine once emission exists. Until those land, report the exact unmet
+  // contract (PLAN: thin entries exec or print a precise missing-producer
+  // error). The first unmet gate wins, so run/test name lane-01 today.
   if (args.command === "run" || args.command === "test") {
     fail(args.command, "missing-producer", "no L1 CompileArtifact emission to execute yet", {
       producer: "lane-01",

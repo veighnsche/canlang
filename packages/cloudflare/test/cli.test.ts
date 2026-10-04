@@ -51,6 +51,48 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
     });
   });
 
+  it("--help still emits exactly one envelope (exit 0)", async () => {
+    const result = await runCli(["--help"]);
+    expect(result.code).toBe(0);
+    const body = envelope(result.stdout);
+    expect(body).toMatchObject({ ok: true, name: "can-platform", version: "0.1.0" });
+    expect(typeof body["usage"]).toBe("string");
+    expect(result.stderr).toContain("Usage:");
+  });
+
+  it("-h and -V match their long aliases", async () => {
+    const help = await runCli(["-h"]);
+    expect(help.code).toBe(0);
+    expect(envelope(help.stdout)).toMatchObject({ ok: true });
+    const version = await runCli(["-V"]);
+    expect(version.code).toBe(0);
+    expect(envelope(version.stdout)).toEqual({
+      ok: true,
+      name: "can-platform",
+      version: "0.1.0",
+    });
+  });
+
+  it("--env is accepted and still reaches the producer gate", async () => {
+    const result = await runCli(["run", "--artifact", fixtureArtifact(), "--env", "staging"]);
+    expect(result.code).toBe(2);
+    expect(envelope(result.stdout)).toMatchObject({
+      ok: false,
+      command: "run",
+      code: "missing-producer",
+    });
+  });
+
+  it("duplicate flags are a usage failure", async () => {
+    const path = fixtureArtifact();
+    const dupArtifact = await runCli(["run", "--artifact", path, "--artifact", path]);
+    expect(dupArtifact.code).toBe(2);
+    expect(envelope(dupArtifact.stdout)).toMatchObject({ ok: false, code: "usage" });
+    const dupEnv = await runCli(["run", "--artifact", path, "--env", "a", "--env", "b"]);
+    expect(dupEnv.code).toBe(2);
+    expect(envelope(dupEnv.stdout)).toMatchObject({ ok: false, code: "usage" });
+  });
+
   it("no command is a usage failure", async () => {
     const result = await runCli([]);
     expect(result.code).toBe(2);

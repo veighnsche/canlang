@@ -20,10 +20,11 @@ Thin `can run|test|build|deploy` entries exec this binary, resolved from
 
 ```
 can-platform <run|test|build|deploy> --artifact <path> [--env <name>]
-can-platform --help | --version
+can-platform --help | -h | --version | -V
 ```
 
-Exactly one JSON envelope on stdout; human text on stderr only. Exit 0
+Exactly one JSON envelope on stdout on every path (`--help` included,
+as `{ok:true,name,version,usage}`); human text on stderr only. Exit 0
 carries `{ok:true,...}`; exit 2 carries `{ok:false,command,code,detail}`
 with `code` one of `usage`, `missing-artifact`, `missing-producer`
 (names `producer` + `contract`), and exit 1 `internal`. Until L1 emission
