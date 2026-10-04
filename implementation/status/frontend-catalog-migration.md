@@ -82,6 +82,49 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
+## Slice 23: full replans Stats/Success/examples (branch muse/frontend-catalog-migration/slice-23-mb-stats-success-examples, in progress)
+
+Paths: draft/Can{Stats,Success} (.can+.md+.mjs) + examples/TeamTasks.
+can + examples/ExpenseFlow.can (no companions) + this status file.
+Source: lane-M drafter output under /tmp/draftM, applied + corrected
+by coordinator. Coordinator corrections: Stats select dimension ->
+radio (5-option enum; kind/urgency precedent); Success input notes
+-> textarea (unbounded text; Booking-notes precedent) + parent ##
+on Account.create; Stats/Success witnesses gain the page-descriptor
+consts the M drafter systematically omitted (same B1 class as Learn
+slice 22 — verified render names). All mirrored (Stats swaps unused
+select import for radio; Stats.md radio prose). Kept after
+verification: Stats summary calendars + base display=inline kept
+(GRAMMAR: inline is form-general, NOT modal-only — corrects the
+slice-22 Learn rationale; merged state stays, base-lacking);
+breakdown modal from base bare form; badges on Health/Breakdown/
+Summary states; bool badge dropped; metrics split to stat (ints)
++ progress max=1 (0..1 ratios, verified goals/total); lagging alert
++ D1 footer copy source-supported (.md L65/L30); drawer-free
+collapse x2. Success Account.create 9/9 (6 placed + 3 ##; cross-app
+refs generated); Milestone/FollowUp.create exact (date->calendar,
+datetime->input); reassign modal from base bare form; review
+tooltip+action; radial_progress catalog (L88/L204); renew/term
+paren-calls base-identical; overdue where base-identical; status on
+Notice.state derive. TeamTasks: fields= allowlist honored (title
+placed, member assignee ##, done default); text task_count() is
+base; bool badge -> text; delete tooltip-wrapped; collapse keeps
+open= (legal on Collapse); Note.create exact. ExpenseFlow:
+Expense.create exact (money input, server ##); submit row-only,
+approve/reject -> join modals (optional/required note textareas);
+summarize currency input + status ## + stat. Given/When
+byte-identical (cmp-verified; examples multi-Then spliced).
+node --check + import scans clean. Census: 16 collections w/
+empty+pagination (6+7+2+1); 6 pages w/ breadcrumbs; 4 modals
+(Stats 1, Success 1, ExpenseFlow 2; TeamTasks modal-free). Drift:
++0 E1200 (golden clean, L1). Prototype: Stats/Success/ExpenseFlow
+stops identical; TeamTasks stop moved within unsupported-primitive
+class (prototype lacks catalog; golden authoritative). Independent
+review clean-approve (no nits; alert+body duplication noted as
+deliberate surface-and-audit pattern). Handoff: (a)
+array refs; (b) user/member refs generated; (c) footer/join/
+radial/tooltip/tabs-preference renderers.
+
 ## Slice 22: full replans Check/Learn/Onboard (branch muse/frontend-catalog-migration/slice-22-m-check-learn-onboard, in progress)
 
 Paths: draft/Can{Check,Learn,Onboard} (.can+.md+.mjs) + this status
