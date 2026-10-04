@@ -82,6 +82,105 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
+## Slice 20: full replans Gallery/Inbox/Knowledge (branch muse/frontend-catalog-migration/slice-20-n2-gallery-inbox-knowledge, in progress)
+
+Paths: draft/Can{Gallery,Inbox,Knowledge} (.can+.md+.mjs) + this status
+file. Source: lane-N2 drafter output under /tmp/draftN2, applied +
+corrected by coordinator (chunks re-indented +1, drafter wrote col-0).
+Coordinator corrections: Inbox Queue.create select kind -> radio kind
+(static 4-option Triage.route.choice; Rent kind precedent); Inbox
+review select urgency -> radio urgency (static 3-level domain);
+Knowledge badge index -> badge index.state x2 (IndexState is a
+contract; badge needs the enum path per UI-COMPONENTS L167);
+Knowledge settings assign_author keeps base bare form + gains the
+account ## (bare forms stay where base had them; N1 precedent).
+All mirrored in witnesses (radio import added). Kept after
+verification: Gallery approved result-gallery in base bare form;
+submit/withdraw/review complete; badge on own-enum Submission.state;
+base bare actions with params -> modals; creates == create_fields;
+account:user generated ##. Inbox all forms base-bare + complete
+(review/draft_reply/revise/resolve/classify placed, file[] ##);
+submit/discard/reconcile/resubmit row-only bare;
+status on DeliveryResult.status; badges on Message/Reply/Attempt
+own-enums + Triage choice/level domains; text row.destinations is
+base; details->collapse x9; progress budget leaf. Knowledge
+Topic.create == fields (no create_fields; expert ##, profile is text
+-> input); Audience.create complete; ask/create_document/revise/
+publish/withdraw/escalate/resolve complete (attachments[] ##,
+nullable revision select); reindex/stop/reconcile/release row-only;
+badge Question.state (nullable provider TextRun.state, Chat
+precedent); status transport derive; base text->alert same wording;
+progress budget leaf. Given/When byte-identical (cmp-verified).
+node --check + import-vs-usage scan clean. Census: 33 collections
+w/ empty+pagination (7+13+13); 10 pages w/ breadcrumbs; 4 modals
+(Gallery 2, Knowledge 2; Inbox modal-free, base-kept bare forms).
+Drift: +79 E1200 (base 6; head 12/26/47), no E1204. Independent
+review approve-with-3-nits, all fixed in-branch: Gallery.mjs drops
+unused actions import; Inbox.md lists radio; current-publication
+restores index.checked/detail text (base showed whole contract;
+revision-table badge is pure addition). Prototype stops byte-identical
+(pre-existing Given gaps). Handoff: (a) array control (evidence/
+attachments/destinations); (b) user refs generated; (c) progress/
+collapse/badge/status/gallery renderers.
+
+## Slice 19: full replans Decide/Discover/Enrich (branch muse/frontend-catalog-migration/slice-19-n1b-decide-discover-enrich, in progress)
+
+Paths: draft/Can{Decide,Discover,Enrich} (.can+.md+.mjs) + this status
+file. Source: lane-N1 drafter output under /tmp/draftN1, applied +
+corrected by coordinator. Coordinator corrections: Enrich
+Company.create gains select customer (REQUIRED create param,
+create_fields=customer,number; Rent select-customer precedent; the
+draft's "no directory grant" ## overread line 9 — labels
+resolve/hide per composed grants, and the create when= already reads
+row.customer.*). User-typed refs stay generated (Chat/Creative
+account ##); Customer refs get select. Mirrored in witness (.mjs op
+contract already listed both fields). Kept after verification: Decide
+Case.create == create_fields exactly; edit fields=active + checkbox
+(update param, legal); stat on bounded int counters (Rent stat
+precedent); status x2 on DeliveryResult.status? derives; decide choice
+generated (options=runtime, L14) + reason textarea; diff wraps base
+generated/state leaves; all bare actions row-only (generate/stop/
+evaluate). Discover Plan.create == create_fields exactly; configure 9
+params complete; deadline datetime->input; quotes array ##; badge on
+own-enum SourcePass.state; table->timeline for ordinal Evidence (all
+children preserved); promote stays base bare form, complete.
+Enrich zero badges kept (field/provider are kind discriminators, Rent
+kind precedent — no status badge); preferences toggle enabled added
+(base referenced preferences.enabled undeclared; Member inline-toggle
+precedent); text count() kept (base L175); diff wraps base result
+leaves; fallback modal + refresh/fallback/start checkboxes complete.
+Given/When byte-identical (cmp-verified). node --check clean.
+Census: 14 collections w/ empty+pagination (Decide 3, Discover 7,
+Enrich 4; timeline correctly unpaginated); 3 pages w/ breadcrumbs;
+2 modals w/ button/inline (Decide decide_dialog, Enrich fallback_dialog).
+Drift: +58 E1200 (base 1; head 18/24/17), no E1204. Independent review
+approve-with-3-nits, all fixed in-branch: Enrich.mjs select import +
+comment; Enrich.md customer-select prose; this modal count. Prototype
+stops byte-identical (pre-existing Given gaps). Handoff: (a) array
+control (choices/quotes); (b) user refs generated; (c) runtime-option
+choice + row-scoped lookup/prior pickers; (d) timeline/diff/steps/
+stat/divider renderers.
+
+## Slice 18: create-form allowlist fixup (branch muse/frontend-catalog-migration/slice-18-create-allowlist-fixup, in progress)
+
+Paths: draft/CanRent + draft/CanMember (.can+.md/.mjs) + this status
+file. Removes 7 placed controls that bind non-create params (rule
+refined in slice-17 review: create-form placement ⊆ create_fields, or
+fields= when no create_fields; shared cruds count — Locations.can
+holds the Location allowlist): Rent Resource.create loses checkbox
+active + inputs increment/minimum/buffer_before/buffer_after (all
+excluded from create_fields); Rent Location.create loses checkbox
+active (excluded from shared crud Location create_fields,
+Locations.can:29; caught by independent review as 7th instance);
+update params stay generated. Member Content.create loses checkbox
+staff_only (real table field but absent from crud fields, so not a
+create param). Witness children mirrors removed (Rent .mjs op contract
+already listed the correct create set); Rent.md fieldset prose
+narrowed; Member.md needed no change (generic). Slices 5-12 never did
+scalar completion (no claims); 13/16 + Member/Rent remainders +
+Loyalty spot re-audited clean. Future review prompts gain the explicit
+allowlist check.
+
 ## Slice 17: full replans Chat/Creative (branch muse/frontend-catalog-migration/slice-17-n1-chat-creative, in progress)
 
 Paths: draft/CanChat + draft/CanCreative (.can+.md+.mjs) + this status
@@ -155,7 +254,9 @@ gains until + amount; kind select becomes radio; legacy_matches list, agenda
 and result.rows table gain pagination; booking_reconcile modal removed
 (row-only op -> bare actions, join dropped); hourly.increment typo split to
 hourly, increment; Location/WeeklyHours/DateHours/Resource creates completed
-with placeable scalars (arrays omitted, Loyalty precedent); status
+with placeable scalars (arrays omitted, Loyalty precedent; 5 Resource
+controls REMOVED in slice 18: active/increment/minimum/buffer_before/
+buffer_after excluded from create_fields); status
 row.state KEPT (real DeliveryResult.status derive, non-nullable —
 component-domain match). All mirrored in the witness (incl. modal caption:
 convention; witness already had hourly/increment split). .md wording fixed
@@ -179,9 +280,10 @@ display=inline; refund_term modals gain input amount (money, required);
 cancel_membership modal gains input effective (datetime, required);
 Plan.create gains price/months/guest_limit/seats inputs;
 AccessHours.create gains close_after; Benefit.create gains
-quantity/duration/overage; Content.create gains attachment file_input +
-staff_only checkbox (all mirrored in the witness; witness modal captions
-fixed to caption: convention). Array fields (locations/products/weekdays/
+quantity/duration/overage; Content.create gains attachment file_input
+(staff_only checkbox added then REMOVED in slice 18: not a crud param;
+all mirrored in the witness; witness modal captions fixed to caption:
+convention). Array fields (locations/products/weekdays/
 plans) stay unplaced: no catalog array control (Loyalty Program precedent);
 handoff (a). Kept from draft after verification: dropdown-free modal suite;
 Allowance.unit badge (Benefit.unit reference, Affiliate provider_state

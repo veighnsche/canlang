@@ -3,13 +3,17 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 const here = dirname(fileURLToPath(import.meta.url));
 // Compiled tests run from dist/ui/test; sources sit beside dist.
 const packageRoot = join(here, "..", "..", "..");
 const srcDir = join(packageRoot, "src");
 const themesCss = readFileSync(join(packageRoot, "themes.css"), "utf8");
-const daisyRoot = join(packageRoot, "..", "..", "node_modules", "daisyui");
+// Resolve through node_modules instead of assuming a hoisted root layout
+// (bun nests workspace deps under packages/ui/node_modules).
+const pkgRequire = createRequire(import.meta.url);
+const daisyRoot = dirname(pkgRequire.resolve("daisyui/package.json"));
 const daisyCss = readFileSync(join(daisyRoot, "daisyui.css"), "utf8");
 
 const THEME_NAMES = [

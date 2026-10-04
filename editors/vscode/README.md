@@ -12,16 +12,16 @@ Highlighting approximates contextual syntax. It provides no diagnostics, compile
 
 Settings: `can.serverPath` (default `can` on PATH) selects the server binary; `can.traceServer` logs LSP traffic to the Can output channel.
 
-Build from this directory (TypeScript via npx, no install step):
+Build from this directory (TypeScript via bunx, no install step):
 
 ```sh
-npx -y -p typescript@5.6.3 tsc --strict --target es2022 --module commonjs --lib es2022 --outDir out --rootDir src src/extension.ts src/client.ts
+bunx -p typescript@5.6.3 tsc --strict --target es2022 --module commonjs --lib es2022 --outDir out --rootDir src src/extension.ts src/client.ts
 ```
 
-or `npm run compile` once TypeScript is available. Type-shape check without emitting:
+or `bun run compile` once TypeScript is available. Type-shape check without emitting:
 
 ```sh
-npx -y -p typescript@5.6.3 tsc --noEmit --strict --target es2022 --lib es2022 src/extension.ts src/client.ts
+bunx -p typescript@5.6.3 tsc --noEmit --strict --target es2022 --lib es2022 src/extension.ts src/client.ts
 ```
 
 Run: build first, then launch the extension host from this directory (or install the packaged VSIX) with a `can` binary on PATH, and open any `.can` file. Server stderr and (with `can.traceServer`) framed traffic appear in the Can output channel. Hover, completion, rename and code actions are stubbed server-side until later slices; the diagnostics pipeline flows end to end but the slice-2a server stub always returns empty arrays, so no findings exist yet.

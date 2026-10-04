@@ -11,8 +11,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && node --test \"dist/values/test/**/*.test.js\"",
-    "catalog": "npm run build && node scripts/emit-catalog.mjs",
+    "test": "bun run build && node --test \"dist/values/test/**/*.test.js\"",
+    "catalog": "bun run build && node scripts/emit-catalog.mjs",
     "clean": "rm -rf dist/"
   },
   "devDependencies": {

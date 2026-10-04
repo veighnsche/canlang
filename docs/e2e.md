@@ -26,14 +26,14 @@ docs/e2e.md                 # this file
 ## Running
 
 ```sh
-npm run build                  # contracts/cloudflare/testkit dists
-npm run build -w @canlang/ui
-npm run build -w @canlang/identity
-npx playwright install --with-deps chromium
-npm run test:e2e
+bun run build                  # contracts/cloudflare/testkit dists
+bun run --filter @canlang/ui build
+bun run --filter @canlang/identity build
+bunx playwright install --with-deps chromium
+bun run test:e2e
 ```
 
-Producer dists must be built (contracts/cloudflare via root `npm run build`;
+Producer dists must be built (contracts/cloudflare via root `bun run build`;
 ui/identity via their workspace builds) — the loader bundles real dist code
 into the worker and fails loud naming the exact build when one is missing.
 

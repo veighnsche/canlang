@@ -18,15 +18,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
       - name: Install from lock
-        run: npm ci --no-audit --no-fund
+        run: bun install --frozen-lockfile
       - name: Build lane-07 packages
-        run: npm run build
+        run: bun run build
       - name: Typecheck lane-07 sources and assembly
-        run: npm run typecheck
+        run: bun run typecheck
       - name: Test lane-07 suites (incl. local workerd smoke)
-        run: npm test
+        run: bun run test
       - name: Verify deterministic library build (B5 reproducibility)
         run: |
           set -u
@@ -43,7 +45,7 @@ jobs:
           hash_dist | tee /tmp/build-first.sha
           rm -rf packages/contracts/dist packages/cloudflare/dist packages/testkit/dist \
             packages/*/*.tsbuildinfo
-          npm run build
+          bun run build
           hash_dist | tee /tmp/build-second.sha
           cmp /tmp/build-first.sha /tmp/build-second.sha
 
