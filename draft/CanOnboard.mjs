@@ -22,18 +22,34 @@ import {
 } from "@canlang/stdlib";
 import {
   actions,
+  alert,
+  badge,
+  breadcrumbs,
+  button,
+  calendar,
   card,
   edit,
+  file_input,
   form,
   history,
+  input,
+  link,
   list,
   message,
-  metrics,
+  modal,
+  pagination,
+  progress,
+  radio,
   renderPage,
+  select,
+  slot,
+  stat,
   tabs,
   text,
-} from "@canlang/ui";
-import { can_work, deactivate, Employee, hr, staff } from "./employee.mjs";
+  textarea,
+  timeline,
+} from "@canlang/ui"; // desired/unimplemented additions: alert/badge/breadcrumbs/button/calendar/file_input/input/link/modal/pagination/progress/radio/select/slot/stat/textarea/timeline
+import { can_work, Employee, hr, staff } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
 
 /* Handwritten desired target; every import is a proposed, unimplemented contract.
@@ -635,6 +651,7 @@ export async function readinessPage(c, bindings) {
     c,
     readinessPageDescriptor,
     () => [
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Assigned readiness steps", { nl: "Toegewezen inwerkstappen" }),
@@ -651,15 +668,37 @@ export async function readinessPage(c, bindings) {
                   !step.done &&
                   compareDate(step.due, local_date(c.now, c.team.timezone)) < 0)),
             order: ["due"],
+            empty: message("No assigned steps", { nl: "Geen toegewezen stappen" }),
             renderRow: (step, view) => [
-              // Migrated source adds `badge row.done` here; its desired emitted
-              // factory awaits the L5 producer contract, so no new @canlang/ui import is invented.
-              text({
-                context: view,
-                values: [step.title, step.due, step.blocked_reason, step.document, step.done, step.completed_by, step.completed_at],
-              }),
+              badge({ context: view, value: step.category }),
+              text({ context: view, values: [step.title, step.due, step.done] }),
+              ...(step.blocked_reason !== null
+                ? [
+                    alert({
+                      context: view,
+                      children: [text({ context: view, values: [step.blocked_reason] })],
+                    }),
+                  ]
+                : []),
+              ...(step.document !== null
+                ? [
+                    card({
+                      context: view,
+                      title: message("Attachment", { nl: "Bijlage" }),
+                      children: [
+                        link({
+                          context: view,
+                          target: step.document,
+                          caption: message("Open attachment", { nl: "Bijlage openen" }),
+                        }),
+                      ],
+                    }),
+                  ]
+                : []),
+              text({ context: view, values: [step.completed_by, step.completed_at] }),
               actions({ context: view, operations: [complete], boundArgs: { step } }),
             ],
+            children: [pagination({ context: c })],
           }),
         ],
       }),
@@ -672,10 +711,22 @@ export async function onboardingPage(c, bindings) {
     c,
     onboardingPageDescriptor,
     () => [
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Employee onboarding", { nl: "Medewerkers inwerken" }),
-        children: [form({ context: c, operation: "employee.Employee.create" })],
+        children: [
+          form({
+            context: c,
+            operation: "employee.Employee.create",
+            children: [
+              input({ context: c, field: "name" }),
+              select({ context: c, field: "home" }),
+              calendar({ context: c, field: "start" }),
+              input({ context: c, field: "role" }),
+            ],
+          }),
+        ],
       }),
       card({
         context: c,
@@ -690,24 +741,83 @@ export async function onboardingPage(c, bindings) {
             search: ["role"],
             defaults: { home: c.preferences.onboard.home },
             display: "split",
+            empty: message("No employees found", { nl: "Geen medewerkers gevonden" }),
             renderRow: (employee, view) => [
               edit({ context: view, operation: "employee.Employee.update", record: employee }),
-              form({ context: view, operation: "onboard.start", arguments: { employee } }),
-              actions({ context: view, operations: [deactivate], boundArgs: { employee } }),
+              button({ context: view, opens: "start_checklist" }),
+              modal({
+                context: view,
+                caption: message("Start onboarding checklist", { nl: "Inwerkchecklist starten" }),
+                id: "start_checklist",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "onboard.start",
+                        arguments: { employee },
+                        display: "inline",
+                        children: [select({ context: view, field: "template" })],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              button({ context: view, opens: "end_employment" }),
+              modal({
+                context: view,
+                caption: message("End active employment", { nl: "Actief dienstverband beëindigen" }),
+                id: "end_employment",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "employee.deactivate",
+                        arguments: { employee },
+                        display: "inline",
+                        children: [calendar({ context: view, field: "ended" })],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
               list({
                 context: view,
                 model: "onboard.Checklist",
                 parent: employee,
+                empty: message("No checklists yet", { nl: "Nog geen checklists" }),
                 renderRow: (checklist, cv) => [
-                  metrics({
+                  text({
                     context: cv,
-                    result: checklist,
-                    fields: ["completed_steps", "total_steps", "progress"],
+                    values: [checklist.template, checklist.template_version, checklist.started],
                   }),
+                  stat({ context: cv, values: [checklist.completed_steps, checklist.total_steps] }),
+                  progress({ context: cv, value: checklist.progress, max: 100 }),
                   form({
                     context: cv,
                     operation: "onboard.Step.create",
                     arguments: { parent: checklist },
+                    children: [
+                      input({ context: cv, field: "title" }),
+                      calendar({ context: cv, field: "due" }),
+                      radio({ context: cv, field: "category" }),
+                      file_input({ context: cv, field: "document" }),
+                      textarea({ context: cv, field: "blocked_reason" }),
+                    ],
+                  }),
+                  timeline({
+                    context: cv,
+                    model: "onboard.Step",
+                    parent: checklist,
+                    where: (s) => s.done,
+                    renderItem: (s, sv) => [
+                      text({ context: sv, values: [s.title, s.completed_by, s.completed_at] }),
+                    ],
                   }),
                   list({
                     context: cv,
@@ -720,23 +830,67 @@ export async function onboardingPage(c, bindings) {
                         !step.done &&
                         compareDate(step.due, local_date(c.now, c.team.timezone)) < 0),
                     order: ["due"],
+                    empty: message("No steps yet", { nl: "Nog geen stappen" }),
                     renderRow: (step, sv) => [
-                      // Migrated source adds `badge row.done` here; its desired emitted
-                      // factory awaits the L5 producer contract, so no new @canlang/ui import is invented.
-                      text({ context: sv, values: [step.title, step.due, step.assignee, step.category, step.blocked_reason, step.document, step.done, step.completed_by, step.completed_at] }),
+                      badge({ context: sv, value: step.category }),
+                      text({ context: sv, values: [step.title, step.due, step.assignee, step.done] }),
+                      ...(step.blocked_reason !== null
+                        ? [
+                            alert({
+                              context: sv,
+                              children: [text({ context: sv, values: [step.blocked_reason] })],
+                            }),
+                          ]
+                        : []),
+                      ...(step.document !== null
+                        ? [
+                            card({
+                              context: sv,
+                              title: message("Attachment", { nl: "Bijlage" }),
+                              children: [
+                                link({
+                                  context: sv,
+                                  target: step.document,
+                                  caption: message("Open attachment", { nl: "Bijlage openen" }),
+                                }),
+                              ],
+                            }),
+                          ]
+                        : []),
+                      text({ context: sv, values: [step.completed_by, step.completed_at] }),
                       edit({ context: sv, operation: "onboard.Step.update", record: step }),
-                      actions({
+                      actions({ context: sv, operations: [complete], boundArgs: { step } }),
+                      button({ context: sv, opens: "reopen_step" }),
+                      modal({
                         context: sv,
-                        operations: [complete, "onboard.reopen"],
-                        boundArgs: { step },
+                        caption: message("Reopen step", { nl: "Stap heropenen" }),
+                        id: "reopen_step",
+                        children: [
+                          slot({
+                            context: sv,
+                            name: "content",
+                            children: [
+                              form({
+                                context: sv,
+                                operation: "onboard.reopen",
+                                arguments: { step },
+                                display: "inline",
+                                children: [textarea({ context: sv, field: "reason" })],
+                              }),
+                            ],
+                          }),
+                        ],
                       }),
                       actions({ context: sv, operations: ["onboard.Step.delete"], boundArgs: { record: step } }),
                       history({ context: sv, record: step }),
                     ],
+                    children: [pagination({ context: cv })],
                   }),
                 ],
+                children: [pagination({ context: view })],
               }),
             ],
+            children: [pagination({ context: c })],
           }),
         ],
       }),
@@ -744,26 +898,44 @@ export async function onboardingPage(c, bindings) {
         context: c,
         title: message("Reusable templates", { nl: "Herbruikbare templates" }),
         children: [
-          form({ context: c, operation: "onboard.Template.create" }),
+          form({
+            context: c,
+            operation: "onboard.Template.create",
+            children: [
+              input({ context: c, field: "name" }),
+              input({ context: c, field: "role" }),
+              select({ context: c, field: "location" }),
+            ],
+          }),
           list({
             context: c,
             model: "onboard.Template",
             display: "split",
+            empty: message("No templates yet", { nl: "Nog geen templates" }),
             renderRow: (template, view) => [
-              // Migrated source adds `badge row.active` here; its desired emitted
-              // factory awaits the L5 producer contract, so no new @canlang/ui import is invented.
-              text({ context: view, values: [template.revision, template.active] }),
+              text({
+                context: view,
+                values: [template.name, template.role, template.location, template.revision, template.active],
+              }),
               edit({ context: view, operation: "onboard.Template.update", record: template }),
               form({
                 context: view,
                 operation: "onboard.TemplateStep.create",
                 arguments: { parent: template },
+                children: [
+                  input({ context: view, field: "title" }),
+                  input({ context: view, field: "offset_days" }),
+                  radio({ context: view, field: "category" }),
+                ],
               }),
               list({
                 context: view,
                 model: "onboard.TemplateStep",
                 parent: template,
+                empty: message("No template steps yet", { nl: "Nog geen templatestappen" }),
                 renderRow: (row, v) => [
+                  badge({ context: v, value: row.category }),
+                  text({ context: v, values: [row.title, row.offset_days] }),
                   edit({ context: v, operation: "onboard.TemplateStep.update", record: row }),
                   actions({
                     context: v,
@@ -771,8 +943,10 @@ export async function onboardingPage(c, bindings) {
                     boundArgs: { record: row },
                   }),
                 ],
+                children: [pagination({ context: view })],
               }),
             ],
+            children: [pagination({ context: c })],
           }),
         ],
       }),
