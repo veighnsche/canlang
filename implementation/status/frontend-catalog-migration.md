@@ -106,7 +106,8 @@ Given/When byte-identical (cmp-verified). node --check +
 import-vs-usage scan clean. Census: 8 collections w/
 empty+pagination (4+4); 2 pages w/ breadcrumbs; 1 modal (Sync
 close; Workbench modal-free, base-kept bare form + row-only
-actions). Drift: TBD E1200 (no E1204). Prototype stops
+actions). Drift: +30 E1200 (base 0; head 18/12), no E1204.
+Prototype stops
 byte-identical (pre-existing Given gaps). Handoff: (a) array
 control (targets); (b) nested param paths (value.*); (c)
 preference-bound tabs; (d) diff/status/badge/drawer renderers.
