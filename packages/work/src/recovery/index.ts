@@ -12,6 +12,9 @@
  *   resume instead of silently truncating.
  * - Claims older than the max age expire so their items can be re-driven;
  *   only items whose recorded claim is provably stale are released.
+ * - Live outbox work enumerates as L3 `WorkInventoryItem`s for the
+ *   upgrade-orchestrator inventory gate, with an injected
+ *   handler-contract vocabulary (L3 trusts that attestation).
  */
 import type {
   DispatchClaim,
@@ -20,6 +23,7 @@ import type {
   PendingWorkInventory,
   ScheduledOccurrence,
 } from '../../../contracts/src/work.js';
+import type { WorkInventoryItem } from '../../../contracts/src/state.js';
 
 export interface InventoryInput {
   outboxItems: readonly OutboxItem[];
@@ -70,6 +74,69 @@ export function buildInventory(input: InventoryInput): PendingWorkInventory {
     dueOccurrences: input.dueOccurrences.length,
     oldestUncertainAt,
   };
+}
+
+export interface WorkInventoryInput {
+  /** Live outbox snapshot; terminal items are omitted, never reported. */
+  outboxItems: readonly OutboxItem[];
+  /**
+   * Handler-contract vocabulary for the deployment: must return the same
+   * strings the migration plan pins in `invalidate` directives. Null or
+   * empty means the assembly cannot map the item — enumeration throws
+   * listing the unmapped ids rather than emit an attestation L3 would
+   * trust but no directive could match.
+   */
+  handlerContractFor: (item: OutboxItem) => string | null;
+}
+
+/**
+ * Enumerate live outbox work as L3 `WorkInventoryItem`s for the
+ * upgrade-orchestrator inventory gate (`checkActivationInventory`).
+ * `pending` maps to `undispatched`, `claimed` to `inflight`,
+ * `uncertain` to `uncertain`; `delivered`/`failed`/`dead` are settled
+ * and omitted (reporting them would fail the still-pending presence
+ * check or block activation forever). Anything else throws as shape
+ * drift. Output is intent-id sorted for stable evidence. This builder
+ * never emits `accepted`: that state is produced by the draining side
+ * when it takes responsibility for an item.
+ */
+export function buildWorkInventory(input: WorkInventoryInput): WorkInventoryItem[] {
+  const items: WorkInventoryItem[] = [];
+  const unmapped: string[] = [];
+  for (const item of input.outboxItems) {
+    if (item.state === 'delivered' || item.state === 'failed' || item.state === 'dead') {
+      continue;
+    }
+    let state: WorkInventoryItem['state'];
+    if (item.state === 'pending') {
+      state = 'undispatched';
+    } else if (item.state === 'claimed') {
+      state = 'inflight';
+    } else if (item.state === 'uncertain') {
+      state = 'uncertain';
+    } else {
+      throw new Error(
+        `buildWorkInventory: item ${JSON.stringify(item.id)} has unknown state ` +
+          `${JSON.stringify(item.state)}.`,
+      );
+    }
+    const contract = input.handlerContractFor(item);
+    if (typeof contract !== 'string' || contract === '') {
+      unmapped.push(item.id);
+      continue;
+    }
+    items.push({ intentId: item.id, handlerContract: contract, state });
+  }
+  if (unmapped.length > 0) {
+    unmapped.sort();
+    throw new Error(
+      'buildWorkInventory: no handler-contract mapping for ' +
+        `${unmapped.map((id) => JSON.stringify(id)).join(', ')} ` +
+        '(the assembly must supply the deployment vocabulary).',
+    );
+  }
+  items.sort((a, b) => (a.intentId < b.intentId ? -1 : a.intentId > b.intentId ? 1 : 0));
+  return items;
 }
 
 /** One supplier page: rows plus the opaque resume cursor, if more remain. */
