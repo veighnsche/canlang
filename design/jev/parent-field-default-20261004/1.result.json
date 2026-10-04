@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Can is a revisable AI-authored business DSL. Adoption, token efficiency and one canonical CRUD path are priorities. Model fields already support pure creation defaults and server initialization, but the declared scope does not specify access to a containing parent or sibling inputs. Child records have a required immutable typed parent. CanOnboard requires an omitted Step.assignee to default to its Checklist parent Employee.user; explicit reassignment remains allowed and current guards still run. Template-generated steps already pass assignee explicitly. Manual canonical Step.create via browser or MCP must obtain the same default, so a browser-only suggestion is insufficient. No deployed implementation restricts this choice. All alternatives retain supplied values, evaluate defaults only for omissions, preserve transaction read fences and reject unauthorized or invalid results. They differ in the minimum declaration/evaluation contract.",
+    "questions": {
+      "initialization": {
+        "type": "choice",
+        "instructions": "Which initial contract best addresses the demonstrated default without unnecessary authored repetition or hidden scope?",
+        "criteria": {
+          "parent": "Allow parent as the sole additional creation-context binding for contained-model defaults/server initializers. It is resolved before defaults; fields may read the parent and its existing authorized references. There is no partially initialized row or implicit sibling access. Short existing field syntax handles this case, but later sibling-derived defaults may require further design.",
+          "candidate": "Expose a typed creation candidate and infer an acyclic dependency order among field defaults, including parent and supplied/defaulted sibling fields. This is more expressive for future dependent defaults but adds dependency analysis, partial-value/error rules and authoring interactions not demanded by this example.",
+          "crud": "Keep model defaults independent of parent data and add default arguments on canonical CRUD declarations, evaluated from resolved create inputs. This places creation input policy at the operation boundary and can support this case, but adds a separate default declaration surface and requires specifying internal-create behavior so it remains consistent."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "initialization": {
+        "type": "choice",
+        "choice": "parent",
+        "confidence": 0.98,
+        "probabilities": {
+          "candidate": 0.0,
+          "crud": 0.01,
+          "parent": 0.99
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 667,
+      "output_tokens": 41
+    }
+  }
+}

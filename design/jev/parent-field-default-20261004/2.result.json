@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "The Can drafts can change freely and favor concise agent-authored company apps with a single CRUD mechanism. A stored field may have a pure default or protected initializer; which parent/sibling variables are in scope remains unspecified. Containment already supplies a nonmutable typed parent input. An onboarding Step belongs to Checklist, whose parent is Employee. Requirements say its assignee is that employee user when omitted, with explicit overrides permitted. Copying a template supplies the assignee today; an HR-created step must inherit the same fallback through both UI and MCP. Merely preselecting a form control does not satisfy that behavior. None of the candidates has deployed compatibility constraints. In each, explicit inputs win, omitted inputs trigger default evaluation, existing authorization/validation still applies, and parent reads participate in ordinary transaction fencing.",
+    "questions": {
+      "initialization": {
+        "type": "choice",
+        "instructions": "Choose the smallest coherent starting rule for this evidenced case, considering extensibility and repeated source as well as semantic cost.",
+        "criteria": {
+          "parent": "Extend creation expression scope with the resolved containing parent only. A default can follow that record and its permitted references, without seeing a nascent row or other new fields. This reuses field initialization notation economically, leaving broader sibling dependencies for a separate proven need.",
+          "candidate": "Give initialization expressions a creation-record view and calculate dependency ordering for supplied and defaulted sibling values as well as parent values. It accommodates more dependent defaults up front, at the expense of cycle detection and precise intermediate-value and failure behavior.",
+          "crud": "Declare input fallbacks on the existing CRUD operation while preserving parent-independent model defaults. The canonical UI/MCP action then supplies this fallback, with explicit rules also needed for scenario-created rows. This keeps input policy near admission but introduces another authored location for creation defaults."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "initialization": {
+        "type": "choice",
+        "choice": "parent",
+        "confidence": 0.85,
+        "probabilities": {
+          "parent": 0.9,
+          "crud": 0.09,
+          "candidate": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 655,
+      "output_tokens": 41
+    }
+  }
+}

@@ -11,6 +11,7 @@ import {
   deleteRecord,
   divideDecimal,
   hasRole,
+  first,
   int64,
   local_date,
   local_instant,
@@ -32,7 +33,7 @@ import {
   tabs,
   text,
 } from "@canlang/ui";
-import { can_work, deactivate, Employee, hr } from "./employee.mjs";
+import { can_work, deactivate, Employee, hr, staff } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
 
 /* Handwritten desired target; every import is a proposed, unimplemented contract.
@@ -195,12 +196,12 @@ export const appDefinition = {
       fields: {
         title: { type: "text", trim: true, min: 1n },
         due: { type: "date" },
-        assignee: { type: "user", label: message("Assignee", { nl: "Toegewezen persoon" }) },
+        assignee: { type: "user", default: (c, { parent }) => parent.parent.user, label: message("Assignee", { nl: "Toegewezen persoon" }) },
         category: { type: "onboard.TemplateStep.category" },
         document: {
           type: "file",
           nullable: true,
-          label: message("Generate document", { nl: "Document genereren" }),
+          label: message("Document attachment", { nl: "Documentbijlage" }),
         },
         blocked_reason: {
           type: "text",
@@ -221,6 +222,13 @@ export const appDefinition = {
       },
       readGrants: [{ rule: "Step.read.1" }],
       invariants: ["Step.require.1"],
+    },
+  },
+  pure: {
+    "onboard.can_complete": {
+      handler: "can_complete",
+      inputs: { step: { type: Step } },
+      result: "bool",
     },
   },
   contracts: {
@@ -451,6 +459,12 @@ export const appDefinition = {
   disabled: [],
 };
 
+async function can_complete(c, step) {
+  return step.parent.parent.active &&
+    (hasRole(c, hr) || (hasRole(c, "authenticated") && same(step.assignee, c.actor) && await staff(c, c.actor))) &&
+    !step.done && step.blocked_reason === null;
+}
+
 export function canApp() {
   const crudWhen = {
     Step: async (c, row) =>
@@ -458,6 +472,7 @@ export function canApp() {
   };
   return {
     crudWhen,
+    can_complete,
     read: {
       "Template.read.1": async (c, row) =>
         hasRole(c, hr) || (hasRole(c, "members") && (await can_work(c, c.actor, row.location))),
@@ -562,18 +577,12 @@ export function canApp() {
           parent: checklist,
           title: source.title,
           due: add_days(employee.start, source.offset_days),
-          assignee: employee.user,
           category: source.category,
         });
     },
     async complete(c, { step }) {
       check(hasRole(c, hr) || hasRole(c, "authenticated"), "forbidden");
-      check(
-        step.parent.parent.active &&
-          (hasRole(c, hr) || same(step.assignee, c.actor)) &&
-          !step.done &&
-          step.blocked_reason === null,
-      );
+      check(await can_complete(c, step));
       await set(c, step, { done: true, completed_by: c.actor, completed_at: c.now });
     },
     async reopen(c, { step, reason }) {
@@ -591,10 +600,7 @@ export function canApp() {
       const items = [];
       for await (const item of records(c, "onboard.Step", {
         where: async (item) =>
-          item.parent.parent.active &&
-          (hasRole(c, hr) || same(item.assignee, c.actor)) &&
-          !item.done &&
-          item.blocked_reason === null &&
+          (await can_complete(c, item)) &&
           ((await count(locations)) === 0n || locations.includes(item.parent.parent.home.id)),
       }))
         items.push({
@@ -610,12 +616,7 @@ export function canApp() {
     },
     async work_detail(c, { record }) {
       check(hasRole(c, hr) || hasRole(c, "authenticated"), "forbidden");
-      check(
-        record.parent.parent.active &&
-          (hasRole(c, hr) || same(record.assignee, c.actor)) &&
-          !record.done &&
-          record.blocked_reason === null,
-      );
+      check(await can_complete(c, record));
       return {
         reference: record.id,
         revision: record.version,
@@ -653,7 +654,7 @@ export async function readinessPage(c, bindings) {
             renderRow: (step, view) => [
               text({
                 context: view,
-                values: [step.title, step.due, step.blocked_reason, step.document],
+                values: [step.title, step.due, step.blocked_reason, step.document, step.done, step.completed_by, step.completed_at],
               }),
               actions({ context: view, operations: [complete], boundArgs: { step } }),
             ],
@@ -718,12 +719,14 @@ export async function onboardingPage(c, bindings) {
                         compareDate(step.due, local_date(c.now, c.team.timezone)) < 0),
                     order: ["due"],
                     renderRow: (step, sv) => [
+                      text({ context: sv, values: [step.title, step.due, step.assignee, step.category, step.blocked_reason, step.document, step.done, step.completed_by, step.completed_at] }),
                       edit({ context: sv, operation: "onboard.Step.update", record: step }),
                       actions({
                         context: sv,
                         operations: [complete, "onboard.reopen"],
                         boundArgs: { step },
                       }),
+                      actions({ context: sv, operations: ["onboard.Step.delete"], boundArgs: { record: step } }),
                       history({ context: sv, record: step }),
                     ],
                   }),
@@ -809,6 +812,16 @@ export function exampleFixtures({ self, other, imported }) {
       generation: "test-onboarding",
     }),
   };
+  const hr_user = { dependencies: [], user: async (c, s) => ({ roles: [hr] }) };
+  const assigned_user = { dependencies: [], user: async (c, s) => ({}) };
+  const assigned_worker = {
+    model: Employee, dependencies: [assigned_user, test_site],
+    value: async (c, s) => ({ user: s.assigned_user, home: s.test_site, locations: [s.test_site], start: date("2026-10-01"), role: "operator" }),
+  };
+  const opening_step = {
+    model: "onboard.TemplateStep", dependencies: [test_template],
+    value: async (c, s) => ({ parent: s.test_template, title: "Induction", offset_days: 2n, category: "induction" }),
+  };
   const test_step = {
     model: "onboard.Step",
     dependencies: [test_checklist],
@@ -823,8 +836,64 @@ export function exampleFixtures({ self, other, imported }) {
   return {
     test_checklist,
     test_step,
-    test_template,
+    test_template, hr_user, assigned_user, assigned_worker, opening_step,
     examples: [
+      {operation:"onboard.Step.create",dependencies:[test_checklist],
+        inputs:async(c,s)=>({parent:s.test_checklist,title:"Manual induction",due:date("2026-10-03"),category:"induction"}),
+        selectors:["as"],observations:[async(c,s)=>await count(records(c,Step,{parent:s.test_checklist})),async(c,s)=>(await first(records(c,Step,{parent:s.test_checklist})))?.assignee ?? null],
+        rows:[{dependencies:[],values:async()=>[hr],expected:async(c,s)=>[1n,s.self]}]},
+      {operation:"onboard.Step.create",dependencies:[test_checklist,assigned_worker],
+        inputs:async(c,s)=>({parent:s.test_checklist,title:"Assigned equipment",due:date("2026-10-03"),category:"equipment",assignee:s.assigned_user}),
+        selectors:["as"],observations:[async(c,s)=>await count(records(c,Step,{parent:s.test_checklist})),async(c,s)=>(await first(records(c,Step,{parent:s.test_checklist})))?.assignee ?? null],
+        rows:[{dependencies:[],values:async()=>[hr],expected:async(c,s)=>[1n,s.assigned_user]}]},
+      {operation:"onboard.start",dependencies:[test_worker,test_template,opening_step,assigned_worker,hr_user],sequence:[
+        {operation:"onboard.start",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({employee:s.test_worker,template:s.test_template})},
+        {let:"copied",value:async(c,s,b)=>await first(records(c,"onboard.Checklist",{parent:s.test_worker}))},
+        {observations:async(c,s,b)=>[b.copied!==null],expected:async(c,s,b)=>[true],types:["bool"]},
+        {let:"initial",value:async(c,s,b)=>await first(records(c,Step,{parent:b.copied}))},
+        {observations:async(c,s,b)=>[b.initial!==null],expected:async(c,s,b)=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.initial.title,b.initial.due,b.initial.assignee,await count(records(c,Step,{parent:b.copied})),await count(records(c,Step,{parent:b.copied,where:row=>row.done}))],expected:async(c,s,b)=>["Induction",date("2026-10-03"),s.self,1n,0n],types:["text","date","user","int","int"]},
+        {operation:"onboard.TemplateStep.update",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({record:s.opening_step,changes:{title:"Revised induction"}})},
+        {let:"independent",value:async(c,s,b)=>await first(records(c,Step,{parent:b.copied}))},
+        {observations:async(c,s,b)=>[b.independent!==null],expected:async(c,s,b)=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.independent.title],expected:async(c,s,b)=>["Induction"],types:["text"]},
+        {operation:"onboard.Step.update",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({record:b.independent,changes:{assignee:s.assigned_user,blocked_reason:"Equipment pending"}})},
+        {let:"blocked",value:async(c,s,b)=>await first(records(c,Step,{parent:b.copied}))},
+        {observations:async(c,s,b)=>[b.blocked!==null],expected:async(c,s,b)=>[true],types:["bool"]},
+        {operation:"onboard.complete",by:async(c,s,b)=>s.assigned_user,inputs:async(c,s,b)=>({step:b.blocked}),error:"rule_failed"},
+        {observations:async(c,s,b)=>[b.blocked.done,b.blocked.blocked_reason],expected:async(c,s,b)=>[false,"Equipment pending"],types:["bool","text?"]},
+        {operation:"onboard.Step.update",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({record:b.blocked,changes:{blocked_reason:null}})},
+        {let:"ready",value:async(c,s,b)=>await first(records(c,Step,{parent:b.copied}))},
+        {observations:async(c,s,b)=>[b.ready!==null],expected:async(c,s,b)=>[true],types:["bool"]},
+        {operation:"onboard.complete",by:async(c,s,b)=>s.assigned_user,inputs:async(c,s,b)=>({step:b.ready})},
+        {let:"completed",value:async(c,s,b)=>await first(records(c,Step,{parent:b.copied}))},
+        {observations:async(c,s,b)=>[b.completed!==null],expected:async(c,s,b)=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.completed.done,b.completed.completed_by,b.completed.completed_at!==null,await count(records(c,Step,{parent:b.copied,where:row=>row.done})),await count(records(c,Step,{parent:b.copied}))],expected:async(c,s,b)=>[true,s.assigned_user,true,1n,1n],types:["bool","user?","bool","int","int"]},
+        {operation:"onboard.reopen",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({step:b.completed,reason:"Equipment correction"})},
+        {let:"reopened",value:async(c,s,b)=>await first(records(c,Step,{parent:b.copied}))},
+        {observations:async(c,s,b)=>[b.reopened!==null],expected:async(c,s,b)=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.reopened.done,b.reopened.completed_by,b.reopened.completed_at,b.reopened.blocked_reason,await count(records(c,Step,{parent:b.copied,where:row=>row.done}))],expected:async(c,s,b)=>[false,null,null,"Equipment correction",0n],types:["bool","user?","datetime?","text?","int"]},
+        {operation:"onboard.Step.delete",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({record:b.reopened})},
+        {observations:async(c,s,b)=>[await count(records(c,Step,{parent:b.copied})),await count(records(c,Step,{parent:b.copied})),await count(records(c,Step,{parent:b.copied,where:row=>row.done}))],expected:async(c,s,b)=>[0n,0n,0n],types:["int","int","int"]},
+        {operation:"onboard.Step.create",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({parent:b.copied,title:"Equipment",due:date("2026-10-03"),category:"equipment"})},
+        {let:"manual",value:async(c,s,b)=>await first(records(c,Step,{parent:b.copied}))},
+        {observations:async(c,s,b)=>[b.manual!==null],expected:async(c,s,b)=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.manual.assignee,await count(records(c,Step,{parent:b.copied}))],expected:async(c,s,b)=>[s.self,1n],types:["user","int"]},
+        {operation:"onboard.Step.update",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({record:b.manual,changes:{assignee:s.assigned_user}})},
+        {let:"reassigned",value:async(c,s,b)=>await first(records(c,Step,{parent:b.copied}))},
+        {observations:async(c,s,b)=>[b.reassigned!==null],expected:async(c,s,b)=>[true],types:["bool"]},
+        {operation:"employee.deactivate",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({employee:s.assigned_worker,ended:date("2026-10-03")})},
+        {operation:"onboard.complete",by:async(c,s,b)=>s.assigned_user,inputs:async(c,s,b)=>({step:b.reassigned}),error:"rule_failed"},
+        {operation:"onboard.work",by:async(c,s,b)=>s.assigned_user,inputs:async(c,s,b)=>({locations:[]}),bind:"remaining"},
+        {observations:async(c,s,b)=>[await count(b.remaining.items),s.test_worker.active,s.assigned_worker.active],expected:async(c,s,b)=>[0n,true,false],types:["int","bool","bool"]},
+        {operation:"onboard.work_detail",by:async(c,s,b)=>s.assigned_user,inputs:async(c,s,b)=>({record:b.reassigned}),error:"rule_failed"},
+        {operation:"onboard.complete",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({step:b.reassigned})},
+        {let:"recovered",value:async(c,s,b)=>await first(records(c,Step,{parent:b.copied}))},
+        {observations:async(c,s,b)=>[b.recovered!==null],expected:async(c,s,b)=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.recovered.done,b.recovered.completed_by],expected:async(c,s,b)=>[true,s.hr_user],types:["bool","user?"]},
+        {operation:"employee.deactivate",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({employee:s.test_worker,ended:date("2026-10-03")})},
+        {operation:"onboard.reopen",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({step:b.recovered,reason:"After employment end"}),error:"rule_failed"}
+      ]},
       {
         operation: "onboard.start",
         dependencies: [test_worker, test_template],
@@ -878,7 +947,7 @@ export function exampleFixtures({ self, other, imported }) {
       },
       {
         operation: "onboard.complete",
-        dependencies: [test_step],
+        dependencies: [test_step, test_worker],
         inputs: async (c, s) => ({ step: s.test_step }),
         selectors: ["as", "step.assignee", "step.blocked_reason"],
         observations: [async (c, s) => s.step.done],

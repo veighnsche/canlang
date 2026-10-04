@@ -1,0 +1,14 @@
+{
+  "state": "Can targets AI-written internal SaaS and treats source economy and canonical CRUD as design goals. Its current drafts are unconstrained by deployed code. Field creation defaults and server-owned expressions exist; parent-record and sibling-input visibility during their evaluation has not been defined. A contained model already has one required immutable parent relation. The concrete requirement is Step.assignee falling back to Checklist.parent.user, while letting HR specify a different assignee under unchanged guards. Template copying already provides this value; manually creating the same Step must work identically in browser and MCP, not depend on a form prefill. Every proposed option preserves an explicitly submitted value, handles only missing values through defaults, validates authority and types, and uses existing transactional read protection.",
+  "questions": {
+    "initialization": {
+      "type": "choice",
+      "instructions": "What rule should be explored first to implement that contract economically while accounting for the limitations of each alternative?",
+      "criteria": {
+        "parent": "Make only the established parent record available as an extra initializer binding, with reads through its typed authorized references. Evaluate it before field defaults. Existing default syntax suffices and no sibling or incomplete-row scope is introduced, but future sibling-dependent cases are not covered yet.",
+        "candidate": "Resolve defaults against a typed prospective record with parent and inter-field dependencies, checking cycles and choosing an acyclic evaluation order. Broader future cases are supported, while intermediate initialization states and their errors require more specification and checking.",
+        "crud": "Add creation-argument defaults to the canonical CRUD declaration instead of exposing parent to model initializers. This makes the public operation fallback explicit, but adds a second default surface and needs a defined relationship to direct scenario create effects."
+      }
+    }
+  }
+}
