@@ -118,6 +118,22 @@ describe("identity and reference tags", () => {
       () => makeActionRef("t", { x: { kind: "file", id: "f1" } as unknown as never }),
       ValueError,
     );
+    const protoBindings = JSON.parse('{"__proto__":{"kind":"ref","model":"M","id":"r"}}') as Record<
+      string,
+      { version?: unknown }
+    >;
+    (protoBindings["__proto__"] as { version: unknown }).version = 1n;
+    assert.throws(
+      () => makeActionRef("t", protoBindings as never),
+      (err: unknown): boolean => {
+        assert.ok(err instanceof ValueError);
+        assert.equal(err.code, "invalid-construction");
+        assert.match(err.message, /action binding name "__proto__" is reserved/);
+        return true;
+      },
+    );
+    const dunder = makeActionRef("t", { constructor: makeRecordRef("M", "r", 1n) });
+    assert.ok(Object.hasOwn(dunder.bindings, "constructor"));
     const union = makeUnionValue("Text", "hi");
     assert.deepEqual(union, { kind: "union", type: "Text", value: "hi" });
     assert.ok(isUnionValue(union));

@@ -385,6 +385,44 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
   are mathematical-total-then-once; money aggregation is per-row currency
   validation + checked minor accumulation (fold of addMoney), matching
   money's per-operation check norm and the reviewer's verdict.
+- PR4 merged 2026-10-04 as 64d459a (PR #28, squash, head 602dc23):
+  rebased clean onto 7f13f84 (L3 S3 #23, L7 PR8 #25, PR9 #27 all landed
+  meanwhile); all CI green incl. `workspace` (the L3 S2 lock breakage is
+  fixed on main) and both `values` runs. 369/369, catalog 56/15.
+  Delivered: text/ICU/locale + array/equality + 18 catalog flips +
+  flip-pin/barrel tests. L6 S4 (#22) also in main now.
+- PR5 branch `muse/lane-02-values/schema-catalog` cut from 64d459a. Workers
+  E (types/schema/wire + 3 test files) + F (stdlib-pure + oracle/
+  conformance tests + emit-catalog.mjs + package.json/lock) spawned with
+  disjoint files. Coordinator directives recorded in briefs: pinned wire
+  forms per type id (R2a decimal, .sss datetimes, version-required action
+  bindings, secrets never serialize); decode validates zone/currency/
+  locale, email/url pass through; uniqueness is lane-03; UPDATE_OMITTED
+  sentinel for update mode; decimal.js@10.6.0 via /tmp lock flow.
+- PR5 deliveries: F done (stdlib-pure + oracle + conformance + lock-safe
+  decimal.js@10.6.0, exactly 7 files); F2 added the `format` dispatcher and
+  dropped both gate special-cases; E done (types/schema/wire, 247 vectors,
+  5.1k lines). Combined: typecheck clean, 656/658 (1 fail = barrel `format`,
+  assembly-owned; 1 skip = emission fixture). Coordinator review: types.ts
+  correct; stdlib-pure correct (absDuration claim verified); wire.ts solid
+  except message-kind fail-closed gap; schema.ts solid except __proto__
+  accumulator loss (blocking). Fix worker spawned (S1 __proto__ rejection
+  + vectors, S3 version-scope header, W-V message rejection, S2
+  scalarLength dedup).
+- PR5 assembly: barrel + 4 catalog flips (sum/abs/app_url/action) + 2
+  features (schema-validation, wire-canonical-json); appUrl renamed to
+  verbatim app_url (catalog rule + local_date precedent; brief's fault);
+  flip-pin test extended (no builtin left planned); conformance planned
+  test flipped to external-only; barrel smoke extended to PR5 surface.
+  667/667 green (emission fixture exercised), typecheck clean, emit gate
+  passing. Independent review verdict FIX: B1 action() __proto__ drop
+  (probe-confirmed; S1 missed F's file) + 8 nits. Fix worker spawned:
+  B1/N8 __proto__ rejection in action()/makeActionRef, N1 encode-side
+  rejection, N2 printTypeId combo validation, N3 actual single-encode,
+  N4/N5 docs, N7 remove over-strict segment @ checks (false positive on
+  /users/@me; @ in path is data, verified by URL structure), N6 confirmed
+  intended (.sssZ pin). Rest of slice verified conformant (omission
+  matrix, versions, codes, app_url matrix, oracle, conformance, updates).
 
 ## Interface requests and handoffs
 
