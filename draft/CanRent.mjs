@@ -102,6 +102,12 @@ const R = "rent_reservations";
 
 const F = "rent_fulfillment";
 
+export async function can_read_booking_details(c, booking) {
+  return (hasRole(c, "rent_reservations.reservation_manager") && await can_work(c, c.actor, booking.parent.location))
+    || (hasRole(c, "authenticated") && same(booking.account, c.actor))
+    || (hasRole(c, "rent_reservations.billing") && await can_work(c, c.actor, booking.parent.location));
+}
+
 function commercial(c, booking, sale, location, product, amount, purchased, phase, at) {
   return {
     source: booking.source,
@@ -1408,9 +1414,8 @@ export const appDefinition = {
       parent: "rent_reservations.Resource",
       readGrants: [
         { rule: "Booking.read.1" },
-        { rule: "Booking.read.2" },
         {
-          rule: "Booking.read.3",
+          rule: "Booking.read.2",
           fields: [
             "customer",
             "account",
@@ -1428,7 +1433,6 @@ export const appDefinition = {
             "source",
           ],
         },
-        { rule: "Booking.read.4" },
       ],
       label: message("Booking", { nl: "Reservering" }),
       invariants: ["Booking.require.1"],
@@ -2222,6 +2226,10 @@ export const appDefinition = {
     },
   },
   pure: {
+    "rent_reservations.can_read_booking_details": {
+      handler: "can_read_booking_details", exported: true,
+      inputs: { booking: { type: Booking } }, result: "bool",
+    },
     "rent_reservations.commercial": {
       handler: "commercial",
       inputs: {
@@ -3327,6 +3335,7 @@ export function canApp() {
       check(account===null || customer!==null && (await owns(c,account,customer) || await has_location_role(c,account,customer,"booker",entry.location)));
       await set(c,entry,{customer,resource,account,mapping_reason:reason.trim()});
     },
+    can_read_booking_details,
     commercial,
     quote_covers,
     quote_available,
@@ -3413,15 +3422,9 @@ export function canApp() {
         (await can_work(c, c.actor, row.parent.parent.location)),
       "Adjustment.read.2": (c, row) =>
         hasRole(c, "authenticated") && same(row.parent.account, c.actor),
-      "Booking.read.1": async (c, row) =>
-        hasRole(c, "rent_reservations.reservation_manager") &&
-        (await can_work(c, c.actor, row.parent.location)),
-      "Booking.read.2": (c, row) => hasRole(c, "authenticated") && same(row.account, c.actor),
-      "Booking.read.3": async (c, row) =>
+      "Booking.read.1": can_read_booking_details,
+      "Booking.read.2": async (c, row) =>
         hasRole(c, "rent_reservations.reception") &&
-        (await can_work(c, c.actor, row.parent.location)),
-      "Booking.read.4": async (c, row) =>
-        hasRole(c, "rent_reservations.billing") &&
         (await can_work(c, c.actor, row.parent.location)),
       "Downtime.read.1": async (c, row) =>
         hasRole(c, "rent_reservations.reservation_manager") &&
