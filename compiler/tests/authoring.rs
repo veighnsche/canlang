@@ -241,7 +241,11 @@ fn cli_fmt_parse_failure_reports_envelope_and_writes_nothing() {
         let result = dispatch(&args);
         assert_eq!(result.code, exit::DIAGNOSTICS, "{args:?}");
         assert!(result.stdout.contains("\"E1003\""), "{}", result.stdout);
-        assert!(result.stdout.contains("\"diagnostics\""), "{}", result.stdout);
+        assert!(
+            result.stdout.contains("\"diagnostics\""),
+            "{}",
+            result.stdout
+        );
         assert!(result.stderr.is_empty());
     }
     assert_eq!(std::fs::read_to_string(&file.path).unwrap(), before);

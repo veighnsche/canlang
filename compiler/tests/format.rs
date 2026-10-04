@@ -135,7 +135,10 @@ fn corpus_formats_cleanly_and_is_idempotent() {
         }
     }
     table.sort();
-    println!("corpus format table ({} files, {refused} refused):", table.len());
+    println!(
+        "corpus format table ({} files, {refused} refused):",
+        table.len()
+    );
     for row in &table {
         println!("{row}");
     }
