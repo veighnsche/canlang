@@ -97,7 +97,7 @@ pub fn entry_to_text(info: &CodeInfo) -> String {
     out
 }
 
-const CATALOG: [CodeInfo; 108] = [
+const CATALOG: [CodeInfo; 110] = [
     CodeInfo {
         code: "E1001",
         title: "bare-carriage-return",
@@ -907,14 +907,6 @@ const CATALOG: [CodeInfo; 108] = [
         example_invalid: "can run   # without can-platform installed",
     },
     CodeInfo {
-        code: "E7005",
-        title: "formatter-unimplemented",
-        severity: Severity::Error,
-        explanation: "`can fmt` needs the lossless CST formatter (slice 2b). Until then it reports this error and never a false clean. Exit status is 2.",
-        example_valid: "can check main.can",
-        example_invalid: "can fmt --check main.can   # until slice 2b",
-    },
-    CodeInfo {
         code: "E7006",
         title: "analysis-incomplete",
         severity: Severity::Error,
@@ -923,44 +915,68 @@ const CATALOG: [CodeInfo; 108] = [
         example_invalid: "can check main.can   # with a pass skipped (internal)",
     },
     CodeInfo {
+        code: "E7007",
+        title: "unwritable-output",
+        severity: Severity::Error,
+        explanation: "`can fmt` formatted the input but could not write the file back (missing, read-only or unwritable path). Earlier files in the same invocation may already be rewritten. Exit status is 2. Check the path and permissions.",
+        example_valid: "can fmt main.can",
+        example_invalid: "can fmt readonly-dir/main.can",
+    },
+    CodeInfo {
         code: "I1001",
         title: "unused-symbol",
         severity: Severity::Info,
-        explanation: "Reserved placeholder: not emitted in this build. A later analysis stage will emit it for a proven unused pure local or private symbol. Informational only and kept out of default build output.",
+        explanation: "`can lint` reports this for a `let` binding or query alias that is never read. Underscore-prefixed names are intentional-unused markers and never flagged; ambiguous same-named bindings suppress the finding rather than risk misattribution. Informational only and kept out of default build output; removal is an authored decision, never an autofix.",
         example_valid: "do\n let total = 1\n return total",
-        example_invalid: "do\n let total = 1\n return 0",
+        example_invalid: "do\n let unused = 1\n return 0",
     },
     CodeInfo {
         code: "I1002",
-        title: "redundant-default",
+        title: "redundant-marker",
         severity: Severity::Info,
-        explanation: "Reserved placeholder: not emitted in this build. A later analysis stage will emit it for a redundant equivalent default or guard that can be removed without changing meaning. Informational only; source-reduction hints appear only when equivalence and reachability are established.",
-        example_valid: "lock Todo fields=title",
-        example_invalid: "lock Todo fields=title when=true",
+        explanation: "`can lint` reports this for `?.` on a provably non-null receiver: the marker misleads readers into expecting nullability where none exists (the checker already proves plain `.` sound there). A literal `T?` annotation is never redundant. Informational only; a machine fix narrowing `?.` to `.` is offered when safe.",
+        example_valid: "do\n let p = task.title\n return p",
+        example_invalid: "do\n let p = task?.title\n return p",
+    },
+    CodeInfo {
+        code: "I1003",
+        title: "empty-description",
+        severity: Severity::Info,
+        explanation: "`can lint` reports this for a `#` description that carries no prose: vacuous metadata that should say something or go away. Informational only.",
+        example_valid: "# Ship the prototype.",
+        example_invalid: "#",
+    },
+    CodeInfo {
+        code: "I1004",
+        title: "duplicate-description",
+        severity: Severity::Info,
+        explanation: "`can lint` reports this when adjacent siblings share an identical description — usually copy-paste; each declaration deserves its own. `#=` references are excluded: reuse is their purpose. Informational only.",
+        example_valid: "# Ship the prototype.",
+        example_invalid: "# Same words.\n# Same words.",
     },
     CodeInfo {
         code: "W1001",
         title: "unreachable-effect",
         severity: Severity::Warning,
-        explanation: "Reserved placeholder: not emitted in this build. A later analysis stage will emit it when the accepted control-flow rules prove an operation path can never execute (e.g. after unconditional termination or a literal-false guard). Does not block output. Fix by removing the dead path or correcting the decisive guard named in the diagnostic.",
-        example_valid: "do\n require ok\n create Todo {title=\"t\"} as row",
-        example_invalid: "do\n return 1\n create Todo {title=\"t\"} as row",
+        explanation: "`can lint` reports this for a statement after exact `require false` in the same `do`/`if`/`for` list: the `require` always rejects, so the statement never executes. Statements after `return` are the E4030 analysis error instead — this lint never duplicates it. Does not block output; remove the dead statement (a removal fix is offered when it spans whole lines).",
+        example_valid: "do\n require ok\n set task {title=\"t\"}",
+        example_invalid: "do\n require false\n set task {title=\"t\"}",
     },
     CodeInfo {
         code: "W2001",
         title: "suspicious-shadowing",
         severity: Severity::Warning,
-        explanation: "Reserved placeholder: not emitted in this build. A later analysis stage will emit it (opt-in until precise low-noise detection ships) when a local declaration hides an outer same-named value actually referenced nearby. Disjoint scopes and canonical contextual names are excluded.",
+        explanation: "`can lint` reports this (opt-in rule, off in the recommended set) for a nested `let` hiding an outer `let` that is still referenced nearby — usually an intended update that became a shadow. Same-scope duplicates are E2002 and contextual shadowing is E2012, never this warning. Disjoint scopes are excluded.",
         example_valid: "do\n let total = 1\n return total",
-        example_invalid: "do\n let user = owner\n let user = other\n return user",
+        example_invalid: "do\n let user = task\n if ok\n  let user = task\n  set user {title=\"y\"}\n return user",
     },
     CodeInfo {
         code: "W3001",
         title: "deprecated-capability",
         severity: Severity::Warning,
-        explanation: "Reserved placeholder: not emitted in this build. A later stage will emit it when a linked producer catalog marks a still-supported operation/construct deprecated and names a replacement. Migrate to the canonical replacement; removed capabilities are errors, never this warning.",
-        example_valid: "call store.v2.save {row=row}",
-        example_invalid: "call store.v1.save {row=row}",
+        explanation: "`can lint` reports this when a call resolves to a builtin whose producer catalog marks it deprecated with a migration notice; the notice prints at the call site. Needs catalog deprecation data (silent without a catalog). Migrate to the canonical replacement; removed capabilities are errors, never this warning.",
+        example_valid: "do\n let n = count(Todo)\n return n",
+        example_invalid: "do\n let n = old_add(x=1)\n return n",
     },
 ];
 
