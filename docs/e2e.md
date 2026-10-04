@@ -58,5 +58,7 @@ into the worker and fails loud naming the exact build when one is missing.
   `playwright.config.ts`, this doc (scaffold adopted from L5 PR #97; the
   prior L5 authoring grant is revoked), plus the runner (`startLocalDev`,
   `LocalDev.dispatch` stability), root `package.json`/lock,
-  `.github/workflows/*`, `tests/integration/*`, `packages/*`,
-  `docs/dev-setup.md`.
+  `.github/workflows/*`, `tests/integration/*`, `docs/dev-setup.md`, and
+  the lane-07-owned packages (`packages/cloudflare`, `packages/testkit`,
+  contracts manifest/export assembly + `deployment.ts`/`examples.ts` —
+  other producers own their own packages).

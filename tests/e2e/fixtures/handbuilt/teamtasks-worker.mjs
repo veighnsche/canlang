@@ -20,6 +20,7 @@
  * Workerd-safe: no `node:` imports; victuals arrive via the module map.
  */
 import {
+  IdentityError,
   buildSessionCookie,
   createOpaqueToken,
   deriveCsrfToken,
@@ -87,7 +88,11 @@ async function currentViewer(request) {
   try {
     const identity = await resolveIdentity(store, { session_token: token });
     return { viewer: identity, sessionToken: token };
-  } catch {
+  } catch (error) {
+    // Credential failures are IdentityError (expired/revoked/unknown);
+    // anything else is a store bug and must surface, never masquerade
+    // as an expired session.
+    if (!(error instanceof IdentityError)) throw error;
     return { viewer: "invalid", sessionToken: token };
   }
 }

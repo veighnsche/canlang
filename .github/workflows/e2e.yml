@@ -14,6 +14,10 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/e2e.yml"
+      - "packages/ui/**"
+      - "packages/identity/**"
+      - "packages/contracts/**"
+      - "packages/cloudflare/**"
   push:
     branches: ["main"]
     paths:
@@ -22,6 +26,10 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/e2e.yml"
+      - "packages/ui/**"
+      - "packages/identity/**"
+      - "packages/contracts/**"
+      - "packages/cloudflare/**"
   workflow_dispatch:
 
 jobs:

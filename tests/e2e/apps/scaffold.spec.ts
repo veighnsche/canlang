@@ -17,6 +17,7 @@ test.describe("scaffold smoke", () => {
     expect(assembly.label).toBe("fixture/handbuilt/teamtasks");
     await seedFixtureTask(dev, "DB");
     const seed = await seedTeamUsers(bridge.url, [ALICE]);
+    expect(seed.label).toBe(assembly.label);
     expect(seed.users).toHaveLength(1);
     const user = seed.users[0];
     if (user === undefined) throw new Error("scaffold smoke: seed returned no users");
