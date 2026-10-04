@@ -113,6 +113,8 @@ test.describe("teamtasks journeys", () => {
     expect(results).toHaveLength(0);
   });
 
+  // Shared-list visibility; per-team scoping needs the PR6 dispatcher
+  // (the fixture homePage SELECT has no team filter).
   test("collaborators see each other's tasks", async ({ browser, bridge }) => {
     const carolContext = await browser.newContext();
     try {
