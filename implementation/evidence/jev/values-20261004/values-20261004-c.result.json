@@ -1,0 +1,79 @@
+{
+  "request": {
+    "questions": {
+      "currency_values": {
+        "criteria": {
+          "format_with_table": "A currency value is any ^[A-Z]{3}$ string; scales come from the pinned table, and table-missing codes fail at first monetary use, not at admission.",
+          "format_with_two": "A currency value is any ^[A-Z]{3}$ string; table-missing codes silently behave as scale 2.",
+          "table_only": "A currency value exists only for codes listed in the pinned ISO 4217 table; validation rejects everything else at the checking boundary."
+        },
+        "instructions": "Which reading of the verified excerpts should govern currency values?",
+        "type": "choice"
+      },
+      "decimal_strings": {
+        "criteria": {
+          "as_stored": "Serialize each decimal at its stored scale, preserving trailing zeros and any negative-zero sign.",
+          "padded": "Serialize each decimal with exactly 18 digits after the point.",
+          "unique": "Serialize each decimal in the unique normalized form: no trailing fractional zeros, no point for integral values, 0 for zero."
+        },
+        "instructions": "Which reading of the verified excerpts should govern canonical decimal strings?",
+        "type": "choice"
+      },
+      "unlike_money": {
+        "criteria": {
+          "compare_minor": "Operators compare minor amounts and ignore currency, so 100 minor EUR equals 100 minor USD.",
+          "equal_decidable_ordered_strict": "== and != return a boolean for unlike currencies (unequal unless identical value and unit); ordering operators fail for unlike currencies.",
+          "strict_everywhere": "Every comparison operator, equality included, fails when the two currencies differ."
+        },
+        "instructions": "Which reading of the verified excerpts should govern unlike-currency comparison?",
+        "type": "choice"
+      }
+    },
+    "state": {
+      "brief": "As CanLang lane-02 coordinator I need three readings of the attached verified excerpts, each choosing the alternative the excerpts best support. (i) Canonical decimal strings at the MCP boundary: unique normalized text, stored scale preserved, or fixed 18-place text. (ii) Currency values: pinned-table membership only, any well-formed code with silent scale 2, or any well-formed code with failure deferred to first monetary use. (iii) Unlike-currency money comparison: equality decidable with ordering strict, every operator strict, or minor units compared with currency ignored. The excerpts also state that unlike currencies are grouped rather than summed, that money construction rounds to the currency's minor units, and that trailing-zero normalization does not change a decimal's value.",
+      "files": {
+        "context.md": "# Verified context: lane-02 value-semantics round (2026-10-04)\n\nVerbatim normative excerpts from worktree revision b06d873 (origin/main).\nPaths are repo-relative; line numbers are exact.\n\n## Decimal\n\n- DESIGN.md:107 — \"`text`, `bool`, `int`, `decimal` | Unicode string, boolean,\n  signed 64-bit integer, exact decimal with at most 38 significant digits and\n  18 fractional digits; overflow is an error\"\n- DESIGN.md:213 — \"Decimal arithmetic computes the mathematical result, rounds\n  half-even to at most 18 fractional places, then checks the 38-significant-digit\n  representation bound. An exact terminating result needing fewer places is\n  retained; trailing zero normalization does not change its value. Out-of-range\n  results, division by zero and invalid inputs fail; no NaN or infinity. Decimal\n  literals/inputs remain checked representations rather than silently rounded\n  inputs.\"\n- DESIGN.md:872 — \"All int/decimal values use canonical decimal strings at the\n  MCP boundary, including money.minor and record.version; there is no\n  magnitude-dependent wire type.\"\n- DESIGN.md:231 — \"Decimal/money/datetime interpolation is outside this\n  plain-template overload until canonical encodings are specified\".\n- GRAMMAR tokens: `DECIMAL=[0-9]+\\.[0-9]+`; no exponent literals, no numeric\n  separators; sign is an operator, never part of the token.\n\n## Money and currency\n\n- DESIGN.md:112 — \"`currency`, `money` | ISO currency code;\n  `{minor:int,currency:currency}` with pinned currency minor-unit scales\"\n- DESIGN.md:159 — \"A string literal can inhabit an expected validated\n  string-like type, such as currency, email, or URL, after validation; this does\n  not coerce an arbitrary text variable.\" and \"Currency values never coerce to\n  decimal.\"\n- DESIGN.md:209 — \"Money comparison requires matching currencies.\" and\n  \"Array/contract equality is typed structural equality; references compare\n  identities of their declared reference type.\"\n- DESIGN.md:225 — \"`money(decimal,currency)` rounds once to that currency's\n  minor units. Add/subtract/compare money only with matching currencies.\n  Currency conversion requires an explicit typed provider/result workflow.\"\n- DESIGN.md:261 — \"Money sums require an explicit currency unless a nonempty\n  literal supplies it; amounts and any explicit currency must all match. Money\n  min/max also reject inconsistent currencies.\"\n- DESIGN.md:263 — \"`group` groups by typed equality (including one null group),\n  preserves item encounter order and emits groups in first-encounter order.\"\n- DESIGN.md:888 — \"The language version pins builtin signatures, wire schemas,\n  currency scales, timezone data, runtime defaults, and component behavior.\"\n- DECISIONS.md:387 — \"144. **MINE** — Group unlike currencies rather than\n  implicitly sum them together.\"\n- DECISIONS.md:389 — \"145. **MINE** — Require explicit currency conversion\n  support before combining currencies.\"\n- REQUIREMENTS.md:184 — \"Store money with a currency and deterministic rounding,\n  never binary floating-point totals. Snapshot prices, rates, and costs when a\n  transaction is committed so later configuration changes cannot rewrite history.\n  An app must explicitly support currency conversion before combining currencies.\"\n\n## Operator matrix (money rows)\n\n- DESIGN.md:190-193 — \"money, money | `+ -` | money, same currency\",\n  \"money, money | `/` | decimal, same currency\". No `money+int`, no `money%`.\n"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "currency_values": {
+        "type": "choice",
+        "choice": "table_only",
+        "confidence": 0.52,
+        "probabilities": {
+          "format_with_table": 0.32,
+          "format_with_two": 0.0,
+          "table_only": 0.68
+        }
+      },
+      "decimal_strings": {
+        "type": "choice",
+        "choice": "unique",
+        "confidence": 0.98,
+        "probabilities": {
+          "padded": 0.0,
+          "unique": 0.99,
+          "as_stored": 0.01
+        }
+      },
+      "unlike_money": {
+        "type": "choice",
+        "choice": "strict_everywhere",
+        "confidence": 0.61,
+        "probabilities": {
+          "compare_minor": 0.0,
+          "equal_decidable_ordered_strict": 0.26,
+          "strict_everywhere": 0.74
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1690,
+      "output_tokens": 138
+    }
+  }
+}
