@@ -5,9 +5,11 @@
 //! point); this crate owns source management, syntax, analysis, emission
 //! and authoring tools.
 
+pub mod analysis;
 pub mod cli;
 pub mod diagnostic;
 pub mod explain;
+pub mod json;
 pub mod lsp;
 pub mod source;
 pub mod syntax;
