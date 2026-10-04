@@ -293,12 +293,41 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
   pre-existing — verified via main-branch run history, not lane-06 caused).
   J1 follow-up for L7 stands (root-lock regen incl. new member->contracts
   edges + tsconfig.check include).
-- S4 (in progress): branch muse/lane-06-identity-interfaces/http-routes.
-  Recon verdict: REAL @canlang/ui renderer + worker fetch seam consumable;
-  invocation/registry/stores stay ports (fake doubles). Scope: routes/
-  pages/fragments (E) + operations/auth/limits (F) with tests; coordinator
-  owns ports/context/testing/index/package/CI. Consumes built identity+ui
-  entries (CI builds them). PR URL + review + merge: to record.
+- S4 (MERGED 2026-10-04 as 9a01b51, PR #22): canonical HTTP dispatch,
+  interfaces 120/120 (identity 33/33). Two disjoint implementers (E routes/
+  pages/fragments, F operations/auth/limits) + coordinator seams. Review
+  APPROVE-WITH-NOTES (N1 clock, N2 logout idempotence, N3 urlencoded gaps,
+  N4 team oracle, N5 docs, N6 undecodable cookie, N7/N8 notes) — all fixed
+  with pins. Post-review main move (L5 S3 PresentationContext
+  invocation/query) adapted via row-query runner bound to read invoker;
+  delta re-review APPROVED; lane-06 + workspace CI green. Observed hazard
+  (L5/L7 owned): @canlang/ui dist bundles its own contracts copy — dual
+  type identities unless every consumer builds fresh in dependency order.
+- S5 (in progress): branch `muse/lane-06-identity-interfaces/mcp-server`
+  from origin/main (rebased onto 64d459a post Lane-02 PR4). Scope: MCP SDK
+  qualification, registry->tool generation, closed-schema derivation,
+  grant-bearer audience binding, discovery/call permission rechecks,
+  same-invocation proof with S4.
+  - QUALIFIED 2026-10-04: official `@modelcontextprotocol/sdk` 1.32.0
+    (pinned). Evidence: `WebStandardStreamableHTTPServerTransport` closure
+    (transport + shared/requestBody + shared/sseKeepAlive) contains zero
+    `node:` imports; documented Cloudflare-Workers-safe; stateless via
+    `sessionIdGenerator: undefined`; `LATEST_PROTOCOL_VERSION =
+    '2025-11-25'` matches the DESIGN-pinned MCP auth spec date; tool names
+    allow dots (`/^[A-Za-z0-9._-]{1,128}$/`), so canonical fq names are
+    used verbatim. SDK OAuth authorization-server code is express-bound
+    (not workerd-safe) -> full OAuth HTTP dance (metadata/authorize/token)
+    deferred to S7; S5 authenticates via grant bearers + `mcp-grant`
+    audience only. Local `npm install` run for dev; root-lock regen stays
+    L7-owned (J1 follow-up extended with the SDK edge).
+  - Coordinator files landed: identity `authentication/grants.ts`
+    (`issueMcpGrant`, 30-day TTL) + `test/grants.test.ts` (identity 36/36);
+    interfaces SDK dep, ports.ts S5 section (McpSchemaField, descriptors,
+    registry/permissions/files ports, McpDeps), testing.ts MCP doubles.
+  - Implementers: G owns mcp/{server,discovery}.ts + mcp-server.test.ts
+    (SDK Server + stateless transport, raw JSON-RPC round-trips,
+    same-invocation proof vs S4 HTTP); H owns mcp/{tools,schemas}.ts +
+    mcp-tools.test.ts (generation, closed schemas, handle-mode anyOf).
 
 ## Remaining work and cleanup
 
