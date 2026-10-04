@@ -1,0 +1,571 @@
+/**
+ * Lane 03 S2: D1 storage adapter.
+ *
+ * Fence-correctness argument (DESIGN §7): D1 offers no interactive
+ * read/branch/write transaction, so every commit is ONE `db.batch()` that
+ * starts with `INSERT INTO fence_log(revision, …) VALUES (expected + 1, …)`.
+ * Revisions are dense from 1, so a stale `expected` always collides with an
+ * existing `fence_log` row; the batch then fails atomically and nothing is
+ * applied. Any concurrent committer bumps the revision first and aborts our
+ * fence INSERT, so the version pre-checks below cannot be silently
+ * overwritten either: a row validated here can only change under a newer
+ * revision, which fails the fence. Record UPDATEs/DELETEs are therefore
+ * unconditional on version inside the batch itself (there is no post-batch
+ * hook that could abort before the writes land); stale or missing rows fail
+ * the batch up front with kind 'version', never as silent overwrites.
+ */
+
+import type { D1Database } from '@cloudflare/workers-types';
+import type {
+  CommitBatch,
+  CommitResult,
+  ModelName,
+  OrderTerm,
+  QueryPredicate,
+  QuerySpec,
+  Receipt,
+  ReceiptIdentity,
+  RecordId,
+  RecordVersion,
+  Revision,
+  StoredRow,
+} from '../../../contracts/src/state.js';
+import { FenceConflictError, StorageConstraintError } from './port.js';
+import type { StoragePort } from './port.js';
+import { FENCE_ROW_ID, SCHEMA_STATEMENTS } from './schema.js';
+
+/** Run each schema statement sequentially; idempotent, safe to re-run. */
+export async function ensureSchema(db: D1Database): Promise<void> {
+  for (const statement of SCHEMA_STATEMENTS) {
+    await db.exec(statement);
+  }
+}
+
+/** Raw `records` row as D1 returns it (snake_case columns). */
+interface RecordRow {
+  readonly model: string;
+  readonly id: string;
+  readonly version: number;
+  readonly created: number;
+  readonly updated: number;
+  readonly created_by: string;
+  readonly updated_by: string;
+  readonly archived_at: number | null;
+  readonly parent_model: string | null;
+  readonly parent_id: string | null;
+  readonly data: string;
+}
+
+const RECORD_COLUMNS =
+  'model, id, version, created, updated, created_by, updated_by, archived_at, ' +
+  'parent_model, parent_id, data';
+
+function toStoredRow(row: RecordRow): StoredRow {
+  // S5: NULL parent columns read back as explicit null (never undefined), so
+  // SQL reads match memory-adapter rows the engine wrote with `parent: null`.
+  const parent =
+    row.parent_model === null || row.parent_id === null
+      ? null
+      : { model: row.parent_model as ModelName, id: row.parent_id as RecordId };
+  return {
+    id: row.id as RecordId,
+    version: row.version as RecordVersion,
+    created: row.created,
+    updated: row.updated,
+    createdBy: row.created_by,
+    updatedBy: row.updated_by,
+    archivedAt: row.archived_at,
+    parent,
+    data: JSON.parse(row.data) as Record<string, unknown>,
+  };
+}
+
+/** Predicate fields that compare as real columns; all others use `data`. */
+const COLUMN_FIELDS: Readonly<Record<string, string>> = {
+  id: 'id',
+  version: 'version',
+  created: 'created',
+  updated: 'updated',
+  archived_at: 'archived_at',
+};
+
+const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+function fieldExpr(field: string): string {
+  const column = COLUMN_FIELDS[field];
+  if (column !== undefined) {
+    return column;
+  }
+  if (!FIELD_NAME.test(field)) {
+    throw new Error(`Invalid query field: ${JSON.stringify(field)}`);
+  }
+  return `json_extract(data, '$.${field}')`;
+}
+
+/**
+ * Encode a predicate value for binding. Booleans become 1/0 (SQLite has no
+ * boolean storage; JSON true compares equal to 1) and undefined becomes NULL;
+ * every other value binds as-is.
+ */
+function bindValue(value: unknown): unknown {
+  if (typeof value === 'boolean') {
+    return value ? 1 : 0;
+  }
+  if (value === undefined) {
+    return null;
+  }
+  return value;
+}
+
+function compilePredicate(predicate: QueryPredicate, bindings: unknown[]): string {
+  switch (predicate.op) {
+    case 'and': {
+      if (predicate.args.length === 0) {
+        return '(1 = 1)';
+      }
+      return `(${predicate.args.map((arg) => compilePredicate(arg, bindings)).join(' AND ')})`;
+    }
+    case 'or': {
+      if (predicate.args.length === 0) {
+        return '(1 = 0)';
+      }
+      return `(${predicate.args.map((arg) => compilePredicate(arg, bindings)).join(' OR ')})`;
+    }
+    case 'not': {
+      return `(NOT ${compilePredicate(predicate.arg, bindings)})`;
+    }
+    case 'eq': {
+      const expr = fieldExpr(predicate.field);
+      if (predicate.value === null || predicate.value === undefined) {
+        return `(${expr} IS NULL)`;
+      }
+      bindings.push(bindValue(predicate.value));
+      return `(${expr} = ?)`;
+    }
+    case 'ne': {
+      const expr = fieldExpr(predicate.field);
+      if (predicate.value === null || predicate.value === undefined) {
+        return `(${expr} IS NOT NULL)`;
+      }
+      bindings.push(bindValue(predicate.value));
+      return `(${expr} <> ?)`;
+    }
+    case 'lt':
+    case 'lte':
+    case 'gt':
+    case 'gte': {
+      const sqlOp =
+        predicate.op === 'lt'
+          ? '<'
+          : predicate.op === 'lte'
+            ? '<='
+            : predicate.op === 'gt'
+              ? '>'
+              : '>=';
+      bindings.push(bindValue(predicate.value));
+      return `(${fieldExpr(predicate.field)} ${sqlOp} ?)`;
+    }
+    case 'between': {
+      bindings.push(bindValue(predicate.lo), bindValue(predicate.hi));
+      return `(${fieldExpr(predicate.field)} BETWEEN ? AND ?)`;
+    }
+    case 'is_null': {
+      return `(${fieldExpr(predicate.field)} IS NULL)`;
+    }
+    case 'not_null': {
+      return `(${fieldExpr(predicate.field)} IS NOT NULL)`;
+    }
+    default: {
+      const op = (predicate as QueryPredicate).op;
+      throw new Error(`Unknown query predicate: ${JSON.stringify(op)}`);
+    }
+  }
+}
+
+function compileOrder(order: ReadonlyArray<OrderTerm> | undefined): string {
+  const terms = (order ?? []).map((term) => {
+    if (term.direction !== 'asc' && term.direction !== 'desc') {
+      throw new Error(`Invalid order direction: ${JSON.stringify(term.direction)}`);
+    }
+    return `${fieldExpr(term.field)} ${term.direction === 'asc' ? 'ASC' : 'DESC'}`;
+  });
+  if (terms.length === 0) {
+    return 'created ASC, id ASC';
+  }
+  return `${terms.join(', ')}, id ASC`;
+}
+
+function checkLimit(limit: number): void {
+  if (!Number.isInteger(limit) || limit < 0) {
+    throw new Error(`Invalid query limit: ${JSON.stringify(limit)}`);
+  }
+}
+
+/**
+ * Enforce per-row `expectedVersion` for updates/removes before building the
+ * batch. These reads run outside the batch (D1 has no interactive
+ * transaction), but a concurrent commit between check and batch bumps the
+ * revision and aborts our fence INSERT, so validated rows cannot be silently
+ * overwritten. Stale or missing rows fail with kind 'version'.
+ */
+async function checkWriteVersions(db: D1Database, batch: CommitBatch): Promise<void> {
+  for (const write of batch.writes) {
+    if (write.kind !== 'update' && write.kind !== 'remove') {
+      continue;
+    }
+    const row = await db
+      .prepare('SELECT version FROM records WHERE model = ? AND id = ?')
+      .bind(write.model as string, write.id as string)
+      .first<{ version: number }>();
+    const expected = write.expectedVersion as number;
+    const where = `${write.model as string}/${write.id as string}`;
+    if (row === null) {
+      throw new StorageConstraintError(
+        'version',
+        `version mismatch for ${where}: expected ${expected}, row is missing`,
+      );
+    }
+    if ((row.version as number) !== expected) {
+      throw new StorageConstraintError(
+        'version',
+        `version mismatch for ${where}: expected ${expected}, stored ${row.version as number}`,
+      );
+    }
+  }
+}
+
+async function readRevisionInner(db: D1Database): Promise<Revision> {
+  const row = await db
+    .prepare('SELECT revision FROM fence WHERE id = ?')
+    .bind(FENCE_ROW_ID)
+    .first<{ revision: number }>();
+  if (row === null) {
+    throw new Error('schema not initialized: fence row is missing (run ensureSchema first)');
+  }
+  return row.revision as Revision;
+}
+
+/** Map a failed-batch error to the storage error classes. Never throws. */
+async function toCommitError(
+  db: D1Database,
+  expected: Revision,
+  error: unknown,
+): Promise<FenceConflictError | StorageConstraintError> {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes('fence_log')) {
+    let actual: Revision | null = null;
+    try {
+      actual = await readRevisionInner(db);
+    } catch {
+      actual = null;
+    }
+    return new FenceConflictError(expected, actual);
+  }
+  if (message.includes('unique_claims')) {
+    return new StorageConstraintError('unique', message);
+  }
+  if (message.includes('receipts')) {
+    return new StorageConstraintError('receipt_reuse', message);
+  }
+  return new StorageConstraintError('unknown', message);
+}
+
+/** Raw `receipts` row as D1 returns it. */
+interface ReceiptRow {
+  readonly app: string;
+  readonly owner: string;
+  readonly principal: string;
+  readonly operation: string;
+  readonly operation_id: string;
+  readonly input_hash: string;
+  readonly resolved_defaults: string;
+  readonly outcome: string;
+  readonly committed_revision: number;
+  readonly created_at: number;
+}
+
+const RECEIPT_COLUMNS =
+  'app, owner, principal, operation, operation_id, input_hash, ' +
+  'resolved_defaults, outcome, committed_revision, created_at';
+
+function toReceipt(row: ReceiptRow): Receipt {
+  return {
+    identity: {
+      app: row.app,
+      owner: row.owner,
+      principal: row.principal,
+      operation: row.operation as Receipt['identity']['operation'],
+      operationId: row.operation_id as Receipt['identity']['operationId'],
+    },
+    inputHash: row.input_hash,
+    resolvedDefaults: JSON.parse(row.resolved_defaults) as Record<string, unknown>,
+    outcome: JSON.parse(row.outcome) as Receipt['outcome'],
+    committedRevision: row.committed_revision as Revision,
+    createdAt: row.created_at,
+  };
+}
+
+/** D1-backed `StoragePort`. Call `ensureSchema(db)` once before first use. */
+export function createD1Storage(db: D1Database): StoragePort {
+  return {
+    async readRevision(): Promise<Revision> {
+      return readRevisionInner(db);
+    },
+
+    async load(model: ModelName, id: RecordId): Promise<StoredRow | null> {
+      const row = await db
+        .prepare(`SELECT ${RECORD_COLUMNS} FROM records WHERE model = ? AND id = ?`)
+        .bind(model as string, id as string)
+        .first<RecordRow>();
+      return row === null ? null : toStoredRow(row);
+    },
+
+    async query(spec: QuerySpec): Promise<ReadonlyArray<StoredRow>> {
+      const bindings: unknown[] = [spec.model as string];
+      let sql = `SELECT ${RECORD_COLUMNS} FROM records WHERE model = ?`;
+      if (spec.parent !== undefined) {
+        // S5: parent_* columns carry the linkage StoredRow.parent persists, so
+        // this filter scopes positively; NULL-parent rows never match it.
+        sql += ' AND parent_model = ? AND parent_id = ?';
+        bindings.push(spec.parent.model as string, spec.parent.id as string);
+      }
+      // S2 excludes archived rows only; content expiry is a later slice.
+      if (spec.archived !== 'include') {
+        sql += ' AND archived_at IS NULL';
+      }
+      if (spec.where !== undefined) {
+        sql += ` AND ${compilePredicate(spec.where, bindings)}`;
+      }
+      sql += ` ORDER BY ${compileOrder(spec.order)}`;
+      if (spec.limit !== undefined) {
+        checkLimit(spec.limit);
+        sql += ' LIMIT ?';
+        bindings.push(spec.limit);
+      }
+      const result = await db.prepare(sql).bind(...bindings).all<RecordRow>();
+      return result.results.map(toStoredRow);
+    },
+
+    async commit(batch: CommitBatch): Promise<CommitResult> {
+      const expected = batch.expectedRevision as number;
+      if (!Number.isInteger(expected) || expected < 0) {
+        throw new Error(`Invalid expectedRevision: ${JSON.stringify(batch.expectedRevision)}`);
+      }
+      // The fence INSERT below only proves `expected + 1` is fresh; it cannot
+      // see a *future* expected revision skipping ahead and breaking the
+      // density the scheme rests on. Reject those up front. Race-safe with
+      // zero honest false-positives: revisions are monotonic, so an honest
+      // `expected` (current at read time) can never exceed current later.
+      const current = await readRevisionInner(db);
+      if (expected > (current as number)) {
+        throw new FenceConflictError(batch.expectedRevision, current);
+      }
+      await checkWriteVersions(db, batch);
+      const next = expected + 1;
+      // fence_log/outbox timestamps come from the receipt when the batch
+      // carries one; receipt-less batches (tests, bookkeeping) use now.
+      const at = batch.receipt?.createdAt ?? Date.now();
+      const operation =
+        batch.receipt === null
+          ? 'unknown'
+          : (batch.receipt.identity.operation as string);
+      const statements = [
+        db
+          .prepare('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)')
+          .bind(next, at, operation),
+        db.prepare('UPDATE fence SET revision = ? WHERE id = ?').bind(next, FENCE_ROW_ID),
+      ];
+      for (const write of batch.writes) {
+        if (write.kind === 'insert') {
+          statements.push(
+            db
+              .prepare(
+                'INSERT INTO records(model, id, version, created, updated, created_by, ' +
+                  'updated_by, archived_at, owner, parent_model, parent_id, data) ' +
+                  'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              )
+              .bind(
+                write.model as string,
+                write.row.id as string,
+                write.row.version as number,
+                write.row.created,
+                write.row.updated,
+                write.row.createdBy,
+                write.row.updatedBy,
+                write.row.archivedAt,
+                '',
+                // S5: persist row.parent (undefined counts as NULL, like null).
+                (write.row.parent?.model as string | undefined) ?? null,
+                (write.row.parent?.id as string | undefined) ?? null,
+                JSON.stringify(write.row.data),
+              ),
+          );
+        } else if (write.kind === 'update') {
+          // Unconditional on version inside the batch: expectedVersion was
+          // pre-validated above, and the fence INSERT serializes writers, so
+          // a concurrent change aborts the whole batch first.
+          statements.push(
+            db
+              .prepare(
+                'UPDATE records SET version = ?, updated = ?, updated_by = ?, ' +
+                  'archived_at = ?, parent_model = ?, parent_id = ?, data = ? ' +
+                  'WHERE model = ? AND id = ?',
+              )
+              .bind(
+                write.row.version as number,
+                write.row.updated,
+                write.row.updatedBy,
+                write.row.archivedAt,
+                // S5: persist whatever parent the row carries (the engine keeps
+                // it immutable by carrying before.parent; see contracts).
+                (write.row.parent?.model as string | undefined) ?? null,
+                (write.row.parent?.id as string | undefined) ?? null,
+                JSON.stringify(write.row.data),
+                write.model as string,
+                write.id as string,
+              ),
+          );
+        } else {
+          statements.push(
+            db
+              .prepare('DELETE FROM records WHERE model = ? AND id = ?')
+              .bind(write.model as string, write.id as string),
+          );
+        }
+      }
+      // Releases run before claims so a key can move between records (or be
+      // re-claimed) within one batch without a transient PK collision.
+      for (const release of batch.uniqueReleases) {
+        statements.push(
+          db
+            .prepare('DELETE FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?')
+            .bind(
+              release.model as string,
+              release.keyName,
+              release.keyValue,
+            ),
+        );
+      }
+      for (const claim of batch.uniqueClaims) {
+        statements.push(
+          db
+            .prepare(
+              'INSERT INTO unique_claims(model, key_name, key_value, record_id) ' +
+                'VALUES (?, ?, ?, ?)',
+            )
+            .bind(
+              claim.model as string,
+              claim.keyName,
+              claim.keyValue,
+              claim.recordId as string,
+            ),
+        );
+      }
+      for (const entry of batch.history) {
+        statements.push(
+          db
+            .prepare(
+              'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
+                'actor, at, change, "before", "after") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            )
+            .bind(
+              entry.model as string,
+              entry.recordId as string,
+              entry.version as number,
+              entry.operation as string,
+              entry.operationId as string,
+              entry.actor,
+              entry.at,
+              entry.change,
+              entry.before === null ? null : JSON.stringify(entry.before),
+              entry.after === null ? null : JSON.stringify(entry.after),
+            ),
+        );
+      }
+      if (batch.receipt !== null) {
+        const receipt = batch.receipt;
+        statements.push(
+          db
+            .prepare(
+              'INSERT INTO receipts(app, owner, principal, operation, operation_id, ' +
+                'input_hash, resolved_defaults, outcome, committed_revision, created_at) ' +
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            )
+            .bind(
+              receipt.identity.app,
+              receipt.identity.owner,
+              receipt.identity.principal,
+              receipt.identity.operation as string,
+              receipt.identity.operationId as string,
+              receipt.inputHash,
+              JSON.stringify(receipt.resolvedDefaults),
+              JSON.stringify(receipt.outcome),
+              receipt.committedRevision as number,
+              receipt.createdAt,
+            ),
+        );
+      }
+      for (const intent of batch.outbox) {
+        statements.push(
+          db
+            .prepare(
+              'INSERT INTO outbox(intent_id, operation, operation_id, target, arguments, ' +
+                'occurrence_index, dispatch_guard, status, created_at) ' +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
+            )
+            .bind(
+              intent.intentId,
+              intent.operation as string,
+              intent.operationId as string,
+              intent.target,
+              JSON.stringify(intent.arguments),
+              intent.occurrenceIndex,
+              intent.dispatchGuard ?? null,
+              at,
+            ),
+        );
+      }
+      for (const schedule of batch.schedules) {
+        if (schedule.op === 'replace') {
+          statements.push(
+            db
+              .prepare('INSERT OR REPLACE INTO schedules("key", at, event, payload) VALUES (?, ?, ?, ?)')
+              .bind(
+                schedule.key,
+                schedule.at,
+                schedule.event as string,
+                JSON.stringify(schedule.payload),
+              ),
+          );
+        } else {
+          statements.push(
+            db.prepare('DELETE FROM schedules WHERE "key" = ?').bind(schedule.key),
+          );
+        }
+      }
+      try {
+        await db.batch(statements);
+      } catch (error) {
+        throw await toCommitError(db, batch.expectedRevision, error);
+      }
+      return { revision: next as Revision };
+    },
+
+    async readReceipt(identity: ReceiptIdentity): Promise<Receipt | null> {
+      const row = await db
+        .prepare(
+          `SELECT ${RECEIPT_COLUMNS} FROM receipts WHERE app = ? AND owner = ? AND ` +
+            'principal = ? AND operation = ? AND operation_id = ?',
+        )
+        .bind(
+          identity.app,
+          identity.owner,
+          identity.principal,
+          identity.operation as string,
+          identity.operationId as string,
+        )
+        .first<ReceiptRow>();
+      return row === null ? null : toReceipt(row);
+    },
+  };
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@canlang/testkit",
+  "version": "0.1.0",
+  "description": "CanLang inline-BDD runner: executes compiled example artifacts through production admission with per-row isolation (lane 07).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@canlang/cloudflare": "0.1.0",
+    "@canlang/contracts": "0.1.0"
+  }
+}

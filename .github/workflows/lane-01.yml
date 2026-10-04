@@ -1,0 +1,65 @@
+name: lane-01 language and toolchain
+
+on:
+  push:
+    branches: ["muse/lane-01-language/**"]
+    paths:
+      - "compiler/**"
+      - "editors/vscode/**"
+      - "packages/contracts/src/artifact.ts"
+      - "packages/contracts/src/diagnostic.ts"
+      - ".github/workflows/lane-01.yml"
+  pull_request:
+    paths:
+      - "compiler/**"
+      - "editors/vscode/**"
+      - "packages/contracts/src/artifact.ts"
+      - "packages/contracts/src/diagnostic.ts"
+      - ".github/workflows/lane-01.yml"
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.99.0"
+          components: rustfmt, clippy
+      - name: Format check
+        run: cargo fmt --check
+        working-directory: compiler
+      - name: Clippy (warnings denied)
+        run: cargo clippy --all-targets -- -D warnings
+        working-directory: compiler
+      - name: Build
+        run: cargo build --locked
+        working-directory: compiler
+      - name: Test
+        run: cargo test --locked
+        working-directory: compiler
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Typecheck owned contract boundaries
+        # packages/contracts assembly (package.json/index) is lane 7 owned;
+        # lane 1 verifies its two files standalone until the join lands.
+        run: npx -y -p typescript@5.6.3 tsc --noEmit --strict --skipLibCheck packages/contracts/src/artifact.ts packages/contracts/src/diagnostic.ts
+
+  editor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate extension manifests and grammar JSON
+        run: >
+          node -e "for (const f of ['editors/vscode/package.json','editors/vscode/syntaxes/can.tmLanguage.json']) { JSON.parse(require('fs').readFileSync(f,'utf8')); console.log('ok', f); }"
+      - name: Typecheck LSP client (no emit)
+        run: npx -y -p typescript@5.6.3 tsc --noEmit --strict --target es2022 --lib es2022 editors/vscode/src/extension.ts editors/vscode/src/client.ts

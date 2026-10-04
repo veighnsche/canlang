@@ -1,0 +1,181 @@
+/**
+ * @canlang/ui public surface for generated code.
+ *
+ * Generated app JS calls these canonical factories with props/children; the
+ * library owns markup/classes and behavior. S1 ships escaping and messages;
+ * S2 adds navigation discovery and the page shell; components, forms,
+ * collections, htmx, settings and review land in later slices on this surface.
+ */
+
+export {
+  csvFormulaProtect,
+  escapeAttr,
+  escapeHtml,
+  isSafeUrl,
+  isolate,
+  safeHref,
+} from "./escape.js";
+export {
+  canonicalDefaultTag,
+  canonicalPreferredTags,
+  formatDecimalExact,
+  formatIntExact,
+  formatMessage,
+  formatMoneyExact,
+  formatScalar,
+  isEnumTypeId,
+  localeNumberSystem,
+  localeSeparators,
+  message,
+  normalizeTag,
+  resolveCaption,
+  resolveMessage,
+  selectPluralCategory,
+} from "./messages.js";
+export type {
+  Bcp47Tag,
+  CaptionContext,
+  LocaleNumberSystem,
+  MessageParams,
+  ResolvedMessage,
+  ScalarFormatOptions,
+  ThemeTokens,
+} from "./messages.js";
+export {
+  buildNavigation,
+  selectDiscoveryCandidates,
+} from "./navigation.js";
+export type { BuildNavigationOptions } from "./navigation.js";
+export {
+  pageDirection,
+  pageLocale,
+  renderLogin,
+  renderPage,
+} from "./shell.js";
+export {
+  card,
+  content,
+  renderState,
+  renderTextValue,
+  rowHeading,
+  text,
+  title,
+} from "./components.js";
+export {
+  collectionExportLink,
+  collectionPagination,
+  collectionPrintLink,
+  collectionShareControls,
+  collectionToolbar,
+  controlHref,
+  list,
+  table,
+} from "./collections.js";
+export {
+  assertRegionId,
+  fragmentRegion,
+  hxAttrs,
+  pollTrigger,
+  refreshTrigger,
+  staleMarker,
+  validationStatusSwaps,
+} from "./htmx.js";
+export type { ControlQueryState } from "./collections.js";
+export {
+  action,
+  actions,
+  deleteRecord,
+  edit,
+  form,
+  formatDatetimeLocal,
+  pointerToFieldName,
+} from "./forms.js";
+export { LANE05_CATALOG_VERSION, UI_CATALOG } from "./catalog.js";
+// Temporary B0 wiring: re-exported contract types until lane 7 assembles
+// @canlang/contracts; see README.
+export type {
+  AccountMenuData,
+  ActionProps,
+  ActionsProps,
+  AdmittedBindings,
+  AdmitFn,
+  AdmissionOutcome,
+  AppearanceOrientation,
+  AppearanceSize,
+  AppearanceTone,
+  AppearanceVariant,
+  BoundArguments,
+  Bcp47Tag as ContractBcp47Tag,
+  CardProps,
+  CollectionControls,
+  CollectionPagination,
+  CollectionSearch,
+  ColumnMeta,
+  ComponentAppearance,
+  ComponentCatalog,
+  ComponentCatalogEntry,
+  ComponentHeaderExpr,
+  ComponentProfile,
+  ComponentSlotDef,
+  ContentProps,
+  DeleteProps,
+  DeliveryReceiptView,
+  EditProps,
+  FilterCondition,
+  FilterOperator,
+  FormFieldDef,
+  FormFieldOption,
+  FormMode,
+  FormOutcome,
+  FormProps,
+  FragmentRegionProps,
+  HtmxRequest,
+  ListProps,
+  ListQueryArgs,
+  ListQueryResult,
+  LoginProps,
+  MessageDescriptor,
+  MessageFactory,
+  MessageParamValue,
+  MessageValue,
+  MessageVariantMap,
+  NavigationEntry,
+  NavigationGroup,
+  NavigationResult,
+  OperationRef,
+  OrderSelector,
+  OwnerLabels,
+  PageChild,
+  PageChildren,
+  PageDescriptor,
+  PollProps,
+  PresentationContext,
+  RecordIdentity,
+  RenderFn,
+  RenderPageFn,
+  RowQueryRunner,
+  RowView,
+  SettingsFrameData,
+  SettingsSection,
+  SharedStateProps,
+  ShellData,
+  ShellRoutes,
+  StaleMarkerProps,
+  StatusSwap,
+  SwapStrategy,
+  TableProps,
+  TeamOption,
+  TextProps,
+  TextValue,
+  ThemeAccent,
+  ThemeDensity,
+  ThemeMode,
+  ThemeTokens as ContractThemeTokens,
+  TitleProps,
+} from "../../contracts/src/presentation.js";
+export {
+  CSRF_FIELD,
+  DEFAULT_THEME,
+  PRESENTATION_CONTRACT_VERSION,
+  TEAM_FIELD,
+} from "../../contracts/src/presentation.js";

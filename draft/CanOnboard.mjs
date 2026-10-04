@@ -652,6 +652,8 @@ export async function readinessPage(c, bindings) {
                   compareDate(step.due, local_date(c.now, c.team.timezone)) < 0)),
             order: ["due"],
             renderRow: (step, view) => [
+              // Migrated source adds `badge row.done` here; its desired emitted
+              // factory awaits the L5 producer contract, so no new @canlang/ui import is invented.
               text({
                 context: view,
                 values: [step.title, step.due, step.blocked_reason, step.document, step.done, step.completed_by, step.completed_at],
@@ -719,6 +721,8 @@ export async function onboardingPage(c, bindings) {
                         compareDate(step.due, local_date(c.now, c.team.timezone)) < 0),
                     order: ["due"],
                     renderRow: (step, sv) => [
+                      // Migrated source adds `badge row.done` here; its desired emitted
+                      // factory awaits the L5 producer contract, so no new @canlang/ui import is invented.
                       text({ context: sv, values: [step.title, step.due, step.assignee, step.category, step.blocked_reason, step.document, step.done, step.completed_by, step.completed_at] }),
                       edit({ context: sv, operation: "onboard.Step.update", record: step }),
                       actions({
@@ -746,6 +750,8 @@ export async function onboardingPage(c, bindings) {
             model: "onboard.Template",
             display: "split",
             renderRow: (template, view) => [
+              // Migrated source adds `badge row.active` here; its desired emitted
+              // factory awaits the L5 producer contract, so no new @canlang/ui import is invented.
               text({ context: view, values: [template.revision, template.active] }),
               edit({ context: view, operation: "onboard.Template.update", record: template }),
               form({

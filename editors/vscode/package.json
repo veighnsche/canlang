@@ -1,15 +1,23 @@
 {
   "name": "canlang-draft-highlighting",
   "displayName": "Canlang Draft Syntax",
-  "description": "Syntax highlighting for the current canlang draft grammar. No language server.",
+  "description": "Syntax highlighting plus a minimal LSP client for the current canlang draft grammar. Spawns `can lsp` for diagnostics.",
   "version": "0.1.8",
   "publisher": "canlang",
+  "main": "./out/extension",
   "engines": {
     "vscode": "^1.91.0"
   },
   "categories": [
     "Programming Languages"
   ],
+  "activationEvents": [
+    "onLanguage:can"
+  ],
+  "scripts": {
+    "compile": "tsc --strict --target es2022 --module commonjs --lib es2022 --outDir out --rootDir src src/extension.ts src/client.ts",
+    "vscode:prepublish": "npm run compile"
+  },
   "contributes": {
     "languages": [
       {
@@ -35,6 +43,21 @@
         "editor.tabSize": 1,
         "editor.insertSpaces": true,
         "editor.detectIndentation": false
+      }
+    },
+    "configuration": {
+      "title": "Can",
+      "properties": {
+        "can.serverPath": {
+          "type": "string",
+          "default": "can",
+          "description": "Path to the can binary used to spawn `can lsp`. Defaults to PATH lookup."
+        },
+        "can.traceServer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Log LSP traffic to the Can output channel."
+        }
       }
     }
   }

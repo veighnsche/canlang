@@ -149,6 +149,7 @@ package cafe
     card "Waiting, reservations and physical occupancy"@{nl="Wachten, reserveringen en werkelijke bezetting"}
      tabs preferences.view
      table row.Booking as booking where preferences.view==all or (preferences.view==waiting and booking.state==waiting) or (preferences.view==reservations and booking.state==reserved) or (preferences.view==occupancy and booking.seated!=null and booking.cleared==null) columns=name,party,priority,arrived,table,from,until,estimated_until,seated,cleared,state,overdue,conflict order=-priority,arrived filter=state display=split
+      badge row.state
       edit
       actions reserve,seat,clear,cancel
       details "Guest and planned interval evidence"@{nl="Gastgegevens en geplande tijdvakken"}
