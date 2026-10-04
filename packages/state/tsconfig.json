@@ -6,7 +6,7 @@
     // this package. Relative imports keep explicit .js suffixes throughout.
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "WebWorker"],
     "strict": true,
     "exactOptionalPropertyTypes": true,
     "noUncheckedIndexedAccess": true,
