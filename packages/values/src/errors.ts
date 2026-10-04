@@ -41,7 +41,7 @@ export class SchemaError extends Error {
   constructor(violations: readonly Violation[], message?: string) {
     super(message ?? `schema validation failed with ${violations.length} violation(s)`);
     this.name = "SchemaError";
-    this.violations = violations;
+    this.violations = Object.freeze([...violations]);
   }
 }
 
@@ -59,5 +59,12 @@ export function makeDeliveryError(code: string, message: string): DeliveryError 
 export function isDeliveryError(value: unknown): value is DeliveryError {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
-  return typeof record["code"] === "string" && typeof record["message"] === "string";
+  const keys = Object.keys(record);
+  return (
+    keys.length === 2 &&
+    typeof record["code"] === "string" &&
+    record["code"].length > 0 &&
+    typeof record["message"] === "string" &&
+    record["message"].length > 0
+  );
 }

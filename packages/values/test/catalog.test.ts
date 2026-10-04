@@ -61,6 +61,12 @@ describe("builtin catalog", () => {
     }
   });
 
+  it("keeps the codegen equalValue shape with leading context", () => {
+    const byId = new Map(CATALOG.entries.map((entry) => [entry.id, entry]));
+    const signature = byId.get("equalValue")?.signature ?? "";
+    assert.ok(signature.startsWith("equalValue(c:"), signature);
+  });
+
   it("marks non-pure builtins external with their owner", () => {
     const byId = new Map(CATALOG.entries.map((entry) => [entry.id, entry]));
     assert.equal(byId.get("random_secret")?.availability, "external");

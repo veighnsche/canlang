@@ -31,6 +31,17 @@ function freeze<T extends object>(value: T): T {
   return Object.freeze(value);
 }
 
+/** Freezes a copy one level deep; deeper structures arrive frozen from their makers. */
+function freezeCopy<T>(value: T): T {
+  if (Array.isArray(value)) return freeze([...value]) as T;
+  if (isObject(value)) return freeze({ ...value }) as T;
+  return value;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
 /** ISO 4217 code shape. Table membership is checked in money.ts (PR2). */
 export function isCurrencyShape(code: string): boolean {
   return /^[A-Z]{3}$/.test(code);
@@ -40,7 +51,8 @@ export function isMoney(value: unknown): value is MoneyValue {
   return (
     hasKind(value, "money") &&
     typeof value["minor"] === "bigint" &&
-    typeof value["currency"] === "string"
+    typeof value["currency"] === "string" &&
+    isCurrencyShape(value["currency"])
   );
 }
 
@@ -82,13 +94,26 @@ function daysInMonth(year: number, month: number): number {
   }
 }
 
-export function isDateValue(value: unknown): value is DateValue {
+function isValidDateParts(year: unknown, month: unknown, day: unknown): boolean {
   return (
-    hasKind(value, "date") &&
-    typeof value["year"] === "number" &&
-    typeof value["month"] === "number" &&
-    typeof value["day"] === "number"
+    typeof year === "number" &&
+    typeof month === "number" &&
+    typeof day === "number" &&
+    Number.isInteger(year) &&
+    Number.isInteger(month) &&
+    Number.isInteger(day) &&
+    year >= 1 &&
+    year <= 9999 &&
+    month >= 1 &&
+    month <= 12 &&
+    day >= 1 &&
+    day <= daysInMonth(year, month)
   );
+}
+
+export function isDateValue(value: unknown): value is DateValue {
+  if (!hasKind(value, "date")) return false;
+  return isValidDateParts(value["year"], value["month"], value["day"]);
 }
 
 /** Checked civil-date constructor: proleptic Gregorian years 0001-9999. */
@@ -103,11 +128,8 @@ export function makeDate(year: number, month: number, day: number): DateValue {
       throw new ValueError("invalid-construction", `date ${label} must be an integer`);
     }
   }
-  if (year < 1 || year > 9999 || month < 1 || month > 12) {
-    throw new ValueError("invalid-construction", `date out of range: ${year}-${month}-${day}`);
-  }
-  if (day < 1 || day > daysInMonth(year, month)) {
-    throw new ValueError("invalid-construction", `invalid day: ${year}-${month}-${day}`);
+  if (!isValidDateParts(year, month, day)) {
+    throw new ValueError("invalid-construction", `invalid civil date: ${year}-${month}-${day}`);
   }
   const value: DateValue = { kind: "date", year, month, day };
   return freeze(value);
@@ -127,7 +149,7 @@ export function makeDatetime(ms: bigint): DatetimeValue {
 }
 
 export function isUserRef(value: unknown): value is UserRef {
-  return hasKind(value, "user") && typeof value["id"] === "string";
+  return hasKind(value, "user") && isNonEmptyString(value["id"]);
 }
 
 export function makeUserRef(id: string): UserRef {
@@ -139,9 +161,9 @@ export function makeUserRef(id: string): UserRef {
 export function isMemberRef(value: unknown): value is MemberRef {
   return (
     hasKind(value, "member") &&
-    typeof value["id"] === "string" &&
+    isNonEmptyString(value["id"]) &&
     isUserRef(value["user"]) &&
-    typeof value["team"] === "string"
+    isNonEmptyString(value["team"])
   );
 }
 
@@ -151,12 +173,12 @@ export function makeMemberRef(id: string, user: UserRef, team: string): MemberRe
     throw new ValueError("invalid-construction", "member user must be a user ref");
   }
   requireId(team, "member team");
-  const value: MemberRef = { kind: "member", id, user, team };
+  const value: MemberRef = { kind: "member", id, user: freezeCopy(user), team };
   return freeze(value);
 }
 
 export function isFileValue(value: unknown): value is FileValue {
-  return hasKind(value, "file") && typeof value["id"] === "string";
+  return hasKind(value, "file") && isNonEmptyString(value["id"]);
 }
 
 /**
@@ -172,8 +194,8 @@ export function makeFileValue(id: string): FileValue {
 export function isDeliveryRef(value: unknown): value is DeliveryRef {
   return (
     hasKind(value, "delivery") &&
-    typeof value["id"] === "string" &&
-    typeof value["operation"] === "string"
+    isNonEmptyString(value["id"]) &&
+    isNonEmptyString(value["operation"])
   );
 }
 
@@ -190,8 +212,8 @@ export function makeDeliveryRef(id: string, operation: string): DeliveryRef {
 export function isRecordRef(value: unknown): value is RecordRef {
   return (
     hasKind(value, "ref") &&
-    typeof value["model"] === "string" &&
-    typeof value["id"] === "string" &&
+    isNonEmptyString(value["model"]) &&
+    isNonEmptyString(value["id"]) &&
     (value["version"] === undefined || typeof value["version"] === "bigint")
   );
 }
@@ -210,7 +232,7 @@ export function makeRecordRef(model: string, id: string, version?: bigint): Reco
 }
 
 export function isActionRef(value: unknown): value is ActionRef {
-  if (!hasKind(value, "action") || typeof value["target"] !== "string") return false;
+  if (!hasKind(value, "action") || !isNonEmptyString(value["target"])) return false;
   if (!isObject(value["bindings"])) return false;
   return Object.values(value["bindings"]).every(isRecordRef);
 }
@@ -223,23 +245,29 @@ export function makeActionRef(target: string, bindings: Record<string, RecordRef
   if (typeof target !== "string" || target.length === 0) {
     throw new ValueError("invalid-construction", "action target must be non-empty");
   }
+  const frozen: Record<string, RecordRef> = {};
   for (const [param, binding] of Object.entries(bindings)) {
     if (!isRecordRef(binding)) {
       throw new ValueError("invalid-construction", `action binding ${param} must be a record ref`);
     }
+    frozen[param] = freezeCopy(binding);
   }
-  const value: ActionRef = { kind: "action", target, bindings: freeze({ ...bindings }) };
+  const value: ActionRef = { kind: "action", target, bindings: freeze(frozen) };
   return freeze(value);
 }
 
 export function isUnionValue(value: unknown): value is UnionValue {
-  return isObject(value) && typeof value["type"] === "string" && "value" in value;
+  return (
+    hasKind(value, "union") &&
+    isNonEmptyString(value["type"]) &&
+    "value" in value
+  );
 }
 
 export function makeUnionValue(type: string, value: CanValue): UnionValue {
   if (typeof type !== "string" || type.length === 0) {
     throw new ValueError("invalid-construction", "union type must be non-empty");
   }
-  const union: UnionValue = { type, value };
+  const union: UnionValue = { kind: "union", type, value: freezeCopy(value) };
   return freeze(union);
 }

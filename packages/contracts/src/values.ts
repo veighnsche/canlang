@@ -99,6 +99,7 @@ export interface SecretValue {
 }
 
 export interface UnionValue {
+  readonly kind: "union";
   readonly type: string;
   readonly value: CanValue;
 }
@@ -173,6 +174,11 @@ export interface WireFile {
   id: string;
 }
 
+/**
+ * Schema-violation codes. These live in the schema domain: the shared `limit`
+ * token with lane 03's business `StateErrorCode` is a coincidence of naming,
+ * not a shared code — a violation never satisfies a business error.
+ */
 export type ViolationCode =
   | "required"
   | "type"

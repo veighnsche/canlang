@@ -23,6 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      # npm install (not ci): a member-dir ci would bind the L7-owned root lock;
+      # the nested lock is verified standalone and mirrors the lane-03 flow.
       - name: Install values package
         working-directory: packages/values
         run: npm install --no-audit --no-fund

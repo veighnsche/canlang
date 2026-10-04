@@ -63,7 +63,7 @@ const HELPERS: ReadonlyArray<CatalogEntry> = [
   { id: "addDuration", js: "addDuration", owner: "lane-02", kind: "helper", signature: "addDuration(d:duration,x:duration|datetime)->duration|datetime", effects: "pure", availability: "planned" },
   { id: "subtractDuration", js: "subtractDuration", owner: "lane-02", kind: "helper", signature: "subtractDuration(d:duration|datetime,x:duration)->duration|datetime", effects: "pure", availability: "planned" },
   { id: "same", js: "same", owner: "lane-02", kind: "helper", signature: "same(a:ref,b:ref)->bool; reference identity", effects: "pure", availability: "planned" },
-  { id: "equalValue", js: "equalValue", owner: "lane-02", kind: "helper", signature: "equalValue(canonicalTypeId:string,a:CanValue,b:CanValue)->bool; typed structural equality", effects: "pure", availability: "planned" },
+  { id: "equalValue", js: "equalValue", owner: "lane-02", kind: "helper", signature: "equalValue(c:context,canonicalTypeId:string,a:CanValue,b:CanValue)->bool; typed structural equality", effects: "pure", availability: "planned", notes: "Leading c is the invocation context supplied by generated code (DESIGN L992); the pure core ignores it." },
   { id: "int64", js: "int64", owner: "lane-02", kind: "helper", signature: "int64(v:bigint)->bigint; checked int64", effects: "pure", availability: "planned" },
 ];
 
