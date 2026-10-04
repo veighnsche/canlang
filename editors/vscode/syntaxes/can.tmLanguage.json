@@ -1870,6 +1870,14 @@
           "include": "#markers"
         },
         {
+          "match": "^ *(do)(?= *$)",
+          "captures": {
+            "1": {
+              "name": "keyword.control.structure.can"
+            }
+          }
+        },
+        {
           "include": "#expression"
         }
       ]
