@@ -261,56 +261,108 @@ package feedback
  Then
   # Browse a public roadmap with counts that expose no voter records. @{nl="Bekijk een openbare roadmap met aantallen die geen stemmerrecords blootgeven."}
   page /feedback title="Suggestions"@{nl="Suggesties"}
-   list product_choices() as choice filter=product,location defaults={product=preferences.product,location=preferences.location} search=name
+   breadcrumbs
+   hero "Improve your workspace"@{nl="Verbeter je werkplek"}
+    text "Published ideas welcome your vote. New suggestions await owner review."@{nl="Gepubliceerde ideeën kun je steunen met je stem. Nieuwe suggesties wachten op beoordeling."}
+   ## In-context saved default for the category/status filters below.
+   filter preferences.status
+   list product_choices() as choice filter=product,location defaults={product=preferences.product,location=preferences.location} search=name empty="No products yet."@{nl="Nog geen producten."}
+    pagination
     text row.name,row.location
     card "Urgent private issue"@{nl="Dringend privéprobleem"}
-     text "Use private support for incidents. Never put access instructions or anyone’s contact details in a suggestion. New suggestions await owner review."@{nl="Gebruik privésupport voor incidenten. Zet nooit toegangsinstructies of contactgegevens van anderen in een suggestie. Nieuwe suggesties wachten op beoordeling door de verantwoordelijke."}
+     alert "Use private support for incidents. Never put access instructions or anyone’s contact details in a suggestion. New suggestions await owner review."@{nl="Gebruik privésupport voor incidenten. Zet nooit toegangsinstructies of contactgegevens van anderen in een suggestie. Nieuwe suggesties wachten op beoordeling door de verantwoordelijke."}
      form open_request arguments={priority=urgent}
     card "Contribution intake"@{nl="Bijdrage aanmaken"}
-     form Suggestion.create arguments={parent=choice.product}
+     form Suggestion.create arguments={parent=choice.product} display=inline
+      fieldset "Your suggestion"@{nl="Je suggestie"}
+       input title
+       textarea description
+       input category
     card "Published roadmap and aggregate votes"@{nl="Gepubliceerde roadmap en stemtotalen"}
      form published arguments={product=choice.product}
-      table result.items columns=title,category,status,response,duplicate,votes filter=category,status defaults={category=preferences.category,status=preferences.status} order=-votes
-    details "Your submissions and review state"@{nl="Je bijdragen en beoordelingsstatus"}
+      table result.items columns=title,category,status,response,duplicate,votes filter=category,status defaults={category=preferences.category,status=preferences.status} order=-votes empty="No published ideas yet."@{nl="Nog geen gepubliceerde ideeën."}
+       pagination
+    collapse "Your submissions and review state"@{nl="Je bijdragen en beoordelingsstatus"}
      require authenticated
-     list choice.product.Suggestion as suggestion where suggestion.author==actor filter=category,status defaults={category=preferences.category,status=preferences.status}
-      title row.title
-      content row.description
-      text row.category,row.status,row.response,row.hidden,row.moderation_reason,row.duplicate
+     list choice.product.Suggestion as suggestion where suggestion.author==actor filter=category,status defaults={category=preferences.category,status=preferences.status} empty="You have no submissions yet."@{nl="Je hebt nog geen bijdragen."}
+      pagination
+      ## swap selects display only off the readable hidden flag; slots are
+      ## exclusive, so the status badge repeats in both without duplication.
+      swap row.hidden
+       slot off
+        title row.title
+        content row.description
+        badge row.status
+        text row.category,row.response,row.duplicate
+       slot on
+        badge row.status
+        text row.title,row.moderation_reason
+        alert "Awaiting owner review."@{nl="Wacht op beoordeling."}
       edit
       delete
       history
-    details "Suggestions and your votes"@{nl="Suggesties en je eigen stemmen"}
-     list choice.product.Suggestion filter=category,status defaults={category=preferences.category,status=preferences.status}
+    collapse "Suggestions and your votes"@{nl="Suggesties en je eigen stemmen"}
+     list choice.product.Suggestion filter=category,status defaults={category=preferences.category,status=preferences.status} empty="No suggestions yet."@{nl="Nog geen suggesties."}
+      pagination
+      badge row.status
       title row.title
       content row.description
-      text row.category,row.status,row.response
+      text row.category,row.response
       edit
-      action vote
-      details "Operator decision history"@{nl="Geschiedenis exploitantbesluiten"}
+      tooltip "Vote for this idea. Votes are spaced ten seconds apart."@{nl="Stem op dit idee. Stemmen volgen elkaar op met tien seconden ertussen."}
+       action vote
+      collapse "Operator decision history"@{nl="Geschiedenis exploitantbesluiten"}
        form decision_history
         table result.items columns=published_at,status,response
-      details "Your votes"@{nl="Je eigen stemmen"}
+         pagination
+      collapse "Your votes"@{nl="Je eigen stemmen"}
        require authenticated
-       list row.Vote
+       list row.Vote empty="No vote yet."@{nl="Nog geen stem."}
+        pagination
         text row.active
         action unvote
   # Moderate suggestions and record only authorized roadmap commitments. @{nl="Modereer suggesties en leg uitsluitend toegestane roadmaptoezeggingen vast."}
   page /feedback/moderation title="Moderation and roadmap"@{nl="Moderatie en roadmap"}
+   breadcrumbs
    require product_owner
+   ## In-context saved default for the moderation status filter below.
+   filter preferences.status
    card "Product intake"@{nl="Product aanmaken"}
-    form Product.create
-   list product_choices() as choice where choice.product.owner==actor filter=product,location defaults={product=preferences.product,location=preferences.location} search=name
+    form Product.create display=inline
+     input name
+   list product_choices() as choice where choice.product.owner==actor filter=product,location defaults={product=preferences.product,location=preferences.location} search=name empty="No owned products."@{nl="Geen eigen producten."}
+    pagination
     text row.name,row.location
+    ## Explicit update form keeps its record binding (the row is a choice, not
+    ## a Product record, so bare edit cannot bind); the suite only places name.
     form Product.update arguments={record=choice.product}
-    list choice.product.Suggestion filter=hidden,status defaults={status=preferences.status} display=split
+     input name
+    list choice.product.Suggestion filter=hidden,status defaults={status=preferences.status} display=split search=title empty="No suggestions to review."@{nl="Geen suggesties te beoordelen."}
+     pagination
      card "Suggestion and roadmap outcome"@{nl="Suggestie en roadmapuitkomst"}
+      badge row.status
       title row.title
       content row.description
-      text row.category,row.author,row.status,row.response,row.hidden,row.moderation_reason,row.duplicate
-      actions roadmap,moderate
+      text row.category,row.author,row.response,row.hidden,row.moderation_reason,row.duplicate
+      divider "Decisions"@{nl="Besluiten"}
+      button opens=roadmap_decision
+      modal "Record roadmap decision"@{nl="Roadmapbesluit vastleggen"} id=roadmap_decision
+       slot content
+        form roadmap arguments={suggestion=row} display=inline
+         fieldset "Roadmap outcome"@{nl="Roadmapuitkomst"}
+          radio status
+          textarea response
+          select duplicate
+      button opens=moderate_content
+      modal "Moderate suggestion"@{nl="Suggestie modereren"} id=moderate_content
+       slot content
+        form moderate arguments={suggestion=row} display=inline
+         fieldset "Moderation"@{nl="Moderatie"}
+          toggle hidden
+          textarea reason
      history
-     details "Operator decisions and withdrawals"@{nl="Exploitantbesluiten en intrekkingen"}
+     collapse "Operator decisions and withdrawals"@{nl="Exploitantbesluiten en intrekkingen"}
       list row.Decision order=created
+       pagination
        text row.status,row.response,row.published_at,row.withdrawn,row.withdrawal_reason
        action withdraw_decision

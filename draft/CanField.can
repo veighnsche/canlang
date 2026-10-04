@@ -197,28 +197,94 @@ package field label="Service visits"@{nl="Servicebezoeken"}
  Then
   # Dispatch by skill and location and resolve blocked work. @{nl="Plan op vaardigheid en locatie en los geblokkeerd werk op."}
   page /dispatch title="Service dispatch"@{nl="Serviceplanning"}
+   breadcrumbs
    require dispatcher
    card "Dispatch intake"@{nl="Bezoeken inplannen"}
-    form dispatch
+    form dispatch display=inline
+     fieldset "Visit"@{nl="Bezoek"}
+      input skill
+      input address
+      textarea instructions
+      input contact
+   ## In-context saved default for the state filter below.
+   filter preferences.state
    card "Dated service agenda"@{nl="Serviceagenda"}
-    calendar Job start=from end=until filter=location,state,skill defaults={location=preferences.location,state=preferences.state,skill=preferences.skill}
+    calendar Job start=from end=until filter=location,state,skill defaults={location=preferences.location,state=preferences.state,skill=preferences.skill} empty="No visits scheduled."@{nl="Geen bezoeken gepland."}
+     pagination
      details "Visit detail"@{nl="Bezoekdetails"} display=drawer
-      text row.customer,row.location,row.employee,row.from,row.until,row.skill,row.address,row.instructions,row.state,row.blocked_reason,row.repair
-      actions reassign,retry,cancel,retry_cleanup
-      table row.Replacement columns=employee,from,until,state,released
-       form discard_reassignment
-      table row.Report columns=author,notes,photo,completed,correction
-      form correct
+      badge row.state
+      ## blocked_reason stays in the record line (cancelled rows keep their
+      ## reason) and repeats once as the gated attention alert when blocked.
+      text row.customer,row.location,row.employee,row.from,row.until,row.skill,row.address,row.instructions,row.blocked_reason,row.repair
+      collapse "Blocker"@{nl="Blokkade"}
+       require row.state==blocked
+       alert row.blocked_reason
+      collapse "Schedule confirmation"@{nl="Planningsbevestiging"}
+       require row.state==pending
+       skeleton
+      actions retry,retry_cleanup
+      button opens=reassign_visit
+      modal "Reassign"@{nl="Opnieuw toewijzen"} id=reassign_visit
+       slot content
+        form reassign arguments={job=row} display=inline
+      button opens=cancel_visit
+      modal "Cancel"@{nl="Annuleren"} id=cancel_visit
+       slot content
+        form cancel arguments={job=row} display=inline
+         textarea reason
+      table row.Replacement columns=employee,from,until,state,released empty="No replacement requests."@{nl="Geen vervangingsaanvragen."}
+       pagination
+       button opens=discard_candidate
+       modal "Discard reassignment"@{nl="Hertoewijzing verwerpen"} id=discard_candidate
+        slot content
+         form discard_reassignment arguments={replacement=row} display=inline
+          textarea reason
+      table row.Report columns=author,notes,photo,completed,correction empty="No reports yet."@{nl="Nog geen verslagen."}
+       pagination
+       ## correct moves into the report row suite so report binds explicitly
+       ## (the former drawer-level form had no report in scope).
+       button opens=correct_report
+       modal "Correct report"@{nl="Verslag corrigeren"} id=correct_report
+        slot content
+         form correct arguments={report=row} display=inline
+          textarea notes
+          file_input photo
       history
 
   # Complete only your current assigned visits from a compact field view. @{nl="Rond alleen je huidige toegewezen bezoeken af vanuit een compacte mobiele weergave."}
   page /dispatch/mine title="My visits"@{nl="Mijn bezoeken"}
+   breadcrumbs
    require technician
+   ## In-context saved default for the state filter below.
+   filter preferences.state
    card "Assigned visits"@{nl="Toegewezen bezoeken"}
-    list Job as job where job.employee.user==actor order=job.from filter=location,state,skill defaults={location=preferences.location,state=preferences.state,skill=preferences.skill} display=split
-     text row.location,row.from,row.until,row.skill,row.address,row.instructions,row.state,row.blocked_reason,row.repair,row.inspection
+    board Job as job where job.employee.user==actor by=state columns=location,from,until,skill order=job.from filter=location,state,skill defaults={location=preferences.location,state=preferences.state,skill=preferences.skill} empty="No assigned visits."@{nl="Geen toegewezen bezoeken."}
+     pagination
+     indicator
+      slot content
+       text row.address
+      slot indicator
+       badge row.state
+     text row.location,row.from,row.until,row.skill,row.instructions,row.blocked_reason,row.repair,row.inspection
      text row.inspection?.checklist
-     actions start,block,complete
-     table row.Report columns=author,notes,photo,completed,correction
-      form correct
+     action start
+     button opens=block_visit
+     modal "Record blocker"@{nl="Blokkade registreren"} id=block_visit
+      slot content
+       form block arguments={job=row} display=inline
+        textarea reason
+     button opens=complete_visit
+     modal "Complete"@{nl="Afronden"} id=complete_visit
+      slot content
+       form complete arguments={job=row} display=inline
+        textarea notes
+        file_input photo
+     table row.Report columns=author,notes,photo,completed,correction empty="No reports yet."@{nl="Nog geen verslagen."}
+      pagination
+      button opens=correct_report
+      modal "Correct report"@{nl="Verslag corrigeren"} id=correct_report
+       slot content
+        form correct arguments={report=row} display=inline
+         textarea notes
+         file_input photo
      history
