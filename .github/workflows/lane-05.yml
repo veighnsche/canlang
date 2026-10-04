@@ -1,0 +1,25 @@
+name: lane-05-ui
+
+on:
+  push:
+    paths:
+      - "packages/ui/**"
+      - "packages/contracts/src/presentation.ts"
+      - ".github/workflows/lane-05.yml"
+  pull_request:
+    paths:
+      - "packages/ui/**"
+      - "packages/contracts/src/presentation.ts"
+      - ".github/workflows/lane-05.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --prefix packages/ui
+      - run: npm --prefix packages/ui run typecheck
+      - run: npm --prefix packages/ui test
