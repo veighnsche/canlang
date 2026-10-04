@@ -5,12 +5,14 @@ import {
   any,
   cancel,
   require as check,
+  choose,
   compareInstant,
   count,
   create,
   datetime,
   delivery,
   deleteRecord,
+  emit,
   format,
   hasRole,
   int64,
@@ -206,10 +208,14 @@ export const appDefinition = {
       parent: "volunteer.Opportunity",
       label: message("Volunteer signup", { nl: "Vrijwilligersinschrijving" }),
       readGrants: [
-        { rule: "Signup.read.1", fields: ["account", "email", "needs_confirmation", "state", "notification.id", "notification.status"] },
-        { rule: "Signup.read.2", fields: ["account", "email", "needs_confirmation", "state", "notification.id", "notification.status"] },
+        { rule: "Signup.read.1", fields: ["account", "email", "needs_confirmation", "state", "cancelled", "notification.id", "notification.status"] },
+        { rule: "Signup.read.2", fields: ["account", "email", "needs_confirmation", "state", "cancelled", "notification.id", "notification.status"] },
       ],
       unique: [{ fields: ["account"] }],
+      derived: {
+        reserves_place: { type: "bool", handler: "Signup.reserves_place" },
+        cancelled: { type: "bool", handler: "Signup.cancelled" },
+      },
       fields: {
         account: {
           type: "user",
@@ -301,6 +307,10 @@ export const appDefinition = {
         opportunity_revision: { type: "int" },
       },
     },
+    "volunteer.OpportunityCancelled": { fields: {
+      opportunity: { type: "volunteer.Opportunity" },
+      reason: { type: "text" },
+    } },
   },
   pure: {
     "volunteer.venue_covers": {
@@ -585,13 +595,23 @@ export const appDefinition = {
   },
   handlers: {
     "volunteer.venue_on_create": { handler: "venue_on_create", on: "volunteer.Opportunity.create" },
-    "volunteer.opportunity_changed": {
-      handler: "opportunity_changed",
-      on: "volunteer.Opportunity.update",
+    "volunteer.refresh_reminders": {
+      on: "volunteer.Opportunity.updated",
+      each: { model: "volunteer.Signup", bind: "signup" },
+      handler: "refresh_reminders",
     },
     "volunteer.venue_changed": {
       handler: "venue_changed",
       on: "rent_reservations.ReservationChanged",
+    },
+    "volunteer.cancel_signup": {
+      on: "volunteer.OpportunityCancelled",
+      each: {
+        model: "volunteer.Signup",
+        parent: (c, { event }) => event.opportunity,
+        bind: "signup",
+      },
+      handler: "cancel_signup",
     },
     "volunteer.remind": { handler: "remind", on: "volunteer.Reminder" },
   },
@@ -607,7 +627,7 @@ export function canApp() {
     Opportunity: async (c, row) => (await can_work(c, c.actor, row.location)) && !row.open,
     Task: async (c, row) =>
       (await can_work(c, c.actor, row.parent.parent.location)) &&
-      ["registered", "confirmed"].includes(row.parent.state),
+      row.parent.reserves_place,
   };
   return {
     venue_covers,
@@ -620,10 +640,14 @@ export function canApp() {
             (await count(
               records(c, "volunteer.Signup", {
                 parent: row,
-                where: (signup) => activeStates.includes(signup.state),
+                where: (signup) => signup.reserves_place,
               }),
             )),
         ),
+      "Signup.reserves_place": (c, row) =>
+        ["registered", "confirmed"].includes(row.state) && !row.parent.cancelled,
+      "Signup.cancelled": (c, row) => row.state === "cancelled" ||
+        (row.parent.cancelled && ["registered", "confirmed"].includes(row.state)),
     },
     read: {
       "Community.read.1": (c, row) => hasRole(c, "volunteer.organizer"),
@@ -647,7 +671,7 @@ export function canApp() {
         (await count(
           records(c, "volunteer.Signup", {
             parent: row,
-            where: (s) => activeStates.includes(s.state),
+            where: (s) => s.reserves_place,
           }),
         )) <= row.capacity,
     },
@@ -655,24 +679,17 @@ export function canApp() {
     async venue_on_create(c, { event }) {
       check(event.after.venue === null || (await can_read_booking_details(c, event.after.venue)));
     },
-    async opportunity_changed(c, { event }) {
-      for await (const signup of records(c, "volunteer.Signup", {
-        parent: event.after,
-        where: (row) => row.state === "confirmed",
-        limit: 500n,
-      })) {
+    async refresh_reminders(c, { event, signup }) {
+      if (signup.parent.id === event.id) {
         await cancel(c, signup.id);
-        if (
-          !event.after.cancelled &&
-          compareInstant(event.after.from, addDuration(c.now, 86400000n)) > 0
-        )
-          await schedule(
-            c,
-            signup.id,
-            subtractDuration(event.after.from, 86400000n),
-            "volunteer.Reminder",
-            { signup, revision: signup.version, opportunity_revision: event.after.version },
-          );
+        if (signup.state === "confirmed" && !signup.needs_confirmation &&
+            !signup.parent.cancelled &&
+            (signup.parent.venue === null || signup.parent.venue_confirmed) &&
+            compareInstant(signup.parent.from, addDuration(c.now, 86400000n)) > 0) {
+          await schedule(c, signup.id, subtractDuration(signup.parent.from, 86400000n),
+            "volunteer.Reminder", { signup, revision: signup.version,
+              opportunity_revision: signup.parent.version });
+        }
       }
     },
     async createCommunity(c, input) {
@@ -712,25 +729,6 @@ export function canApp() {
           (opportunity.venue === null || opportunity.venue_confirmed),
       );
       await set(c, opportunity, { open: true });
-      for await (const signup of records(c, "volunteer.Signup", {
-        parent: opportunity,
-        where: (row) => row.state === "confirmed",
-        limit: 500n,
-      })) {
-        await cancel(c, signup.id);
-        if (compareInstant(opportunity.from, addDuration(c.now, 86400000n)) > 0)
-          await schedule(
-            c,
-            signup.id,
-            subtractDuration(opportunity.from, 86400000n),
-            "volunteer.Reminder",
-            {
-              signup,
-              revision: signup.version,
-              opportunity_revision: int64(opportunity.version + 1n),
-            },
-          );
-      }
     },
     async signup(c, { opportunity }) {
       check(hasRole(c, "authenticated"), "forbidden");
@@ -746,7 +744,7 @@ export function canApp() {
           (signup) =>
             same(signup.parent.parent, opportunity.parent) &&
             same(signup.account, c.actor) &&
-            activeStates.includes(signup.state) &&
+            signup.reserves_place &&
             overlaps(signup.parent.from, signup.parent.until, opportunity.from, opportunity.until),
         )),
       );
@@ -782,7 +780,7 @@ export function canApp() {
     },
     async withdraw(c, { signup }) {
       check(hasRole(c, "authenticated"), "forbidden");
-      check(same(signup.account, c.actor) && activeStates.includes(signup.state));
+      check(same(signup.account, c.actor) && activeStates.includes(signup.state) && !signup.cancelled);
       await set(c, signup, { state: "withdrawn" });
       await cancel(c, signup.id);
     },
@@ -820,7 +818,7 @@ export function canApp() {
             (await count(
               records(c, "volunteer.Signup", {
                 parent: opportunity,
-                where: (signup) => activeStates.includes(signup.state),
+                where: (signup) => signup.reserves_place,
               }),
             )),
         ),
@@ -843,7 +841,7 @@ export function canApp() {
             !same(other, signup) &&
             same(other.parent.parent, signup.parent.parent) &&
             same(other.account, c.actor) &&
-            activeStates.includes(other.state) &&
+            other.reserves_place &&
             overlaps(
               other.parent.from,
               other.parent.until,
@@ -876,7 +874,7 @@ export function canApp() {
             !same(other, signup) &&
             same(other.parent.parent, signup.parent.parent) &&
             same(other.account, c.actor) &&
-            activeStates.includes(other.state) &&
+            other.reserves_place &&
             overlaps(
               other.parent.from,
               other.parent.until,
@@ -901,29 +899,10 @@ export function canApp() {
           (!opportunity.open &&
             !(await any(
               records(c, "volunteer.Signup", { parent: opportunity }),
-              (signup) => activeStates.includes(signup.state),
+              (signup) => signup.reserves_place,
             ))),
       );
       await set(c, opportunity, { venue });
-      for await (const signup of records(c, "volunteer.Signup", {
-        parent: opportunity,
-        where: (row) => row.state === "confirmed",
-        limit: 500n,
-      })) {
-        await cancel(c, signup.id);
-        if (compareInstant(opportunity.from, addDuration(c.now, 86400000n)) > 0)
-          await schedule(
-            c,
-            signup.id,
-            subtractDuration(opportunity.from, 86400000n),
-            "volunteer.Reminder",
-            {
-              signup,
-              revision: signup.version,
-              opportunity_revision: int64(opportunity.version + 1n),
-            },
-          );
-      }
     },
     async reschedule(c, { opportunity, from, until, timezone, venue, reason }) {
       check(hasRole(c, "volunteer.organizer"), "forbidden");
@@ -950,14 +929,14 @@ export function canApp() {
         await all(
           records(c, "volunteer.Signup", { parent: opportunity }),
           async (signup) =>
-            !activeStates.includes(signup.state) ||
+            !signup.reserves_place ||
             !(await any(
               records(c, "volunteer.Signup"),
               (other) =>
                 !same(other.parent, opportunity) &&
                 same(other.parent.parent, opportunity.parent) &&
                 same(other.account, signup.account) &&
-                activeStates.includes(other.state) &&
+                other.reserves_place &&
                 overlaps(other.parent.from, other.parent.until, from, until),
             )),
         ),
@@ -1048,41 +1027,24 @@ export function canApp() {
     },
     async cancel(c, { opportunity, reason }) {
       check(hasRole(c, "volunteer.organizer"), "forbidden");
-      check(
-        (await can_work(c, c.actor, opportunity.location)) &&
-          !opportunity.cancelled &&
-          reason.trim() !== "",
-      );
+      check(await can_work(c, c.actor, opportunity.location) &&
+        !opportunity.cancelled && reason.trim() !== "");
       await set(c, opportunity, { cancelled: true, open: false });
-      for await (const signup of records(c, "volunteer.Signup", {
-        parent: opportunity,
-        where: (row) => activeStates.includes(row.state),
-        limit: 500n,
-      })) {
+      await emit(c, "volunteer.OpportunityCancelled", { opportunity, reason });
+    },
+    async cancel_signup(c, { event, signup }) {
+      if (signup.parent.cancelled && ["registered", "confirmed"].includes(signup.state)) {
         await set(c, signup, { state: "cancelled" });
         await cancel(c, signup.id);
         const signup_revision = int64(signup.version + 1n);
-        const notice = await send(
-          c,
-          "volunteer.Mail.send",
-          {
-            to: signup.email,
-            subject: format(
-              c,
-              message("Volunteer activity cancelled", {
-                nl: "Vrijwilligersactiviteit geannuleerd",
-              }),
-              { locale: null },
-            ),
-            body: reason,
-          },
-          {
-            when: () =>
-              signup.version === signup_revision &&
-              signup.state === "cancelled" &&
-              signup.parent.cancelled,
-          },
-        );
+        const notice = await send(c, "volunteer.Mail.send", {
+          to: signup.email,
+          subject: format(c, message("Volunteer activity cancelled", {
+            nl: "Vrijwilligersactiviteit geannuleerd",
+          }), { locale: null }),
+          body: event.reason,
+        }, { when: async c => signup.version === signup_revision &&
+          signup.state === "cancelled" && signup.parent.cancelled });
         await set(c, signup, { notification: notice });
       }
     },
@@ -1242,7 +1204,7 @@ export async function activitiesPage(c, bindings) {
                             text({
                               context: v,
                               values: [
-                                signup.state,
+                                choose(signup.cancelled, "cancelled", signup.state),
                                 signup.needs_confirmation,
                                 (await delivery(v, { record: signup, field: "notification" }, ["status"]))?.status ?? null,
                               ],
@@ -1340,7 +1302,7 @@ export async function workPage(c, bindings) {
                         context: sv,
                         values: [
                           signup.email,
-                          signup.state,
+                          choose(signup.cancelled, "cancelled", signup.state),
                           signup.needs_confirmation,
                           (await delivery(sv, { record: signup, field: "notification" }, ["status"]))?.status ?? null,
                         ],
