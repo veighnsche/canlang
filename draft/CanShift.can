@@ -46,6 +46,7 @@ package shift label="Staff scheduling"@{nl="Personeelsplanning"}
   Coverage in Roster { location:Location, role:text label=label_Duty_role, from:datetime label=label_CommitmentRequest_from, until:datetime label=label_CommitmentRequest_until, minimum:int=1 min=1 label="Minimum staff"@{nl="Minimumbezetting"} } label="Coverage requirement"@{nl="Bezettingsvereiste"}
   Swap in Duty { substitute:Employee label=label_Swap_substitute, original:Employee label="Original employee"@{nl="Oorspronkelijke medewerker"}, revision:int, state:enum(open,accepted,rejected,obsolete)=open label={text="State"@{nl="Status"},values={open="Open"@{nl="Open"},accepted="Accepted"@{nl="Geaccepteerd"},rejected="Rejected"@{nl="Afgewezen"},obsolete="Superseded"@{nl="Achterhaald"}}} } label="Shift swap"@{nl="Dienstruil"}
   event DutyNotice { duty:Duty, recipient:user, revision:int, kind:enum(published,changed,cancelled,swap_request,swap_accepted,swap_rejected) label={text="Roster notice kind"@{nl="Soort roosterbericht"},values={published="Published"@{nl="Gepubliceerd"},changed="Changed"@{nl="Gewijzigd"},cancelled="Cancelled"@{nl="Geannuleerd"},swap_request="Swap request"@{nl="Ruilverzoek"},swap_accepted="Swap accepted"@{nl="Ruil geaccepteerd"},swap_rejected="Swap declined"@{nl="Ruil afgewezen"}}}, swap:Swap? }
+  event EligibilityReview { employee:Employee?, location:text?, account:user?, roster:Roster? }
   Notice in Duty { recipient:user, revision:int, kind:DutyNotice.kind, delivery:delivery(Mail.send) } label="Roster notice"@{nl="Roosterbericht"}
   derive Notice.state:DeliveryResult.status = row.delivery.status label={text="Notice delivery"@{nl="Berichtverzending"},values={pending="Pending"@{nl="In afwachting"},succeeded="Sent"@{nl="Verzonden"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}
   export capability ScheduleIngressV1 version=1
@@ -223,52 +224,27 @@ package shift label="Staff scheduling"@{nl="Personeelsplanning"}
     scheduler,"Reception",[],test_worker,substitute -> true,true,obsolete
     members,"Reception",["reception"],test_worker,substitute -> error(forbidden)
   scenario employee_changed on=EmployeeChanged
+   do emit EligibilityReview {employee=event.employee}
+  ## Location deactivation retains commitments for explicit resolution by their owners.
+  scenario location_changed on=Location.updated
+   do emit EligibilityReview {location=event.id}
+  scenario member_removed on=teams.member_removed
+   do emit EligibilityReview {account=event.user}
+  scenario availability_changed on=Availability.update
+   do emit EligibilityReview {employee=event.after.employee,roster=event.after.parent}
+  scenario availability_created on=Availability.create
+   do emit EligibilityReview {employee=event.after.employee,roster=event.after.parent}
+  scenario review_commitment on=EligibilityReview each=Commitment as commitment
    do
-    for commitment in Commitment as item where item.active and item.until+item.after>now and item.employee==event.employee limit=500
+    if commitment.active and commitment.until+commitment.after>now and (event.employee==null or commitment.employee==event.employee) and (event.location==null or commitment.location.id==event.location) and (event.account==null or commitment.employee.user==event.account) and (event.roster==null or commitment.parent==event.roster)
      if not eligible(commitment) or any(commitment.Duty as duty,duty.role!=commitment.employee.role)
       set commitment {conflict=true}
       emit ReservationOutcome {value={source=commitment.source,revision=commitment.revision,state=unavailable,reference=commitment.id}}
-    for swap in Swap as item where item.state==open and item.parent.parent.until>now and (item.original==event.employee or item.substitute==event.employee) limit=500
-     if not can_work(swap.substitute.user,swap.parent.parent.location) or not can_work(swap.original.user,swap.parent.parent.location) or swap.substitute.role!=swap.parent.role or swap.original.role!=swap.parent.role or not (swap.parent.parent.skill in swap.substitute.skills)
-      set swap {state=obsolete}
-   examples seed=[assignment,proposed] event={employee=test_worker,active=false,revision=2}
-    event.employee.active -> assignment.conflict,proposed.state
-    false -> true,obsolete
-  ## Location deactivation retains commitments for explicit resolution by their owners.
-  scenario location_changed on=Location.updated
+  scenario review_swap on=EligibilityReview each=Swap as swap
    do
-    for commitment in Commitment as item where item.active and item.until+item.after>now and item.location.id==event.id and not item.location.active limit=500
-     set commitment {conflict=true}
-     emit ReservationOutcome {value={source=commitment.source,revision=commitment.revision,state=unavailable,reference=commitment.id}}
-    for swap in Swap as item where item.state==open and item.parent.parent.until>now and item.parent.parent.location.id==event.id and not item.parent.parent.location.active limit=500
-     set swap {state=obsolete}
-  scenario member_removed on=teams.member_removed
-   do
-    for commitment in Commitment as item where item.active and item.until+item.after>now and item.employee.user==event.user limit=500
-     set commitment {conflict=true}
-     emit ReservationOutcome {value={source=commitment.source,revision=commitment.revision,state=unavailable,reference=commitment.id}}
-    for swap in Swap as item where item.state==open and item.parent.parent.until>now and (item.original.user==event.user or item.substitute.user==event.user) limit=500
-     set swap {state=obsolete}
-   examples seed=[assignment,proposed] event={team_id=team.id,membership_id="removed",user=self}
-    event.user -> assignment.conflict,proposed.state
-    self -> true,obsolete
-  scenario availability_changed on=Availability.update
-   do
-    for commitment in event.after.parent.Commitment as item where item.active and item.until+item.after>now and item.employee==event.after.employee limit=500
-     if not eligible(commitment)
-      set commitment {conflict=true}
-      emit ReservationOutcome {value={source=commitment.source,revision=commitment.revision,state=unavailable,reference=commitment.id}}
-    for swap in Swap as item where item.state==open and item.parent.parent.parent==event.after.parent and item.substitute==event.after.employee and item.parent.parent.until>now limit=500
-     if not fits(swap.parent.parent.parent,swap.substitute,swap.parent.parent.from,swap.parent.parent.until,swap.parent.parent.before,swap.parent.parent.after,swap.parent.parent) or not travel_entered(swap.parent.parent.parent,swap.substitute,swap.parent.parent.location,swap.parent.parent.from,swap.parent.parent.until,swap.parent.parent.before,swap.parent.parent.after,swap.parent.parent)
-      set swap {state=obsolete}
-  scenario availability_created on=Availability.create
-   do
-    for commitment in event.after.parent.Commitment as item where item.active and item.until+item.after>now and item.employee==event.after.employee limit=500
-     if not eligible(commitment)
-      set commitment {conflict=true}
-      emit ReservationOutcome {value={source=commitment.source,revision=commitment.revision,state=unavailable,reference=commitment.id}}
-    for swap in Swap as item where item.state==open and item.parent.parent.parent==event.after.parent and item.substitute==event.after.employee and item.parent.parent.until>now limit=500
-     if not fits(swap.parent.parent.parent,swap.substitute,swap.parent.parent.from,swap.parent.parent.until,swap.parent.parent.before,swap.parent.parent.after,swap.parent.parent) or not travel_entered(swap.parent.parent.parent,swap.substitute,swap.parent.parent.location,swap.parent.parent.from,swap.parent.parent.until,swap.parent.parent.before,swap.parent.parent.after,swap.parent.parent)
+    let commitment=swap.parent.parent
+    if swap.state==open and commitment.until>now and (event.employee==null or swap.original==event.employee or swap.substitute==event.employee) and (event.location==null or commitment.location.id==event.location) and (event.account==null or swap.original.user==event.account or swap.substitute.user==event.account) and (event.roster==null or commitment.parent==event.roster)
+     if not swap.parent.published or commitment.conflict or not eligible(commitment) or swap.original!=commitment.employee or commitment.version!=swap.revision or not can_work(swap.original.user,commitment.location) or not can_work(swap.substitute.user,commitment.location) or swap.original.role!=swap.parent.role or swap.substitute.role!=swap.parent.role or not (commitment.skill in swap.substitute.skills) or not fits(commitment.parent,swap.substitute,commitment.from,commitment.until,commitment.before,commitment.after,commitment) or not travel_entered(commitment.parent,swap.substitute,commitment.location,commitment.from,commitment.until,commitment.before,commitment.after,commitment)
       set swap {state=obsolete}
   scenario duty_notice on=DutyNotice
    do

@@ -159,12 +159,12 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: Agreed behavior, permissions and exact source/JS expectations match; focused checks; no unstated policy or invented dependency.
   - Evidence: writer 01a10715-f84a-75c0-839e-02675ad1d0e3 released (H006 READY). Complete C4 witness applied verbatim: Decision/current_decision/contracts/owner-only policy/invariant/3 locks/derive, roadmap+moderate bodies, withdraw_decision + decision_history, both page roots, journey observations + withdrawal table + full 34-step sequence with JS descriptor, .md gap replacement. Coordinator verified every witness section, node --check OK, non-sequence parse exit 0, no public Decision grant, 2 private history sites only. Unexecuted behavior disclosed. No DESIGN/GRAMMAR change; C1/Rent-history/C3/C5 untouched.
 
-- [ ] **A02 — Shift complete population progress**
+- [x] **A02 — Shift complete population progress**
   - Prerequisites: SATISFIED BY USER-OVERRIDE 2026-10-04 (was: READY linking progress-design.md): coordinator acceptance analysis appended to progress-design.md; all overlapping writers released
   - Owner / files / interfaces: Muse implementation agent; draft/CanShift.can, draft/CanShift.md, draft/CanShift.mjs
   - Changes / traceability: Q1–Q3; apply the complete accepted design witness and its explicitly listed cases. The document filename is a destination, not a claim a design exists.
   - Acceptance: Agreed behavior, permissions and exact source/JS expectations match; focused checks; no unstated policy or invented dependency.
-  - Evidence: pending.
+  - Evidence: writer 01a107ad-31a8-7312-84eb-ffc930ff1ceb released (READY-BY-OVERRIDE). EligibilityReview + 5 emitting adapters + review_commitment/review_swap applied verbatim; JS schema/metadata/bodies match; .md states finite-cohort guarantee, retains 100-bounds. 2 stale sync-outcome examples + fixtures removed (no invented each selectors, per doc prohibition). Coordinator verified: added lines touch no forbidden area, only limit=100/1 remain, node --check OK, independent projection parse exit 0 (disclosed: delivery→text, derive label stripped, each= stripped). Unexecuted behavior disclosed.
 
 - [ ] **A03 — Volunteer complete population progress**
   - Prerequisites: SATISFIED BY USER-OVERRIDE 2026-10-04 (was: READY linking progress-design.md): coordinator acceptance analysis appended to progress-design.md; all overlapping writers released
@@ -174,7 +174,7 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Evidence: pending.
 
 - [ ] **A04 — Rent retained-history application**
-  - Prerequisites: BLOCKED DESIGN: READY inbox message linking history-design.md; all overlapping writers released
+  - Prerequisites: SATISFIED BY USER-OVERRIDE 2026-10-04 (was: READY linking history-design.md): coordinator-authored history-design.md (499 lines: H1-H4 investigation, G1-G5 gaps, flagged D1-D9, Can + JS witnesses, 14 cases); all overlapping writers released
   - Owner / files / interfaces: Muse implementation agent; draft/CanRent.can, draft/CanRent.md, draft/CanRent.mjs
   - Changes / traceability: Q1–Q3; apply the complete accepted design witness and its explicitly listed cases. The document filename is a destination, not a claim a design exists.
   - Acceptance: Agreed behavior, permissions and exact source/JS expectations match; focused checks; no unstated policy or invented dependency.
@@ -325,6 +325,9 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - DONE design A06: writer 01a107ab-3794-77b2-b865-983591efa71f RELEASED mail-recovery-design.md (append-only 201+, JEV disagreement investigated to acknowledged_resend, delivery-identity rule, Can + desired-JS witnesses, 12 BDD scenarios; scope discipline verified, nothing applied to drafts).
 - DONE design A05: writer 01a107ab-3982-7ef2-9bf1-80435fa77d6f RELEASED dependency-design.md (append-only 89+, W1 grouped bound import + W2 JS counterpart per CanRent precedent, W3 honest no-reduction closure, W4 BDD; .md replacement text left to application). A05/A06 inputs READY-BY-OVERRIDE.
 - DISPATCH batch 2 (slots freed x2): N10-design writer (new extraction-design.md), A02 implementation writer (CanShift triplet). A04-design still running. Queued: A03/A04/A05/A06/N10 implementation (A05 before A06).
+- DONE A02: writer 01a107ad-31a8-7312-84eb-ffc930ff1ceb RELEASED draft/CanShift.can, draft/CanShift.md, draft/CanShift.mjs. Task ticked complete (see A02 evidence).
+- DONE design A04: writer 01a107ab-3b05-7580-a454-935716911f8a RELEASED history-design.md (new 499-line file only; git untouched). Verified: H1-H4/G1-G5 investigation, D1-D9 flagged ([proposal]/[new]), Can + JS witnesses, 14 cases with honest isolated/journey split, JEV advice disclosed without re-vote, scaffold parse + node --check exit 0 claimed on wrappers. A04 input READY-BY-OVERRIDE.
+- DISPATCH batch 3 (slots freed x2): A03 implementation writer (CanVolunteer triplet), A04 implementation writer (CanRent triplet). N10-design still running. Queued: A05, A06, N10 implementation (A05 before A06).
 - ACK H005 NOTE watcher repaired: accepted. contextlib.closing fix noted; H002 command reusable when ready work next exhausts (not now — A01 active). No TUI-push claim.
 - ACK H006 READY A01 accepted: complete C4 feedback-design.md (457 lines) + review.md limits read in full. Scope: Decision/current_decision/contracts/policy/invariant/locks/derive, roadmap/moderate bodies, withdraw_decision/decision_history, both page roots, full target mirror, journey observations + withdrawal table + decision_history sequence, 15-row required-cases table. No DESIGN/GRAMMAR/runtime work. C1/Rent-history/C3/C5 remain unadopted.
 - RESERVED A01: draft/CanFeedback.can, draft/CanFeedback.md, draft/CanFeedback.mjs — writer 01a10715-f84a-75c0-839e-02675ad1d0e3 (A01 Feedback/17) active. J01 released; no pending Feedback edits at handoff (verified clean).

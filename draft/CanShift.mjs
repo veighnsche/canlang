@@ -516,6 +516,12 @@ export const appDefinition = {
         swap: { type: "shift.Swap", nullable: true },
       },
     },
+    "shift.EligibilityReview": { fields: {
+      employee: { type: Employee, nullable: true },
+      location: { type: "text", nullable: true },
+      account: { type: "user", nullable: true },
+      roster: { type: "shift.Roster", nullable: true },
+    } },
     [ReservationOutcome]: { exported: true, fields: { value: { type: OperationOutcome } } },
   },
   capabilities: {
@@ -823,6 +829,16 @@ export const appDefinition = {
     "shift.availability_changed": {
       handler: "availability_changed",
       on: "shift.Availability.update",
+    },
+    "shift.review_commitment": {
+      on: "shift.EligibilityReview",
+      each: { model: "shift.Commitment", bind: "commitment" },
+      handler: "review_commitment",
+    },
+    "shift.review_swap": {
+      on: "shift.EligibilityReview",
+      each: { model: "shift.Swap", bind: "swap" },
+      handler: "review_swap",
     },
     "shift.duty_notice": { handler: "duty_notice", on: "shift.DutyNotice" },
     "shift.reserve_connected": {
@@ -1259,196 +1275,61 @@ export function canApp() {
       }
     },
     async employee_changed(c, { event }) {
-      for await (const commitment of records(c, "shift.Commitment", {
-        where: (item) =>
-          item.active &&
-          compareInstant(addDuration(item.until, item.after), c.now) > 0 &&
-          same(item.employee, event.employee),
-        limit: 500n,
-      }))
-        if (
-          !(await eligible(c, commitment)) ||
-          (await any(
-            records(c, "shift.Duty", { parent: commitment }),
-            (duty) => duty.role !== commitment.employee.role,
-          ))
-        ) {
-          await set(c, commitment, { conflict: true });
-          await emit(c, ReservationOutcome, {
-            value: {
-              source: commitment.source,
-              revision: commitment.revision,
-              state: "unavailable",
-              reference: commitment.id,
-            },
-          });
-        }
-      for await (const swap of records(c, "shift.Swap", {
-        where: (item) =>
-          item.state === "open" &&
-          compareInstant(item.parent.parent.until, c.now) > 0 &&
-          (same(item.original, event.employee) || same(item.substitute, event.employee)),
-        limit: 500n,
-      }))
-        if (
-          !(await can_work(c, swap.substitute.user, swap.parent.parent.location)) ||
-          !(await can_work(c, swap.original.user, swap.parent.parent.location)) ||
-          swap.substitute.role !== swap.parent.role ||
-          swap.original.role !== swap.parent.role ||
-          !swap.substitute.skills.includes(swap.parent.parent.skill)
-        )
-          await set(c, swap, { state: "obsolete" });
+      await emit(c, "shift.EligibilityReview", { employee: event.employee });
     },
     async location_changed(c, { event }) {
-      for await (const commitment of records(c, "shift.Commitment", {
-        where: (item) => item.active && compareInstant(addDuration(item.until, item.after), c.now) > 0 &&
-          item.location.id === event.id && !item.location.active,
-        limit: 500n,
-      })) {
-        await set(c, commitment, { conflict: true });
-        await emit(c, ReservationOutcome, { value: {
-          source: commitment.source, revision: commitment.revision, state: "unavailable", reference: commitment.id,
-        } });
-      }
-      for await (const swap of records(c, "shift.Swap", {
-        where: (item) => item.state === "open" && compareInstant(item.parent.parent.until, c.now) > 0 &&
-          item.parent.parent.location.id === event.id && !item.parent.parent.location.active,
-        limit: 500n,
-      })) await set(c, swap, { state: "obsolete" });
+      await emit(c, "shift.EligibilityReview", { location: event.id });
     },
     async member_removed(c, { event }) {
-      for await (const commitment of records(c, "shift.Commitment", {
-        where: (item) =>
-          item.active &&
-          compareInstant(addDuration(item.until, item.after), c.now) > 0 &&
-          same(item.employee.user, event.user),
-        limit: 500n,
-      })) {
-        await set(c, commitment, { conflict: true });
-        await emit(c, ReservationOutcome, {
-          value: {
-            source: commitment.source,
-            revision: commitment.revision,
-            state: "unavailable",
-            reference: commitment.id,
-          },
-        });
-      }
-      for await (const swap of records(c, "shift.Swap", {
-        where: (item) =>
-          item.state === "open" &&
-          compareInstant(item.parent.parent.until, c.now) > 0 &&
-          (same(item.original.user, event.user) || same(item.substitute.user, event.user)),
-        limit: 500n,
-      }))
-        await set(c, swap, { state: "obsolete" });
+      await emit(c, "shift.EligibilityReview", { account: event.user });
     },
     async availability_changed(c, { event }) {
-      for await (const commitment of records(c, "shift.Commitment", {
-        parent: event.after.parent,
-        where: (item) =>
-          item.active &&
-          compareInstant(addDuration(item.until, item.after), c.now) > 0 &&
-          same(item.employee, event.after.employee),
-        limit: 500n,
-      }))
-        if (!(await eligible(c, commitment))) {
-          await set(c, commitment, { conflict: true });
-          await emit(c, ReservationOutcome, {
-            value: {
-              source: commitment.source,
-              revision: commitment.revision,
-              state: "unavailable",
-              reference: commitment.id,
-            },
-          });
-        }
-      for await (const swap of records(c, "shift.Swap", {
-        where: (item) =>
-          item.state === "open" &&
-          same(item.parent.parent.parent, event.after.parent) &&
-          same(item.substitute, event.after.employee) &&
-          compareInstant(item.parent.parent.until, c.now) > 0,
-        limit: 500n,
-      })) {
-        if (
-          !(await fits(
-            c,
-            swap.parent.parent.parent,
-            swap.substitute,
-            swap.parent.parent.from,
-            swap.parent.parent.until,
-            swap.parent.parent.before,
-            swap.parent.parent.after,
-            swap.parent.parent,
-          )) ||
-          !(await travel_entered(
-            c,
-            swap.parent.parent.parent,
-            swap.substitute,
-            swap.parent.parent.location,
-            swap.parent.parent.from,
-            swap.parent.parent.until,
-            swap.parent.parent.before,
-            swap.parent.parent.after,
-            swap.parent.parent,
-          ))
-        )
-          await set(c, swap, { state: "obsolete" });
-      }
+      await emit(c, "shift.EligibilityReview", {
+        employee: event.after.employee, roster: event.after.parent,
+      });
     },
     async availability_created(c, { event }) {
-      for await (const commitment of records(c, "shift.Commitment", {
-        parent: event.after.parent,
-        where: (item) =>
-          item.active &&
-          compareInstant(addDuration(item.until, item.after), c.now) > 0 &&
-          same(item.employee, event.after.employee),
-        limit: 500n,
-      }))
-        if (!(await eligible(c, commitment))) {
+      await emit(c, "shift.EligibilityReview", {
+        employee: event.after.employee, roster: event.after.parent,
+      });
+    },
+    async review_commitment(c, { event, commitment }) {
+      if (commitment.active &&
+          compareInstant(addDuration(commitment.until, commitment.after), c.now) > 0 &&
+          (event.employee === null || same(commitment.employee, event.employee)) &&
+          (event.location === null || commitment.location.id === event.location) &&
+          (event.account === null || same(commitment.employee.user, event.account)) &&
+          (event.roster === null || same(commitment.parent, event.roster))) {
+        if (!(await eligible(c, commitment)) ||
+            await any(records(c, "shift.Duty", { parent: commitment }),
+              duty => duty.role !== commitment.employee.role)) {
           await set(c, commitment, { conflict: true });
-          await emit(c, ReservationOutcome, {
-            value: {
-              source: commitment.source,
-              revision: commitment.revision,
-              state: "unavailable",
-              reference: commitment.id,
-            },
-          });
+          await emit(c, ReservationOutcome, { value: {
+            source: commitment.source, revision: commitment.revision,
+            state: "unavailable", reference: commitment.id,
+          } });
         }
-      for await (const swap of records(c, "shift.Swap", {
-        where: (item) =>
-          item.state === "open" &&
-          same(item.parent.parent.parent, event.after.parent) &&
-          same(item.substitute, event.after.employee) &&
-          compareInstant(item.parent.parent.until, c.now) > 0,
-        limit: 500n,
-      })) {
-        if (
-          !(await fits(
-            c,
-            swap.parent.parent.parent,
-            swap.substitute,
-            swap.parent.parent.from,
-            swap.parent.parent.until,
-            swap.parent.parent.before,
-            swap.parent.parent.after,
-            swap.parent.parent,
-          )) ||
-          !(await travel_entered(
-            c,
-            swap.parent.parent.parent,
-            swap.substitute,
-            swap.parent.parent.location,
-            swap.parent.parent.from,
-            swap.parent.parent.until,
-            swap.parent.parent.before,
-            swap.parent.parent.after,
-            swap.parent.parent,
-          ))
-        )
+      }
+    },
+    async review_swap(c, { event, swap }) {
+      const commitment = swap.parent.parent;
+      if (swap.state === "open" && compareInstant(commitment.until, c.now) > 0 &&
+          (event.employee === null || same(swap.original, event.employee) || same(swap.substitute, event.employee)) &&
+          (event.location === null || commitment.location.id === event.location) &&
+          (event.account === null || same(swap.original.user, event.account) || same(swap.substitute.user, event.account)) &&
+          (event.roster === null || same(commitment.parent, event.roster))) {
+        if (!swap.parent.published || commitment.conflict || !(await eligible(c, commitment)) ||
+            !same(swap.original, commitment.employee) || commitment.version !== swap.revision ||
+            !(await can_work(c, swap.original.user, commitment.location)) ||
+            !(await can_work(c, swap.substitute.user, commitment.location)) ||
+            swap.original.role !== swap.parent.role || swap.substitute.role !== swap.parent.role ||
+            !swap.substitute.skills.includes(commitment.skill) ||
+            !(await fits(c, commitment.parent, swap.substitute, commitment.from, commitment.until,
+              commitment.before, commitment.after, commitment)) ||
+            !(await travel_entered(c, commitment.parent, swap.substitute, commitment.location,
+              commitment.from, commitment.until, commitment.before, commitment.after, commitment))) {
           await set(c, swap, { state: "obsolete" });
+        }
       }
     },
     async duty_notice(c, { event }) {
@@ -2332,40 +2213,6 @@ export function exampleFixtures({ self, other, imported }) {
           { dependencies: [], values: async (c, s) => ["shift.scheduler", "Reception", ["reception"], s.test_worker, s.substitute], expected: async (c, s) => [true, false, "open"] },
           { dependencies: [], values: async (c, s) => ["shift.scheduler", "Reception", [], s.test_worker, s.substitute], expected: async (c, s) => [true, true, "obsolete"] },
           { dependencies: [], values: async (c, s) => ["members", "Reception", ["reception"], s.test_worker, s.substitute], error: "forbidden" },
-        ],
-      },
-      {
-        operation: "shift.employee_changed",
-        seed: [assignment, proposed],
-        dependencies: [test_worker],
-        inputs: async (c, s) => ({
-          event: { employee: s.test_worker, active: false, revision: 2n },
-        }),
-        selectors: ["event.employee.active"],
-        observations: [async (c, s) => s.assignment.conflict, async (c, s) => s.proposed.state],
-        rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => [false],
-            expected: async (c, s) => [true, "obsolete"],
-          },
-        ],
-      },
-      {
-        operation: "shift.member_removed",
-        seed: [assignment, proposed],
-        dependencies: [],
-        inputs: async (c, s) => ({
-          event: { team_id: c.team.id, membership_id: "removed", user: s.self },
-        }),
-        selectors: ["event.user"],
-        observations: [async (c, s) => s.assignment.conflict, async (c, s) => s.proposed.state],
-        rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => [s.self],
-            expected: async (c, s) => [true, "obsolete"],
-          },
         ],
       },
       {
