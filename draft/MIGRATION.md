@@ -84,7 +84,7 @@ Statuses below record draft progress; whole-corpus completion still requires E1�
 | 10 | Shared-shell page discovery — **clarify** | Define compiler-derived safe page title/order/eligibility metadata in desired JavaScript without a second authored navigation registry or unrelated page reads. C target-correspondence evidence. |
 | 11 | MCP finalized-file handoff — **clarify** | Describe the authorized host/runtime upload and finalization path to the existing opaque file input. Preserve file identity, current grants and upload limits; no arbitrary local path becomes an attachment. C target-correspondence evidence. |
 | 12 | Historical SaaS intake — **clarify** | Define bounded intake/provenance mapping for historical approvals, receipts, dates, accounts and files, or a linked immutable readable archive where prior authority cannot be established. Do not confuse current CRUD CSV with installed-schema migration. R10/L7. |
-| 13 | Fenced maintenance, provider switching and recovery — **clarify** | Reconcile raw-maintenance wording with existing revision fences; explicitly apply the old-work gate to config-only provider changes. Document composed database/file/config recovery and external reconciliation. R5/L6/C-I03. |
+| 13 | Fenced maintenance, provider switching and recovery — **clarified** | ADMIN_SURFACES now requires owning operations or controlled fenced maintenance rather than raw-write bypass. Config-only provider changes apply the existing old-work gate; composed recovery preserves release/config, DB/owner/file identities, retained work and external reconciliation. Portfolio inherits that boundary. No new maintenance primitive, manifest or implementation is introduced. R5/L6/C-I03. |
 | 14 | Repeated delivery bookkeeping — **evaluate** | Compare current ID/status/result mirrors with a persistent, authorized association to the existing runtime delivery contract. Preserve current-attempt correlation and explicit business reactions; no new Given spelling is selected. Subsequent discussion candidate, grounded in Mail/Propose handlers. |
 | 15 | Repeated historical capture — **evaluate** | Compare safe same-operation coalescing and smaller immutable facts/checkpoints with full snapshots. Preserve which facts became binding, historical report truth, disclosure and retention. No automatic-history primitive is selected. R8/L8. |
 | 16 | Accidental integration dependencies — **evaluate** | Compare value-contract reuse and optional workflow composition under existing package boundaries. Preserve canonical owners, full required behavior and truthful provider setup; do not introduce wrappers, copied models or assumed pruning. R3/L4. |
@@ -115,7 +115,8 @@ The original planning pass changed no product source. Task 4 and the concrete Re
 
 - `bbf493f` — Report completeness/state admission and exact-measure guards, with 21 authored cases and companion requirements.
 - `3881d60` — Rent typed quote aggregates, refunds and comparisons reviewed against the unchanged Can source.
-- Actor/grant milestone — existing user fixture recipes and named caller selection, reference witnesses and three saved JEV consultations; genuine shared-state journeys remain task 7.
+- `bb02ae5` — Actor/grant milestone: existing user fixture recipes and named caller selection, reference witnesses and three saved JEV consultations; genuine shared-state journeys remain task 7.
+- Maintenance clarification — existing writer/old-work fences apply to config-only provider switches and composed recovery; execution remains unproven.
 
 ## Draft completion evidence
 
