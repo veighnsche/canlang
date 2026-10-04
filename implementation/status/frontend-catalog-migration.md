@@ -37,10 +37,10 @@ Applicable companions: 21 draft/*.mjs desired-output witnesses + 39 draft/Can*.m
 No draft/shared/*.md and no examples companions exist.
 
 Excluded with reason (197 total .can files; 153 excluded):
-- design/evaluation/** snapshots + evidence experiments: frozen evaluation artifacts, referenced only from EVALUATION.md/briefs/verification.json, not build/test inputs.
+- design/evaluation/** snapshots + evidence experiments: frozen evaluation artifacts, referenced from evaluation/decision docs (EVALUATION.md, briefs/, verification.json, draft/MIGRATION.md, JEV assessments), not build/test inputs.
 - editors/vscode/audit-astra/** snapshots + probes: frozen audit evidence, referenced only from AUDIT-RESOLUTION.md/GRAMMAR-AUDIT.md, not build/test inputs.
 - design/*witness.can (canonical-exposure, historical-intake, delivery-recipe, optional-dependency x2, rent-history): frozen decision-evidence witnesses referenced from decision docs, not live inputs.
-- No maintained .can conformance/negative fixtures found outside the above (compiler tests use inline sources + examples/; parser tests use draft/+examples/).
+- No maintained .can conformance/negative fixtures found outside the above (compiler tests use inline sources + examples/ + draft/ recursively per syntax.rs:71-72; parser tests glob the same 44 via examples/ + draft/ + draft/shared/ per test_can_parser.py:494-496).
 - Unmerged primary-writer apps (CanKnowledge, CanInbox, CanDiscover, CanSync, CanChat, CanCreative, CanGallery, dirty/working-tree drafts):
   explicit owner dependency, NOT copied. Tracked below; included only after their owner merges them.
 
@@ -66,6 +66,7 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
   Parser/highlighter acceptance of new component words cannot be assumed; approval != support.
 - D4 L6 canonical login/identity/transport: partial (S4 HTTP merged #22, S5 MCP pending #32). Login-screen migration is presentation selection, never rebuilt auth.
 - D5 unmerged primary apps (CanKnowledge/CanInbox/CanDiscover/CanSync/others): owned by primary draft writers; excluded until merged.
+- D6 (to L1, nit from PR #35 review): GRAMMAR.md header-attribute table label "| calendar agenda |" is ambiguous — the row covers only the start/end-required agenda production while the bare-selector date control lives in prose + UI-COMPONENTS.md. Suggested "| calendar (agenda) |". Not edited here: carried normative text stays verbatim with its owner.
 
 ## Worker reservations (disjoint files; workers never run git/fetch/worktree)
 
