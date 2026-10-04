@@ -49,6 +49,7 @@ export type { BuildNavigationOptions } from "./navigation.js";
 export {
   pageDirection,
   pageLocale,
+  renderLogin,
   renderPage,
 } from "./shell.js";
 export {
@@ -124,6 +125,7 @@ export type {
   ListProps,
   ListQueryArgs,
   ListQueryResult,
+  LoginProps,
   MessageDescriptor,
   MessageFactory,
   MessageParamValue,
