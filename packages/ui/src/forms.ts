@@ -200,7 +200,7 @@ function pageLocale(context: PresentationContext): string {
   return preferred[0] ?? canonicalDefaultTag(context.appDefaultLocale);
 }
 
-function assertFieldPath(path: string): void {
+export function assertFieldPath(path: string): void {
   if (typeof path !== "string" || !FIELD_PATH_RE.test(path)) {
     throw new Error(`invalid field path ${JSON.stringify(path)}: must match /^[A-Za-z_][A-Za-z0-9_]*$/`);
   }
@@ -209,6 +209,24 @@ function assertFieldPath(path: string): void {
 /** Input root: update writes `inputs[changes][key]`, create/scenario `inputs[key]`. */
 function fieldName(mode: FormMode, path: string): string {
   return mode === "update" ? `inputs[changes][${path}]` : `inputs[${path}]`;
+}
+
+/**
+ * Shared field-identity helpers (C4): control factories and label/validator
+ * fragments derive identical names/ids from the same inputs. Returned values
+ * are raw; callers escape for their context.
+ */
+export function fieldInputName(mode: FormMode, path: string): string {
+  assertFieldPath(path);
+  return fieldName(mode, path);
+}
+export function fieldInputId(idPrefix: string, path: string): string {
+  assertFieldPath(path);
+  return `${idPrefix}-${path}`;
+}
+export function fieldErrorOutletId(idPrefix: string, path: string): string {
+  assertFieldPath(path);
+  return `${idPrefix}-${path}-error`;
 }
 
 function hidden(name: string, value: string): string {
@@ -550,7 +568,7 @@ function renderField(field: FormFieldDef, ctx: FieldRenderContext): string {
     ctx.context,
     ctx.timeZone,
   );
-  const label = escapeHtml(resolveCaption(field.label, ctx.context));
+  const label = escapeHtml(resolveCaption(field.labelCaption ?? field.label, ctx.context));
   const mark = field.required ? ` <span aria-hidden="true">*</span>` : "";
   const errorHtml =
     fieldErrors.length === 0
