@@ -340,7 +340,7 @@ export async function renderLogin(props: LoginProps): Promise<string> {
     `<form method="POST" action="${action}">` +
     `<input type="hidden" name="${csrfField}" value="${csrfToken}">` +
     `<fieldset><label for="${usernameId}" class="label">${usernameLabel}</label>` +
-    `<input id="${usernameId}" name="username" type="text" autocomplete="username" required class="input"></fieldset>` +
+    `<input id="${usernameId}" name="username" type="text" autocomplete="username" required autofocus class="input"></fieldset>` +
     `<fieldset><label for="${passwordId}" class="label">${passwordLabel}</label>` +
     `<input id="${passwordId}" name="password" type="password" autocomplete="current-password" required class="input"></fieldset>` +
     `<input type="hidden" name="next" value="${next}">` +
