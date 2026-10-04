@@ -1,0 +1,13 @@
+{
+  "description": "Sealed action handle invocation: opaque handle plus operation_id plus non-record inputs only; every protected record input is omitted.",
+  "invocation": {
+    "action_handle": {
+      "kind": "action_handle",
+      "handle": "ah_0f1e2d3c4b5a6978",
+      "target": "TeamTasks.complete",
+      "revision": "ifrev_20261004_01"
+    },
+    "operation_id": "0193f6c0-7a1e-7b2c-9d3e-4f5a6b7c8d9e",
+    "inputs": { "note": "done via delegated review" }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@canlang/interfaces",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CanLang HTTP/MCP/upload interfaces (lane 06). B0: contract conformance only; implementation lands in S3+.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && cp -r test/fixtures dist/interfaces/test/fixtures",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test \"dist/interfaces/test/**/*.test.js\"",
+    "clean": "rm -rf dist/"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
