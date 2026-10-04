@@ -214,13 +214,35 @@ describe('projection', () => {
   });
 
   it('buildPolicyTable rejects malformed by predicates with a plain Error', async () => {
-    for (const by of ['nobody' as 'members', { role: '' } as { role: string }]) {
+    for (const by of [
+      'nobody' as 'members',
+      { role: '' } as { role: string },
+      { and: [] } as unknown as 'members',
+    ]) {
       const failure = await captureFailure(() =>
         policyTable(modelPolicy(MODEL, { grants: [grant(by as unknown as 'members', ['title'])] })),
       );
       assert.ok(failure instanceof Error, 'expected an Error');
       assert.ok(!(failure instanceof StateError), 'expected a plain Error, not a StateError');
     }
+  });
+
+  it('buildPolicyTable rejects when predicates with non-string fields', async () => {
+    const failure = await captureFailure(() =>
+      policyTable(
+        modelPolicy(MODEL, {
+          grants: [
+            grant('members', ['title'], {
+              op: 'eq',
+              field: 5 as unknown as string,
+              value: 'x',
+            }),
+          ],
+        }),
+      ),
+    );
+    assert.ok(failure instanceof Error, 'expected an Error');
+    assert.ok(!(failure instanceof StateError), 'expected a plain Error, not a StateError');
   });
 
   it('post-build mutation of the input policy cannot alter enforcement', async () => {

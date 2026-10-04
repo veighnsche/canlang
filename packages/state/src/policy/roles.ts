@@ -148,8 +148,10 @@ export function validateByPredicate(by: ByPredicate, what: string): void {
   }
   if (key === 'and' || key === 'or') {
     const terms = (by as { and?: unknown; or?: unknown })[key];
-    if (!Array.isArray(terms)) {
-      throw new Error(`Invalid ${what}: ${key} needs an array of predicates.`);
+    if (!Array.isArray(terms) || terms.length === 0) {
+      // Empty arrays are rejected (never vacuous): `and: []` would evaluate
+      // to true and silently widen the grant to all callers (fail-open).
+      throw new Error(`Invalid ${what}: ${key} needs a non-empty array of predicates.`);
     }
     for (const term of terms) {
       validateByPredicate(term as ByPredicate, what);

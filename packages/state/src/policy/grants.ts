@@ -164,10 +164,22 @@ export function buildPolicyTable(models: ReadonlyArray<InterimModelPolicy>): Pol
           }
         }
       }
+      let by: ByPredicate;
+      let when: QueryPredicate | undefined;
+      try {
+        by = structuredClone(grant.by);
+        when = grant.when === undefined ? undefined : structuredClone(grant.when);
+      } catch {
+        // Unserializable extras (functions, symbols) fail here as plain
+        // programmer errors, never as DataCloneError at query time.
+        throw new Error(
+          `Invalid grant on model ${JSON.stringify(model)}: policy ASTs must be serializable data.`,
+        );
+      }
       return Object.freeze({
-        by: deepFreeze(structuredClone(grant.by)),
+        by: deepFreeze(by),
         fields: Object.freeze([...grant.fields]),
-        ...(grant.when !== undefined ? { when: deepFreeze(structuredClone(grant.when)) } : {}),
+        ...(when !== undefined ? { when: deepFreeze(when) } : {}),
       }) as InterimGrant;
     });
     table.set(
@@ -291,6 +303,13 @@ function checkBetweenBounds(field: string, lo: unknown, hi: unknown): void {
   }
 }
 
+/** Leaf predicates need a non-empty string field path. */
+function checkPredicateField(op: string, field: unknown): void {
+  if (typeof field !== 'string' || field === '') {
+    throw new StateError('validation', `Predicate ${op} needs a non-empty string field path.`);
+  }
+}
+
 /**
  * Eagerly validate predicate operand shapes (no row needed) so malformed
  * queries fail deterministically even when no rows are evaluated. Mirrors the
@@ -313,13 +332,16 @@ export function validatePredicateShape(predicate: QueryPredicate): void {
     case 'lte':
     case 'gt':
     case 'gte':
+      checkPredicateField(predicate.op, predicate.field);
       checkComparisonOperand(predicate.op, predicate.field, predicate.value);
       return;
     case 'between':
+      checkPredicateField(predicate.op, predicate.field);
       checkBetweenBounds(predicate.field, predicate.lo, predicate.hi);
       return;
     case 'is_null':
     case 'not_null':
+      checkPredicateField(predicate.op, predicate.field);
       return;
     default: {
       // Unknown ops are caller errors (StateError), never programmer crashes:
@@ -420,6 +442,7 @@ export function evalPredicateForRow(predicate: QueryPredicate, row: StoredRow): 
     case 'lte':
     case 'gt':
     case 'gte': {
+      checkPredicateField(predicate.op, predicate.field);
       checkComparisonOperand(predicate.op, predicate.field, predicate.value);
       const actual = resolveRowPath(row, predicate.field);
       if (isNullish(actual)) {
@@ -446,6 +469,7 @@ export function evalPredicateForRow(predicate: QueryPredicate, row: StoredRow): 
       break;
     }
     case 'between': {
+      checkPredicateField(predicate.op, predicate.field);
       checkBetweenBounds(predicate.field, predicate.lo, predicate.hi);
       const actual = resolveRowPath(row, predicate.field);
       if (isNullish(actual)) {
@@ -456,8 +480,10 @@ export function evalPredicateForRow(predicate: QueryPredicate, row: StoredRow): 
       return lo !== null && hi !== null && lo >= 0 && hi <= 0;
     }
     case 'is_null':
+      checkPredicateField(predicate.op, predicate.field);
       return isNullish(resolveRowPath(row, predicate.field));
     case 'not_null':
+      checkPredicateField(predicate.op, predicate.field);
       return !isNullish(resolveRowPath(row, predicate.field));
     default: {
       const op = (predicate as QueryPredicate).op;

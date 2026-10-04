@@ -220,4 +220,18 @@ describe('scope', () => {
     );
     assert.equal(failure.code, 'validation');
   });
+
+  it('a non-string where field is validation on both authorities, not a crash', async () => {
+    const s = await setup();
+    await seedRows(s.store, MODEL, [{ id: 'rec-1', data: { title: 'A' } }]);
+    const bad = { op: 'eq' as const, field: 5 as unknown as string, value: 'A' };
+    const viewerFailure = await captureStateError(
+      queryRecords(viewerInput({ ...s.call, caller: s.std.alice, where: bad })),
+    );
+    assert.equal(viewerFailure.code, 'validation');
+    const ownerFailure = await captureStateError(
+      queryRecords(ownerInput({ ...s.call, caller: s.std.owner, where: bad })),
+    );
+    assert.equal(ownerFailure.code, 'validation');
+  });
 });
