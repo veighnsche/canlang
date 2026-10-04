@@ -19,6 +19,16 @@ describe("diffReportValues", () => {
     ]);
   });
 
+  it("never equates a missing key with an explicit null", () => {
+    expect(diffReportValues("o", { a: null }, {})).toEqual([
+      { observation: "o.a", expected: null, actual: null },
+    ]);
+    expect(diffReportValues("o", {}, { a: null })).toEqual([
+      { observation: "o.a", expected: null, actual: null },
+    ]);
+    expect(diffReportValues("o", { a: null }, { a: null })).toEqual([]);
+  });
+
   it("flags type changes as one mismatch at the path", () => {
     expect(diffReportValues("t", "1", 1)).toEqual([{ observation: "t", expected: "1", actual: 1 }]);
     expect(diffReportValues("t", [1], { "0": 1 })).toEqual([

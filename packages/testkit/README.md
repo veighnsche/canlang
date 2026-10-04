@@ -12,7 +12,7 @@ that a future lane-1 artifact loader will build from emitted test modules
 Core §5.1 rules enforced structurally:
 
 - A `setup` throw is `setup-failed`, even when the row expects `error(code)`.
-- Only an exact business error code plus a byte-identical state snapshot
+- Only an exact business error code plus a deep-equal state snapshot
   satisfies an expected rejection.
 - Unexpected throws and observation mismatches are `failed`, never passes.
 - `unsupported` paths report `unsupported`, never pass or fail.

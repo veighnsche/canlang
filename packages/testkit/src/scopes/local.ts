@@ -48,7 +48,9 @@ async function snapshotD1(dev: LocalDev, binding: string): Promise<ReportValue> 
     .all<{ name: string }>();
   const snapshot: Record<string, ReportValue> = {};
   for (const table of tables.results) {
-    const rows = await db.prepare(`SELECT * FROM "${table.name}" ORDER BY rowid`).all();
+    const quoted = `"${table.name.replace(/"/g, '""')}"`;
+    // WITHOUT ROWID tables fail ORDER BY rowid loudly; no silent fallback.
+    const rows = await db.prepare(`SELECT * FROM ${quoted} ORDER BY rowid`).all();
     snapshot[table.name] = toReportValue(rows.results);
   }
   return snapshot;
@@ -56,8 +58,10 @@ async function snapshotD1(dev: LocalDev, binding: string): Promise<ReportValue> 
 
 /**
  * Default row scope: one fresh local workerd instance (own D1 namespace via
- * `d1Id`) per row. Snapshots dump every table's full contents ordered by
- * `rowid`, so any leaked write fails an expected rejection.
+ * `d1Id`) per row. Snapshots dump every D1 table's full contents ordered by
+ * `rowid`, so any leaked D1-table write fails an expected rejection. Other
+ * bindings (R2/queues/DO) are isolated by the fresh instance but not
+ * snapshotted; leak detection for those joins with their fixtures.
  */
 export async function createLocalRowScope(
   d1Id: string,

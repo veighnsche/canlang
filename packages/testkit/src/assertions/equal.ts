@@ -43,6 +43,17 @@ function compareAtPath(
   if (isRecord(expected) && isRecord(actual)) {
     const keys = new Set([...Object.keys(expected), ...Object.keys(actual)]);
     for (const key of [...keys].sort()) {
+      // Presence is significant: a missing key never equals an explicit null.
+      // (The `?? null` below only satisfies the index signature; when the
+      // key is present the value is never undefined.)
+      if (!(key in expected) || !(key in actual)) {
+        mismatches.push({
+          observation: `${path}.${key}`,
+          expected: key in expected ? (expected[key] ?? null) : null,
+          actual: key in actual ? (actual[key] ?? null) : null,
+        });
+        continue;
+      }
       compareAtPath(`${path}.${key}`, expected[key] ?? null, actual[key] ?? null, mismatches);
     }
     return;

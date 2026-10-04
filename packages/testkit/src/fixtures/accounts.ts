@@ -23,6 +23,9 @@ export function provisionRowAccounts(
 ): RowAccounts {
   const users: Record<string, { account: string; roles: readonly string[] }> = {};
   for (const fixture of userFixtures) {
+    if (fixture.name in users) {
+      throw new Error(`duplicate user fixture name: ${fixture.name}`);
+    }
     users[fixture.name] = {
       account: `row-${rowIndex}-user-${fixture.name}`,
       roles: [...fixture.roles],
@@ -77,12 +80,9 @@ export function resolveCaller(selection: CallerSelection, accounts: RowAccounts)
       if (user === undefined) {
         throw new Error(`unknown user fixture caller: ${selection.fixture}`);
       }
-      return {
-        account: user.account,
-        team: "current",
-        roles: [...user.roles],
-        authenticated: true,
-      };
+      // DESIGN §5.1: omission or [] grants ordinary membership; membership is implicit.
+      const roles = user.roles.length === 0 ? ["members"] : [...user.roles];
+      return { account: user.account, team: "current", roles, authenticated: true };
     }
   }
 }

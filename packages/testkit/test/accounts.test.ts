@@ -50,4 +50,17 @@ describe("row accounts", () => {
       /at least one non-empty role/,
     );
   });
+
+  it("grants role-less fixtures ordinary membership and rejects duplicate names", () => {
+    const accounts = provisionRowAccounts(0, [{ name: "plain", roles: [] }]);
+    expect(resolveCaller({ kind: "fixture", fixture: "plain" }, accounts).roles).toEqual([
+      "members",
+    ]);
+    expect(() =>
+      provisionRowAccounts(0, [
+        { name: "dup", roles: [] },
+        { name: "dup", roles: ["owner"] },
+      ]),
+    ).toThrow(/duplicate user fixture name/);
+  });
 });

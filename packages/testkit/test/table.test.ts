@@ -142,6 +142,31 @@ describe("runTable classification", () => {
     expect(result.rows[0]?.outcome).toBe("unsupported");
   });
 
+  it("fails loudly on disposal failure and duplicate row indexes", async () => {
+    class BadDispose extends MemoryScope {
+      override async dispose(): Promise<void> {
+        throw new Error("cannot release");
+      }
+    }
+    const result = await runTable({
+      operation: "Todo.update",
+      createScope: async () => new BadDispose(),
+      rows: [row({ rowIndex: 0 })],
+    });
+    expect(result.rows[0]?.outcome).toBe("failed");
+    expect(result.rows[0]?.detail).toContain("isolation unproven");
+    expect(result.rows[0]?.detail).toContain("row had passed");
+    expect(result.rows[0]?.caller.account).not.toBe("unknown");
+
+    await expect(
+      runTable({
+        operation: "Todo.update",
+        createScope: async () => new MemoryScope(),
+        rows: [row({ rowIndex: 0 }), row({ rowIndex: 0 })],
+      }),
+    ).rejects.toThrow(/duplicate rowIndex 0/);
+  });
+
   it("creates and disposes one scope per row", async () => {
     const scopes: MemoryScope[] = [];
     await runTable({
