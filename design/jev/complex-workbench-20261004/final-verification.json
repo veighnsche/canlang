@@ -1,0 +1,65 @@
+{
+  "scope": "Syntax and static descriptor checks only. Projection excludes unsupported constructs and is not a semantic or BDD test.",
+  "checks": [
+    {
+      "command": [
+        "node",
+        "--check",
+        "draft/CanWorkbench.mjs"
+      ],
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "python3",
+        "tools/can_parser.py",
+        "draft/CanWorkbench.can"
+      ],
+      "exit": 1,
+      "output": "draft/CanWorkbench.can:15:72: syntax: type permits one array suffix followed by one nullable suffix"
+    },
+    {
+      "command": [
+        "python3",
+        "tools/can_parser.py",
+        "/tmp/CanWorkbench-final-review-projection.can"
+      ],
+      "exit": 0,
+      "output": "Parsed 1 .can files (syntax only)."
+    }
+  ],
+  "inventory": {
+    "app": "CanWorkbench",
+    "models": 2,
+    "userOperations": 6,
+    "trustedHandlers": 1,
+    "fixtures": 8,
+    "tables": 7,
+    "rows": 14,
+    "sequences": 7,
+    "resolvedReferences": 20
+  },
+  "projection_exclusions": [
+    "line 15: invocation type/constructor projected to text",
+    "line 19: delivery type projected to text",
+    "line 37: invocation type/constructor projected to text",
+    "line 38: invocation type/constructor projected to text",
+    "line 39: invocation type/constructor projected to text",
+    "line 40: invocation type/constructor projected to text",
+    "lines 83-89: omit unsupported sequence",
+    "line 99: invocation type/constructor projected to text",
+    "lines 121-125: omit unsupported sequence",
+    "lines 126-130: omit unsupported sequence",
+    "lines 131-136: omit unsupported sequence",
+    "lines 137-140: omit unsupported sequence",
+    "lines 155-159: omit unsupported sequence",
+    "lines 160-167: omit unsupported sequence",
+    "line 170: omit unsupported page poll"
+  ],
+  "sha256": {
+    "draft/CanWorkbench.can": "0593e9e0c628f68aaec48a8acda1794de19f9a0a31433707a06720817f041281",
+    "draft/CanWorkbench.mjs": "fb5ec8dce270768fb5e984e7e5f0d49e00d1629ed0bed98de626eb18c9767401",
+    "draft/CanWorkbench.md": "055c84788766058d4d17678a0779de1dcbbd541141bde6cfb584c09dffef8220"
+  }
+}

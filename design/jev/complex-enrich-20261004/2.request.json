@@ -1,0 +1,13 @@
+{
+  "state": "We are designing a company-owned tool to supplement three registry facts on known customer organizations: legal name, official office address and registry status. Customer identity and billing details have separate owners. Two configured sources return typed evidence, including provenance. The company chooses a seven-day successful-result reuse window, four-request UTC daily ceiling, a consented second-provider fallback after verified missing data, and separate human acceptance per field guarded by the previous accepted decision. Ambiguous requests cannot silently trigger another cost. The language already supplies records, immutable locks, atomic operations, permission checks, typed interfaces and associated delivery evidence. No implementation is being assessed; new syntax is permitted when justified. One design writes this policy using the existing mechanisms plus a common Fact value. Another introduces a declarative enrichment primitive that owns the generic sequencing, retained results and acceptance mechanics while exposing all the same company choices. Existing constructs reduce semantic expansion and make policy inspectable, at risk of repetitive workflows. The primitive reduces repeated source at the price of more universal configuration and lifecycle semantics.",
+  "questions": {
+    "boundary": {
+      "type": "choice",
+      "instructions": "For this bounded workflow, which of these two complete expression strategies better balances author effort and a coherent shared language contract?",
+      "criteria": {
+        "ordinary": "Use existing typed values, receipts and records; retain enrichment policy in the app.",
+        "enrichment": "Add a reusable enrichment declaration for cache, provider sequence, provenance and reviewed fact acceptance."
+      }
+    }
+  }
+}

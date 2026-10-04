@@ -57,7 +57,7 @@ package todo
   crud Template by=task_manager fields=name,location when=staff(actor) and (row.location==null or can_work(actor,row.location))
   crud TemplateTask by=task_manager fields=title,offset,priority when=staff(actor) and (row.parent.location==null or can_work(actor,row.parent.location)) delete=remove
   # Complete an ordinary task with actor and time. @{nl="Rond een gewone taak af met uitvoerder en tijd."}
-  scenario complete(task:Task) by=members
+  export scenario complete(task:Task) by=members
    require staff(actor) and (task.location==null or can_work(actor,task.location)) and not task.done
    do set task {done=true,completed_by=actor,completed_at=now}
    examples seed=[test_worker] task=open_task

@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Consider a proposed company work assistant whose allowed effects come from existing canonical task operations. Task.update is enabled only for members satisfying the owner's staff/location tests; complete(task) additionally needs an unfinished task. Their schemas are already derivable. Today's finite action reference protects record bindings and versions but intentionally omits nonrecord input values; no model-text conversion exists. Available mechanisms include typed remote completion, protected delivery associations, locked records, permission-filtered reads and transactional calls with the actual user identity. Published tool-calling APIs ask the host to handle generated function arguments, and a JSON schema alone cannot authorize them. The desired app takes bounded readable snapshots, asks for a single next change, records the whole proposal, presents exact normalized inputs and waits for its initiating employee's approval. Execution must reject changed source evidence, stale targets and revoked access; errors and interrupted sessions stay reviewable. Turn/token limits and cancellation bound work. Neither prompt text nor generated output may expand the tool list, create execution privileges or address hidden records. Draft syntax can change. The comparison has identical outcomes and no empirical size/performance data.",
+    "questions": {
+      "representation": {
+        "type": "choice",
+        "instructions": "Which design should represent and execute an approved proposed change in this setting?",
+        "criteria": {
+          "explicit": "Reuse ordinary contracts and static effects: one proposal variant repeats each chosen input schema and version evidence, while approval selects the matching hard-coded owner call. Its behavior uses established primitives with local reviewable branches. Tool evolution entails updating those parallel definitions and checking their correspondence.",
+          "invocation": "Define an operation-derived full invocation value over a closed target list. All arguments are frozen after canonical normalization, record identities carry expected versions, and model returns cannot introduce references absent from the authorized request. The normal call effect handles the value after app-owned approval and fresh access checks. It removes parallel input/dispatch definitions but adds a carefully specified typed value, provenance boundary and complete preview semantics.",
+          "toolset": "Provide a finite toolset declaration generating the model-planning protocol, result variants and durable context/proposal/confirmation linkage. The owning app declares its bounds and approval decisions, with every execution still checked as the real caller. This offers a larger shared reduction in boilerplate and correspondingly more lifecycle, validation and recovery semantics to define and implement."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "representation": {
+        "type": "choice",
+        "choice": "invocation",
+        "confidence": 0.89,
+        "probabilities": {
+          "explicit": 0.03,
+          "toolset": 0.04,
+          "invocation": 0.93
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 762,
+      "output_tokens": 43
+    }
+  }
+}
