@@ -32,6 +32,8 @@ test.describe("scaffold smoke", () => {
   });
 
   test("member sees the seeded witness task", async ({ page, bridge }) => {
+    // "can_session" must match SESSION_COOKIE in the worker's auth
+    // module — update both together if the cookie name ever changes.
     await page.context().addCookies([
       { name: "can_session", value: sessionToken, url: bridge.url },
     ]);
