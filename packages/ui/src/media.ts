@@ -23,6 +23,10 @@
  */
 
 import type {
+  AppearanceOrientation,
+  AppearanceSize,
+  AppearanceTone,
+  AppearanceVariant,
   AvatarProps,
   MessageValue,
   PresentationContext,
@@ -30,7 +34,7 @@ import type {
   RadialProgressProps,
   TextRotateProps,
 } from "../../contracts/src/presentation.js";
-import { appearanceClasses } from "./appearance.js";
+import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 import { message, resolveCaption } from "./messages.js";
 
@@ -51,6 +55,34 @@ function captionOf(context: PresentationContext, value: MessageValue): string {
 }
 
 /**
+ * Collect every appearance key present at runtime (including undeclared
+ * extras from JS callers) so appearanceClasses() judges them against the
+ * word's admitted matrix: unadmitted tokens throw, never silently drop.
+ */
+function pickAppearance(props: object): AppearanceOpts {
+  const record = props as Record<string, unknown>;
+  const opts: {
+    tone?: AppearanceTone;
+    size?: AppearanceSize;
+    variant?: AppearanceVariant;
+    orientation?: AppearanceOrientation;
+  } = {};
+  if (record["tone"] !== undefined) {
+    opts.tone = record["tone"] as AppearanceTone;
+  }
+  if (record["size"] !== undefined) {
+    opts.size = record["size"] as AppearanceSize;
+  }
+  if (record["variant"] !== undefined) {
+    opts.variant = record["variant"] as AppearanceVariant;
+  }
+  if (record["orientation"] !== undefined) {
+    opts.orientation = record["orientation"] as AppearanceOrientation;
+  }
+  return opts;
+}
+
+/**
  * `avatar`: authorized image or explicit safe fallback. An <img> renders only
  * when image is a non-empty string whose safeHref is not the "#" fallback;
  * null/absent/empty/hostile images render the placeholder with the explicit
@@ -59,19 +91,19 @@ function captionOf(context: PresentationContext, value: MessageValue): string {
  * are escaped plain text, never HTML or URLs.
  */
 export async function avatar(props: AvatarProps): Promise<string> {
-  const extra = appearanceClasses("avatar", "avatar", {});
+  const extra = appearanceClasses("avatar", "avatar", pickAppearance(props));
   const outer = extra === "" ? "avatar" : `avatar ${extra}`;
+  const name =
+    props.caption !== undefined
+      ? captionOf(props.context, props.caption)
+      : props.fallback !== undefined
+        ? captionOf(props.context, props.fallback)
+        : captionOf(props.context, UNAVAILABLE_IMAGE);
   const image = props.image;
   const useImage = typeof image === "string" && image !== "" && safeHref(image) !== "#";
   if (useImage) {
-    const name =
-      props.caption !== undefined
-        ? captionOf(props.context, props.caption)
-        : props.fallback !== undefined
-          ? captionOf(props.context, props.fallback)
-          : captionOf(props.context, UNAVAILABLE_IMAGE);
     return (
-      `<div class="${outer}"><div class="w-12 rounded-full">` +
+      `<div class="${escapeAttr(outer)}"><div class="w-12 rounded-full">` +
       `<img src="${escapeAttr(safeHref(image as string))}" alt="${escapeAttr(name)}">` +
       `</div></div>`
     );
@@ -80,7 +112,7 @@ export async function avatar(props: AvatarProps): Promise<string> {
     props.fallback !== undefined ? captionOf(props.context, props.fallback) : PLACEHOLDER_GLYPH;
   const placeholderOuter = extra === "" ? "avatar avatar-placeholder" : `${outer} avatar-placeholder`;
   return (
-    `<div class="${placeholderOuter}"><div class="w-12 rounded-full">` +
+    `<div class="${escapeAttr(placeholderOuter)}" aria-label="${escapeAttr(name)}"><div class="w-12 rounded-full">` +
     `<span>${escapeHtml(text)}</span>` +
     `</div></div>`
   );
@@ -126,15 +158,11 @@ export async function progress(props: ProgressProps): Promise<string> {
   if (!isValidValue(props.value, props.max)) {
     return invalidProgress(props.context, props.caption);
   }
-  const extra = appearanceClasses(
-    "progress",
-    "progress",
-    props.tone === undefined ? {} : { tone: props.tone },
-  );
+  const extra = appearanceClasses("progress", "progress", pickAppearance(props));
   const classes = extra === "" ? "progress" : `progress ${extra}`;
   const percent = percentText(props.value, props.max);
   return (
-    `<progress class="${classes}" value="${escapeAttr(String(props.value))}" ` +
+    `<progress class="${escapeAttr(classes)}" value="${escapeAttr(String(props.value))}" ` +
     `max="${escapeAttr(String(props.max))}">${escapeHtml(percent)}%</progress>`
   );
 }
@@ -149,7 +177,7 @@ export async function radialProgress(props: RadialProgressProps): Promise<string
   if (!isValidValue(props.value, props.max)) {
     return invalidProgress(props.context, props.caption);
   }
-  const extra = appearanceClasses("radial_progress", "radial-progress", {});
+  const extra = appearanceClasses("radial_progress", "radial-progress", pickAppearance(props));
   const classes = extra === "" ? "radial-progress" : `radial-progress ${extra}`;
   const percent = percentText(props.value, props.max);
   const label =
@@ -157,7 +185,7 @@ export async function radialProgress(props: RadialProgressProps): Promise<string
       ? captionOf(props.context, props.caption)
       : captionOf(props.context, PROGRESS_LABEL);
   return (
-    `<div class="${classes}" style="--value:${escapeAttr(percent)}; --size:3rem;" ` +
+    `<div class="${escapeAttr(classes)}" style="--value:${escapeAttr(percent)}; --size:3rem;" ` +
     `role="progressbar" aria-valuenow="${escapeAttr(String(props.value))}" aria-valuemin="0" ` +
     `aria-valuemax="${escapeAttr(String(props.max))}" aria-label="${escapeAttr(label)}">` +
     `${escapeHtml(percent)}%</div>`
@@ -176,10 +204,10 @@ export async function textRotate(props: TextRotateProps): Promise<string> {
       `text_rotate needs ${TEXT_ROTATE_MIN_ITEMS}..${TEXT_ROTATE_MAX_ITEMS} items, got ${props.items.length}`,
     );
   }
-  const extra = appearanceClasses("text_rotate", "text-rotate", {});
+  const extra = appearanceClasses("text_rotate", "text-rotate", pickAppearance(props));
   const classes = extra === "" ? "text-rotate" : `text-rotate ${extra}`;
   const items = props.items
     .map((item) => `<span>${escapeHtml(captionOf(props.context, item))}</span>`)
     .join("");
-  return `<span class="${classes}"><span>${items}</span></span>`;
+  return `<span class="${escapeAttr(classes)}"><span>${items}</span></span>`;
 }

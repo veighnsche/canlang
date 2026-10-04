@@ -179,6 +179,15 @@ describe("status", () => {
     assert.ok(html.includes("Online"), html);
   });
 
+  it("renders nullish values as an empty unnamed state", async () => {
+    for (const value of [null, undefined] as const) {
+      const html = await status({ context: makeContext(), value });
+      assert.ok(html.includes(`aria-label=""`), html);
+      assert.ok(!html.includes("null"), html);
+      assert.ok(!html.includes("undefined"), html);
+    }
+  });
+
   it("maps every admitted tone and size", async () => {
     for (const tone of ALL_TONES) {
       const html = await status({ context: makeContext(), value: "v", tone });
@@ -358,6 +367,16 @@ describe("countdown", () => {
     for (const value of [Number.NaN, Number.POSITIVE_INFINITY, -1, -0.5]) {
       await assert.rejects(
         countdown({ context: makeContext(), value }),
+        /finite number >= 0/,
+        String(value),
+      );
+    }
+  });
+
+  it("rejects non-number values", async () => {
+    for (const value of ["5", null, undefined, {}, true] as const) {
+      await assert.rejects(
+        countdown({ context: makeContext(), value: value as never }),
         /finite number >= 0/,
         String(value),
       );

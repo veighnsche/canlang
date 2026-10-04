@@ -124,6 +124,27 @@ describe("avatar", () => {
     }
   });
 
+  it("labels the placeholder with caption, fallback or the shared label", async () => {
+    const captioned = await avatar({ context: makeContext(), caption: "Ada" });
+    const fallback = await avatar({ context: makeContext(), fallback: "AL" });
+    const bare = await avatar({ context: makeContext() });
+    for (const [html, expected] of [
+      [captioned, "Ada"],
+      [fallback, "AL"],
+      [bare, "Image unavailable"],
+    ] as const) {
+      const page = await loadHtml(html);
+      try {
+        assert.equal(
+          page.document.querySelector(".avatar-placeholder")?.getAttribute("aria-label"),
+          expected,
+        );
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
   it("renders the placeholder for empty and hostile image URLs", async () => {
     for (const image of ["", "javascript:alert(1)", "JaVaScRiPt:alert(1)", "data:text/html,<p>x</p>"]) {
       const html = await avatar({ context: makeContext(), image, fallback: "AL" });
@@ -237,6 +258,36 @@ describe("progress", () => {
         `max ${max} must throw`,
       );
     }
+  });
+
+  it("throws when both max and value are invalid (max wins)", async () => {
+    await assert.rejects(
+      progress({ context: makeContext(), value: Number.NaN, max: 0 }),
+      RangeError,
+    );
+    await assert.rejects(
+      radialProgress({ context: makeContext(), value: -5, max: Number.NaN }),
+      RangeError,
+    );
+  });
+
+  it("rejects undeclared runtime appearance extras instead of dropping them", async () => {
+    await assert.rejects(
+      avatar({ context: makeContext(), tone: "x" } as never),
+      /does not admit|admits no appearance/,
+    );
+    await assert.rejects(
+      progress({ context: makeContext(), value: 1, max: 2, size: "xs" } as never),
+      /does not admit/,
+    );
+    await assert.rejects(
+      radialProgress({ context: makeContext(), value: 1, max: 2, tone: "primary" } as never),
+      /does not admit/,
+    );
+    await assert.rejects(
+      textRotate({ context: makeContext(), items: ["a"], size: "lg" } as never),
+      /admits no appearance/,
+    );
   });
 
   it("keeps value/max unrounded in exact decimal text", async () => {
