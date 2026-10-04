@@ -82,6 +82,41 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
+## Slice 19: full replans Decide/Discover/Enrich (branch muse/frontend-catalog-migration/slice-19-n1b-decide-discover-enrich, in progress)
+
+Paths: draft/Can{Decide,Discover,Enrich} (.can+.md+.mjs) + this status
+file. Source: lane-N1 drafter output under /tmp/draftN1, applied +
+corrected by coordinator. Coordinator corrections: Enrich
+Company.create gains select customer (REQUIRED create param,
+create_fields=customer,number; Rent select-customer precedent; the
+draft's "no directory grant" ## overread line 9 — labels
+resolve/hide per composed grants, and the create when= already reads
+row.customer.*). User-typed refs stay generated (Chat/Creative
+account ##); Customer refs get select. Mirrored in witness (.mjs op
+contract already listed both fields). Kept after verification: Decide
+Case.create == create_fields exactly; edit fields=active + checkbox
+(update param, legal); stat on bounded int counters (Rent stat
+precedent); status x2 on DeliveryResult.status? derives; decide choice
+generated (options=runtime, L14) + reason textarea; diff wraps base
+generated/state leaves; all bare actions row-only (generate/stop/
+evaluate). Discover Plan.create == create_fields exactly; configure 9
+params complete; deadline datetime->input; quotes array ##; badge on
+own-enum SourcePass.state; table->timeline for ordinal Evidence (all
+children preserved); promote stays base bare form, complete.
+Enrich zero badges kept (field/provider are kind discriminators, Rent
+kind precedent — no status badge); preferences toggle enabled added
+(base referenced preferences.enabled undeclared; Member inline-toggle
+precedent); text count() kept (base L175); diff wraps base result
+leaves; fallback modal + refresh/fallback/start checkboxes complete.
+Given/When byte-identical (cmp-verified). node --check clean.
+Census: 14 collections w/ empty+pagination (Decide 3, Discover 7,
+Enrich 4; timeline correctly unpaginated); 3 pages w/ breadcrumbs;
+1 modal w/ button/inline. Drift: TBD E1200 (no E1204). Prototype
+stops byte-identical (pre-existing Given gaps). Handoff: (a) array
+control (choices/quotes); (b) user refs generated; (c) runtime-option
+choice + row-scoped lookup/prior pickers; (d) timeline/diff/steps/
+stat/divider renderers.
+
 ## Slice 18: create-form allowlist fixup (branch muse/frontend-catalog-migration/slice-18-create-allowlist-fixup, in progress)
 
 Paths: draft/CanRent + draft/CanMember (.can+.md/.mjs) + this status

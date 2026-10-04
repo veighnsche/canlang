@@ -168,16 +168,43 @@ package enrich label="Company enrichment"@{nl="Bedrijfsverrijking"}
   # Compare evidence, usage and prior decisions before accepting individual facts. @{nl="Vergelijk bewijs, gebruik en eerdere beslissingen voordat u afzonderlijke gegevens accepteert."}
   page /enrichment title="Company enrichment"@{nl="Bedrijfsverrijking"} poll=5s
    require researcher or reviewer
+   breadcrumbs
+   ## Inline view of the same shared-dialog extension; the company filter reads it.
+   preferences
+    toggle enabled
    form Company.create
-   table Company as company where company.enabled==preferences.enabled columns=customer,number,enabled
+    select customer
+    input number
+   table Company as company where company.enabled==preferences.enabled columns=customer,number,enabled empty="No linked companies"@{nl="Geen gekoppelde bedrijven"}
+    pagination
     edit fields=enabled
+     checkbox enabled
     form start arguments={company}
+     checkbox refresh
+     checkbox fallback
     details "Research and accepted facts"@{nl="Onderzoek en geaccepteerde gegevens"} display=drawer
      text count(company.Lookup as lookup where local_date(lookup.created,"UTC")==local_date(now,"UTC"))
-     table company.Run as run columns=created,requested_by,primary.request.status,fallback.request.status,allow_fallback,stopped
-      actions fallback,stop
-      text run.primary?.request?.result,run.fallback?.request?.result
+     table company.Run as run columns=created,requested_by,primary.request.status,fallback.request.status,allow_fallback,stopped empty="No enrichment reviews"@{nl="Geen verrijkingsbeoordelingen"}
+      pagination
+      action stop
+      button opens=fallback_dialog
+      modal "Consult secondary source"@{nl="Tweede bron raadplegen"} id=fallback_dialog
+       slot content
+        form fallback arguments={run} display=inline
+         checkbox refresh
+      ## Primary and secondary reports side by side; selection stays human work.
+      diff
+       slot before
+        text run.primary?.request?.result
+       slot after
+        text run.fallback?.request?.result
       form accept arguments={run}
-     table company.AcceptedFact columns=field,ordinal,value,lookup.provider,prior,reviewer,reason,created
-     table company.Lookup columns=provider,created,request.status,request.result,request.error
+       ## lookup and prior keep their generated controls: only this run's lookups and the current prior are admissible.
+       radio field
+       textarea reason
+     table company.AcceptedFact columns=field,ordinal,value,lookup.provider,prior,reviewer,reason,created empty="No accepted facts"@{nl="Geen geaccepteerde gegevens"}
+      pagination
+     divider "Provider receipts"@{nl="Externe bronbewijzen"}
+     table company.Lookup columns=provider,created,request.status,request.result,request.error empty="No provider evidence"@{nl="Geen extern bronbewijs"}
+      pagination
      history
