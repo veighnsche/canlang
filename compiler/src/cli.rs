@@ -12,12 +12,15 @@
 //! `lsp` returns [`DispatchResult::run_lsp`] for [`run`] to serve and
 //! `run|test|build|deploy` spawn the lane-7 producer as a side effect.
 //!
-//! Analysis status (PR5): `check`/`lint`/`compile` load sources and run
-//! the [`Analyzer`] hook, whose default implementation is [`CatalogAnalyzer`]
+//! Analysis status (PR6): `check`/`lint` load sources and run the
+//! [`Analyzer`] hook, whose default implementation is [`CatalogAnalyzer`]
 //! (full pipeline over the producer catalog, `complete=true` via the
-//! [`check::readiness`] gate). [`StubAnalyzer`] remains as the
-//! deterministic empty backend behind the [`dispatch_with`] test seam;
-//! this module never fabricates diagnostics to look busy.
+//! [`check::readiness`] gate). `compile` additionally runs the
+//! `codegen` emitter over the checked program and prints the artifact.
+//! [`StubAnalyzer`] remains as the deterministic empty backend behind
+//! the [`dispatch_with`] test seam (diagnostics only: it keeps no
+//! checked program, so `compile` under it reports `E7001`); this module
+//! never fabricates diagnostics to look busy.
 
 use crate::analysis::catalog::{CATALOG_ENV_VAR, CatalogRequest, load_catalog};
 use crate::diagnostic::DiagnosticResult;
@@ -76,6 +79,29 @@ impl DispatchResult {
 pub trait Analyzer {
     /// Analyze every source in `db`, recording all consulted sources.
     fn analyze(&self, db: &SourceDb, tool_version: &str) -> DiagnosticResult;
+
+    /// Analyze and keep the program and catalog for `can compile`. The
+    /// default impl degrades to [`Analyzer::analyze`] with no program:
+    /// backends without a pipeline ([`StubAnalyzer`]) cannot compile.
+    fn analyze_owned(&self, db: &SourceDb, tool_version: &str) -> OwnedAnalysis {
+        OwnedAnalysis {
+            program: None,
+            catalog: None,
+            result: self.analyze(db, tool_version),
+        }
+    }
+}
+
+/// Full compile inputs for `can compile`: the checked program and the
+/// loaded catalog alongside the analysis diagnostics.
+pub struct OwnedAnalysis {
+    /// Checked program (`None` when the backend has no pipeline).
+    pub program: Option<crate::analysis::CheckedProgram>,
+    /// Loaded producer catalog (`None` when the load failed or the
+    /// backend has no pipeline).
+    pub catalog: Option<crate::analysis::catalog::Catalog>,
+    /// Analysis diagnostics (completeness gate included).
+    pub result: DiagnosticResult,
 }
 
 /// Deterministic empty backend: empty *complete* result, never fake
@@ -137,6 +163,10 @@ impl CatalogAnalyzer {
 
 impl Analyzer for CatalogAnalyzer {
     fn analyze(&self, db: &SourceDb, tool_version: &str) -> DiagnosticResult {
+        self.analyze_owned(db, tool_version).result
+    }
+
+    fn analyze_owned(&self, db: &SourceDb, tool_version: &str) -> OwnedAnalysis {
         let mut result =
             DiagnosticResult::new(tool_version, crate::LANGUAGE_VERSION, crate::SCHEMA_VERSION);
         result.add_sources(db);
@@ -154,7 +184,7 @@ impl Analyzer for CatalogAnalyzer {
         for diagnostic in load_diags {
             result.push(diagnostic);
         }
-        let (_program, diags) = crate::analysis::check_program(db, &files, catalog.as_ref());
+        let (program, diags) = crate::analysis::check_program(db, &files, catalog.as_ref());
         for diagnostic in diags {
             result.push(diagnostic);
         }
@@ -166,7 +196,11 @@ impl Analyzer for CatalogAnalyzer {
             result.push(diagnostic);
         }
         result.finish();
-        result
+        OwnedAnalysis {
+            program: Some(program),
+            catalog,
+            result,
+        }
     }
 }
 
@@ -242,9 +276,8 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
         return DispatchResult::ok_stdout(global_help());
     };
     match cmd.as_str() {
-        "check" | "lint" | "compile" => {
-            run_check_like(cmd, &parsed.operands, parsed.format, analyzer)
-        }
+        "check" | "lint" => run_check_like(cmd, &parsed.operands, parsed.format, analyzer),
+        "compile" => run_compile(&parsed.operands, parsed.format, analyzer),
         "fmt" => {
             if parsed.format_set {
                 return DispatchResult::tool_error(
@@ -450,7 +483,7 @@ Usage: can <COMMAND> [OPTIONS] [ARGS...]
        can --version
 
 Commands:
-  compile   Check sources (artifact emission lands in slice 4)
+  compile   Analyze sources and emit the compile artifact
   check     Analyze sources and report diagnostics
   lint      Run lint rules over sources (rules land in slice 2b)
   fmt       Check formatting (unimplemented: reports E7005, never false clean)
@@ -476,9 +509,10 @@ Exit codes: 0 clean, 10 errors reported, 2 tool failure.
 
 fn command_help(cmd: &str) -> String {
     match cmd {
-        "check" | "lint" | "compile" => format!(
+        "check" | "lint" => format!(
             "can {cmd} — analyze sources and report diagnostics (full pipeline over the producer catalog; result is complete=true)\n\nUsage: can {cmd} [--format=json|text] [--catalog=PATH] FILE.can...\n\nCatalog order: --catalog PATH, CAN_CATALOG, ./can-catalog.json, ./packages/values/dist/catalog.json (emit it with `npm run catalog` in packages/values). Without a catalog, builtin names do not resolve.\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n"
         ),
+        "compile" => "can compile — analyze sources and emit the compile artifact\n\nUsage: can compile [--format=json|text] [--catalog=PATH] FILE.can...\n\nText lists one emitted module path per line; json prints the artifact envelope. Analysis or emission errors (E6006/E6007/E6008) report diagnostics instead of an artifact.\n\nExit codes: 0 emitted, 10 errors reported, 2 tool failure.\n".to_string(),
         "explain" => "can explain — print a diagnostic catalog entry\n\nUsage: can explain [--format=json|text] CODE\n\nExit codes: 0 printed, 2 unknown code (E7003) or bad usage.\n".to_string(),
         "fmt" => "can fmt — check formatting (slice 2a: unimplemented)\n\nUsage: can fmt [--check] FILE.can...\n\nAlways reports E7005 until the slice-2b formatter lands; never a false clean.\n".to_string(),
         "lsp" => "can lsp — run the language server over stdio\n\nUsage: can lsp\n\nSpeaks Content-Length JSON-RPC; see the transport module docs.\n".to_string(),
@@ -524,6 +558,102 @@ fn run_check_like(
     };
     DispatchResult {
         code,
+        stdout,
+        stderr: String::new(),
+        run_lsp: false,
+    }
+}
+
+/// `can compile`: full analysis, then codegen emission over the checked
+/// program. Operand and input failures follow [`run_check_like`]
+/// (`E7001`/`E7002`, exit 2). Analysis errors exit 10 with diagnostics
+/// and no emission; emission diagnostics (`E6006`/`E6007`/`E6008`, all
+/// error severity) also exit 10 with diagnostics and no artifact.
+/// Success prints the artifact: one emitted module path per line as
+/// text, the artifact envelope as json.
+fn run_compile(
+    operands: &[String],
+    format: OutputFormat,
+    analyzer: &dyn Analyzer,
+) -> DispatchResult {
+    if operands.is_empty() {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can compile expects at least one FILE.can operand".to_string(),
+        );
+    }
+    let mut db = SourceDb::new();
+    for path in operands {
+        let text = match std::fs::read_to_string(path) {
+            Ok(text) => text,
+            Err(err) => {
+                return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
+            }
+        };
+        db.add(path.clone(), text);
+    }
+    let owned = analyzer.analyze_owned(&db, tool_version());
+    let mut result = owned.result;
+    result.finish();
+    if result.has_errors() {
+        return emit_diagnostics(&result, &db, format);
+    }
+    let Some(program) = owned.program else {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can compile needs a pipeline analyzer; this backend keeps no checked program (production dispatch always passes one)".to_string(),
+        );
+    };
+    let sources = crate::codegen::EmitSources {
+        db: &db,
+        result: &result,
+        catalog: owned.catalog.as_ref(),
+        options: crate::codegen::EmitOptions::new(),
+    };
+    let (artifact, emit_diags) = crate::codegen::emit(&program, &sources);
+    for diagnostic in emit_diags {
+        result.push(diagnostic);
+    }
+    result.finish();
+    if result.has_errors() {
+        return emit_diagnostics(&result, &db, format);
+    }
+    let stdout = match format {
+        OutputFormat::Json => format!("{}\n", crate::codegen::to_json_string(&artifact)),
+        OutputFormat::Text => {
+            let mut out = String::new();
+            for module in &artifact.modules {
+                out.push_str(&module.path);
+                out.push('\n');
+            }
+            for test in &artifact.tests {
+                out.push_str(&test.module.path);
+                out.push('\n');
+            }
+            out
+        }
+    };
+    DispatchResult {
+        code: exit::OK,
+        stdout,
+        stderr: String::new(),
+        run_lsp: false,
+    }
+}
+
+/// Render diagnostics with exit 10: shared by the analysis-error and
+/// emission-error paths of [`run_compile`].
+fn emit_diagnostics(
+    result: &DiagnosticResult,
+    db: &SourceDb,
+    format: OutputFormat,
+) -> DispatchResult {
+    let stdout = match format {
+        OutputFormat::Json => format!("{}\n", result.to_json()),
+        OutputFormat::Text => result.to_text(db),
+    };
+    DispatchResult {
+        code: exit::DIAGNOSTICS,
         stdout,
         stderr: String::new(),
         run_lsp: false,

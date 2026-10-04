@@ -1,7 +1,7 @@
 //! Slice-2a authoring tests: CLI dispatch, explain catalog, LSP transport
 //! framing, server version-staleness and thin lane-7 entries.
 
-use canlang_compiler::cli::{self, StubAnalyzer, dispatch, dispatch_with};
+use canlang_compiler::cli::{self, CatalogAnalyzer, StubAnalyzer, dispatch, dispatch_with};
 use canlang_compiler::{exit, lsp};
 use std::io::{BufReader, Read};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -123,7 +123,9 @@ fn cli_every_subcommand_answers_help() {
 fn cli_check_like_commands_emit_envelope_json() {
     let file = TempFile::new("main.can", "app Main\nGiven\nWhen\nThen\n");
     let stub = StubAnalyzer;
-    for cmd in ["check", "lint", "compile"] {
+    // `compile` needs a pipeline analyzer (see cli_compile_* below); the
+    // stub keeps no checked program, so it reports E7001 there.
+    for cmd in ["check", "lint"] {
         let result = dispatch_with(&argv(&[cmd, "--format=json", &file.arg()]), &stub);
         assert_eq!(result.code, exit::OK, "{cmd} should be clean");
         assert!(result.stderr.is_empty());
@@ -151,6 +153,43 @@ fn cli_check_like_commands_emit_envelope_json() {
     let result = dispatch_with(&argv(&["check", &file.arg()]), &stub);
     assert_eq!(result.code, exit::OK);
     assert!(result.stdout.is_empty(), "stub text output is empty");
+}
+
+#[test]
+fn cli_compile_with_stub_reports_e7001() {
+    let file = TempFile::new("main.can", "app Main\nGiven\nWhen\nThen\n");
+    let result = dispatch_with(&argv(&["compile", &file.arg()]), &StubAnalyzer);
+    assert_eq!(result.code, exit::TOOL_FAILURE);
+    assert!(result.stdout.is_empty());
+    assert!(result.stderr.contains("E7001"), "{}", result.stderr);
+}
+
+#[test]
+fn cli_compile_teamtasks_reports_emission_diagnostics() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    let catalog = root.join("packages/values/dist/catalog.json");
+    if !catalog.exists() {
+        eprintln!("SKIP cli_compile_teamtasks: no packages/values/dist/catalog.json");
+        return;
+    }
+    let example = root.join("examples/TeamTasks.can");
+    let analyzer = CatalogAnalyzer::new(Some(catalog), None, root);
+    let result = dispatch_with(
+        &argv(&["compile", "--format=json", &example.to_string_lossy()]),
+        &analyzer,
+    );
+    // TeamTasks checks clean but has unlowerable UI factories: emission
+    // diagnostics, exit 10, no artifact.
+    assert_eq!(result.code, exit::DIAGNOSTICS, "{}", result.stdout);
+    assert!(result.stderr.is_empty());
+    assert!(
+        result.stdout.contains("\"code\":\"E6008\""),
+        "{}",
+        result.stdout
+    );
 }
 
 #[test]

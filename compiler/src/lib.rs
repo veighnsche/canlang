@@ -7,6 +7,7 @@
 
 pub mod analysis;
 pub mod cli;
+pub mod codegen;
 pub mod diagnostic;
 pub mod explain;
 pub mod json;
