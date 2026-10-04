@@ -1,0 +1,58 @@
+{
+  "request": {
+    "state": {
+      "scope": "Assess a general typed-workflow design question. Only a generic scenario and publicly documented API properties follow; there are no private files, real email records, internal architecture details, authentication data or private application names. The topic is unrelated to optional provider dependency closure.",
+      "public_facts": "According to the public TypeSafe references, a batch can mix independently answered binary, categorical and ordered-level judgments. The binary primitive supplies only the chance of yes. The categorical primitive supplies a chosen category, the entire distribution and confidence. The ordered primitive supplies a ranked descriptive legend, probabilities, confidence and the weighted numerical level, including intermediate values. Public Ollama decision documentation offers similar operations with a different range of allowed option counts. Distribution-derived confidence is not a correctness guarantee; provider acceptance is not domain validation. Documentation: https://docs.typesafe.ai/api https://docs.typesafe.ai/primitives/noul https://docs.typesafe.ai/primitives/choice https://docs.typesafe.ai/primitives/score https://docs.ollama.com/capabilities/decision",
+      "design_case": "A prospective concise business language has typed stored models, enum fields, grouped external-interface imports, queued effects with typed outcomes and generated screens. A representative email handler needs one reply-required probability, a four-way departmental suggestion and a three-step urgency rubric. Question wording, category IDs and ordered descriptions should each have one authored definition. Historical runs must keep submitted context/specification, complete results and version identity, with staff correction recorded separately. A queue's category should be able to reuse the same literal type as the judgment. All approaches require strict correlation and validation of responses against frozen requests. No installed-language compatibility must be preserved. New syntax has a compiler/editor cost; avoiding it through generic arrays imposes repeated answer selection and runtime narrowing on app authors.",
+      "privacy_case": "Reading rights differ by department, and moving an email to another queue makes it readable there. Designated intake staff are authorized to approve such moves; a prediction is not itself that approval. The system has no domain-labeled calibration set and no signed-off confidence cutoff for automatic movement. The aim is to make intake easier without concealing uncertainty or presenting an arbitrary cutoff as validated policy. Either policy retains predictions, distributions and a traceable human override."
+    },
+    "questions": {
+      "surface": {
+        "type": "choice",
+        "instructions": "For this concrete class of workflow, which representation offers the strongest overall balance of one-time authoring, categorical type reuse, trustworthy evidence and reasonable implementation effort?",
+        "criteria": {
+          "derived": "Add a small schema-generating question construct: it derives the evaluate signature, result schema, literal categories and immutable specification from the question body, requiring targeted parser and semantic support.",
+          "standard_arrays": "Define standard typed lists for requests and replies using existing notation, with adapter-side exact validation; consuming code still identifies answer entries by text keys and validates or narrows text-valued categories.",
+          "custom_schema": "Write a specialized ordinary service/output contract per application, obtaining precise enums with no syntax extension but duplicating categorical/rubric structure between the request description and response definition."
+        }
+      },
+      "routing": {
+        "type": "choice",
+        "instructions": "Which default should the first release use for moving messages across these reader boundaries, considering both evidence quality and triage workload?",
+        "criteria": {
+          "review_transfer": "Use classification to propose and explain a destination, leaving the actual visibility-changing move to an authorized reviewer; this retains a manual step but supports it with model assistance.",
+          "threshold_transfer": "Let a selected confidence cutoff trigger automatic reassignment to an allowed destination and reserve human review for ambiguous cases; this saves more routine work while accepting a cutoff unsupported by domain evaluation."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "routing": {
+        "type": "choice",
+        "choice": "review_transfer",
+        "confidence": 1.0,
+        "probabilities": {
+          "review_transfer": 1.0,
+          "threshold_transfer": 0.0
+        }
+      },
+      "surface": {
+        "type": "choice",
+        "choice": "derived",
+        "confidence": 0.74,
+        "probabilities": {
+          "custom_schema": 0.16,
+          "standard_arrays": 0.01,
+          "derived": 0.83
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1079,
+      "output_tokens": 71
+    }
+  }
+}

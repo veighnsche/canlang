@@ -1,0 +1,13 @@
+{
+  "state": "We are designing, not executing, a sales-operations app that edits the name, phone number and website of linked existing CRM accounts. External IDs and whether records exist are the external system’s facts. A preparer cannot approve their own proposal; a separate eligible reviewer approves specific values. The reference provider is Salesforce Account, whose documented If-Match PATCH supplies an atomic ETag fence; there is no blanket promise for other entity kinds. Old reads and an uncertain response after a possible commit must be handled. Observing matching fields later cannot identify which request wrote them. Can already specifies company records, current permission checks, immutable snapshots, atomic owner changes, typed queued integrations/receipts and keyed due work, but its execution platform is unimplemented. Shared adapters should remove repetitive mechanics while the application clearly states its company decisions. Compare whole: record the three-field desired projection plus revision and require fresh reading, a replacement proposal and approval on every revision mismatch, including unrelated changes. Compare fields: freeze which fields changed and their approved values against the old snapshot, then permit bounded conditional rebasing after reread only where those fields do not overlap remote edits; preserve other remote fields and require approval when fields do conflict. In both, retain ambiguous earlier attempts, cap recovery, reauthorize dispatch and never substitute a non-atomic preflight for conditional writing. Whole lowers semantic branching but increases review interruption; fields avoids some interruption and carries more merge/consent/retry/evidence specification. Evaluate neither as inherently safer or already implemented.",
+  "questions": {
+    "conflict_policy": {
+      "type": "choice",
+      "instructions": "Choose the initial policy on combined company adoption, source economy, preservation of the exact approval and legible uncertain/conflicting outcomes.",
+      "criteria": {
+        "whole": "Use one frozen complete proposal; each stale provider revision returns through a newly read and newly approved proposal.",
+        "fields": "Use the fixed approved field changes; automatically incorporate only nonoverlapping external edits with a fresh conditional fence, leaving overlapping conflicts for another review."
+      }
+    }
+  }
+}

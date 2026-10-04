@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "A proposed business-language application repeatedly monitors two declared public opportunity sources. One verified API offers query-bound iteration tokens; another documents offset-style result metadata but does not establish a frozen snapshot. Each source must expose exhausted traversal, cap-limited work, failure and uncertain coverage distinctly; unavailable is not an empty result. Retrieved bounded documents need stable source identities, content revisions, citations and original deadline/timezone evidence. Typed AI extraction and a separate company-criteria ranking remain suggestions. A human reviews one evidence revision and invokes the canonical CRM owner under current permissions; source text cannot choose tools or grant approval. Existing language supports typed asynchronous capability sends, completion handlers, associated delivery observations, ordinary records/locks/queries and keyed schedules. Loops reject excess rather than truncate. No general resumable sequence construct exists, but the unimplemented draft may be improved. The workflow must persist per-source continuation, avoid repeating accepted paid work, reserve an explicit spend bound, stop dispatch after cancellation, retain late results and recover unknown outcomes without silently creating another attempt. Recurring configuration changes apply to new runs; old runs retain their frozen settings. Compare equal evidence, authorization, partial coverage and cost outcomes. No runtime cost or token benchmark is available.",
+    "questions": {
+      "orchestration": {
+        "type": "choice",
+        "instructions": "Which orchestration boundary best serves this bounded workflow and its authoring burden?",
+        "criteria": {
+          "explicit_pages": "Persist one source cursor and associated request per stream; use ordinary sends/handlers to admit bounded pages, retain immutable revisions and queue extraction/review. Existing primitives expose exact continuation and cancellation decisions. More app transitions and correlation checks must be authored and checked.",
+          "resumable_source": "Add a narrowly specified resumable source sequence whose awaited typed steps persist across admissions; author loops, spend gates and cancellation checks in sequence form. This can reduce callback code but needs new suspension, replay, stale-version and authority semantics without concealing business decisions.",
+          "delegated_search": "Bind one typed bounded research-job service that owns paging/fetch continuation and returns retained evidence plus explicit source coverage/progress. App sends one job and handles review. Fewer app transitions, but adapter becomes a substantial shared workflow with observable cancellation, budgets, cursor recovery and no hidden CRM mutation authority."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "orchestration": {
+        "type": "choice",
+        "choice": "explicit_pages",
+        "confidence": 0.25,
+        "probabilities": {
+          "delegated_search": 0.45,
+          "resumable_source": 0.05,
+          "explicit_pages": 0.5
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 745,
+      "output_tokens": 48
+    }
+  }
+}

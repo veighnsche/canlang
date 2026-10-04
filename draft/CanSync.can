@@ -1,0 +1,187 @@
+# Review bounded CRM corrections while preserving remote edits and uncertain write evidence. @{nl="Beoordeel begrensde CRM-correcties met behoud van externe wijzigingen en onzeker schrijfbewijs."}
+app CanSync uses=[sync]
+
+package sync label="CRM synchronization"@{nl="CRM-synchronisatie"}
+ use sync {AccountsV1 as Remote} from=deployment.accounts
+ Given
+  role operator label="Sync operator"@{nl="Synchronisatiemedewerker"}
+  role reviewer label="Correction reviewer"@{nl="Correctiebeoordelaar"}
+  contract Values {name:text trim min=1 max=255,phone:text? max=80,website:url?}
+  contract Snapshot {id:text min=1 max=100,revision:text min=1 max=1000,values:Values}
+  contract Observation {missing:bool,snapshot:Snapshot?}
+  contract WriteResult {state:enum(applied,conflict,missing,rejected),detail:text?}
+  export capability AccountsV1 version=1
+   read(id:Snapshot.id) -> Observation
+   replace(id:Snapshot.id,expected:Snapshot.revision,value:Values) -> WriteResult
+  Link {remote:Snapshot.id unique,owner:user server=actor,enabled:bool=true,period:duration=1h,epoch:int=1,current:ReadAttempt?,latest:ReadAttempt?,pending:Proposal?} label="Linked account"@{nl="Gekoppelde account"}
+  ReadAttempt in Link {request:delivery(Remote.read)?,value:Observation?,applied:bool=false} label="Account observation"@{nl="Accountwaarneming"}
+  Proposal in Link {before:Snapshot,desired:Values,submitted_by:user server=actor,decision:enum(draft,approved,rejected,closed)=draft,reviewed_by:user?,reason:text?,current:WriteAttempt?,observed_match:ReadAttempt?} label="Reviewed correction"@{nl="Beoordeelde correctie"}
+  WriteAttempt in Proposal {baseline:Snapshot,value:Values,request:delivery(Remote.replace)?} label="Conditional write"@{nl="Voorwaardelijke wijziging"}
+  event RefreshDue {link:Link,epoch:int}
+  policy Link read=operator or reviewer
+  policy ReadAttempt read=operator or reviewer
+  policy Proposal read=operator or reviewer
+  policy WriteAttempt read=operator or reviewer
+  invariant Link: row.period>=15m and row.period<=7d and (row.pending==null or row.pending.parent==row) and (row.current==null or row.current.parent==row) and (row.latest==null or row.latest.parent==row)
+  invariant ReadAttempt: row.value==null or (row.value.missing and row.value.snapshot==null) or (not row.value.missing and row.value.snapshot!=null and row.value.snapshot.id==row.parent.remote)
+  invariant Proposal: row.before.id==row.parent.remote and row.desired!=row.before.values and (row.current==null or row.current.parent==row) and (row.observed_match==null or row.observed_match.parent==row.parent)
+  invariant WriteAttempt: row.baseline.id==row.parent.parent.remote
+  lock Link fields=remote,owner
+  lock ReadAttempt fields=request
+  lock ReadAttempt fields=value when=row.applied
+  lock Proposal fields=before,desired,submitted_by
+  lock Proposal fields=reviewed_by when=row.reviewed_by!=null
+  lock WriteAttempt fields=baseline,value,request
+  derive editable(proposal:Proposal):bool = proposal.parent.enabled and proposal.parent.pending==proposal and operator(proposal.submitted_by) and proposal.reviewed_by!=null and reviewer(proposal.reviewed_by)
+  derive settled(attempt:WriteAttempt):bool = attempt.request!=null and (attempt.request.status==skipped or (attempt.request.status==succeeded and attempt.request.result!=null))
+  derive safe_rebase(proposal:Proposal,current:Snapshot):bool = current.id==proposal.before.id and (proposal.desired.name==proposal.before.values.name or current.values.name in [proposal.before.values.name,proposal.desired.name]) and (proposal.desired.phone==proposal.before.values.phone or current.values.phone in [proposal.before.values.phone,proposal.desired.phone]) and (proposal.desired.website==proposal.before.values.website or current.values.website in [proposal.before.values.website,proposal.desired.website])
+  derive rebased(proposal:Proposal,current:Snapshot):Values = Values {name=choose(proposal.desired.name==proposal.before.values.name,current.values.name,proposal.desired.name),phone=choose(proposal.desired.phone==proposal.before.values.phone,current.values.phone,proposal.desired.phone),website=choose(proposal.desired.website==proposal.before.values.website,current.values.website,proposal.desired.website)}
+  derive Proposal.outcome:WriteResult.state? = row.current?.request?.result?.state label="Confirmed write result"@{nl="Bevestigd schrijfresultaat"}
+  preferences {view:enum(active,paused)=active}
+  fixture author=user {roles=[operator]}
+  fixture approver=user {roles=[reviewer]}
+  fixture both=user {roles=[operator,reviewer]}
+  fixture account=Link {remote="account-1",owner=author}
+  fixture seen=ReadAttempt {parent=account,value={missing=false,snapshot={id="account-1",revision="v1",values={name="Acme",phone=null,website=null}}},applied=true}
+  fixture proposal=Proposal {parent=account,before={id="account-1",revision="v1",values={name="Acme",phone=null,website=null}},desired={name="Acme Ltd",phone=null,website=null},submitted_by=author}
+  fixture writing=Remote.replace {request={id="account-1",expected="v1",value={name="Acme Ltd",phone=null,website=null}},status=unknown}
+  fixture uncertain=WriteAttempt {parent=proposal,baseline=proposal.before,value=proposal.desired,request=writing}
+  fixture matching=ReadAttempt {parent=account,value={missing=false,snapshot={id="account-1",revision="v2",values={name="Acme Ltd",phone=null,website=null}}},applied=true}
+  fixture conflict_receipt=Remote.replace {request={id="account-1",expected="v1",value={name="Acme Ltd",phone=null,website=null}},status=succeeded,result={state=conflict,detail="Revision changed"}}
+  fixture conflicting=WriteAttempt {parent=proposal,baseline=proposal.before,value=proposal.desired,request=conflict_receipt}
+  fixture fresh=ReadAttempt {parent=account,value={missing=false,snapshot={id="account-1",revision="v2",values={name="Acme",phone="+32 1234",website=null}}},applied=true}
+  fixture overlap=ReadAttempt {parent=account,value={missing=false,snapshot={id="account-1",revision="v2",values={name="Other company",phone=null,website=null}}},applied=true}
+ When
+  crud Link by=operator fields=period create_fields=remote,period delete=none
+  # Start the per-account refresh schedule without scanning the population. @{nl="Start het verversschema per account zonder alle accounts te doorlopen."}
+  scenario linked on=Link.created
+   do
+    let link=first(Link as row where row.id==event.id)
+    if link!=null and link.enabled and link.epoch==1
+     schedule link.id at=now event=RefreshDue {link,epoch=link.epoch}
+  # Refresh one account; reads do not authorize a provider write. @{nl="Ververs één account; lezen verleent geen toestemming voor een externe wijziging."}
+  scenario refresh(link:Link) by=operator or reviewer label="Refresh remote account"@{nl="Externe account verversen"}
+   require link.enabled
+   do
+    create ReadAttempt {parent=link} as attempt
+    send Remote.read {id=link.remote} when=link.enabled as request
+    set attempt {request}; set link {current=attempt}
+  # Recurrence retains its original owner and discards obsolete epochs. @{nl="Herhaling behoudt de oorspronkelijke eigenaar en negeert verouderde versies."}
+  scenario due on=RefreshDue
+   do
+    let link=event.link
+    if link.enabled and link.epoch==event.epoch and operator(link.owner)
+     create ReadAttempt {parent=link} as attempt
+     send Remote.read {id=link.remote} when=link.enabled and operator(link.owner) as request
+     set attempt {request}; set link {current=attempt}
+     schedule link.id at=now+link.period event=RefreshDue {link,epoch=link.epoch}
+  # Retain successful observations; only the selected read may become latest. @{nl="Bewaar geslaagde waarnemingen; alleen de geselecteerde lezing mag de nieuwste worden."}
+  scenario observed on=Remote.read.completed
+   do
+    for attempt in ReadAttempt as row where row.request?.id==event.delivery_id limit=1
+     if not attempt.applied and event.status==succeeded and event.result!=null
+      set attempt {value=event.result,applied=true}
+      if attempt.parent.current==attempt
+       set attempt.parent {latest=attempt}
+  # Freeze the exact intended correction against the visible provider version. @{nl="Leg de exacte bedoelde correctie vast tegenover de zichtbare externe versie."}
+  scenario propose(link:Link,value:Values) by=operator label="Prepare correction"@{nl="Correctie voorbereiden"}
+   require link.enabled and link.pending==null and link.latest!=null and link.latest.value!=null and not link.latest.value.missing and link.latest.value.snapshot!=null
+   require value!=link.latest.value.snapshot.values
+   do
+    create Proposal {parent=link,before=link.latest.value.snapshot,desired=value} as proposal
+    set link {pending=proposal}
+   examples link=account value={name="Acme Ltd",phone=null,website=null} seed=[seen]
+    as,link.latest,link.enabled -> count(link.Proposal),link.pending.desired.name
+    author,seen,true -> 1,"Acme Ltd"
+    author,seen,false -> error(rule_failed)
+    author,null,true -> error(rule_failed)
+    members,seen,true -> error(forbidden)
+  # A different reviewer approves the frozen delta; the provider revision fences the write. @{nl="Een andere beoordelaar keurt de vastgelegde wijziging goed; de externe versie begrenst de schrijfactie."}
+  scenario approve(proposal:Proposal) by=reviewer label="Approve correction"@{nl="Correctie goedkeuren"}
+   require proposal.parent.enabled and proposal.parent.pending==proposal and proposal.decision==draft and proposal.submitted_by!=actor and operator(proposal.submitted_by)
+   do
+    set proposal {decision=approved,reviewed_by=actor}
+    create WriteAttempt {parent=proposal,baseline=proposal.before,value=proposal.desired} as attempt
+    send Remote.replace {id=proposal.parent.remote,expected=attempt.baseline.revision,value=attempt.value} when=editable(proposal) as request
+    set attempt {request}; set proposal {current=attempt}
+   examples proposal=proposal
+    as,proposal.parent.pending,proposal.parent.enabled,proposal.submitted_by -> proposal.decision,count(proposal.WriteAttempt)
+    approver,proposal,true,author -> approved,1
+    approver,proposal,false,author -> error(rule_failed)
+    approver,null,true,author -> error(rule_failed)
+    author,proposal,true,author -> error(forbidden)
+    both,proposal,true,both -> error(rule_failed)
+  # Rebase the already approved fields at most twice, preserving unrelated remote edits. @{nl="Herbaseer de al goedgekeurde velden maximaal tweemaal met behoud van overige externe wijzigingen."}
+  scenario rebase(proposal:Proposal) by=reviewer label="Retry nonconflicting correction"@{nl="Niet-conflicterende correctie herhalen"}
+   require editable(proposal) and proposal.reviewed_by==actor and proposal.current!=null and proposal.current.request?.status==succeeded and proposal.current.request.result?.state==conflict and count(proposal.WriteAttempt)<3
+   require proposal.parent.latest!=null and proposal.parent.latest.value!=null and not proposal.parent.latest.value.missing and proposal.parent.latest.value.snapshot!=null
+   do
+    let current=proposal.parent.latest.value.snapshot
+    require current.revision!=proposal.current.baseline.revision and safe_rebase(proposal,current)
+    let value=rebased(proposal,current)
+    require value!=current.values
+    create WriteAttempt {parent=proposal,baseline=current,value} as attempt
+    send Remote.replace {id=proposal.parent.remote,expected=current.revision,value} when=editable(proposal) as request
+    set attempt {request}; set proposal {current=attempt}
+   examples proposal=proposal seed=[conflicting,fresh,overlap]
+    as,proposal.parent.pending,proposal.decision,proposal.reviewed_by,proposal.current,proposal.parent.latest -> count(proposal.WriteAttempt),proposal.current.value.name,proposal.current.value.phone
+    approver,proposal,approved,approver,conflicting,fresh -> 2,"Acme Ltd","+32 1234"
+    approver,proposal,approved,approver,conflicting,overlap -> error(rule_failed)
+    approver,proposal,approved,approver,conflicting,seen -> error(rule_failed)
+    members,proposal,approved,approver,conflicting,fresh -> error(forbidden)
+  # Observe convergence without claiming which request caused it; uncertain writes retain their hold. @{nl="Stel overeenstemming vast zonder de oorzaak te claimen; onzekere schrijfacties houden hun blokkade."}
+  scenario acknowledge(proposal:Proposal) by=reviewer label="Record observed match"@{nl="Waargenomen overeenkomst vastleggen"}
+   require proposal.parent.pending==proposal and proposal.decision==approved and proposal.submitted_by!=actor and proposal.current!=null
+   require proposal.parent.latest!=null and proposal.parent.latest.value!=null and proposal.parent.latest.value.snapshot!=null
+   do
+    let current=proposal.parent.latest.value.snapshot
+    require safe_rebase(proposal,current) and rebased(proposal,current)==current.values
+    set proposal {observed_match=proposal.parent.latest}
+   examples proposal=proposal seed=[uncertain,matching]
+    as,proposal.parent.pending,proposal.decision,proposal.current,proposal.parent.latest -> proposal.observed_match==matching,proposal.parent.pending==proposal,uncertain.request.status
+    approver,proposal,approved,uncertain,matching -> true,true,unknown
+    members,proposal,approved,uncertain,matching -> error(forbidden)
+  # Finish a definitively ended attempt or reject an unsubmitted proposal, keeping all evidence. @{nl="Sluit een definitief beëindigde poging of wijs een niet-ingediend voorstel af met behoud van bewijs."}
+  scenario close(proposal:Proposal,reason:text) by=reviewer label="Close reviewed correction"@{nl="Beoordeelde correctie sluiten"}
+   require proposal.parent.pending==proposal and proposal.submitted_by!=actor and trim(reason)!=""
+   require proposal.decision==draft or (proposal.current!=null and settled(proposal.current))
+   do
+    set proposal {decision=choose(proposal.decision==draft,rejected,closed),reason}
+    set proposal.parent {pending=null}
+   examples proposal=proposal seed=[uncertain]
+    as,proposal.parent.pending,proposal.decision,proposal.current,reason -> proposal.parent.pending
+    approver,proposal,draft,null,"Not needed" -> null
+    approver,proposal,approved,uncertain,"Timeout is not proof" -> error(rule_failed)
+  # Pause future work without claiming an in-flight remote write was cancelled. @{nl="Pauzeer toekomstig werk zonder te claimen dat een lopende externe wijziging is geannuleerd."}
+  scenario pause(link:Link) by=operator label="Pause link"@{nl="Koppeling pauzeren"}
+   do set link {enabled=false,epoch=link.epoch+1}; cancel link.id
+   examples seed=[account]
+    do
+     call pause {link=account} by=author
+     account.enabled,account.epoch -> false,2
+     call refresh {link=account} by=author -> error(rule_failed)
+     call resume {link=account} by=author
+     account.enabled,account.epoch -> true,3
+  # Resume with a new timer generation and a fresh read; old proposals stay frozen. @{nl="Hervat met een nieuwe timer en verse lezing; oude voorstellen blijven ongewijzigd."}
+  scenario resume(link:Link) by=operator label="Resume link"@{nl="Koppeling hervatten"}
+   require not link.enabled and operator(link.owner)
+   do
+    set link {enabled=true,epoch=link.epoch+1}
+    schedule link.id at=now event=RefreshDue {link,epoch=link.epoch}
+ Then
+  # Inspect observations, approve exact corrections and retain unresolved provider outcomes. @{nl="Bekijk waarnemingen, keur exacte correcties goed en bewaar onopgeloste externe uitkomsten."}
+  page /sync title="CRM synchronization"@{nl="CRM-synchronisatie"} poll=5s
+   require operator or reviewer
+   form Link.create
+   table Link as link where link.enabled==(preferences.view==active) columns=remote,enabled,period,latest.created,current.request.status
+    edit fields=period
+    actions refresh,pause,resume
+    details "Remote account and correction"@{nl="Externe account en correctie"} display=drawer
+     text link.latest?.value,link.latest?.created
+     form propose arguments={link}
+     table link.Proposal as proposal columns=created,submitted_by,decision,outcome,observed_match.created
+      text proposal.before,proposal.desired,proposal.reviewed_by,proposal.reason
+      actions approve,rebase,acknowledge,close
+      table proposal.WriteAttempt columns=baseline,value,request.status,request.result,request.error
+      history
+     table link.ReadAttempt columns=created,value,request.status,request.error

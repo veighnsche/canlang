@@ -18,7 +18,7 @@ canlang is a DSL specifically for CRUD-centered business SaaS applications. Star
 
 Applications whose core value requires a specialized foundation beyond this model are outside the supported scope. Examples include collaborative design tools, video editors, and large-scale observability engines. Ordinary business reporting and shared records remain within scope. Existing drafts of applications outside this scope do not expand the language's requirements.
 
-Presentation serves that scope. Provide the bounded daisyUI component surface defined in [DESIGN.md](DESIGN.md#9-browser-presentation), with shared themes and layout options. Arbitrary HTML, CSS, JavaScript, and specialized visual editors are outside v1.
+Presentation serves that scope. Provide the entire pinned daisyUI component set through the [approved 68-component vocabulary](design/UI-COMPONENTS.md), with typed bindings, shared themes and one standard shell. The former small subset was a design mistake and must not restrict app authors or agents. Arbitrary HTML, CSS, JavaScript, and specialized visual editors are outside v1.
 
 ## AI-native and token-efficient
 
@@ -94,7 +94,7 @@ Default small AI-generated apps to one file. As an app grows, organize it into f
 
 - Use workerd as the runtime.
 - Make many Cloudflare-provided services first-class language features, directly expressible in the DSL.
-- Make daisyUI HTML/CSS components first-class through the compact, bounded presentation primitives and theme options defined in DESIGN.md.
+- Make all components in the pinned daisyUI catalog first-class through compact, typed Can declarations and shared theme options, as defined in DESIGN.md and design/UI-COMPONENTS.md.
 - Prefer HTMX for page interactions.
 - Make MCP servers first-class: each app provides a generated MCP interface to its authorized business operations.
 
@@ -102,7 +102,7 @@ Default small AI-generated apps to one file. As an app grows, organize it into f
 
 daisyUI is the built-in presentation foundation. AI selects and configures its components through first-class canlang primitives; shared markup, styling, and interaction behavior belong in the implementation. No app-level library selection, component imports, repeated namespaces, CSS classes, or per-page `htmx` marker are required. HTMX remains the default interaction mechanism.
 
-Use [daisyUI components](https://daisyui.com/components/) for generated HTML markup and styling. The shared presentation build provides [daisyUI and Tailwind CSS](https://daisyui.com/docs/install/); apps do not declare these dependencies. canlang supplies data binding and behavior. The canonical mapping is:
+Use [daisyUI components](https://daisyui.com/components/) for generated HTML markup and styling. The shared presentation build provides [daisyUI and Tailwind CSS](https://daisyui.com/docs/install/); apps do not declare these dependencies. canlang supplies data binding and behavior. The [complete approved catalog](design/UI-COMPONENTS.md) defines all 68 contextual component words, profiles, field placement, exclusive button bindings and slots. Compiler checking, discovery and rendering must cover that same catalog; the following core semantic mappings are useful compositions, not an exhaustive allowlist:
 
 | canlang declaration | daisyUI presentation |
 | --- | --- |
@@ -141,7 +141,7 @@ Downloading or vendoring a component library and removing unused components or a
 
 ## Standard shell and personal configuration
 
-Every selected app or composition has one implicit shell: collapsible left sidebar, logo or app wordmark at the top, accessible page links below, and the account control anchored at the bottom. Long navigation scrolls independently. Small screens use a dismissible overlay. Static pages supply navigation from their existing titles and access; detail/token routes are contextual. Declaration order is the default; pages declare only actual grouping/order/exclusion differences. Composition deduplicates canonical pages and settings owners. No authored menu tree or per-package shell is required.
+Every selected app or composition has the same static shell: a collapsible right sidebar page menu, logo or app wordmark at the top, accessible page links below, and the user menu anchored at the bottom right. The user configuration dialog and canonical login screen are shared across all apps. Long navigation scrolls independently. Small screens adapt this shell to a dismissible overlay. Static describes the common structure; current destinations, permissions and settings still derive from their owners. Static pages supply navigation from their existing titles and access; detail/token routes are contextual. Declaration order is the default; pages declare only actual grouping/order/exclusion differences. Composition deduplicates canonical pages and settings owners. Apps do not author replacement shells or choose a different shell layout; catalog navigation components remain available within page content.
 
 Generate one page descriptor with safe static localized metadata and an admission callable shared by navigation and direct/partial requests. Discover current entry permission from the owning declarations without rendering unrelated pages, invoking actions or checking list nonemptiness. Evaluate only bounded pure dependencies needed by actual page-level guards; a data-sensitive gate may require related reads, whose values remain private. Empty authorized views remain reachable, nested gates stay local, and action/record permissions are independently enforced. Auth/team context inheritance must preserve public data and explicitly external-user grants. Denial omits a link; failed eligibility checks produce a generic incomplete-navigation state without stale grants or unproven destination disclosure. Preserve source/composition order, canonical deduplication and current safe group captions. No second authored navigation/permission schema is allowed.
 
@@ -209,7 +209,7 @@ Descriptions use `#` globally; `##` is a code comment. Scenario parameters are t
 
 A mutation is atomic at one inferred storage owner. D1 is the default, using the proposed revision-fenced commit strategy; a model may select a Durable Object authority inherited by its children. Cross-owner work uses persisted events and pending state. Versions, replay receipts, outbox delivery, and scheduling bookkeeping belong to the runtime, without repeated app declarations. The D1 strategy still needs implementation and performance validation.
 
-The generated UI and MCP share one operation registry and the same permissions, validation, version checks, and business rules. The bounded component catalog, field/result scopes, routes, forms, wire schemas, and source restrictions are defined in DESIGN.md. [Reference examples](examples) illustrate these choices; the app drafts have been migrated but remain uncompiled and unexecuted.
+The generated UI and MCP share one operation registry and the same permissions, validation, version checks, and business rules. The entire pinned component catalog, field/result scopes, routes, forms, wire schemas, and source restrictions are defined in DESIGN.md and design/UI-COMPONENTS.md. [Reference examples](examples) illustrate these choices; existing drafts remain uncompiled and unexecuted and have not yet been migrated to the newly approved full component vocabulary.
 
 ## Draft semantics and target boundary
 

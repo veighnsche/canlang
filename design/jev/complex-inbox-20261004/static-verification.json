@@ -1,0 +1,44 @@
+{
+  "checks": [
+    {
+      "command": "node --check draft/CanInbox.mjs",
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "command": "python3 tools/can_parser.py draft/CanInbox.can",
+      "exit": 1,
+      "output": "draft/CanInbox.can:15:19: syntax: expected a model field schema"
+    },
+    {
+      "command": "python3 tools/can_parser.py /tmp/caninbox-business-projection.can",
+      "exit": 0,
+      "output": "Parsed 1 .can files (syntax only)."
+    }
+  ],
+  "static": {
+    "models": 10,
+    "scenarios": 13,
+    "fixtures": 21,
+    "example_blocks": 15,
+    "sequence_blocks": 1,
+    "pages": 2,
+    "table_rows": 42
+  },
+  "projection_exclusions": [
+    "14: judgment declaration/attached description",
+    "15: judgment declaration/attached description",
+    "16: judgment declaration/attached description",
+    "17: judgment declaration/attached description",
+    "18: judgment declaration/attached description",
+    "24: typed delivery associations replaced with text for syntax only",
+    "27: typed delivery associations replaced with text for syntax only",
+    "181\u2013187: shared-state sequence",
+    "318: page poll attribute omitted"
+  ],
+  "sha256": {
+    "draft/CanInbox.can": "619263ee8fb98252c55d64b2cf8ec29d5284e6c8a146d494cd2fefd6581143a8",
+    "draft/CanInbox.mjs": "f8030056278d2a5956028f62cb769fef4128adacdd2f8b5254b5be9d0939f226",
+    "draft/CanInbox.md": "f949008a7db16fbbd957132caa2824eb1d86140d4537d3f3a97c469251a94e00"
+  }
+}

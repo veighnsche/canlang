@@ -1,0 +1,58 @@
+{
+  "request": {
+    "state": {
+      "scope": "This is an abstract comparison of authoring interfaces using public vendor references. It contains no application source, confidential mail, private dependency graph, secrets or real project identifiers. Optional module linkage is outside this evaluation.",
+      "public_facts": "The documented TypeSafe API evaluates a batch's questions independently. Its binary judgment reports P(yes), not an extra confidence field. A categorical judgment returns the winning label, all label probabilities and a confidence summary. An ordinal judgment preserves a ranked legend and its distribution, plus confidence and a probability-weighted index that need not be integral. Ollama documents comparable decision features with distinct supported cardinalities. A confidence value cannot certify correctness, and an accepted provider call is separate from a valid domain conclusion. References: https://docs.typesafe.ai/api https://docs.typesafe.ai/primitives/noul https://docs.typesafe.ai/primitives/choice https://docs.typesafe.ai/primitives/score https://docs.ollama.com/capabilities/decision",
+      "design_case": "Imagine a compact statically checked application notation already supporting persistent records, enumerations, grouped service imports, durable asynchronous operations and schema-based interfaces. Its sample inbox evaluates whether a reply is requested, selects one of four teams and grades urgency against three ascending descriptions. Avoid writing the same option set or level list twice. Save the submitted specification, its revision and every normalized answer, and retain human changes as separate attributed decisions. Reuse of the chosen team in a configured queue should preserve a literal enum type. All candidates must reject answers that do not match their originating request. Compatibility with a shipped language is not required. Adding a specialized declaration costs implementation and tooling work; using general arrays costs consumer-side ID matching and narrowing.",
+      "privacy_case": "Each team queue is visible to its own authorized audience, so reassignment changes who can read the incoming content. An intake reviewer already has authority to make that disclosure. A model label does not independently supply permission. There are not yet labeled evaluation examples or an approved error-cost threshold for unattended routing. The desired benefit is less staff triage work while preserving intelligible uncertainty. Whichever policy is chosen, raw model evidence and later accountable overrides survive."
+    },
+    "questions": {
+      "surface": {
+        "type": "choice",
+        "instructions": "Select the most proportionate authoring model for the supplied workflow, weighing compactness, static guarantees, a single specification and the cost of supporting it.",
+        "criteria": {
+          "derived": "Introduce one purpose-built typed question declaration that synthesizes answer fields, the team enum, a retained spec and its evaluation operation, paying for a bounded language/tooling extension.",
+          "standard_arrays": "Use shared question and answer lists expressible in today's ordinary types; adapters validate the exact batch, while app code locates answers by IDs and handles option names as generic text.",
+          "custom_schema": "Stay with ordinary syntax but give each workflow bespoke capability and output types; compile-time categorical typing is retained at the expense of repeating the options in two authored representations."
+        }
+      },
+      "routing": {
+        "type": "choice",
+        "instructions": "Choose the appropriate starting disclosure/assignment policy given this lack of calibration, including the practical value to staff.",
+        "criteria": {
+          "review_transfer": "Prepare model recommendations and their distributions, then require the existing intake authority to accept a transfer before another team sees the message; assignment is slower but review starts from a useful suggestion.",
+          "threshold_transfer": "Route confident predictions to a permitted team automatically and leave low-confidence cases for people, preserving corrections; fewer manual transfers come with an unvalidated numerical routing boundary."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "surface": {
+        "type": "choice",
+        "choice": "derived",
+        "confidence": 0.9,
+        "probabilities": {
+          "derived": 0.93,
+          "standard_arrays": 0.02,
+          "custom_schema": 0.05
+        }
+      },
+      "routing": {
+        "type": "choice",
+        "choice": "review_transfer",
+        "confidence": 1.0,
+        "probabilities": {
+          "review_transfer": 1.0,
+          "threshold_transfer": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1063,
+      "output_tokens": 71
+    }
+  }
+}

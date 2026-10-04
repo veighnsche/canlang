@@ -1,0 +1,58 @@
+{
+  "request": {
+    "state": {
+      "scope": "Generic language-design comparison informed by public documentation. No repository source, company email, private architecture, credentials or actual project names are supplied. This is a different question from optional dependency composition.",
+      "public_facts": "TypeSafe documentation describes independently evaluated NOUL, Choice and Score questions. NOUL is a yes probability without a separate confidence. Choice has one selected option, a complete option distribution and confidence. Score uses an ordered rubric and yields a possibly fractional weighted level index, complete probabilities, legend and confidence. Ollama exposes related decision operations but has different option limits. Neither confidence nor transport success establishes business truth. Sources: https://docs.typesafe.ai/api https://docs.typesafe.ai/primitives/noul https://docs.typesafe.ai/primitives/choice https://docs.typesafe.ai/primitives/score https://docs.ollama.com/capabilities/decision",
+      "design_case": "Consider a small typed business language with record schemas, enums, ordinary grouped imports, asynchronous typed service operations and generated UI. An email workflow asks a yes/no reply-needed question, chooses among four departments and rates urgency on three ordered levels. The author should define each question, each department identity and each rubric level once. Records retain the frozen request, full answers and rubric identity; staff can correct decisions without rewriting model evidence. The selected department should be type-safe when reused in queue configuration. Complete causal request/answer validation is mandatory whichever declaration design wins. There is no deployed backward-compatibility constraint. A specialized construct still has parser/checker/tooling implementation cost; ordinary types still have authored lookup and consistency cost.",
+      "privacy_case": "The departments have different readers. Moving a message into a department discloses it to that department's permitted staff. A trusted intake operator can authorize transfers; classifier output itself is not an existing access grant. No representative labeled calibration or business-approved risk threshold exists yet. The product should reduce triage effort and show useful suggestions and uncertainty without pretending an uncalibrated threshold is evidence. Both proposed routing policies keep original results and attributable correction history."
+    },
+    "questions": {
+      "surface": {
+        "type": "choice",
+        "instructions": "Which declaration approach best balances concise authoring, useful static typing, one rubric definition, complete evidence and proportionate implementation complexity for this case?",
+        "criteria": {
+          "derived": "A compact dedicated question declaration generates the fixed answer schema, literal department enum, frozen specification and typed evaluate interface; it adds a focused grammar/checker feature.",
+          "standard_arrays": "Reusable ordinary standard question/result array contracts need no new grammar; every application supplies IDs and finds/narrows matching answers at runtime, with complete causal validation but generic string option fields.",
+          "custom_schema": "Each workflow defines its own fixed typed question capability and answer contracts, keeping existing grammar and literal enums while repeating question options across specification and result schema."
+        }
+      },
+      "routing": {
+        "type": "choice",
+        "instructions": "Which initial routing policy is justified by the stated evidence while still helping intake staff?",
+        "criteria": {
+          "review_transfer": "Show the suggested department and full uncertainty; an authorized staff decision changes departmental visibility. This adds review effort and delays transfer, while reducing reading/classification effort without uncalibrated automated disclosure.",
+          "threshold_transfer": "Automatically transfer high-confidence suggestions among allowed department queues, retain an override and send ambiguous results to review. This reduces routine handling but relies on a chosen confidence boundary without representative calibration."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "surface": {
+        "type": "choice",
+        "choice": "derived",
+        "confidence": 0.81,
+        "probabilities": {
+          "standard_arrays": 0.02,
+          "custom_schema": 0.11,
+          "derived": 0.87
+        }
+      },
+      "routing": {
+        "type": "choice",
+        "choice": "review_transfer",
+        "confidence": 1.0,
+        "probabilities": {
+          "threshold_transfer": 0.0,
+          "review_transfer": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1028,
+      "output_tokens": 71
+    }
+  }
+}

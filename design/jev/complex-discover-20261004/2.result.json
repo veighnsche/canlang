@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "An unfinished workflow DSL is being used for recurring procurement/funding research. Its target app has two approved public data providers, one with documented scrolling tokens and one with offset-related response fields without a documented snapshot guarantee. It must keep source-specific progress, distinguish successful traversal from budget exhaustion or unavailable data, and store revisioned source text/links/deadline uncertainty. Models extract typed claims and rank them against frozen staff criteria; they do not research independently or accept offers. Staff promotion must target an existing CRM operation with current role and record checks. Present primitives include durable typed sends, verified completions, protected receipt references, ordinary immutable evidence, bounded loops and scheduled events. A loop bound is an error limit, never pagination. There is no implemented compiler/library compatibility requirement. Any design must support independent source recovery, bounded requests and reserved spend, changed plan revisions, stopped future dispatch, quarantined late replies, stable identities and explicit handling of unknown paid attempts. It cannot turn missing responses into no matches, infer old review authority, or replay paid successes. Equivalent safety, review and source evidence are required for each alternative; performance has not been measured.",
+    "questions": {
+      "orchestration": {
+        "type": "choice",
+        "instructions": "Where should the durable continuation logic live for this particular application?",
+        "criteria": {
+          "explicit_pages": "Use current records and completion handlers for each bounded source page, recording its cursor and immutable document updates before later work. Keep request observations in existing associations and make review/cancel/resume transitions explicit. Avoid new execution syntax while accepting more authored handler and state logic.",
+          "resumable_source": "Define an app-authored durable sequence for typed asynchronous steps, with explicit budgets and stop checks around page traversal. Linear notation can reduce dispersed handlers; the language must newly pin resume transactions, current authority, version conflicts and repeated-step identity.",
+          "delegated_search": "Expose a configured research-job capability that performs the limited crawl/search traversal and publishes evidence/coverage plus job observations. The business app reviews its output rather than handling every page. This shifts recovery, cancellation and cost enforcement into a reusable but larger provider contract, with no authority to create CRM records."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "orchestration": {
+        "type": "choice",
+        "choice": "explicit_pages",
+        "confidence": 0.66,
+        "probabilities": {
+          "resumable_source": 0.19,
+          "explicit_pages": 0.77,
+          "delegated_search": 0.04
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 718,
+      "output_tokens": 48
+    }
+  }
+}

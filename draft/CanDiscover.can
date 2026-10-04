@@ -1,0 +1,343 @@
+# Monitor two declared opportunity sources and promote only staff-reviewed evidence. @{nl="Volg twee vastgelegde kansenbronnen en promoveer alleen door medewerkers beoordeeld bewijs."}
+app CanDiscover uses=[discover]
+
+# Retain source coverage, uncertain claims and reviewed CRM handoffs. @{nl="Bewaar brondekking, onzekere claims en beoordeelde CRM-overdrachten."}
+package discover label="Opportunity research"@{nl="Kansenonderzoek"}
+ use employee {Employee,can_work,test_worker}
+ use rent_catalog {Location,test_site}
+ use customer {Customer,Contact,test_company,test_contact}
+ use crm {Deal,ResearchLead,promote_research,salesperson}
+ use discover {DiscoverySourceV1 as Sources} from=deployment.discovery_sources
+ use discover {DiscoveryAnalysisV1 as Analysis} from=deployment.discovery_analysis
+ Given
+  role researcher label="Researcher"@{nl="Onderzoeker"}
+  role reviewer label="Research reviewer"@{nl="Onderzoeksbeoordelaar"}
+  export contract Document {key:text min=1,revision:text min=1,url:url,title:text,body:text max=60000,deadline_original:text?,deadline_zone:timezone?,retrieved:datetime}
+  export contract SourcePage {documents:Document[] max=20,next_cursor:text?,terminal:bool,source_as_of:datetime?,traversal:enum(snapshot,live,uncertain),detail:text?}
+  export contract Query {source:enum(ted,grants_gov),take:int min=1 max=20}
+  export contract AnalysisLimit {output_tokens:int min=1 max=4000}
+  ## Bound adapters freeze source/query/publication [from,until) UTC dates; cursor cannot silently reset.
+  ## One page call permits one search page plus at most 20 detail fetches; take is a rejection bound, not truncation.
+  export capability DiscoverySourceV1 version=1
+   page(source:Query.source,query:text,from:date,until:date,cursor:text?,take:Query.take) -> SourcePage
+  export contract Citation {field:enum(title,summary,deadline,fit),quote:text min=1}
+  export contract Claims {title:text min=1,summary:text,deadline:datetime?,deadline_original:text?,deadline_zone:timezone?,deadline_uncertain:bool,citations:Citation[] max=20,fit:decimal min=0 max=1,confidence:decimal min=0 max=1,rationale:text}
+  export capability DiscoveryAnalysisV1 version=1
+   extract(document:Document,criteria:text,output_tokens:AnalysisLimit.output_tokens) -> Claims
+  contract Settings {ted_query:text,grants_query:text,from:date,until:date,criteria:text,max_pages:int,max_documents:int,max_analysis:int,output_tokens:int}
+  Plan {name:text trim min=1,location:Location,owner:user server=actor,active:bool=true,revision:int=1,period:duration=7d,lookback_days:int=7,ted_query:text,grants_query:text,criteria:text,max_pages:int=3,max_documents:int=100,max_analysis:int=20,output_tokens:int=2000,current:Run?}
+  Run in Plan {settings:Settings,initiator:user,plan_revision:int,started:datetime server=now,stopped:bool=false,document_slots:int=0,analysis_slots:int=0}
+  SourcePass in Run {source:Query.source,query:text,cursor:text?,requests:int=0,state:enum(ready,fetching,exhausted,capped,attention,cancelled)=ready,current:PageAttempt?,detail:text?}
+  PageAttempt in SourcePass {cursor:text?,take:int,request:delivery(Sources.page)?,applied:bool=false,late:bool=false,next_cursor:text?,terminal:bool=false,traversal:SourcePage.traversal?,observed:datetime?,source_as_of:datetime?,detail:text?}
+  Opportunity in Plan {source:SourcePass.source,key:text,canonical_url:url,identity_conflict:bool=false,duplicate_of:Opportunity?,identity_note:text?,deal:Deal?}
+  Evidence in Opportunity {ordinal:int min=1,document:Document,run:Run,page:PageAttempt,analysis:delivery(Analysis.extract)?,claims:Claims?,analysis_issue:text?}
+  Conflict in Opportunity {document:Document,run:Run,page:PageAttempt,observed:datetime server=now}
+  Review in Opportunity {evidence:Evidence,title:text trim min=1,summary:text,deadline:datetime?,deadline_zone:timezone?,deadline_note:text trim min=1,quotes:text[] min=1 max=20,reviewed_by:user server=actor,reviewed_at:datetime server=now}
+  event PlanDue {plan:Plan,revision:int}
+  event PageDue {pass:SourcePass}
+  policy Plan read=(researcher or reviewer) and can_work(actor,row.location)
+  policy Run read=(researcher or reviewer) and can_work(actor,row.parent.location)
+  policy SourcePass read=(researcher or reviewer) and can_work(actor,row.parent.parent.location)
+  policy PageAttempt read=(researcher or reviewer) and can_work(actor,row.parent.parent.parent.location)
+  policy Opportunity read=(researcher or reviewer) and can_work(actor,row.parent.location)
+  policy Evidence read=(researcher or reviewer) and can_work(actor,row.parent.parent.location)
+  policy Conflict read=(researcher or reviewer) and can_work(actor,row.parent.parent.location)
+  policy Review read=(researcher or reviewer) and can_work(actor,row.parent.parent.location)
+  unique SourcePass fields=source
+  unique Opportunity fields=source,key
+  unique Evidence fields=document.revision
+  unique Evidence fields=ordinal
+  lock Plan fields=location
+  lock Run fields=settings,initiator,plan_revision,started
+  lock SourcePass fields=source,query
+  lock PageAttempt fields=cursor,take
+  lock Evidence fields=ordinal,document,run,page
+  lock Evidence fields=claims when=row.claims!=null
+  lock Conflict fields=document,run,page,observed
+  lock Review fields=evidence,title,summary,deadline,deadline_zone,deadline_note,quotes,reviewed_by,reviewed_at
+  invariant Plan: row.period>=1d and row.lookback_days>=1 and row.lookback_days<=90 and row.max_pages>=1 and row.max_pages<=20 and row.max_documents>=1 and row.max_documents<=400 and row.max_analysis>=0 and row.max_analysis<=100 and row.output_tokens>=1 and row.output_tokens<=4000
+  invariant Review: row.evidence.parent==row.parent and all(row.quotes as quote,trim(quote)!="" and contains(row.evidence.document.body,quote)) and (row.deadline==null or row.deadline_zone!=null)
+  derive Opportunity.needs_identity_review:bool = row.identity_conflict or (row.duplicate_of==null and any(row.parent.Opportunity as other,other!=row and other.canonical_url==row.canonical_url and other.duplicate_of!=row))
+  derive Opportunity.latest:Evidence? = first(row.Evidence as evidence order=-evidence.ordinal)
+  derive settings(plan:Plan):Settings = Settings {ted_query=plan.ted_query,grants_query=plan.grants_query,from=add_days(local_date(now,"UTC"),-plan.lookback_days),until=add_days(local_date(now,"UTC"),1),criteria=plan.criteria,max_pages=plan.max_pages,max_documents=plan.max_documents,max_analysis=plan.max_analysis,output_tokens=plan.output_tokens}
+  derive settled(run:Run):bool = count(run.SourcePass)==2 and all(run.SourcePass as pass,pass.state in [exhausted,capped,attention,cancelled])
+  derive eligible(run:Run):bool = run.parent.current==run and not run.stopped and run.parent.active and researcher(run.initiator) and can_work(run.initiator,run.parent.location)
+  derive Run.complete:bool = count(row.SourcePass)==2 and all(row.SourcePass as pass,pass.state==exhausted and any(pass.PageAttempt as attempt,attempt.applied) and all(pass.PageAttempt as attempt,not attempt.applied or (attempt.traversal==snapshot and attempt.source_as_of!=null and attempt.source_as_of==first(pass.PageAttempt as baseline where baseline.applied).source_as_of)))
+  derive Opportunity.expired:bool = any(row.Review as review,review.evidence==row.latest and review.deadline!=null and review.deadline<=now)
+  fixture analyst=user {roles=[researcher,reviewer,salesperson]}
+  fixture analyst_worker=Employee {user=analyst,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Research"}
+  fixture plan=Plan {name="Public opportunities",location=test_site,owner=self,ted_query="environment",grants_query="environment",criteria="Documented environmental services fit"}
+  fixture run=Run {parent=plan,settings=settings(plan),initiator=analyst,plan_revision=1}
+  fixture pass=SourcePass {parent=run,source=ted,query="environment"}
+  fixture page=PageAttempt {parent=pass,cursor=null,take=1}
+  fixture opportunity=Opportunity {parent=plan,source=ted,key="notice-1",canonical_url="https://example.test/notice/1"}
+  fixture collision=Opportunity {parent=plan,source=grants_gov,key="alternate-notice",canonical_url=opportunity.canonical_url,identity_conflict=true}
+  fixture evidence=Evidence {parent=opportunity,ordinal=1,document={key="notice-1",revision="v1",url="https://example.test/notice/1",title="Environmental work",body="Environmental work. Deadline not specified.",deadline_original=null,deadline_zone=null,retrieved=now},run=run,page=page}
+  fixture page_receipt=Sources.page {request={source=ted,query="environment",from=run.settings.from,until=run.settings.until,cursor=null,take=1},status=succeeded,result={documents=[],next_cursor="next-1",terminal=false,source_as_of=null,traversal=live,detail=null}}
+  fixture reviewed=Review {parent=opportunity,evidence=evidence,title="Environmental work",summary="Manual review",deadline=null,deadline_zone=null,deadline_note="Source does not specify a deadline; verified before sales intake",quotes=["Environmental work."]}
+ When
+  crud Plan by=researcher fields=name create_fields=name,location,ted_query,grants_query,criteria when=can_work(actor,row.location) delete=none
+  # Start a frozen research run and reserve one durable continuation for each source. @{nl="Start een vastgelegde onderzoeksronde met een duurzame voortzetting per bron."}
+  scenario start(plan:Plan) by=researcher -> Run label="Run now"@{nl="Nu uitvoeren"}
+   require can_work(actor,plan.location) and plan.active and (plan.current==null or plan.current.stopped or settled(plan.current))
+   do
+    create Run {parent=plan,settings=settings(plan),initiator=actor,plan_revision=plan.revision} as run
+    create SourcePass {parent=run,source=ted,query=run.settings.ted_query} as ted
+    create SourcePass {parent=run,source=grants_gov,query=run.settings.grants_query} as grants
+    set plan {current=run}
+    schedule ted.id at=now event=PageDue {pass=ted}
+    schedule grants.id at=now event=PageDue {pass=grants}
+    schedule plan.id at=now+plan.period event=PlanDue {plan,revision=plan.revision}
+    return run
+   examples seed=[test_worker] plan=plan
+    as,plan.active -> count(plan.Run),count(result.SourcePass)
+    researcher,true -> 1,2
+    researcher,false -> error(rule_failed)
+    members,true -> error(forbidden)
+   ## Shared-state operation sequence; queued effects stay isolated and never contact providers.
+   examples seed=[analyst_worker,plan]
+    do
+     call start {plan=plan} by=analyst as started
+     count(started.SourcePass),started.stopped -> 2,false
+     call pause {plan=plan} by=analyst
+     plan.active,plan.current.stopped,all(plan.current.SourcePass as pass,pass.state==cancelled) -> false,true,true
+     call start {plan=plan} by=analyst -> error(rule_failed)
+     call take_over {plan=plan} by=analyst
+     call resume {plan=plan} by=analyst
+     call start {plan=plan} by=analyst as replacement
+     count(plan.Run),replacement.stopped -> 2,false
+     call stop {run=replacement} by=other -> error(forbidden)
+  # Replace future settings; existing runs keep their original evidence and reservations. @{nl="Vervang toekomstige instellingen; bestaande rondes behouden hun bewijs en reserveringen."}
+  scenario configure(plan:Plan,ted_query:text,grants_query:text,criteria:text,period:duration,lookback_days:int,max_pages:int,max_documents:int,max_analysis:int,output_tokens:int) by=researcher
+   require can_work(actor,plan.location) and trim(ted_query)!="" and trim(grants_query)!="" and trim(criteria)!=""
+   do
+    set plan {ted_query,grants_query,criteria,period,lookback_days,max_pages,max_documents,max_analysis,output_tokens,revision=plan.revision+1}
+    if plan.active
+     schedule plan.id at=now+plan.period event=PlanDue {plan,revision=plan.revision}
+  # Pause recurrence without pretending that an in-flight provider stopped or refunded work. @{nl="Pauzeer herhaling zonder te beweren dat lopend providerwerk is gestopt of terugbetaald."}
+  scenario pause(plan:Plan) by=researcher
+   require can_work(actor,plan.location)
+   do
+    set plan {active=false,revision=plan.revision+1}
+    cancel plan.id
+    if plan.current!=null and not plan.current.stopped
+     set plan.current {stopped=true}
+     for pass in plan.current.SourcePass limit=2
+      cancel pass.id
+      set pass {state=cancelled}
+  # Take responsibility for future recurring runs under your current work eligibility. @{nl="Neem verantwoordelijkheid voor toekomstige rondes binnen je actuele werkbevoegdheid."}
+  scenario take_over(plan:Plan) by=researcher
+   require can_work(actor,plan.location)
+   do
+    set plan {owner=actor,revision=plan.revision+1}
+    if plan.active
+     schedule plan.id at=now+plan.period event=PlanDue {plan,revision=plan.revision}
+  # Resume future runs after checking the current responsible researcher. @{nl="Hervat toekomstige rondes na controle van de verantwoordelijke onderzoeker."}
+  scenario resume(plan:Plan) by=researcher
+   require can_work(actor,plan.location) and researcher(plan.owner) and can_work(plan.owner,plan.location)
+   do
+    set plan {active=true,revision=plan.revision+1}
+    schedule plan.id at=now event=PlanDue {plan,revision=plan.revision}
+  scenario recurring on=PlanDue
+   do
+    let plan=event.plan
+    if plan.active and plan.revision==event.revision and researcher(plan.owner) and can_work(plan.owner,plan.location)
+     if plan.current==null or plan.current.stopped or settled(plan.current)
+      create Run {parent=plan,settings=settings(plan),initiator=plan.owner,plan_revision=plan.revision} as run
+      create SourcePass {parent=run,source=ted,query=run.settings.ted_query} as ted
+      create SourcePass {parent=run,source=grants_gov,query=run.settings.grants_query} as grants
+      set plan {current=run}
+      schedule ted.id at=now event=PageDue {pass=ted}
+      schedule grants.id at=now event=PageDue {pass=grants}
+     schedule plan.id at=now+plan.period event=PlanDue {plan,revision=plan.revision}
+  scenario fetch_page on=PageDue
+   do
+    let pass=event.pass
+    let run=pass.parent
+    if pass.state==ready and eligible(run)
+     if pass.requests<run.settings.max_pages and run.document_slots<run.settings.max_documents
+      let take=min([20,run.settings.max_documents-run.document_slots])
+      create PageAttempt {parent=pass,cursor=pass.cursor,take} as attempt
+      send Sources.page {source=pass.source,query=pass.query,from=run.settings.from,until=run.settings.until,cursor=pass.cursor,take} when=eligible(run) and pass.current==attempt as request
+      set attempt {request}
+      set pass {current=attempt,state=fetching,requests=pass.requests+1}
+      set run {document_slots=run.document_slots+take}
+     else
+      set pass {state=capped,detail="Page or document reservation cap reached; coverage is partial"}
+  scenario page_result on=Sources.page.completed
+   do
+    let attempt=first(PageAttempt as row where row.request?.id==event.delivery_id)
+    if attempt!=null and not attempt.applied
+     let pass=attempt.parent
+     let run=pass.parent
+     if pass.current!=attempt or not eligible(run)
+      set attempt {late=true,detail="Retained request result is outside the current admitted continuation"}
+     else
+      if event.status==succeeded and event.result!=null
+       let result=event.result
+       if count(result.documents)<=attempt.take and ((result.terminal and result.next_cursor==null) or (not result.terminal and result.next_cursor!=null and result.next_cursor!=attempt.cursor)) and count(group(result.documents as doc,doc.key))==count(result.documents)
+        for doc in result.documents limit=20
+         let old=first(run.parent.Opportunity as item where item.source==pass.source and item.key==doc.key)
+         if old==null
+          create Opportunity {parent=run.parent,source=pass.source,key=doc.key,canonical_url=doc.url,identity_conflict=any(run.parent.Opportunity as item,item.canonical_url==doc.url)} as found
+          create Evidence {parent=found,ordinal=1,document=doc,run,page=attempt} as evidence
+         else
+          let same_revision=first(old.Evidence as item where item.document.revision==doc.revision)
+          if same_revision==null
+           create Evidence {parent=old,ordinal=(old.latest?.ordinal ?? 0)+1,document=doc,run,page=attempt} as evidence
+           set old {identity_conflict=old.identity_conflict or old.canonical_url!=doc.url}
+          else
+           if same_revision.document.key!=doc.key or same_revision.document.url!=doc.url or same_revision.document.title!=doc.title or same_revision.document.body!=doc.body or same_revision.document.deadline_original!=doc.deadline_original or same_revision.document.deadline_zone!=doc.deadline_zone
+            create Conflict {parent=old,document=doc,run,page=attempt} as conflict
+            set old {identity_conflict=true}
+        set attempt {applied=true,next_cursor=result.next_cursor,terminal=result.terminal,traversal=result.traversal,observed=now,source_as_of=result.source_as_of,detail=result.detail}
+        set pass {cursor=result.next_cursor,state=ready,detail=result.detail}
+        if result.terminal
+         set pass {state=exhausted}
+        else
+         schedule pass.id at=now event=PageDue {pass}
+       else
+        set pass {state=attention,detail="Invalid cursor, duplicate identity or oversized page"}
+      else
+       set pass {state=attention,detail="Source request did not yield an accepted page; coverage remains partial"}
+   ## These invoke the trusted completion with an isolated, consistently provisioned receipt; they are not live provider runs.
+   examples seed=[analyst_worker,page] event={delivery_id=page_receipt.id,status=succeeded,result={documents=[],next_cursor="next-1",terminal=false,source_as_of=null,traversal=live,detail=null},error=null}
+    plan.current,page.request,pass.current,pass.state,run.stopped -> page.applied,page.late,pass.state,pass.cursor
+    run,page_receipt,page,fetching,false -> true,false,ready,"next-1"
+    run,page_receipt,page,fetching,true -> false,true,fetching,null
+    run,page_receipt,null,fetching,false -> false,true,fetching,null
+   examples seed=[analyst_worker,page] event={delivery_id=page_receipt.id,status=succeeded,result={documents=[],next_cursor="next-1",terminal=false,source_as_of=null,traversal=live,detail=null},error=null}
+    plan.current,page.request,pass.current,pass.state,event.result,page_receipt.result -> page.applied,pass.state
+    run,page_receipt,page,fetching,{documents=[],next_cursor=null,terminal=false,source_as_of=null,traversal=uncertain,detail=null},{documents=[],next_cursor=null,terminal=false,source_as_of=null,traversal=uncertain,detail=null} -> false,attention
+   examples seed=[analyst_worker,page] event={delivery_id=page_receipt.id,status=unknown,result=null,error=null}
+    plan.current,page.request,pass.current,pass.state,page_receipt.status,page_receipt.result -> page.applied,pass.state
+    run,page_receipt,page,fetching,unknown,null -> false,attention
+   examples seed=[analyst_worker,page,evidence] event={delivery_id=page_receipt.id,status=succeeded,result={documents=[evidence.document],next_cursor=null,terminal=true,source_as_of=now,traversal=snapshot,detail=null},error=null}
+    plan.current,page.request,pass.current,pass.state,page_receipt.result -> count(opportunity.Evidence),count(opportunity.Conflict),page.applied,pass.state
+    run,page_receipt,page,fetching,{documents=[evidence.document],next_cursor=null,terminal=true,source_as_of=now,traversal=snapshot,detail=null} -> 1,0,true,exhausted
+   examples seed=[analyst_worker,page,evidence] event={delivery_id=page_receipt.id,status=succeeded,result={documents=[{key="notice-1",revision="v1",url="https://example.test/notice/1",title="Environmental work",body="Conflicting source bytes",deadline_original=null,deadline_zone=null,retrieved=now}],next_cursor=null,terminal=true,source_as_of=now,traversal=snapshot,detail=null},error=null}
+    plan.current,page.request,pass.current,pass.state,page_receipt.result -> count(opportunity.Evidence),count(opportunity.Conflict),opportunity.identity_conflict
+    run,page_receipt,page,fetching,{documents=[{key="notice-1",revision="v1",url="https://example.test/notice/1",title="Environmental work",body="Conflicting source bytes",deadline_original=null,deadline_zone=null,retrieved=now}],next_cursor=null,terminal=true,source_as_of=now,traversal=snapshot,detail=null} -> 1,1,true
+  # Explicitly reserve another read attempt; earlier unknown attempts retain their cost reservation. @{nl="Reserveer expliciet een nieuwe leespoging; eerdere onzekere pogingen behouden hun kostenreservering."}
+  scenario retry(pass:SourcePass) by=researcher
+   require can_work(actor,pass.parent.parent.location) and eligible(pass.parent) and pass.state==attention and pass.requests<pass.parent.settings.max_pages and pass.parent.document_slots<pass.parent.settings.max_documents
+   do
+    set pass {state=ready}
+    schedule pass.id at=now event=PageDue {pass}
+  # Stop additional work and quarantine later results without claiming provider cancellation. @{nl="Stop nieuw werk en sluit latere resultaten uit zonder providerannulering te claimen."}
+  scenario stop(run:Run) by=researcher
+   require can_work(actor,run.parent.location)
+   do
+    set run {stopped=true}
+    for pass in run.SourcePass limit=2
+     cancel pass.id
+     set pass {state=cancelled}
+   examples seed=[test_worker,pass] run=run
+    as -> run.stopped,pass.state
+    researcher -> true,cancelled
+    members -> error(forbidden)
+  # Extract only from retained evidence; a score is advice, never a review or promotion. @{nl="Extraheer alleen uit bewaard bewijs; een score is advies en nooit een beoordeling of promotie."}
+  scenario analyse(evidence:Evidence) by=researcher
+   require can_work(actor,evidence.parent.parent.location) and evidence.parent.latest==evidence and not evidence.parent.identity_conflict and eligible(evidence.run) and evidence.run.analysis_slots<evidence.run.settings.max_analysis
+   require evidence.analysis==null
+   do
+    send Analysis.extract {document=evidence.document,criteria=evidence.run.settings.criteria,output_tokens=evidence.run.settings.output_tokens} when=eligible(evidence.run) and evidence.parent.latest==evidence and not evidence.parent.identity_conflict as request
+    set evidence {analysis=request}
+    set evidence.run {analysis_slots=evidence.run.analysis_slots+1}
+  scenario analyse_new on=Evidence.create
+   do
+    let evidence=event.after
+    if eligible(evidence.run) and not evidence.parent.identity_conflict and evidence.run.analysis_slots<evidence.run.settings.max_analysis
+     send Analysis.extract {document=evidence.document,criteria=evidence.run.settings.criteria,output_tokens=evidence.run.settings.output_tokens} when=eligible(evidence.run) and evidence.parent.latest==evidence and not evidence.parent.identity_conflict as request
+     set evidence {analysis=request}
+     set evidence.run {analysis_slots=evidence.run.analysis_slots+1}
+  scenario analysis_result on=Analysis.extract.completed
+   do
+    let evidence=first(Evidence as row where row.analysis?.id==event.delivery_id)
+    if evidence!=null and evidence.claims==null
+     if event.status==succeeded and event.result!=null and eligible(evidence.run) and evidence.parent.latest==evidence
+      let claims=event.result
+      if count(claims.citations)>0 and all(claims.citations as citation,contains(evidence.document.body,citation.quote)) and (claims.deadline==null or (claims.deadline_zone!=null and not claims.deadline_uncertain and any(claims.citations as citation,citation.field==deadline)))
+       set evidence {claims}
+      else
+       set evidence {analysis_issue="Claims or deadline citations could not be validated; review the original manually"}
+     else
+      set evidence {analysis_issue="No current accepted analysis; source evidence remains available for manual review"}
+  # Freeze corrected claims and cited evidence before any business handoff. @{nl="Leg gecorrigeerde claims en geciteerd bewijs vast vóór een zakelijke overdracht."}
+  scenario review(evidence:Evidence,title:text,summary:text,deadline:datetime?,deadline_zone:timezone?,deadline_note:text,quotes:text[]) by=reviewer -> Review
+   require can_work(actor,evidence.parent.parent.location) and evidence.parent.latest==evidence and not evidence.parent.needs_identity_review and evidence.parent.duplicate_of==null
+   do
+    create Review {parent=evidence.parent,evidence,title,summary,deadline,deadline_zone,deadline_note,quotes} as review
+    return review
+   examples seed=[test_worker] evidence=evidence title="Environmental work" summary="Reviewed original source" deadline=null deadline_zone=null deadline_note="Deadline unknown; confirmed uncertainty" quotes=["Environmental work."]
+    as,opportunity.identity_conflict,quotes -> result.evidence
+    reviewer,false,["Environmental work."] -> evidence
+    reviewer,false,["Invented quotation"] -> error(rule_failed)
+    reviewer,true,["Environmental work."] -> error(rule_failed)
+   examples seed=[test_worker] evidence=evidence title="Environmental work" summary="Reviewed original source" deadline=null deadline_zone=null deadline_note="Unknown" quotes=["Environmental work."]
+    as,test_worker.active,request.evidence.version -> result.evidence
+    reviewer,false,1 -> error(rule_failed)
+    reviewer,true,2 -> error(conflict)
+  # Keep both source identities when a reviewer resolves a duplicate conflict. @{nl="Bewaar beide bronidentiteiten wanneer een beoordelaar een dubbel conflict oplost."}
+  scenario duplicate(opportunity:Opportunity,canonical:Opportunity,reason:text) by=reviewer
+   require can_work(actor,opportunity.parent.location) and opportunity.parent==canonical.parent and opportunity!=canonical and opportunity.deal==null and canonical.duplicate_of==null and trim(reason)!=""
+   do set opportunity {duplicate_of=canonical,identity_conflict=false,identity_note=reason}
+   examples seed=[analyst_worker,evidence,collision]
+    do
+     call review {evidence=evidence,title="Environmental work",summary="Manual review",deadline=null,deadline_zone=null,deadline_note="Deadline unknown; checked original",quotes=["Environmental work."]} by=analyst -> error(rule_failed)
+     call duplicate {opportunity=collision,canonical=opportunity,reason="Both keys identify the same published opportunity"} by=analyst
+     call review {evidence=evidence,title="Environmental work",summary="Manual review",deadline=null,deadline_zone=null,deadline_note="Deadline unknown; checked original",quotes=["Environmental work."]} by=analyst as checked
+     opportunity.needs_identity_review,collision.duplicate_of==opportunity,checked.evidence==evidence -> false,true,true
+  # Keep the selected retained revision after a documented identity conflict review. @{nl="Behoud de gekozen bewaarde revisie na een gedocumenteerde identiteitscontrole."}
+  scenario accept_identity(opportunity:Opportunity,reason:text) by=reviewer
+   require can_work(actor,opportunity.parent.location) and opportunity.latest!=null and opportunity.deal==null and opportunity.duplicate_of==null and trim(reason)!=""
+   require not any(opportunity.parent.Opportunity as other,other!=opportunity and other.canonical_url==opportunity.latest.document.url and other.duplicate_of!=opportunity)
+   do set opportunity {canonical_url=opportunity.latest.document.url,identity_conflict=false,identity_note=reason}
+  # Promote one reviewed revision through the canonical sales owner; research never overwrites a deal. @{nl="Promoveer één beoordeelde revisie via de canonieke verkoopeigenaar; onderzoek overschrijft nooit een verkoopkans."}
+  scenario promote(review:Review,customer:Customer,contact:Contact,value:money) by=reviewer -> Deal
+   require can_work(actor,review.parent.parent.location) and review.parent.latest==review.evidence and not review.parent.needs_identity_review and review.parent.duplicate_of==null and (review.deadline==null or now<review.deadline)
+   do
+    call promote_research {source="discover:"+review.parent.id,input={customer,contact,location=review.parent.parent.location,title=review.title,value,notes=review.summary+"\nEvidence: "+review.evidence.document.url+"\nRevision: "+review.evidence.document.revision+"\nDeadline: "+review.deadline_note}} as deal
+    set review.parent {deal}
+    return deal
+   examples seed=[analyst_worker] review=reviewed customer=test_company contact=test_contact value=money(100,"EUR")
+    as,opportunity.identity_conflict,review.deadline,review.deadline_zone -> result.source
+    analyst,false,null,null -> "discover:"+opportunity.id
+    analyst,true,null,null -> error(rule_failed)
+    analyst,false,now-1d,"UTC" -> error(rule_failed)
+   ## Source evidence is seeded; review and both CRM admissions below are genuine same-state calls.
+   examples seed=[analyst_worker,evidence,test_company,test_contact]
+    do
+     call review {evidence=evidence,title="Environmental work",summary="Manual review",deadline=null,deadline_zone=null,deadline_note="Deadline unknown; checked original",quotes=["Environmental work."]} by=analyst as checked
+     call promote {review=checked,customer=test_company,contact=test_contact,value=money(100,"EUR")} by=analyst as first_deal
+     first_deal.source,opportunity.deal==first_deal -> "discover:"+opportunity.id,true
+     call promote {review=checked,customer=test_company,contact=test_contact,value=money(100,"EUR")} by=analyst as repeated
+     repeated==first_deal -> true
+     call promote {review=checked,customer=test_company,contact=test_contact,value=money(101,"EUR")} by=analyst -> error(rule_failed)
+     call promote {review=checked,customer=test_company,contact=test_contact,value=money(100,"EUR")} by=other -> error(forbidden)
+ Then
+  # Research plans and source coverage with reviewable evidence. @{nl="Onderzoeksplannen en brondekking met beoordeelbaar bewijs."}
+  page /discover title="Opportunity research"@{nl="Kansenonderzoek"}
+   require researcher or reviewer
+   tabs
+    tab "Plans"@{nl="Plannen"}
+     form Plan.create
+     table Plan columns=name,location,active,revision
+      actions start,pause,resume,take_over
+      form configure arguments={plan=row}
+      table row.Run columns=started,complete,stopped,document_slots,analysis_slots
+       action stop
+       table row.SourcePass columns=source,state,requests,detail
+        action retry
+        table row.PageAttempt columns=cursor,take,applied,late,traversal,detail,request
+    tab "Evidence and review"@{nl="Bewijs en beoordeling"}
+     table Opportunity columns=source,key,canonical_url,needs_identity_review,expired,duplicate_of,deal
+      form duplicate arguments={opportunity=row}
+      form accept_identity arguments={opportunity=row}
+      table row.Evidence columns=document,claims,analysis_issue
+       action analyse
+       form review arguments={evidence=row}
+      table row.Conflict columns=document,observed
+      table row.Review columns=title,deadline,deadline_note,reviewed_by,reviewed_at
+       form promote arguments={review=row}
+      history
