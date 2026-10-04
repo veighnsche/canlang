@@ -82,7 +82,44 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
-## Slice 11: full replans Loyalty/Mail/Maintain (branch muse/frontend-catalog-migration/slice-11-replan-i1, in progress)
+## Slice 12: full replans Propose/Purchase/Reception (branch muse/frontend-catalog-migration/slice-12-replan-i2, in progress)
+
+Paths: draft/CanPropose (.can+.md, .mjs new), CanPurchase (.can+.md+.mjs),
+CanReception (.can+.md, .mjs new) + this status file. Source: lane-I drafter
+(I2) output under /tmp/slice11-i2, applied + heavily corrected by coordinator.
+Coordinator corrections to draft: 15 bare actions with non-row params became
+catalog modals (Propose hold_inventory/offer_alternative; Purchase
+decide/order/increase/close/cancel/adjust/record_payable/transcribe_claims/
+accept_invoice/reject_invoice/amend/return_goods; Reception
+arrive/depart/refuse/cancel/return_key/lost/manual_revoke incl. mine-page
+cancel); base `order.increase` typo confirmed via the witness (two ops
+purchase.order + purchase.increase) and split into two modals (latent fix);
+Propose notice_state/document_delivery_state (both DeliveryResult.status?)
+render as status, removed from text (exclusive display); op labels reused for
+modal captions where present; Request.create gains input amount; Reception
+issue gains select visit (reference convention; sourcing stays a 05 gap);
+host_arrived/intake_invoice gain typed fieldsets; .md: no authored export
+button (payable-export is the owning op), notice is Status not Badge, modal
+mentions added. Datetime params stay input (calendar is date-only).
+Kept from draft after verification: drawer keyword + slot content (catalog
+L143/154/216); copy app_url(format()) (base); now-guards (base); progress
+accepted/ordered ungated (ordered>=1 proven: quantity min=1, amendments >0);
+Reception drawer text keeps notice_state (full-record detail dump); alert on
+gated failed enum (readable notice).
+Given/When byte-identical (splice-verified; zero non-Then removals).
+Witnesses: Propose/Reception are new Then-only witnesses (no base .mjs; honest
+inline desired/unimplemented labels, Given/When lowering absent by necessity);
+Purchase patched UI sections only. node --check clean.
+Drift: +76 E1200 (Propose 31, Purchase 12, Reception 33), no E1204. All three
+ok on main. Prototype: Propose/Reception stop at pre-existing Given gaps
+byte-identical; Purchase baseline parsed clean, now stops at breadcrumbs
+(expected, same as Field).
+Handoff: (a) select reference sourcing (Reception visit; Feedback duplicate);
+(b) nullable inputs (offer product text?, revise resource?); (c) drawer/modal/
+copy/status/alert/dropdown renderers; (d) bare action vs bare form rule for 01:
+bare form generates its remainder (compliant), bare action collects no inputs.
+
+## Slice 11: full replans Loyalty/Mail/Maintain (merged as 546535c, PR #91)
 
 Paths: draft/CanLoyalty, CanMail, CanMaintain (.can+.md+.mjs each) + this status
 file. Source: lane-I drafter (I1) output under /tmp/slice11-i1, applied + corrected
