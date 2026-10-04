@@ -264,19 +264,19 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: Reviewed extraction acceptance/failure examples preserve authority and source evidence; corresponding desired JS included.
   - Evidence: pending.
 
-- [ ] **M01 — Integration, evidence and coherent commits**
+- [x] **M01 — Integration, evidence and coherent commits**
   - Prerequisites: M00; per-task released writers; final join after every released implementation task
   - Owner / files / interfaces: Muse coordinator; task-owned source/targets/requirements; this checklist evidence; draft/MIGRATION.md current-status-only changes after reserving it
   - Changes / traceability: Q2/Q4; check changes agree with their released contract, update accurate migration dispositions and commit exact coherent paths early. Do not edit shared DESIGN/GRAMMAR or reinterpret unexecuted examples.
   - Acceptance: Changed target syntax and scoped correspondence pass; required example outcomes preserved; task evidence/commits recorded; unresolved design blockers distinguished from unfinished work. No touching Codex inbox/monitor/design evidence.
-  - Evidence: pending.
+  - Evidence: 10/10 D migrations use delivery(Target)+derived status (§8.1 census: all 10 derives present of 21 total); 4/4 changed targets node-OK with uniform §13 lowering (2 coordinator Q2 repairs); 6/6 J slices reconciled (5 no-change + J05 2-line fix); example outcomes preserved/extended per task, none reinterpreted; no stale refs; only justified callbacks remain (Catch diagnostic-only, Mail business transition). 16/16 writers released; exact-path chain dfd9274..a8220e8 (+owner b06d873). A/N distinguished as design-blocked, not unfinished. MIGRATION.md gained one current-status subsection (reserved, no history rewritten).
 
-- [ ] **M02 — Release all writers and hand off**
+- [x] **M02 — Release all writers and hand off**
   - Prerequisites: All Muse tasks complete, M01 and DESIGN-CLOSED; or explicit genuinely blocked handoff without marking goal complete
   - Owner / files / interfaces: Muse coordinator; this checklist progress and compact handoff
   - Changes / traceability: Q4; native goal progress/complete state matches actual acceptance, record exact remaining blockers and writer release.
   - Acceptance: Every active implementation agent released; completion evidence delivered to root; Codex review tasks untouched. Unknown runtime correctness is disclosed, not conflated with a missing draft.
-  - Evidence: pending.
+  - Evidence: BLOCKED-BRANCH handoff (goal stays active, not marked complete). All 16 writers released (roster 16/16 result_ready); evidence in this checklist; REVIEW/CLOSED untouched. Remaining blockers: A01-A06 + N01-N10 await READY with linked contract/witness; H002 watcher broken (goal-wake fallback). DISCLOSURE: verification is syntax/projection/correspondence-level only — no example executed, no provider/renderer/runtime run; unknown runtime correctness is not claimed. Coordinator suspends to inbox wakes with zero reservations.
 
 - [ ] **C01 — Independent acceptance review and bounded repairs**
   - Prerequisites: Muse handoff and all affected writers released
@@ -307,6 +307,9 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - DONE J06: writer 01a10700-4a34-7c63-aad6-6bad3e9bfea1 RELEASED draft/CanStock.can, draft/CanStock.mjs (no changes).
 - ACK H004 READY ownership returned: accepted. Codex b06d873 confirmed as child of 0a79ac7; staging/commit ownership resumed. Production prompts are not Muse tasks; no new sessions; no reservations/design adopted. Staging inbox.md + monitor.md UNCHANGED per H004 authorization (both remain Codex-authored/read-only).
 - LIMITATION H002 watcher: wait-for-inbox.py crashes immediately (select.kqueue context-manager TypeError); Codex-owned, not patched by Muse. Used 5-min goal wakes + inbox re-reads instead; no busy polling. H004 latency unaffected in practice.
+- RESERVED M01: draft/MIGRATION.md current-status-only subsection — coordinator, no writer. No other party editing it (tree clean at reservation).
+- DONE M01: integration evidenced (§8.1/§13 census, 4/4 node-OK, example preservation, A/N distinguished blocked). RELEASED M01 MIGRATION.md.
+- DONE M02: BLOCKED-BRANCH handoff recorded. Zero active writers, zero reservations. A01-A06/N01-N10 deferred to READY; REVIEW/CLOSED untouched for Codex. Runtime-correctness unknown disclosed. Goal stays active for inbox wakes.
 - DONE D09: writer 01a106f7-5074-75b0-b216-779ca7635ae9 RELEASED draft/CanRent.can, draft/CanRent.md, draft/CanRent.mjs (incl coordinator Q2 repair). Inbox re-read: H001+H002+H003.
 - DONE J02: writer 01a106fb-c7b6-7ab1-a6e6-a7a4467f9aed RELEASED draft/CanLoyalty.can, draft/CanLoyalty.mjs (no changes). No new inbox IDs at verification.
 - DONE J03: writer 01a106fb-c8d9-75e2-9d72-f4b2258101f9 RELEASED draft/CanPurchase.can, draft/CanPurchase.mjs (no changes).
