@@ -64,6 +64,23 @@ const waitingCaption = message("Waiting", { nl: "Wachtend" });
 
 const noShowCaption = message("No-show", { nl: "Niet verschenen" });
 
+const cafePageDescriptor = {
+  owner: "cafe",
+  path: "/cafe",
+  title: message("Café host", { nl: "Cafébediening" }),
+  description: message(
+    "Run a host floor view with separate waiting, upcoming and actual occupancy evidence.",
+    {
+      nl: "Bedien het café met afzonderlijk bewijs van wachten, toekomstige reserveringen en werkelijk gebruik.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "cafe.host"), "forbidden");
+    return {};
+  },
+  render: cafePage,
+};
+
 export const appDefinition = {
   id: "CanTable",
   uses: ["cafe"],
@@ -352,7 +369,7 @@ export const appDefinition = {
       },
     },
   },
-  pages: [{ path: "/cafe", render: cafePage }],
+  pages: [cafePageDescriptor],
   disabled: ["cafe.Cafe.delete", "cafe.Table.delete", "cafe.Booking.delete"],
 };
 
@@ -527,22 +544,11 @@ export function canApp() {
   };
 }
 
-export async function cafePage(c) {
-  check(hasRole(c, "cafe.host"), "forbidden");
+export async function cafePage(c, bindings) {
   const preferences = c.preferences.cafe;
   return renderPage(
     c,
-    {
-      owner: "cafe",
-      path: "/cafe",
-      title: message("Café host", { nl: "Cafébediening" }),
-      description: message(
-        "Run a host floor view with separate waiting, upcoming and actual occupancy evidence.",
-        {
-          nl: "Bedien het café met afzonderlijk bewijs van wachten, toekomstige reserveringen en werkelijk gebruik.",
-        },
-      ),
-    },
+    cafePageDescriptor,
     () => [
       form({ context: c, operation: "cafe.Cafe.create" }),
       list({

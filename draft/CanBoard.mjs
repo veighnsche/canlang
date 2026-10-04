@@ -53,6 +53,40 @@ export const complete = "board.complete";
  * exposes only source titles to assignees. Votes/quorum are not inferred.
  * Imports, guards, immutable files and inline BDD execution remain proposed runtime work.
  */
+const boardPageDescriptor = {
+  owner: "board",
+  path: "/board",
+  title: message("Board records", { nl: "Bestuursverslagen" }),
+  description: message(
+    "Read ordered papers and retain the finalized minutes with amendments.",
+    { nl: "Lees stukken op volgorde en bewaar de definitieve notulen met aanvullingen." },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(
+      hasRole(c, "board.board_member") ||
+        hasRole(c, "board.coordinator") ||
+        hasRole(c, "board.secretary"),
+      "forbidden",
+    );
+    return {};
+  },
+  render: boardPage,
+};
+
+const actionsPageDescriptor = {
+  owner: "board",
+  path: "/board/actions",
+  title: message("Board actions", { nl: "Bestuursacties" }),
+  description: message("Follow assigned outstanding actions under their own operation.", {
+    nl: "Volg toegewezen openstaande acties via hun eigen operatie.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "members"), "forbidden");
+    return {};
+  },
+  render: actionsPage,
+};
+
 export const appDefinition = {
   id: "CanBoard",
   uses: ["board"],
@@ -424,8 +458,8 @@ export const appDefinition = {
     },
   },
   pages: [
-    { path: "/board", render: boardPage },
-    { path: "/board/actions", render: actionsPage },
+    boardPageDescriptor,
+    actionsPageDescriptor,
   ],
   disabled: [
     "board.Meeting.delete",
@@ -626,24 +660,10 @@ export function canApp() {
   };
 }
 
-export async function boardPage(c) {
-  check(
-    hasRole(c, "board.board_member") ||
-      hasRole(c, "board.coordinator") ||
-      hasRole(c, "board.secretary"),
-    "forbidden",
-  );
+export async function boardPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "board",
-      path: "/board",
-      title: message("Board records", { nl: "Bestuursverslagen" }),
-      description: message(
-        "Read ordered papers and retain the finalized minutes with amendments.",
-        { nl: "Lees stukken op volgorde en bewaar de definitieve notulen met aanvullingen." },
-      ),
-    },
+    boardPageDescriptor,
     () => [
       card({
         context: c,
@@ -829,18 +849,10 @@ export async function boardPage(c) {
   );
 }
 
-export async function actionsPage(c) {
-  check(hasRole(c, "members"), "forbidden");
+export async function actionsPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "board",
-      path: "/board/actions",
-      title: message("Board actions", { nl: "Bestuursacties" }),
-      description: message("Follow assigned outstanding actions under their own operation.", {
-        nl: "Volg toegewezen openstaande acties via hun eigen operatie.",
-      }),
-    },
+    actionsPageDescriptor,
     () =>
       table({
         context: c,

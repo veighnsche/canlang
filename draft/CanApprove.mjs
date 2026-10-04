@@ -53,6 +53,34 @@ const noteCaption = message("Note", { nl: "Notitie" });
 
 const emailCaption = message("Reviewer email", { nl: "E-mail beoordelaar" });
 
+const documentsPageDescriptor = {
+  owner: "approve",
+  path: "/documents",
+  title: message("My submissions", { nl: "Mijn inzendingen" }),
+  description: message("Submit and follow your own exact document versions.", {
+    nl: "Dien je eigen exacte documentversies in en volg ze.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "members"), "forbidden");
+    return {};
+  },
+  render: documentsPage,
+};
+
+const reviewPageDescriptor = {
+  owner: "approve",
+  path: "/documents/review",
+  title: message("Review queue", { nl: "Beoordelingswachtrij" }),
+  description: message("Review assigned submissions or coordinate permitted assignments.", {
+    nl: "Beoordeel toegewezen inzendingen of coördineer toegestane toewijzingen.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "approve.reviewer") || hasRole(c, "approve.coordinator"), "forbidden");
+    return {};
+  },
+  render: reviewPage,
+};
+
 export const appDefinition = {
   id: "CanApprove",
   uses: ["approve"],
@@ -301,8 +329,8 @@ export const appDefinition = {
     "approve.delivered": { handler: "delivered", on: "approve.Mail.send.completed" },
   },
   pages: [
-    { path: "/documents", render: documentsPage },
-    { path: "/documents/review", render: reviewPage },
+    documentsPageDescriptor,
+    reviewPageDescriptor,
   ],
   disabled: [
     "approve.Document.delete",
@@ -539,18 +567,10 @@ export function canApp() {
   };
 }
 
-export async function documentsPage(c) {
-  check(hasRole(c, "members"), "forbidden");
+export async function documentsPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "approve",
-      path: "/documents",
-      title: message("My submissions", { nl: "Mijn inzendingen" }),
-      description: message("Submit and follow your own exact document versions.", {
-        nl: "Dien je eigen exacte documentversies in en volg ze.",
-      }),
-    },
+    documentsPageDescriptor,
     () => [
       card({
         context: c,
@@ -618,18 +638,10 @@ export async function documentsPage(c) {
   );
 }
 
-export async function reviewPage(c) {
-  check(hasRole(c, "approve.reviewer") || hasRole(c, "approve.coordinator"), "forbidden");
+export async function reviewPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "approve",
-      path: "/documents/review",
-      title: message("Review queue", { nl: "Beoordelingswachtrij" }),
-      description: message("Review assigned submissions or coordinate permitted assignments.", {
-        nl: "Beoordeel toegewezen inzendingen of coördineer toegestane toewijzingen.",
-      }),
-    },
+    reviewPageDescriptor,
     () => [
       table({
         context: c,
