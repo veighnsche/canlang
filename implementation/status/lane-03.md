@@ -207,6 +207,35 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   imports replaced by an engine-local `TestMembershipStore` double
   (`test/invocation/fixtures.ts`) so the standalone state build stays green
   until the L7 `@canlang/*` join; re-verified typecheck clean + 125/125.
+  S3 merged (21dd47f, PR #23). S4 branch `muse/lane-03-state/query-policy`
+  from 21dd47f. S4 implemented (delegated impl+tests, disjoint files):
+  `src/policy/grants.ts` (interim grant tables, fail-fast build, pure row
+  predicate eval), `src/query/engine.ts` (`queryRecords` viewer/owner
+  overloads + `queryAggregate`; revision-first, unbounded scan, in-memory
+  visibility/filter/sort, overflow-fails-`validation`, union projection,
+  exact aggregates), contracts S4 types; 46 query tests, full suite 171/171
+  locally. Coordinator self-review fixed one bug (overlapping grants across
+  grants shadowed wider siblings; widest-first projection + either-order
+  regression test) and reconciled one spec point (empty sum -> 0, domain
+  unknowable without schema; `no currency` only for money missing currency).
+  A2 seedMember hardening landed (explicit-id miss throws; no existing test
+  hit it). Open: money min/max rejected (fail-closed; extension needs value
+  semantics join); bigint-minor money cannot round-trip storage JSON until
+  the L2 codec join; owner authority unverified at engine (gating is
+  admission's); `when`-on-secret oracle question for review.
+  Independent review NEEDS-CHANGES (4 major + 3 minor) all fixed +
+  regressed, suite 180/180: F1 array-transparent secret carve-out; F2
+  viewers project BEFORE where/sort/aggregate (cross-grant value leak
+  closed); F3 unknown predicate op -> StateError validation; F4
+  `when`-on-secret rejected at build; F5 same-currency money min/max
+  implemented; F6 owner-aggregate test added; F7 `by` validated +
+  policy AST cloned/frozen at build. Owner-authority trust boundary
+  documented on queryRecords. Re-review APPROVE; its 2 non-blocking minors
+  also closed + regressed (suite 182/182): empty and/or rejected (fail-open
+  vacuous-true gone), predicate field paths validated to non-empty strings
+  in both shape-check and per-row eval, policy clone wrapped to plain
+  Error. Minors fixed per reviewer's own suggestion + coordinator
+  self-review of the small diff; no third review round.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
@@ -252,6 +281,20 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   workers-types 5.20261004.1); contracts assembly check clean; CI `state` x2
   pass. Independent review NEEDS-CHANGES (F1–F9/N1–N4) all fixed + regressed.
   Residual: no parent linkage/expiry yet; interim contracts import/tsconfig.
+- PR3 S3 admission: branch `muse/lane-03-state/admission`, reviewed head
+  `14b236c27c7aeff8440712904efe3916d631efc9`, merged as `21dd47f`
+  (https://github.com/veighnsche/canlang/pull/23, squash, --match-head-commit).
+  Checks: local typecheck + `npm test` 125/125; CI `state`/`tools`/`workspace`
+  pass. Two independent reviews: pre-rebase NEEDS-CHANGES (14 findings) all
+  fixed + regressed; final-head APPROVE with 2 low advisories + 3 notes.
+  Advisory disposition: A1 (receipt from CommitResult.revision) declined —
+  receipt is a commit input, exact by fence construction; A2 (seedMember
+  silent mint on id miss) accepted as S4 test-hardening; notes confirmed
+  (dup-seed divergence moot under UNIQUE; version-on-unversioned enforced
+  fail-closed by intent; trustedSource-on-user-kinds is transport-caller
+  contract, one-line note due at L6 join).
+  Residual: interim registry/codec; OperationId branding + age/archived
+  `validation` mappings await L6 confirm; rejected-receipt writers are S5.
 
 ## Remaining work and cleanup
 

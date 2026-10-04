@@ -100,3 +100,67 @@ export async function evaluateBy(
     by.roleSubject.person,
   );
 }
+
+/** Built-in `by` predicate names. */
+const BY_BUILTINS: ReadonlySet<string> = new Set([
+  'members',
+  'owner',
+  'authenticated',
+  'public',
+]);
+
+/**
+ * Validate a `by` predicate shape, failing fast on programmer-built policies.
+ * Throws plain `Error`: callers never supply `by` predicates directly.
+ */
+export function validateByPredicate(by: ByPredicate, what: string): void {
+  if (typeof by === 'string') {
+    if (!BY_BUILTINS.has(by)) {
+      throw new Error(`Invalid ${what}: unknown by predicate ${JSON.stringify(by)}.`);
+    }
+    return;
+  }
+  if (typeof by !== 'object' || by === null || Array.isArray(by)) {
+    throw new Error(`Invalid ${what}: by predicate must be a name or an object.`);
+  }
+  const keys = Object.keys(by);
+  if (keys.length !== 1) {
+    throw new Error(`Invalid ${what}: by predicate needs exactly one combinator.`);
+  }
+  const key = keys[0];
+  if (key === 'role') {
+    const role = (by as { role: unknown }).role;
+    if (typeof role !== 'string' || role === '') {
+      throw new Error(`Invalid ${what}: role needs a non-empty role name.`);
+    }
+    return;
+  }
+  if (key === 'roleSubject') {
+    const subject = (by as { roleSubject: unknown }).roleSubject;
+    if (typeof subject !== 'object' || subject === null || Array.isArray(subject)) {
+      throw new Error(`Invalid ${what}: roleSubject needs { role, person }.`);
+    }
+    const { role, person } = subject as { role: unknown; person: unknown };
+    if (typeof role !== 'string' || role === '' || typeof person !== 'string' || person === '') {
+      throw new Error(`Invalid ${what}: roleSubject needs non-empty role and person.`);
+    }
+    return;
+  }
+  if (key === 'and' || key === 'or') {
+    const terms = (by as { and?: unknown; or?: unknown })[key];
+    if (!Array.isArray(terms) || terms.length === 0) {
+      // Empty arrays are rejected (never vacuous): `and: []` would evaluate
+      // to true and silently widen the grant to all callers (fail-open).
+      throw new Error(`Invalid ${what}: ${key} needs a non-empty array of predicates.`);
+    }
+    for (const term of terms) {
+      validateByPredicate(term as ByPredicate, what);
+    }
+    return;
+  }
+  if (key === 'not') {
+    validateByPredicate((by as { not: ByPredicate }).not, what);
+    return;
+  }
+  throw new Error(`Invalid ${what}: unknown by combinator ${JSON.stringify(key)}.`);
+}
