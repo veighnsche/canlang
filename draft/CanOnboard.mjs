@@ -56,6 +56,38 @@ export const complete = "onboard.complete";
 
 const onboardingCaption = message("Onboarding", { nl: "Inwerken" });
 
+const readinessPageDescriptor = {
+  owner: "onboard",
+  path: "/people/my-readiness",
+  title: message("My readiness", { nl: "Mijn inwerkstappen" }),
+  description: message("Follow your assigned readiness work and private attachments.", {
+    nl: "Volg je toegewezen inwerkstappen en private bijlagen.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    check(hasRole(c, "authenticated"), "forbidden");
+    return {};
+  },
+  render: readinessPage,
+};
+
+const onboardingPageDescriptor = {
+  owner: "onboard",
+  path: "/people/onboarding",
+  title: onboardingCaption,
+  description: message(
+    "Prepare work identities and role/location checklists under HR document grants.",
+    {
+      nl: "Bereid werkidentiteiten en rol- en locatiechecklists voor binnen HR-documentrechten.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, hr), "forbidden");
+    return {};
+  },
+  render: onboardingPage,
+};
+
 export const appDefinition = {
   id: "CanOnboard",
   uses: ["employee", "onboard"],
@@ -413,8 +445,8 @@ export const appDefinition = {
     },
   },
   pages: [
-    { path: "/people/my-readiness", render: readinessPage },
-    { path: "/people/onboarding", render: onboardingPage },
+    readinessPageDescriptor,
+    onboardingPageDescriptor,
   ],
   disabled: [],
 };
@@ -596,18 +628,10 @@ export function canApp() {
   };
 }
 
-export async function readinessPage(c) {
-  check(hasRole(c, "authenticated"), "forbidden");
+export async function readinessPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "onboard",
-      path: "/people/my-readiness",
-      title: message("My readiness", { nl: "Mijn inwerkstappen" }),
-      description: message("Follow your assigned readiness work and private attachments.", {
-        nl: "Volg je toegewezen inwerkstappen en private bijlagen.",
-      }),
-    },
+    readinessPageDescriptor,
     () => [
       card({
         context: c,
@@ -639,21 +663,10 @@ export async function readinessPage(c) {
   );
 }
 
-export async function onboardingPage(c) {
-  check(hasRole(c, hr), "forbidden");
+export async function onboardingPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "onboard",
-      path: "/people/onboarding",
-      title: onboardingCaption,
-      description: message(
-        "Prepare work identities and role/location checklists under HR document grants.",
-        {
-          nl: "Bereid werkidentiteiten en rol- en locatiechecklists voor binnen HR-documentrechten.",
-        },
-      ),
-    },
+    onboardingPageDescriptor,
     () => [
       card({
         context: c,

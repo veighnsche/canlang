@@ -190,6 +190,7 @@ package volunteer label="Volunteering"@{nl="Vrijwilligerswerk"}
         metrics result.remaining
        action signup
     tab assignments
+     require authenticated
      card "Your signups and assigned tasks"@{nl="Jouw inschrijvingen en toegewezen taken"}
       list Signup display=split
        text row.state,row.needs_confirmation

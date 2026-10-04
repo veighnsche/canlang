@@ -802,6 +802,135 @@ export const resend_notice = "rent_reservations.resend_notice";
 export const reconcile_allowance = "rent_reservations.reconcile_allowance";
 export const reconcile_booking = "rent_reservations.reconcile_booking";
 
+const workspaceCatalogPageDescriptor = {
+  owner: "rent_catalog_ui",
+  path: "/workspace/catalog",
+  order: 6n,
+  title: message("Workspace catalog", { nl: "Werkplekcatalogus" }),
+  description: message("Author location descriptions and arrival information.", {
+    nl: "Schrijf locatiebeschrijvingen en aankomstinformatie.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, catalog_owner), "forbidden");
+    return {};
+  },
+  render: workspaceCatalogPage,
+};
+
+const financeReviewPageDescriptor = {
+  owner: R,
+  path: "/workspace/refund-review",
+  order: 8n,
+  title: message("Booking finance exceptions", { nl: "Financiële reserveringsuitzonderingen" }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "rent_reservations.billing"), "forbidden");
+    return {};
+  },
+  render: financeReviewPage,
+};
+
+const resourceCatalogPageDescriptor = {
+  owner: R,
+  path: "/workspace/resources",
+  order: 7n,
+  title: message("Resource catalog", { nl: "Voorzieningencatalogus" }),
+  description: message(
+    "Author published resource rates and commercial policy under catalog authority.",
+    {
+      nl: "Stel gepubliceerde tarieven en commerciële voorwaarden op onder catalogusbevoegdheid.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, catalog_owner), "forbidden");
+    return {};
+  },
+  render: resourceCatalogPage,
+};
+
+const workspacePageDescriptor = {
+  owner: R,
+  path: "/workspace",
+  order: 1n,
+  title: message("Available workspace", { nl: "Beschikbare werkplekken" }),
+  description: message(
+    "Discover space and enter local-time intervals before creating a hold.",
+    { nl: "Vind ruimte en voer tijdvakken in lokale tijd in voordat je tijdelijk reserveert." },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    return {};
+  },
+  render: workspacePage,
+};
+
+const reservationsPageDescriptor = {
+  owner: R,
+  path: "/workspace/reservations",
+  order: 5n,
+  title: message("Reservations", { nl: "Reserveringen" }),
+  description: message("Manage availability, current holds and affected downtime.", {
+    nl: "Beheer beschikbaarheid, huidige tijdelijke reserveringen en getroffen uitval.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "rent_reservations.reservation_manager"), "forbidden");
+    return {};
+  },
+  render: reservationsPage,
+};
+
+const myBookingsPageDescriptor = {
+  owner: "rent_fulfillment",
+  path: "/workspace/my-bookings",
+  order: 2n,
+  title: message("My bookings", { nl: "Mijn reserveringen" }),
+  description: message(
+    "Show fulfillment, money and actual occupancy as separate recorded outcomes.",
+    {
+      nl: "Toon uitvoering, betalingen en werkelijk gebruik als afzonderlijk vastgelegde resultaten.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    check(hasRole(c, "authenticated"), "forbidden");
+    return {};
+  },
+  render: myBookingsPage,
+};
+
+const arrivalsPageDescriptor = {
+  owner: "rent_fulfillment",
+  path: "/workspace/arrivals",
+  order: 3n,
+  title: message("Workspace arrivals", { nl: "Werkplekaankomsten" }),
+  description: message("Resolve physical arrivals, departures and late-payment exceptions.", {
+    nl: "Los werkelijke aankomsten, vertrekken en uitzonderingen bij late betaling op.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "rent_reservations.reception"), "forbidden");
+    return {};
+  },
+  render: arrivalsPage,
+};
+
+const occupancyPageDescriptor = {
+  owner: "rent_reporting",
+  path: "/workspace/occupancy",
+  order: 4n,
+  title: message("Local occupancy", { nl: "Lokale bezetting" }),
+  description: message(
+    "Keep booked intervals and actual occupancy visible as distinct evidence.",
+    {
+      nl: "Houd gereserveerde tijdvakken en werkelijke bezetting zichtbaar als afzonderlijk bewijs.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    check(hasRole(c, "authenticated"), "forbidden");
+    return {};
+  },
+  render: occupancyPage,
+};
+
 export const appDefinition = {
   id: "CanRent",
   uses: [
@@ -3130,14 +3259,14 @@ export const appDefinition = {
     },
   },
   pages: [
-    { path: "/workspace/catalog", render: undefined },
-    { path: "/workspace/resources", render: undefined },
-    { path: "/workspace", render: undefined },
-    { path: "/workspace/reservations", render: undefined },
-    { path: "/workspace/my-bookings", render: undefined },
-    { path: "/workspace/arrivals", render: undefined },
-    { path: "/workspace/occupancy", render: undefined },
-    { path: "/workspace/refund-review", render: undefined },
+    workspaceCatalogPageDescriptor,
+    financeReviewPageDescriptor,
+    resourceCatalogPageDescriptor,
+    workspacePageDescriptor,
+    reservationsPageDescriptor,
+    myBookingsPageDescriptor,
+    arrivalsPageDescriptor,
+    occupancyPageDescriptor,
   ],
   disabled: [
     "rent_reservations.Resource.delete",
@@ -7340,19 +7469,10 @@ export function canApp() {
  * Async renderRow/data preparation is unresolved shared library work: no serializer
  * or promise handling is implemented here, and syntax checks do not verify it.
  */
-export async function workspaceCatalogPage(c) {
-  check(hasRole(c, catalog_owner), "forbidden");
+export async function workspaceCatalogPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "rent_catalog_ui",
-      path: "/workspace/catalog",
-      order: 6n,
-      title: message("Workspace catalog", { nl: "Werkplekcatalogus" }),
-      description: message("Author location descriptions and arrival information.", {
-        nl: "Schrijf locatiebeschrijvingen en aankomstinformatie.",
-      }),
-    },
+    workspaceCatalogPageDescriptor,
     () => [
       card({
         context: c,
@@ -7400,22 +7520,10 @@ export async function workspaceCatalogPage(c) {
   );
 }
 
-export async function resourceCatalogPage(c) {
-  check(hasRole(c, catalog_owner), "forbidden");
+export async function resourceCatalogPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: R,
-      path: "/workspace/resources",
-      order: 7n,
-      title: message("Resource catalog", { nl: "Voorzieningencatalogus" }),
-      description: message(
-        "Author published resource rates and commercial policy under catalog authority.",
-        {
-          nl: "Stel gepubliceerde tarieven en commerciële voorwaarden op onder catalogusbevoegdheid.",
-        },
-      ),
-    },
+    resourceCatalogPageDescriptor,
     () => [
       card({
         context: c,
@@ -7460,19 +7568,10 @@ export async function resourceCatalogPage(c) {
   );
 }
 
-export async function workspacePage(c) {
+export async function workspacePage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: R,
-      path: "/workspace",
-      order: 1n,
-      title: message("Available workspace", { nl: "Beschikbare werkplekken" }),
-      description: message(
-        "Discover space and enter local-time intervals before creating a hold.",
-        { nl: "Vind ruimte en voer tijdvakken in lokale tijd in voordat je tijdelijk reserveert." },
-      ),
-    },
+    workspacePageDescriptor,
     () => [
       card({
         context: c,
@@ -7596,19 +7695,10 @@ export async function workspacePage(c) {
   );
 }
 
-export async function reservationsPage(c) {
-  check(hasRole(c, "rent_reservations.reservation_manager"), "forbidden");
+export async function reservationsPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: R,
-      path: "/workspace/reservations",
-      order: 5n,
-      title: message("Reservations", { nl: "Reserveringen" }),
-      description: message("Manage availability, current holds and affected downtime.", {
-        nl: "Beheer beschikbaarheid, huidige tijdelijke reserveringen en getroffen uitval.",
-      }),
-    },
+    reservationsPageDescriptor,
     () => [
       card({
         context: c,
@@ -7818,22 +7908,10 @@ export async function reservationsPage(c) {
   );
 }
 
-export async function myBookingsPage(c) {
-  check(hasRole(c, "authenticated"), "forbidden");
+export async function myBookingsPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "rent_fulfillment",
-      path: "/workspace/my-bookings",
-      order: 2n,
-      title: message("My bookings", { nl: "Mijn reserveringen" }),
-      description: message(
-        "Show fulfillment, money and actual occupancy as separate recorded outcomes.",
-        {
-          nl: "Toon uitvoering, betalingen en werkelijk gebruik als afzonderlijk vastgelegde resultaten.",
-        },
-      ),
-    },
+    myBookingsPageDescriptor,
     () => [
       card({
         context: c,
@@ -7934,19 +8012,10 @@ export async function myBookingsPage(c) {
   );
 }
 
-export async function arrivalsPage(c) {
-  check(hasRole(c, "rent_reservations.reception"), "forbidden");
+export async function arrivalsPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "rent_fulfillment",
-      path: "/workspace/arrivals",
-      order: 3n,
-      title: message("Workspace arrivals", { nl: "Werkplekaankomsten" }),
-      description: message("Resolve physical arrivals, departures and late-payment exceptions.", {
-        nl: "Los werkelijke aankomsten, vertrekken en uitzonderingen bij late betaling op.",
-      }),
-    },
+    arrivalsPageDescriptor,
     () => [
       card({
         context: c,
@@ -7992,16 +8061,10 @@ export async function arrivalsPage(c) {
   );
 }
 
-export async function financeReviewPage(c) {
-  check(hasRole(c, "rent_reservations.billing"), "forbidden");
+export async function financeReviewPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: R,
-      path: "/workspace/refund-review",
-      order: 8n,
-      title: message("Booking finance exceptions", { nl: "Financiële reserveringsuitzonderingen" }),
-    },
+    financeReviewPageDescriptor,
     () => [
       list({
         context: c,
@@ -8085,23 +8148,11 @@ export async function financeReviewPage(c) {
   );
 }
 
-export async function occupancyPage(c) {
-  check(hasRole(c, "authenticated"), "forbidden");
+export async function occupancyPage(c, bindings) {
   const preferences = c.preferences.rent_reporting;
   return renderPage(
     c,
-    {
-      owner: "rent_reporting",
-      path: "/workspace/occupancy",
-      order: 4n,
-      title: message("Local occupancy", { nl: "Lokale bezetting" }),
-      description: message(
-        "Keep booked intervals and actual occupancy visible as distinct evidence.",
-        {
-          nl: "Houd gereserveerde tijdvakken en werkelijke bezetting zichtbaar als afzonderlijk bewijs.",
-        },
-      ),
-    },
+    occupancyPageDescriptor,
     () => [
       card({
         context: c,

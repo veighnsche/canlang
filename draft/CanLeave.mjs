@@ -66,6 +66,54 @@ const reviewerCaption = message("Reviewer", { nl: "Beoordelaar" });
 
 const pendingCaption = message("Pending", { nl: "In afwachting" });
 
+const minePageDescriptor = {
+  owner: "leave",
+  path: "/leave/mine",
+  title: message("My leave", { nl: "Mijn verlof" }),
+  description: message(
+    "Preview recorded calendar and allowance data before requesting whole working days.",
+    {
+      nl: "Bekijk vastgelegde kalender- en tegoedgegevens voordat je hele werkdagen aanvraagt.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "members"), "forbidden");
+    return {};
+  },
+  render: minePage,
+};
+
+const reviewPageDescriptor = {
+  owner: "leave",
+  path: "/leave/review",
+  title: message("Leave review", { nl: "Verlof beoordelen" }),
+  description: message(
+    "Decide assigned leave while keeping private reasons out of the shared absence calendar.",
+    {
+      nl: "Beoordeel toegewezen verlof en houd private redenen buiten de gedeelde afwezigheidskalender.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "leave.hr") || hasRole(c, "leave.leave_reviewer"), "forbidden");
+    return {};
+  },
+  render: reviewPage,
+};
+
+const absencePageDescriptor = {
+  owner: "leave",
+  path: "/leave/absence",
+  title: message("Absence dates", { nl: "Afwezigheidsdatums" }),
+  description: message("View accepted dates for coverage planning under location grants.", {
+    nl: "Bekijk geaccepteerde datums voor bezettingsplanning binnen locatierechten.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "members"), "forbidden");
+    return {};
+  },
+  render: absencePage,
+};
+
 export const appDefinition = {
   id: "CanLeave",
   uses: ["leave"],
@@ -459,9 +507,9 @@ export const appDefinition = {
     },
   },
   pages: [
-    { path: "/leave/mine", render: minePage },
-    { path: "/leave/review", render: reviewPage },
-    { path: "/leave/absence", render: absencePage },
+    minePageDescriptor,
+    reviewPageDescriptor,
+    absencePageDescriptor,
   ],
   disabled: [
     "leave.Calendar.delete",
@@ -874,21 +922,10 @@ export function canApp() {
   };
 }
 
-export async function minePage(c) {
-  check(hasRole(c, "members"), "forbidden");
+export async function minePage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "leave",
-      path: "/leave/mine",
-      title: message("My leave", { nl: "Mijn verlof" }),
-      description: message(
-        "Preview recorded calendar and allowance data before requesting whole working days.",
-        {
-          nl: "Bekijk vastgelegde kalender- en tegoedgegevens voordat je hele werkdagen aanvraagt.",
-        },
-      ),
-    },
+    minePageDescriptor,
     () => [
       card({
         context: c,
@@ -968,21 +1005,10 @@ export async function minePage(c) {
   );
 }
 
-export async function reviewPage(c) {
-  check(hasRole(c, "leave.hr") || hasRole(c, "leave.leave_reviewer"), "forbidden");
+export async function reviewPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "leave",
-      path: "/leave/review",
-      title: message("Leave review", { nl: "Verlof beoordelen" }),
-      description: message(
-        "Decide assigned leave while keeping private reasons out of the shared absence calendar.",
-        {
-          nl: "Beoordeel toegewezen verlof en houd private redenen buiten de gedeelde afwezigheidskalender.",
-        },
-      ),
-    },
+    reviewPageDescriptor,
     () => [
       card({
         context: c,
@@ -1073,18 +1099,10 @@ export async function reviewPage(c) {
   );
 }
 
-export async function absencePage(c) {
-  check(hasRole(c, "members"), "forbidden");
+export async function absencePage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "leave",
-      path: "/leave/absence",
-      title: message("Absence dates", { nl: "Afwezigheidsdatums" }),
-      description: message("View accepted dates for coverage planning under location grants.", {
-        nl: "Bekijk geaccepteerde datums voor bezettingsplanning binnen locatierechten.",
-      }),
-    },
+    absencePageDescriptor,
     () => [
       card({
         context: c,
