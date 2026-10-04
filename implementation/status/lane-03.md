@@ -236,6 +236,8 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   in both shape-check and per-row eval, policy clone wrapped to plain
   Error. Minors fixed per reviewer's own suggestion + coordinator
   self-review of the small diff; no third review round.
+  S4 merged (471f1ed, PR #33). S5 branch `muse/lane-03-state/mutation-history`
+  from 471f1ed.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
@@ -295,6 +297,18 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   contract, one-line note due at L6 join).
   Residual: interim registry/codec; OperationId branding + age/archived
   `validation` mappings await L6 confirm; rejected-receipt writers are S5.
+- PR4 S4 query/policy: branch `muse/lane-03-state/query-policy`, reviewed
+  head `68a4a7be57e16ec84a2c635b3fb7baa2a004f9a9`, merged as `471f1ed`
+  (https://github.com/veighnsche/canlang/pull/33, squash, --match-head-commit).
+  Checks: local typecheck + `npm test` 182/182; CI `state` x2 / `tools` /
+  `workspace` pass. Independent review NEEDS-CHANGES (4 major incl.
+  cross-grant where/aggregate value leak + array secret carve, 3 minor) all
+  fixed + regressed; re-review APPROVE; its 2 non-blocking minors also
+  closed + regressed without a third round (reviewer's own suggestion +
+  coordinator diff self-review).
+  Residual: interim policy tables -> L1 join; interim scalar codec (bigint
+  money minors, rich comparisons) -> L2 join; owner authority unverified at
+  engine (trust boundary documented; gating is admission's).
 
 ## Remaining work and cleanup
 
