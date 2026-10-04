@@ -287,6 +287,22 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   contract note; historyFor ORDER BY version,seq on all 3. Suite 328/328.
   S6 merged (160db71, PR #53, head 0d49425, CI state/tools/workspace green).
   S7 branch `muse/lane-03-state/migrations` from 160db71.
+  S7 JEV (three-rewrite choice, evidence
+  implementation/evidence/jev/lane-03-s7-20261004/): UNANIMOUS A —
+  shadow-table staging + fenced installed-snapshot pointer flip
+  (confidences 0.45/0.50/0.76; B co-located versions runner-up ~0.33 in
+  two rewrites, kept as fallback). Adopted as advice.
+  S7 DECISIONS: per-authority shadow staging tables + `snapshots`
+  installed pointer; staging chunks and activation each one fenced
+  commit; invalidate = outbox status `skipped` (outboxPending unchanged)
+  + outcome records, only inventoried undispatched + pinned-contract
+  match, caller-supplied WorkInventory (L4/L7) for in-flight/accepted/
+  uncertain evidence, missing evidence blocks; history via existing
+  vocabulary (`update` +1 with `migration:<snapshot>` actor for
+  conversions, `remove` for drops, nothing for name-only); interim
+  execution-side plan-intake types + structurally constrained mapper
+  callback until L1 emits/compiles; activation idempotent via pointer
+  check; phase mapping to L7 UpgradeState documented at the join.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
