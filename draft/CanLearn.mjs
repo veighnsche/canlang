@@ -3,7 +3,70 @@
  * by lane-05; nothing here is verified installed behavior. Given/When lowering
  * and fixture/example extraction are out of scope for this frontend replan.
  */
-import { compareDate, first, local_date, records, same } from "@canlang/stdlib";
+import { compareDate, first, local_date, records, require as check, hasRole, same } from "@canlang/stdlib";
+
+// Desired: learn.eligible derive mirror (CanLearn.can:26). Grant primitives
+// (is_staff, can_work, eligible_terms) are owned by the employee/member_terms
+// packages and unwired in this Then-only witness; stubs throw so the seam
+// stays explicit for lane-05.
+function is_staff() {
+  throw new Error("unimplemented: employee.is_staff");
+}
+function can_work() {
+  throw new Error("unimplemented: employee.can_work");
+}
+function eligible_terms() {
+  throw new Error("unimplemented: member_terms.eligible_term");
+}
+function eligible(account, version) {
+  return (
+    (version.audience === "staff" &&
+      is_staff(account) &&
+      version.locations.some((location) => can_work(account, location))) ||
+    (version.audience === "member" &&
+      eligible_terms(account).some((term) =>
+        term.locations.some(
+          (location) => version.locations.includes(location) && location.active,
+        ),
+      ))
+  );
+}
+
+const coursesCaption = message("Course authoring", { nl: "Cursussen beheren" });
+
+const myLearningPageDescriptor = {
+  owner: "learn",
+  path: "/learning/mine",
+  title: message("My learning", { nl: "Mijn opleidingen" }),
+  description: message(
+    "Read the exact enrolled content and acknowledge it without a separate testing DSL.",
+    {
+      nl: "Lees de exacte ingeschreven inhoud en bevestig die zonder afzonderlijke testtaal.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "authenticated"), "forbidden");
+    return {};
+  },
+  render: myLearningPage,
+};
+
+const coursesPageDescriptor = {
+  owner: "learn",
+  path: "/learning/courses",
+  title: coursesCaption,
+  description: message(
+    "Author and publish course versions and inspect attributed completion.",
+    {
+      nl: "Maak en publiceer cursusversies en bekijk herleidbare afronding.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "learn.instructor"), "forbidden");
+    return {};
+  },
+  render: coursesPage,
+};
 import {
   action,
   actions,

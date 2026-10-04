@@ -167,6 +167,7 @@ package learn label="Learning"@{nl="Opleidingen"}
       text any(enrollment.Completion as acknowledgment,acknowledgment.lesson==row)
       form complete arguments={enrollment=enrollment,lesson=row}
     pagination
+
   # Author and publish course versions and inspect attributed completion. @{nl="Maak en publiceer cursusversies en bekijk herleidbare afronding."}
   page /learning/courses title=page_learning_courses_title
    require instructor

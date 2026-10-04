@@ -49,7 +49,7 @@ import {
   textarea,
   timeline,
 } from "@canlang/ui"; // desired/unimplemented additions: alert/badge/breadcrumbs/button/calendar/file_input/input/link/modal/pagination/progress/radio/select/slot/stat/textarea/timeline
-import { can_work, deactivate, Employee, hr, staff } from "./employee.mjs";
+import { can_work, Employee, hr, staff } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
 
 /* Handwritten desired target; every import is a proposed, unimplemented contract.

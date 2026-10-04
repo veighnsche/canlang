@@ -154,6 +154,7 @@ package onboard label=page_people_onboarding_title
      text row.completed_by,row.completed_at
      action complete
      pagination
+
   # Prepare work identities and role/location checklists under HR document grants. @{nl="Bereid werkidentiteiten en rol- en locatiechecklists voor binnen HR-documentrechten."}
   page /people/onboarding title=page_people_onboarding_title
    require hr

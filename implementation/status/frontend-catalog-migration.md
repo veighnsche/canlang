@@ -120,7 +120,17 @@ Learn/Onboard Then E2001s are all unimplemented name-binding in
 01's analysis (placed-control->param, op refs, steps-row rebind,
 all spec-legal per GRAMMAR/UI-COMPONENTS L213/L218) + pre-existing
 classes (local_date, E3013 title, require hr, import cascade).
-Zero real source errors; gap list handed to 01. Prototype stops
+Zero real source errors; gap list handed to 01. Independent review
+verdict BLOCKERS (witness-only; .can clean on all 8 checks): B1/B2
+Learn.mjs referenced undefined page descriptors + eligible helper —
+fixed with descriptor consts (Check/Onboard pattern) + eligible
+derive mirror with throwing grant stubs (employee/member_terms
+unwired in Then-only witness). N1 unused deactivate import dropped;
+N2 two blank separators restored; N3/N4 .md enroll/Employee prose
+fixed. Review observation: timelines drop base order (no catalog
+vocabulary; renderer-implicit; flagged for 05). Scan lesson:
+import-vs-usage must also cover bare identifiers, not just
+`name({context` calls — added to review prompts. Prototype stops
 byte-identical (pre-existing Given gaps). Handoff: (a) array
 control (locations/skills); (b) user refs generated; (c)
 sequence-steps/timeline/alert-suite/progress/stat renderers;
