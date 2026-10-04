@@ -53,6 +53,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Run JEV caller tests (mocked, no credentials)
         run: python3 -m unittest discover -s tools -p "test_jev.py"
       - name: Run parser boundary tests (excluding stale corpus test)
