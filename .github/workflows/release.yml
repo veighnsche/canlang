@@ -14,7 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned 2026-10-01 (was @stable, as in lane-01.yml); release jobs pin.
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         with:
           toolchain: "1.99.0"
       - name: Build can (release, locked)
@@ -31,16 +32,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
           cache: npm
       - name: Install from lock
         run: npm ci --no-audit --no-fund
       - name: Build lane-07 packages
         run: npm run build
+      - name: Build packed producer packages
+        # Each packed non-L7 workspace builds standalone (their own tsconfigs).
+        # Extend this list together with the pack loop below.
+        run: npm run build -w @canlang/state -w @canlang/values
       - name: Pack publishable workspaces
+        # Only non-private workspaces with a dist build. Private internals
+        # (identity, interfaces, work, services, files) and the ui lib join
+        # this loop when their owners flip them public.
         run: |
           mkdir -p release-artifacts
-          for w in contracts cloudflare testkit state values identity interfaces work services files; do
+          for w in contracts cloudflare testkit state values; do
             npm pack -w "@canlang/$w" --pack-destination "$PWD/release-artifacts"
           done
       - uses: actions/upload-artifact@v4

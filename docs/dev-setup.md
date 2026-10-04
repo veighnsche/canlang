@@ -24,7 +24,7 @@ npm run typecheck
 npm test
 ```
 
-`npm test` builds first, then runs every lane-07 suite including two real
+`npm test` builds first, then runs every lane-07 suite including real
 local-workerd tests (HTTP + D1, no network). Expect all suites green.
 
 ```sh

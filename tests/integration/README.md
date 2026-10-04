@@ -22,7 +22,8 @@ manual/credentialed legs) that:
   copying their implementation into this directory;
 - labels every evidence row `local`, `emulator`, or `live-provider`;
 - fails loudly on missing producers (`unsupported`), never green on mocks;
-- cleans up its processes and temp state (use `t.tmpdir()`-style isolation).
+- cleans up its processes and temp state (use `fs.mkdtemp` isolation or the
+  testkit per-row local scopes).
 
 ## Milestone gates (PLAN)
 
