@@ -4,6 +4,8 @@ import {
   any,
   group,
   call,
+  collect,
+  first,
   date,
   compareInstant,
   compareMoney,
@@ -18,6 +20,9 @@ import {
   send,
   set,
   subtractMoney,
+  addDuration,
+  subtractDuration,
+  equalValue,
   sum,
 } from "@canlang/stdlib";
 import {
@@ -54,6 +59,34 @@ const reviewerCaption = message("Reviewer", { nl: "Beoordelaar" });
 const receivedCaption = message("Received at", { nl: "Ontvangen op" });
 
 const overrideCaption = message("Deadline override reason", { nl: "Reden deadline-uitzondering" });
+
+const awardsPageDescriptor = {
+  owner: "grant",
+  path: "/awards",
+  title: message("Funded programs", { nl: "Financieringsprogramma's" }),
+  description: message("Discover the published cash-award terms and use private applicant intake.", {
+    nl: "Bekijk de gepubliceerde subsidievoorwaarden en gebruik de private aanvraagprocedure.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    return {};
+  },
+  render: awardsPage,
+};
+
+const reviewPageDescriptor = {
+  owner: "grant",
+  path: "/awards/review",
+  title: message("Award review", { nl: "Aanvragen beoordelen" }),
+  description: message("Review assigned applications and visible monetary commitments.", {
+    nl: "Beoordeel toegewezen aanvragen en zichtbare financiële toezeggingen.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "grant.reviewer") || hasRole(c, "grant.coordinator"), "forbidden");
+    return {};
+  },
+  render: reviewPage,
+};
 
 export const appDefinition = {
   id: "CanGrant",
@@ -123,12 +156,12 @@ export const appDefinition = {
       readGrants: [
         {
           rule: "Grant.read.1",
-          fields: ["location", "name", "terms", "questions", "criteria", "closes", "timezone"],
+          fields: ["location", "name", "terms", "questions", "criteria", "closes", "timezone", "published"],
         },
         { rule: "Grant.read.2" },
         {
           rule: "Grant.read.3",
-          fields: ["location", "name", "terms", "questions", "criteria", "closes", "timezone"],
+          fields: ["location", "name", "terms", "questions", "criteria", "closes", "timezone", "published"],
         },
       ],
       invariants: ["Grant.require.1"],
@@ -187,13 +220,15 @@ export const appDefinition = {
         { rule: "Application.read.3" },
       ],
       invariants: ["Application.require.1"],
-      locks: ["Application.lock.1", "Application.lock.2", "Application.lock.3"],
+      locks: ["Application.lock.1", "Application.lock.2", "Application.lock.3", "Application.lock.4", "Application.lock.5"],
       unique: [{ fields: ["correction"], where: (c, row) => row.state === "draft" }],
       fields: {
         account: { type: "user", label: message("Account", { nl: "Account" }) },
         email: { type: "email" },
         title: { type: "text", trim: true, min: 1n },
         description: { type: "text", trim: true, min: 1n },
+        terms: {type: "text", label: message("Frozen terms", {nl: "Vastgelegde voorwaarden"})},
+        criteria: {type: "text", label: message("Frozen criteria", {nl: "Vastgelegde criteria"})},
         questions: {
           type: "grant.Question",
           array: true,
@@ -246,6 +281,8 @@ export const appDefinition = {
           nullable: true,
           label: message("Decided at", { nl: "Besloten op" }),
         },
+        notice_delivery: {type: "text", nullable: true},
+        notice_state: {type: "enum", cases: ["none", "pending", "succeeded", "failed", "unknown", "skipped"], default: "none", label: message("Decision notice delivery", {nl: "Bezorging besluitbericht"})},
       },
     },
     "grant.Comment": {
@@ -269,6 +306,11 @@ export const appDefinition = {
         author: { type: "user", server: "actor" },
         recorded: { type: "datetime", server: "now" },
       },
+    },
+    "grant.Recovery": {
+      parent: "grant.Application", label: message("Reviewer recovery", {nl: "Herstel beoordelaar"}),
+      readGrants: [{rule: "Recovery.read.1"}, {rule: "Recovery.read.2"}], locks: ["Recovery.lock.1"],
+      fields: {previous: {type: "user", label: message("Previous reviewer", {nl:"Vorige beoordelaar"})}, reviewer: {type: "user", label: reviewerCaption}, reason: {type: "text", trim: true, min: 1n}, author: {type: "user", server: "actor"}, recorded: {type: "datetime", server: "now"}},
     },
   },
   preferences: {
@@ -455,6 +497,7 @@ export const appDefinition = {
         },
       ),
     },
+    "grant.recover": {handler: "recover", read: false, by: "grant.coordinator", label: message("Restore review", {nl: "Beoordeling herstellen"}), inputs: {application: {type: "grant.Application"}, assignee: {type: "user", label: reviewerCaption}, reason: {type: "text"}}},
     "grant.withdraw": {
       read: false,
       handler: "withdraw",
@@ -469,10 +512,10 @@ export const appDefinition = {
       ),
     },
   },
-  pages: [
-    { path: "/awards", render: awardsPage },
-    { path: "/awards/review", render: reviewPage },
-  ],
+  handlers: {
+    "grant.notice_result": { handler: "notice_result", on: { capability: "grant.Mail", operation: "send", event: "completed" } },
+  },
+  pages: [awardsPageDescriptor, reviewPageDescriptor],
   disabled: [
     "grant.Grant.delete",
     "grant.Application.create",
@@ -528,6 +571,8 @@ export function canApp() {
         (await can_work(c, c.actor, row.parent.parent.location)),
       "Comment.read.2": async (c, row) =>
         hasRole(c, "grant.coordinator") && (await can_work(c, c.actor, row.parent.parent.location)),
+      "Recovery.read.1": async (c, row) => hasRole(c, "grant.reviewer") && same(row.parent.reviewer, c.actor) && row.parent.state === "submitted" && await can_work(c, c.actor, row.parent.parent.location),
+      "Recovery.read.2": async (c, row) => hasRole(c, "authenticated") && (same(row.parent.account, c.actor) || (hasRole(c, "grant.coordinator") && await can_work(c, c.actor, row.parent.parent.location))),
       "Withdrawal.read.1": async (c, row) =>
         hasRole(c, "authenticated") &&
         (same(row.parent.account, c.actor) ||
@@ -587,7 +632,7 @@ export function canApp() {
           (same(row.correction.parent, row.parent) && same(row.correction.account, row.account))),
     },
     locks: {
-      "Application.lock.1": { fields: ["account", "questions", "correction"] },
+      "Application.lock.1": { fields: ["account", "terms", "criteria", "questions", "correction"] },
       "Application.lock.2": {
         fields: ["decision", "decided_by", "decided_at"],
         when: (c, row) => row.decided_at !== null,
@@ -599,13 +644,15 @@ export function canApp() {
           "description",
           "answers",
           "amount",
-          "reviewer",
           "received",
           "receipt_evidence",
           "override_reason",
         ],
         when: (c, row) => row.state !== "draft",
       },
+      "Application.lock.4": {fields: ["reviewer"], when: async (c, row) => row.state !== "draft" && (row.state !== "submitted" || (hasRole(c, "grant.reviewer", row.reviewer) && await can_work(c, row.reviewer, row.parent.location)))},
+      "Application.lock.5": {fields: ["notice_delivery"], when: (c, row) => row.notice_delivery !== null},
+      "Recovery.lock.1": {fields: ["previous", "reviewer", "reason", "author", "recorded"]},
       "Comment.lock.1": { fields: ["body", "author", "recorded"] },
       "Withdrawal.lock.1": { fields: ["reason", "author", "recorded"] },
     },
@@ -628,6 +675,7 @@ export function canApp() {
         grant.published &&
           compareInstant(c.now, grant.closes) <= 0 &&
           !same(assignee, c.actor) &&
+          hasRole(c, "grant.reviewer", assignee) &&
           (await can_work(c, assignee, grant.location)),
       );
       await create(c, "grant.Application", {
@@ -636,6 +684,8 @@ export function canApp() {
         email,
         title,
         description,
+        terms: grant.terms,
+        criteria: grant.criteria,
         questions: grant.questions,
         amount,
         reviewer: assignee,
@@ -664,6 +714,8 @@ export function canApp() {
         email: application.email,
         title: application.title,
         description: application.description,
+        terms: application.terms,
+        criteria: application.criteria,
         questions: application.questions,
         answers: application.answers,
         amount: application.amount,
@@ -694,6 +746,8 @@ export function canApp() {
         email,
         title,
         description,
+        terms: grant.terms,
+        criteria: grant.criteria,
         questions: grant.questions,
         answers,
         amount,
@@ -706,11 +760,11 @@ export function canApp() {
       check(await can_work(c, c.actor, grant.location));
       return {
         items: (
-          await records(c, "grant.Application", {
+          await collect(records(c, "grant.Application", {
             parent: grant,
             where: (application) =>
               application.state === "approved" && application.decided_at !== null,
-          })
+          }))
         ).map((application) => ({
           application: application.id,
           title: application.title,
@@ -731,6 +785,7 @@ export function canApp() {
           compareInstant(c.now, application.parent.closes) <= 0 &&
           application.parent.published &&
           !same(application.reviewer, c.actor) &&
+          hasRole(c, "grant.reviewer", application.reviewer) &&
           (await can_work(c, application.reviewer, application.parent.location)) &&
           (await complete_answers(c, application.questions, application.answers)),
       );
@@ -753,6 +808,7 @@ export function canApp() {
       );
       check(
         !same(application.reviewer, application.account) &&
+          hasRole(c, "grant.reviewer", application.reviewer) &&
           (await can_work(c, application.reviewer, application.parent.location)) &&
           (await complete_answers(c, application.questions, application.answers)),
       );
@@ -792,13 +848,27 @@ export function canApp() {
           decided_by: c.actor,
           decided_at: c.now,
         });
-      await send(c, "grant.Mail.send", {
+      const notice = await send(c, "grant.Mail.send", {
         to: application.email,
         subject: format(c, message("Award decision", { nl: "Besluit over aanvraag" }), {
           locale: null,
         }),
         body: reason,
       });
+      await set(c, application, {notice_delivery: notice.id, notice_state: "pending"});
+    },
+    async recover(c, {application, assignee, reason}) {
+      check(hasRole(c, "grant.coordinator"), "forbidden");
+      check(await can_work(c, c.actor, application.parent.location) && application.state === "submitted" && reason.trim() !== "");
+      check(!hasRole(c, "grant.reviewer", application.reviewer) || !await can_work(c, application.reviewer, application.parent.location));
+      check(!same(assignee, application.account) && hasRole(c, "grant.reviewer", assignee) && await can_work(c, assignee, application.parent.location));
+      await create(c, "grant.Recovery", {parent: application, previous: application.reviewer, reviewer: assignee, reason});
+      await set(c, application, {reviewer: assignee});
+    },
+    async notice_result(c, {event}) {
+      for await (const application of records(c, "grant.Application", {where: row => row.notice_delivery === event.delivery_id, limit: 1n})) {
+        await set(c, application, {notice_state: event.status});
+      }
     },
     async withdraw(c, { application, reason }) {
       check(hasRole(c, "grant.coordinator"), "forbidden");
@@ -813,20 +883,10 @@ export function canApp() {
   };
 }
 
-export async function awardsPage(c) {
+export async function awardsPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "grant",
-      path: "/awards",
-      title: message("Funded programs", { nl: "Financieringsprogramma's" }),
-      description: message(
-        "Discover the published cash-award terms and use private applicant intake.",
-        {
-          nl: "Bekijk de gepubliceerde subsidievoorwaarden en gebruik de private aanvraagprocedure.",
-        },
-      ),
-    },
+    awardsPageDescriptor,
     () => [
       card({
         context: c,
@@ -837,6 +897,7 @@ export async function awardsPage(c) {
           list({
             context: c,
             model: "grant.Grant",
+            where: (grant) => grant.published,
             order: ["closes"],
             filter: ["location", "closes"],
             defaults: { location: c.preferences.grant.location },
@@ -874,21 +935,22 @@ export async function awardsPage(c) {
                   context: c,
                   model: "grant.Application",
                   where: (application) => same(application.account, c.actor),
-                  columns: ["title", "amount", "state", "decision", "received", "correction"],
+                  columns: ["title", "amount", "state", "decision", "notice_state", "received", "correction"],
                   filter: ["state"],
                   defaults: { state: c.preferences.grant.application_state },
                   renderRow: (application, v) => [
-                    text({ context: v, values: [application.questions, application.answers] }),
                     edit({
                       context: v,
                       operation: "grant.Application.update",
                       record: application,
                     }),
+                    text({context: v, values: [application.terms, application.criteria, application.questions, application.answers]}),
                     actions({
                       context: v,
                       operations: ["grant.submit", "grant.correct"],
                       boundArgs: { application },
                     }),
+                    table({context: v, model: "grant.Recovery", parent: application, columns: ["previous", "reviewer", "reason", "author", "recorded"]}),
                     table({
                       context: v,
                       model: "grant.Withdrawal",
@@ -906,25 +968,17 @@ export async function awardsPage(c) {
   );
 }
 
-export async function reviewPage(c) {
-  check(hasRole(c, "grant.reviewer") || hasRole(c, "grant.coordinator"), "forbidden");
+export async function reviewPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "grant",
-      path: "/awards/review",
-      title: message("Award review", { nl: "Aanvragen beoordelen" }),
-      description: message("Review assigned applications and visible monetary commitments.", {
-        nl: "Beoordeel toegewezen aanvragen en zichtbare financiële toezeggingen.",
-      }),
-    },
+    reviewPageDescriptor,
     () => [
       ...(hasRole(c, "grant.coordinator")
         ? [
             card({
               context: c,
               title: budgetCaption,
-              children: [form({ context: c, operation: "grant.Grant.create" })],
+              children: [form({ context: c, operation: "grant.Grant.create" }), form({context: c, operation: "grant.intake"})],
             }),
           ]
         : []),
@@ -949,6 +1003,16 @@ export async function reviewPage(c) {
                       title: budgetCaption,
                       children: [
                         edit({ context: v, operation: "grant.Grant.update", record: grant }),
+                        metrics({
+                          context: v,
+                          values: [
+                            grant.budget,
+                            grant.requested,
+                            grant.committed,
+                            grant.withdrawn,
+                            grant.remaining,
+                          ],
+                        }),
                         form({
                           context: v,
                           operation: "grant.award_export",
@@ -959,16 +1023,6 @@ export async function reviewPage(c) {
                               items: result.items,
                               columns: ["application", "title", "amount", "decided_at"],
                             }),
-                          ],
-                        }),
-                        metrics({
-                          context: v,
-                          values: [
-                            grant.budget,
-                            grant.requested,
-                            grant.committed,
-                            grant.withdrawn,
-                            grant.remaining,
                           ],
                         }),
                       ],
@@ -982,6 +1036,8 @@ export async function reviewPage(c) {
                 columns: [
                   "title",
                   "description",
+                  "terms",
+                  "criteria",
                   "questions",
                   "answers",
                   "amount",
@@ -990,6 +1046,7 @@ export async function reviewPage(c) {
                   "override_reason",
                   "state",
                   "decision",
+                  "notice_state",
                   "decided_by",
                   "decided_at",
                 ],
@@ -999,7 +1056,7 @@ export async function reviewPage(c) {
                 renderRow: (application, av) => [
                   actions({
                     context: av,
-                    operations: ["grant.decide", "grant.external", "grant.withdraw"],
+                    operations: ["grant.decide", "grant.external", "grant.recover", "grant.withdraw"],
                     boundArgs: { application },
                   }),
                   form({
@@ -1013,6 +1070,7 @@ export async function reviewPage(c) {
                     parent: application,
                     columns: ["body", "author", "recorded"],
                   }),
+                  table({context: av, model: "grant.Recovery", parent: application, columns: ["previous", "reviewer", "reason", "author", "recorded"]}),
                   table({
                     context: av,
                     model: "grant.Withdrawal",
@@ -1045,11 +1103,19 @@ export const exampleImports = [
 
 export function exampleFixtures({ self, other, imported }) {
   const { test_site, test_worker } = imported;
+  const reviewer_user = {dependencies: [], user: async(c,s)=>({roles:["grant.reviewer"]})};
+  const replacement_user = {dependencies: [], user: async(c,s)=>({roles:["grant.reviewer"]})};
+  const coordinator_user = {dependencies: [], user: async(c,s)=>({roles:["grant.coordinator"]})};
+  const ordinary_user = {dependencies: [], user: async(c,s)=>({roles:[]})};
+  const hr_user = {dependencies: [], user: async(c,s)=>({roles:["employee.hr"]})};
+  const replacement_worker = {model:"employee.Employee", dependencies:[test_site,replacement_user], value:async(c,s)=>({user:s.replacement_user,home:s.test_site,locations:[s.test_site],start:date("2026-10-01"),role:"Replacement reviewer"})};
+  const coordinator_worker = {model:"employee.Employee", dependencies:[test_site,coordinator_user], value:async(c,s)=>({user:s.coordinator_user,home:s.test_site,locations:[s.test_site],start:date("2026-10-01"),role:"Coordinator"})};
+  const ordinary_worker = {model:"employee.Employee", dependencies:[test_site,ordinary_user], value:async(c,s)=>({user:s.ordinary_user,home:s.test_site,locations:[s.test_site],start:date("2026-10-01"),role:"Reviewer"})};
   const colleague = {
     model: "employee.Employee",
-    dependencies: [test_site],
+    dependencies: [test_site, reviewer_user],
     value: async (c, s) => ({
-      user: s.other,
+      user: s.reviewer_user,
       home: s.test_site,
       locations: [s.test_site],
       start: date("2026-10-01"),
@@ -1073,17 +1139,19 @@ export function exampleFixtures({ self, other, imported }) {
   };
   const submitted = {
     model: "grant.Application",
-    dependencies: [program],
+    dependencies: [program, reviewer_user],
     value: async (c, s) => ({
       parent: s.program,
       account: s.other,
       email: "applicant@example.test",
       title: "Project",
       description: "New business",
+      terms: s.program.terms,
+      criteria: s.program.criteria,
       questions: s.program.questions,
       answers: [{ question: "purpose", value: "Launch" }],
       amount: money(60n, "EUR"),
-      reviewer: s.self,
+      reviewer: s.reviewer_user,
       received: datetime("2026-10-01T09:00:00Z"),
       state: "submitted",
     }),
@@ -1098,10 +1166,12 @@ export function exampleFixtures({ self, other, imported }) {
       email: "applicant@example.test",
       title: "Corrected project",
       description: "Clarified business",
+      terms: s.submitted.terms,
+      criteria: s.submitted.criteria,
       questions: s.submitted.questions,
       answers: s.submitted.answers,
       amount: money(60n, "EUR"),
-      reviewer: s.self,
+      reviewer: s.reviewer_user,
     }),
   };
   return {
@@ -1109,373 +1179,758 @@ export function exampleFixtures({ self, other, imported }) {
     program,
     submitted,
     corrected,
+    reviewer_user, replacement_user, coordinator_user, ordinary_user, hr_user, replacement_worker, coordinator_worker, ordinary_worker,
     examples: [
+      // Proposed causal sequences; each explicit call uses normal production admission.
+      {operation:"grant.apply",dependencies:[program, colleague, coordinator_worker, ordinary_user],sequence:[
+        {
+          operation:"grant.apply",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({grant:s.program,email:"applicant@example.test",title:"Journey project",description:"New business",amount:money(60n,"EUR"),assignee:s.reviewer_user}),
+        },
+        {
+          let:"draft",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.draft!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.submit",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({application:b.draft}),
+          error:"rule_failed",
+        },
+        {
+          operation:"grant.Application.update",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({record:b.draft,changes:{answers:[{question:"purpose",value:"Launch"}]}}),
+        },
+        {
+          let:"ready",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.ready!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.submit",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({application:b.ready}),
+        },
+        {
+          let:"pending",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.pending!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.decide",
+          by:async(c,s,b)=>s.ordinary_user,
+          inputs:async(c,s,b)=>({application:b.pending,approve:true,reason:"Meets criteria"}),
+          error:"forbidden",
+        },
+        {
+          observations:async(c,s,b)=>[await count(records(c,"grant.Application",{parent:s.program}))],
+          expected:async(c,s,b)=>[0n],
+          types:["int"],
+        },
+        {
+          operation:"grant.decide",
+          by:async(c,s,b)=>s.reviewer_user,
+          inputs:async(c,s,b)=>({application:b.pending,approve:true,reason:"Meets criteria"}),
+        },
+        {
+          operation:"grant.award_export",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({grant:s.program}),
+          bind:"first_awards",
+        },
+        {
+          observations:async(c,s,b)=>[await count(b.first_awards.items), s.program.committed, s.program.remaining],
+          expected:async(c,s,b)=>[1n, money(60n,"EUR"), money(40n,"EUR")],
+          types:["int", "money", "money"],
+        },
+        {
+          operation:"grant.apply",
+          by:async(c,s,b)=>s.other,
+          inputs:async(c,s,b)=>({grant:s.program,email:"applicant@example.test",title:"Competing project",description:"New business",amount:money(60n,"EUR"),assignee:s.reviewer_user}),
+        },
+        {
+          let:"competing_draft",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.other) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.competing_draft!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.Application.update",
+          by:async(c,s,b)=>s.other,
+          inputs:async(c,s,b)=>({record:b.competing_draft,changes:{answers:[{question:"purpose",value:"Launch"}]}}),
+        },
+        {
+          let:"competing_ready",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.other) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.competing_ready!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.submit",
+          by:async(c,s,b)=>s.other,
+          inputs:async(c,s,b)=>({application:b.competing_ready}),
+        },
+        {
+          let:"competing_pending",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.other) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.competing_pending!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.decide",
+          by:async(c,s,b)=>s.reviewer_user,
+          inputs:async(c,s,b)=>({application:b.competing_pending,approve:true,reason:"Impact also verified"}),
+          error:"rule_failed",
+        },
+        {
+          observations:async(c,s,b)=>[(await collect(records(c,"grant.Application",{parent:s.program,where:row=>row.state==="submitted"}))).map(row=>row.amount)],
+          expected:async(c,s,b)=>[[money(60n,"EUR")]],
+          types:["money[]"],
+        },
+        {
+          operation:"grant.decide",
+          by:async(c,s,b)=>s.reviewer_user,
+          inputs:async(c,s,b)=>({application:b.competing_pending,approve:false,reason:"Funds already committed"}),
+        },
+        {
+          operation:"grant.award_export",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({grant:s.program}),
+          bind:"retained_awards",
+        },
+        {
+          let:"approved",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.approved!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.withdraw",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({application:b.approved,reason:"Funding cancelled"}),
+        },
+        {
+          let:"withdrawn",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.withdrawn!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.withdraw",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({application:b.withdrawn,reason:"Repeated withdrawal"}),
+          error:"rule_failed",
+        },
+        {
+          operation:"grant.award_export",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({grant:s.program}),
+          bind:"empty_awards",
+        },
+        {
+          observations:async(c,s,b)=>[b.withdrawn.state, b.withdrawn.decision, b.withdrawn.decided_by, b.withdrawn.amount, await count(records(c,"grant.Withdrawal",{parent:b.withdrawn})), await count(b.empty_awards.items), s.program.requested, s.program.committed, s.program.withdrawn, s.program.remaining],
+          expected:async(c,s,b)=>["withdrawn", "Meets criteria", s.reviewer_user, money(60n,"EUR"), 1n, 0n, money(120n,"EUR"), money(0n,"EUR"), money(60n,"EUR"), money(100n,"EUR")],
+          types:["grant.Application.state", "text?", "user?", "money", "int", "int", "money", "money", "money", "money"],
+        },
+      ]},
+      {operation:"grant.apply",dependencies:[program, colleague, coordinator_worker],sequence:[
+        {
+          operation:"grant.apply",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({grant:s.program,email:"applicant@example.test",title:"Journey project",description:"New business",amount:money(60n,"EUR"),assignee:s.reviewer_user}),
+        },
+        {
+          let:"draft",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.draft!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.Application.update",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({record:b.draft,changes:{answers:[{question:"purpose",value:"Launch"}]}}),
+        },
+        {
+          let:"ready",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.ready!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.submit",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({application:b.ready}),
+        },
+        {
+          let:"pending",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.pending!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.Comment.create",
+          by:async(c,s,b)=>s.reviewer_user,
+          inputs:async(c,s,b)=>({parent:b.pending,body:"Private assessment"}),
+        },
+        {
+          operation:"grant.decide",
+          by:async(c,s,b)=>s.reviewer_user,
+          inputs:async(c,s,b)=>({application:b.pending,approve:false,reason:"Clarify the plan"}),
+        },
+        {
+          operation:"grant.award_export",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({grant:s.program}),
+          bind:"rejected_awards",
+        },
+        {
+          let:"rejected",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.rejected!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.Application.update",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({record:b.rejected,changes:{answers:[]}}),
+          error:"rule_failed",
+        },
+        {
+          observations:async(c,s,b)=>[await count(records(c,"grant.Comment",{parent:b.rejected}))],
+          expected:async(c,s,b)=>[0n],
+          types:["int"],
+        },
+        {
+          operation:"grant.Grant.update",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({record:s.program,changes:{terms:"New terms",criteria:"New criteria"}}),
+        },
+        {
+          operation:"grant.correct",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({application:b.rejected}),
+        },
+        {
+          operation:"grant.correct",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({application:b.rejected}),
+          error:"rule_failed",
+        },
+        {
+          let:"correction",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && same(row.correction,b.rejected),order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.correction!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          observations:async(c,s,b)=>[b.correction.terms, b.correction.criteria, b.correction.state, b.rejected.state, b.rejected.decision],
+          expected:async(c,s,b)=>["Cash award", "Impact", "draft", "rejected", "Clarify the plan"],
+          types:["text", "text", "grant.Application.state", "grant.Application.state", "text?"],
+        },
+        {
+          operation:"grant.Application.update",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({record:b.correction,changes:{answers:[{question:"purpose",value:"Launch"}],amount:money(40n,"EUR")}}),
+        },
+        {
+          let:"corrected_ready",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && same(row.correction,b.rejected),order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.corrected_ready!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.submit",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({application:b.corrected_ready}),
+        },
+        {
+          let:"corrected_pending",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && same(row.correction,b.rejected),order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.corrected_pending!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.decide",
+          by:async(c,s,b)=>s.reviewer_user,
+          inputs:async(c,s,b)=>({application:b.corrected_pending,approve:true,reason:"Corrected plan checked"}),
+        },
+        {
+          operation:"grant.award_export",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({grant:s.program}),
+          bind:"corrected_awards",
+        },
+        {
+          let:"corrected_approved",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && same(row.correction,b.rejected),order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.corrected_approved!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          let:"retained_rejection",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.retained_rejection!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          observations:async(c,s,b)=>[b.retained_rejection.state, b.retained_rejection.decision, b.corrected_approved.state, b.corrected_approved.amount, b.corrected_approved.terms, b.corrected_approved.criteria, same(b.corrected_approved.correction,b.rejected), await count(b.corrected_awards.items), s.program.committed, s.program.remaining],
+          expected:async(c,s,b)=>["rejected", "Clarify the plan", "approved", money(40n,"EUR"), "Cash award", "Impact", true, 1n, money(40n,"EUR"), money(60n,"EUR")],
+          types:["grant.Application.state", "text?", "grant.Application.state", "money", "text", "text", "bool", "int", "money", "money"],
+        },
+      ]},
+      {operation:"grant.apply",dependencies:[program, colleague, replacement_worker, coordinator_worker, ordinary_worker, hr_user],sequence:[
+        {
+          operation:"grant.apply",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({grant:s.program,email:"applicant@example.test",title:"Journey project",description:"New business",amount:money(60n,"EUR"),assignee:s.reviewer_user}),
+        },
+        {
+          let:"draft",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.draft!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.Application.update",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({record:b.draft,changes:{answers:[{question:"purpose",value:"Launch"}]}}),
+        },
+        {
+          let:"ready",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.ready!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.submit",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({application:b.ready}),
+        },
+        {
+          let:"pending",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.pending!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          let:"submitted_version",
+          value:async(c,s,b)=>b.pending.version,
+        },
+        {
+          let:"original_received",
+          value:async(c,s,b)=>b.pending.received,
+        },
+        {
+          operation:"grant.Grant.update",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({record:s.program,changes:{closes:subtractDuration(c.now,60000n),terms:"New terms",criteria:"New criteria",questions:[{key:"new",prompt:"New question"}]}}),
+        },
+        {
+          operation:"employee.deactivate",
+          by:async(c,s,b)=>s.hr_user,
+          inputs:async(c,s,b)=>({employee:s.colleague,ended:date("2026-10-02")}),
+        },
+        {
+          observations:async(c,s,b)=>[s.colleague.active, hasRole(c,"grant.reviewer",s.reviewer_user), await can_work(c,s.reviewer_user,s.test_site)],
+          expected:async(c,s,b)=>[false, true, false],
+          types:["bool", "bool", "bool"],
+        },
+        {
+          operation:"grant.decide",
+          by:async(c,s,b)=>s.reviewer_user,
+          inputs:async(c,s,b)=>({application:b.pending,approve:true,reason:"Meets criteria"}),
+          error:"rule_failed",
+        },
+        {
+          operation:"grant.correct",
+          by:async(c,s,b)=>s.self,
+          inputs:async(c,s,b)=>({application:b.pending}),
+          error:"rule_failed",
+        },
+        {
+          operation:"grant.recover",
+          by:async(c,s,b)=>s.ordinary_user,
+          inputs:async(c,s,b)=>({application:b.pending,assignee:s.replacement_user,reason:"Reviewer unavailable"}),
+          error:"forbidden",
+        },
+        {
+          operation:"grant.recover",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({application:b.pending,assignee:s.ordinary_user,reason:"Reviewer unavailable"}),
+          error:"rule_failed",
+        },
+        {
+          operation:"grant.recover",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({application:b.pending,assignee:s.replacement_user,reason:" Reviewer unavailable "}),
+        },
+        {
+          let:"recovered",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.recovered!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.recover",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({application:b.recovered,assignee:s.reviewer_user,reason:"Repeat"}),
+          request:async(c,s,b)=>({application:{version:b.submitted_version}}),
+          error:"conflict",
+        },
+        {
+          operation:"grant.recover",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({application:b.recovered,assignee:s.replacement_user,reason:"Repeat"}),
+          error:"rule_failed",
+        },
+        {
+          observations:async(c,s,b)=>[b.recovered.state, b.recovered.reviewer, b.recovered.received, b.recovered.amount, b.recovered.terms, b.recovered.criteria, equalValue(c,"grant.Question[]",b.recovered.questions,[{key:"purpose",prompt:"Purpose"}]), await count(records(c,"grant.Recovery",{parent:b.recovered})), await any(records(c,"grant.Recovery",{parent:b.recovered}),evidence=>same(evidence.previous,s.reviewer_user)&&same(evidence.reviewer,s.replacement_user)&&evidence.reason==="Reviewer unavailable"&&same(evidence.author,s.coordinator_user)), s.program.committed],
+          expected:async(c,s,b)=>["submitted", s.replacement_user, b.original_received, money(60n,"EUR"), "Cash award", "Impact", true, 1n, true, money(0n,"EUR")],
+          types:["grant.Application.state", "user", "datetime?", "money", "text", "text", "bool", "int", "bool", "money"],
+        },
+        {
+          operation:"grant.decide",
+          by:async(c,s,b)=>s.reviewer_user,
+          inputs:async(c,s,b)=>({application:b.recovered,approve:true,reason:"Meets criteria"}),
+          error:"rule_failed",
+        },
+        {
+          operation:"grant.decide",
+          by:async(c,s,b)=>s.replacement_user,
+          inputs:async(c,s,b)=>({application:b.recovered,approve:true,reason:"Recovery reviewed"}),
+        },
+        {
+          operation:"grant.award_export",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({grant:s.program}),
+          bind:"recovered_awards",
+        },
+        {
+          let:"recovered_approved",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.self) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.recovered_approved!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          operation:"grant.recover",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({application:b.recovered_approved,assignee:s.reviewer_user,reason:"After decision"}),
+          error:"rule_failed",
+        },
+        {
+          observations:async(c,s,b)=>[b.recovered_approved.state, b.recovered_approved.reviewer, b.recovered_approved.decided_by, b.recovered_approved.decision, b.recovered_approved.received, b.recovered_approved.notice_state, await count(b.recovered_awards.items), s.program.committed, s.program.remaining],
+          expected:async(c,s,b)=>["approved", s.replacement_user, s.replacement_user, "Recovery reviewed", b.original_received, "pending", 1n, money(60n,"EUR"), money(40n,"EUR")],
+          types:["grant.Application.state", "user", "user?", "text?", "datetime?", "grant.Application.notice_state", "int", "money", "money"],
+        },
+      ]},
+      {operation:"grant.intake",dependencies:[program, colleague, coordinator_worker, ordinary_user],sequence:[
+        {
+          operation:"grant.Grant.update",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({record:s.program,changes:{closes:subtractDuration(c.now,60000n)}}),
+        },
+        {
+          operation:"grant.intake",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({grant:s.program,applicant:s.other,email:"external@example.test",title:"External project",description:"Recorded application",answers:[{question:"purpose",value:"Launch"}],amount:money(60n,"EUR"),assignee:s.reviewer_user,received:c.now,evidence:"Signed receipt",override_reason:null}),
+          error:"rule_failed",
+        },
+        {
+          observations:async(c,s,b)=>[await count(records(c,"grant.Application",{parent:s.program}))],
+          expected:async(c,s,b)=>[0n],
+          types:["int"],
+        },
+        {
+          operation:"grant.intake",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({grant:s.program,applicant:s.other,email:"external@example.test",title:"External project",description:"Recorded application",answers:[{question:"purpose",value:"Launch"}],amount:money(60n,"EUR"),assignee:s.reviewer_user,received:addDuration(c.now,60000n),evidence:"Signed receipt",override_reason:"Documented exception"}),
+          error:"rule_failed",
+        },
+        {
+          operation:"grant.intake",
+          by:async(c,s,b)=>s.ordinary_user,
+          inputs:async(c,s,b)=>({grant:s.program,applicant:s.other,email:"external@example.test",title:"External project",description:"Recorded application",answers:[{question:"purpose",value:"Launch"}],amount:money(60n,"EUR"),assignee:s.reviewer_user,received:c.now,evidence:"Signed receipt",override_reason:"Documented exception"}),
+          error:"forbidden",
+        },
+        {
+          operation:"grant.intake",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({grant:s.program,applicant:s.other,email:"external@example.test",title:"External project",description:"Recorded application",answers:[{question:"purpose",value:"Launch"}],amount:money(60n,"EUR"),assignee:s.reviewer_user,received:c.now,evidence:"Signed receipt",override_reason:"Documented exception"}),
+        },
+        {
+          let:"external_application",
+          value:async(c,s,b)=>await first(records(c,"grant.Application",{parent:s.program,where:row=>same(row.account,s.other) && row.correction===null,order:["id"]})),
+        },
+        {
+          observations:async(c,s,b)=>[b.external_application!==null],
+          expected:async(c,s,b)=>[true],
+          types:["bool"],
+        },
+        {
+          observations:async(c,s,b)=>[b.external_application.account, b.external_application.state, b.external_application.received, b.external_application.receipt_evidence, b.external_application.override_reason, b.external_application.terms, b.external_application.criteria],
+          expected:async(c,s,b)=>[s.other, "submitted", c.now, "Signed receipt", "Documented exception", "Cash award", "Impact"],
+          types:["user", "grant.Application.state", "datetime?", "text?", "text?", "text", "text"],
+        },
+        {
+          operation:"grant.decide",
+          by:async(c,s,b)=>s.reviewer_user,
+          inputs:async(c,s,b)=>({application:b.external_application,approve:true,reason:"External evidence checked"}),
+        },
+        {
+          operation:"grant.award_export",
+          by:async(c,s,b)=>s.coordinator_user,
+          inputs:async(c,s,b)=>({grant:s.program}),
+          bind:"external_awards",
+        },
+        {
+          observations:async(c,s,b)=>[await count(b.external_awards.items), s.program.committed, s.program.remaining],
+          expected:async(c,s,b)=>[1n, money(60n,"EUR"), money(40n,"EUR")],
+          types:["int", "money", "money"],
+        },
+      ]},
       {
-        operation: "grant.Application.update",
-        kind: "update",
-        seed: [],
-        dependencies: [submitted],
-        inputs: async (c, s) => ({ record: s.submitted, changes: { answers: [] } }),
-        selectors: ["as", "record.account", "record.state", "changes.answers"],
-        observations: [async (c, s) => await count(s.record.answers)],
-        rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.self, "draft", []],
-            expected: async (c, s) => [0n],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "members",
-              s.self,
-              "draft",
-              [{ question: "purpose", value: "" }],
-            ],
-            error: "validation",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.other, "draft", []],
-            error: "rule_failed",
-          },
+        operation:"grant.Application.update",
+        kind:"update",
+        seed:[],
+        dependencies:[submitted],
+        inputs:async(c,s)=>({record:s.submitted,changes:{answers:[]}}),
+        selectors:["as", "record.account", "record.state", "changes.answers"],
+        observations:[async(c,s)=>await count(s.record.answers)],
+        rows:[
+          {dependencies:[],values:async(c,s)=>["members", s.self, "draft", []],expected:async(c,s)=>[0n]},
+          {dependencies:[],values:async(c,s)=>["members", s.self, "draft", [{question:"purpose",value:""}]],error:"validation"},
+          {dependencies:[],values:async(c,s)=>["members", s.other, "draft", []],error:"rule_failed"},
         ],
       },
       {
-        operation: "grant.apply",
-        seed: [colleague],
-        dependencies: [program],
-        inputs: async (c, s) => ({
-          grant: s.program,
-          email: "applicant@example.test",
-          title: "Project",
-          description: "New business",
-          amount: money(60n, "EUR"),
-          assignee: s.other,
-        }),
-        selectors: ["as", "assignee", "grant.closes"],
-        observations: [
-          async (c, s) => await count(records(c, "grant.Application", { parent: s.grant })),
-        ],
-        rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.other, datetime("2099-01-01T09:00:00Z")],
-            expected: async (c, s) => [1n],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.self, datetime("2099-01-01T09:00:00Z")],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.other, datetime("2000-01-01T09:00:00Z")],
-            error: "rule_failed",
-          },
+        operation:"grant.apply",
+        seed:[colleague, ordinary_worker],
+        dependencies:[program, reviewer_user, colleague, ordinary_worker],
+        inputs:async(c,s)=>({grant:s.program,email:"applicant@example.test",title:"Project",description:"New business",amount:money(60n,"EUR"),assignee:s.reviewer_user}),
+        selectors:["as", "assignee", "grant.closes", "amount"],
+        observations:[async(c,s)=>await count(records(c,"grant.Application",{parent:s.grant}))],
+        rows:[
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.reviewer_user, datetime("2099-01-01T09:00:00Z"), money(60n,"EUR")],expected:async(c,s)=>[1n]},
+          {dependencies:[],values:async(c,s)=>[s.self, s.self, datetime("2099-01-01T09:00:00Z"), money(60n,"EUR")],error:"rule_failed"},
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.reviewer_user, datetime("2000-01-01T09:00:00Z"), money(60n,"EUR")],error:"rule_failed"},
+          {dependencies:[ordinary_user],values:async(c,s)=>[s.self, s.ordinary_user, datetime("2099-01-01T09:00:00Z"), money(60n,"EUR")],error:"rule_failed"},
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.reviewer_user, datetime("2099-01-01T09:00:00Z"), money(60n,"USD")],error:"rule_failed"},
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.reviewer_user, datetime("2099-01-01T09:00:00Z"), money(0n,"EUR")],error:"rule_failed"},
         ],
       },
       {
-        operation: "grant.correct",
-        seed: [],
-        dependencies: [submitted],
-        inputs: async (c, s) => ({ application: s.submitted }),
-        selectors: ["as", "application.account", "application.state"],
-        observations: [
-          async (c, s) => s.application.state,
-          async (c, s) =>
-            await count(records(c, "grant.Application", { parent: s.application.parent })),
-        ],
-        rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.self, "submitted"],
-            expected: async (c, s) => ["submitted", 2n],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.self, "rejected"],
-            expected: async (c, s) => ["rejected", 2n],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.other, "submitted"],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.self, "approved"],
-            error: "rule_failed",
-          },
+        operation:"grant.correct",
+        seed:[],
+        dependencies:[submitted],
+        inputs:async(c,s)=>({application:s.submitted}),
+        selectors:["as", "application.account", "application.state"],
+        observations:[async(c,s)=>s.application.state, async(c,s)=>await count(records(c,"grant.Application",{parent:s.application.parent}))],
+        rows:[
+          {dependencies:[],values:async(c,s)=>[s.self, s.self, "submitted"],expected:async(c,s)=>["submitted", 2n]},
+          {dependencies:[],values:async(c,s)=>[s.self, s.self, "rejected"],expected:async(c,s)=>["rejected", 2n]},
+          {dependencies:[],values:async(c,s)=>[s.self, s.other, "submitted"],error:"rule_failed"},
+          {dependencies:[],values:async(c,s)=>[s.self, s.self, "approved"],error:"rule_failed"},
         ],
       },
       {
-        operation: "grant.submit",
-        seed: [colleague],
-        dependencies: [submitted],
-        inputs: async (c, s) => ({ application: s.submitted }),
-        selectors: [
-          "as",
-          "application.account",
-          "application.reviewer",
-          "application.state",
-          "application.answers",
-          "application.parent.closes",
-        ],
-        observations: [async (c, s) => s.application.state, async (c, s) => s.application.received],
-        rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "members",
-              s.self,
-              s.other,
-              "draft",
-              [{ question: "purpose", value: "Launch" }],
-              datetime("2099-01-01T09:00:00Z"),
-            ],
-            expected: async (c, s) => ["submitted", c.now],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "members",
-              s.self,
-              s.self,
-              "draft",
-              [{ question: "purpose", value: "Launch" }],
-              datetime("2099-01-01T09:00:00Z"),
-            ],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "members",
-              s.self,
-              s.other,
-              "draft",
-              [],
-              datetime("2099-01-01T09:00:00Z"),
-            ],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "members",
-              s.self,
-              s.other,
-              "draft",
-              [{ question: "wrong", value: "Launch" }],
-              datetime("2099-01-01T09:00:00Z"),
-            ],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "members",
-              s.self,
-              s.other,
-              "draft",
-              [
-                { question: "purpose", value: "Launch" },
-                { question: "purpose", value: "Again" },
-              ],
-              datetime("2099-01-01T09:00:00Z"),
-            ],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "members",
-              s.self,
-              s.other,
-              "draft",
-              [{ question: "purpose", value: "Launch" }],
-              datetime("2000-01-01T09:00:00Z"),
-            ],
-            error: "rule_failed",
-          },
+        operation:"grant.submit",
+        seed:[colleague, ordinary_worker],
+        dependencies:[submitted, colleague, ordinary_worker],
+        inputs:async(c,s)=>({application:s.submitted}),
+        selectors:["as", "application.account", "application.reviewer", "application.state", "application.answers", "application.parent.closes", "request.application.version"],
+        observations:[async(c,s)=>s.application.state, async(c,s)=>s.application.received],
+        rows:[
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.self, s.reviewer_user, "draft", [{question:"purpose",value:"Launch"}], datetime("2099-01-01T09:00:00Z"), 1n],expected:async(c,s)=>["submitted", c.now]},
+          {dependencies:[],values:async(c,s)=>[s.self, s.self, s.self, "draft", [{question:"purpose",value:"Launch"}], datetime("2099-01-01T09:00:00Z"), 1n],error:"rule_failed"},
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.self, s.reviewer_user, "draft", [], datetime("2099-01-01T09:00:00Z"), 1n],error:"rule_failed"},
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.self, s.reviewer_user, "draft", [{question:"wrong",value:"Launch"}], datetime("2099-01-01T09:00:00Z"), 1n],error:"rule_failed"},
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.self, s.reviewer_user, "draft", [{question:"purpose",value:"Launch"},{question:"purpose",value:"Again"}], datetime("2099-01-01T09:00:00Z"), 1n],error:"rule_failed"},
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.self, s.reviewer_user, "draft", [{question:"purpose",value:"Launch"}], datetime("2000-01-01T09:00:00Z"), 1n],error:"rule_failed"},
+          {dependencies:[ordinary_user],values:async(c,s)=>[s.self, s.self, s.ordinary_user, "draft", [{question:"purpose",value:"Launch"}], datetime("2099-01-01T09:00:00Z"), 1n],error:"rule_failed"},
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.self, s.reviewer_user, "draft", [{question:"purpose",value:"Launch"}], datetime("2099-01-01T09:00:00Z"), 2n],error:"conflict"},
         ],
       },
       {
-        operation: "grant.submit",
-        seed: [colleague],
-        dependencies: [corrected],
-        inputs: async (c, s) => ({ application: s.corrected }),
-        selectors: [
-          "as",
-          "application.account",
-          "submitted.account",
-          "application.reviewer",
-          "submitted.state",
-        ],
-        observations: [
-          async (c, s) => s.application.state,
-          async (c, s) => s.submitted.state,
-          async (c, s) => s.submitted.received,
-          async (c, s) => s.application.received,
-        ],
-        rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.self, s.self, s.other, "submitted"],
-            expected: async (c, s) => [
-              "submitted",
-              "superseded",
-              datetime("2026-10-01T09:00:00Z"),
-              c.now,
-            ],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.self, s.self, s.other, "rejected"],
-            expected: async (c, s) => [
-              "submitted",
-              "rejected",
-              datetime("2026-10-01T09:00:00Z"),
-              c.now,
-            ],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.self, s.self, s.other, "approved"],
-            error: "rule_failed",
-          },
+        operation:"grant.submit",
+        seed:[colleague],
+        dependencies:[corrected, colleague],
+        inputs:async(c,s)=>({application:s.corrected}),
+        selectors:["as", "application.account", "submitted.account", "application.reviewer", "submitted.state"],
+        observations:[async(c,s)=>s.application.state, async(c,s)=>s.submitted.state, async(c,s)=>s.submitted.received, async(c,s)=>s.application.received],
+        rows:[
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.self, s.self, s.reviewer_user, "submitted"],expected:async(c,s)=>["submitted", "superseded", datetime("2026-10-01T09:00:00Z"), c.now]},
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.self, s.self, s.reviewer_user, "rejected"],expected:async(c,s)=>["submitted", "rejected", datetime("2026-10-01T09:00:00Z"), c.now]},
+          {dependencies:[reviewer_user],values:async(c,s)=>[s.self, s.self, s.self, s.reviewer_user, "approved"],error:"rule_failed"},
         ],
       },
       {
-        operation: "grant.external",
-        seed: [test_worker],
-        dependencies: [submitted],
-        inputs: async (c, s) => ({
-          application: s.submitted,
-          received: datetime("2026-10-01T09:00:00Z"),
-          evidence: "Signed receipt",
-        }),
-        selectors: [
-          "as",
-          "application.state",
-          "application.answers",
-          "application.parent.closes",
-          "override_reason",
-        ],
-        observations: [
-          async (c, s) => s.application.state,
-          async (c, s) => s.application.received,
-          async (c, s) => s.application.override_reason,
-        ],
-        rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "grant.coordinator",
-              "draft",
-              [{ question: "purpose", value: "Launch" }],
-              datetime("2099-01-01T09:00:00Z"),
-              null,
-            ],
-            expected: async (c, s) => ["submitted", datetime("2026-10-01T09:00:00Z"), null],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "grant.coordinator",
-              "draft",
-              [{ question: "purpose", value: "Launch" }],
-              datetime("2000-01-01T09:00:00Z"),
-              null,
-            ],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "grant.coordinator",
-              "draft",
-              [{ question: "purpose", value: "Launch" }],
-              datetime("2000-01-01T09:00:00Z"),
-              "Documented exception",
-            ],
-            expected: async (c, s) => [
-              "submitted",
-              datetime("2026-10-01T09:00:00Z"),
-              "Documented exception",
-            ],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "grant.coordinator",
-              "draft",
-              [],
-              datetime("2099-01-01T09:00:00Z"),
-              null,
-            ],
-            error: "rule_failed",
-          },
+        operation:"grant.external",
+        seed:[test_worker, colleague],
+        dependencies:[submitted, test_worker, colleague],
+        inputs:async(c,s)=>({application:s.submitted,received:datetime("2026-10-01T09:00:00Z"),evidence:"Signed receipt"}),
+        selectors:["as", "application.state", "application.answers", "application.parent.closes", "override_reason"],
+        observations:[async(c,s)=>s.application.state, async(c,s)=>s.application.received, async(c,s)=>s.application.override_reason],
+        rows:[
+          {dependencies:[],values:async(c,s)=>["grant.coordinator", "draft", [{question:"purpose",value:"Launch"}], datetime("2099-01-01T09:00:00Z"), null],expected:async(c,s)=>["submitted", datetime("2026-10-01T09:00:00Z"), null]},
+          {dependencies:[],values:async(c,s)=>["grant.coordinator", "draft", [{question:"purpose",value:"Launch"}], datetime("2000-01-01T09:00:00Z"), null],error:"rule_failed"},
+          {dependencies:[],values:async(c,s)=>["grant.coordinator", "draft", [{question:"purpose",value:"Launch"}], datetime("2000-01-01T09:00:00Z"), "Documented exception"],expected:async(c,s)=>["submitted", datetime("2026-10-01T09:00:00Z"), "Documented exception"]},
+          {dependencies:[],values:async(c,s)=>["grant.coordinator", "draft", [], datetime("2099-01-01T09:00:00Z"), null],error:"rule_failed"},
         ],
       },
       {
-        operation: "grant.decide",
-        seed: [test_worker],
-        dependencies: [submitted],
-        inputs: async (c, s) => ({
-          application: s.submitted,
-          approve: true,
-          reason: "Meets criteria",
-        }),
-        selectors: ["as", "application.account", "application.amount"],
-        observations: [async (c, s) => s.application.state, async (c, s) => s.program.remaining],
-        rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => ["grant.reviewer", s.other, money(60n, "EUR")],
-            expected: async (c, s) => ["approved", money(40n, "EUR")],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["grant.reviewer", s.self, money(60n, "EUR")],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["grant.reviewer", s.other, money(101n, "EUR")],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["members", s.other, money(60n, "EUR")],
-            error: "forbidden",
-          },
+        operation:"grant.decide",
+        seed:[test_worker, colleague],
+        dependencies:[submitted, test_worker, colleague],
+        inputs:async(c,s)=>({application:s.submitted,approve:true,reason:"Meets criteria"}),
+        selectors:["as", "application.reviewer", "application.account", "application.amount", "request.application.version"],
+        observations:[async(c,s)=>s.application.state, async(c,s)=>s.program.remaining, async(c,s)=>s.application.notice_state],
+        rows:[
+          {dependencies:[],values:async(c,s)=>["grant.reviewer", s.self, s.other, money(60n,"EUR"), 1n],expected:async(c,s)=>["approved", money(40n,"EUR"), "pending"]},
+          {dependencies:[],values:async(c,s)=>["grant.reviewer", s.self, s.self, money(60n,"EUR"), 1n],error:"rule_failed"},
+          {dependencies:[],values:async(c,s)=>["grant.reviewer", s.self, s.other, money(101n,"EUR"), 1n],error:"rule_failed"},
+          {dependencies:[],values:async(c,s)=>["members", s.self, s.other, money(60n,"EUR"), 1n],error:"forbidden"},
+          {dependencies:[],values:async(c,s)=>["grant.reviewer", s.self, s.other, money(60n,"EUR"), 2n],error:"conflict"},
         ],
       },
       {
-        operation: "grant.withdraw",
-        seed: [test_worker],
-        dependencies: [submitted],
-        inputs: async (c, s) => ({ application: s.submitted, reason: "Funding cancelled" }),
-        selectors: ["as", "application.state", "application.decision"],
-        observations: [
-          async (c, s) => s.application.state,
-          async (c, s) => s.application.decision,
-          async (c, s) => await count(records(c, "grant.Withdrawal", { parent: s.application })),
-          async (c, s) => s.program.remaining,
+        operation:"grant.recover",
+        seed:[colleague, ordinary_worker, replacement_worker, coordinator_worker],
+        dependencies:[submitted, replacement_user, ordinary_user, colleague, ordinary_worker, replacement_worker, coordinator_worker],
+        inputs:async(c,s)=>({application:s.submitted,assignee:s.replacement_user,reason:"Review unavailable"}),
+        selectors:["as", "application.state", "application.reviewer", "colleague.active", "assignee", "reason", "request.application.version"],
+        observations:[async(c,s)=>s.application.reviewer, async(c,s)=>s.application.state, async(c,s)=>s.application.received, async(c,s)=>s.application.amount, async(c,s)=>s.application.terms, async(c,s)=>s.application.criteria, async(c,s)=>await count(records(c,"grant.Recovery",{parent:s.application})), async(c,s)=>await any(records(c,"grant.Recovery",{parent:s.application}),row=>same(row.previous,s.reviewer_user)&&same(row.reviewer,s.replacement_user)&&row.reason==="Review unavailable"&&same(row.author,s.coordinator_user))],
+        rows:[
+          {dependencies:[coordinator_user, reviewer_user, replacement_user],values:async(c,s)=>[s.coordinator_user, "submitted", s.reviewer_user, false, s.replacement_user, " Review unavailable ", 1n],expected:async(c,s)=>[s.replacement_user, "submitted", datetime("2026-10-01T09:00:00Z"), money(60n,"EUR"), "Cash award", "Impact", 1n, true]},
+          {dependencies:[coordinator_user, ordinary_user, replacement_user],values:async(c,s)=>[s.coordinator_user, "submitted", s.ordinary_user, true, s.replacement_user, " Review unavailable ", 1n],expected:async(c,s)=>[s.replacement_user, "submitted", datetime("2026-10-01T09:00:00Z"), money(60n,"EUR"), "Cash award", "Impact", 1n, false]},
+          {dependencies:[coordinator_user, reviewer_user, replacement_user],values:async(c,s)=>[s.coordinator_user, "submitted", s.reviewer_user, true, s.replacement_user, "Review unavailable", 1n],error:"rule_failed"},
+          {dependencies:[coordinator_user, reviewer_user, ordinary_user],values:async(c,s)=>[s.coordinator_user, "submitted", s.reviewer_user, false, s.ordinary_user, "Review unavailable", 1n],error:"rule_failed"},
+          {dependencies:[coordinator_user, reviewer_user],values:async(c,s)=>[s.coordinator_user, "submitted", s.reviewer_user, false, s.other, "Review unavailable", 1n],error:"rule_failed"},
+          {dependencies:[coordinator_user, reviewer_user, replacement_user],values:async(c,s)=>[s.coordinator_user, "approved", s.reviewer_user, false, s.replacement_user, "Review unavailable", 1n],error:"rule_failed"},
+          {dependencies:[ordinary_user, reviewer_user, replacement_user],values:async(c,s)=>[s.ordinary_user, "submitted", s.reviewer_user, false, s.replacement_user, "Review unavailable", 1n],error:"forbidden"},
+          {dependencies:[coordinator_user, reviewer_user, replacement_user],values:async(c,s)=>[s.coordinator_user, "submitted", s.reviewer_user, false, s.replacement_user, " ", 1n],error:"rule_failed"},
+          {dependencies:[coordinator_user, reviewer_user, replacement_user],values:async(c,s)=>[s.coordinator_user, "submitted", s.reviewer_user, false, s.replacement_user, "Review unavailable", 2n],error:"conflict"},
         ],
-        rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => ["grant.coordinator", "approved", "Meets criteria"],
-            expected: async (c, s) => ["withdrawn", "Meets criteria", 1n, money(100n, "EUR")],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["grant.coordinator", "withdrawn", "Meets criteria"],
-            error: "rule_failed",
-          },
+      },
+      {
+        operation:"grant.notice_result",
+        seed:[submitted],
+        dependencies:[submitted],
+        inputs:async(c,s)=>({event:{delivery_id:"delivery",status:"unknown",result:null,error:null}}),
+        selectors:["submitted.notice_delivery", "submitted.notice_state", "event.delivery_id", "event.status", "event.result"],
+        observations:[async(c,s)=>s.submitted.notice_state, async(c,s)=>s.submitted.state],
+        rows:[
+          {dependencies:[],values:async(c,s)=>["delivery", "pending", "delivery", "succeeded", {reference:"accepted-mail"}],expected:async(c,s)=>["succeeded", "submitted"]},
+          {dependencies:[],values:async(c,s)=>["delivery", "pending", "delivery", "unknown", null],expected:async(c,s)=>["unknown", "submitted"]},
+          {dependencies:[],values:async(c,s)=>["delivery", "pending", "delivery", "skipped", null],expected:async(c,s)=>["skipped", "submitted"]},
+          {dependencies:[],values:async(c,s)=>["delivery", "pending", "different", "succeeded", {reference:"accepted-mail"}],expected:async(c,s)=>["pending", "submitted"]},
+        ],
+      },
+      {
+        operation:"grant.notice_result",
+        seed:[submitted],
+        dependencies:[submitted, reviewer_user],
+        inputs:async(c,s)=>({event:{delivery_id:"delivery",status:"failed",result:null,error:{code:"provider",message:"Delivery rejected"}}}),
+        selectors:["submitted.notice_delivery", "submitted.notice_state", "submitted.state", "submitted.decision", "submitted.decided_by", "submitted.decided_at", "event.delivery_id", "event.error"],
+        observations:[async(c,s)=>s.submitted.notice_state, async(c,s)=>s.submitted.state, async(c,s)=>s.submitted.decision, async(c,s)=>s.submitted.decided_by, async(c,s)=>s.submitted.decided_at, async(c,s)=>s.submitted.amount],
+        rows:[
+          {dependencies:[reviewer_user],values:async(c,s)=>["delivery", "pending", "approved", "Meets criteria", s.reviewer_user, datetime("2026-10-01T09:00:00Z"), "delivery", {code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["failed", "approved", "Meets criteria", s.reviewer_user, datetime("2026-10-01T09:00:00Z"), money(60n,"EUR")]},
+          {dependencies:[reviewer_user],values:async(c,s)=>["delivery", "pending", "approved", "Meets criteria", s.reviewer_user, datetime("2026-10-01T09:00:00Z"), "different", {code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["pending", "approved", "Meets criteria", s.reviewer_user, datetime("2026-10-01T09:00:00Z"), money(60n,"EUR")]},
+        ],
+      },
+      {
+        operation:"grant.withdraw",
+        seed:[test_worker],
+        dependencies:[submitted, test_worker],
+        inputs:async(c,s)=>({application:s.submitted,reason:"Funding cancelled"}),
+        selectors:["as", "application.state", "application.decision", "application.decided_by", "application.decided_at"],
+        observations:[async(c,s)=>s.application.state, async(c,s)=>s.application.decision, async(c,s)=>await count(records(c,"grant.Withdrawal",{parent:s.application})), async(c,s)=>s.program.remaining, async(c,s)=>s.application.decided_by, async(c,s)=>s.application.decided_at],
+        rows:[
+          {dependencies:[reviewer_user],values:async(c,s)=>["grant.coordinator", "approved", "Meets criteria", s.reviewer_user, datetime("2026-10-01T09:00:00Z")],expected:async(c,s)=>["withdrawn", "Meets criteria", 1n, money(100n,"EUR"), s.reviewer_user, datetime("2026-10-01T09:00:00Z")]},
+          {dependencies:[reviewer_user],values:async(c,s)=>["grant.coordinator", "withdrawn", "Meets criteria", s.reviewer_user, datetime("2026-10-01T09:00:00Z")],error:"rule_failed"},
+        ],
+      },
+      {
+        operation:"grant.award_export",
+        seed:[coordinator_worker],
+        dependencies:[program, ordinary_user, coordinator_worker],
+        inputs:async(c,s)=>({grant:s.program}),
+        selectors:["as"],
+        observations:[async(c,s)=>await count(s.result.items)],
+        rows:[
+          {dependencies:[coordinator_user],values:async(c,s)=>[s.coordinator_user],expected:async(c,s)=>[0n]},
+          {dependencies:[ordinary_user],values:async(c,s)=>[s.ordinary_user],error:"forbidden"},
         ],
       },
     ],
