@@ -168,6 +168,8 @@ export async function renderState(props: SharedStateProps): Promise<string> {
       return `<div role="status"><span class="loading loading-spinner"></span><div class="skeleton h-4 w-full"></div><p>${note}</p></div>`;
     case "empty":
       return `<p>${note}</p>`;
+    case "no-match":
+      return `<p>${note}</p>`;
     case "error": {
       const detail =
         props.detail === undefined

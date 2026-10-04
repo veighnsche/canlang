@@ -29,6 +29,7 @@ const CAN_HOOKS = new Set([
   "can-account",
   "can-brand",
   "can-more",
+  "can-region",
   "can-settings-panel",
   "can-settings-sidebar",
 ]);
