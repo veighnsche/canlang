@@ -214,7 +214,7 @@ package propose
     "hold",sent,pending,now+1h,2 -> pending,now+1h
   # Request the exact accepted snapshot; acceptance itself reserves and charges nothing. @{nl="Vraag de exacte geaccepteerde momentopname aan; acceptatie zelf reserveert en incasseert niets."}
   export scenario request_booking(revision:Revision) by=authenticated or salesperson label="Request booking"@{nl="Boeking aanvragen"}
-   require revision.state==accepted and revision.resource!=null and revision.account!=null and revision.handoff in [none,unavailable]
+   require revision.state==accepted and revision.resource!=null and revision.account!=null and revision.handoff==none
    require revision.account==actor or (salesperson and can_work(actor,revision.parent.location))
    require revision.decided_at!=null and revision.decided_by==revision.account
    do
@@ -228,6 +228,10 @@ package propose
     as,revision.state,revision.resource,revision.account,revision.decided_by,revision.decided_at -> revision.handoff,revision.total,revision.invoice
     salesperson,accepted,"office",self,self,datetime("2026-10-04T09:00:00Z") -> pending,money(100,"EUR"),null
     salesperson,sent,"office",self,self,datetime("2026-10-04T09:00:00Z") -> error(rule_failed)
+   examples seed=[test_worker,priced_item] revision=current_offer
+    as,revision.state,revision.resource,revision.account,revision.decided_by,revision.decided_at,revision.handoff -> revision.handoff
+    salesperson,accepted,"office",self,self,datetime("2026-10-04T09:00:00Z"),unavailable -> error(rule_failed)
+    salesperson,accepted,"office",self,self,datetime("2026-10-04T09:00:00Z"),unknown -> error(rule_failed)
   scenario booked on=Rooms.accept_offer.completed
    do
     for revision in Revision as row where row.delivery==event.delivery_id and row.handoff in [pending,unknown] limit=1
@@ -246,6 +250,18 @@ package propose
           set revision {handoff=unknown}
      else
       set revision {handoff=unknown}
+   examples seed=[priced_item] event={delivery_id="booking-request",status=succeeded,result={source=current_offer.id,revision=1,kind=booking,version=1,state=unavailable,reference=null,detail="Quoted inventory unavailable",invoice=null,expires=null},error=null}
+    current_offer.state,current_offer.delivery,current_offer.handoff,current_offer.booking_version,event.result.version -> current_offer.handoff,current_offer.booking_version
+    accepted,"booking-request",pending,0,1 -> unavailable,1
+    accepted,"booking-request",unknown,0,1 -> unavailable,1
+    accepted,"booking-request",pending,2,1 -> pending,2
+   ## A duplicate after booking/release cannot prove a resource-free rejection.
+   examples seed=[priced_item] event={delivery_id="booking-request",status=failed,result=null,error={code="rule_failed",message="Existing booking requires its authoritative outcome"}}
+    current_offer.state,current_offer.delivery,current_offer.handoff -> current_offer.handoff,current_offer.booking_version,current_offer.booking
+    accepted,"booking-request",pending -> unknown,0,null
+   examples seed=[priced_item] event={delivery_id="booking-request",status=succeeded,result={source=current_offer.id,revision=1,kind=booking,version=1,state=pending,reference="existing-booking",detail=null,invoice=null,expires=now+15m},error=null}
+    current_offer.state,current_offer.delivery,current_offer.handoff,current_offer.booking_version -> current_offer.handoff,current_offer.booking_version,current_offer.booking
+    accepted,"booking-request",unknown,0 -> pending,1,"existing-booking"
   scenario offer_changed on=Rooms.offer_changed
    do
     for revision in Revision as row where row.id==event.value.source and row.number==event.value.revision limit=1
@@ -277,7 +293,7 @@ package propose
     accepted,pending,booking,1,2 -> pending,null
   # Offer a new choice preserving the accepted source and its complete itemized prices. @{nl="Bied een nieuwe keuze aan met behoud van de geaccepteerde bron en alle gespecificeerde prijzen."}
   scenario offer_alternative(revision:Revision,resource:text,from:datetime,until:datetime,terms:text,refund_before:datetime=from,intervals:QuoteInterval[]=[] label="Exact service intervals"@{nl="Exacte gebruikstijdvakken"},product:text?=null label="Product code"@{nl="Productcode"}) by=salesperson label="Prepare sold-out alternative"@{nl="Alternatief bij uitverkoop voorbereiden"}
-   require can_work(actor,revision.parent.location) and revision.state==accepted and revision.handoff==unavailable and from<until and trim(terms)!=""
+   require can_work(actor,revision.parent.location) and revision.state==accepted and revision.handoff==unavailable and revision.booking==null and from<until and trim(terms)!=""
    do
     call revise {proposal=revision.parent,terms,resource,from,until,seats=revision.seats,quantity=revision.quantity,refund_before,intervals,product} as replacement
     set replacement {alternative_to=revision}
@@ -288,6 +304,11 @@ package propose
     salesperson,accepted,unavailable -> 2,money(100,"EUR"),1
     salesperson,accepted,pending -> error(rule_failed)
     members,accepted,unavailable -> error(forbidden)
+   examples seed=[test_worker,priced_item] revision=current_offer resource="office" from=datetime("2099-01-02T09:00:00Z") until=datetime("2099-01-02T10:00:00Z") terms="New decision required"
+    as,revision.state,revision.handoff,revision.resource,revision.booking -> revision.parent.current,revision.total,revision.terms,count(Revision as candidate where candidate.alternative_to==revision)
+    salesperson,accepted,unavailable,"office",null -> 2,money(100,"EUR"),"No reservation",1
+    salesperson,accepted,unavailable,"office","existing-booking" -> error(rule_failed)
+    salesperson,accepted,unknown,"office",null -> error(rule_failed)
   ## Committed identities locate current revisions; each hold has independent durable work.
   scenario revision_created on=Revision.created
    do
@@ -377,6 +398,12 @@ package propose
          delete
        tab "Booking follow-up"@{nl="Boekingsopvolging"}
         actions send_offer,document,hold_inventory,request_booking,offer_alternative,retry_hold_release,recover_hold
+        details "New offer required"@{nl="Nieuwe offerte vereist"}
+         require row.handoff==unavailable and row.booking==null
+         text "This accepted revision cannot be booked again. Prepare a new alternative revision for the recipient to review."@{nl="Deze geaccepteerde versie kan niet opnieuw worden geboekt. Bereid een nieuwe alternatieve versie voor die de ontvanger kan beoordelen."}
+        details "Existing booking needs review"@{nl="Bestaande boeking vereist beoordeling"}
+         require row.handoff==unavailable and row.booking!=null
+         text "Use the recorded booking and invoice references to resolve cancellation, payment or refund work in Workspace. A separate new offer does not replace those obligations."@{nl="Gebruik de vastgelegde boekings- en factuurreferenties om annulering, betaling of terugbetaling in Workspace af te handelen. Een afzonderlijke nieuwe offerte vervangt die verplichtingen niet."}
         copy app_url(format("/offers/respond/{id}",{id=row.id}))
         history
 
@@ -391,6 +418,12 @@ package propose
    card "Decision and booking outcome"@{nl="Besluit en boekingsresultaat"}
     actions decide,document,request_booking
     text row.pdf,row.document_state,row.document_delivery_state,row.booking,row.invoice
+    details "New offer required"@{nl="Nieuwe offerte vereist"}
+     require row.handoff==unavailable and row.booking==null
+     text "The reservation is unavailable. Sales can prepare a new offer; its price and terms require a new decision."@{nl="De reservering is niet beschikbaar. Verkoop kan een nieuwe offerte voorbereiden; de prijs en voorwaarden vereisen een nieuw besluit."}
+    details "Existing booking needs review"@{nl="Bestaande boeking vereist beoordeling"}
+     require row.handoff==unavailable and row.booking!=null
+     text "Your booking and invoice references remain available above. Review cancellation, payment or refund progress with the workspace operator."@{nl="Je boekings- en factuurreferenties blijven hierboven beschikbaar. Bespreek de voortgang van annulering, betaling of terugbetaling met de werkplekexploitant."}
     card "Inventory promise"@{nl="Voorraadtoezegging"}
      text row.held_until
      details "Held inventory"@{nl="Tijdelijk gereserveerde voorraad"}

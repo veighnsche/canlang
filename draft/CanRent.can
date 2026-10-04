@@ -87,8 +87,9 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
   export event VenueOutcome { value:OperationOutcome }
   export event OfferOutcome { value:ReservationOfferOutcome }
   VenueReservation in Resource { source:text unique, request_revision:int=1, customer:text, account:user, from:datetime, until:datetime, quantity:int min=1, expires:datetime, status:enum(held,staged,confirmed,released,expired)=held label={text="Status"@{nl="Status"},values={held="Held"@{nl="Tijdelijk gereserveerd"},staged="Staged"@{nl="Voorbereid"},confirmed="Confirmed"@{nl="Bevestigd"},released="Released"@{nl="Vrijgegeven"},expired="Expired"@{nl="Verlopen"}}}, previous:VenueReservation?, reason:text? } label="Appointment venue reservation"@{nl="Afspraakruimtereservering"}
-  ReservationFence in Resource { source:text, revision:int, reason:text } label="Cancelled quote revision"@{nl="Geannuleerde offerteversie"}
+  ReservationFence in Resource { source:text, revision:int, reason:text, offer:AcceptedOffer? } label="Closed quote revision"@{nl="Afgesloten offerteversie"}
   unique ReservationFence fields=source,revision
+  lock ReservationFence fields=source,revision,reason,offer
   DowntimeFence in Resource {source:text unique,evidence:text}
   VenueFence in Resource { source:text unique, reason:text } label="Cancelled venue request"@{nl="Geannuleerde ruimteaanvraag"}
   QuoteHold in Resource { source:text unique, revision:int, offer:QuoteOffer, quantity:int min=1, from:datetime, until:datetime, intervals:BookingInterval[], expires:datetime, active:bool=true, booking:Booking? } label="Quoted capacity hold"@{nl="Offertecapaciteitsreservering"}
@@ -148,6 +149,8 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
   derive quote_available(resource:Resource,value:QuoteDocument,quantity:int):bool = quote_intervals_valid(value.from,value.until,value.intervals) and (resource.price_unit!=day or count(value.intervals)>0) and ((count(value.intervals)==0 and free(resource,value.from-resource.buffer_before,value.until+resource.buffer_after,quantity,null)) or (count(value.intervals)>0 and all(value.intervals as interval,(resource.price_unit!=day or any(resource.DayCalendar as day,not day.closed and interval.from==local_instant(day.day,day.opens,resource.timezone,fold=day.fold) and interval.until==local_instant(day.day,day.closes,resource.timezone,fold=day.fold))) and free(resource,interval.from-resource.buffer_before,interval.until+resource.buffer_after,quantity,null))))
   derive free_at(resource:Resource,point:datetime,quantity:int,skip:Booking?,skip_venue:VenueReservation?=null):bool = quantity+sum(resource.Booking as b where b!=skip and busy(b) and covers(b,point) select b.quantity)+sum(resource.VenueReservation as venue where venue!=skip_venue and venue_busy(venue) and venue_covers(venue,point) select venue.quantity)+sum(resource.QuoteHold as hold where hold.active and now<hold.expires and quote_covers(hold,point) select hold.quantity)+sum(Movement as movement where movement.parent.parent==resource and movement_busy(movement) and movement_covers(movement,point) select movement.parent.quantity)<=resource.capacity
   derive free(resource:Resource,from:datetime,until:datetime,quantity:int,skip:Booking?,skip_venue:VenueReservation?=null):bool = resource.active and is_open(resource.location,from,until) and from<until and quantity<=resource.capacity and any(resource.Window as w,not w.closed and w.from<=from and until<=w.until) and not any(resource.Window as w,w.closed and overlaps(from,until,w.from,w.until)) and not any(resource.Downtime as d,d.active and d.from<until and (d.until==null or from<d.until)) and free_at(resource,from,quantity,skip,skip_venue) and all(resource.Booking as b,b==skip or not busy(b) or ((b.reserved_from<from or until<=b.reserved_from or free_at(resource,b.reserved_from,quantity,skip,skip_venue)) and all(b.intervals as interval,interval.from<from or until<=interval.from or free_at(resource,interval.from,quantity,skip,skip_venue)))) and all(resource.VenueReservation as venue,venue==skip_venue or not venue_busy(venue) or venue.from<from or until<=venue.from or free_at(resource,venue.from,quantity,skip,skip_venue)) and all(resource.QuoteHold as hold,not hold.active or hold.expires<=now or ((count(hold.intervals)==0 and (hold.from<from or until<=hold.from or free_at(resource,hold.from,quantity,skip,skip_venue))) or (count(hold.intervals)>0 and all(hold.intervals as interval,interval.from<from or until<=interval.from or free_at(resource,interval.from,quantity,skip,skip_venue))))) and all(Movement as movement,movement.parent.parent!=resource or not movement_busy(movement) or all(movement.intervals as interval,interval.from-movement.parent.arrival_buffer<from or until<=interval.from-movement.parent.arrival_buffer or free_at(resource,interval.from-movement.parent.arrival_buffer,quantity,skip,skip_venue)))
+  derive may_reserve(account:user,customer:Customer,resource:Resource):bool = customer.active and resource.location in customer.locations and (owns(account,customer) or has_location_role(account,customer,booker,resource.location) or has_location_role(account,customer,administrator,resource.location))
+  derive may_move(booking:Booking):bool = may_reserve(booking.account,booking.customer,booking.parent) or (booking.customer.active and booking.parent.location in booking.customer.locations and reservation_manager and can_work(actor,booking.parent.location))
   derive credit_allowed(customer:Customer,resource:Resource):bool = customer.active and any(customer.BillingProfile as profile,profile.on_account and resource.location in profile.approved_locations)
   derive bookable(booking:Booking):bool = (count(booking.intervals)==0 and free(booking.parent,booking.reserved_from,booking.reserved_until,booking.quantity,booking)) or (count(booking.intervals)>0 and all(booking.intervals as interval,free(booking.parent,interval.from,interval.until,booking.quantity,booking)))
   derive credit_baseline(charge_source:text,current:money):money = max([current]+(MovementCredit as credit where credit.charge_source==charge_source and credit.state!=failed select credit.baseline+credit.amount))
@@ -217,6 +220,10 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
   fixture test_window=Window {parent=test_room,from=datetime("2026-10-01T00:00:00Z"),until=datetime("2026-11-01T00:00:00Z")}
   fixture test_sale=CommercialSale {parent=test_hold}
   export fixture test_hold=Booking {parent=test_room,customer=test_company,account=self,email="customer@example.test",from=datetime("2026-10-04T09:00:00Z"),until=datetime("2026-10-04T10:00:00Z"),rate=money(1000,"EUR"),subtotal=money(1000,"EUR"),tax=money(0,"EUR"),discount=money(0,"EUR"),refund_amount=money(1000,"EUR"),total=money(1000,"EUR"),terms="Full balance before admission",refund_before=datetime("2026-10-03T09:00:00Z"),reserved_from=datetime("2026-10-04T09:00:00Z"),reserved_until=datetime("2026-10-04T10:00:00Z"),expires=datetime("2026-10-03T12:15:00Z"),source="test-hold"}
+  fixture quote_window=Window {parent=test_room,from=datetime("2099-01-01T08:00:00Z"),until=datetime("2099-01-01T18:00:00Z")}
+  fixture quote_day=DayCalendar {parent=test_room,day=date("2099-01-01")}
+  fixture quoted_hold=QuoteHold {parent=test_room,source="quote-test",revision=1,quantity=1,from=datetime("2099-01-01T09:00:00Z"),until=datetime("2099-01-01T10:00:00Z"),intervals=[],expires=datetime("2099-01-01T08:00:00Z"),offer={source="quote-test",revision=1,customer=test_company.id,location=test_site.id,resource=test_room.id,recipient="customer@example.test",quantity=1,attendees=1,hold_until=datetime("2099-01-01T08:00:00Z"),snapshot={issuer="Operator",customer="Example company",resource=test_room.id,quantity=1,attendees=1,recipient="customer@example.test",title="Frozen room offer",location="Main",from=datetime("2099-01-01T09:00:00Z"),until=datetime("2099-01-01T10:00:00Z"),intervals=[],terms="Frozen terms",refund_before=datetime("2099-01-01T09:00:00Z"),expires=datetime("2099-01-01T08:00:00Z"),lines=[{title="Room",quantity=1,unit="hour",price=money(1000,"EUR"),tax=money(0,"EUR"),discount=money(0,"EUR")}],total=money(1000,"EUR")}}}
+  fixture closed_quote=ReservationFence {parent=test_room,source="quote-test",revision=1,reason="Quoted inventory unavailable",offer={product=null,attribution=null,exclusive_program=null,attributed_at=null,attribution_window=null,source="quote-test",revision=1,customer=test_company.id,location=test_site.id,resource=test_room.id,account=self,recipient="customer@example.test",accepted_at=now,quantity=1,attendees=1,snapshot=quoted_hold.offer.snapshot}}
  When
   # Retain historical booking assertions without capacity, billing or allowance effects. @{nl="Bewaar historische reserveringsclaims zonder capaciteit, facturatie of tegoeden te wijzigen."}
   export scenario retain_legacy(source:text label="Source system"@{nl="Bronsysteem"},external_id:text label="Original record key"@{nl="Oorspronkelijke recordsleutel"},location:Location label="Current location scope"@{nl="Huidig locatiebereik"},facts:LegacyBookingFacts label="Original booking facts"@{nl="Oorspronkelijke reserveringsgegevens"},source_evidence:file label="Original source artifact"@{nl="Oorspronkelijk bronbestand"},attestation:text label="Intake attestation"@{nl="Verklaring bij invoer"}) by=reservation_manager -> LegacyBooking label="Retain historical booking"@{nl="Historische reservering bewaren"}
@@ -381,14 +388,26 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
     return booking
   # Move a still-held interval atomically while retaining the original on conflict. @{nl="Verplaats een nog tijdelijke reservering atomair en behoud bij een conflict het oorspronkelijke tijdvak."}
   export scenario move(booking:Booking,from:datetime label=label_RoomRequest_from,until:datetime label=label_RoomRequest_until) by=authenticated label="Move held booking"@{nl="Tijdelijke reservering verplaatsen"}
+   require may_move(booking)
    require booking.account==actor and booking.status in [held,confirmed] and booking.allowance==not_required and count(booking.intervals)==0 and booking.checked_in==null and from>=now and from<until and until-from==booking.until-booking.from
    require free(booking.parent,from-booking.parent.buffer_before,until+booking.parent.buffer_after,booking.quantity,booking)
    do
     set booking {from,until,reserved_from=from-booking.parent.buffer_before,reserved_until=until+booking.departure_buffer}
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_move
     emit ReservationChanged {booking,revision=booking.version+1}
+   examples seed=[test_admin,open_site,quote_window] booking=test_hold from=datetime("2099-01-01T11:00:00Z") until=datetime("2099-01-01T12:00:00Z")
+    as,test_admin.active,test_admin.locations,test_company.active -> booking.from
+    self,true,[test_site],true -> datetime("2099-01-01T11:00:00Z")
+    self,false,[test_site],true -> error(rule_failed)
+    self,true,[],true -> error(rule_failed)
+    self,true,[test_site],false -> error(rule_failed)
+   examples seed=[history_worker,open_site,quote_window] booking=test_hold from=datetime("2099-01-01T11:00:00Z") until=datetime("2099-01-01T12:00:00Z")
+    as,booking.account,history_worker.active -> booking.from
+    history_user,history_user,true -> datetime("2099-01-01T11:00:00Z")
+    history_user,history_user,false -> error(rule_failed)
   # Move all local days in one transaction and retain the original on any conflict. @{nl="Verplaats alle lokale dagen in één transactie en behoud bij elk conflict het origineel."}
   export scenario move_days(booking:Booking,start:date,end:date) by=authenticated label="Move workspace days"@{nl="Werkplekdagen verplaatsen"}
+   require may_move(booking)
    require booking.account==actor and booking.status in [held,confirmed] and booking.allowance==not_required and booking.quote==null and booking.checked_in==null and count(booking.intervals)>0 and start<end
    do
     let access=booking.parent.DayCalendar as day where start<=day.day and day.day<end and not day.closed order=day.day select BookingInterval {from=local_instant(day.day,day.opens,booking.parent.timezone,fold=day.fold)-booking.parent.buffer_before,until=local_instant(day.day,day.closes,booking.parent.timezone,fold=day.fold)+booking.departure_buffer}
@@ -399,8 +418,14 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
     set booking {intervals=access,from=first_day.from+booking.parent.buffer_before,until=last_day.until-booking.departure_buffer,reserved_from=first_day.from,reserved_until=last_day.until}
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
     emit ReservationChanged {booking,revision=booking.version+1}
+   examples seed=[test_admin,open_site,quote_window,quote_day] booking=test_hold start=date("2099-01-01") end=date("2099-01-02")
+    as,test_admin.active,test_admin.locations,booking.intervals -> booking.from
+    self,true,[test_site],[{from=booking.from,until=booking.until}] -> datetime("2099-01-01T08:00:00Z")
+    self,false,[test_site],[{from=booking.from,until=booking.until}] -> error(rule_failed)
+    self,true,[],[{from=booking.from,until=booking.until}] -> error(rule_failed)
   # Retain the current capacity and consumed benefit until the candidate commits. @{nl="Behoud de huidige capaciteit en het verbruikte voordeel totdat de kandidaat vastgelegd is."}
   export scenario move_membership(booking:Booking,from:datetime,until:datetime) by=authenticated label="Move member workspace"@{nl="Ledenwerkplek verplaatsen"}
+   require may_move(booking)
    require booking.account==actor and booking.status==confirmed and booking.allowance==consumed and booking.quote==null and booking.checked_in==null and now<booking.refund_before
    require not any(booking.Movement as movement,movement.state in [holding,waiting_money,committing,cancelling,review])
    require booking.benefit_unit==hour and from<until and until-from==booking.until-booking.from
@@ -412,6 +437,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
     set movement {reserve_delivery=allocation.id}
     schedule movement.id at=movement.expires event=MovementDue {movement}
   export scenario move_membership_days(booking:Booking,start:date,end:date) by=authenticated label="Move member workspace days"@{nl="Ledenwerkplekdagen verplaatsen"}
+   require may_move(booking)
    require booking.account==actor and booking.status==confirmed and booking.allowance==consumed and booking.quote==null and booking.checked_in==null and now<booking.refund_before
    require not any(booking.Movement as movement,movement.state in [holding,waiting_money,committing,cancelling,review])
    require booking.benefit_unit==day and start<end
@@ -778,26 +804,52 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
    require (event.value.attribution==null and event.value.exclusive_program==null and event.value.attributed_at==null and event.value.attribution_window==null) or (event.value.attribution!=null and event.value.exclusive_program!=null and event.value.attributed_at!=null and event.value.attribution_window!=null and event.value.attribution_window>0m and event.value.attributed_at<=event.value.accepted_at and event.value.accepted_at<=event.value.attributed_at+event.value.attribution_window)
    do
     for resource in Resource as row where row.id==event.value.resource limit=1
-     require event.value.attribution==null or (event.value.product!=null and event.value.product==format("{kind}",{kind=resource.kind}))
-     require resource.location.id==event.value.location and event.value.attendees<=resource.party_limit and (not resource.pooled or event.value.attendees<=event.value.quantity)
-     require event.value.snapshot.total.currency==resource.currency and event.value.snapshot.total.minor>=0 and event.value.snapshot.from>=now and event.value.snapshot.from<event.value.snapshot.until
-     require all(event.value.snapshot.lines as item,item.quantity>=0 and (item.quantity>0 or item.price*item.quantity+item.tax-item.discount==money(0,item.price.currency)) and item.price.currency==resource.currency and item.tax.currency==resource.currency and item.discount.currency==resource.currency and item.price.minor>=0 and item.tax.minor>=0 and item.discount.minor>=0 and item.discount<=item.price*item.quantity+item.tax)
-     require event.value.snapshot.total==sum(event.value.snapshot.lines as item select item.price*item.quantity+item.tax-item.discount,resource.currency)
      require not any(resource.Booking as booking,booking.source==event.value.source)
-     for hold in resource.QuoteHold as row where row.source==event.value.source limit=1
-      require hold.revision==event.value.revision and hold.offer.snapshot==event.value.snapshot and hold.quantity==event.value.quantity
-      set hold {active=false}
-      cancel hold.id
-     require quote_available(resource,event.value.snapshot,event.value.quantity)
-     for customer in Customer as row where row.id==event.value.customer limit=1
-      require customer.active and resource.location in customer.locations
-      create Booking {parent=resource,billing_location=resource.location,sale_product=format("{kind}",{kind=resource.kind}),purchased_at=event.value.accepted_at,attribution=event.value.attribution,exclusive_program=event.value.exclusive_program,attributed_at=event.value.attributed_at,attribution_window=event.value.attribution_window,customer,account=event.value.account,email=event.value.recipient,from=event.value.snapshot.from,until=event.value.snapshot.until,intervals=event.value.snapshot.intervals as interval select BookingInterval {from=interval.from-resource.buffer_before,until=interval.until+resource.buffer_after},original_intervals=event.value.snapshot.intervals as interval select BookingInterval {from=interval.from-resource.buffer_before,until=interval.until+resource.buffer_after},quantity=event.value.quantity,attendees=event.value.attendees,rate=event.value.snapshot.total,subtotal=sum(event.value.snapshot.lines as item select item.price*item.quantity,resource.currency),tax=sum(event.value.snapshot.lines as item select item.tax,resource.currency),discount=sum(event.value.snapshot.lines as item select item.discount,resource.currency),total=event.value.snapshot.total,refund_amount=event.value.snapshot.total,terms=event.value.snapshot.terms,refund_before=event.value.snapshot.refund_before,reserved_from=event.value.snapshot.from-resource.buffer_before,reserved_until=event.value.snapshot.until+resource.buffer_after,expires=now+resource.hold_for,source=event.value.source,quote=event.value,departure_buffer=resource.buffer_after,arrival_buffer=resource.buffer_before,benefit_unit=resource.price_unit,benefit_duration=resource.increment,benefit_rate=resource.hourly*(resource.increment/1h),benefit_intervals=[BenefitInterval {from=event.value.snapshot.from,until=event.value.snapshot.until}]} as booking
-      if booking.total.minor>0
-       send Billing.charge {value={source=booking.source,customer=booking.customer.id,location=resource.location.id,description=event.value.snapshot.title,amount=booking.total,due=local_date(booking.from,resource.timezone),issuer=event.value.snapshot.issuer,terms=event.value.snapshot.terms,items=event.value.snapshot.lines as item select DocumentLine {title=item.title,quantity=item.quantity,price=item.price,tax=item.tax,discount=item.discount,unit=item.unit,from=event.value.snapshot.from,until=event.value.snapshot.until,location=event.value.snapshot.location,reference=event.value.source}}} as charge
-       set booking {status=pending,payment=pending,billing_delivery=charge.id,monetary_due=booking.total}
-      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
-      schedule booking.id at=booking.expires event=HoldDue {booking}
-      emit OfferOutcome {value={source=booking.source,revision=event.value.revision,kind=ReservationOfferOutcome.kind.booking,version=booking.version,state=pending,reference=booking.id,expires=booking.expires}}
+     let fence=first(resource.ReservationFence as row where row.source==event.value.source and row.revision==event.value.revision order=row.id)
+     if fence!=null
+      require fence.offer==null or fence.offer==event.value
+      emit OfferOutcome {value={source=fence.source,revision=fence.revision,kind=ReservationOfferOutcome.kind.booking,version=fence.version,state=unavailable,detail=fence.reason}}
+     else
+      require event.value.attribution==null or (event.value.product!=null and event.value.product==format("{kind}",{kind=resource.kind}))
+      require resource.location.id==event.value.location and event.value.attendees<=resource.party_limit and (not resource.pooled or event.value.attendees<=event.value.quantity)
+      require event.value.snapshot.total.currency==resource.currency and event.value.snapshot.total.minor>=0 and event.value.snapshot.from>=now and event.value.snapshot.from<event.value.snapshot.until
+      require all(event.value.snapshot.lines as item,item.quantity>=0 and (item.quantity>0 or item.price*item.quantity+item.tax-item.discount==money(0,item.price.currency)) and item.price.currency==resource.currency and item.tax.currency==resource.currency and item.discount.currency==resource.currency and item.price.minor>=0 and item.tax.minor>=0 and item.discount.minor>=0 and item.discount<=item.price*item.quantity+item.tax)
+      require event.value.snapshot.total==sum(event.value.snapshot.lines as item select item.price*item.quantity+item.tax-item.discount,resource.currency)
+      for customer in Customer as row where row.id==event.value.customer limit=1
+       require may_reserve(event.value.account,customer,resource)
+       for hold in resource.QuoteHold as row where row.source==event.value.source limit=1
+        require hold.revision==event.value.revision and hold.offer.snapshot==event.value.snapshot and hold.offer.customer==event.value.customer and hold.offer.location==event.value.location and hold.quantity==event.value.quantity
+        set hold {active=false}
+        cancel hold.id
+       if not quote_available(resource,event.value.snapshot,event.value.quantity)
+        create ReservationFence {parent=resource,source=event.value.source,revision=event.value.revision,reason=format("Quoted inventory unavailable"@{nl="Geoffreerde voorraad niet beschikbaar"},locale=null),offer=event.value} as rejected
+        emit OfferOutcome {value={source=rejected.source,revision=rejected.revision,kind=ReservationOfferOutcome.kind.booking,version=rejected.version,state=unavailable,detail=rejected.reason}}
+       else
+        create Booking {parent=resource,billing_location=resource.location,sale_product=format("{kind}",{kind=resource.kind}),purchased_at=event.value.accepted_at,attribution=event.value.attribution,exclusive_program=event.value.exclusive_program,attributed_at=event.value.attributed_at,attribution_window=event.value.attribution_window,customer,account=event.value.account,email=event.value.recipient,from=event.value.snapshot.from,until=event.value.snapshot.until,intervals=event.value.snapshot.intervals as interval select BookingInterval {from=interval.from-resource.buffer_before,until=interval.until+resource.buffer_after},original_intervals=event.value.snapshot.intervals as interval select BookingInterval {from=interval.from-resource.buffer_before,until=interval.until+resource.buffer_after},quantity=event.value.quantity,attendees=event.value.attendees,rate=event.value.snapshot.total,subtotal=sum(event.value.snapshot.lines as item select item.price*item.quantity,resource.currency),tax=sum(event.value.snapshot.lines as item select item.tax,resource.currency),discount=sum(event.value.snapshot.lines as item select item.discount,resource.currency),total=event.value.snapshot.total,refund_amount=event.value.snapshot.total,terms=event.value.snapshot.terms,refund_before=event.value.snapshot.refund_before,reserved_from=event.value.snapshot.from-resource.buffer_before,reserved_until=event.value.snapshot.until+resource.buffer_after,expires=now+resource.hold_for,source=event.value.source,quote=event.value,departure_buffer=resource.buffer_after,arrival_buffer=resource.buffer_before,benefit_unit=resource.price_unit,benefit_duration=resource.increment,benefit_rate=resource.hourly*(resource.increment/1h),benefit_intervals=[BenefitInterval {from=event.value.snapshot.from,until=event.value.snapshot.until}]} as booking
+        if booking.total.minor>0
+         send Billing.charge {value={source=booking.source,customer=booking.customer.id,location=resource.location.id,description=event.value.snapshot.title,amount=booking.total,due=local_date(booking.from,resource.timezone),issuer=event.value.snapshot.issuer,terms=event.value.snapshot.terms,items=event.value.snapshot.lines as item select DocumentLine {title=item.title,quantity=item.quantity,price=item.price,tax=item.tax,discount=item.discount,unit=item.unit,from=event.value.snapshot.from,until=event.value.snapshot.until,location=event.value.snapshot.location,reference=event.value.source}}} as charge
+         set booking {status=pending,payment=pending,billing_delivery=charge.id,monetary_due=booking.total}
+        create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+        schedule booking.id at=booking.expires event=HoldDue {booking}
+        emit OfferOutcome {value={source=booking.source,revision=event.value.revision,kind=ReservationOfferOutcome.kind.booking,version=booking.version,state=pending,reference=booking.id,expires=booking.expires}}
+   ## Current authority precedes releasing a hold or creating a monetary obligation.
+   examples seed=[test_admin,open_site,quote_window,quoted_hold] event={value={product=null,attribution=null,exclusive_program=null,attributed_at=null,attribution_window=null,source="quote-test",revision=1,customer=test_company.id,location=test_site.id,resource=test_room.id,account=self,recipient="customer@example.test",accepted_at=now,quantity=1,attendees=1,snapshot=quoted_hold.offer.snapshot}}
+    test_admin.active,test_admin.locations,test_company.active,test_room.active -> count(test_room.Booking),count(test_room.ReservationFence),quoted_hold.active
+    true,[test_site],true,true -> 1,0,false
+    false,[test_site],true,true -> error(rule_failed)
+    true,[],true,true -> error(rule_failed)
+    true,[test_site],false,true -> error(rule_failed)
+    true,[test_site],true,false -> 0,1,false
+   ## A closed revision remains closed after availability returns; changed accepted facts cannot reuse it.
+   examples seed=[test_admin,closed_quote] event={value={product=null,attribution=null,exclusive_program=null,attributed_at=null,attribution_window=null,source="quote-test",revision=1,customer=test_company.id,location=test_site.id,resource=test_room.id,account=self,recipient="customer@example.test",accepted_at=now,quantity=1,attendees=1,snapshot=quoted_hold.offer.snapshot}}
+    closed_quote.offer,quoted_hold.active,event.value.snapshot.terms -> count(test_room.Booking),closed_quote.version,quoted_hold.active
+    closed_quote.offer,false,"Frozen terms" -> 0,1,false
+    closed_quote.offer,false,"Changed terms" -> error(rule_failed)
+    null,false,"Frozen terms" -> 0,1,false
+   ## A release fence may coexist with an existing booking; it cannot masquerade as a resource-free refusal.
+   examples seed=[test_admin,closed_quote,test_hold] event={value={product=null,attribution=null,exclusive_program=null,attributed_at=null,attribution_window=null,source="quote-test",revision=1,customer=test_company.id,location=test_site.id,resource=test_room.id,account=self,recipient="customer@example.test",accepted_at=now,quantity=1,attendees=1,snapshot=quoted_hold.offer.snapshot}}
+    test_hold.source,test_hold.status -> count(test_room.Booking)
+    "quote-test",confirmed -> error(rule_failed)
   scenario quote_release on=RoomsIngressV1.release_offer
    do
     for resource in Resource as row where row.id==event.resource limit=1
@@ -808,6 +860,11 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       set hold {active=false}
       cancel hold.id
      emit OfferOutcome {value={source=event.source,revision=event.revision,kind=ReservationOfferOutcome.kind.release,version=1,state=released}}
+   ## Releasing quote inventory cannot cancel or rewrite an existing booking with that source.
+   examples seed=[test_hold] event={source=test_hold.source,revision=1,resource=test_room.id,reason="Close quoted inventory"}
+    test_hold.status,test_hold.payment -> test_hold.status,test_hold.payment,count(test_room.Booking),count(test_room.ReservationFence)
+    confirmed,paid -> confirmed,paid,1,1
+    cancelled,refunded -> cancelled,refunded,1,1
   scenario quote_changed on=ReservationChanged
    require event.booking.quote!=null and event.booking.version==event.revision
    do

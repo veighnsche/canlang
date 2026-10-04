@@ -108,6 +108,19 @@ export async function can_read_booking_details(c, booking) {
     || (hasRole(c, "rent_reservations.billing") && await can_work(c, c.actor, booking.parent.location));
 }
 
+async function may_reserve(c, account, customer, resource) {
+  return customer.active && customer.locations.some(location => same(location, resource.location))
+    && (await owns(c, account, customer)
+      || await has_location_role(c, account, customer, "booker", resource.location)
+      || await has_location_role(c, account, customer, "administrator", resource.location));
+}
+
+async function may_move(c, booking) {
+  return await may_reserve(c, booking.account, booking.customer, booking.parent)
+    || (booking.customer.active && booking.customer.locations.some(location => same(location, booking.parent.location))
+      && hasRole(c, "rent_reservations.reservation_manager") && await can_work(c, c.actor, booking.parent.location));
+}
+
 function commercial(c, booking, sale, location, product, amount, purchased, phase, at) {
   return {
     source: booking.source,
@@ -1183,8 +1196,9 @@ export const appDefinition = {
     "rent_reservations.ReservationFence": {
       parent: "rent_reservations.Resource",
       unique: [{ fields: ["source", "revision"] }],
-      fields: { source: { type: "text" }, revision: { type: "int" }, reason: { type: "text" } },
-      label: message("Cancelled quote revision", { nl: "Geannuleerde offerteversie" }),
+      fields: { source: { type: "text" }, revision: { type: "int" }, reason: { type: "text" }, offer: { type: AcceptedOffer, nullable: true } },
+      locks: ["ReservationFence.lock.1"],
+      label: message("Closed quote revision", { nl: "Afgesloten offerteversie" }),
       readGrants: [{ rule: "ReservationFence.read.1" }],
       invariants: [],
     },
@@ -2226,6 +2240,8 @@ export const appDefinition = {
     },
   },
   pure: {
+    "rent_reservations.may_move": { handler: "may_move", inputs: { booking: { type: Booking } }, result: "bool" },
+    "rent_reservations.may_reserve": { handler: "may_reserve", inputs: { account: { type: "user" }, customer: { type: Customer }, resource: { type: "rent_reservations.Resource" } }, result: "bool" },
     "rent_reservations.can_read_booking_details": {
       handler: "can_read_booking_details", exported: true,
       inputs: { booking: { type: Booking } }, result: "bool",
@@ -3336,6 +3352,8 @@ export function canApp() {
       await set(c,entry,{customer,resource,account,mapping_reason:reason.trim()});
     },
     can_read_booking_details,
+    may_reserve,
+    may_move,
     commercial,
     quote_covers,
     quote_available,
@@ -3493,6 +3511,7 @@ export function canApp() {
         ),
     },
     locks: {
+      "ReservationFence.lock.1": { fields: ["source", "revision", "reason", "offer"] },
       "LegacyBooking.lock.1":{fields:["source","external_id","location","facts","source_evidence","attestation","imported_by","imported_at"]},
       "ResourcePolicy.lock.1": { fields: ["effective", "sequence", "value"] },
       "Booking.lock.2": { fields: ["monetary_due"], when: (c, row) => row.monetary_due !== null },
@@ -4198,6 +4217,7 @@ export function canApp() {
     },
     async move(c, { booking, from, until }) {
       check(hasRole(c, "authenticated"), "forbidden");
+      check(await may_move(c, booking));
       check(
         same(booking.account, c.actor) &&
           ["held", "confirmed"].includes(booking.status) &&
@@ -4240,6 +4260,7 @@ export function canApp() {
     },
     async move_days(c, { booking, start, end }) {
       check(hasRole(c, "authenticated"), "forbidden");
+      check(await may_move(c, booking));
       check(
         same(booking.account, c.actor) &&
           ["held", "confirmed"].includes(booking.status) &&
@@ -4330,6 +4351,7 @@ export function canApp() {
     },
     async move_membership(c, { booking, from, until }) {
       check(hasRole(c, "authenticated"), "forbidden");
+      check(await may_move(c, booking));
       check(
         same(booking.account, c.actor) &&
           booking.status === "confirmed" &&
@@ -4378,6 +4400,7 @@ export function canApp() {
     },
     async move_membership_days(c, { booking, start, end }) {
       check(hasRole(c, "authenticated"), "forbidden");
+      check(await may_move(c, booking));
       check(
         same(booking.account, c.actor) &&
           booking.status === "confirmed" &&
@@ -5841,11 +5864,116 @@ export function canApp() {
         where: (r) => r.id === value.resource,
         limit: 1n,
       })) {
-        check(
-          value.attribution === null ||
-            (value.product !== null &&
-              value.product ===
-                format(
+        for await (const booking of records(c, "rent_reservations.Booking", { parent: resource }))
+          check(booking.source !== value.source);
+        const fence = await first(records(c, "rent_reservations.ReservationFence", {
+          parent: resource, where: row => row.source === value.source && row.revision === value.revision,
+          order: ["id"],
+        }));
+        if (fence !== null) {
+          check(fence.offer === null || equalValue(c, "propose.AcceptedOffer", fence.offer, value));
+          await emit(c, "rent_reservations.OfferOutcome", {value: {
+            source: fence.source, revision: fence.revision, kind: "booking",
+            version: fence.version, state: "unavailable", detail: fence.reason,
+          }});
+        } else {
+          check(
+            value.attribution === null ||
+              (value.product !== null &&
+                value.product ===
+                  format(
+                    c,
+                    message(
+                      "{kind}",
+                      {},
+                      { kind: { type: "rent_reservations.Resource.kind", value: resource.kind } },
+                    ),
+                    { locale: null },
+                  )),
+          );
+          check(
+            resource.location.id === value.location &&
+              value.attendees <= resource.party_limit &&
+              (!resource.pooled || value.attendees <= value.quantity),
+          );
+          check(
+            value.snapshot.total.currency === resource.currency &&
+              value.snapshot.total.minor >= 0n &&
+              compareInstant(value.snapshot.from, c.now) >= 0 &&
+              compareInstant(value.snapshot.from, value.snapshot.until) < 0,
+          );
+          check(
+            await all(
+              value.snapshot.lines,
+              (item) =>
+                compareDecimal(item.quantity, "0") >= 0 &&
+                (compareDecimal(item.quantity, "0") > 0 ||
+                  equalMoney(
+                    subtractMoney(
+                      addMoney(multiplyMoney(item.price, item.quantity), item.tax),
+                      item.discount,
+                    ),
+                    money(0n, item.price.currency),
+                  )) &&
+                item.price.currency === resource.currency &&
+                item.tax.currency === resource.currency &&
+                item.discount.currency === resource.currency &&
+                item.price.minor >= 0n &&
+                item.tax.minor >= 0n &&
+                item.discount.minor >= 0n &&
+                compareMoney(
+                  item.discount,
+                  addMoney(multiplyMoney(item.price, item.quantity), item.tax),
+                ) <= 0,
+            ),
+          );
+          check(
+            equalMoney(
+              value.snapshot.total,
+              await sum(
+                value.snapshot.lines,
+                (item) =>
+                  subtractMoney(
+                    addMoney(multiplyMoney(item.price, item.quantity), item.tax),
+                    item.discount,
+                  ),
+                resource.currency,
+              ),
+            ),
+          );
+          for await (const customer of records(c, "customer.Customer", {
+            where: (r) => r.id === value.customer,
+            limit: 1n,
+          })) {
+            check(await may_reserve(c, value.account, customer, resource));
+            for await (const hold of records(c, "rent_reservations.QuoteHold", {
+              parent: resource,
+              where: (h) => h.source === value.source,
+              limit: 1n,
+            })) {
+              check(
+                hold.revision === value.revision &&
+                  equalValue(c, "propose.QuoteDocument", hold.offer.snapshot, value.snapshot) &&
+                  hold.offer.customer === value.customer && hold.offer.location === value.location &&
+                  hold.quantity === value.quantity,
+              );
+              await set(c, hold, { active: false });
+              await cancel(c, hold.id);
+            }
+            if (!await quote_available(c, resource, value.snapshot, value.quantity)) {
+              const rejected = await create(c, "rent_reservations.ReservationFence", {
+                parent: resource, source: value.source, revision: value.revision,
+                reason: format(c, message("Quoted inventory unavailable", {nl:"Geoffreerde voorraad niet beschikbaar"}), {locale:null}), offer: value,
+              });
+              await emit(c, "rent_reservations.OfferOutcome", {value: {
+                source: rejected.source, revision: rejected.revision, kind: "booking",
+                version: rejected.version, state: "unavailable", detail: rejected.reason,
+              }});
+            } else {
+              const booking = await create(c, "rent_reservations.Booking", {
+                parent: resource,
+                billing_location: resource.location,
+                sale_product: format(
                   c,
                   message(
                     "{kind}",
@@ -5853,198 +5981,113 @@ export function canApp() {
                     { kind: { type: "rent_reservations.Resource.kind", value: resource.kind } },
                   ),
                   { locale: null },
-                )),
-        );
-        check(
-          resource.location.id === value.location &&
-            value.attendees <= resource.party_limit &&
-            (!resource.pooled || value.attendees <= value.quantity),
-        );
-        check(
-          value.snapshot.total.currency === resource.currency &&
-            value.snapshot.total.minor >= 0n &&
-            compareInstant(value.snapshot.from, c.now) >= 0 &&
-            compareInstant(value.snapshot.from, value.snapshot.until) < 0,
-        );
-        check(
-          await all(
-            value.snapshot.lines,
-            (item) =>
-              compareDecimal(item.quantity, "0") >= 0 &&
-              (compareDecimal(item.quantity, "0") > 0 ||
-                equalMoney(
-                  subtractMoney(
-                    addMoney(multiplyMoney(item.price, item.quantity), item.tax),
-                    item.discount,
-                  ),
-                  money(0n, item.price.currency),
-                )) &&
-              item.price.currency === resource.currency &&
-              item.tax.currency === resource.currency &&
-              item.discount.currency === resource.currency &&
-              item.price.minor >= 0n &&
-              item.tax.minor >= 0n &&
-              item.discount.minor >= 0n &&
-              compareMoney(
-                item.discount,
-                addMoney(multiplyMoney(item.price, item.quantity), item.tax),
-              ) <= 0,
-          ),
-        );
-        check(
-          equalMoney(
-            value.snapshot.total,
-            await sum(
-              value.snapshot.lines,
-              (item) =>
-                subtractMoney(
-                  addMoney(multiplyMoney(item.price, item.quantity), item.tax),
-                  item.discount,
                 ),
-              resource.currency,
-            ),
-          ),
-        );
-        for await (const booking of records(c, "rent_reservations.Booking", { parent: resource }))
-          check(booking.source !== value.source);
-        for await (const hold of records(c, "rent_reservations.QuoteHold", {
-          parent: resource,
-          where: (h) => h.source === value.source,
-          limit: 1n,
-        })) {
-          check(
-            hold.revision === value.revision &&
-              equalValue(c, "propose.QuoteDocument", hold.offer.snapshot, value.snapshot) &&
-              hold.quantity === value.quantity,
-          );
-          await set(c, hold, { active: false });
-          await cancel(c, hold.id);
-        }
-        check(await quote_available(c, resource, value.snapshot, value.quantity));
-        for await (const customer of records(c, "customer.Customer", {
-          where: (r) => r.id === value.customer,
-          limit: 1n,
-        })) {
-          check(
-            customer.active &&
-              customer.locations.some((location) => same(location, resource.location)),
-          );
-          const booking = await create(c, "rent_reservations.Booking", {
-            parent: resource,
-            billing_location: resource.location,
-            sale_product: format(
-              c,
-              message(
-                "{kind}",
-                {},
-                { kind: { type: "rent_reservations.Resource.kind", value: resource.kind } },
-              ),
-              { locale: null },
-            ),
-            purchased_at: value.accepted_at,
-            attribution: value.attribution,
-            exclusive_program: value.exclusive_program,
-            attributed_at: value.attributed_at,
-            attribution_window: value.attribution_window,
-            customer,
-            account: value.account,
-            email: value.recipient,
-            from: value.snapshot.from,
-            until: value.snapshot.until,
-            intervals: value.snapshot.intervals.map((interval) => ({
-              from: subtractDuration(interval.from, resource.buffer_before),
-              until: addDuration(interval.until, resource.buffer_after),
-            })),
-            original_intervals: value.snapshot.intervals.map((interval) => ({
-              from: subtractDuration(interval.from, resource.buffer_before),
-              until: addDuration(interval.until, resource.buffer_after),
-            })),
-            quantity: value.quantity,
-            attendees: value.attendees,
-            rate: value.snapshot.total,
-            subtotal: await sum(
-              value.snapshot.lines,
-              (item) => multiplyMoney(item.price, item.quantity),
-              resource.currency,
-            ),
-            tax: await sum(value.snapshot.lines, (item) => item.tax, resource.currency),
-            discount: await sum(
-              value.snapshot.lines,
-              (item) => item.discount,
-              resource.currency,
-            ),
-            total: value.snapshot.total,
-            refund_amount: value.snapshot.total,
-            terms: value.snapshot.terms,
-            refund_before: value.snapshot.refund_before,
-            reserved_from: subtractDuration(value.snapshot.from, resource.buffer_before),
-            reserved_until: addDuration(value.snapshot.until, resource.buffer_after),
-            expires: addDuration(c.now, resource.hold_for),
-            source: value.source,
-            quote: value,
-            departure_buffer: resource.buffer_after,
-            arrival_buffer: resource.buffer_before,
-            benefit_unit: resource.price_unit,
-            benefit_duration: resource.increment,
-            benefit_rate: multiplyMoney(
-              resource.hourly,
-              divideDecimal(resource.increment, 3600000n),
-            ),
-            benefit_intervals: [{ from: value.snapshot.from, until: value.snapshot.until }],
-          });
-          if (booking.total.minor > 0n) {
-            const charge = await send(c, "rent_reservations.Billing.charge", {
-              value: {
-                source: booking.source,
-                customer: booking.customer.id,
-                location: resource.location.id,
-                description: value.snapshot.title,
-                amount: booking.total,
-                due: local_date(booking.from, resource.timezone),
-                issuer: value.snapshot.issuer,
-                terms: value.snapshot.terms,
-                items: value.snapshot.lines.map((item) => ({
-                  title: item.title,
-                  quantity: item.quantity,
-                  price: item.price,
-                  tax: item.tax,
-                  discount: item.discount,
-                  unit: item.unit,
-                  from: value.snapshot.from,
-                  until: value.snapshot.until,
-                  location: value.snapshot.location,
-                  reference: value.source,
+                purchased_at: value.accepted_at,
+                attribution: value.attribution,
+                exclusive_program: value.exclusive_program,
+                attributed_at: value.attributed_at,
+                attribution_window: value.attribution_window,
+                customer,
+                account: value.account,
+                email: value.recipient,
+                from: value.snapshot.from,
+                until: value.snapshot.until,
+                intervals: value.snapshot.intervals.map((interval) => ({
+                  from: subtractDuration(interval.from, resource.buffer_before),
+                  until: addDuration(interval.until, resource.buffer_after),
                 })),
-              },
-            });
-            await set(c, booking, {
-              status: "pending",
-              payment: "pending",
-              billing_delivery: charge.id,
-              monetary_due: booking.total,
-            });
+                original_intervals: value.snapshot.intervals.map((interval) => ({
+                  from: subtractDuration(interval.from, resource.buffer_before),
+                  until: addDuration(interval.until, resource.buffer_after),
+                })),
+                quantity: value.quantity,
+                attendees: value.attendees,
+                rate: value.snapshot.total,
+                subtotal: await sum(
+                  value.snapshot.lines,
+                  (item) => multiplyMoney(item.price, item.quantity),
+                  resource.currency,
+                ),
+                tax: await sum(value.snapshot.lines, (item) => item.tax, resource.currency),
+                discount: await sum(
+                  value.snapshot.lines,
+                  (item) => item.discount,
+                  resource.currency,
+                ),
+                total: value.snapshot.total,
+                refund_amount: value.snapshot.total,
+                terms: value.snapshot.terms,
+                refund_before: value.snapshot.refund_before,
+                reserved_from: subtractDuration(value.snapshot.from, resource.buffer_before),
+                reserved_until: addDuration(value.snapshot.until, resource.buffer_after),
+                expires: addDuration(c.now, resource.hold_for),
+                source: value.source,
+                quote: value,
+                departure_buffer: resource.buffer_after,
+                arrival_buffer: resource.buffer_before,
+                benefit_unit: resource.price_unit,
+                benefit_duration: resource.increment,
+                benefit_rate: multiplyMoney(
+                  resource.hourly,
+                  divideDecimal(resource.increment, 3600000n),
+                ),
+                benefit_intervals: [{ from: value.snapshot.from, until: value.snapshot.until }],
+              });
+              if (booking.total.minor > 0n) {
+                const charge = await send(c, "rent_reservations.Billing.charge", {
+                  value: {
+                    source: booking.source,
+                    customer: booking.customer.id,
+                    location: resource.location.id,
+                    description: value.snapshot.title,
+                    amount: booking.total,
+                    due: local_date(booking.from, resource.timezone),
+                    issuer: value.snapshot.issuer,
+                    terms: value.snapshot.terms,
+                    items: value.snapshot.lines.map((item) => ({
+                      title: item.title,
+                      quantity: item.quantity,
+                      price: item.price,
+                      tax: item.tax,
+                      discount: item.discount,
+                      unit: item.unit,
+                      from: value.snapshot.from,
+                      until: value.snapshot.until,
+                      location: value.snapshot.location,
+                      reference: value.source,
+                    })),
+                  },
+                });
+                await set(c, booking, {
+                  status: "pending",
+                  payment: "pending",
+                  billing_delivery: charge.id,
+                  monetary_due: booking.total,
+                });
+              }
+              await create(c, "rent_reservations.ResourcePolicy", {
+                parent: booking.parent,
+                sequence: int64(
+                  (await count(
+                    records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+                  )) + 1n,
+                ),
+                value: await resource_evidence(c, booking.parent),
+              });
+              await schedule(c, booking.id, booking.expires, "rent_reservations.HoldDue", { booking });
+              await emit(c, "rent_reservations.OfferOutcome", {
+                value: {
+                  source: booking.source,
+                  revision: value.revision,
+                  kind: "booking",
+                  version: booking.version,
+                  state: "pending",
+                  reference: booking.id,
+                  expires: booking.expires,
+                },
+              });
+            }
           }
-          await create(c, "rent_reservations.ResourcePolicy", {
-            parent: booking.parent,
-            sequence: int64(
-              (await count(
-                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
-              )) + 1n,
-            ),
-            value: await resource_evidence(c, booking.parent),
-          });
-          await schedule(c, booking.id, booking.expires, "rent_reservations.HoldDue", { booking });
-          await emit(c, "rent_reservations.OfferOutcome", {
-            value: {
-              source: booking.source,
-              revision: value.revision,
-              kind: "booking",
-              version: booking.version,
-              state: "pending",
-              reference: booking.id,
-              expires: booking.expires,
-            },
-          });
         }
       }
     },
@@ -8367,7 +8410,17 @@ export function exampleFixtures({ self, other, imported }) {
   const history_worker={model:"employee.Employee",dependencies:[history_user,test_site],value:async(c,s)=>({user:s.history_user,home:s.test_site,locations:[s.test_site],start:date("2026-10-01"),role:"Historical evidence steward"})};
   const legacy_source={dependencies:[history_user],file:async(c,s)=>({owner:s.history_user})};
   const legacy_booking={model:LegacyBooking,dependencies:[test_site,legacy_source],value:async(c,s)=>({source:"vendor-w",external_id:"B-17",location:s.test_site,facts:{customer_source:"vendor-w",customer_external_id:"C-9",resource_source:"vendor-w",resource_external_id:"R-2",actor:"Former booker",from_original:"2021-05-12 09:00",until_original:"2021-05-12 10:00",status:"Completed",payment:"Paid",amount:money(1000n,"EUR")},source_evidence:s.legacy_source,attestation:"Original export retained; local-time offset unknown"})};
+  const quote_window = {model:"rent_reservations.Window",dependencies:[test_room],value:async(c,s)=>({parent:s.test_room,from:datetime("2099-01-01T08:00:00Z"),until:datetime("2099-01-01T18:00:00Z")})};
+  const quote_day = {model:"rent_reservations.DayCalendar",dependencies:[test_room],value:async(c,s)=>({parent:s.test_room,day:date("2099-01-01")})};
+  const quoted_hold = {model:"rent_reservations.QuoteHold",dependencies:[test_room,test_company,test_site],value:async(c,s)=>({
+    parent:s.test_room,source:"quote-test",revision:1n,quantity:1n,from:datetime("2099-01-01T09:00:00Z"),until:datetime("2099-01-01T10:00:00Z"),intervals:[],expires:datetime("2099-01-01T08:00:00Z"),
+    offer:{source:"quote-test",revision:1n,customer:s.test_company.id,location:s.test_site.id,resource:s.test_room.id,recipient:"customer@example.test",quantity:1n,attendees:1n,hold_until:datetime("2099-01-01T08:00:00Z"),
+      snapshot:{issuer:"Operator",customer:"Example company",resource:s.test_room.id,quantity:1n,attendees:1n,recipient:"customer@example.test",title:"Frozen room offer",location:"Main",from:datetime("2099-01-01T09:00:00Z"),until:datetime("2099-01-01T10:00:00Z"),intervals:[],terms:"Frozen terms",refund_before:datetime("2099-01-01T09:00:00Z"),expires:datetime("2099-01-01T08:00:00Z"),lines:[{title:"Room",quantity:"1",unit:"hour",price:money(1000n,"EUR"),tax:money(0n,"EUR"),discount:money(0n,"EUR")}],total:money(1000n,"EUR")}}
+  })};
+  const acceptedQuote = (c,s)=>({product:null,attribution:null,exclusive_program:null,attributed_at:null,attribution_window:null,source:"quote-test",revision:1n,customer:s.test_company.id,location:s.test_site.id,resource:s.test_room.id,account:s.self,recipient:"customer@example.test",accepted_at:c.now,quantity:1n,attendees:1n,snapshot:s.quoted_hold.offer.snapshot});
+  const closed_quote = {model:"rent_reservations.ReservationFence",dependencies:[quoted_hold],value:async(c,s)=>({parent:s.test_room,source:"quote-test",revision:1n,reason:"Quoted inventory unavailable",offer:acceptedQuote(c,s)})};
   return {
+    quote_window,quote_day,quoted_hold,closed_quote,
     history_user,history_worker,legacy_source,legacy_booking,
     test_sale,
     test_hold,
@@ -8375,6 +8428,40 @@ export function exampleFixtures({ self, other, imported }) {
     test_window,
     recorded_resource,
     examples: [
+      {operation:"rent_reservations.move",seed:[history_worker,open_site,quote_window],dependencies:[history_worker,open_site,quote_window,test_hold],inputs:async(c,s)=>({booking:s.test_hold,from:datetime("2099-01-01T11:00:00Z"),until:datetime("2099-01-01T12:00:00Z")}),selectors:["as","booking.account","history_worker.active"],observations:[async(c,s)=>s.test_hold.from],rows:[
+        {dependencies:[],values:async(c,s)=>[s.history_user,s.history_user,true],expected:async(c,s)=>[datetime("2099-01-01T11:00:00Z")]},
+        {dependencies:[],values:async(c,s)=>[s.history_user,s.history_user,false],error:"rule_failed"},
+      ]},
+      {operation:"rent_reservations.quote_accept",seed:[test_admin,closed_quote,test_hold],dependencies:[test_admin,closed_quote,test_hold],inputs:async(c,s)=>({event:{value:acceptedQuote(c,s)}}),selectors:["test_hold.source","test_hold.status"],observations:[async(c,s)=>await count(records(c,Booking,{parent:s.test_room}))],rows:[
+        {dependencies:[],values:async(c,s)=>["quote-test","confirmed"],error:"rule_failed"},
+      ]},
+      {operation:"rent_reservations.quote_release",seed:[test_hold],dependencies:[test_hold,test_room],inputs:async(c,s)=>({event:{source:s.test_hold.source,revision:1n,resource:s.test_room.id,reason:"Close quoted inventory"}}),selectors:["test_hold.status","test_hold.payment"],observations:[async(c,s)=>s.test_hold.status,async(c,s)=>s.test_hold.payment,async(c,s)=>await count(records(c,Booking,{parent:s.test_room})),async(c,s)=>await count(records(c,"rent_reservations.ReservationFence",{parent:s.test_room}))],rows:[
+        {dependencies:[],values:async(c,s)=>["confirmed","paid"],expected:async(c,s)=>["confirmed","paid",1n,1n]},
+        {dependencies:[],values:async(c,s)=>["cancelled","refunded"],expected:async(c,s)=>["cancelled","refunded",1n,1n]},
+      ]},
+      {operation:"rent_reservations.quote_accept",seed:[test_admin,open_site,quote_window,quoted_hold],dependencies:[test_admin,open_site,quote_window,quoted_hold],inputs:async(c,s)=>({event:{value:acceptedQuote(c,s)}}),selectors:["test_admin.active","test_admin.locations","test_company.active","test_room.active"],observations:[async(c,s)=>await count(records(c,Booking,{parent:s.test_room})),async(c,s)=>await count(records(c,"rent_reservations.ReservationFence",{parent:s.test_room})),async(c,s)=>s.quoted_hold.active],rows:[
+        {dependencies:[],values:async(c,s)=>[true,[s.test_site],true,true],expected:async(c,s)=>[1n,0n,false]},
+        {dependencies:[],values:async(c,s)=>[false,[s.test_site],true,true],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>[true,[],true,true],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>[true,[s.test_site],false,true],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>[true,[s.test_site],true,false],expected:async(c,s)=>[0n,1n,false]},
+      ]},
+      {operation:"rent_reservations.quote_accept",seed:[test_admin,closed_quote],dependencies:[test_admin,closed_quote],inputs:async(c,s)=>({event:{value:acceptedQuote(c,s)}}),selectors:["closed_quote.offer","quoted_hold.active","event.value.snapshot.terms"],observations:[async(c,s)=>await count(records(c,Booking,{parent:s.test_room})),async(c,s)=>s.closed_quote.version,async(c,s)=>s.quoted_hold.active],rows:[
+        {dependencies:[],values:async(c,s)=>[s.closed_quote.offer,false,"Frozen terms"],expected:async(c,s)=>[0n,1n,false]},
+        {dependencies:[],values:async(c,s)=>[s.closed_quote.offer,false,"Changed terms"],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>[null,false,"Frozen terms"],expected:async(c,s)=>[0n,1n,false]},
+      ]},
+      {operation:"rent_reservations.move",seed:[test_admin,open_site,quote_window],dependencies:[test_admin,open_site,quote_window,test_hold],inputs:async(c,s)=>({booking:s.test_hold,from:datetime("2099-01-01T11:00:00Z"),until:datetime("2099-01-01T12:00:00Z")}),selectors:["as","test_admin.active","test_admin.locations","test_company.active"],observations:[async(c,s)=>s.test_hold.from],rows:[
+        {dependencies:[],values:async(c,s)=>[s.self,true,[s.test_site],true],expected:async(c,s)=>[datetime("2099-01-01T11:00:00Z")]},
+        {dependencies:[],values:async(c,s)=>[s.self,false,[s.test_site],true],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>[s.self,true,[],true],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>[s.self,true,[s.test_site],false],error:"rule_failed"},
+      ]},
+      {operation:"rent_reservations.move_days",seed:[test_admin,open_site,quote_window,quote_day],dependencies:[test_admin,open_site,quote_window,quote_day,test_hold],inputs:async(c,s)=>({booking:s.test_hold,start:date("2099-01-01"),end:date("2099-01-02")}),selectors:["as","test_admin.active","test_admin.locations","booking.intervals"],observations:[async(c,s)=>s.test_hold.from],rows:[
+        {dependencies:[],values:async(c,s)=>[s.self,true,[s.test_site],[{from:s.test_hold.from,until:s.test_hold.until}]],expected:async(c,s)=>[datetime("2099-01-01T08:00:00Z")]},
+        {dependencies:[],values:async(c,s)=>[s.self,false,[s.test_site],[{from:s.test_hold.from,until:s.test_hold.until}]],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>[s.self,true,[],[{from:s.test_hold.from,until:s.test_hold.until}]],error:"rule_failed"},
+      ]},
       {operation:"rent_reservations.retain_legacy",seed:[history_worker,legacy_booking],dependencies:[history_worker,legacy_booking,test_site,legacy_source],inputs:async(c,s)=>({source:"vendor-w",external_id:" B-18 ",location:s.test_site,facts:{customer_source:"vendor-w",customer_external_id:"C-9",from_original:"2021-05-12 09:00",status:"Unknown",amount:null},source_evidence:s.legacy_source,attestation:"Checked source export"}),selectors:["as","external_id","history_worker.active"],observations:[async(c,s)=>s.result.external_id,async(c,s)=>s.result.facts.from,async(c,s)=>s.result.facts.amount,async(c,s)=>s.result.account,async(c,s)=>s.result.imported_by,async(c,s)=>await count(records(c,Booking))],rows:[
         {dependencies:[],values:async(c,s)=>[s.history_user," B-18 ",true],expected:async(c,s)=>[" B-18 ",null,null,null,s.history_user,0n]},
         {dependencies:[],values:async(c,s)=>[s.history_user,"B-17",true],error:"rule_failed"},
