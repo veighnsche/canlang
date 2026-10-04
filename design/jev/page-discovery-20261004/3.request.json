@@ -1,0 +1,15 @@
+{
+  "model": "jev-latest",
+  "state": "Verified inputs: Can pages already own their route, localized title, optional grouping/order/exclusion and page-level require. The shell is supposed to list accessible static routes in composed/declaration order, deduplicating canonical pages; dynamic record/token routes are not enumerated. Page data contributes authentication/team context, group guards hide only their group, and ordinary model/operation authorization is independent. Current desired JavaScript stores path and render in appDefinition.pages, with captions and checks embedded in renderers. CRM sales has a salesperson gate; Expense own claims requires members and review requires reviewer or finance. The examined static gates use caller context, but legal pure guards may depend on persisted facts or a declared page data result; record-detail gates already do so. The toolchain and runtime are unimplemented, with no performance evidence. Any selected solution must keep one authored source, reveal only safe static navigation metadata, handle exact page entry and direct-route checks coherently, preserve empty views, avoid invoking unrelated renders/queries/actions, and distinguish denied access from failed eligibility computation. Rendering every page is not an acceptable way to derive its navigation entry. The candidate output is one generated descriptor containing canonical owner/route, title and placement, an admission callback and its renderer; no new user-authored registry is proposed.",
+  "questions": {
+    "discovery": {
+      "type": "choice",
+      "instructions": "Which treatment of page admission should that compiler-derived descriptor use?",
+      "criteria": {
+        "derived_admission": "Produce one reusable admission evaluator for navigation and the active route. Derive context preconditions and execute authored outer guards in order, following just the pure-read dependencies required to evaluate them. Skip body lists, action invocations and page data not consumed by a guard; never use presence of rows as page permission. Keep any fetched guard bindings private for same-checkpoint reuse by rendering. Hide a denied destination and represent a failed bounded check as unavailable. This preserves actual current entry checks but acknowledges that a data-based gate needs data access.",
+        "context_only_hidden": "Allow only business-data-free admission evaluation during shell construction. If an outer gate needs a stored value, require the existing nav=none marking, retaining that guard for direct requests. This gives a clear context-only discovery boundary without another policy declaration, but makes some otherwise accessible static pages absent from standard navigation.",
+        "candidate_links": "List potential destinations by their context requirements and postpone unknown stored-data gate conditions to the page request. The complete original guard still protects every route, so no data permission is added. Discovery is cheap in kind, yet a visible link can immediately deny, departing from the specified current-eligibility meaning."
+      }
+    }
+  }
+}
