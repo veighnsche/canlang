@@ -91,13 +91,13 @@ export function assertValidHttpConfig(config: HttpClientConfig): void {
   }
 }
 
-async function readBoundedBody(
+async function readBoundedBytes(
   response: Response,
   maxBytes: number,
   status: number,
-): Promise<string> {
+): Promise<Uint8Array> {
   if (response.body === null) {
-    return '';
+    return new Uint8Array(0);
   }
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -136,7 +136,17 @@ async function readBoundedBody(
     merged.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return new TextDecoder().decode(merged);
+  return merged;
+}
+
+async function readBoundedBody(
+  response: Response,
+  maxBytes: number,
+  status: number,
+): Promise<string> {
+  return new TextDecoder().decode(
+    await readBoundedBytes(response, maxBytes, status),
+  );
 }
 
 function resolveRequestUrl(config: HttpClientConfig, request: HttpRequest): URL {
@@ -318,6 +328,74 @@ export async function httpRequest(
     status: fetched.response.status,
     url: fetched.url.href,
     bodyText,
+  };
+}
+
+/** Binary response: exact bytes plus the transport content-type claim. */
+export interface HttpBinaryResponse {
+  readonly status: number;
+  readonly url: string;
+  readonly bytes: Uint8Array;
+  /** Raw `content-type` header, or null when absent. Untrusted claim. */
+  readonly contentType: string | null;
+}
+
+/**
+ * Binary variant of `httpRequest` for provider byte downloads: same
+ * origin/redirect/deadline/cap policy, but the body is returned as
+ * exact bytes (never UTF-8 decoded) with the transport content-type.
+ * Non-2xx statuses throw `HttpStatusError` with a bounded text body.
+ */
+export async function httpRequestBinary(
+  config: HttpClientConfig,
+  request: HttpRequest,
+): Promise<HttpBinaryResponse> {
+  assertValidHttpConfig(config);
+  const startUrl = resolveRequestUrl(config, request);
+  const { controller, timer, timedOut } = startDeadline(config);
+  const signal = combinedSignal(controller, request);
+  let bytes: Uint8Array;
+  let fetched: FetchedResponse;
+  try {
+    fetched = await fetchWithRedirects(
+      config,
+      request,
+      startUrl,
+      signal,
+      timedOut,
+    );
+    try {
+      bytes = await readBoundedBytes(
+        fetched.response,
+        config.maxBodyBytes,
+        fetched.response.status,
+      );
+    } catch (err) {
+      if (err instanceof HttpBodyLimitError) {
+        throw err;
+      }
+      if (timedOut()) {
+        throw new HttpTransportError('timeout');
+      }
+      if (request.signal?.aborted === true) {
+        throw err;
+      }
+      throw new HttpTransportError('network-error');
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+  if (fetched.response.status < 200 || fetched.response.status > 299) {
+    throw new HttpStatusError(
+      fetched.response.status,
+      new TextDecoder().decode(bytes),
+    );
+  }
+  return {
+    status: fetched.response.status,
+    url: fetched.url.href,
+    bytes,
+    contentType: fetched.response.headers.get('content-type'),
   };
 }
 

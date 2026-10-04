@@ -93,6 +93,14 @@ Current reservations: S1 coordinator (this file). S3/S4 may run in parallel once
 - Queues/Workflows/DO alarms: mapping tests only; dispatcher defaults to shared D1 due-work scan behind the storage port.
 - `tools/jev.py`: JEV consultation CLI if a difficult design choice arises (preauthorized; three rewritten equivalents; save responses/uncertainty).
 
+## Provider compatibility (S7 evidence; no live-provider claims)
+
+- `std.EmailV1` (S4): controlled endpoint; send/reconcile mapping, delivery-id idempotency, redirect refusal, aggregate transport limit, redacted errors. No live mailbox.
+- `ai.ChatV1` via Ollama (S7a): `POST /api/chat` final + NDJSON streaming, mid-stream error objects, `done:true` completion rule, per-run abort (fetch equivalent of documented client-per-stream), model allowlist, output ceiling, reconcile honestly `unknown` (no documented run lookup). Verified against Ollama chat/streaming/error docs + ollama-js abort README; tools/format/vision are unrepresentable in the input (unsupported iff absent). `ollama-js` NOT installed: fetch covers the documented need; revisit only for SDK-parity features.
+- `ai.SystemOneV1` via TypeSafe JEV (S7b): `{model,state,questions}` request and exact answer-key/type/choice rules from in-repo `tools/jev.py`; answer field names (`noul`, `choice`/`probabilities`/`confidence`, `score`/`legend`/string-indexed `probabilities`, `usage.{input,output}_tokens`) from convergent independent doc mirrors (official pages JS-bloated past fetch truncation). Limits are binding config: JEV 255 options/10 levels, local 2–26 + 64 KiB request cap. No thresholds anywhere (business policy). Reconcile honestly `unknown`.
+- `ai.ImagesV1` via native ComfyUI (S7c): `/prompt` accept/validation shapes, `/history` entry shapes (`status_str` success/error/executing, `completed`, `messages`, node outputs), `/view` params, `/api/jobs` targeted cancel (upstream-only; 404 probed as unsupported) — verified against ComfyUI routes docs, the official websockets example, and convergent mirrors. Omitted honestly: `/queue` tier (queued/running polling refinement, shapes unverified), `/ws` (polling is authoritative), node class requirements (existence only), native `cancelled` marker (does not exist in verified shapes; cancel returns the post-cancel observation).
+- Comfy API v2: NOT implemented. Verified but insufficient: `/api/v2/jobs` submit/poll/cancel paths, terminal states (succeeded/failed/expired/canceled), single-use `Idempotency-Key` + 422 reuse, poll-authoritative/SSE-enhancement principle (proxy README, smoke test, SDK READMEs). Unmet contract for a later slice: stable submit/job/output field reference — no parser invented against the 0.1.x beta.
+
 ## Test cases (finite, per slice)
 
 - Outbox: commit failure causes no send; guard false → skipped; supersession cancels undispatched intents only; provider-accepted work may complete after supersession.

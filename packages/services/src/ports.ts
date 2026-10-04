@@ -18,6 +18,9 @@ import type {
   CapabilityCompletion,
   EmailAccepted,
   EmailSendInput,
+  ImageAccepted,
+  ImageGenerateInput,
+  ImageRun,
   JudgmentBatchInput,
   JudgmentBatchResult,
   ModelChatInput,
@@ -113,6 +116,36 @@ export interface JudgmentPort {
   reconcile(
     deliveryId: string,
   ): Promise<CapabilityCompletion<JudgmentBatchResult>>;
+}
+
+export interface MediaPort {
+  /**
+   * Submit a generation. The caller may supply its own job id for
+   * crash recovery (an unknown submit with a known id stays
+   * pollable); otherwise the adapter mints one.
+   */
+  submit(
+    input: ImageGenerateInput,
+    options: { readonly deliveryId: string; readonly jobId?: string },
+  ): Promise<CapabilityCompletion<ImageAccepted>>;
+  /**
+   * Observe one job. A succeeded completion carries the observed run
+   * (which may itself be failed or unknown); completion failure
+   * means the observation itself failed.
+   */
+  reconcile(
+    job: string,
+    options: { readonly deliveryId: string },
+  ): Promise<CapabilityCompletion<ImageRun>>;
+  /**
+   * Request cancellation, then reconcile. The post-cancel
+   * observation is the answer; native polling exposes no
+   * `cancelled` marker, so none is fabricated.
+   */
+  cancel(
+    job: string,
+    options: { readonly deliveryId: string },
+  ): Promise<CapabilityCompletion<ImageRun>>;
 }
 
 export function systemClock(): Clock {

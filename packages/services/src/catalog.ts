@@ -37,5 +37,10 @@ export const SERVICES_CATALOG: ServiceCatalog = {
       capabilityVersion: 1,
       operations: ['evaluate'],
     },
+    {
+      capability: 'ai.ImagesV1',
+      capabilityVersion: 1,
+      operations: ['submit'],
+    },
   ],
 };

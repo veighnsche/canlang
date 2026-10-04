@@ -380,3 +380,87 @@ export interface JudgmentBatchResult {
   inputTokens: number | null;
   outputTokens: number | null;
 }
+
+/**
+ * Provider-owned `ai.ImagesV1` business inputs. These are mapped onto
+ * graph node inputs by the binding's workflow map; the adapter
+ * substitutes only declared scalar slots and validates the graph
+ * digest, never inventing nodes or resizing silently.
+ */
+export interface ImageGenerateInput {
+  prompt: string;
+  negative: string;
+  width: number;
+  height: number;
+  seed: number;
+}
+
+/**
+ * Submission acceptance: a provider job reference. The business image
+ * run remains queued; acceptance never proves an image exists.
+ */
+export interface ImageAccepted {
+  job: string;
+}
+
+/**
+ * One downloaded output image. `position` is the stable index within
+ * the node's image list; `node` + `position` jointly identify the
+ * output. `contentType` is the transport claim; actual bytes win at
+ * files validation (S8 join).
+ */
+export interface GeneratedImage {
+  node: string;
+  position: number;
+  contentType: string;
+  sizeBytes: number;
+  bytes: Uint8Array;
+}
+
+/** Provider-owned `ai.ImagesV1` run state. */
+export type ImageRunState =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'unknown'
+  | 'cancelled';
+
+/**
+ * Provider-owned `ai.ImagesV1` observed run. Delivery success stays
+ * distinct from image-run success: a failed run is data (state +
+ * partial outputs + detail), and partial outputs followed by job
+ * failure stay distinguishable from full success.
+ */
+export interface ImageRun {
+  job: string;
+  state: ImageRunState;
+  outputs: GeneratedImage[];
+  detail: string | null;
+}
+
+/** One API-format graph node: class plus named inputs. */
+export interface ApiGraphNode {
+  class_type: string;
+  inputs: Record<string, unknown>;
+}
+
+/** Pinned API-format graph: node id to node. */
+export type ApiGraph = Record<string, ApiGraphNode>;
+
+/**
+ * Versioned workflow-node mapping. Adapter-owned typed configuration,
+ * NOT language syntax: it lives in the deployment binding (or a
+ * versioned template record at the S8 join), is validated against the
+ * pinned graph digest at submit, and frozen per run.
+ */
+export interface WorkflowNodeMapping {
+  /** Immutable workflow artifact id (never a path or URL). */
+  workflow: string;
+  /** Pinned graph digest the mapping was reviewed against (`sha256:` hex). */
+  graphDigest: string;
+  /** Business field to graph node/key destination; exactly the input fields. */
+  inputs: Record<string, { node: string; key: string }>;
+  /** Declared output node ids; only these nodes' images are collected. */
+  outputs: string[];
+}
