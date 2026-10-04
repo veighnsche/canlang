@@ -3,11 +3,13 @@ import {
   addDuration,
   subtractDuration,
   count,
+  collect,
   cancel,
   require as check,
   compareInstant,
   create,
   date,
+  delivery,
   first,
   format,
   hasRole,
@@ -32,7 +34,7 @@ import {
   table,
   text,
 } from "@canlang/ui";
-import { can_work } from "./employee.mjs";
+import { Employee, can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
 
 /* Handwritten desired target; every import is a proposed, unimplemented contract.
@@ -192,7 +194,7 @@ export const appDefinition = {
     "approve.Notice": {
       parent: "approve.Submission",
       label: message("Review notice", { nl: "Beoordelingsbericht" }),
-      readGrants: [{ rule: "Notice.read.1" }, { rule: "Notice.read.2" }, { rule: "Notice.read.3" }],
+      readGrants: [{ rule: "Notice.read.1", fields: ["parent", "kind", "assignment", "recipient", "subject", "body", "state", "delivery.id", "delivery.status", "created_by", "created", "updated_by", "updated", "archived_at"] }],
       locks: ["Notice.lock.1", "Notice.lock.2"],
       fields: {
         kind: {
@@ -212,12 +214,13 @@ export const appDefinition = {
         subject: { type: "text" },
         body: { type: "text" },
         delivery: {
-          type: "text",
+          type: "delivery",
+          operation: "approve.Mail.send",
           nullable: true,
           label: message("Delivery reference", { nl: "Verzendingsreferentie" }),
         },
-        state: { type: "std.DeliveryResult.status", default: "pending" },
       },
+      derived: {state: {type:"std.DeliveryResult.status",nullable:true,handler:"Notice.state",label:message("Delivery state",{nl:"Verzendstatus"})}},
     },
   },
   events: {
@@ -266,14 +269,20 @@ export const appDefinition = {
       },
       when: "Document",
     },
+    "approve.reviewer_choices": {
+      handler:"reviewer_choices",by:"members",read:true,result:"employee.Employee[]",
+      label:message("Choose reviewer",{nl:"Beoordelaar kiezen"}),
+      description:message("Read eligible reviewers through current work-field grants.",{nl:"Lees geschikte beoordelaars via actuele werkveldtoegang."}),
+      inputs:{document:{type:"approve.Document"}},
+    },
     "approve.submit": {
       handler: "submit",
       by: "members",
       read: false,
       description: message(
-        "Replace a pending file with a new submitted revision and invalidate its old decision.",
+        "Submit a fresh immutable file revision, withdrawing pending reviews and retaining earlier decisions.",
         {
-          nl: "Vervang een wachtend bestand door een nieuwe ingediende revisie en maak het oude besluit ongeldig.",
+          nl: "Dien een nieuwe onveranderlijke bestandsrevisie in, trek wachtende beoordelingen in en behoud eerdere besluiten.",
         },
       ),
       inputs: {
@@ -328,8 +337,7 @@ export const appDefinition = {
   },
   handlers: {
     "approve.remind": { handler: "remind", on: "approve.Due" },
-    "approve.notify": { handler: "notify", on: "approve.Notice.create" },
-    "approve.delivered": { handler: "delivered", on: "approve.Mail.send.completed" },
+    "approve.notify": { handler: "notify", on: "approve.Notice.created" },
   },
   pages: [
     documentsPageDescriptor,
@@ -354,7 +362,7 @@ export function canApp() {
   };
   return {
     crudWhen,
-    derives: {"Submission.overdue": (c,row) => row.state === "pending" && compareInstant(row.due,c.now) < 0},
+    derives: {"Notice.state": async(c,row) => (await delivery(c,{record:row,field:"delivery"},["status"]))?.status ?? null, "Submission.overdue": (c,row) => row.state === "pending" && compareInstant(row.due,c.now) < 0},
     read: {
       "Document.read.1": (c, row) => hasRole(c, "members") && same(row.submitter, c.actor),
       "Document.read.2": async (c, row) =>
@@ -376,18 +384,13 @@ export function canApp() {
         same(row.reviewer, c.actor) &&
         row.state !== "withdrawn" &&
         (row.parent.location === null || (await can_work(c, c.actor, row.parent.location))),
-      "Notice.read.1": (c, row) =>
-        hasRole(c, "members") && same(row.parent.parent.submitter, c.actor),
-      "Notice.read.2": async (c, row) =>
-        hasRole(c, "approve.coordinator") &&
-        (row.parent.parent.location === null ||
-          (await can_work(c, c.actor, row.parent.parent.location))),
-      "Notice.read.3": async (c, row) =>
-        hasRole(c, "approve.reviewer") &&
-        same(row.parent.reviewer, c.actor) &&
-        row.parent.state !== "withdrawn" &&
-        (row.parent.parent.location === null ||
-          (await can_work(c, c.actor, row.parent.parent.location))),
+      "Notice.read.1": async (c, row) =>
+        (hasRole(c, "members") && same(row.parent.parent.submitter, c.actor)) ||
+        (hasRole(c, "approve.coordinator") &&
+          (row.parent.parent.location === null || await can_work(c, c.actor, row.parent.parent.location))) ||
+        (hasRole(c, "approve.reviewer") && same(row.parent.reviewer, c.actor) &&
+          row.parent.state !== "withdrawn" &&
+          (row.parent.parent.location === null || await can_work(c, c.actor, row.parent.parent.location))),
     },
     locks: {
       "Notice.lock.2": {fields: ["delivery"], when: (c, row) => row.delivery !== null},
@@ -406,6 +409,16 @@ export function canApp() {
     async updateDocument(c, { record, changes }) {
       check(hasRole(c, "members"), "forbidden");
       await set(c, record, changes, { when: crudWhen.Document });
+    },
+    async reviewer_choices(c, { document }) {
+      check(hasRole(c,"members"),"forbidden");
+      check((same(document.submitter,c.actor) || hasRole(c,"approve.coordinator")) &&
+        (document.location===null || await can_work(c,c.actor,document.location)));
+      return collect(records(c,Employee,{
+        where:async candidate => candidate.active && !same(candidate.user,c.actor) && !same(candidate.user,document.submitter) &&
+          hasRole(c,"approve.reviewer",candidate.user) &&
+          (document.location===null || await can_work(c,candidate.user,document.location)),
+      }));
     },
     async submit(c, { document, file, note, assignee, reviewer_email, due }) {
       check(hasRole(c, "members"), "forbidden");
@@ -550,8 +563,9 @@ export function canApp() {
       });
     },
     async notify(c, { event }) {
-      const notice = event.after;
-      const delivery = await send(
+      const notice = await first(records(c,"approve.Notice",{where:row=>row.id===event.id,order:["id"]}));
+      if (notice===null || notice.delivery!==null) return;
+      const attempt = await send(
         c,
         "approve.Mail.send",
         { to: notice.recipient, subject: notice.subject, body: notice.body },
@@ -567,14 +581,7 @@ export function canApp() {
                 (await can_work(c, notice.parent.reviewer, notice.parent.parent.location)))),
         },
       );
-      await set(c, notice, { delivery: delivery.id });
-    },
-    async delivered(c, { event }) {
-      for await (const notice of records(c, "approve.Notice", {
-        where: (row) => row.delivery === event.delivery_id,
-        limit: 1n,
-      }))
-        await set(c, notice, { state: event.status });
+      await set(c, notice, { delivery: attempt });
     },
   };
 }
@@ -604,6 +611,15 @@ export async function documentsPage(c, bindings) {
             children: [
               edit({ context: view, operation: "approve.Document.update", record: document }),
               form({ context: view, operation: "approve.submit", arguments: { document } }),
+              form({context:view,operation:"approve.reviewer_choices",arguments:{document},
+                renderResult:(result,resultView)=>[
+                  list({context:resultView,rows:result,columns:["name","user","role","home"],
+                    renderRow:(candidate,candidateView)=>[
+                      form({context:candidateView,operation:"approve.submit",arguments:{document,assignee:candidate.user}}),
+                    ],
+                  }),
+                ],
+              }),
             ],
           }),
           details({
@@ -686,6 +702,15 @@ export async function reviewPage(c, bindings) {
                 operations: ["approve.decide", "approve.assign"],
                 boundArgs: { submission },
               }),
+              form({context:view,operation:"approve.reviewer_choices",arguments:{document:submission.parent},
+                renderResult:(result,resultView)=>[
+                  list({context:resultView,rows:result,columns:["name","user","role","home"],
+                    renderRow:(candidate,candidateView)=>[
+                      form({context:candidateView,operation:"approve.assign",arguments:{submission,assignee:candidate.user}}),
+                    ],
+                  }),
+                ],
+              }),
             ],
           }),
           details({
@@ -729,8 +754,8 @@ export function exampleFixtures({ self, other, imported }) {
   const coordinator_user={dependencies:[],user:async(c,s)=>({roles:["approve.coordinator"]})};
   const ordinary_user={dependencies:[],user:async(c,s)=>({roles:[]})};
   const hr_user={dependencies:[],user:async(c,s)=>({roles:["employee.hr"]})};
-  const reviewer_worker={model:"employee.Employee",dependencies:[test_site,reviewer_user],value:async(c,s)=>({user:s.reviewer_user,home:s.test_site,locations:[s.test_site],start:date("2026-10-01"),role:"Reviewer"})};
-  const replacement_worker={model:"employee.Employee",dependencies:[test_site,replacement_user],value:async(c,s)=>({user:s.replacement_user,home:s.test_site,locations:[s.test_site],start:date("2026-10-01"),role:"Replacement reviewer"})};
+  const reviewer_worker={model:"employee.Employee",dependencies:[test_site,reviewer_user],value:async(c,s)=>({user:s.reviewer_user,name:"Alex",home:s.test_site,locations:[s.test_site],start:date("2026-10-01"),role:"Reviewer"})};
+  const replacement_worker={model:"employee.Employee",dependencies:[test_site,replacement_user],value:async(c,s)=>({user:s.replacement_user,name:"Alex",home:s.test_site,locations:[s.test_site],start:date("2026-10-01"),role:"Replacement reviewer"})};
   const coordinator_worker={model:"employee.Employee",dependencies:[test_site,coordinator_user],value:async(c,s)=>({user:s.coordinator_user,home:s.test_site,locations:[s.test_site],start:date("2026-10-01"),role:"Coordinator"})};
   const ordinary_worker={model:"employee.Employee",dependencies:[test_site,ordinary_user],value:async(c,s)=>({user:s.ordinary_user,home:s.test_site,locations:[s.test_site],start:date("2026-10-01"),role:"Reviewer"})};
   const document = {
@@ -760,9 +785,15 @@ export function exampleFixtures({ self, other, imported }) {
       due: addDuration(c.now, 86400000n),
     }),
   };
+  const pending_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({"request": {"to": "reviewer@example.test", "subject": "Review", "body": "Plan"}, "status": "pending", "result": null, "error": null})};
+  const accepted_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({"request": {"to": "reviewer@example.test", "subject": "Review", "body": "Plan"}, "status": "succeeded", "result": {"reference": "accepted-mail"}, "error": null})};
+  const unknown_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({"request": {"to": "reviewer@example.test", "subject": "Review", "body": "Plan"}, "status": "unknown", "result": null, "error": null})};
+  const failed_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({"request": {"to": "reviewer@example.test", "subject": "Review", "body": "Plan"}, "status": "failed", "result": null, "error": {"code": "provider", "message": "Delivery rejected"}})};
+  const skipped_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({"request": {"to": "reviewer@example.test", "subject": "Review", "body": "Plan"}, "status": "skipped", "result": null, "error": null})};
+  const failed_decision_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({"request": {"to": "submitter@example.test", "subject": "Review", "body": "Approved with conditions"}, "status": "failed", "result": null, "error": {"code": "provider", "message": "Delivery rejected"}})};
   const pending_notice = {
     model: "approve.Notice",
-    dependencies: [pending_version],
+    dependencies: [pending_version, pending_delivery],
     value: async (c, s) => ({
       parent: s.pending_version,
       kind: "request",
@@ -770,7 +801,7 @@ export function exampleFixtures({ self, other, imported }) {
       recipient: "reviewer@example.test",
       subject: "Review",
       body: "Plan",
-      delivery: "notice",
+      delivery: s.pending_delivery,
     }),
   };
   const accepted = {
@@ -795,9 +826,51 @@ export function exampleFixtures({ self, other, imported }) {
     replacement,
     pending_version,
     accepted,
-    pending_notice,
+    pending_notice, pending_delivery, accepted_delivery, unknown_delivery, failed_delivery, skipped_delivery, failed_decision_delivery,
     reviewer_user, replacement_user, coordinator_user, ordinary_user, hr_user, reviewer_worker, replacement_worker, coordinator_worker, ordinary_worker,
     examples: [
+      {
+        operation:"approve.reviewer_choices",seed:[test_worker,reviewer_worker,replacement_worker,ordinary_worker,coordinator_worker],
+        dependencies:[document],inputs:async(c,s)=>({document:s.document}),
+        selectors:["as","document.submitter","document.location","reviewer_worker.active","reviewer_worker.name","test_worker.active"],
+        observations:[async(c,s)=>await count(s.result),async(c,s)=>await count(s.result.filter(candidate=>candidate.name==="Alex")),async(c,s)=>await any(s.result,candidate=>same(candidate.user,s.ordinary_user))],
+        rows:[
+          {dependencies:[],values:async(c,s)=>[s.self, s.self, s.test_site, true, "Alex", true],expected:async(c,s)=>[2n,2n,false]},
+          {dependencies:[],values:async(c,s)=>[s.self, s.self, s.test_site, false, "Alex", true],expected:async(c,s)=>[1n,1n,false]},
+          {dependencies:[],values:async(c,s)=>[s.self, s.self, null, false, "Alex", true],expected:async(c,s)=>[1n,1n,false]},
+          {dependencies:[],values:async(c,s)=>[s.self, s.self, s.test_site, true, null, true],expected:async(c,s)=>[2n,1n,false]},
+          {dependencies:[],values:async(c,s)=>[s.coordinator_user, s.self, s.test_site, true, "Alex", true],expected:async(c,s)=>[2n,2n,false]},
+          {dependencies:[],values:async(c,s)=>[s.reviewer_user, s.reviewer_user, s.test_site, true, "Alex", true],expected:async(c,s)=>[1n,1n,false]},
+          {dependencies:[],values:async(c,s)=>[s.reviewer_user, s.self, s.test_site, true, "Alex", true],error:"rule_failed"},
+          {dependencies:[],values:async(c,s)=>[s.self, s.self, s.test_site, true, "Alex", false],error:"rule_failed"},
+          {dependencies:[],values:async(c,s)=>[s.self, s.self, null, true, "Alex", false],expected:async(c,s)=>[0n,0n,false]},
+          {dependencies:[],values:async(c,s)=>[s.outsider, s.self, s.test_site, true, "Alex", true],error:"forbidden"},
+          {dependencies:[],values:async(c,s)=>["public", s.self, s.test_site, true, "Alex", true],error:"forbidden"},
+        ],
+      },
+      {
+        operation:"approve.reviewer_choices",seed:[pending_notice,test_worker,failed_delivery],
+        dependencies:[document],inputs:async(c,s)=>({document:s.document}),selectors:["pending_notice.delivery"],
+        observations:[async(c,s)=>(await delivery(c,{record:s.pending_notice,field:"delivery"},["status"]))?.status ?? null,async(c,s)=>s.pending_version.state],
+        rows:[
+          {dependencies:[accepted_delivery],values:async(c,s)=>[s.accepted_delivery],expected:async(c,s)=>["succeeded", "pending"]},
+          {dependencies:[unknown_delivery],values:async(c,s)=>[s.unknown_delivery],expected:async(c,s)=>["unknown", "pending"]},
+          {dependencies:[skipped_delivery],values:async(c,s)=>[s.skipped_delivery],expected:async(c,s)=>["skipped", "pending"]},
+          {dependencies:[failed_delivery],values:async(c,s)=>[s.failed_delivery],expected:async(c,s)=>["failed", "pending"]},
+          {dependencies:[pending_delivery],values:async(c,s)=>[s.pending_delivery],expected:async(c,s)=>["pending", "pending"]},
+          {dependencies:[],values:async(c,s)=>[null],expected:async(c,s)=>[null, "pending"]},
+        ],
+      },
+      {
+        operation:"approve.reviewer_choices",seed:[pending_notice,test_worker],dependencies:[document,reviewer_user],
+        inputs:async(c,s)=>({document:s.document}),
+        selectors:["pending_notice.kind","pending_notice.recipient","pending_notice.body","pending_version.state","pending_version.reason","pending_version.decided_by","pending_version.decided_at","pending_notice.delivery"],
+        observations:[async(c,s)=>(await delivery(c,{record:s.pending_notice,field:"delivery"},["status"]))?.status ?? null,async(c,s)=>s.pending_version.state,async(c,s)=>s.pending_version.file,async(c,s)=>s.pending_version.reason,async(c,s)=>s.pending_version.decided_by,async(c,s)=>s.pending_version.decided_at],
+        rows:[
+          {dependencies:[failed_decision_delivery,original,reviewer_user],values:async(c,s)=>["decision", "submitter@example.test", "Approved with conditions", "approved", "Approved with conditions", s.reviewer_user, c.now, s.failed_decision_delivery],expected:async(c,s)=>["failed", "approved", s.original, "Approved with conditions", s.reviewer_user, c.now]},
+          {dependencies:[original,reviewer_user],values:async(c,s)=>["decision", "submitter@example.test", "Approved with conditions", "approved", "Approved with conditions", s.reviewer_user, c.now, null],expected:async(c,s)=>[null, "approved", s.original, "Approved with conditions", s.reviewer_user, c.now]},
+        ],
+      },
       // Proposed causal sequences: no implicit call or trusted-handler invocation.
       {operation:"approve.submit",dependencies:[test_worker, reviewer_worker, coordinator_worker, replacement_worker, original, replacement],sequence:[
         {
@@ -1073,11 +1146,17 @@ export function exampleFixtures({ self, other, imported }) {
           let:"review_version",
           value:async(c,s,b)=>b.pending_review.version,
         },
+        {let:"review_document",value:async(c,s,b)=>await first(records(c,"approve.Document",{where:row=>same(row.submitter,s.self),order:["id"]}))},
+        {observations:async(c,s,b)=>[b.review_document!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"approve.reviewer_choices",by:async(c,s,b)=>s.self,inputs:async(c,s,b)=>({document:b.review_document}),bind:"before_reviewers"},
+        {observations:async(c,s,b)=>[await any(b.before_reviewers,candidate=>same(candidate.user,s.reviewer_user))],expected:async()=>[true],types:["bool"]},
         {
           operation:"employee.deactivate",
           by:async(c,s,b)=>s.hr_user,
           inputs:async(c,s,b)=>({employee:s.reviewer_worker,ended:date("2026-10-02")}),
         },
+        {operation:"approve.reviewer_choices",by:async(c,s,b)=>s.self,inputs:async(c,s,b)=>({document:b.review_document}),bind:"after_reviewers"},
+        {observations:async(c,s,b)=>[await any(b.after_reviewers,candidate=>same(candidate.user,s.reviewer_user)),await any(b.after_reviewers,candidate=>same(candidate.user,s.replacement_user))],expected:async()=>[false,true],types:["bool","bool"]},
         {
           observations:async(c,s,b)=>[s.reviewer_worker.active, hasRole(c,"approve.reviewer",s.reviewer_user), await can_work(c,s.reviewer_user,s.test_site)],
           expected:async(c,s,b)=>[false, true, false],
@@ -1261,31 +1340,7 @@ export function exampleFixtures({ self, other, imported }) {
           {dependencies:[reviewer_user, test_site],values:async(c,s)=>[1n, subtractDuration(c.now,60000n), 1n, "pending", s.reviewer_user, s.test_site, false],error:"rule_failed"},
         ],
       },
-      {
-        operation:"approve.delivered",
-        seed:[pending_notice],
-        dependencies:[pending_notice],
-        inputs:async(c,s)=>({event:{delivery_id:"notice",status:"unknown",result:null,error:null}}),
-        selectors:["event.delivery_id", "event.status", "event.result", "event.error"],
-        observations:[async(c,s)=>s.pending_notice.state, async(c,s)=>s.pending_version.state],
-        rows:[
-          {dependencies:[],values:async(c,s)=>["notice", "succeeded", {reference:"accepted-mail"}, null],expected:async(c,s)=>["succeeded", "pending"]},
-          {dependencies:[],values:async(c,s)=>["notice", "unknown", null, null],expected:async(c,s)=>["unknown", "pending"]},
-          {dependencies:[],values:async(c,s)=>["notice", "skipped", null, null],expected:async(c,s)=>["skipped", "pending"]},
-          {dependencies:[],values:async(c,s)=>["notice", "failed", null, {code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["failed", "pending"]},
-          {dependencies:[],values:async(c,s)=>["different", "failed", null, {code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["pending", "pending"]},
-        ],
-      },
-      {
-        operation:"approve.delivered",seed:[pending_notice],dependencies:[pending_notice, reviewer_user],
-        inputs:async(c,s)=>({event:{delivery_id:"notice",status:"failed",result:null,error:{code:"provider",message:"Delivery rejected"}}}),
-        selectors:["pending_notice.kind", "pending_notice.recipient", "pending_notice.body", "pending_version.state", "pending_version.reason", "pending_version.decided_by", "pending_version.decided_at", "event.delivery_id", "event.status", "event.result", "event.error"],
-        observations:[async(c,s)=>s.pending_notice.state, async(c,s)=>s.pending_version.state, async(c,s)=>s.pending_version.file, async(c,s)=>s.pending_version.reason, async(c,s)=>s.pending_version.decided_by, async(c,s)=>s.pending_version.decided_at],
-        rows:[
-          {dependencies:[reviewer_user, original],values:async(c,s)=>["decision", "submitter@example.test", "Approved with conditions", "approved", "Approved with conditions", s.reviewer_user, c.now, "notice", "failed", null, {code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["failed", "approved", s.original, "Approved with conditions", s.reviewer_user, c.now]},
-          {dependencies:[reviewer_user, original],values:async(c,s)=>["decision", "submitter@example.test", "Approved with conditions", "approved", "Approved with conditions", s.reviewer_user, c.now, "different", "failed", null, {code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["pending", "approved", s.original, "Approved with conditions", s.reviewer_user, c.now]},
-        ],
-      },
+
     ],
   };
 }
