@@ -247,6 +247,15 @@ export function makeActionRef(target: string, bindings: Record<string, RecordRef
   }
   const frozen: Record<string, RecordRef> = {};
   for (const [param, binding] of Object.entries(bindings)) {
+    // `__proto__` would silently set the prototype instead of an own key
+    // on the accumulator below; reject it so the binding is never lost
+    // (mirrors the wire decoder; other dunder names are safe own keys).
+    if (param === "__proto__") {
+      throw new ValueError(
+        "invalid-construction",
+        'action binding name "__proto__" is reserved',
+      );
+    }
     if (!isRecordRef(binding)) {
       throw new ValueError("invalid-construction", `action binding ${param} must be a record ref`);
     }

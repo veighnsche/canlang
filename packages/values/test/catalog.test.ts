@@ -76,18 +76,23 @@ describe("builtin catalog", () => {
     assert.ok(signature.startsWith("equalValue(c:"), signature);
   });
 
-  it("marks the PR4 slice implemented and dispatcher-owned builtins planned", () => {
+  it("marks the PR4/PR5 slices implemented with no builtin left planned", () => {
     const byId = new Map(CATALOG.entries.map((entry) => [entry.id, entry]));
     const implemented = [
       "count", "flatten", "min", "max", "any", "all", "first", "group",
       "at", "lower", "upper", "trim", "contains", "starts_with", "join",
-      "format", "same", "equalValue",
+      "format", "same", "equalValue", "sum", "abs", "app_url", "action",
     ];
     for (const id of implemented) {
       assert.equal(byId.get(id)?.availability, "implemented", id);
     }
-    for (const id of ["sum", "abs", "app_url", "action"]) {
-      assert.equal(byId.get(id)?.availability, "planned", id);
+    for (const entry of CATALOG.entries) {
+      if (entry.kind === "builtin") {
+        assert.ok(
+          entry.availability === "implemented" || entry.availability === "external",
+          `${entry.id} is still planned`,
+        );
+      }
     }
     const features = new Map(CATALOG.features.map((entry) => [entry.name, entry.status]));
     for (const name of ["unicode-scalar-text", "bounded-icu-profile", "locale-fallback-rfc4647", "pure-arrays", "structural-equality"]) {
