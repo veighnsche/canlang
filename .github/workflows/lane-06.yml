@@ -37,12 +37,17 @@ jobs:
           cache-dependency-path: package-lock.json
       - name: Guard owned-contract imports
         run: |
-          # Lane-06 tests may import only lane-06-owned contract files until
-          # L7 join J1 exports identity/wire from @canlang/contracts.
+          # Tests import unconflicted names from the @canlang/contracts
+          # assembly; only conflicted names (pending X1) keep narrow relative
+          # imports, which must stay inside lane-06-owned contract files.
           imports=$(grep -rho "contracts/src/[a-z0-9_]*\.js" packages/identity/test packages/interfaces/test | sort -u)
           echo "$imports"
           echo "$imports" | grep -v -E 'contracts/src/(identity|wire)\.js' && exit 1 || exit 0
       - name: Install workspace
         run: npm install --no-audit --no-fund
+      - name: Build contracts assembly
+        # Owned production sources import the @canlang/contracts public
+        # assembly (dist), avoiding the L7-flagged conflicted names.
+        run: npm run build --workspace @canlang/contracts
       - name: Test owned packages
         run: npm test --workspace @canlang/identity --workspace @canlang/interfaces

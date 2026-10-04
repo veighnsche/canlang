@@ -20,8 +20,8 @@ import type {
   Team,
   TeamId,
   UserId,
-} from '../../contracts/src/identity.js';
-import type { BusinessErrorCode } from '../../contracts/src/wire.js';
+} from '@canlang/contracts';
+import type { BusinessErrorCode } from '@canlang/contracts';
 
 /** Clock port. Production uses the system clock; tests inject frozen time. */
 export interface Clock {

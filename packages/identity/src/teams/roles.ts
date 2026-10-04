@@ -16,7 +16,7 @@ import {
   toInstant,
 } from '../ports.js';
 import type { Clock, IdentityStore } from '../ports.js';
-import type { Membership, RoleGrant } from '../../../contracts/src/identity.js';
+import type { Membership, RoleGrant } from '@canlang/contracts';
 import { checkRoleName } from './invitations.js';
 
 export interface ParsedRoleValue {

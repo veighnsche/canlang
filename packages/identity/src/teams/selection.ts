@@ -11,7 +11,7 @@
  */
 import { IdentityError, systemClock, toInstant } from '../ports.js';
 import type { Clock, IdentityStore } from '../ports.js';
-import type { Session } from '../../../contracts/src/identity.js';
+import type { Session } from '@canlang/contracts';
 import { sha256HexText } from '../sessions/tokens.js';
 
 async function liveSession(

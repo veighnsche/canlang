@@ -10,6 +10,9 @@
     "test": "npm run build && node --test \"dist/identity/test/**/*.test.js\"",
     "clean": "rm -rf dist/"
   },
+  "dependencies": {
+    "@canlang/contracts": "0.1.0"
+  },
   "devDependencies": {
     "@types/node": "26.6.4",
     "typescript": "5.9.3"

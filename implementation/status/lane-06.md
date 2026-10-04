@@ -164,7 +164,11 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
       by instance restart; shell + subagents back).
 - [ ] S3 wire-errors: error envelope/safe/redact/logging + operation envelope
       codecs + version/operation_id validation; projection-before-disclosure
-      enforcement point used by both transports.
+      enforcement point used by both transports. Workers: C owns
+      interfaces/src/errors/* + test/errors.test.ts; D owns
+      interfaces/src/envelope/* + src/projection/* + test/envelope.test.ts +
+      test/projection.test.ts. Coordinator owns ports/index/tsconfig/
+      package.json/CI/status + the identity contracts-import upgrade.
 - [ ] S4 http-routes: page/fragment/operation dispatch, source-derived
       admission via L1 descriptor port, CSRF enforcement, request limits,
       HTMX error-swap statuses; B1 route/admission cases.
@@ -274,13 +278,17 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
   66c12fa, CI contracts-conformance green). J1 (a)+(b) landed via L7 #9;
   (c) root-check include and L3 convergence acknowledgment still pending,
   tracked above, non-blocking.
-- S2 (in progress): branch muse/lane-06-identity-interfaces/identity-core.
-  Local checks post-rebase onto main #9: `npm test --workspace
-  @canlang/identity` 27/27 pass (Node v24.21.0); `tsc -b
-  packages/contracts` clean with the additive McpGrant.token_sha256 field.
-  Execution caught one real bug static review missed (opaque-token hash
-  must cover the presented text, not raw bytes) plus 3 strict-TS errors.
-  PR URL + review + merge sha: to be recorded.
+- S2 (MERGED 2026-10-04 as f092bbb, PR #12): identity core, 33/33 tests.
+  Independent review REQUEST-CHANGES (F1 login timing oracle, F2 clear-cookie
+  Secure, F3 caller-now, F4 re-admission orphan, F5 grant collapse, F6-F9 test
+  gaps, F10-F13 notes) — all addressed, delta re-review APPROVED, CI green.
+  Execution also caught the opaque-token text-vs-bytes hash bug pre-PR.
+- S3 (in progress): branch muse/lane-06-identity-interfaces/wire-errors.
+  Scope: interfaces errors/* + envelope/* + projection/* with tests; upgrade
+  of owned production sources from relative to @canlang/contracts imports
+  (tests keep relative imports + the CI guard); CI builds contracts first.
+  New member->contracts dependency edges need an L7 root-lock regen —
+  flagged in the S3 PR (J1 follow-up). PR URL + review + merge: to record.
 
 ## Remaining work and cleanup
 
