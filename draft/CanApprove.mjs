@@ -21,18 +21,31 @@ import {
   send,
   set,
 } from "@canlang/stdlib";
+/* Desired, unimplemented @canlang/ui contracts. Every factory below is proposed;
+ * none is an installed export and this file never runs. See file header. */
 import {
-  actions,
+  badge,
+  breadcrumbs,
+  button,
   card,
-  details,
+  checkbox,
+  collapse,
   edit,
+  file_input,
   form,
   history,
+  input,
+  join,
   list,
   message,
+  modal,
+  pagination,
   renderPage,
+  slot,
+  status,
   table,
   text,
+  textarea,
 } from "@canlang/ui";
 import { Employee, can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -46,6 +59,14 @@ import { Location } from "./rent_catalog.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * UI sections mirror the replanned CanApprove.can Then: breadcrumbs, typed
+ * intake/submit/decide/assign controls, version-history collapses, state
+ * badges, overdue statuses, withdraw/decision/assignment buttons and modals,
+ * and paginated collections. collapse replaces details under their shared
+ * disclosure contract; actions() has no remaining use. Lowercase UI factories
+ * take one props object; slots are prop arrays. All UI imports and calls are
+ * desired/unimplemented. This file passes node --check (syntax only) and
+ * never runs.
  */
 
 export const Document = "approve.Document";
@@ -591,10 +612,24 @@ export async function documentsPage(c, bindings) {
     c,
     documentsPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Document intake", { nl: "Document aanmaken" }),
-        children: [form({ context: c, operation: "approve.Document.create" })],
+        children: [
+          form({
+            context: c,
+            operation: "approve.Document.create",
+            /* desired-unimplemented: placed inputs move the generated controls. */
+            children: [
+              input({ context: c, field: "title" }),
+              input({ context: c, field: "category" }),
+              input({ context: c, field: "subject" }),
+              input({ context: c, field: "email" }),
+            ],
+          }),
+        ],
       }),
       list({
         context: c,
@@ -605,16 +640,30 @@ export async function documentsPage(c, bindings) {
         search: ["title"],
         display: "split",
         renderRow: (document, view) => [
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: view }),
           card({
             context: view,
             title: message("Current document", { nl: "Huidig document" }),
             children: [
               edit({ context: view, operation: "approve.Document.update", record: document }),
-              form({ context: view, operation: "approve.submit", arguments: { document } }),
+              form({
+                context: view,
+                operation: "approve.submit",
+                arguments: { document },
+                /* desired-unimplemented: placed controls move the generated controls. */
+                children: [
+                  file_input({ context: view, field: "file" }),
+                  textarea({ context: view, field: "note" }),
+                  input({ context: view, field: "reviewer_email" }),
+                ],
+              }),
               form({context:view,operation:"approve.reviewer_choices",arguments:{document},
                 renderResult:(result,resultView)=>[
                   list({context:resultView,rows:result,columns:["name","user","role","home"],
                     renderRow:(candidate,candidateView)=>[
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: candidateView }),
                       form({context:candidateView,operation:"approve.submit",arguments:{document,assignee:candidate.user}}),
                     ],
                   }),
@@ -622,7 +671,7 @@ export async function documentsPage(c, bindings) {
               }),
             ],
           }),
-          details({
+          collapse({
             context: view,
             caption: message("Submitted version history", { nl: "Ingediende versiehistorie" }),
             open: c.preferences.approve.versions_open,
@@ -635,12 +684,14 @@ export async function documentsPage(c, bindings) {
                 order: ["-revision"],
                 filter: ["state", "reviewer", "overdue"],
                 renderRow: (submission, rowView) => [
-                  actions({
-                    context: rowView,
-                    operations: ["approve.withdraw"],
-                    boundArgs: { submission },
-                  }),
-                  details({
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: rowView }),
+                  /* desired-unimplemented: badge/status present readable typed values. */
+                  badge({ context: rowView, value: submission.state }),
+                  status({ context: rowView, value: submission.overdue }),
+                  /* desired-unimplemented: button action lowers to the canonical binding. */
+                  button({ context: rowView, action: "approve.withdraw", arguments: { submission } }),
+                  collapse({
                     context: rowView,
                     caption: message("Version decision history", { nl: "Besluithistorie versies" }),
                     children: [
@@ -657,6 +708,10 @@ export async function documentsPage(c, bindings) {
                     parent: submission,
                     columns: ["assignment", "kind", "recipient", "state", "created_by", "created"],
                     order: ["created"],
+                    renderRow: (notice, w) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: w }),
+                    ],
                   }),
                 ],
               }),
@@ -673,6 +728,8 @@ export async function reviewPage(c, bindings) {
     c,
     reviewPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       table({
         context: c,
         model: "approve.Submission",
@@ -682,10 +739,15 @@ export async function reviewPage(c, bindings) {
         defaults: { state: c.preferences.approve.review_state },
         display: "split",
         renderRow: (submission, view) => [
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: view }),
           card({
             context: view,
             title: message("Exact submitted version", { nl: "Exact ingediende versie" }),
             children: [
+              /* desired-unimplemented: badge/status present readable typed values. */
+              badge({ context: view, value: submission.state }),
+              status({ context: view, value: submission.overdue }),
               text({
                 context: view,
                 values: [
@@ -693,19 +755,70 @@ export async function reviewPage(c, bindings) {
                   submission.file,
                   submission.note,
                   submission.due,
-                  submission.state,
                   submission.reason,
                 ],
               }),
-              actions({
+              /* desired-unimplemented: join groups the dialog openers. */
+              join({
                 context: view,
-                operations: ["approve.decide", "approve.assign"],
-                boundArgs: { submission },
+                children: [
+                  /* desired-unimplemented: button opens activates the local modal. */
+                  button({ context: view, opens: "decide_dialog" }),
+                  button({ context: view, opens: "assign_dialog" }),
+                ],
+              }),
+              /* desired-unimplemented: modal declares the local activation identity. */
+              modal({
+                context: view,
+                caption: message("Record decision", { nl: "Besluit vastleggen" }),
+                id: "decide_dialog",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "approve.decide",
+                        arguments: { submission },
+                        display: "inline",
+                        /* desired-unimplemented: placed controls move the generated controls. */
+                        children: [
+                          checkbox({ context: view, field: "approve" }),
+                          textarea({ context: view, field: "reason" }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              modal({
+                context: view,
+                caption: message("Assign", { nl: "Toewijzen" }),
+                id: "assign_dialog",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "approve.assign",
+                        arguments: { submission },
+                        display: "inline",
+                        /* desired-unimplemented: placed input moves the generated control. */
+                        children: [input({ context: view, field: "email" })],
+                      }),
+                    ],
+                  }),
+                ],
               }),
               form({context:view,operation:"approve.reviewer_choices",arguments:{document:submission.parent},
                 renderResult:(result,resultView)=>[
                   list({context:resultView,rows:result,columns:["name","user","role","home"],
                     renderRow:(candidate,candidateView)=>[
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: candidateView }),
                       form({context:candidateView,operation:"approve.assign",arguments:{submission,assignee:candidate.user}}),
                     ],
                   }),
@@ -713,7 +826,7 @@ export async function reviewPage(c, bindings) {
               }),
             ],
           }),
-          details({
+          collapse({
             context: view,
             caption: message("Review history", { nl: "Beoordelingshistorie" }),
             children: [
@@ -727,6 +840,10 @@ export async function reviewPage(c, bindings) {
             parent: submission,
             columns: ["assignment", "kind", "recipient", "state", "created_by", "created"],
             order: ["created"],
+            renderRow: (notice, w) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: w }),
+            ],
           }),
         ],
       }),

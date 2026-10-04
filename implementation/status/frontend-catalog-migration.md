@@ -82,7 +82,29 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
-## Slice 6: full replans Refer/Shift/Time/Volunteer (branch muse/frontend-catalog-migration/slice-06-replan-j1, in progress)
+## Slice 7: full replans Affiliate/Approve/Book (branch muse/frontend-catalog-migration/slice-07-replan-g1, in progress)
+
+Paths: draft/CanAffiliate (.can+.md), CanApprove (.can+.md+.mjs), CanBook (.can+.md) + this status file.
+Source: lane-G read-only planning spec (/tmp/laneG-spec.md), applied + corrected by coordinator.
+Coordinator corrections to spec: breadcrumbs + pagination added on every page/collection (spec omitted);
+Affiliate mine-page stat/link gate kept generated (available() is a Then-observation call of an exported
+pure derive: needs 01 ruling, not authored); Approve due kept generated (datetime: no date-only calendar
+control; spec's calendar due rejected); Book Upcoming/Past tabs kept but BOTH keep the full action set
+(spec's read-only Past would strand member retry_cleanup/recover_attempt on old rows: the agenda is
+host-only; union of both tabs shows every appointment, .md intent honored without regression); Book
+Window.create + book from kept generated (datetimes); agenda calendar sets the pagination precedent.
+Given/When byte-identical (single Then hunk per file: Affiliate L215/Then L214, Approve L272/Then L271,
+Book L376/Then L376). Witnesses: Approve full-file desired lowering, node --check clean; Book has no
+.mjs per owner .md ("no CanBook JavaScript target"); Affiliate has no .mjs (gap, same as Catch/Contract).
+Drift: +92 E1200 (Affiliate 38, Approve 21, Book 33) + 1 E1204 (Book `calendar day`: direct-form-child
+control-form calendar hits the agenda-only parser branch requiring start=; Contract's identical control
+nested under fieldset yields E1200 instead; both are the same L1 control-form gap). All three files were
+ok on main. Prototype parser: Affiliate stops at breadcrumbs (expected); Approve/Book stop at pre-existing
+Given type errors byte-identical on baseline (14:375, 22:233).
+Handoff to 01: (a) Then-observation call of exported pure derive available(); (b) control-form `calendar`
+branch (direct form child vs agenda); (c) nullable input target (Type.room text?, same as CRM open item).
+
+## Slice 6: full replans Refer/Shift/Time/Volunteer (merged as 71394c0, PR #70)
 
 Paths: draft/CanRefer/CanShift/CanTime/CanVolunteer (.can+.md+.mjs each) + this status file.
 Source: lane-J read-only planning spec (/tmp/laneJ-spec.md), applied + corrected by coordinator.

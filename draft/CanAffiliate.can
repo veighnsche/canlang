@@ -215,43 +215,103 @@ package affiliate
   # Maintain agreement rates and inspect source sales without repricing previous commission. @{nl="Beheer overeenkomsttarieven en bekijk bronverkopen zonder eerdere commissies te herberekenen."}
   page /partners title="Partners"@{nl="Partners"}
    require partner_manager or finance
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
+   ## Explicit controls restyle declared create inputs only; unmentioned eligible inputs keep generated controls.
+   ## `active` is not in create_fields, so it has no control here.
    card "Partner intake"@{nl="Partner aanmaken"}
     form Partner.create
+     textarea agreement
+     range rate
+     radio milestone
    list Partner columns=name,agreement,rate,milestone,onboarded,active filter=active search=name display=split
+    pagination
+    ## Badge/status leaves each carry one plain readable selector with its owning caption.
+    ## The stat calls the owned available() derive (single-currency display, no cross-currency total).
     card "Partner terms"@{nl="Partnervoorwaarden"}
+     badge row.provider_state
+     status row.onboarded
      edit
-     text row.agreement,row.milestone,row.onboarded
-     actions settle,refresh_account
-     text row.provider_state
+      textarea agreement
+      range rate
+      radio milestone
+      checkbox active
+     text row.agreement,row.milestone
+     join
+      button action=refresh_account arguments={partner=row}
+      button opens=settle_dialog
+     modal "Settle commission"@{nl="Commissie verrekenen"} id=settle_dialog
+      slot content
+       form settle arguments={partner=row} display=inline
+     stat
+      slot value
+       text available(row,"EUR")
+      slot title
+       text "Available"@{nl="Beschikbaar"}
     tabs
      tab "Sales and adjustments"@{nl="Verkopen en correcties"}
       table row.Sale columns=source,location,amount,rate,commission,reversed filter=reversed,qualified_at,amount.currency defaults={reversed=preferences.reversed}
-       details "Frozen sale evidence"@{nl="Vastgelegd verkoopbewijs"}
+       pagination
+       status row.reversed
+       collapse "Frozen sale evidence"@{nl="Vastgelegd verkoopbewijs"}
         text row.agreement,row.revision,row.customer
       table row.Adjustment columns=sale,amount,reason
+       pagination
      tab "Allocation and bank delivery"@{nl="Toewijzing en bankuitbetaling"}
       table row.Settlement columns=amount,allocation,bank,transfer,payout,review
-       details "Settlement identity"@{nl="Identiteit verrekening"}
+       pagination
+       badge row.allocation
+       badge row.bank
+       status row.review
+       ## Gated readable notice; alert suites take no invocation children.
+       alert
+        require row.review or row.allocation==unknown
+        text row.delivery
+       collapse "Settlement identity"@{nl="Identiteit verrekening"}
         text row.source,row.delivery
-        action refresh_settlement
+        button action=refresh_settlement arguments={settlement=row}
     history
   # Trace only your broker terms and distinguish connected-account allocation from bank receipt. @{nl="Bekijk uitsluitend je makelaarsvoorwaarden en onderscheid toewijzing aan het gekoppelde account van bankontvangst."}
   page /partners/mine title="My commissions"@{nl="Mijn commissies"}
    require authenticated and actor.email_verified
+   breadcrumbs
    list Partner as partner where partner.account==actor display=split
+    pagination
     card "Own agreement"@{nl="Eigen overeenkomst"}
-     text row.name,row.rate,row.agreement,row.milestone,row.onboarded,row.provider_state
-     actions onboard,refresh_account
+     badge row.provider_state
+     status row.onboarded
+     text row.name,row.rate,row.agreement,row.milestone
+     join
+      button action=onboard arguments={partner=row}
+      button action=refresh_account arguments={partner=row}
      copy app_url(format("/partners/share/{id}",{id=row.id}))
+     stat
+      slot value
+       text available(row,"EUR")
+      slot title
+       text "Available"@{nl="Beschikbaar"}
+     ## Gate narrowed with the non-null link conjunct so `link` always receives a checked URL.
+     ## Link caption is required (no derivable destination caption).
      card "Provider onboarding"@{nl="Providerregistratie"}
-      require row.onboarding_expires!=null and row.onboarding_expires>now
+      require row.onboarding_expires!=null and row.onboarding_expires>now and row.onboarding_url!=null
       text row.onboarding_url
+      link target=row.onboarding_url caption="Provider onboarding"@{nl="Providerregistratie"}
     table row.Sale columns=source,location,amount,rate,agreement,commission,reversed filter=reversed,qualified_at,amount.currency defaults={reversed=preferences.reversed}
+     pagination
+     status row.reversed
     table row.Adjustment columns=sale,amount,reason
+     pagination
     table row.Settlement columns=amount,allocation,bank,transfer,payout,review
-     action refresh_settlement
+     pagination
+     badge row.allocation
+     badge row.bank
+     status row.review
+     button action=refresh_settlement arguments={settlement=row}
   # A partner link records a verified customer attribution without exposing broker terms or banking data. @{nl="Een partnerlink legt geverifieerde klanttoewijzing vast zonder makelaarsvoorwaarden of bankgegevens te tonen."}
   page /partners/share/{Partner.id} title="Partner introduction"@{nl="Partnerintroductie"} nav=none
    require row.active
-   text row.name
-   form capture arguments={partner=row} fields=customer
+   breadcrumbs
+   ## Captionless hero avoids duplicating the page title (hero: optional caption).
+   hero
+    text row.name
+    form capture arguments={partner=row} fields=customer
