@@ -252,6 +252,52 @@ export interface CommitBatch {
   readonly uniqueReleases: ReadonlyArray<UniqueRelease>;
 }
 
+/** Dot-separated path into a stored row (`data` unless a metadata name). S4. */
+export type FieldPath = string;
+
+/** Aggregate operations over an authorized matched set (S4). */
+export type AggregateOp = 'count' | 'sum' | 'avg' | 'min' | 'max';
+
+/** Aggregate request: `count` takes no field; every other op requires one. */
+export interface AggregateSpec {
+  readonly op: AggregateOp;
+  readonly field?: string;
+}
+
+/** Aggregate outcome: the op echoed with its computed value. */
+export interface AggregateResult {
+  readonly op: AggregateOp;
+  readonly value: unknown;
+}
+
+/**
+ * Viewer-projected record: full metadata plus the partial `data` subtree
+ * covered by the caller's matching grants. Denied leaves are omitted, never
+ * null. Secret subtrees and secret-kind values are always omitted.
+ */
+export interface ProjectedRecord {
+  readonly id: RecordId;
+  readonly version: RecordVersion;
+  readonly created: number;
+  readonly updated: number;
+  readonly createdBy: string;
+  readonly updatedBy: string;
+  readonly archivedAt: number | null;
+  readonly data: Readonly<Record<string, unknown>>;
+}
+
+/** Viewer query outcome: projected records at a fence revision. */
+export interface AuthorizedRecordsResult {
+  readonly records: ProjectedRecord[];
+  readonly revision: Revision;
+}
+
+/** Owner query outcome: full stored rows at a fence revision. */
+export interface AuthorityRowsResult {
+  readonly rows: StoredRow[];
+  readonly revision: Revision;
+}
+
 /** Result of a successful fenced commit. */
 export interface CommitResult {
   readonly revision: Revision;
