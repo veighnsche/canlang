@@ -52,7 +52,7 @@ function claimKey(model: string, keyName: string, keyValue: string): string {
   return `${model}\0${keyName}\0${keyValue}`;
 }
 
-/** Stored record: S2 rows store no parent linkage yet. */
+/** Stored record: S5 rows persist `parent` inline (round-tripped as-is). */
 interface MemoryRecord {
   readonly model: string;
   readonly row: StoredRow;
@@ -374,10 +374,17 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
           continue;
         }
         if (spec.parent !== undefined) {
-          // S2 stores no parent linkage yet, so a scoped query matches
-          // nothing (mirroring the SQL NULL-column filter); a later slice
-          // stores the linkage and enables positive scoping.
-          continue;
+          // S5: rows carry parent linkage (undefined counts as NULL, matching
+          // the SQL NULL-column filter); only rows parented to the scoped
+          // identity match.
+          const parent = record.row.parent ?? null;
+          if (
+            parent === null ||
+            (parent.model as string) !== (spec.parent.model as string) ||
+            (parent.id as string) !== (spec.parent.id as string)
+          ) {
+            continue;
+          }
         }
         if (spec.archived !== 'include' && record.row.archivedAt !== null) {
           continue;

@@ -14,10 +14,9 @@
  *    atomic batch (D1 batch) or transaction (DO `transactionSync`).
  *
  * `records.data` holds the JSON-encoded domain fields only; reserved metadata
- * lives in columns. The `owner` / `parent_*` columns exist for later slices:
- * S2 inserts always write the defaults (`''` / NULL) because `StoredRow`
- * carries no owner or parent yet, so parent-scoped queries match nothing
- * until a later slice stores the linkage.
+ * lives in columns. `owner` still takes the default (`''`); S5 persists
+ * `StoredRow.parent` into `parent_model`/`parent_id` (absent reads as NULL),
+ * so parent-scoped queries match positively.
  */
 
 import type { Revision } from '../../../contracts/src/state.js';
