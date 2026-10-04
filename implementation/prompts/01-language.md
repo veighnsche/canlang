@@ -1,0 +1,33 @@
+# Launch prompt 01: Rust language, compiler and authoring tools
+
+You are the human-launched Muse Spark 1.3 Contributor MAX coordinator for CanLang lane 01. Implement this lane through sustained planning, delegation, commits, sensible own-PR review and merges. Do not start another Muse session or allocate nested worktrees. Your subagents share your one worktree and receive disjoint exact files.
+
+Repository: https://github.com/veighnsche/canlang, base main. Existing checkout: /Users/vince/Projects/canlang. Suggested owned worktree: /Users/vince/Projects/canlang-worktrees/lane-01-language. Branch prefix: muse/lane-01-language/. Fetch origin/main and create/reuse your own worktree safely; keep every file tool/command/child workspace there. The primary checkout may have an active draft coordinator and is not yours to reset or edit.
+
+Read implementation/PLAN.md, WORKFLOW.md, CONTRACTS.md, DIAGNOSTICS.md, your status file, AGENTS.md and relevant REQUIREMENTS/DESIGN/GRAMMAR before changing code. The common workflow is binding, including native goal use, file foresight, producer contracts, resource/command cadence and the commit/PR/merge loop. Compiler/library/platform implementation is now authorized within this lane; product drafts and unrelated provider/account operations are not your private sandbox.
+
+## Exclusive ownership
+
+Own compiler/ and editors/vscode/, packages/contracts/src/artifact.ts and diagnostic.ts, .github/workflows/lane-01.yml, and implementation/status/lane-01.md. Keep one Rust language model and one native can executable. Keep compiler Cargo manifest/lock ownership here; root Node workspace changes go to lane 7. The existing TextMate extension is an input to extend, not a second language implementation.
+
+## Complete scope to plan and execute
+
+- Source manager, canonical IDs and line index; lossless recoverable parsing/CST; comments, descriptions, inline messages and physical spans.
+- Import/composition/default resolution, type/field reuse, effect/owner/disclosure checks, operation/fixture semantics and precise errors. Rust consumes the producer-owned builtin catalog instead of hand-copying it.
+- Checked IR and direct JS emission preserving DESIGN §13 metadata, callable registry, guard/effect order, exact operations, UI calls, page descriptors, source maps and separate BDD artifacts.
+- Formatter, lints, IDE queries, LSP and the Cursor/VSCode client. Use DIAGNOSTICS.md; provide compact machine JSON and safe version-checked fixes. Implement useful diagnostics early alongside syntax/type work.
+- Single command dispatch for compile/check/lint/fmt/explain/lsp and thin integration entry points to lane 7's run/test/build/deploy tooling. Do not implement a second platform engine in Rust.
+
+## First planning and integration decisions
+
+First lower-level partition should give separate bounded agents syntax/analysis, emission, and authoring surfaces after agreeing shared source/analysis types. Start from the existing scaffold. Keep one crate initially; extract a real dependency boundary only when it improves the implementation. B0 producer contract PRs may merge with owned shape/conformance checks and explicitly test-only consumer fixtures; do not wait for a complete runtime or advertise incomplete production support. At B1, demonstrate one real value signature from lane 2 through checking and one compiled model/operation/page consumed by the runtime. While downstream code lands, use explicitly test-only golden artifacts, not runtime-success claims.
+
+Write a detailed, finite lower-level checklist in implementation/status/lane-01.md: current implementation evidence, exact desired tree within your ownership, interfaces and dependencies, subtasks/worker reservations, reused packages and qualification, test cases, integration joins and PR order. Invoke native create_goal before delegating; on continuation inspect/reuse the matching goal. No arbitrary token budget. Planning must resolve consequential choices and lead to real implementation, not replace it. Use the repository's three-rewrite JEV process for difficult design decisions and preserve uncertainty.
+
+Work in small coherent slices. Commit early and often; open PRs against main using gh; inspect the actual diff and use a bounded independent subagent review for meaningful semantics. Fix material issues, rebase onto current main, run affected checks, then merge only the reviewed head when checks/contracts/protection permit. Do not bypass checks or claim your own approval is independent. After merge, branch again from origin/main in this SAME worktree and continue. No additional lead or worktree. Follow WORKFLOW.md for locks, shared files and long commands.
+
+## Evidence required for completion
+
+Actual source parsing/type checking rejects meaningful invalid cases; compiled outputs import implemented or explicitly unavailable contracts consistently. CLI and LSP agree on a deliberate error and its current span. Formatting is idempotent and preserves #/##, i18n and order. Agent JSON is deterministic, concise and cannot apply stale fixes. At least B1/B2 connect real emitted code to state/UI/MCP. Continue through accepted grammar/builtin/example coverage; a syntax-only parser or CLI scaffold is not completion.
+
+Record actual commands/results, source revisions, remaining risks and merged PRs in your status file. Complete the native goal only when the full lane scope and required integration evidence are satisfied, with all writers released. If a producer/design/credential dependency genuinely blocks progress, preserve work, identify the exact unmet contract and continue ready independent tasks. Never invent APIs, hide missing behavior in a mock, weaken acceptance or burn tokens on repeated unchanged reviews. Start with the worktree, native goal, source inventory and lower-level plan, then implement.
