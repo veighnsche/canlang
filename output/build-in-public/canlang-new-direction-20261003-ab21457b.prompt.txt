@@ -1,0 +1,9 @@
+Use case: ads-marketing.
+Create one finished portrait announcement poster for a builder's personal programming project, with all readable copy embedded in the image. Dark PS2-era low-poly 3D aesthetic: chunky polygon geometry, moody near-black environment, subtle CRT texture, atmospheric fog, sparse icy-blue light. A small anonymous low-poly builder walks away from a dark, abandoned blocky structure toward an entirely different luminous geometric world in the distance. The scene symbolizes deliberately abandoning an old project and starting a radically different new one. Keep the illustration simple and cinematic, with generous dark negative space for strong typography.
+Typography: beautifully composed, crisp, large, readable, restrained sans serif and monospaced project names. Exact casing and spelling matter: the old name is "can-lang" WITH a hyphen; the new name is "canlang" WITHOUT a hyphen, all lowercase. Make the difference very clear. No invented project logos, no PlayStation logos.
+Text (verbatim, only this copy):
+"GOODBYE, can-lang."
+"HELLO, canlang."
+"I'm abandoning the old project."
+"I'm building something completely different."
+Hierarchy: the first two lines are the prominent announcement, the last two lines are smaller supporting copy. Off-white lettering with a cool blue accent for the new project. Fit text naturally to the visual, without busy panels. This is an announcement of a decision and ongoing new work, not a completed release. No dates, version numbers, technical feature claims, performance claims, or extra text. Produce the finished poster image, not a photo of a printed poster.

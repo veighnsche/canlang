@@ -1,0 +1,37 @@
+Use case: ads-marketing.
+Generate a finished, content-rich portrait announcement poster, dark PS2-era low-poly 3D style. This is a personal builder announcement that abandons an old programming language project called can-lang and adopts a completely different new language direction called canlang. The user found the prior poster too empty: make the new poster substantially denser, with a clear researched before/after comparison as the main visual content, not a huge blank background. Design one coherent editorial poster, clean grid, large beautifully legible typography, generous enough spacing for readable copy, compact but not cluttered.
+
+Visual style: black and charcoal, off-white letters, dusty amber for the old language and icy cyan for the new. Subtle CRT scanline/grain texture. Low-poly ruins representing the abandoned toolchain on the old side; a small low-poly builder facing a compact geometric business-app world on the new side. Restrained 3D motifs fit around text, do not obscure it. Occupy most of the canvas with informative typography and visual structure. Strong headline top; two clearly separated comparison blocks taking the central majority of the poster, laid out side by side or stacked to maximize text size; narrow cinematic low-poly scene integrated around or below them; clear purpose statement and small status line at bottom. No large empty sky.
+
+Research facts for accurate composition: The old can-lang is a broad contract-first AI-authored language: records and functions with mandatory assertions, a Go compiler emitting TypeScript, Bun runtime, platform natives. Old design accepts repetition for explicit contracts. New canlang is still in design and drafts, explicitly a business SaaS DSL using Given/When/Then, canonical CRUD/auth/pages, compact source/shared app defaults, workerd/Cloudflare services, built-in PatternFly HTML/CSS presentation and HTMX interactions, generated MCP interface. Both are AI-authored; do not imply AI authorship is new. These new features are adopted design requirements, not a shipped implementation. Do not invent measurements, code, release dates, or features.
+
+Embed ONLY the following exact text, with hierarchy given by these groups:
+Headline:
+"I'M STARTING OVER."
+Name transition:
+"can-lang → canlang"
+
+Old comparison block:
+"LEAVING BEHIND"
+"can-lang"
+"A broad, contract-first language."
+"Functions + mandatory assertions."
+"TypeScript output. Bun runtime."
+"Explicit repetition was acceptable."
+
+New comparison block:
+"BUILDING TOWARD"
+"canlang"
+"A focused DSL for business SaaS."
+"Given / When / Then workflows."
+"Built-in CRUD, auth and pages."
+"workerd + Cloudflare services."
+"PatternFly + HTMX. Generated MCP."
+"Compact source. Shared defaults."
+
+Purpose footer:
+"THE GOAL"
+"Replace SaaS subscriptions with custom AI-built apps."
+"New language design in progress."
+
+Critical typography: old name is lowercase can-lang WITH hyphen, new name is lowercase canlang WITHOUT hyphen. Spell workerd all lowercase; TypeScript, PatternFly, Cloudflare, Bun, CRUD, HTMX and MCP exactly. Supporting text must be readable at the full poster size, not decorative microtext. Allow natural line wraps without changing text. This is the finished image itself, not a poster mockup. No corporate/PlayStation logos and no watermark.

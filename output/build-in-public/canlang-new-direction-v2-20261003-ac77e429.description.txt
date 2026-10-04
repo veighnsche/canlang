@@ -1,0 +1,16 @@
+I'm abandoning can-lang's broad, contract-first approach: functions with mandatory assertions, TypeScript output, and a Bun runtime, where explicit repetition was acceptable.
+
+I'm adopting canlang: a focused DSL for custom business SaaS, organized around Given / When / Then, with canonical CRUD, authentication and pages. The new design targets workerd and Cloudflare services, PatternFly + HTMX interfaces, and generated MCP access. Compact source and shared defaults are central, with the goal of replacing SaaS subscriptions with tailored AI-built apps.
+
+This is a new language direction in design, not a shipped compiler.
+
+Research sources:
+- /Users/vince/Projects/can-lang/README.md: current contract-first language, TypeScript output, mandatory assertion rows, Bun sidecar.
+- /Users/vince/Projects/can-lang/AGENTS.md: AI authorship and acceptance of repetition for reliable generation and explicit contracts.
+- /Users/vince/Projects/can-lang/docs/implementation/assertions.md: current mandatory assertions; historical root REQUIREMENTS.md was excluded as superseded.
+- /Users/vince/Projects/canlang/REQUIREMENTS.md: lines 5-33 (SaaS, adoption, AI authorship, compactness, canonical primitives); lines 55-65 (workerd, Cloudflare, PatternFly, HTMX, MCP); lines 99-111 (shared browser/MCP operations and explicitly proposed implementation); line 121 (draft status).
+- /Users/vince/Projects/canlang/DECISIONS.md: explicit USER requirements distinguished from proposed MINE choices and OPEN questions.
+- /Users/vince/Projects/canlang/draft/CanDo.can: concrete proposed Given / When / Then, CRUD, authentication and page declarations.
+
+No builds or tests were needed for this source comparison and poster.
+Poster generated using built-in image generation.
