@@ -7,8 +7,9 @@
  * safe and also prove the backend's reset truly clears all tables.
  *
  * Aligned to worker A's `src/storage/*` actuals: batches carry camelCase
- * `uniqueClaims`/`uniqueReleases` (see `BatchParts`); S2 stores no parent
- * linkage, so the parent subtest characterizes scoped-returns-empty.
+ * `uniqueClaims`/`uniqueReleases` (see `BatchParts`); S5 stores parent
+ * linkage, so the parent subtests cover positive scoping plus the
+ * NULL-linkage scoped-returns-empty case.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -180,9 +181,9 @@ export function makeBatch(expectedRevision: number, parts: BatchParts = {}): Com
 }
 
 /**
- * S2 stores no parent linkage (parent_* columns stay NULL; StoredRow carries
- * no parent yet), so parent-scoped queries match nothing. This helper keeps
- * the intended linkage visible in fixture data for the slice that stores it.
+ * Fixture data marker for the intended parent. S5 stores real linkage via
+ * `StoredRow.parent` (parent_* columns); this helper keeps the data-level
+ * marker for the NULL-linkage scoped-returns-empty subtest.
  */
 export function parentLink(parentId: string): Record<string, unknown> {
   return { parent: parentId };
@@ -340,7 +341,7 @@ export function storageConformance(
       assert.deepEqual(ids(await store.query(query('t.Task'))), ['team-a']);
     });
 
-    it('query applies the parent scope (S2 stores no parent linkage yet)', async () => {
+    it('query parent scope matches nothing when rows carry no linkage', async () => {
       const { store, reset } = await setup();
       await reset();
       await store.commit(
@@ -366,10 +367,10 @@ export function storageConformance(
           ],
         }),
       );
-      // S2 adapters filter on parent_model/parent_id, which stay NULL because
-      // StoredRow carries no parent yet: a scoped query matches nothing while
-      // the unscoped query returns everything. Positive parent/child scoping
-      // becomes testable once a later slice stores the linkage.
+      // Adapters filter on parent_model/parent_id: rows stored without
+      // linkage (NULL) match no scope, while the unscoped query returns
+      // everything. Positive parent/child scoping is covered by the S5
+      // parent subtests below.
       const inA = await store.query(
         query('t.Task', { parent: { model: asModel('t.Team'), id: asId('team-a') } }),
       );
@@ -1215,6 +1216,171 @@ export function storageConformance(
       assert.deepEqual(
         await run({ op: 'not', arg: { op: 'between', field: 'score', lo: null, hi: 25 } }),
         ['bool-2', 'bool-3'],
+      );
+    });
+
+    it('insert with parent persists linkage; load shows parent', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      await store.commit(
+        makeBatch(0, {
+          writes: [
+            { kind: 'insert', model: asModel('t.Team'), row: makeRow({ id: 'team-a' }) },
+            {
+              kind: 'insert',
+              model: asModel('t.Task'),
+              row: {
+                ...makeRow({ id: 'task-1', data: { n: 1 } }),
+                parent: { model: asModel('t.Team'), id: asId('team-a') },
+              },
+            },
+          ],
+        }),
+      );
+      const loaded = await store.load(asModel('t.Task'), asId('task-1'));
+      assert.ok(loaded !== null);
+      assert.deepEqual(loaded.parent ?? null, { model: 't.Team', id: 'team-a' });
+      // The parent row itself carries no linkage.
+      const parent = await store.load(asModel('t.Team'), asId('team-a'));
+      assert.ok(parent !== null);
+      assert.equal(parent.parent ?? null, null);
+    });
+
+    it('parent-scoped query matches only children of the scoped parent', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const childOf = (team: string): { model: ModelName; id: RecordId } => ({
+        model: asModel('t.Team'),
+        id: asId(team),
+      });
+      await store.commit(
+        makeBatch(0, {
+          writes: [
+            { kind: 'insert', model: asModel('t.Team'), row: makeRow({ id: 'team-a' }) },
+            { kind: 'insert', model: asModel('t.Team'), row: makeRow({ id: 'team-b' }) },
+            {
+              kind: 'insert',
+              model: asModel('t.Task'),
+              row: { ...makeRow({ id: 'task-1' }), parent: childOf('team-a') },
+            },
+            {
+              kind: 'insert',
+              model: asModel('t.Task'),
+              row: { ...makeRow({ id: 'task-2' }), parent: childOf('team-a') },
+            },
+            {
+              kind: 'insert',
+              model: asModel('t.Task'),
+              row: { ...makeRow({ id: 'task-3' }), parent: childOf('team-b') },
+            },
+            { kind: 'insert', model: asModel('t.Task'), row: makeRow({ id: 'task-4' }) },
+          ],
+        }),
+      );
+      const inA = await store.query(
+        query('t.Task', { parent: { model: asModel('t.Team'), id: asId('team-a') } }),
+      );
+      assert.deepEqual(ids(inA), ['task-1', 'task-2']);
+      // Scoped rows carry their linkage (strict: every backend reads an
+      // explicit object here, never undefined).
+      assert.deepEqual(
+        inA.map((row) => row.parent),
+        [childOf('team-a'), childOf('team-a')],
+      );
+      const inB = await store.query(
+        query('t.Task', { parent: { model: asModel('t.Team'), id: asId('team-b') } }),
+      );
+      assert.deepEqual(ids(inB), ['task-3']);
+      // NULL-parent rows never match a scope; the unscoped query sees all four.
+      const unscoped = await store.query(query('t.Task'));
+      assert.deepEqual(ids(unscoped), ['task-1', 'task-2', 'task-3', 'task-4']);
+      // Parentless rows read back explicit null on every backend (strict:
+      // memory normalizes on write; SQL reads NULL as null).
+      assert.equal(unscoped.find((row) => row.id === 'task-4')?.parent, null);
+    });
+
+    it('update carries parent; rows without parent read back null', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      await store.commit(
+        makeBatch(0, {
+          writes: [
+            { kind: 'insert', model: asModel('t.Team'), row: makeRow({ id: 'team-a' }) },
+            { kind: 'insert', model: asModel('t.Team'), row: makeRow({ id: 'team-b' }) },
+            {
+              kind: 'insert',
+              model: asModel('t.Task'),
+              row: {
+                ...makeRow({ id: 'task-1', data: { n: 1 } }),
+                parent: { model: asModel('t.Team'), id: asId('team-a') },
+              },
+            },
+            {
+              kind: 'insert',
+              model: asModel('t.Task'),
+              row: makeRow({ id: 'task-2', data: { n: 1 } }),
+            },
+          ],
+        }),
+      );
+      // `makeRow` leaves `parent` undefined; every backend reads that as null.
+      assert.equal(
+        (await store.load(asModel('t.Task'), asId('task-2')))?.parent ?? null,
+        null,
+      );
+      await store.commit(
+        makeBatch(1, {
+          writes: [
+            {
+              kind: 'update',
+              model: asModel('t.Task'),
+              id: asId('task-1'),
+              expectedVersion: asVersion(1),
+              row: {
+                ...makeRow({ id: 'task-1', version: 2, data: { n: 2 } }),
+                parent: { model: asModel('t.Team'), id: asId('team-a') },
+              },
+            },
+            {
+              kind: 'update',
+              model: asModel('t.Task'),
+              id: asId('task-2'),
+              expectedVersion: asVersion(1),
+              row: makeRow({ id: 'task-2', version: 2, data: { n: 2 } }),
+            },
+          ],
+        }),
+      );
+      const carried = await store.load(asModel('t.Task'), asId('task-1'));
+      assert.ok(carried !== null);
+      assert.equal(carried.version, 2);
+      assert.deepEqual(carried.data, { n: 2 });
+      assert.deepEqual(carried.parent ?? null, { model: 't.Team', id: 'team-a' });
+      // The storage layer persists whatever parent the row carries (the
+      // mutation engine keeps it immutable by carrying `before.parent`).
+      await store.commit(
+        makeBatch(2, {
+          writes: [
+            {
+              kind: 'update',
+              model: asModel('t.Task'),
+              id: asId('task-1'),
+              expectedVersion: asVersion(2),
+              row: {
+                ...makeRow({ id: 'task-1', version: 3, data: { n: 3 } }),
+                parent: { model: asModel('t.Team'), id: asId('team-b') },
+              },
+            },
+          ],
+        }),
+      );
+      assert.deepEqual((await store.load(asModel('t.Task'), asId('task-1')))?.parent ?? null, {
+        model: 't.Team',
+        id: 'team-b',
+      });
+      assert.equal(
+        (await store.load(asModel('t.Task'), asId('task-2')))?.parent ?? null,
+        null,
       );
     });
   });

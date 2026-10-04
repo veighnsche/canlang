@@ -52,7 +52,7 @@ function claimKey(model: string, keyName: string, keyValue: string): string {
   return `${model}\0${keyName}\0${keyValue}`;
 }
 
-/** Stored record: S2 rows store no parent linkage yet. */
+/** Stored record: S5 rows persist `parent` inline (round-tripped as-is). */
 interface MemoryRecord {
   readonly model: string;
   readonly row: StoredRow;
@@ -374,10 +374,17 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
           continue;
         }
         if (spec.parent !== undefined) {
-          // S2 stores no parent linkage yet, so a scoped query matches
-          // nothing (mirroring the SQL NULL-column filter); a later slice
-          // stores the linkage and enables positive scoping.
-          continue;
+          // S5: rows carry parent linkage (undefined counts as NULL, matching
+          // the SQL NULL-column filter); only rows parented to the scoped
+          // identity match.
+          const parent = record.row.parent ?? null;
+          if (
+            parent === null ||
+            (parent.model as string) !== (spec.parent.model as string) ||
+            (parent.id as string) !== (spec.parent.id as string)
+          ) {
+            continue;
+          }
         }
         if (spec.archived !== 'include' && record.row.archivedAt !== null) {
           continue;
@@ -469,15 +476,19 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
           write.model as string,
           (write.kind === 'insert' ? write.row.id : write.id) as string,
         );
+        // S5: normalize absent linkage to explicit null so memory reads match
+        // the SQL backends (which return explicit null for NULL parents).
+        const storedRow =
+          write.kind === 'remove' ? null : { ...write.row, parent: write.row.parent ?? null };
         if (write.kind === 'insert') {
           if (records.has(key)) {
             const where = `${write.model as string}/${write.row.id as string}`;
             throw new StorageConstraintError('unknown', `record ${where} already exists`);
           }
-          records.set(key, { model: write.model as string, row: write.row });
+          records.set(key, { model: write.model as string, row: storedRow as StoredRow });
         } else if (write.kind === 'update') {
           if (records.has(key)) {
-            records.set(key, { model: write.model as string, row: write.row });
+            records.set(key, { model: write.model as string, row: storedRow as StoredRow });
           }
         } else {
           records.delete(key);

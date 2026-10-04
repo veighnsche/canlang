@@ -51,13 +51,22 @@ interface RecordRow {
   readonly created_by: string;
   readonly updated_by: string;
   readonly archived_at: number | null;
+  readonly parent_model: string | null;
+  readonly parent_id: string | null;
   readonly data: string;
 }
 
 const RECORD_COLUMNS =
-  'model, id, version, created, updated, created_by, updated_by, archived_at, data';
+  'model, id, version, created, updated, created_by, updated_by, archived_at, ' +
+  'parent_model, parent_id, data';
 
 function toStoredRow(row: RecordRow): StoredRow {
+  // S5: NULL parent columns read back as explicit null (never undefined), so
+  // SQL reads match memory-adapter rows the engine wrote with `parent: null`.
+  const parent =
+    row.parent_model === null || row.parent_id === null
+      ? null
+      : { model: row.parent_model as ModelName, id: row.parent_id as RecordId };
   return {
     id: row.id as RecordId,
     version: row.version as RecordVersion,
@@ -66,6 +75,7 @@ function toStoredRow(row: RecordRow): StoredRow {
     createdBy: row.created_by,
     updatedBy: row.updated_by,
     archivedAt: row.archived_at,
+    parent,
     data: JSON.parse(row.data) as Record<string, unknown>,
   };
 }
@@ -314,9 +324,8 @@ export function createD1Storage(db: D1Database): StoragePort {
       const bindings: unknown[] = [spec.model as string];
       let sql = `SELECT ${RECORD_COLUMNS} FROM records WHERE model = ?`;
       if (spec.parent !== undefined) {
-        // S2 stores no parent linkage yet (parent_* columns stay NULL because
-        // StoredRow carries no parent), so a scoped query matches nothing; a
-        // later slice stores the linkage and this same filter starts matching.
+        // S5: parent_* columns carry the linkage StoredRow.parent persists, so
+        // this filter scopes positively; NULL-parent rows never match it.
         sql += ' AND parent_model = ? AND parent_id = ?';
         bindings.push(spec.parent.model as string, spec.parent.id as string);
       }
@@ -385,8 +394,9 @@ export function createD1Storage(db: D1Database): StoragePort {
                 write.row.updatedBy,
                 write.row.archivedAt,
                 '',
-                null,
-                null,
+                // S5: persist row.parent (undefined counts as NULL, like null).
+                (write.row.parent?.model as string | undefined) ?? null,
+                (write.row.parent?.id as string | undefined) ?? null,
                 JSON.stringify(write.row.data),
               ),
           );
@@ -398,13 +408,18 @@ export function createD1Storage(db: D1Database): StoragePort {
             db
               .prepare(
                 'UPDATE records SET version = ?, updated = ?, updated_by = ?, ' +
-                  'archived_at = ?, data = ? WHERE model = ? AND id = ?',
+                  'archived_at = ?, parent_model = ?, parent_id = ?, data = ? ' +
+                  'WHERE model = ? AND id = ?',
               )
               .bind(
                 write.row.version as number,
                 write.row.updated,
                 write.row.updatedBy,
                 write.row.archivedAt,
+                // S5: persist whatever parent the row carries (the engine keeps
+                // it immutable by carrying before.parent; see contracts).
+                (write.row.parent?.model as string | undefined) ?? null,
+                (write.row.parent?.id as string | undefined) ?? null,
                 JSON.stringify(write.row.data),
                 write.model as string,
                 write.id as string,

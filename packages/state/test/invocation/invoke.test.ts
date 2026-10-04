@@ -448,11 +448,12 @@ describe('invoke', () => {
     assert.equal(calls, 0);
   });
 
-  it('propagates execute business rejections unmapped, unretried, unreceipted', async () => {
+  it('propagates execute business rejections unmapped and unretried, with a rejected receipt', async () => {
     const { store, memberships, team, alice } = await setup();
     await seedRow(store, MODEL, { id: 'rec-1' });
     const def = recordDef();
     const operationId = uuidv7(FIXED_NOW);
+    const revision = await store.readRevision();
     let calls = 0;
     const rejection = new StateError('rule_failed', 'Business says no.');
     const error = await captureStateError(
@@ -471,18 +472,25 @@ describe('invoke', () => {
         },
       }),
     );
+    // S5: the ORIGINAL error still propagates untouched after one execute
+    // pass, but the rejection is now fenced-receipted for exact replay.
     assert.strictEqual(error, rejection);
     assert.equal(calls, 1);
-    assert.equal(
-      await store.readReceipt({
-        app: 'acme-app',
-        owner: team.team_id,
-        principal: alice.user.user_id,
-        operation: asOperation(OPERATION),
-        operationId: asOperationId(operationId),
-      }),
-      null,
-    );
+    const receipt = await store.readReceipt({
+      app: 'acme-app',
+      owner: team.team_id,
+      principal: alice.user.user_id,
+      operation: asOperation(OPERATION),
+      operationId: asOperationId(operationId),
+    });
+    assert.ok(receipt !== null, 'expected a rejected receipt to be committed');
+    assert.deepEqual(receipt.outcome, {
+      status: 'rejected',
+      code: 'rule_failed',
+      message: 'Business says no.',
+    });
+    assert.deepEqual(receipt.resolvedDefaults, {});
+    assert.equal(receipt.committedRevision, (revision as number) + 1);
   });
 
   it('maps a duplicate unique claim from execute to conflict without retry', async () => {
