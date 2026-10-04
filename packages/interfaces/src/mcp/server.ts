@@ -14,7 +14,7 @@
  * across requests.
  *
  * Argument validation mirrors `http/operations.ts` framing order: handle
- * mode (closed against `HANDLE_MODE_ALLOWED`, mutation kinds only), else
+ * mode (closed against `handleModeAllowed`, mutation kinds only), else
  * `operation_id` for mutation kinds, then `checkClosedInputs` against the
  * catalog shape, then ref/version SHAPE checks from the descriptor's typed
  * fields (staleness stays L3's `conflict`). Framing failures are JSON-RPC
@@ -52,11 +52,11 @@ import type {
   ReadOutcome,
 } from '../ports.js';
 import { buildBusinessError, toMcpError } from '../errors/envelope.js';
-import { logInternalError } from '../errors/logging.js';
+import { logBusinessError, logInternalError } from '../errors/logging.js';
 import { checkClosedInputs, validateOperationId } from '../envelope/validate.js';
 import { parseMutationRef, parseReadRef } from '../envelope/refs.js';
 import { listToolsFor } from './discovery.js';
-import { HANDLE_MODE_ALLOWED } from './schemas.js';
+import { handleModeAllowed } from './schemas.js';
 
 /** MCP server version advertised in `serverInfo`. */
 export const MCP_SERVER_VERSION = '0.1.0';
@@ -86,11 +86,13 @@ function errorResponse(status: number, error: BusinessError): Response {
   });
 }
 
-/** Extract the grant Bearer [REDACTED] `Authorization`; null when absent or malformed. */
+/** Extract the grant Bearer [REDACTED] `Authorization`; null when absent or malformed. Auth schemes are case-insensitive (RFC 9110). */
 function bearerToken(request: Request): string | null {
   const header = (request.headers.get('authorization') ?? '').trim();
-  if (!header.startsWith('Bearer ')) return null;
-  const token = header.slice('Bearer '.length).trim();
+  const space = header.indexOf(' ');
+  if (space === -1) return null;
+  if (header.slice(0, space).toLowerCase() !== 'bearer') return null;
+  const token = header.slice(space + 1).trim();
   return token === '' ? null : token;
 }
 
@@ -143,9 +145,12 @@ type ToolCallResult = {
 
 /**
  * Error projection: the S3 `toMcpError` text + envelope, reshaped to the
- * SDK result type (the S3 projection uses readonly members).
+ * SDK result type (the S3 projection uses readonly members). Denials and
+ * business errors are journaled at info level like S4 `deny()`, so probing
+ * stays visible; only the safe code travels to the log fields.
  */
-function errorResult(error: BusinessError): ToolCallResult {
+function errorResult(deps: McpDeps, operation: string, error: BusinessError): ToolCallResult {
+  logBusinessError(deps.logger, error, { route: 'mcp', tool: operation });
   const projected = toMcpError(error);
   return {
     content: projected.content.map((block) => ({ type: 'text' as const, text: block.text })),
@@ -156,11 +161,11 @@ function errorResult(error: BusinessError): ToolCallResult {
 
 /**
  * Success projection: the result as one JSON text block plus, when the
- * result is a plain object, as `structuredContent`. The SDK validates
- * `tools/call` results against `CallToolResultSchema`, whose
- * `structuredContent` is a string-record-or-absent — non-object results
- * (possible for reads: `ReadResult` is `unknown`) therefore omit the
- * member rather than fail validation; the JSON text always carries them.
+ * result is a plain object, as `structuredContent`. The server sends
+ * results unvalidated (clients validate against `CallToolResultSchema`,
+ * whose `structuredContent` is a string-record-or-absent), so non-object
+ * results (possible for reads: `ReadResult` is `unknown`) omit the member
+ * to stay client-valid; the JSON text always carries them.
  */
 function successResult(result: unknown): ToolCallResult {
   const content: McpTextBlock[] = [{ type: 'text', text: JSON.stringify(result) }];
@@ -182,7 +187,7 @@ async function invokeMutationOutcome(
     logInternalError(deps.logger, err, { route: 'mcp', tool: envelope.operation });
     throw new McpError(ErrorCode.InternalError, 'Internal error.');
   }
-  if ('error' in outcome) return errorResult(outcome.error);
+  if ('error' in outcome) return errorResult(deps, envelope.operation, outcome.error);
   return successResult(outcome.result);
 }
 
@@ -198,14 +203,16 @@ async function invokeReadOutcome(
     logInternalError(deps.logger, err, { route: 'mcp', tool: envelope.operation });
     throw new McpError(ErrorCode.InternalError, 'Internal error.');
   }
-  if ('error' in outcome) return errorResult(outcome.error);
+  if ('error' in outcome) return errorResult(deps, envelope.operation, outcome.error);
   return successResult(outcome.result);
 }
 
 /**
- * Handle-mode framing: closed against `HANDLE_MODE_ALLOWED`, mutation
- * kinds only, sealed-handle object shape + `operation_id` plausibility.
- * The sealed handle contents are opaque here — verification is L3/L4's.
+ * Handle-mode framing (wire `ActionHandleInvocation`): sealed handle +
+ * `operation_id` + all non-record canonical inputs as siblings. Closed
+ * against `handleModeAllowed(descriptor)`; ref-kind members are rejected
+ * (the record is sealed — overrides fail); mutation kinds only. The sealed
+ * handle contents are opaque here — verification is L3/L4's.
  */
 async function invokeHandleMode(
   deps: McpDeps,
@@ -216,8 +223,18 @@ async function invokeHandleMode(
   if (!isMutationKind(descriptor.kind)) {
     throw new McpError(ErrorCode.InvalidParams, 'action_handle is only accepted for mutation tools.');
   }
+  const allowed = handleModeAllowed(descriptor);
+  const refNames = new Set(
+    descriptor.inputs.fields.filter((named) => named.field.kind === 'ref').map((named) => named.name),
+  );
   for (const key of Object.keys(args)) {
-    if (!(HANDLE_MODE_ALLOWED as readonly string[]).includes(key)) {
+    if (refNames.has(key)) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Record input '${key}' is sealed by the action handle.`,
+      );
+    }
+    if (!allowed.includes(key)) {
       throw new McpError(ErrorCode.InvalidParams, `Unknown input '${key}'.`);
     }
   }
@@ -233,10 +250,17 @@ async function invokeHandleMode(
   if (idError !== null) {
     throw new McpError(ErrorCode.InvalidParams, idError.message);
   }
+  const inputs: ClosedInputs = { action_handle: handle };
+  for (const named of descriptor.inputs.fields) {
+    if (named.field.kind === 'ref') continue;
+    if (Object.prototype.hasOwnProperty.call(args, named.name)) {
+      inputs[named.name] = args[named.name];
+    }
+  }
   const envelope: MutationEnvelope = {
     operation: descriptor.name,
     operation_id: operationId,
-    inputs: { action_handle: handle },
+    inputs,
   };
   return invokeMutationOutcome(deps, identity, envelope);
 }
@@ -273,11 +297,14 @@ async function invokeOrdinaryMode(
     // fails closed.
     delete businessInputs['operation_id'];
   }
+  // Closed-inputs are enforced against the catalog shape while the schema
+  // and ref checks derive from the descriptor: the L1 production binding
+  // must keep both views of an operation consistent (B1 join).
   const shape = deps.catalog.shapeFor(descriptor.name);
   if (shape === null) {
     // Registry/catalog skew: the tool was discoverable, so existence is
     // not secret — answer the S4 `not_found` meaning as an `isError`.
-    return errorResult(buildBusinessError('not_found', 'Unknown operation.'));
+    return errorResult(deps, descriptor.name, buildBusinessError('not_found', 'Unknown operation.'));
   }
   const closedError = checkClosedInputs(businessInputs, shape);
   if (closedError !== null) {
@@ -324,17 +351,20 @@ async function handleToolCall(
   if (descriptor === null) {
     throw new McpError(ErrorCode.InvalidParams, `Unknown tool '${name}'.`);
   }
-  // Forbidden stays an `isError` with the safe message: discovery already
-  // decided what the caller may see, and the denial must not become a
-  // tool-existence oracle beyond it.
+  // Forbidden stays an `isError` with the uniform safe message. This
+  // makes no existence-oracle claim: unknown names answer `-32602` while
+  // known-but-denied tools answer `isError`-forbidden, which is the DESIGN
+  // taxonomy (operation names are not secret).
   if (!(await deps.permissions.canCall(identity, descriptor.name))) {
-    return errorResult(buildBusinessError('forbidden'));
+    return errorResult(deps, descriptor.name, buildBusinessError('forbidden'));
   }
   // Owner-only team management, enforced on the call path exactly as in
-  // discovery: discovery filtering alone would leave a direct tools/call
-  // oracle for non-owners when the permission port is permissive.
+  // discovery. Guarantee: every denial answers the uniform safe `forbidden`
+  // regardless of reason (permission port, ownership, or business rule);
+  // operation-name existence is not secret (DESIGN section 10 publishes
+  // `system.team.*`), so no existence-oracle claim is made here.
   if (descriptor.kind === 'team' && identity.membership?.is_owner !== true) {
-    return errorResult(buildBusinessError('forbidden'));
+    return errorResult(deps, descriptor.name, buildBusinessError('forbidden'));
   }
   if (typeof args !== 'object' || args === null || Array.isArray(args)) {
     throw new McpError(ErrorCode.InvalidParams, 'Invalid arguments.');

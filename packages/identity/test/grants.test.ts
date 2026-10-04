@@ -59,6 +59,24 @@ test('issued grant stops resolving after revocation', async () => {
   );
 });
 
+test('client_id is trimmed before storage', async () => {
+  const { clock, store, user, team } = await setup();
+  const { grant } = await issueMcpGrant(
+    store,
+    { user_id: user.user_id, team_id: team.team_id, client_id: '  padded  ' },
+    { clock },
+  );
+  assert.equal(grant.client_id, 'padded');
+});
+
+test('overlong client_id is rejected', async () => {
+  const { clock, store, user, team } = await setup();
+  await assert.rejects(
+    () => issueMcpGrant(store, { user_id: user.user_id, team_id: team.team_id, client_id: 'c'.repeat(257) }, { clock }),
+    (error: unknown) => error instanceof IdentityError && error.code === 'validation',
+  );
+});
+
 test('empty client_id is rejected', async () => {
   const { clock, store, user, team } = await setup();
   await assert.rejects(

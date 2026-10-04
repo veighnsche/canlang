@@ -230,6 +230,18 @@ test('initialize omits the fileTransfer _meta when the app has no files', async 
   assert.equal(result._meta, undefined);
 });
 
+test('initialize falls back to the latest protocol version when unsupported', async () => {
+  const t = await setup({});
+  const { body } = await mcpCall(
+    t.handler,
+    'initialize',
+    { ...INIT_PARAMS, protocolVersion: '1999-01-01' },
+    { grant: t.grantToken },
+  );
+  const result = body.result as { protocolVersion: string };
+  assert.equal(result.protocolVersion, '2025-11-25');
+});
+
 test('tools/list filters by canDiscover and shows team tools to owners', async () => {
   const t = await setup({ discover: { [HIDDEN_OP]: false } });
   const { body } = await mcpCall(t.handler, 'tools/list', {}, { grant: t.grantToken });
@@ -279,7 +291,7 @@ test('tools/call mutation success invokes with the operation envelope', async ()
   const { body } = await mcpCall(
     t.handler,
     'tools/call',
-    { name: MUT_OP, arguments: { operation_id, qty: 2, label: 'x' } },
+    { name: MUT_OP, arguments: { operation_id, qty: '2', label: 'x' } },
     { grant: t.grantToken },
   );
   const result = toolResult(body);
@@ -287,13 +299,13 @@ test('tools/call mutation success invokes with the operation envelope', async ()
   assert.deepEqual(result.structuredContent, {
     status: 'committed',
     operation_id,
-    result: { echoed: { qty: 2, label: 'x' } },
+    result: { echoed: { qty: '2', label: 'x' } },
   });
   assert.equal(t.invoker.mutations.length, 1);
   assert.deepEqual(t.invoker.mutations[0]?.envelope, {
     operation: MUT_OP,
     operation_id,
-    inputs: { qty: 2, label: 'x' },
+    inputs: { qty: '2', label: 'x' },
   });
 });
 
@@ -313,7 +325,7 @@ test('tools/call unknown argument is InvalidParams and never invokes', async () 
   const { body } = await mcpCall(
     t.handler,
     'tools/call',
-    { name: MUT_OP, arguments: { operation_id: freshOperationId(), qty: 1, bogus: 2 } },
+    { name: MUT_OP, arguments: { operation_id: freshOperationId(), qty: '1', bogus: 2 } },
     { grant: t.grantToken },
   );
   assert.equal(rpcError(body).code, -32602);
@@ -325,7 +337,7 @@ test('tools/call mutation without operation_id is InvalidParams', async () => {
   const { body } = await mcpCall(
     t.handler,
     'tools/call',
-    { name: MUT_OP, arguments: { qty: 1 } },
+    { name: MUT_OP, arguments: { qty: '1' } },
     { grant: t.grantToken },
   );
   assert.equal(rpcError(body).code, -32602);
@@ -369,6 +381,119 @@ test('tools/call handle mode passes framing and the invoker receives action_hand
     operation_id,
     inputs: { action_handle },
   });
+});
+
+test('tools/call handle mode forwards non-record canonical inputs', async () => {
+  const t = await setup({});
+  const action_handle = { kind: 'action_handle', handle: 'sealed-2', target: MUT_OP, revision: '1' };
+  const operation_id = freshOperationId();
+  const { body } = await mcpCall(
+    t.handler,
+    'tools/call',
+    { name: MUT_OP, arguments: { action_handle, operation_id, label: 'via-delegation' } },
+    { grant: t.grantToken },
+  );
+  const result = toolResult(body);
+  assert.equal(result.isError, undefined);
+  assert.equal(t.invoker.mutations.length, 1);
+  assert.deepEqual(t.invoker.mutations[0]?.envelope, {
+    operation: MUT_OP,
+    operation_id,
+    inputs: { action_handle, label: 'via-delegation' },
+  });
+});
+
+test('tools/call handle mode with a non-object handle is InvalidParams', async () => {
+  const t = await setup({});
+  const { body } = await mcpCall(
+    t.handler,
+    'tools/call',
+    { name: MUT_OP, arguments: { action_handle: 'not-an-object', operation_id: freshOperationId() } },
+    { grant: t.grantToken },
+  );
+  assert.equal(rpcError(body).code, -32602);
+  assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('tools/call with a malformed operation_id is InvalidParams', async () => {
+  const t = await setup({});
+  const { body } = await mcpCall(
+    t.handler,
+    'tools/call',
+    { name: MUT_OP, arguments: { operation_id: 'not-a-uuid', qty: '1' } },
+    { grant: t.grantToken },
+  );
+  assert.equal(rpcError(body).code, -32602);
+  assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('tools/call read carrying operation_id fails closed', async () => {
+  const t = await setup({});
+  const { body } = await mcpCall(
+    t.handler,
+    'tools/call',
+    { name: READ_OP, arguments: { operation_id: freshOperationId() } },
+    { grant: t.grantToken },
+  );
+  assert.equal(rpcError(body).code, -32602);
+  assert.equal(t.invoker.reads.length, 0);
+});
+
+test('tools/call with non-object arguments is rejected without invoking', async () => {
+  const t = await setup({});
+  const { body } = await mcpCall(
+    t.handler,
+    'tools/call',
+    { name: READ_OP, arguments: 'nope' },
+    { grant: t.grantToken },
+  );
+  // The SDK protocol layer rejects unparseable params before our handler
+  // runs (its code, -32603); our own non-object guard stays as
+  // defense-in-depth. What matters: no invocation, no leak.
+  assert.equal(rpcError(body).code, -32603);
+  assert.equal(t.invoker.reads.length, 0);
+});
+
+test('tools/call read ref carrying a version is InvalidParams', async () => {
+  const descriptor: OperationDescriptor = {
+    name: 'acme.Todo.readByRef',
+    kind: 'read',
+    description: 'Read with a ref.',
+    inputs: { fields: [{ name: 'record', field: { kind: 'ref', model: 'acme.Todo', requireVersion: false }, required: true }] },
+  };
+  const t = await createTestMcpDeps({
+    descriptors: [descriptor],
+    shapes: { 'acme.Todo.readByRef': { allowed: ['record'], required: ['record'] } },
+    reads: { 'acme.Todo.readByRef': () => ({ result: null }) },
+  });
+  const handler = createMcpHandler(t.deps);
+  const { body } = await mcpCall(
+    handler,
+    'tools/call',
+    { name: descriptor.name, arguments: { record: { id: 'r1', version: '3' } } },
+    { grant: t.grantToken },
+  );
+  assert.equal(rpcError(body).code, -32602);
+  assert.equal(t.invoker.reads.length, 0);
+});
+
+test('tools/call registry/catalog skew answers not_found isError', async () => {
+  const t = await createTestMcpDeps({
+    descriptors: DESCRIPTORS,
+    shapes: { [READ_OP]: { allowed: [], required: [] } },
+    reads: { [READ_OP]: () => ({ result: null }) },
+  });
+  const handler = createMcpHandler(t.deps);
+  const { body } = await mcpCall(
+    handler,
+    'tools/call',
+    { name: MUT_OP, arguments: { operation_id: freshOperationId(), qty: '1' } },
+    { grant: t.grantToken },
+  );
+  const result = toolResult(body);
+  assert.equal(result.isError, true);
+  assert.equal(result.structuredContent?.['code'], 'not_found');
+  assert.equal(t.invoker.mutations.length, 0);
 });
 
 test('tools/call handle mode with a record input is InvalidParams', async () => {
@@ -418,6 +543,10 @@ test('tools/call denied by canCall is an isError forbidden, not a protocol error
     'You do not have permission to perform this action.',
   );
   assert.equal(t.invoker.reads.length, 0);
+  const denied = t.logger.calls.find((call) => call.level === 'info');
+  assert.ok(denied);
+  assert.equal(denied.fields?.['code'], 'forbidden');
+  assert.equal(denied.fields?.['tool'], READ_OP);
 });
 
 test('tools/call team tool by a non-owner is an isError forbidden on the call path', async () => {
@@ -518,6 +647,61 @@ test('session cookie without a grant Bearer [REDACTED] 401', async () => {
   assert.equal(body.error.code, 'forbidden');
 });
 
+test('lowercase bearer scheme is accepted', async () => {
+  const t = await setup({});
+  const res = await t.handler(
+    testRequest('/mcp', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        authorization: `bearer ${t.grantToken}`,
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+    }),
+  );
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as RpcBody;
+  assert.ok(body.result !== undefined);
+});
+
+test('session token presented as a grant Bearer [REDACTED] 401', async () => {
+  const t = await setup({});
+  const res = await t.handler(
+    testRequest('/mcp', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        authorization: `Bearer ${t.identity.sessionToken}`,
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+    }),
+  );
+  assert.equal(res.status, 401);
+});
+
+test('expired grant answers 401', async () => {
+  const t = await setup({});
+  const issued = await issueMcpGrant(
+    t.deps.identity.store,
+    { user_id: t.identity.userId, team_id: t.identity.teamId, client_id: 'expired' },
+    { ttlMs: -1000 },
+  );
+  const res = await t.handler(
+    testRequest('/mcp', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        authorization: `Bearer ${issued.token}`,
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+    }),
+  );
+  assert.equal(res.status, 401);
+});
+
 test('revoked grant answers 401', async () => {
   const t = await setup({});
   const issued = await issueMcpGrant(
@@ -560,7 +744,7 @@ test('same operation via S4 HTTP and MCP produces deep-equal inputs', async () =
     auth: () => Promise.resolve(new Response('unused', { status: 500 })),
   });
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
-  const inputs = { qty: 2, label: 'x' };
+  const inputs = { qty: '2', label: 'x' };
   const httpRes = await http(
     testRequest(`/api/operations/${MUT_OP}`, {
       method: 'POST',

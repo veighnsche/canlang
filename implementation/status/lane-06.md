@@ -328,6 +328,27 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     (SDK Server + stateless transport, raw JSON-RPC round-trips,
     same-invocation proof vs S4 HTTP); H owns mcp/{tools,schemas}.ts +
     mcp-tools.test.ts (generation, closed schemas, handle-mode anyOf).
+    Coordinator pre-PR fixes: owner check on call path (not just
+    discovery), requireVersion-keyed ref parser (schema/server agree).
+  - PR #32 open at f25f460 (interfaces 148/148, identity 36/36).
+    Independent review REQUEST-CHANGES, all valid, all addressed: F1
+    integer renders decimal-string (was JSON number); F2 handle mode
+    admits non-record canonical inputs per wire ActionHandleInvocation
+    (schema branch + `handleModeAllowed` + forwarding; ref overrides
+    fail); F3 mutation schema root `type:'object'`; F4 oracle comments
+    corrected to the actual guarantee. Folded notes: N1 negotiation
+    fallback pin, N2/N3 auth+framing pins (lowercase bearer accepted
+    per RFC 9110, session-as-bearer/expiry 401s, read+op_id closed,
+    malformed op_id, ReadRef-with-version, catalog-skew not_found),
+    N5 case-insensitive scheme, N8 denial info-logging like S4 deny(),
+    N9 client_id trim + 256 bound, N10 catalog/descriptor consistency
+    comment, N12 results-unvalidated comment. Deferred with reason: N4
+    (keep collapsed auth message), N6/N7 (need L1 joins: initialize
+    instructions, union/array fields), N11 (SDK 4 MiB/413 + batch-100
+    vs S4 1 MiB/429 noted divergence, bounded). Discovered while
+    pinning: SDK protocol layer rejects unparseable params with
+    -32603 before our handler (test documents the seam).
+    After fixes: interfaces 160/160, identity 38/38.
 
 ## Remaining work and cleanup
 

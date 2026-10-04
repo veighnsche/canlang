@@ -14,8 +14,23 @@ import type {
   OperationDescriptor,
 } from '../ports.js';
 
-/** Closed top-level members allowed in handle-mode args (server.ts validates). */
+/**
+ * Base closed top-level members of handle-mode args. The full per-operation
+ * set is `handleModeAllowed(descriptor)`: base members plus every non-ref
+ * typed input (wire `ActionHandleInvocation`: sealed handle + operation_id
+ * + all non-record canonical inputs, flattened as siblings). Ref-kind
+ * inputs are never admitted in handle mode — the record is sealed.
+ */
 export const HANDLE_MODE_ALLOWED = ['action_handle', 'operation_id'] as const;
+
+/** Full handle-mode member set for one operation descriptor. */
+export function handleModeAllowed(descriptor: OperationDescriptor): readonly string[] {
+  const allowed: string[] = [...HANDLE_MODE_ALLOWED];
+  for (const named of descriptor.inputs.fields) {
+    if (named.field.kind !== 'ref') allowed.push(named.name);
+  }
+  return allowed;
+}
 
 export interface ClosedObjectSchema {
   readonly type: 'object';
@@ -44,7 +59,10 @@ function fieldSchema(field: McpSchemaField): Record<string, unknown> {
     case 'string':
       return { type: 'string' };
     case 'integer':
-      return { type: 'integer' };
+      // Canonical decimal string at the MCP boundary (DESIGN section 10,
+      // wire DecimalString): never a JSON number, no magnitude-dependent
+      // wire type.
+      return { type: 'string' };
     case 'boolean':
       return { type: 'boolean' };
     case 'decimal':
@@ -107,15 +125,24 @@ export function toToolInputSchema(descriptor: OperationDescriptor): Record<strin
     required: [...ordinary.required, 'operation_id'],
     additionalProperties: false,
   };
+  // Handle branch: sealed handle + operation_id (required) plus every
+  // non-ref typed input as an OPTIONAL member (wire ActionHandleInvocation).
+  const handleProperties: Record<string, unknown> = {
+    // Opaque sealed object: object-only shape check; L3/L4 verifies contents.
+    action_handle: { type: 'object' },
+    operation_id: { type: 'string' },
+  };
+  for (const named of descriptor.inputs.fields) {
+    if (named.field.kind === 'ref') continue;
+    handleProperties[named.name] = fieldSchema(named.field);
+  }
   const handleMode: Record<string, unknown> = {
     type: 'object',
-    properties: {
-      // Opaque sealed object: object-only shape check; L3/L4 verifies contents.
-      action_handle: { type: 'object' },
-      operation_id: { type: 'string' },
-    },
+    properties: handleProperties,
     required: ['action_handle', 'operation_id'],
     additionalProperties: false,
   };
-  return { anyOf: [withOpId, handleMode] };
+  // `type: 'object'` root: MCP requires object-rooted inputSchema; both
+  // branches are objects so the wrapper is semantically identical.
+  return { type: 'object', anyOf: [withOpId, handleMode] };
 }

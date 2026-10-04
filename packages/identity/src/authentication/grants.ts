@@ -43,15 +43,19 @@ export async function issueMcpGrant(
     ttlMs?: number;
   } = {},
 ): Promise<IssuedMcpGrant> {
-  if (input.client_id.trim() === '') {
+  const client_id = input.client_id.trim();
+  if (client_id === '') {
     throw new IdentityError('validation', 'client_id is required.');
+  }
+  if (client_id.length > 256) {
+    throw new IdentityError('validation', 'client_id is too long.');
   }
   const clock = opts.clock ?? systemClock;
   const { token, token_sha256 } = await createOpaqueToken(opts.random ?? webRandom);
   const grant = await store.createMcpGrant({
     user_id: input.user_id,
     team_id: input.team_id,
-    client_id: input.client_id,
+    client_id,
     token_sha256,
     expires_at: toInstant(clock.nowMs() + (opts.ttlMs ?? MCP_GRANT_TTL_MS)),
   });

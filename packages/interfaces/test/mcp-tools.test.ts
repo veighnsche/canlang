@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { McpNamedField, OperationDescriptor } from '../src/ports.js';
-import { HANDLE_MODE_ALLOWED, toJsonSchema, toToolInputSchema } from '../src/mcp/schemas.js';
+import { HANDLE_MODE_ALLOWED, handleModeAllowed, toJsonSchema, toToolInputSchema } from '../src/mcp/schemas.js';
 import { toMcpTool, toolsFor } from '../src/mcp/tools.js';
 import { createFakeOperationRegistry, createTestApp } from '../src/testing.js';
 
@@ -95,6 +95,7 @@ test('read tool: plain closed schema, no operation_id', () => {
 
 test('crud update tool: required operation_id plus anyOf handle alternative', () => {
   const schema = toToolInputSchema(UPDATE);
+  assert.equal(schema['type'], 'object');
   const branches = schema['anyOf'];
   assert.ok(Array.isArray(branches) && branches.length === 2);
   const [ordinary, handle] = branches as Array<Record<string, unknown>>;
@@ -102,11 +103,17 @@ test('crud update tool: required operation_id plus anyOf handle alternative', ()
   const props = ordinary?.['properties'] as Record<string, unknown>;
   assert.deepEqual(props?.['operation_id'], { type: 'string' });
   assert.deepEqual(props?.['title'], { type: 'string' });
-  assert.deepEqual(props?.['priority'], { type: 'integer' });
+  assert.deepEqual(props?.['priority'], { type: 'string' });
   assert.deepEqual(props?.['done'], { type: 'boolean' });
   assert.deepEqual(handle, {
     type: 'object',
-    properties: { action_handle: { type: 'object' }, operation_id: { type: 'string' } },
+    properties: {
+      action_handle: { type: 'object' },
+      operation_id: { type: 'string' },
+      title: { type: 'string' },
+      priority: { type: 'string' },
+      done: { type: 'boolean' },
+    },
     required: ['action_handle', 'operation_id'],
     additionalProperties: false,
   });
@@ -174,4 +181,16 @@ test('closed: additionalProperties false at every object level', () => {
 
 test('HANDLE_MODE_ALLOWED contents', () => {
   assert.deepEqual([...HANDLE_MODE_ALLOWED], ['action_handle', 'operation_id']);
+});
+
+test('handleModeAllowed: base members plus non-ref fields, never refs', () => {
+  assert.deepEqual([...handleModeAllowed(UPDATE)], [
+    'action_handle',
+    'operation_id',
+    'title',
+    'priority',
+    'done',
+  ]);
+  assert.deepEqual([...handleModeAllowed(TEAM)], ['action_handle', 'operation_id', 'email']);
+  assert.deepEqual([...handleModeAllowed(READ)], ['action_handle', 'operation_id']);
 });
