@@ -1,0 +1,1 @@
+{% extends 'equipment/base.html' %}{% block content %}<h2>Sign in</h2><p>Enter your company email address and password.</p><form method="post">{% csrf_token %}{{ form.as_div }}<input type="hidden" name="next" value="{{ next }}"><button>Sign in</button></form>{% endblock %}

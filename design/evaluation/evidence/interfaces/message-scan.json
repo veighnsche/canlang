@@ -1,0 +1,1774 @@
+{
+  "method": "literal declaration/reference count, not semantic import reachability or proven removal opportunity",
+  "rows": [
+    {
+      "file": "draft/CanAffiliate.can",
+      "messages": [
+        {
+          "name": "label_CommissionResult_source",
+          "line": 52,
+          "occurrences": 5
+        },
+        {
+          "name": "label_CommissionResult_account",
+          "line": 53,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommissionResult_allocation",
+          "line": 54,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommissionResult_allocation_pending",
+          "line": 55,
+          "occurrences": 5
+        },
+        {
+          "name": "label_CommissionResult_allocation_unknown",
+          "line": 56,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommissionResult_allocation_allocated",
+          "line": 57,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommissionResult_allocation_failed",
+          "line": 58,
+          "occurrences": 5
+        },
+        {
+          "name": "label_CommissionResult_allocation_reversed",
+          "line": 59,
+          "occurrences": 5
+        },
+        {
+          "name": "label_CommissionResult_bank",
+          "line": 60,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommissionResult_bank_not_started",
+          "line": 61,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommissionResult_bank_in_transit",
+          "line": 62,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommissionResult_bank_succeeded",
+          "line": 63,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommissionResult_bank_returned",
+          "line": 64,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommissionResult_transfer",
+          "line": 65,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommissionResult_payout",
+          "line": 66,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Partner_rate",
+          "line": 67,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Partner_agreement",
+          "line": 68,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanApprove.can",
+      "messages": [
+        {
+          "name": "label_reviewer",
+          "line": 36,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Submission_note",
+          "line": 37,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Submission_reviewer_email",
+          "line": 38,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanBoard.can",
+      "messages": [
+        {
+          "name": "label_Meeting_finalized",
+          "line": 37,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Agenda_paper",
+          "line": 38,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanBook.can",
+      "messages": [
+        {
+          "name": "label_Calendar_host",
+          "line": 52,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Window_from",
+          "line": 53,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Window_until",
+          "line": 54,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Appointment_state_attended",
+          "line": 55,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanCRM.can",
+      "messages": [
+        {
+          "name": "label_Deal_stage",
+          "line": 39,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Deal_outcome_reference",
+          "line": 40,
+          "occurrences": 2
+        }
+      ],
+      "single_use_messages": [
+        {
+          "name": "label_Deal_outcome_reference",
+          "line": 40,
+          "occurrences": 2
+        }
+      ],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanCatch.can",
+      "messages": [
+        {
+          "name": "retained_raw_evidence_caption",
+          "line": 56,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Alert_message",
+          "line": 57,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Project_grouping_version",
+          "line": 58,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Issue_fingerprint",
+          "line": 59,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Issue_environment",
+          "line": 60,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Issue_release",
+          "line": 61,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Issue_owner",
+          "line": 62,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Occurrence_event_id",
+          "line": 63,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Occurrence_stack",
+          "line": 64,
+          "occurrences": 3
+        },
+        {
+          "name": "label_RawPayload_payload",
+          "line": 65,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanCheck.can",
+      "messages": [
+        {
+          "name": "label_Check_application",
+          "line": 32,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanContract.can",
+      "messages": [
+        {
+          "name": "label_Agreement_category_customer",
+          "line": 43,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Agreement_category_supplier",
+          "line": 44,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Term_from",
+          "line": 45,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Term_until",
+          "line": 46,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Term_notice_days",
+          "line": 47,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Term_pricing",
+          "line": 48,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanCustomer.can",
+      "messages": [
+        {
+          "name": "notice_company_invitation",
+          "line": 64,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Customer_kind_company",
+          "line": 65,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Customer_locations",
+          "line": 66,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Contact",
+          "line": 67,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Contact_account",
+          "line": 68,
+          "occurrences": 5
+        },
+        {
+          "name": "label_CompanyRole_role",
+          "line": 69,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Alias_to_customer",
+          "line": 70,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanDesk.can",
+      "messages": [
+        {
+          "name": "label_IncomingMail_sender",
+          "line": 44,
+          "occurrences": 4
+        },
+        {
+          "name": "label_IncomingMail_recipient",
+          "line": 45,
+          "occurrences": 4
+        },
+        {
+          "name": "label_IncomingMail_thread",
+          "line": 46,
+          "occurrences": 4
+        },
+        {
+          "name": "label_IncomingMail_attachments",
+          "line": 47,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Ticket_category",
+          "line": 48,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Ticket_queue",
+          "line": 49,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Ticket_state",
+          "line": 50,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Message_external_id",
+          "line": 51,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanDo.can",
+      "messages": [
+        {
+          "name": "source_freshness_caption",
+          "line": 45,
+          "occurrences": 3
+        },
+        {
+          "name": "label_WorkItem_source",
+          "line": 46,
+          "occurrences": 3
+        },
+        {
+          "name": "label_WorkItem_detail",
+          "line": 47,
+          "occurrences": 3
+        },
+        {
+          "name": "label_WorkItem_state",
+          "line": 48,
+          "occurrences": 4
+        },
+        {
+          "name": "label_WorkItem_state_stale",
+          "line": 49,
+          "occurrences": 3
+        },
+        {
+          "name": "label_WorkItem_state_unavailable",
+          "line": 50,
+          "occurrences": 4
+        },
+        {
+          "name": "label_WorkSourceState_state_fresh",
+          "line": 51,
+          "occurrences": 3
+        },
+        {
+          "name": "label_WorkBatch_items",
+          "line": 52,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Template",
+          "line": 53,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanEvent.can",
+      "messages": [
+        {
+          "name": "notice_title",
+          "line": 57,
+          "occurrences": 2
+        },
+        {
+          "name": "notice_details",
+          "line": 58,
+          "occurrences": 2
+        },
+        {
+          "name": "label_Event_cancelled",
+          "line": 59,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Registration_state_pending",
+          "line": 60,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [
+        {
+          "name": "notice_title",
+          "line": 57,
+          "occurrences": 2
+        },
+        {
+          "name": "notice_details",
+          "line": 58,
+          "occurrences": 2
+        }
+      ],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanExpense.can",
+      "messages": [
+        {
+          "name": "evidenced_reimbursement_caption",
+          "line": 32,
+          "occurrences": 3
+        },
+        {
+          "name": "label_reviewer",
+          "line": 33,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Expense_receipt",
+          "line": 34,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Expense_status_approved",
+          "line": 35,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Expense_submission",
+          "line": 36,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Expense_decided_at",
+          "line": 37,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Reimbursement_paid",
+          "line": 38,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanFeedback.can",
+      "messages": [
+        {
+          "name": "label_Suggestion",
+          "line": 37,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Suggestion_status",
+          "line": 38,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Suggestion_hidden",
+          "line": 39,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Suggestion_response",
+          "line": 40,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Suggestion_duplicate",
+          "line": 41,
+          "occurrences": 4
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanField.can",
+      "messages": [
+        {
+          "name": "label_preferences_skill",
+          "line": 13,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Job_from",
+          "line": 14,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Job_until",
+          "line": 15,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Job_before",
+          "line": 16,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Job_after",
+          "line": 17,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Job_contact",
+          "line": 18,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Job_state",
+          "line": 19,
+          "occurrences": 2
+        },
+        {
+          "name": "label_Job_state_pending",
+          "line": 20,
+          "occurrences": 2
+        },
+        {
+          "name": "label_Report_photo",
+          "line": 21,
+          "occurrences": 4
+        }
+      ],
+      "single_use_messages": [
+        {
+          "name": "label_Job_state",
+          "line": 19,
+          "occurrences": 2
+        },
+        {
+          "name": "label_Job_state_pending",
+          "line": 20,
+          "occurrences": 2
+        }
+      ],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanGrant.can",
+      "messages": [
+        {
+          "name": "heading_program_budget",
+          "line": 10,
+          "occurrences": 3
+        },
+        {
+          "name": "label_reviewer",
+          "line": 11,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Application_received",
+          "line": 12,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Application_override_reason",
+          "line": 13,
+          "occurrences": 4
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanHire.can",
+      "messages": [
+        {
+          "name": "heading_own_application_outcomes",
+          "line": 15,
+          "occurrences": 3
+        },
+        {
+          "name": "label_interviewer",
+          "line": 16,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Candidate_application",
+          "line": 17,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Candidate_cv",
+          "line": 18,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Candidate_source",
+          "line": 19,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Candidate_stage_interview",
+          "line": 20,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Interview_from",
+          "line": 21,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Interview_until",
+          "line": 22,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Interview_feedback",
+          "line": 23,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanInvoice.can",
+      "messages": [
+        {
+          "name": "notice_invoice_issued",
+          "line": 19,
+          "occurrences": 3
+        },
+        {
+          "name": "page_finance_invoice_Invoice_id_title",
+          "line": 20,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Charge_source",
+          "line": 21,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Charge_customer",
+          "line": 22,
+          "occurrences": 2
+        },
+        {
+          "name": "label_Charge_consent",
+          "line": 23,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Settlement_received",
+          "line": 24,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Settlement_state",
+          "line": 25,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Settlement_state_paid",
+          "line": 26,
+          "occurrences": 1
+        },
+        {
+          "name": "label_Settlement_state_void",
+          "line": 27,
+          "occurrences": 2
+        },
+        {
+          "name": "label_Settlement_state_unknown",
+          "line": 28,
+          "occurrences": 2
+        },
+        {
+          "name": "label_DocumentLine_tax",
+          "line": 29,
+          "occurrences": 3
+        },
+        {
+          "name": "label_DocumentLine_discount",
+          "line": 30,
+          "occurrences": 3
+        },
+        {
+          "name": "label_InvoiceDocument_issuer",
+          "line": 31,
+          "occurrences": 4
+        },
+        {
+          "name": "label_InvoiceDocument_recipient",
+          "line": 32,
+          "occurrences": 3
+        },
+        {
+          "name": "label_InvoiceDocument_tax_reference",
+          "line": 33,
+          "occurrences": 3
+        },
+        {
+          "name": "label_InvoiceDocument_number",
+          "line": 34,
+          "occurrences": 4
+        },
+        {
+          "name": "label_InvoiceDocument_issued_at",
+          "line": 35,
+          "occurrences": 3
+        },
+        {
+          "name": "label_InvoiceDocument_credits",
+          "line": 36,
+          "occurrences": 3
+        },
+        {
+          "name": "label_PdfResult_document",
+          "line": 37,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Attempt",
+          "line": 38,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Attempt_delivery",
+          "line": 39,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Credit_author",
+          "line": 40,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [
+        {
+          "name": "label_Charge_customer",
+          "line": 22,
+          "occurrences": 2
+        },
+        {
+          "name": "label_Settlement_state_void",
+          "line": 27,
+          "occurrences": 2
+        },
+        {
+          "name": "label_Settlement_state_unknown",
+          "line": 28,
+          "occurrences": 2
+        }
+      ],
+      "unused_messages": [
+        {
+          "name": "label_Settlement_state_paid",
+          "line": 26,
+          "occurrences": 1
+        }
+      ]
+    },
+    {
+      "file": "draft/CanLearn.can",
+      "messages": [
+        {
+          "name": "page_learning_courses_title",
+          "line": 11,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Course_locations",
+          "line": 12,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Course_required",
+          "line": 13,
+          "occurrences": 3
+        },
+        {
+          "name": "label_DraftLesson_content",
+          "line": 14,
+          "occurrences": 3
+        },
+        {
+          "name": "label_DraftLesson_position",
+          "line": 15,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Enrollment_account",
+          "line": 16,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanLeave.can",
+      "messages": [
+        {
+          "name": "label_preferences_year",
+          "line": 10,
+          "occurrences": 5
+        },
+        {
+          "name": "label_preferences_bucket",
+          "line": 11,
+          "occurrences": 7
+        },
+        {
+          "name": "label_Allowance_days",
+          "line": 12,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Request_from",
+          "line": 13,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Request_until",
+          "line": 14,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Request_reviewer",
+          "line": 15,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Request_state_pending",
+          "line": 16,
+          "occurrences": 4
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanLoyalty.can",
+      "messages": [
+        {
+          "name": "page_loyalty_fulfillment_title",
+          "line": 12,
+          "occurrences": 3
+        },
+        {
+          "name": "page_loyalty_catalog_title",
+          "line": 13,
+          "occurrences": 3
+        },
+        {
+          "name": "heading_rewards",
+          "line": 14,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Program_locations",
+          "line": 15,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Reward_cost",
+          "line": 16,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Earning_source",
+          "line": 17,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanMail.can",
+      "messages": [
+        {
+          "name": "label_Service_recipient",
+          "line": 14,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Service_source",
+          "line": 15,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Delegate_account",
+          "line": 16,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Item_kind",
+          "line": 17,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Item_storage",
+          "line": 18,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Item_photo",
+          "line": 19,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Item_incident",
+          "line": 20,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Handling_carrier",
+          "line": 21,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Handling_fee",
+          "line": 22,
+          "occurrences": 4
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanMaintain.can",
+      "messages": [
+        {
+          "name": "label_Plan_checklist",
+          "line": 18,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Inspection_answers",
+          "line": 19,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Inspection_result_pending",
+          "line": 20,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Inspection_result_failed",
+          "line": 21,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Repair_photo",
+          "line": 22,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanMember.can",
+      "messages": [
+        {
+          "name": "page_membership_register_title",
+          "line": 55,
+          "occurrences": 3
+        },
+        {
+          "name": "label_included_units",
+          "line": 56,
+          "occurrences": 3
+        },
+        {
+          "name": "label_overage",
+          "line": 57,
+          "occurrences": 3
+        },
+        {
+          "name": "label_package",
+          "line": 58,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Entitlement_customer",
+          "line": 59,
+          "occurrences": 1
+        },
+        {
+          "name": "label_Entitlement_account",
+          "line": 60,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Entitlement_product",
+          "line": 61,
+          "occurrences": 2
+        },
+        {
+          "name": "label_Entitlement_from",
+          "line": 62,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Entitlement_until",
+          "line": 63,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Entitlement_source",
+          "line": 64,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Membership_consent",
+          "line": 65,
+          "occurrences": 5
+        },
+        {
+          "name": "label_Term",
+          "line": 66,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Term_locations",
+          "line": 67,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Term_cycle",
+          "line": 68,
+          "occurrences": 4
+        }
+      ],
+      "single_use_messages": [
+        {
+          "name": "label_Entitlement_product",
+          "line": 61,
+          "occurrences": 2
+        }
+      ],
+      "unused_messages": [
+        {
+          "name": "label_Entitlement_customer",
+          "line": 59,
+          "occurrences": 1
+        }
+      ]
+    },
+    {
+      "file": "draft/CanOnboard.can",
+      "messages": [
+        {
+          "name": "page_people_onboarding_title",
+          "line": 11,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanPropose.can",
+      "messages": [
+        {
+          "name": "heading_itemized_quote",
+          "line": 15,
+          "occurrences": 3
+        },
+        {
+          "name": "label_QuoteLine_tax",
+          "line": 16,
+          "occurrences": 3
+        },
+        {
+          "name": "label_QuoteLine_discount",
+          "line": 17,
+          "occurrences": 3
+        },
+        {
+          "name": "label_QuoteDocument_issuer",
+          "line": 18,
+          "occurrences": 3
+        },
+        {
+          "name": "label_QuoteDocument_recipient",
+          "line": 19,
+          "occurrences": 3
+        },
+        {
+          "name": "label_QuoteDocument_from",
+          "line": 20,
+          "occurrences": 4
+        },
+        {
+          "name": "label_QuoteDocument_until",
+          "line": 21,
+          "occurrences": 4
+        },
+        {
+          "name": "label_QuoteDocument_terms",
+          "line": 22,
+          "occurrences": 4
+        },
+        {
+          "name": "label_QuoteDocument_expires",
+          "line": 23,
+          "occurrences": 3
+        },
+        {
+          "name": "label_QuotePdf_document",
+          "line": 24,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Revision_resource",
+          "line": 25,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Revision_seats",
+          "line": 26,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanPurchase.can",
+      "messages": [
+        {
+          "name": "page_purchasing_title",
+          "line": 13,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Request_state",
+          "line": 14,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Request_state_approved",
+          "line": 15,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Request_state_cancelled",
+          "line": 16,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Request_state_closed",
+          "line": 17,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Request_actual",
+          "line": 18,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Receipt_source",
+          "line": 19,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Receipt_accepted",
+          "line": 20,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Receipt_rejected",
+          "line": 21,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Receipt_received",
+          "line": 22,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanReception.can",
+      "messages": [
+        {
+          "name": "notice_visitor_invitation",
+          "line": 13,
+          "occurrences": 5
+        },
+        {
+          "name": "label_preferences_queue_expected",
+          "line": 14,
+          "occurrences": 3
+        },
+        {
+          "name": "label_DeviceState_source",
+          "line": 15,
+          "occurrences": 5
+        },
+        {
+          "name": "label_DeviceState_desired",
+          "line": 16,
+          "occurrences": 3
+        },
+        {
+          "name": "label_DeviceState_desired_active",
+          "line": 17,
+          "occurrences": 5
+        },
+        {
+          "name": "label_DeviceState_desired_revoked",
+          "line": 18,
+          "occurrences": 5
+        },
+        {
+          "name": "label_DeviceState_confirmed",
+          "line": 19,
+          "occurrences": 3
+        },
+        {
+          "name": "label_DeviceState_confirmed_pending",
+          "line": 20,
+          "occurrences": 3
+        },
+        {
+          "name": "label_DeviceState_confirmed_failed",
+          "line": 21,
+          "occurrences": 3
+        },
+        {
+          "name": "label_DeviceState_confirmed_unknown",
+          "line": 22,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Visit_guest",
+          "line": 23,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Visit_from",
+          "line": 24,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Visit_until",
+          "line": 25,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Visit_purpose",
+          "line": 26,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Issue_holder",
+          "line": 27,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanRefer.can",
+      "messages": [
+        {
+          "name": "balances_title",
+          "line": 17,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Program",
+          "line": 18,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Credit",
+          "line": 19,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Credit_source",
+          "line": 20,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Settlement_paid",
+          "line": 21,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Settlement_method",
+          "line": 22,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanRent.can",
+      "messages": [
+        {
+          "name": "policy_title",
+          "line": 47,
+          "occurrences": 3
+        },
+        {
+          "name": "label_RoomRequest_source",
+          "line": 48,
+          "occurrences": 4
+        },
+        {
+          "name": "label_RoomRequest_account",
+          "line": 49,
+          "occurrences": 3
+        },
+        {
+          "name": "label_RoomRequest_from",
+          "line": 50,
+          "occurrences": 8
+        },
+        {
+          "name": "label_RoomRequest_until",
+          "line": 51,
+          "occurrences": 8
+        },
+        {
+          "name": "label_RoomRequest_terms",
+          "line": 52,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Booking_status_pending",
+          "line": 53,
+          "occurrences": 4
+        },
+        {
+          "name": "label_hold_use_allowance",
+          "line": 54,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanReport.can",
+      "messages": [
+        {
+          "name": "label_Checkpoint",
+          "line": 11,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Checkpoint_source",
+          "line": 12,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Checkpoint_generated",
+          "line": 13,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Contribution_from",
+          "line": 14,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Contribution_until",
+          "line": 15,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Contribution_unit",
+          "line": 16,
+          "occurrences": 4
+        },
+        {
+          "name": "label_ReportBatch_rows",
+          "line": 17,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Definition",
+          "line": 18,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Definition_inclusion",
+          "line": 19,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Run_locations",
+          "line": 20,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanShift.can",
+      "messages": [
+        {
+          "name": "title_roster",
+          "line": 16,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommitmentRequest_source",
+          "line": 17,
+          "occurrences": 4
+        },
+        {
+          "name": "label_CommitmentRequest_employee",
+          "line": 18,
+          "occurrences": 4
+        },
+        {
+          "name": "label_CommitmentRequest_from",
+          "line": 19,
+          "occurrences": 6
+        },
+        {
+          "name": "label_CommitmentRequest_until",
+          "line": 20,
+          "occurrences": 6
+        },
+        {
+          "name": "label_CommitmentRequest_before",
+          "line": 21,
+          "occurrences": 4
+        },
+        {
+          "name": "label_CommitmentRequest_after",
+          "line": 22,
+          "occurrences": 4
+        },
+        {
+          "name": "label_CommitmentRequest_skill",
+          "line": 23,
+          "occurrences": 4
+        },
+        {
+          "name": "label_CommitmentRequest_kind",
+          "line": 24,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommitmentRequest_kind_duty",
+          "line": 25,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommitmentRequest_kind_visit",
+          "line": 26,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommitmentRequest_kind_appointment",
+          "line": 27,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommitmentRequest_kind_absence",
+          "line": 28,
+          "occurrences": 3
+        },
+        {
+          "name": "label_CommitmentRequest_kind_interview",
+          "line": 29,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Duty_role",
+          "line": 30,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Duty_override_reason",
+          "line": 31,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Swap_substitute",
+          "line": 32,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanStats.can",
+      "messages": [
+        {
+          "name": "health_title",
+          "line": 13,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Site",
+          "line": 14,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanStock.can",
+      "messages": [
+        {
+          "name": "label_StockReceipt_source",
+          "line": 13,
+          "occurrences": 3
+        },
+        {
+          "name": "label_StockReceipt_order",
+          "line": 14,
+          "occurrences": 3
+        },
+        {
+          "name": "label_StockReceipt_sku",
+          "line": 15,
+          "occurrences": 3
+        },
+        {
+          "name": "label_StockReceipt_unit",
+          "line": 16,
+          "occurrences": 3
+        },
+        {
+          "name": "label_StockReceipt_reversal",
+          "line": 17,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Item_reorder",
+          "line": 18,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanSuccess.can",
+      "messages": [
+        {
+          "name": "label_account_manager",
+          "line": 16,
+          "occurrences": 4
+        },
+        {
+          "name": "label_Milestone_completed_by",
+          "line": 17,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Milestone_completed_at",
+          "line": 18,
+          "occurrences": 3
+        },
+        {
+          "name": "label_FollowUp",
+          "line": 19,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanTable.can",
+      "messages": [
+        {
+          "name": "label_Cafe",
+          "line": 10,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Table",
+          "line": 11,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Booking_state_waiting",
+          "line": 12,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Booking_state_no_show",
+          "line": 13,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanTime.can",
+      "messages": [
+        {
+          "name": "label_Project",
+          "line": 13,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Entry_from",
+          "line": 14,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Entry_until",
+          "line": 15,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Entry_billable",
+          "line": 16,
+          "occurrences": 4
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanTrade.can",
+      "messages": [
+        {
+          "name": "label_Post_author",
+          "line": 11,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Post_category",
+          "line": 12,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "draft/CanVolunteer.can",
+      "messages": [
+        {
+          "name": "label_Opportunity_cancelled",
+          "line": 15,
+          "occurrences": 3
+        },
+        {
+          "name": "label_Signup_state_attended",
+          "line": 16,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "examples/ExpenseFlow.can",
+      "messages": [
+        {
+          "name": "label_Expense_decision_note",
+          "line": 6,
+          "occurrences": 4
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    },
+    {
+      "file": "examples/TeamTasks.can",
+      "messages": [
+        {
+          "name": "add",
+          "line": 8,
+          "occurrences": 4
+        },
+        {
+          "name": "field_title",
+          "line": 9,
+          "occurrences": 4
+        },
+        {
+          "name": "done",
+          "line": 10,
+          "occurrences": 6
+        },
+        {
+          "name": "task_count",
+          "line": 11,
+          "occurrences": 3
+        }
+      ],
+      "single_use_messages": [],
+      "unused_messages": []
+    }
+  ]
+}

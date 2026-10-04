@@ -1,0 +1,36 @@
+{
+  "baseline": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanCRM.can",
+  "baseline_sha256": "8cd05762ab486f929591fe381a360d4daee4dd73d98f6a8ab1deed990d42c689",
+  "method": "Static single-use private message substitution using existing inline caption syntax; tiktoken 0.12.0 reference encodings, not actual GPT-6 billing or executed behavior.",
+  "private_declaration_line": 40,
+  "only_use_line": 17,
+  "cross_source_import_reference_count": 0,
+  "literal_english": "Confirmed outcome reference",
+  "literal_dutch": "Referentie bevestigde uitkomst",
+  "before": {
+    "utf8_bytes": 19396,
+    "lines": 211,
+    "tokens": {
+      "o200k_base": 4634,
+      "cl100k_base": 4775
+    }
+  },
+  "after": {
+    "utf8_bytes": 19326,
+    "lines": 210,
+    "tokens": {
+      "o200k_base": 4618,
+      "cl100k_base": 4760
+    }
+  },
+  "changed_label_or_translations": false,
+  "runtime_verified": false,
+  "reduction": {
+    "utf8_bytes": 70,
+    "lines": 1,
+    "tokens": {
+      "o200k_base": 16,
+      "cl100k_base": 15
+    }
+  }
+}

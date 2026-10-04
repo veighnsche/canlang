@@ -1,0 +1,130 @@
+{
+  "horizon_months": 24,
+  "currency": "USD scenario units; no exchange-rate claim",
+  "results": {
+    "P_low_support": {
+      "assumptions": {
+        "setup_tech_h": 8,
+        "setup_staff_h": 6,
+        "inc_setup_tech_h": 2,
+        "inc_setup_staff_h": 2,
+        "overlap_months": 1,
+        "can_tech_h": 1,
+        "inc_tech_h": 0.5,
+        "can_staff_h": 1,
+        "inc_staff_h": 3,
+        "tech_rate": 100,
+        "staff_rate": 35,
+        "can_platform": 50,
+        "can_provider": 10,
+        "inc_extra_provider": 0
+      },
+      "can_setup": 1010,
+      "incumbent_future_setup": 270,
+      "can_month_excluding_retained_subs": 195,
+      "incumbent_month_excluding_avoidable_subs": 155.0,
+      "incremental_setup": 740,
+      "incremental_month": 40.0,
+      "avoidable_subscription_break_even_per_month": 73.91,
+      "24_month_net_savings_by_avoidable_monthly_subscription": {
+        "150": 1750.0,
+        "450": 8650.0,
+        "900": 19000.0,
+        "1500": 32800.0
+      }
+    },
+    "P_high_support": {
+      "assumptions": {
+        "setup_tech_h": 24,
+        "setup_staff_h": 16,
+        "inc_setup_tech_h": 4,
+        "inc_setup_staff_h": 4,
+        "overlap_months": 2,
+        "can_tech_h": 4,
+        "inc_tech_h": 1,
+        "can_staff_h": 2,
+        "inc_staff_h": 4,
+        "tech_rate": 100,
+        "staff_rate": 35,
+        "can_platform": 100,
+        "can_provider": 25,
+        "inc_extra_provider": 0
+      },
+      "can_setup": 2960,
+      "incumbent_future_setup": 540,
+      "can_month_excluding_retained_subs": 595,
+      "incumbent_month_excluding_avoidable_subs": 240,
+      "incremental_setup": 2420,
+      "incremental_month": 355,
+      "avoidable_subscription_break_even_per_month": 497.27,
+      "24_month_net_savings_by_avoidable_monthly_subscription": {
+        "150": -7640,
+        "450": -1040,
+        "900": 8860,
+        "1500": 22060
+      }
+    },
+    "W_low_support": {
+      "assumptions": {
+        "setup_tech_h": 60,
+        "setup_staff_h": 20,
+        "inc_setup_tech_h": 12,
+        "inc_setup_staff_h": 8,
+        "overlap_months": 2,
+        "can_tech_h": 4,
+        "inc_tech_h": 2,
+        "can_staff_h": 3,
+        "inc_staff_h": 8,
+        "tech_rate": 100,
+        "staff_rate": 35,
+        "can_platform": 100,
+        "can_provider": 50,
+        "inc_extra_provider": 25
+      },
+      "can_setup": 6700,
+      "incumbent_future_setup": 1480,
+      "can_month_excluding_retained_subs": 655,
+      "incumbent_month_excluding_avoidable_subs": 505,
+      "incremental_setup": 5220,
+      "incremental_month": 150,
+      "avoidable_subscription_break_even_per_month": 400.91,
+      "24_month_net_savings_by_avoidable_monthly_subscription": {
+        "150": -5520,
+        "450": 1080,
+        "900": 10980,
+        "1500": 24180
+      }
+    },
+    "W_high_support": {
+      "assumptions": {
+        "setup_tech_h": 160,
+        "setup_staff_h": 60,
+        "inc_setup_tech_h": 24,
+        "inc_setup_staff_h": 16,
+        "overlap_months": 4,
+        "can_tech_h": 12,
+        "inc_tech_h": 3,
+        "can_staff_h": 6,
+        "inc_staff_h": 12,
+        "tech_rate": 100,
+        "staff_rate": 35,
+        "can_platform": 250,
+        "can_provider": 100,
+        "inc_extra_provider": 25
+      },
+      "can_setup": 18100,
+      "incumbent_future_setup": 2960,
+      "can_month_excluding_retained_subs": 1760,
+      "incumbent_month_excluding_avoidable_subs": 745,
+      "incremental_setup": 15140,
+      "incremental_month": 1015,
+      "avoidable_subscription_break_even_per_month": 1975.0,
+      "24_month_net_savings_by_avoidable_monthly_subscription": {
+        "150": -36500,
+        "450": -30500,
+        "900": -21500,
+        "1500": -9500
+      }
+    }
+  }
+}

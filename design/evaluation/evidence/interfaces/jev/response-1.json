@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": "Act as a design adviser, not as a research source or a buyer. Can is an unimplemented AI-authored CRUD SaaS design; staff use browser/chatbot and a steward maintains it. Missing implementation is not a defect. The hypothetical P company has 25 employees and needs a claimant to select a distinct, active, location-scoped expense reviewer without learning private HR/account data. The frozen Expense source stores reviewer:user (CanExpense.can:11) and exposes Expense.create (93). Its Employee owner exports user/home/locations/activity/work role to permitted staff, but has no title or name (shared/Employees.can:6,11). DESIGN:587 and 654-656 use bounded authorized reference lookup, prefer readable exact title/name, otherwise show a type caption and opaque identity; a user input grants no global account directory. Whether an explicit directory grant exists is not further specified. Reviewer-role admission/revocation is a separate B-owned source correction; all alternatives here assume those checks, current permissions, protected versions, browser/MCP parity and unchanged immutable expense evidence. This is static evidence, with no staff usability measurements. Evaluate the whole selection task, privacy, reliable AI authoring, migration and shared maintenance under identical conditions. Current IDs are unique and avoid incidental disclosure; readable names can collide and must retain full identity. No option receives free implementation or technical support.",
+    "questions": {
+      "reviewer_selection": {
+        "type": "choice",
+        "instructions": "Which next design treatment is most proportionate for this reviewer-selection task, given these facts and uncertainties? Choose unresolved if the evidence cannot distinguish the choices; your probabilities are advice, not verification.",
+        "criteria": {
+          "opaque_ids": "Retain reviewer:user and current opaque-reference controls. Give the employee a steward-provisioned list of permitted reviewer identities using existing authorized work data. This preserves grammar and stored schema and reveals no new name fields, but creates lookup/review work and a list that must remain current.",
+          "employee_reference": "Use the existing model-reference mechanism: add a readable business name to Employee, make Expense.reviewer a typed Employee reference, and check its user for authority. Reuse existing row/field grants, pickers, safe labels and full IDs. This avoids a new directory primitive but requires explicit schema migration, source/target/BDD changes and handling model-reference versions; old decision attribution must remain intact.",
+          "bounded_directory": "Keep reviewer:user while defining an explicit bounded permitted-user lookup/label contract shared by browser and MCP, fed by declared authorized Employee data rather than global accounts. This could help other user assignments and keep account-valued evidence, but adds checker/runtime/presentation responsibilities and must not infer grants or name disclosure.",
+          "unresolved": "Preserve the current boundary while obtaining a bounded staff-selection trial and clarifying what a directory grant means. This avoids choosing on unsupported assumptions, but delays resolving ordinary selection friction and requires trial effort."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "reviewer_selection": {
+        "type": "choice",
+        "choice": "bounded_directory",
+        "confidence": 0.24,
+        "probabilities": {
+          "employee_reference": 0.25,
+          "unresolved": 0.16,
+          "bounded_directory": 0.44,
+          "opaque_ids": 0.15
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 902,
+      "output_tokens": 55
+    }
+  }
+}

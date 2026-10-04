@@ -1,0 +1,59 @@
+--- /Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/change-1/app.can
++++ /Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/change-2/app.can
+@@ -5,7 +5,7 @@
+  Employee { user:user unique label="Employee", department:enum(A,B,C) label={text="Department",values={A="Department A",B="Department B",C="Department C"}}, manager:bool=false label="Department manager", enabled:bool=true } label="Department assignment"
+  policy Employee read=members where=owner or row.user==actor
+  lock Employee fields=user
+- Request { title:text trim min=1 max=200 label="Request", archive_reason:text? trim min=1 label="Archive reason", note:text? label="Note", submitted_by:user server=actor label="Request owner", department:Employee.department? server=first(Employee as employee where employee.user==actor and employee.enabled)?.department label="Department" } label="Equipment request"
++ Request { title:text trim min=1 max=120 label="Request", archive_reason:text? trim min=1 label="Archive reason", details:text? label="Details", cost_centre:text? max=40 label="Cost centre", submitted_by:user server=actor label="Request owner", department:Employee.department? server=first(Employee as employee where employee.user==actor and employee.enabled)?.department label="Department" } label="Equipment request"
+  ## Nullable lookup representation permits an absent assignment to be rejected, never stored as a departmentless request.
+  invariant Request: row.department!=null
+  invariant Request: row.archived_at==null or row.archive_reason!=null
+@@ -21,14 +21,19 @@
+ When
+  ## The owner maintains current department assignments through browser forms or the same MCP CRUD.
+  crud Employee by=owner fields=department,manager,enabled create_fields=user,department,manager,enabled delete=none when=active_member(row.user,team)
+- crud Request by=members fields=title,note when=row.submitted_by==actor and row.archived_at==null and any(Employee as employee,employee.user==actor and employee.enabled) label={delete="Archive"}
++ crud Request by=members fields=title,details,cost_centre when=row.submitted_by==actor and row.archived_at==null and any(Employee as employee,employee.user==actor and employee.enabled) label={delete="Archive"}
+   examples create seed=[current_employee]
+-   as,title,note -> count(Request),first(Request)?.title,first(Request)?.submitted_by,first(Request)?.department
++   as,title,details -> count(Request),first(Request)?.title,first(Request)?.submitted_by,first(Request)?.department
+    members,"  Monitor  ",null -> 1,"Monitor",self,A
+    members,"   ",null -> error(validation)
+    public,"Monitor",null -> error(forbidden)
++  examples create seed=[current_employee]
++   as,title,cost_centre -> count(Request)
++   members,"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",null -> error(validation)
++   members,"Monitor","ccccccccccccccccccccccccccccccccccccccccc" -> error(validation)
++   members,"Monitor","Dept-A" -> 1
+   examples update record=mine seed=[current_employee]
+-   as,changes.title,changes.note,request.record.version -> mine.title,mine.note,mine.version
++   as,changes.title,changes.details,request.record.version -> mine.title,mine.details,mine.version
+    members,"  Wide monitor  ","For desk",1 -> "Wide monitor","For desk",2
+    members,"Monitor",null,0 -> error(conflict)
+    members,"   ",null,1 -> error(validation)
+@@ -64,10 +69,10 @@
+    owner,false -> 1,0
+    public,false -> error(forbidden)
+  # Find readable exact-title candidates before explicitly choosing whether to create a new request.
+- scenario duplicates(title:Request.title,note:Request.note) by=members read=true -> Request[]
++ scenario duplicates(title:Request.title,details:Request.details) by=members read=true -> Request[]
+   do return Request archived=include as request where request.title==title
+   examples seed=[current_employee,mine,colleague_a,colleague_b]
+-   as,title,note -> count(result)
++   as,title,details -> count(result)
+    members,"  Monitor  ",null -> 1
+    members,"Dock",null -> 0
+ Then
+@@ -78,9 +83,9 @@
+    form Request.create import=csv review=duplicates display=inline
+   card "Your requests and managed departments"
+    tabs preferences.view
+-   table Request archived=include as request where preferences.view==all or (preferences.view==open and request.archived_at==null) or (preferences.view==archived and request.archived_at!=null) columns=title,note,department,submitted_by,archived_at order=-created search=title,note filter=department,archived_at display=split empty="No matching requests."
++   table Request archived=include as request where preferences.view==all or (preferences.view==open and request.archived_at==null) or (preferences.view==archived and request.archived_at!=null) columns=title,details,cost_centre,department,submitted_by,archived_at order=-created search=title,details filter=department,archived_at display=split empty="No matching requests."
+     details "Request evidence"
+-     text row.title,row.note,row.department,row.submitted_by,row.archived_at,row.archive_reason
++     text row.title,row.details,row.cost_centre,row.department,row.submitted_by,row.archived_at,row.archive_reason
+      history
+     card "Manage your open request"
+      require row.submitted_by==actor and row.archived_at==null

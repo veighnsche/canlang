@@ -1,0 +1,74 @@
+{
+  "request": {
+    "state": "Use the following declared facts and hypothetical assumptions to choose a prospective product-value course for each company. Do not research, roleplay customer testimony or count unfinished implementation as a defect. The scenario is that Can's stated compiler/shared runtime/providers/browser/MCP contracts have been implemented. Inspectable app omissions remain to be addressed, and future operation/user acceptance and total engineering economics are unknown. Facts were reviewed against baseline-20261004T041647Z/snapshot plus saved independent experiments; the company cases are invented.\n\nCompany P:25 staff,3 departments,500 equipment requests,80 expenses per month,2,000 prior records and receipts. Authorized staff act through browser/chatbot; the operations approver decides policy, finance owns reimbursement-evidence meaning, and an external steward runs setup/upgrades/incidents. Nonprogrammers approve outcomes. Essential paths are employee-private intake/edit/archive, current department-manager visibility, version conflict, guarded partial CSV import/export, immutable submitted receipt evidence, a genuinely authorized distinct reviewer, rejection/correction history and truthful reimbursement record. Keep bank/payment/accounting/payroll and ordinary corporate email separate. Pinned Can storage/auth/team/UI/MCP and model/operation policies describe those tasks, with no needless outgoing provider for the smallest request app. Two independent authoring subjects produced Can/Django drafts covering8 request cases but assumed different private-option/duplicates/limits. That evidence supports a bounded authoring observation, not equal-behavior source or full-task-token victory. Their later constrained-title edits both stop when old immutable archived titles are too long; historical disposition is a company responsibility on either approach, not solely a Can problem. A real baseline expense gap allows an active/work-scoped colleague who has no reviewer-role grant to receive a locked submitted claim; role eligibility plus narrow post-revocation recovery require correction. Selecting a recognizable reviewer with limited directory disclosure needs investigation; unusability has not been demonstrated. A subsequent >EUR500 finance-review workflow is expressible, but its three-person successful BDD case lacks a third same-team identity in the specified two-account fixtures; this is a bounded test-authoring contract gap.\n\nCompany W:2 sites,12 workers,120 client organizations,600 members,30 rooms,100 pooled desks;3,000 bookings,500 invoices,300 physical items and30,000 notices per month. Its director controls service continuity, a hired technical steward handles lifecycle/provider work, and customer company administrators/members have restricted portal permissions. A complete relevant subscription replacement needs shared identity/customer data, immutable proposal terms, room reservation, exact invoice collection, membership/reception, custody/mail, accurate scoped historical reporting, historical migration and coordinated failure recovery. Combine several Can apps into one company solution with a possible common deployment; count only one actually avoidable suite bill and leave unused suite features out. Retain accounting/payroll, processor, email/domain/access services and technical support as needed. Commercial/mail drafts express current authority, frozen terms, receipt versus payment/custody and replay distinctions. Specific remaining source issues are: all-or-nothing100-item expiry loops cannot advance101 matching holds; historical Delegate verification requirement prevents ordinary verification revocation; incomplete fresh checkpoint can masquerade as zero in reporting; and otherwise optional manual-evidence/no-fee Mail still installs member/invoice dependencies. Each room-policy snapshot embeds retained booking history, giving B(B+1)/2 logical values for B sequential bookings—5,050 when100 and500,500 when1000—not a benchmark or tariff. Removing same-operation duplicate snapshots reduces a constant factor; using smaller immutable facts adds exact reconstruction responsibilities. Current role/admission/per-record work/checkpoint constructs can correct narrow business cases; matching behavior and ownership-cost evidence has not settled the optional connection or history remedy ranking. Passing selected paths is insufficient to remove the whole suite unless remaining membership/reception/import requirements also pass. Historical locked records/files require a bounded steward import plan or retained old read-only archive, beyond normal CSV. Rent handwritten JavaScript also misconstrues minor-sum input to a currency-unit constructor and skips typed checked-money operations in some places; repair the desired target pattern without asserting an implemented compiler or measured money error. Valid source minor-unit integer access is separate.\n\nCompany S:40 employees,15 field workers,200 jobs/week,5,000 assets. Inspections/assignments/stock receipts/reports are ordinary record candidates. Offline maps and fleet-route planning are REQUIRED but outside Can's CRUD-centered foundation, so full field-suite replacement is not supported. A small inspection module would coexist with paid offline/routing software, with integration/source ownership/recovery obligations. No module-specific avoidable fee or verified employee time gain is supplied.\n\nCompare financial alternatives over24 future months using hypothetical USD units, not market quotations. P's avoidable fee is450/month: under low support incremental setup740 plus40/month with1month overlap yields8,650 savings; under high2420 plus355/month with2 overlap yields -1,040. W's truly cancellable fee is900/month: low incremental5220 plus150/month with2 overlap yields10,980; high15140 plus1015/month with4 overlap yields -21,500. Assumed labor is100/h steward and35/h employee/admin; Can stewardship is1-4h/month P and4-12 W. Both incumbent future configuration/support and Can migration/training/overlap/platform/providers/people are included, with nonzero shared-platform funding rather than rebuilding all platform code per adopter. Current official provider figures are5/month per shared Workers account and9.45 extra for W30k emails, totaling14.45 base+mail before other usage, payments, domain/backup/platform/support. Email is Beta and sender/quota approval is conditional. Paid D1 recovers its own past30days, not files/code/external transactions. Clarify the already specified stopped/fenced release maintenance and whole source/data/file/config restore/runbook, and apply unresolved-work/receipt namespace preservation to configuration-only adapter/account changes. Restoring old payment rows cannot reverse money. Buyer residency, incident targets and security governance require validation; no compliance guarantee is given.\n\nAvailable next strategies: keep and configure current subscriptions with no Can spend this round; authorize a limited eventual Can validation pilot while retaining tools and making no replacement commitment; or fund a full composed-replacement programme while postponing actual cutover until unchanged coverage/cost/continuity criteria are satisfied. Bounded future pilots retain existing fees and require nonzero, presently unquoted steward/staff/provider/setup effort. A quote and enforceable scope/budget cap are prerequisites to spending; pilot value may be below its cost. Candidate scope is separate P register/expense-decision inspection, W noncutover commercial/mail/report shadow work, or S independent inspections alongside route/offline tools. There is no assumed cheap allowance or complete-system delivery quote. Give all strategies equal scrutiny for staff usefulness, mandatory coverage, incumbent configuration possibilities, support/control, switching continuity, evidence quality and uncertain savings. A classification cannot establish actual company adoption.",
+    "questions": {
+      "P": {
+        "type": "choice",
+        "instructions": "Determine P's next resource choice given the prospective product facts and450/month avoidance with uncertain low versus high stewardship.",
+        "criteria": {
+          "retain": "For now rely on current subscriptions and their configuration, with zero allocation to Can work.",
+          "pilot": "Obtain a cost quote/cap for only the proposed future P evidence-gathering pilot; keep incumbents and postpone commitment to replace.",
+          "replace": "Commit to delivering the complete composed P alternative now, budget for corrections and stewardship, and allow migration only when the identical acceptance and cost conditions are met."
+        }
+      },
+      "W": {
+        "type": "choice",
+        "instructions": "Classify W's justified next commitment considering900/month possible cancellation, all required composed paths and the stated source/ownership uncertainty.",
+        "criteria": {
+          "retain": "Keep/adapt current tools this round and devote no funds to Can, bearing the current recurring arrangement.",
+          "pilot": "Allow only the specified noncutover future W shadow evaluation, retain live incumbent workflows and withhold a replacement commitment.",
+          "replace": "Commit a budget for complete W replacement by composed apps now, maintain needed integrations, and delay cutover until the same full-workflow/migration/recovery and economic requirements pass."
+        }
+      },
+      "S": {
+        "type": "choice",
+        "instructions": "Select an investment direction for S without pretending Can supplies required offline/routing or established partial-module savings.",
+        "criteria": {
+          "retain": "Use the present configurable field suite with no Can funding at this stage.",
+          "pilot": "Invest solely in the limited future inspection-record experiment while keeping route/offline subscriptions; defer any replacement programme and full-suite-saving claim.",
+          "replace": "Commit now to a partial Can inspection/record programme while retaining essential offline/routing tools, with migration/support and fixed acceptance gates but no measured cancellation or staff-time value."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "P": {
+        "type": "choice",
+        "choice": "pilot",
+        "confidence": 0.95,
+        "probabilities": {
+          "replace": 0.0,
+          "retain": 0.03,
+          "pilot": 0.97
+        }
+      },
+      "W": {
+        "type": "choice",
+        "choice": "pilot",
+        "confidence": 0.89,
+        "probabilities": {
+          "pilot": 0.93,
+          "retain": 0.02,
+          "replace": 0.05
+        }
+      },
+      "S": {
+        "type": "choice",
+        "choice": "pilot",
+        "confidence": 0.62,
+        "probabilities": {
+          "pilot": 0.75,
+          "retain": 0.24,
+          "replace": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 2315,
+      "output_tokens": 114
+    }
+  }
+}

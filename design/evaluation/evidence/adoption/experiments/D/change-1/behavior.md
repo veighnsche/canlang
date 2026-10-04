@@ -1,0 +1,3 @@
+# Change 1 behavior expectations (draft, unexecuted)
+
+All initial ownership/private/manager/version/CSV outcomes remain. The input caption, browser list caption, MCP disclosure labels and export caption are Request while the machine field remains title. Archive is still the one canonical mutate action, now requiring a trimmed nonempty reason. Blank reason fails without state/version/evidence mutation. A valid reason is retained in the archived record and attributable archive snapshot. Archive/update on an already archived request still fails; no later action can replace the reason. Stale version still conflicts before reason validation. Required browser reason input and MCP reason parameter both call that same action.

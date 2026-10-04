@@ -1,0 +1,282 @@
+{
+  "authority": "official documentation and pinned experiment request",
+  "full_documentation_read": false,
+  "entries": [
+    {
+      "path": "AGENTS.md",
+      "version": "workspace observed 2026-10-04",
+      "read": "entire file",
+      "bytes": 1299,
+      "sha256": "58c76f42e3129422a6f45e35803d91eb90b9e7656bd6b60e813de2e342b691aa"
+    },
+    {
+      "path": "design/evaluation/evidence/adoption/experiment-protocol.md",
+      "version": "pinned 2026-10-04",
+      "read": "entire file; only first-app Variant D executed",
+      "bytes": 6619,
+      "sha256": "c4b2b7f8dff1a19d6df40bf2c73f257bc1b5f8279d1451c17c65b56bc4f626ab"
+    },
+    {
+      "url": "https://docs.djangoproject.com/en/5.2/topics/auth/default/",
+      "version": "Django 5.2",
+      "read_ranges": [
+        [
+          0,
+          526
+        ]
+      ],
+      "selected_ranges": [
+        [
+          54,
+          137
+        ],
+        [
+          264,
+          414
+        ]
+      ],
+      "purpose": "default users/password authentication, request.user, login_required and LoginView",
+      "retrieved_utc_date": "2026-10-04",
+      "range_numbering": "zero-based web tool rendered lines; ranges inclusive; disjoint excerpts, not complete docs"
+    },
+    {
+      "url": "https://docs.djangoproject.com/en/5.2/topics/forms/modelforms/",
+      "version": "Django 5.2",
+      "read_ranges": [
+        [
+          82,
+          244
+        ]
+      ],
+      "selected_ranges": [
+        [
+          121,
+          128
+        ],
+        [
+          179,
+          206
+        ],
+        [
+          225,
+          244
+        ]
+      ],
+      "purpose": "explicit ModelForm field whitelist, generated validation and instance save contracts",
+      "retrieved_utc_date": "2026-10-04",
+      "range_numbering": "zero-based web tool rendered lines; ranges inclusive; disjoint excerpts, not complete docs"
+    },
+    {
+      "url": "https://docs.djangoproject.com/en/5.2/topics/db/transactions/",
+      "version": "Django 5.2",
+      "read_ranges": [
+        [
+          66,
+          201
+        ]
+      ],
+      "selected_ranges": [
+        [
+          99,
+          151
+        ]
+      ],
+      "purpose": "atomic blocks, nested savepoints and catch errors outside atomic boundary",
+      "retrieved_utc_date": "2026-10-04",
+      "range_numbering": "zero-based web tool rendered lines; ranges inclusive; disjoint excerpts, not complete docs"
+    },
+    {
+      "url": "https://docs.djangoproject.com/en/5.2/ref/models/querysets/",
+      "version": "Django 5.2",
+      "read_ranges": [
+        [
+          2551,
+          2699
+        ],
+        [
+          1161,
+          1204
+        ]
+      ],
+      "selected_ranges": [
+        [
+          1161,
+          1190
+        ],
+        [
+          2555,
+          2560
+        ]
+      ],
+      "purpose": "Q objects and PostgreSQL row-lock backend contract; SQLite limits",
+      "retrieved_utc_date": "2026-10-04",
+      "range_numbering": "zero-based web tool rendered lines; ranges inclusive; disjoint excerpts, not complete docs"
+    },
+    {
+      "url": "https://docs.djangoproject.com/en/5.2/topics/signing/",
+      "version": "Django 5.2",
+      "read_ranges": [
+        [
+          88,
+          254
+        ]
+      ],
+      "selected_ranges": [
+        [
+          139,
+          205
+        ]
+      ],
+      "purpose": "timestamped signed JSON with max_age",
+      "retrieved_utc_date": "2026-10-04",
+      "range_numbering": "zero-based web tool rendered lines; ranges inclusive; disjoint excerpts, not complete docs"
+    },
+    {
+      "url": "https://docs.djangoproject.com/en/5.2/topics/async/",
+      "version": "Django 5.2",
+      "read_ranges": [
+        [
+          99,
+          318
+        ]
+      ],
+      "selected_ranges": [
+        [
+          130,
+          155
+        ],
+        [
+          174,
+          181
+        ],
+        [
+          200,
+          269
+        ]
+      ],
+      "purpose": "single synchronous transaction operation behind thread_sensitive sync_to_async",
+      "retrieved_utc_date": "2026-10-04",
+      "range_numbering": "zero-based web tool rendered lines; ranges inclusive; disjoint excerpts, not complete docs"
+    },
+    {
+      "url": "https://github.com/modelcontextprotocol/python-sdk",
+      "version": "unversioned repository landing page",
+      "read": "title/metadata only; not claimed as full source context",
+      "retrieved_utc_date": "2026-10-04",
+      "range_numbering": "zero-based web tool rendered lines; ranges inclusive; disjoint excerpts, not complete docs"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/modelcontextprotocol/python-sdk/v1.26.0/README.md",
+      "version": "MCP Python SDK v1.26.0",
+      "read_ranges": [
+        [
+          17,
+          75
+        ],
+        [
+          282,
+          305
+        ],
+        [
+          315,
+          328
+        ],
+        [
+          383,
+          409
+        ],
+        [
+          411,
+          527
+        ],
+        [
+          549,
+          558
+        ],
+        [
+          575,
+          603
+        ],
+        [
+          795,
+          1206
+        ],
+        [
+          1459,
+          1487
+        ],
+        [
+          1489,
+          1537
+        ]
+      ],
+      "selected_ranges": [
+        [
+          282,
+          303
+        ],
+        [
+          411,
+          500
+        ],
+        [
+          895,
+          958
+        ],
+        [
+          1072,
+          1206
+        ]
+      ],
+      "purpose": "FastMCP tool declaration, structured dictionaries, direct stdio/server transport and separate OAuth requirements",
+      "retrieved_utc_date": "2026-10-04",
+      "range_numbering": "zero-based web tool rendered lines; ranges inclusive; disjoint excerpts, not complete docs"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/modelcontextprotocol/python-sdk/v1.26.0/src/mcp/server/fastmcp/server.py",
+      "version": "MCP Python SDK v1.26.0",
+      "read_ranges": [
+        [
+          169,
+          485
+        ]
+      ],
+      "selected_ranges": [
+        [
+          262,
+          281
+        ],
+        [
+          320,
+          323
+        ],
+        [
+          414,
+          469
+        ]
+      ],
+      "purpose": "explicit stdio transport accepted; async SDK tool dispatch",
+      "retrieved_utc_date": "2026-10-04",
+      "range_numbering": "zero-based web tool rendered lines; ranges inclusive; disjoint excerpts, not complete docs"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/modelcontextprotocol/python-sdk/v1.26.0/src/mcp/server/fastmcp/utilities/func_metadata.py",
+      "version": "MCP Python SDK v1.26.0",
+      "read_ranges": [
+        [
+          0,
+          322
+        ]
+      ],
+      "selected_ranges": [
+        [
+          67,
+          86
+        ]
+      ],
+      "purpose": "sync tool calls execute directly on async handler; requires Django thread adapter",
+      "retrieved_utc_date": "2026-10-04",
+      "range_numbering": "zero-based web tool rendered lines; ranges inclusive; disjoint excerpts, not complete docs"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# Change 1 schema note
+
+Prior artifact: ../initial/equipment/models.py. Add Request.archive_reason TextField(blank=True,default="",editable=False); alter title presentation verbose_name to Request. Generate prospective AddField/AlterField operations only after pinning an actual project migration predecessor. Existing archived records would retain empty reason and must be distinguished as legacy evidence, never populated with invented reasons; this artifact has no installed data. New canonical archives require a real reason. App APIs expose no modification of archive_reason or Evidence; database operators remain privileged.

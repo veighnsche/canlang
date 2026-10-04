@@ -1,0 +1,1442 @@
+{
+  "method": "tiktoken 0.12.0 reference encodings; saved artifact sizes only. Neither exact GPT6 tokens nor full prompt/reasoning/output usage. Context excerpts differ in completeness; no total-task token ratio. Source includes behavior examples/tests; whole snapshots are not newly authored text. No equivalence inferred from counts.",
+  "variants": {
+    "C": {
+      "initial": {
+        "source": {
+          "files": [
+            {
+              "path": "C/initial.can",
+              "bytes": 5425,
+              "lines": 80,
+              "sha256": "11e3d7456ff056d2c1b4875d701ec130e2a51e8c36b3b65ecbe0a52f8efbea01",
+              "o200k_base": 1185,
+              "cl100k_base": 1184
+            }
+          ],
+          "total": {
+            "bytes": 5425,
+            "lines": 80,
+            "o200k_base": 1185,
+            "cl100k_base": 1184
+          }
+        },
+        "other_artifacts": {
+          "files": [],
+          "total": {
+            "bytes": 0,
+            "lines": 0,
+            "o200k_base": 0,
+            "cl100k_base": 0
+          }
+        }
+      },
+      "change-1": {
+        "source": {
+          "files": [
+            {
+              "path": "C/change-1/app.can",
+              "bytes": 6447,
+              "lines": 94,
+              "sha256": "67b73f4fccf5a721425e92bac19f100306d8c2c65a67339774d53744a7bae0ee",
+              "o200k_base": 1406,
+              "cl100k_base": 1404
+            }
+          ],
+          "total": {
+            "bytes": 6447,
+            "lines": 94,
+            "o200k_base": 1406,
+            "cl100k_base": 1404
+          }
+        },
+        "other_artifacts": {
+          "files": [
+            {
+              "path": "C/change-1/notes.md",
+              "bytes": 135,
+              "lines": 2,
+              "sha256": "2001cdc1a55536cb91561b09250117d738f417efbebb93e9d1be50bb9e7fe316",
+              "o200k_base": 26,
+              "cl100k_base": 25
+            },
+            {
+              "path": "C/change-1/source.diff",
+              "bytes": 4634,
+              "lines": 62,
+              "sha256": "6158f4e0749c24af2a06210ebbe4e451a506a22425852ae5324a96a58416edaf",
+              "o200k_base": 1071,
+              "cl100k_base": 1061
+            }
+          ],
+          "total": {
+            "bytes": 4769,
+            "lines": 64,
+            "o200k_base": 1097,
+            "cl100k_base": 1086
+          }
+        }
+      },
+      "change-2": {
+        "source": {
+          "files": [
+            {
+              "path": "C/change-2/app.can",
+              "bytes": 6935,
+              "lines": 99,
+              "sha256": "2c80bce8ea85cb93cd0a6b7995f4b879d66eecdf7bb770961c6cde06a4f54af1",
+              "o200k_base": 1508,
+              "cl100k_base": 1506
+            }
+          ],
+          "total": {
+            "bytes": 6935,
+            "lines": 99,
+            "o200k_base": 1508,
+            "cl100k_base": 1506
+          }
+        },
+        "other_artifacts": {
+          "files": [
+            {
+              "path": "C/change-2/notes.md",
+              "bytes": 178,
+              "lines": 2,
+              "sha256": "63c811ccf4721ead52491b42c252dc31059d6a481335c18e5b077ed0132d9930",
+              "o200k_base": 33,
+              "cl100k_base": 32
+            },
+            {
+              "path": "C/change-2/source.diff",
+              "bytes": 5389,
+              "lines": 59,
+              "sha256": "0d61458eb9e285f98ff271c130daeca169c3f7d9d67f4956f92d26c4a2ec854f",
+              "o200k_base": 1249,
+              "cl100k_base": 1235
+            },
+            {
+              "path": "C/change-2/transition.md",
+              "bytes": 3765,
+              "lines": 28,
+              "sha256": "fd2803efa269aeb29f4c7fe207ad937b91ea1e0e14fe42117d91fee88f3e704b",
+              "o200k_base": 708,
+              "cl100k_base": 708
+            }
+          ],
+          "total": {
+            "bytes": 9332,
+            "lines": 89,
+            "o200k_base": 1990,
+            "cl100k_base": 1975
+          }
+        }
+      },
+      "change-3": {
+        "source": {
+          "files": [
+            {
+              "path": "C/change-3/app.can",
+              "bytes": 9898,
+              "lines": 142,
+              "sha256": "c8483b7d453140777bbb7aff7f4ad53cf244b344060b517df51fd771295e8181",
+              "o200k_base": 2237,
+              "cl100k_base": 2235
+            }
+          ],
+          "total": {
+            "bytes": 9898,
+            "lines": 142,
+            "o200k_base": 2237,
+            "cl100k_base": 2235
+          }
+        },
+        "other_artifacts": {
+          "files": [
+            {
+              "path": "C/change-3/notes.md",
+              "bytes": 147,
+              "lines": 2,
+              "sha256": "dfb58c4f56f0297821935f17b0578ad6106b7eb9d04f339653dd386f9ef0b4a3",
+              "o200k_base": 27,
+              "cl100k_base": 26
+            },
+            {
+              "path": "C/change-3/source.diff",
+              "bytes": 6661,
+              "lines": 93,
+              "sha256": "502f301c172f1053e371f75f8071fdd3a702b65194cb69d6dc427bcb4f1ec3b1",
+              "o200k_base": 1608,
+              "cl100k_base": 1603
+            }
+          ],
+          "total": {
+            "bytes": 6808,
+            "lines": 95,
+            "o200k_base": 1635,
+            "cl100k_base": 1629
+          }
+        }
+      },
+      "saved_context": {
+        "files": [
+          {
+            "path": "C/changes-context.md",
+            "bytes": 58549,
+            "lines": 405,
+            "sha256": "a1f7c23a704697895a766ca2a83fb5f065bf98ab53b469bfe9149e15c13f055e",
+            "o200k_base": 11299,
+            "cl100k_base": 11281
+          },
+          {
+            "path": "C/context.md",
+            "bytes": 127484,
+            "lines": 909,
+            "sha256": "e811c0f8f2440cdf3bd36d4e12d7e19d7ec09f69b8b650a9d0acc024f3196297",
+            "o200k_base": 25671,
+            "cl100k_base": 25606
+          }
+        ],
+        "total": {
+          "bytes": 186033,
+          "lines": 1314,
+          "o200k_base": 36970,
+          "cl100k_base": 36887
+        }
+      },
+      "notes_and_provenance": {
+        "files": [
+          {
+            "path": "C/assumptions.md",
+            "bytes": 8988,
+            "lines": 44,
+            "sha256": "ab772aac9c520e3b8bee9841f52a6735596a7fe3e01ef85f6d3bab9165e9f88c",
+            "o200k_base": 1671,
+            "cl100k_base": 1670
+          },
+          {
+            "path": "C/changes-metadata.json",
+            "bytes": 9975,
+            "lines": 253,
+            "sha256": "ce535eb062b66a9a964c0b36b9e23129ee97ed49aff1dcb151cc9ac73c6e5b26",
+            "o200k_base": 3333,
+            "cl100k_base": 3326
+          },
+          {
+            "path": "C/changes-notes.md",
+            "bytes": 7485,
+            "lines": 39,
+            "sha256": "88d509b0f6838cc9b53bd2e31918ab163af61ed1db3d976a166cffdccdeaa029",
+            "o200k_base": 1321,
+            "cl100k_base": 1321
+          },
+          {
+            "path": "C/metadata.json",
+            "bytes": 2562,
+            "lines": 62,
+            "sha256": "cdcb4c98d743ff83dbf9c479d92954698bd18a32543f5442204a51a7ca6675a8",
+            "o200k_base": 777,
+            "cl100k_base": 771
+          },
+          {
+            "path": "C/review-changes.md",
+            "bytes": 3781,
+            "lines": 13,
+            "sha256": "79f10a3fee729e57a8a09110c9e41ac7ccd98ca060bf8baed8e02c97e97146cc",
+            "o200k_base": 680,
+            "cl100k_base": 683
+          },
+          {
+            "path": "C/supplied-docs.json",
+            "bytes": 6660,
+            "lines": 181,
+            "sha256": "e14cf867fd6bab7a9b098dc3e173207164c1babd09e83fce55ca6bbaa7dcf347",
+            "o200k_base": 2260,
+            "cl100k_base": 2254
+          }
+        ],
+        "total": {
+          "bytes": 39451,
+          "lines": 592,
+          "o200k_base": 10042,
+          "cl100k_base": 10025
+        }
+      }
+    },
+    "D": {
+      "initial": {
+        "source": {
+          "files": [
+            {
+              "path": "D/initial/equipment/__init__.py",
+              "bytes": 0,
+              "lines": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "o200k_base": 0,
+              "cl100k_base": 0
+            },
+            {
+              "path": "D/initial/equipment/chat_auth.py",
+              "bytes": 916,
+              "lines": 23,
+              "sha256": "b7e687764934438eb39bdb06510fd249f7c3b3e3d049a8701568039dfb66cb3c",
+              "o200k_base": 205,
+              "cl100k_base": 200
+            },
+            {
+              "path": "D/initial/equipment/forms.py",
+              "bytes": 915,
+              "lines": 29,
+              "sha256": "6620b8878bcef95eb8b5bb8cae15b839e653a23b92c1e24db12180bb3631f017",
+              "o200k_base": 198,
+              "cl100k_base": 195
+            },
+            {
+              "path": "D/initial/equipment/mcp_server.py",
+              "bytes": 2623,
+              "lines": 66,
+              "sha256": "b1ee5c491024a8a6e87a226e22b85059fe03c649ed12e26130ad3f5ea94dc953",
+              "o200k_base": 590,
+              "cl100k_base": 589
+            },
+            {
+              "path": "D/initial/equipment/models.py",
+              "bytes": 2367,
+              "lines": 58,
+              "sha256": "d5e76b4884d2521218d71b455a19730bf0b1cfe4957b1976f78c7793be36f8fd",
+              "o200k_base": 518,
+              "cl100k_base": 492
+            },
+            {
+              "path": "D/initial/equipment/service.py",
+              "bytes": 10553,
+              "lines": 251,
+              "sha256": "04780581597754d0ad314793ed83e4211251c5cf38a739d1abb2314960e8e6ca",
+              "o200k_base": 2376,
+              "cl100k_base": 2378
+            },
+            {
+              "path": "D/initial/equipment/templates/equipment/base.html",
+              "bytes": 1261,
+              "lines": 4,
+              "sha256": "53006c22e583656dfd23eb6518a234f841c95c2e5406b97282d6c86ab5a44237",
+              "o200k_base": 385,
+              "cl100k_base": 384
+            },
+            {
+              "path": "D/initial/equipment/templates/equipment/error.html",
+              "bytes": 228,
+              "lines": 1,
+              "sha256": "832f36500af6172a1df9866ccca5ed22d4ad6edcc1097273130179288df400d9",
+              "o200k_base": 63,
+              "cl100k_base": 63
+            },
+            {
+              "path": "D/initial/equipment/templates/equipment/form.html",
+              "bytes": 209,
+              "lines": 1,
+              "sha256": "f491f3d0b7ec57640a97cb1816530c879367479b8eddb81cd59f1732daac9a89",
+              "o200k_base": 58,
+              "cl100k_base": 58
+            },
+            {
+              "path": "D/initial/equipment/templates/equipment/intake.html",
+              "bytes": 1221,
+              "lines": 5,
+              "sha256": "1443f19de755ac3ac8bcd7de3e641dc80bb632f3961b62424305e0afab804a57",
+              "o200k_base": 302,
+              "cl100k_base": 303
+            },
+            {
+              "path": "D/initial/equipment/templates/equipment/list.html",
+              "bytes": 2118,
+              "lines": 7,
+              "sha256": "6b7c88c2e570c7cfaaf180828ca246643547f4bede01cd0134de7504352cd0cb",
+              "o200k_base": 564,
+              "cl100k_base": 561
+            },
+            {
+              "path": "D/initial/equipment/templates/equipment/token.html",
+              "bytes": 549,
+              "lines": 1,
+              "sha256": "d3a8ca02eb42d9822351ebe38829bf6f1ddcf20908322a93f15df17f168b5794",
+              "o200k_base": 113,
+              "cl100k_base": 114
+            },
+            {
+              "path": "D/initial/equipment/templates/equipment/upload.html",
+              "bytes": 369,
+              "lines": 1,
+              "sha256": "ea5d0fff0423346f1d883a0df3b4e3751c9666ddd7c7ee7eac10846644f22caa",
+              "o200k_base": 91,
+              "cl100k_base": 91
+            },
+            {
+              "path": "D/initial/equipment/templates/registration/login.html",
+              "bytes": 274,
+              "lines": 1,
+              "sha256": "184d735e851386c4c5228f3d2bf699b74751de4e3e52c9f9fc8e0bff959b22a7",
+              "o200k_base": 77,
+              "cl100k_base": 77
+            },
+            {
+              "path": "D/initial/equipment/tests.py",
+              "bytes": 8021,
+              "lines": 145,
+              "sha256": "876ee65a02b1e844ac679b83c95bb3c4364264de3d6f5b4a8fcfc05975dab57d",
+              "o200k_base": 1752,
+              "cl100k_base": 1700
+            },
+            {
+              "path": "D/initial/equipment/urls.py",
+              "bytes": 864,
+              "lines": 17,
+              "sha256": "c3eab97c120255952e671aab8e02971fcb64a9be25adf2d9d38166512e0ce42d",
+              "o200k_base": 197,
+              "cl100k_base": 195
+            },
+            {
+              "path": "D/initial/equipment/views.py",
+              "bytes": 5557,
+              "lines": 122,
+              "sha256": "5c9c5c82db35e4223a931d6b68e1d1619f978507f60923495f48039abad64d62",
+              "o200k_base": 1167,
+              "cl100k_base": 1155
+            },
+            {
+              "path": "D/initial/test_settings.py",
+              "bytes": 1095,
+              "lines": 15,
+              "sha256": "840b994719dd90c93412f24e1b2f321bc29e4676966e31afe4adde57da2f4aeb",
+              "o200k_base": 240,
+              "cl100k_base": 232
+            }
+          ],
+          "total": {
+            "bytes": 39140,
+            "lines": 747,
+            "o200k_base": 8896,
+            "cl100k_base": 8787
+          }
+        },
+        "other_artifacts": {
+          "files": [
+            {
+              "path": "D/initial/behavior.md",
+              "bytes": 2566,
+              "lines": 15,
+              "sha256": "7a854cf48e6dfac1155ed31ae8559b4e81aa757b9e1bb1397392409266809998",
+              "o200k_base": 472,
+              "cl100k_base": 473
+            },
+            {
+              "path": "D/initial/checks.json",
+              "bytes": 390,
+              "lines": 19,
+              "sha256": "84effe68e0cb200caf4d487bb6714666e635aa470365d9bcfbba59d5170cbc03",
+              "o200k_base": 109,
+              "cl100k_base": 109
+            },
+            {
+              "path": "D/initial/requirements.txt",
+              "bytes": 29,
+              "lines": 2,
+              "sha256": "71a869dc7a127ac16fc45a960a7da8f3d0dde2fef2d4125e7c3100cdc040cffc",
+              "o200k_base": 20,
+              "cl100k_base": 20
+            },
+            {
+              "path": "D/initial/wiring.md",
+              "bytes": 3376,
+              "lines": 11,
+              "sha256": "78b99b37f06fb0341fc98e5788ec5c1d37a8f1875d7ba4b5a4347bedb2448b7a",
+              "o200k_base": 636,
+              "cl100k_base": 633
+            }
+          ],
+          "total": {
+            "bytes": 6361,
+            "lines": 47,
+            "o200k_base": 1237,
+            "cl100k_base": 1235
+          }
+        }
+      },
+      "change-1": {
+        "source": {
+          "files": [
+            {
+              "path": "D/change-1/equipment/__init__.py",
+              "bytes": 0,
+              "lines": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "o200k_base": 0,
+              "cl100k_base": 0
+            },
+            {
+              "path": "D/change-1/equipment/chat_auth.py",
+              "bytes": 916,
+              "lines": 23,
+              "sha256": "b7e687764934438eb39bdb06510fd249f7c3b3e3d049a8701568039dfb66cb3c",
+              "o200k_base": 205,
+              "cl100k_base": 200
+            },
+            {
+              "path": "D/change-1/equipment/forms.py",
+              "bytes": 1037,
+              "lines": 33,
+              "sha256": "ee1fc7e814b3a4a0fef524b8c14e6c87a81d11edff96ea97239a894a9efd4ef0",
+              "o200k_base": 224,
+              "cl100k_base": 220
+            },
+            {
+              "path": "D/change-1/equipment/mcp_server.py",
+              "bytes": 2682,
+              "lines": 66,
+              "sha256": "1929ef7837d2df1d66891b1d0a7e3272e7eabf25e993aa9a001c8266a74ff0b4",
+              "o200k_base": 604,
+              "cl100k_base": 603
+            },
+            {
+              "path": "D/change-1/equipment/models.py",
+              "bytes": 2456,
+              "lines": 59,
+              "sha256": "c62493d8a675c98eecf7ab710a377e155dacc3ad8f0849cec64eb822ba36695f",
+              "o200k_base": 536,
+              "cl100k_base": 509
+            },
+            {
+              "path": "D/change-1/equipment/service.py",
+              "bytes": 10915,
+              "lines": 255,
+              "sha256": "5f09e8c5c15be9eb778e88b6c513866bd99dd8869ed557829a6e74a229327c88",
+              "o200k_base": 2449,
+              "cl100k_base": 2451
+            },
+            {
+              "path": "D/change-1/equipment/templates/equipment/base.html",
+              "bytes": 1261,
+              "lines": 4,
+              "sha256": "53006c22e583656dfd23eb6518a234f841c95c2e5406b97282d6c86ab5a44237",
+              "o200k_base": 385,
+              "cl100k_base": 384
+            },
+            {
+              "path": "D/change-1/equipment/templates/equipment/error.html",
+              "bytes": 228,
+              "lines": 1,
+              "sha256": "832f36500af6172a1df9866ccca5ed22d4ad6edcc1097273130179288df400d9",
+              "o200k_base": 63,
+              "cl100k_base": 63
+            },
+            {
+              "path": "D/change-1/equipment/templates/equipment/form.html",
+              "bytes": 209,
+              "lines": 1,
+              "sha256": "f491f3d0b7ec57640a97cb1816530c879367479b8eddb81cd59f1732daac9a89",
+              "o200k_base": 58,
+              "cl100k_base": 58
+            },
+            {
+              "path": "D/change-1/equipment/templates/equipment/intake.html",
+              "bytes": 1221,
+              "lines": 5,
+              "sha256": "1443f19de755ac3ac8bcd7de3e641dc80bb632f3961b62424305e0afab804a57",
+              "o200k_base": 302,
+              "cl100k_base": 303
+            },
+            {
+              "path": "D/change-1/equipment/templates/equipment/list.html",
+              "bytes": 2277,
+              "lines": 7,
+              "sha256": "d5730afb42aae1e02a2fbea697fcd12b88b00bcee924065b8969f4b0d471ad5d",
+              "o200k_base": 605,
+              "cl100k_base": 602
+            },
+            {
+              "path": "D/change-1/equipment/templates/equipment/token.html",
+              "bytes": 549,
+              "lines": 1,
+              "sha256": "d3a8ca02eb42d9822351ebe38829bf6f1ddcf20908322a93f15df17f168b5794",
+              "o200k_base": 113,
+              "cl100k_base": 114
+            },
+            {
+              "path": "D/change-1/equipment/templates/equipment/upload.html",
+              "bytes": 369,
+              "lines": 1,
+              "sha256": "ea5d0fff0423346f1d883a0df3b4e3751c9666ddd7c7ee7eac10846644f22caa",
+              "o200k_base": 91,
+              "cl100k_base": 91
+            },
+            {
+              "path": "D/change-1/equipment/templates/registration/login.html",
+              "bytes": 274,
+              "lines": 1,
+              "sha256": "184d735e851386c4c5228f3d2bf699b74751de4e3e52c9f9fc8e0bff959b22a7",
+              "o200k_base": 77,
+              "cl100k_base": 77
+            },
+            {
+              "path": "D/change-1/equipment/tests.py",
+              "bytes": 8974,
+              "lines": 159,
+              "sha256": "4dcdf6c885e5680c2c25110c0787c54bb816211f8c76079f263321e613299d82",
+              "o200k_base": 1962,
+              "cl100k_base": 1903
+            },
+            {
+              "path": "D/change-1/equipment/urls.py",
+              "bytes": 864,
+              "lines": 17,
+              "sha256": "c3eab97c120255952e671aab8e02971fcb64a9be25adf2d9d38166512e0ce42d",
+              "o200k_base": 197,
+              "cl100k_base": 195
+            },
+            {
+              "path": "D/change-1/equipment/views.py",
+              "bytes": 5609,
+              "lines": 122,
+              "sha256": "91c9c3801960f0e3818020faac97236ac10a67a010e8cb890ac4122575a03820",
+              "o200k_base": 1179,
+              "cl100k_base": 1166
+            },
+            {
+              "path": "D/change-1/test_settings.py",
+              "bytes": 1095,
+              "lines": 15,
+              "sha256": "840b994719dd90c93412f24e1b2f321bc29e4676966e31afe4adde57da2f4aeb",
+              "o200k_base": 240,
+              "cl100k_base": 232
+            }
+          ],
+          "total": {
+            "bytes": 40936,
+            "lines": 770,
+            "o200k_base": 9290,
+            "cl100k_base": 9171
+          }
+        },
+        "other_artifacts": {
+          "files": [
+            {
+              "path": "D/change-1/behavior.md",
+              "bytes": 728,
+              "lines": 3,
+              "sha256": "008c136204448fa140722cca77cc036ac66e4eaf8bbe78414992b46db5d5a7e1",
+              "o200k_base": 130,
+              "cl100k_base": 130
+            },
+            {
+              "path": "D/change-1/requirements.txt",
+              "bytes": 29,
+              "lines": 2,
+              "sha256": "71a869dc7a127ac16fc45a960a7da8f3d0dde2fef2d4125e7c3100cdc040cffc",
+              "o200k_base": 20,
+              "cl100k_base": 20
+            },
+            {
+              "path": "D/change-1/transition.md",
+              "bytes": 631,
+              "lines": 3,
+              "sha256": "870ef6092a322a1985a8bd9832a222f0f35927308f13d93aa2b1a1f8f1ee8fd2",
+              "o200k_base": 109,
+              "cl100k_base": 107
+            },
+            {
+              "path": "D/change-1/wiring.md",
+              "bytes": 3376,
+              "lines": 11,
+              "sha256": "78b99b37f06fb0341fc98e5788ec5c1d37a8f1875d7ba4b5a4347bedb2448b7a",
+              "o200k_base": 636,
+              "cl100k_base": 633
+            }
+          ],
+          "total": {
+            "bytes": 4764,
+            "lines": 19,
+            "o200k_base": 895,
+            "cl100k_base": 890
+          }
+        }
+      },
+      "change-2": {
+        "source": {
+          "files": [
+            {
+              "path": "D/change-2/equipment/__init__.py",
+              "bytes": 0,
+              "lines": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "o200k_base": 0,
+              "cl100k_base": 0
+            },
+            {
+              "path": "D/change-2/equipment/chat_auth.py",
+              "bytes": 916,
+              "lines": 23,
+              "sha256": "b7e687764934438eb39bdb06510fd249f7c3b3e3d049a8701568039dfb66cb3c",
+              "o200k_base": 205,
+              "cl100k_base": 200
+            },
+            {
+              "path": "D/change-2/equipment/forms.py",
+              "bytes": 1078,
+              "lines": 33,
+              "sha256": "24480b87c122d3ad1dcbcdbe74af1d3511fe4f3f462ed61915c539606fb07e05",
+              "o200k_base": 234,
+              "cl100k_base": 230
+            },
+            {
+              "path": "D/change-2/equipment/mcp_server.py",
+              "bytes": 2757,
+              "lines": 66,
+              "sha256": "aa6274c144cc864703b2f15d805f94b98b1d6527754c8737fcb56cb5ebe02cb9",
+              "o200k_base": 623,
+              "cl100k_base": 622
+            },
+            {
+              "path": "D/change-2/equipment/models.py",
+              "bytes": 2533,
+              "lines": 60,
+              "sha256": "81331b952ca7b6289843b4f11017b8d6aecc702a250b75e2f8cfea4784cc436f",
+              "o200k_base": 554,
+              "cl100k_base": 526
+            },
+            {
+              "path": "D/change-2/equipment/service.py",
+              "bytes": 11797,
+              "lines": 266,
+              "sha256": "0db6bcf5bb29fee19b8196d062d2b7b91230a2097fb74891b68c997749c14e7b",
+              "o200k_base": 2655,
+              "cl100k_base": 2657
+            },
+            {
+              "path": "D/change-2/equipment/templates/equipment/base.html",
+              "bytes": 1261,
+              "lines": 4,
+              "sha256": "53006c22e583656dfd23eb6518a234f841c95c2e5406b97282d6c86ab5a44237",
+              "o200k_base": 385,
+              "cl100k_base": 384
+            },
+            {
+              "path": "D/change-2/equipment/templates/equipment/error.html",
+              "bytes": 228,
+              "lines": 1,
+              "sha256": "832f36500af6172a1df9866ccca5ed22d4ad6edcc1097273130179288df400d9",
+              "o200k_base": 63,
+              "cl100k_base": 63
+            },
+            {
+              "path": "D/change-2/equipment/templates/equipment/form.html",
+              "bytes": 209,
+              "lines": 1,
+              "sha256": "f491f3d0b7ec57640a97cb1816530c879367479b8eddb81cd59f1732daac9a89",
+              "o200k_base": 58,
+              "cl100k_base": 58
+            },
+            {
+              "path": "D/change-2/equipment/templates/equipment/intake.html",
+              "bytes": 1221,
+              "lines": 5,
+              "sha256": "1443f19de755ac3ac8bcd7de3e641dc80bb632f3961b62424305e0afab804a57",
+              "o200k_base": 302,
+              "cl100k_base": 303
+            },
+            {
+              "path": "D/change-2/equipment/templates/equipment/list.html",
+              "bytes": 2338,
+              "lines": 7,
+              "sha256": "9b8ded26365e9b0feaeb5d9e3052808a44527dfe60aedcda2e8c7bc1d900c914",
+              "o200k_base": 623,
+              "cl100k_base": 619
+            },
+            {
+              "path": "D/change-2/equipment/templates/equipment/token.html",
+              "bytes": 549,
+              "lines": 1,
+              "sha256": "d3a8ca02eb42d9822351ebe38829bf6f1ddcf20908322a93f15df17f168b5794",
+              "o200k_base": 113,
+              "cl100k_base": 114
+            },
+            {
+              "path": "D/change-2/equipment/templates/equipment/upload.html",
+              "bytes": 369,
+              "lines": 1,
+              "sha256": "ea5d0fff0423346f1d883a0df3b4e3751c9666ddd7c7ee7eac10846644f22caa",
+              "o200k_base": 91,
+              "cl100k_base": 91
+            },
+            {
+              "path": "D/change-2/equipment/templates/registration/login.html",
+              "bytes": 274,
+              "lines": 1,
+              "sha256": "184d735e851386c4c5228f3d2bf699b74751de4e3e52c9f9fc8e0bff959b22a7",
+              "o200k_base": 77,
+              "cl100k_base": 77
+            },
+            {
+              "path": "D/change-2/equipment/tests.py",
+              "bytes": 9676,
+              "lines": 169,
+              "sha256": "0f5269db757036f806f0495f3fd4a3f75f8c30a286c2dbfc42e194d6e08451f0",
+              "o200k_base": 2130,
+              "cl100k_base": 2066
+            },
+            {
+              "path": "D/change-2/equipment/urls.py",
+              "bytes": 864,
+              "lines": 17,
+              "sha256": "c3eab97c120255952e671aab8e02971fcb64a9be25adf2d9d38166512e0ce42d",
+              "o200k_base": 197,
+              "cl100k_base": 195
+            },
+            {
+              "path": "D/change-2/equipment/views.py",
+              "bytes": 5704,
+              "lines": 123,
+              "sha256": "22610b0ad77565020ae13cefa20b3aa82a17722e91e1d854099c42ece7809eed",
+              "o200k_base": 1197,
+              "cl100k_base": 1184
+            },
+            {
+              "path": "D/change-2/test_settings.py",
+              "bytes": 1095,
+              "lines": 15,
+              "sha256": "840b994719dd90c93412f24e1b2f321bc29e4676966e31afe4adde57da2f4aeb",
+              "o200k_base": 240,
+              "cl100k_base": 232
+            },
+            {
+              "path": "D/change-2/transition_operations.py",
+              "bytes": 2136,
+              "lines": 38,
+              "sha256": "00ff9ba145f6b63826d04cf74dcfe8371e71e25475ab67ab9752004a6b7c4480",
+              "o200k_base": 432,
+              "cl100k_base": 429
+            }
+          ],
+          "total": {
+            "bytes": 45005,
+            "lines": 831,
+            "o200k_base": 10179,
+            "cl100k_base": 10050
+          }
+        },
+        "other_artifacts": {
+          "files": [
+            {
+              "path": "D/change-2/behavior.md",
+              "bytes": 799,
+              "lines": 3,
+              "sha256": "8d477f8f85ff8c5b8f4f82e9dd6c11231daf3568c156750448e0e5b2557ad460",
+              "o200k_base": 145,
+              "cl100k_base": 145
+            },
+            {
+              "path": "D/change-2/requirements.txt",
+              "bytes": 29,
+              "lines": 2,
+              "sha256": "71a869dc7a127ac16fc45a960a7da8f3d0dde2fef2d4125e7c3100cdc040cffc",
+              "o200k_base": 20,
+              "cl100k_base": 20
+            },
+            {
+              "path": "D/change-2/transition.md",
+              "bytes": 2638,
+              "lines": 9,
+              "sha256": "133e3fcfa10c0673ccc27ab02439dc73ff76b13b6ebd9e8277cafd907f94aa06",
+              "o200k_base": 476,
+              "cl100k_base": 475
+            },
+            {
+              "path": "D/change-2/wiring.md",
+              "bytes": 3376,
+              "lines": 11,
+              "sha256": "78b99b37f06fb0341fc98e5788ec5c1d37a8f1875d7ba4b5a4347bedb2448b7a",
+              "o200k_base": 636,
+              "cl100k_base": 633
+            }
+          ],
+          "total": {
+            "bytes": 6842,
+            "lines": 25,
+            "o200k_base": 1277,
+            "cl100k_base": 1273
+          }
+        }
+      },
+      "change-3": {
+        "source": {
+          "files": [
+            {
+              "path": "D/change-3/equipment/__init__.py",
+              "bytes": 0,
+              "lines": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "o200k_base": 0,
+              "cl100k_base": 0
+            },
+            {
+              "path": "D/change-3/equipment/chat_auth.py",
+              "bytes": 916,
+              "lines": 23,
+              "sha256": "b7e687764934438eb39bdb06510fd249f7c3b3e3d049a8701568039dfb66cb3c",
+              "o200k_base": 205,
+              "cl100k_base": 200
+            },
+            {
+              "path": "D/change-3/equipment/forms.py",
+              "bytes": 1664,
+              "lines": 44,
+              "sha256": "477e45736f0dd083850af08e3e485123ba4775327516a88ed503285253234eee",
+              "o200k_base": 373,
+              "cl100k_base": 371
+            },
+            {
+              "path": "D/change-3/equipment/mcp_server.py",
+              "bytes": 3728,
+              "lines": 90,
+              "sha256": "89d4ec62f8f6577783b2f76cb2c1827b658176d11ebd5716d45e7c2e960fd22e",
+              "o200k_base": 833,
+              "cl100k_base": 829
+            },
+            {
+              "path": "D/change-3/equipment/models.py",
+              "bytes": 3661,
+              "lines": 76,
+              "sha256": "d16ba85c0c36e7476dea514f9edbe588c3e0df7e4b9cb685c75951256bde06b0",
+              "o200k_base": 802,
+              "cl100k_base": 759
+            },
+            {
+              "path": "D/change-3/equipment/service.py",
+              "bytes": 15168,
+              "lines": 344,
+              "sha256": "561446a097d8157e68c8f67de59c07ef90928469adce8405983d6bdc9ee7c9eb",
+              "o200k_base": 3406,
+              "cl100k_base": 3404
+            },
+            {
+              "path": "D/change-3/equipment/templates/equipment/base.html",
+              "bytes": 1261,
+              "lines": 4,
+              "sha256": "53006c22e583656dfd23eb6518a234f841c95c2e5406b97282d6c86ab5a44237",
+              "o200k_base": 385,
+              "cl100k_base": 384
+            },
+            {
+              "path": "D/change-3/equipment/templates/equipment/detail.html",
+              "bytes": 488,
+              "lines": 1,
+              "sha256": "09ffdc80d05e1268c2ca01feaef6f1399252644743b1b8daccf721ed8ec9e0e5",
+              "o200k_base": 149,
+              "cl100k_base": 147
+            },
+            {
+              "path": "D/change-3/equipment/templates/equipment/error.html",
+              "bytes": 228,
+              "lines": 1,
+              "sha256": "832f36500af6172a1df9866ccca5ed22d4ad6edcc1097273130179288df400d9",
+              "o200k_base": 63,
+              "cl100k_base": 63
+            },
+            {
+              "path": "D/change-3/equipment/templates/equipment/form.html",
+              "bytes": 209,
+              "lines": 1,
+              "sha256": "f491f3d0b7ec57640a97cb1816530c879367479b8eddb81cd59f1732daac9a89",
+              "o200k_base": 58,
+              "cl100k_base": 58
+            },
+            {
+              "path": "D/change-3/equipment/templates/equipment/intake.html",
+              "bytes": 1221,
+              "lines": 5,
+              "sha256": "1443f19de755ac3ac8bcd7de3e641dc80bb632f3961b62424305e0afab804a57",
+              "o200k_base": 302,
+              "cl100k_base": 303
+            },
+            {
+              "path": "D/change-3/equipment/templates/equipment/list.html",
+              "bytes": 2527,
+              "lines": 7,
+              "sha256": "78e2823b5fe2efb09f90c04c0c6da716cb5dac810d83d5bdf8ebb864c1c89125",
+              "o200k_base": 679,
+              "cl100k_base": 675
+            },
+            {
+              "path": "D/change-3/equipment/templates/equipment/reviews.html",
+              "bytes": 1035,
+              "lines": 1,
+              "sha256": "f3b824e3d302ca8565e973be8a22f0a235ce5c727a81c76617ef10ded6d728d3",
+              "o200k_base": 264,
+              "cl100k_base": 262
+            },
+            {
+              "path": "D/change-3/equipment/templates/equipment/token.html",
+              "bytes": 549,
+              "lines": 1,
+              "sha256": "d3a8ca02eb42d9822351ebe38829bf6f1ddcf20908322a93f15df17f168b5794",
+              "o200k_base": 113,
+              "cl100k_base": 114
+            },
+            {
+              "path": "D/change-3/equipment/templates/equipment/upload.html",
+              "bytes": 369,
+              "lines": 1,
+              "sha256": "ea5d0fff0423346f1d883a0df3b4e3751c9666ddd7c7ee7eac10846644f22caa",
+              "o200k_base": 91,
+              "cl100k_base": 91
+            },
+            {
+              "path": "D/change-3/equipment/templates/registration/login.html",
+              "bytes": 274,
+              "lines": 1,
+              "sha256": "184d735e851386c4c5228f3d2bf699b74751de4e3e52c9f9fc8e0bff959b22a7",
+              "o200k_base": 77,
+              "cl100k_base": 77
+            },
+            {
+              "path": "D/change-3/equipment/tests.py",
+              "bytes": 12613,
+              "lines": 221,
+              "sha256": "6ef5210c30a4f99d94af64b197bcf9d7efb97dfaf108b01df7195aa63b2185e9",
+              "o200k_base": 2750,
+              "cl100k_base": 2671
+            },
+            {
+              "path": "D/change-3/equipment/urls.py",
+              "bytes": 997,
+              "lines": 19,
+              "sha256": "cd908fbde3a0b971fcdb6fca7419ed9f36db4a1fa711fe1965d3867a92191c97",
+              "o200k_base": 229,
+              "cl100k_base": 226
+            },
+            {
+              "path": "D/change-3/equipment/views.py",
+              "bytes": 6980,
+              "lines": 152,
+              "sha256": "ae82c886a80ecd39a70634cacf05f1b54e5323c94d8a5dba902072f5a367281c",
+              "o200k_base": 1456,
+              "cl100k_base": 1438
+            },
+            {
+              "path": "D/change-3/test_settings.py",
+              "bytes": 1095,
+              "lines": 15,
+              "sha256": "840b994719dd90c93412f24e1b2f321bc29e4676966e31afe4adde57da2f4aeb",
+              "o200k_base": 240,
+              "cl100k_base": 232
+            },
+            {
+              "path": "D/change-3/transition_operations.py",
+              "bytes": 2136,
+              "lines": 38,
+              "sha256": "00ff9ba145f6b63826d04cf74dcfe8371e71e25475ab67ab9752004a6b7c4480",
+              "o200k_base": 432,
+              "cl100k_base": 429
+            }
+          ],
+          "total": {
+            "bytes": 57119,
+            "lines": 1045,
+            "o200k_base": 12907,
+            "cl100k_base": 12733
+          }
+        },
+        "other_artifacts": {
+          "files": [
+            {
+              "path": "D/change-3/behavior.md",
+              "bytes": 900,
+              "lines": 3,
+              "sha256": "fa51f6326f72da0531d410e3457b6bd91fdebaa6cd3a665787cddcdfd6630a64",
+              "o200k_base": 164,
+              "cl100k_base": 164
+            },
+            {
+              "path": "D/change-3/permission-transition.md",
+              "bytes": 1662,
+              "lines": 7,
+              "sha256": "5ff282df1a7eb17672bdef8d82a0b28a3354482e9279ee9ce6e4f99b0ae7eef7",
+              "o200k_base": 315,
+              "cl100k_base": 313
+            },
+            {
+              "path": "D/change-3/requirements.txt",
+              "bytes": 29,
+              "lines": 2,
+              "sha256": "71a869dc7a127ac16fc45a960a7da8f3d0dde2fef2d4125e7c3100cdc040cffc",
+              "o200k_base": 20,
+              "cl100k_base": 20
+            },
+            {
+              "path": "D/change-3/transition.md",
+              "bytes": 2638,
+              "lines": 9,
+              "sha256": "133e3fcfa10c0673ccc27ab02439dc73ff76b13b6ebd9e8277cafd907f94aa06",
+              "o200k_base": 476,
+              "cl100k_base": 475
+            },
+            {
+              "path": "D/change-3/wiring.md",
+              "bytes": 3376,
+              "lines": 11,
+              "sha256": "78b99b37f06fb0341fc98e5788ec5c1d37a8f1875d7ba4b5a4347bedb2448b7a",
+              "o200k_base": 636,
+              "cl100k_base": 633
+            }
+          ],
+          "total": {
+            "bytes": 8605,
+            "lines": 32,
+            "o200k_base": 1611,
+            "cl100k_base": 1605
+          }
+        }
+      },
+      "saved_context": {
+        "files": [
+          {
+            "path": "D/changes-context.md",
+            "bytes": 4262,
+            "lines": 26,
+            "sha256": "c4de451514b48ab85e14f0c555362e5d338ac6351c91a1a7fc6dc34301defc3a",
+            "o200k_base": 901,
+            "cl100k_base": 895
+          },
+          {
+            "path": "D/context.md",
+            "bytes": 4613,
+            "lines": 31,
+            "sha256": "03ac175c102a8225bc8e3d48acd2069e1bfa11a9c17674cbfd447196b5200413",
+            "o200k_base": 893,
+            "cl100k_base": 890
+          }
+        ],
+        "total": {
+          "bytes": 8875,
+          "lines": 57,
+          "o200k_base": 1794,
+          "cl100k_base": 1785
+        }
+      },
+      "notes_and_provenance": {
+        "files": [
+          {
+            "path": "D/assumptions.md",
+            "bytes": 4441,
+            "lines": 12,
+            "sha256": "b351845e897d6cfd94c320dbb969cd4175118fc60784ac4e611a732f9e1f8820",
+            "o200k_base": 789,
+            "cl100k_base": 794
+          },
+          {
+            "path": "D/changes-checks.json",
+            "bytes": 690,
+            "lines": 35,
+            "sha256": "8a47a4a1e7e1f2a835728a22014ce60ef3c59b5c0341799e6243d88d3cc78dcd",
+            "o200k_base": 226,
+            "cl100k_base": 221
+          },
+          {
+            "path": "D/changes-metadata.json",
+            "bytes": 17376,
+            "lines": 498,
+            "sha256": "e57add6b231613b11041863192ce5610e6d748908a459ab385002a10e276f17c",
+            "o200k_base": 5897,
+            "cl100k_base": 5866
+          },
+          {
+            "path": "D/changes-notes.md",
+            "bytes": 4644,
+            "lines": 23,
+            "sha256": "13eed6d75ad772b8e26ab7450d91c8453d917da402d47bdce316e1cf1e472541",
+            "o200k_base": 835,
+            "cl100k_base": 837
+          },
+          {
+            "path": "D/metadata.json",
+            "bytes": 6345,
+            "lines": 183,
+            "sha256": "ab8d4db44125487f1bcbd75861f810b4158ce390ecf4abddd6834ac8a9bcb816",
+            "o200k_base": 2233,
+            "cl100k_base": 2223
+          },
+          {
+            "path": "D/review-changes.md",
+            "bytes": 2872,
+            "lines": 13,
+            "sha256": "f1880a4dd0a5a4a34fed45810301b3b38ffa9c3565490e899137b974548fa1fb",
+            "o200k_base": 513,
+            "cl100k_base": 513
+          },
+          {
+            "path": "D/review-initial.md",
+            "bytes": 3648,
+            "lines": 20,
+            "sha256": "29b4fe407eff724bec3d2fbc3368200b8485ae6a35b00428770175d8ff0013b3",
+            "o200k_base": 692,
+            "cl100k_base": 692
+          },
+          {
+            "path": "D/supplied-docs.json",
+            "bytes": 7099,
+            "lines": 282,
+            "sha256": "35e4dfffcc02d9acfef1f8136e8aeb426ca3808760ecdd6f9e15c00c1a7da2b3",
+            "o200k_base": 1846,
+            "cl100k_base": 1832
+          }
+        ],
+        "total": {
+          "bytes": 47115,
+          "lines": 1066,
+          "o200k_base": 13031,
+          "cl100k_base": 12978
+        }
+      }
+    }
+  },
+  "layout": {
+    "single": {
+      "before": {
+        "source": {
+          "files": [
+            {
+              "path": "layout/single/before/ExpenseWorkspace.can",
+              "bytes": 27473,
+              "lines": 215,
+              "sha256": "3d46217989ee84bf00552d5b6fdc0e6828b0ca1ee0ddc6c95ec8bdb415393a94",
+              "o200k_base": 6735,
+              "cl100k_base": 6759
+            }
+          ],
+          "total": {
+            "bytes": 27473,
+            "lines": 215,
+            "o200k_base": 6735,
+            "cl100k_base": 6759
+          }
+        },
+        "other_artifacts": {
+          "files": [],
+          "total": {
+            "bytes": 0,
+            "lines": 0,
+            "o200k_base": 0,
+            "cl100k_base": 0
+          }
+        }
+      },
+      "after": {
+        "source": {
+          "files": [
+            {
+              "path": "layout/single/after/ExpenseWorkspace.can",
+              "bytes": 33130,
+              "lines": 266,
+              "sha256": "5bad6dc2b616a0dc9b1b772cd74a869fa9faa477d905f9da6bf34acf0cfdec6d",
+              "o200k_base": 8090,
+              "cl100k_base": 8122
+            }
+          ],
+          "total": {
+            "bytes": 33130,
+            "lines": 266,
+            "o200k_base": 8090,
+            "cl100k_base": 8122
+          }
+        },
+        "other_artifacts": {
+          "files": [],
+          "total": {
+            "bytes": 0,
+            "lines": 0,
+            "o200k_base": 0,
+            "cl100k_base": 0
+          }
+        }
+      },
+      "saved_context": {
+        "files": [
+          {
+            "path": "layout/single/context.md",
+            "bytes": 168098,
+            "lines": 710,
+            "sha256": "bbc4d7573115e57aca46625c8b699a7828c0bfe904651540799cf1d8e9bc91ba",
+            "o200k_base": 34118,
+            "cl100k_base": 34170
+          }
+        ],
+        "total": {
+          "bytes": 168098,
+          "lines": 710,
+          "o200k_base": 34118,
+          "cl100k_base": 34170
+        }
+      },
+      "text_changes": [
+        {
+          "file": "ExpenseWorkspace.can",
+          "added_lines": 55,
+          "removed_lines": 4
+        }
+      ]
+    },
+    "packages": {
+      "before": {
+        "source": {
+          "files": [
+            {
+              "path": "layout/packages/before/CanExpense.can",
+              "bytes": 13335,
+              "lines": 122,
+              "sha256": "71f89e2f253c7d7bfabd3d896ea0d8bf7512ba98928d38fe02dba2dbd5aed666",
+              "o200k_base": 3193,
+              "cl100k_base": 3246
+            },
+            {
+              "path": "layout/packages/before/Employees.can",
+              "bytes": 3073,
+              "lines": 26,
+              "sha256": "5af7826104ec480d11e55b0970408947ceb7ba00ca7f3abdaca4f0a1a0d63970",
+              "o200k_base": 732,
+              "cl100k_base": 758
+            },
+            {
+              "path": "layout/packages/before/Locations.can",
+              "bytes": 11063,
+              "lines": 65,
+              "sha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+              "o200k_base": 2810,
+              "cl100k_base": 2755
+            }
+          ],
+          "total": {
+            "bytes": 27471,
+            "lines": 213,
+            "o200k_base": 6735,
+            "cl100k_base": 6759
+          }
+        },
+        "other_artifacts": {
+          "files": [],
+          "total": {
+            "bytes": 0,
+            "lines": 0,
+            "o200k_base": 0,
+            "cl100k_base": 0
+          }
+        }
+      },
+      "after": {
+        "source": {
+          "files": [
+            {
+              "path": "layout/packages/after/CanExpense.can",
+              "bytes": 19777,
+              "lines": 177,
+              "sha256": "e3b8e3e4eae3e9860b3fe1b61fb5216b54ea600beb113f00b0ac5021087afdde",
+              "o200k_base": 4712,
+              "cl100k_base": 4782
+            },
+            {
+              "path": "layout/packages/after/Employees.can",
+              "bytes": 3073,
+              "lines": 26,
+              "sha256": "5af7826104ec480d11e55b0970408947ceb7ba00ca7f3abdaca4f0a1a0d63970",
+              "o200k_base": 732,
+              "cl100k_base": 758
+            },
+            {
+              "path": "layout/packages/after/Locations.can",
+              "bytes": 11063,
+              "lines": 65,
+              "sha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+              "o200k_base": 2810,
+              "cl100k_base": 2755
+            }
+          ],
+          "total": {
+            "bytes": 33913,
+            "lines": 268,
+            "o200k_base": 8254,
+            "cl100k_base": 8295
+          }
+        },
+        "other_artifacts": {
+          "files": [],
+          "total": {
+            "bytes": 0,
+            "lines": 0,
+            "o200k_base": 0,
+            "cl100k_base": 0
+          }
+        }
+      },
+      "saved_context": {
+        "files": [
+          {
+            "path": "layout/packages/context.md",
+            "bytes": 213507,
+            "lines": 783,
+            "sha256": "c504306e77352284e6f0b35dfa657d0d7b8436272cba42eb3c90ac7174d56597",
+            "o200k_base": 42979,
+            "cl100k_base": 43002
+          }
+        ],
+        "total": {
+          "bytes": 213507,
+          "lines": 783,
+          "o200k_base": 42979,
+          "cl100k_base": 43002
+        }
+      },
+      "text_changes": [
+        {
+          "file": "CanExpense.can",
+          "added_lines": 58,
+          "removed_lines": 3
+        }
+      ]
+    }
+  },
+  "provider": {
+    "source": {
+      "files": [
+        {
+          "path": "provider/CanMail.can",
+          "bytes": 32108,
+          "lines": 293,
+          "sha256": "383a76255b370698b5d0e7db108379f389c32a3bb4c202ff64fbbe94c83d576d",
+          "o200k_base": 7557,
+          "cl100k_base": 7725
+        }
+      ],
+      "total": {
+        "bytes": 32108,
+        "lines": 293,
+        "o200k_base": 7557,
+        "cl100k_base": 7725
+      }
+    },
+    "other_artifacts": {
+      "files": [
+        {
+          "path": "provider/replacement.md",
+          "bytes": 6901,
+          "lines": 40,
+          "sha256": "384a5b152d483bc7bd731ecf6c9f07ec04a22b17e3db8c4bef39edefa28aa809",
+          "o200k_base": 1290,
+          "cl100k_base": 1294
+        }
+      ],
+      "total": {
+        "bytes": 6901,
+        "lines": 40,
+        "o200k_base": 1290,
+        "cl100k_base": 1294
+      }
+    }
+  }
+}

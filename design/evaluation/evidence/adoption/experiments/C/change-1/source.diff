@@ -1,0 +1,62 @@
+--- /Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/initial.can
++++ /Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/C/change-1/app.can
+@@ -5,9 +5,11 @@
+  Employee { user:user unique label="Employee", department:enum(A,B,C) label={text="Department",values={A="Department A",B="Department B",C="Department C"}}, manager:bool=false label="Department manager", enabled:bool=true } label="Department assignment"
+  policy Employee read=members where=owner or row.user==actor
+  lock Employee fields=user
+- Request { title:text trim min=1 max=200, note:text? label="Note", submitted_by:user server=actor label="Request owner", department:Employee.department? server=first(Employee as employee where employee.user==actor and employee.enabled)?.department label="Department" } label="Equipment request"
++ Request { title:text trim min=1 max=200 label="Request", archive_reason:text? trim min=1 label="Archive reason", note:text? label="Note", submitted_by:user server=actor label="Request owner", department:Employee.department? server=first(Employee as employee where employee.user==actor and employee.enabled)?.department label="Department" } label="Equipment request"
+  ## Nullable lookup representation permits an absent assignment to be rejected, never stored as a departmentless request.
+  invariant Request: row.department!=null
++ invariant Request: row.archived_at==null or row.archive_reason!=null
++ lock Request fields=archive_reason when=row.archive_reason!=null
+  lock Request fields=submitted_by,department
+  policy Request read=members where=row.submitted_by==actor or any(Employee as employee,employee.user==actor and employee.enabled and employee.manager and employee.department==row.department)
+  preferences { view:enum(open,archived,all)=open label={text="Request state",values={open="Open",archived="Archived",all="All"}} }
+@@ -33,13 +35,25 @@
+   examples update record=colleague_a seed=[current_employee]
+    as,changes.title -> colleague_a.title
+    members,"Changed claim" -> error(rule_failed)
++  ## Direct canonical delete cannot bypass archive evidence; the final invariant rejects it.
+   examples delete record=mine seed=[current_employee]
+-   as,request.record.version -> mine.archived_at!=null,mine.title,mine.version
+-   members,1 -> true,"Monitor",2
+-   members,0 -> error(conflict)
+-  examples delete record=colleague_a seed=[current_employee]
+-   as -> colleague_a.archived_at!=null
+-   members -> error(rule_failed)
++   as,request.record.version -> mine.archived_at!=null
++   members,1 -> error(rule_failed)
++ # Archive your open request with a trimmed nonempty reason, preserving its claim and evidence.
++ scenario archive(request:Request,reason:text) by=members label="Archive with reason"
++  require request.submitted_by==actor and request.archived_at==null
++  require trim(reason)!="" message="Enter an archive reason."
++  do
++   set request {archive_reason=trim(reason)}
++   call Request.delete {record=request}
++  examples request=mine seed=[current_employee]
++   as,reason,request.request.version -> mine.archived_at!=null,mine.title,mine.archive_reason,mine.version
++   members,"  No longer needed  ",1 -> true,"Monitor","No longer needed",2
++   members,"   ",1 -> error(rule_failed)
++   members,"No longer needed",0 -> error(conflict)
++  examples request=colleague_a seed=[current_employee]
++   as,reason -> colleague_a.archived_at!=null
++   members,"Change another claim" -> error(rule_failed)
+  # Read authorized requests including preserved archives; this typed view also supplies scoped CSV export.
+  scenario browse() by=members read=true -> Request[]
+   do return Request archived=include
+@@ -66,12 +80,12 @@
+    tabs preferences.view
+    table Request archived=include as request where preferences.view==all or (preferences.view==open and request.archived_at==null) or (preferences.view==archived and request.archived_at!=null) columns=title,note,department,submitted_by,archived_at order=-created search=title,note filter=department,archived_at display=split empty="No matching requests."
+     details "Request evidence"
+-     text row.title,row.note,row.department,row.submitted_by,row.archived_at
++     text row.title,row.note,row.department,row.submitted_by,row.archived_at,row.archive_reason
+      history
+     card "Manage your open request"
+      require row.submitted_by==actor and row.archived_at==null
+      edit
+-     delete
++     action archive
+  # Maintain current employee department and manager assignments. This grants no unrelated request access.
+  page /assignments title="Department assignments"
+   require owner

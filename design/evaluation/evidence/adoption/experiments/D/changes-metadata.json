@@ -1,0 +1,498 @@
+{
+  "variant": "D",
+  "attempt": "later-changes-initial",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "start_observed_utc": "2026-10-04 05:35:00 UTC",
+  "end_source_checks_observed_utc": "2026-10-04 05:42:22 UTC",
+  "wall_seconds_between_start_and_source_check_observations": 442,
+  "timing_note": "Source timing includes normal self-checks; metadata writing/handoff occur afterwards. No independent-review repair yet.",
+  "usage": {
+    "input_tokens": null,
+    "output_tokens": null,
+    "reasoning_tokens": null,
+    "cached_tokens": null,
+    "total_tokens": null,
+    "billing_usd": null,
+    "hidden_dispatch_context_tokens": null,
+    "visible_prompt_tokens": null,
+    "source_tokens": null
+  },
+  "checks": {
+    "change-1": {
+      "python_ast_files": 10,
+      "python_ast": "passed",
+      "tests_supplied": 14,
+      "tests_executed": 0
+    },
+    "change-2": {
+      "python_ast_files": 11,
+      "python_ast": "passed",
+      "tests_supplied": 15,
+      "tests_executed": 0
+    },
+    "change-3": {
+      "python_ast_files": 11,
+      "python_ast": "passed",
+      "tests_supplied": 17,
+      "tests_executed": 0
+    },
+    "initial_manifest_verification": {
+      "result": "passed",
+      "hashed_files": 25
+    },
+    "dependencies_available": {
+      "django": false,
+      "mcp": false
+    },
+    "runtime_checks": {
+      "django": null,
+      "postgresql_migrations": null,
+      "concurrency": null,
+      "browser": null,
+      "mcp": null
+    }
+  },
+  "local_inputs": [
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/changes-brief.md",
+      "read": "entire file",
+      "bytes": 3344,
+      "sha256": "c98de8416b0ac9caca7a29f12a4991fa7f498cf65d91b897b31df5098d6255e0"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/evaluation/evidence/adoption/experiments/D/review-initial.md",
+      "read": "entire file",
+      "bytes": 3648,
+      "sha256": "29b4fe407eff724bec3d2fbc3368200b8485ae6a35b00428770175d8ff0013b3"
+    }
+  ],
+  "versions": [
+    {
+      "version": "change-1",
+      "builds_on": "initial",
+      "first_written_observed_utc": "2026-10-04 05:36:40 UTC",
+      "touched_paths_relative_to_preceding_saved_version": [
+        "behavior.md",
+        "equipment/forms.py",
+        "equipment/mcp_server.py",
+        "equipment/models.py",
+        "equipment/service.py",
+        "equipment/templates/equipment/list.html",
+        "equipment/tests.py",
+        "equipment/views.py",
+        "transition.md"
+      ],
+      "python_html_files": 18,
+      "python_html_bytes": 40936,
+      "artifact_hashes": [
+        {
+          "path": "behavior.md",
+          "bytes": 728,
+          "sha256": "008c136204448fa140722cca77cc036ac66e4eaf8bbe78414992b46db5d5a7e1"
+        },
+        {
+          "path": "equipment/__init__.py",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "equipment/chat_auth.py",
+          "bytes": 916,
+          "sha256": "b7e687764934438eb39bdb06510fd249f7c3b3e3d049a8701568039dfb66cb3c"
+        },
+        {
+          "path": "equipment/forms.py",
+          "bytes": 1037,
+          "sha256": "ee1fc7e814b3a4a0fef524b8c14e6c87a81d11edff96ea97239a894a9efd4ef0"
+        },
+        {
+          "path": "equipment/mcp_server.py",
+          "bytes": 2682,
+          "sha256": "1929ef7837d2df1d66891b1d0a7e3272e7eabf25e993aa9a001c8266a74ff0b4"
+        },
+        {
+          "path": "equipment/models.py",
+          "bytes": 2456,
+          "sha256": "c62493d8a675c98eecf7ab710a377e155dacc3ad8f0849cec64eb822ba36695f"
+        },
+        {
+          "path": "equipment/service.py",
+          "bytes": 10915,
+          "sha256": "5f09e8c5c15be9eb778e88b6c513866bd99dd8869ed557829a6e74a229327c88"
+        },
+        {
+          "path": "equipment/templates/equipment/base.html",
+          "bytes": 1261,
+          "sha256": "53006c22e583656dfd23eb6518a234f841c95c2e5406b97282d6c86ab5a44237"
+        },
+        {
+          "path": "equipment/templates/equipment/error.html",
+          "bytes": 228,
+          "sha256": "832f36500af6172a1df9866ccca5ed22d4ad6edcc1097273130179288df400d9"
+        },
+        {
+          "path": "equipment/templates/equipment/form.html",
+          "bytes": 209,
+          "sha256": "f491f3d0b7ec57640a97cb1816530c879367479b8eddb81cd59f1732daac9a89"
+        },
+        {
+          "path": "equipment/templates/equipment/intake.html",
+          "bytes": 1221,
+          "sha256": "1443f19de755ac3ac8bcd7de3e641dc80bb632f3961b62424305e0afab804a57"
+        },
+        {
+          "path": "equipment/templates/equipment/list.html",
+          "bytes": 2277,
+          "sha256": "d5730afb42aae1e02a2fbea697fcd12b88b00bcee924065b8969f4b0d471ad5d"
+        },
+        {
+          "path": "equipment/templates/equipment/token.html",
+          "bytes": 549,
+          "sha256": "d3a8ca02eb42d9822351ebe38829bf6f1ddcf20908322a93f15df17f168b5794"
+        },
+        {
+          "path": "equipment/templates/equipment/upload.html",
+          "bytes": 369,
+          "sha256": "ea5d0fff0423346f1d883a0df3b4e3751c9666ddd7c7ee7eac10846644f22caa"
+        },
+        {
+          "path": "equipment/templates/registration/login.html",
+          "bytes": 274,
+          "sha256": "184d735e851386c4c5228f3d2bf699b74751de4e3e52c9f9fc8e0bff959b22a7"
+        },
+        {
+          "path": "equipment/tests.py",
+          "bytes": 8974,
+          "sha256": "4dcdf6c885e5680c2c25110c0787c54bb816211f8c76079f263321e613299d82"
+        },
+        {
+          "path": "equipment/urls.py",
+          "bytes": 864,
+          "sha256": "c3eab97c120255952e671aab8e02971fcb64a9be25adf2d9d38166512e0ce42d"
+        },
+        {
+          "path": "equipment/views.py",
+          "bytes": 5609,
+          "sha256": "91c9c3801960f0e3818020faac97236ac10a67a010e8cb890ac4122575a03820"
+        },
+        {
+          "path": "requirements.txt",
+          "bytes": 29,
+          "sha256": "71a869dc7a127ac16fc45a960a7da8f3d0dde2fef2d4125e7c3100cdc040cffc"
+        },
+        {
+          "path": "test_settings.py",
+          "bytes": 1095,
+          "sha256": "840b994719dd90c93412f24e1b2f321bc29e4676966e31afe4adde57da2f4aeb"
+        },
+        {
+          "path": "transition.md",
+          "bytes": 631,
+          "sha256": "870ef6092a322a1985a8bd9832a222f0f35927308f13d93aa2b1a1f8f1ee8fd2"
+        },
+        {
+          "path": "wiring.md",
+          "bytes": 3376,
+          "sha256": "78b99b37f06fb0341fc98e5788ec5c1d37a8f1875d7ba4b5a4347bedb2448b7a"
+        }
+      ]
+    },
+    {
+      "version": "change-2",
+      "builds_on": "change-1",
+      "first_written_observed_utc": "2026-10-04 05:38:20 UTC",
+      "touched_paths_relative_to_preceding_saved_version": [
+        "behavior.md",
+        "equipment/forms.py",
+        "equipment/mcp_server.py",
+        "equipment/models.py",
+        "equipment/service.py",
+        "equipment/templates/equipment/list.html",
+        "equipment/tests.py",
+        "equipment/views.py",
+        "transition.md",
+        "transition_operations.py"
+      ],
+      "python_html_files": 19,
+      "python_html_bytes": 45005,
+      "artifact_hashes": [
+        {
+          "path": "behavior.md",
+          "bytes": 799,
+          "sha256": "8d477f8f85ff8c5b8f4f82e9dd6c11231daf3568c156750448e0e5b2557ad460"
+        },
+        {
+          "path": "equipment/__init__.py",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "equipment/chat_auth.py",
+          "bytes": 916,
+          "sha256": "b7e687764934438eb39bdb06510fd249f7c3b3e3d049a8701568039dfb66cb3c"
+        },
+        {
+          "path": "equipment/forms.py",
+          "bytes": 1078,
+          "sha256": "24480b87c122d3ad1dcbcdbe74af1d3511fe4f3f462ed61915c539606fb07e05"
+        },
+        {
+          "path": "equipment/mcp_server.py",
+          "bytes": 2757,
+          "sha256": "aa6274c144cc864703b2f15d805f94b98b1d6527754c8737fcb56cb5ebe02cb9"
+        },
+        {
+          "path": "equipment/models.py",
+          "bytes": 2533,
+          "sha256": "81331b952ca7b6289843b4f11017b8d6aecc702a250b75e2f8cfea4784cc436f"
+        },
+        {
+          "path": "equipment/service.py",
+          "bytes": 11797,
+          "sha256": "0db6bcf5bb29fee19b8196d062d2b7b91230a2097fb74891b68c997749c14e7b"
+        },
+        {
+          "path": "equipment/templates/equipment/base.html",
+          "bytes": 1261,
+          "sha256": "53006c22e583656dfd23eb6518a234f841c95c2e5406b97282d6c86ab5a44237"
+        },
+        {
+          "path": "equipment/templates/equipment/error.html",
+          "bytes": 228,
+          "sha256": "832f36500af6172a1df9866ccca5ed22d4ad6edcc1097273130179288df400d9"
+        },
+        {
+          "path": "equipment/templates/equipment/form.html",
+          "bytes": 209,
+          "sha256": "f491f3d0b7ec57640a97cb1816530c879367479b8eddb81cd59f1732daac9a89"
+        },
+        {
+          "path": "equipment/templates/equipment/intake.html",
+          "bytes": 1221,
+          "sha256": "1443f19de755ac3ac8bcd7de3e641dc80bb632f3961b62424305e0afab804a57"
+        },
+        {
+          "path": "equipment/templates/equipment/list.html",
+          "bytes": 2338,
+          "sha256": "9b8ded26365e9b0feaeb5d9e3052808a44527dfe60aedcda2e8c7bc1d900c914"
+        },
+        {
+          "path": "equipment/templates/equipment/token.html",
+          "bytes": 549,
+          "sha256": "d3a8ca02eb42d9822351ebe38829bf6f1ddcf20908322a93f15df17f168b5794"
+        },
+        {
+          "path": "equipment/templates/equipment/upload.html",
+          "bytes": 369,
+          "sha256": "ea5d0fff0423346f1d883a0df3b4e3751c9666ddd7c7ee7eac10846644f22caa"
+        },
+        {
+          "path": "equipment/templates/registration/login.html",
+          "bytes": 274,
+          "sha256": "184d735e851386c4c5228f3d2bf699b74751de4e3e52c9f9fc8e0bff959b22a7"
+        },
+        {
+          "path": "equipment/tests.py",
+          "bytes": 9676,
+          "sha256": "0f5269db757036f806f0495f3fd4a3f75f8c30a286c2dbfc42e194d6e08451f0"
+        },
+        {
+          "path": "equipment/urls.py",
+          "bytes": 864,
+          "sha256": "c3eab97c120255952e671aab8e02971fcb64a9be25adf2d9d38166512e0ce42d"
+        },
+        {
+          "path": "equipment/views.py",
+          "bytes": 5704,
+          "sha256": "22610b0ad77565020ae13cefa20b3aa82a17722e91e1d854099c42ece7809eed"
+        },
+        {
+          "path": "requirements.txt",
+          "bytes": 29,
+          "sha256": "71a869dc7a127ac16fc45a960a7da8f3d0dde2fef2d4125e7c3100cdc040cffc"
+        },
+        {
+          "path": "test_settings.py",
+          "bytes": 1095,
+          "sha256": "840b994719dd90c93412f24e1b2f321bc29e4676966e31afe4adde57da2f4aeb"
+        },
+        {
+          "path": "transition.md",
+          "bytes": 2638,
+          "sha256": "133e3fcfa10c0673ccc27ab02439dc73ff76b13b6ebd9e8277cafd907f94aa06"
+        },
+        {
+          "path": "transition_operations.py",
+          "bytes": 2136,
+          "sha256": "00ff9ba145f6b63826d04cf74dcfe8371e71e25475ab67ab9752004a6b7c4480"
+        },
+        {
+          "path": "wiring.md",
+          "bytes": 3376,
+          "sha256": "78b99b37f06fb0341fc98e5788ec5c1d37a8f1875d7ba4b5a4347bedb2448b7a"
+        }
+      ]
+    },
+    {
+      "version": "change-3",
+      "builds_on": "change-2",
+      "first_written_observed_utc": "2026-10-04 05:41:09 UTC",
+      "touched_paths_relative_to_preceding_saved_version": [
+        "behavior.md",
+        "equipment/forms.py",
+        "equipment/mcp_server.py",
+        "equipment/models.py",
+        "equipment/service.py",
+        "equipment/templates/equipment/detail.html",
+        "equipment/templates/equipment/list.html",
+        "equipment/templates/equipment/reviews.html",
+        "equipment/tests.py",
+        "equipment/urls.py",
+        "equipment/views.py",
+        "permission-transition.md"
+      ],
+      "python_html_files": 21,
+      "python_html_bytes": 57119,
+      "artifact_hashes": [
+        {
+          "path": "behavior.md",
+          "bytes": 900,
+          "sha256": "fa51f6326f72da0531d410e3457b6bd91fdebaa6cd3a665787cddcdfd6630a64"
+        },
+        {
+          "path": "equipment/__init__.py",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "equipment/chat_auth.py",
+          "bytes": 916,
+          "sha256": "b7e687764934438eb39bdb06510fd249f7c3b3e3d049a8701568039dfb66cb3c"
+        },
+        {
+          "path": "equipment/forms.py",
+          "bytes": 1664,
+          "sha256": "477e45736f0dd083850af08e3e485123ba4775327516a88ed503285253234eee"
+        },
+        {
+          "path": "equipment/mcp_server.py",
+          "bytes": 3728,
+          "sha256": "89d4ec62f8f6577783b2f76cb2c1827b658176d11ebd5716d45e7c2e960fd22e"
+        },
+        {
+          "path": "equipment/models.py",
+          "bytes": 3661,
+          "sha256": "d16ba85c0c36e7476dea514f9edbe588c3e0df7e4b9cb685c75951256bde06b0"
+        },
+        {
+          "path": "equipment/service.py",
+          "bytes": 15168,
+          "sha256": "561446a097d8157e68c8f67de59c07ef90928469adce8405983d6bdc9ee7c9eb"
+        },
+        {
+          "path": "equipment/templates/equipment/base.html",
+          "bytes": 1261,
+          "sha256": "53006c22e583656dfd23eb6518a234f841c95c2e5406b97282d6c86ab5a44237"
+        },
+        {
+          "path": "equipment/templates/equipment/detail.html",
+          "bytes": 488,
+          "sha256": "09ffdc80d05e1268c2ca01feaef6f1399252644743b1b8daccf721ed8ec9e0e5"
+        },
+        {
+          "path": "equipment/templates/equipment/error.html",
+          "bytes": 228,
+          "sha256": "832f36500af6172a1df9866ccca5ed22d4ad6edcc1097273130179288df400d9"
+        },
+        {
+          "path": "equipment/templates/equipment/form.html",
+          "bytes": 209,
+          "sha256": "f491f3d0b7ec57640a97cb1816530c879367479b8eddb81cd59f1732daac9a89"
+        },
+        {
+          "path": "equipment/templates/equipment/intake.html",
+          "bytes": 1221,
+          "sha256": "1443f19de755ac3ac8bcd7de3e641dc80bb632f3961b62424305e0afab804a57"
+        },
+        {
+          "path": "equipment/templates/equipment/list.html",
+          "bytes": 2527,
+          "sha256": "78e2823b5fe2efb09f90c04c0c6da716cb5dac810d83d5bdf8ebb864c1c89125"
+        },
+        {
+          "path": "equipment/templates/equipment/reviews.html",
+          "bytes": 1035,
+          "sha256": "f3b824e3d302ca8565e973be8a22f0a235ce5c727a81c76617ef10ded6d728d3"
+        },
+        {
+          "path": "equipment/templates/equipment/token.html",
+          "bytes": 549,
+          "sha256": "d3a8ca02eb42d9822351ebe38829bf6f1ddcf20908322a93f15df17f168b5794"
+        },
+        {
+          "path": "equipment/templates/equipment/upload.html",
+          "bytes": 369,
+          "sha256": "ea5d0fff0423346f1d883a0df3b4e3751c9666ddd7c7ee7eac10846644f22caa"
+        },
+        {
+          "path": "equipment/templates/registration/login.html",
+          "bytes": 274,
+          "sha256": "184d735e851386c4c5228f3d2bf699b74751de4e3e52c9f9fc8e0bff959b22a7"
+        },
+        {
+          "path": "equipment/tests.py",
+          "bytes": 12613,
+          "sha256": "6ef5210c30a4f99d94af64b197bcf9d7efb97dfaf108b01df7195aa63b2185e9"
+        },
+        {
+          "path": "equipment/urls.py",
+          "bytes": 997,
+          "sha256": "cd908fbde3a0b971fcdb6fca7419ed9f36db4a1fa711fe1965d3867a92191c97"
+        },
+        {
+          "path": "equipment/views.py",
+          "bytes": 6980,
+          "sha256": "ae82c886a80ecd39a70634cacf05f1b54e5323c94d8a5dba902072f5a367281c"
+        },
+        {
+          "path": "permission-transition.md",
+          "bytes": 1662,
+          "sha256": "5ff282df1a7eb17672bdef8d82a0b28a3354482e9279ee9ce6e4f99b0ae7eef7"
+        },
+        {
+          "path": "requirements.txt",
+          "bytes": 29,
+          "sha256": "71a869dc7a127ac16fc45a960a7da8f3d0dde2fef2d4125e7c3100cdc040cffc"
+        },
+        {
+          "path": "test_settings.py",
+          "bytes": 1095,
+          "sha256": "840b994719dd90c93412f24e1b2f321bc29e4676966e31afe4adde57da2f4aeb"
+        },
+        {
+          "path": "transition.md",
+          "bytes": 2638,
+          "sha256": "133e3fcfa10c0673ccc27ab02439dc73ff76b13b6ebd9e8277cafd907f94aa06"
+        },
+        {
+          "path": "transition_operations.py",
+          "bytes": 2136,
+          "sha256": "00ff9ba145f6b63826d04cf74dcfe8371e71e25475ab67ab9752004a6b7c4480"
+        },
+        {
+          "path": "wiring.md",
+          "bytes": 3376,
+          "sha256": "78b99b37f06fb0341fc98e5788ec5c1d37a8f1875d7ba4b5a4347bedb2448b7a"
+        }
+      ]
+    }
+  ],
+  "isolation": "No C artifacts/findings, live baseline edits, JEV or delegates.",
+  "unresolved_contracts": [
+    "Unknown actual migration predecessor/schema/population: activation must be pinned externally.",
+    "Archived existing title>120 cannot be corrected through inherited old archive contract; requires an explicit authorized correction policy.",
+    "Company owner/steward provisioning and client stdio protected credential setup are external wiring.",
+    "Framework/runtime/migration/concurrency/browser/MCP checks remain unexecuted."
+  ]
+}

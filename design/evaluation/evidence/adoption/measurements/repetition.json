@@ -1,0 +1,4656 @@
+{
+  "method": "Lexical occurrences in production category, excluding descriptions, translations, fixtures/examples and comment lines; JSON string contents removed for identifiers/attributes. Counts are not removable obligations or token savings.",
+  "identifiers": [
+    [
+      "and",
+      3489
+    ],
+    [
+      "row",
+      2873
+    ],
+    [
+      "event",
+      2821
+    ],
+    [
+      "parent",
+      2418
+    ],
+    [
+      "label",
+      1959
+    ],
+    [
+      "location",
+      1589
+    ],
+    [
+      "as",
+      1556
+    ],
+    [
+      "value",
+      1459
+    ],
+    [
+      "text",
+      1398
+    ],
+    [
+      "state",
+      1200
+    ],
+    [
+      "booking",
+      1134
+    ],
+    [
+      "actor",
+      1102
+    ],
+    [
+      "source",
+      1089
+    ],
+    [
+      "null",
+      1062
+    ],
+    [
+      "revision",
+      1049
+    ],
+    [
+      "from",
+      917
+    ],
+    [
+      "set",
+      888
+    ],
+    [
+      "until",
+      857
+    ],
+    [
+      "id",
+      841
+    ],
+    [
+      "require",
+      815
+    ],
+    [
+      "in",
+      812
+    ],
+    [
+      "or",
+      790
+    ],
+    [
+      "where",
+      706
+    ],
+    [
+      "if",
+      672
+    ],
+    [
+      "item",
+      631
+    ],
+    [
+      "scenario",
+      585
+    ],
+    [
+      "do",
+      585
+    ],
+    [
+      "can_work",
+      557
+    ],
+    [
+      "account",
+      501
+    ],
+    [
+      "reason",
+      480
+    ],
+    [
+      "result",
+      463
+    ],
+    [
+      "customer",
+      459
+    ],
+    [
+      "policy",
+      458
+    ],
+    [
+      "status",
+      445
+    ],
+    [
+      "now",
+      441
+    ],
+    [
+      "resource",
+      435
+    ],
+    [
+      "pending",
+      432
+    ],
+    [
+      "not",
+      418
+    ],
+    [
+      "by",
+      415
+    ],
+    [
+      "invoice",
+      414
+    ],
+    [
+      "create",
+      410
+    ],
+    [
+      "amount",
+      409
+    ],
+    [
+      "active",
+      399
+    ],
+    [
+      "read",
+      390
+    ],
+    [
+      "datetime",
+      385
+    ],
+    [
+      "message",
+      338
+    ],
+    [
+      "kind",
+      332
+    ],
+    [
+      "fields",
+      330
+    ],
+    [
+      "int",
+      329
+    ],
+    [
+      "delivery",
+      324
+    ],
+    [
+      "term",
+      324
+    ],
+    [
+      "title",
+      323
+    ],
+    [
+      "request",
+      310
+    ],
+    [
+      "attempt",
+      304
+    ],
+    [
+      "currency",
+      300
+    ],
+    [
+      "let",
+      291
+    ],
+    [
+      "quantity",
+      281
+    ],
+    [
+      "user",
+      278
+    ],
+    [
+      "on",
+      272
+    ],
+    [
+      "visit",
+      272
+    ],
+    [
+      "employee",
+      261
+    ],
+    [
+      "bool",
+      261
+    ],
+    [
+      "after",
+      258
+    ],
+    [
+      "send",
+      251
+    ],
+    [
+      "export",
+      249
+    ],
+    [
+      "order",
+      246
+    ],
+    [
+      "failed",
+      245
+    ],
+    [
+      "timezone",
+      244
+    ],
+    [
+      "preferences",
+      241
+    ],
+    [
+      "else",
+      238
+    ]
+  ],
+  "patterns": [
+    {
+      "text": "read=authenticated",
+      "count": 88,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanBook.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanFeedback.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLeave.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanPropose.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can",
+        "draft/shared/Employees.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,location)",
+      "count": 85,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanEvent.can",
+        "draft/CanField.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMember.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanReport.can",
+        "draft/CanShift.can",
+        "draft/CanStock.can",
+        "draft/shared/Suppliers.can"
+      ]
+    },
+    {
+      "text": "delete=none",
+      "count": 80,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanBook.can",
+        "draft/CanCRM.can",
+        "draft/CanCatch.can",
+        "draft/CanContract.can",
+        "draft/CanDesk.can",
+        "draft/CanDo.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanFeedback.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLeave.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanShift.can",
+        "draft/CanStock.can",
+        "draft/CanSuccess.can",
+        "draft/CanTable.can",
+        "draft/CanTime.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can",
+        "draft/shared/Employees.can",
+        "draft/shared/Locations.can",
+        "draft/shared/Suppliers.can",
+        "examples/ExpenseFlow.can"
+      ]
+    },
+    {
+      "text": "display=split",
+      "count": 77,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanBook.can",
+        "draft/CanCatch.can",
+        "draft/CanCheck.can",
+        "draft/CanContract.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanDo.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanFeedback.can",
+        "draft/CanField.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLeave.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRent.can",
+        "draft/CanReport.can",
+        "draft/CanShift.can",
+        "draft/CanStock.can",
+        "draft/CanSuccess.can",
+        "draft/CanTable.can",
+        "draft/CanTime.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can",
+        "examples/ExpenseFlow.can",
+        "examples/TeamTasks.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,row.parent.location)",
+      "count": 75,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanBook.can",
+        "draft/CanCRM.can",
+        "draft/CanCheck.can",
+        "draft/CanDesk.can",
+        "draft/CanDo.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanField.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRent.can",
+        "draft/CanShift.can",
+        "draft/CanSuccess.can",
+        "draft/CanTable.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "by=authenticated",
+      "count": 74,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanBook.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanEvent.can",
+        "draft/CanFeedback.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanPropose.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,row.location)",
+      "count": 70,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanBook.can",
+        "draft/CanCRM.can",
+        "draft/CanCheck.can",
+        "draft/CanContract.can",
+        "draft/CanDesk.can",
+        "draft/CanDo.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanFeedback.can",
+        "draft/CanField.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRent.can",
+        "draft/CanShift.can",
+        "draft/CanStock.can",
+        "draft/CanSuccess.can",
+        "draft/CanTable.can",
+        "draft/CanTime.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "by=members",
+      "count": 35,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanDo.can",
+        "draft/CanExpense.can",
+        "draft/CanLeave.can",
+        "draft/CanPurchase.can",
+        "draft/CanShift.can",
+        "draft/CanTime.can",
+        "examples/ExpenseFlow.can",
+        "examples/TeamTasks.can"
+      ]
+    },
+    {
+      "text": "read=public",
+      "count": 30,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanBook.can",
+        "draft/CanEvent.can",
+        "draft/CanFeedback.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMember.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can",
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "read=true",
+      "count": 27,
+      "files": [
+        "draft/CanBoard.can",
+        "draft/CanCRM.can",
+        "draft/CanCustomer.can",
+        "draft/CanFeedback.can",
+        "draft/CanGrant.can",
+        "draft/CanLearn.can",
+        "draft/CanLeave.can",
+        "draft/CanMaintain.can",
+        "draft/CanOnboard.can",
+        "draft/CanRent.can",
+        "draft/CanReport.can",
+        "draft/CanStats.can",
+        "draft/CanStock.can",
+        "draft/CanSuccess.can",
+        "draft/CanVolunteer.can",
+        "examples/ExpenseFlow.can"
+      ]
+    },
+    {
+      "text": "read=members",
+      "count": 24,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanDo.can",
+        "draft/CanLeave.can",
+        "draft/CanPurchase.can",
+        "draft/CanShift.can",
+        "draft/CanTime.can",
+        "draft/shared/Employees.can",
+        "draft/shared/Suppliers.can",
+        "examples/ExpenseFlow.can",
+        "examples/TeamTasks.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,row.parent.parent.location)",
+      "count": 24,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanBook.can",
+        "draft/CanEvent.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanMaintain.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanRent.can",
+        "draft/CanShift.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,booking.parent.location)",
+      "count": 22,
+      "files": [
+        "draft/CanRent.can",
+        "draft/CanTable.can"
+      ]
+    },
+    {
+      "text": "by=salesperson",
+      "count": 18,
+      "files": [
+        "draft/CanCRM.can",
+        "draft/CanPropose.can"
+      ]
+    },
+    {
+      "text": "read=finance",
+      "count": 17,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanCustomer.can",
+        "draft/CanExpense.can",
+        "draft/CanInvoice.can",
+        "draft/CanRefer.can"
+      ]
+    },
+    {
+      "text": "scope=authority",
+      "count": 17,
+      "files": [
+        "draft/CanBoard.can",
+        "draft/CanFeedback.can",
+        "draft/CanMaintain.can",
+        "draft/CanOnboard.can",
+        "draft/CanRent.can",
+        "draft/CanStats.can",
+        "draft/CanSuccess.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "by=organizer",
+      "count": 17,
+      "files": [
+        "draft/CanEvent.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "by=hr",
+      "count": 17,
+      "files": [
+        "draft/CanHire.can",
+        "draft/CanLeave.can",
+        "draft/CanOnboard.can",
+        "draft/shared/Employees.can"
+      ]
+    },
+    {
+      "text": "by=finance",
+      "count": 16,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanCustomer.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanInvoice.can",
+        "draft/CanRefer.can"
+      ]
+    },
+    {
+      "text": "on=Mail.send.completed",
+      "count": 14,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanBook.can",
+        "draft/CanContract.can",
+        "draft/CanDesk.can",
+        "draft/CanEvent.can",
+        "draft/CanHire.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanPropose.can",
+        "draft/CanReception.can",
+        "draft/CanRent.can",
+        "draft/CanShift.can",
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "read=hr",
+      "count": 12,
+      "files": [
+        "draft/CanHire.can",
+        "draft/CanLeave.can",
+        "draft/CanOnboard.can",
+        "draft/shared/Employees.can"
+      ]
+    },
+    {
+      "text": "read=reservation_manager",
+      "count": 12,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "by=mail_staff",
+      "count": 11,
+      "files": [
+        "draft/CanMail.can"
+      ]
+    },
+    {
+      "text": "by=recruiter",
+      "count": 10,
+      "files": [
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "by=maintenance_manager",
+      "count": 10,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "by=coordinator",
+      "count": 9,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanGrant.can"
+      ]
+    },
+    {
+      "text": "display=inline",
+      "count": 9,
+      "files": [
+        "draft/CanCRM.can",
+        "draft/CanDo.can",
+        "draft/CanStats.can",
+        "draft/CanTable.can",
+        "draft/CanTime.can",
+        "examples/ExpenseFlow.can",
+        "examples/TeamTasks.can"
+      ]
+    },
+    {
+      "text": "read=organizer",
+      "count": 9,
+      "files": [
+        "draft/CanEvent.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "by=technician",
+      "count": 9,
+      "files": [
+        "draft/CanField.can",
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,invoice.location)",
+      "count": 9,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "read=buyer",
+      "count": 9,
+      "files": [
+        "draft/CanPurchase.can",
+        "draft/shared/Suppliers.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,resource.location)",
+      "count": 9,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "by=account_manager",
+      "count": 9,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "read=reviewer",
+      "count": 8,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanExpense.can",
+        "draft/CanGrant.can",
+        "examples/ExpenseFlow.can"
+      ]
+    },
+    {
+      "text": "by=legal",
+      "count": 8,
+      "files": [
+        "draft/CanContract.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,repair.parent.location)",
+      "count": 8,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "by=member_manager",
+      "count": 8,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "by=buyer",
+      "count": 8,
+      "files": [
+        "draft/CanPurchase.can",
+        "draft/shared/Suppliers.can"
+      ]
+    },
+    {
+      "text": "by=access_staff",
+      "count": 8,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "by=reservation_manager",
+      "count": 8,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "delete=remove",
+      "count": 7,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanDo.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,deal.location)",
+      "count": 7,
+      "files": [
+        "draft/CanCRM.can"
+      ]
+    },
+    {
+      "text": "display=drawer",
+      "count": 7,
+      "files": [
+        "draft/CanCRM.can",
+        "draft/CanField.can",
+        "draft/CanHire.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "read=developer",
+      "count": 7,
+      "files": [
+        "draft/CanCatch.can"
+      ]
+    },
+    {
+      "text": "read=customer_manager",
+      "count": 7,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "by=customer_manager",
+      "count": 7,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,job.location)",
+      "count": 7,
+      "files": [
+        "draft/CanField.can"
+      ]
+    },
+    {
+      "text": "read=member_manager",
+      "count": 7,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "by=budget_manager",
+      "count": 7,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,request.location)",
+      "count": 7,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "by=reception",
+      "count": 7,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "read=scheduler",
+      "count": 7,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "by=stock_staff",
+      "count": 7,
+      "files": [
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "by=host",
+      "count": 7,
+      "files": [
+        "draft/CanTable.can"
+      ]
+    },
+    {
+      "text": "by=project_manager",
+      "count": 7,
+      "files": [
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "on=SettlementObserved",
+      "count": 6,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanEvent.can",
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "read=coordinator",
+      "count": 6,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanGrant.can"
+      ]
+    },
+    {
+      "text": "by=reviewer",
+      "count": 6,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanExpense.can",
+        "draft/CanGrant.can",
+        "examples/ExpenseFlow.can"
+      ]
+    },
+    {
+      "text": "by=host_manager",
+      "count": 6,
+      "files": [
+        "draft/CanBook.can"
+      ]
+    },
+    {
+      "text": "read=salesperson",
+      "count": 6,
+      "files": [
+        "draft/CanCRM.can",
+        "draft/CanPropose.can"
+      ]
+    },
+    {
+      "text": "by=support",
+      "count": 6,
+      "files": [
+        "draft/CanDesk.can"
+      ]
+    },
+    {
+      "text": "by=dispatcher",
+      "count": 6,
+      "files": [
+        "draft/CanField.can"
+      ]
+    },
+    {
+      "text": "read=instructor",
+      "count": 6,
+      "files": [
+        "draft/CanLearn.can"
+      ]
+    },
+    {
+      "text": "read=maintenance_manager",
+      "count": 6,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,revision.parent.location)",
+      "count": 6,
+      "files": [
+        "draft/CanPropose.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,visit.location)",
+      "count": 6,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "by=scheduler",
+      "count": 6,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,entry.project.location)",
+      "count": 6,
+      "files": [
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "read=board_member",
+      "count": 5,
+      "files": [
+        "draft/CanBoard.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,row.parent.parent.parent.location)",
+      "count": 5,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanMaintain.can",
+        "draft/CanPurchase.can",
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=every",
+      "count": 5,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanField.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "on=Reminder",
+      "count": 5,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanRent.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "read=legal",
+      "count": 5,
+      "files": [
+        "draft/CanContract.can"
+      ]
+    },
+    {
+      "text": "on=Billing.reconcile.completed",
+      "count": 5,
+      "files": [
+        "draft/CanEvent.can",
+        "draft/CanMail.can",
+        "draft/CanMember.can",
+        "draft/CanRent.can",
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "by=instructor",
+      "count": 5,
+      "files": [
+        "draft/CanLearn.can"
+      ]
+    },
+    {
+      "text": "by=reward_staff",
+      "count": 5,
+      "files": [
+        "draft/CanLoyalty.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,item.location)",
+      "count": 5,
+      "files": [
+        "draft/CanMail.can"
+      ]
+    },
+    {
+      "text": "by=receptionist",
+      "count": 5,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,issue.parent.location)",
+      "count": 5,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "by=catalog_owner",
+      "count": 5,
+      "files": [
+        "draft/CanRent.can",
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "by=secretary",
+      "count": 4,
+      "files": [
+        "draft/CanBoard.can"
+      ]
+    },
+    {
+      "text": "on=StaffSchedule.reserve.completed",
+      "count": 4,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanField.can",
+        "draft/CanHire.can",
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "on=StaffSchedule.changed",
+      "count": 4,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanField.can",
+        "draft/CanHire.can",
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "on=StaffSchedule.release.completed",
+      "count": 4,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanField.can",
+        "draft/CanHire.can",
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "by=developer",
+      "count": 4,
+      "files": [
+        "draft/CanCatch.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,ticket.location)",
+      "count": 4,
+      "files": [
+        "draft/CanDesk.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,event.location)",
+      "count": 4,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,registration.parent.location)",
+      "count": 4,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=Billing.refund.completed",
+      "count": 4,
+      "files": [
+        "draft/CanEvent.can",
+        "draft/CanRent.can",
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "on=Billing.settled",
+      "count": 4,
+      "files": [
+        "draft/CanEvent.can",
+        "draft/CanMember.can",
+        "draft/CanRent.can",
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "by=public",
+      "count": 4,
+      "files": [
+        "draft/CanFeedback.can",
+        "draft/CanRent.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "read=reward_staff",
+      "count": 4,
+      "files": [
+        "draft/CanLoyalty.can"
+      ]
+    },
+    {
+      "text": "read=mail_staff",
+      "count": 4,
+      "files": [
+        "draft/CanMail.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,row.parent)",
+      "count": 4,
+      "files": [
+        "draft/CanReception.can",
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "read=program_manager",
+      "count": 4,
+      "files": [
+        "draft/CanRefer.can"
+      ]
+    },
+    {
+      "text": "read=billing",
+      "count": 4,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "read=reception",
+      "count": 4,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "by=billing",
+      "count": 4,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=ReservationChanged",
+      "count": 4,
+      "files": [
+        "draft/CanRent.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "read=analyst",
+      "count": 4,
+      "files": [
+        "draft/CanStats.can"
+      ]
+    },
+    {
+      "text": "read=stock_staff",
+      "count": 4,
+      "files": [
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "read=account_manager",
+      "count": 4,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,opportunity.location)",
+      "count": 4,
+      "files": [
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "read=partner_manager",
+      "count": 3,
+      "files": [
+        "draft/CanAffiliate.can"
+      ]
+    },
+    {
+      "text": "on=Sales.qualification",
+      "count": 3,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanLoyalty.can",
+        "draft/CanRefer.can"
+      ]
+    },
+    {
+      "text": "read=host_manager",
+      "count": 3,
+      "files": [
+        "draft/CanBook.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,appointment.parent.parent.location)",
+      "count": 3,
+      "files": [
+        "draft/CanBook.can"
+      ]
+    },
+    {
+      "text": "on=StaffSchedule.stage.completed",
+      "count": 3,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanField.can",
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "on=Rooms.changed",
+      "count": 3,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanEvent.can",
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,task.location)",
+      "count": 3,
+      "files": [
+        "draft/CanCatch.can",
+        "draft/CanDo.can"
+      ]
+    },
+    {
+      "text": "read=operations",
+      "count": 3,
+      "files": [
+        "draft/CanCheck.can"
+      ]
+    },
+    {
+      "text": "read=support",
+      "count": 3,
+      "files": [
+        "draft/CanDesk.can"
+      ]
+    },
+    {
+      "text": "read=task_manager",
+      "count": 3,
+      "files": [
+        "draft/CanDo.can"
+      ]
+    },
+    {
+      "text": "by=task_manager",
+      "count": 3,
+      "files": [
+        "draft/CanDo.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,expense.location)",
+      "count": 3,
+      "files": [
+        "draft/CanExpense.can"
+      ]
+    },
+    {
+      "text": "by=product_owner",
+      "count": 3,
+      "files": [
+        "draft/CanFeedback.can"
+      ]
+    },
+    {
+      "text": "read=dispatcher",
+      "count": 3,
+      "files": [
+        "draft/CanField.can"
+      ]
+    },
+    {
+      "text": "read=technician",
+      "count": 3,
+      "files": [
+        "draft/CanField.can",
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,application.parent.location)",
+      "count": 3,
+      "files": [
+        "draft/CanGrant.can"
+      ]
+    },
+    {
+      "text": "read=recruiter",
+      "count": 3,
+      "files": [
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,vacancy.location)",
+      "count": 3,
+      "files": [
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,candidate.parent.location)",
+      "count": 3,
+      "files": [
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,request.parent.parent.home)",
+      "count": 3,
+      "files": [
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "by=program_owner",
+      "count": 3,
+      "files": [
+        "draft/CanLoyalty.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,dispatch.parent.location)",
+      "count": 3,
+      "files": [
+        "draft/CanMail.can"
+      ]
+    },
+    {
+      "text": "on=Billing.charge.completed",
+      "count": 3,
+      "files": [
+        "draft/CanMail.can",
+        "draft/CanMember.can",
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "by=plan_owner",
+      "count": 3,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "read=access_staff",
+      "count": 3,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,duty.parent.location)",
+      "count": 3,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "read=host",
+      "count": 3,
+      "files": [
+        "draft/CanTable.can"
+      ]
+    },
+    {
+      "text": "read=project_manager",
+      "count": 3,
+      "files": [
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,correction.parent.project.location)",
+      "count": 3,
+      "files": [
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,submission.parent.location)",
+      "count": 2,
+      "files": [
+        "draft/CanApprove.can"
+      ]
+    },
+    {
+      "text": "on=Notice.create",
+      "count": 2,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanCatch.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,visit.parent.parent.location)",
+      "count": 2,
+      "files": [
+        "draft/CanBook.can"
+      ]
+    },
+    {
+      "text": "on=Rooms.hold.completed",
+      "count": 2,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=Rooms.stage.completed",
+      "count": 2,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=Rooms.confirm.completed",
+      "count": 2,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=Rooms.release.completed",
+      "count": 2,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=Alerts.notify.completed",
+      "count": 2,
+      "files": [
+        "draft/CanCatch.can",
+        "draft/CanCheck.can"
+      ]
+    },
+    {
+      "text": "by=operations",
+      "count": 2,
+      "files": [
+        "draft/CanCheck.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,check.location)",
+      "count": 2,
+      "files": [
+        "draft/CanCheck.can"
+      ]
+    },
+    {
+      "text": "read=customer_reader",
+      "count": 2,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=teams.member_removed",
+      "count": 2,
+      "files": [
+        "draft/CanDo.can",
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,change.parent.location)",
+      "count": 2,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=HoldDue",
+      "count": 2,
+      "files": [
+        "draft/CanEvent.can",
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=Billing.cancel.completed",
+      "count": 2,
+      "files": [
+        "draft/CanEvent.can",
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,notice.parent.parent.location)",
+      "count": 2,
+      "files": [
+        "draft/CanEvent.can",
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "read=product_owner",
+      "count": 2,
+      "files": [
+        "draft/CanFeedback.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,grant.location)",
+      "count": 2,
+      "files": [
+        "draft/CanGrant.can"
+      ]
+    },
+    {
+      "text": "read=interviewer",
+      "count": 2,
+      "files": [
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,interview.parent.parent.location)",
+      "count": 2,
+      "files": [
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "read=leave_reviewer",
+      "count": 2,
+      "files": [
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,row.parent.parent.home)",
+      "count": 2,
+      "files": [
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "read=program_owner",
+      "count": 2,
+      "files": [
+        "draft/CanLoyalty.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,redemption.location)",
+      "count": 2,
+      "files": [
+        "draft/CanLoyalty.can"
+      ]
+    },
+    {
+      "text": "on=RenewalDue",
+      "count": 2,
+      "files": [
+        "draft/CanMember.can",
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "on=CommercialCheck",
+      "count": 2,
+      "files": [
+        "draft/CanMember.can",
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=CompanyAccessChanged",
+      "count": 2,
+      "files": [
+        "draft/CanMember.can",
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "read=budget_manager",
+      "count": 2,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,line.parent.location)",
+      "count": 2,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,receipt.parent.parent.location)",
+      "count": 2,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "read=receptionist",
+      "count": 2,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "by=program_manager",
+      "count": 2,
+      "files": [
+        "draft/CanRefer.can"
+      ]
+    },
+    {
+      "text": "on=Membership.reserve.completed",
+      "count": 2,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=Membership.allowance_changed",
+      "count": 2,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=Membership.release.completed",
+      "count": 2,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=Membership.reconcile.completed",
+      "count": 2,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "read=manager",
+      "count": 2,
+      "files": [
+        "draft/CanReport.can"
+      ]
+    },
+    {
+      "text": "by=manager",
+      "count": 2,
+      "files": [
+        "draft/CanReport.can"
+      ]
+    },
+    {
+      "text": "by=analyst",
+      "count": 2,
+      "files": [
+        "draft/CanStats.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,account.location)",
+      "count": 2,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,project.location)",
+      "count": 2,
+      "files": [
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "read=moderator",
+      "count": 2,
+      "files": [
+        "draft/CanTrade.can"
+      ]
+    },
+    {
+      "text": "by=moderator",
+      "count": 2,
+      "files": [
+        "draft/CanTrade.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,signup.parent.location)",
+      "count": 2,
+      "files": [
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "by=partner_manager",
+      "count": 1,
+      "files": [
+        "draft/CanAffiliate.can"
+      ]
+    },
+    {
+      "text": "on=Commissions.onboard.completed",
+      "count": 1,
+      "files": [
+        "draft/CanAffiliate.can"
+      ]
+    },
+    {
+      "text": "on=Commissions.account.completed",
+      "count": 1,
+      "files": [
+        "draft/CanAffiliate.can"
+      ]
+    },
+    {
+      "text": "on=Commissions.account_changed",
+      "count": 1,
+      "files": [
+        "draft/CanAffiliate.can"
+      ]
+    },
+    {
+      "text": "on=AccountObserved",
+      "count": 1,
+      "files": [
+        "draft/CanAffiliate.can"
+      ]
+    },
+    {
+      "text": "on=Commissions.changed",
+      "count": 1,
+      "files": [
+        "draft/CanAffiliate.can"
+      ]
+    },
+    {
+      "text": "on=Commissions.settle.completed",
+      "count": 1,
+      "files": [
+        "draft/CanAffiliate.can"
+      ]
+    },
+    {
+      "text": "on=Commissions.reconcile.completed",
+      "count": 1,
+      "files": [
+        "draft/CanAffiliate.can"
+      ]
+    },
+    {
+      "text": "on=SettlementCheck",
+      "count": 1,
+      "files": [
+        "draft/CanAffiliate.can"
+      ]
+    },
+    {
+      "text": "on=Due",
+      "count": 1,
+      "files": [
+        "draft/CanApprove.can"
+      ]
+    },
+    {
+      "text": "by=board_member",
+      "count": 1,
+      "files": [
+        "draft/CanBoard.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,type.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanBook.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,row.deal.location)",
+      "count": 1,
+      "files": [
+        "draft/CanCRM.can"
+      ]
+    },
+    {
+      "text": "by=stage",
+      "count": 1,
+      "files": [
+        "draft/CanCRM.can"
+      ]
+    },
+    {
+      "text": "on=ErrorIntake.accepted",
+      "count": 1,
+      "files": [
+        "draft/CanCatch.can"
+      ]
+    },
+    {
+      "text": "on=ErrorJobs",
+      "count": 1,
+      "files": [
+        "draft/CanCatch.can"
+      ]
+    },
+    {
+      "text": "on=ErrorIntake.health",
+      "count": 1,
+      "files": [
+        "draft/CanCatch.can"
+      ]
+    },
+    {
+      "text": "on=Pings.received",
+      "count": 1,
+      "files": [
+        "draft/CanCheck.can"
+      ]
+    },
+    {
+      "text": "on=Check.create",
+      "count": 1,
+      "files": [
+        "draft/CanCheck.can"
+      ]
+    },
+    {
+      "text": "on=Check.update",
+      "count": 1,
+      "files": [
+        "draft/CanCheck.can"
+      ]
+    },
+    {
+      "text": "on=Deadline",
+      "count": 1,
+      "files": [
+        "draft/CanCheck.can"
+      ]
+    },
+    {
+      "text": "on=Obligation.create",
+      "count": 1,
+      "files": [
+        "draft/CanContract.can"
+      ]
+    },
+    {
+      "text": "on=Obligation.update",
+      "count": 1,
+      "files": [
+        "draft/CanContract.can"
+      ]
+    },
+    {
+      "text": "on=Expire",
+      "count": 1,
+      "files": [
+        "draft/CanContract.can"
+      ]
+    },
+    {
+      "text": "on=Notice",
+      "count": 1,
+      "files": [
+        "draft/CanContract.can"
+      ]
+    },
+    {
+      "text": "on=ObligationDue",
+      "count": 1,
+      "files": [
+        "draft/CanContract.can"
+      ]
+    },
+    {
+      "text": "read=billing_reader",
+      "count": 1,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=Customer.created",
+      "count": 1,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=Customer.updated",
+      "count": 1,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=Customer.deleted",
+      "count": 1,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=Contact.created",
+      "count": 1,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=Contact.updated",
+      "count": 1,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=Contact.deleted",
+      "count": 1,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=CompanyRole.created",
+      "count": 1,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=CompanyRole.updated",
+      "count": 1,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=CompanyRole.deleted",
+      "count": 1,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=Invitation.create",
+      "count": 1,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=InvitationExpiry",
+      "count": 1,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "on=Inbox.received",
+      "count": 1,
+      "files": [
+        "draft/CanDesk.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,row.template.location)",
+      "count": 1,
+      "files": [
+        "draft/CanDo.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,template.location)",
+      "count": 1,
+      "files": [
+        "draft/CanDo.can"
+      ]
+    },
+    {
+      "text": "on=WorkSources.work.completed",
+      "count": 1,
+      "files": [
+        "draft/CanDo.can"
+      ]
+    },
+    {
+      "text": "on=instrumentation.error",
+      "count": 1,
+      "files": [
+        "draft/CanDo.can"
+      ]
+    },
+    {
+      "text": "by=preferences.view",
+      "count": 1,
+      "files": [
+        "draft/CanDo.can"
+      ]
+    },
+    {
+      "text": "read=check_in",
+      "count": 1,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "by=check_in",
+      "count": 1,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=VenueObserved",
+      "count": 1,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=ApplyChange",
+      "count": 1,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,registration.location)",
+      "count": 1,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=RefundCheck",
+      "count": 1,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=AttendeeUpdate",
+      "count": 1,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=VenueCleanup",
+      "count": 1,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=AttendeeNotice",
+      "count": 1,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "on=Suggestion.create",
+      "count": 1,
+      "files": [
+        "draft/CanFeedback.can"
+      ]
+    },
+    {
+      "text": "on=Suggestion.update",
+      "count": 1,
+      "files": [
+        "draft/CanFeedback.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,replacement.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanField.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,report.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanField.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,booking.parent.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "by=interviewer",
+      "count": 1,
+      "files": [
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "on=InterviewAccepted",
+      "count": 1,
+      "files": [
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "on=InterviewReminder",
+      "count": 1,
+      "files": [
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "on=Documents.invoice.completed",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=Documents.receipt.completed",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=Payments.changed",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=ProviderReceipt",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=Payments.collect.completed",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=Payments.refund.completed",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=Payments.cancel.completed",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=Payments.reconcile.completed",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=Attempt.create",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=ReconcileDue",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=CollectionDue",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=Overdue",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=InvoiceSettlement",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=SalesRequests.observed",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=SaleCheck",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=BillingRequests.charge",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=BillingRequests.cancel",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=BillingRequests.refund",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "on=BillingRequests.reconcile",
+      "count": 1,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,row.parent.parent.parent.home)",
+      "count": 1,
+      "files": [
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "on=Calendar.update",
+      "count": 1,
+      "files": [
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "on=Day.create",
+      "count": 1,
+      "files": [
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "on=Day.update",
+      "count": 1,
+      "files": [
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "on=Category.create",
+      "count": 1,
+      "files": [
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "on=Category.update",
+      "count": 1,
+      "files": [
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "by=leave_reviewer",
+      "count": 1,
+      "files": [
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,service.location)",
+      "count": 1,
+      "files": [
+        "draft/CanMail.can"
+      ]
+    },
+    {
+      "text": "on=Plan.create",
+      "count": 1,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "on=Plan.update",
+      "count": 1,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "on=Asset.update",
+      "count": 1,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,notice.parent.parent.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,inspection.parent.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "on=ReportSubmitted",
+      "count": 1,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "on=PlanDue",
+      "count": 1,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "on=Rooms.downtime.completed",
+      "count": 1,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "on=Rooms.restore.completed",
+      "count": 1,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "on=Rooms.affected.completed",
+      "count": 1,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,item.parent.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,record.parent.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanMaintain.can"
+      ]
+    },
+    {
+      "text": "read=content_editor",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "by=content_editor",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=Membership.create",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=MembershipDue",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=Requests.reserve",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=Requests.commit",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=Requests.consume",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=Requests.release",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=Requests.reconcile",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=Requests.eligibility",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=SettlementReceived",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=PaymentCheck",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=TermBoundary",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=CompanyAccessStep",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=AccessChanged",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=AllocationAccessStep",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=WatchAccessStep",
+      "count": 1,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "on=Template.update",
+      "count": 1,
+      "files": [
+        "draft/CanOnboard.can"
+      ]
+    },
+    {
+      "text": "on=TemplateStep.create",
+      "count": 1,
+      "files": [
+        "draft/CanOnboard.can"
+      ]
+    },
+    {
+      "text": "on=TemplateStep.update",
+      "count": 1,
+      "files": [
+        "draft/CanOnboard.can"
+      ]
+    },
+    {
+      "text": "on=TemplateStep.delete",
+      "count": 1,
+      "files": [
+        "draft/CanOnboard.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,proposal.location)",
+      "count": 1,
+      "files": [
+        "draft/CanPropose.can"
+      ]
+    },
+    {
+      "text": "on=Documents.quote.completed",
+      "count": 1,
+      "files": [
+        "draft/CanPropose.can"
+      ]
+    },
+    {
+      "text": "on=Rooms.hold_offer.completed",
+      "count": 1,
+      "files": [
+        "draft/CanPropose.can"
+      ]
+    },
+    {
+      "text": "on=Rooms.accept_offer.completed",
+      "count": 1,
+      "files": [
+        "draft/CanPropose.can"
+      ]
+    },
+    {
+      "text": "on=Rooms.offer_changed",
+      "count": 1,
+      "files": [
+        "draft/CanPropose.can"
+      ]
+    },
+    {
+      "text": "on=Rooms.release_offer.completed",
+      "count": 1,
+      "files": [
+        "draft/CanPropose.can"
+      ]
+    },
+    {
+      "text": "read=approver",
+      "count": 1,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "by=approver",
+      "count": 1,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,order.location)",
+      "count": 1,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,payable.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,returned.parent.parent.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "on=Stock.post.completed",
+      "count": 1,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "on=Stock.changed",
+      "count": 1,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "on=Accounting.record.completed",
+      "count": 1,
+      "files": [
+        "draft/CanPurchase.can"
+      ]
+    },
+    {
+      "text": "on=Membership.eligibility.completed",
+      "count": 1,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "on=Membership.changed",
+      "count": 1,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "on=VisitRefresh",
+      "count": 1,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,presence.location)",
+      "count": 1,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,credential.location)",
+      "count": 1,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "on=Devices.changed",
+      "count": 1,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "on=Devices.apply.completed",
+      "count": 1,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "on=Devices.reconcile.completed",
+      "count": 1,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "on=DeviceObserved",
+      "count": 1,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "on=CredentialCheck",
+      "count": 1,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "on=VisitorReminder",
+      "count": 1,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "read=catalog_owner",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=Resource.create",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=Resource.update",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=Window.create",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=Window.update",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=DayCalendar.create",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=DayCalendar.update",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=Membership.commit.completed",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=MovementObserved",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,movement.parent.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=MovementDue",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=MovementCleared",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,downtime.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=OccupancyDue",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=RoomsIngressV1.move",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=RoomsIngressV1.affected",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=RoomsIngressV1.downtime",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=RoomsIngressV1.restore",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=RoomsIngressV1.hold",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=RoomsIngressV1.stage",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=RoomsIngressV1.confirm",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=RoomsIngressV1.release",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=VenueDue",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=RoomsIngressV1.hold_offer",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=RoomsIngressV1.accept_offer",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=RoomsIngressV1.release_offer",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=QuoteDue",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=AdjustmentDue",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,adjustment.parent.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,conflict.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=AllowanceObserved",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=Membership.consume.completed",
+      "count": 1,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "on=Reports.reports.completed",
+      "count": 1,
+      "files": [
+        "draft/CanReport.can"
+      ]
+    },
+    {
+      "text": "on=EmployeeChanged",
+      "count": 1,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "on=Availability.update",
+      "count": 1,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "on=Availability.create",
+      "count": 1,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "on=DutyNotice",
+      "count": 1,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "on=ScheduleRequests.reserve",
+      "count": 1,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "on=ScheduleRequests.stage",
+      "count": 1,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "on=ScheduleRequests.release",
+      "count": 1,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "on=Tracker.accepted",
+      "count": 1,
+      "files": [
+        "draft/CanStats.can"
+      ]
+    },
+    {
+      "text": "on=WebJobs",
+      "count": 1,
+      "files": [
+        "draft/CanStats.can"
+      ]
+    },
+    {
+      "text": "on=Tracker.health",
+      "count": 1,
+      "files": [
+        "draft/CanStats.can"
+      ]
+    },
+    {
+      "text": "on=Dimensions.read.completed",
+      "count": 1,
+      "files": [
+        "draft/CanStats.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,from)",
+      "count": 1,
+      "files": [
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,to)",
+      "count": 1,
+      "files": [
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,movement.location)",
+      "count": 1,
+      "files": [
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "on=Receipts.post",
+      "count": 1,
+      "files": [
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "on=ApplyProjection",
+      "count": 1,
+      "files": [
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,projection.location)",
+      "count": 1,
+      "files": [
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,milestone.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,followup.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "on=FollowUp.create",
+      "count": 1,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "on=FollowUp.update",
+      "count": 1,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "on=Account.create",
+      "count": 1,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "on=Account.update",
+      "count": 1,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "on=FollowUpDue",
+      "count": 1,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,item.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,record.parent.location)",
+      "count": 1,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,row.project.location)",
+      "count": 1,
+      "files": [
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,row.parent.project.location)",
+      "count": 1,
+      "files": [
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "read=owner",
+      "count": 1,
+      "files": [
+        "draft/CanTrade.can"
+      ]
+    },
+    {
+      "text": "by=owner",
+      "count": 1,
+      "files": [
+        "draft/CanTrade.can"
+      ]
+    },
+    {
+      "text": "on=Opportunity.update",
+      "count": 1,
+      "files": [
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "on=Employee.update",
+      "count": 1,
+      "files": [
+        "draft/shared/Employees.can"
+      ]
+    },
+    {
+      "text": "can_work(actor,row)",
+      "count": 1,
+      "files": [
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "on=Location.create",
+      "count": 1,
+      "files": [
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "on=Location.update",
+      "count": 1,
+      "files": [
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "on=WeeklyHours.create",
+      "count": 1,
+      "files": [
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "on=WeeklyHours.update",
+      "count": 1,
+      "files": [
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "on=ClosedDate.create",
+      "count": 1,
+      "files": [
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "on=ClosedDate.update",
+      "count": 1,
+      "files": [
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "on=DateHours.create",
+      "count": 1,
+      "files": [
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "on=DateHours.update",
+      "count": 1,
+      "files": [
+        "draft/shared/Locations.can"
+      ]
+    }
+  ],
+  "repeated_lines": [
+    {
+      "text": "do",
+      "count": 456,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanBook.can",
+        "draft/CanCRM.can",
+        "draft/CanCatch.can",
+        "draft/CanCheck.can",
+        "draft/CanContract.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanDo.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanFeedback.can",
+        "draft/CanField.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLeave.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanReport.can",
+        "draft/CanShift.can",
+        "draft/CanStats.can",
+        "draft/CanStock.can",
+        "draft/CanSuccess.can",
+        "draft/CanTable.can",
+        "draft/CanTime.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can",
+        "draft/shared/Employees.can",
+        "draft/shared/Locations.can",
+        "examples/ExpenseFlow.can"
+      ]
+    },
+    {
+      "text": "else",
+      "count": 238,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanBook.can",
+        "draft/CanCRM.can",
+        "draft/CanCatch.can",
+        "draft/CanCheck.can",
+        "draft/CanContract.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanDo.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanField.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLeave.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanReport.can",
+        "draft/CanShift.can",
+        "draft/CanStats.can",
+        "draft/CanStock.can",
+        "draft/CanTable.can",
+        "draft/CanTime.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "edit",
+      "count": 90,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanBook.can",
+        "draft/CanCRM.can",
+        "draft/CanContract.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanDo.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanFeedback.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLeave.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanShift.can",
+        "draft/CanStock.can",
+        "draft/CanSuccess.can",
+        "draft/CanTable.can",
+        "draft/CanTime.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can",
+        "examples/ExpenseFlow.can",
+        "examples/TeamTasks.can"
+      ]
+    },
+    {
+      "text": "history",
+      "count": 64,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanBook.can",
+        "draft/CanCRM.can",
+        "draft/CanCatch.can",
+        "draft/CanCheck.can",
+        "draft/CanContract.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanDo.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanFeedback.can",
+        "draft/CanField.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLeave.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanShift.can",
+        "draft/CanStock.can",
+        "draft/CanSuccess.can",
+        "draft/CanTable.can",
+        "draft/CanTime.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can",
+        "examples/ExpenseFlow.can"
+      ]
+    },
+    {
+      "text": "Given",
+      "count": 52,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanBook.can",
+        "draft/CanCRM.can",
+        "draft/CanCatch.can",
+        "draft/CanCheck.can",
+        "draft/CanContract.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanDo.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanFeedback.can",
+        "draft/CanField.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLeave.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanReport.can",
+        "draft/CanShift.can",
+        "draft/CanStats.can",
+        "draft/CanStock.can",
+        "draft/CanSuccess.can",
+        "draft/CanTable.can",
+        "draft/CanTime.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can",
+        "draft/shared/Employees.can",
+        "draft/shared/Locations.can",
+        "draft/shared/Suppliers.can",
+        "examples/ExpenseFlow.can",
+        "examples/TeamTasks.can"
+      ]
+    },
+    {
+      "text": "When",
+      "count": 52,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanBook.can",
+        "draft/CanCRM.can",
+        "draft/CanCatch.can",
+        "draft/CanCheck.can",
+        "draft/CanContract.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanDo.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanFeedback.can",
+        "draft/CanField.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLeave.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanReport.can",
+        "draft/CanShift.can",
+        "draft/CanStats.can",
+        "draft/CanStock.can",
+        "draft/CanSuccess.can",
+        "draft/CanTable.can",
+        "draft/CanTime.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can",
+        "draft/shared/Employees.can",
+        "draft/shared/Locations.can",
+        "draft/shared/Suppliers.can",
+        "examples/ExpenseFlow.can",
+        "examples/TeamTasks.can"
+      ]
+    },
+    {
+      "text": "Then",
+      "count": 52,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanBook.can",
+        "draft/CanCRM.can",
+        "draft/CanCatch.can",
+        "draft/CanCheck.can",
+        "draft/CanContract.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanDo.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanFeedback.can",
+        "draft/CanField.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLeave.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanReport.can",
+        "draft/CanShift.can",
+        "draft/CanStats.can",
+        "draft/CanStock.can",
+        "draft/CanSuccess.can",
+        "draft/CanTable.can",
+        "draft/CanTime.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can",
+        "draft/shared/Employees.can",
+        "draft/shared/Locations.can",
+        "draft/shared/Suppliers.can",
+        "examples/ExpenseFlow.can",
+        "examples/TeamTasks.can"
+      ]
+    },
+    {
+      "text": "use rent_catalog {Location,test_site}",
+      "count": 31,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanCRM.can",
+        "draft/CanCheck.can",
+        "draft/CanContract.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanEvent.can",
+        "draft/CanExpense.can",
+        "draft/CanField.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLeave.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanRefer.can",
+        "draft/CanReport.can",
+        "draft/CanShift.can",
+        "draft/CanStock.can",
+        "draft/CanSuccess.can",
+        "draft/CanTable.can",
+        "draft/CanTime.can",
+        "draft/CanVolunteer.can",
+        "draft/shared/Employees.can"
+      ]
+    },
+    {
+      "text": "if event.status==succeeded and event.result!=null",
+      "count": 24,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanEvent.can",
+        "draft/CanInvoice.can",
+        "draft/CanMail.can",
+        "draft/CanMember.can",
+        "draft/CanReception.can",
+        "draft/CanRent.can",
+        "draft/CanReport.can"
+      ]
+    },
+    {
+      "text": "use employee {can_work,test_worker}",
+      "count": 20,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanApprove.can",
+        "draft/CanCheck.can",
+        "draft/CanCustomer.can",
+        "draft/CanEvent.can",
+        "draft/CanInvoice.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanReport.can",
+        "draft/CanStock.can",
+        "draft/CanSuccess.can",
+        "draft/CanTable.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "tabs",
+      "count": 19,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanBoard.can",
+        "draft/CanBook.can",
+        "draft/CanCatch.can",
+        "draft/CanContract.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanExpense.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanPropose.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanStats.can",
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "use std {EmailV1 as Mail} from=deployment.mail",
+      "count": 18,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanContract.can",
+        "draft/CanCustomer.can",
+        "draft/CanDesk.can",
+        "draft/CanEvent.can",
+        "draft/CanField.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanPropose.can",
+        "draft/CanReception.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanShift.can",
+        "draft/CanSuccess.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "if event.status==failed",
+      "count": 18,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanDesk.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanPropose.can",
+        "draft/CanPurchase.can",
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1",
+      "count": 18,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "require authenticated",
+      "count": 17,
+      "files": [
+        "draft/CanCustomer.can",
+        "draft/CanEvent.can",
+        "draft/CanGrant.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanMember.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can",
+        "draft/CanReception.can",
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "delete",
+      "count": 13,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanCRM.can",
+        "draft/CanDo.can",
+        "draft/CanInvoice.can",
+        "draft/CanLearn.can",
+        "draft/CanOnboard.can",
+        "draft/CanPropose.can",
+        "examples/TeamTasks.can"
+      ]
+    },
+    {
+      "text": "emit ReservationChanged {booking,revision=booking.version+1}",
+      "count": 13,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "emit InvoiceSettlement {value=settlement(invoice)}",
+      "count": 12,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "tabs preferences.view",
+      "count": 11,
+      "files": [
+        "draft/CanDo.can",
+        "draft/CanLearn.can",
+        "draft/CanLoyalty.can",
+        "draft/CanMail.can",
+        "draft/CanOnboard.can",
+        "draft/CanTable.can",
+        "draft/CanTrade.can",
+        "draft/CanVolunteer.can",
+        "examples/TeamTasks.can"
+      ]
+    },
+    {
+      "text": "require members",
+      "count": 10,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanBoard.can",
+        "draft/CanDo.can",
+        "draft/CanExpense.can",
+        "draft/CanLeave.can",
+        "draft/CanPurchase.can",
+        "draft/CanShift.can",
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "if event.status==succeeded",
+      "count": 10,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanContract.can",
+        "draft/CanDesk.can",
+        "draft/CanHire.can",
+        "draft/CanInvoice.can",
+        "draft/CanMail.can",
+        "draft/CanPropose.can",
+        "draft/CanReception.can",
+        "draft/CanStats.can"
+      ]
+    },
+    {
+      "text": "scenario notice_result on=Mail.send.completed",
+      "count": 9,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanEvent.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanPropose.can",
+        "draft/CanReception.can",
+        "draft/CanRent.can",
+        "draft/CanShift.can",
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "if approve",
+      "count": 8,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanCustomer.can",
+        "draft/CanExpense.can",
+        "draft/CanGrant.can",
+        "draft/CanLeave.can",
+        "draft/CanPurchase.can",
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "action complete",
+      "count": 8,
+      "files": [
+        "draft/CanBoard.can",
+        "draft/CanContract.can",
+        "draft/CanOnboard.can",
+        "draft/CanSuccess.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "use employee {Employee,can_work,test_worker}",
+      "count": 8,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanCRM.can",
+        "draft/CanContract.can",
+        "draft/CanExpense.can",
+        "draft/CanField.can",
+        "draft/CanGrant.can",
+        "draft/CanLeave.can",
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "create LocationPolicy {parent=location,sequence=count(location.LocationPolicy)+1,active=location.active,timezone=location.timezone,weekly=location.WeeklyHours as hours select OpeningWeek {weekday=hours.weekday,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,fold=hours.fold},closed=location.ClosedDate as day select day.day,dated=location.DateHours as hours select OpeningDate {day=hours.day,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,closed=hours.closed,fold=hours.fold}} as snapshot",
+      "count": 8,
+      "files": [
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "if attempt.kind==initial and attempt.parent.state==pending",
+      "count": 7,
+      "files": [
+        "draft/CanBook.can"
+      ]
+    },
+    {
+      "text": "set attempt.parent {state=unavailable}",
+      "count": 7,
+      "files": [
+        "draft/CanBook.can"
+      ]
+    },
+    {
+      "text": "invariant preferences: row.location==null or can_work(actor,row.location)",
+      "count": 7,
+      "files": [
+        "draft/CanCRM.can",
+        "draft/CanCheck.can",
+        "draft/CanContract.can",
+        "draft/CanDo.can",
+        "draft/CanField.can",
+        "draft/CanPurchase.can",
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "use rent_catalog {Location}",
+      "count": 7,
+      "files": [
+        "draft/CanDo.can",
+        "draft/CanFeedback.can",
+        "draft/CanMember.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can",
+        "draft/CanTrade.can",
+        "draft/shared/Suppliers.can"
+      ]
+    },
+    {
+      "text": "require customer!=null",
+      "count": 7,
+      "files": [
+        "draft/CanEvent.can",
+        "draft/CanInvoice.can",
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "if event.status in [failed,unknown]",
+      "count": 7,
+      "files": [
+        "draft/CanInvoice.can",
+        "draft/CanMail.can",
+        "draft/CanMember.can",
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "set invoice {ledger_revision=invoice.ledger_revision+1}",
+      "count": 7,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "if previous!=null",
+      "count": 7,
+      "files": [
+        "draft/CanInvoice.can",
+        "draft/CanMember.can",
+        "draft/CanPurchase.can",
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,value=resource_evidence(resource)} as policy_snapshot_1",
+      "count": 7,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "emit CommercialCheck {booking}",
+      "count": 7,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "cancel signup.id",
+      "count": 7,
+      "files": [
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "set notice {delivery=delivery.id}",
+      "count": 6,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanCatch.can",
+        "draft/CanCheck.can"
+      ]
+    },
+    {
+      "text": "set notice {state=event.status}",
+      "count": 6,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanEvent.can",
+        "draft/CanMaintain.can",
+        "draft/CanRent.can",
+        "draft/CanShift.can",
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "if previous==null",
+      "count": 6,
+      "files": [
+        "draft/CanCustomer.can",
+        "draft/CanMember.can",
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "emit CompanyAccessChanged {customer=changed.parent,account=null,revision=event.version}",
+      "count": 6,
+      "files": [
+        "draft/CanCustomer.can"
+      ]
+    },
+    {
+      "text": "send StaffSchedule.release {source=interview.source,revision=2} as release",
+      "count": 6,
+      "files": [
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "set interview {release_delivery=release.id,release_state=pending}",
+      "count": 6,
+      "files": [
+        "draft/CanHire.can"
+      ]
+    },
+    {
+      "text": "if event.status==unknown",
+      "count": 6,
+      "files": [
+        "draft/CanHire.can",
+        "draft/CanLeave.can",
+        "draft/CanMail.can",
+        "draft/CanRent.can",
+        "draft/CanStats.can"
+      ]
+    },
+    {
+      "text": "do set event.after.parent {revision=event.after.parent.revision+1}",
+      "count": 6,
+      "files": [
+        "draft/CanLeave.can",
+        "draft/CanOnboard.can"
+      ]
+    },
+    {
+      "text": "set movement {release_delivery=release.id}",
+      "count": 6,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_2",
+      "count": 6,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "set booking {status=review,refund_state=review}",
+      "count": 6,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "set swap {state=obsolete}",
+      "count": 6,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "let location=event.after.parent",
+      "count": 6,
+      "files": [
+        "draft/shared/Locations.can"
+      ]
+    },
+    {
+      "text": "role finance label=\"Finance\"",
+      "count": 5,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanContract.can",
+        "draft/CanExpense.can",
+        "draft/CanRefer.can",
+        "draft/CanReport.can"
+      ]
+    },
+    {
+      "text": "action withdraw",
+      "count": 5,
+      "files": [
+        "draft/CanApprove.can",
+        "draft/CanHire.can",
+        "draft/CanLearn.can",
+        "draft/CanLeave.can",
+        "draft/CanTime.can"
+      ]
+    },
+    {
+      "text": "if event.status==failed or (event.status==succeeded and event.result!=null and event.result.state in [unavailable,failed,released])",
+      "count": 5,
+      "files": [
+        "draft/CanBook.can"
+      ]
+    },
+    {
+      "text": "scenario remind on=Reminder",
+      "count": 5,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanMail.can",
+        "draft/CanMaintain.can",
+        "draft/CanRent.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "if event.status==skipped",
+      "count": 5,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanHire.can",
+        "draft/CanMail.can",
+        "draft/CanPropose.can"
+      ]
+    },
+    {
+      "text": "cancel event.after.id",
+      "count": 5,
+      "files": [
+        "draft/CanCheck.can",
+        "draft/CanContract.can",
+        "draft/CanMaintain.can",
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "preferences { location:Location? }",
+      "count": 5,
+      "files": [
+        "draft/CanContract.can",
+        "draft/CanRent.can",
+        "draft/CanShift.can",
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "use employee {can_work}",
+      "count": 5,
+      "files": [
+        "draft/CanFeedback.can",
+        "draft/CanMember.can",
+        "draft/CanRent.can",
+        "draft/shared/Locations.can",
+        "draft/shared/Suppliers.can"
+      ]
+    },
+    {
+      "text": "if existing!=null",
+      "count": 5,
+      "files": [
+        "draft/CanFeedback.can",
+        "draft/CanMember.can",
+        "draft/CanRefer.can",
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "use std {OperationOutcome}",
+      "count": 5,
+      "files": [
+        "draft/CanMember.can",
+        "draft/CanPurchase.can",
+        "draft/CanRent.can",
+        "draft/CanShift.can",
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "let customer=first(Customer as row where row.id==event.customer order=row.id)",
+      "count": 5,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "set issue {delivery=delivery.id}",
+      "count": 5,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "schedule booking.id at=booking.expires event=HoldDue {booking}",
+      "count": 5,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "cancel booking.id",
+      "count": 5,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "create ResourcePolicy {parent=venue.parent,sequence=count(venue.parent.ResourcePolicy)+1,value=resource_evidence(venue.parent)} as policy_snapshot_1",
+      "count": 5,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "require prior.value.customer==event.value.customer and prior.value.account==event.value.account and prior.value.location==event.value.location and prior.value.product==event.value.product and prior.value.amount==event.value.amount and prior.value.purchased_at==event.value.purchased_at and prior.value.attribution==event.value.attribution and prior.value.exclusive_program==event.value.exclusive_program and prior.value.attributed_at==event.value.attributed_at and prior.value.attribution_window==event.value.attribution_window",
+      "count": 4,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanInvoice.can",
+        "draft/CanLoyalty.can",
+        "draft/CanRefer.can"
+      ]
+    },
+    {
+      "text": "require prior.value==event.value",
+      "count": 4,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanInvoice.can",
+        "draft/CanLoyalty.can",
+        "draft/CanRefer.can"
+      ]
+    },
+    {
+      "text": "export contract WorkItem { reference:text, revision:int, location:text?, title:text, detail:text?, due:datetime?, action:action(complete) } label=\"Authorized work item\"",
+      "count": 4,
+      "files": [
+        "draft/CanBoard.can",
+        "draft/CanOnboard.can",
+        "draft/CanSuccess.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "export contract WorkBatch { items:WorkItem[]! max=500 } label=\"Authorized work batch\"",
+      "count": 4,
+      "files": [
+        "draft/CanBoard.can",
+        "draft/CanOnboard.can",
+        "draft/CanSuccess.can",
+        "draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "text": "use shift {ScheduleV1 as StaffSchedule} from=deployment.staff_schedule",
+      "count": 4,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanField.can",
+        "draft/CanHire.can",
+        "draft/CanLeave.can"
+      ]
+    },
+    {
+      "text": "require attempt.parent.room_snapshot!=null",
+      "count": 4,
+      "files": [
+        "draft/CanBook.can"
+      ]
+    },
+    {
+      "text": "set attempt {state=failed,room_unknown=false}",
+      "count": 4,
+      "files": [
+        "draft/CanBook.can"
+      ]
+    },
+    {
+      "text": "if event.value.state in [unavailable,failed,released]",
+      "count": 4,
+      "files": [
+        "draft/CanBook.can",
+        "draft/CanHire.can",
+        "draft/CanPropose.can"
+      ]
+    },
+    {
+      "text": "require event.result.source==change.source",
+      "count": 4,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "emit VenueObserved {value=event.result}",
+      "count": 4,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "emit RefundCheck {registration}",
+      "count": 4,
+      "files": [
+        "draft/CanEvent.can"
+      ]
+    },
+    {
+      "text": "set attempt.parent {ledger_revision=attempt.parent.ledger_revision+1}",
+      "count": 4,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "emit InvoiceSettlement {value=settlement(attempt.parent)}",
+      "count": 4,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "require event.result.reference==attempt.reference and event.result.amount==attempt.amount",
+      "count": 4,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "emit ProviderReceipt {value=event.result}",
+      "count": 4,
+      "files": [
+        "draft/CanInvoice.can"
+      ]
+    },
+    {
+      "text": "emit AllowanceChanged {value=outcome(request)}",
+      "count": 4,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "let request=first(customer.BenefitRequest as row where row.source==event.source order=row.id)",
+      "count": 4,
+      "files": [
+        "draft/CanMember.can"
+      ]
+    },
+    {
+      "text": "if issue.device!=null",
+      "count": 4,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "set issue {confirmed=unknown}",
+      "count": 4,
+      "files": [
+        "draft/CanReception.can"
+      ]
+    },
+    {
+      "text": "let resource=event.after.parent",
+      "count": 4,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_3",
+      "count": 4,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "set booking {release_delivery=release.id}",
+      "count": 4,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1",
+      "count": 4,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "for resource in Resource as row where row.id==event.resource limit=1",
+      "count": 4,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "set booking {status=review}",
+      "count": 4,
+      "files": [
+        "draft/CanRent.can"
+      ]
+    },
+    {
+      "text": "set commitment {conflict=true}",
+      "count": 4,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "emit ReservationOutcome {value={source=commitment.source,revision=commitment.revision,state=unavailable,reference=commitment.id}}",
+      "count": 4,
+      "files": [
+        "draft/CanShift.can"
+      ]
+    },
+    {
+      "text": "emit ProjectionOutcome {value={source=value.source,revision=value.revision,state=failed,reference=projection.id,detail=projection.detail}}",
+      "count": 4,
+      "files": [
+        "draft/CanStock.can"
+      ]
+    },
+    {
+      "text": "cancel followup.id",
+      "count": 4,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "if due>now",
+      "count": 4,
+      "files": [
+        "draft/CanSuccess.can"
+      ]
+    },
+    {
+      "text": "use invoice {SalesV1 as Sales,Qualification} from=deployment.qualified_sales",
+      "count": 3,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanLoyalty.can",
+        "draft/CanRefer.can"
+      ]
+    },
+    {
+      "text": "if prior==null",
+      "count": 3,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanInvoice.can",
+        "draft/CanRefer.can"
+      ]
+    },
+    {
+      "text": "if event.value.revision==prior.value.revision",
+      "count": 3,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanLoyalty.can",
+        "draft/CanRefer.can"
+      ]
+    },
+    {
+      "text": "if event.value.revision>prior.value.revision",
+      "count": 3,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanLoyalty.can",
+        "draft/CanRefer.can"
+      ]
+    },
+    {
+      "text": "set prior {value=event.value,reversed=prior.reversed or event.value.milestone==reversed}",
+      "count": 3,
+      "files": [
+        "draft/CanAffiliate.can",
+        "draft/CanLoyalty.can",
+        "draft/CanRefer.can"
+      ]
+    }
+  ]
+}
