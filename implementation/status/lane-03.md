@@ -479,6 +479,21 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   pure model renames target-silent; interim plan-intake/mappers until L1;
   validation-only fresh-install pointer (L7 fenced write); `failed` has
   no writer (L7 UpgradeState).
+- PR8 S8 stdlib: branch `muse/lane-03-state/stdlib`, reviewed head
+  `126a267`, merged as `f29625b`
+  (https://github.com/veighnsche/canlang/pull/79, squash,
+  --match-head-commit <sha>). Checks: local stdlib typecheck + 4/4
+  tests + full CI-job simulation green; CI `state` x2 / `stdlib` x2 /
+  `tools` / `workspace` pass. Independent review APPROVE, zero findings
+  (139/139 + 66/66 re-verified independently). L2 FACADE REQUEST
+  fulfilled verbatim; 69-name witness gap table recorded (45 in v0).
+  Residual: L2 trims types on follow-up; builtins await L1 call shapes;
+  L4/L6 filed no requests.
+- LANE COMPLETE 2026-10-04: S1–S8 + PR1–PR8 all merged; writers
+  released; worktree retained for the B1 join. B1 L1-blocked (emission
+  slice 4 + op descriptors — exact unmet contracts); B2 L4-journey
+  pending; B3 engine-side done; B4 L3-map recorded. L3 answers the B1
+  join with the merged engine + stdlib v0 when L1/L7 call.
 
 ## Remaining work and cleanup
 
