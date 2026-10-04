@@ -18,7 +18,8 @@ tests/e2e/
   fixtures/seed.ts          # D1 + identity seeding over real backends
   fixtures/handbuilt/       # fixture workers (until L1 PR6 emission)
   apps/scaffold.spec.ts     # harness smoke (label-asserted, always runs)
-  apps/*.spec.ts            # per-app suites (Phase 3; TeamTasks first)
+  apps/teamtasks.spec.ts    # TeamTasks journeys: login, CSRF, authz, D1 state
+  apps/*.spec.ts            # follow-on per-app suites (same fixtures)
 docs/e2e.md                 # this file
 ```
 
