@@ -1,4 +1,4 @@
-// E2E-track-owned Playwright config (L7 reviews). Specs live in tests/e2e
+// Lane-07-owned Playwright config (e2e track adopted from L5 PR #97). Specs live in tests/e2e
 // and drive a per-worker L7 workerd instance through the e2e http bridge —
 // there is intentionally NO webServer block: one startLocalDev per worker
 // is the D1 isolation mechanism, and the bridge URL is dynamic per worker.

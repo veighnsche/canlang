@@ -9,7 +9,7 @@ owned surfaces only, `local` evidence labels, loud `unsupported` rows, cleanup).
 ## Layout
 
 ```text
-playwright.config.ts        # e2e-track-owned config (L7 reviews); chromium-only
+playwright.config.ts        # lane-07-owned config; chromium-only
 tests/e2e/
   tsconfig.json             # scaffold check (NOT in root check or vitest)
   bridges/http-bridge.ts    # localhost TCP -> LocalDev.dispatch forwarder
@@ -54,7 +54,9 @@ into the worker and fails loud naming the exact build when one is missing.
 
 ## Ownership
 
-- E2E track: `tests/e2e/**`, root `playwright.config.ts`, this doc.
-- L7: runner (`startLocalDev`, `LocalDev.dispatch` stability), root
-  `package.json`/lock, `.github/workflows/*`, `tests/integration/*`,
-  `packages/*`, `docs/dev-setup.md`.
+- Lane 07 owns the whole e2e track: `tests/e2e/**`, root
+  `playwright.config.ts`, this doc (scaffold adopted from L5 PR #97; the
+  prior L5 authoring grant is revoked), plus the runner (`startLocalDev`,
+  `LocalDev.dispatch` stability), root `package.json`/lock,
+  `.github/workflows/*`, `tests/integration/*`, `packages/*`,
+  `docs/dev-setup.md`.
