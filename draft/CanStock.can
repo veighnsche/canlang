@@ -167,27 +167,102 @@ package stock
   # Inspect location balances and enter deliberate ledger movements. @{nl="Bekijk locatiesaldi en voer bewuste voorraadmutaties in."}
   page /stock title="Consumables"@{nl="Verbruiksartikelen"}
    require stock_staff
-   card "Purchase posting queue"@{nl="Wachtrij inkoopboekingen"}
-    list Projection filter=state,location defaults={location=preferences.location}
-     text row.source,row.value.order,row.value.sku,row.value.unit,row.value.quantity,row.location,row.state,row.detail
-     action retry
-     history
-   card "Item identities and fixed units"@{nl="Artikelidentiteiten en vaste eenheden"}
-    form Item.create
-    list Item search=name filter=active display=split
-     text row.sku,row.unit
-     metrics row.total,row.low
-     edit
-     card "Location reorder thresholds"@{nl="Besteldrempels per locatie"}
-      form Threshold.create
-      list row.Threshold filter=location defaults={location=preferences.location}
-       metrics row.available,row.reorder,row.low
-       text row.location
-       edit
-     card "Ledger movements and corrections"@{nl="Voorraadmutaties en correcties"}
-      actions adjust,transfer
-      form balance
-       text result
-      table row.Movement columns=location,quantity,reason,source,order,actor order=-created filter=location defaults={location=preferences.location}
-       action reverse
+   breadcrumbs
+   ## Queue and ledger are separate tabs: triage work first, then item maintenance.
+   tabs
+    tab "Posting queue"@{nl="Boekingswachtrij"}
+     card "Purchase posting queue"@{nl="Wachtrij inkoopboekingen"}
+      alert "Failed projections need investigation before retry; rejected quantities never become usable stock."@{nl="Mislukte boekingen vereisen onderzoek vóór herhalen; afgekeurde aantallen worden nooit bruikbare voorraad."}
+      list Projection filter=state,location defaults={location=preferences.location} empty="No purchase projections match these filters"@{nl="Geen inkoopboekingen voor deze filters"}
+       text row.source,row.value.order,row.value.sku,row.value.unit,row.value.quantity,row.location,row.detail
+       badge row.state
+       text row.movement
+       tooltip "Retry this failed projection"@{nl="Herhaal deze mislukte boeking"}
+        button action=retry
        history
+       pagination
+    tab "Items and ledger"@{nl="Artikelen en register"}
+     card "Item identities and fixed units"@{nl="Artikelidentiteiten en vaste eenheden"}
+      form Item.create
+       ## All five item inputs are placed; the generated remainder is empty.
+       fieldset "Identity"@{nl="Identiteit"}
+        label sku
+        input sku
+        input name
+        input unit
+       fieldset "Replenishment"@{nl="Aanvulling"}
+        input reorder
+        toggle active
+       button submit=true
+      list Item search=name filter=active display=split empty="No items match this search"@{nl="Geen artikelen voor deze zoekopdracht"}
+       badge row.sku
+       status row.active
+       stat row.total,row.low
+       edit
+        fieldset "Item maintenance"@{nl="Artikelbeheer"}
+         input sku
+         input name
+         input unit
+         input reorder
+         toggle active
+        button submit=true
+       card "Location reorder thresholds"@{nl="Besteldrempels per locatie"}
+        form Threshold.create arguments={parent=row}
+         fieldset "Threshold"@{nl="Drempel"}
+          label location
+          select location
+          input reorder
+          validator reorder
+         button submit=true
+        table row.Threshold columns=location,reorder order=location filter=location defaults={location=preferences.location} empty="No thresholds for this location"@{nl="Geen drempels voor deze locatie"}
+         stat row.available
+         status row.low
+         edit
+         pagination
+       card "Ledger movements and corrections"@{nl="Voorraadmutaties en correcties"}
+        ## Adjust and transfer open explicit typed forms; nothing posts from the card itself.
+        button opens=adjust_stock
+        button opens=transfer_stock
+        modal "Adjust stock"@{nl="Voorraad corrigeren"} id=adjust_stock
+         slot content
+          form adjust arguments={item=row}
+           fieldset "Adjustment"@{nl="Correctie"}
+            select location
+            label quantity
+            input quantity
+            validator quantity
+            textarea reason
+           button submit=true
+        modal "Transfer stock"@{nl="Voorraad overboeken"} id=transfer_stock
+         slot content
+          form transfer arguments={item=row}
+           fieldset "Route"@{nl="Route"}
+            select from
+            select to
+           fieldset "Quantity and reason"@{nl="Aantal en reden"}
+            input quantity
+            textarea reason
+           button submit=true
+        form balance arguments={item=row}
+         fieldset "Scoped balance"@{nl="Locatiesaldo"}
+          select location
+         button submit=true
+         stat result
+        table row.Movement columns=location,reason,source,order,actor order=-created filter=location defaults={location=preferences.location} empty="No ledger movements for this location"@{nl="Geen voorraadmutaties voor deze locatie"}
+         badge row.quantity
+         text row.reversal,row.transfer,row.revision,row.unit
+         button opens=reverse_movement
+         modal "Reverse stock movement"@{nl="Voorraadmutatie terugboeken"} id=reverse_movement
+          slot content
+           alert "Reversal appends a linked movement; posted history stays immutable."@{nl="Terugboeking voegt een gekoppelde mutatie toe; vastgelegde historie blijft ongewijzigd."}
+           form reverse arguments={movement=row}
+            textarea reason
+            button submit=true
+         history
+         pagination
+       card "Recent ledger activity"@{nl="Recente voorraadactiviteit"}
+        timeline row.Movement
+         slot item
+          badge row.quantity
+          text row.reason,row.location,row.source
+       pagination
