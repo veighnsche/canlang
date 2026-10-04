@@ -1,0 +1,13 @@
+# Allow contextual names in model positions.
+app Models
+Given
+ app in app {title:text}
+ package in app {title:text}
+ event in app {title:text}
+ contract in app {title:text}
+ role in app {title:text}
+ capability in app {title:text}
+ context in app {title:text}
+ scenario in app {title:text}
+When
+Then

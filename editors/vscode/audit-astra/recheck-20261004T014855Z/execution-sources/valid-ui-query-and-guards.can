@@ -1,0 +1,29 @@
+# Separate presentation roles from execution.
+app Presentation
+Given
+ Item {title:text,active:bool=true}
+ policy Item read=members
+ preferences {view:enum(all,active)=all}
+When
+ crud Item by=members fields=title,active
+ scenario change(input:Item) by=members
+  require input.active
+  do set input {active=false}
+Then
+ page /items title="Items"
+  require members
+  card "Items"
+   tabs preferences.view
+   table Item as item where item.active columns=title,active order=-created
+    require row.active
+    title row.title
+    text row.title
+    content row.title
+    metrics count(Item)
+    copy row.title
+    details "Details"
+     edit fields=title
+     delete
+     action change
+     form change
+     history

@@ -1,0 +1,60 @@
+{
+  "beforeGrammarSha256": "4c53b4f886ea9a74ffc7d18253fd7802dcb476e1347e0991d2e3503c5be7f8c0",
+  "afterGrammarSha256": "4c76b110a4dfb9a137f62fa91d2f49c2df9da549a19bfa67ca6813f253f5b5fb",
+  "changes": [
+    {
+      "repository": "statements",
+      "pattern": 17,
+      "before": "keyword.control.guard.can",
+      "after": "keyword.declaration.invariant.can"
+    },
+    {
+      "repository": "given-code",
+      "pattern": 11,
+      "before": "keyword.control.guard.can",
+      "after": "keyword.declaration.invariant.can"
+    }
+  ],
+  "verifiedAt": "2026-10-04T03:52:26.642365+00:00",
+  "invariant": {
+    "scope": "keyword.declaration.invariant.can",
+    "foreground": "#C586C0",
+    "fontStyleBits": 0
+  },
+  "require": {
+    "foreground": "#FFFFFF",
+    "fontStyleBits": 2,
+    "checkedContexts": [
+      "When",
+      "Then",
+      "backfill"
+    ]
+  },
+  "sectionMarkers": {
+    "foreground": "#FFFFFF",
+    "fontStyleBits": 3
+  },
+  "ownEngineChecksPassed": [
+    "Cursor",
+    "Antigravity"
+  ],
+  "uiInspected": false,
+  "reloadPerformed": false,
+  "installations": [
+    {
+      "editor": "Cursor",
+      "version": "0.1.7",
+      "grammarSha256": "4c76b110a4dfb9a137f62fa91d2f49c2df9da549a19bfa67ca6813f253f5b5fb",
+      "manifestGrammarReadmeMatchSource": true,
+      "savedPaletteUnchanged": true
+    },
+    {
+      "editor": "Antigravity",
+      "version": "0.1.7",
+      "grammarSha256": "4c76b110a4dfb9a137f62fa91d2f49c2df9da549a19bfa67ca6813f253f5b5fb",
+      "manifestGrammarReadmeMatchSource": true,
+      "savedPaletteUnchanged": true
+    }
+  ],
+  "onlyTwoIntroducerScopesChanged": true
+}

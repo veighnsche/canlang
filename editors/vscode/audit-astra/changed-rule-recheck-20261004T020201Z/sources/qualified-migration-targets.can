@@ -1,0 +1,3 @@
+migration Move from="old"
+ rename before.Task to pkg.Work
+ rename before.Task.title to pkg.Work.name

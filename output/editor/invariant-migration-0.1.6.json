@@ -1,0 +1,1005 @@
+{
+  "verifiedAt": "2026-10-04T03:48:51.042619+00:00",
+  "migration": {
+    "declarations": 136,
+    "changedFiles": 40,
+    "scannedFiles": 44,
+    "onlyIntroducerBytesChanged": true,
+    "dryRunAfterApply": {
+      "declarations": 0,
+      "files": 0
+    },
+    "files": [
+      {
+        "path": "draft/CanAffiliate.can",
+        "declarations": 2,
+        "beforeSha256": "410abada957eeec93d97838c01760de32591562c315fa6620794a816a89a850e",
+        "afterSha256": "e41ba40e0acc9134055215e0ec9bdca6dc827646c5be0c20704ed9a26b0e287e",
+        "introducerLocations": [
+          {
+            "line": 26,
+            "column": 3
+          },
+          {
+            "line": 43,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanApprove.can",
+        "declarations": 0,
+        "beforeSha256": "823a344ecde6949b137526c831c18f89a265dbb56fb0e401a7042af3c170917a",
+        "afterSha256": "823a344ecde6949b137526c831c18f89a265dbb56fb0e401a7042af3c170917a",
+        "introducerLocations": []
+      },
+      {
+        "path": "draft/CanBoard.can",
+        "declarations": 0,
+        "beforeSha256": "311035167024d90f662edb6800f35c228b7e4ec388b4790415068a07e61459fa",
+        "afterSha256": "311035167024d90f662edb6800f35c228b7e4ec388b4790415068a07e61459fa",
+        "introducerLocations": []
+      },
+      {
+        "path": "draft/CanBook.can",
+        "declarations": 5,
+        "beforeSha256": "8369cec4a66befd5e126566bdadc5530d618f03ebf7b99f48667adb9318cf1bf",
+        "afterSha256": "cd4520fc0ab89ac253fc884d4a378eb61287c6eff4514fa0177a5b4b012588cf",
+        "introducerLocations": [
+          {
+            "line": 35,
+            "column": 3
+          },
+          {
+            "line": 36,
+            "column": 3
+          },
+          {
+            "line": 39,
+            "column": 3
+          },
+          {
+            "line": 40,
+            "column": 3
+          },
+          {
+            "line": 41,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanCRM.can",
+        "declarations": 4,
+        "beforeSha256": "0aaa3cd6c98aa697b5d0e9809f396318b8a07b1e89208083e8a7ec6fdf828edf",
+        "afterSha256": "8cd05762ab486f929591fe381a360d4daee4dd73d98f6a8ab1deed990d42c689",
+        "introducerLocations": [
+          {
+            "line": 21,
+            "column": 3
+          },
+          {
+            "line": 25,
+            "column": 3
+          },
+          {
+            "line": 26,
+            "column": 3
+          },
+          {
+            "line": 38,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanCatch.can",
+        "declarations": 1,
+        "beforeSha256": "2cefcae97f0cab3a668193188f90f053f31db3abcb71ff7444b63a1c868fd2bb",
+        "afterSha256": "51d6bb680edeae39e74e270e7e622e5e3ebcada7c0a8e4bb018ff7281fb87e83",
+        "introducerLocations": [
+          {
+            "line": 42,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanCheck.can",
+        "declarations": 2,
+        "beforeSha256": "1a0a1f0d17fc3ffdf2c9b7941f372cd0d504464c0366de6ae1bf5bfb4a4e10a7",
+        "afterSha256": "34ff46b909617ca35e0168518a3359d33e548187b0258a4149450464fd35184c",
+        "introducerLocations": [
+          {
+            "line": 22,
+            "column": 3
+          },
+          {
+            "line": 31,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanContract.can",
+        "declarations": 3,
+        "beforeSha256": "b1ee4ea21d0675bb97f01737dff252f744acf94467a7d2633bde6cffbd34d648",
+        "afterSha256": "17ab43f3836795580624c4462cc88226664c635bef24bd63785158beafc34fe6",
+        "introducerLocations": [
+          {
+            "line": 32,
+            "column": 3
+          },
+          {
+            "line": 33,
+            "column": 3
+          },
+          {
+            "line": 42,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanCustomer.can",
+        "declarations": 3,
+        "beforeSha256": "683a6b27e052237d754bf8ceb71714e29b1658932c0fc4bdaac1a41f26b11b14",
+        "afterSha256": "210c67a624d5faecf203ab1ac0c37d26923097fd3db7a1691ca0fe47331cde93",
+        "introducerLocations": [
+          {
+            "line": 50,
+            "column": 3
+          },
+          {
+            "line": 51,
+            "column": 3
+          },
+          {
+            "line": 52,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanDesk.can",
+        "declarations": 1,
+        "beforeSha256": "dccc57a1487b1a5bb3978d8aa57ed070883ff5f66f321501079f93ddea0c29ce",
+        "afterSha256": "f7a2383419088f0a241d8dc1f470732015a12eb3ac234ce995d79d3f9b462492",
+        "introducerLocations": [
+          {
+            "line": 30,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanDo.can",
+        "declarations": 2,
+        "beforeSha256": "54dbbdd8944be84000847bec9adfb06efb3d2acc7fa8442d35cba2d1d780552f",
+        "afterSha256": "93247e530d32937661367556bd283a036d35b149f938a42e29c4c76953560d4d",
+        "introducerLocations": [
+          {
+            "line": 39,
+            "column": 3
+          },
+          {
+            "line": 44,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanEvent.can",
+        "declarations": 2,
+        "beforeSha256": "c7c878f1e5b4ab9799daca54bade43e3db99860a54dea27aff278fab95579525",
+        "afterSha256": "65c03703f0a334018559b5edc4140794b60ab3a504a95403054a9b842da008e3",
+        "introducerLocations": [
+          {
+            "line": 44,
+            "column": 3
+          },
+          {
+            "line": 45,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanExpense.can",
+        "declarations": 2,
+        "beforeSha256": "90b2a6d13fb93b42b2f5fa1afccb8065b4dd9127de5c2bd16dc1c796c6d3e519",
+        "afterSha256": "71f89e2f253c7d7bfabd3d896ea0d8bf7512ba98928d38fe02dba2dbd5aed666",
+        "introducerLocations": [
+          {
+            "line": 19,
+            "column": 3
+          },
+          {
+            "line": 20,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanFeedback.can",
+        "declarations": 1,
+        "beforeSha256": "b9d8ac3e99eea0cf924f0f1675d04f7d20a3ab174d0905afdbfeb7b7b3926a1d",
+        "afterSha256": "bc3464d43b3693c62c9034cf2093b96446a45088867aef5b4cdc56581df5d5ef",
+        "introducerLocations": [
+          {
+            "line": 23,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanField.can",
+        "declarations": 2,
+        "beforeSha256": "5a59e52f035632ec13013ceb851305053832da8813c732e32872f77003701539",
+        "afterSha256": "73aea8ae8f046160e42e0c1d3bbaf5c4ff7dacab4ce3d4287f2e41ad7cde7553",
+        "introducerLocations": [
+          {
+            "line": 23,
+            "column": 3
+          },
+          {
+            "line": 38,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanGrant.can",
+        "declarations": 2,
+        "beforeSha256": "f7c4cc6fca140af0a79709bf4b992ffae1b847991cf1b8f2267627ea127f4751",
+        "afterSha256": "47404d22b6031aedd95c38198a2118e007e62021dc68ef1408a30f58a8221a0a",
+        "introducerLocations": [
+          {
+            "line": 40,
+            "column": 3
+          },
+          {
+            "line": 41,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanHire.can",
+        "declarations": 2,
+        "beforeSha256": "bf4590dbfdd080ce959970f121c9a333bfe547bc0c7bcb00774ca1238730ba23",
+        "afterSha256": "f3e8f9ddb2bad5f45fa9f3cd7752dd301fb521bd7b4c85ad0d88c7f8bb177e00",
+        "introducerLocations": [
+          {
+            "line": 44,
+            "column": 3
+          },
+          {
+            "line": 45,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanInvoice.can",
+        "declarations": 10,
+        "beforeSha256": "6feea816cb1fb4822495dadd9ce26b333aac6297ed17b08f4339f83630ee866f",
+        "afterSha256": "766a19a53a071ed4566ea28906081346b4b53c708b862bc34bac3bad869cda8b",
+        "introducerLocations": [
+          {
+            "line": 62,
+            "column": 3
+          },
+          {
+            "line": 127,
+            "column": 3
+          },
+          {
+            "line": 128,
+            "column": 3
+          },
+          {
+            "line": 129,
+            "column": 3
+          },
+          {
+            "line": 130,
+            "column": 3
+          },
+          {
+            "line": 133,
+            "column": 3
+          },
+          {
+            "line": 134,
+            "column": 3
+          },
+          {
+            "line": 135,
+            "column": 3
+          },
+          {
+            "line": 136,
+            "column": 3
+          },
+          {
+            "line": 137,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanLearn.can",
+        "declarations": 1,
+        "beforeSha256": "148afcb6628bdd3d640a6f19fe288db1bd5f5cdfebfafa52b781ba1e3ea7d175",
+        "afterSha256": "5598e5206bd402745351bc1ce39216f98d5ca6611c6742f39e5c670598786e4a",
+        "introducerLocations": [
+          {
+            "line": 44,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanLeave.can",
+        "declarations": 2,
+        "beforeSha256": "b8839753c82d156e10ff243cd87837c9e119fff01d204da258662e59aab5b08b",
+        "afterSha256": "d3f4a24502e97389c84682451a4e90d138488d49eff315a8031b57c0059c45ab",
+        "introducerLocations": [
+          {
+            "line": 46,
+            "column": 3
+          },
+          {
+            "line": 47,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanLoyalty.can",
+        "declarations": 6,
+        "beforeSha256": "a12fd2c58ff42ee9dd76f93822c6245fc80b57bf2b3e2973f4c8612ae4b42859",
+        "afterSha256": "45bbfc89545df6cd4c445dbfa9e4004de0802fd0b948644fb459773dda29b14e",
+        "introducerLocations": [
+          {
+            "line": 50,
+            "column": 3
+          },
+          {
+            "line": 51,
+            "column": 3
+          },
+          {
+            "line": 52,
+            "column": 3
+          },
+          {
+            "line": 53,
+            "column": 3
+          },
+          {
+            "line": 54,
+            "column": 3
+          },
+          {
+            "line": 55,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanMail.can",
+        "declarations": 4,
+        "beforeSha256": "6e125828c95d0653349e1a720667fcd46a2f42ad2713949960f6353d5360e46c",
+        "afterSha256": "383a76255b370698b5d0e7db108379f389c32a3bb4c202ff64fbbe94c83d576d",
+        "introducerLocations": [
+          {
+            "line": 44,
+            "column": 3
+          },
+          {
+            "line": 45,
+            "column": 3
+          },
+          {
+            "line": 46,
+            "column": 3
+          },
+          {
+            "line": 47,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanMaintain.can",
+        "declarations": 3,
+        "beforeSha256": "9ace8038da69e63ab8e5cd8ba0470a97d7753f2c5250c9c4ea222ef2576349ed",
+        "afterSha256": "2a08c3943295b4c2fb8476df8862ea6cffdc098233de277c2000906583490fc6",
+        "introducerLocations": [
+          {
+            "line": 43,
+            "column": 3
+          },
+          {
+            "line": 44,
+            "column": 3
+          },
+          {
+            "line": 45,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanMember.can",
+        "declarations": 11,
+        "beforeSha256": "ad7fbd2895995580f98349c377d9ce979f0ebad6be016da65a38a68594712b2f",
+        "afterSha256": "f92fabad5eb0beb2210d25233ad3f2a728931b2cc685c9ca2eb90fd0555a110c",
+        "introducerLocations": [
+          {
+            "line": 18,
+            "column": 3
+          },
+          {
+            "line": 19,
+            "column": 3
+          },
+          {
+            "line": 20,
+            "column": 3
+          },
+          {
+            "line": 157,
+            "column": 3
+          },
+          {
+            "line": 158,
+            "column": 3
+          },
+          {
+            "line": 159,
+            "column": 3
+          },
+          {
+            "line": 160,
+            "column": 3
+          },
+          {
+            "line": 161,
+            "column": 3
+          },
+          {
+            "line": 162,
+            "column": 3
+          },
+          {
+            "line": 163,
+            "column": 3
+          },
+          {
+            "line": 165,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanOnboard.can",
+        "declarations": 1,
+        "beforeSha256": "7fc6b04132979574266394f7a77c668776f65899fc08f7692cf02bd1d357e25f",
+        "afterSha256": "58cfd31cafbcb64c522640965ff2b6c58559061a3040e9db8a45cb6e4f180d80",
+        "introducerLocations": [
+          {
+            "line": 24,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanPropose.can",
+        "declarations": 3,
+        "beforeSha256": "7bbd678e957d973ac8bb7dbe6b617d71cae340635f386cecfd9979ec58aa1fcd",
+        "afterSha256": "0fa46b03b04ec5cd421e468b5bf0c14b6c7fbdd028ec840c0decd6223e2b0647",
+        "introducerLocations": [
+          {
+            "line": 47,
+            "column": 3
+          },
+          {
+            "line": 48,
+            "column": 3
+          },
+          {
+            "line": 49,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanPurchase.can",
+        "declarations": 13,
+        "beforeSha256": "77135a1b018baecb677236276a3fe21f735cd5b232b77cf53ec12618ebacaf4c",
+        "afterSha256": "3993afd69deb9c3a90308e4d5f6ff792d497b8fe99f617a7ffed7e0d7155aea7",
+        "introducerLocations": [
+          {
+            "line": 24,
+            "column": 3
+          },
+          {
+            "line": 60,
+            "column": 3
+          },
+          {
+            "line": 61,
+            "column": 3
+          },
+          {
+            "line": 62,
+            "column": 3
+          },
+          {
+            "line": 63,
+            "column": 3
+          },
+          {
+            "line": 64,
+            "column": 3
+          },
+          {
+            "line": 65,
+            "column": 3
+          },
+          {
+            "line": 66,
+            "column": 3
+          },
+          {
+            "line": 67,
+            "column": 3
+          },
+          {
+            "line": 68,
+            "column": 3
+          },
+          {
+            "line": 69,
+            "column": 3
+          },
+          {
+            "line": 70,
+            "column": 3
+          },
+          {
+            "line": 71,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanReception.can",
+        "declarations": 4,
+        "beforeSha256": "8b7978c785e9ac6e65b6de1fe3e66257f5e7efa68e114726cc6dea3e0e337a13",
+        "afterSha256": "b36be92013a152dd62729a9e5e2836b02b6bd9e861d31e84cac264060f3c8cab",
+        "introducerLocations": [
+          {
+            "line": 50,
+            "column": 3
+          },
+          {
+            "line": 51,
+            "column": 3
+          },
+          {
+            "line": 52,
+            "column": 3
+          },
+          {
+            "line": 53,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanRefer.can",
+        "declarations": 4,
+        "beforeSha256": "25ef2997926065baf6f353e535fd0be97d4f1b36a51fcc3d5ad7e90326f3318d",
+        "afterSha256": "7b04d2ce9ca2180ec6b1549a88b175db14aae5061114cb4fd3c276f6b82ec19c",
+        "introducerLocations": [
+          {
+            "line": 49,
+            "column": 3
+          },
+          {
+            "line": 50,
+            "column": 3
+          },
+          {
+            "line": 52,
+            "column": 3
+          },
+          {
+            "line": 205,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanRent.can",
+        "declarations": 10,
+        "beforeSha256": "2418ca4224c36d7863615ea3fb6ffdfee85460400131a2a08696c800102437cc",
+        "afterSha256": "cfdd79613941b6e8aa67959f7f3c69126e0f64d591f249c0f3002d2df2ece288",
+        "introducerLocations": [
+          {
+            "line": 151,
+            "column": 3
+          },
+          {
+            "line": 185,
+            "column": 3
+          },
+          {
+            "line": 186,
+            "column": 3
+          },
+          {
+            "line": 194,
+            "column": 3
+          },
+          {
+            "line": 195,
+            "column": 3
+          },
+          {
+            "line": 196,
+            "column": 3
+          },
+          {
+            "line": 197,
+            "column": 3
+          },
+          {
+            "line": 198,
+            "column": 3
+          },
+          {
+            "line": 199,
+            "column": 3
+          },
+          {
+            "line": 200,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanReport.can",
+        "declarations": 1,
+        "beforeSha256": "ff8ebad78daf63478acaf2fc6be38ac489454e4d2cea6d1456a03368f5d44b8a",
+        "afterSha256": "3fce4b0b89ee9d975bf02c960aa300e7520b022e09a79c075e381bf3cdcb72db",
+        "introducerLocations": [
+          {
+            "line": 33,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanShift.can",
+        "declarations": 4,
+        "beforeSha256": "58b57e773ef441588a2def35725a2700645773057d69f15c14c40552b20386b2",
+        "afterSha256": "d129e12ef679415739c1f2bbbb5d416bbc01d09a38bb7203d289e4b00624e947",
+        "introducerLocations": [
+          {
+            "line": 67,
+            "column": 3
+          },
+          {
+            "line": 68,
+            "column": 3
+          },
+          {
+            "line": 69,
+            "column": 3
+          },
+          {
+            "line": 70,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanStats.can",
+        "declarations": 1,
+        "beforeSha256": "49bdb72a81e4e528204fe167edf6bfbd755ecc25ac5c94fc9754e5a435bd99b5",
+        "afterSha256": "dd616104b328e5323561c21a690de017b38a380beb68bc54f0609ee9c2879eb2",
+        "introducerLocations": [
+          {
+            "line": 35,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanStock.can",
+        "declarations": 4,
+        "beforeSha256": "8a6ec133a1d598efe62911470db20fe2d9e83741cbf72520dea6ea8ce5671ee4",
+        "afterSha256": "31849b089e5111ed64e09f39272b701cabbbdaf2528c03af9c952d66ee0020e4",
+        "introducerLocations": [
+          {
+            "line": 12,
+            "column": 3
+          },
+          {
+            "line": 38,
+            "column": 3
+          },
+          {
+            "line": 50,
+            "column": 3
+          },
+          {
+            "line": 51,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanSuccess.can",
+        "declarations": 2,
+        "beforeSha256": "24fb2197ca0274b229ccee4b7d6d880341c85ab0889a45722e6eaf267536acb4",
+        "afterSha256": "c1a5f6107216d3e7fb6f01b1094f09f8704f52d1a33f53eb13c05fe4cabb30fb",
+        "introducerLocations": [
+          {
+            "line": 35,
+            "column": 3
+          },
+          {
+            "line": 36,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanTable.can",
+        "declarations": 8,
+        "beforeSha256": "ed44334a930b63d332601d9a6110d183ff87451078fb88fe555b7f91b23fd8c4",
+        "afterSha256": "6370744eec556ba76633d128855cb50013a06ecf327d909f1aa931d775f3415f",
+        "introducerLocations": [
+          {
+            "line": 21,
+            "column": 3
+          },
+          {
+            "line": 22,
+            "column": 3
+          },
+          {
+            "line": 23,
+            "column": 3
+          },
+          {
+            "line": 24,
+            "column": 3
+          },
+          {
+            "line": 25,
+            "column": 3
+          },
+          {
+            "line": 26,
+            "column": 3
+          },
+          {
+            "line": 27,
+            "column": 3
+          },
+          {
+            "line": 28,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanTime.can",
+        "declarations": 3,
+        "beforeSha256": "1164c308eba964e3bedabcfdf6062e590560774b3da3f3113fac032f30783565",
+        "afterSha256": "362c6fad8df72004fe843daf8eff63023d5fd701a2bbdb1670ab20657adabfe0",
+        "introducerLocations": [
+          {
+            "line": 33,
+            "column": 3
+          },
+          {
+            "line": 34,
+            "column": 3
+          },
+          {
+            "line": 35,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanTrade.can",
+        "declarations": 2,
+        "beforeSha256": "c369bc9bce4e7528c8c86332afb1ce37118498f34a5691ff36187aa9bc5c2169",
+        "afterSha256": "c0e470c87e7b48cb1846f19c43db6ec1f97921c419c54bfcaf2af30224749dce",
+        "introducerLocations": [
+          {
+            "line": 20,
+            "column": 3
+          },
+          {
+            "line": 21,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/CanVolunteer.can",
+        "declarations": 1,
+        "beforeSha256": "ce924b589ffb07a9432d709bc5fc6548aea90b19d7a0fbe6d4269014aa25f50c",
+        "afterSha256": "4d655726361f387c8be8c5fef940ebdc4e15a1dff44c17fcd8c19d4eaf5183ba",
+        "introducerLocations": [
+          {
+            "line": 33,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/shared/Employees.can",
+        "declarations": 1,
+        "beforeSha256": "5ce778400f53ee602add2c7aa673bfab9c5bb5231233e817bdaf29bb0cf7eca5",
+        "afterSha256": "5af7826104ec480d11e55b0970408947ceb7ba00ca7f3abdaca4f0a1a0d63970",
+        "introducerLocations": [
+          {
+            "line": 13,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/shared/Locations.can",
+        "declarations": 2,
+        "beforeSha256": "96585b73cb131e65a2ac428607189745dbdfc8144570175f0a720ebd9fb35d05",
+        "afterSha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+        "introducerLocations": [
+          {
+            "line": 20,
+            "column": 3
+          },
+          {
+            "line": 21,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "draft/shared/Suppliers.can",
+        "declarations": 0,
+        "beforeSha256": "828931c2fed61c24b269e5653c871f8576d7f798722da58635141645aaaa7878",
+        "afterSha256": "828931c2fed61c24b269e5653c871f8576d7f798722da58635141645aaaa7878",
+        "introducerLocations": []
+      },
+      {
+        "path": "examples/ExpenseFlow.can",
+        "declarations": 1,
+        "beforeSha256": "952eb3e2062b57e3e0e0ebcda97ec507caacbeabd5e48063814872b71807df6a",
+        "afterSha256": "772b05ce0d71383cb98f7dd3782e09de2a39b84c2fbb21f1ab4e34c9902862bd",
+        "introducerLocations": [
+          {
+            "line": 19,
+            "column": 3
+          }
+        ]
+      },
+      {
+        "path": "examples/TeamTasks.can",
+        "declarations": 0,
+        "beforeSha256": "89f28215fe6a825083581dedccd0268433581c4000a03e1971dfa2dccccc92fa",
+        "afterSha256": "89f28215fe6a825083581dedccd0268433581c4000a03e1971dfa2dccccc92fa",
+        "introducerLocations": []
+      }
+    ]
+  },
+  "validation": {
+    "migrationTestsPassed": 5,
+    "parserBoundaryTestsPassed": 37,
+    "parserCorpusAccepted": 40,
+    "parserCorpusTotal": 44,
+    "parserFailureParity": {
+      "exact_before_source_sha256_verified": 44,
+      "only_temp_dispatch_changed": true,
+      "before_errors": [
+        {
+          "path": "/Users/vince/Projects/canlang/draft/CanCRM.can",
+          "line": 144,
+          "column": 26,
+          "message": "unsupported attribute import"
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/draft/CanCustomer.can",
+          "line": 210,
+          "column": 26,
+          "message": "unsupported attribute import"
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/draft/CanDo.can",
+          "line": 123,
+          "column": 286,
+          "message": "expected identifier"
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/draft/CanStats.can",
+          "line": 156,
+          "column": 63,
+          "message": "unsupported attribute poll"
+        }
+      ],
+      "after_errors": [
+        {
+          "path": "/Users/vince/Projects/canlang/draft/CanCRM.can",
+          "line": 144,
+          "column": 26,
+          "message": "unsupported attribute import"
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/draft/CanCustomer.can",
+          "line": 210,
+          "column": 26,
+          "message": "unsupported attribute import"
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/draft/CanDo.can",
+          "line": 123,
+          "column": 286,
+          "message": "expected identifier"
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/draft/CanStats.can",
+          "line": 156,
+          "column": 63,
+          "message": "unsupported attribute poll"
+        }
+      ],
+      "parity": true
+    },
+    "highlightingChecksPassedWithOwnEngines": [
+      "Cursor",
+      "Antigravity"
+    ],
+    "highlightingCorpusFiles": 44,
+    "highlightingLineEntries": 11199
+  },
+  "artifact": {
+    "path": "/Users/vince/Projects/canlang/output/editor/canlang-draft-highlighting-0.1.6.vsix",
+    "sha256": "9490cdbed1c1f6ce45218ad9b1aee86e4248c3fd9d60afcce30cc8f01ae26324",
+    "entryCount": 5,
+    "syntaxOnly": true
+  },
+  "installations": [
+    {
+      "editor": "Cursor",
+      "version": "0.1.6",
+      "grammarSha256": "4c53b4f886ea9a74ffc7d18253fd7802dcb476e1347e0991d2e3503c5be7f8c0",
+      "manifestGrammarReadmeMatchSource": true,
+      "savedPaletteUnchanged": true,
+      "obsoleteCanlangRegistered": false,
+      "ailRegistered": true
+    },
+    {
+      "editor": "Antigravity",
+      "version": "0.1.6",
+      "grammarSha256": "4c53b4f886ea9a74ffc7d18253fd7802dcb476e1347e0991d2e3503c5be7f8c0",
+      "manifestGrammarReadmeMatchSource": true,
+      "savedPaletteUnchanged": true,
+      "obsoleteCanlangRegistered": false,
+      "ailRegistered": true
+    }
+  ],
+  "uiInspected": false,
+  "reloadPerformed": false,
+  "limitations": "Syntax parsing/highlighting do not validate or execute business behavior; four parser gaps predate this rename."
+}
