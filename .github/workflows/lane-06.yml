@@ -44,5 +44,9 @@ jobs:
           echo "$imports" | grep -v -E 'contracts/src/(identity|wire)\.js' && exit 1 || exit 0
       - name: Install workspace
         run: npm install --no-audit --no-fund
+      - name: Build contracts assembly
+        # Owned sources import the @canlang/contracts public assembly (dist);
+        # tests keep narrow relative imports guarded above.
+        run: npm run build --workspace @canlang/contracts
       - name: Test owned packages
         run: npm test --workspace @canlang/identity --workspace @canlang/interfaces

@@ -9,7 +9,7 @@
  * arrives with the S6 bridge implementation.
  */
 import { IdentityError } from '../ports.js';
-import type { IdentityBinding } from '../../../contracts/src/identity.js';
+import type { IdentityBinding } from '@canlang/contracts';
 
 export type TokenAudience = 'browser-session' | 'mcp-grant' | 'upload-bridge';
 
