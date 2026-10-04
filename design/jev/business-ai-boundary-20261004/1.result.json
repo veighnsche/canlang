@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Can is a draft AI-authored SaaS DSL for companies building their own departmental tools. Adoption, low repetition, understandable generated JavaScript and one canonical way of expressing each operation matter. Given declares data, permissions and invariants; When declares guarded business operations; Then declares UI. Implemented compatibility imposes no constraint on changing the draft. Existing typed capability imports own operation/result schemas; send records durable external work, returning an associated delivery; a completion handler receives the eventual result. This design has no specified typed incremental stream, progress or cancellation contract. Workerd already supplies fetch, encoding, streams and crypto; hosted Cloudflare adds bound services such as D1, R2, AI and Workflows. JavaScript libraries can implement shared mechanisms. Proposed exercises are ordinary LLM chat; Ollama chat plus ComfyUI image generation with a once-declared mapping from prompt, negative prompt, width and height to workflow node input keys; JEV classifier NOUL, choice and score preserving returned uncertainty; email routing; and bounded recurring opportunity search that retains sources and proposes CRM entries. Providers differ in structured output, stream, cancellation, replay and available tools. Runtime parsing, transport and byte handling can be shared, but company routing, source choice, acceptance criteria, approval requirements and spending limits remain authored policy. No option has been implemented or measured for authoring cost or runtime speed. The question concerns the starting contract boundary, not a final syntax decision or a requirement to include every vendor feature.",
+    "questions": {
+      "boundary": {
+        "type": "choice",
+        "instructions": "Select the most useful starting design to draft and compare for these stated company workflows. Weigh compact authoring, retained provider differences, coherent semantics, integration maintenance and compiler/library responsibilities. Do not assume an option is already correct or that existing draft machinery must remain unchanged.",
+        "criteria": {
+          "generic": "Keep a single generic typed service mechanism and extend its shared delivery lifecycle for streams, progress and cancellation when required. Give each provider its own typed operation inputs and outputs without standard generation/classification/media schemas. This preserves direct feature fidelity and can share transport/lifecycle code, but every provider change may require application prompt/result mappings and repeated domain-level declarations.",
+          "shared": "Define library-owned typed contracts for generation, classification, retrieval and media work through the existing import mechanism, and investigate shared language semantics for incremental and resumable work where drafts demonstrate the need. Provider adapters retain declared feature differences. This can reduce repeated call handling without provider keywords, but abstraction design, capability mismatch handling and common lifecycle rules still need substantial specification.",
+          "dedicated": "Add native model, classifier and media-workflow declaration forms with dedicated invocation/lifecycle semantics. Provider configurations and ComfyUI mappings become explicit language constructs. This can yield very compact purpose-specific source and focused diagnostics, but adds syntax and semantic surface that must evolve with those feature families and coexist coherently with ordinary service calls."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "boundary": {
+        "type": "choice",
+        "choice": "shared",
+        "confidence": 0.74,
+        "probabilities": {
+          "dedicated": 0.1,
+          "generic": 0.07,
+          "shared": 0.83
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 893,
+      "output_tokens": 39
+    }
+  }
+}
