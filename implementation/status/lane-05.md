@@ -402,8 +402,12 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
       none); index exports; 4 catalog flips; arity pins; review caption guard. Suite 732/732.
       Calendar closed: agenda shipped in C4a; JEV adopts C (no static grid); gallery unwarranted
       (no catalog word; list/board/hover_gallery cover). Evidence: jev/lane-05-c7-20261004/.
-- [ ] C8 settings + panels: preferences sections/panels, tabs, details/drawer completion, history, copy
-      (old S6 scope reconciled with new profiles). One worker + coordinator.
+- [ ] C8 settings + panels (branch muse/lane-05-ui/c8-settings, PR pending): contract
+      v0.14.0 (12 Props types + HistoryEntry re-export), panels.ts (tabs/history/copy),
+      settings.ts (renderSettingsPanel), leaves.ts +3 mockups. Props in contract (tabs
+      variant dropped; TabsOption replaces ThemeOption misuse); state.js imports retargeted
+      to presentation.js (guard); density unknown leaves radios unchecked. 7 catalog flips
+      (88/88 implemented, 0 planned); arity pins. Suite 779/779.
 - [ ] C9 catalog completion + B1/B2/B3 + discovery evidence: availability truthfulness audit, L1/L6/L7 joins,
       real-route authority tests, agent-facing discovery proof. Coordinator-led.
 
