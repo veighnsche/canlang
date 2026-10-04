@@ -18,7 +18,12 @@ import type {
 } from '../../../contracts/src/state.js';
 import type { Membership } from '../../../contracts/src/identity.js';
 import { StateError } from '../errors.js';
-import { evaluateBy, type ByPredicate, type MembershipReader } from './roles.js';
+import {
+  evaluateBy,
+  validateByPredicate,
+  type ByPredicate,
+  type MembershipReader,
+} from './roles.js';
 
 /**
  * One interim visibility grant: rows are visible to callers satisfying `by`
@@ -83,12 +88,35 @@ function checkDotPath(path: string, what: string): void {
 }
 
 /**
+ * Deep-freeze a policy AST so post-build mutation cannot alter enforcement.
+ * Policy ASTs are trees (no cycles); the guard is defense in depth.
+ */
+function deepFreeze<T>(value: T, seen: Set<unknown> = new Set()): T {
+  if (typeof value !== 'object' || value === null || seen.has(value)) {
+    return value;
+  }
+  seen.add(value);
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      deepFreeze(entry, seen);
+    }
+  } else {
+    for (const entry of Object.values(value)) {
+      deepFreeze(entry, seen);
+    }
+  }
+  return Object.freeze(value);
+}
+
+/**
  * Validate and freeze interim model policies into a lookup table.
  *
  * Throws plain `Error` on programmer bugs: empty model names, duplicate
- * models, malformed dot paths, empty path entries, or any grant field equal
- * to or under a secret path (fail fast; a grant above a secret is allowed and
- * the secret subtree is carved out of every projection instead).
+ * models, malformed dot paths, empty path entries, malformed `by` shapes,
+ * malformed `when` shapes, any grant field equal to or under a secret path
+ * (fail fast; a grant above a secret is allowed and the secret subtree is
+ * carved out of every projection instead), or any `when` row-match touching
+ * a secret path (a viewer-observable visibility oracle bit).
  */
 export function buildPolicyTable(models: ReadonlyArray<InterimModelPolicy>): PolicyTable {
   const table = new Map<ModelName, InterimModelPolicy>();
@@ -104,6 +132,7 @@ export function buildPolicyTable(models: ReadonlyArray<InterimModelPolicy>): Pol
       checkDotPath(secret, 'secretFields');
     }
     const grants = policy.grants.map((grant) => {
+      validateByPredicate(grant.by, `grant by on model ${JSON.stringify(model)}`);
       for (const field of grant.fields) {
         checkDotPath(field, 'grant fields');
         for (const secret of policy.secretFields) {
@@ -115,10 +144,30 @@ export function buildPolicyTable(models: ReadonlyArray<InterimModelPolicy>): Pol
           }
         }
       }
+      if (grant.when !== undefined) {
+        try {
+          validatePredicateShape(grant.when);
+        } catch (error) {
+          throw new Error(
+            `Invalid grant when on model ${JSON.stringify(model)}: ` +
+              `${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+        for (const path of collectPredicateFields(grant.when)) {
+          for (const secret of policy.secretFields) {
+            if (isEqualOrUnder(path, secret)) {
+              throw new Error(
+                `Grant when path ${JSON.stringify(path)} is secret on model ` +
+                  `${JSON.stringify(model)} (secret: ${JSON.stringify(secret)})`,
+              );
+            }
+          }
+        }
+      }
       return Object.freeze({
-        by: grant.by,
+        by: deepFreeze(structuredClone(grant.by)),
         fields: Object.freeze([...grant.fields]),
-        ...(grant.when !== undefined ? { when: grant.when } : {}),
+        ...(grant.when !== undefined ? { when: deepFreeze(structuredClone(grant.when)) } : {}),
       }) as InterimGrant;
     });
     table.set(
@@ -273,10 +322,48 @@ export function validatePredicateShape(predicate: QueryPredicate): void {
     case 'not_null':
       return;
     default: {
+      // Unknown ops are caller errors (StateError), never programmer crashes:
+      // S4 callers hand-build `where` until L1 compiles it. Build-time `when`
+      // validation wraps this in a plain Error (see buildPolicyTable).
       const op = (predicate as QueryPredicate).op;
-      throw new Error(`Unknown query predicate: ${JSON.stringify(op)}`);
+      throw new StateError('validation', `Unknown query predicate: ${JSON.stringify(op)}.`);
     }
   }
+}
+
+/** Collect every `field` referenced by a predicate AST. */
+export function collectPredicateFields(predicate: QueryPredicate): string[] {
+  const fields: string[] = [];
+  const visit = (node: QueryPredicate): void => {
+    switch (node.op) {
+      case 'and':
+      case 'or':
+        for (const arg of node.args) {
+          visit(arg);
+        }
+        return;
+      case 'not':
+        visit(node.arg);
+        return;
+      case 'eq':
+      case 'ne':
+      case 'lt':
+      case 'lte':
+      case 'gt':
+      case 'gte':
+      case 'between':
+      case 'is_null':
+      case 'not_null':
+        fields.push(node.field);
+        return;
+      default: {
+        const op = (node as QueryPredicate).op;
+        throw new StateError('validation', `Unknown query predicate: ${JSON.stringify(op)}.`);
+      }
+    }
+  };
+  visit(predicate);
+  return fields;
 }
 
 /**
@@ -374,11 +461,11 @@ export function evalPredicateForRow(predicate: QueryPredicate, row: StoredRow): 
       return !isNullish(resolveRowPath(row, predicate.field));
     default: {
       const op = (predicate as QueryPredicate).op;
-      throw new Error(`Unknown query predicate: ${JSON.stringify(op)}`);
+      throw new StateError('validation', `Unknown query predicate: ${JSON.stringify(op)}.`);
     }
   }
   const op = (predicate as QueryPredicate).op;
-  throw new Error(`Unknown query predicate: ${JSON.stringify(op)}`);
+  throw new StateError('validation', `Unknown query predicate: ${JSON.stringify(op)}.`);
 }
 
 /**

@@ -27,6 +27,7 @@ import type { StoragePort } from '../storage/port.js';
 import { StateError } from '../errors.js';
 import { evaluateBy, type MembershipReader } from '../policy/roles.js';
 import {
+  collectPredicateFields,
   evalPredicateForRow,
   isEqualOrUnder,
   isMetadataPath,
@@ -120,41 +121,6 @@ function toStorageOrder(order: ReadonlyArray<OrderTerm>): ReadonlyArray<OrderTer
     }
   }
   return mapped;
-}
-
-/** Collect every `field` referenced by a predicate AST. */
-function collectPredicateFields(predicate: QueryPredicate): string[] {
-  const fields: string[] = [];
-  const visit = (node: QueryPredicate): void => {
-    switch (node.op) {
-      case 'and':
-      case 'or':
-        for (const arg of node.args) {
-          visit(arg);
-        }
-        return;
-      case 'not':
-        visit(node.arg);
-        return;
-      case 'eq':
-      case 'ne':
-      case 'lt':
-      case 'lte':
-      case 'gt':
-      case 'gte':
-      case 'between':
-      case 'is_null':
-      case 'not_null':
-        fields.push(node.field);
-        return;
-      default: {
-        const op = (node as QueryPredicate).op;
-        throw new Error(`Unknown query predicate: ${JSON.stringify(op)}`);
-      }
-    }
-  };
-  visit(predicate);
-  return fields;
 }
 
 /**
@@ -263,23 +229,34 @@ function setProjectedPath(
   safeSet(current, leaf, value);
 }
 
-/** Delete a dot-path from the projected object when present. */
-function deleteProjectedPath(root: Record<string, unknown>, segments: ReadonlyArray<string>): void {
-  let current = root;
-  for (const segment of segments.slice(0, -1)) {
-    if (!Object.hasOwn(current, segment)) {
-      return;
-    }
-    const next = current[segment];
-    if (typeof next !== 'object' || next === null || Array.isArray(next)) {
-      return;
-    }
-    current = next as Record<string, unknown>;
+/**
+ * Delete a dot-path from the projected value when present. Arrays are
+ * transparent: a declared secret under an array path is carved out of every
+ * element, so parent-granted arrays cannot leak secret leaves.
+ */
+function deleteProjectedPath(node: unknown, segments: ReadonlyArray<string>): void {
+  const head = segments[0];
+  if (head === undefined) {
+    return;
   }
-  const leaf = segments[segments.length - 1];
-  if (leaf !== undefined && Object.hasOwn(current, leaf)) {
-    delete current[leaf];
+  if (Array.isArray(node)) {
+    for (const element of node) {
+      deleteProjectedPath(element, segments);
+    }
+    return;
   }
+  if (typeof node !== 'object' || node === null) {
+    return;
+  }
+  const record = node as Record<string, unknown>;
+  if (!Object.hasOwn(record, head)) {
+    return;
+  }
+  if (segments.length === 1) {
+    delete record[head];
+    return;
+  }
+  deleteProjectedPath(record[head], segments.slice(1));
 }
 
 /**
@@ -511,28 +488,80 @@ function avgValues(field: string, values: ReadonlyArray<unknown>): number {
   return total / count;
 }
 
-/** Min/max usable values: all numbers or all strings, never empty or mixed. */
+/**
+ * Min/max usable values: all numbers, all strings, or all money in one
+ * currency and one minor-unit type — never empty or mixed. Money compares by
+ * minor units and returns the winning input value unchanged.
+ */
 function minMaxValues(op: 'min' | 'max', field: string, values: ReadonlyArray<unknown>): unknown {
+  const mixed = (): StateError =>
+    new StateError(
+      'validation',
+      `Cannot compute ${op} over mixed value types on ${JSON.stringify(field)}.`,
+    );
   let bestNum: number | null = null;
   let bestStr: string | null = null;
+  let bestMoney: { minor: number | bigint; value: unknown } | null = null;
+  let moneyCurrency = '';
+  let moneyMinorKind: 'number' | 'bigint' | null = null;
+  const sawOther = (): boolean => bestNum !== null || bestStr !== null || bestMoney !== null;
   for (const value of values) {
     if (typeof value === 'number') {
-      if (bestStr !== null) {
-        throw new StateError(
-          'validation',
-          `Cannot compute ${op} over mixed numbers and strings on ${JSON.stringify(field)}.`,
-        );
+      if (bestStr !== null || bestMoney !== null) {
+        throw mixed();
       }
       bestNum = bestNum === null ? value : op === 'min' ? Math.min(bestNum, value) : Math.max(bestNum, value);
     } else if (typeof value === 'string') {
-      if (bestNum !== null) {
-        throw new StateError(
-          'validation',
-          `Cannot compute ${op} over mixed numbers and strings on ${JSON.stringify(field)}.`,
-        );
+      if (sawOther() && bestStr === null) {
+        throw mixed();
       }
       if (bestStr === null || (op === 'min' ? value < bestStr : value > bestStr)) {
         bestStr = value;
+      }
+    } else if (isMoneyShaped(value)) {
+      if (sawOther() && bestMoney === null) {
+        throw mixed();
+      }
+      const record = value as Readonly<Record<string, unknown>>;
+      const currency = record['currency'];
+      const minor = record['minor'];
+      if (typeof currency !== 'string' || currency === '') {
+        throw new StateError(
+          'validation',
+          `Cannot compute ${op} over money with no currency on ${JSON.stringify(field)}.`,
+        );
+      }
+      if (typeof minor !== 'number' && typeof minor !== 'bigint') {
+        throw new StateError(
+          'validation',
+          `Cannot compute ${op} over money with unsupported minor units on ${JSON.stringify(field)}.`,
+        );
+      }
+      if (bestMoney !== null && moneyCurrency !== currency) {
+        throw new StateError(
+          'validation',
+          `Cannot compute ${op} over money in mixed currencies on ${JSON.stringify(field)}.`,
+        );
+      }
+      const kind = typeof minor === 'bigint' ? 'bigint' : 'number';
+      if (moneyMinorKind !== null && moneyMinorKind !== kind) {
+        throw new StateError(
+          'validation',
+          `Cannot compute ${op} over money with mixed minor-unit types on ${JSON.stringify(field)}.`,
+        );
+      }
+      moneyCurrency = currency;
+      moneyMinorKind = kind;
+      if (bestMoney === null) {
+        bestMoney = { minor, value };
+      } else {
+        const better =
+          op === 'min'
+            ? (minor as number | bigint) < bestMoney.minor
+            : (minor as number | bigint) > bestMoney.minor;
+        if (better) {
+          bestMoney = { minor, value };
+        }
       }
     } else {
       throw new StateError(
@@ -547,21 +576,43 @@ function minMaxValues(op: 'min' | 'max', field: string, values: ReadonlyArray<un
   if (bestStr !== null) {
     return bestStr;
   }
+  if (bestMoney !== null) {
+    return bestMoney.value;
+  }
   throw new StateError('validation', `Cannot compute ${op} over an empty set on ${JSON.stringify(field)}.`);
 }
 
-/** Post-visibility, post-where, sorted matched set with per-row grants. */
+/**
+ * Post-visibility, post-where, sorted matched set. Viewer rows are already
+ * projected (data holds only the row's matching grants), so downstream
+ * filtering, sorting, and aggregation observe exactly what the caller may
+ * see; owner rows are full stored rows.
+ */
 interface AuthorizedSet {
   readonly revision: Revision;
   readonly rows: StoredRow[];
-  readonly grants: InterimGrant[][];
-  readonly policy: InterimModelPolicy | null;
+}
+
+/** Reinterpret a projected-shaped row as its viewer record. */
+function toProjectedRecord(row: StoredRow): ProjectedRecord {
+  return {
+    id: row.id,
+    version: row.version,
+    created: row.created,
+    updated: row.updated,
+    createdBy: row.createdBy,
+    updatedBy: row.updatedBy,
+    archivedAt: row.archivedAt,
+    data: row.data,
+  };
 }
 
 /**
  * Shared record/aggregate pipeline: validate caller input, fence the
- * revision, resolve viewer authorization, scan unbounded, match and filter in
- * memory, sort, then fail on limit overflow (never truncate).
+ * revision, resolve viewer authorization, scan unbounded, match and project
+ * in memory (viewers project BEFORE where/sort so cross-grant values cannot
+ * leak through predicates or aggregates), sort, then fail on limit overflow
+ * (never truncate).
  */
 async function runAuthorizedQuery(
   input: BaseQueryInput,
@@ -648,15 +699,16 @@ async function runAuthorizedQuery(
   const scanned = await input.store.query(spec);
 
   // Visibility (viewer: >=1 matching grant) then `where`, both in memory.
+  // Viewers project BEFORE where: a row visible via grant B evaluates
+  // predicates over its own projected values only, so A-only paths read as
+  // missing (never match comparisons) instead of leaking stored values.
   const matched: StoredRow[] = [];
-  const matchedGrants: InterimGrant[][] = [];
   if (input.authority === 'owner') {
     for (const row of scanned) {
       if (input.where !== undefined && !evalPredicateForRow(input.where, row)) {
         continue;
       }
       matched.push(row);
-      matchedGrants.push([]);
     }
   } else {
     const grants: ReadonlyArray<InterimGrant> = policy === null ? [] : policy.grants;
@@ -676,24 +728,18 @@ async function runAuthorizedQuery(
       if (matching.length === 0) {
         continue;
       }
-      if (input.where !== undefined && !evalPredicateForRow(input.where, row)) {
+      const projected = projectRow(row, matching, secrets);
+      if (input.where !== undefined && !evalPredicateForRow(input.where, projected)) {
         continue;
       }
-      matched.push(row);
-      matchedGrants.push(matching);
+      matched.push({ ...row, data: projected.data });
     }
   }
 
   // One engine ordering over the effective order plus the id tiebreak, so
-  // results are identical regardless of backend scan order. Rows and their
-  // per-row grants sort as pairs to stay aligned for projection.
-  const pairs = matched.map((row, index) => ({
-    row,
-    grants: matchedGrants[index] ?? [],
-  }));
-  pairs.sort((left, right) => compareRowsForOrder(left.row, right.row, order));
-  const rows = pairs.map((pair) => pair.row);
-  const grants = pairs.map((pair) => pair.grants);
+  // results are identical regardless of backend scan order.
+  matched.sort((left, right) => compareRowsForOrder(left, right, order));
+  const rows = matched;
 
   // Limit overflow fails (never truncates). Code choice: `validation` per the
   // S4 spec preference. The `limit` code was considered but its DESIGN §10
@@ -706,12 +752,17 @@ async function runAuthorizedQuery(
     );
   }
 
-  return { revision, rows, grants, policy };
+  return { revision, rows };
 }
 
 /**
  * Read authorized records: viewers get projected records, owners get full
  * stored rows. Both report the pre-scan fence revision.
+ *
+ * TRUST BOUNDARY: `authority: 'owner'` performs no membership check — the
+ * engine treats authority as a caller-supplied capability. Owner queries must
+ * only be issued through admitted paths (canonical admission gates who may
+ * claim owner authority); never expose this input directly to callers.
  */
 export function queryRecords(input: ViewerRecordsInput): Promise<AuthorizedRecordsResult>;
 export function queryRecords(input: OwnerRecordsInput): Promise<AuthorityRowsResult>;
@@ -725,11 +776,7 @@ export async function queryRecords(
   if (input.authority === 'owner') {
     return { rows: set.rows, revision: set.revision };
   }
-  const secrets = set.policy?.secretFields ?? [];
-  const records = set.rows.map((row, index) =>
-    projectRow(row, set.grants[index] ?? [], secrets),
-  );
-  return { records, revision: set.revision };
+  return { records: set.rows.map(toProjectedRecord), revision: set.revision };
 }
 
 /** Validate the aggregate request shape (field presence, known op). */

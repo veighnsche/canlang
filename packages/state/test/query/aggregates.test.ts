@@ -17,6 +17,7 @@ import {
   aggregateInput,
   grant,
   modelPolicy,
+  ownerAggregateInput,
   policyTable,
   seedRows,
   seedStandardTeam,
@@ -204,7 +205,34 @@ describe('aggregates', () => {
     assert.deepEqual((await summarize(s, { op: 'max', field: 'category' })).result, { op: 'max', value: 'c' });
   });
 
-  it('rejects min/max over empty, mixed-type, and money sets', async () => {
+  it('takes min/max of same-currency money by minor units', async () => {
+    const s = await setup(FULL_POLICY);
+    await seedRows(s.store, MODEL, [
+      { id: 'rec-1', data: { price: storedMoney(200, 'USD') } },
+      { id: 'rec-2', data: { price: storedMoney(100, 'USD') } },
+      { id: 'rec-3', data: { price: storedMoney(150, 'USD') } },
+    ]);
+    assert.deepEqual((await summarize(s, { op: 'min', field: 'price' })).result, {
+      op: 'min',
+      value: storedMoney(100, 'USD'),
+    });
+    assert.deepEqual((await summarize(s, { op: 'max', field: 'price' })).result, {
+      op: 'max',
+      value: storedMoney(200, 'USD'),
+    });
+
+    const t = await setup(FULL_POLICY);
+    await seedRows(t.store, MODEL, [
+      { id: 'rec-1', data: { price: storedMoney(100, 'USD') } },
+      { id: 'rec-2', data: { price: storedMoney(50, 'EUR') } },
+    ]);
+    for (const op of ['min', 'max'] as const) {
+      const mixed = await captureStateError(summarize(t, { op, field: 'price' }));
+      assert.equal(mixed.code, 'validation');
+    }
+  });
+
+  it('rejects min/max over empty and mixed-type sets', async () => {
     const s = await setup(FULL_POLICY);
     await seedRows(s.store, MODEL, [{ id: 'rec-1', data: { amount: 10 } }]);
     for (const op of ['min', 'max'] as const) {
@@ -223,11 +251,6 @@ describe('aggregates', () => {
       const mixed = await captureStateError(summarize(t, { op, field: 'amount' }));
       assert.equal(mixed.code, 'validation');
     }
-
-    const u = await setup(FULL_POLICY);
-    await seedRows(u.store, MODEL, [{ id: 'rec-1', data: { price: storedMoney(100, 'USD') } }]);
-    const moneyMin = await captureStateError(summarize(u, { op: 'min', field: 'price' }));
-    assert.equal(moneyMin.code, 'validation');
   });
 
   it('rejects aggregates over ungranted fields', async () => {
@@ -262,5 +285,41 @@ describe('aggregates', () => {
     assert.deepEqual(count.result, { op: 'count', value: 25 });
     const total = await summarize(s, { op: 'sum', field: 'amount' });
     assert.deepEqual(total.result, { op: 'sum', value: expected });
+  });
+
+  it('aggregates skip values ungranted for each row (no cross-grant leak)', async () => {
+    const narrow = policyTable(
+      modelPolicy(MODEL, {
+        grants: [
+          grant('members', ['salary'], { op: 'eq', field: 'kind', value: 'a' }),
+          grant('members', ['title']),
+        ],
+      }),
+    );
+    const s = await setup(narrow);
+    await seedRows(s.store, MODEL, [
+      { id: 'rec-1', data: { kind: 'a', salary: 100, title: 'x' } },
+      { id: 'rec-2', data: { kind: 'b', salary: 200, title: 'y' } },
+    ]);
+    const total = await summarize(s, { op: 'sum', field: 'salary' });
+    assert.deepEqual(total.result, { op: 'sum', value: 100 });
+  });
+
+  it('owner aggregates bypass grant coverage, including secrets', async () => {
+    const policy = policyTable(
+      modelPolicy(MODEL, {
+        secretFields: ['salary'],
+        grants: [grant('members', ['title'])],
+      }),
+    );
+    const s = await setup(policy);
+    await seedRows(s.store, MODEL, [
+      { id: 'rec-1', data: { salary: 100, title: 'x' } },
+      { id: 'rec-2', data: { salary: 200, title: 'y' } },
+    ]);
+    const total = await queryAggregate(
+      ownerAggregateInput({ ...s.call, caller: s.std.owner, spec: { op: 'sum', field: 'salary' } }),
+    );
+    assert.deepEqual(total.result, { op: 'sum', value: 300 });
   });
 });

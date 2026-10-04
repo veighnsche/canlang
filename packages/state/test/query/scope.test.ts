@@ -205,4 +205,19 @@ describe('scope', () => {
     );
     assert.deepEqual(owned.rows[0]!.data, { title: 'B', amount: 9 });
   });
+
+  it('an unknown predicate op is a validation StateError, not a crash', async () => {
+    const s = await setup();
+    await seedRows(s.store, MODEL, [{ id: 'rec-1', data: { title: 'A' } }]);
+    const failure = await captureStateError(
+      queryRecords(
+        viewerInput({
+          ...s.call,
+          caller: s.std.alice,
+          where: { op: 'bogus' as 'eq', field: 'title', value: 'A' },
+        }),
+      ),
+    );
+    assert.equal(failure.code, 'validation');
+  });
 });

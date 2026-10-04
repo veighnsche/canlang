@@ -171,4 +171,74 @@ describe('projection', () => {
       assert.ok(!(failure instanceof StateError), 'expected a plain Error, not a StateError');
     }
   });
+
+  it('a declared secret under an array is carved out of every element', async () => {
+    const store = createMemoryStorage();
+    const std = await seedStandardTeam();
+    const policy = policyTable(
+      modelPolicy(MODEL, {
+        secretFields: ['items.token'],
+        grants: [grant('members', ['items'])],
+      }),
+    );
+    await seedRows(store, MODEL, [
+      {
+        id: 'rec-1',
+        data: { items: [{ token: 's-1', label: 'a' }, { token: 's-2', label: 'b' }] },
+      },
+    ]);
+    const seen = await queryRecords({
+      store,
+      memberships: std.memberships,
+      policy,
+      model: MODEL,
+      authority: 'viewer',
+      context: { actorUserId: std.alice.user.user_id, teamId: std.team.team_id },
+    });
+    assert.equal(seen.records.length, 1);
+    assert.deepEqual(seen.records[0]!.data, { items: [{ label: 'a' }, { label: 'b' }] });
+  });
+
+  it('buildPolicyTable rejects when row-matches touching secrets', async () => {
+    const failure = await captureFailure(() =>
+      policyTable(
+        modelPolicy(MODEL, {
+          secretFields: ['pin'],
+          grants: [grant('members', ['title'], { op: 'eq', field: 'pin', value: '1234' })],
+        }),
+      ),
+    );
+    assert.ok(failure instanceof Error, 'expected an Error');
+    assert.ok(!(failure instanceof StateError), 'expected a plain Error, not a StateError');
+    assert.match(failure.message, /secret/);
+  });
+
+  it('buildPolicyTable rejects malformed by predicates with a plain Error', async () => {
+    for (const by of ['nobody' as 'members', { role: '' } as { role: string }]) {
+      const failure = await captureFailure(() =>
+        policyTable(modelPolicy(MODEL, { grants: [grant(by as unknown as 'members', ['title'])] })),
+      );
+      assert.ok(failure instanceof Error, 'expected an Error');
+      assert.ok(!(failure instanceof StateError), 'expected a plain Error, not a StateError');
+    }
+  });
+
+  it('post-build mutation of the input policy cannot alter enforcement', async () => {
+    const input = grant('members', ['title']);
+    const policy = policyTable(modelPolicy(MODEL, { grants: [input] }));
+    (input.fields as unknown as string[]).push('notification');
+    (input as unknown as { by: unknown }).by = 'public';
+    const s = await setup(policy);
+    const record = await firstRecord(s);
+    assert.deepEqual(record.data, { title: 'Parcel' });
+    const outsider = await queryRecords({
+      store: s.store,
+      memberships: s.std.memberships,
+      policy,
+      model: MODEL,
+      authority: 'viewer',
+      context: { actorUserId: s.std.outsider.user.user_id, teamId: null },
+    });
+    assert.equal(outsider.records.length, 0);
+  });
 });

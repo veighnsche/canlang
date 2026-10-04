@@ -174,4 +174,42 @@ describe('visibility', () => {
       internal_note: 'denied-2',
     });
   });
+
+  it("where evaluates over each row's own projected values (no cross-grant leak)", async () => {
+    const store = createMemoryStorage();
+    const std = await seedStandardTeam();
+    const policy = policyTable(
+      modelPolicy(MODEL, {
+        grants: [
+          grant('members', ['salary'], { op: 'eq', field: 'kind', value: 'a' }),
+          grant('members', ['title']),
+        ],
+      }),
+    );
+    await seedRows(store, MODEL, [
+      { id: 'rec-1', data: { kind: 'a', salary: 100, title: 'x' } },
+      { id: 'rec-2', data: { kind: 'b', salary: 200, title: 'y' } },
+    ]);
+    const call = {
+      store,
+      memberships: std.memberships,
+      policy,
+      model: MODEL,
+      scope: std.team,
+      caller: std.alice,
+    };
+    // rec-2's salary is ungranted-for-row: it must not match a salary predicate.
+    const seen = await queryRecords(
+      viewerInput({ ...call, where: { op: 'gt', field: 'salary', value: 150 } }),
+    );
+    assert.deepEqual(seen.records.map((record) => record.id), []);
+    // ...but rec-2 stays visible with only its title projected.
+    const all = await queryRecords(viewerInput(call));
+    assert.deepEqual(
+      all.records.map((record) => record.id).sort(),
+      ['rec-1', 'rec-2'],
+    );
+    const rec2 = all.records.find((record) => record.id === 'rec-2')!;
+    assert.deepEqual(rec2.data, { title: 'y' });
+  });
 });
