@@ -5,18 +5,15 @@
  * DIRECTLY (their inlined by/guard admission runs for real); parity with
  * a canonical-invoke() entrypoint is a follow-up, not done here.
  *
- * INTEGRATION NOTE: `HandlerContext` is still opaque here (owned by
- * `./context.ts`, not yet landed); it is only passed through as the first
- * handler argument. Swap to
- * `import type { HandlerContext } from "./context.js"` at integration.
+ * `ctx` is the real `./context.js` shape, passed through untouched as
+ * the first handler argument; this module never inspects it.
  */
 import type { CompileArtifact } from "@canlang/contracts";
+import type { HandlerContext } from "./context.js";
 import type { AssembledModules } from "./modules.js";
 
 export type { AssembledModules } from "./modules.js";
-
-/** Opaque until `./context.ts` lands (see header); passed through untouched. */
-export type HandlerContext = unknown;
+export type { HandlerContext } from "./context.js";
 
 export interface InvokeResult {
   ok: boolean;

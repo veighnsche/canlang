@@ -87,14 +87,19 @@ export function loadArtifactFile(path: string): LoadedArtifact {
   if (!Array.isArray(parsed.modules) || parsed.modules.length === 0) {
     fail(path, "modules must be a non-empty array; modules[0] is the entrypoint");
   }
+  const modulePaths = new Set<string>();
   for (const [index, module] of parsed.modules.entries()) {
     checkModule(module, `modules[${index}]`, path);
+    modulePaths.add((module as { path: string }).path);
   }
 
   if (!Array.isArray(parsed.callables)) fail(path, "callables must be an array");
   for (const [index, callable] of parsed.callables.entries()) {
     const where = `callables[${index}]`;
     if (!isRecord(callable)) fail(path, `${where} must be an object`);
+    if (!isNonEmptyString(callable.id)) {
+      fail(path, `${where}.id must be a non-empty string`);
+    }
     if (typeof callable.kind !== "string" || !CALLABLE_KINDS.has(callable.kind)) {
       fail(
         path,
@@ -104,6 +109,9 @@ export function loadArtifactFile(path: string): LoadedArtifact {
     }
     if (!isNonEmptyString(callable.module)) {
       fail(path, `${where}.module must be a non-empty string`);
+    }
+    if (!modulePaths.has(callable.module)) {
+      fail(path, `${where}.module ${JSON.stringify(callable.module)} names no modules[] entry`);
     }
     if (!isNonEmptyString(callable.export)) {
       fail(path, `${where}.export must be a non-empty string`);
@@ -118,6 +126,9 @@ export function loadArtifactFile(path: string): LoadedArtifact {
       if (!isNonEmptyString(page[field])) {
         fail(path, `${where}.${field} must be a non-empty string`);
       }
+    }
+    if (!modulePaths.has(page.module as string)) {
+      fail(path, `${where}.module ${JSON.stringify(page.module)} names no modules[] entry`);
     }
   }
 

@@ -270,6 +270,68 @@ describe("assembleWorker", () => {
 });
 
 describe("buildInvoker", () => {
+  it("success path threads identity facts and the projection array", async () => {
+    const dir = tempDir();
+    const url = writeModule(
+      dir,
+      "ops.mjs",
+      `export async function echo(c, input) {
+        return { echoed: input.operation_id, caller: c.caller.userId, member: c.memberships.includes("members") };
+      }`,
+    );
+    const artifact = fixtureArtifact(
+      [],
+      [{ id: "fixture.echo", kind: "operation", module: "ops.mjs", export: "echo" }],
+    );
+    const invoker = buildInvoker(artifact, stubAsm(dir, { "ops.mjs": url }), stubStore());
+    const operationId = "0193c1f0-0000-7000-8000-000000000001" as OperationId;
+    const outcome = await invoker.invokeMutation(
+      { operation: "fixture.echo", operation_id: operationId, inputs: {} },
+      {
+        actor: { user_id: "u1", email: "u1@example.test", email_verified: true },
+        team: null,
+        membership: {
+          membership_id: "m1",
+          team_id: "t1",
+          user_id: "u1",
+          is_owner: false,
+          roles: [{ role: "members", granted_at: "2026-01-01T00:00:00.000Z", granted_by: "u0" }],
+          status: "active",
+          created_at: "2026-01-01T00:00:00.000Z",
+          updated_at: "2026-01-01T00:00:00.000Z",
+        },
+        binding: { kind: "none" },
+        admitted_at: "2026-01-01T00:00:00.000Z",
+      },
+    );
+    expect(outcome).toEqual({ result: { echoed: operationId, caller: "u1", member: true } });
+  });
+
+  it("anonymous caller maps to the labeled anonymous identity", async () => {
+    const dir = tempDir();
+    const url = writeModule(
+      dir,
+      "ops.mjs",
+      `export async function echo(c, input) {
+        return { caller: c.caller.userId, roles: c.caller.roles.length, member: c.memberships.length };
+      }`,
+    );
+    const artifact = fixtureArtifact(
+      [],
+      [{ id: "fixture.echo", kind: "operation", module: "ops.mjs", export: "echo" }],
+    );
+    const invoker = buildInvoker(artifact, stubAsm(dir, { "ops.mjs": url }), stubStore());
+    const outcome = await invoker.invokeMutation(
+      {
+        operation: "fixture.echo",
+        operation_id: "0193c1f0-0000-7000-8000-000000000002" as OperationId,
+        inputs: {},
+      },
+      anonymousIdentity(),
+    );
+    expect(outcome).toEqual({ result: { caller: "anonymous", roles: 0, member: 0 } });
+  });
+
   it("unknown operation resolves a rule_failed error naming the callable", async () => {
     const dir = tempDir();
     const artifact = fixtureArtifact([], []);

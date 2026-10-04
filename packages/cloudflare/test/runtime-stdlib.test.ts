@@ -276,6 +276,17 @@ describe("guards", () => {
     expect(hasRole(member, "admins")).toBe(false);
     expect(hasRole(contextFor(fakeStore()), "members")).toBe(false);
   });
+
+  it("hasRole with a subject throws instead of widening the guard", () => {
+    const member = createContext({
+      caller: { userId: "u1", roles: ["member"] },
+      store: fakeStore().port,
+      memberships: ["members"],
+    });
+    expect(() => hasRole(member, "members", { userId: "u2" })).toThrow(
+      /unsupported\(hasRole-subject\)/,
+    );
+  });
 });
 
 describe("count", () => {

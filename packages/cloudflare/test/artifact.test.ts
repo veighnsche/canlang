@@ -96,8 +96,30 @@ describe("loadArtifactFile", () => {
     ],
     [
       "callables kind",
-      mutate((a) => void (a.callables = [{ kind: "spell", module: "m", export: "e" }])),
+      mutate(
+        (a) => void (a.callables = [{ id: "app.Thing.create", kind: "spell", module: "m", export: "e" }]),
+      ),
       /callables\[0\]\.kind/,
+    ],
+    [
+      "callables id",
+      mutate((a) => void (a.callables = [{ kind: "operation", module: "out/app.js", export: "e" }])),
+      /callables\[0\]\.id must be a non-empty string/,
+    ],
+    [
+      "callables module cross-ref",
+      mutate(
+        (a) =>
+          void (a.callables = [{ id: "app.Thing.create", kind: "operation", module: "out/gone.js", export: "e" }]),
+      ),
+      /callables\[0\]\.module "out\/gone\.js" names no modules\[\] entry/,
+    ],
+    [
+      "pages module cross-ref",
+      mutate(
+        (a) => void (a.pages = [{ owner: "app", path: "/", module: "out/gone.js", export: "e" }]),
+      ),
+      /pages\[0\]\.module "out\/gone\.js" names no modules\[\] entry/,
     ],
     [
       "pages owner",

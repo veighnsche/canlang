@@ -77,6 +77,20 @@ spy store implementing the fenced protocol, labeled in-script):
 - `TeamNotesNotesPageDescriptor.admit(memberCtx)` → `{}`.
 - `appDefinition.models` → `TeamTasks.Todo,TeamNotes.Note`.
 
+## Review fixes (independent review, request-changes → addressed)
+
+- `hasRole(c, role, person)` subject form threw `unsupported(hasRole-subject)`
+  instead of silently widening the guard; pinned.
+- `buildInvoker` now passes args as an array (spread contract) and maps
+  `ResolvedIdentity`→`CallerInfo` explicitly (`"anonymous"` + no roles for
+  null actor; membership role grants otherwise); success + anonymous
+  paths pinned with real sibling execution.
+- `invoke.ts` uses the real `HandlerContext` (stale "not yet landed"
+  note removed); invoke tests use real contexts.
+- Loader validates `callables[].id` + module cross-refs for callables
+  and pages; pinned. (Finding 5 answered without change:
+  `integration.yml` gates these paths on every PR.)
+
 ## Filed follow-ups (the crisp B1 boundary, all fail-loud today)
 
 1. **Artifact→registry linkage.** DESIGN 1075: exports are identity

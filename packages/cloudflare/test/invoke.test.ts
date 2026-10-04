@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { ArtifactCallable, CompileArtifact } from "@canlang/contracts";
+import type { ArtifactCallable, CompileArtifact, StoragePort } from "@canlang/contracts";
+import { createContext, type HandlerContext } from "../src/runtime/context.js";
 import { invokeCallable, type AssembledModules } from "../src/runtime/invoke.js";
+
+function testCtx(): HandlerContext {
+  return createContext({
+    caller: { userId: "u-test", roles: [] },
+    store: {} as unknown as StoragePort,
+  });
+}
 
 function artifactWith(callables: ArtifactCallable[]): CompileArtifact {
   return {
@@ -47,7 +55,7 @@ describe("invokeCallable (B1 op-execution path)", () => {
       callable("expense.Expense.create", "main.js", "create"),
       callable("expense.Expense.approve", "main.js", "approve"),
     ]);
-    const result = await invokeCallable(asmWith({}), artifact, "nope.Missing", { user: "u" });
+    const result = await invokeCallable(asmWith({}), artifact, "nope.Missing", testCtx());
     expect(result.ok).toBe(false);
     expect(result.error ?? "").toContain("nope.Missing");
     expect(result.error ?? "").toContain("expense.Expense.create");
@@ -60,7 +68,7 @@ describe("invokeCallable (B1 op-execution path)", () => {
       asmWith({ "main.js": js("export const x = 1;") }),
       artifact,
       "a.b",
-      {},
+      testCtx(),
     );
     expect(result.ok).toBe(false);
     expect(result.error ?? "").toContain("ops.js");
@@ -73,7 +81,7 @@ describe("invokeCallable (B1 op-execution path)", () => {
       asmWith({ "main.js": js("export const other = 1;") }),
       artifact,
       "a.b",
-      {},
+      testCtx(),
     );
     expect(result.ok).toBe(false);
     expect(result.error ?? "").toContain("create");
@@ -95,7 +103,7 @@ describe("invokeCallable (B1 op-execution path)", () => {
       }),
       artifact,
       "TeamNotes.Note.create",
-      {},
+      testCtx(),
     );
     expect(result.ok).toBe(false);
     expect(result.error ?? "").toContain("TeamNotes_create");
@@ -107,7 +115,7 @@ describe("invokeCallable (B1 op-execution path)", () => {
     const asm = asmWith({
       "main.js": js("export function create(ctx, ...args) { return { ctx, args }; }"),
     });
-    const ctx = { user: "u1" };
+    const ctx = testCtx();
     const result = await invokeCallable(asm, artifact, "a.b", ctx, [1, "two"]);
     expect(result.ok).toBe(true);
     const value = result.value as { ctx: unknown; args: unknown[] };
@@ -120,7 +128,7 @@ describe("invokeCallable (B1 op-execution path)", () => {
     const asm = asmWith({
       "main.js": js("export default async function (ctx, ...args) { return args.length; }"),
     });
-    const result = await invokeCallable(asm, artifact, "a.b", {}, ["x", "y"]);
+    const result = await invokeCallable(asm, artifact, "a.b", testCtx(), ["x", "y"]);
     expect(result).toEqual({ ok: true, value: 2 });
   });
 
@@ -129,14 +137,14 @@ describe("invokeCallable (B1 op-execution path)", () => {
     const asm = asmWith({
       "main.js": js('export function boom() { throw new Error("boom"); }'),
     });
-    const result = await invokeCallable(asm, artifact, "a.b", {});
+    const result = await invokeCallable(asm, artifact, "a.b", testCtx());
     expect(result).toEqual({ ok: false, error: "boom" });
   });
 
   it("non-Error throw stringifies into error", async () => {
     const artifact = artifactWith([callable("a.b", "main.js", "boom")]);
     const asm = asmWith({ "main.js": js('export function boom() { throw "str-fail"; }') });
-    const result = await invokeCallable(asm, artifact, "a.b", {});
+    const result = await invokeCallable(asm, artifact, "a.b", testCtx());
     expect(result).toEqual({ ok: false, error: "str-fail" });
   });
 });

@@ -38,7 +38,7 @@ import type {
   ThemeTokens,
 } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
-import type { HandlerContext } from "../runtime/context.js";
+import type { CallerInfo, HandlerContext } from "../runtime/context.js";
 
 /* ------------------------------------------------------------------ */
 /* Structural mirrors. Each cites the verified owner; the named join   */
@@ -98,19 +98,25 @@ interface InvokeOutcome {
   readonly error?: unknown;
 }
 
-/** Sibling `invokeCallable(asm, artifact, id, ctx, args?)` (`src/runtime/invoke.ts`; landed). */
+/**
+ * Sibling `invokeCallable(asm, artifact, id, ctx, args?)`
+ * (`src/runtime/invoke.ts`; landed). `args` is an ARRAY (spread into
+ * `fn(ctx, ...args)`); passing a projection object here throws a
+ * TypeError inside invoke and surfaces as a misleading rule_failed.
+ */
 type InvokeCallable = (
   asm: AssembledModules,
   artifact: CompileArtifact,
   id: string,
   ctx: HandlerContext,
-  args?: unknown,
+  args?: unknown[],
 ) => Promise<InvokeOutcome>;
 
-/** Sibling `createContext({ caller, store })` (`src/runtime/context.ts`; landed). */
+/** Sibling `createContext({ caller, store, memberships? })` (`src/runtime/context.ts`; landed). */
 type CreateContext = (input: {
-  readonly caller: unknown;
+  readonly caller: CallerInfo;
   readonly store: StoragePort;
+  readonly memberships?: string[];
 }) => HandlerContext | Promise<HandlerContext>;
 
 /* ------------------------------------------------------------------ */
@@ -400,22 +406,41 @@ async function loadSiblingFn<T>(specifier: string, file: string, binding: string
 }
 
 /**
- * Invoker core: `(id, caller, args) => createContext({ caller, store })` +
- * `invokeCallable`. The sibling `invoke`/`context` modules load lazily per
- * the worker-boundary rule; invoking an operation while a sibling is not
- * built fails loud naming the missing module.
+ * Map a resolved identity onto handler-context caller facts. Explicit,
+ * never by accident: a null actor (DESIGN §4 unauthenticated public
+ * request) becomes the labeled `"anonymous"` caller with no roles; a
+ * present actor contributes its user id; memberships come from the
+ * membership's role grants (absent membership = no roles). Guarded
+ * operations stay fail-closed for anonymous callers because `hasRole`
+ * tests these memberships.
+ */
+function callerFor(identity: ResolvedIdentity): { caller: CallerInfo; memberships: string[] } {
+  const grants = identity.membership?.roles.map((grant) => grant.role) ?? [];
+  if (identity.actor === null) {
+    return { caller: { userId: "anonymous", roles: [] }, memberships: [] };
+  }
+  return { caller: { userId: identity.actor.user_id, roles: grants }, memberships: grants };
+}
+
+/**
+ * Invoker core: `(id, identity, args) => createContext({ caller, store,
+ * memberships })` + `invokeCallable`. The sibling `invoke`/`context`
+ * modules load lazily per the worker-boundary rule; invoking an
+ * operation while a sibling is not built fails loud naming the missing
+ * module.
  */
 async function invokeOperationCore(
   asm: AssembledModules,
   artifact: CompileArtifact,
   store: StoragePort,
   id: string,
-  caller: unknown,
-  args: unknown,
+  identity: ResolvedIdentity,
+  args: unknown[],
 ): Promise<InvokeOutcome> {
   const createContext = await loadSiblingFn<CreateContext>("../runtime/context.js", "runtime/context.ts", "createContext");
   const invokeCallable = await loadSiblingFn<InvokeCallable>("../runtime/invoke.js", "runtime/invoke.ts", "invokeCallable");
-  const ctx = await createContext({ caller, store });
+  const { caller, memberships } = callerFor(identity);
+  const ctx = await createContext({ caller, store, memberships });
   return invokeCallable(asm, artifact, id, ctx, args);
 }
 
@@ -432,11 +457,14 @@ export function buildInvoker(
   return {
     invokeMutation: async (envelope, identity): Promise<MutationOutcome> => {
       // Interim envelope->args projection (the sibling join owns the
-      // canonical one): business inputs plus the receipt identity.
-      const outcome = await invokeOperationCore(asm, artifact, store, envelope.operation, identity, {
-        operation_id: envelope.operation_id,
-        inputs: envelope.inputs,
-      });
+      // canonical one): business inputs plus the receipt identity, as a
+      // single handler argument (invoke spreads an ARRAY).
+      const outcome = await invokeOperationCore(asm, artifact, store, envelope.operation, identity, [
+        {
+          operation_id: envelope.operation_id,
+          inputs: envelope.inputs,
+        },
+      ]);
       if (!outcome.ok) {
         return { error: toBusinessError(outcome.error, envelope.operation_id) };
       }
@@ -446,9 +474,9 @@ export function buildInvoker(
       return { result: outcome.value as unknown as MutationResult };
     },
     invokeRead: async (envelope, identity): Promise<ReadOutcome> => {
-      const outcome = await invokeOperationCore(asm, artifact, store, envelope.operation, identity, {
-        inputs: envelope.inputs,
-      });
+      const outcome = await invokeOperationCore(asm, artifact, store, envelope.operation, identity, [
+        { inputs: envelope.inputs },
+      ]);
       if (!outcome.ok) {
         return { error: toBusinessError(outcome.error) };
       }

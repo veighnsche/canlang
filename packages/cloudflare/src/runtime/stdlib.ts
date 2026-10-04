@@ -245,8 +245,16 @@ export function require(condition: unknown, code = 'forbidden'): void {
  * evaluates the caller-supplied `c.memberships` array as-is — membership
  * authentication is the L3 identity/policy join. Anonymous contexts
  * (memberships `[]`) deny every role: fail-closed by construction.
+ *
+ * Subject-scoped emission (`hasRole(c, role, person)`) is NOT evaluated:
+ * testing the caller's memberships would silently widen "person X has
+ * role R" to "anyone has role R". A defined third argument throws loud;
+ * subject resolution is L3 work against the membership directory.
  */
-export function hasRole(c: HandlerContext, role: string): boolean {
+export function hasRole(c: HandlerContext, role: string, subject?: unknown): boolean {
+  if (subject !== undefined) {
+    return unsupported('hasRole-subject', 'subject-scoped role tests need the L3 membership directory.');
+  }
   return c.memberships.includes(role);
 }
 
