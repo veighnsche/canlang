@@ -1,8 +1,18 @@
 {
+  // Lane-07-owned sources only (plus the full contracts assembly, which this
+  // lane builds). Producer packages join the root check when their owners
+  // route the integration request with an extends-compatible tsconfig.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "composite": false,
     "noEmit": true
   },
-  "include": ["packages/*/src", "packages/*/test", "vitest.config.ts"]
+  "include": [
+    "packages/contracts/src",
+    "packages/contracts/test",
+    "packages/cloudflare",
+    "packages/testkit",
+    "tests/integration",
+    "vitest.config.ts"
+  ]
 }

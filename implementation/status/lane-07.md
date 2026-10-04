@@ -26,6 +26,7 @@ Owner prompt: [lane 07](../prompts/07-platform.md).
 6. Until L1/L3/L4 land, lane 07 consumes **test-only fixtures** (clearly marked, in `test/` dirs) and returns precise `unsupported` failures for unlanded producer behavior. No duplicate catalog, no second interpreter, no green "supported" flag from a stub.
 7. Integration cases are contributed per-owner under `tests/integration/`; L7 owns the harness/skeleton and the B1 join, not every case body.
 8. JEV three-rewrite consultation is reserved for genuinely difficult decisions (none at B0; candidates later: row-isolation strategy, activation state machine, report envelope if producers disagree).
+9. Root `tsconfig.check.json` / `vitest.config.ts` cover lane-07 paths plus the full contracts assembly only. Producer packages keep their own runners/tsconfigs (lane 03 uses `node:test`) until their owners route an opt-in; nested per-package locks coexist with the root lock until the owner routes integration to L7. Root `npm run build` builds the contracts assembly including landed producer modules.
 
 ## Exact desired tree within this ownership
 
@@ -108,7 +109,9 @@ Active reservations: none (coordinator holds all owned files until first delegat
 ## Interface requests and handoffs
 
 - Lane 04 S1 merged as PR #1 (`50b46b4`, status plan only, no code). L4 S2 will add `packages/contracts/src/{work,services,files}.ts` (their bodies) and needs root workspace + `contracts` manifest/index: delivered by this lane's PR1. Coordination: when L4 S2 lands, lane 07 adds the `src/index.ts` re-exports (index assembly is L7-owned); L4 must not silently extend the assembly in passing.
-- No lock/manifest integration requests pending. No requests sent yet (only lane 04 active besides this lane; its S1 needs no lane-07 action beyond PR1).
+- Lane 01 B0 merged as PR #2 (`e204d07`): `contracts/src/{artifact,diagnostic}.ts` v1. Lane 07 assembly re-exports both in PR1 (no export collisions; standalone-CI note in `lane-01.yml` still holds for their files).
+- Lane 03 S1 merged as PR #3 (`fb8cf1f`): `contracts/src/state.ts` v1 + `@canlang/state` with own manifest/lock/tsconfig (their interim note names this lane's workspace as the join). PR1 re-exports `state.ts` and integrates `@canlang/state` into the root lock via `npm install` (lockfile only; their nested lock and standalone flow untouched and verified green). Follow-up with L3 ack: switch their relative `../../contracts` imports to `@canlang/contracts`, adopt root workspace install, retire nested lock.
+- No lock/manifest integration requests pending beyond the L3 follow-up above. No requests sent yet.
 
 ## PR and verification evidence
 
