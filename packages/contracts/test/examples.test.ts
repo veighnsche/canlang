@@ -4,7 +4,9 @@ import {
   EXAMPLES_CONTRACT_VERSION,
   type ExampleReport,
   type ReportValue,
-} from "../src/index";
+  type SequenceStepResult,
+  type TableRowResult,
+} from "../src/index.js";
 
 const report: ExampleReport = {
   contractsVersion: CONTRACTS_VERSION,
@@ -43,7 +45,10 @@ describe("examples contracts", () => {
   it("round-trips a report through JSON with a consistent summary", () => {
     const revived = JSON.parse(JSON.stringify(report)) as ExampleReport;
     expect(revived).toEqual(report);
-    const rows = revived.cases.flatMap((c) => (c.kind === "table" ? c.rows : c.steps));
+    const rows = revived.cases.flatMap(
+      (c): readonly (TableRowResult | SequenceStepResult)[] =>
+        c.kind === "table" ? c.rows : c.steps,
+    );
     expect(revived.summary.total).toBe(rows.length);
     expect(revived.summary.passed).toBe(rows.filter((r) => r.outcome === "passed").length);
   });
@@ -54,10 +59,11 @@ describe("examples contracts", () => {
   });
 
   it("records expected rejections with a no-side-effects proof", () => {
-    const row = report.cases[0];
-    expect(row.kind).toBe("table");
-    if (row.kind === "table") {
-      expect(row.rows[1]?.rejection).toEqual({ error: "forbidden", sideEffectsAbsent: true });
+    const first = report.cases[0];
+    expect(first?.kind).toBe("table");
+    if (first?.kind !== "table") {
+      expect.unreachable("first case must be a table");
     }
+    expect(first.rows[1]?.rejection).toEqual({ error: "forbidden", sideEffectsAbsent: true });
   });
 });

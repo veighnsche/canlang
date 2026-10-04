@@ -6,7 +6,7 @@ import {
   type CompatibilityVerdict,
   type EnvironmentSelection,
   type UpgradeState,
-} from "../src/index";
+} from "../src/index.js";
 
 const descriptor: CompatibilityDescriptor = {
   identity: {

@@ -1,8 +1,9 @@
 /**
- * Inline-BDD boundary (lane 07): fixture/report envelopes for executing
- * COMPILED example artifacts through production admission. Types and version
- * constants only; the runner lives in `@canlang/testkit` and consumes the
- * lane-1 test artifact shape.
+ * Inline-BDD boundary (lane 07): report envelopes for executing COMPILED
+ * example artifacts through production admission, plus the `FixtureKind`
+ * vocabulary those reports reference. Provisioning-input types arrive with
+ * the lane-1 test artifact shape. Types and version constants only; the
+ * runner lives in `@canlang/testkit` and consumes the lane-1 test artifact.
  *
  * A fixture/setup failure is reported as `setup-failed` and can never satisfy
  * an expected business rejection. Paths blocked on unlanded producers report
@@ -59,7 +60,10 @@ export interface TableRowResult {
   outcome: ExampleOutcome;
   /** Present when the row expects values and any observation mismatched. */
   mismatches?: readonly ObservationMismatch[];
-  /** Present when the row expects `error(code)`. */
+  /**
+   * Present when the row expects `error(code)`. The runner sets it only on
+   * rows whose outcome is `passed` or `failed`; never beside `setup-failed`.
+   */
   rejection?: ExpectedRejection;
   /** Human/machine detail for `setup-failed`, `unsupported`, or unexpected errors. */
   detail?: string;
@@ -75,6 +79,7 @@ export interface SequenceStepResult {
   caller?: ResolvedCaller;
   outcome: ExampleOutcome;
   mismatches?: readonly ObservationMismatch[];
+  /** Same runner-enforced rule as `TableRowResult.rejection`. */
   rejection?: ExpectedRejection;
   detail?: string;
 }
@@ -95,6 +100,7 @@ export interface SequenceCaseResult {
 
 export type ExampleCaseResult = TableCaseResult | SequenceCaseResult;
 
+/** Counts computed by the runner; totals are unchecked in these types. */
 export interface ExampleSummary {
   total: number;
   passed: number;

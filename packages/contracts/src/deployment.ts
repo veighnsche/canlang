@@ -19,7 +19,11 @@ export type RuntimeVersion = string;
 /** Hex digest of a compiler-emitted artifact or canonical snapshot. */
 export type ArtifactDigest = string;
 
-/** Identifies one selected app build: which source, checked by which compiler. */
+/**
+ * Identifies one selected app build: which source, checked by which compiler.
+ * Compatibility-view reference only; lane 1 owns the canonical artifact
+ * identity in `artifact.ts` and reconciles this shape when it lands.
+ */
 export interface ArtifactIdentity {
   /** Declared app identity from `.can` source (e.g. "TeamTasks"). */
   appName: string;
