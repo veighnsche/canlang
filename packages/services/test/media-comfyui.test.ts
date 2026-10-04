@@ -146,6 +146,10 @@ describe('media: workflow mapping', () => {
     assert.deepEqual(graph['6']?.inputs['clip'], ['4', 1]);
     assert.deepEqual(GRAPH, before);
     assert.ok(Object.isFrozen(graph));
+    // Deep freeze reaches node inputs and nested link arrays.
+    assert.ok(Object.isFrozen(graph['3']?.inputs));
+    assert.ok(Object.isFrozen(graph['3']?.inputs['model']));
+    assert.ok(Object.isFrozen(graph['6']?.inputs['clip']));
   });
 
   it('fails visibly on drift, unknown, unmapped and link destinations', () => {
@@ -732,6 +736,16 @@ describe('media: history evidence reading', () => {
       failureDetail: null,
       images: [{ node: '9', filename: 'a.png', subfolder: '', type: 'output' }],
     });
+    // A success entry with no outputs key is a shaped run with
+    // nothing to collect, not malformed evidence.
+    assert.deepEqual(
+      readHistoryRun(
+        { job_1: { status: { status_str: 'success', completed: true } } },
+        'job_1',
+        ['9'],
+      ),
+      { statusStr: 'success', failureDetail: null, images: [] },
+    );
   });
 
   it('sends the configured authorization without logging its value', async () => {

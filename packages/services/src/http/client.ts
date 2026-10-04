@@ -163,13 +163,46 @@ function resolveRequestUrl(config: HttpClientConfig, request: HttpRequest): URL 
   return url;
 }
 
-function combinedSignal(
+/**
+ * Combined abort wiring for one HTTP call. The caller-supplied signal is
+ * combined with the client's own deadline/redirect controller so either
+ * side can stop the transfer. The combination is wired by hand (not
+ * `AbortSignal.any`) so the client depends only on `addEventListener`
+ * on the caller signal, which every fetch-compatible runtime provides.
+ * `release()` removes the listeners so a long-lived caller signal
+ * never accumulates one listener pair per request. Distinguishing
+ * caller cancellation from the deadline stays the caller's job: it
+ * owns its signal and can read `signal.aborted`.
+ */
+interface CombinedSignals {
+  readonly signal: AbortSignal;
+  readonly release: () => void;
+}
+
+function combinedSignals(
   controller: AbortController,
   request: HttpRequest,
-): AbortSignal {
-  return request.signal === undefined
-    ? controller.signal
-    : AbortSignal.any([controller.signal, request.signal]);
+): CombinedSignals {
+  if (request.signal === undefined) {
+    return { signal: controller.signal, release: () => {} };
+  }
+  const merged = new AbortController();
+  const forward = (): void => {
+    if (!merged.signal.aborted) merged.abort();
+  };
+  if (controller.signal.aborted || request.signal.aborted) {
+    merged.abort();
+  } else {
+    controller.signal.addEventListener('abort', forward, { once: true });
+    request.signal.addEventListener('abort', forward, { once: true });
+  }
+  return {
+    signal: merged.signal,
+    release: () => {
+      controller.signal.removeEventListener('abort', forward);
+      request.signal?.removeEventListener('abort', forward);
+    },
+  };
 }
 
 interface FetchedResponse {
@@ -289,7 +322,10 @@ export async function httpRequest(
   assertValidHttpConfig(config);
   const startUrl = resolveRequestUrl(config, request);
   const { controller, timer, timedOut } = startDeadline(config);
-  const signal = combinedSignal(controller, request);
+  const { signal, release: releaseSignals } = combinedSignals(
+    controller,
+    request,
+  );
   let bodyText: string;
   let fetched: FetchedResponse;
   try {
@@ -320,6 +356,7 @@ export async function httpRequest(
     }
   } finally {
     clearTimeout(timer);
+    releaseSignals();
   }
   if (fetched.response.status < 200 || fetched.response.status > 299) {
     throw new HttpStatusError(fetched.response.status, bodyText);
@@ -353,7 +390,10 @@ export async function httpRequestBinary(
   assertValidHttpConfig(config);
   const startUrl = resolveRequestUrl(config, request);
   const { controller, timer, timedOut } = startDeadline(config);
-  const signal = combinedSignal(controller, request);
+  const { signal, release: releaseSignals } = combinedSignals(
+    controller,
+    request,
+  );
   let bytes: Uint8Array;
   let fetched: FetchedResponse;
   try {
@@ -384,6 +424,7 @@ export async function httpRequestBinary(
     }
   } finally {
     clearTimeout(timer);
+    releaseSignals();
   }
   if (fetched.response.status < 200 || fetched.response.status > 299) {
     throw new HttpStatusError(
@@ -413,9 +454,11 @@ export interface HttpStreamProgress {
  * whole stream; same-origin redirects only; total byte cap (exceeding
  * it throws `HttpBodyLimitError` mid-stream, never truncation).
  * Non-2xx statuses throw `HttpStatusError` before any segment is
- * yielded. Callers MUST fully consume, break or return the generator
- * so the deadline timer is released; caller-owned `request.signal`
- * aborts surface as the original abort error.
+ * yielded. Breaking out of the generator early cancels the
+ * underlying body (releasing the connection instead of leaving it
+ * open while the server keeps sending) and releases the deadline
+ * timer; caller-owned `request.signal` aborts surface as the
+ * original abort error.
  */
 export async function* httpStreamText(
   config: HttpClientConfig,
@@ -424,7 +467,10 @@ export async function* httpStreamText(
   assertValidHttpConfig(config);
   const startUrl = resolveRequestUrl(config, request);
   const { controller, timer, timedOut } = startDeadline(config);
-  const signal = combinedSignal(controller, request);
+  const { signal, release: releaseSignals } = combinedSignals(
+    controller,
+    request,
+  );
   try {
     const fetched = await fetchWithRedirects(
       config,
@@ -462,6 +508,11 @@ export async function* httpStreamText(
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let total = 0;
+    // Set only when the loop reaches the natural end of the body. Any
+    // other exit (caller break/return, throw, deadline) cancels the
+    // reader so the connection is released instead of staying open
+    // while the server keeps sending.
+    let finished = false;
     try {
       for (;;) {
         let read: ReadableStreamReadResult<Uint8Array>;
@@ -493,7 +544,15 @@ export async function* httpStreamText(
           yield { text, totalBytes: total };
         }
       }
+      finished = true;
     } finally {
+      if (!finished) {
+        try {
+          await reader.cancel();
+        } catch {
+          // Already closed; the exit below is what matters.
+        }
+      }
       try {
         reader.releaseLock();
       } catch {
@@ -507,5 +566,6 @@ export async function* httpStreamText(
     return { status: response.status, url: fetched.url.href };
   } finally {
     clearTimeout(timer);
+    releaseSignals();
   }
 }

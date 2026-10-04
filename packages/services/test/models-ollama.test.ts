@@ -383,6 +383,34 @@ describe('models: streaming runs', () => {
     });
   });
 
+  it('settling early releases the connection while the server keeps sending', async () => {
+    const lines = [
+      { model: MODEL, message: { role: 'assistant', content: 'Hi' }, done: false },
+      { error: 'model overloaded, try again' },
+      ...Array.from({ length: 20 }, () => ({
+        model: MODEL,
+        message: { role: 'assistant', content: 'more' },
+        done: false,
+      })),
+    ];
+    await withServer(
+      { kind: 'stream', lines, lineDelayMs: 30 },
+      async (server) => {
+        const adapter = makeAdapter(server.url);
+        const run = adapter.generateStream(inputFor(), {
+          deliveryId: 'del_9',
+        });
+        const completion = await run.done();
+        assert.equal(completion.status, 'failed');
+        assert.equal(completion.error?.code, 'provider_error');
+        // The server still has ~600ms of lines scheduled; the client
+        // must have hung up promptly instead of waiting for them.
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        assert.equal(server.activeConnections(), 0);
+      },
+    );
+  });
+
   it('provider thinking never surfaces in user-visible content', async () => {
     const lines = [
       {

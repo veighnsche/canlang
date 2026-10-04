@@ -82,12 +82,21 @@ export interface SubstitutedGraph {
   readonly digest: string;
 }
 
-function freezeGraph(graph: ApiGraph): ApiGraph {
-  for (const node of Object.values(graph)) {
-    Object.freeze(node.inputs);
-    Object.freeze(node);
+function freezeValue(value: unknown): void {
+  if (typeof value !== 'object' || value === null || Object.isFrozen(value)) {
+    return;
   }
-  return Object.freeze(graph);
+  if (Array.isArray(value)) {
+    for (const entry of value) freezeValue(entry);
+  } else {
+    for (const entry of Object.values(value)) freezeValue(entry);
+  }
+  Object.freeze(value);
+}
+
+function freezeGraph(graph: ApiGraph): ApiGraph {
+  freezeValue(graph);
+  return graph;
 }
 
 /**

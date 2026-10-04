@@ -43,6 +43,8 @@ export interface ControlledOllamaServer {
   readonly url: string;
   /** Every POST received, in order. */
   readonly requests: readonly ControlledOllamaRequestLog[];
+  /** Currently open TCP connections; drops when the client hangs up. */
+  activeConnections(): number;
   close(): Promise<void>;
 }
 
@@ -212,6 +214,7 @@ export function startControlledOllamaServer(
       resolve({
         url: `http://127.0.0.1:${address.port}`,
         requests,
+        activeConnections: () => sockets.size,
         close,
       });
     });
