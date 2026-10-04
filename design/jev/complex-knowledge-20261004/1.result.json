@@ -1,0 +1,58 @@
+{
+  "request": {
+    "state": {
+      "scope": "Generic design comparison using public facts and a hypothetical business language; no repository source, project names, real documents, personal data or credentials. This question is unrelated to optional dependency composition.",
+      "facts": "Cloudflare Vectorize documents asynchronous insert/upsert/delete with mutation IDs, namespace/metadata filtering and bounded top-K results. AI Search documents metadata prefilters and periodic external-source syncing. Neither vector matches nor an index delete acknowledgment proves current application read authority. Sources: https://developers.cloudflare.com/vectorize/reference/client-api/ https://developers.cloudflare.com/vectorize/reference/metadata-filtering/ https://developers.cloudflare.com/ai-search/configuration/retrieval/filtering/ https://developers.cloudflare.com/ai-search/configuration/indexing/syncing/",
+      "case": "A typed company-workflow language already has stored models, current read policies, pure row predicates, immutable files, typed async service calls, observed progress and shared UI. Employees ask questions over approved procedure revisions in a bounded topic. The company owns publication, separate approval, audience grants, model budgets and escalation. The common machinery must extract/index immutable content, select authorized current candidates, recheck every source given to the model, preserve exact citations, and prevent retained generated text from disclosing later-revoked or superseded sources. All alternatives below must meet that behavior. A compact model-bound declaration has parser/checker/runtime cost and restricts source shape; explicit services allow custom connectors but require repeated mappings/callback contracts. There is no deployed backward-compatibility constraint.",
+      "retention": "A response may have used context it did not cite. Source eligibility and user access can change after generation. We can either invalidate content on any change to the currently authorized publication set, or only on changes to all actually used context sources while labeling the answer with its historical scope checkpoint. Both must hide all content after a used source becomes revoked/superseded; neither may trust stale index metadata."
+    },
+    "questions": {
+      "surface": {
+        "type": "choice",
+        "instructions": "Which source boundary best balances concise authorship, current permission safety, reusable mechanics and proportionate language complexity for the stated model-bound workflow?",
+        "criteria": {
+          "corpus": "One focused Given corpus binds a stored model, immutable content selectors, scope and eligibility. It derives typed index/answer operations and an opaque proof-bound answer projection, reusing record policies; new syntax/checker/runtime obligations are explicit.",
+          "services": "Ordinary typed services plus reusable adapters share the mechanics, while each app authors the source/revision mappings, authenticated source callbacks and protected answer projection using existing grammar; more flexible but more wiring.",
+          "app_owned": "Each app explicitly maintains chunk/index jobs, mirrored ACL metadata, retrieval orchestration and answer evidence models; highly customizable and visible but more application code and consistency duties."
+        }
+      },
+      "freshness": {
+        "type": "choice",
+        "instructions": "For an initial current-procedures assistant with no historical-answer requirement, which retained-answer policy is the better default after ensuring all actual model inputs remain current and authorized?",
+        "criteria": {
+          "scope_fence": "Withhold the whole answer/citations whenever the currently authorized published source set differs, preserving safe run/usage history and offering an explicit budgeted new question. Strong current-scope meaning costs more invalidations.",
+          "used_context": "Invalidate only changes to every source actually provided to the model, and show the captured publication-scope time when other publications change. More reuse and fewer model calls, with potentially incomplete current guidance."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "surface": {
+        "type": "choice",
+        "choice": "corpus",
+        "confidence": 0.82,
+        "probabilities": {
+          "services": 0.12,
+          "app_owned": 0.0,
+          "corpus": 0.88
+        }
+      },
+      "freshness": {
+        "type": "choice",
+        "choice": "scope_fence",
+        "confidence": 0.52,
+        "probabilities": {
+          "used_context": 0.24,
+          "scope_fence": 0.76
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1049,
+      "output_tokens": 76
+    }
+  }
+}
