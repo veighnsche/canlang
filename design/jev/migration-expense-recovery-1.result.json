@@ -1,0 +1,39 @@
+{
+  "request": {
+    "state": {
+      "context": "CanExpense is an internal company expense tool. Adoptability, compact authoring and one canonical mutation path matter, but permissions and frozen claim evidence must survive. Verified source below lacks an actual reviewer grant test at submission; an Employee role:text is a job label, not that grant. The existing reviewer(person) predicate can repair submission eligibility. Later loss of reviewer role or workplace eligibility prevents decide, while the submitted reviewer is locked. Owner role restoration is possible, but there is no claimant recovery if restoration is inappropriate. Requirements demand private claims, distinct eligible review, immutable submitted amount/receipt, one successor correction, and separately evidenced finance reimbursement. Existing history records mutation actor/time. All options retain current privacy and normal fences. We are choosing a draft business recovery policy, not implementing infrastructure or claiming runtime results. Compare alternatives for the same stranded submitted claim; do not assume permission widening is acceptable.",
+      "verified_source": "scenario submit(expense:Expense) by=members\n require expense.parent.user==actor and expense.parent.active and expense.status==draft and expense.reviewer!=actor and can_work(expense.reviewer,expense.location)\n do set expense {status=submitted,submission=expense.submission+1}\nscenario decide(expense:Expense,approve:bool,reason:text) by=reviewer\n require expense.status==submitted and expense.reviewer==actor and expense.parent.user!=actor and can_work(actor,expense.location) and (approve or trim(reason)!=\"\")\nlock Expense fields=location,authorization,purpose,category,amount,business_date,receipt,reviewer when=row.status!=draft\ninvariant Expense: row.corrects==null or (row.corrects.parent==row.parent and row.corrects.status==rejected)\nscenario correct(expense:Expense) by=members\n require expense.parent.user==actor and expense.status==rejected and expense.parent.active and can_work(actor,expense.location) and not any(Expense as replacement,replacement.corrects==expense)"
+    },
+    "questions": {
+      "recovery": {
+        "type": "choice",
+        "instructions": "Which recovery policy best preserves the required evidence and authority while allowing a claimant to resume work after permanent reviewer unavailability?",
+        "criteria": {
+          "withdraw": "Permit the claimant to withdraw only a submitted claim whose reviewer no longer holds the role or workplace eligibility, requiring a reason. Keep frozen evidence and history, distinguish withdrawn from rejection, and allow the existing single-successor correction operation for that state.",
+          "reassign": "Permit a separately authorized reassignment action to replace a submitted reviewer, recording the old/new assignment and reason immutably and revising the existing lock accordingly. Require current reviewer eligibility and preserve submitted receipt/amount.",
+          "restore": "Retain the current source recovery boundary: an owner restores eligible reviewer authority or the claim stays submitted. This avoids a new action/state but does not provide claimant recovery after an intentionally permanent revocation."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "recovery": {
+        "type": "choice",
+        "choice": "withdraw",
+        "confidence": 0.44,
+        "probabilities": {
+          "withdraw": 0.62,
+          "restore": 0.05,
+          "reassign": 0.33
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 929,
+      "output_tokens": 42
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "state": {
+    "context": "We need a bounded recovery rule for CanExpense, used by a company for its own staff expenses. Short source and straightforward adoption are goals; they do not supersede authority or historical truth. The checked excerpt permits submission without a reviewer-role assignment; the existing reviewer(person) role predicate corrects that omission, whereas Employee role:text does not. After submission, revoking that grant or workplace eligibility makes decide inadmissible and the evidence lock prevents editing the assignment. Grant reinstatement by an owner exists but may be unsuitable for the person concerned. Claimants have no other declared path. Preserve private access, a distinct currently eligible decision maker, frozen submitted evidence, a single linked successor and separate evidenced reimbursement. Standard record history supplies who changed what and when. The options all preserve normal transaction fencing and privacy. Evaluate draft recovery semantics, with no implemented behavior asserted, for permanent reviewer unavailability; consider any new authority a real tradeoff.",
+    "verified_source": "scenario submit(expense:Expense) by=members\n require expense.parent.user==actor and expense.parent.active and expense.status==draft and expense.reviewer!=actor and can_work(expense.reviewer,expense.location)\n do set expense {status=submitted,submission=expense.submission+1}\nscenario decide(expense:Expense,approve:bool,reason:text) by=reviewer\n require expense.status==submitted and expense.reviewer==actor and expense.parent.user!=actor and can_work(actor,expense.location) and (approve or trim(reason)!=\"\")\nlock Expense fields=location,authorization,purpose,category,amount,business_date,receipt,reviewer when=row.status!=draft\ninvariant Expense: row.corrects==null or (row.corrects.parent==row.parent and row.corrects.status==rejected)\nscenario correct(expense:Expense) by=members\n require expense.parent.user==actor and expense.status==rejected and expense.parent.active and can_work(actor,expense.location) and not any(Expense as replacement,replacement.corrects==expense)"
+  },
+  "questions": {
+    "recovery": {
+      "type": "choice",
+      "instructions": "Choose a recovery boundary balancing preserved historical facts, actual permissions, compactness and eventual claimant progress.",
+      "criteria": {
+        "withdraw": "A claimant may close a still-submitted claim for lost reviewer grant or site eligibility with a mandatory reason. It becomes withdrawn, retains its locked evidence and mutation history, and is eligible for one correction successor under the existing operation.",
+        "reassign": "A designated authority may replace the locked submitted reviewer via an evidence-recording reassignment operation. Freeze receipt and value as before, retain the assignment change trail, and verify the new reviewer role and eligibility.",
+        "restore": "Use only existing owner grant administration to make the original reviewer eligible again; otherwise retain the pending submission. This minimizes changes but cannot resume every permanently revoked assignment."
+      }
+    }
+  }
+}
