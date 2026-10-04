@@ -23,7 +23,7 @@ import type { DeliveryStatus } from "./services.js";
 export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
 export type { DeliveryStatus } from "./services.js";
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.6.0";
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.7.0";
 
 /**
  * Name of the hidden CSRF field in every canonical POST form. Rendered by
@@ -476,8 +476,44 @@ export interface TableProps {
  * for presentation capabilities (unification with the shared envelope is a
  * later L1/L7 join; L1 acknowledgment pending).
  */
+/**
+ * Binding profile of a catalog word, per design/UI-COMPONENTS.md grammar
+ * profiles. "shell" marks non-word infrastructure (renderPage, discovery)
+ * that lane 1 ignores for word checking.
+ */
+export type ComponentProfile =
+  | "leaf"
+  | "group"
+  | "slotted-group"
+  | "collection"
+  | "field-control"
+  | "bound-control"
+  | "shared-control"
+  | "shell";
+
+/** Header-expression payload a catalog word accepts. */
+export type ComponentHeaderExpr =
+  | "none"
+  | "value"
+  | "text"
+  | "numeric"
+  | "bool"
+  | "image"
+  | "query"
+  | "sequence"
+  | "selector"
+  | "binding";
+
+/** One named slot in a slotted-group schema. */
+export interface ComponentSlotDef {
+  readonly name: string;
+  readonly required: boolean;
+  /** True only where the catalog explicitly permits repetition. */
+  readonly repeatable: boolean;
+}
+
 export interface ComponentCatalogEntry {
-  /** Can primitive name, e.g. "card", "table", "form". */
+  /** Can word, e.g. "card", "table", "chat_bubble". */
   readonly id: string;
   /** JS factory name as exported from @canlang/ui. */
   readonly js: string;
@@ -486,6 +522,20 @@ export interface ComponentCatalogEntry {
   /** Props shape as stated in this contract. */
   readonly signature: string;
   readonly availability: "planned" | "implemented";
+  readonly profile: ComponentProfile;
+  readonly header: ComponentHeaderExpr;
+  /**
+   * Closed structural/binding attribute names admitted by this word
+   * (pages=, id=, max=, target=, action=/submit=/target=/opens=, caption=,
+   * fallback=, start=/end=, display=, columns=, ...). Appearance tokens
+   * arrive in C2b; arbitrary option bags are never admitted.
+   */
+  readonly attributes?: ReadonlyArray<string>;
+  /**
+   * Named-slot schema for slotted groups; absent means no slots. Regular
+   * suites and slot suites never mix (direct slot children require a schema).
+   */
+  readonly slots?: ReadonlyArray<ComponentSlotDef>;
   readonly notes?: string;
 }
 
