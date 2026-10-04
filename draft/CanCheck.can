@@ -14,11 +14,12 @@ package check
   role operations label="Operations"@{nl="Operations"}
   Check { name:text, application:text label=label_Check_application, purpose:text label="Purpose"@{nl="Doel"}, location:Location?, owner:user label="Responsible person"@{nl="Verantwoordelijke"}, period:duration label="Expected period"@{nl="Verwachte periode"}, grace:duration=0m label="Grace period"@{nl="Respijtperiode"}, history_days:int=90 min=1 label="History retention days"@{nl="Bewaartermijn historie in dagen"}, token:secret server=random_secret() unique, alert:url label="Alert destination"@{nl="Meldingsbestemming"}, enabled:bool=true, last_ping:datetime? label="Last durable heartbeat"@{nl="Laatste opgeslagen heartbeat"}, due:datetime? label="Next authoritative deadline"@{nl="Volgende gezaghebbende deadline"}, armed:datetime server=now label="Deadline anchor"@{nl="Startpunt deadline"}, revision:int=1, state:enum(new,up,late,down,paused)=new label={text="State"@{nl="Status"},values={new="Never pinged"@{nl="Nog geen heartbeat"},up="Up"@{nl="Actief"},late="Late"@{nl="Te laat"},down="Down"@{nl="Uitgevallen"},paused="Paused"@{nl="Gepauzeerd"}}} } label="Job check"@{nl="Taakcontrole"}
   Transition in Check { from:Check.state label="From"@{nl="Vanaf"}, to:Check.state label="To"@{nl="Naar"}, occurred:datetime server=now } label="Health transition"@{nl="Gezondheidsovergang"}
-  Notice in Check { kind:enum(down,recovery,configuration), transition:Transition?, revision:int, delivery:text?, outcome:DeliveryResult.status=pending label="Notification outcome"@{nl="Meldingsresultaat"}, detail:text?, occurred:datetime server=now } label="Notification delivery"@{nl="Meldingsbezorging"}
+  Notice in Check { kind:enum(down,recovery,configuration), transition:Transition?, revision:int, delivery:delivery(Alerts.notify)?, detail:text? label="Retained safe diagnostic"@{nl="Bewaarde veilige diagnose"}, occurred:datetime server=now } label="Notification delivery"@{nl="Meldingsbezorging"}
+  derive Notice.outcome:DeliveryResult.status? = row.delivery?.status label="Notification outcome"@{nl="Meldingsresultaat"}
   event Deadline { check:Check, revision:int }
   policy Check read=operations where=row.location==null or can_work(actor,row.location) fields=name,application,purpose,location,owner,period,grace,enabled,last_ping,due,armed,revision,state
   policy Transition read=operations where=row.parent.location==null or can_work(actor,row.parent.location)
-  policy Notice read=operations where=row.parent.location==null or can_work(actor,row.parent.location)
+  policy Notice read=operations where=row.parent.location==null or can_work(actor,row.parent.location) fields=parent,kind,transition,revision,delivery.id,delivery.status,outcome,detail,occurred,created_by,created,updated_by,updated,archived_at
   invariant Check: row.period>0m and row.grace>=0m and starts_with(row.alert,"https://")
   lock Transition fields=from,to,occurred
   retain Transition until=row.occurred+row.parent.history_days*1d
@@ -26,7 +27,9 @@ package check
   lock Notice fields=kind,transition,revision,occurred
   fixture heartbeat=Check {name="Reconcile",application="Billing",purpose="Job heartbeat",owner=self,period=5m,alert="https://example.test/alert"}
   fixture foreign_check=Check {name="Import reporting",application="Reporting",purpose="Reporting imports",owner=other,period=1h,alert="https://example.test/report-alert"}
-  fixture notification=Notice {parent=heartbeat,kind=recovery,revision=1,delivery="alert-test"}
+  fixture notification=Notice {parent=heartbeat,kind=recovery,revision=1}
+  fixture attempt=Alerts.notify {request={value={source=notification.id,destination=heartbeat.alert,message="Job heartbeat recovered"}}}
+  fixture other_attempt=Alerts.notify {request={value={source=notification.id,destination=heartbeat.alert,message="Job heartbeat recovered"}},status=failed,error={code="provider",message="Delivery rejected"}}
   preferences { application:text? label=label_Check_application, location:Location? }
   invariant preferences: row.location==null or can_work(actor,row.location)
   message label_Check_application = "Application"@{nl="Applicatie"}
@@ -70,23 +73,24 @@ package check
       create Transition {parent=check,from=check.state,to=up} as transition
       if check.state in [down,late]
        create Notice {parent=check,kind=recovery,transition,revision=check.revision+1} as notice
-       send Alerts.notify {value={source=notice.id,destination=check.alert,message=format("Job heartbeat recovered"@{nl="Heartbeat van taak hersteld"},locale=null)}} when=check.enabled and check.state==up as delivery
-       set notice {delivery=delivery.id}
+       send Alerts.notify {value={source=notice.id,destination=check.alert,message=format("Job heartbeat recovered"@{nl="Heartbeat van taak hersteld"},locale=null)}} when=check.enabled and check.state==up as attempt
+       set notice {delivery=attempt}
      let revision=check.revision+1
      let due=now+check.period
      set check {armed=now,state=up,due,revision}
      schedule check.id at=due event=Deadline {check,revision}
    examples seed=[heartbeat] event={value={check=heartbeat.id,token=heartbeat.token}}
-    event.value.check,event.value.token,heartbeat.state,heartbeat.enabled -> heartbeat.state,heartbeat.last_ping,heartbeat.revision,heartbeat.due,count(heartbeat.Notice)
-    heartbeat.id,heartbeat.token,new,true -> up,now,2,now+5m,0
-    heartbeat.id,heartbeat.token,down,true -> up,now,2,now+5m,1
-    heartbeat.id,heartbeat.token,late,true -> up,now,2,now+5m,1
-    heartbeat.id,heartbeat.token,paused,false -> paused,now,1,null,0
+    event.value.check,event.value.token,heartbeat.state,heartbeat.enabled -> heartbeat.state,heartbeat.last_ping,heartbeat.revision,heartbeat.due,count(heartbeat.Notice),first(heartbeat.Notice)?.outcome
+    heartbeat.id,heartbeat.token,new,true -> up,now,2,now+5m,0,null
+    heartbeat.id,heartbeat.token,down,true -> up,now,2,now+5m,1,pending
+    heartbeat.id,heartbeat.token,late,true -> up,now,2,now+5m,1,pending
+    heartbeat.id,heartbeat.token,paused,false -> paused,now,1,null,0,null
     "unknown",heartbeat.token,new,true -> error(rule_failed)
     heartbeat.id,foreign_check.token,new,true -> error(rule_failed)
-   examples seed=[notification] event={value={check=heartbeat.id,token=heartbeat.token}}
-    heartbeat.state,heartbeat.revision -> heartbeat.state,heartbeat.revision,notification.outcome,count(heartbeat.Notice)
-    up,2 -> up,3,pending,1
+   examples seed=[notification,attempt] event={value={check=heartbeat.id,token=heartbeat.token}}
+    heartbeat.state,heartbeat.revision,notification.delivery -> heartbeat.state,heartbeat.revision,notification.outcome,count(heartbeat.Notice)
+    up,2,attempt -> up,3,pending,1
+    up,2,null -> up,3,null,1
   ## Trusted developer maintenance admits canonical model create/update candidates
   ## through these hooks and all owner rules; it is not enabled product CRUD.
   scenario initial on=Check.create
@@ -113,8 +117,8 @@ package check
       cancel event.after.id
      if event.after.enabled
       create Notice {parent=event.after,kind=configuration,revision=event.after.revision} as notice
-      send Alerts.notify {value={source=notice.id,destination=event.after.alert,message=format("Job check configuration changed"@{nl="Configuratie van taakcontrole gewijzigd"},locale=null)}} when=event.after.enabled as delivery
-      set notice {delivery=delivery.id}
+      send Alerts.notify {value={source=notice.id,destination=event.after.alert,message=format("Job check configuration changed"@{nl="Configuratie van taakcontrole gewijzigd"},locale=null)}} when=event.after.enabled as attempt
+      set notice {delivery=attempt}
   scenario deadline on=Deadline
    require event.check.enabled and event.check.revision==event.revision and event.check.due!=null and now>=event.check.due
    do
@@ -123,8 +127,8 @@ package check
       create Transition {parent=event.check,from=event.check.state,to=down} as transition
       set event.check {state=down,due=null}
       create Notice {parent=event.check,kind=down,transition,revision=event.check.revision} as notice
-      send Alerts.notify {value={source=notice.id,destination=event.check.alert,message=format("Job heartbeat missed"@{nl="Heartbeat van taak ontbreekt"},locale=null)}} when=event.check.enabled and event.check.state==down as delivery
-      set notice {delivery=delivery.id}
+      send Alerts.notify {value={source=notice.id,destination=event.check.alert,message=format("Job heartbeat missed"@{nl="Heartbeat van taak ontbreekt"},locale=null)}} when=event.check.enabled and event.check.state==down as attempt
+      set notice {delivery=attempt}
     else
      if event.check.state!=late
       create Transition {parent=event.check,from=event.check.state,to=late} as transition
@@ -132,24 +136,31 @@ package check
      set event.check {state=late,due}
      schedule event.check.id at=due event=Deadline {check=event.check,revision=event.check.revision}
    examples event={check=heartbeat,revision=1}
-    heartbeat.state,heartbeat.armed,heartbeat.grace,heartbeat.enabled,event.revision,heartbeat.due -> heartbeat.state,heartbeat.due,count(heartbeat.Notice)
-    new,now-5m,0m,true,1,now -> down,null,1
-    up,now-5m,1m,true,1,now -> late,now+1m,0
-    late,now-6m,1m,true,1,now -> down,null,1
+    heartbeat.state,heartbeat.armed,heartbeat.grace,heartbeat.enabled,event.revision,heartbeat.due -> heartbeat.state,heartbeat.due,count(heartbeat.Notice),first(heartbeat.Notice)?.outcome
+    new,now-5m,0m,true,1,now -> down,null,1,pending
+    up,now-5m,1m,true,1,now -> late,now+1m,0,null
+    late,now-6m,1m,true,1,now -> down,null,1,pending
     down,now-5m,0m,true,1,null -> error(rule_failed)
     up,now,0m,true,1,now+5m -> error(rule_failed)
     up,now-5m,0m,true,0,now -> error(rule_failed)
     paused,now-5m,0m,false,1,null -> error(rule_failed)
+  ## Status belongs to the receipt. The latest safe diagnostic retains its
+  ## independent Notice lifetime; completion without an error clears it.
   scenario delivered on=Alerts.notify.completed
    do
-    let notice=first(Notice as row where row.delivery==event.delivery_id)
+    let notice=first(Notice as row where row.delivery?.id==event.delivery_id)
     require notice!=null
-    set notice {outcome=event.status,detail=event.error?.message}
-   examples event={delivery_id="alert-test",status=failed,result=null,error={code="provider",message="Delivery rejected"}} seed=[notification]
-    event.delivery_id,event.status -> notification.outcome,notification.detail,heartbeat.state
-    "alert-test",failed -> failed,"Delivery rejected",new
-    "alert-test",unknown -> unknown,"Delivery rejected",new
-    "unrelated",failed -> error(rule_failed)
+    set notice {detail=event.error?.message}
+   examples seed=[notification,attempt] event={delivery_id=attempt.id,status=failed,result=null,error={code="provider",message="Delivery rejected"}}
+    event.delivery_id,event.status,event.result,event.error,notification.delivery,notification.detail,heartbeat.state,attempt.status,attempt.result,attempt.error -> notification.outcome,notification.detail,heartbeat.state
+    attempt.id,failed,null,{code="provider",message="Delivery rejected"},attempt,null,new,failed,null,{code="provider",message="Delivery rejected"} -> failed,"Delivery rejected",new
+    attempt.id,unknown,null,{code="provider",message="Delivery rejected"},attempt,null,new,unknown,null,{code="provider",message="Delivery rejected"} -> unknown,"Delivery rejected",new
+    attempt.id,succeeded,{reference="accepted-alert"},null,attempt,"Delivery rejected",down,succeeded,{reference="accepted-alert"},null -> succeeded,null,down
+    attempt.id,unknown,null,null,attempt,"Delivery rejected",late,unknown,null,null -> unknown,null,late
+    attempt.id,skipped,null,null,attempt,null,new,skipped,null,null -> skipped,null,new
+    attempt.id,failed,null,{code="provider",message="Delivery rejected"},attempt,"Delivery rejected",new,failed,null,{code="provider",message="Delivery rejected"} -> failed,"Delivery rejected",new
+    other_attempt.id,failed,null,{code="provider",message="Delivery rejected"},attempt,null,new,failed,null,{code="provider",message="Delivery rejected"} -> error(rule_failed)
+
  Then
   # Read configured checks and perform only authorized pause and resume. @{nl="Lees geconfigureerde controles en voer uitsluitend toegestane pauze- en hervatacties uit."}
   page /job-health title="Job health"@{nl="Taakgezondheid"}

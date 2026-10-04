@@ -1,6 +1,6 @@
 # Qualified field-type reuse — 2026-10-04
 
-The twelve skipped stored-field occurrences are valid checked owner-schema links under current DESIGN §§2/13. None requires a source or target correction. The direct metadata scan cannot establish this by counting local array/nullable tokens: it must first resolve the owning field's **value type**. Its temporary JSON and script are inspection aids, not evidence of an implemented checker. Current Approve attached CRUD examples exceed that projection script; its two occurrences were read directly from source/target.
+The initial twelve skipped stored-field occurrences are valid checked owner-schema links under current DESIGN §§2/13. None required a field-reuse correction. Subsequent delivery-association refinements replace Approve.Notice.state and Check.Notice.outcome with nullable computed fields; they retain the same owning enum type without the former pending defaults. The inventory below records their current disposition. The direct metadata scan cannot establish resolution by counting local array/nullable tokens: it must first resolve the owning field's **value type**. Its temporary JSON and script are inspection aids, not evidence of an implemented checker. Approve attached CRUD examples exceed that projection script; its occurrences were read directly from source/target.
 
 ## Exact resolution clarification
 
@@ -12,15 +12,15 @@ This is distinct from sequence assertion `types` and `equalValue` canonical valu
 
 ## Resolved inventory
 
-Locations are current at inspection; only stored-model fields in the requested skipped set are counted.
+The requested set originally contained twelve stored-model fields. It now contains ten stored fields and the two noted computed replacements; line numbers describe the initial inspection and can move during refinement.
 
 | Source field | Target location | Effective value type | Receiving behavior |
 | --- | --- | --- | --- |
 | approve.Notice.assignment (`Submission.assignment`) | draft/CanApprove.mjs:208 | int, nonnull | **No** inherited default 1 or Assignment revision caption |
-| approve.Notice.state (`DeliveryResult.status`) | draft/CanApprove.mjs:217 | std.DeliveryResult.status enum | Explicit pending default |
+| approve.Notice.state (`DeliveryResult.status?`) | draft/CanApprove.mjs, models.approve.Notice.derived.state | nullable std.DeliveryResult.status enum | Computed from associated receipt; no default or fabricated pending before association |
 | check.Transition.from (`Check.state`) | draft/CanCheck.mjs:188 | check.Check.state enum: new/up/late/down/paused | Explicit From caption; no inherited new default |
 | check.Transition.to (`Check.state`) | draft/CanCheck.mjs:189 | Same owning enum | Explicit To caption; no inherited new default |
-| check.Notice.outcome (`DeliveryResult.status`) | draft/CanCheck.mjs:205 | std.DeliveryResult.status enum | Explicit pending default/caption |
+| check.Notice.outcome (`DeliveryResult.status?`) | draft/CanCheck.mjs, models.check.Notice.derived.outcome | nullable std.DeliveryResult.status enum | Computed from associated receipt; explicit caption, no default |
 | hire.Candidate.previous_stage (`Candidate.stage?`) | draft/CanHire.mjs:266 | nullable hire.Candidate.stage enum: applied/interview/offer/hired/rejected/withdrawn | Nullable suffix retained; no applied default |
 | loyalty.Redemption.notification (`DeliveryResult.status`) | draft/CanLoyalty.mjs:298 | std.DeliveryResult.status enum | Explicit pending default/caption |
 | onboard.Step.category (`TemplateStep.category`) | draft/CanOnboard.mjs:199 | onboard.TemplateStep.category enum: equipment/induction/account/training | **No** inherited induction default |
@@ -29,7 +29,7 @@ Locations are current at inspection; only stored-model fields in the requested s
 | rent_reservations.CommercialSale.phase (`SaleMilestone.milestone?`) | draft/CanRent.mjs:1027 | nullable invoice.SaleMilestone.milestone enum: paid/completed/cancellation_passed/reversed | Nullable suffix; explicit null in target is equivalent nullable baseline |
 | shift.Notice.kind (`DutyNotice.kind`) | draft/CanShift.mjs:421 | shift.DutyNotice.kind event-owned enum: published/changed/cancelled/swap_request/swap_accepted/swap_rejected | Required nonnull; no default |
 
-The shared DeliveryResult status cases are pending/succeeded/failed/unknown/skipped. All referenced source fields in this set are initially nonnullable and nonarray. Only the two noted receiving declarations add nullable. No array/requiredArray or inherited normalization/numeric bound mismatch is demonstrated in these twelve; do not claim this set tests such edge cases. SaleMilestone resolves through the actual invoice import, and DutyNotice through the actual local event schema, not an assumed model table.
+The shared DeliveryResult status cases are pending/succeeded/failed/unknown/skipped. All referenced source fields in this set are initially nonnullable and nonarray. Candidate.previous_stage, CommercialSale.phase and the two computed receipt statuses add nullable at their use sites. No array/requiredArray or inherited normalization/numeric bound mismatch is demonstrated in these twelve; do not claim this set tests such edge cases. SaleMilestone resolves through the actual invoice import, and DutyNotice through the actual local event schema, not an assumed model table.
 
 ## Minimal action
 

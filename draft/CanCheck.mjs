@@ -5,6 +5,7 @@ import {
   compareInstant,
   count,
   create,
+  delivery,
   first,
   format,
   hasRole,
@@ -193,22 +194,18 @@ export const appDefinition = {
     "check.Notice": {
       parent: "check.Check",
       label: message("Notification delivery", { nl: "Meldingsbezorging" }),
-      readGrants: [{ rule: "Notice.read.1" }],
+      readGrants: [{ rule: "Notice.read.1", fields: ["parent", "kind", "transition", "revision", "delivery.id", "delivery.status", "outcome", "detail", "occurred", "created_by", "created", "updated_by", "updated", "archived_at"] }],
       locks: ["Notice.lock.1"],
       retainUntil: "Notice",
       fields: {
         kind: { type: "enum", cases: ["down", "recovery", "configuration"] },
         transition: { type: "check.Transition", nullable: true },
         revision: { type: "int" },
-        delivery: { type: "text", nullable: true },
-        outcome: {
-          type: "std.DeliveryResult.status",
-          default: "pending",
-          label: message("Notification outcome", { nl: "Meldingsresultaat" }),
-        },
-        detail: { type: "text", nullable: true },
+        delivery: { type: "delivery", operation: "check.Alerts.notify", nullable: true },
+        detail: { type: "text", nullable: true, label: message("Retained safe diagnostic", { nl: "Bewaarde veilige diagnose" }) },
         occurred: { type: "datetime", server: "now" },
       },
+      derived: {outcome: {type: "std.DeliveryResult.status", nullable: true, handler: "Notice.outcome", label: message("Notification outcome", {nl: "Meldingsresultaat"})}},
     },
   },
   contracts: {
@@ -295,6 +292,7 @@ export function canApp() {
         hasRole(c, "check.operations") &&
         (row.parent.location === null || (await can_work(c, c.actor, row.parent.location))),
     },
+    derives: {"Notice.outcome": async(c,row) => (await delivery(c,{record:row,field:"delivery"},["status"]))?.status ?? null},
     invariants: {
       "Check.require.1": (c, row) =>
         row.period > 0n && row.grace >= 0n && row.alert.startsWith("https://"),
@@ -359,7 +357,7 @@ export function canApp() {
               transition,
               revision: int64(job.revision + 1n),
             });
-            const delivery = await send(
+            const attempt = await send(
               c,
               "check.Alerts.notify",
               {
@@ -375,7 +373,7 @@ export function canApp() {
               },
               { when: () => job.enabled && job.state === "up" },
             );
-            await set(c, notice, { delivery: delivery.id });
+            await set(c, notice, { delivery: attempt });
           }
         }
         const revision = int64(job.revision + 1n);
@@ -450,7 +448,7 @@ export function canApp() {
             kind: "configuration",
             revision: event.after.revision,
           });
-          const delivery = await send(
+          const attempt = await send(
             c,
             "check.Alerts.notify",
             {
@@ -468,7 +466,7 @@ export function canApp() {
             },
             { when: () => event.after.enabled },
           );
-          await set(c, notice, { delivery: delivery.id });
+          await set(c, notice, { delivery: attempt });
         }
       }
     },
@@ -494,7 +492,7 @@ export function canApp() {
             transition,
             revision: job.revision,
           });
-          const delivery = await send(
+          const attempt = await send(
             c,
             "check.Alerts.notify",
             {
@@ -510,7 +508,7 @@ export function canApp() {
             },
             { when: () => job.enabled && job.state === "down" },
           );
-          await set(c, notice, { delivery: delivery.id });
+          await set(c, notice, { delivery: attempt });
         }
       } else {
         if (job.state !== "late") {
@@ -527,10 +525,11 @@ export function canApp() {
     },
     async delivered(c, { event }) {
       const notice = await first(
-        records(c, "check.Notice", { where: (row) => row.delivery === event.delivery_id }),
+        records(c, "check.Notice", { where: async (row) => (await delivery(c,{record:row,field:"delivery"},["id"]))?.id === event.delivery_id }),
       );
       check(notice !== null);
-      await set(c, notice, { outcome: event.status, detail: event.error?.message ?? null });
+      // Latest safe diagnostic retains its independent Notice lifetime.
+      await set(c, notice, { detail: event.error?.message ?? null });
     },
   };
 }
@@ -673,13 +672,16 @@ export function exampleFixtures({ self, other, imported }) {
       parent: s.heartbeat,
       kind: "recovery",
       revision: 1n,
-      delivery: "alert-test",
     }),
   };
+  const attempt={dependencies:[notification,heartbeat],delivery:"check.Alerts.notify",values:async(c,s)=>({request:{value:{source:s.notification.id,destination:s.heartbeat.alert,message:"Job heartbeat recovered"}}})};
+  const other_attempt={dependencies:[notification,heartbeat],delivery:"check.Alerts.notify",values:async(c,s)=>({request:{value:{source:s.notification.id,destination:s.heartbeat.alert,message:"Job heartbeat recovered"}},status:"failed",error:{code:"provider",message:"Delivery rejected"}})};
   return {
     heartbeat,
     foreign_check,
     notification,
+    attempt,
+    other_attempt,
     examples: [
       {
         operation: "check.pause",
@@ -767,27 +769,28 @@ export function exampleFixtures({ self, other, imported }) {
           async (c, s) => s.heartbeat.revision,
           async (c, s) => s.heartbeat.due,
           async (c, s) => count(records(c, "check.Notice", { parent: s.heartbeat })),
+          async(c,s)=>{const notice=await first(records(c,"check.Notice",{parent:s.heartbeat}));return notice===null?null:(await delivery(c,{record:notice,field:"delivery"},["status"]))?.status ?? null;},
         ],
         rows: [
           {
             dependencies: [],
             values: async (c, s) => [s.heartbeat.id, s.heartbeat.token, "new", true],
-            expected: async (c, s) => ["up", c.now, 2n, addDuration(c.now, 300000n), 0n],
+            expected: async (c, s) => ["up", c.now, 2n, addDuration(c.now, 300000n), 0n, null],
           },
           {
             dependencies: [],
             values: async (c, s) => [s.heartbeat.id, s.heartbeat.token, "down", true],
-            expected: async (c, s) => ["up", c.now, 2n, addDuration(c.now, 300000n), 1n],
+            expected: async (c, s) => ["up", c.now, 2n, addDuration(c.now, 300000n), 1n, "pending"],
           },
           {
             dependencies: [],
             values: async (c, s) => [s.heartbeat.id, s.heartbeat.token, "late", true],
-            expected: async (c, s) => ["up", c.now, 2n, addDuration(c.now, 300000n), 1n],
+            expected: async (c, s) => ["up", c.now, 2n, addDuration(c.now, 300000n), 1n, "pending"],
           },
           {
             dependencies: [],
             values: async (c, s) => [s.heartbeat.id, s.heartbeat.token, "paused", false],
-            expected: async (c, s) => ["paused", c.now, 1n, null, 0n],
+            expected: async (c, s) => ["paused", c.now, 1n, null, 0n, null],
           },
           {
             dependencies: [],
@@ -803,23 +806,25 @@ export function exampleFixtures({ self, other, imported }) {
       },
       {
         operation: "check.ping",
-        dependencies: [notification],
+        seed: [notification,attempt],
+        dependencies: [notification,attempt],
         inputs: async (c, s) => ({
           event: { value: { check: s.heartbeat.id, token: s.heartbeat.token } },
         }),
-        selectors: ["heartbeat.state", "heartbeat.revision"],
+        selectors: ["heartbeat.state", "heartbeat.revision", "notification.delivery"],
         observations: [
           async (c, s) => s.heartbeat.state,
           async (c, s) => s.heartbeat.revision,
-          async (c, s) => s.notification.outcome,
+          async (c, s) => (await delivery(c,{record:s.notification,field:"delivery"},["status"]))?.status ?? null,
           async (c, s) => count(records(c, "check.Notice", { parent: s.heartbeat })),
         ],
         rows: [
           {
             dependencies: [],
-            values: async (c, s) => ["up", 2n],
+            values: async (c, s) => ["up", 2n, s.attempt],
             expected: async (c, s) => ["up", 3n, "pending", 1n],
           },
+          {dependencies:[],values:async(c,s)=>["up",2n,null],expected:async(c,s)=>["up",3n,null,1n]},
         ],
       },
       {
@@ -838,12 +843,13 @@ export function exampleFixtures({ self, other, imported }) {
           async (c, s) => s.heartbeat.state,
           async (c, s) => s.heartbeat.due,
           async (c, s) => count(records(c, "check.Notice", { parent: s.heartbeat })),
+          async(c,s)=>{const notice=await first(records(c,"check.Notice",{parent:s.heartbeat}));return notice===null?null:(await delivery(c,{record:notice,field:"delivery"},["status"]))?.status ?? null;},
         ],
         rows: [
           {
             dependencies: [],
             values: async (c, s) => ["new", subtractDuration(c.now, 300000n), 0n, true, 1n, c.now],
-            expected: async (c, s) => ["down", null, 1n],
+            expected: async (c, s) => ["down", null, 1n, "pending"],
           },
           {
             dependencies: [],
@@ -855,7 +861,7 @@ export function exampleFixtures({ self, other, imported }) {
               1n,
               c.now,
             ],
-            expected: async (c, s) => ["late", addDuration(c.now, 60000n), 0n],
+            expected: async (c, s) => ["late", addDuration(c.now, 60000n), 0n, null],
           },
           {
             dependencies: [],
@@ -867,7 +873,7 @@ export function exampleFixtures({ self, other, imported }) {
               1n,
               c.now,
             ],
-            expected: async (c, s) => ["down", null, 1n],
+            expected: async (c, s) => ["down", null, 1n, "pending"],
           },
           {
             dependencies: [],
@@ -900,37 +906,23 @@ export function exampleFixtures({ self, other, imported }) {
       },
       {
         operation: "check.delivered",
-        dependencies: [notification],
-        inputs: async (c, s) => ({
-          event: {
-            delivery_id: "alert-test",
-            status: "failed",
-            result: null,
-            error: { code: "provider", message: "Delivery rejected" },
-          },
-        }),
-        selectors: ["event.delivery_id", "event.status"],
+        seed: [notification,attempt],
+        dependencies: [notification,attempt],
+        inputs: async (c, s) => ({event:{delivery_id:s.attempt.id,status:"failed",result:null,error:{code:"provider",message:"Delivery rejected"}}}),
+        selectors: ["event.delivery_id", "event.status", "event.result", "event.error", "notification.delivery", "notification.detail", "heartbeat.state", "attempt.status", "attempt.result", "attempt.error"],
         observations: [
-          async (c, s) => s.notification.outcome,
-          async (c, s) => s.notification.detail,
-          async (c, s) => s.heartbeat.state,
+          async(c,s)=>(await delivery(c,{record:s.notification,field:"delivery"},["status"]))?.status ?? null,
+          async(c,s)=>s.notification.detail,
+          async(c,s)=>s.heartbeat.state,
         ],
         rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => ["alert-test", "failed"],
-            expected: async (c, s) => ["failed", "Delivery rejected", "new"],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["alert-test", "unknown"],
-            expected: async (c, s) => ["unknown", "Delivery rejected", "new"],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["unrelated", "failed"],
-            error: "rule_failed",
-          },
+          {dependencies:[],values:async(c,s)=>[s.attempt.id,"failed",null,{code:"provider",message:"Delivery rejected"},s.attempt,null,"new","failed",null,{code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["failed","Delivery rejected","new"]},
+          {dependencies:[],values:async(c,s)=>[s.attempt.id,"unknown",null,{code:"provider",message:"Delivery rejected"},s.attempt,null,"new","unknown",null,{code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["unknown","Delivery rejected","new"]},
+          {dependencies:[],values:async(c,s)=>[s.attempt.id,"succeeded",{reference:"accepted-alert"},null,s.attempt,"Delivery rejected","down","succeeded",{reference:"accepted-alert"},null],expected:async(c,s)=>["succeeded",null,"down"]},
+          {dependencies:[],values:async(c,s)=>[s.attempt.id,"unknown",null,null,s.attempt,"Delivery rejected","late","unknown",null,null],expected:async(c,s)=>["unknown",null,"late"]},
+          {dependencies:[],values:async(c,s)=>[s.attempt.id,"skipped",null,null,s.attempt,null,"new","skipped",null,null],expected:async(c,s)=>["skipped",null,"new"]},
+          {dependencies:[],values:async(c,s)=>[s.attempt.id,"failed",null,{code:"provider",message:"Delivery rejected"},s.attempt,"Delivery rejected","new","failed",null,{code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["failed","Delivery rejected","new"]},
+          {dependencies:[other_attempt],values:async(c,s)=>[s.other_attempt.id,"failed",null,{code:"provider",message:"Delivery rejected"},s.attempt,null,"new","failed",null,{code:"provider",message:"Delivery rejected"}],error:"rule_failed"},
         ],
       },
     ],
