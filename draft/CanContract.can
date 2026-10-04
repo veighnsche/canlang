@@ -18,7 +18,8 @@ package agreements
   export Term in Agreement { snapshot:ExecutedParties?, timezone:timezone?, executed_by:user?, executed_at:datetime?, expired:bool=false label="Expired"@{nl="Verlopen"}, notice_suppressed:bool=false, file:file, from:date label=label_Term_from, until:date label=label_Term_until, notice_days:int=30 min=0 label=label_Term_notice_days, pricing:text label=label_Term_pricing, currency:currency, previous:Term? label="Previous term"@{nl="Vorige termijn"}, executed:bool=false label="Executed"@{nl="Ondertekend"}, terminated:bool=false label="Terminated"@{nl="Beëindigd"}, reason:text? } label="Agreement term"@{nl="Overeenkomsttermijn"}
   Obligation in Term { title:text, due:date, done:bool=false, completed_by:user? label="Completed by"@{nl="Afgerond door"}, completed_at:datetime? label="Completion time"@{nl="Afgerond op"} } label="Obligation"@{nl="Verplichting"}
   Amendment in Term { text:text label="Text"@{nl="Tekst"}, file:file?, author:user server=actor label="Author"@{nl="Auteur"} } label="Agreement amendment"@{nl="Overeenkomstaanvulling"}
-  NoticeDelivery in Term { obligation:Obligation?, revision:int, delivery:text unique, state:enum(pending,delivered,failed,unknown)=pending label={text="Reminder delivery"@{nl="Herinneringsbezorging"},values={pending="Pending"@{nl="In afwachting"},delivered="Delivered"@{nl="Bezorgd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"}}} } label="Reminder outcome"@{nl="Herinneringsresultaat"}
+  NoticeDelivery in Term { obligation:Obligation?, revision:int, delivery:delivery(Mail.send) } label="Reminder outcome"@{nl="Herinneringsresultaat"}
+  derive NoticeDelivery.state:DeliveryResult.status = row.delivery.status label="Reminder delivery"@{nl="Herinneringsbezorging"}
   event Notice { term:Term, revision:int }
   event Expire { term:Term, at:datetime }
   event ObligationDue { obligation:Obligation, revision:int }
@@ -28,7 +29,7 @@ package agreements
   policy Term read=legal or (sales and row.parent.category==customer) or (property_manager and row.parent.category==landlord) or (finance and row.parent.category==supplier) where=allowed(actor,row.parent)
   policy Obligation read=legal or sales or property_manager or finance where=allowed(actor,row.parent.parent)
   policy Amendment read=legal or sales or property_manager or finance where=allowed(actor,row.parent.parent)
-  policy NoticeDelivery read=legal or sales or property_manager or finance where=allowed(actor,row.parent.parent)
+  policy NoticeDelivery read=legal or sales or property_manager or finance where=allowed(actor,row.parent.parent) fields=parent,obligation,revision,delivery.id,delivery.status,state,created_by,created,updated_by,updated,archived_at
   invariant Agreement: ((row.category==customer and row.customer!=null and row.supplier==null) or (row.category==supplier and row.supplier!=null and row.customer==null) or (row.category==landlord and row.customer==null))
   invariant Term: row.from<=row.until and (row.previous==null or row.previous.parent==row.parent) and (not row.executed or (row.snapshot!=null and row.timezone!=null and row.executed_by!=null and row.executed_at!=null))
   lock Term fields=snapshot,timezone,executed_by,executed_at,file,from,until,notice_days,pricing,currency,previous when=row.executed
@@ -38,6 +39,9 @@ package agreements
   fixture renewal_file=file {}
   fixture property_agreement=Agreement {title="Workspace lease",category=landlord,location=test_site,counterparty="Property owner",owner=test_worker,email="owner@example.test"}
   fixture current_term=Term {snapshot={title="Workspace lease",counterparty="Property owner",owner=self,location=test_site.id,address=test_site.address},timezone=test_site.timezone,executed_by=self,executed_at=datetime("2026-01-01T00:00:00Z"),parent=property_agreement,file=signed_file,from=date("2026-01-01"),until=date("2098-12-31"),pricing="EUR 1000 monthly",currency="EUR"}
+  fixture due_obligation=Obligation {parent=current_term,title="Insurance evidence",due=date("2098-10-01")}
+  fixture reminder=Mail.send {request={to="owner@example.test",subject="Agreement obligation due",body="Insurance evidence"}}
+  fixture recorded_notice=NoticeDelivery {parent=current_term,obligation=due_obligation,revision=1,delivery=reminder}
   preferences { location:Location? }
   invariant preferences: row.location==null or can_work(actor,row.location)
   message label_Agreement_category_customer = "Customer"@{nl="Klant"}
@@ -95,6 +99,13 @@ package agreements
    do
     set obligation {done=true,completed_by=actor,completed_at=now}
     cancel obligation.id
+   examples seed=[recorded_notice] obligation=due_obligation
+    as,reminder.status,reminder.result,reminder.error -> obligation.done,obligation.completed_by,recorded_notice.state
+    legal,pending,null,null -> true,self,pending
+    legal,succeeded,{reference="accepted-mail"},null -> true,self,succeeded
+    legal,failed,null,{code="provider",message="Rejected"} -> true,self,failed
+    legal,unknown,null,null -> true,self,unknown
+    legal,skipped,null,null -> true,self,skipped
   scenario arm on=Obligation.create
    do
     let due=local_instant(event.after.due,"00:00",event.after.parent.timezone??event.after.parent.parent.location.timezone,fold=earlier)
@@ -117,22 +128,28 @@ package agreements
    do
     if event.term.version==event.revision and event.term.executed and event.term.snapshot!=null and not event.term.terminated and not event.term.expired and not event.term.notice_suppressed and event.term.parent.active
      send Mail.send {to=event.term.parent.email,subject=format("Agreement notice deadline"@{nl="Opzegdeadline overeenkomst"},locale=null),body=event.term.snapshot.title} when=event.term.version==event.revision and not event.term.terminated and not event.term.expired and not event.term.notice_suppressed and event.term.parent.active as delivery
-     create NoticeDelivery {parent=event.term,revision=event.revision,delivery=delivery.id} as notice
+     create NoticeDelivery {parent=event.term,revision=event.revision,delivery} as notice
+   examples event={term=current_term,revision=current_term.version}
+    event.term.executed,event.term.terminated,event.term.expired,event.term.notice_suppressed,event.term.parent.active,event.revision -> count(current_term.NoticeDelivery),first(current_term.NoticeDelivery)?.state
+    true,false,false,false,true,1 -> 1,pending
+    false,false,false,false,true,1 -> 0,null
+    true,true,false,false,true,1 -> 0,null
+    true,false,true,false,true,1 -> 0,null
+    true,false,false,true,true,1 -> 0,null
+    true,false,false,false,false,1 -> 0,null
+    true,false,false,false,true,2 -> 0,null
   scenario due on=ObligationDue
    do
     if event.obligation.version==event.revision and not event.obligation.done and not event.obligation.parent.terminated and event.obligation.parent.parent.active
      send Mail.send {to=event.obligation.parent.parent.email,subject=format("Agreement obligation due"@{nl="Deadline overeenkomstverplichting"},locale=null),body=event.obligation.title} when=event.obligation.version==event.revision and not event.obligation.done and not event.obligation.parent.terminated and event.obligation.parent.parent.active as delivery
-     create NoticeDelivery {parent=event.obligation.parent,obligation=event.obligation,revision=event.revision,delivery=delivery.id} as notice
-  scenario delivered on=Mail.send.completed
-   do
-    for notice in NoticeDelivery as row where row.delivery==event.delivery_id limit=1
-     if event.status==succeeded
-      set notice {state=delivered}
-     else
-      if event.status==failed or event.status==skipped
-       set notice {state=failed}
-      else
-       set notice {state=unknown}
+     create NoticeDelivery {parent=event.obligation.parent,obligation=event.obligation,revision=event.revision,delivery} as notice
+   examples event={obligation=due_obligation,revision=due_obligation.version}
+    event.obligation.done,event.obligation.parent.terminated,event.obligation.parent.parent.active,event.revision -> count(current_term.NoticeDelivery),first(current_term.NoticeDelivery)?.obligation,first(current_term.NoticeDelivery)?.state
+    false,false,true,1 -> 1,due_obligation,pending
+    true,false,true,1 -> 0,null,null
+    false,true,true,1 -> 0,null,null
+    false,false,false,1 -> 0,null,null
+    false,false,true,2 -> 0,null,null
  Then
   # Retrieve executed terms, amendments and current obligation queues. @{nl="Haal ondertekende voorwaarden, aanvullingen en huidige verplichtingswachtrijen op."}
   page /agreements title="Agreements"@{nl="Overeenkomsten"}
