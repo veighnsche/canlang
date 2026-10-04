@@ -27,5 +27,20 @@ export const SERVICES_CATALOG: ServiceCatalog = {
       capabilityVersion: 1,
       operations: ['send'],
     },
+    {
+      capability: 'ai.ChatV1',
+      capabilityVersion: 1,
+      operations: ['generate'],
+    },
+    {
+      capability: 'ai.SystemOneV1',
+      capabilityVersion: 1,
+      operations: ['evaluate'],
+    },
+    {
+      capability: 'ai.ImagesV1',
+      capabilityVersion: 1,
+      operations: ['submit'],
+    },
   ],
 };
