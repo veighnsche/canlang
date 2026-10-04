@@ -1,0 +1,21 @@
+# Preserve joined query clauses.
+app Joined
+Given
+ Item {active:bool=true,title:text,return:bool}
+ policy Item read=members
+ derive names():text[]=(Item
+  as item
+  where item.active
+  order=-item.created
+  select item.title
+ )
+ derive selected(values:Item[]):Item[]=(values
+  as where
+  where where.active
+  select where
+ )
+ derive compare(value:Item):bool=(value.return
+  and true
+ )
+When
+Then

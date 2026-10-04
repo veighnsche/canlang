@@ -1,0 +1,68 @@
+[
+  {
+    "id": "F4-inline-contextual-type-atoms",
+    "finding": "F4",
+    "basis": "GRAMMAR.md:72,163-184",
+    "source": "# Focused highlighting probe.\napp Probe\nGiven\n Thing {value:trim, other:unique, rest:server, low:min, high:max, caption:label, mode:enum, task:action}\n Other {items:a.trim, other:b.label, nullable:trim?, union:A|unique, compound:A | unique}\nWhen\nThen"
+  },
+  {
+    "id": "F4-multiline-contextual-type-atoms",
+    "finding": "F4",
+    "basis": "GRAMMAR.md:35,72,163-184",
+    "source": "# Focused highlighting probe.\napp Probe\nGiven\n Item {\n  value:\n   trim,\n  other:A |\n   unique,\n  reverse:unique |\n   trim,\n  normal:text trim,\n  continued:text\n   unique\n }\nWhen\nThen"
+  },
+  {
+    "id": "F4-multiline-signature-types",
+    "finding": "F4",
+    "basis": "GRAMMAR.md:35,72,163-184",
+    "source": "# Focused highlighting probe.\napp Probe\nGiven\n derive choose(\n  input:\n   trim,\n  alternative:A |\n   unique\n ):A|unique = input\nWhen\nThen"
+  },
+  {
+    "id": "F6-selector-literal-prefix-names",
+    "finding": "F6",
+    "basis": "GRAMMAR.md:72,88-93,106-111,381-387",
+    "source": "# Focused highlighting probe.\napp Probe\nGiven\n Thing {not:text,true:bool,false:int,null:text,from:date,until:date,end:date,trim:text}\n policy Thing read=members fields=not,true,false,null\n unique Thing fields=not,true\n lock Thing fields=false,null\nWhen\n crud Thing by=members fields=not,true,false,null create_fields=from,until\nThen\n page / title=\"T\"\n  table Thing columns=not,true,false,null order=-not,-true,-false,-null filter=from,until search=trim\n   edit fields=not,true\n   text row.not,row.true,row.false,row.null"
+  },
+  {
+    "id": "F6-spaced-signed-and-qualified-selectors",
+    "finding": "F6",
+    "basis": "GRAMMAR.md:13,72,381-387",
+    "source": "# Focused highlighting probe.\napp Probe\nGiven\n Thing {not:text,true:bool,false:int,null:text}\nWhen\nThen\n page / title=\"T\"\n  table Thing columns=not,true,false,null order=- not, - true,-false,-null,-pkg.trim\n  table Thing columns=not order={by=preferences.view,default=[-not,-true],cases={open=[-false,-null]}}"
+  },
+  {
+    "id": "F7-multiline-values-shorthand",
+    "finding": "F7",
+    "basis": "GRAMMAR.md:35,207-220",
+    "source": "# Focused highlighting probe.\napp Probe\nGiven\n contract Item {name:text,title:text}\n derive a(name:text):Item=Item {\n  name,\n  title=name\n }\n derive b(name:text):Item=Item {name,title=name}\n derive c(name:text):Item=Item {\n  true=name,\n  false=name\n }\nWhen\nThen"
+  },
+  {
+    "id": "F7-whitespace-array-suffixes",
+    "finding": "F7",
+    "basis": "GRAMMAR.md:13,35,163-180",
+    "source": "# Focused highlighting probe.\napp Probe\nGiven\n Item { choices:Choice[ ]?, required:Choice [ ] !, spaced:Choice [ ] ?, split:Choice [\n ] ?, union:A | unique [ ] ? }\nWhen\n scenario choose(\n  input:\n   Choice [ ] ?\n ) by=members -> Choice [ ] ?\n  do return input\nThen"
+  },
+  {
+    "id": "F7-route-type-subroles",
+    "finding": "F7",
+    "basis": "GRAMMAR.md:163-176,390-398",
+    "source": "# Focused highlighting probe.\napp Probe\nGiven\n contract A {value:text}\n contract B {value:text}\nWhen\nThen\n page / title=\"Root\"\n page /items/{pkg.Item.id} title=\"Item\"\n page /types/{selection:A|B[]?} title=\"Types\"\n page /kinds/{kind:enum(one,two)} title=\"Kinds\"\n page /acts/{target:action(pkg.first,pkg.second)} title=\"Actions\""
+  },
+  {
+    "id": "F8-original-maintenance",
+    "finding": "F8",
+    "basis": "GRAMMAR.md:405-425",
+    "source": "migration Rename from=\"old\"\n rename owner\n rename before.Task to Work\n rename before.Task.title to Work.name\n drop before.Task.old\n invalidate before.refresh\n backfill Work\n  require before.title!=null\n  do\n   let text=before.title\n   if text!=\"\"\n    set row {name=text}\n   else\n    set row {name=\"Untitled\"}"
+  },
+  {
+    "id": "F8-model-field-handler-shapes",
+    "finding": "F8",
+    "basis": "GRAMMAR.md:409-423",
+    "source": "migration Rename from=\"old\"\n rename before.Task to Work; rename before.Task.title to Work.name\n drop before.Task; drop before.Task.old\n invalidate before.refresh; invalidate before.not\n backfill Work\n  do set row {name=before.title}"
+  },
+  {
+    "id": "F8-qualified-target-paths",
+    "finding": "F8",
+    "basis": "GRAMMAR.md:22,410-423",
+    "source": "migration Rename from=\"old\"\n rename before.Task to pkg.Work\n rename before.Task.title to pkg.Work.name\n backfill Work\n  do set row {name=before.title}"
+  }
+]

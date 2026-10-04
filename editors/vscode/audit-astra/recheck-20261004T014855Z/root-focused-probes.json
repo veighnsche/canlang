@@ -1,0 +1,14 @@
+[
+  {
+    "id": "structural-name-overlap",
+    "source": "app Names\nGiven\n app in app { title:text }\n package in app { title:text }\n scenario in app { title:text }\n do in app { title:text }\n require in app { title:text }\n page in app { title:text }\n examples in app { title:text }\n context in app { title:text }\nWhen\n scenario page(app:text,package:text,scenario:text,do:text,require:text,examples:text) by=members\n  do return {app,package,scenario,do,require,examples}\nThen\n page / title=\"Names\"\n  text row.app,row.package,row.scenario,row.do,row.require,row.examples"
+  },
+  {
+    "id": "inline-structural-guards",
+    "source": "app Guards\nGiven\n Item {ready:bool}\nWhen\n scenario check(item:Item) by=members\n  require item.ready; require item.ready\n  do require item.ready; require item.ready\nThen\n page / title=\"T\"\n  require members; text \"Allowed\"\n  card \"C\"\n   require members\n   text \"Body\""
+  },
+  {
+    "id": "complete-presentation-ref-context",
+    "source": "app Views\nGiven\n Item {name:text,not:text,true:text,false:text,null:text}\nWhen\n scenario refresh() by=members\n  do return true\nThen\n page / title=\"Items\" poll=5s refresh=refresh\n  require members\n  form Item.create import=csv review=preview\n  actions refresh,Item.update\n  table Item columns=not,true,false,null order=-not,true search=name\n   text row.not\n   delete\n page /next title=\"Next\"\n  form (Item.create)\n  actions (refresh),Item.update"
+  }
+]

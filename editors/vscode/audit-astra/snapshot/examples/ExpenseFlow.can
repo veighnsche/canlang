@@ -1,0 +1,75 @@
+# Submit team expenses and let a reviewer approve or reject them. @{nl="Dien teamonkosten in en laat een beoordelaar ze goedkeuren of afwijzen."}
+app ExpenseFlow uses=[expenses,reporting]
+package expenses
+ Given
+  preferences { status:Expense.status? }
+  message label_Expense_decision_note = "Decision note"@{nl="Toelichting op het besluit"}
+  role reviewer label="Reviewer"@{nl="Beoordelaar"}
+  export Expense {
+   purpose:text trim max=300 label="Expense purpose"@{nl="Doel van de onkost"},
+   amount:money,
+   submitted_by:user server=actor label="Submitted by"@{nl="Ingediend door"},
+   status:enum(draft,submitted,approved,rejected)=draft label={text="Status"@{nl="Status"},values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved="Approved"@{nl="Goedgekeurd"},rejected="Rejected"@{nl="Afgewezen"}}},
+   decision_note:text? label=label_Expense_decision_note,
+   decided_by:user? label="Decided by"@{nl="Besloten door"},
+   decided_at:datetime?
+ label="Decided at"@{nl="Besloten op"}  } label="Expense"@{nl="Onkost"}
+  policy Expense read=members where=row.submitted_by==actor
+  policy Expense read=reviewer
+  require Expense: row.amount.minor>0
+  lock Expense fields=purpose,amount,submitted_by when=row.status!=draft
+  lock Expense fields=status,decision_note,decided_by,decided_at when=row.status in [approved,rejected]
+  fixture pending=Expense {purpose="Travel",amount=money(25,"EUR"),submitted_by=other,status=submitted}
+ When
+  crud Expense by=members fields=purpose,amount when=row.submitted_by==actor and row.status==draft delete=none
+  # Submit your own draft expense for review. @{nl="Dien je eigen conceptonkost ter beoordeling in."}
+  scenario submit(expense:Expense) by=members
+   require expense.submitted_by==actor and expense.status==draft
+   do set expense {status=submitted}
+  # Approve a submitted expense from another teammate, optionally recording a note. @{nl="Keur een ingediende onkost van een andere teamgenoot goed en leg desgewenst een toelichting vast."}
+  scenario approve(expense:Expense,note:text? label=label_Expense_decision_note) by=reviewer label="Approve expense"@{nl="Onkost goedkeuren"}
+   require expense.status==submitted and expense.submitted_by!=actor
+   do set expense {status=approved,decision_note=note,decided_by=actor,decided_at=now}
+   examples expense=pending
+    as,expense.status,expense.submitted_by -> expense.status,expense.decided_by
+    reviewer,submitted,other -> approved,self
+    reviewer,draft,other -> error(rule_failed)
+    members,submitted,other -> error(forbidden)
+    reviewer,submitted,self -> error(rule_failed)
+  # Reject a submitted expense from another teammate and explain the decision. @{nl="Wijs een ingediende onkost van een andere teamgenoot af en leg de beslissing uit."}
+  scenario reject(expense:Expense,note:text label=label_Expense_decision_note) by=reviewer label="Reject expense"@{nl="Onkost afwijzen"}
+   require expense.status==submitted and expense.submitted_by!=actor and trim(note)!=""
+   do set expense {status=rejected,decision_note=note,decided_by=actor,decided_at=now}
+ Then
+  # Prepare expenses and follow their review status. @{nl="Bereid onkosten voor en volg hun beoordelingsstatus."}
+  page / title="Expenses"@{nl="Onkosten"}
+   card "Prepare an expense"@{nl="Een onkost voorbereiden"}
+    form Expense.create
+   card "Review status and decisions"@{nl="Beoordelingsstatus en besluiten"}
+    list Expense order=-created filter=status defaults={status=preferences.status} display=split
+     edit
+     actions submit,approve,reject
+     history
+package reporting label="Expense reports"@{nl="Onkostenrapporten"}
+ use expenses {Expense}
+ Given
+  preferences { status:Expense.status=submitted }
+  contract Summary { count:int, total:money } label="Expense totals"@{nl="Onkostentotalen"}
+  fixture mine=Expense {purpose="Travel",amount=money(25,"EUR"),submitted_by=self,status=submitted}
+ When
+  # Summarize expenses you can read, in one currency and status. @{nl="Vat leesbare onkosten samen in één valuta en status."}
+  scenario summarize(currency:currency,status:Expense.status) read=true -> Summary by=members label="Summarize expenses"@{nl="Onkosten samenvatten"}
+   do
+    let selected=Expense as expense where expense.amount.currency==currency and expense.status==status
+    return Summary {count=count(selected),total=sum(selected as expense select expense.amount,currency)}
+   examples seed=[mine] currency="EUR"
+    status -> result.count,result.total
+    submitted -> 1,money(25,"EUR")
+    approved -> 0,money(0,"EUR")
+ Then
+  # Choose a currency and status to total the expenses visible to you. @{nl="Kies een valuta en status om de voor jou zichtbare onkosten op te tellen."}
+  page /reports title="Expense summary"@{nl="Onkostenoverzicht"}
+   card "Visible expenses by currency and status"@{nl="Zichtbare onkosten per valuta en status"}
+    tabs preferences.status
+    form summarize arguments={status=preferences.status} display=inline
+     metrics result.count,result.total

@@ -1,0 +1,78 @@
+
+owned-model-app
+1: app <keyword.declaration.owner.can> | Models <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: app <entity.name.type.can> | in <keyword.control.ownership.can> | app <entity.name.type.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: Then <keyword.control.section.then.can>
+6: 
+
+owned-model-package
+1: app <keyword.declaration.owner.can> | Models <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: package <entity.name.type.can> | in <keyword.control.ownership.can> | app <entity.name.type.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: Then <keyword.control.section.then.can>
+6: 
+
+owned-model-event
+1: app <keyword.declaration.owner.can> | Models <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: event <entity.name.type.can> | in <keyword.control.ownership.can> | app <entity.name.type.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: Then <keyword.control.section.then.can>
+6: 
+
+owned-model-contract
+1: app <keyword.declaration.owner.can> | Models <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: contract <entity.name.type.can> | in <keyword.control.ownership.can> | app <entity.name.type.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: Then <keyword.control.section.then.can>
+6: 
+
+owned-model-role
+1: app <keyword.declaration.owner.can> | Models <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: role <entity.name.type.can> | in <keyword.control.ownership.can> | app <entity.name.type.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: Then <keyword.control.section.then.can>
+6: 
+
+owned-model-capability
+1: app <keyword.declaration.owner.can> | Models <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: capability <entity.name.type.can> | in <keyword.control.ownership.can> | app <entity.name.type.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: Then <keyword.control.section.then.can>
+6: 
+
+inline-do-require
+1: app <keyword.declaration.owner.can> | Guards <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: Item <entity.name.type.can> | { <punctuation.section.braces.begin.can> | ready <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | bool <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: scenario <keyword.declaration.scenario.can> | check <entity.name.function.can> | ( <punctuation.section.group.begin.can> | item <variable.parameter.can> | : <punctuation.separator.type.can> | Item <entity.name.type.can> | ) <punctuation.section.group.end.can> | by <variable.other.property.key.can> | = <keyword.operator.assignment.can> | members <variable.other.readwrite.can>
+6: do <keyword.control.structure.can> | require <keyword.control.structure.can> | item <variable.other.readwrite.can> | . <punctuation.accessor.can> | ready <variable.other.property.can> | ; <punctuation.separator.can> | require <keyword.control.structure.can> | item <variable.other.readwrite.can> | . <punctuation.accessor.can> | ready <variable.other.property.can>
+7: Then <keyword.control.section.then.can>
+8: 
+
+multiline-parenthesized-form
+1: app <keyword.declaration.owner.can> | Forms <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: Item <entity.name.type.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: scenario <keyword.declaration.scenario.can> | change <entity.name.function.can> | ( <punctuation.section.group.begin.can> | item <variable.parameter.can> | : <punctuation.separator.type.can> | Item <entity.name.type.can> | ) <punctuation.section.group.end.can> | by <variable.other.property.key.can> | = <keyword.operator.assignment.can> | members <variable.other.readwrite.can>
+6: do <keyword.control.structure.can> | set <keyword.control.effect.can> | item <variable.other.readwrite.target.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.key.can> | = <keyword.operator.assignment.can> | " <string.quoted.double.can> | Changed <string.quoted.double.can> | " <string.quoted.double.can> | } <punctuation.section.braces.end.can>
+7: Then <keyword.control.section.then.can>
+8: page <entity.name.tag.component.page.can> | /items/ <string.unquoted.route.can> | { <punctuation.section.braces.begin.can> | Item <entity.name.type.can> | .id <variable.other.property.can> | } <punctuation.section.braces.end.can> | title <variable.other.property.key.can> | = <keyword.operator.assignment.can> | " <string.quoted.double.can> | Item <string.quoted.double.can> | " <string.quoted.double.can>
+9: form <entity.name.tag.component.can> | ( <punctuation.section.group.begin.can>
+10: change <entity.name.function.reference.can>
+11: ) <punctuation.section.group.end.can>
+12: 
+
+qualified-migration-targets
+1: migration <keyword.declaration.can> | Move <entity.name.namespace.can> | from <variable.other.property.key.can> | = <keyword.operator.assignment.can> | " <string.quoted.double.can> | old <string.quoted.double.can> | " <string.quoted.double.can>
+2: rename <keyword.control.can> | before <variable.other.readwrite.predecessor.can> | . <source.can> | Task <entity.name.type.can> | to <keyword.control.migration.can> | pkg. <variable.other.readwrite.namespace.can> | Work <entity.name.type.can>
+3: rename <keyword.control.can> | before <variable.other.readwrite.predecessor.can> | . <source.can> | Task <entity.name.type.can> | . <source.can> | title <variable.other.property.can> | to <keyword.control.migration.can> | pkg. <variable.other.readwrite.namespace.can> | Work <entity.name.type.can> | . <source.can> | name <variable.other.property.can>
+4: 

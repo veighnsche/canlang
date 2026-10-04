@@ -1,0 +1,48 @@
+
+owned-model-app
+1: app <keyword.declaration.owner.can> | Models <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: app <keyword.declaration.owner.can> | in <entity.name.namespace.can> | app <entity.name.type.constructor.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: Then <keyword.control.section.then.can>
+6: 
+
+owned-model-package
+1: app <keyword.declaration.owner.can> | Models <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: package <keyword.declaration.owner.can> | in <entity.name.namespace.can> | app <entity.name.type.constructor.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: Then <keyword.control.section.then.can>
+6: 
+
+owned-model-event
+1: app <keyword.declaration.owner.can> | Models <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: event <keyword.declaration.can> | in <entity.name.type.can> | app <entity.name.type.constructor.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: Then <keyword.control.section.then.can>
+6: 
+
+owned-model-contract
+1: app <keyword.declaration.owner.can> | Models <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: contract <keyword.declaration.can> | in <entity.name.type.can> | app <entity.name.type.constructor.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: Then <keyword.control.section.then.can>
+6: 
+
+owned-model-role
+1: app <keyword.declaration.owner.can> | Models <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: role <keyword.declaration.can> | in <entity.name.function.predicate.can> | app <entity.name.type.constructor.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: Then <keyword.control.section.then.can>
+6: 
+
+owned-model-capability
+1: app <keyword.declaration.owner.can> | Models <entity.name.namespace.can>
+2: Given <keyword.control.section.given.can>
+3: capability <keyword.declaration.can> | in <entity.name.type.can> | app <entity.name.type.constructor.can> | { <punctuation.section.braces.begin.can> | title <variable.other.property.declaration.can> | : <punctuation.separator.type.can> | text <support.type.primitive.can> | } <punctuation.section.braces.end.can>
+4: When <keyword.control.section.when.can>
+5: Then <keyword.control.section.then.can>
+6: 

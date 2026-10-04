@@ -1,0 +1,11 @@
+{
+  "captured_utc": "2026-10-04T01:09:35.909935+00:00",
+  "version": "0.1.3",
+  "changed_repository_rules": [
+    "variants"
+  ],
+  "files": {
+    "package.json": "655ea2b3a76dceac96f5aca00935f128e3b55e5cc99c3253cf3205253b9254c1",
+    "syntaxes/can.tmLanguage.json": "c3c3ee53094d0a81b355eff9feb1cff1d3168e0a967845e94a0af73fcfd1c782"
+  }
+}

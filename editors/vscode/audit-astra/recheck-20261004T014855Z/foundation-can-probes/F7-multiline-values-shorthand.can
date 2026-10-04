@@ -1,0 +1,15 @@
+# Focused highlighting probe.
+app Probe
+Given
+ contract Item {name:text,title:text}
+ derive a(name:text):Item=Item {
+  name,
+  title=name
+ }
+ derive b(name:text):Item=Item {name,title=name}
+ derive c(name:text):Item=Item {
+  true=name,
+  false=name
+ }
+When
+Then

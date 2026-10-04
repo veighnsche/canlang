@@ -1,0 +1,60 @@
+{
+  "captured_utc": "2026-10-04T01:02:43.143204+00:00",
+  "changes": [
+    {
+      "path": "DECISIONS.md",
+      "baseline": "4747af39bca7ecbbf66ce715bcfb9af0b6969923b6886601123da018e53e9256",
+      "current": "cb178d30a2d3a4ed244da11ec7ed71bea797151e0be5efec1a48c80737324815"
+    },
+    {
+      "path": "DESIGN.md",
+      "baseline": "dd72a1d5869d74cdb7e419cd3cb885dfad4b3a00281d33f43a6ca093f3c21d14",
+      "current": "fea86cd9fed26b5a3d5953a6e5497bbef3bdb27000eaa27e66d9c8622afd3c15"
+    },
+    {
+      "path": "draft/CanField.can",
+      "baseline": "c0debd714cb68d1d457411ddfb840ed764aa4cfbe3f83b87b4fdc13bbd87e6a7",
+      "current": "bb5283dcf232fac70d2e380630d4c0cf53315332a5829c9b8ba91cc6bc0545fc"
+    },
+    {
+      "path": "draft/CanMaintain.can",
+      "baseline": "ecd110cb361fceed0a4f39817bf22208ce32250727e5663c195255bab6aa0bc2",
+      "current": "39a7f3f8f9c392770cfc3cd61d4a488fcc980d82e2703072956435aa5f09d8c9"
+    },
+    {
+      "path": "draft/CanMember.can",
+      "baseline": "a9df113a4cef5f1c3e3352eaf501bfc6d4f65ff8c4b7e0ebf7c044e4284a7ab3",
+      "current": "a4b0c7322f100311b113eed95a8a50c48ea958ff3a0bbd710bbeb350c4e75471"
+    },
+    {
+      "path": "draft/CanRent.can",
+      "baseline": "924f2a20224cd42776123891ac5da8e804e812a4dd7c56f310729bc300355ab8",
+      "current": "6f42834c12d28d9a5f7f2ed6c59310c3643fee4ee8f6accd6b733ffbbed8694c"
+    },
+    {
+      "path": "draft/shared/Locations.can",
+      "baseline": "a60c13d9929d9a5e7a61f6c52719588bad063eddd86dd16aaf739d42c5c7ea15",
+      "current": "46e6a468954bb64db534b2b6b64be168ea6263bad384e5107496cf08f17b8e5c"
+    },
+    {
+      "path": "editors/vscode/README.md",
+      "baseline": "d5f8cd5cb64fdf2176e349459e869df6ffa73672e7966fd23f6e4b033750bc7b",
+      "current": "1d702c04cfbd16269f870a9cafcaeaa72e0ceccde3ab23085086a7c24f94ec44"
+    },
+    {
+      "path": "editors/vscode/check-highlighting.cjs",
+      "baseline": "0c94d19083d3cc07a47e1faabaf75f860703478066619f3cef595619080bc1e4",
+      "current": "91d8791757d6248be70a182fce6d17fc6e57287e63ff989c610c8a29dfd8ea21"
+    },
+    {
+      "path": "editors/vscode/package.json",
+      "baseline": "e65902d6e79437fa1cec5dd699db77bc029f9cecf999557de92cbca867e5161c",
+      "current": "acad506f06676b412a7e40f5bb54dd483077068d7a5bfdbfd7cddf4b35c08fcd"
+    },
+    {
+      "path": "editors/vscode/syntaxes/can.tmLanguage.json",
+      "baseline": "94611f8212994a898722205b5478d62ea534334d8cf0511c1a4ecc6cbcc25207",
+      "current": "fb01f39e818d4ec8e1d8051be0d8d754acfc92cf28829f9b6f5dc23be84aaddc"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+app Models
+Given
+ contract in app {title:text}
+When
+Then

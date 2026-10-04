@@ -1,0 +1,12 @@
+# Keep names where operands are required.
+app Operators
+Given
+ derive compare(and:bool,or:bool,in:bool,is:bool,where:bool,select:bool):bool=and or in
+ derive multiply(and:int):int=2 * and
+ derive prefix(value:bool):bool=not value and true
+ derive is_value(in:int):bool=in==1
+ derive joined(and:bool,in:bool):bool=(and
+  or in
+ )
+When
+Then

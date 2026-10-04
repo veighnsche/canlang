@@ -1,0 +1,3012 @@
+[
+  {
+    "id": "owned-model-app",
+    "source": "app Models\nGiven\n app in app {title:text}\nWhen\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Models",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Models",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " app in app {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 5,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 6,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 6,
+            "end": 8,
+            "text": "in",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.ownership.can"
+            ]
+          },
+          {
+            "start": 8,
+            "end": 9,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 9,
+            "end": 12,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 12,
+            "end": 13,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 14,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 19,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 19,
+            "end": 20,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 20,
+            "end": 24,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 24,
+            "end": 25,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 6,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "owned-model-package",
+    "source": "app Models\nGiven\n package in app {title:text}\nWhen\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Models",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Models",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " package in app {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 9,
+            "text": "package",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 9,
+            "end": 10,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 10,
+            "end": 12,
+            "text": "in",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.ownership.can"
+            ]
+          },
+          {
+            "start": 12,
+            "end": 13,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 16,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 16,
+            "end": 17,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 17,
+            "end": 18,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 18,
+            "end": 23,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 23,
+            "end": 24,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 24,
+            "end": 28,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 28,
+            "end": 29,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 6,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "owned-model-event",
+    "source": "app Models\nGiven\n event in app {title:text}\nWhen\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Models",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Models",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " event in app {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 7,
+            "text": "event",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 7,
+            "end": 8,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 8,
+            "end": 10,
+            "text": "in",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.ownership.can"
+            ]
+          },
+          {
+            "start": 10,
+            "end": 11,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 11,
+            "end": 14,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 15,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 15,
+            "end": 16,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 16,
+            "end": 21,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 21,
+            "end": 22,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 22,
+            "end": 26,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 26,
+            "end": 27,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 6,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "owned-model-contract",
+    "source": "app Models\nGiven\n contract in app {title:text}\nWhen\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Models",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Models",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " contract in app {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 10,
+            "text": "contract",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 10,
+            "end": 11,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 11,
+            "end": 13,
+            "text": "in",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.ownership.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 14,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 17,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 17,
+            "end": 18,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 18,
+            "end": 19,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 19,
+            "end": 24,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 24,
+            "end": 25,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 25,
+            "end": 29,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 29,
+            "end": 30,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 6,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "owned-model-role",
+    "source": "app Models\nGiven\n role in app {title:text}\nWhen\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Models",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Models",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " role in app {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 6,
+            "text": "role",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 6,
+            "end": 7,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 7,
+            "end": 9,
+            "text": "in",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.ownership.can"
+            ]
+          },
+          {
+            "start": 9,
+            "end": 10,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 10,
+            "end": 13,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 14,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 15,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 15,
+            "end": 20,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 20,
+            "end": 21,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 21,
+            "end": 25,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 25,
+            "end": 26,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 6,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "owned-model-capability",
+    "source": "app Models\nGiven\n capability in app {title:text}\nWhen\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Models",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Models",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " capability in app {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 12,
+            "text": "capability",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 12,
+            "end": 13,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 15,
+            "text": "in",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.ownership.can"
+            ]
+          },
+          {
+            "start": 15,
+            "end": 16,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 16,
+            "end": 19,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 19,
+            "end": 20,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 20,
+            "end": 21,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 21,
+            "end": 26,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 26,
+            "end": 27,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 27,
+            "end": 31,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 31,
+            "end": 32,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 6,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "inline-do-require",
+    "source": "app Guards\nGiven\n Item {ready:bool}\nWhen\n scenario check(item:Item) by=members\n  do require item.ready; require item.ready\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Guards",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Guards",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " Item {ready:bool}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 6,
+            "text": "Item",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 6,
+            "end": 7,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 7,
+            "end": 8,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 8,
+            "end": 13,
+            "text": "ready",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 14,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 18,
+            "text": "bool",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 18,
+            "end": 19,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": " scenario check(item:Item) by=members",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 10,
+            "text": "scenario",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "keyword.declaration.scenario.can"
+            ]
+          },
+          {
+            "start": 10,
+            "end": 11,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 11,
+            "end": 16,
+            "text": "check",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "entity.name.function.can"
+            ]
+          },
+          {
+            "start": 16,
+            "end": 17,
+            "text": "(",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "punctuation.section.group.begin.can"
+            ]
+          },
+          {
+            "start": 17,
+            "end": 21,
+            "text": "item",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "variable.parameter.can"
+            ]
+          },
+          {
+            "start": 21,
+            "end": 22,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 22,
+            "end": 26,
+            "text": "Item",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "meta.type.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 26,
+            "end": 27,
+            "text": ")",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "punctuation.section.group.end.can"
+            ]
+          },
+          {
+            "start": 27,
+            "end": 28,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 28,
+            "end": 30,
+            "text": "by",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "variable.other.property.key.can"
+            ]
+          },
+          {
+            "start": 30,
+            "end": 31,
+            "text": "=",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "keyword.operator.assignment.can"
+            ]
+          },
+          {
+            "start": 31,
+            "end": 38,
+            "text": "members",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "variable.other.readwrite.can"
+            ]
+          }
+        ],
+        "stackDepth": 3
+      },
+      {
+        "line": 6,
+        "source": "  do require item.ready; require item.ready",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 3,
+            "text": "  ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 3,
+            "end": 5,
+            "text": "do",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "keyword.control.structure.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 6,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 6,
+            "end": 13,
+            "text": "require",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "keyword.control.structure.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 14,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 18,
+            "text": "item",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "variable.other.readwrite.can"
+            ]
+          },
+          {
+            "start": 18,
+            "end": 19,
+            "text": ".",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "punctuation.accessor.can"
+            ]
+          },
+          {
+            "start": 19,
+            "end": 24,
+            "text": "ready",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "variable.other.property.can"
+            ]
+          },
+          {
+            "start": 24,
+            "end": 25,
+            "text": ";",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "punctuation.separator.can"
+            ]
+          },
+          {
+            "start": 25,
+            "end": 26,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 26,
+            "end": 33,
+            "text": "require",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "keyword.control.structure.can"
+            ]
+          },
+          {
+            "start": 33,
+            "end": 34,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 34,
+            "end": 38,
+            "text": "item",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "variable.other.readwrite.can"
+            ]
+          },
+          {
+            "start": 38,
+            "end": 39,
+            "text": ".",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "punctuation.accessor.can"
+            ]
+          },
+          {
+            "start": 39,
+            "end": 44,
+            "text": "ready",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "variable.other.property.can"
+            ]
+          }
+        ],
+        "stackDepth": 3
+      },
+      {
+        "line": 7,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 8,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "multiline-parenthesized-form",
+    "source": "app Forms\nGiven\n Item {title:text}\nWhen\n scenario change(item:Item) by=members\n  do set item {title=\"Changed\"}\nThen\n page /items/{Item.id} title=\"Item\"\n  form (\n   change\n  )\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Forms",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 10,
+            "text": "Forms",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " Item {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 6,
+            "text": "Item",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 6,
+            "end": 7,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 7,
+            "end": 8,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 8,
+            "end": 13,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 14,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 18,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 18,
+            "end": 19,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": " scenario change(item:Item) by=members",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 10,
+            "text": "scenario",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "keyword.declaration.scenario.can"
+            ]
+          },
+          {
+            "start": 10,
+            "end": 11,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 11,
+            "end": 17,
+            "text": "change",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "entity.name.function.can"
+            ]
+          },
+          {
+            "start": 17,
+            "end": 18,
+            "text": "(",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "punctuation.section.group.begin.can"
+            ]
+          },
+          {
+            "start": 18,
+            "end": 22,
+            "text": "item",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "variable.parameter.can"
+            ]
+          },
+          {
+            "start": 22,
+            "end": 23,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 23,
+            "end": 27,
+            "text": "Item",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "meta.type.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 27,
+            "end": 28,
+            "text": ")",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "punctuation.section.group.end.can"
+            ]
+          },
+          {
+            "start": 28,
+            "end": 29,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 29,
+            "end": 31,
+            "text": "by",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "variable.other.property.key.can"
+            ]
+          },
+          {
+            "start": 31,
+            "end": 32,
+            "text": "=",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "keyword.operator.assignment.can"
+            ]
+          },
+          {
+            "start": 32,
+            "end": 39,
+            "text": "members",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "variable.other.readwrite.can"
+            ]
+          }
+        ],
+        "stackDepth": 3
+      },
+      {
+        "line": 6,
+        "source": "  do set item {title=\"Changed\"}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 3,
+            "text": "  ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 3,
+            "end": 5,
+            "text": "do",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "keyword.control.structure.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 6,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 6,
+            "end": 9,
+            "text": "set",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "keyword.control.effect.can"
+            ]
+          },
+          {
+            "start": 9,
+            "end": 10,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 10,
+            "end": 14,
+            "text": "item",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "variable.other.readwrite.target.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 15,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can"
+            ]
+          },
+          {
+            "start": 15,
+            "end": 16,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 16,
+            "end": 21,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "variable.other.property.key.can"
+            ]
+          },
+          {
+            "start": 21,
+            "end": 22,
+            "text": "=",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "keyword.operator.assignment.can"
+            ]
+          },
+          {
+            "start": 22,
+            "end": 23,
+            "text": "\"",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "string.quoted.double.can"
+            ]
+          },
+          {
+            "start": 23,
+            "end": 30,
+            "text": "Changed",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "string.quoted.double.can"
+            ]
+          },
+          {
+            "start": 30,
+            "end": 31,
+            "text": "\"",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "string.quoted.double.can"
+            ]
+          },
+          {
+            "start": 31,
+            "end": 32,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "meta.scenario.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 3
+      },
+      {
+        "line": 7,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 8,
+        "source": " page /items/{Item.id} title=\"Item\"",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 6,
+            "text": "page",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "entity.name.tag.component.page.can"
+            ]
+          },
+          {
+            "start": 6,
+            "end": 7,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can"
+            ]
+          },
+          {
+            "start": 7,
+            "end": 14,
+            "text": "/items/",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "string.unquoted.route.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 15,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "string.unquoted.route.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 15,
+            "end": 19,
+            "text": "Item",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "string.unquoted.route.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 19,
+            "end": 22,
+            "text": ".id",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "string.unquoted.route.can",
+              "variable.other.property.can"
+            ]
+          },
+          {
+            "start": 22,
+            "end": 23,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "string.unquoted.route.can",
+              "punctuation.section.braces.end.can"
+            ]
+          },
+          {
+            "start": 23,
+            "end": 24,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can"
+            ]
+          },
+          {
+            "start": 24,
+            "end": 29,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "variable.other.property.key.can"
+            ]
+          },
+          {
+            "start": 29,
+            "end": 30,
+            "text": "=",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "keyword.operator.assignment.can"
+            ]
+          },
+          {
+            "start": 30,
+            "end": 31,
+            "text": "\"",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "string.quoted.double.can"
+            ]
+          },
+          {
+            "start": 31,
+            "end": 35,
+            "text": "Item",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "string.quoted.double.can"
+            ]
+          },
+          {
+            "start": 35,
+            "end": 36,
+            "text": "\"",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "string.quoted.double.can"
+            ]
+          }
+        ],
+        "stackDepth": 3
+      },
+      {
+        "line": 9,
+        "source": "  form (",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 3,
+            "text": "  ",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can"
+            ]
+          },
+          {
+            "start": 3,
+            "end": 7,
+            "text": "form",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "entity.name.tag.component.can"
+            ]
+          },
+          {
+            "start": 7,
+            "end": 8,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can"
+            ]
+          },
+          {
+            "start": 8,
+            "end": 9,
+            "text": "(",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "meta.operation-target.can",
+              "punctuation.section.group.begin.can"
+            ]
+          }
+        ],
+        "stackDepth": 7
+      },
+      {
+        "line": 10,
+        "source": "   change",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "   ",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "meta.operation-target.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 10,
+            "text": "change",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "meta.operation-target.can",
+              "entity.name.function.reference.can"
+            ]
+          }
+        ],
+        "stackDepth": 8
+      },
+      {
+        "line": 11,
+        "source": "  )",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 3,
+            "text": "  ",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "meta.operation-target.can"
+            ]
+          },
+          {
+            "start": 3,
+            "end": 4,
+            "text": ")",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can",
+              "meta.operation-target.can",
+              "punctuation.section.group.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 3
+      },
+      {
+        "line": 12,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "meta.presentation.page.can"
+            ]
+          }
+        ],
+        "stackDepth": 3
+      }
+    ]
+  },
+  {
+    "id": "qualified-migration-targets",
+    "source": "migration Move from=\"old\"\n rename before.Task to pkg.Work\n rename before.Task.title to pkg.Work.name\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "migration Move from=\"old\"",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 10,
+            "text": "migration",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.can"
+            ]
+          },
+          {
+            "start": 10,
+            "end": 11,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 11,
+            "end": 15,
+            "text": "Move",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          },
+          {
+            "start": 15,
+            "end": 16,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 16,
+            "end": 20,
+            "text": "from",
+            "scopes": [
+              "source.can",
+              "variable.other.property.key.can"
+            ]
+          },
+          {
+            "start": 20,
+            "end": 21,
+            "text": "=",
+            "scopes": [
+              "source.can",
+              "keyword.operator.assignment.can"
+            ]
+          },
+          {
+            "start": 21,
+            "end": 22,
+            "text": "\"",
+            "scopes": [
+              "source.can",
+              "string.quoted.double.can"
+            ]
+          },
+          {
+            "start": 22,
+            "end": 25,
+            "text": "old",
+            "scopes": [
+              "source.can",
+              "string.quoted.double.can"
+            ]
+          },
+          {
+            "start": 25,
+            "end": 26,
+            "text": "\"",
+            "scopes": [
+              "source.can",
+              "string.quoted.double.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": " rename before.Task to pkg.Work",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 8,
+            "text": "rename",
+            "scopes": [
+              "source.can",
+              "keyword.control.can"
+            ]
+          },
+          {
+            "start": 8,
+            "end": 9,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 9,
+            "end": 15,
+            "text": "before",
+            "scopes": [
+              "source.can",
+              "variable.other.readwrite.predecessor.can"
+            ]
+          },
+          {
+            "start": 15,
+            "end": 16,
+            "text": ".",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 16,
+            "end": 20,
+            "text": "Task",
+            "scopes": [
+              "source.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 20,
+            "end": 21,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 21,
+            "end": 23,
+            "text": "to",
+            "scopes": [
+              "source.can",
+              "keyword.control.migration.can"
+            ]
+          },
+          {
+            "start": 23,
+            "end": 24,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 24,
+            "end": 28,
+            "text": "pkg.",
+            "scopes": [
+              "source.can",
+              "variable.other.readwrite.namespace.can"
+            ]
+          },
+          {
+            "start": 28,
+            "end": 32,
+            "text": "Work",
+            "scopes": [
+              "source.can",
+              "entity.name.type.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 3,
+        "source": " rename before.Task.title to pkg.Work.name",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 8,
+            "text": "rename",
+            "scopes": [
+              "source.can",
+              "keyword.control.can"
+            ]
+          },
+          {
+            "start": 8,
+            "end": 9,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 9,
+            "end": 15,
+            "text": "before",
+            "scopes": [
+              "source.can",
+              "variable.other.readwrite.predecessor.can"
+            ]
+          },
+          {
+            "start": 15,
+            "end": 16,
+            "text": ".",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 16,
+            "end": 20,
+            "text": "Task",
+            "scopes": [
+              "source.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 20,
+            "end": 21,
+            "text": ".",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 21,
+            "end": 26,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "variable.other.property.can"
+            ]
+          },
+          {
+            "start": 26,
+            "end": 27,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 27,
+            "end": 29,
+            "text": "to",
+            "scopes": [
+              "source.can",
+              "keyword.control.migration.can"
+            ]
+          },
+          {
+            "start": 29,
+            "end": 30,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 30,
+            "end": 34,
+            "text": "pkg.",
+            "scopes": [
+              "source.can",
+              "variable.other.readwrite.namespace.can"
+            ]
+          },
+          {
+            "start": 34,
+            "end": 38,
+            "text": "Work",
+            "scopes": [
+              "source.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 38,
+            "end": 39,
+            "text": ".",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 39,
+            "end": 43,
+            "text": "name",
+            "scopes": [
+              "source.can",
+              "variable.other.property.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 4,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      }
+    ]
+  }
+]

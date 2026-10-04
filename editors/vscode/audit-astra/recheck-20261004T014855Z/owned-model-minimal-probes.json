@@ -1,0 +1,26 @@
+[
+  {
+    "id": "owned-model-app",
+    "source": "app Models\nGiven\n app in app {title:text}\nWhen\nThen\n"
+  },
+  {
+    "id": "owned-model-package",
+    "source": "app Models\nGiven\n package in app {title:text}\nWhen\nThen\n"
+  },
+  {
+    "id": "owned-model-event",
+    "source": "app Models\nGiven\n event in app {title:text}\nWhen\nThen\n"
+  },
+  {
+    "id": "owned-model-contract",
+    "source": "app Models\nGiven\n contract in app {title:text}\nWhen\nThen\n"
+  },
+  {
+    "id": "owned-model-role",
+    "source": "app Models\nGiven\n role in app {title:text}\nWhen\nThen\n"
+  },
+  {
+    "id": "owned-model-capability",
+    "source": "app Models\nGiven\n capability in app {title:text}\nWhen\nThen\n"
+  }
+]

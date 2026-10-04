@@ -1,0 +1,41 @@
+{
+  "name": "canlang-draft-highlighting",
+  "displayName": "Canlang Draft Syntax",
+  "description": "Syntax highlighting for the current canlang draft grammar. No language server.",
+  "version": "0.1.1",
+  "publisher": "canlang",
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "can",
+        "aliases": [
+          "Canlang",
+          "can"
+        ],
+        "extensions": [
+          ".can"
+        ]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "can",
+        "scopeName": "source.can",
+        "path": "./syntaxes/can.tmLanguage.json"
+      }
+    ],
+    "configurationDefaults": {
+      "[can]": {
+        "editor.tabSize": 1,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": false
+      }
+    }
+  }
+}

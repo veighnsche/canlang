@@ -1,0 +1,18 @@
+# Preserve parenthesized operation targets.
+app Qualified
+Given
+ Item {title:text}
+ capability Remote version=1
+  run(input:Item)->text
+When
+ crud Item by=members fields=title
+ scenario run(input:Item) by=members
+  do
+   send (Remote.run) {input} as d1
+   send ((Remote.run)) {input} as d2
+   call (Item.update) {record=input,changes={title="Changed"}}
+Then
+ page / title="Actions"
+  list Item
+   form (Item.update)
+   actions (Item.update),(Item.create)

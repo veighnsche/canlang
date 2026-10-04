@@ -1,0 +1,12 @@
+# Focused highlighting probe.
+app Probe
+Given
+ contract A {value:text}
+ contract B {value:text}
+When
+Then
+ page / title="Root"
+ page /items/{pkg.Item.id} title="Item"
+ page /types/{selection:A|B[]?} title="Types"
+ page /kinds/{kind:enum(one,two)} title="Kinds"
+ page /acts/{target:action(pkg.first,pkg.second)} title="Actions"

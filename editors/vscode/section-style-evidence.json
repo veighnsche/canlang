@@ -1,0 +1,25 @@
+{
+  "verifiedAt": "2026-10-04T03:23:29.431996+00:00",
+  "grammarSha256": "5b81968086d429b8b5156badc7efd712b0016f37aaaf576cd4489beed0214ea3",
+  "onlyChange": "Canlang sections fontStyle: bold -> bold italic",
+  "foreground": "#FFFFFF",
+  "markerFontStyleBits": 3,
+  "otherStructuralFontStyleBits": 2,
+  "authoredGivenFieldFontStyleBits": 0,
+  "ownEngineChecksPassed": [
+    "Cursor",
+    "Antigravity"
+  ],
+  "settings": [
+    {
+      "path": "/Users/vince/Library/Application Support/Cursor/User/settings.json",
+      "onlyRequestedStyleChanged": true
+    },
+    {
+      "path": "/Users/vince/Library/Application Support/Antigravity IDE/User/settings.json",
+      "onlyRequestedStyleChanged": true
+    }
+  ],
+  "visualRenderingVerified": false,
+  "reloadPerformed": false
+}

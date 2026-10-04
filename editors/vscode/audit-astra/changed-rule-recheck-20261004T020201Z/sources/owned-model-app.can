@@ -1,0 +1,5 @@
+app Models
+Given
+ app in app {title:text}
+When
+Then

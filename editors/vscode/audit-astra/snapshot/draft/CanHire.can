@@ -1,0 +1,125 @@
+# Help the workspace operator recruit receptionists, community managers, sales staff, and facilities technicians for specific locations. @{nl="Help de werkplekbeheerder receptionisten, communitymanagers, verkopers en facilitaire technici voor specifieke locaties te werven."}
+app CanHire uses=[hire]
+
+# Recruit employees, prepare onboarding and acknowledge published training versions. @{nl="Werf medewerkers, bereid hun inwerking voor en bevestig gepubliceerde opleidingsversies."}
+app PeopleDevelopment uses=[CanHire,CanOnboard,CanLearn]
+
+# Keep vacancy intake, interview feedback and reviewed hiring handoff private. @{nl="Houd vacatureaanmeldingen, gespreksfeedback en de beoordeelde aanstellingsoverdracht privé."}
+package hire label="Recruitment"@{nl="Werving"}
+ use rent_catalog {Location,test_site}
+ use employee {Employee,can_work}
+ use std {EmailV1 as Mail} from=deployment.mail
+ use shift {ScheduleV1 as StaffSchedule} from=deployment.staff_schedule
+ Given
+  message heading_own_application_outcomes = "Own application outcomes"@{nl="Eigen sollicitatieresultaten"}
+  message label_interviewer = "Interviewer"@{nl="Interviewer"}
+  message label_Candidate_application = "Application text"@{nl="Sollicitatietekst"}
+  message label_Candidate_cv = "CV attachment"@{nl="CV-bijlage"}
+  message label_Candidate_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Candidate_stage_interview = "Interview"@{nl="Sollicitatiegesprek"}
+  message label_Interview_from = "Start"@{nl="Begin"}
+  message label_Interview_until = "End"@{nl="Einde"}
+  message label_Interview_feedback = "Interview feedback"@{nl="Gespreksfeedback"}
+  preferences { location:Location?, stage:Candidate.stage? }
+  role recruiter label="Recruiter"@{nl="Recruiter"}
+  role interviewer label=label_interviewer
+  Vacancy { location:Location, title:text trim min=1, description:text, employment:text label="Employment type"@{nl="Dienstverband"}, skills:text[] label="Skills"@{nl="Vaardigheden"}, owner:user server=actor label="Owner"@{nl="Eigenaar"}, published:bool=false label="Published"@{nl="Gepubliceerd"}, open:bool=true label="Open"@{nl="Open"}, closed_at:datetime? label="Closed at"@{nl="Gesloten op"} } label="Vacancy"@{nl="Vacature"}
+  Candidate in Vacancy { account:user? label="Account"@{nl="Account"}, name:text, email:email, application:text label=label_Candidate_application, cv:file? label=label_Candidate_cv, source:text label=label_Candidate_source, stage:enum(applied,interview,offer,hired,rejected,withdrawn)=applied label={text="Hiring stage"@{nl="Sollicitatiefase"},values={applied="Applied"@{nl="Toegepast"},interview=label_Candidate_stage_interview,offer="Offer"@{nl="Aanbod"},hired="Hired"@{nl="Aangenomen"},rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"}}}, reason:text?, onboarding_reference:text? label="Onboarding reference"@{nl="Inwerkreferentie"} } label="Candidate"@{nl="Kandidaat"}
+  Interview in Candidate { interviewer:Employee label=label_interviewer, from:datetime label=label_Interview_from, until:datetime label=label_Interview_until, timezone:timezone, notes:text?, feedback:text? label=label_Interview_feedback, state:enum(pending,confirmed,cancelled)=pending label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In afwachting"},confirmed="Confirmed"@{nl="Bevestigd"},cancelled="Cancelled"@{nl="Geannuleerd"}}}, source:text unique label=label_Candidate_source, delivery:text? label="Delivery reference"@{nl="Verzendingsreferentie"} } label=label_Candidate_stage_interview
+  event InterviewReminder { interview:Interview, revision:int }
+  policy Vacancy read=public where=row.published and row.open fields=location,title,description,employment,skills
+  policy Vacancy read=recruiter and can_work(actor,row.location)
+  policy Candidate read=recruiter and can_work(actor,row.parent.location)
+  policy Candidate read=authenticated where=row.account==actor fields=name,email,application,cv,stage,reason
+  policy Candidate read=interviewer where=any(row.Interview as interview,interview.interviewer.user==actor and interview.state==confirmed) fields=name,application,cv,stage
+  policy Interview read=recruiter and can_work(actor,row.parent.parent.location)
+  policy Interview read=interviewer where=row.interviewer.user==actor and row.interviewer.active
+  unique Candidate fields=email
+  require Interview: row.from<row.until
+  fixture vacancy=Vacancy {location=test_site,title="Reception",description="Reception role",employment="Full-time"}
+  fixture applicant=Candidate {parent=vacancy,account=self,name="Applicant",email="applicant@example.test",application="Application",source="Verified intake"}
+ When
+  crud Vacancy by=recruiter fields=title,description,employment,skills,published,open create_fields=location,title,description,employment,skills when=can_work(actor,row.location) delete=none
+  # Apply once to a published open vacancy using your verified account. @{nl="Solliciteer één keer op een gepubliceerde open vacature met je geverifieerde account."}
+  scenario apply(vacancy:Vacancy,name:text,application:text label=label_Candidate_application,cv:file? label=label_Candidate_cv) by=authenticated label="Apply"@{nl="Solliciteren"}
+   require actor.email_verified and vacancy.open and vacancy.published and trim(name)!="" and trim(application)!="" and not any(vacancy.Candidate as candidate,candidate.email==actor.email)
+   do create Candidate {parent=vacancy,account=actor,name,email=actor.email,application,cv,source="Verified intake"} as candidate
+  # Record recruiter-entered intake and its actual source. @{nl="Registreer een door de recruiter ingevoerde kandidaat en de werkelijke bron."}
+  scenario intake(vacancy:Vacancy,name:text,email:email,application:text label=label_Candidate_application,cv:file? label=label_Candidate_cv,source:text label=label_Candidate_source) by=recruiter label="Record candidate intake"@{nl="Kandidaat registreren"}
+   require can_work(actor,vacancy.location) and vacancy.open and trim(source)!=""
+   do create Candidate {parent=vacancy,name,email,application,cv,source} as candidate
+  # Request one interviewer reservation rather than relying on a local interview calendar. @{nl="Vraag één interviewerreservering aan in plaats van op een lokale gesprekskalender te vertrouwen."}
+  scenario schedule(candidate:Candidate,interviewer:Employee label=label_interviewer,from:datetime label=label_Interview_from,until:datetime label=label_Interview_until,timezone:timezone) by=recruiter label="Schedule interview"@{nl="Gesprek plannen"}
+   require can_work(actor,candidate.parent.location) and candidate.stage in [applied,interview] and interviewer.active and from>=now and from<until
+   do
+    create Interview {parent=candidate,interviewer,from,until,timezone,source=operation.id} as interview
+    send StaffSchedule.reserve {value={source=interview.source,employee=interviewer.user,location=candidate.parent.location.id,from,until,skill="interview",kind=interview,revision=interview.version}} as delivery
+    set interview {delivery=delivery.id}
+  # Save feedback only from the currently assigned active interviewer. @{nl="Bewaar uitsluitend feedback van de momenteel toegewezen actieve interviewer."}
+  scenario feedback(interview:Interview,notes:text) by=interviewer label=label_Interview_feedback
+   require interview.interviewer.user==actor and interview.interviewer.active and interview.state==confirmed and trim(notes)!=""
+   do set interview {feedback=notes}
+  # Record a hiring outcome without granting staff privileges. @{nl="Registreer een aanstellingsresultaat zonder personeelsrechten toe te kennen."}
+  scenario decide(candidate:Candidate,stage:Candidate.stage,reason:text) by=recruiter label="Record decision"@{nl="Besluit vastleggen"}
+   require can_work(actor,candidate.parent.location) and stage in [offer,hired,rejected] and trim(reason)!="" and candidate.stage!=withdrawn
+   do set candidate {stage,reason}
+  # Withdraw your application and cancel current interview commitments. @{nl="Trek je sollicitatie in en annuleer huidige gespreksreserveringen."}
+  scenario withdraw(candidate:Candidate) by=authenticated label="Withdraw"@{nl="Intrekken"}
+   require candidate.account==actor and candidate.stage in [applied,interview,offer]
+   do
+    set candidate {stage=withdrawn}
+    for interview in candidate.Interview as item where item.state in [pending,confirmed] limit=100
+     set interview {state=cancelled}
+     cancel interview.id
+     send StaffSchedule.release {source=interview.source,revision=interview.version} as release
+   examples candidate=applicant
+    as,candidate.stage -> candidate.stage
+    members,applied -> withdrawn
+    members,hired -> error(rule_failed)
+    public,applied -> error(forbidden)
+  scenario reservation on=StaffSchedule.reserve.completed
+   do
+    for interview in Interview as item where item.delivery==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null and event.result.source==interview.source and event.result.state==confirmed and interview.parent.stage!=withdrawn
+      set interview {state=confirmed}
+      if interview.from>now+1h
+       schedule interview.id at=interview.from-1h event=InterviewReminder {interview,revision=interview.version+1}
+  scenario remind on=InterviewReminder
+   require event.interview.state==confirmed and event.interview.version==event.revision and event.interview.parent.stage!=withdrawn
+   do send Mail.send {to=event.interview.parent.email,subject=format("Interview reminder"@{nl="Herinnering sollicitatiegesprek"},locale=null),body=event.interview.parent.parent.title} when=event.interview.state==confirmed as notice
+ Then
+  # Find published vacancies and submit your own application. @{nl="Vind gepubliceerde vacatures en dien je eigen sollicitatie in."}
+  page /careers title="Careers"@{nl="Vacatures"}
+   card "Published vacancies"@{nl="Gepubliceerde vacatures"}
+    list Vacancy filter=location search=title defaults={location=preferences.location}
+     text row.title,row.location,row.description,row.employment,row.skills
+     form apply
+
+  # Follow your own submission without private interviewer feedback. @{nl="Volg je eigen sollicitatie zonder private interviewerfeedback."}
+  page /careers/mine title="My applications"@{nl="Mijn sollicitaties"}
+   require authenticated
+   card heading_own_application_outcomes
+    table Candidate columns=name,stage,reason filter=stage defaults={stage=preferences.stage}
+     details heading_own_application_outcomes display=drawer
+      text row.application,row.cv
+      action withdraw
+
+  # Coordinate private candidates and restricted interview evidence. @{nl="Coördineer private kandidaten en afgeschermd gespreksbewijs."}
+  page /hiring title="Hiring"@{nl="Werving"}
+   require recruiter or interviewer
+   card "Vacancy authoring"@{nl="Vacatures beheren"}
+    form Vacancy.create
+    list Vacancy filter=location search=title defaults={location=preferences.location} display=split
+     edit
+     form intake
+     list row.Candidate filter=stage defaults={stage=preferences.stage}
+      text row.name,row.application,row.cv,row.stage
+      card "Recruiter decision"@{nl="Besluit van de recruiter"}
+       require recruiter and can_work(actor,row.parent.location)
+       text row.reason
+      actions schedule,decide
+      list row.Interview order=from
+       details "Interview evidence"@{nl="Gespreksbewijs"} display=drawer
+        text row.from,row.until,row.timezone,row.state,row.feedback
+        form feedback
+      history

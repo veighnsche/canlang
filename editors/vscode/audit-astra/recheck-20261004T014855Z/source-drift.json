@@ -1,0 +1,15 @@
+{
+  "observedUtc": "2026-10-04T01:53:11.758378+00:00",
+  "sourceSha256": "1930cc000941c8e9f2b16b5920d5e039482e33182696d76176127b8315524cf8",
+  "changedRepositoryRules": [
+    "field",
+    "field-expr-joined-alias",
+    "field-expr-joined-operand",
+    "field-expr-joined-tail",
+    "field-expression",
+    "parameter",
+    "result-type",
+    "type"
+  ],
+  "note": "Read-only drift observation, not a second test run."
+}

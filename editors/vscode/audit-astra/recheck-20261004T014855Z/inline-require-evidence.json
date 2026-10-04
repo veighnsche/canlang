@@ -1,0 +1,625 @@
+{
+  "checkedAt": "2026-10-04T01:53:27.053Z",
+  "settingsCapturedAt": "2026-10-04T01:51:30.833Z",
+  "grammarSha256": "5c0e667200b5bc73fffa21553e96207518694c583d3e0eb07d4642b06975b40d",
+  "editors": {
+    "Cursor": {
+      "tokens": [
+        {
+          "line": "app Inline",
+          "tokens": [
+            {
+              "text": "app",
+              "scopes": [
+                "source.can",
+                "keyword.declaration.owner.can"
+              ],
+              "foreground": "#FFFFFF",
+              "fontStyle": 2
+            },
+            {
+              "text": " ",
+              "scopes": [
+                "source.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            },
+            {
+              "text": "Inline",
+              "scopes": [
+                "source.can",
+                "entity.name.namespace.can"
+              ],
+              "foreground": "#93C5FD",
+              "fontStyle": 0
+            }
+          ]
+        },
+        {
+          "line": "When",
+          "tokens": [
+            {
+              "text": "When",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "keyword.control.section.when.can"
+              ],
+              "foreground": "#FFFFFF",
+              "fontStyle": 2
+            }
+          ]
+        },
+        {
+          "line": " scenario check(item:Record)",
+          "tokens": [
+            {
+              "text": " ",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            },
+            {
+              "text": "scenario",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "keyword.declaration.scenario.can"
+              ],
+              "foreground": "#FFFFFF",
+              "fontStyle": 2
+            },
+            {
+              "text": " ",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            },
+            {
+              "text": "check",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "entity.name.function.can"
+              ],
+              "foreground": "#FBBF24",
+              "fontStyle": 0
+            },
+            {
+              "text": "(",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "punctuation.section.group.begin.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            },
+            {
+              "text": "item",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "variable.parameter.can"
+              ],
+              "foreground": "#93C5FD",
+              "fontStyle": 0
+            },
+            {
+              "text": ":",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "meta.type.can",
+                "punctuation.separator.type.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            },
+            {
+              "text": "Record",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "meta.type.can",
+                "entity.name.type.can"
+              ],
+              "foreground": "#A5AEB8",
+              "fontStyle": 0
+            },
+            {
+              "text": ")",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "punctuation.section.group.end.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            }
+          ]
+        },
+        {
+          "line": "  do require item.ready; require item.ready",
+          "tokens": [
+            {
+              "text": "  ",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            },
+            {
+              "text": "do",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "keyword.control.structure.can"
+              ],
+              "foreground": "#FFFFFF",
+              "fontStyle": 2
+            },
+            {
+              "text": " require",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "keyword.control.effect.can"
+              ],
+              "foreground": "#67E8F9",
+              "fontStyle": 0
+            },
+            {
+              "text": " ",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            },
+            {
+              "text": "item",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "variable.other.readwrite.can"
+              ],
+              "foreground": "#93C5FD",
+              "fontStyle": 0
+            },
+            {
+              "text": ".",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "punctuation.accessor.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            },
+            {
+              "text": "ready",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "variable.other.property.can"
+              ],
+              "foreground": "#D8B4FE",
+              "fontStyle": 0
+            },
+            {
+              "text": ";",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "punctuation.separator.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            },
+            {
+              "text": " ",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            },
+            {
+              "text": "require",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "keyword.control.structure.can"
+              ],
+              "foreground": "#FFFFFF",
+              "fontStyle": 2
+            },
+            {
+              "text": " ",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            },
+            {
+              "text": "item",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "variable.other.readwrite.can"
+              ],
+              "foreground": "#93C5FD",
+              "fontStyle": 0
+            },
+            {
+              "text": ".",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "punctuation.accessor.can"
+              ],
+              "foreground": "#F0F0F0",
+              "fontStyle": 0
+            },
+            {
+              "text": "ready",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "variable.other.property.can"
+              ],
+              "foreground": "#D8B4FE",
+              "fontStyle": 0
+            }
+          ]
+        }
+      ]
+    },
+    "Antigravity IDE": {
+      "tokens": [
+        {
+          "line": "app Inline",
+          "tokens": [
+            {
+              "text": "app",
+              "scopes": [
+                "source.can",
+                "keyword.declaration.owner.can"
+              ],
+              "foreground": "#FFFFFF",
+              "fontStyle": 2
+            },
+            {
+              "text": " ",
+              "scopes": [
+                "source.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            },
+            {
+              "text": "Inline",
+              "scopes": [
+                "source.can",
+                "entity.name.namespace.can"
+              ],
+              "foreground": "#93C5FD",
+              "fontStyle": 0
+            }
+          ]
+        },
+        {
+          "line": "When",
+          "tokens": [
+            {
+              "text": "When",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "keyword.control.section.when.can"
+              ],
+              "foreground": "#FFFFFF",
+              "fontStyle": 2
+            }
+          ]
+        },
+        {
+          "line": " scenario check(item:Record)",
+          "tokens": [
+            {
+              "text": " ",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            },
+            {
+              "text": "scenario",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "keyword.declaration.scenario.can"
+              ],
+              "foreground": "#FFFFFF",
+              "fontStyle": 2
+            },
+            {
+              "text": " ",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            },
+            {
+              "text": "check",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "entity.name.function.can"
+              ],
+              "foreground": "#FBBF24",
+              "fontStyle": 0
+            },
+            {
+              "text": "(",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "punctuation.section.group.begin.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            },
+            {
+              "text": "item",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "variable.parameter.can"
+              ],
+              "foreground": "#93C5FD",
+              "fontStyle": 0
+            },
+            {
+              "text": ":",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "meta.type.can",
+                "punctuation.separator.type.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            },
+            {
+              "text": "Record",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "meta.type.can",
+                "entity.name.type.can"
+              ],
+              "foreground": "#A5AEB8",
+              "fontStyle": 0
+            },
+            {
+              "text": ")",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "punctuation.section.group.end.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            }
+          ]
+        },
+        {
+          "line": "  do require item.ready; require item.ready",
+          "tokens": [
+            {
+              "text": "  ",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            },
+            {
+              "text": "do",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "keyword.control.structure.can"
+              ],
+              "foreground": "#FFFFFF",
+              "fontStyle": 2
+            },
+            {
+              "text": " require",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "keyword.control.effect.can"
+              ],
+              "foreground": "#67E8F9",
+              "fontStyle": 0
+            },
+            {
+              "text": " ",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            },
+            {
+              "text": "item",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "variable.other.readwrite.can"
+              ],
+              "foreground": "#93C5FD",
+              "fontStyle": 0
+            },
+            {
+              "text": ".",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "punctuation.accessor.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            },
+            {
+              "text": "ready",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "variable.other.property.can"
+              ],
+              "foreground": "#D8B4FE",
+              "fontStyle": 0
+            },
+            {
+              "text": ";",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "punctuation.separator.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            },
+            {
+              "text": " ",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            },
+            {
+              "text": "require",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "keyword.control.structure.can"
+              ],
+              "foreground": "#FFFFFF",
+              "fontStyle": 2
+            },
+            {
+              "text": " ",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            },
+            {
+              "text": "item",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "variable.other.readwrite.can"
+              ],
+              "foreground": "#93C5FD",
+              "fontStyle": 0
+            },
+            {
+              "text": ".",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "punctuation.accessor.can"
+              ],
+              "foreground": "#CCCCCC",
+              "fontStyle": 0
+            },
+            {
+              "text": "ready",
+              "scopes": [
+                "source.can",
+                "meta.section.when.can",
+                "meta.scenario.can",
+                "variable.other.property.can"
+              ],
+              "foreground": "#D8B4FE",
+              "fontStyle": 0
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

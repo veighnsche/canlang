@@ -1,0 +1,1388 @@
+[
+  {
+    "id": "owned-model-app",
+    "source": "app Models\nGiven\n app in app {title:text}\nWhen\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Models",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Models",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " app in app {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 5,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 6,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 6,
+            "end": 8,
+            "text": "in",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.namespace.can"
+            ]
+          },
+          {
+            "start": 8,
+            "end": 9,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 9,
+            "end": 12,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.constructor.can"
+            ]
+          },
+          {
+            "start": 12,
+            "end": 13,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 14,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 19,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 19,
+            "end": 20,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 20,
+            "end": 24,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 24,
+            "end": 25,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 6,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "owned-model-package",
+    "source": "app Models\nGiven\n package in app {title:text}\nWhen\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Models",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Models",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " package in app {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 9,
+            "text": "package",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 9,
+            "end": 10,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 10,
+            "end": 12,
+            "text": "in",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.namespace.can"
+            ]
+          },
+          {
+            "start": 12,
+            "end": 13,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 16,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.constructor.can"
+            ]
+          },
+          {
+            "start": 16,
+            "end": 17,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 17,
+            "end": 18,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 18,
+            "end": 23,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 23,
+            "end": 24,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 24,
+            "end": 28,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 28,
+            "end": 29,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 6,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "owned-model-event",
+    "source": "app Models\nGiven\n event in app {title:text}\nWhen\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Models",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Models",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " event in app {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 7,
+            "text": "event",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.declaration.can"
+            ]
+          },
+          {
+            "start": 7,
+            "end": 8,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 8,
+            "end": 10,
+            "text": "in",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 10,
+            "end": 11,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 11,
+            "end": 14,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.constructor.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 15,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 15,
+            "end": 16,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 16,
+            "end": 21,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 21,
+            "end": 22,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 22,
+            "end": 26,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 26,
+            "end": 27,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 6,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "owned-model-contract",
+    "source": "app Models\nGiven\n contract in app {title:text}\nWhen\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Models",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Models",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " contract in app {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 10,
+            "text": "contract",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.declaration.can"
+            ]
+          },
+          {
+            "start": 10,
+            "end": 11,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 11,
+            "end": 13,
+            "text": "in",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 14,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 17,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.constructor.can"
+            ]
+          },
+          {
+            "start": 17,
+            "end": 18,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 18,
+            "end": 19,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 19,
+            "end": 24,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 24,
+            "end": 25,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 25,
+            "end": 29,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 29,
+            "end": 30,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 6,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "owned-model-role",
+    "source": "app Models\nGiven\n role in app {title:text}\nWhen\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Models",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Models",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " role in app {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 6,
+            "text": "role",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.declaration.can"
+            ]
+          },
+          {
+            "start": 6,
+            "end": 7,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 7,
+            "end": 9,
+            "text": "in",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.function.predicate.can"
+            ]
+          },
+          {
+            "start": 9,
+            "end": 10,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 10,
+            "end": 13,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.constructor.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 14,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 14,
+            "end": 15,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 15,
+            "end": 20,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 20,
+            "end": 21,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 21,
+            "end": 25,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 25,
+            "end": 26,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 6,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "owned-model-capability",
+    "source": "app Models\nGiven\n capability in app {title:text}\nWhen\nThen\n",
+    "lines": [
+      {
+        "line": 1,
+        "source": "app Models",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 4,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "keyword.declaration.owner.can"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "text": " ",
+            "scopes": [
+              "source.can"
+            ]
+          },
+          {
+            "start": 5,
+            "end": 11,
+            "text": "Models",
+            "scopes": [
+              "source.can",
+              "entity.name.namespace.can"
+            ]
+          }
+        ],
+        "stackDepth": 1
+      },
+      {
+        "line": 2,
+        "source": "Given",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 6,
+            "text": "Given",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.control.section.given.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 3,
+        "source": " capability in app {title:text}",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 12,
+            "text": "capability",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "keyword.declaration.can"
+            ]
+          },
+          {
+            "start": 12,
+            "end": 13,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 13,
+            "end": 15,
+            "text": "in",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.can"
+            ]
+          },
+          {
+            "start": 15,
+            "end": 16,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 16,
+            "end": 19,
+            "text": "app",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "entity.name.type.constructor.can"
+            ]
+          },
+          {
+            "start": 19,
+            "end": 20,
+            "text": " ",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can"
+            ]
+          },
+          {
+            "start": 20,
+            "end": 21,
+            "text": "{",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.begin.can"
+            ]
+          },
+          {
+            "start": 21,
+            "end": 26,
+            "text": "title",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "variable.other.property.declaration.can"
+            ]
+          },
+          {
+            "start": 26,
+            "end": 27,
+            "text": ":",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "punctuation.separator.type.can"
+            ]
+          },
+          {
+            "start": 27,
+            "end": 31,
+            "text": "text",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "meta.type.can",
+              "support.type.primitive.can"
+            ]
+          },
+          {
+            "start": 31,
+            "end": 32,
+            "text": "}",
+            "scopes": [
+              "source.can",
+              "meta.section.given.can",
+              "punctuation.section.braces.end.can"
+            ]
+          }
+        ],
+        "stackDepth": 3
+      },
+      {
+        "line": 4,
+        "source": "When",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "When",
+            "scopes": [
+              "source.can",
+              "meta.section.when.can",
+              "keyword.control.section.when.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 5,
+        "source": "Then",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 5,
+            "text": "Then",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can",
+              "keyword.control.section.then.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      },
+      {
+        "line": 6,
+        "source": "",
+        "tokens": [
+          {
+            "start": 1,
+            "end": 2,
+            "text": "",
+            "scopes": [
+              "source.can",
+              "meta.section.presentation.can"
+            ]
+          }
+        ],
+        "stackDepth": 2
+      }
+    ]
+  }
+]

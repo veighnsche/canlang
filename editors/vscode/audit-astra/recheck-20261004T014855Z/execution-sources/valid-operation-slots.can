@@ -1,0 +1,38 @@
+# Reuse canonical operation slots.
+app Operations
+Given
+ Item {title:text,action:action(change)?}
+ policy Item read=members
+ capability Remote version=1
+  run(input:Item)->text
+When
+ crud Item by=members fields=title
+ scenario change(input:Item) by=members
+  do set input {title="Changed"}
+ scenario run(input:Item) by=members
+  do
+   call change {input}
+   call (change) {input}
+   call (
+    change
+   ) {input}
+   send Remote.run {input} as delivery
+   send (
+    Remote.run
+   ) {input} as joined_delivery
+ scenario review(title:text) by=members read=true -> Item[]
+  do return Item as item where item.title==title
+ scenario refresh(title:text) by=members
+  do create Item {title} as created
+Then
+ page /items title="Items" poll=5s refresh=refresh
+  form refresh import=csv review=review
+  list Item
+   form change
+   form (change)
+   form (
+    change
+   )
+   action change
+   actions change,Item.update
+   form row.action

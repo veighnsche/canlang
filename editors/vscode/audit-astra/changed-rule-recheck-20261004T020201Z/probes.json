@@ -1,0 +1,38 @@
+[
+  {
+    "id": "owned-model-app",
+    "source": "app Models\nGiven\n app in app {title:text}\nWhen\nThen\n"
+  },
+  {
+    "id": "owned-model-package",
+    "source": "app Models\nGiven\n package in app {title:text}\nWhen\nThen\n"
+  },
+  {
+    "id": "owned-model-event",
+    "source": "app Models\nGiven\n event in app {title:text}\nWhen\nThen\n"
+  },
+  {
+    "id": "owned-model-contract",
+    "source": "app Models\nGiven\n contract in app {title:text}\nWhen\nThen\n"
+  },
+  {
+    "id": "owned-model-role",
+    "source": "app Models\nGiven\n role in app {title:text}\nWhen\nThen\n"
+  },
+  {
+    "id": "owned-model-capability",
+    "source": "app Models\nGiven\n capability in app {title:text}\nWhen\nThen\n"
+  },
+  {
+    "id": "inline-do-require",
+    "source": "app Guards\nGiven\n Item {ready:bool}\nWhen\n scenario check(item:Item) by=members\n  do require item.ready; require item.ready\nThen\n"
+  },
+  {
+    "id": "multiline-parenthesized-form",
+    "source": "app Forms\nGiven\n Item {title:text}\nWhen\n scenario change(item:Item) by=members\n  do set item {title=\"Changed\"}\nThen\n page /items/{Item.id} title=\"Item\"\n  form (\n   change\n  )\n"
+  },
+  {
+    "id": "qualified-migration-targets",
+    "source": "migration Move from=\"old\"\n rename before.Task to pkg.Work\n rename before.Task.title to pkg.Work.name\n"
+  }
+]

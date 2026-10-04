@@ -1,0 +1,11 @@
+# Focused highlighting probe.
+app Probe
+Given
+ derive choose(
+  input:
+   trim,
+  alternative:A |
+   unique
+ ):A|unique = input
+When
+Then
