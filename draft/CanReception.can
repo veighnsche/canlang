@@ -6,6 +6,7 @@ package reception
  use rent_catalog {Location,DateHours,is_open,test_site}
  use customer {Customer,Contact,CompanyAccessChanged,has_role,has_location_role,owns,test_company,test_contact,test_admin,test_directory_manager,test_directory_employee}
  use employee {can_work,test_worker}
+ use std {DeliveryResult}
  use std {EmailV1 as Mail} from=deployment.mail
  use member_terms {MembershipV1 as Membership,AccessEvidence} from=deployment.membership
  use reception {DeviceV1 as Devices} from=deployment.devices
@@ -33,7 +34,9 @@ package reception
    event changed { value:DeviceState }
   role receptionist label="Receptionist"@{nl="Receptionist"}
   role access_staff label="Access staff"@{nl="Toegangsmedewerker"}
-  Visit in Customer { policy:GuestPolicy, notice_delivery:text?, notice_state:enum(none,pending,delivered,failed,unknown)=none label="Invitation delivery"@{nl="Uitnodigingsbezorging"}, access_review:bool=false label="Admission needs review"@{nl="Toegang vereist beoordeling"}, reminder_at:datetime?, location:Location, guest:Contact label=label_Visit_guest, host:user label="Host"@{nl="Gastheer of gastvrouw"}, from:datetime label=label_Visit_from, until:datetime label=label_Visit_until, purpose:text label=label_Visit_purpose, source:text label=label_DeviceState_source, eligibility:AccessEvidence? label="Eligibility evidence"@{nl="Geschiktheidsbewijs"}, eligibility_delivery:text? label="Eligibility request"@{nl="Geschiktheidsaanvraag"}, state:enum(invited,expected,arrived,departed,cancelled,refused)=invited label={text="State"@{nl="Status"},values={expected=label_preferences_queue_expected,invited="Invited"@{nl="Uitgenodigd"},arrived="Arrived"@{nl="Aangekomen"},departed="Departed"@{nl="Vertrokken"},cancelled="Cancelled"@{nl="Geannuleerd"},refused="Refused"@{nl="Geweigerd"}}}, identity_evidence:text? label="Identity-check evidence"@{nl="Bewijs identiteitscontrole"}, arrived:datetime? label="Arrival time"@{nl="Aankomsttijd"}, departed:datetime? label="Departure time"@{nl="Vertrektijd"}, reason:text? } label=notice_visitor_invitation
+  Visit in Customer { policy:GuestPolicy, notice_delivery:delivery(Mail.send)?, access_review:bool=false label="Admission needs review"@{nl="Toegang vereist beoordeling"}, reminder_at:datetime?, location:Location, guest:Contact label=label_Visit_guest, host:user label="Host"@{nl="Gastheer of gastvrouw"}, from:datetime label=label_Visit_from, until:datetime label=label_Visit_until, purpose:text label=label_Visit_purpose, source:text label=label_DeviceState_source, eligibility:AccessEvidence? label="Eligibility evidence"@{nl="Geschiktheidsbewijs"}, eligibility_delivery:text? label="Eligibility request"@{nl="Geschiktheidsaanvraag"}, state:enum(invited,expected,arrived,departed,cancelled,refused)=invited label={text="State"@{nl="Status"},values={expected=label_preferences_queue_expected,invited="Invited"@{nl="Uitgenodigd"},arrived="Arrived"@{nl="Aangekomen"},departed="Departed"@{nl="Vertrokken"},cancelled="Cancelled"@{nl="Geannuleerd"},refused="Refused"@{nl="Geweigerd"}}}, identity_evidence:text? label="Identity-check evidence"@{nl="Bewijs identiteitscontrole"}, arrived:datetime? label="Arrival time"@{nl="Aankomsttijd"}, departed:datetime? label="Departure time"@{nl="Vertrektijd"}, reason:text? } label=notice_visitor_invitation
+  ## Invitation state observes the Mail receipt; null renders the standard not-requested state.
+  derive Visit.notice_state:DeliveryResult.status? = row.notice_delivery?.status label={text="Invitation delivery"@{nl="Uitnodigingsbezorging"},values={pending="Pending"@{nl="In afwachting"},succeeded="Delivered"@{nl="Afgeleverd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}
   GuestPolicy in Location { host_present:bool=false label="Host must be present"@{nl="Gastheer moet aanwezig zijn"}, visitor_days:int=90 min=1 label="Visitor retention days"@{nl="Bewaartermijn bezoekers in dagen"}, credential_days:int=365 min=90 label="Credential evidence days"@{nl="Bewaartermijn sleutelbewijs in dagen"}, reminder_before:duration? label="Arrival reminder lead time"@{nl="Tijd vóór aankomstherinnering"} } label="Visitor policy"@{nl="Bezoekersbeleid"}
   unique GuestPolicy fields=parent
   HostPresence in Customer { location:Location, account:user, from:datetime server=now, until:datetime, evidence:text, recorded_by:user server=actor, ended:datetime? } label="Recorded host presence"@{nl="Vastgelegde aanwezigheid gastheer"}
@@ -43,7 +46,7 @@ package reception
   policy HostPresence read=receptionist and can_work(actor,row.location)
   policy HostPresence read=authenticated where=row.account==actor
   policy Visit read=receptionist and can_work(actor,row.location)
-  policy Visit read=authenticated where=row.host==actor or (row.guest.account==actor and row.guest.verified) fields=location,guest,host,from,until,purpose,state,reason,notice_state,access_review
+  policy Visit read=authenticated where=row.host==actor or (row.guest.account==actor and row.guest.verified) fields=location,guest,host,from,until,purpose,state,reason,notice_state,notice_delivery.status,access_review
   policy Visit read=access_staff and can_work(actor,row.location) fields=location,guest,host,from,until,state
   policy Credential read=access_staff and can_work(actor,row.location)
   policy Issue read=access_staff and can_work(actor,row.parent.location)
@@ -98,7 +101,7 @@ package reception
       if visit.state==invited and current_access(visit) and guest_count(visit)<visit.eligibility.guest_limit
        set visit {state=expected,access_review=false}
        send Mail.send {to=visit.guest.email,subject=format(notice_visitor_invitation,locale=null),body=visit.location.arrival} when=visit.state==expected and current_access(visit) as notice
-       set visit {notice_delivery=notice.id,notice_state=pending}
+       set visit {notice_delivery=notice}
        if visit.policy.reminder_before!=null and visit.from-visit.policy.reminder_before>now
         let reminder_at=visit.from-visit.policy.reminder_before
         set visit {reminder_at}
@@ -347,28 +350,18 @@ package reception
     false,active,active -> revoked,unknown,2,arrived
     false,revoked,failed -> revoked,failed,1,arrived
     true,revoked,revoked -> revoked,revoked,1,arrived
-  scenario notice_result on=Mail.send.completed
-   do
-    for visit in Visit as row where row.notice_delivery==event.delivery_id limit=1
-     if event.status==succeeded
-      set visit {notice_state=delivered}
-     else
-      if event.status==failed or event.status==skipped
-       set visit {notice_state=failed}
-      else
-       set visit {notice_state=unknown}
   # Resend current arrival instructions for the existing authorized invitation. @{nl="Verstuur actuele aankomstinstructies opnieuw voor de bestaande toegestane uitnodiging."}
   scenario resend(visit:Visit) by=authenticated or receptionist label="Resend invitation"@{nl="Uitnodiging opnieuw versturen"}
    require visit.host==actor or (receptionist and can_work(actor,visit.location))
    require visit.state==expected and visit.until>now and current_access(visit) and not visit.access_review
    do
     send Mail.send {to=visit.guest.email,subject=format(notice_visitor_invitation,locale=null),body=visit.location.arrival} when=visit.state==expected and current_access(visit) as notice
-    set visit {notice_delivery=notice.id,notice_state=pending}
+    set visit {notice_delivery=notice}
   scenario remind on=VisitorReminder
    do
     if event.visit.state==expected and event.visit.reminder_at==event.at and event.at<=now and event.visit.policy.reminder_before!=null and event.visit.from-event.visit.policy.reminder_before==event.at and event.visit.from>now and current_access(event.visit)
      send Mail.send {to=event.visit.guest.email,subject=format(notice_visitor_invitation,locale=null),body=event.visit.location.arrival} when=event.visit.state==expected and event.visit.from>now and current_access(event.visit) as notice
-     set event.visit {notice_delivery=notice.id,notice_state=pending}
+     set event.visit {notice_delivery=notice}
  Then
   # Discover safe owner review without mounting private reception work in Customer.
   page /reception/access-review title="Reception access review"@{nl="Beoordeling receptietoegang"}
