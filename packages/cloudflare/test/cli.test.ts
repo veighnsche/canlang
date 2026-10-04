@@ -75,14 +75,12 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
     });
   });
 
-  it("--env is accepted and still reaches the producer gate", async () => {
+  it("--env is accepted and run validates the artifact", async () => {
     const result = await runCli(["run", "--artifact", fixtureArtifact(), "--env", "staging"]);
     expect(result.code).toBe(2);
-    expect(envelope(result.stdout)).toMatchObject({
-      ok: false,
-      command: "run",
-      code: "missing-producer",
-    });
+    const body = envelope(result.stdout);
+    expect(body).toMatchObject({ ok: false, command: "run", code: "invalid-artifact" });
+    expect(typeof body["detail"]).toBe("string");
   });
 
   it("duplicate flags are a usage failure", async () => {
@@ -140,7 +138,15 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
     });
   });
 
-  it.each(["run", "test", "build", "deploy"])(
+  it("run with a present-but-invalid artifact reports invalid-artifact", async () => {
+    const result = await runCli(["run", "--artifact", fixtureArtifact()]);
+    expect(result.code).toBe(2);
+    const body = envelope(result.stdout);
+    expect(body).toMatchObject({ ok: false, command: "run", code: "invalid-artifact" });
+    expect(typeof body["detail"]).toBe("string");
+  });
+
+  it.each(["test", "build", "deploy"])(
     "%s with a present artifact reports the exact missing producer",
     async (command) => {
       const result = await runCli([command, "--artifact", fixtureArtifact()]);
