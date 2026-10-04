@@ -154,37 +154,147 @@ package agreements
   # Retrieve executed terms, amendments and current obligation queues. @{nl="Haal ondertekende voorwaarden, aanvullingen en huidige verplichtingswachtrijen op."}
   page /agreements title="Agreements"@{nl="Overeenkomsten"}
    require legal or sales or property_manager or finance
+   breadcrumbs
+   ## Time-critical queues precede the registry so reviewers act before deadlines.
    card "Upcoming notice deadlines"@{nl="Aankomende opzegdeadlines"}
-    table Term as term where term.executed and not term.terminated and not term.expired and not term.notice_suppressed columns=parent,notice_date,until order=notice_date
+    table Term as term where term.executed and not term.terminated and not term.expired and not term.notice_suppressed columns=parent,notice_date,until order=notice_date empty="No upcoming notice deadlines"@{nl="Geen aankomende opzegdeadlines"}
+     badge term.parent.category
+     pagination
    card "Open obligations"@{nl="Open verplichtingen"}
-    table Obligation as obligation where not obligation.done and not obligation.parent.terminated columns=parent,title,due order=due
-     action complete
+    table Obligation as obligation where not obligation.done and not obligation.parent.terminated columns=parent,title,due order=due empty="No open obligations"@{nl="Geen open verplichtingen"}
+     tooltip "Complete this obligation with attribution"@{nl="Rond deze verplichting toe met herleiding"}
+      button action=complete
+     pagination
+   divider "Agreement registry"@{nl="Overeenkomstregister"}
    card "Agreement intake"@{nl="Overeenkomst aanmaken"}
     form Agreement.create
-   list Agreement columns=title,category,location,owner,counterparty,active filter=category,location,owner defaults={location=preferences.location} search=title display=split
+     ## Every create field is placed; active is update-only and stays out of intake.
+     fieldset "Identity and category"@{nl="Identiteit en categorie"}
+      label title
+      input title
+      select category
+      select location
+     fieldset "Parties"@{nl="Partijen"}
+      select customer
+      select supplier
+      input counterparty
+      input resource
+     fieldset "Responsibility"@{nl="Verantwoordelijkheid"}
+      select owner
+      label email
+      input email
+      validator email
+     button submit=true
+   list Agreement columns=title,category,location,owner,counterparty,active filter=category,location,owner defaults={location=preferences.location} search=title display=split empty="No agreements match these filters"@{nl="Geen overeenkomsten voor deze filters"}
     card "Agreement parties"@{nl="Overeenkomstpartijen"}
+     status row.active
      text row.counterparty,row.owner,row.customer,row.supplier,row.resource
      edit
-     form Term.create
-    list row.Term order=until
+      fieldset "Agreement maintenance"@{nl="Overeenkomstbeheer"}
+       input title
+       select owner
+       input email
+       toggle active
+      button submit=true
+     button opens=new_term
+     modal "Record term"@{nl="Termijn vastleggen"} id=new_term
+      slot content
+       form Term.create arguments={parent=row}
+        fieldset "Document and dates"@{nl="Document en data"}
+         file_input file
+         calendar from
+         calendar until
+        fieldset "Commercial terms"@{nl="Commerciële voorwaarden"}
+         input notice_days
+         textarea pricing
+         input currency
+         select previous
+        button submit=true
+    list row.Term order=until empty="No terms recorded"@{nl="Geen termijnen vastgelegd"}
      card "Recorded term"@{nl="Vastgelegde termijn"}
-      text row.file,row.from,row.until,row.pricing,row.currency,row.notice_days,row.notice_date,row.executed,row.expired,row.terminated,row.reason,row.timezone,row.snapshot
+      ## Lifecycle strip: each stage shows its live flag beside the frozen record.
+      steps
+       slot item
+        status row.executed
+       slot item
+        status row.expired
+       slot item
+        status row.terminated
+      text row.file,row.from,row.until,row.pricing,row.currency,row.notice_days,row.notice_date,row.timezone,row.snapshot
+      text row.reason
+      button target=row.file caption="Download executed file"@{nl="Ondertekend bestand downloaden"}
       edit
-      actions execute,renew,terminate
+       fieldset "Term dates and pricing"@{nl="Termijndata en prijzen"}
+        file_input file
+        calendar from
+        calendar until
+        input notice_days
+        textarea pricing
+        input currency
+       button submit=true
+      button opens=execute_term
+      modal "Execute agreement"@{nl="Overeenkomst ondertekenen"} id=execute_term
+       slot content
+        alert "Execution freezes the file, dates and party snapshot."@{nl="Ondertekening legt het bestand, de data en de partijsnapshot vast."}
+        form execute arguments={term=row}
+      tooltip "Record a renewal linked to this term"@{nl="Leg een verlenging vast die naar deze termijn verwijst"}
+       button opens=renew_term
+      modal "Record renewal"@{nl="Verlenging vastleggen"} id=renew_term
+       slot content
+        form renew arguments={term=row}
+         fieldset "Renewal document and dates"@{nl="Verlengingsdocument en data"}
+          file_input file
+          calendar from
+          calendar until
+         fieldset "Renewal commercial terms"@{nl="Commerciële verlengingsvoorwaarden"}
+          label notice_days
+          input notice_days
+          validator notice_days
+          textarea pricing
+          input currency
+         button submit=true
+      button opens=terminate_term
+      modal "Terminate term"@{nl="Termijn beëindigen"} id=terminate_term
+       slot content
+        alert "Termination preserves history and cancels pending reminders."@{nl="Beëindiging behoudt de historie en annuleert openstaande herinneringen."}
+        form terminate arguments={term=row}
+         textarea reason
+         button submit=true
      tabs
       tab "Obligations"@{nl="Verplichtingen"}
-       form Obligation.create
-       table row.Obligation columns=title,due,done order=due filter=done
+       form Obligation.create arguments={parent=row}
+        fieldset "Obligation"@{nl="Verplichting"}
+         input title
+         calendar due
+        button submit=true
+       table row.Obligation columns=title,due order=due filter=done empty="No obligations match this filter"@{nl="Geen verplichtingen voor dit filter"}
+        status row.done
         edit
-        action complete
+        tooltip "Complete this obligation with attribution"@{nl="Rond deze verplichting toe met herleiding"}
+         button action=complete
         details "Obligation completion"@{nl="Afronding verplichting"}
          text row.completed_by,row.completed_at
+        pagination
       tab "Reminder outcomes"@{nl="Herinneringsresultaten"}
-       table row.NoticeDelivery columns=obligation,revision,state
+       alert "Failed or unavailable deliveries need legal review; skipped reminders are obsolete, not failed."@{nl="Mislukte of onbeschikbare bezorgingen vereisen juridische beoordeling; overgeslagen herinneringen zijn achterhaald, niet mislukt."}
+       table row.NoticeDelivery columns=obligation,revision order=-created empty="No reminders recorded"@{nl="Geen herinneringen vastgelegd"}
+        badge row.state
+        pagination
       tab "Amendments"@{nl="Aanvullingen"}
-       form Amendment.create
-       list row.Amendment
+       form Amendment.create arguments={parent=row}
+        fieldset "Amendment"@{nl="Aanvulling"}
+         textarea text
+         file_input file
+        button submit=true
+       list row.Amendment empty="No amendments recorded"@{nl="Geen aanvullingen vastgelegd"}
         text row.text,row.file,row.author
+        pagination
      details "Term history"@{nl="Termijnhistorie"}
       text row.previous
+      diff
+       slot before
+        text row.previous?.file,row.previous?.from,row.previous?.until,row.previous?.pricing,row.previous?.currency
+       slot after
+        text row.file,row.from,row.until,row.pricing,row.currency
       history
+     pagination

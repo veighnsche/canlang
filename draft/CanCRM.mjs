@@ -6,6 +6,7 @@ import {
   create,
   date,
   datetime,
+  durationBetween,
   equalValue,
   first,
   hasRole,
@@ -16,23 +17,49 @@ import {
   set,
   sum,
 } from "@canlang/stdlib";
+/* Desired, unimplemented @canlang/ui contracts. Every factory below is proposed;
+ * none is an installed export and this file never runs. See file header. */
 import {
-  action,
-  actions,
+  alert,
+  badge,
   board,
+  breadcrumbs,
+  button,
+  calendarField,
   card,
+  chat_bubble,
+  collapse,
+  countdown,
+  copy,
   details,
+  diff,
   edit,
+  fieldset,
+  footer,
   form,
   history,
+  input,
+  label,
+  link,
   list,
   message,
-  metrics,
+  modal,
+  pagination,
+  radio,
   delete as remove,
   renderPage,
+  select,
+  stat,
+  status,
+  steps,
+  swap,
   table,
   tabs,
+  textarea,
   text,
+  timeline,
+  tooltip,
+  validator,
 } from "@canlang/ui";
 import { Appointment, Calendar, Type } from "./appointments.mjs";
 import { Contact, Customer } from "./customer.mjs";
@@ -52,6 +79,20 @@ import { Booking } from "./rent_reservations.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * UI sections mirror the replanned CanCRM.can Then: breadcrumbs, badges/status,
+ * alerts, tooltips, collapse disclosures, modals with external openers, explicit
+ * fieldsets with typed controls (input/textarea/select/radio/calendarField plus
+ * label/validator), buttons (action/submit/target/opens), steps timelines, chat
+ * bubbles, diffs, swaps, countdowns, pagination, links, stats, copy and footer.
+ * Lowercase UI factories take one props object; slots/children are prop arrays
+ * (modal trigger/content/actions, diff before/after, swap off/on, chat header/
+ * content/footer, steps items, timeline renderItem). calendarField is the desired
+ * date-input contract, disambiguated from the appointments Calendar agenda model.
+ * details remains only for the drawer exception; collapse covers disclosures and
+ * stat replaces metrics under their shared typed-metric contract. action/actions
+ * are superseded by explicit button action bindings. All UI imports and calls are
+ * desired/unimplemented; per-use comments mark each new factory. This file passes
+ * node --check (syntax only) and never runs.
  */
 
 export const Deal = "crm.Deal";
@@ -733,31 +774,12 @@ export function canApp() {
 
 export async function salesPage(c, bindings) {
   const preferences = c.preferences.crm;
-  const activityRows = (deal, context) =>
-    list({
-      context,
-      model: "crm.Activity",
-      parent: deal,
-      order: ["-occurred"],
-      renderRow: (row, view) => [
-        text({
-          context: view,
-          values: [
-            row.kind,
-            row.body,
-            row.link,
-            row.appointment,
-            row.revision,
-            row.author,
-            row.occurred,
-          ],
-        }),
-      ],
-    });
   return renderPage(
     c,
     salesPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Customer opportunity intake", { nl: "Klantverkoopkans aanmaken" }),
@@ -775,6 +797,11 @@ export async function salesPage(c, bindings) {
             columns: ["name", "kind"],
             search: ["name"],
             renderRow: (customer, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
+              /* desired-unimplemented: badge/status present readable typed values. */
+              badge({ context: view, value: customer.kind }),
+              status({ context: view, value: customer.active }),
               edit({ context: view, operation: "customer.Customer.update", record: customer }),
               remove({ context: view, operation: "customer.Customer.delete", record: customer }),
               form({
@@ -784,26 +811,49 @@ export async function salesPage(c, bindings) {
                 import: "csv",
                 review: "customer.duplicate_contacts",
               }),
-              details({
+              /* desired-unimplemented: collapse shares the details disclosure contract. */
+              collapse({
                 context: view,
                 caption: message("Likely company duplicates", {
                   nl: "Mogelijke dubbele bedrijven",
                 }),
                 children: [
-                  list({
+                  /* desired-unimplemented: alert leaf carries a readable notice. */
+                  alert({
                     context: view,
-                    model: "customer.Customer",
-                    archived: "include",
-                    where: (candidate) =>
-                      candidate.kind === customer.kind &&
-                      lower(candidate.name) === lower(customer.name) &&
-                      !same(candidate, customer),
-                    columns: ["name", "kind"],
-                    renderRow: (candidate, duplicateView) => [
-                      form({
-                        context: duplicateView,
-                        operation: "customer.alias",
-                        arguments: { source: candidate, target: customer },
+                    notice: message(
+                      "Reviewed aliases never rewrite history or transfer roles; candidates need staff confirmation.",
+                      {
+                        nl: "Beoordeelde aliassen herschrijven geen geschiedenis en dragen geen rollen over; kandidaten vereisen personeelsbevestiging.",
+                      },
+                    ),
+                  }),
+                  /* desired-unimplemented: tooltip annotates existing content. */
+                  tooltip({
+                    context: view,
+                    caption: message(
+                      "Candidates match same kind and case-folded name under current directory grants; not identity proof.",
+                      {
+                        nl: "Kandidaten komen overeen op soort en hoofdletteronverschillige naam onder huidige directoryrechten; geen identiteitsbewijs.",
+                      },
+                    ),
+                    children: [
+                      list({
+                        context: view,
+                        model: "customer.Customer",
+                        archived: "include",
+                        where: (candidate) =>
+                          candidate.kind === customer.kind &&
+                          lower(candidate.name) === lower(customer.name) &&
+                          !same(candidate, customer),
+                        columns: ["name", "kind"],
+                        renderRow: (candidate, duplicateView) => [
+                          form({
+                            context: duplicateView,
+                            operation: "customer.alias",
+                            arguments: { source: candidate, target: customer },
+                          }),
+                        ],
                       }),
                     ],
                   }),
@@ -817,11 +867,11 @@ export async function salesPage(c, bindings) {
                 parent: customer,
                 columns: ["account", "role", "locations", "active"],
                 renderRow: (grant, grantView) => [
-                  action({
-                    context: grantView,
-                    operation: "customer.remove",
-                    boundArgs: { grant },
-                  }),
+                  /* desired-unimplemented: badge/status present readable typed values. */
+                  badge({ context: grantView, value: grant.role }),
+                  status({ context: grantView, value: grant.active }),
+                  /* desired-unimplemented: button action lowers to the canonical binding. */
+                  button({ context: grantView, action: "customer.remove", boundArgs: { grant } }),
                 ],
               }),
               list({
@@ -830,9 +880,14 @@ export async function salesPage(c, bindings) {
                 parent: customer,
                 columns: ["email", "role", "locations", "status", "expires"],
                 renderRow: (invitation, invitationView) => [
-                  action({
+                  /* desired-unimplemented: badge presents readable typed values. */
+                  badge({ context: invitationView, value: invitation.role }),
+                  badge({ context: invitationView, value: invitation.status }),
+                  badge({ context: invitationView, value: invitation.expires }),
+                  /* desired-unimplemented: button action lowers to the canonical binding. */
+                  button({
                     context: invitationView,
-                    operation: "customer.accept",
+                    action: "customer.accept",
                     boundArgs: { invitation },
                   }),
                 ],
@@ -850,6 +905,8 @@ export async function salesPage(c, bindings) {
                 parent: customer,
                 columns: ["name", "email"],
                 renderRow: (contact, contactView) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: contactView }),
                   edit({
                     context: contactView,
                     operation: "customer.Contact.update",
@@ -865,17 +922,25 @@ export async function salesPage(c, bindings) {
                     operation: "crm.Deal.create",
                     arguments: { customer, contact },
                   }),
-                  action({
-                    context: contactView,
-                    operation: "customer.claim",
-                    boundArgs: { contact },
-                  }),
-                  details({
+                  /* desired-unimplemented: button action lowers to the canonical binding. */
+                  button({ context: contactView, action: "customer.claim", boundArgs: { contact } }),
+                  /* desired-unimplemented: collapse shares the details disclosure contract. */
+                  collapse({
                     context: contactView,
                     caption: message("Likely contact duplicates", {
                       nl: "Mogelijke dubbele contactpersonen",
                     }),
                     children: [
+                      /* desired-unimplemented: alert leaf carries a readable notice. */
+                      alert({
+                        context: contactView,
+                        notice: message(
+                          "Exact-email candidates need staff review; never silently merge.",
+                          {
+                            nl: "Kandidaten met exact e-mailadres vereisen personeelsbeoordeling; nooit stilzwijgend samenvoegen.",
+                          },
+                        ),
+                      }),
                       list({
                         context: contactView,
                         model: "customer.Contact",
@@ -901,10 +966,12 @@ export async function salesPage(c, bindings) {
         defaults: { location: preferences.location, stage: preferences.stage },
         search: ["title"],
         renderRow: (deal, view) => [
-          text({
-            context: view,
-            values: [deal.value, deal.seats, deal.next_action, deal.outcome_reference],
-          }),
+          /* desired-unimplemented: badge/stat/copy present card values. */
+          badge({ context: view, value: deal.stage }),
+          stat({ context: view, values: [deal.value] }),
+          badge({ context: view, value: deal.seats }),
+          badge({ context: view, value: deal.next_action }),
+          copy({ context: view, value: deal.outcome_reference }),
           details({
             context: view,
             caption: message("Deal needs and actions", { nl: "Behoeften en acties verkoopkans" }),
@@ -920,21 +987,228 @@ export async function salesPage(c, bindings) {
                   deal.lost_reason,
                 ],
               }),
-              edit({ context: view, operation: "crm.Deal.update", record: deal }),
-              actions({
+              edit({
                 context: view,
-                operations: ["crm.advance", "crm.win", "crm.lose", "crm.reopen", "crm.record_link"],
-                boundArgs: { deal },
+                operation: "crm.Deal.update",
+                record: deal,
+                /* desired-unimplemented: edit children place explicit update inputs. */
+                children: [
+                  /* desired-unimplemented: fieldset groups existing form fields. */
+                  fieldset({
+                    context: view,
+                    caption: message("Deal context", { nl: "Verkoopkanscontext" }),
+                    children: [
+                      /* desired-unimplemented: label/input/validator/calendarField/textarea/button. */
+                      label({ context: view, field: "title" }),
+                      input({ context: view, field: "title" }),
+                      validator({ context: view, field: "title" }),
+                      label({ context: view, field: "desired_start" }),
+                      calendarField({ context: view, field: "desired_start" }),
+                      validator({ context: view, field: "desired_start" }),
+                      label({ context: view, field: "workspace" }),
+                      textarea({ context: view, field: "workspace" }),
+                      validator({ context: view, field: "workspace" }),
+                      label({ context: view, field: "notes" }),
+                      textarea({ context: view, field: "notes" }),
+                      validator({ context: view, field: "notes" }),
+                      button({ context: view, submit: true }),
+                    ],
+                  }),
+                ],
+              }),
+              /* desired-unimplemented: button opens activates the matching modal id. */
+              button({ context: view, opens: "advance_stage" }),
+              /* desired-unimplemented: modal slots are trigger/content/actions prop arrays. */
+              modal({
+                context: view,
+                caption: message("Advance stage", { nl: "Fase vooruitzetten" }),
+                id: "advance_stage",
+                content: [
+                  form({
+                    context: view,
+                    operation: "crm.advance",
+                    arguments: { deal },
+                    display: "inline",
+                    children: [
+                      fieldset({
+                        context: view,
+                        caption: message("New stage", { nl: "Nieuwe fase" }),
+                        children: [
+                          /* desired-unimplemented: radio presents the finite stage choice. */
+                          label({ context: view, field: "stage" }),
+                          radio({ context: view, field: "stage" }),
+                          validator({ context: view, field: "stage" }),
+                          button({ context: view, submit: true }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              button({ context: view, opens: "record_win" }),
+              modal({
+                context: view,
+                caption: message("Record won opportunity", { nl: "Gewonnen kans vastleggen" }),
+                id: "record_win",
+                content: [
+                  alert({
+                    context: view,
+                    notice: message(
+                      "Winning records an existing booking or paid term; it reserves no space and confirms no payment.",
+                      {
+                        nl: "Winnen legt een bestaande boeking of betaalde termijn vast; het reserveert geen ruimte en bevestigt geen betaling.",
+                      },
+                    ),
+                  }),
+                  form({
+                    context: view,
+                    operation: "crm.win",
+                    arguments: { deal },
+                    display: "inline",
+                    children: [
+                      fieldset({
+                        context: view,
+                        caption: message("Sale evidence", { nl: "Verkoopbewijs" }),
+                        children: [
+                          /* desired-unimplemented: select presents authorized references. */
+                          label({ context: view, field: "booking" }),
+                          select({ context: view, field: "booking" }),
+                          validator({ context: view, field: "booking" }),
+                          label({ context: view, field: "term" }),
+                          select({ context: view, field: "term" }),
+                          validator({ context: view, field: "term" }),
+                          button({ context: view, submit: true }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              button({ context: view, opens: "record_loss" }),
+              modal({
+                context: view,
+                caption: message("Record lost opportunity", { nl: "Verloren kans vastleggen" }),
+                id: "record_loss",
+                content: [
+                  form({
+                    context: view,
+                    operation: "crm.lose",
+                    arguments: { deal },
+                    display: "inline",
+                    children: [
+                      fieldset({
+                        context: view,
+                        caption: message("Loss reason", { nl: "Reden verloren kans" }),
+                        children: [
+                          label({ context: view, field: "reason" }),
+                          textarea({ context: view, field: "reason" }),
+                          validator({ context: view, field: "reason" }),
+                          button({ context: view, submit: true }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              button({ context: view, opens: "deal_reopen" }),
+              modal({
+                context: view,
+                caption: message("Reopen opportunity", { nl: "Kans heropenen" }),
+                id: "deal_reopen",
+                content: [
+                  form({
+                    context: view,
+                    operation: "crm.reopen",
+                    arguments: { deal },
+                    display: "inline",
+                    children: [
+                      fieldset({
+                        context: view,
+                        caption: message("Reopen reason", { nl: "Reden heropenen" }),
+                        children: [
+                          label({ context: view, field: "reason" }),
+                          textarea({ context: view, field: "reason" }),
+                          validator({ context: view, field: "reason" }),
+                          button({ context: view, submit: true }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              button({ context: view, opens: "reviewed_link" }),
+              modal({
+                context: view,
+                caption: message("Record reviewed link", { nl: "Beoordeelde link vastleggen" }),
+                id: "reviewed_link",
+                content: [
+                  form({
+                    context: view,
+                    operation: "crm.record_link",
+                    arguments: { deal },
+                    display: "inline",
+                    children: [
+                      fieldset({
+                        context: view,
+                        caption: message("Reviewed link", { nl: "Beoordeelde link" }),
+                        children: [
+                          label({ context: view, field: "kind" }),
+                          radio({ context: view, field: "kind" }),
+                          validator({ context: view, field: "kind" }),
+                          label({ context: view, field: "link" }),
+                          input({ context: view, field: "link" }),
+                          validator({ context: view, field: "link" }),
+                          label({ context: view, field: "body" }),
+                          textarea({ context: view, field: "body" }),
+                          validator({ context: view, field: "body" }),
+                          button({ context: view, submit: true }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
               }),
               form({
                 context: view,
                 operation: "crm.Activity.create",
                 arguments: { parent: deal },
+                children: [
+                  fieldset({
+                    context: view,
+                    caption: message("Sales activity", { nl: "Verkoopactiviteit" }),
+                    children: [
+                      label({ context: view, field: "kind" }),
+                      radio({ context: view, field: "kind" }),
+                      validator({ context: view, field: "kind" }),
+                      label({ context: view, field: "body" }),
+                      textarea({ context: view, field: "body" }),
+                      validator({ context: view, field: "body" }),
+                      button({ context: view, submit: true }),
+                    ],
+                  }),
+                ],
               }),
-              details({
+              /* desired-unimplemented: collapse shares the details disclosure contract. */
+              collapse({
                 context: view,
                 caption: message("Schedule a tour", { nl: "Rondleiding plannen" }),
                 children: [
+                  alert({
+                    context: view,
+                    notice: message(
+                      "Pending host or room coordination is not a confirmed tour.",
+                      { nl: "Wachtende gastheer- of ruimteafstemming is geen bevestigde rondleiding." },
+                    ),
+                  }),
+                  /* desired-unimplemented: steps items are one children-array per stage. */
+                  steps({
+                    context: view,
+                    items: [
+                      [text({ context: view, values: [message("Find published calendar", { nl: "Gepubliceerde agenda zoeken" })] })],
+                      [text({ context: view, values: [message("Book with deal customer and contact", { nl: "Boeken met klant en contactpersoon" })] })],
+                      [text({ context: view, values: [message("Record linked appointment", { nl: "Gekoppelde afspraak vastleggen" })] })],
+                    ],
+                  }),
                   list({
                     context: view,
                     model: Calendar,
@@ -947,6 +1221,10 @@ export async function salesPage(c, bindings) {
                         parent: calendar,
                         columns: ["from", "until", "available"],
                         order: ["from"],
+                        renderRow: (window, windowView) => [
+                          pagination({ context: windowView }),
+                          status({ context: windowView, value: window.available }),
+                        ],
                       }),
                       list({
                         context: calendarView,
@@ -973,26 +1251,55 @@ export async function salesPage(c, bindings) {
                     columns: ["from", "until", "state", "reason", "host_ok", "room_ok"],
                     order: ["from"],
                     renderRow: (appointment, appointmentView) => [
-                      actions({
+                      pagination({ context: appointmentView }),
+                      badge({ context: appointmentView, value: appointment.state }),
+                      status({ context: appointmentView, value: appointment.host_ok }),
+                      status({ context: appointmentView, value: appointment.room_ok }),
+                      button({
                         context: appointmentView,
-                        operations: ["appointments.cancel", "appointments.attendance"],
+                        action: "appointments.cancel",
+                        boundArgs: { appointment },
+                      }),
+                      button({
+                        context: appointmentView,
+                        action: "appointments.attendance",
                         boundArgs: { appointment },
                       }),
                       form({
                         context: appointmentView,
                         operation: "crm.record_tour",
                         arguments: { deal, appointment },
+                        children: [
+                          fieldset({
+                            context: appointmentView,
+                            caption: message("Tour evidence note", { nl: "Notitie rondleidingbewijs" }),
+                            children: [
+                              label({ context: appointmentView, field: "body" }),
+                              textarea({ context: appointmentView, field: "body" }),
+                              validator({ context: appointmentView, field: "body" }),
+                              button({ context: appointmentView, submit: true }),
+                            ],
+                          }),
+                        ],
                       }),
                     ],
                   }),
                 ],
               }),
-              details({
+              collapse({
                 context: view,
                 caption: message("Prepare and issue a quote", {
                   nl: "Offerte voorbereiden en uitgeven",
                 }),
                 children: [
+                  steps({
+                    context: view,
+                    items: [
+                      [text({ context: view, values: [message("Draft proposal", { nl: "Conceptvoorstel" })] })],
+                      [text({ context: view, values: [message("Issue priced revision", { nl: "Geprijsde versie uitgeven" })] })],
+                      [text({ context: view, values: [message("Record issued evidence", { nl: "Uitgegeven bewijs vastleggen" })] })],
+                    ],
+                  }),
                   form({
                     context: view,
                     operation: "propose.Proposal.create",
@@ -1029,6 +1336,9 @@ export async function salesPage(c, bindings) {
                         order: ["-number"],
                         columns: ["number", "state", "total", "expires", "handoff", "booking"],
                         renderRow: (revision, revisionView) => [
+                          pagination({ context: revisionView }),
+                          badge({ context: revisionView, value: revision.state }),
+                          stat({ context: revisionView, values: [revision.total] }),
                           text({
                             context: revisionView,
                             values: [
@@ -1038,6 +1348,18 @@ export async function salesPage(c, bindings) {
                               revision.terms,
                               revision.pdf,
                             ],
+                          }),
+                          /* desired-unimplemented: button target opens a safe file destination. */
+                          button({
+                            context: revisionView,
+                            target: revision.pdf,
+                            caption: message("Open quote PDF", { nl: "Offerte-PDF openen" }),
+                          }),
+                          /* desired-unimplemented: diff before/after are presentation slot arrays. */
+                          diff({
+                            context: revisionView,
+                            before: [text({ context: revisionView, values: [deal.value] })],
+                            after: [text({ context: revisionView, values: [revision.total] })],
                           }),
                           form({
                             context: revisionView,
@@ -1062,19 +1384,37 @@ export async function salesPage(c, bindings) {
                               }),
                             ],
                           }),
-                          actions({
+                          button({
                             context: revisionView,
-                            operations: [
-                              "propose.send_offer",
-                              "propose.document",
-                              "propose.request_booking",
-                            ],
+                            action: "propose.send_offer",
+                            boundArgs: { revision },
+                          }),
+                          button({
+                            context: revisionView,
+                            action: "propose.document",
+                            boundArgs: { revision },
+                          }),
+                          button({
+                            context: revisionView,
+                            action: "propose.request_booking",
                             boundArgs: { revision },
                           }),
                           form({
                             context: revisionView,
                             operation: "crm.record_quote",
                             arguments: { deal, revision },
+                            children: [
+                              fieldset({
+                                context: revisionView,
+                                caption: message("Quote evidence note", { nl: "Notitie offertebewijs" }),
+                                children: [
+                                  label({ context: revisionView, field: "body" }),
+                                  textarea({ context: revisionView, field: "body" }),
+                                  validator({ context: revisionView, field: "body" }),
+                                  button({ context: revisionView, submit: true }),
+                                ],
+                              }),
+                            ],
                           }),
                         ],
                       }),
@@ -1082,7 +1422,33 @@ export async function salesPage(c, bindings) {
                   }),
                 ],
               }),
-              activityRows(deal, view),
+              /* desired-unimplemented: timeline renders one item template per admitted row. */
+              timeline({
+                context: view,
+                model: "crm.Activity",
+                parent: deal,
+                order: ["-occurred"],
+                renderItem: (row, itemView) => [
+                  /* desired-unimplemented: chat_bubble slots are header/content/footer arrays. */
+                  chat_bubble({
+                    context: itemView,
+                    header: [
+                      badge({ context: itemView, value: row.kind }),
+                      text({ context: itemView, values: [row.author, row.occurred] }),
+                    ],
+                    content: [text({ context: itemView, values: [row.body] })],
+                    footer: [
+                      /* desired-unimplemented: link opens a checked destination. */
+                      link({
+                        context: itemView,
+                        target: row.link,
+                        caption: message("Reviewed source", { nl: "Beoordeelde bron" }),
+                      }),
+                      text({ context: itemView, values: [row.appointment, row.revision] }),
+                    ],
+                  }),
+                ],
+              }),
               list({
                 context: view,
                 model: "crm.Sale",
@@ -1102,9 +1468,30 @@ export async function salesPage(c, bindings) {
             context: c,
             operation: "crm.pipeline",
             display: "inline",
-            renderResult: (result, view) => [
-              metrics({ context: view, values: [result.count, result.total] }),
+            children: [
+              fieldset({
+                context: c,
+                caption: message("Pipeline currency", { nl: "Valuta verkoopkansen" }),
+                children: [
+                  label({ context: c, field: "currency" }),
+                  input({ context: c, field: "currency" }),
+                  validator({ context: c, field: "currency" }),
+                  button({ context: c, submit: true }),
+                ],
+              }),
             ],
+            renderResult: (result, view) => [
+              /* desired-unimplemented: stat shares the typed-metric contract. */
+              stat({ context: view, values: [result.count] }),
+              stat({ context: view, values: [result.total] }),
+            ],
+          }),
+          alert({
+            context: c,
+            notice: message(
+              "Pipeline groups by selected currency; unlike amounts never add.",
+              { nl: "Verkoopkansen groeperen op gekozen valuta; ongelijke bedragen worden nooit opgeteld." },
+            ),
           }),
         ],
       }),
@@ -1119,6 +1506,9 @@ export async function salesPage(c, bindings) {
             columns: ["name", "kind", "active", "archived_at"],
             search: ["name"],
             renderRow: (customer, view) => [
+              pagination({ context: view }),
+              badge({ context: view, value: customer.kind }),
+              status({ context: view, value: customer.active }),
               list({
                 context: view,
                 model: "crm.Deal",
@@ -1126,7 +1516,27 @@ export async function salesPage(c, bindings) {
                 columns: ["title", "contact", "stage", "next_action"],
                 order: ["-updated"],
                 renderRow: (deal, dealView) => [
-                  activityRows(deal, dealView),
+                  badge({ context: dealView, value: deal.stage }),
+                  list({
+                    context: dealView,
+                    model: "crm.Activity",
+                    parent: deal,
+                    order: ["-occurred"],
+                    renderRow: (row, activityView) => [
+                      badge({ context: activityView, value: row.kind }),
+                      text({
+                        context: activityView,
+                        values: [
+                          row.body,
+                          row.link,
+                          row.appointment,
+                          row.revision,
+                          row.author,
+                          row.occurred,
+                        ],
+                      }),
+                    ],
+                  }),
                   history({ context: dealView, record: deal }),
                 ],
               }),
@@ -1154,6 +1564,49 @@ export async function salesPage(c, bindings) {
             filter: ["location", "owner"],
             defaults: { location: preferences.location },
             search: ["title"],
+            renderRow: (row, view) => [
+              pagination({ context: view }),
+              /* desired-unimplemented: swap selects off/on display from a bool. */
+              swap({
+                context: view,
+                value: compareInstant(row.next_action, c.now) >= 0,
+                off: [
+                  alert({
+                    context: view,
+                    notice: message("Overdue follow-up needs action.", {
+                      nl: "Achterstallige vervolgactie vereist actie.",
+                    }),
+                  }),
+                ],
+                on: [
+                  /* desired-unimplemented: countdown shows remaining view-only time. */
+                  countdown({ context: view, value: durationBetween(c.now, row.next_action) }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+      /* desired-unimplemented: footer groups persistent page content. */
+      footer({
+        context: c,
+        title: message(
+          "Tours, quotes and accounts use their owning operations; a sales role alone grants no host, proposal or customer-manager authority.",
+          {
+            nl: "Rondleidingen, offertes en accounts gebruiken hun eigen bewerkingen; een verkooprol alleen geeft geen gastheer-, offerte- of klantbeheerrechten.",
+          },
+        ),
+        children: [
+          text({
+            context: c,
+            values: [
+              message(
+                "CSV import previews invalid and duplicate rows; winning records references without reserving space or confirming payment.",
+                {
+                  nl: "CSV-import toont ongeldige en dubbele rijen; winnen legt referenties vast zonder ruimte te reserveren of betaling te bevestigen.",
+                },
+              ),
+            ],
           }),
         ],
       }),
