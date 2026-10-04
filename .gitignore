@@ -23,3 +23,7 @@ coverage/
 miniflare.sqlite*
 *.tsbuildinfo
 editors/vscode/out/
+# Playwright run output (lane 07 e2e)
+test-results/
+playwright-report/
+playwright/.cache/
