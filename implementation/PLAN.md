@@ -88,7 +88,7 @@ tests/integration/                        # L7 integrates; contributors own name
 .github/workflows/
   lane-01.yml ... lane-06.yml              # respective lane
   integration.yml, release.yml            # L7
-package.json, package-lock.json            # L7: Node workspace + lock owner
+package.json, bun.lock                      # L7: bun workspace + lock owner
 tsconfig.base.json                         # L7
 implementation/
   PLAN.md, WORKFLOW.md, CONTRACTS.md, DIAGNOSTICS.md
