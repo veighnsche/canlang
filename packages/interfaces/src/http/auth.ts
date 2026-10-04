@@ -174,11 +174,17 @@ async function handleLogin(deps: HttpDeps, request: Request): Promise<Response> 
 }
 
 async function handleLogout(deps: HttpDeps, request: Request): Promise<Response> {
-  const { sessionToken } = await resolveRequestIdentity(deps.identity.store, request, {
-    clock: deps.clock,
-  });
+  // Fully idempotent: unknown, revoked, or expired sessions clear the jar
+  // and answer ok — double-logout and stale tabs never 403.
+  let sessionToken: string | null;
+  try {
+    sessionToken = (
+      await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock })
+    ).sessionToken;
+  } catch {
+    return jsonOk({ ok: true }, { 'set-cookie': buildSessionClearCookie({ secure: deps.secureCookies }) });
+  }
   if (sessionToken === null) {
-    // Idempotent: nothing to revoke, still expire any stale cookie jar entry.
     return jsonOk({ ok: true }, { 'set-cookie': buildSessionClearCookie({ secure: deps.secureCookies }) });
   }
   const body = await readAuthBody(request);

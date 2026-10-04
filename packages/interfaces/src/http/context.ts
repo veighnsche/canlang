@@ -4,7 +4,10 @@
  *
  * Identity rule: an absent session cookie resolves public; a PRESENT but
  * invalid cookie is `forbidden` — a broken credential never silently
- * degrades to public. CSRF rule: every mutating route with a session
+ * degrades to public. Edge: an *undecodable* cookie value (bad percent
+ * encoding) parses as absent and therefore resolves public — the downgrade
+ * direction is to least privilege, and no credential material is trusted.
+ * CSRF rule: every mutating route with a session
  * requires the session-bound token via the `x-csrf-token` header or the
  * `_csrf` form field (DESIGN section 9 "current CSRF"; transport mechanics
  * lane-06 authored in @canlang/identity).

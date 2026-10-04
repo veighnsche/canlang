@@ -251,3 +251,85 @@ test('unknown auth routes and wrong methods are not_found', async () => {
   assert.equal((await handleAuthRequest(t.deps, get('/auth/recover/confirm'))).status, 404);
   assert.equal((await handleAuthRequest(t.deps, get('/auth/select-team/clear'))).status, 404);
 });
+
+function postForm(
+  path: string,
+  params: Record<string, string>,
+  opts: { cookie?: string } = {},
+): Request {
+  const headers: Record<string, string> = { 'content-type': 'application/x-www-form-urlencoded' };
+  const init: RequestInit & { cookie?: string } = {
+    method: 'POST',
+    headers,
+    body: new URLSearchParams(params).toString(),
+  };
+  if (opts.cookie !== undefined) init.cookie = opts.cookie;
+  return testRequest(path, init);
+}
+
+test('shell-style urlencoded logout and select-team work via the _csrf field', async () => {
+  const t = await createTestDeps();
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  // select-team first (logout kills the session): form fields only, no header.
+  const switched = await handleAuthRequest(
+    t.deps,
+    postForm('/auth/select-team', { team: t.identity.teamId, _csrf: csrf }, { cookie: t.identity.cookie }),
+  );
+  assert.equal(switched.status, 200);
+  assert.deepEqual(await switched.json(), { ok: true, team_id: t.identity.teamId });
+  const out = await handleAuthRequest(
+    t.deps,
+    postForm('/auth/logout', { _csrf: csrf }, { cookie: t.identity.cookie }),
+  );
+  assert.equal(out.status, 200);
+  const cleared = out.headers.get('set-cookie') ?? '';
+  assert.ok(cleared.includes('can_session=;') && cleared.includes('Max-Age=0'));
+});
+
+test('logout is idempotent for dead sessions (double-logout never 403s)', async () => {
+  const t = await createTestDeps();
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  const first = await handleAuthRequest(t.deps, post('/auth/logout', {}, { cookie: t.identity.cookie, csrf }));
+  assert.equal(first.status, 200);
+  // Same (now revoked) cookie again: still ok + clear.
+  const second = await handleAuthRequest(t.deps, post('/auth/logout', {}, { cookie: t.identity.cookie, csrf }));
+  assert.equal(second.status, 200);
+  assert.ok((second.headers.get('set-cookie') ?? '').includes('Max-Age=0'));
+});
+
+test('wrong-value _csrf field is forbidden on select-team', async () => {
+  const t = await createTestDeps();
+  const res = await handleAuthRequest(
+    t.deps,
+    postForm('/auth/select-team', { team: t.identity.teamId, _csrf: 'wrong-value' }, { cookie: t.identity.cookie }),
+  );
+  assert.equal(res.status, 403);
+});
+
+test('recovery request rate policy is 5 per hour with Retry-After', async () => {
+  const t = await createTestDeps();
+  for (let i = 0; i < 5; i++) {
+    const res = await handleAuthRequest(t.deps, post('/auth/recover', { email: `u${i}@x.test` }));
+    assert.equal(res.status, 200);
+  }
+  const limited = await handleAuthRequest(t.deps, post('/auth/recover', { email: 'u5@x.test' }));
+  assert.equal(limited.status, 429);
+  assert.equal((await limited.json() as { code: string }).code, 'limit');
+  assert.ok(Number(limited.headers.get('retry-after') ?? '0') > 0);
+});
+
+test('login Set-Cookie carries HttpOnly, SameSite, Max-Age, and Secure when enabled', async () => {
+  const t = await createTestDeps({ secureCookies: true });
+  const email = 'flags@test.example';
+  await handleAuthRequest(t.deps, post('/auth/register', { email, password: PASSWORD }));
+  const msg = t.identity.mail.messages.find((m) => m.to === email);
+  assert.ok(msg);
+  await handleAuthRequest(t.deps, post('/auth/verify', { token: tokenFromMail(msg.body_text) }));
+  const res = await handleAuthRequest(t.deps, post('/auth/login', { email, password: PASSWORD }));
+  assert.equal(res.status, 200);
+  const setCookie = res.headers.get('set-cookie') ?? '';
+  assert.ok(setCookie.includes('HttpOnly'), setCookie);
+  assert.ok(setCookie.includes('SameSite=Lax'), setCookie);
+  assert.ok(setCookie.includes('Max-Age=3600'), setCookie);
+  assert.ok(setCookie.includes('Secure'), setCookie);
+});

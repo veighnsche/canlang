@@ -1,8 +1,9 @@
 /**
  * HTTP dispatch for canonical mutation operations (S4).
  *
- * URL naming: the operation NAME comes from the route (`/operations/<name>`,
- * routed by `http/routes.ts`); the body carries `operation_id` + `inputs`.
+ * URL naming: the operation NAME comes from the route
+ * (`/api/operations/<name>`, routed by `http/routes.ts`); the body carries
+ * `operation_id` + `inputs`.
  * When the body also carries `operation` it MUST equal the route name —
  * mismatch is `validation`, so a misrouted envelope can never invoke a
  * different operation than the URL names.
@@ -74,9 +75,12 @@ function coerceFormBody(form: Record<string, string>): Record<string, unknown> {
 }
 
 /**
- * Dispatch one `POST /operations/<operation>` request through framing checks
- * to the L3 canonical invocation. Non-POST methods and malformed names are
- * `not_found`; every other denial carries its canonical status.
+ * Dispatch one `POST /api/operations/<operation>` request through framing
+ * checks to the L3 canonical invocation. Non-POST methods and malformed
+ * names are `not_found`; every other denial carries its canonical status.
+ * Leniency (documented): extra top-level envelope members beyond
+ * operation/operation_id/inputs are ignored — only `inputs` is
+ * closed-checked, since the URL (not the body) selects the operation.
  */
 export async function handleOperationRequest(
   deps: HttpDeps,

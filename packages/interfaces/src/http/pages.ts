@@ -27,7 +27,7 @@ import type {
   ShellData,
   TeamOption,
 } from '@canlang/contracts';
-import { deriveCsrfToken } from '@canlang/identity';
+import { deriveCsrfToken, parseSessionCookie } from '@canlang/identity';
 import { buildNavigation, renderPage, selectDiscoveryCandidates } from '@canlang/ui';
 import type { HttpDeps } from '../ports.js';
 import {
@@ -210,11 +210,19 @@ export async function handlePageRequest(deps: HttpDeps, request: Request): Promi
   let identity: ResolvedIdentity;
   let sessionToken: string | null;
   try {
-    const teamParam = url.searchParams.get('team');
+    // ?team= is honored only with a session cookie: anonymous callers must
+    // not probe team existence via 404-vs-render, and public record routes
+    // resolve their team from the record (L3), never from the query.
+    const hasSessionCookie =
+      parseSessionCookie(request.headers.get('cookie') ?? undefined) !== null;
+    const teamParam = hasSessionCookie ? url.searchParams.get('team') : null;
     const resolved = await resolveRequestIdentity(
       deps.identity.store,
       request,
-      teamParam === null ? {} : { teamId: teamParam },
+      {
+        clock: deps.clock,
+        ...(teamParam === null ? {} : { teamId: teamParam }),
+      },
     );
     identity = resolved.identity;
     sessionToken = resolved.sessionToken;

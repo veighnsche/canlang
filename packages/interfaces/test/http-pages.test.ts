@@ -420,3 +420,42 @@ test('fragmentErrorResponse keeps JSON with the canonical status', async () => {
   assert.ok(res.headers.get('content-type')?.includes('application/json'));
   assert.deepEqual(await res.json(), { code: 'forbidden', message: 'No entry.', retryable: false });
 });
+
+test('operations op remainder decodes %2F slashes too', async () => {
+  const { deps } = await createTestDeps({ descriptors: [helloPage()] });
+  const sub = spySub();
+  const handler = createHttpHandler(deps, sub);
+  const res = await handler(testRequest('/api/operations/a%2Fb', { method: 'POST' }));
+  assert.equal(res.status, 200);
+  assert.deepEqual(sub.operationsCalls, [{ op: 'a/b' }]);
+});
+
+test('anonymous ?team= is ignored (no team-existence oracle)', async () => {
+  const seen: Array<{ team: unknown }> = [];
+  const probe = helloPage({
+    admit: async (context: unknown) => {
+      seen.push({ team: (context as { team: unknown }).team });
+      return {};
+    },
+  });
+  const { deps, identity } = await createTestDeps({ descriptors: [probe] });
+  const handler = createHttpHandler(deps, spySub());
+  // Cookie-less: known and unknown team ids both render public.
+  for (const team of [identity.teamId, 'team-that-never-existed']) {
+    const res = await handler(testRequest(`/hello?team=${team}`, { method: 'GET' }));
+    assert.equal(res.status, 200, team);
+  }
+  // Page + discovery admissions all saw the public (teamless) identity.
+  assert.ok(seen.length >= 2);
+  assert.ok(seen.every((entry) => entry.team === null));
+});
+
+test('undecodable cookie values resolve public (least privilege)', async () => {
+  const { deps } = await createTestDeps({ descriptors: [helloPage()] });
+  const handler = createHttpHandler(deps, spySub());
+  const res = await handler(
+    testRequest('/hello', { method: 'GET', headers: { cookie: 'can_session=%E0%A4%A' } }),
+  );
+  assert.equal(res.status, 200);
+  assert.ok((await res.text()).includes('<p>hi</p>'));
+});
