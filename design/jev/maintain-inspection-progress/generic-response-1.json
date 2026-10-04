@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "A generic maintenance application must let a location-authorized manager edit a recurring inspection plan or retire equipment with 99, 100, 101 or 1000 associated records. Current all-at-once loops reject above 100. Edits and retirement cancel only still-pending inspections due after the change date; due-today, overdue and completed evidence stays frozen. Current technician and location grants must govern active admission, dispatch and completion without retroactively invalidating stored plans. Delayed or duplicate cleanup must not revive obsolete future work after another edit or reinstatement. Existing primitives are contained records, guards, committed record events, keyed schedules, ordered one-record continuation and authorized record-addressed recovery. Availability is independently owned elsewhere. No scheduler framework or cross-owner transaction is allowed. This brief contains generic decision facts only, no source files or real records.",
+    "questions": {
+      "progress": {
+        "type": "choice",
+        "instructions": "Assess each option against the same requirements and choose the simplest sufficient one. State uncertainty and assumptions; treat schema and query cost fairly.",
+        "criteria": {
+          "atomic_caps": "Keep capped atomic cancellation and dynamic eligibility invariants. No added evidence, immediate all-or-nothing cleanup, but reject normal larger inventories and historical records after authority changes.",
+          "event_only": "Make edits bounded and move eligibility to current guards; carry cutoff/version/generation/actor/time only in events, process one row at a time. Less stored state, but current use and operator recovery need a retained way to remember earlier boundaries after later changes.",
+          "owned_evidence": "Retain one immutable owner-local supersession boundary per edit/retirement, with cutoff, prior plan revision or asset generation and actor/time. Capture asset generation on dispatched inspections; retirement advances it. Guard future work immediately using retained boundaries. Persist cursor/status for one-row continuation and scoped record recovery. Extra small model/query, but reviewable safe progress and replay."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "progress": {
+        "type": "choice",
+        "choice": "owned_evidence",
+        "confidence": 0.97,
+        "probabilities": {
+          "atomic_caps": 0.0,
+          "event_only": 0.02,
+          "owned_evidence": 0.98
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 692,
+      "output_tokens": 46
+    }
+  }
+}
