@@ -43,7 +43,7 @@ package member_plans
 # Own paid term snapshots, company seats and period-bound allowance allocations. @{nl="Beheer vastgelegde betaalde termijnen, bedrijfsplaatsen en periodegebonden tegoedtoewijzingen."}
 package member_terms label=label_package
  use member_plans {Plan,Benefit,AccessHours,MemberHours}
- use customer {Customer,Contact,CompanyAccessChanged,owns,has_role,has_location_role,test_company,test_contact,test_admin,test_booker}
+ use customer {Customer,Contact,CompanyAccessChanged,owns,has_role,has_location_role,test_company,test_contact,test_admin,test_booker,test_directory_manager,test_directory_employee,remove as remove_company_role}
  use rent_catalog {test_site,Location,DateHours,is_open}
  use employee {can_work,test_worker}
  use member_terms {MembershipIngressV1 as Requests} from=deployment.membership_ingress
@@ -118,12 +118,16 @@ package member_terms label=label_package
   AccessWatch in Customer { source:text unique, account:user, location:Location, at:datetime, until:datetime, revision:int=0 } label="Access verification"@{nl="Toegangscontrole"}
   export Content { title:text, category:text label="Content category"@{nl="Inhoudscategorie"}, body:text, locations:Location[]! label=label_Term_locations, plans:Plan[] label="Plan audience"@{nl="Abonnementsdoelgroep"}, published:bool=false label="Published"@{nl="Gepubliceerd"}, attachment:file? label="Member document"@{nl="Ledendocument"}, staff_only:bool=false label="Staff only"@{nl="Alleen personeel"} } label="Member content"@{nl="Ledeninformatie"}
   export event AccessChanged { membership:Membership, revision:int }
-  event CompanyAccessStep { customer:Customer, after:text? }
-  event AllocationAccessStep { membership:Membership, after:text? }
-  event WatchAccessStep { customer:Customer, after:text? }
+  event CompanyAccessStep { customer:Customer, location:Location?, after:text? }
+  event AllocationAccessStep { membership:Membership, location:Location?, after:text? }
+  event WatchAccessStep { customer:Customer, location:Location?, after:text? }
   derive commercial(term:Term,sale:CommercialSale,location:Location,phase:SaleMilestone.milestone,at:datetime):SaleMilestone = SaleMilestone {source=term.source,revision=sale.revision,customer=term.parent.parent.id,account=term.parent.account,location=location.id,product="membership",amount=term.price,purchased_at=term.created,occurred=at,milestone=phase,attribution=term.attribution,exclusive_program=term.exclusive_program,attributed_at=term.attributed_at,attribution_window=term.attribution_window}
+  export contract MembershipAccessReview { seats_needing_review:int, requests_needing_review:int, pending_reviews:int, recorded_conflicts:int }
+  derive location_account(person:user,customer:Customer,location:Location):bool = eligible_account(person,customer) and location.active and location.archived_at==null and location in customer.locations and (owns(person,customer) or has_location_role(person,customer,booker,location) or has_location_role(person,customer,administrator,location))
+  derive allocation_eligible(allocation:Allocation):bool = eligible_term(allocation.request.value.account,allocation.parent.parent,max([now,allocation.from])) and any(allocation.parent.parent.locations as location,location.id==allocation.request.value.location and location_account(allocation.request.value.account,allocation.request.parent,location)) and permitted_hours(allocation.parent.parent,allocation.request.value.location,max([now,allocation.from]),allocation.until)
+  derive request_requires_review(request:BenefitRequest):bool = request.state in [staged,reserved,consumed] and any(Allocation as allocation,allocation.request==request and allocation.until>now and not allocation_eligible(allocation))
   derive eligible_account(person:user,customer:Customer):bool = customer.active and customer.archived_at==null and any(customer.Contact as contact,contact.account==person and contact.verified) and (owns(person,customer) or has_role(person,customer,booker) or has_role(person,customer,administrator))
-  export derive eligible_term(person:user,term:Term,at:datetime):bool = eligible_account(person,term.parent.parent) and not term.parent.paused and not term.parent.revoked and term.paid and term.from<=at and at<term.until and ((term.parent.parent.kind==individual and term.parent.account==person) or any(term.Seat as seat,seat.account==person and seat.active))
+  export derive eligible_term(person:user,term:Term,at:datetime):bool = eligible_account(person,term.parent.parent) and term.archived_at==null and term.parent.archived_at==null and not term.parent.paused and not term.parent.revoked and term.paid and term.from<=at and at<term.until and ((term.parent.parent.kind==individual and term.parent.account==person) or any(term.Seat as seat,seat.account==person and seat.active))
   export derive entitled(person:user,membership:Membership,at:datetime):bool = any(membership.Term as term,eligible_term(person,term,at))
   derive hours_on(hours:MemberHours,day:date,from:datetime,until:datetime):bool = weekday(day) in hours.weekdays and local_instant(day,hours.opens,hours.timezone,fold=hours.fold)<=from and until<=local_instant(add_days(day,hours.close_after),hours.closes,hours.timezone,fold=hours.fold)
   derive permitted_hours(term:Term,location:text,from:datetime,until:datetime):bool = any(term.hours as hours,hours.location==location and (hours_on(hours,local_date(from,hours.timezone),from,until) or hours_on(hours,add_days(local_date(from,hours.timezone),-1),from,until)))
@@ -134,7 +138,7 @@ package member_terms label=label_package
   derive Allowance.expired:decimal = sum([row] as grant where grant.until<=now select max([0,balance(grant)])) label="Expired units"@{nl="Verlopen eenheden"}
   derive outcome(request:BenefitRequest):AllowanceOutcome = AllowanceOutcome {source=request.source,revision=request.revision,state=request.result,phase=request.state,reference=request.id,detail=null,units=request.units,covered_units=request.covered_units,overage=request.overage,unit=request.value.unit,duration=request.value.duration,rate=request.value.rate}
   derive cycle_boundary(membership:Membership,offset:int):datetime = local_instant(add_months(membership.anchor,offset*membership.months),"00:00",membership.timezone,fold=earlier)
-  derive access_term(watch:AccessWatch,term:Term):bool = term.parent.parent==watch.parent and watch.location in term.locations and watch.location.active and max([now,watch.at])<watch.until and is_open(watch.location,max([now,watch.at]),watch.until) and eligible_term(watch.account,term,max([now,watch.at])) and term.until>=watch.until and permitted_hours(term,watch.location.id,max([now,watch.at]),watch.until)
+  derive access_term(watch:AccessWatch,term:Term):bool = term.parent.parent==watch.parent and watch.location in term.locations and location_account(watch.account,watch.parent,watch.location) and max([now,watch.at])<watch.until and is_open(watch.location,max([now,watch.at]),watch.until) and eligible_term(watch.account,term,max([now,watch.at])) and term.until>=watch.until and permitted_hours(term,watch.location.id,max([now,watch.at]),watch.until)
   derive access(watch:AccessWatch):AccessEvidence = AccessEvidence {source=watch.source,customer=watch.parent.id,account=watch.account,location=watch.location.id,at=watch.at,until=watch.until,guest_limit=max(Term as term where access_term(watch,term) select term.guest_limit)??0,eligible=any(Term as term,access_term(watch,term)),revision=watch.revision,checked_at=now}
   policy Membership read=authenticated where=row.account==actor or has_role(actor,row.parent,administrator) or owns(actor,row.parent)
   policy Membership read=authenticated where=any(row.Term as term,any(term.Seat as seat,seat.account==actor)) fields=account,plan,paused,revoked,anchor,timezone,months,cancellation_at,cancellation_reason
@@ -186,6 +190,7 @@ package member_terms label=label_package
   fixture hourly_grant=Allowance {parent=paid_term,product="workspace",unit=hour,duration=1h,overage=money(10,"EUR"),granted=10,from=paid_term.from,until=paid_term.until}
   fixture reserved_request=BenefitRequest {parent=test_company,source="reserved-booking",value={source="reserved-booking",customer=test_company.id,account=self,location=test_site.id,product="workspace",intervals=[{from=datetime("2090-01-01T09:00:00Z"),until=datetime("2090-01-01T11:00:00Z")}],quantity=1,unit=hour,duration=1h,rate=money(10,"EUR"),previous_source=null},units=2,covered_units=2,overage=money(0,"EUR")}
   fixture reserved_allocation=Allocation {parent=hourly_grant,request=reserved_request,from=datetime("2090-01-01T09:00:00Z"),until=datetime("2090-01-01T11:00:00Z"),requested_units=2,units=2,held=2}
+  fixture elapsed_allocation=Allocation {parent=hourly_grant,request=reserved_request,from=datetime("2020-01-02T09:00:00Z"),until=datetime("2020-01-02T11:00:00Z"),requested_units=2,units=2,held=0,state=consumed}
   fixture month_end=Membership {parent=test_company,account=self,plan=plan,anchor=date("2099-01-31"),timezone="UTC"}
   fixture month_renewal=Renewal {parent=month_end,cycle=1,requester=self}
   fixture leap_end=Membership {parent=test_company,account=self,plan=plan,anchor=date("2096-01-31"),timezone="UTC"}
@@ -312,6 +317,7 @@ package member_terms label=label_package
     let value=event.value
     let customer=first(Customer as item where item.id==value.customer order=item.id)
     require customer!=null and eligible_account(value.account,customer)
+    require any(Location as location,location.id==value.location and location_account(value.account,customer,location))
     require not any(customer.BenefitFence as fence,fence.source==value.source)
     require value.unit in [hour,day] and count(value.intervals)>0 and value.quantity>0 and value.duration>0m and value.rate.minor>=0
     require all(value.intervals as interval,interval.from>=now and interval.from<interval.until and not any(value.intervals as other,other!=interval and overlaps(interval.from,interval.until,other.from,other.until)))
@@ -588,40 +594,119 @@ package member_terms label=label_package
     paid,test_site,true,pending -> reversed,1
     reversed,test_site,true,none -> reversed,0
     paid,test_site,true,none -> paid,0
+  # Disclose only counts of current paid-seat and allowance review at one authorized customer location.
+  export scenario access_review(customer:Customer,location:Location) read=true scope=authority -> MembershipAccessReview by=authenticated or member_manager label="Inspect membership access review"@{nl="Beoordeel lidmaatschapstoegang"}
+   require (location in customer.locations and has_location_role(actor,customer,administrator,location)) or (member_manager and can_work(actor,location))
+   do
+    let requests=customer.BenefitRequest as request where request.value.location==location.id and request.state in [staged,reserved,consumed] and any(request.value.intervals as interval,interval.until>now)
+    return MembershipAccessReview {seats_needing_review=count(Seat as seat where seat.parent.parent.parent==customer and location in seat.parent.locations and seat.active and seat.parent.until>now and not (location_account(seat.account,customer,location) and eligible_term(seat.account,seat.parent,max([now,seat.parent.from])))),requests_needing_review=count(requests as request where request_requires_review(request)),pending_reviews=count(requests as request where (request_requires_review(request) and request.review_reason==null) or (not request_requires_review(request) and request.review_reason!=null)),recorded_conflicts=count(requests as request where request_requires_review(request) and request.review_reason!=null)}
+   examples seed=[test_admin,test_contact,allocated,reserved_allocation] customer=test_company location=test_site
+    test_contact.verified -> result.seats_needing_review,result.requests_needing_review,result.pending_reviews,result.recorded_conflicts
+    true -> 0,0,0,0
+    false -> 1,1,1,0
+   examples seed=[test_admin,test_contact,allocated,reserved_allocation] customer=test_company location=test_site
+    reserved_request.review_reason,test_contact.verified -> result.pending_reviews,result.recorded_conflicts
+    "Prior access review",false -> 0,1
+    "Prior access review",true -> 1,0
+   examples seed=[test_admin,test_contact] customer=test_company location=test_site
+    test_admin.locations -> result.seats_needing_review
+    [] -> error(rule_failed)
+  # Rerun the existing owner work for the requested location; the receipt means queued, not reconciled.
+  export scenario recheck_access(customer:Customer,location:Location) by=authenticated or member_manager label="Recheck membership access"@{nl="Controleer lidmaatschapstoegang opnieuw"}
+   require (location in customer.locations and has_location_role(actor,customer,administrator,location)) or (member_manager and can_work(actor,location))
+   do
+    emit CompanyAccessStep {customer,location,after=null}
+    emit WatchAccessStep {customer,location,after=null}
+   examples seed=[test_admin,test_contact,allocated,reserved_allocation,test_directory_employee]
+    do
+     call Contact.update {record=test_contact,changes={email="replacement@example.test"}} by=test_directory_manager
+     call access_review {customer=test_company,location=test_site} by=self as blocked
+     blocked.seats_needing_review,blocked.requests_needing_review -> 1,1
+     call recheck_access {customer=test_company,location=test_site} by=self
+     reserved_request.state,reserved_request.covered_units,paid_term.paid,allocated.active -> reserved,2,true,true
+   examples seed=[test_admin,test_booker,beneficiary,paid_term]
+    do
+     call assign {term=paid_term,account=other} by=self
+     call remove_company_role {grant=test_booker} by=self
+     call access_review {customer=test_company,location=test_site} by=self as removed
+     removed.seats_needing_review,test_booker.active,paid_term.paid -> 1,false,true
+     entitled(other,company_membership,now),has_location_role(other,test_company,booker,test_site) -> false,false
+     call recheck_access {customer=test_company,location=test_site} by=self
+     let assigned=first(paid_term.Seat as seat where seat.account==other order=seat.id)
+     assigned!=null -> true
+     call remove {seat=assigned,reason="Company access removed; retain paid term"} by=self
+     let retired=first(paid_term.Seat as seat where seat.account==other order=seat.id)
+     retired!=null -> true
+     retired.active,retired.removed_reason,paid_term.paid,paid_term.price -> false,"Company access removed; retain paid term",true,money(100,"EUR")
+     call assign {term=paid_term,account=other} by=self -> error(rule_failed)
   scenario company_changed on=CompanyAccessChanged
    do
-    emit CompanyAccessStep {customer=event.customer,after=null}
-    emit WatchAccessStep {customer=event.customer,after=null}
+    emit CompanyAccessStep {customer=event.customer,location=null,after=null}
+    emit WatchAccessStep {customer=event.customer,location=null,after=null}
   scenario company_access_step on=CompanyAccessStep
    do
-    let membership=first(event.customer.Membership archived=include as row where event.after==null or row.id>event.after order=row.id)
+    let membership=first(event.customer.Membership archived=include as row where (event.location==null or any(row.Term as term,event.location in term.locations)) and (event.after==null or row.id>event.after) order=row.id)
     if membership!=null
-     emit AllocationAccessStep {membership,after=null}
-     emit CompanyAccessStep {customer=event.customer,after=membership.id}
+     emit AllocationAccessStep {membership,location=event.location,after=null}
+     emit CompanyAccessStep {customer=event.customer,location=event.location,after=membership.id}
   scenario access_changed on=AccessChanged
    do
     set event.membership {access_revision=max([event.membership.access_revision+1,event.revision])}
-    emit AllocationAccessStep {membership=event.membership,after=null}
-    emit WatchAccessStep {customer=event.membership.parent,after=null}
+    emit AllocationAccessStep {membership=event.membership,location=null,after=null}
+    emit WatchAccessStep {customer=event.membership.parent,location=null,after=null}
   scenario allocation_access_step on=AllocationAccessStep
    do
-    let allocation=first(Allocation as row where row.parent.parent.parent==event.membership and row.request.state in [staged,reserved] and row.until>now and (event.after==null or row.id>event.after) order=row.id)
+    let allocation=first(Allocation as row where row.parent.parent.parent==event.membership and row.request.state in [staged,reserved,consumed] and row.until>now and (event.location==null or row.request.value.location==event.location.id) and (event.after==null or row.id>event.after) order=row.id)
     if allocation!=null
-     if not eligible_term(allocation.request.value.account,allocation.parent.parent,max([now,allocation.from]))
-      set allocation.request {review_reason="Paid membership or assigned seat no longer covers this use"}
-     emit AllocationAccessStep {membership=event.membership,after=allocation.id}
+     ## Recheck the entire finite request, so a valid sibling allocation cannot clear another allocation's conflict.
+     if request_requires_review(allocation.request)
+      set allocation.request {review_reason="Current identity, location grant or paid seat no longer covers this use"}
+     else
+      set allocation.request {review_reason=null}
+     emit AllocationAccessStep {membership=event.membership,location=event.location,after=allocation.id}
+   examples seed=[test_admin,test_contact,allocated,reserved_allocation] event={membership=company_membership,location=null,after=null}
+    test_contact.verified,reserved_request.state,reserved_allocation.state,reserved_request.review_reason -> reserved_request.state,reserved_request.covered_units,reserved_request.review_reason,paid_term.paid
+    false,consumed,consumed,null -> consumed,2,"Current identity, location grant or paid seat no longer covers this use",true
+    false,reserved,reserved,null -> reserved,2,"Current identity, location grant or paid seat no longer covers this use",true
+    true,reserved,reserved,"Old access conflict" -> reserved,2,null,true
+   ## Expired consumed evidence cannot make the still-eligible remaining slice a new conflict.
+   examples seed=[test_admin,test_contact,allocated,reserved_allocation,elapsed_allocation] event={membership=company_membership,location=null,after=null}
+    test_contact.verified,reserved_request.value.intervals,reserved_request.units,reserved_request.covered_units,reserved_request.state,reserved_allocation.state,reserved_allocation.held,reserved_request.review_reason -> reserved_request.review_reason,reserved_request.state,reserved_request.covered_units,elapsed_allocation.state,paid_term.paid
+    true,[{from=datetime("2020-01-02T09:00:00Z"),until=datetime("2020-01-02T11:00:00Z")},{from=datetime("2090-01-01T09:00:00Z"),until=datetime("2090-01-01T11:00:00Z")}],4,4,consumed,consumed,0,"Old access conflict" -> null,consumed,4,consumed,true
   scenario watch_access_step on=WatchAccessStep
    do
-    let watch=first(event.customer.AccessWatch archived=include as row where row.until>now and (event.after==null or row.id>event.after) order=row.id)
+    let watch=first(event.customer.AccessWatch archived=include as row where row.until>now and (event.location==null or row.location==event.location) and (event.after==null or row.id>event.after) order=row.id)
     if watch!=null
      if watch.archived_at==null
       set watch {revision=watch.revision+1}
       emit EligibilityChanged {value=access(watch)}
      else
       emit EligibilityChanged {value=AccessEvidence {source=watch.source,customer=watch.parent.id,account=watch.account,location=watch.location.id,at=watch.at,until=watch.until,guest_limit=0,eligible=false,revision=watch.revision+1,checked_at=now}}
-     emit WatchAccessStep {customer=event.customer,after=watch.id}
+     emit WatchAccessStep {customer=event.customer,location=event.location,after=watch.id}
 
  Then
+  # Discover the owner review independently of any customer application's selected pages.
+  page /membership/access-review title="Membership access review"@{nl="Beoordeling lidmaatschapstoegang"}
+   require member_manager or any(Customer as customer,has_role(actor,customer,administrator))
+   card "Current seat and allowance review"@{nl="Huidige plaats- en tegoedbeoordeling"}
+    form access_review
+     text result.seats_needing_review,result.requests_needing_review,result.pending_reviews,result.recorded_conflicts
+    form recheck_access
+  # Keep company access review in the membership owner, without disclosing visitor/device records.
+  page /companies/{Customer.id}/membership-access title="Company membership access"@{nl="Bedrijfslidmaatschapstoegang"}
+   require has_role(actor,row,administrator) or (member_manager and any(row.locations as location,can_work(actor,location)))
+   card "Current seat and allowance review"@{nl="Huidige plaats- en tegoedbeoordeling"}
+    form access_review
+     text result.seats_needing_review,result.requests_needing_review,result.pending_reviews,result.recorded_conflicts
+    form recheck_access
+   card "Paid terms and explicit seat decisions"@{nl="Betaalde termijnen en expliciete plaatsbesluiten"}
+    list Membership as membership where membership.parent==row
+     list row.Term as term
+      text row.from,row.until,row.price,row.paid
+      form assign
+      table row.Seat columns=account,active,removed_reason
+       action remove
+     table row.parent.BenefitRequest columns=source,state,review_reason
   # View your current benefits and keep your billing portal available after expiry. @{nl="Bekijk je huidige voordelen en houd je facturatieportaal bereikbaar na afloop."}
   page /membership/mine title="My membership"@{nl="Mijn lidmaatschap"} order=1
    require authenticated
