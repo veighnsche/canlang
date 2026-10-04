@@ -23,7 +23,7 @@ import type { DeliveryStatus } from "./services.js";
 export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
 export type { DeliveryStatus } from "./services.js";
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.7.0";
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.8.0";
 
 /**
  * Name of the hidden CSRF field in every canonical POST form. Rendered by
@@ -512,6 +512,25 @@ export interface ComponentSlotDef {
   readonly repeatable: boolean;
 }
 
+/** Finite semantic appearance tokens (design/UI-COMPONENTS.md). */
+export type AppearanceTone = "neutral" | "primary" | "secondary" | "accent" | "info" | "success" | "warning" | "error";
+export type AppearanceSize = "xs" | "sm" | "md" | "lg" | "xl";
+export type AppearanceVariant = "solid" | "outline" | "soft" | "ghost";
+export type AppearanceOrientation = "horizontal" | "vertical";
+
+/**
+ * Per-component admitted appearance subset. Every admitted token must map to
+ * a class present in the pinned daisyUI CSS (substantiated by test, never
+ * guessed); absent dimensions admit nothing. `caption` admits `caption=expr`.
+ */
+export interface ComponentAppearance {
+  readonly tone?: ReadonlyArray<AppearanceTone>;
+  readonly size?: ReadonlyArray<AppearanceSize>;
+  readonly variant?: ReadonlyArray<AppearanceVariant>;
+  readonly orientation?: ReadonlyArray<AppearanceOrientation>;
+  readonly caption?: boolean;
+}
+
 export interface ComponentCatalogEntry {
   /** Can word, e.g. "card", "table", "chat_bubble". */
   readonly id: string;
@@ -536,6 +555,14 @@ export interface ComponentCatalogEntry {
    * suites and slot suites never mix (direct slot children require a schema).
    */
   readonly slots?: ReadonlyArray<ComponentSlotDef>;
+  /**
+   * Alternate accepted profiles for words the design gives two shapes
+   * (hero/footer compact grouping vs slots, navbar bare leaf vs slots).
+   * Primary profile stays in `profile`; alternates never add slots.
+   */
+  readonly alternates?: ReadonlyArray<ComponentProfile>;
+  /** Admitted appearance subset; absent admits nothing. */
+  readonly appearance?: ComponentAppearance;
   readonly notes?: string;
 }
 
