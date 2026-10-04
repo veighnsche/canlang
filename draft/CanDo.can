@@ -117,46 +117,79 @@ package todo
   # Add tasks quickly and follow location, due date and ownership. @{nl="Voeg taken snel toe en volg locatie, deadline en eigenaarschap."}
   page /tasks title="Tasks"@{nl="Taken"}
    require members
+   breadcrumbs
    card "Quick task entry"@{nl="Snel een taak toevoegen"}
     form Task.create display=inline
+     ## assignee:user keeps its generated entry: no user-picker vocabulary.
+     fieldset "Task details"@{nl="Taakgegevens"}
+      input title
+      radio priority
+      select location
+      textarea description
+      input due
    tabs preferences.view
-   table Task as task where preferences.view==all or (task.due!=null and ((preferences.view==today and local_date(task.due,team.timezone)==local_date(now,team.timezone)) or (preferences.view==overdue and task.due<now and not task.done))) columns=title,assignee,due,priority,done order={by=preferences.view,default=[due],cases={all=[-created]}} filter=location,assignee,priority,done defaults={location=preferences.location,done=preferences.done} search=title display=split
-    badge row.done
+   table Task as task where preferences.view==all or (task.due!=null and ((preferences.view==today and local_date(task.due,team.timezone)==local_date(now,team.timezone)) or (preferences.view==overdue and task.due<now and not task.done))) columns=title,assignee,due,priority,done order={by=preferences.view,default=[due],cases={all=[-created]}} filter=location,assignee,priority,done defaults={location=preferences.location,done=preferences.done} search=title display=split empty="No tasks match these filters."@{nl="Geen taken voor deze filters."}
+    pagination
+    text row.done
     badge row.priority
     card "Current task"@{nl="Huidige taak"}
      text row.title,row.assignee,row.due,row.priority,row.done,row.completed_by,row.completed_at
      content row.description
      edit
-     actions complete,reopen
+     ## Completion and reopening stay canonical operations presented as quick actions.
+     fab
+      button action=complete
+      button action=reopen
     card "Attributed comments"@{nl="Toegeschreven reacties"}
      form Comment.create
-     list row.Comment
-      content row.body
-      text row.author
+      textarea body
+     list row.Comment empty="No comments yet."@{nl="Nog geen reacties."}
+      pagination
+      ## Comments are read-only messages; the bubble presents body and author without messaging behavior.
+      chat_bubble
+       slot content
+        content row.body
+       slot header
+        text row.author
     history
+
   # Keep unavailable source work visible without granting source authority. @{nl="Houd niet-beschikbaar bronwerk zichtbaar zonder bronbevoegdheid te verlenen."}
   page /tasks/my-work title="My work"@{nl="Mijn werk"} poll=5s refresh=refresh
    require members
+   breadcrumbs
    card "Refresh source work"@{nl="Werk uit bronsystemen vernieuwen"}
     form refresh display=inline
-   list WorkView as view where view.account==actor and view.current order=-view.requested
-    text row.state,row.requested
+   divider "Current projection"@{nl="Actuele projectie"}
+   list WorkView as view where view.account==actor and view.current order=-view.requested empty="No work projection yet."@{nl="Nog geen werkprojectie."}
+    pagination
+    text row.requested
     badge row.state
+    ## Partial or unavailable coverage keeps its own notice; task completion never implies source freshness.
+    alert
+     require row.state==partial or row.state==unavailable
+     text "Some sources are stale or unavailable; affected actions stay withheld."@{nl="Sommige bronnen zijn verouderd of niet beschikbaar; getroffen acties blijven achtergehouden."}
     card source_freshness_caption
-     table row.sources columns=source,state,detail
+     table row.sources columns=source,state,detail empty="No sources reported."@{nl="Geen bronnen gemeld."}
+      pagination
       badge row.state
     card "Authorized work and actions"@{nl="Toegestaan werk en acties"}
-     table row.items columns=title,source,location,due,state filter=source,location,due,state
+     table row.items columns=title,source,location,due,state filter=source,location,due,state empty="No authorized work items."@{nl="Geen toegestaan werk."}
+      pagination
       badge row.state
       content row.detail
       form row.action
     text "Submit refresh once to enable automatic source refresh while this page remains open."@{nl="Vernieuw één keer om automatisch bronwerk te vernieuwen zolang deze pagina geopend blijft."}
+
   # Author scoped checklists and generate independent dated tasks. @{nl="Beheer toegestane checklists en genereer zelfstandige gedateerde taken."}
   page /tasks/checklists title="Checklist templates"@{nl="Checklistsjablonen"}
    require task_manager
+   breadcrumbs
    card "Template intake"@{nl="Sjabloon aanmaken"}
     form Template.create
-   list Template columns=name,location search=name display=split
+     input name
+     select location
+   list Template columns=name,location search=name display=split empty="No templates yet."@{nl="Nog geen sjablonen."}
+    pagination
     card "Template and generation"@{nl="Sjabloon en generatie"}
      text row.name,row.location
      edit
@@ -164,6 +197,7 @@ package todo
      form generate
     card "Template items"@{nl="Sjabloonitems"}
      form TemplateTask.create
-     table row.TemplateTask columns=title,offset,priority order=offset
+     table row.TemplateTask columns=title,offset,priority order=offset empty="No template items yet."@{nl="Nog geen sjabloonitems."}
+      pagination
       edit
       delete
