@@ -1,6 +1,6 @@
 # Shared implementation boundaries
 
-These are high-level interface obligations for producer-owned bootstrap PRs. They are not implemented APIs. Reviewed `.can` drafts and desired-output witnesses define the required behavior; compiler and stdlib producers derive exact signatures and implementations from those drafts and accepted language contracts. Production consumers must not guess installed imports or make competing definitions. Draft witnesses may specify minimal coherent target APIs explicitly labelled desired/unimplemented; the owning producer formalizes and implements them. Early additions can be compatible; a breaking change requires the affected owners' explicit handoff and a coherent merge sequence.
+These are high-level interface obligations for producer-owned bootstrap PRs. They are not implemented APIs. Reviewed `.can` drafts and desired-output witnesses define the required behavior; compiler and stdlib producers derive exact signatures and implementations from those drafts and accepted language contracts. Production consumers must not guess installed imports or make competing definitions. Draft witnesses may specify minimal coherent target APIs explicitly labeled desired/unimplemented; the owning producer formalizes and implements them. Early additions can be compatible; a breaking change requires the affected owners' explicit handoff and a coherent merge sequence.
 
 | Boundary / owner | Required contents and meaning | Consumers |
 | --- | --- | --- |
