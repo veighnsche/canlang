@@ -1,0 +1,34 @@
+{
+  "request": {
+    "state": "Assess a private grant workflow with cash commitments only. Current normal applicant revisions are separate correction Applications before closing; success replaces a still-pending predecessor, while rejected decisions remain final. The pending assignee is immutable today; role and location access are checked when deciding. There is no post-close route when that assignee becomes ineligible. Recovery is a coordinator action constrained to its program workplace, an undecided submitted row with unusable current reviewer, and a different eligible real reviewer. Existing language has pre-write conditional field locks, protected normal writes, automatic audit, typed copy snapshots and immutable child evidence; no bypass primitive will be added. Preserve applicant, requested exact currency amount, keyed questions and answers, snapshotted terms/criteria, receipt time and external proof/override. Recovery must not admit new content late, change historical decisions, reserve funds, or claim a payment. Both alternatives below freeze program terms/criteria, enforce current real reviewer role prospectively, record coordinator/time/nonblank recovery reason atomically, retain applicant/coordinator/current-assignee privacy, and use regular version/replay admission. A repeated recovery without new reviewer loss is rejected. This repository remains a draft without compiler/runtime execution.",
+    "questions": {
+      "recovery": {
+        "type": "choice",
+        "instructions": "Select the design with clearest ordinary-source implementation while honoring every shared recovery outcome.",
+        "criteria": {
+          "assignment": "A submitted Application stays the same record. A new immutable Recovery row captures old reviewer, new reviewer, nonempty explanation, coordinator and server time. Lock reviewer in non-draft pre-state while the assignee has current reviewer role and workplace access; while that test fails only the scoped recovery scenario can change the field, with a valid different replacement. Other intake locks and decision locks remain fixed. This avoids copied submissions and budget query changes at the expense of dynamic field locking and a historical assignment child.",
+          "revision": "A replacement submitted Application points to the old unavailable submission through correction. It duplicates the frozen snapshot/intake/receipt verbatim and stores the new reviewer plus immutable coordinator recovery evidence. The old Application becomes superseded in the same transaction without unlocking its assignee or changing decision facts. This adds revision records and correction/recovery race guards, but keeps assignee locks independent of changing permissions."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "recovery": {
+        "type": "choice",
+        "choice": "assignment",
+        "confidence": 0.48,
+        "probabilities": {
+          "revision": 0.26,
+          "assignment": 0.74
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 744,
+      "output_tokens": 33
+    }
+  }
+}
