@@ -399,7 +399,7 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     interfaces 199/199, identity 38/38. Delta re-review APPROVED
     (F1 docs decision accepted, all switches/pins verified);
     merged with lane-06 + workspace CI green, no rebase needed.
-- S7 (in progress): branch `muse/lane-06-identity-interfaces/ingress-trust`
+- S7 (MERGED 2026-10-04 as 2cbd471, PR #51): branch `muse/lane-06-identity-interfaces/ingress-trust`
   from origin/main (3819b23). Scope: provider-ingress auth framework
   (POST /ingress/{namespace}, L4 `IngressVerifier` port, delegated
   mapping with actor=null, `IngressSink` port) + OAuth authorization
@@ -427,7 +427,8 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     T-gaps pinned (401 challenge headers, content-type edges,
     empty-team, register boundaries, removal-then-exchange,
     oversized GET state, encoded namespace, method normalization).
-    After notes: interfaces 237/237.
+    After notes: interfaces 237/237. Merged with lane-06 + workspace
+    CI green, no rebase needed (review already APPROVE-WITH-NOTES).
 
 ## Remaining work and cleanup
 
