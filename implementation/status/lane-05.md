@@ -250,6 +250,10 @@ permitted. No bypass flags. Next slice branches from fresh origin/main in this s
   @canlang/contracts when available. Recorded 2026-10-04; L7 not yet launched.
 - To L1 (needs ack, B0/B1): presentation.ts proposes descriptor/admit/render/message/catalog shapes. L1 emission
   must produce them; catalog envelope/version join per CONTRACTS. Recorded 2026-10-04; L1 not yet launched.
+- To L1 (HO-05, C2a): 68-word catalog PR #42 (v0.7.0) shipped; L1 ACKED 2026-10-04 — envelope aligns with IR-01
+  modulo per-kind extras; L1 PR4 consumer accepts common-base + per-kind extras, returns missing-fields list
+  (candidates: attribute value types/co-occurrence, slot content schemas, header payload types); L5-entry
+  checking in L1 PR5/emission. L5 action: answer missing-fields list when it lands (C2b/C3).
 - To L2/L3/L4/L6: seams + fixture shapes defined in S1/S4; exact producer types adopted on arrival, fixtures
   retired per slice. None launched yet; no lane blocked since fixtures are test-only and explicit.
 
@@ -362,12 +366,10 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
       bottom-right user menu (dropdown-top dropdown-end), user config dialog audit (panel region label,
       focusable toggles), canonical login screen (LoginProps v0.6.0, next sanitization, CSRF). Worker:
       shell.ts + shell.test.ts (53 shell tests). Suite 355/355 green.
-- [ ] C2 full catalog contract, in two PRs: (a) branch muse/lane-05-ui/c2a-catalog, in progress —
-      profile/header/slot/attribute contract v0.7.0 + all 68 word entries + JSON witness test (362/362);
-      (b) appearance-token matrix substantiated against pinned daisyUI 5.7.47 CSS + L1 handoff. typed Props
-      per family land with their C3–C8 renderers; signatures in C2a are forward declarations. C2a review nit:
-      hero/footer/navbar marked slotted-group though design allows compact/bare alternates — consider an
-      alternates field in C2b.
+- [x] C2 full catalog contract, in two PRs: (a) merged #42 (v0.7.0, 362/362); L1 ACKED (HO-05).
+      (b) branch muse/lane-05-ui/c2b-appearance, PR pending — appearance-token matrix on 44/68 words,
+      substantiated against pinned daisyUI 5.7.47 CSS (9 tests), alternates on hero/footer/navbar,
+      contract v0.8.0. Suite 371/371 green. Props per family land with C3–C8 renderers.
 - [ ] C3 readable leaves + mockups: avatar, badge, status, kbd, mockup_code, countdown, progress,
       radial_progress, divider, loading, skeleton, link, breadcrumbs, text_rotate. Two workers by file split.
 - [ ] C4 field controls + form integration: input, textarea, checkbox, toggle, radio, select, range, rating,
