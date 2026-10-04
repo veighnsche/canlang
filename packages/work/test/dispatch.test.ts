@@ -20,6 +20,7 @@ function staged(state: OutboxItem['state'] = 'pending'): AnyOutboxIntent {
     source: 'Mail.send',
     occurrenceIndex: 0,
     request: { to: 'a@test' },
+    originOccurrence: null,
   });
   return { item: { ...intent.item, state }, commit: null };
 }
@@ -99,17 +100,12 @@ describe('dispatch: atomic check order', () => {
 
   it('checks the guard before claiming', () => {
     const deps = harness(() => true);
-    const intent = committed('claimed');
+    const intent = committed('pending');
     const outcome = attemptDispatch(deps, {
       intent,
       guard: { predicate: 'p' },
       frozenInputs: { a: 1 },
       stateSnapshot: { b: 2 },
-    });
-    assert.deepEqual(outcome, {
-      status: 'refused-state',
-      outboxId: intent.item.id,
-      state: 'claimed',
     });
     assert.equal(deps.guardCalls.length, 1);
     assert.deepEqual(deps.guardCalls[0], {
@@ -117,6 +113,7 @@ describe('dispatch: atomic check order', () => {
       inputs: { a: 1 },
       snapshot: { b: 2 },
     });
+    assert.equal(outcome.status, 'claimed');
   });
 });
 
@@ -198,14 +195,19 @@ describe('dispatch: claim issuance', () => {
 
   it('refuses settled items without claiming', () => {
     for (const state of ['delivered', 'failed', 'uncertain', 'dead'] as const) {
-      const deps = harness(() => true);
+      let evaluations = 0;
+      const deps = harness(() => {
+        evaluations += 1;
+        return false;
+      });
       const intent = committed(state);
       const outcome = attemptDispatch(deps, {
         intent,
-        guard: { predicate: null },
+        guard: { predicate: 'never-evaluated' },
         frozenInputs: {},
         stateSnapshot: {},
       });
+      assert.equal(evaluations, 0);
       assert.deepEqual(outcome, {
         status: 'refused-state',
         outboxId: intent.item.id,

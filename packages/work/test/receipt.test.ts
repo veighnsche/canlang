@@ -23,6 +23,7 @@ function liveItem(overrides: Partial<OutboxItem> = {}): OutboxItem {
     source: 'Mail.send',
     occurrenceIndex: 0,
     request: {},
+    originOccurrence: null,
     attempts: 0,
     state: 'pending',
     ...overrides,

@@ -197,6 +197,11 @@ export interface ReleaseStaleResult {
  * Release claimed items whose recorded claim is stale back to `pending` so
  * recovery can re-drive them. Items without a recorded claim stay claimed
  * (a live dispatcher may hold them); non-claimed items are untouched.
+ *
+ * Precondition (ports.ts claim-expiry rule): callers must exclude items with
+ * a completion or reconcile record first, and the real release re-verifies
+ * staleness plus that exclusion in one fenced batch. This helper checks
+ * claim age only.
  */
 export function releaseStaleClaims(
   outboxItems: readonly OutboxItem[],

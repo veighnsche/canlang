@@ -16,40 +16,43 @@
  *   intents: their ids are marked in the supersession registry (which dispatch
  *   checks first) and returned to the caller.
  *
- * Identity note: `ScheduledOccurrence` carries no occurrence id in contracts,
- * so the occurrence identity is the qualified schedule key
- * (`formatScheduleId`). Delivery intents join to their occurrence by exact
- * `source === event` match — the only linkage the contracts provide.
+ * Identity note: every stored record carries a runtime-minted `occurrenceId`
+ * (a replacement mints a new one; the superseded record keeps its own).
+ * Delivery intents join to their occurrence by exact `originOccurrence`
+ * match — never by event path, so same-event keys stay isolated and
+ * capability-sourced sends join correctly.
  */
 import type {
+  OccurrenceId,
   OutboxId,
   OutboxItem,
   ScheduledOccurrence,
   WorkScope,
 } from '../../../contracts/src/work.js';
-import type { OutboxStorePort, ScheduleStorePort, SupersessionPort } from '../ports.ts';
+import type {
+  OccurrenceIdPort,
+  OutboxStorePort,
+  ScheduleStorePort,
+  SupersessionPort,
+} from '../ports.ts';
 
 export interface ScheduleDeps {
   schedules: ScheduleStorePort;
   outbox: OutboxStorePort;
   supersessions: SupersessionPort;
+  ids: OccurrenceIdPort;
 }
 
-/**
- * Canonical identity of one keyed occurrence: app, owner, owning package and
- * key. Stable across releases.
- */
-export function formatScheduleId(scope: WorkScope, key: string): string {
-  return `${scope.app}|${scope.owner}|${scope.ownerPackage}|${key}`;
-}
+/** Caller-supplied fields for a new pending entry; the id is minted at put. */
+export type NewScheduledOccurrence = Omit<ScheduledOccurrence, 'occurrenceId'>;
 
 export interface PutScheduleResult {
-  /** The newly stored pending entry. */
+  /** The newly stored pending entry, with its minted occurrence id. */
   admitted: ScheduledOccurrence;
   /** Previous pending entry now marked superseded, if any. */
   superseded: ScheduledOccurrence | null;
-  /** Qualified id of the superseded occurrence, if any. */
-  supersededId: string | null;
+  /** Occurrence id of the superseded record, if any. */
+  supersededId: OccurrenceId | null;
   /** Undispatched delivery intents now superseded, in stable id order. */
   affectedOutboxIds: OutboxId[];
 }
@@ -61,7 +64,7 @@ export interface CancelScheduleResult {
   affectedOutboxIds: OutboxId[];
 }
 
-function assertPendingEntry(entry: ScheduledOccurrence): void {
+function assertPendingEntry(entry: NewScheduledOccurrence): void {
   if (typeof entry.key !== 'string' || entry.key.length === 0) {
     throw new RangeError('schedule: entry.key must be a non-empty string');
   }
@@ -77,43 +80,52 @@ function assertPendingEntry(entry: ScheduledOccurrence): void {
 }
 
 /**
- * Undispatched delivery intents for one occurrence: outbox items declared by
- * its event source that are still `pending`. Anything claimed, uncertain or
- * settled is provider-accepted or finished work and is never touched.
+ * Undispatched delivery intents for one occurrence: outbox items stamped
+ * with its occurrence id that are still `pending`. Anything claimed,
+ * uncertain or settled is provider-accepted or finished work and is never
+ * touched. Intents of other occurrences — even under the same event path —
+ * never match.
  */
 export function collectUndispatchedIntents(
   outbox: OutboxStorePort,
-  source: string,
+  occurrenceId: OccurrenceId,
 ): OutboxItem[] {
   return outbox
-    .listBySource(source)
+    .listByOriginOccurrence(occurrenceId)
     .filter((item) => item.state === 'pending')
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-function supersedeIntents(deps: ScheduleDeps, source: string): OutboxId[] {
-  const undispatched = collectUndispatchedIntents(deps.outbox, source);
+function supersedeIntents(deps: ScheduleDeps, occurrenceId: OccurrenceId): OutboxId[] {
+  const undispatched = collectUndispatchedIntents(deps.outbox, occurrenceId);
   const ids = undispatched.map((item) => item.id);
   deps.supersessions.markSuperseded(ids);
   return ids;
 }
 
-function upsertKeyedSchedule(deps: ScheduleDeps, entry: ScheduledOccurrence): PutScheduleResult {
+function upsertKeyedSchedule(
+  deps: ScheduleDeps,
+  entry: NewScheduledOccurrence,
+): PutScheduleResult {
   assertPendingEntry(entry);
   const previous = deps.schedules.get(entry.scope, entry.key);
   let superseded: ScheduledOccurrence | null = null;
-  let supersededId: string | null = null;
+  let supersededId: OccurrenceId | null = null;
   let affectedOutboxIds: OutboxId[] = [];
   if (previous !== null && previous.state === 'pending') {
     superseded = { ...previous, state: 'superseded' };
     deps.schedules.put(superseded);
-    supersededId = formatScheduleId(previous.scope, previous.key);
-    affectedOutboxIds = supersedeIntents(deps, previous.event);
+    supersededId = previous.occurrenceId;
+    affectedOutboxIds = supersedeIntents(deps, previous.occurrenceId);
   }
   // A non-pending predecessor (admitted work in flight, or a terminal entry)
   // is not superseded: its in-flight work may complete while the key now
   // addresses the fresh pending entry.
-  const admitted: ScheduledOccurrence = { ...entry, state: 'pending' };
+  const admitted: ScheduledOccurrence = {
+    ...entry,
+    state: 'pending',
+    occurrenceId: deps.ids.nextOccurrenceId(),
+  };
   deps.schedules.put(admitted);
   return { admitted, superseded, supersededId, affectedOutboxIds };
 }
@@ -123,7 +135,10 @@ function upsertKeyedSchedule(deps: ScheduleDeps, entry: ScheduledOccurrence): Pu
  * pending occurrence this is a replace: the previous occurrence is superseded
  * and its id returned with the affected delivery intents.
  */
-export function putSchedule(deps: ScheduleDeps, entry: ScheduledOccurrence): PutScheduleResult {
+export function putSchedule(
+  deps: ScheduleDeps,
+  entry: NewScheduledOccurrence,
+): PutScheduleResult {
   return upsertKeyedSchedule(deps, entry);
 }
 
@@ -134,7 +149,7 @@ export function putSchedule(deps: ScheduleDeps, entry: ScheduledOccurrence): Put
  */
 export function replaceSchedule(
   deps: ScheduleDeps,
-  entry: ScheduledOccurrence,
+  entry: NewScheduledOccurrence,
 ): PutScheduleResult {
   return upsertKeyedSchedule(deps, entry);
 }
@@ -162,6 +177,6 @@ export function cancelSchedule(
   }
   const cancelled: ScheduledOccurrence = { ...previous, state: 'cancelled' };
   deps.schedules.put(cancelled);
-  const affectedOutboxIds = supersedeIntents(deps, previous.event);
+  const affectedOutboxIds = supersedeIntents(deps, previous.occurrenceId);
   return { cancelled, affectedOutboxIds };
 }

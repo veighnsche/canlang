@@ -27,6 +27,7 @@ function outboxItem(id: string, state: OutboxItem['state']): OutboxItem {
     source: 'Mail.send',
     occurrenceIndex: 0,
     request: {},
+    originOccurrence: null,
     attempts: 0,
     state,
   };
@@ -34,6 +35,7 @@ function outboxItem(id: string, state: OutboxItem['state']): OutboxItem {
 
 function dueOccurrence(key: string): ScheduledOccurrence {
   return {
+    occurrenceId: `occ_${key}`,
     key,
     scope,
     at: 1_791_120_000_000,

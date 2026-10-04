@@ -67,6 +67,7 @@ describe('intent: commit gate', () => {
       source: 'Mail.send',
       occurrenceIndex: 0,
       request: { to: 'a@test' },
+      originOccurrence: null,
     });
     assert.equal(staged.commit, null);
     assert.equal(staged.item.attempts, 0);
@@ -82,6 +83,7 @@ describe('intent: commit gate', () => {
       source: 'Mail.send',
       occurrenceIndex: 0,
       request: {},
+      originOccurrence: null,
     });
     assert.throws(() => requireCommitted(staged), /not committed; dispatch refused/);
     const committed = commitOutboxIntent(staged, { revision: 7, committedAtMs: 1000 });
@@ -96,6 +98,7 @@ describe('intent: commit gate', () => {
       source: 'Mail.send',
       occurrenceIndex: 0,
       request: {},
+      originOccurrence: null,
     });
     assert.throws(() => commitOutboxIntent(staged, { revision: 0, committedAtMs: 1 }), RangeError);
     assert.throws(() => commitOutboxIntent(staged, { revision: 1, committedAtMs: -1 }), RangeError);

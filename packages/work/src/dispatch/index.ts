@@ -1,9 +1,10 @@
 /**
  * Dispatch: atomic-order guard evaluation and claim issuance.
  *
- * Dispatch checks, in order: commit marker -> supersession -> guard -> claim
- * (DESIGN section 6). A missing commit marker refuses without sending; a
- * superseded intent refuses before the guard runs; a false guard yields
+ * Dispatch checks, in order: commit marker -> supersession -> pending state
+ * -> guard -> claim (DESIGN section 6). A missing commit marker refuses
+ * without sending; a superseded intent refuses before the guard runs; a
+ * settled item refuses before guard evaluation; a false guard yields
  * `skipped` with its verdict; otherwise a pending item receives a claim
  * carrying an injected claim id and timestamp.
  *
@@ -62,7 +63,10 @@ export type DispatchOutcome =
   | { status: 'superseded'; outboxId: OutboxId }
   /** Guard evaluated false. */
   | { status: 'skipped'; verdict: GuardVerdict }
-  /** Guard passed (or unconditional) but the item is no longer pending. */
+  /**
+   * Settled item refused before guard evaluation: settled items never
+   *   produce guard verdicts, since `skipped` means undispatched work.
+   */
   | { status: 'refused-state'; outboxId: OutboxId; state: OutboxItemState }
   /** Claim issued for one provider-call attempt. */
   | { status: 'claimed'; claim: DispatchClaim };
@@ -80,15 +84,15 @@ export function attemptDispatch(deps: DispatchDeps, attempt: DispatchAttempt): D
   if (deps.supersessions.isSuperseded(item.id)) {
     return { status: 'superseded', outboxId: item.id };
   }
+  if (item.state !== 'pending') {
+    return { status: 'refused-state', outboxId: item.id, state: item.state };
+  }
   const predicate = attempt.guard.predicate;
   if (predicate !== null) {
     const result = deps.evaluateGuard(predicate, attempt.frozenInputs, attempt.stateSnapshot);
     if (result !== true) {
       return { status: 'skipped', verdict: { outboxId: item.id, result: false } };
     }
-  }
-  if (item.state !== 'pending') {
-    return { status: 'refused-state', outboxId: item.id, state: item.state };
   }
   return {
     status: 'claimed',
