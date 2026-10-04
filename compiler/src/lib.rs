@@ -6,6 +6,7 @@
 
 pub mod diagnostic;
 pub mod source;
+pub mod syntax;
 
 /// Language version analyzed and emitted, e.g. `1.0`.
 pub const LANGUAGE_VERSION: &str = "1.0";
