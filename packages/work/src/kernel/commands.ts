@@ -1,0 +1,740 @@
+/**
+ * Lane-04-owned system commands (S9b-2): occurrence/dispatch lifecycle
+ * transitions as fenced `SystemCommandDef` stages.
+ *
+ * The registry (`createSystemRegistry`) and commit engine stay L3-owned;
+ * this module only authors the lane-04 command array for assembly
+ * composition (`[...l3Commands, ...WORK_SYSTEM_COMMANDS]`). Every stage
+ * is type-conformant to the landed L3 S6 `SystemCommandDef` (verified by
+ * `tsc`, type-only import — no runtime dependency on `@canlang/state`).
+ *
+ * Fence-correctness rules honored here:
+ * - Readers-only contexts: stages use `load`/`query` and return staged
+ *   writes; no raw store access exists to abuse.
+ * - Conditional updates: every mutation stages `update` with
+ *   `expectedVersion` read in-stage, so concurrent claimants serialize
+ *   and exactly one wins.
+ * - Query results are re-filtered exactly in-stage; predicates only
+ *   narrow scans.
+ * - Stages throw `KernelTableError` (plain `Error`) on invalid input or
+ *   missing rows. Verified: the registry propagates stage errors raw
+ *   (it maps commit errors only), so no `StateError` import is needed
+ *   or used.
+ * - Refusals that are business outcomes (superseded, settled, fresh
+ *   claim held elsewhere, idempotent no-ops) return `result` payloads
+ *   with NO writes — never errors.
+ */
+import type {
+  DomainWrite,
+  ModelName,
+  OperationName,
+  RecordId,
+  ScheduleOp,
+  StoredRow,
+} from '../../../contracts/src/state.js';
+import type {
+  SystemCommandContext,
+  SystemCommandDef,
+} from '../../../state/src/ports/system.ts';
+import type {
+  ClaimId,
+  OccurrenceId,
+  OutboxId,
+  OutboxItemState,
+  WorkScope,
+} from '../../../contracts/src/work.js';
+import {
+  KernelTableError,
+  WORK_DISPATCH_MODEL,
+  WORK_EVERY_SLOT_MODEL,
+  WORK_OCCURRENCE_MODEL,
+  WORK_SCHEDULE_MODEL,
+  WORK_SUPERSESSION_MODEL,
+  dispatchByOriginQuery,
+  newEverySlotRow,
+  newOccurrenceRow,
+  newScheduleRow,
+  newSupersessionRow,
+  readDispatchRow,
+  readEverySlotRow,
+  readOccurrenceRow,
+  readScheduleRow,
+  scheduleByKeyQuery,
+  withRowData,
+} from './tables.ts';
+import type {
+  DispatchRowData,
+  EverySlotRowData,
+  ScheduleRowData,
+} from './tables.ts';
+import { isClaimStale } from '../recovery/index.ts';
+import {
+  RootRecurrenceNotSupportedError,
+  everyScopeKey,
+} from '../schedule/every.ts';
+import type { RecurringScope } from '../../../contracts/src/work.js';
+
+type StageContext = Pick<SystemCommandContext, 'actor' | 'now' | 'load' | 'query'>;
+
+function checkArgs(args: Readonly<Record<string, unknown>>, what: string): void {
+  if (typeof args !== 'object' || args === null || Array.isArray(args)) {
+    throw new KernelTableError(`${what}: args must be an object.`);
+  }
+}
+
+function argString(
+  args: Readonly<Record<string, unknown>>,
+  field: string,
+  what: string,
+): string {
+  const value = args[field];
+  if (typeof value !== 'string' || value === '') {
+    throw new KernelTableError(`${what}: ${field} must be a non-empty string.`);
+  }
+  return value;
+}
+
+function argNullableString(
+  args: Readonly<Record<string, unknown>>,
+  field: string,
+  what: string,
+): string | null {
+  const value = args[field];
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'string') {
+    throw new KernelTableError(`${what}: ${field} must be a string or null.`);
+  }
+  return value;
+}
+
+function argInstant(
+  args: Readonly<Record<string, unknown>>,
+  field: string,
+  what: string,
+): number {
+  const value = args[field];
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new KernelTableError(`${what}: ${field} must be finite epoch ms >= 0.`);
+  }
+  return value;
+}
+
+function argBoolean(
+  args: Readonly<Record<string, unknown>>,
+  field: string,
+  what: string,
+): boolean {
+  const value = args[field];
+  if (typeof value !== 'boolean') {
+    throw new KernelTableError(`${what}: ${field} must be a boolean.`);
+  }
+  return value;
+}
+
+function argRecord(
+  args: Readonly<Record<string, unknown>>,
+  field: string,
+  what: string,
+): Record<string, unknown> {
+  const value = args[field];
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new KernelTableError(`${what}: ${field} must be an object.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+async function loadDispatchRow(
+  ctx: StageContext,
+  intentId: string,
+  what: string,
+): Promise<{ row: StoredRow; data: DispatchRowData }> {
+  const row = await ctx.load(WORK_DISPATCH_MODEL, intentId as RecordId);
+  if (row === null) {
+    throw new KernelTableError(
+      `${what}: no dispatch row for ${JSON.stringify(intentId)} (producer write missing).`,
+    );
+  }
+  return { row, data: readDispatchRow(row) };
+}
+
+function updateWrite(
+  row: StoredRow,
+  data: Readonly<Record<string, unknown>>,
+  ctx: StageContext,
+  model: ModelName,
+  what: string,
+): DomainWrite {
+  return {
+    kind: 'update',
+    model,
+    id: row.id,
+    expectedVersion: row.version,
+    row: withRowData(row, data, { nowMs: ctx.now, actor: ctx.actor }, what),
+  };
+}
+
+/**
+ * `work.dispatch.claim {intentId, claimId, claimedAtMs, maxClaimAgeMs}`:
+ * conditional claim issuance. Mirrors `attemptDispatch` ordering
+ * (supersession -> settled -> guard pin -> claim) with `expectedVersion`
+ * fencing so concurrent claimants serialize and exactly one wins.
+ */
+export const workDispatchClaimCommand: SystemCommandDef = {
+  name: 'work.dispatch.claim',
+  stage: async (args, ctx) => {
+    const what = 'work.dispatch.claim';
+    checkArgs(args, what);
+    const intentId = argString(args, 'intentId', what);
+    const claimId = argString(args, 'claimId', what) as ClaimId;
+    const claimedAtMs = argInstant(args, 'claimedAtMs', what);
+    const maxClaimAgeMs = argInstant(args, 'maxClaimAgeMs', what);
+    const { row, data } = await loadDispatchRow(ctx, intentId, what);
+    const superseded = await ctx.load(
+      WORK_SUPERSESSION_MODEL,
+      intentId as RecordId,
+    );
+    if (superseded !== null) {
+      return { result: { claimed: false, reason: 'superseded', intentId } };
+    }
+    if (data.guardVerdict === false) {
+      return { result: { claimed: false, reason: 'guard-false', intentId } };
+    }
+    if (data.state === 'pending') {
+      const writes = [
+        updateWrite(
+          row,
+          { ...data, state: 'claimed', claimId, claimedAtMs },
+          ctx,
+          WORK_DISPATCH_MODEL,
+          what,
+        ),
+      ];
+      return { writes, result: { claimed: true, intentId, claimId } };
+    }
+    if (
+      data.state === 'claimed' &&
+      data.claimId !== null &&
+      data.claimedAtMs !== null &&
+      isClaimStale(
+        { outboxId: intentId as OutboxId, claimId: data.claimId, claimedAt: data.claimedAtMs },
+        ctx.now,
+        maxClaimAgeMs,
+      )
+    ) {
+      const writes = [
+        updateWrite(
+          row,
+          { ...data, claimId, claimedAtMs },
+          ctx,
+          WORK_DISPATCH_MODEL,
+          what,
+        ),
+      ];
+      return { writes, result: { claimed: true, reclaimed: true, intentId, claimId } };
+    }
+    if (data.state === 'claimed') {
+      return {
+        result: {
+          claimed: false,
+          reason: 'claimed',
+          intentId,
+          claimId: data.claimId,
+        },
+      };
+    }
+    return {
+      result: { claimed: false, reason: 'settled', intentId, state: data.state },
+    };
+  },
+};
+
+const TERMINAL_ATTEMPT_STATES: ReadonlySet<string> = new Set([
+  'delivered',
+  'failed',
+  'uncertain',
+  'dead',
+]);
+
+/**
+ * `work.dispatch.record-attempt {intentId, claimId, outcome, ack}`: record
+ * one completed provider attempt (or a guard-false skip) under the holding
+ * claim. Attempts increment only for provider attempts, never for skips.
+ * `ack` marks the L3 intent dispatched when no further attempts follow.
+ */
+export const workDispatchRecordAttemptCommand: SystemCommandDef = {
+  name: 'work.dispatch.record-attempt',
+  stage: async (args, ctx) => {
+    const what = 'work.dispatch.record-attempt';
+    checkArgs(args, what);
+    const intentId = argString(args, 'intentId', what);
+    const claimId = argString(args, 'claimId', what);
+    const outcome = argRecord(args, 'outcome', what);
+    const ack = argBoolean(args, 'ack', what);
+    const { row, data } = await loadDispatchRow(ctx, intentId, what);
+    if (data.state !== 'claimed' || data.claimId !== claimId) {
+      throw new KernelTableError(
+        `${what}: claim ${JSON.stringify(claimId)} does not hold ${JSON.stringify(intentId)}.`,
+      );
+    }
+    const stateValue = outcome['state'];
+    if (typeof stateValue !== 'string') {
+      throw new KernelTableError(`${what}: outcome.state must be a string.`);
+    }
+    const guardVerdict = outcome['guardVerdict'];
+    if (guardVerdict !== undefined && typeof guardVerdict !== 'boolean') {
+      throw new KernelTableError(`${what}: outcome.guardVerdict must be a boolean.`);
+    }
+    // No interface annotation: the inferred object-literal type stays
+    // assignable to the staged record shape.
+    let next: { state: string; attempts: number } & Record<string, unknown>;
+    if (stateValue === 'pending') {
+      // Guard-false skip: the row stays pending but pins undispatched.
+      if (guardVerdict !== false) {
+        throw new KernelTableError(
+          `${what}: pending outcomes require guardVerdict false.`,
+        );
+      }
+      next = {
+        ...data,
+        state: 'pending',
+        guardVerdict: false,
+        claimId: null,
+        claimedAtMs: null,
+      };
+    } else {
+      if (!TERMINAL_ATTEMPT_STATES.has(stateValue)) {
+        throw new KernelTableError(
+          `${what}: outcome.state must be pending, delivered, failed, uncertain or dead.`,
+        );
+      }
+      next = {
+        ...data,
+        state: stateValue as OutboxItemState,
+        attempts: data.attempts + 1,
+        claimId: null,
+        claimedAtMs: null,
+        ...(guardVerdict !== undefined ? { guardVerdict } : {}),
+        deliveryId: argNullableString(outcome, 'deliveryId', what),
+        errorCode: argNullableString(outcome, 'errorCode', what),
+        errorMessage: argNullableString(outcome, 'errorMessage', what),
+        availableAtMs:
+          outcome['availableAtMs'] === undefined || outcome['availableAtMs'] === null
+            ? null
+            : argInstant(outcome, 'availableAtMs', what),
+      };
+    }
+    return {
+      writes: [updateWrite(row, next, ctx, WORK_DISPATCH_MODEL, what)],
+      ...(ack ? { outboxAck: [intentId] } : {}),
+      result: { recorded: true, intentId, state: next.state, attempts: next.attempts },
+    };
+  },
+};
+
+/**
+ * `work.dispatch.release {intentId, maxClaimAgeMs}`: release a stale
+ * claim back to pending. Applies the exact `isClaimStale` boundary;
+ * rows without a recorded claim stay claimed (a live dispatcher may
+ * hold them) and non-claimed rows are untouched.
+ */
+export const workDispatchReleaseCommand: SystemCommandDef = {
+  name: 'work.dispatch.release',
+  stage: async (args, ctx) => {
+    const what = 'work.dispatch.release';
+    checkArgs(args, what);
+    const intentId = argString(args, 'intentId', what);
+    const maxClaimAgeMs = argInstant(args, 'maxClaimAgeMs', what);
+    const { row, data } = await loadDispatchRow(ctx, intentId, what);
+    if (
+      data.state === 'claimed' &&
+      data.claimId !== null &&
+      data.claimedAtMs !== null &&
+      isClaimStale(
+        {
+          outboxId: intentId as OutboxId,
+          claimId: data.claimId,
+          claimedAt: data.claimedAtMs,
+        },
+        ctx.now,
+        maxClaimAgeMs,
+      )
+    ) {
+      return {
+        writes: [
+          updateWrite(
+            row,
+            { ...data, state: 'pending', claimId: null, claimedAtMs: null },
+            ctx,
+            WORK_DISPATCH_MODEL,
+            what,
+          ),
+        ],
+        result: { released: true, intentId },
+      };
+    }
+    return {
+      result: {
+        released: false,
+        intentId,
+        reason: data.state === 'claimed' ? 'claim-fresh' : 'not-claimed',
+      },
+    };
+  },
+};
+
+/**
+ * Insert supersession marks for undispatched intents of one origin,
+ * skipping already-marked ids (idempotent). Mirrors
+ * `collectUndispatchedIntents`: pending rows only, exact origin match.
+ */
+async function markOriginSuperseded(
+  ctx: StageContext,
+  originOccurrence: string,
+  byOccurrenceId: OccurrenceId | null,
+  what: string,
+): Promise<{ writes: DomainWrite[]; superseded: OutboxId[] }> {
+  const rows = await ctx.query(dispatchByOriginQuery(originOccurrence as OccurrenceId));
+  const writes: DomainWrite[] = [];
+  const superseded: OutboxId[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const data = readDispatchRow(row);
+    // Exact re-filter: origin match, pending state, first sighting.
+    if (data.originOccurrence !== originOccurrence || data.state !== 'pending') {
+      continue;
+    }
+    if (seen.has(data.intentId)) continue;
+    seen.add(data.intentId);
+    const existing = await ctx.load(WORK_SUPERSESSION_MODEL, data.intentId as RecordId);
+    if (existing !== null) continue;
+    writes.push({
+      kind: 'insert',
+      model: WORK_SUPERSESSION_MODEL,
+      row: newSupersessionRow(
+        {
+          outboxId: data.intentId,
+          byOccurrenceId,
+          markedAtMs: ctx.now,
+        },
+        { nowMs: ctx.now, actor: ctx.actor },
+      ),
+    });
+    superseded.push(data.intentId);
+  }
+  superseded.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  return { writes, superseded };
+}
+
+/**
+ * `work.dispatch.supersede {originOccurrence, byOccurrenceId?}`: mark
+ * every still-pending intent stamped with one origin occurrence.
+ * Claimed, uncertain or settled rows are never touched.
+ */
+export const workDispatchSupersedeCommand: SystemCommandDef = {
+  name: 'work.dispatch.supersede',
+  stage: async (args, ctx) => {
+    const what = 'work.dispatch.supersede';
+    checkArgs(args, what);
+    const originOccurrence = argString(args, 'originOccurrence', what);
+    const byOccurrenceId = argNullableString(args, 'byOccurrenceId', what);
+    const { writes, superseded } = await markOriginSuperseded(
+      ctx,
+      originOccurrence,
+      byOccurrenceId as OccurrenceId | null,
+      what,
+    );
+    return { writes, result: { superseded } };
+  },
+};
+
+/**
+ * `work.occurrence.put-receipt {occurrenceId, status, result?, code?,
+ * message?, recordedAtMs?}`: put-if-absent receipt recording. Losers
+ * replay the winner's receipt and never re-execute.
+ */
+export const workOccurrencePutReceiptCommand: SystemCommandDef = {
+  name: 'work.occurrence.put-receipt',
+  stage: async (args, ctx) => {
+    const what = 'work.occurrence.put-receipt';
+    checkArgs(args, what);
+    const occurrenceId = argString(args, 'occurrenceId', what);
+    const status = args['status'];
+    if (status !== 'completed' && status !== 'failed') {
+      throw new KernelTableError(
+        `${what}: status must be completed or failed.`,
+      );
+    }
+    const existing = await ctx.load(
+      WORK_OCCURRENCE_MODEL,
+      occurrenceId as RecordId,
+    );
+    if (existing !== null) {
+      return {
+        result: { duplicate: true, receipt: readOccurrenceRow(existing) },
+      };
+    }
+    const recordedAtMs =
+      args['recordedAtMs'] === undefined ? ctx.now : argInstant(args, 'recordedAtMs', what);
+    const result = args['result'] ?? null;
+    const row = newOccurrenceRow(
+      {
+        occurrenceId: occurrenceId as OccurrenceId,
+        status,
+        result,
+        code: argNullableString(args, 'code', what),
+        message: argNullableString(args, 'message', what),
+        recordedAtMs,
+      },
+      { nowMs: ctx.now, actor: ctx.actor },
+    );
+    const writes: DomainWrite[] = [
+      { kind: 'insert', model: WORK_OCCURRENCE_MODEL, row },
+    ];
+    return { writes, result: { duplicate: false, occurrenceId } };
+  },
+};
+
+function argScope(
+  args: Readonly<Record<string, unknown>>,
+  what: string,
+): WorkScope {
+  const scope = argRecord(args, 'scope', what);
+  return {
+    app: argString(scope, 'app', `${what}.scope`),
+    owner: argString(scope, 'owner', `${what}.scope`),
+    ownerPackage: argString(scope, 'ownerPackage', `${what}.scope`),
+  };
+}
+
+/**
+ * Current keyed entry: exact scope+key re-filter over the query rows,
+ * newest occurrence wins ties (replacements mint fresh ids; at-equal
+ * rows cannot share one key within a scope).
+ */
+async function loadKeyedSchedule(
+  ctx: StageContext,
+  scope: WorkScope,
+  key: string,
+): Promise<{ row: StoredRow; data: ScheduleRowData } | null> {
+  const rows = await ctx.query(scheduleByKeyQuery(scope, key));
+  let current: { row: StoredRow; data: ScheduleRowData } | null = null;
+  for (const row of rows) {
+    const data = readScheduleRow(row);
+    if (
+      data.key !== key ||
+      data.scopeApp !== scope.app ||
+      data.scopeOwner !== scope.owner ||
+      data.scopeOwnerPackage !== scope.ownerPackage
+    ) {
+      continue;
+    }
+    if (current === null || data.occurrenceId > current.data.occurrenceId) {
+      current = { row, data };
+    }
+  }
+  return current;
+}
+
+/**
+ * `work.schedule.put {key, scope, at, event, payload, occurrenceId}`:
+ * insert-or-replace one keyed occurrence. Mirrors `putSchedule`: a
+ * pending predecessor is superseded with its undispatched intents;
+ * anything else stays to complete while the key moves on. Stages the
+ * lineage row AND the L3 `ScheduleOp` in one fenced batch.
+ */
+export const workSchedulePutCommand: SystemCommandDef = {
+  name: 'work.schedule.put',
+  stage: async (args, ctx) => {
+    const what = 'work.schedule.put';
+    checkArgs(args, what);
+    const key = argString(args, 'key', what);
+    const scope = argScope(args, what);
+    const at = argInstant(args, 'at', what);
+    const event = argString(args, 'event', what);
+    const payload = argRecord(args, 'payload', what);
+    const occurrenceId = argString(args, 'occurrenceId', what);
+    const previous = await loadKeyedSchedule(ctx, scope, key);
+    const writes: DomainWrite[] = [];
+    let supersededId: OccurrenceId | null = null;
+    let affectedOutboxIds: OutboxId[] = [];
+    if (previous !== null && previous.data.state === 'pending') {
+      writes.push(
+        updateWrite(
+          previous.row,
+          { ...previous.data, state: 'superseded' },
+          ctx,
+          WORK_SCHEDULE_MODEL,
+          what,
+        ),
+      );
+      supersededId = previous.data.occurrenceId;
+      const marked = await markOriginSuperseded(
+        ctx,
+        previous.data.occurrenceId,
+        occurrenceId as OccurrenceId,
+        what,
+      );
+      writes.push(...marked.writes);
+      affectedOutboxIds = marked.superseded;
+    }
+    writes.push({
+      kind: 'insert',
+      model: WORK_SCHEDULE_MODEL,
+      row: newScheduleRow(
+        {
+          occurrenceId: occurrenceId as OccurrenceId,
+          key,
+          scopeApp: scope.app,
+          scopeOwner: scope.owner,
+          scopeOwnerPackage: scope.ownerPackage,
+          at,
+          event,
+          payload,
+          state: 'pending',
+        },
+        { nowMs: ctx.now, actor: ctx.actor },
+      ),
+    });
+    // NOTE: the L3 op below carries the same key string; cross-scope key
+    // collisions are the open L3 scoping handoff, not silently resolved.
+    const replace: ScheduleOp = {
+      op: 'replace',
+      key,
+      at,
+      event: event as OperationName,
+      payload,
+    };
+    return {
+      writes,
+      schedules: [replace],
+      result: { admitted: occurrenceId, supersededId, affectedOutboxIds },
+    };
+  },
+};
+
+/**
+ * `work.schedule.cancel {key, scope}`: cancel the keyed occurrence.
+ * Mirrors `cancelSchedule`: pending/admitted entries cancel with their
+ * undispatched intents superseded; missing/terminal keys no-op.
+ */
+export const workScheduleCancelCommand: SystemCommandDef = {
+  name: 'work.schedule.cancel',
+  stage: async (args, ctx) => {
+    const what = 'work.schedule.cancel';
+    checkArgs(args, what);
+    const key = argString(args, 'key', what);
+    const scope = argScope(args, what);
+    const previous = await loadKeyedSchedule(ctx, scope, key);
+    if (
+      previous === null ||
+      previous.data.state === 'superseded' ||
+      previous.data.state === 'cancelled'
+    ) {
+      return {
+        result: {
+          cancelled: previous?.data.occurrenceId ?? null,
+          affectedOutboxIds: [],
+        },
+      };
+    }
+    const writes: DomainWrite[] = [
+      updateWrite(
+        previous.row,
+        { ...previous.data, state: 'cancelled' },
+        ctx,
+        WORK_SCHEDULE_MODEL,
+        what,
+      ),
+    ];
+    const marked = await markOriginSuperseded(
+      ctx,
+      previous.data.occurrenceId,
+      null,
+      what,
+    );
+    writes.push(...marked.writes);
+    const cancel: ScheduleOp = { op: 'cancel', key };
+    return {
+      writes,
+      schedules: [cancel],
+      result: {
+        cancelled: previous.data.occurrenceId,
+        affectedOutboxIds: marked.superseded,
+      },
+    };
+  },
+};
+
+/**
+ * `work.every.advance-slot {app, handler, scope, owner, slot}`:
+ * conditional slot advance for one fanout scope. Absent rows initialize
+ * (new scopes admit nothing until the next slot, per `admitEveryTick`);
+ * older slots advance; current-or-newer slots no-op. Root scopes throw
+ * exactly like admission.
+ */
+export const workEveryAdvanceSlotCommand: SystemCommandDef = {
+  name: 'work.every.advance-slot',
+  stage: async (args, ctx) => {
+    const what = 'work.every.advance-slot';
+    checkArgs(args, what);
+    const app = argString(args, 'app', what);
+    const handler = argString(args, 'handler', what);
+    const scopeValue = argString(args, 'scope', what);
+    if (scopeValue !== 'team' && scopeValue !== 'app') {
+      throw new RootRecurrenceNotSupportedError(scopeValue);
+    }
+    const scope = scopeValue as RecurringScope;
+    const owner = argString(args, 'owner', what);
+    const slotValue = args['slot'];
+    if (typeof slotValue !== 'number' || !Number.isInteger(slotValue) || slotValue < 0) {
+      throw new KernelTableError(`${what}: slot must be an integer >= 0.`);
+    }
+    const scopeKey = everyScopeKey(scope, owner);
+    const existing = await ctx.load(WORK_EVERY_SLOT_MODEL, scopeKey as RecordId);
+    if (existing === null) {
+      const writes: DomainWrite[] = [
+        {
+          kind: 'insert',
+          model: WORK_EVERY_SLOT_MODEL,
+          row: newEverySlotRow(
+            { scopeKey, app, handler, scope, owner, slot: slotValue },
+            { nowMs: ctx.now, actor: ctx.actor },
+          ),
+        },
+      ];
+      return { writes, result: { advanced: true, previous: null, slot: slotValue } };
+    }
+    const data: EverySlotRowData = readEverySlotRow(existing);
+    if (data.slot >= slotValue) {
+      return { result: { advanced: false, previous: data.slot, slot: slotValue } };
+    }
+    return {
+      writes: [
+        updateWrite(
+          existing,
+          { ...data, slot: slotValue },
+          ctx,
+          WORK_EVERY_SLOT_MODEL,
+          what,
+        ),
+      ],
+      result: { advanced: true, previous: data.slot, slot: slotValue },
+    };
+  },
+};
+
+/**
+ * Lane-04-owned system commands for assembly composition. Register
+ * alongside the L3 commands; names are dot-namespaced per the S6
+ * convention and unique across the composed registry.
+ */
+export const WORK_SYSTEM_COMMANDS: readonly SystemCommandDef[] = [
+  workDispatchClaimCommand,
+  workDispatchRecordAttemptCommand,
+  workDispatchReleaseCommand,
+  workDispatchSupersedeCommand,
+  workOccurrencePutReceiptCommand,
+  workSchedulePutCommand,
+  workScheduleCancelCommand,
+  workEveryAdvanceSlotCommand,
+];
