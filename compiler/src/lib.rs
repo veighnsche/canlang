@@ -9,6 +9,7 @@ pub mod analysis;
 pub mod cli;
 pub mod diagnostic;
 pub mod explain;
+pub mod format;
 pub mod json;
 pub mod lsp;
 pub mod source;
