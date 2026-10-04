@@ -53,7 +53,9 @@ test.describe("teamtasks journeys", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
     // 303 + Set-Cookie through the bridge, followed by the real browser.
     await expect(page.getByText("Team tasks").first()).toBeVisible();
-    await expect(page.getByText("Ship prototype")).toBeVisible();
+    // `.first()`: sibling spec files sharing this worker seed their own
+    // witness row into the same D1, so several may render.
+    await expect(page.getByText("Ship prototype").first()).toBeVisible();
   });
 
   test("seeded witness task exists in D1", async ({ assembly, dev }) => {
@@ -95,6 +97,7 @@ test.describe("teamtasks journeys", () => {
       body: new URLSearchParams({ title: CSRF_PROBE_TITLE }).toString(),
     });
     expect(response.status).toBe(403);
+    expect(await response.text()).toContain("bad CSRF token");
 
     const db = await dev.getD1Database(d1Binding(assembly));
     const { results } = await db
@@ -111,6 +114,7 @@ test.describe("teamtasks journeys", () => {
       body: new URLSearchParams({ title: ANON_PROBE_TITLE }).toString(),
     });
     expect(response.status).toBe(403);
+    expect(await response.text()).toContain("sign in first");
 
     const db = await dev.getD1Database(d1Binding(assembly));
     const { results } = await db
