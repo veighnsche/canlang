@@ -785,15 +785,12 @@ export function exampleFixtures({ self, other, imported }) {
       due: addDuration(c.now, 86400000n),
     }),
   };
-  const pending_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({"request": {"to": "reviewer@example.test", "subject": "Review", "body": "Plan"}, "status": "pending", "result": null, "error": null})};
-  const accepted_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({"request": {"to": "reviewer@example.test", "subject": "Review", "body": "Plan"}, "status": "succeeded", "result": {"reference": "accepted-mail"}, "error": null})};
-  const unknown_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({"request": {"to": "reviewer@example.test", "subject": "Review", "body": "Plan"}, "status": "unknown", "result": null, "error": null})};
-  const failed_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({"request": {"to": "reviewer@example.test", "subject": "Review", "body": "Plan"}, "status": "failed", "result": null, "error": {"code": "provider", "message": "Delivery rejected"}})};
-  const skipped_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({"request": {"to": "reviewer@example.test", "subject": "Review", "body": "Plan"}, "status": "skipped", "result": null, "error": null})};
-  const failed_decision_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({"request": {"to": "submitter@example.test", "subject": "Review", "body": "Approved with conditions"}, "status": "failed", "result": null, "error": {"code": "provider", "message": "Delivery rejected"}})};
+  const attempt={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({request:{to:"reviewer@example.test",subject:"Review",body:"Plan"}})};
+  const detached_delivery={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({request:{to:"reviewer@example.test",subject:"Review",body:"Plan"},status:"failed",error:{code:"provider",message:"Delivery rejected"}})};
+  const decision_attempt={dependencies:[],delivery:"approve.Mail.send",values:async(c,s)=>({request:{to:"submitter@example.test",subject:"Review",body:"Approved with conditions"}})};
   const pending_notice = {
     model: "approve.Notice",
-    dependencies: [pending_version, pending_delivery],
+    dependencies: [pending_version, attempt],
     value: async (c, s) => ({
       parent: s.pending_version,
       kind: "request",
@@ -801,7 +798,7 @@ export function exampleFixtures({ self, other, imported }) {
       recipient: "reviewer@example.test",
       subject: "Review",
       body: "Plan",
-      delivery: s.pending_delivery,
+      delivery: s.attempt,
     }),
   };
   const accepted = {
@@ -826,7 +823,7 @@ export function exampleFixtures({ self, other, imported }) {
     replacement,
     pending_version,
     accepted,
-    pending_notice, pending_delivery, accepted_delivery, unknown_delivery, failed_delivery, skipped_delivery, failed_decision_delivery,
+    pending_notice, attempt, detached_delivery, decision_attempt,
     reviewer_user, replacement_user, coordinator_user, ordinary_user, hr_user, reviewer_worker, replacement_worker, coordinator_worker, ordinary_worker,
     examples: [
       {
@@ -849,26 +846,26 @@ export function exampleFixtures({ self, other, imported }) {
         ],
       },
       {
-        operation:"approve.reviewer_choices",seed:[pending_notice,test_worker,failed_delivery],
-        dependencies:[document],inputs:async(c,s)=>({document:s.document}),selectors:["pending_notice.delivery"],
+        operation:"approve.reviewer_choices",seed:[pending_notice,test_worker,detached_delivery],
+        dependencies:[document],inputs:async(c,s)=>({document:s.document}),selectors:["pending_notice.delivery", "attempt.status", "attempt.result", "attempt.error"],
         observations:[async(c,s)=>(await delivery(c,{record:s.pending_notice,field:"delivery"},["status"]))?.status ?? null,async(c,s)=>s.pending_version.state],
         rows:[
-          {dependencies:[accepted_delivery],values:async(c,s)=>[s.accepted_delivery],expected:async(c,s)=>["succeeded", "pending"]},
-          {dependencies:[unknown_delivery],values:async(c,s)=>[s.unknown_delivery],expected:async(c,s)=>["unknown", "pending"]},
-          {dependencies:[skipped_delivery],values:async(c,s)=>[s.skipped_delivery],expected:async(c,s)=>["skipped", "pending"]},
-          {dependencies:[failed_delivery],values:async(c,s)=>[s.failed_delivery],expected:async(c,s)=>["failed", "pending"]},
-          {dependencies:[pending_delivery],values:async(c,s)=>[s.pending_delivery],expected:async(c,s)=>["pending", "pending"]},
-          {dependencies:[],values:async(c,s)=>[null],expected:async(c,s)=>[null, "pending"]},
+          {dependencies:[attempt],values:async(c,s)=>[s.attempt, "succeeded", {reference:"accepted-mail"}, null],expected:async(c,s)=>["succeeded", "pending"]},
+          {dependencies:[attempt],values:async(c,s)=>[s.attempt, "unknown", null, null],expected:async(c,s)=>["unknown", "pending"]},
+          {dependencies:[attempt],values:async(c,s)=>[s.attempt, "skipped", null, null],expected:async(c,s)=>["skipped", "pending"]},
+          {dependencies:[attempt],values:async(c,s)=>[s.attempt, "failed", null, {code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["failed", "pending"]},
+          {dependencies:[attempt],values:async(c,s)=>[s.attempt, "pending", null, null],expected:async(c,s)=>["pending", "pending"]},
+          {dependencies:[],values:async(c,s)=>[null, "pending", null, null],expected:async(c,s)=>[null, "pending"]}
         ],
       },
       {
-        operation:"approve.reviewer_choices",seed:[pending_notice,test_worker],dependencies:[document,reviewer_user],
+        operation:"approve.reviewer_choices",seed:[pending_notice,test_worker,decision_attempt],dependencies:[document,reviewer_user,decision_attempt],
         inputs:async(c,s)=>({document:s.document}),
-        selectors:["pending_notice.kind","pending_notice.recipient","pending_notice.body","pending_version.state","pending_version.reason","pending_version.decided_by","pending_version.decided_at","pending_notice.delivery"],
+        selectors:["pending_notice.kind", "pending_notice.recipient", "pending_notice.body", "pending_version.state", "pending_version.reason", "pending_version.decided_by", "pending_version.decided_at", "pending_notice.delivery", "decision_attempt.status", "decision_attempt.result", "decision_attempt.error"],
         observations:[async(c,s)=>(await delivery(c,{record:s.pending_notice,field:"delivery"},["status"]))?.status ?? null,async(c,s)=>s.pending_version.state,async(c,s)=>s.pending_version.file,async(c,s)=>s.pending_version.reason,async(c,s)=>s.pending_version.decided_by,async(c,s)=>s.pending_version.decided_at],
         rows:[
-          {dependencies:[failed_decision_delivery,original,reviewer_user],values:async(c,s)=>["decision", "submitter@example.test", "Approved with conditions", "approved", "Approved with conditions", s.reviewer_user, c.now, s.failed_decision_delivery],expected:async(c,s)=>["failed", "approved", s.original, "Approved with conditions", s.reviewer_user, c.now]},
-          {dependencies:[original,reviewer_user],values:async(c,s)=>["decision", "submitter@example.test", "Approved with conditions", "approved", "Approved with conditions", s.reviewer_user, c.now, null],expected:async(c,s)=>[null, "approved", s.original, "Approved with conditions", s.reviewer_user, c.now]},
+          {dependencies:[decision_attempt,original,reviewer_user],values:async(c,s)=>["decision", "submitter@example.test", "Approved with conditions", "approved", "Approved with conditions", s.reviewer_user, c.now, s.decision_attempt, "failed", null, {code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["failed", "approved", s.original, "Approved with conditions", s.reviewer_user, c.now]},
+          {dependencies:[original,reviewer_user],values:async(c,s)=>["decision", "submitter@example.test", "Approved with conditions", "approved", "Approved with conditions", s.reviewer_user, c.now, null, "pending", null, null],expected:async(c,s)=>[null, "approved", s.original, "Approved with conditions", s.reviewer_user, c.now]}
         ],
       },
       // Proposed causal sequences: no implicit call or trusted-handler invocation.
