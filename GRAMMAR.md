@@ -99,16 +99,19 @@ Header attributes have the following closed sets. Fixed syntax before the attrib
 | scenario examples | `examples` | tables: named input bindings `NAME=expr`, `seed=expr`; sequences: only optional `seed=expr`; seed resolves to a fixture list |
 | CRUD examples | `examples (create or update or delete)` | named input bindings `NAME=expr`, `seed=expr`; seed must resolve to a fixture list |
 | page | `page route` | `title=expr` **required**, `data=expr`, `order=expr`, `group=expr`, `nav=NAME`, `poll=expr`, `refresh=path`; refresh names a canonical user mutation and requires poll; nav supports only none, order is a constant integer, poll is a constant duration from 1s through 1h; title/group must be static text or a context-free message value, data a pure read call |
-| card | `card expr` | `layout=NAME`; supported values are stack/columns |
+| card | `card [expr]` | `layout=NAME`; supported values are stack/columns; approved catalog profile permits an omitted heading |
 | details | `details expr` | `display=NAME`, `open=expr`; drawer is the sole display exception, open applies only to Collapse |
 | tabs | `tabs [expr]` | none; leaf requires an enum preference selector, otherwise tab suites required |
 | tab | `tab expr` | none; nonempty suite, directly inside tabs only |
 | list | `list expr` | `columns=selectors`, `order=ui_order`, `search=selectors`, `filter=selectors`, `empty=expr`, `defaults=values`, `display=NAME`; split is the sole display exception |
 | table | `table expr` | `columns=selectors` **required**, `order=ui_order`, `search=selectors`, `filter=selectors`, `empty=expr`, `defaults=values`, `display=NAME`; split is the sole display exception |
 | board | `board expr` | `by=selectors` **required**, `columns=selectors`, `order=ui_order`, `search=selectors`, `filter=selectors`, `empty=expr`, `defaults=values`; by must resolve to one enum field |
-| calendar | `calendar expr` | `start=selectors` **required**, `end=selectors` **required**, `columns=selectors`, `order=ui_order`, `search=selectors`, `filter=selectors`, `empty=expr`, `defaults=values`; each endpoint must resolve to one field |
+| calendar agenda | `calendar expr` | `start=selectors` **required**, `end=selectors` **required**, `columns=selectors`, `order=ui_order`, `search=selectors`, `filter=selectors`, `empty=expr`, `defaults=values`; each endpoint must resolve to one field |
 | form | `form expr` | `arguments=values`, `fields=selectors`, `submit=expr`, `display=NAME`, `import=NAME`, `review=path`; inline is the supported display value, csv the sole import mode; review requires import=csv |
-| edit | `edit` | `fields=selectors` |
+| edit | `edit` | `fields=selectors`; optional presentation suite uses the same owning update schema |
+| catalog components | contextual words and header profiles in [UI-COMPONENTS](design/UI-COMPONENTS.md#grammar-and-option-boundaries) | Only the entry's closed binding/structural options and checked appearance subset; not arbitrary NAME/value props |
+| component slot | `slot NAME` | none; required/optional/repeated names and parent contexts come from the catalog |
+| inline preferences panel | `preferences` | none; nonempty UI suite for an existing owning preference extension |
 | migration | `migration NAME` | `from=STRING` **required** |
 | context theme | `theme` | at least one of `mode=NAME`, `accent=NAME`, `density=NAME`; mode must be system/light/dark, accent blue/green/purple, density comfortable/compact |
 | context file policy | `files` | at least one of `types=STRING`, `max=expr`; max must be a positive byte quantity |
@@ -375,11 +378,17 @@ A scenario-attached sequence starts with a sole `do` child instead of a table he
 
 ## Presentation and routes
 
+The [approved full daisyUI catalog](design/UI-COMPONENTS.md#grammar-and-option-boundaries) extends these core productions with all 68 contextual component words and their finite header/body profiles. Its field-placement, exclusive button bindings, named slots, repetition and shared-state/navigation rules are normative design contracts. The old short UI production list is not an exhaustive allowlist. Parser/checker/renderer delivery is separate; lane 1 and lane 5 must agree on the same producer-owned catalog and finish its checked per-component appearance matrix. Unknown words, unsupported options and invalid parent/child/binding shapes remain errors. No context `shell` setting is added: all apps retain the shared right-sidebar shell, bottom-right user menu, user configuration dialog and login screen.
+
 ```ebnf
 then_item      = page ;
 page           = "page" route attributes optional_suite(ui_body) ;
 ui_body        = {ui_item} ;
-ui_item        = line(ui_leaves) | ui_group | collection | form | tabs_group ;
+ui_item        = core_ui_item | catalog_item | preference_panel | edit_group ;
+core_ui_item   = line(ui_leaves) | ui_group | collection | form | tabs_group ;
+preference_panel = "preferences" suite(ui_body) ;
+edit_group     = "edit" attributes suite(ui_body) ;
+slot_item      = "slot" NAME suite(ui_body) ;
 ui_leaves      = ui_leaf {";" ui_leaf} ;
 ui_leaf        = "require" expr | "title" expr | "text" observations | "content" observations
                | "metrics" observations | "copy" expr | "edit" attributes
@@ -408,6 +417,8 @@ route_segment  = STATIC_SEGMENT | "{" path "." "id" "}"
                | "{" NAME ":" type "}" ;
 STATIC_SEGMENT = /[A-Za-z0-9_-]+/ ;
 ```
+
+`catalog_item` expands through the approved catalog's exhaustive profile table and slot schemas, using these same expression, selector, observation and suite productions. Overlapping words such as card/list/table/tabs lower to the same existing semantic nodes, not a second runtime. Calendar headers with both endpoints select the agenda; a selector without endpoints is a date control only in the catalog's field-placement context. A partial endpoint header is invalid rather than inferred from types. All component words remain contextual outside their declaration slots.
 
 Presentation suites are nonempty when present. A bare list/table/form remains valid without descendants. Top-level Then accepts pages, not arbitrary effects, authored navigation trees or free-standing business handlers. Within pages, `card`/`details` are scope-transparent groups; collections bind `row` and retain the enclosing record chain. A read form's result is scoped to its descendants; page `data` provides page-level result. The grammar does not infer a current record from a model name.
 

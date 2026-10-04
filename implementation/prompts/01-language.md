@@ -12,6 +12,7 @@ Own compiler/ and editors/vscode/, packages/contracts/src/artifact.ts and diagno
 
 ## Complete scope to plan and execute
 
+- Implement the approved full 68-component source vocabulary in design/UI-COMPONENTS.md. The old small subset was a design mistake, not an allowlist. Consume lane 5's producer-owned presentation catalog for contextual parsing/checking, field/slot/binding errors, emitted props/children, completion/help and highlighting; do not hand-copy a competing component registry. Preserve canonical operation/record/result scopes and complete implicit forms. Keep every approved-but-unimplemented profile as an explicit task and diagnostic. The shared shell is fixed across apps: right-sidebar page menu, bottom-right user menu, common user configuration dialog and login screen; no shell-layout context setting is added. Coordinate compatible producer-first PRs with lane 5; this lane does not migrate product `.can` files.
 - Source manager, canonical IDs and line index; lossless recoverable parsing/CST; comments, descriptions, inline messages and physical spans.
 - Import/composition/default resolution, type/field reuse, effect/owner/disclosure checks, operation/fixture semantics and precise errors. Rust consumes the producer-owned builtin catalog instead of hand-copying it.
 - Checked IR and direct JS emission preserving DESIGN §13 metadata, callable registry, guard/effect order, exact operations, UI calls, page descriptors, source maps and separate BDD artifacts.
