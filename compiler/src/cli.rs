@@ -12,15 +12,18 @@
 //! `lsp` returns [`DispatchResult::run_lsp`] for [`run`] to serve and
 //! `run|test|build|deploy` spawn the lane-7 producer as a side effect.
 //!
-//! Analysis status (slice 2a): `check`/`lint`/`compile` load sources and run
-//! the [`Analyzer`] hook, whose only implementation is [`StubAnalyzer`]
-//! returning empty *complete* results. Real analysis lands in later slices;
+//! Analysis status (PR4): `check`/`lint`/`compile` load sources and run
+//! the [`Analyzer`] hook, whose default implementation is [`CatalogAnalyzer`]
+//! (parse + resolve + types over the producer catalog, `complete=false`
+//! until PR5 effects/examples land). [`StubAnalyzer`] remains as the
+//! deterministic empty backend behind the [`dispatch_with`] test seam;
 //! this module never fabricates diagnostics to look busy.
 
+use crate::analysis::catalog::{CATALOG_ENV_VAR, CatalogRequest, load_catalog};
 use crate::diagnostic::DiagnosticResult;
 use crate::exit;
-use crate::source::SourceDb;
-use std::path::Path;
+use crate::source::{SourceDb, SourceId, Span};
+use std::path::{Path, PathBuf};
 
 /// Output format for machine/human surfaces.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,10 +78,11 @@ pub trait Analyzer {
     fn analyze(&self, db: &SourceDb, tool_version: &str) -> DiagnosticResult;
 }
 
-/// Slice-2a analyzer: empty *complete* result, never fake diagnostics.
+/// Deterministic empty backend: empty *complete* result, never fake
+/// diagnostics.
 ///
-/// Documented as unimplemented analysis, not as a clean bill of health for
-/// any particular source: it reports no findings because no pass runs yet.
+/// Kept behind the [`dispatch_with`] seam for CLI-mechanics tests; it is
+/// not a clean bill of health for any particular source (no pass runs).
 #[derive(Debug, Default)]
 pub struct StubAnalyzer;
 
@@ -87,6 +91,74 @@ impl Analyzer for StubAnalyzer {
         let mut result =
             DiagnosticResult::new(tool_version, crate::LANGUAGE_VERSION, crate::SCHEMA_VERSION);
         result.add_sources(db);
+        result.finish();
+        result
+    }
+}
+
+/// Production analyzer: resolves the producer catalog, then runs parse +
+/// resolve + types over every source in `db`.
+///
+/// Catalog resolution order: the `--catalog` flag value, the
+/// `CAN_CATALOG` environment value, `./can-catalog.json`, then
+/// `./packages/values/dist/catalog.json` (emitted by `npm run catalog`
+/// in `packages/values`). A missing catalog is one precise `E6002`
+/// naming every location tried; without a catalog, builtin names do not
+/// resolve (each use is `E2001`). The result is always `complete=false`:
+/// effects, examples and emission are PR5+.
+#[derive(Debug, Clone, Default)]
+pub struct CatalogAnalyzer {
+    /// `--catalog PATH` flag value.
+    flag: Option<PathBuf>,
+    /// `CAN_CATALOG` value, when set (empty values are ignored downstream).
+    env: Option<String>,
+    /// Working directory anchoring the `./` candidates.
+    cwd: PathBuf,
+}
+
+impl CatalogAnalyzer {
+    /// Analyzer with fully explicit catalog inputs (tests stay hermetic:
+    /// no process environment or working directory is consulted).
+    pub fn new(flag: Option<PathBuf>, env: Option<String>, cwd: PathBuf) -> Self {
+        Self { flag, env, cwd }
+    }
+
+    /// Analyzer reading process state: `CAN_CATALOG` and the current
+    /// working directory (an unreadable directory falls back to `.`, so
+    /// the `./` candidates simply miss and the `E6002` names them).
+    pub fn from_process(flag: Option<PathBuf>) -> Self {
+        Self {
+            flag,
+            env: std::env::var(CATALOG_ENV_VAR).ok(),
+            cwd: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+        }
+    }
+}
+
+impl Analyzer for CatalogAnalyzer {
+    fn analyze(&self, db: &SourceDb, tool_version: &str) -> DiagnosticResult {
+        let mut result =
+            DiagnosticResult::new(tool_version, crate::LANGUAGE_VERSION, crate::SCHEMA_VERSION);
+        result.add_sources(db);
+        let files: Vec<SourceId> = db.iter().map(|(id, _)| id).collect();
+        // Catalog faults name a file outside the analyzed sources, so
+        // they anchor on an empty span at the start of the first source.
+        let first = files.first().copied().unwrap_or(SourceId(0));
+        let request = CatalogRequest {
+            flag: self.flag.as_deref(),
+            env: self.env.clone(),
+            cwd: &self.cwd,
+            primary: Span::new(first, 0, 0),
+        };
+        let (catalog, load_diags) = load_catalog(&request);
+        for diagnostic in load_diags {
+            result.push(diagnostic);
+        }
+        let (_program, diags) = crate::analysis::check_program(db, &files, catalog.as_ref());
+        for diagnostic in diags {
+            result.push(diagnostic);
+        }
+        result.complete = false;
         result.finish();
         result
     }
@@ -116,14 +188,25 @@ fn write_ignoring_broken_pipe(mut sink: impl std::io::Write, bytes: &[u8], name:
 
 /// Dispatch without touching real stdio (see module docs for the two
 /// documented side effects: none here for `lsp`, child spawn for thin
-/// lane-7 entries).
+/// lane-7 entries). Analysis runs the production [`CatalogAnalyzer`].
 pub fn dispatch(argv: &[String]) -> DispatchResult {
-    dispatch_with(argv, &StubAnalyzer)
+    // Pre-parse for the `--catalog` flag only (`parse_args` is pure, and
+    // `dispatch_with` parses again authoritatively; on a parse error the
+    // flag is `None` and the analyzer goes unused).
+    let args: &[String] = if argv.is_empty() { &[] } else { &argv[1..] };
+    let flag = parse_args(args)
+        .ok()
+        .and_then(|parsed| parsed.catalog)
+        .map(PathBuf::from);
+    let analyzer = CatalogAnalyzer::from_process(flag);
+    dispatch_with(argv, &analyzer)
 }
 
-/// [`dispatch`] with an injectable [`Analyzer`]: the test seam for the
-/// exit-10 path, unreachable through [`dispatch`] while [`StubAnalyzer`]
-/// (empty results) is the only production backend.
+/// [`dispatch`] with an injectable [`Analyzer`]: the test seam for CLI
+/// mechanics (exit-10 path, envelope shape) with deterministic backends.
+/// The injected analyzer fully determines analysis; an argv `--catalog`
+/// flag is inert here (production [`dispatch`] threads it into its own
+/// [`CatalogAnalyzer`]).
 pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult {
     let args: &[String] = if argv.is_empty() { &[] } else { &argv[1..] };
     let parsed = match parse_args(args) {
@@ -156,7 +239,6 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
         "check" | "lint" | "compile" => {
             run_check_like(cmd, &parsed.operands, parsed.format, analyzer)
         }
-        "explain" => run_explain(&parsed.operands, parsed.format),
         "fmt" => {
             if parsed.format_set {
                 return DispatchResult::tool_error(
@@ -164,13 +246,34 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
                     "can fmt takes no --format flag".to_string(),
                 );
             }
+            if parsed.catalog_set {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "can fmt takes no --catalog flag".to_string(),
+                );
+            }
             run_fmt(&parsed.operands, parsed.fmt_check)
+        }
+        "explain" => {
+            if parsed.catalog_set {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "can explain takes no --catalog flag".to_string(),
+                );
+            }
+            run_explain(&parsed.operands, parsed.format)
         }
         "lsp" => {
             if parsed.format_set {
                 return DispatchResult::tool_error(
                     "E7001",
                     "can lsp takes no --format flag".to_string(),
+                );
+            }
+            if parsed.catalog_set {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "can lsp takes no --catalog flag".to_string(),
                 );
             }
             if !parsed.operands.is_empty() {
@@ -187,7 +290,7 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
             }
         }
         "run" | "test" | "build" | "deploy" => {
-            if parsed.format_set {
+            if parsed.format_set || parsed.catalog_set {
                 return DispatchResult::tool_error(
                     "E7001",
                     format!(
@@ -235,6 +338,11 @@ struct ParsedArgs {
     /// Whether `--format` was passed explicitly (rejected for commands
     /// that take no format, rather than silently ignored).
     format_set: bool,
+    /// `--catalog PATH` flag value (`check`/`lint`/`compile` only).
+    catalog: Option<String>,
+    /// Whether `--catalog` was passed explicitly (rejected for commands
+    /// that take none, rather than silently ignored).
+    catalog_set: bool,
     fmt_check: bool,
     help: bool,
     version: bool,
@@ -246,6 +354,8 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
         operands: Vec::new(),
         format: OutputFormat::Text,
         format_set: false,
+        catalog: None,
+        catalog_set: false,
         fmt_check: false,
         help: false,
         version: false,
@@ -276,6 +386,16 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
                     .ok_or_else(|| "missing value for --format; want json|text".to_string())?;
                 parsed.format = parse_format(value)?;
                 parsed.format_set = true;
+            } else if let Some(value) = arg.strip_prefix("--catalog=") {
+                parsed.catalog = Some(value.to_string());
+                parsed.catalog_set = true;
+            } else if arg == "--catalog" {
+                i += 1;
+                let value = args
+                    .get(i)
+                    .ok_or_else(|| "missing value for --catalog; want a PATH".to_string())?;
+                parsed.catalog = Some(value.clone());
+                parsed.catalog_set = true;
             } else {
                 return Err(format!("unknown flag '{arg}'; use can --help"));
             }
@@ -337,6 +457,8 @@ Commands:
 
 Options:
   --format=json|text   Machine or human output (check, compile, lint, explain)
+  --catalog=PATH       Producer catalog (check, compile, lint; else CAN_CATALOG,
+                       ./can-catalog.json, ./packages/values/dist/catalog.json)
   -h, --help           Show help (global or `can <COMMAND> --help`)
   -V, --version        Show version
 
@@ -349,7 +471,7 @@ Exit codes: 0 clean, 10 errors reported, 2 tool failure.
 fn command_help(cmd: &str) -> String {
     match cmd {
         "check" | "lint" | "compile" => format!(
-            "can {cmd} — analyze sources and report diagnostics (slice 2a: loads sources, runs the Analyzer hook, emits the DiagnosticResult envelope)\n\nUsage: can {cmd} [--format=json|text] FILE.can...\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n"
+            "can {cmd} — analyze sources and report diagnostics (parse + resolve + types over the producer catalog; result is complete=false until PR5 effects/examples land)\n\nUsage: can {cmd} [--format=json|text] [--catalog=PATH] FILE.can...\n\nCatalog order: --catalog PATH, CAN_CATALOG, ./can-catalog.json, ./packages/values/dist/catalog.json (emit it with `npm run catalog` in packages/values). Without a catalog, builtin names do not resolve.\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n"
         ),
         "explain" => "can explain — print a diagnostic catalog entry\n\nUsage: can explain [--format=json|text] CODE\n\nExit codes: 0 printed, 2 unknown code (E7003) or bad usage.\n".to_string(),
         "fmt" => "can fmt — check formatting (slice 2a: unimplemented)\n\nUsage: can fmt [--check] FILE.can...\n\nAlways reports E7005 until the slice-2b formatter lands; never a false clean.\n".to_string(),
