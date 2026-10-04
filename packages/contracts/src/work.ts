@@ -8,8 +8,11 @@
  *
  * Type-only boundary. No execution engine, no storage access, no clock.
  * Rich principal/team/owner identity resolution belongs to lanes 3/6; this
- * file uses opaque string keys for scope components. Timeouts, backoff
- * arithmetic and guard evaluation live in `@canlang/work`.
+ * file uses opaque string keys for scope components. Timeouts and backoff
+ * arithmetic live in `@canlang/work`. Dispatch-guard predicates are
+ * compiled by lane 1 (emission) and run at claim time in `@canlang/work`
+ * through an injected evaluator (settled L3/L4 split: L1 compiles,
+ * L4 runs; L3 carries the opaque name only and executes nothing).
  */
 
 /** Opaque stable identity minted by the runtime. Never caller-supplied. */
@@ -155,9 +158,10 @@ export interface DispatchClaim {
 }
 
 /**
- * Reference to a send's optional `when` dispatch guard. The predicate itself
- * is authored Can source evaluated by lanes 1/3; this lane only carries the
- * reference and the boolean verdict at dispatch time.
+ * Reference to a send's optional `when` dispatch guard. The predicate is
+ * authored Can source compiled by lane 1 (emission); this lane carries
+ * the reference and runs it at claim time through an injected
+ * evaluator, applying the boolean verdict.
  */
 export interface DispatchGuardRef {
   /** Absent guard means unconditional delivery of the committed event. */

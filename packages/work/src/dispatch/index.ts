@@ -9,8 +9,9 @@
  * carrying an injected claim id and timestamp.
  *
  * Guard evaluation itself is an INJECTED pure function: the predicate is
- * authored Can source evaluated by lanes 1/3, and this kernel only applies
- * the boolean verdict to frozen inputs plus a current state snapshot.
+ * authored Can source compiled by lane 1 (emission), and this kernel runs
+ * it at claim time, applying the boolean verdict to frozen inputs plus a
+ * current state snapshot.
  *
  * This function computes the decision purely; it performs no store writes.
  * The real dispatcher must persist `pending` -> `claimed` with the claim
@@ -30,7 +31,9 @@ import type { AnyOutboxIntent } from '../intent/index.ts';
 /**
  * Injected pure guard evaluator: predicate reference plus frozen retained
  * inputs plus a current owner-state snapshot produce a boolean verdict.
- * Must be total, deterministic and side-effect free.
+ * Must be total, deterministic and side-effect free. Unresolvable
+ * predicate references must throw or return false — never a silent
+ * true (unknown stays unknown; only an absent guard is unconditional).
  */
 export type GuardEvaluator = (
   predicate: string,
