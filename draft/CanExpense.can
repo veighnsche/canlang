@@ -27,13 +27,13 @@ package expense label="Expenses"@{nl="Onkosten"}
   fixture corrected_receipt=file {}
   fixture hr_user=user {roles=[hr]}
   fixture replacement_user=user {roles=[reviewer]}
-  fixture replacement_worker=Employee {user=replacement_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Replacement reviewer"}
+  fixture replacement_worker=Employee {user=replacement_user,name="Alex",home=test_site,locations=[test_site],start=date("2026-10-01"),role="Replacement reviewer"}
   fixture reviewer_user=user {roles=[reviewer]}
   fixture finance_user=user {roles=[finance]}
   fixture ordinary_user=user {}
-  fixture reviewer_worker=Employee {user=reviewer_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer"}
+  fixture reviewer_worker=Employee {user=reviewer_user,name="Alex",home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer",private_notes="Confidential HR review"}
   fixture finance_worker=Employee {user=finance_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Finance"}
-  fixture ordinary_worker=Employee {user=ordinary_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Operator"}
+  fixture ordinary_worker=Employee {user=ordinary_user,name="Alex",home=test_site,locations=[test_site],start=date("2026-10-01"),role="Operator"}
   fixture other_site=Location {name="Elsewhere",address="2 Example Road",timezone="Europe/Brussels",currency="EUR",hours="09:00–18:00",arrival="Report to reception"}
   fixture claim=Expense {parent=test_worker,location=test_site,purpose="Travel between sites",category="Travel",amount=money(25,"EUR"),business_date=date("2026-10-01"),receipt=receipt,reviewer=reviewer_user}
   fixture previous_claim=Expense {parent=test_worker,location=test_site,purpose="Earlier supplies",category="Supplies",amount=money(25,"EUR"),business_date=date("2026-10-01"),receipt=receipt,reviewer=reviewer_user,status=reimbursed}
@@ -49,6 +49,27 @@ package expense label="Expenses"@{nl="Onkosten"}
   message label_Reimbursement_paid = "Payment date"@{nl="Betaaldatum"}
  When
   crud Expense by=members fields=location,authorization,purpose,category,amount,business_date,receipt,reviewer when=row.parent.user==actor and row.parent.active and row.status==draft and can_work(actor,row.location) delete=none
+  # Find readable current reviewer work identities for this location. @{nl="Vind leesbare huidige werkidentiteiten van beoordelaars voor deze locatie."}
+  scenario reviewer_choices(location:Location) read=true -> Employee[] by=members label="Choose reviewer"@{nl="Beoordelaar kiezen"}
+   require can_work(actor,location)
+   do return Employee as candidate where candidate.user!=actor and reviewer(candidate.user) and can_work(candidate.user,location)
+   examples seed=[test_worker,reviewer_worker,replacement_worker,ordinary_worker] location=test_site
+    as,reviewer_worker.active,reviewer_worker.name,test_worker.active,location -> count(result),count(result as candidate where candidate.name=="Alex")
+    self,true,"Alex",true,test_site -> 2,2
+    reviewer,true,"Alex",true,test_site -> 2,2
+    self,false,"Alex",true,test_site -> 1,1
+    self,true,null,true,test_site -> 2,1
+    self,true,"Alex",false,test_site -> error(rule_failed)
+    self,true,"Alex",true,other_site -> error(rule_failed)
+    outsider,true,"Alex",true,test_site -> error(forbidden)
+    public,true,"Alex",true,test_site -> error(forbidden)
+   examples seed=[test_worker,reviewer_worker,hr_user]
+    do
+     call reviewer_choices {location=test_site} by=self as before
+     count(before),any(before as candidate,candidate.user==reviewer_user) -> 1,true
+     call deactivate {employee=reviewer_worker,ended=date("2026-10-02")} by=hr_user
+     call reviewer_choices {location=test_site} by=self as after
+     count(after),reviewer(reviewer_user),reviewer_worker.active -> 0,true,false
   # Submit your draft after checking the active, distinct reviewer. @{nl="Dien je concept in na controle van een actieve, andere beoordelaar."}
   scenario submit(expense:Expense) by=members
    require expense.parent.user==actor and expense.parent.active and expense.status==draft and can_work(actor,expense.location) and expense.reviewer!=actor and reviewer(expense.reviewer) and can_work(expense.reviewer,expense.location)
@@ -213,7 +234,11 @@ package expense label="Expenses"@{nl="Onkosten"}
   page /expenses/mine title="My expenses"@{nl="Mijn onkosten"}
    require members
    card "Claim intake"@{nl="Declaratie aanmaken"}
-    form Expense.create
+    list Employee as claimant where claimant.user==actor and claimant.active
+     list Location as site where can_work(actor,site)
+      form reviewer_choices arguments={location=site}
+       list result as candidate columns=name,user,role,home
+        form Expense.create arguments={parent=claimant,location=site,reviewer=candidate.user}
    list Expense as expense where expense.parent.user==actor order=-expense.business_date filter=status,location,category,business_date defaults={status=preferences.status} display=split
     card "Own claim and receipt"@{nl="Eigen declaratie en bon"}
      text row.purpose,row.authorization,row.corrects,row.business_date,row.amount,row.receipt,row.status,row.submission,row.decision,row.withdrawal

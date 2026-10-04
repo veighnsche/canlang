@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "The present design assigns expenses to a user identity and preserves that account in decision evidence. Its employee owner already holds a unique account link and public-to-authorized-staff work attributes, yet lacks a display name. Its personnel-only attributes must remain inaccessible. Authentication supplies only opaque other-account identifiers; email belongs to the signed-in caller alone. Existing expense creation admits members for their own active work record; sending a claim separately tests another active member with reviewer role and work eligibility at the claim location. Those predicates cannot list accounts. Current language building blocks include policy-filtered model queries, explicit read operations, nested lists and bound form arguments; therefore an employee row can supply a user argument without a new signature. Both interfaces use these same grants and operations. Reference rendering already permits readable name/title and an ID fallback. We need a person users can recognize, collision-safe identification, current eligibility, retained historical actor identity and protection for external users and confidential personnel data. There is no deployed engine to preserve and no comparative user experiment. Evaluate the smallest concrete contract that covers all these requirements.",
+    "questions": {
+      "selection": {
+        "type": "choice",
+        "instructions": "Select the most economical complete solution rather than assuming a universal account list.",
+        "criteria": {
+          "employee_labels": "Keep assignments as accounts. Extend the already authorized employee work projection with one authored name. Use current language queries to restrict employee candidates by distinctness, role and location, selecting their unique account through ordinary bound inputs and exposing the same read to MCP. No inferred permission engine; maintain the display value as business data and retain exact IDs.",
+          "auth_roster": "Introduce a dedicated team-bounded auth profile lookup permission and normalized name response. Its returned identities fill unchanged user inputs and still undergo owner checks. It centralizes profile naming but needs a newly specified directory policy, source of truth and safe exposure surface.",
+          "employee_reference": "Store a typed employee reference for the reviewer, add a visible employee name, and map that reference back to the canonical account wherever decisions need actor identity. Standard record selection becomes direct, at the expense of changing reviewer types and managing that extra identity relationship."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "selection": {
+        "type": "choice",
+        "choice": "employee_labels",
+        "confidence": 0.92,
+        "probabilities": {
+          "employee_labels": 0.95,
+          "employee_reference": 0.05,
+          "auth_roster": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 712,
+      "output_tokens": 43
+    }
+  }
+}
