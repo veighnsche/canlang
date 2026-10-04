@@ -2,8 +2,9 @@
   "name": "canlang",
   "version": "0.1.0",
   "private": true,
-  "description": "CanLang: AI-native SaaS DSL on workerd. Root Node workspace (lane 07 integrates).",
+  "description": "CanLang: AI-native SaaS DSL on workerd. Root bun workspace (lane 07 integrates).",
   "type": "module",
+  "packageManager": "bun@1.4.2",
   "engines": {
     "node": ">=22"
   },
@@ -12,16 +13,20 @@
   ],
   "scripts": {
     "build": "tsc -b packages/contracts packages/cloudflare packages/testkit",
-    "build:joins": "npm run build -w @canlang/values",
+    "build:joins": "bun run --filter @canlang/values build",
     "typecheck": "tsc -p tsconfig.check.json",
     "typecheck:e2e": "tsc -p tests/e2e/tsconfig.json",
-    "pretest": "npm run build && npm run build:joins",
+    "pretest": "bun run build && bun run build:joins",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test --config=playwright.config.ts"
   },
   "devDependencies": {
+    "@canlang/cloudflare": "0.1.0",
+    "@canlang/contracts": "0.1.0",
+    "@canlang/testkit": "0.1.0",
     "@playwright/test": "^1.63.0",
+    "@types/node": "24.19.1",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

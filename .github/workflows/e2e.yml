@@ -12,7 +12,7 @@ on:
       - "tests/e2e/**"
       - "playwright.config.ts"
       - "package.json"
-      - "package-lock.json"
+      - "bun.lock"
       - ".github/workflows/e2e.yml"
       - "packages/ui/**"
       - "packages/identity/**"
@@ -24,7 +24,7 @@ on:
       - "tests/e2e/**"
       - "playwright.config.ts"
       - "package.json"
-      - "package-lock.json"
+      - "bun.lock"
       - ".github/workflows/e2e.yml"
       - "packages/ui/**"
       - "packages/identity/**"
@@ -40,22 +40,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - name: Install from lock
-        run: npm ci --no-audit --no-fund
+        run: bun install --frozen-lockfile
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
       - name: Install chromium
-        run: npx playwright install --with-deps chromium
+        run: bunx playwright install --with-deps chromium
       - name: Build lane-07 dists
-        run: npm run build
+        run: bun run build
       - name: Build producer dists bundled into the worker
-        run: npm run build -w @canlang/ui && npm run build -w @canlang/identity
+        run: bun run --filter @canlang/ui build && bun run --filter @canlang/identity build
       - name: Typecheck e2e harness
-        run: npm run typecheck:e2e
+        run: bun run typecheck:e2e
       - name: Run e2e (or report pending)
         run: |
           set -u
@@ -67,4 +69,4 @@ jobs:
             echo "e2e pending: no tests/e2e specs yet."
             exit 0
           fi
-          npm run test:e2e
+          bun run test:e2e
