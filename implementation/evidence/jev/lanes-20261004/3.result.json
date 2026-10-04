@@ -1,0 +1,34 @@
+{
+  "request": {
+    "state": "The planning decision concerns five parallel owners for CanLang, whose users are companies replacing subscriptions with tailored AI-generated SaaS. Compact authoring, adoption and explicit policy must survive implementation, with one canonical business invocation. Today the Rust command is a scaffold, the Python parser is experimental and the editor provides TextMate colors only. There are 39 .can app examples and 21 manually written JS targets; those are specifications rather than working generated apps. The chosen delivery direction is direct JS for workerd and a TS-written standard library; generated imports include @canlang/stdlib and @canlang/ui. Reuse runtime web APIs, Wrangler, available Cloudflare primitives and suitable existing libraries. The human will start five Muse sessions, each with one worktree and file-partitioned internal agents. Work proceeds through repeated focused commits, PRs, own review, checks and merges; neither nested worktrees nor additional leads are permitted. Target approximately equal substantial backlogs and a promptly connected application, using clear interface and file owners. No timing benchmark establishes the size of these domains. All of language parsing/resolution/types/composition, IR/JS generation, formatting/lints/LSP/editor assistance, value/query/authorization/transaction semantics, durable jobs/schedules/deliveries/adapters/files, identity/browser/localization/MCP, and build/provision/deploy/upgrades/dev/BDD/release integration are in scope. Existing D1 semantics require the revision-fenced transactional batch for all mutations. Proposed historical-query and whole-population forms remain undecided, requiring explicit unsupported diagnostics until settled. Option A groups compiler and editor/authoring tools under owner1; state/query/scalar stdlib under owner2; work scheduling, providers and files under owner3; identity, web UI, i18n and MCP under owner4; and deployment, assembly, migration orchestration, development execution, BDD/integration and releases under owner5. It avoids an inter-owner Rust analysis boundary but makes owner1 cover the full language toolchain, and owner5 must integrate incrementally. Option B assigns language engine/emission to owner1; editor/LSP/lint/format/agent diagnostics to owner2; state/stdlib/identity to owner3; durable services/files to owner4; and UI/MCP plus hosting/dev/build/upgrades/tests/releases to owner5. This permits separate compiler/tooling contributors through an early analysis API, with more combined web/platform obligations for owner5. Both options retain a single checker, authority gate and commit engine; early versioned interfaces and provider fixtures support work before implementations land. Test doubles remain limited to unit/interface evidence; integrated claims require real components. Root package manifests and lockfiles are serialized under one custodian. Judge all work and shared dependencies together, keeping uncertain effort estimates visible.",
+    "questions": {
+      "partition": {
+        "type": "choice",
+        "instructions": "For this unimplemented product and its five leads, which grouping best supports parallel progress toward the same complete working system? Treat capacity judgments as provisional.",
+        "criteria": {
+          "A": "A concentrates Rust/editor responsibilities, keeps transaction and asynchronous owners distinct, assigns identity to presentation, and gives deployment/testing their own owner.",
+          "B": "B divides Rust language and IDE responsibilities, makes the kernel team own identity, retains asynchronous/file ownership, and puts presentation with hosting and qualification."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "partition": {
+        "type": "choice",
+        "choice": "B",
+        "confidence": 0.53,
+        "probabilities": {
+          "A": 0.24,
+          "B": 0.76
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 977,
+      "output_tokens": 31
+    }
+  }
+}
