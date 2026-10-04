@@ -9,25 +9,36 @@ package feedback
  Given
   role product_owner label="Product owner"@{nl="Productverantwoordelijke"}
   Product { name:text, location:Location?, owner:user label="Responsible person"@{nl="Verantwoordelijke"}, published:bool=true label="Published"@{nl="Gepubliceerd"} } label="Product"@{nl="Product"}
-  Suggestion in Product { title:text trim min=1 max=300, description:text trim min=1 max=5000, category:text trim min=1 max=100 label="Category"@{nl="Categorie"}, author:user server=actor label="Author"@{nl="Auteur"}, status:enum(proposed,planned,shipped,declined)=proposed label={text=label_Suggestion_status,values={proposed="Proposed"@{nl="Voorgesteld"},planned="Planned"@{nl="Gepland"},shipped="Shipped"@{nl="Opgeleverd"},declined="Declined"@{nl="Afgewezen"}}}, hidden:bool=true label=label_Suggestion_hidden, moderation_reason:text? label="Moderation reason"@{nl="Moderatiegrond"}, response:text? label=label_Suggestion_response, duplicate:Suggestion? label=label_Suggestion_duplicate } label=label_Suggestion
+  Suggestion in Product { title:text trim min=1 max=300, description:text trim min=1 max=5000, category:text trim min=1 max=100 label="Category"@{nl="Categorie"}, author:user server=actor label="Author"@{nl="Auteur"}, status:enum(proposed,planned,shipped,declined)=proposed label={text=label_Suggestion_status,values={proposed="Proposed"@{nl="Voorgesteld"},planned="Planned"@{nl="Gepland"},shipped="Shipped"@{nl="Opgeleverd"},declined="Declined"@{nl="Afgewezen"}}}, hidden:bool=true label=label_Suggestion_hidden, moderation_reason:text? label="Moderation reason"@{nl="Moderatiegrond"}, response:text? label=label_Suggestion_response, duplicate:Suggestion? label=label_Suggestion_duplicate, current_decision:Decision? label="Current operator decision"@{nl="Huidig exploitantbesluit"} } label=label_Suggestion
   Vote in Suggestion { account:user server=actor label="Account"@{nl="Account"}, active:bool=true, cast_at:datetime server=now label="Last vote time"@{nl="Laatste stemtijd"} } label="Own vote"@{nl="Eigen stem"}
+  Decision in Suggestion { status:Suggestion.status, response:text label=label_Suggestion_response, published_at:datetime? label="Released at"@{nl="Vrijgegeven op"}, withdrawn:bool=false label="Withdrawn"@{nl="Ingetrokken"}, withdrawal_reason:text? label="Withdrawal reason"@{nl="Reden van intrekking"} } label="Operator decision"@{nl="Exploitantbesluit"}
   contract Card { suggestion:Suggestion label=label_Suggestion, title:text, category:Suggestion.category, status:Suggestion.status, response:text? label=label_Suggestion_response, duplicate:Suggestion? label=label_Suggestion_duplicate, votes:int label="Votes"@{nl="Stemmen"} } label="Published suggestion"@{nl="Gepubliceerde suggestie"}
   contract Roadmap { items:Card[]! label="Items"@{nl="Items"} } label="Published roadmap"@{nl="Gepubliceerde roadmap"}
+  contract DecisionCard { status:Suggestion.status, response:text label=label_Suggestion_response, published_at:datetime label="Released at"@{nl="Vrijgegeven op"} }
+  contract DecisionHistory { items:DecisionCard[]! label="Released decisions"@{nl="Vrijgegeven besluiten"} }
+  contract ProductChoice { product:Product label="Product"@{nl="Product"}, name:text, location:Location? }
   policy Product read=public where=row.published
   policy Product read=product_owner where=row.owner==actor
   policy Suggestion read=public where=row.parent.published and not row.hidden fields=title,description,category,status,response
   policy Suggestion read=authenticated where=row.author==actor
   policy Suggestion read=product_owner where=row.parent.owner==actor
   policy Vote read=authenticated where=row.account==actor
+  policy Decision read=product_owner where=row.parent.parent.owner==actor
   unique Vote fields=account
   invariant Suggestion: row.duplicate==null or (row.duplicate!=row and row.duplicate.parent==row.parent and row.duplicate.duplicate==null)
+  invariant Suggestion: row.current_decision==null or (row.current_decision.parent==row and row.current_decision.status==row.status and row.current_decision.response==row.response and not row.current_decision.withdrawn)
   lock Suggestion fields=author
   lock Vote fields=account
+  lock Decision fields=status,response
+  lock Decision fields=published_at when=row.published_at!=null
+  lock Decision fields=withdrawn,withdrawal_reason when=row.withdrawn
+  derive product_choices():ProductChoice[] = Product as product select ProductChoice {product,name=product.name,location=product.location}
   fixture product=Product {name="Facilities",owner=other}
   fixture suggestion=Suggestion {parent=product,title="Phone booths",description="Add booths",category="Amenity",hidden=false}
   fixture root=Suggestion {parent=product,title="Quiet calls",description="Improve call spaces",category="Amenity",hidden=false}
   fixture own_vote=Vote {parent=suggestion,cast_at=now-1m}
   fixture foreign_vote=Vote {parent=suggestion,account=other,cast_at=now-1m}
+  fixture decision=Decision {parent=suggestion,status=planned,response="Two booths this quarter"}
   fixture recent=Suggestion {parent=product,title="Bike storage",description="Add a rack",category="Amenity"}
   fixture recent2=Suggestion {parent=product,title="Water",description="Add a fountain",category="Amenity"}
   fixture recent3=Suggestion {parent=product,title="Desks",description="Add sit-stand desks",category="Amenity"}
@@ -60,6 +71,7 @@ package feedback
     as -> suggestion.archived_at!=null
     members -> true
   crud Vote by=authenticated fields=active create=none update=none delete=none
+  crud Decision by=product_owner fields=status,response create=none update=none delete=none
   ## Only this canonical creation path creates suggestions; archived submissions remain in the hourly allowance.
   scenario contribution_limit on=Suggestion.create
    do require count(Suggestion archived=include as item where item.author==event.after.author and item.created>now-1h)<=5
@@ -103,6 +115,8 @@ package feedback
      visible!=null -> true
      call published {product=journey_product} by=public as visible_roadmap
      count(visible_roadmap.items),first(visible_roadmap.items)?.category,first(visible_roadmap.items)?.status,first(visible_roadmap.items)?.response -> 1,"Amenity",planned,"Two booths this quarter"
+     call decision_history {suggestion=visible} by=public as first_history
+     count(first_history.items),first(first_history.items)?.response -> 1,"Two booths this quarter"
      call vote {suggestion=visible} by=self as cast_vote
      call unvote {vote=cast_vote} by=self
      let withdrawn=first(visible.Vote as item where item.account==self)
@@ -117,6 +131,7 @@ package feedback
      edited.title,edited.hidden,edited.moderation_reason,edited.author -> "More phone booths",true,null,self
      call published {product=journey_product} by=public as review_roadmap
      count(review_roadmap.items) -> 0
+     call decision_history {suggestion=edited} by=public -> error(rule_failed)
      call moderate {suggestion=edited,hidden=true,reason="Private contact details"} by=moderator
      let blocked=first(journey_product.Suggestion as item where item.id==submitted.id)
      blocked!=null -> true
@@ -130,12 +145,15 @@ package feedback
      approved!=null -> true
      call published {product=journey_product} by=public as shipped_roadmap
      first(shipped_roadmap.items)?.status,first(shipped_roadmap.items)?.response,first(shipped_roadmap.items)?.votes -> shipped,"Two booths installed",0
+     call decision_history {suggestion=approved} by=public as shipped_history
+     count(shipped_history.items) -> 2
      call Suggestion.delete {record=approved} by=self
      let archived=first(Suggestion archived=include as item where item.id==submitted.id)
      archived!=null -> true
      archived.archived_at!=null,archived.author -> true,self
      call published {product=journey_product} by=public as archived_roadmap
      count(archived_roadmap.items) -> 0
+     call decision_history {suggestion=archived} by=public -> error(rule_failed)
   # Withdraw only your own vote, retaining its identity and cooldown across retries. @{nl="Trek uitsluitend je eigen stem in en behoud de identiteit en wachttijd bij herhaling."}
   scenario unvote(vote:Vote) by=authenticated label="Withdraw own vote"@{nl="Eigen stem intrekken"}
    require vote.account==actor
@@ -147,20 +165,27 @@ package feedback
    examples vote=foreign_vote
     as -> vote.active
     members -> error(rule_failed)
-  # Record an operator roadmap decision without changing authorship or votes. @{nl="Leg een exploitantbesluit over de roadmap vast zonder auteurschap of stemmen te wijzigen."}
+  # Record an operator roadmap decision without changing authorship or votes; visible decisions release to public history. @{nl="Leg een exploitantbesluit over de roadmap vast zonder auteurschap of stemmen te wijzigen; zichtbare besluiten worden vrijgegeven voor de openbare geschiedenis."}
   scenario roadmap(suggestion:Suggestion,status:Suggestion.status label=label_Suggestion_status,response:text label=label_Suggestion_response,duplicate:Suggestion? label=label_Suggestion_duplicate) by=product_owner label="Record roadmap decision"@{nl="Roadmapbesluit vastleggen"}
    require suggestion.parent.owner==actor and trim(response)!=""
-   do set suggestion {status,response,duplicate}
+   do
+    create Decision {parent=suggestion,status,response} as decision
+    if not suggestion.hidden
+     set decision {published_at=now}
+    set suggestion {status,response,duplicate,current_decision=decision}
    examples seed=[own_vote,foreign_vote] suggestion=suggestion status=planned response="Two booths this quarter" duplicate=root
     as,suggestion.parent.owner,duplicate.duplicate -> suggestion.status,suggestion.duplicate,suggestion.author,count(suggestion.Vote as item where item.active)
     product_owner,self,null -> planned,root,self,2
     members,self,null -> error(forbidden)
     product_owner,other,null -> error(rule_failed)
     product_owner,self,suggestion -> error(rule_failed)
-  # Hide abusive content with a reason under product-owner moderation. @{nl="Verberg misbruik met een reden binnen moderatie door de productverantwoordelijke."}
+  # Hide abusive content with a reason under product-owner moderation; approving releases the selected decision. @{nl="Verberg misbruik met een reden binnen moderatie door de productverantwoordelijke; bij goedkeuring wordt het geselecteerde besluit vrijgegeven."}
   scenario moderate(suggestion:Suggestion,hidden:bool label=label_Suggestion_hidden,reason:text) by=product_owner label="Moderate suggestion"@{nl="Suggestie modereren"}
    require suggestion.parent.owner==actor and trim(reason)!=""
-   do set suggestion {hidden,moderation_reason=reason}
+   do
+    if not hidden and suggestion.current_decision!=null and suggestion.current_decision.published_at==null
+     set suggestion.current_decision {published_at=now}
+    set suggestion {hidden,moderation_reason=reason}
    examples suggestion=suggestion hidden=true reason="Private contact details"
     as,suggestion.parent.owner -> suggestion.hidden,suggestion.moderation_reason,suggestion.author
     product_owner,self -> true,"Private contact details",self
@@ -168,6 +193,59 @@ package feedback
    examples suggestion=suggestion hidden=false reason="Reviewed for public roadmap"
     as,suggestion.parent.owner -> suggestion.hidden,suggestion.moderation_reason
     product_owner,self -> false,"Reviewed for public roadmap"
+  # Withdraw released or private staff text while retaining owner evidence. @{nl="Trek vrijgegeven of private medewerkerstekst in en behoud het bewijs voor de verantwoordelijke."}
+  scenario withdraw_decision(decision:Decision,reason:text) by=product_owner label="Withdraw operator decision"@{nl="Exploitantbesluit intrekken"}
+   require decision.parent.parent.owner==actor and trim(reason)!="" and not decision.withdrawn
+   do
+    if decision.parent.current_decision==decision
+     set decision.parent {hidden=true,moderation_reason=reason,status=proposed,response=null,duplicate=null,current_decision=null}
+    set decision {withdrawn=true,withdrawal_reason=reason}
+   examples decision=decision reason="Response needs correction"
+    as,decision.parent.parent.owner,reason,decision.withdrawn -> decision.withdrawn
+    members,self,"Response needs correction",false -> error(forbidden)
+    product_owner,other,"Response needs correction",false -> error(rule_failed)
+    product_owner,self,"",false -> error(rule_failed)
+    product_owner,self,"Response needs correction",true -> error(rule_failed)
+  # Read released operator decisions without private revisions or account identities. @{nl="Lees vrijgegeven exploitantbesluiten zonder private revisies of accountidentiteiten."}
+  scenario decision_history(suggestion:Suggestion) read=true scope=authority -> DecisionHistory by=public label="Read operator decision history"@{nl="Geschiedenis exploitantbesluiten lezen"}
+   require suggestion.archived_at==null and suggestion.parent.archived_at==null and suggestion.parent.published and not suggestion.hidden
+   do return DecisionHistory {items=suggestion.Decision as decision where decision.published_at!=null and not decision.withdrawn order=decision.published_at select DecisionCard {status=decision.status,response=decision.response,published_at=decision.published_at}}
+   examples seed=[journey_product]
+    do
+     call Suggestion.create {parent=journey_product,title="Quiet spaces",description="More booths",category="Amenity"} by=self
+     let submitted=first(journey_product.Suggestion as item where item.author==self)
+     submitted!=null -> true
+     call roadmap {suggestion=submitted,status=planned,response="Private draft containing a phone number",duplicate=null} by=moderator
+     let drafted=first(journey_product.Suggestion as item where item.id==submitted.id)
+     drafted!=null -> true
+     call roadmap {suggestion=drafted,status=planned,response="Two booths this quarter",duplicate=null} by=moderator
+     let ready=first(journey_product.Suggestion as item where item.id==submitted.id)
+     ready!=null -> true
+     call decision_history {suggestion=ready} by=public -> error(rule_failed)
+     call moderate {suggestion=ready,hidden=false,reason="Reviewed current text and response"} by=moderator
+     let visible=first(journey_product.Suggestion as item where item.id==submitted.id)
+     visible!=null -> true
+     call decision_history {suggestion=visible} by=public as released
+     count(released.items),first(released.items)?.response -> 1,"Two booths this quarter"
+     call roadmap {suggestion=visible,status=shipped,response="Two booths installed",duplicate=null} by=moderator
+     let shipped=first(journey_product.Suggestion as item where item.id==submitted.id)
+     shipped!=null -> true
+     call decision_history {suggestion=shipped} by=public as history_before
+     count(history_before.items),any(history_before.items as item,item.response=="Private draft containing a phone number") -> 2,false
+     shipped.current_decision!=null -> true
+     call withdraw_decision {decision=shipped.current_decision,reason="Response needs correction"} by=moderator
+     let withdrawn=first(journey_product.Suggestion as item where item.id==submitted.id)
+     withdrawn!=null -> true
+     withdrawn.hidden,withdrawn.status,withdrawn.response,withdrawn.current_decision -> true,proposed,null,null
+     call decision_history {suggestion=withdrawn} by=public -> error(rule_failed)
+     call roadmap {suggestion=withdrawn,status=planned,response="Installation postponed",duplicate=null} by=moderator
+     let corrected=first(journey_product.Suggestion as item where item.id==submitted.id)
+     corrected!=null -> true
+     call moderate {suggestion=corrected,hidden=false,reason="Reviewed replacement"} by=moderator
+     let republished=first(journey_product.Suggestion as item where item.id==submitted.id)
+     republished!=null -> true
+     call decision_history {suggestion=republished} by=public as history_after
+     count(history_after.items),any(history_after.items as item,item.response=="Two booths installed"),any(history_after.items as item,item.response=="Installation postponed") -> 2,false,true
   # Expose public aggregate counts, excluding voter identities and hidden content. @{nl="Toon openbare geaggregeerde aantallen zonder stemmeridentiteiten of verborgen inhoud."}
   scenario published(product:Product) read=true scope=authority -> Roadmap by=public label="Read published roadmap"@{nl="Gepubliceerde roadmap lezen"}
    require product.published
@@ -183,19 +261,19 @@ package feedback
  Then
   # Browse a public roadmap with counts that expose no voter records. @{nl="Bekijk een openbare roadmap met aantallen die geen stemmerrecords blootgeven."}
   page /feedback title="Suggestions"@{nl="Suggesties"}
-   list Product as product where preferences.product==null or product==preferences.product filter=location defaults={location=preferences.location} search=name
+   list product_choices() as choice filter=product,location defaults={product=preferences.product,location=preferences.location} search=name
     text row.name,row.location
     card "Urgent private issue"@{nl="Dringend privéprobleem"}
      text "Use private support for incidents. Never put access instructions or anyone’s contact details in a suggestion. New suggestions await owner review."@{nl="Gebruik privésupport voor incidenten. Zet nooit toegangsinstructies of contactgegevens van anderen in een suggestie. Nieuwe suggesties wachten op beoordeling door de verantwoordelijke."}
      form open_request arguments={priority=urgent}
     card "Contribution intake"@{nl="Bijdrage aanmaken"}
-     form Suggestion.create
+     form Suggestion.create arguments={parent=choice.product}
     card "Published roadmap and aggregate votes"@{nl="Gepubliceerde roadmap en stemtotalen"}
-     form published
+     form published arguments={product=choice.product}
       table result.items columns=title,category,status,response,duplicate,votes filter=category,status defaults={category=preferences.category,status=preferences.status} order=-votes
     details "Your submissions and review state"@{nl="Je bijdragen en beoordelingsstatus"}
      require authenticated
-     list row.Suggestion as suggestion where suggestion.author==actor filter=category,status defaults={category=preferences.category,status=preferences.status}
+     list choice.product.Suggestion as suggestion where suggestion.author==actor filter=category,status defaults={category=preferences.category,status=preferences.status}
       title row.title
       content row.description
       text row.category,row.status,row.response,row.hidden,row.moderation_reason,row.duplicate
@@ -203,12 +281,15 @@ package feedback
       delete
       history
     details "Suggestions and your votes"@{nl="Suggesties en je eigen stemmen"}
-     list row.Suggestion filter=category,status defaults={category=preferences.category,status=preferences.status}
+     list choice.product.Suggestion filter=category,status defaults={category=preferences.category,status=preferences.status}
       title row.title
       content row.description
       text row.category,row.status,row.response
       edit
       action vote
+      details "Operator decision history"@{nl="Geschiedenis exploitantbesluiten"}
+       form decision_history
+        table result.items columns=published_at,status,response
       details "Your votes"@{nl="Je eigen stemmen"}
        require authenticated
        list row.Vote
@@ -219,13 +300,17 @@ package feedback
    require product_owner
    card "Product intake"@{nl="Product aanmaken"}
     form Product.create
-   list Product as product where product.owner==actor and (preferences.product==null or product==preferences.product) filter=location defaults={location=preferences.location} search=name
+   list product_choices() as choice where choice.product.owner==actor filter=product,location defaults={product=preferences.product,location=preferences.location} search=name
     text row.name,row.location
-    edit
-    list row.Suggestion filter=hidden,status defaults={status=preferences.status} display=split
+    form Product.update arguments={record=choice.product}
+    list choice.product.Suggestion filter=hidden,status defaults={status=preferences.status} display=split
      card "Suggestion and roadmap outcome"@{nl="Suggestie en roadmapuitkomst"}
       title row.title
       content row.description
       text row.category,row.author,row.status,row.response,row.hidden,row.moderation_reason,row.duplicate
       actions roadmap,moderate
      history
+     details "Operator decisions and withdrawals"@{nl="Exploitantbesluiten en intrekkingen"}
+      list row.Decision order=created
+       text row.status,row.response,row.published_at,row.withdrawn,row.withdrawal_reason
+       action withdraw_decision

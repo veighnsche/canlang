@@ -1,0 +1,57 @@
+{
+  "request": {
+    "state": {
+      "verified_context": "The inspected baseline is 99a53f93d2e3cccd392a6f328b5347e7d96b3128. Feedback already separates anonymous published suggestions from author/owner review material and private individual votes. The public field allowlist contains only current title, description, category, roadmap status and response. A new or contributor-edited suggestion is hidden until its responsible owner approves it; that owner may stage roadmap status/response/duplicate changes before approval. Public aggregate reads exist, but no safe public decision-history representation does. Applying current-field audit permissions to old revisions would admit text that was never reviewed. The outstanding UI also needs a Product selector on the page. Can's specified toolkit includes owner child data, field locks, transaction-wide effects, nullable typed references, authority reads returning explicit values, caller-authorized pure projections, and collection reference controls seeded by preferences. The runtime and compiler are not present. Public disclosure must stop on hiding, product unpublication or archival, and owner records must survive selective withdrawal of earlier approved text. Copies already disclosed are beyond recall.",
+      "history_options": "A represents roadmap submissions as immutable private Decision rows, linked by a current_decision field on Suggestion. Rows hold status/response plus optional published_at and one-way withdrawn/reason state. Each roadmap call adds a row, selecting it as current; an unhidden suggestion marks it ready for public release immediately, and a hidden suggestion leaves it unreleased. Unhide approves only the latest selected draft. Prior drafts stay private permanently unless they are actually the current one approved. Previously released entries remain eligible across subsequent reviews but are unreadable during hiding. A published Product remains required; unhidden staff decisions while that Product is unpublished are intentionally prepared for later publication. Withdrawal of an old entry removes just that history entry; withdrawal of the currently selected one additionally hides the parent and atomically resets status to proposed, clears response/duplicate/current pointer, forcing renewed review. One public report checks current parent/ancestor availability and emits only nonwithdrawn released status, text and release instant, excluding identities, record metadata, review reasons and historical contributor content. B uses review-epoch snapshots and exposes only the newest epoch; it is smaller operationally but permanently loses public continuity through prior approved decisions whenever a contributor revision is reviewed. C equips the generic audit stream with publication approval and per-entry removal semantics, avoiding app snapshots at the cost of a larger shared primitive.",
+      "selector_options": "A uses existing constructs: a pure viewer-scoped ProductChoice projection with a Product reference, name and location, rendered as a list with reference/location controls and saved preference defaults. Canonical forms bind to its Product reference explicitly. Delete the old preference WHERE restriction; UI values then override or clear the initial default without saving preferences. It adds a small value shape, not a tool or syntax, and obeys bounded reads. B introduces a dedicated collection self-record filter plus defined JS props, keeping the original Product row and child actions more concise. It needs new common selector semantics. Neither changes authorization, operation meaning or automatic preference persistence."
+    },
+    "questions": {
+      "history": {
+        "type": "choice",
+        "instructions": "Advise which candidate best balances safe publication, retention for owners, continuity of the public decision narrative and a small executable design surface. This is architectural advice rather than correctness proof.",
+        "criteria": {
+          "A": "Private immutable snapshots with an explicit current link, publication time, permanent withdrawal and minimal typed public reporting.",
+          "B": "A fresh public timeline per approval period, with older periods retained only for private review.",
+          "C": "A new historical-publication and redaction facility on the shared audit primitive."
+        }
+      },
+      "selector": {
+        "type": "choice",
+        "instructions": "Choose the more appropriate minimal Product-picker design for this handoff, taking both local source size and shared-language growth into account.",
+        "criteria": {
+          "A": "An ordinary typed Product projection supplies a record-reference filter; existing operations bind to that reference.",
+          "B": "A newly specified model-self filter preserves direct Product rows but extends common UI selector semantics."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "history": {
+        "type": "choice",
+        "choice": "A",
+        "confidence": 0.96,
+        "probabilities": {
+          "A": 0.98,
+          "B": 0.0,
+          "C": 0.02
+        }
+      },
+      "selector": {
+        "type": "choice",
+        "choice": "A",
+        "confidence": 0.98,
+        "probabilities": {
+          "A": 0.99,
+          "B": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1176,
+      "output_tokens": 66
+    }
+  }
+}
