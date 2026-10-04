@@ -149,6 +149,12 @@ export interface QuerySpec {
   readonly authority: ReadAuthority;
 }
 
+/** Parent linkage for child records (S5): identity of the owning parent row. */
+export interface RecordParent {
+  readonly model: ModelName;
+  readonly id: RecordId;
+}
+
 /** Stored row: reserved metadata plus validated domain fields. */
 export interface StoredRow {
   readonly id: RecordId;
@@ -158,8 +164,21 @@ export interface StoredRow {
   readonly createdBy: string;
   readonly updatedBy: string;
   readonly archivedAt: number | null;
+  /**
+   * Parent linkage (S5, OPTIONAL so pre-S5 literals still compile). Adapters
+   * treat `undefined` exactly like `null` (NULL columns); the mutation engine
+   * always writes it explicitly and treats it as immutable.
+   */
+  readonly parent?: RecordParent | null;
   readonly data: Readonly<Record<string, unknown>>;
 }
+
+/**
+ * What a caller-asked remove does (S5): `archive` stamps `archivedAt` and
+ * keeps the row (uniques reserved, refs valid); `remove` hard-deletes after a
+ * disposal scan; `none` rejects deletes with `validation`.
+ */
+export type DeleteMode = 'archive' | 'remove' | 'none';
 
 /** One domain write inside a fenced batch. */
 export type DomainWrite =
@@ -283,6 +302,8 @@ export interface ProjectedRecord {
   readonly createdBy: string;
   readonly updatedBy: string;
   readonly archivedAt: number | null;
+  /** Parent linkage (S5, required; the query engine supplies `row.parent ?? null`). */
+  readonly parent: RecordParent | null;
   readonly data: Readonly<Record<string, unknown>>;
 }
 
