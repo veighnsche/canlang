@@ -1477,7 +1477,6 @@ export async function contentEditPage(c, bindings) {
             textarea({ context: c, field: "body" }),
             checkbox({ context: c, field: "published" }),
             file_input({ context: c, field: "attachment" }),
-            checkbox({ context: c, field: "staff_only" }),
           ],
         }),
       ],

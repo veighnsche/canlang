@@ -82,6 +82,21 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
+## Slice 18: create-form allowlist fixup (branch muse/frontend-catalog-migration/slice-18-create-allowlist-fixup, in progress)
+
+Paths: draft/CanRent + draft/CanMember (.can+.md/.mjs) + this status
+file. Removes 6 placed controls that bind non-create params (rule
+refined in slice-17 review: create-form placement ⊆ create_fields, or
+fields= when no create_fields): Rent Resource.create loses checkbox
+active + inputs increment/minimum/buffer_before/buffer_after (all
+excluded from create_fields; update params stay generated); Member
+Content.create loses checkbox staff_only (real table field but absent
+from crud fields, so not a create param). Witness children mirrors
+removed (Rent .mjs op contract already listed the correct create set);
+Rent.md fieldset prose narrowed; Member.md needed no change (generic).
+Slices 13/16 re-audited clean (only Table Cafe has create_fields; mine
+correct). Future review prompts gain the explicit allowlist check.
+
 ## Slice 17: full replans Chat/Creative (branch muse/frontend-catalog-migration/slice-17-n1-chat-creative, in progress)
 
 Paths: draft/CanChat + draft/CanCreative (.can+.md+.mjs) + this status
@@ -155,7 +170,9 @@ gains until + amount; kind select becomes radio; legacy_matches list, agenda
 and result.rows table gain pagination; booking_reconcile modal removed
 (row-only op -> bare actions, join dropped); hourly.increment typo split to
 hourly, increment; Location/WeeklyHours/DateHours/Resource creates completed
-with placeable scalars (arrays omitted, Loyalty precedent); status
+with placeable scalars (arrays omitted, Loyalty precedent; 5 Resource
+controls REMOVED in slice 18: active/increment/minimum/buffer_before/
+buffer_after excluded from create_fields); status
 row.state KEPT (real DeliveryResult.status derive, non-nullable —
 component-domain match). All mirrored in the witness (incl. modal caption:
 convention; witness already had hourly/increment split). .md wording fixed
@@ -179,9 +196,10 @@ display=inline; refund_term modals gain input amount (money, required);
 cancel_membership modal gains input effective (datetime, required);
 Plan.create gains price/months/guest_limit/seats inputs;
 AccessHours.create gains close_after; Benefit.create gains
-quantity/duration/overage; Content.create gains attachment file_input +
-staff_only checkbox (all mirrored in the witness; witness modal captions
-fixed to caption: convention). Array fields (locations/products/weekdays/
+quantity/duration/overage; Content.create gains attachment file_input
+(staff_only checkbox added then REMOVED in slice 18: not a crud param;
+all mirrored in the witness; witness modal captions fixed to caption:
+convention). Array fields (locations/products/weekdays/
 plans) stay unplaced: no catalog array control (Loyalty Program precedent);
 handoff (a). Kept from draft after verification: dropdown-free modal suite;
 Allowance.unit badge (Benefit.unit reference, Affiliate provider_state
