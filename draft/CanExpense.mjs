@@ -91,6 +91,14 @@ const reviewPageDescriptor = {
   render: reviewPage,
 };
 
+const historicalPageDescriptor = {
+  owner:"expense",path:"/expenses/history",
+  title:message("Historical expense evidence",{nl:"Historisch onkostenbewijs"}),
+  description:message("Retain historical evidence separately from current approvals and payment actions.",{nl:"Bewaar historisch bewijs afzonderlijk van huidige goedkeuringen en betalingsacties."}),
+  admit:async(c,routeBindings={})=>{check(c.team!=null,"forbidden");check(hasRole(c,"authenticated"),"forbidden");return {};},
+  render:historicalPage,
+};
+
 export const appDefinition = {
   id: "CanExpense",
   uses: ["expense"],
@@ -113,7 +121,30 @@ export const appDefinition = {
       },
     },
   },
+  contracts: {
+    "expense.LegacyClaim": {fields: {
+      actor:{type:"text",nullable:true}, reviewer:{type:"text",nullable:true},
+      decision_time_original:{type:"text",nullable:true}, decided_at:{type:"datetime",nullable:true},
+      paid:{type:"date",nullable:true}, status:{type:"text",nullable:true},
+      purpose:{type:"text",nullable:true}, amount:{type:"money",nullable:true},
+      receipt:{type:"file",nullable:true}, receipt_issue:{type:"text",nullable:true},
+    }},
+
+  },
   models: {
+    "expense.LegacyExpense": {
+      fields: {
+        source:{type:"text",trim:true,min:1n}, external_id:{type:"text",min:1n},
+        location:{type:"rent_catalog.Location"}, claim:{type:"expense.LegacyClaim"},
+        source_evidence:{type:"file"}, attestation:{type:"text",trim:true,min:1n},
+        claimant:{type:"user",nullable:true}, access_reason:{type:"text",nullable:true}, imported_by:{type:"user",server:"actor"},
+        imported_at:{type:"datetime",server:"now"},
+      },
+      unique:[{fields:["source","external_id"]}],
+      locks:["LegacyExpense.lock.1"], invariants:["LegacyExpense.invariant.1"],
+      readGrants:[{rule:"LegacyExpense.read.1"},{rule:"LegacyExpense.read.2",fields:["source","external_id","location","claim"]}],
+    },
+
     "expense.Expense": {
       parent: Employee,
       label: message("Expense claim", { nl: "Onkostendeclaratie" }),
@@ -214,6 +245,17 @@ export const appDefinition = {
     },
   },
   operations: {
+    "expense.retain_legacy": {handler:"retain_legacy",description:message("Retain source evidence under current finance authority without recreating a past approval or payment."),label:message("Retain historical evidence",{nl:"Historisch bewijs bewaren"}),by:"expense.finance",read:false,result:"expense.LegacyExpense",inputs:{
+      source:{type:"text"},external_id:{type:"text"},location:{type:"rent_catalog.Location"},
+      claim:{type:"expense.LegacyClaim"},source_evidence:{type:"file"},attestation:{type:"text"},
+    }},
+    "expense.legacy_matches": {handler:"legacy_matches",description:message("Find readable historical source identities for intake review and private evidence lookup.",{nl:"Vind leesbare historische bronidentiteiten voor invoercontrole en privé-inzage in bewijs."}),label:message("Find historical evidence",{nl:"Historisch bewijs zoeken"}),by:"authenticated",read:true,result:"expense.LegacyExpense[]",inputs:{
+      source:{type:"text"},external_id:{type:"text"},location:{type:"rent_catalog.Location"},
+    }},
+    "expense.link_legacy": {handler:"link_legacy",description:message("Grant or revoke current claimant access after an evidenced account match; historical actor text remains immutable."),label:message("Change historical access",{nl:"Historische toegang wijzigen"}),by:"expense.finance",read:false,inputs:{
+      entry:{type:"expense.LegacyExpense"},claimant:{type:"user",nullable:true},reason:{type:"text"},
+    }},
+
     "expense.Expense.create": {
       handler: "createExpense",
       kind: "create",
@@ -336,6 +378,7 @@ export const appDefinition = {
   pages: [
     minePageDescriptor,
     reviewPageDescriptor,
+    historicalPageDescriptor,
   ],
   disabled: ["expense.Expense.delete"],
 };
@@ -352,6 +395,9 @@ export function canApp() {
     crudWhen,
 
     read: {
+      "LegacyExpense.read.1":async(c,row)=>hasRole(c,"expense.finance") && await can_work(c,c.actor,row.location),
+      "LegacyExpense.read.2":async(c,row)=>hasRole(c,"authenticated") && same(row.claimant,c.actor),
+
       "Expense.read.1": (c, row) => hasRole(c, "authenticated") && same(row.parent.user, c.actor),
       "Expense.read.2": async (c, row) =>
         hasRole(c, "expense.reviewer") &&
@@ -373,6 +419,9 @@ export function canApp() {
           (hasRole(c, "expense.finance") && (await can_work(c, c.actor, row.parent.location)))),
     },
     invariants: {
+      "LegacyExpense.invariant.1":(c,row)=>(row.claim.receipt!==null && row.claim.receipt_issue===null) ||
+        (row.claim.receipt===null && (row.claim.receipt_issue??"").trim()!==""),
+
       "Expense.require.2": (c, row) =>
         row.corrects === null ||
         (same(row.corrects.parent, row.parent) && ["rejected", "withdrawn"].includes(row.corrects.status)),
@@ -380,6 +429,8 @@ export function canApp() {
         row.amount.minor > 0n && row.amount.currency === row.location.currency,
     },
     locks: {
+      "LegacyExpense.lock.1":{fields:["source","external_id","location","claim","source_evidence","attestation","imported_by","imported_at"]},
+
       "Expense.lock.2": { fields: ["corrects"] },
       "Expense.lock.1": {
         fields: [
@@ -398,6 +449,23 @@ export function canApp() {
         fields: ["submission", "amount", "receipt", "reviewer", "approved", "reason", "decided_at"],
       },
       "Reimbursement.lock.1": { fields: ["amount", "reference", "paid", "reason", "recorded_by"] },
+    },
+    async retain_legacy(c,{source,external_id,location,claim,source_evidence,attestation}) {
+      check(hasRole(c,"expense.finance"),"forbidden");
+      check(await can_work(c,c.actor,location) && source.trim()!=="" && external_id.trim()!=="" && attestation.trim()!=="");
+      check(!await any(records(c,"expense.LegacyExpense",{archived:"include"}),entry=>entry.source===source.trim() && entry.external_id===external_id));
+      const entry=await create(c,"expense.LegacyExpense",{source:source.trim(),external_id,location,claim,source_evidence,attestation:attestation.trim()});
+      return entry;
+    },
+    async legacy_matches(c,{source,external_id,location}) {
+      check(hasRole(c,"authenticated"),"forbidden");
+      return collect(records(c,"expense.LegacyExpense",{where:entry=>entry.source===source.trim() && entry.external_id===external_id && same(entry.location,location)}));
+    },
+    async link_legacy(c,{entry,claimant,reason}) {
+      check(hasRole(c,"expense.finance"),"forbidden");
+      check(await can_work(c,c.actor,entry.location) && reason.trim()!=="");
+      check(claimant===null || await any(records(c,"employee.Employee",{archived:"include"}),worker=>same(worker.user,claimant) && (same(worker.home,entry.location) || worker.locations.some(location=>same(location,entry.location)))));
+      await set(c,entry,{claimant,access_reason:reason.trim()});
     },
     async reviewer_choices(c, { location }) {
       check(hasRole(c, "members"), "forbidden");
@@ -747,6 +815,29 @@ export async function reviewPage(c, bindings) {
   );
 }
 
+export async function historicalPage(c,bindings) {
+  return renderPage(c,historicalPageDescriptor,()=>[
+    hasRole(c,"expense.finance") ? card({context:c,title:message("Retain source records",{nl:"Bronrecords bewaren"}),children:[
+      form({context:c,operation:"expense.retain_legacy",import:"csv",review:"expense.legacy_matches"}),
+    ]}) : null,
+    card({context:c,title:message("Find a source record",{nl:"Een bronrecord zoeken"}),children:[
+      form({context:c,operation:"expense.legacy_matches",renderResult:(result,view)=>[
+        list({context:view,rows:result,columns:["source","external_id","location"],renderRow:(row,itemView)=>[
+          text({context:itemView,values:[row.claim.actor,row.claim.status,row.claim.receipt]}),
+        ]}),
+      ]}),
+    ]}),
+    table({context:c,model:"expense.LegacyExpense",columns:["source","external_id","location"],display:"split",renderRow:(entry,view)=>[
+      text({context:view,values:[entry.claim.actor,entry.claim.reviewer,entry.claim.decision_time_original,entry.claim.decided_at,entry.claim.paid,entry.claim.status,entry.claim.purpose,entry.claim.amount,entry.claim.receipt,entry.claim.receipt_issue]}),
+      hasRole(view,"expense.finance") ? card({context:view,title:message("Current access mapping",{nl:"Huidige toegangstoewijzing"}),children:[
+        actions({context:view,operations:["expense.link_legacy"],boundArgs:{entry}}),
+        text({context:view,values:[entry.access_reason,entry.attestation,entry.imported_by,entry.imported_at,entry.source_evidence]}),
+        history({context:view,record:entry}),
+      ]}) : null,
+    ]}),
+  ]);
+}
+
 /* Test-only fixture recipes and inline behavior examples. The future compiler
  * extracts these declarations and erases fixture-only imports from production.
  * Recipes retain identity; dependencies resolve before deferred value callbacks.
@@ -829,7 +920,16 @@ export function exampleFixtures({ self, other, imported }) {
     model: "expense.Decision", dependencies: [claim, receipt, reviewer_user],
     value: async (c, s) => ({ parent: s.claim, submission: 1n, amount: money(25n, "EUR"), receipt: s.receipt, reviewer: s.reviewer_user, approved: false, reason: "Clarify the journey", decided_at: datetime("2026-10-02T09:00:00Z") }),
   };
+  const legacy_source={dependencies:[],file:async(c,s)=>({})};
+  const legacy_entry={model:"expense.LegacyExpense",dependencies:[test_site,receipt,legacy_source],value:async(c,s)=>({
+    source:"vendor-a",external_id:"old-17",location:s.test_site,
+    claim:{actor:"Former employee 41",reviewer:"Reviewer 8",decision_time_original:"2021-05-12T09:00:00Z",decided_at:datetime("2021-05-12T09:00:00Z"),paid:date("2021-05-20"),status:"Paid",purpose:"Travel",amount:money(25n,"EUR"),receipt:s.receipt,receipt_issue:null},
+    source_evidence:s.legacy_source,attestation:"Source fields transcribed; no live approval inferred",
+  })};
+  const legacy_receipt_upload={dependencies:[finance_user],file:async(c,s)=>({owner:s.finance_user})};
+  const legacy_source_upload={dependencies:[finance_user],file:async(c,s)=>({owner:s.finance_user})};
   return {
+    legacy_source,legacy_entry,legacy_receipt_upload,legacy_source_upload,
     receipt, corrected_receipt, hr_user, replacement_user, replacement_worker, reviewer_user, finance_user, ordinary_user, reviewer_worker, finance_worker, ordinary_worker,
     claim, previous_claim, previous_payment, rejected_decision, other_site,
     examples: [
@@ -1695,6 +1795,63 @@ export function exampleFixtures({ self, other, imported }) {
           },
         ],
       },
+    {operation:"expense.retain_legacy",seed:[test_worker,legacy_entry],dependencies:[test_worker,legacy_entry,test_site,legacy_source,receipt],
+      inputs:async(c,s)=>({source:"vendor-a",external_id:"old-18",location:s.test_site,source_evidence:s.legacy_source,attestation:"Transcribed from retained export",claim:{actor:"Former employee 41",reviewer:null,decision_time_original:null,decided_at:null,paid:null,status:"Unknown",purpose:"Travel",amount:money(25n,"EUR"),receipt:s.receipt,receipt_issue:null}}),
+      selectors:["as","external_id","claim.receipt","claim.receipt_issue"],
+      observations:[async(c,s)=>s.result.external_id,async(c,s)=>s.result.claim.actor,async(c,s)=>s.result.claim.status,async(c,s)=>s.result.claimant,async(c,s)=>s.result.imported_by],
+      rows:[
+        {dependencies:[],values:async(c,s)=>["expense.finance","old-18",s.receipt,null],expected:async(c,s)=>["old-18","Former employee 41","Unknown",null,self]},
+        {dependencies:[],values:async(c,s)=>["expense.finance","old-18",null,"Original receipt missing from export"],expected:async(c,s)=>["old-18","Former employee 41","Unknown",null,self]},
+        {dependencies:[],values:async(c,s)=>["expense.finance","old-17",s.receipt,null],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>["expense.finance","old-18",null,null],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>["members","old-18",s.receipt,null],error:"forbidden"},
+      ],
+    },
+    {operation:"expense.legacy_matches",seed:[test_worker,legacy_entry],dependencies:[test_worker,legacy_entry,test_site],inputs:async(c,s)=>({source:"vendor-a",external_id:"old-17",location:s.test_site}),selectors:["as"],observations:[async(c,s)=>await count(s.result)],rows:[
+      {dependencies:[],values:async(c,s)=>["expense.finance"],expected:async(c,s)=>[1n]},
+      {dependencies:[],values:async(c,s)=>["members"],expected:async(c,s)=>[0n]},
+      {dependencies:[],values:async(c,s)=>["public"],error:"forbidden"},
+    ]},
+    {operation:"expense.link_legacy",seed:[test_worker],dependencies:[test_worker,legacy_entry],inputs:async(c,s)=>({entry:s.legacy_entry,claimant:self,reason:"Verified original personnel key against current account"}),selectors:["as","entry.claimant","claimant","reason","request.entry.version"],observations:[async(c,s)=>s.legacy_entry.claimant,async(c,s)=>s.legacy_entry.claim.actor,async(c,s)=>s.legacy_entry.claim.decided_at,async(c,s)=>s.legacy_entry.access_reason],rows:[
+      {dependencies:[],values:async(c,s)=>["expense.finance",null,self,"Verified match",1n],expected:async(c,s)=>[self,"Former employee 41",datetime("2021-05-12T09:00:00Z"),"Verified match"]},
+      {dependencies:[],values:async(c,s)=>["expense.finance",self,null,"Revoke mistaken access mapping",1n],expected:async(c,s)=>[null,"Former employee 41",datetime("2021-05-12T09:00:00Z"),"Revoke mistaken access mapping"]},
+      {dependencies:[],values:async(c,s)=>["expense.finance",null,other,"No matching roster identity",1n],error:"rule_failed"},
+      {dependencies:[],values:async(c,s)=>["expense.finance",null,self," ",1n],error:"rule_failed"},
+      {dependencies:[],values:async(c,s)=>["expense.finance",null,self,"Verified match",2n],error:"conflict"},
+      {dependencies:[],values:async(c,s)=>["members",null,self,"Verified match",1n],error:"forbidden"},
+    ]},
+      {operation:"expense.retain_legacy",dependencies:[test_worker,finance_worker,ordinary_worker,hr_user,legacy_receipt_upload,legacy_source_upload,finance_user,ordinary_user,test_site],sequence:[
+        {let:"historical_claim",value:async(c,s,b)=>({actor:"Former employee 41",reviewer:"Original reviewer",decision_time_original:"2021-05-12T09:00:00Z",decided_at:datetime("2021-05-12T09:00:00Z"),paid:date("2021-05-20"),status:"Paid",purpose:"Historical travel",amount:money(25n,"EUR"),receipt:s.legacy_receipt_upload,receipt_issue:null})},
+        {operation:"expense.retain_legacy",by:async(c,s,b)=>s.finance_user,inputs:async(c,s,b)=>({source:"vendor-a",external_id:"journey-1",location:s.test_site,claim:b.historical_claim,source_evidence:s.legacy_source_upload,attestation:"Source export checked; no present-day approval inferred"}),bind:"retained"},
+        {observations:async(c,s,b)=>[await count(records(c,"expense.LegacyExpense")),await count(records(c,"expense.Expense")),await count(records(c,"expense.Decision")),await count(records(c,"expense.Reimbursement"))],expected:async(c,s,b)=>[1n,0n,0n,0n],types:["int", "int", "int", "int"]},
+        {operation:"expense.legacy_matches",by:async(c,s,b)=>self,inputs:async(c,s,b)=>({source:"vendor-a",external_id:"journey-1",location:s.test_site}),bind:"before_access"},
+        {observations:async(c,s,b)=>[await count(b.before_access)],expected:async(c,s,b)=>[0n],types:["int"]},
+        {operation:"expense.link_legacy",by:async(c,s,b)=>s.finance_user,inputs:async(c,s,b)=>({entry:b.retained,claimant:self,reason:"Verified source personnel key"})},
+        {operation:"expense.legacy_matches",by:async(c,s,b)=>self,inputs:async(c,s,b)=>({source:"vendor-a",external_id:"journey-1",location:s.test_site}),bind:"readable"},
+        {observations:async(c,s,b)=>[await count(b.readable)],expected:async(c,s,b)=>[1n],types:["int"]},
+        {let:"own_record",value:async(c,s,b)=>await first(b.readable)},
+        {observations:async(c,s,b)=>[b.own_record!==null],expected:async()=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.own_record.claim.actor,b.own_record.claim.status,b.own_record.claim.receipt],expected:async(c,s,b)=>["Former employee 41","Paid",s.legacy_receipt_upload],types:["text?", "text?", "file?"]},
+        {operation:"expense.link_legacy",by:async(c,s,b)=>s.finance_user,inputs:async(c,s,b)=>({entry:b.retained,claimant:null,reason:"Stale mapping revision"}),error:"conflict"},
+        {let:"mapped",value:async(c,s,b)=>await first(records(c,"expense.LegacyExpense",{where:entry=>entry.id===b.retained.id}))},
+        {observations:async(c,s,b)=>[b.mapped!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"expense.link_legacy",by:async(c,s,b)=>s.finance_user,inputs:async(c,s,b)=>({entry:b.mapped,claimant:null,reason:"Revoke mistaken account match"})},
+        {operation:"expense.legacy_matches",by:async(c,s,b)=>self,inputs:async(c,s,b)=>({source:"vendor-a",external_id:"journey-1",location:s.test_site}),bind:"revoked"},
+        {observations:async(c,s,b)=>[await count(b.revoked)],expected:async(c,s,b)=>[0n],types:["int"]},
+        {let:"unlinked",value:async(c,s,b)=>await first(records(c,"expense.LegacyExpense",{where:entry=>entry.id===b.retained.id}))},
+        {observations:async(c,s,b)=>[b.unlinked!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"expense.link_legacy",by:async(c,s,b)=>s.finance_user,inputs:async(c,s,b)=>({entry:b.unlinked,claimant:s.ordinary_user,reason:"Verified corrected account match"})},
+        {operation:"expense.legacy_matches",by:async(c,s,b)=>s.ordinary_user,inputs:async(c,s,b)=>({source:"vendor-a",external_id:"journey-1",location:s.test_site}),bind:"corrected_access"},
+        {observations:async(c,s,b)=>[await count(b.corrected_access)],expected:async(c,s,b)=>[1n],types:["int"]},
+        {operation:"expense.retain_legacy",by:async(c,s,b)=>s.finance_user,inputs:async(c,s,b)=>({source:"vendor-a",external_id:"journey-1",location:s.test_site,claim:b.historical_claim,source_evidence:s.legacy_source_upload,attestation:"Source export checked; no present-day approval inferred"}),error:"rule_failed"},
+        {operation:"employee.deactivate",by:async(c,s,b)=>s.hr_user,inputs:async(c,s,b)=>({employee:s.finance_worker,ended:date("2026-10-02")})},
+        {let:"current",value:async(c,s,b)=>await first(records(c,"expense.LegacyExpense",{where:entry=>entry.id===b.retained.id}))},
+        {observations:async(c,s,b)=>[b.current!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"expense.link_legacy",by:async(c,s,b)=>s.finance_user,inputs:async(c,s,b)=>({entry:b.current,claimant:null,reason:"No current workplace eligibility"}),error:"rule_failed"},
+        {operation:"expense.link_legacy",by:async(c,s,b)=>s.ordinary_user,inputs:async(c,s,b)=>({entry:b.current,claimant:null,reason:"No finance role"}),error:"forbidden"},
+        {operation:"expense.legacy_matches",by:async(c,s,b)=>s.finance_user,inputs:async(c,s,b)=>({source:"vendor-a",external_id:"journey-1",location:s.test_site}),bind:"former_steward"},
+        {observations:async(c,s,b)=>[await count(b.former_steward),b.current.claim.actor,b.current.claim.status,b.current.claim.decided_at,b.current.claim.paid,b.current.imported_by,await count(records(c,"expense.Expense")),await count(records(c,"expense.Decision")),await count(records(c,"expense.Reimbursement"))],expected:async(c,s,b)=>[0n,"Former employee 41","Paid",datetime("2021-05-12T09:00:00Z"),date("2021-05-20"),s.finance_user,0n,0n,0n],types:["int", "text?", "text?", "datetime?", "date?", "user", "int", "int", "int"]}
+      ]},
     ],
   };
 }
