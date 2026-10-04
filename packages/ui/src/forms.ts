@@ -696,20 +696,18 @@ function assertUniqueFieldPaths(fields: readonly FormFieldDef[]): void {
 }
 
 /**
- * Multipart join (C4b): a file-typed field or a file_input control switches
- * the form to multipart/form-data; L6 parses multipart bodies (today's
- * urlencoded default otherwise). Without file fields no enctype attribute
- * is emitted.
+ * Multipart join (C4b): a file_input explicit control switches the form to
+ * multipart/form-data; L6 parses multipart bodies (today's urlencoded
+ * default otherwise). Without file fields no enctype attribute is emitted.
+ * Bare file-typed fields are rejected by renderWidget (S7 upload intents)
+ * during field rendering, which always runs before the open tag is built,
+ * so only the explicit-control branch can ever fire here.
  */
 function needsMultipart(fields: readonly FormFieldDef[] | undefined): boolean {
   if (fields === undefined) {
     return false;
   }
-  return fields.some(
-    (field) =>
-      field.control === "file_input" ||
-      (typeof field.type === "string" && (field.type === "file" || field.type.startsWith("file."))),
-  );
+  return fields.some((field) => field.control === "file_input");
 }
 
 function formOpenTag(action: string, multipart: boolean): string {
