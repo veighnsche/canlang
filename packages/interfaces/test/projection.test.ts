@@ -18,10 +18,13 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-test('hasGrantedPath matches exact grants', () => {
+test('hasGrantedPath matches exact grants and parent subsumption', () => {
   assert.equal(hasGrantedPath(['a', 'a.b'], 'a'), true);
   assert.equal(hasGrantedPath(['a', 'a.b'], 'a.b'), true);
-  assert.equal(hasGrantedPath(['a', 'a.b'], 'a.c'), false);
+  // A granted parent covers unlisted descendants, mirroring projectFields.
+  assert.equal(hasGrantedPath(['a'], 'a.c'), true);
+  assert.equal(hasGrantedPath(['a.b'], 'a.c'), false);
+  assert.equal(hasGrantedPath(['a.b'], 'a'), false);
   assert.equal(hasGrantedPath([], 'a'), false);
 });
 
@@ -64,6 +67,14 @@ test('unknown paths throw (grants come from checked policies)', () => {
   assert.throws(() => projectFields({ a: 1 }, ['']), Error);
   assert.throws(() => projectFields({ a: 1 }, ['a..b']), Error);
   assert.throws(() => projectFields({ a: 1 }, [42 as unknown as string]), Error);
+  assert.throws(() => projectFields({ a: 1 }, ['__proto__']), Error);
+  assert.throws(() => projectFields({ a: 1 }, ['a.__proto__']), Error);
+});
+
+test('cyclic records fail with a clean error, not stack exhaustion', () => {
+  const record: Record<string, unknown> = { a: 1 };
+  record['self'] = record;
+  assert.throws(() => projectFields(record, ['self']), /nesting depth/);
 });
 
 test('arrays project whole-leaf only; descent into arrays throws', () => {

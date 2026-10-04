@@ -14,9 +14,14 @@ import { systemInterfacesClock } from '../ports.js';
 import { buildBusinessError } from '../errors/envelope.js';
 
 /**
- * Canonical UUIDv7 text shape: version nibble `7`, variant `8/9/a/b`
- * (lowercase hex, matching the wire fixtures). No `/g` flag: this pattern
- * is shared across `.test` calls and must stay stateless.
+ * Canonical UUIDv7 text shape: version nibble `7`, variant `8/9/a/b`,
+ * lowercase hex only. Lane-06 authored strictness: RFC 9562 UUIDs are
+ * case-insensitive and DESIGN section 7 does not pin case, but receipt
+ * identity compares operation_id strings exactly (L3), so accepting mixed
+ * case here while L3 compares raw text would fork identity. Uppercase input
+ * fails validation; generators must emit canonical lowercase.
+ * No `/g` flag: this pattern is shared across `.test` calls and must stay
+ * stateless.
  */
 export const UUID_V7_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

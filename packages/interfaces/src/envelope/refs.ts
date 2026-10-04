@@ -8,7 +8,11 @@
 import type { BusinessError, MutationRef, ReadRef } from '@canlang/contracts';
 import { buildBusinessError } from '../errors/envelope.js';
 
-/** Maximum accepted record-id length (transport bound). */
+/**
+ * Maximum accepted record-id length. Lane-06 authored transport bound
+ * (DESIGN pins canonical values, not id length): rejects absurd inputs
+ * before they reach storage lookups.
+ */
 export const MAX_ID_LENGTH = 256;
 
 /** Canonical decimal integer: digits only (rejects negatives, decimals, whitespace). */

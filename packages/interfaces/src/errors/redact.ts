@@ -24,7 +24,7 @@ export const UNSERIALIZABLE = '[unserializable]';
  * logs since redacted fields are still counted as present.
  */
 export const SECRET_KEY_PATTERN =
-  /token|secret|password|passwd|pwd|cookie|credential|authorization|auth|session|private|ssn|card/i;
+  /token|secret|password|passwd|pwd|cookie|credential|authorization|auth|session|private|ssn|card|apikey|api[_-]?key|access[_-]?key/i;
 
 /** Options for {@link redactForLog}. */
 export interface RedactOptions {
@@ -58,7 +58,19 @@ export function redactForLog(value: unknown, opts?: RedactOptions): unknown {
         }
         const out: Record<string, unknown> = {};
         for (const [key, child] of Object.entries(node)) {
-          out[key] = SECRET_KEY_PATTERN.test(key) ? REDACTED : walk(child, depth + 1);
+          const value = SECRET_KEY_PATTERN.test(key) ? REDACTED : walk(child, depth + 1);
+          if (key === '__proto__') {
+            // defineProperty: plain assignment would set the prototype and
+            // drop the key from the log JSON.
+            Object.defineProperty(out, key, {
+              value,
+              enumerable: true,
+              writable: true,
+              configurable: true,
+            });
+          } else {
+            out[key] = value;
+          }
         }
         return out;
       } finally {

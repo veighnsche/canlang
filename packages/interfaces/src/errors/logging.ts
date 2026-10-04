@@ -37,24 +37,31 @@ export function incidentId(): string {
 /**
  * Log a business rejection at `info`: business errors are routine
  * outcomes, so there is no stack and the safe envelope members ride along.
+ * Caller fields are redacted like the internal path: callers routinely
+ * attach request context that may carry secrets.
  */
 export function logBusinessError(
   logger: Logger,
   error: BusinessError,
   fields?: Record<string, unknown>,
 ): void {
-  logger.log('info', `${error.code}: ${error.message}`, {
+  const redacted = redactForLog({
     ...fields,
     code: error.code,
     ...(error.operation_id !== undefined ? { operation_id: error.operation_id } : {}),
     ...(error.retryable !== undefined ? { retryable: error.retryable } : {}),
   });
+  logger.log('info', `${error.code}: ${error.message}`, redacted as Record<string, unknown>);
 }
 
 /**
  * Log an unexpected failure at `error` with redacted detail, returning the
  * incident id (also included in the logged fields) for support correlation.
  * Pair with `fromUnknown`, which builds the safe caller-facing envelope.
+ *
+ * Residual risk (acknowledged): keyed redaction cannot catch secrets
+ * embedded inside `err.message` text. Never interpolate secrets, tokens, or
+ * credentials into thrown messages; value-scrubbing is out of scope.
  */
 export function logInternalError(
   logger: Logger,

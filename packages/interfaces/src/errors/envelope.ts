@@ -68,7 +68,11 @@ export interface McpError {
   readonly structuredContent: BusinessError;
 }
 
-/** Maximum field details inlined into MCP text before a count note. */
+/**
+ * Maximum field details inlined into MCP text before a count note.
+ * Lane-06 authored bound (DESIGN pins isError + same meaning, not text
+ * length); the full envelope always rides in structuredContent.
+ */
 export const MCP_MAX_INLINE_FIELDS = 5;
 
 /**

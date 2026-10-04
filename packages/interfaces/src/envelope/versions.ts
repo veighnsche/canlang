@@ -17,6 +17,11 @@ const CANONICAL_VERSION_PATTERN = /^[0-9]+$/;
  * comparison is numeric via BigInt, so arbitrary magnitudes (e.g. 2^100)
  * compare exactly. A mismatch is a `conflict` naming both versions.
  *
+ * Lane-06 authored leniency: comparison is numeric, so leading zeros agree
+ * ('007' equals '7'). DESIGN pins canonical decimal strings but not
+ * zero-padding; rejecting padding here would turn a formatting choice into
+ * a conflict.
+ *
  * Defensive layers (callers pre-validate; this never throws): the canonical
  * shape is rechecked first because BigInt's own string grammar is looser
  * than canonical decimal (`BigInt('')` is `0n`, whitespace trims, and

@@ -232,3 +232,21 @@ test('checkExpectedVersion honors a custom fieldPath and fails malformed safely'
     assert.equal(checkExpectedVersion('4', bad as never)?.code, 'validation');
   }
 });
+
+test('operation ids are canonical lowercase (uppercase fails)', () => {
+  const now = Date.now();
+  const clock = { nowMs: () => now };
+  const upper = v7At(now).toUpperCase();
+  const err = validateOperationId(upper, clock);
+  assert.equal(err?.code, 'validation');
+  assert.equal(extractUuidV7Ms(upper), null);
+});
+
+test('checkClosedInputs reports unknown members before missing required', () => {
+  const shape: OperationInputShape = { allowed: ['a', 'b'], required: ['a', 'b'] };
+  // Both an unknown member and a missing required: unknown wins.
+  const err = checkClosedInputs({ b: 1, surprise: 2 }, shape);
+  assert.equal(err?.code, 'validation');
+  assert.equal(err?.fields?.[0]?.code, 'unknown');
+  assert.equal(err?.fields?.[0]?.path, '/surprise');
+});

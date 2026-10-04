@@ -307,3 +307,38 @@ test('incidentId returns 8 hex chars and createConsoleLogger writes JSON lines',
     message: 'boom',
   });
 });
+
+test('redactForLog covers api/access key spellings', () => {
+  assert.ok(SECRET_KEY_PATTERN.test('apiKey'));
+  assert.ok(SECRET_KEY_PATTERN.test('accessKey'));
+  assert.ok(SECRET_KEY_PATTERN.test('api_key'));
+  assert.ok(SECRET_KEY_PATTERN.test('access-key'));
+  assert.deepEqual(redactForLog({ apiKey: 'k-1', accessKey: 'k-2', name: 'ada' }), {
+    apiKey: REDACTED,
+    accessKey: REDACTED,
+    name: 'ada',
+  });
+});
+
+test('redactForLog preserves own __proto__ keys without mutating the prototype', () => {
+  const input = JSON.parse('{"__proto__":{"password":"pw"},"name":"ada"}') as Record<string, unknown>;
+  const out = redactForLog(input) as Record<string, unknown>;
+  assert.ok(Object.prototype.hasOwnProperty.call(out, '__proto__'));
+  assert.ok(Object.getPrototypeOf(out) === Object.prototype);
+  assert.deepEqual(out['__proto__'], { password: REDACTED });
+});
+
+test('logBusinessError redacts caller fields', () => {
+  const calls: RecordedCall[] = [];
+  const secret = 'hunter2-business-path';
+  logBusinessError(stubLogger(calls), buildBusinessError('forbidden'), {
+    route: '/todos',
+    password: secret,
+    nested: { apiKey: secret },
+  });
+  assert.equal(calls.length, 1);
+  const json = JSON.stringify(calls[0]?.fields);
+  assert.ok(!json.includes(secret), json);
+  assert.equal(calls[0]?.fields?.['route'], '/todos');
+  assert.equal(calls[0]?.fields?.['code'], 'forbidden');
+});

@@ -28,8 +28,14 @@
  *   primitives pass through. Exotic host objects (Date, Map, ...) are out
  *   of contract and pass by reference.
  */
+/**
+ * True when `path` is covered by the grants: exact match or a granted
+ * segment-wise parent (mirrors `projectFields` subsumption).
+ */
 export function hasGrantedPath(grantedLeafPaths: readonly string[], path: string): boolean {
-  return grantedLeafPaths.includes(path);
+  return grantedLeafPaths.some(
+    (grant) => grant === path || (path.length > grant.length && path.startsWith(`${grant}.`)),
+  );
 }
 
 function hasOwn(record: Record<string, unknown>, key: string): boolean {
@@ -44,15 +50,24 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return proto === Object.prototype || proto === null;
 }
 
-/** Structural clone for JSON-ish values (see module doc for the boundary). */
-function cloneValue(value: unknown): unknown {
+/**
+ * Structural clone for JSON-ish values (see module doc for the boundary).
+ * Records are acyclic-by-contract; the depth cap turns a contract violation
+ * (cyclic input) into a clean Error instead of stack exhaustion.
+ */
+const CLONE_MAX_DEPTH = 20;
+
+function cloneValue(value: unknown, depth = 0): unknown {
+  if (depth > CLONE_MAX_DEPTH) {
+    throw new Error('Cannot project value: exceeds maximum nesting depth.');
+  }
   if (Array.isArray(value)) {
-    return value.map(cloneValue);
+    return value.map((item) => cloneValue(item, depth + 1));
   }
   if (isPlainObject(value)) {
     const out: Record<string, unknown> = {};
     for (const key of Object.keys(value)) {
-      const cloned = cloneValue(value[key]);
+      const cloned = cloneValue(value[key], depth + 1);
       if (key === '__proto__') {
         // defineProperty: plain assignment would set the prototype.
         Object.defineProperty(out, key, {
