@@ -11,6 +11,7 @@ import {
   require as check,
   count,
   create,
+  delivery,
   first,
   format,
   hasRole,
@@ -294,12 +295,7 @@ export const appDefinition = {
         location: { type: Location },
         fulfilled_by: { type: "user", nullable: true },
         cancelled_by: { type: "user", nullable: true },
-        notification: {
-          type: "std.DeliveryResult.status",
-          default: "pending",
-          label: message("Notification outcome", { nl: "Meldingsresultaat" }),
-        },
-        notification_delivery: { type: "text", nullable: true },
+        notification_delivery: { type: "delivery", operation: "loyalty.Mail.send", nullable: true },
         cost: { type: "int", label: costCaption },
         state: {
           type: "enum",
@@ -316,6 +312,14 @@ export const appDefinition = {
         },
         evidence: { type: "text", nullable: true },
         source: { type: "text", unique: true, label: sourceCaption },
+      },
+      derived: {
+        notification: {
+          type: "std.DeliveryResult.status",
+          nullable: true,
+          handler: "Redemption.notification",
+          label: message("Notification outcome", { nl: "Meldingsresultaat" }),
+        },
       },
     },
   },
@@ -487,7 +491,6 @@ export const appDefinition = {
   },
   handlers: {
     "loyalty.earning": { handler: "earning", on: "loyalty.Sales.qualification" },
-    "loyalty.notification": { handler: "notification", on: "loyalty.Mail.send.completed" },
   },
   pages: [
     loyaltyPageDescriptor,
@@ -593,6 +596,9 @@ export function canApp() {
         ]),
       "Account.tier_progress": async (c, row) =>
         min([row.tier_span, await max([0n, int64(row.earned - (row.tier?.threshold ?? 0n))])]),
+      "Redemption.notification": async (c, row) =>
+        (await delivery(c, { record: row, field: "notification_delivery" }, ["status"]))?.status ??
+        null,
     },
     invariants: {
       "Program.require.1": async (c, row) =>
@@ -690,7 +696,7 @@ export function canApp() {
         }),
         body: redemption.instructions,
       });
-      await set(c, redemption, { notification_delivery: notice.id });
+      await set(c, redemption, { notification_delivery: notice });
       return redemption;
     },
     async fulfill(c, { redemption, evidence }) {
@@ -847,14 +853,6 @@ export function canApp() {
             });
           }
         }
-      }
-    },
-    async notification(c, { event }) {
-      for await (const redemption of records(c, "loyalty.Redemption", {
-        where: (row) => row.notification_delivery === event.delivery_id,
-        limit: 1n,
-      })) {
-        await set(c, redemption, { notification: event.status });
       }
     },
   };
@@ -1208,9 +1206,20 @@ export function exampleFixtures({ self, other, imported }) {
     dependencies: [perks],
     value: async (c, s) => ({ parent: s.perks, name: "Gold", threshold: 200n }),
   };
+  const notice = {
+    delivery: "loyalty.Mail.send",
+    dependencies: [],
+    values: async (c, s) => ({
+      request: {
+        to: "customer@example.test",
+        subject: "Reward reserved",
+        body: "Collect at reception",
+      },
+    }),
+  };
   const reservation = {
     model: "loyalty.Redemption",
-    dependencies: [wallet, welcome, test_site],
+    dependencies: [wallet, welcome, test_site, notice],
     value: async (c, s) => ({
       parent: s.wallet,
       reward: s.welcome,
@@ -1220,7 +1229,7 @@ export function exampleFixtures({ self, other, imported }) {
       location: s.test_site,
       cost: 60n,
       source: "reserved",
-      notification_delivery: "notice",
+      notification_delivery: s.notice,
     }),
   };
   const observed = {
@@ -1280,6 +1289,7 @@ export function exampleFixtures({ self, other, imported }) {
     bronze,
     silver,
     gold,
+    notice,
     reservation,
     observed,
     credited,
@@ -1300,6 +1310,9 @@ export function exampleFixtures({ self, other, imported }) {
           async (c, s) => s.result.cost,
           async (c, s) => s.result.instructions,
           async (c, s) => s.result.location,
+          async (c, s) =>
+            (await delivery(c, { record: s.result, field: "notification_delivery" }, ["status"]))
+              ?.status ?? null,
         ],
         rows: [
           {
@@ -1314,6 +1327,7 @@ export function exampleFixtures({ self, other, imported }) {
               60n,
               "Collect at reception",
               s.test_site,
+              "pending",
             ],
           },
           {
@@ -1328,6 +1342,7 @@ export function exampleFixtures({ self, other, imported }) {
               60n,
               "Collect at reception",
               s.test_site,
+              "pending",
             ],
           },
           {
@@ -1342,6 +1357,7 @@ export function exampleFixtures({ self, other, imported }) {
               60n,
               "Collect at reception",
               s.test_site,
+              "pending",
             ],
           },
           {
@@ -1356,6 +1372,7 @@ export function exampleFixtures({ self, other, imported }) {
               40n,
               "Collect at reception",
               s.test_site,
+              "pending",
             ],
           },
           {
@@ -1469,6 +1486,69 @@ export function exampleFixtures({ self, other, imported }) {
             dependencies: [],
             values: async (c, s) => ["loyalty.reward_staff", false],
             error: "rule_failed",
+          },
+        ],
+      },
+      {
+        operation: "loyalty.fulfill",
+        seed: [test_worker, reservation, notice],
+        dependencies: [reservation],
+        inputs: async (c, s) => ({ redemption: s.reservation, evidence: "Delivered at reception" }),
+        selectors: [
+          "as",
+          "redemption.notification_delivery",
+          "notice.status",
+          "notice.result",
+          "notice.error",
+        ],
+        observations: [
+          async (c, s) =>
+            (await delivery(c, { record: s.reservation, field: "notification_delivery" }, ["status"]))
+              ?.status ?? null,
+          async (c, s) => s.reservation.state,
+        ],
+        rows: [
+          {
+            dependencies: [],
+            values: async (c, s) => ["loyalty.reward_staff", s.notice, "pending", null, null],
+            expected: async (c, s) => ["pending", "fulfilled"],
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => [
+              "loyalty.reward_staff",
+              s.notice,
+              "succeeded",
+              { reference: "accepted-mail" },
+              null,
+            ],
+            expected: async (c, s) => ["succeeded", "fulfilled"],
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => [
+              "loyalty.reward_staff",
+              s.notice,
+              "failed",
+              null,
+              { code: "rejected", message: "Delivery rejected" },
+            ],
+            expected: async (c, s) => ["failed", "fulfilled"],
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => ["loyalty.reward_staff", s.notice, "unknown", null, null],
+            expected: async (c, s) => ["unknown", "fulfilled"],
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => ["loyalty.reward_staff", s.notice, "skipped", null, null],
+            expected: async (c, s) => ["skipped", "fulfilled"],
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => ["loyalty.reward_staff", null, "pending", null, null],
+            expected: async (c, s) => [null, "fulfilled"],
           },
         ],
       },
@@ -1848,35 +1928,6 @@ export function exampleFixtures({ self, other, imported }) {
         selectors: ["event.value.revision", "event.value.product"],
         observations: [async (c, s) => s.wallet.available],
         rows: [{ dependencies: [], values: async (c, s) => [2n, "office"], error: "rule_failed" }],
-      },
-      {
-        operation: "loyalty.notification",
-        seed: [reservation],
-        dependencies: [],
-        inputs: async (c, s) => ({ event: { delivery_id: "notice", status: "failed" } }),
-        selectors: ["event.status"],
-        observations: [
-          async (c, s) => s.reservation.state,
-          async (c, s) => s.reservation.notification,
-          async (c, s) => s.reservation.cost,
-        ],
-        rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => ["failed"],
-            expected: async (c, s) => ["reserved", "failed", 60n],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["unknown"],
-            expected: async (c, s) => ["reserved", "unknown", 60n],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["succeeded"],
-            expected: async (c, s) => ["reserved", "succeeded", 60n],
-          },
-        ],
       },
     ],
   };

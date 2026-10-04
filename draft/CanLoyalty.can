@@ -6,7 +6,8 @@ package loyalty label=heading_rewards
  use customer {Customer,Contact,test_company,test_contact}
  use rent_catalog {Location,test_site}
  use employee {can_work,test_worker}
- use std {EmailV1 as Mail,DeliveryResult} from=deployment.mail
+ use std {DeliveryResult}
+ use std {EmailV1 as Mail} from=deployment.mail
  use invoice {SalesV1 as Sales,Qualification} from=deployment.qualified_sales
  Given
   message page_loyalty_fulfillment_title = "Reward fulfillment"@{nl="Beloningen uitvoeren"}
@@ -24,7 +25,9 @@ package loyalty label=heading_rewards
   Account in Program { customer:Customer, contact:Contact } label="Reward account"@{nl="Beloningsaccount"}
   SourceEvidence in Account { source:text unique, value:Qualification, reversed:bool=false, decided:bool=false }
   Earning in Account { tier:bool=false label="Counts toward tier"@{nl="Telt mee voor niveau"}, author:user?, qualification:SourceEvidence?, source:text unique label=label_Earning_source, points:int label="Points"@{nl="Punten"}, reason:text, reversal:Earning? label="Reversed entry"@{nl="Tegenboeking"} } label="Points entry"@{nl="Puntenboeking"}
-  Redemption in Account { reward:Reward, name:text, instructions:text, locations:Location[]!, location:Location, fulfilled_by:user?, cancelled_by:user?, notification:DeliveryResult.status=pending label="Notification outcome"@{nl="Meldingsresultaat"}, notification_delivery:text?, cost:int label=label_Reward_cost, state:enum(reserved,fulfilled,cancelled)=reserved label={text="State"@{nl="Status"},values={reserved="Reserved"@{nl="Gereserveerd"},fulfilled="Fulfilled"@{nl="Uitgevoerd"},cancelled="Cancelled"@{nl="Geannuleerd"}}}, evidence:text?, source:text unique label=label_Earning_source } label="Reward reservation"@{nl="Beloningsreservering"}
+  Redemption in Account { reward:Reward, name:text, instructions:text, locations:Location[]!, location:Location, fulfilled_by:user?, cancelled_by:user?, notification_delivery:delivery(Mail.send)?, cost:int label=label_Reward_cost, state:enum(reserved,fulfilled,cancelled)=reserved label={text="State"@{nl="Status"},values={reserved="Reserved"@{nl="Gereserveerd"},fulfilled="Fulfilled"@{nl="Uitgevoerd"},cancelled="Cancelled"@{nl="Geannuleerd"}}}, evidence:text?, source:text unique label=label_Earning_source } label="Reward reservation"@{nl="Beloningsreservering"}
+  ## Notification outcome observes the Mail receipt; null means no notice was requested.
+  derive Redemption.notification:DeliveryResult.status? = row.notification_delivery?.status label="Notification outcome"@{nl="Meldingsresultaat"}
   derive Account.earned:int = sum(row.Earning as earning where earning.tier select earning.points) label="Earned points"@{nl="Verdiende punten"}
   derive Account.available:int = sum(row.Earning as earning select earning.points)-sum(row.Redemption as redemption where redemption.state in [reserved,fulfilled] select redemption.cost) label="Available points"@{nl="Beschikbare punten"}
   derive Account.tier:Tier? = first(row.parent.Tier as tier where tier.threshold<=row.earned order=-tier.threshold) label="Current tier"@{nl="Huidig niveau"}
@@ -64,7 +67,8 @@ package loyalty label=heading_rewards
   fixture bronze=Tier {parent=perks,name="Bronze",threshold=0}
   fixture silver=Tier {parent=perks,name="Silver",threshold=100}
   fixture gold=Tier {parent=perks,name="Gold",threshold=200}
-  fixture reservation=Redemption {parent=wallet,reward=welcome,name="Welcome pack",instructions="Collect at reception",locations=[test_site],location=test_site,cost=60,source="reserved",notification_delivery="notice"}
+  fixture notice=Mail.send {request={to="customer@example.test",subject="Reward reserved",body="Collect at reception"}}
+  fixture reservation=Redemption {parent=wallet,reward=welcome,name="Welcome pack",instructions="Collect at reception",locations=[test_site],location=test_site,cost=60,source="reserved",notification_delivery=notice}
   fixture observed=SourceEvidence {parent=wallet,source="sale",value={source="sale",revision=1,customer=test_company.id,account=self,location=test_site.id,product="meeting",amount=money(100,"EUR"),purchased_at=datetime("2026-10-01T00:00:00Z"),occurred=datetime("2026-10-02T00:00:00Z"),milestone=completed,first_customer=false,history_known=false},decided=true}
   fixture credited=Earning {parent=wallet,source="sale:sale",points=10,reason="Qualified completed sale",tier=true,qualification=observed}
   fixture reversed=Earning {parent=wallet,source="reversal:credited",points=-10,reason="Source reversal",tier=true,qualification=observed,reversal=credited}
@@ -79,14 +83,14 @@ package loyalty label=heading_rewards
    do
     create Redemption {parent=account,reward,name=reward.name,instructions=reward.instructions,locations=reward.locations,location,cost=reward.cost,source=operation.id} as redemption
     send Mail.send {to=account.contact.email,subject=format("Reward reserved"@{nl="Beloning gereserveerd"},locale=null),body=redemption.instructions} as notice
-    set redemption {notification_delivery=notice.id}
+    set redemption {notification_delivery=notice}
     return redemption
    examples seed=[balance,bronze,silver,gold] account=wallet reward=welcome location=test_site
-    as,reward.cost,wallet.contact.verified,balance.points -> wallet.available,wallet.earned,wallet.tier,wallet.tier_progress,wallet.tier_span,result.cost,result.instructions,result.location
-    members,60,true,100 -> 40,100,silver,0,100,60,"Collect at reception",test_site
-    members,60,true,150 -> 90,150,silver,50,100,60,"Collect at reception",test_site
-    members,60,true,250 -> 190,250,gold,0,0,60,"Collect at reception",test_site
-    members,40,true,50 -> 10,50,bronze,50,100,40,"Collect at reception",test_site
+    as,reward.cost,wallet.contact.verified,balance.points -> wallet.available,wallet.earned,wallet.tier,wallet.tier_progress,wallet.tier_span,result.cost,result.instructions,result.location,result.notification
+    members,60,true,100 -> 40,100,silver,0,100,60,"Collect at reception",test_site,pending
+    members,60,true,150 -> 90,150,silver,50,100,60,"Collect at reception",test_site,pending
+    members,60,true,250 -> 190,250,gold,0,0,60,"Collect at reception",test_site,pending
+    members,40,true,50 -> 10,50,bronze,50,100,40,"Collect at reception",test_site,pending
     members,101,true,100 -> error(rule_failed)
     members,60,false,100 -> error(rule_failed)
     members,60,true,-10 -> error(rule_failed)
@@ -110,6 +114,14 @@ package loyalty label=heading_rewards
    examples seed=[test_worker] redemption=reservation evidence="Delivered at reception"
     as,test_worker.active -> reservation.state
     reward_staff,false -> error(rule_failed)
+   examples seed=[test_worker,reservation,notice] redemption=reservation evidence="Delivered at reception"
+    as,redemption.notification_delivery,notice.status,notice.result,notice.error -> reservation.notification,reservation.state
+    reward_staff,notice,pending,null,null -> pending,fulfilled
+    reward_staff,notice,succeeded,{reference="accepted-mail"},null -> succeeded,fulfilled
+    reward_staff,notice,failed,null,{code="rejected",message="Delivery rejected"} -> failed,fulfilled
+    reward_staff,notice,unknown,null,null -> unknown,fulfilled
+    reward_staff,notice,skipped,null,null -> skipped,fulfilled
+    reward_staff,null,pending,null,null -> null,fulfilled
   # Release the snapshotted reservation once without altering earned-tier progress. @{nl="Geef de vastgelegde reservering één keer vrij zonder de verdiende niveauvoortgang te veranderen."}
   scenario cancel(redemption:Redemption,reason:text) by=reward_staff
    require redemption.state==reserved and trim(reason)!="" and can_work(actor,redemption.location)
@@ -202,15 +214,6 @@ package loyalty label=heading_rewards
    examples seed=[credited] event={value=observed.value}
     event.value.revision,event.value.product -> wallet.available
     2,"office" -> error(rule_failed)
-  scenario notification on=Mail.send.completed
-   do
-    for redemption in Redemption as row where row.notification_delivery==event.delivery_id limit=1
-     set redemption {notification=event.status}
-   examples event={delivery_id="notice",status=failed} seed=[reservation]
-    event.status -> reservation.state,reservation.notification,reservation.cost
-    failed -> reserved,failed,60
-    unknown -> reserved,unknown,60
-    succeeded -> reserved,succeeded,60
  Then
   # View your point history and reserve an available manually fulfillable perk. @{nl="Bekijk je puntengeschiedenis en reserveer een beschikbaar handmatig uitvoerbaar voordeel."}
   page /loyalty title="My rewards"@{nl="Mijn beloningen"}
