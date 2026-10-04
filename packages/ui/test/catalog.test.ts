@@ -110,6 +110,14 @@ describe("component catalog", () => {
       mask: 1,
       hover3d: 1,
       hoverGallery: 1,
+      breadcrumbs: 1,
+      button: 1,
+      dock: 1,
+      megamenu: 1,
+      menu: 1,
+      navbar: 1,
+      pagination: 1,
+      themeController: 1,
     };
     const record = ui as unknown as Record<string, unknown>;
     for (const entry of UI_CATALOG.entries) {
