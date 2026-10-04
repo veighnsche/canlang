@@ -26,6 +26,26 @@ import type {
 } from "../../contracts/src/presentation.js";
 import type { FieldError, MutationRef } from "../../contracts/src/presentation.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
+// C4b explicit-control dispatch + label/validator fragment reuse. This is a
+// forms<->controls import cycle, safe under ESM: both modules touch the
+// other's bindings only inside render-time function bodies, never at module
+// evaluation (all cross-imports are hoisted function declarations).
+import {
+  calendar,
+  checkbox,
+  fileInput,
+  filter,
+  input,
+  label,
+  otp,
+  radio,
+  range,
+  rating,
+  select,
+  textarea,
+  toggle,
+  validator,
+} from "./controls.js";
 import {
   canonicalDefaultTag,
   canonicalPreferredTags,
@@ -200,7 +220,7 @@ function pageLocale(context: PresentationContext): string {
   return preferred[0] ?? canonicalDefaultTag(context.appDefaultLocale);
 }
 
-function assertFieldPath(path: string): void {
+export function assertFieldPath(path: string): void {
   if (typeof path !== "string" || !FIELD_PATH_RE.test(path)) {
     throw new Error(`invalid field path ${JSON.stringify(path)}: must match /^[A-Za-z_][A-Za-z0-9_]*$/`);
   }
@@ -209,6 +229,24 @@ function assertFieldPath(path: string): void {
 /** Input root: update writes `inputs[changes][key]`, create/scenario `inputs[key]`. */
 function fieldName(mode: FormMode, path: string): string {
   return mode === "update" ? `inputs[changes][${path}]` : `inputs[${path}]`;
+}
+
+/**
+ * Shared field-identity helpers (C4): control factories and label/validator
+ * fragments derive identical names/ids from the same inputs. Returned values
+ * are raw; callers escape for their context.
+ */
+export function fieldInputName(mode: FormMode, path: string): string {
+  assertFieldPath(path);
+  return fieldName(mode, path);
+}
+export function fieldInputId(idPrefix: string, path: string): string {
+  assertFieldPath(path);
+  return `${idPrefix}-${path}`;
+}
+export function fieldErrorOutletId(idPrefix: string, path: string): string {
+  assertFieldPath(path);
+  return `${idPrefix}-${path}-error`;
 }
 
 function hidden(name: string, value: string): string {
@@ -258,6 +296,8 @@ interface FieldRenderContext {
   readonly timeZone: string;
   readonly idPrefix: string;
   readonly errorsByName: ReadonlyMap<string, readonly FieldError[]>;
+  /** Raw outcome errors; explicit-control factories and validator() filter these themselves. */
+  readonly errors: readonly FieldError[] | undefined;
 }
 
 interface WidgetAttrs {
@@ -532,9 +572,66 @@ function renderWidget(
   throw new Error(`field "${field.path}": unsupported type "${type}"`);
 }
 
+/**
+ * Explicit-control dispatch (C4b): when field.control is set, the complete
+ * unit (fieldset + label + widget + outlet) renders through the matching
+ * controls.ts factory instead of renderWidget. Suitability throws from the
+ * factories propagate (fail closed); unknown control strings — prevented by
+ * TypeScript, reachable from JS callers — throw naming the field.
+ *
+ * Appearance boundary: FormFieldDef carries NO appearance fields, so form
+ * dispatch passes identity + data props only (context, field, idPrefix,
+ * mode, errors, timeZone) and catalog defaults apply. Explicit appearance
+ * on form fields arrives via generated code calling the controls.ts
+ * factories directly with tone/size/variant/orientation.
+ */
+async function renderExplicitControl(field: FormFieldDef, ctx: FieldRenderContext): Promise<string> {
+  const shared = {
+    context: ctx.context,
+    field,
+    idPrefix: ctx.idPrefix,
+    mode: ctx.mode,
+    ...(ctx.errors === undefined ? {} : { errors: ctx.errors }),
+    timeZone: ctx.timeZone,
+  };
+  switch (field.control) {
+    case "input":
+      return input(shared);
+    case "textarea":
+      return textarea(shared);
+    case "checkbox":
+      return checkbox(shared);
+    case "toggle":
+      return toggle(shared);
+    case "radio":
+      return radio(shared);
+    case "select":
+      return select(shared);
+    case "range":
+      return range(shared);
+    case "rating":
+      return rating(shared);
+    case "file_input":
+      return fileInput(shared);
+    case "otp":
+      return otp(shared);
+    case "filter":
+      return filter(shared);
+    case "calendar":
+      return calendar({ ...shared, kind: "field" });
+    default: {
+      const seen: unknown = field.control;
+      throw new Error(`field "${field.path}": unknown control ${JSON.stringify(seen)}`);
+    }
+  }
+}
+
 /** One fieldset: label, widget, per-field errors; readonly adds a hidden duplicate. */
-function renderField(field: FormFieldDef, ctx: FieldRenderContext): string {
+async function renderField(field: FormFieldDef, ctx: FieldRenderContext): Promise<string> {
   assertFieldPath(field.path);
+  if (field.control !== undefined) {
+    return renderExplicitControl(field, ctx);
+  }
   const name = fieldName(ctx.mode, field.path);
   const id = `${ctx.idPrefix}-${field.path}`;
   const idAttr = escapeAttr(id);
@@ -550,17 +647,72 @@ function renderField(field: FormFieldDef, ctx: FieldRenderContext): string {
     ctx.context,
     ctx.timeZone,
   );
-  const label = escapeHtml(resolveCaption(field.label, ctx.context));
-  const mark = field.required ? ` <span aria-hidden="true">*</span>` : "";
+  // Single implementation of "moves, never duplicates": the default label
+  // renders through the controls.ts label() fragment. caption passes through
+  // only when set, so its caption ?? labelCaption ?? label resolution stays
+  // byte-identical to the inline version it replaces.
+  const labelHtml = await label({
+    context: ctx.context,
+    field,
+    idPrefix: ctx.idPrefix,
+    ...(field.labelCaption === undefined ? {} : { caption: field.labelCaption }),
+  });
+  // validator() always renders its outlet div (a stable swap target), while
+  // the default unit omits the outlet when the field has no errors; the
+  // fragment is reused only for the error case so default output stays
+  // byte-identical. Filtering the raw errors through the fragment matches
+  // the pre-split errorsByName list for this field exactly.
   const errorHtml =
     fieldErrors.length === 0
       ? ""
-      : `<div id="${escapeAttr(`${id}-error`)}">${fieldErrors.map((error) => `<p class="text-error">${escapeHtml(error.message)}</p>`).join("")}</div>`;
+      : await validator({
+          context: ctx.context,
+          field,
+          idPrefix: ctx.idPrefix,
+          mode: ctx.mode,
+          ...(ctx.errors === undefined ? {} : { errors: ctx.errors }),
+        });
   const duplicate = field.readonly === true ? hidden(name, widget.submitValue) : "";
-  return (
-    `<fieldset><label for="${idAttr}" class="label">${label}${mark}</label>` +
-    `${widget.html}${errorHtml}${duplicate}</fieldset>`
-  );
+  return `<fieldset>${labelHtml}${widget.html}${errorHtml}${duplicate}</fieldset>`;
+}
+
+/**
+ * Explicit-placement duplicate rule (C4b): two fields sharing a path would
+ * render two inputs for one binding, so the second occurrence throws naming
+ * the path. Design: UI-COMPONENTS.md "A selector may have only one writable
+ * control".
+ */
+function assertUniqueFieldPaths(fields: readonly FormFieldDef[]): void {
+  const seen = new Set<string>();
+  for (const field of fields) {
+    assertFieldPath(field.path);
+    if (seen.has(field.path)) {
+      throw new Error(
+        `duplicate field path ${JSON.stringify(field.path)}: explicit placement must not duplicate inputs`,
+      );
+    }
+    seen.add(field.path);
+  }
+}
+
+/**
+ * Multipart join (C4b): a file_input explicit control switches the form to
+ * multipart/form-data; L6 parses multipart bodies (today's urlencoded
+ * default otherwise). Without file fields no enctype attribute is emitted.
+ * Bare file-typed fields are rejected by renderWidget (S7 upload intents)
+ * during field rendering, which always runs before the open tag is built,
+ * so only the explicit-control branch can ever fire here.
+ */
+function needsMultipart(fields: readonly FormFieldDef[] | undefined): boolean {
+  if (fields === undefined) {
+    return false;
+  }
+  return fields.some((field) => field.control === "file_input");
+}
+
+function formOpenTag(action: string, multipart: boolean): string {
+  const encoding = multipart ? ` enctype="multipart/form-data"` : "";
+  return `<form action="${escapeAttr(safeHref(action))}" method="post"${encoding}>`;
 }
 
 function splitErrors(
@@ -732,9 +884,7 @@ export async function form(props: FormProps): Promise<string> {
   if (props.mode === "update" && props.record === undefined) {
     throw new Error("form: update mode requires a bound record");
   }
-  for (const field of props.fields) {
-    assertFieldPath(field.path);
-  }
+  assertUniqueFieldPaths(props.fields);
   const names = new Set<string>();
   for (const field of props.fields) {
     names.add(fieldName(props.mode, field.path));
@@ -746,11 +896,16 @@ export async function form(props: FormProps): Promise<string> {
     timeZone: props.timeZone,
     idPrefix: props.idPrefix,
     errorsByName: matched,
+    errors: props.errors,
   };
-  const fieldsHtml = props.fields.map((field) => renderField(field, fieldCtx)).join("");
+  const rendered: string[] = [];
+  for (const field of props.fields) {
+    rendered.push(await renderField(field, fieldCtx));
+  }
+  const fieldsHtml = rendered.join("");
   const submitLabel = escapeHtml(resolveCaption(props.submit, props.context));
   return (
-    `<form action="${escapeAttr(safeHref(props.action))}" method="post">` +
+    formOpenTag(props.action, needsMultipart(props.fields)) +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +
@@ -826,9 +981,7 @@ export async function action(props: ActionProps): Promise<string> {
   let fieldsHtml = "";
   let errorsHtml = "";
   if (props.fields !== undefined) {
-    for (const field of props.fields) {
-      assertFieldPath(field.path);
-    }
+    assertUniqueFieldPaths(props.fields);
     const names = new Set<string>();
     for (const field of props.fields) {
       names.add(fieldName("scenario", field.path));
@@ -840,8 +993,13 @@ export async function action(props: ActionProps): Promise<string> {
       timeZone,
       idPrefix: props.idPrefix,
       errorsByName: matched,
+      errors: props.errors,
     };
-    fieldsHtml = props.fields.map((field) => renderField(field, fieldCtx)).join("");
+    const rendered: string[] = [];
+    for (const field of props.fields) {
+      rendered.push(await renderField(field, fieldCtx));
+    }
+    fieldsHtml = rendered.join("");
     errorsHtml = unmatchedAlert(unmatched, props.context);
   } else if (props.errors !== undefined) {
     errorsHtml = unmatchedAlert(props.errors, props.context);
@@ -852,9 +1010,9 @@ export async function action(props: ActionProps): Promise<string> {
       : `<p>${escapeHtml(resolveCaption(props.confirm, props.context))}</p>`;
   const tone =
     props.variant === "danger" ? "btn-error" : props.variant === "ghost" ? "btn-ghost" : "btn-primary";
-  const label = escapeHtml(resolveCaption(props.label, props.context));
+  const labelText = escapeHtml(resolveCaption(props.label, props.context));
   return (
-    `<form action="${escapeAttr(safeHref(props.action))}" method="post">` +
+    formOpenTag(props.action, needsMultipart(props.fields)) +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +
@@ -862,7 +1020,7 @@ export async function action(props: ActionProps): Promise<string> {
     errorsHtml +
     fieldsHtml +
     confirm +
-    `<div class="flex gap-4"><button type="submit" class="btn ${tone}">${label}</button></div>` +
+    `<div class="flex gap-4"><button type="submit" class="btn ${tone}">${labelText}</button></div>` +
     `</form>`
   );
 }

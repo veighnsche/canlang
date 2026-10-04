@@ -85,6 +85,13 @@ function parse(argv: string[]): ParsedArgs {
   let env: string | null = null;
   for (let i = 0; i < rest.length; i += 1) {
     const flag = rest[i];
+    if (flag === "--help" || flag === "-h") {
+      // `can {cmd} --help` passes through verbatim (L1 thin entries), so
+      // help is honored in subcommand position too — same envelope, exit 0.
+      process.stderr.write(`${USAGE_TEXT}\nDelegation target for thin 'can' entries.\n`);
+      emit({ ok: true, name: PLATFORM_CLI_NAME, version: PLATFORM_CLI_VERSION, usage: USAGE_TEXT });
+      process.exit(0);
+    }
     if (flag === "--artifact" || flag === "--env") {
       if (i + 1 >= rest.length) usage(`missing value for ${flag}`);
       const value = rest[i + 1] as string;

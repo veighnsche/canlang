@@ -171,29 +171,125 @@ package catch
   # Triage configured projects without SDK-key, quota or retention settings tools. @{nl="Beoordeel geconfigureerde projecten zonder instellingen voor SDK-sleutels, quota of bewaartermijnen."}
   page /errors title="Application errors"@{nl="Applicatiefouten"}
    require developer
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
+   ## View-settings drawer: inline presentation of the same catch preferences available in the shared dialog.
+   drawer "Triage view settings"@{nl="Weergave-instellingen triage"}
+    slot trigger
+     text "View settings"@{nl="Weergave-instellingen"}
+    slot content
+     preferences
+      fieldset "Triage filters"@{nl="Triagefilters"}
+       label environment
+       input environment
+       validator environment
+       label evidence_open
+       toggle evidence_open
+       validator evidence_open
    list Project columns=name,application
     text row.name,row.application
+    ## No open-count badge: no declared per-project open-issue count exists and badge payloads stay plain readable selectors.
     card "Capture health"@{nl="Gezondheid foutregistratie"}
      table row.Health columns=observed,accepted,rejected,dropped,processing_failed
-     details "Missing health evidence"@{nl="Ontbrekend gezondheidsbewijs"}
+      tooltip "Daily accepted reports against configured quota; saturated quotas reject explicitly."@{nl="Dagelijks geaccepteerde rapporten ten opzichte van het geconfigureerde quotum; verzadigde quota worden expliciet afgewezen."}
+       progress row.accepted max=row.parent.quota
+      ## Quota progress is view-only; accepted/quota share int units and quota min=1 keeps max positive.
+      alert "Rejected, dropped or failed intake needs developer review; counts are not zero errors."@{nl="Afgewezen, verwijderde of mislukte inname vereist ontwikkelaarsbeoordeling; aantallen zijn geen nul fouten."}
+       require row.rejected>0 or row.dropped>0 or row.processing_failed>0
+       text row.rejected,row.dropped,row.processing_failed
+     collapse "Missing health evidence"@{nl="Ontbrekend gezondheidsbewijs"}
       require count(row.Health)==0
       text "Capture health is unavailable; no events is not evidence of zero errors."@{nl="De gezondheid van foutregistratie is niet beschikbaar; geen gebeurtenissen bewijst niet dat er geen fouten zijn."}
+    divider "Issues"@{nl="Problemen"}
     table row.Issue columns=message,environment,release,count,last_activity,state,owner filter=state,environment,release defaults={environment=preferences.environment} search=message display=split
+     pagination
      card "Issue triage"@{nl="Probleemtriage"}
-      text row.message,row.count,row.last_activity,row.state,row.owner
-      actions resolve,assign,link_task
-      text row.task
-      form Task.create
+      text row.message
+      badge row.state
+      badge row.environment
+      badge row.release
+      stat row.count
+      text row.last_activity
+      badge row.owner
+      copy row.fingerprint
+      badge row.fingerprint_version
+      countdown (row.last_activity+row.parent.issue_days*1d)-now
+      ## Retention countdown is view-only; it schedules nothing and should show explicit unavailable when out of range.
+      steps
+       slot item
+        text "Reported"@{nl="Gemeld"}
+       slot item
+        text "Assigned"@{nl="Toegewezen"}
+       slot item
+        text "Resolved"@{nl="Opgelost"}
+      ## Steps are readable stages only; badges above carry the current state. No workflow is defined.
+      modal "Resolve issue"@{nl="Probleem oplossen"}
+       slot trigger
+        text "Resolve issue"@{nl="Probleem oplossen"}
+       slot content
+        text row.message,row.count,row.last_activity
+       slot actions
+        button action=resolve
+      ## Resolve confirmation keeps read-only context; the issue auto-binds from the row chain.
+      button opens=assign_owner
+      modal "Assign triage owner"@{nl="Triage toewijzen"} id=assign_owner
+       slot content
+        form assign arguments={issue=row} display=inline
+         fieldset "Triage owner"@{nl="Verantwoordelijke triage"}
+          label owner
+          select owner
+          validator owner
+          button submit=true
+      ## Owner picker uses authorized lookup only; staff/developer/viewer guards stay server-side.
+      button opens=link_repair
+      modal "Link repair task"@{nl="Hersteltaak koppelen"} id=link_repair
+       slot content
+        form link_task arguments={issue=row} display=inline
+         fieldset "Repair task link"@{nl="Hersteltaakkoppeling"}
+          label task
+          select task
+          validator task
+          button submit=true
+      card "Repair task"@{nl="Hersteltaak"}
+       text row.task
+       form Task.create
+      ## Task inputs stay CanDo-owned; the bare form keeps generated controls with no copied schema.
       form Note.create
+       fieldset "Triage note"@{nl="Triagenotitie"}
+        label body
+        textarea body
+        validator body
+        button submit=true
+      ## Note parent auto-binds the selected issue; author/occurred stay server-owned.
      tabs
       tab "Occurrence evidence"@{nl="Bewijs foutgebeurtenissen"}
        table row.Occurrence columns=occurred,received,environment,release,message,stack order=-received filter=release
-        details retained_raw_evidence_caption open=preferences.evidence_open
-         list row.RawPayload
-          text row.payload
+        pagination
+        badge row.environment
+        badge row.release
+        mockup_code row.stack
+        copy row.event_id
+        collapse retained_raw_evidence_caption open=preferences.evidence_open
+         list row.RawPayload empty="Retained payload expired or unavailable; issue metadata remains."@{nl="Bewaarde gegevens verlopen of niet beschikbaar; probleemmetadata blijft bewaard."}
+          link target=row.payload caption=retained_raw_evidence_caption
+          countdown (row.parent.received+row.parent.parent.parent.raw_days*1d)-now
+         ## Raw file uses its authorized download; countdown is view-only retention remaining.
       tab "Alert delivery"@{nl="Meldingsbezorging"}
-       table row.Notice columns=kind,outcome,detail,occurred order=-occurred
+       timeline row.Notice order=-occurred
+        slot item
+         badge row.kind
+         status row.outcome
+         text row.detail,row.occurred
+        ## Destination and result/error leaves stay withheld by Notice policy; kind/outcome/detail/time only.
       tab "Triage notes"@{nl="Triagenotities"}
        list row.Note
-        text row.body,row.author
+        pagination
+        chat_bubble
+         slot header
+          text row.author,row.occurred
+         slot content
+          text row.body
+        ## No avatar slot: no authorized images exist and no user directory is inferred.
      history
+   footer "Instrumentation, quotas, retention and alert destinations stay developer maintenance; triage changes no SDK wiring."@{nl="Instrumentatie, quota, bewaartermijnen en meldingsbestemmingen blijven ontwikkelaarsonderhoud; triage wijzigt geen SDK-koppeling."}
+    text "Counts describe captured occurrences, not total transactions or guaranteed coverage."@{nl="Aantallen beschrijven vastgelegde gebeurtenissen, geen totale transacties of gegarandeerde dekking."}

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { UI_CATALOG } from "../src/catalog.js";
+import { appearanceClasses } from "../src/appearance.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 // Compiled tests run from dist/ui/test; sources sit beside dist.
@@ -312,5 +313,36 @@ describe("appearance substantiation", () => {
       }
       assert.equal(entry.alternates, undefined, `${entry.id} admits alternates`);
     }
+  });
+});
+
+describe("appearanceClasses", () => {
+  it("maps admitted tokens to base modifiers and emits nothing for solid", () => {
+    assert.equal(
+      appearanceClasses("badge", "badge", { tone: "primary", size: "lg", variant: "outline" }),
+      "badge-primary badge-lg badge-outline",
+    );
+    assert.equal(appearanceClasses("badge", "badge", { variant: "solid" }), "");
+    assert.equal(appearanceClasses("badge", "badge", {}), "");
+  });
+
+  it("maps orientation to directional classes", () => {
+    assert.equal(
+      appearanceClasses("divider", "divider", { orientation: "vertical" }),
+      "divider-vertical",
+    );
+  });
+
+  it("throws on unadmitted tokens, unknown words and matrix-less words", () => {
+    assert.throws(
+      () => appearanceClasses("badge", "badge", { tone: "primary", size: "lg", orientation: "vertical" }),
+      /does not admit orientation/,
+    );
+    assert.throws(() => appearanceClasses("nope", "nope", {}), /unknown catalog word/);
+    assert.throws(
+      () => appearanceClasses("skeleton", "skeleton", { size: "lg" }),
+      /admits no appearance/,
+    );
+    assert.equal(appearanceClasses("skeleton", "skeleton", {}), "");
   });
 });

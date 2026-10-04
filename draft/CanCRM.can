@@ -166,72 +166,260 @@ package crm label="Sales"@{nl="Verkoop"}
   # Review prospects, location needs and dated follow-up. @{nl="Bekijk prospects, locatiebehoeften en gedateerde vervolgacties."}
   page /sales title="Sales pipeline"@{nl="Verkoopkansen"}
    require salesperson
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
    card "Customer opportunity intake"@{nl="Klantverkoopkans aanmaken"}
     form Customer.create import=csv review=duplicate_customers
+    ## Customer/Contact schemas stay CanCustomer-owned; CSV review uses owner duplicate reads. No fields are copied.
     list Customer as customer where customer.active columns=name,kind search=name
+     pagination
+     badge row.kind
+     status row.active
      edit
      delete
      form Contact.create arguments={parent=customer} import=csv review=duplicate_contacts
-     details "Likely company duplicates"@{nl="Mogelijke dubbele bedrijven"}
-      list Customer archived=include as candidate where candidate.kind==customer.kind and lower(candidate.name)==lower(customer.name) and candidate!=customer columns=name,kind
-       form customer_alias arguments={source=candidate,target=customer}
+     collapse "Likely company duplicates"@{nl="Mogelijke dubbele bedrijven"}
+      alert "Reviewed aliases never rewrite history or transfer roles; candidates need staff confirmation."@{nl="Beoordeelde aliassen herschrijven geen geschiedenis en dragen geen rollen over; kandidaten vereisen personeelsbevestiging."}
+      tooltip "Candidates match same kind and case-folded name under current directory grants; not identity proof."@{nl="Kandidaten komen overeen op soort en hoofdletteronverschillige naam onder huidige directoryrechten; geen identiteitsbewijs."}
+       list Customer archived=include as candidate where candidate.kind==customer.kind and lower(candidate.name)==lower(customer.name) and candidate!=customer columns=name,kind
+        form customer_alias arguments={source=candidate,target=customer}
+      ## Alias inputs stay owner-owned; the bare form keeps generated controls for the reviewed mapping.
      form invite_company arguments={org=customer}
      form recover_company arguments={org=customer}
      list customer.CompanyRole columns=account,role,locations,active
-      action remove_company_role
+      badge row.role
+      status row.active
+      button action=remove_company_role
      list customer.Invitation columns=email,role,locations,status,expires
-      action accept_invitation
+      badge row.role
+      badge row.status
+      badge row.expires
+      button action=accept_invitation
      list Alias as mapping where mapping.from_customer==customer or mapping.to_customer==customer columns=from_customer,to_customer,reason,approved_by
      list customer.Contact as contact columns=name,email
+      pagination
       edit
       delete
       form Deal.create arguments={customer,contact}
-      action claim_contact
-      details "Likely contact duplicates"@{nl="Mogelijke dubbele contactpersonen"}
+      ## Deal creation keeps generated controls here; the deal drawer shows an explicit subset for updates.
+      button action=claim_contact
+      collapse "Likely contact duplicates"@{nl="Mogelijke dubbele contactpersonen"}
+       alert "Exact-email candidates need staff review; never silently merge."@{nl="Kandidaten met exact e-mailadres vereisen personeelsbeoordeling; nooit stilzwijgend samenvoegen."}
        list Contact archived=include as candidate where candidate.email==contact.email and candidate!=contact columns=name,email
    board Deal as deal by=stage columns=title,customer,contact,value,seats,next_action filter=location,owner,stage defaults={location=preferences.location,stage=preferences.stage} search=title
-    text row.value,row.seats,row.next_action,row.outcome_reference
+    badge row.stage
+    stat row.value
+    badge row.seats
+    badge row.next_action
+    copy row.outcome_reference
+    ## Stage/value/seats/next-action stay visible on cards; the outcome reference keeps its clipboard control.
     details "Deal needs and actions"@{nl="Behoeften en acties verkoopkans"} display=drawer
      text row.desired_start,row.duration,row.workspace,row.notes,row.lost_reason
      edit
-     actions advance,win,lose,reopen,record_link
-     form Activity.create
-     details "Schedule a tour"@{nl="Rondleiding plannen"}
+      fieldset "Deal context"@{nl="Verkoopkanscontext"}
+       label title
+       input title
+       validator title
+       label desired_start
+       calendar desired_start
+       validator desired_start
+       label workspace
+       textarea workspace
+       validator workspace
+       label notes
+       textarea notes
+       validator notes
+       button submit=true
+     ## Placed update inputs render here; owner/value/seats/duration/source/next-action keep generated controls. No directory is inferred.
+     button opens=advance_stage
+     modal "Advance stage"@{nl="Fase vooruitzetten"} id=advance_stage
+      slot content
+       form advance arguments={deal=row} display=inline
+        fieldset "New stage"@{nl="Nieuwe fase"}
+         label stage
+         radio stage
+         validator stage
+         button submit=true
+      ## Only lead-to-qualified and qualified-to-proposal succeed; other choices fail correctably with the draft kept.
+     button opens=record_win
+     modal "Record won opportunity"@{nl="Gewonnen kans vastleggen"} id=record_win
+      slot content
+       alert "Winning records an existing booking or paid term; it reserves no space and confirms no payment."@{nl="Winnen legt een bestaande boeking of betaalde termijn vast; het reserveert geen ruimte en bevestigt geen betaling."}
+       form win arguments={deal=row} display=inline
+        fieldset "Sale evidence"@{nl="Verkoopbewijs"}
+         label booking
+         select booking
+         validator booking
+         label term
+         select term
+         validator term
+         button submit=true
+      ## Exactly one of booking/term is required; duplicates are rejected and prior evidence survives reopening.
+     button opens=record_loss
+     modal "Record lost opportunity"@{nl="Verloren kans vastleggen"} id=record_loss
+      slot content
+       form lose arguments={deal=row} display=inline
+        fieldset "Loss reason"@{nl="Reden verloren kans"}
+         label reason
+         textarea reason
+         validator reason
+         button submit=true
+     button opens=deal_reopen
+     modal "Reopen opportunity"@{nl="Kans heropenen"} id=deal_reopen
+      slot content
+       form reopen arguments={deal=row} display=inline
+        fieldset "Reopen reason"@{nl="Reden heropenen"}
+         label reason
+         textarea reason
+         validator reason
+         button submit=true
+      ## Reopening creates an attributed note, preserves prior sale/loss evidence and returns the deal to lead.
+     button opens=reviewed_link
+     modal "Record reviewed link"@{nl="Beoordeelde link vastleggen"} id=reviewed_link
+      slot content
+       form record_link arguments={deal=row} display=inline
+        fieldset "Reviewed link"@{nl="Beoordeelde link"}
+         label kind
+         radio kind
+         validator kind
+         label link
+         input link
+         validator link
+         label body
+         textarea body
+         validator body
+         button submit=true
+      ## Links are staff evidence only, never scheduling or issuing; duplicate kind and link pairs are rejected.
+     form Activity.create arguments={parent=deal}
+      fieldset "Sales activity"@{nl="Verkoopactiviteit"}
+       label kind
+       radio kind
+       validator kind
+       label body
+       textarea body
+       validator body
+       button submit=true
+     ## Calls, emails and notes only; tours/quotes/sales use their dedicated evidence operations below.
+     collapse "Schedule a tour"@{nl="Rondleiding plannen"}
+      alert "Pending host or room coordination is not a confirmed tour."@{nl="Wachtende gastheer- of ruimteafstemming is geen bevestigde rondleiding."}
+      steps
+       slot item
+        text "Find published calendar"@{nl="Gepubliceerde agenda zoeken"}
+       slot item
+        text "Book with deal customer and contact"@{nl="Boeken met klant en contactpersoon"}
+       slot item
+        text "Record linked appointment"@{nl="Gekoppelde afspraak vastleggen"}
+      ## Tour stages are readable only; booking keeps its owning host grants and pending stays distinct from confirmed.
       list Calendar as calendar where calendar.active and calendar.location==deal.location columns=location,timezone,hours,instructions,cutoff
        table calendar.Window columns=from,until,available order=from
+        pagination
+        status row.available
        list calendar.Type as type columns=name,duration,room
         form book_tour arguments={type,customer=deal.customer,contact=deal.contact}
+      ## Booking inputs stay CanBook-owned; a salesperson alone schedules nothing without the host grant.
       list Appointment as appointment where appointment.customer==deal.customer and appointment.contact==deal.contact and appointment.parent.parent.location==deal.location columns=from,until,state,reason,host_ok,room_ok order=from
-       actions cancel_tour,tour_attendance
+       pagination
+       badge row.state
+       status row.host_ok
+       status row.room_ok
+       button action=cancel_tour
+       button action=tour_attendance
        form record_tour arguments={deal,appointment}
-     details "Prepare and issue a quote"@{nl="Offerte voorbereiden en uitgeven"}
+        fieldset "Tour evidence note"@{nl="Notitie rondleidingbewijs"}
+         label body
+         textarea body
+         validator body
+         button submit=true
+      ## Pending coordination stays retainable without claiming confirmation; duplicate appointments are rejected.
+     collapse "Prepare and issue a quote"@{nl="Offerte voorbereiden en uitgeven"}
+      steps
+       slot item
+        text "Draft proposal"@{nl="Conceptvoorstel"}
+       slot item
+        text "Issue priced revision"@{nl="Geprijsde versie uitgeven"}
+       slot item
+        text "Record issued evidence"@{nl="Uitgegeven bewijs vastleggen"}
+      ## Quote stages are readable only; issuing freezes pricing and acceptance still needs a separate handoff.
       form Proposal.create arguments={parent=deal.customer,recipient=deal.contact,location=deal.location,currency=deal.value.currency}
+      ## Proposal inputs stay CanPropose-owned; customer, contact, location, currency and seats arrive bound.
       list Proposal as proposal where proposal.parent==deal.customer and proposal.recipient==deal.contact and proposal.location==deal.location columns=title,current,currency
        edit
        form revise_quote arguments={proposal,seats=deal.seats}
        list proposal.Revision as revision order=-number columns=number,state,total,expires,handoff,booking
+        pagination
+        badge revision.state
+        stat revision.total
         text revision.from,revision.until,revision.seats,revision.terms,revision.pdf
+        button target=revision.pdf caption="Open quote PDF"@{nl="Offerte-PDF openen"}
+        diff
+         slot before
+          text deal.value
+         slot after
+          text revision.total
+        ## Side-by-side authorized values only; currencies already match and no conversion is inferred.
         form Item.create arguments={parent=revision}
         list revision.Item columns=title,quantity,unit,price,tax,discount
          edit
          delete
-        actions send_offer,quote_document,request_booking
+        button action=send_offer
+        button action=quote_document
+        button action=request_booking
         form record_quote arguments={deal,revision}
-     list row.Activity order=-occurred
-      text row.kind,row.body,row.link,row.appointment,row.revision,row.author,row.occurred
+         fieldset "Quote evidence note"@{nl="Notitie offertebewijs"}
+          label body
+          textarea body
+          validator body
+          button submit=true
+        ## Sent, accepted or declined revisions only; drafts are rejected and the exact revision stays bound.
+     timeline row.Activity order=-occurred
+      slot item
+       chat_bubble
+        slot header
+         badge row.kind
+         text row.author,row.occurred
+        slot content
+         text row.body
+        slot footer
+         link target=row.link caption="Reviewed source"@{nl="Beoordeelde bron"}
+         text row.appointment,row.revision
+      ## Chronological attributed activity as messages; no avatar exists and links stay explicit staff evidence.
      list Sale as sale where sale.deal==deal columns=booking,term,recorded_by,recorded_at
+     ## Few immutable evidence rows per deal; columns suffice and no pagination is warranted.
      history
    card "Selected currency pipeline"@{nl="Verkoopkansen in gekozen valuta"}
     form pipeline display=inline
-     metrics result.count,result.total
+     fieldset "Pipeline currency"@{nl="Valuta verkoopkansen"}
+      label currency
+      input currency
+      validator currency
+      button submit=true
+     stat result.count
+     stat result.total
+    ## Metrics share the stat contract; the selected currency keeps unlike amounts separate.
+    alert "Pipeline groups by selected currency; unlike amounts never add."@{nl="Verkoopkansen groeperen op gekozen valuta; ongelijke bedragen worden nooit opgeteld."}
    card "Customer timeline"@{nl="Klanttijdlijn"}
     list Customer archived=include as customer columns=name,kind,active,archived_at search=name
+     pagination
+     badge row.kind
+     status row.active
      list Deal as deal where deal.customer==customer columns=title,contact,stage,next_action order=-updated
+      badge row.stage
       list deal.Activity order=-occurred
-       text row.kind,row.body,row.link,row.appointment,row.revision,row.author,row.occurred
+       badge row.kind
+       text row.body,row.link,row.appointment,row.revision,row.author,row.occurred
+      ## Concise cross-deal overview; the deal drawer timelines the full attributed history.
       history
    card "Next actions"@{nl="Vervolgacties"}
     tabs preferences.followup
     table Deal as deal where deal.stage in [lead,qualified,proposal] and deal.next_action!=null and ((preferences.followup==overdue and deal.next_action<now) or (preferences.followup==upcoming and deal.next_action>=now)) columns=title,customer,contact,next_action,owner order=next_action filter=location,owner defaults={location=preferences.location} search=title
+     pagination
+     swap row.next_action>=now
+      slot off
+       alert "Overdue follow-up needs action."@{nl="Achterstallige vervolgactie vereist actie."}
+      slot on
+       countdown row.next_action-now
+      ## Swap is display-only on a business bool; countdown is view-only remaining time and schedules nothing.
+   footer "Tours, quotes and accounts use their owning operations; a sales role alone grants no host, proposal or customer-manager authority."@{nl="Rondleidingen, offertes en accounts gebruiken hun eigen bewerkingen; een verkooprol alleen geeft geen gastheer-, offerte- of klantbeheerrechten."}
+    text "CSV import previews invalid and duplicate rows; winning records references without reserving space or confirming payment."@{nl="CSV-import toont ongeldige en dubbele rijen; winnen legt referenties vast zonder ruimte te reserveren of betaling te bevestigen."}
   ## CSV export follows the shared authorized collection/read-result contract; no app formatter is authored.
   ## Imported forms keep appointments, propose and customer permissions; a CRM salesperson role alone grants no host, proposal or customer-manager authority.

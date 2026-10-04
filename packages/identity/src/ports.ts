@@ -8,6 +8,7 @@
  * in-memory implementation; it is never a production binding.
  */
 import type {
+  AuthCode,
   EmailToken,
   InstantString,
   InvitationId,
@@ -15,6 +16,8 @@ import type {
   McpGrantId,
   Membership,
   MembershipId,
+  OAuthClient,
+  OAuthClientId,
   Session,
   SessionId,
   Team,
@@ -187,6 +190,24 @@ export interface IdentityStore {
   revokeMcpGrant(grant_id: McpGrantId): Promise<void>;
   revokeUserMcpGrants(user_id: UserId): Promise<void>;
   revokeUserTeamMcpGrants(user_id: UserId, team_id: TeamId): Promise<void>;
+
+  // -- OAuth public clients + authorization codes (S7) --
+  createOAuthClient(input: {
+    client_name: string;
+    redirect_uris: readonly string[];
+  }): Promise<OAuthClient>;
+  findOAuthClient(client_id: OAuthClientId): Promise<OAuthClient | null>;
+  createAuthCode(input: {
+    client_id: OAuthClientId;
+    user_id: UserId;
+    team_id: TeamId | null;
+    redirect_uri: string;
+    code_challenge: string;
+    code_sha256: string;
+    expires_at: InstantString;
+  }): Promise<AuthCode>;
+  findAuthCodeByHash(code_sha256: string): Promise<AuthCode | null>;
+  consumeAuthCode(code_sha256: string): Promise<void>;
 }
 
 /** Invitation row as stored (invitation_id carried alongside). */

@@ -6,6 +6,9 @@
   "compilerOptions": {
     "composite": false,
     "noEmit": true,
+    // L4 S8b runtime pin imports files TS source, which uses .ts
+    // extensions; allowed here (check-only) without touching emits.
+    "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
       "@canlang/contracts": ["./packages/contracts/src/index.ts"],

@@ -58,6 +58,8 @@ import type {
   UploadIntentGrant,
   UploadIntentRequest,
 } from '@canlang/contracts';
+import type { VerifiedIngressEnvelope } from '@canlang/contracts';
+export type { VerifiedIngressEnvelope };
 import type { Clock, IdentityStore, MailPort } from '@canlang/identity';
 
 /** Owning-app facts the shell needs. L1 binds from appDefinition. */
@@ -126,6 +128,12 @@ export interface HttpDeps {
   readonly uploads: {
     readonly files: FileUseInfo;
     readonly kernel: FileKernel;
+  };
+  /** Provider-ingress bindings (S7). L7 assembles; L4 verifier at S8. */
+  readonly ingress: {
+    readonly bindings: IngressBindings;
+    readonly verifier: IngressVerifier;
+    readonly sink: IngressSink;
   };
 }
 
@@ -315,6 +323,88 @@ export interface UploadDeps {
   readonly files: FileUseInfo;
   readonly kernel: FileKernel;
   readonly identity: IdentityDeps;
+  readonly logger: Logger;
+  readonly clock: InterfacesClock;
+}
+
+/* ------------------------------------------------------------------ */
+/* S7 provider-ingress ports.                                          */
+/*                                                                     */
+/* Lane 06 owns the ingress endpoint + handler-context construction;   */
+/* lane 4 owns typed per-adapter verification (the `IngressVerifier`   */
+/* port; no L4 verifier has landed yet, so B1/S8 binds it). No raw     */
+/* request can manufacture a trusted handler context: the route only   */
+/* builds one from verifier output, and the mapper takes no raw input. */
+/* The consuming event kernel (L3/L7) binds `IngressSink` at B1.       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Deployment-bound ingress namespace: fixes the allowed team/resource
+ * namespace plus the adapter whose verifier authenticates producers.
+ * Secrets stay server-side; this type carries none.
+ */
+export interface IngressBinding {
+  readonly namespace: string;
+  readonly adapter: string;
+  readonly team: string;
+  readonly owner: string;
+}
+
+export interface IngressBindings {
+  bindingFor(namespace: string): IngressBinding | null;
+}
+
+/**
+ * L4 typed verification: authenticate the producer from raw headers +
+ * bytes per the binding's adapter, returning the verified causation
+ * envelope or null (fail closed, no oracle detail).
+ */
+export interface IngressVerifier {
+  verify(
+    binding: IngressBinding,
+    input: { headers: Record<string, string>; body: Uint8Array },
+  ): Promise<VerifiedIngressEnvelope | null>;
+}
+
+/**
+ * Trusted handler context for a verified provider event. `actor` is
+ * always null (DESIGN section 8: the handler retains actor=null);
+ * authority flows from the binding + verified causation only.
+ */
+export interface DelegatedContext {
+  readonly actor: null;
+  readonly team: string;
+  readonly owner: string;
+  readonly namespace: string;
+  readonly causation: VerifiedIngressEnvelope;
+}
+
+/** Consuming event kernel (L3/L7 at B1). */
+export interface IngressSink {
+  accept(context: DelegatedContext, event: unknown): Promise<{ accepted: boolean }>;
+}
+
+/** Assembled ingress dependencies. */
+export interface IngressDeps {
+  readonly bindings: IngressBindings;
+  readonly verifier: IngressVerifier;
+  readonly sink: IngressSink;
+  readonly logger: Logger;
+  readonly clock: InterfacesClock;
+}
+
+/* ------------------------------------------------------------------ */
+/* S7 OAuth ports.                                                     */
+/*                                                                     */
+/* Lane 06 is its own authorization server (public clients, PKCE S256  */
+/* only, access-token = McpGrant Bearer, no refresh in v1). Metadata  */
+/* origins derive per-request from the request URL (same-origin).      */
+/* ------------------------------------------------------------------ */
+
+/** Assembled OAuth dependencies (subset of HttpDeps + store). */
+export interface OAuthDeps {
+  readonly identity: IdentityDeps;
+  readonly limiter: RateLimiter;
   readonly logger: Logger;
   readonly clock: InterfacesClock;
 }

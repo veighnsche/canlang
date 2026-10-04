@@ -3,19 +3,26 @@
  * MCP `_meta` advertisement, generated same-origin destinations, and the
  * unsupported-host fallback.
  *
- * Auth is typed principal resolution, not invented auth: the runtime
- * resolves the caller to a receiving identity through
- * `PrincipalResolverPort` (real binding: the L6 identity context at the
- * S8 join), and every byte/provenance check downstream re-verifies the
- * same principal/team. Grant destinations are generated from the
- * validated bridge origin only — there is no parameter, header or
- * metadata slot through which a model could supply an endpoint or a
- * credential, and grants never carry storage credentials.
+ * Auth is typed principal resolution, not invented auth: the L7 worker
+ * assembly resolves the L6 `ResolvedIdentity` caller to a receiving
+ * identity through `PrincipalResolverPort`, and every byte/provenance
+ * check downstream re-verifies the same principal/team. Grant
+ * destinations are generated from the validated bridge origin only —
+ * there is no parameter, header or metadata slot through which a model
+ * could supply an endpoint or a credential, and grants never carry
+ * storage credentials.
+ *
+ * Route shapes (`UploadIntentRequest`, `FileTransferMeta`) are lane-6
+ * `wire.ts` declarations used directly: this bridge speaks the route
+ * contract, and L7's interim barrel picks keep resolving through the
+ * `files.ts` re-exports. The `_meta` key literal is pinned against
+ * wire's by type (see below); full value convergence awaits the
+ * `@canlang/contracts` workspace join.
  */
 import type {
   FileTransferMeta,
   UploadIntentRequest,
-} from '../../contracts/src/files.js';
+} from '../../contracts/src/wire.js';
 import type { PrincipalResolverPort } from './ports.ts';
 import type {
   ReceivingContext,
@@ -32,7 +39,14 @@ import type {
 } from './upload/index.ts';
 import { createUploadIntent } from './upload/index.ts';
 
-/** MCP `_meta` key for the file-transfer advertisement (DESIGN §8). */
+/**
+ * MCP `_meta` key for the file-transfer advertisement (DESIGN §8).
+ * Canonical value lives in lane-6 `wire.ts`; repeated here because
+ * standalone TS-source tests cannot runtime-import contracts values
+ * (`.js`-suffixed specifiers exist only as `.ts` — full value
+ * convergence awaits the `@canlang/contracts` workspace join).
+ * Literal pinned against wire's by the files contract-shapes test.
+ */
 export const FILE_TRANSFER_META_KEY = 'org.canlang/fileTransfer';
 
 /** Validated same-origin HTTPS base. Construct via `createBridgeOrigin`. */

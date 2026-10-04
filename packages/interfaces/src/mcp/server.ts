@@ -57,6 +57,7 @@ import { checkClosedInputs, validateOperationId } from '../envelope/validate.js'
 import { parseMutationRef, parseReadRef } from '../envelope/refs.js';
 import { listToolsFor } from './discovery.js';
 import { handleModeAllowed } from './schemas.js';
+import { wwwAuthenticateChallenge } from '../oauth/metadata.js';
 
 /** MCP server version advertised in `serverInfo`. */
 export const MCP_SERVER_VERSION = '0.1.0';
@@ -79,10 +80,13 @@ function isMutationKind(kind: McpOperationKind): boolean {
   }
 }
 
-function errorResponse(status: number, error: BusinessError): Response {
+function errorResponse(status: number, error: BusinessError, wwwAuthenticate?: string): Response {
   return new Response(JSON.stringify({ error: { code: error.code, message: error.message } }), {
     status,
-    headers: { 'content-type': JSON_CONTENT_TYPE },
+    headers: {
+      'content-type': JSON_CONTENT_TYPE,
+      ...(wwwAuthenticate === undefined ? {} : { 'www-authenticate': wwwAuthenticate }),
+    },
   });
 }
 
@@ -108,7 +112,7 @@ async function resolveGrantIdentity(
 ): Promise<ResolvedIdentity | Response> {
   const token = bearerToken(request);
   if (token === null) {
-    return errorResponse(401, buildBusinessError('forbidden', 'Authentication required.'));
+    return errorResponse(401, buildBusinessError('forbidden', 'Authentication required.'), wwwAuthenticateChallenge(request.url));
   }
   try {
     const identity = await resolveIdentity(
@@ -120,7 +124,7 @@ async function resolveGrantIdentity(
     return identity;
   } catch (err) {
     if (err instanceof IdentityError) {
-      return errorResponse(401, buildBusinessError(err.code, err.message));
+      return errorResponse(401, buildBusinessError(err.code, err.message), wwwAuthenticateChallenge(request.url));
     }
     logInternalError(deps.logger, err, { route: 'mcp' });
     return errorResponse(500, buildBusinessError('rule_failed'));

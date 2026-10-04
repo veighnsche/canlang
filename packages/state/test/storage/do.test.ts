@@ -112,6 +112,10 @@ function doProxy(): StoragePort {
     query: (spec) => call('query', spec),
     commit: (batch) => call('commit', batch),
     readReceipt: (identity) => call('readReceipt', identity),
+    outboxPending: () => call('outboxPending'),
+    scheduleGet: (key) => call('scheduleGet', key),
+    schedulesDue: (now, limit) => call('schedulesDue', now, limit),
+    historyFor: (model, recordId) => call('historyFor', model, recordId),
   };
 }
 

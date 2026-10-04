@@ -423,6 +423,34 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
   /users/@me; @ in path is data, verified by URL structure), N6 confirmed
   intended (.sssZ pin). Rest of slice verified conformant (omission
   matrix, versions, codes, app_url matrix, oracle, conformance, updates).
+- PR5 merged 2026-10-04 as 742c618 (PR #40, squash, heads 2fcd894+
+  1fe6dd0): 675/675, catalog 56/15, all builtins implemented/external.
+  CI needed one fixup: decimal.js devDep broke the root `npm ci`
+  workspace job (values is a managed workspace) — root lock +8 lines,
+  dry-run verified, all jobs green. Delivered: types/schema/wire/
+  stdlib-pure + oracle + conformance gate + kinds __proto__ drive-by.
+- PR6 branch `muse/lane-02-values/integration`: B1/B2 real calls remain
+  BLOCKED (L1 emission, L3 invocable surface + op descriptors, L6 auth
+  helper, L5 pages — see b1-team-tasks.md). Per plan, PR6 ships the
+  ready slice: conformance/v1 fixtures (65 wire + 117 calls incl. all
+  54 implemented ids + 8 value + 9 input cases), node:test conformance
+  runner (coverage enforcement, SchemaError-never-code rule), and the
+  L7-dir join case (dynamic dist import; real tables + testkit report
+  when present, honest unsupported rows when absent; 2 permanent
+  blocked rows naming L1/L3 contracts). 680/680 values suite;
+  join case green both paths locally. Independent review MERGE
+  (13 rows recomputed; 2 cosmetic nits applied by coordinator).
+  L3 façade request + L7 pretest join request filed above.
+- PR6 merged 2026-10-04 as d32c1ab (PR #48, squash, head 665910e):
+  680/680 values suite, catalog 56/15, join case green both paths
+  locally + unsupported-clean in root CI; all CI green. Delivered:
+  conformance/v1 fixtures + README, conformance runner, L7-dir join
+  case. LANE COMPLETE except producer-blocked real B1/B2 calls:
+  all 6 PRs merged (#8, #17, #20, #28, #40, #48); unmet contracts
+  restated — L1 `can compile` emission (+ ArtifactTestModule loader),
+  L3 exported invocable surface + op descriptors, L6 two-user auth
+  helper, L5 page descriptors, L7 pretest values build; L1 catalog
+  ack + 6 gap-helper names + L4 DeliveryError-dedup ack still open.
 
 ## Interface requests and handoffs
 
@@ -439,7 +467,50 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
   before B1 codegen if preferred.
 - To L3: façade export list (final with PR5); `random_secret`/`active_member`/
   query-aggregate/`action()` implementation ownership; `Violation[]` mapping.
+- To L3 (FACADE REQUEST with PR6): re-export this exact lane-02 surface
+  from `@canlang/stdlib` (names verbatim; source `@canlang/values` barrel
+  at 742c618; corresponding TS types alongside each group):
+  (a) 32 builtins: count flatten sum min max any all first group at abs
+  round lower upper trim contains starts_with join format app_url
+  overlaps local_date local_instant add_days add_months date_year
+  weekday dates money date datetime action.
+  (b) 22 §13+gap helpers: addMoney subtractMoney multiplyMoney
+  compareMoney equalMoney negateMoney divideDecimal durationBetween
+  compareInstant compareDate compareDecimal addDuration
+  subtractDuration same equalValue int64 addDecimal subtractDecimal
+  multiplyDecimal negateDecimal divideMoney divideDurationByInt.
+  (c) operator/lowering support: addInt subtractInt multiplyInt modInt
+  negateInt absInt compareInt absDecimal absMoney absDuration
+  equalDecimal moneyRatio compareDuration negateDuration
+  multiplyDuration remainderDuration divideDurationMs concat
+  scalarLength scalarChars compareScalar sumInt sumDecimal sumDuration
+  sumMoney formatPlain formatMessage.
+  (d) data plane: makeMoney makeDate makeDatetime makeUserRef
+  makeMemberRef makeFileValue makeDeliveryRef makeRecordRef
+  makeActionRef makeUnionValue + isMoney isDateValue isDatetime
+  isUserRef isMemberRef isFileValue isDeliveryRef isRecordRef
+  isActionRef isUnionValue isCurrencyShape isDecimal Decimal
+  parseDecimal decimalToString INT64_MIN INT64_MAX int64 (in (b))
+  DATETIME_MIN_MS DATETIME_MAX_MS currencyScale isKnownCurrency
+  CURRENCY_MINOR_UNITS isTimezone assertTimezone canonicalLocale
+  lookupChain resolveVariant isMessageDescriptor makeMessageDescriptor
+  parseMessageFormat validateMessagePattern renderMessage
+  parseTypeId isTypeId printTypeBase printTypeId encodeValue
+  decodeValue normalizeSchema validateValue validateOperationInput
+  UPDATE_OMITTED isUpdateOmitted ValueError SchemaError
+  CATALOG LANE02_CATALOG_VERSION VALUES_CONTRACT_VERSION.
+  NOT requested from lane-02: active_member/random_secret (lane-03
+  implements), record-query evaluation + stable ordering + limits
+  (lane-03), uniqueness (lane-03, needs stored state), DeliveryError
+  (lane-04 services.ts). Consumer fixtures:
+  packages/values/conformance/v1/ (PR6).
 - To L4/L6: delivery/file wire mapping joint confirmation (proposed R3).
+- To L7 (PRETEST JOIN REQUEST with PR6): `tests/integration/
+  lane02-values.test.ts` dynamically imports `@canlang/values` dist and
+  reports `unsupported` rows when it is absent (root CI today). Request:
+  build `@canlang/values` in root pretest (or the B1 worker assembly)
+  so the present path runs in CI; the case flips green without edits.
+  Proven green locally with dist present, honest-unsupported without.
 - To L4 (HANDSHAKE with PR2): `DeliveryError` defined in both `services.ts`
   (landed first, #5) and lane-02 `values.ts` (PR1 #8) — identical DESIGN §8
   shape. Proposal: L4 owns it; lane-02 PR2 removes its duplicate

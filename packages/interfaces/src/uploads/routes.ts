@@ -64,6 +64,7 @@ import {
 } from '../http/context.js';
 import { parseJsonBody, readCappedBody } from '../http/limits.js';
 import { bindingForIntent, receiverFromIdentity } from './principals.js';
+import { wwwAuthenticateChallenge } from '../oauth/metadata.js';
 
 const INTENTS_PATH = '/files/intents';
 const CONTENT_PREFIX = '/files/content/';
@@ -168,9 +169,9 @@ function deny(deps: UploadDeps, error: BusinessError, tool: string): Response {
 }
 
 /** Credential denial: 401 status with the safe `forbidden` envelope. */
-function denyCredential(deps: UploadDeps, error: BusinessError, tool: string): Response {
+function denyCredential(deps: UploadDeps, error: BusinessError, tool: string, requestUrl: string): Response {
   logBusinessError(deps.logger, error, { route: 'uploads', tool });
-  return jsonErrorResponse(error, 401);
+  return jsonErrorResponse(error, 401, { 'www-authenticate': wwwAuthenticateChallenge(requestUrl) });
 }
 
 function jsonOk(value: unknown): Response {
@@ -368,7 +369,7 @@ export async function handleUploadRequest(
     caller = await resolveCaller(deps, request);
   } catch (err) {
     if (err instanceof IdentityError) {
-      return denyCredential(deps, caughtToBusinessError(err), pathname);
+      return denyCredential(deps, caughtToBusinessError(err), pathname, request.url);
     }
     throw err;
   }

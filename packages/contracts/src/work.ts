@@ -73,8 +73,13 @@ export interface ScheduledOccurrence {
   at: number;
   /** Declared event path the occurrence carries. */
   event: string;
-  /** Frozen event payload declared at schedule time. */
-  payload: unknown;
+  /**
+   * Frozen event payload record declared at schedule time. Always a
+   * plain JSON record (the lane-3 `ScheduleOp.replace.payload` shape);
+   * non-records are rejected at put and callers cannot mutate the
+   * stored copy after the call.
+   */
+  payload: Readonly<Record<string, unknown>>;
   state: ScheduledOccurrenceState;
 }
 
@@ -111,8 +116,12 @@ export interface OutboxItem {
   source: string;
   /** Deterministic index of this effect within its operation. */
   occurrenceIndex: number;
-  /** Frozen provider inputs; versions frozen at commit. */
-  request: unknown;
+  /**
+   * Frozen provider inputs record; versions frozen at commit. Always a
+   * plain JSON record (the lane-3 `OutboxIntent.arguments` shape);
+   * non-records are rejected at staging and never commit.
+   */
+  request: Readonly<Record<string, unknown>>;
   /**
    * Originating scheduled/recurring occurrence, stamped by the runtime when
    * the intent is staged during an occurrence execution; null for direct

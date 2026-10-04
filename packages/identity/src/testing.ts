@@ -8,12 +8,15 @@
  * adapter. Import from tests only, never from `src/index.ts`.
  */
 import type {
+  AuthCode,
   EmailToken,
   InvitationId,
   McpGrant,
   McpGrantId,
   Membership,
   MembershipId,
+  OAuthClient,
+  OAuthClientId,
   Session,
   SessionId,
   Team,
@@ -48,6 +51,8 @@ export function createMemoryIdentityStore(opts?: {
   const emailTokensByHash = new Map<string, string>();
   const grants = new Map<McpGrantId, McpGrant>();
   const grantsByHash = new Map<string, McpGrantId>();
+  const oauthClients = new Map<OAuthClientId, OAuthClient>();
+  const authCodes = new Map<string, AuthCode>();
 
   const now = () => toInstant(clock.nowMs());
   const step = () => {
@@ -334,6 +339,56 @@ export function createMemoryIdentityStore(opts?: {
         if (row.user_id === user_id && row.team_id === team_id && row.revoked_at === null) {
           grants.set(id, { ...row, revoked_at: at });
         }
+      }
+    },
+
+    async createOAuthClient(input) {
+      step();
+      // client_id is a public identifier, not a secret, but it is still
+      // minted unguessable (16 hex chars from the injected random source)
+      // so registration responses cannot be scanned; production mints from
+      // its own store sequence with the same unguessability bar.
+      const hex = [...random.randomBytes(8)]
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+      const row: OAuthClient = {
+        client_id: `client_${hex}`,
+        client_name: input.client_name,
+        redirect_uris: [...input.redirect_uris],
+        registered_at: now(),
+      };
+      oauthClients.set(row.client_id, row);
+      return row;
+    },
+    async findOAuthClient(client_id) {
+      return oauthClients.get(client_id) ?? null;
+    },
+    async createAuthCode(input) {
+      step();
+      const row: AuthCode = {
+        code_sha256: input.code_sha256,
+        client_id: input.client_id,
+        user_id: input.user_id,
+        team_id: input.team_id,
+        redirect_uri: input.redirect_uri,
+        code_challenge: input.code_challenge,
+        created_at: now(),
+        expires_at: input.expires_at,
+        consumed_at: null,
+      };
+      authCodes.set(input.code_sha256, row);
+      return row;
+    },
+    async findAuthCodeByHash(code_sha256) {
+      return authCodes.get(code_sha256) ?? null;
+    },
+    async consumeAuthCode(code_sha256) {
+      // Mirrors consumeEmailToken: missing rows are a no-op, and an already
+      // consumed row keeps its first consumed_at.
+      step();
+      const row = authCodes.get(code_sha256);
+      if (row && row.consumed_at === null) {
+        authCodes.set(code_sha256, { ...row, consumed_at: now() });
       }
     },
   };

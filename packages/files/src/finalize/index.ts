@@ -175,7 +175,7 @@ export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): Finali
     contentType: record.detectedType,
     sizeBytes: record.receivedBytes,
     bytesDigest: actualDigest,
-    finalizedAt: new Date(finalizedAtMs).toISOString(),
+    finalizedAt: { kind: 'datetime', ms: BigInt(finalizedAtMs) },
   });
   deps.blobs.write(blobKeyForFile(ref), staging);
   deps.blobs.remove(stagingKeyForIntent(record.intentId));
@@ -238,7 +238,7 @@ export function ingestVerifiedEventBytes(
     contentType: check.detectedType,
     sizeBytes: input.bytes.length,
     bytesDigest: sha256Hex(input.bytes),
-    finalizedAt: new Date(finalizedAtMs).toISOString(),
+    finalizedAt: { kind: 'datetime', ms: BigInt(finalizedAtMs) },
   });
   deps.blobs.write(blobKeyForFile(ref), input.bytes);
   deps.files.put({

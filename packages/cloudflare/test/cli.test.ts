@@ -95,6 +95,15 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
     expect(envelope(dupEnv.stdout)).toMatchObject({ ok: false, code: "usage" });
   });
 
+  it.each([["--help"], ["-h"]])("%s after a subcommand answers help (L1 verbatim passthrough)", async (flag) => {
+    const result = await runCli(["run", flag]);
+    expect(result.code).toBe(0);
+    const body = envelope(result.stdout);
+    expect(body).toMatchObject({ ok: true, name: "can-platform", version: "0.1.0" });
+    expect(typeof body["usage"]).toBe("string");
+    expect(result.stderr).toContain("Usage:");
+  });
+
   it("trailing flag without a value is a usage failure", async () => {
     const result = await runCli(["run", "--artifact"]);
     expect(result.code).toBe(2);

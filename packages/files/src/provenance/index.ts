@@ -141,6 +141,7 @@ export function validateEventProvenance(value: unknown): EventProvenance | null 
  */
 export function freezeFinalized(file: FinalizedFile): FinalizedFile {
   Object.freeze(file.provenance);
+  Object.freeze(file.finalizedAt);
   Object.freeze(file);
   return file;
 }

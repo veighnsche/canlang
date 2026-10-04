@@ -30,6 +30,11 @@ export const SWITCH_TEAM_PATH = '/auth/select-team';
 export const OPERATIONS_PREFIX = '/api/operations/';
 /** Upload-transport prefix (S6 bridge v1): intents/content/finalize. */
 export const UPLOADS_PREFIX = '/files/';
+/** Provider-ingress prefix (S7): POST only, namespace is the rest. */
+export const INGRESS_PREFIX = '/ingress/';
+/** OAuth endpoints (S7): register/authorize/token + well-known. */
+export const OAUTH_PREFIX = '/oauth/';
+export const WELL_KNOWN_PREFIX = '/.well-known/';
 
 /**
  * F-owned sub-handlers, injected so this module never imports the F-owned
@@ -42,6 +47,10 @@ export interface HttpSubHandlers {
   readonly auth: (req: Request) => Promise<Response>;
   /** Serve one `/files/*` upload route (any method; the handler decides). */
   readonly uploads: (req: Request) => Promise<Response>;
+  /** Serve one `/ingress/*` provider route (the handler decides). */
+  readonly ingress: (req: Request) => Promise<Response>;
+  /** Serve `/oauth/*` + OAuth well-known metadata (the handler decides). */
+  readonly oauth: (req: Request) => Promise<Response>;
 }
 
 /** Authored unknown/method response: `not_found`, never a 405 oracle. */
@@ -92,6 +101,12 @@ export function createHttpHandler(
       }
       if (pathname.startsWith(UPLOADS_PREFIX)) {
         return await sub.uploads(request);
+      }
+      if (pathname.startsWith(INGRESS_PREFIX)) {
+        return await sub.ingress(request);
+      }
+      if (pathname.startsWith(OAUTH_PREFIX) || pathname.startsWith(WELL_KNOWN_PREFIX)) {
+        return await sub.oauth(request);
       }
       if (method !== 'GET' && method !== 'HEAD') return notFoundResponse();
       return await handlePageRequest(deps, request);

@@ -17,6 +17,7 @@ import type {
   CommitResult,
   HistoryEntry,
   ModelName,
+  OperationName,
   OrderTerm,
   OutboxIntent,
   QueryPredicate,
@@ -25,6 +26,7 @@ import type {
   ReceiptIdentity,
   RecordId,
   Revision,
+  ScheduleEntry,
   StoredRow,
 } from '../../../contracts/src/state.js';
 import { FenceConflictError, StorageConstraintError } from './port.js';
@@ -52,6 +54,9 @@ function claimKey(model: string, keyName: string, keyValue: string): string {
   return `${model}\0${keyName}\0${keyValue}`;
 }
 
+/** S6: dispatch status of a staged outbox intent. Only these two values exist. */
+type OutboxStatus = 'pending' | 'dispatched';
+
 /** Stored record: S5 rows persist `parent` inline (round-tripped as-is). */
 interface MemoryRecord {
   readonly model: string;
@@ -64,7 +69,12 @@ interface MemoryState {
   records: Map<string, MemoryRecord>;
   receipts: Map<string, Receipt>;
   history: Array<{ readonly seq: number; readonly entry: unknown }>;
-  outbox: Map<string, { readonly intent: unknown; readonly createdAt: number }>;
+  // S6: outbox rows carry a dispatch status (default 'pending' on insert),
+  // mirroring the SQL `status` column; ack flips it to 'dispatched'.
+  outbox: Map<
+    string,
+    { readonly intent: unknown; readonly createdAt: number; readonly status: OutboxStatus }
+  >;
   schedules: Map<string, { readonly at: number; readonly event: string; readonly payload: unknown }>;
   uniqueClaims: Map<string, string>;
   historySeq: number;
@@ -332,6 +342,30 @@ function checkLimit(limit: number): void {
   }
 }
 
+/**
+ * S6: `schedulesDue` limit must be an integer >= 1. Plain Error (programmer
+ * bug), mirroring `checkLimit` style. Zero is rejected here (unlike query
+ * limit) because a scheduler page must return at least one row to make sense.
+ */
+function checkSchedulesLimit(limit: number): void {
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new Error(`Invalid schedules limit: ${JSON.stringify(limit)}`);
+  }
+}
+
+/** S6: build a schedule read row; payload is deep-copied, never a live ref. */
+function toScheduleEntry(
+  key: string,
+  row: { readonly at: number; readonly event: string; readonly payload: unknown },
+): ScheduleEntry {
+  return {
+    key,
+    at: row.at,
+    event: row.event as OperationName,
+    payload: jsonCopy(row.payload as Record<string, unknown>),
+  };
+}
+
 /** Test-only read probe for staged state the port cannot read. */
 export interface MemoryStoreProbe {
   historyFor(model: ModelName, recordId: RecordId): ReadonlyArray<HistoryEntry>;
@@ -500,12 +534,24 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
       const operation = receipt === null ? 'unknown' : (receipt.identity.operation as string);
       for (const intent of outbox) {
         if (outboxState.has(intent.intentId)) {
+          // S6: duplicate intent ids are uniqueness conflicts (plan: `conflict`),
+          // never `unknown` — callers catch StateError, not storage errors.
           throw new StorageConstraintError(
-            'unknown',
+            'unique',
             `outbox intent ${intent.intentId} already exists`,
           );
         }
-        outboxState.set(intent.intentId, { intent, createdAt: at });
+        outboxState.set(intent.intentId, { intent, createdAt: at, status: 'pending' });
+      }
+      // S6: acks apply AFTER inserts in the same atomic commit, so acking an
+      // id staged in this SAME batch marks it dispatched. Idempotent no-op on
+      // unknown or already-dispatched ids (dispatchers retry at-least-once).
+      // `undefined` counts as `[]` (pre-S6 batches carry no acks).
+      for (const intentId of batch.outboxAck ?? []) {
+        const staged = outboxState.get(intentId);
+        if (staged !== undefined && staged.status === 'pending') {
+          outboxState.set(intentId, { ...staged, status: 'dispatched' });
+        }
       }
       const scheduleState = new Map(state.schedules);
       for (const schedule of schedules) {
@@ -539,6 +585,64 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
     async readReceipt(identity: ReceiptIdentity): Promise<Receipt | null> {
       const found = state.receipts.get(receiptKey(identity)) ?? null;
       return found === null ? null : jsonCopy(found);
+    },
+
+    async outboxPending(): Promise<ReadonlyArray<OutboxIntent>> {
+      // S6: committed state only, deep copies, deterministic (createdAt,
+      // intentId) order — identical to the SQL `ORDER BY created_at,
+      // intent_id`. Dispatched rows are invisible here (probe still sees all).
+      const pending: Array<{ readonly intent: OutboxIntent; readonly createdAt: number }> = [];
+      for (const row of state.outbox.values()) {
+        if (row.status === 'pending') {
+          pending.push({ intent: row.intent as OutboxIntent, createdAt: row.createdAt });
+        }
+      }
+      pending.sort(
+        (a, b) =>
+          a.createdAt - b.createdAt ||
+          (a.intent.intentId < b.intent.intentId
+            ? -1
+            : a.intent.intentId > b.intent.intentId
+              ? 1
+              : 0),
+      );
+      return pending.map((row) => jsonCopy(row.intent));
+    },
+
+    async scheduleGet(key: string): Promise<ScheduleEntry | null> {
+      const found = state.schedules.get(key) ?? null;
+      return found === null ? null : toScheduleEntry(key, found);
+    },
+
+    async schedulesDue(now: number, limit: number): Promise<ReadonlyArray<ScheduleEntry>> {
+      // S6: `at <= now`, deterministic (at, key) order matching the SQL
+      // `ORDER BY at, "key"`, then the limit slice.
+      checkSchedulesLimit(limit);
+      const due: ScheduleEntry[] = [];
+      for (const [key, row] of state.schedules) {
+        if (row.at <= now) {
+          due.push(toScheduleEntry(key, row));
+        }
+      }
+      due.sort((a, b) => a.at - b.at || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+      return due.slice(0, limit);
+    },
+
+    async historyFor(model: ModelName, recordId: RecordId): Promise<ReadonlyArray<HistoryEntry>> {
+      // S6: (version, seq) ascending, matching the SQL `ORDER BY version,
+      // seq` — the seq tiebreak orders duplicate versions by insertion
+      // (reachable only via direct unstaged commits). Never assume order.
+      const matched = state.history.filter(
+        (row) =>
+          ((row.entry as HistoryEntry).model as string) === (model as string) &&
+          ((row.entry as HistoryEntry).recordId as string) === (recordId as string),
+      );
+      matched.sort(
+        (a, b) =>
+          ((a.entry as HistoryEntry).version as number) -
+            ((b.entry as HistoryEntry).version as number) || a.seq - b.seq,
+      );
+      return matched.map((row) => jsonCopy(row.entry as HistoryEntry));
     },
   };
 }
