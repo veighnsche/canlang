@@ -3,12 +3,12 @@ app CanMail uses=[mailroom]
 
 # Receive and resolve physical mail under explicit recipient and delegate authority. @{nl="Ontvang en handel fysieke post af met expliciete ontvanger- en gemachtigderechten."}
 package mailroom label="Mailroom"@{nl="Postkamer"}
- use customer {Customer,Contact,owns,has_role,test_company,test_contact,test_admin}
+ use customer {Customer,Contact,owns,has_role,test_company,test_contact,test_admin,test_directory_manager,test_directory_employee}
  use member_terms {Term,eligible_term,paid_term,allocated}
  use invoice {Charge}
  use invoice {BillingV1 as Billing} from=deployment.billing
  use rent_catalog {Location,test_site}
- use employee {can_work,test_worker}
+ use employee {Employee,can_work,test_worker}
  use std {EmailV1 as Mail} from=deployment.mail
  Given
   message label_Service_recipient = "Recipient"@{nl="Ontvanger"}
@@ -23,7 +23,7 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
   preferences { location:Location?, view:enum(all,collection,forwarding,history)=all label={text="Mail view"@{nl="Postweergave"},values={all="All mail"@{nl="Alle post"},collection="Collection queue"@{nl="Afhaalwachtrij"},forwarding="Forwarding queue"@{nl="Doorzendwachtrij"},history="Mail history"@{nl="Postgeschiedenis"}}} }
   role mail_staff label="Mailroom staff"@{nl="Postmedewerker"}
   Service in Customer { location:Location, recipient:Contact label=label_Service_recipient, from:datetime label="Start"@{nl="Begin"}, until:datetime label="End"@{nl="Einde"}, instructions:text, forwarding:text? label="Forwarding instructions"@{nl="Doorzendinstructies"}, revision:int=1, verified:bool=false label="Verified"@{nl="Geverifieerd"}, source:text unique label=label_Service_source, term:Term? label="Purchased paid term"@{nl="Gekochte betaalde termijn"}, paid_evidence:text? label="Paid-service evidence"@{nl="Bewijs betaalde dienst"}, currency:currency, billing:bool=false label="Invoice handling fees"@{nl="Afhandelingskosten factureren"}, active:bool=true } label="Mail service"@{nl="Postdienst"}
-  Delegate in Service { account:user label=label_Delegate_account, active:bool=true } label="Collection delegate"@{nl="Afhaalgemachtigde"}
+  Delegate in Service { contact:Contact label="Nominated contact"@{nl="Genomineerde contactpersoon"}, account:user label=label_Delegate_account, active:bool=true } label="Collection delegate"@{nl="Afhaalgemachtigde"}
   Item { location:Location, service:Service?, recipient:Contact? label=label_Service_recipient, source:text unique label=label_Service_source, kind:enum(letter,parcel) label={text=label_Item_kind,values={letter="Letter"@{nl="Brief"},parcel="Parcel"@{nl="Pakket"}}}, storage:text label=label_Item_storage, photo:file? label=label_Item_photo, state:enum(unmatched,received,notified,collection_ready,collected,forward_pending,forwarded,returned)=unmatched label={text="State"@{nl="Status"},values={unmatched="Unmatched"@{nl="Niet gekoppeld"},received="Received"@{nl="Ontvangen"},notified="Notified"@{nl="Gemeld"},collection_ready="Ready for collection"@{nl="Klaar om af te halen"},collected="Collected"@{nl="Afgehaald"},forward_pending="Forwarding pending"@{nl="Doorzending in afwachting"},forwarded="Forwarded"@{nl="Doorgestuurd"},returned="Returned"@{nl="Geretourneerd"}}}, notification:text? label="Notification reference"@{nl="Meldingsreferentie"}, notice_state:enum(none,pending,succeeded,failed,unknown,skipped)=none label={text="Notification"@{nl="Melding"},values={none="Not sent"@{nl="Niet verzonden"},pending="Sending"@{nl="Wordt verzonden"},succeeded="Accepted"@{nl="Geaccepteerd"},failed="Failed"@{nl="Mislukt"},unknown="Uncertain"@{nl="Onzeker"},skipped="Skipped"@{nl="Overgeslagen"}}}, notice_reference:text?, reminders:int=0, reminder_delay:duration=7d, reminder_limit:int=2 min=0 max=5, history_days:int=180 min=1, retention_until:datetime?, dispatch:Dispatch?, completed:datetime? label="Completed at"@{nl="Afgerond op"}, incident:text? label=label_Item_incident } label="Mail item"@{nl="Poststuk"}
   Handling in Item { kind:enum(collection,forward,return,correction) label={text=label_Item_kind,values={collection="Collection"@{nl="Afhalen"},forward="Forwarding"@{nl="Doorzending"},return="Return"@{nl="Retour"},correction="Correction"@{nl="Correctie"}}}, account:user? label=label_Delegate_account, instruction:text label="Recorded instruction"@{nl="Vastgelegde instructie"}, destination:text? label="Destination"@{nl="Bestemming"}, evidence:text, carrier:text? label=label_Handling_carrier, fee:money? label=label_Handling_fee, source:text unique label=label_Service_source, revision:int, dispatch:Dispatch?, author:user server=actor label="Author"@{nl="Auteur"} } label="Handling record"@{nl="Afhandelingsregistratie"}
   Dispatch in Item { source:text unique, instruction:text, instruction_revision:int label="Instruction version"@{nl="Instructieversie"}, destination:text label="Frozen postal destination"@{nl="Vastgelegde postbestemming"}, fee:money? label=label_Handling_fee, charge:Charge?, state:enum(pending,unknown,dispatched,cancelled)=pending label={text="Dispatch"@{nl="Verzending"},values={pending="Pending"@{nl="In afwachting"},unknown="Uncertain"@{nl="Onzeker"},dispatched="Evidenced dispatch"@{nl="Verzending met bewijs"},cancelled="No dispatch recorded"@{nl="Geen verzending vastgelegd"}}}, charge_state:enum(none,pending,confirmed,failed,unknown)=none label={text="Fee invoice"@{nl="Kostenfactuur"},values={none="No invoice requested"@{nl="Geen factuur aangevraagd"},pending="Invoice requested"@{nl="Factuur aangevraagd"},confirmed="Invoice created"@{nl="Factuur aangemaakt"},failed="Invoice failed"@{nl="Factuur mislukt"},unknown="Invoice uncertain"@{nl="Factuur onzeker"}}}, charge_delivery:text?, reconcile_delivery:text?, invoice:text?, revision:int=1 } label="Forwarding attempt"@{nl="Doorzendpoging"}
@@ -32,7 +32,8 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
   derive manage(person:user,service:Service):bool = recipient(person,service) or has_role(person,service.parent,administrator)
   derive live(service:Service):bool = service.active and service.verified and service.parent.active and service.parent.archived_at==null and service.location.active and service.recipient.archived_at==null and service.recipient.verified and service.recipient.account!=null and service.from<=now and now<service.until and ((service.term!=null and service.term.parent.parent==service.parent and service.term.mail and service.location in service.term.locations and service.term.price.currency==service.currency and eligible_term(service.recipient.account,service.term,now)) or (service.term==null and service.paid_evidence!=null and trim(service.paid_evidence)!=""))
   derive fee_charge(item:Item,fee:money?):Charge? = first([Charge {source=format("mail-forward-{item}",{item=item.id}),customer=item.service.parent.id,location=item.location.id,description=format("Forwarding fee"@{nl="Doorzendkosten"},locale=null),amount=fee??money(0,item.service.currency),due=local_date(now,item.location.timezone)}] as value where item.service.billing and fee!=null and fee.minor>0)
-  derive permitted_collector(person:user,service:Service):bool = recipient(person,service) or (service.parent.active and service.parent.archived_at==null and any(service.Delegate as delegate,delegate.account==person and delegate.active) and any(service.parent.Contact as contact,contact.account==person and contact.verified))
+  derive delegate_eligible(delegate:Delegate):bool = delegate.parent.parent.active and delegate.parent.parent.archived_at==null and delegate.contact.archived_at==null and delegate.contact.verified and delegate.contact.account==delegate.account
+  derive permitted_collector(person:user,service:Service):bool = recipient(person,service) or any(service.Delegate as delegate,delegate.account==person and delegate.active and delegate_eligible(delegate))
   policy Service read=mail_staff and can_work(actor,row.location)
   policy Service read=authenticated where=manage(actor,row)
   policy Delegate read=authenticated where=row.account==actor or manage(actor,row.parent)
@@ -42,17 +43,23 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
   policy Handling read=authenticated where=row.parent.service!=null and recipient(actor,row.parent.service) fields=kind,account,instruction,revision,destination,evidence,carrier,fee,created
   policy Dispatch read=mail_staff and can_work(actor,row.parent.location)
   invariant Service: row.from<row.until and row.recipient.parent==row.parent and row.revision>0 and (row.term==null or (row.term.parent.parent==row.parent and row.location in row.term.locations and row.currency==row.term.price.currency))
-  invariant Delegate: any(row.parent.parent.Contact as contact,contact.account==row.account and contact.verified)
+  ## Keep the nominated relationship valid as history; current verification belongs at admission/use.
+  invariant Delegate: row.contact.parent==row.parent.parent
+  lock Delegate fields=parent,contact,account
   invariant Item: (row.service==null or (row.service.location==row.location and row.recipient==row.service.recipient)) and (row.dispatch==null or row.dispatch.parent==row)
   invariant Dispatch: (row.fee==null or (row.fee.minor>=0 and row.parent.service!=null and row.fee.currency==row.parent.service.currency)) and (row.charge==null or row.charge.source==row.source)
   retain Item until=row.retention_until
   lock Service fields=parent,location,recipient,source,term,currency,billing
   lock Dispatch fields=source,instruction,instruction_revision,destination,fee,charge
   lock Handling fields=kind,account,instruction,revision,destination,evidence,carrier,fee,source,dispatch,author
-  unique Delegate fields=account
+  unique Delegate fields=contact,account
   fixture service=Service {parent=test_company,location=test_site,recipient=test_contact,from=datetime("2020-01-01T00:00:00Z"),until=datetime("2099-01-01T00:00:00Z"),instructions="Collection by verified recipient",verified=true,source="mail-term",currency="EUR",term=paid_term}
-  fixture delegate_contact=Contact {parent=test_company,name="Collection delegate",email="delegate@example.test",account=other,verified=true}
-  fixture delegate=Delegate {parent=service,account=other}
+  fixture nominee=user {}
+  fixture unrelated=user {}
+  fixture mail_operator=user {roles=[mail_staff]}
+  fixture mail_employee=Employee {user=mail_operator,home=test_site,locations=[test_site],start=date("2026-10-01"),role="mail operator"}
+  fixture delegate_contact=Contact {parent=test_company,name="Collection delegate",email="delegate@example.test",account=nominee,verified=true}
+  fixture delegate=Delegate {parent=service,contact=delegate_contact,account=nominee}
   fixture prepared=Dispatch {parent=parcel,source="mail-forward-parcel",instruction="Collection by verified recipient",instruction_revision=1,destination="Original address",fee=money(5,"EUR"),charge={source="mail-forward-parcel",customer=test_company.id,location=test_site.id,description="Forwarding fee",amount=money(5,"EUR"),due=date("2090-01-01")},state=pending}
   fixture parcel=Item {location=test_site,service=service,recipient=test_contact,source="physical-parcel",kind=parcel,storage="Shelf A",state=collection_ready}
  When
@@ -65,22 +72,31 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
   scenario service_status(service:Service,active:bool,until:datetime,paid_evidence:text?) by=mail_staff label="Review service availability"@{nl="Dienstbeschikbaarheid beoordelen"}
    require can_work(actor,service.location) and service.from<until and (service.term!=null or not active or (paid_evidence!=null and trim(paid_evidence)!=""))
    do set service {active,until,paid_evidence}
-  crud Delegate by=authenticated fields=account,active when=owns(actor,row.parent.parent) or has_role(actor,row.parent.parent,administrator) delete=none
-   examples create seed=[test_admin,delegate_contact] parent=service account=other active=true
-    as,delegate_contact.verified,test_admin.active -> count(service.Delegate)
-    authenticated,true,true -> 1
-    authenticated,false,true -> error(rule_failed)
-    authenticated,true,false -> error(rule_failed)
-    members,true,true -> error(forbidden)
+  ## Creation nominates one current contact/account; revocation preserves that immutable identity.
+  crud Delegate by=authenticated fields=active create_fields=contact,account when=(owns(actor,row.parent.parent) or has_role(actor,row.parent.parent,administrator)) and (not row.active or delegate_eligible(row)) delete=none
+   examples create seed=[test_admin] parent=service contact=delegate_contact account=nominee
+    as,delegate_contact.verified,test_admin.active,test_company.active -> count(service.Delegate)
+    members,true,true,true -> 1
+    members,false,true,true -> error(rule_failed)
+    members,true,false,true -> error(rule_failed)
+    members,true,true,false -> error(rule_failed)
+    unrelated,true,true,true -> error(rule_failed)
+    public,true,true,true -> error(forbidden)
+   examples update seed=[test_admin] record=delegate
+    as,changes.active,delegate_contact.verified -> delegate.active,count(service.Delegate)
+    members,false,false -> false,1
+    members,true,false -> error(rule_failed)
+    unrelated,false,true -> error(rule_failed)
   # Update authorized instructions without changing an existing forwarding snapshot. @{nl="Werk geautoriseerde instructies bij zonder een bestaande doorzendmomentopname te wijzigen."}
   scenario instructions(service:Service,instructions:text,forwarding:text?,revision:int) by=authenticated label="Update handling instructions"@{nl="Afhandelingsinstructies bijwerken"}
    require manage(actor,service) and revision==service.revision and trim(instructions)!="" and (forwarding==null or trim(forwarding)!="")
    do set service {instructions,forwarding,revision=service.revision+1}
    examples seed=[test_admin,allocated] service=service instructions="Collect at reception" forwarding="New address" revision=1
     as,revision -> service.forwarding,service.revision
-    authenticated,1 -> "New address",2
-    authenticated,0 -> error(rule_failed)
-    members,1 -> error(forbidden)
+    members,1 -> "New address",2
+    members,0 -> error(rule_failed)
+    unrelated,1 -> error(rule_failed)
+    public,1 -> error(forbidden)
   # Receive one physical item; unmatched recipients remain a restricted review. @{nl="Ontvang één fysiek item; niet-gekoppelde ontvangers blijven in een afgeschermde beoordeling."}
   scenario receive(location:Location,source:text label=label_Service_source,kind:Item.kind,storage:text label=label_Item_storage,service:Service?,photo:file? label=label_Item_photo) by=mail_staff label="Record receipt"@{nl="Ontvangst registreren"}
    require can_work(actor,location) and trim(source)!="" and trim(storage)!="" and not any(Item as item,item.source==source)
@@ -97,6 +113,47 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
     mail_staff,true,true,null -> 1
     mail_staff,false,true,null -> error(rule_failed)
     mail_staff,true,false,"Manual evidence cannot override linked term" -> error(rule_failed)
+   ## Real commits revoke a nominee and preserve custody/history; no fixture patches or provider impersonation.
+   examples seed=[test_admin,mail_employee,test_directory_employee,delegate_contact]
+    do
+     call configure {customer=test_company,location=test_site,recipient=test_contact,from=datetime("2020-01-01T00:00:00Z"),until=datetime("2099-01-01T00:00:00Z"),source="mail-journey-service",term=null,paid_evidence="Reviewed standalone mail purchase",currency="EUR",instructions="Collect at reception",forwarding=null} by=mail_operator
+     let route=first(Service as row where row.source=="mail-journey-service" order=row.id)
+     route!=null -> true
+     call receive {location=test_site,source="mail-journey-receipt",kind=parcel,storage="Shelf B",service=route,photo=null} by=mail_operator
+     let arrived=first(Item as row where row.source=="mail-journey-receipt" order=row.id)
+     arrived!=null -> true
+     arrived.state,arrived.notice_state,count(arrived.Handling),arrived.retention_until -> received,pending,0,null
+     call Delegate.create {parent=route,contact=delegate_contact,account=nominee} by=self
+     let nomination=first(route.Delegate as row where row.contact==delegate_contact and row.account==nominee order=row.id)
+     nomination!=null -> true
+     nomination.active,delegate_eligible(nomination) -> true,true
+     call Contact.update {record=delegate_contact,changes={email="replacement@example.test"}} by=test_directory_manager
+     delegate_contact.verified,delegate_contact.account -> false,null
+     call collect {item=arrived,collector=nominee,evidence="Former nominee identity"} by=mail_operator -> error(rule_failed)
+     let held=first(Item as row where row.source=="mail-journey-receipt" order=row.id)
+     held!=null -> true
+     held.state,count(held.Handling),held.retention_until -> received,0,null
+     let current_nomination=first(route.Delegate as row where row.contact==delegate_contact and row.account==nominee order=row.id)
+     current_nomination!=null -> true
+     call Delegate.update {record=current_nomination,changes={active=false}} by=self
+     call Contact.delete {record=delegate_contact} by=test_directory_manager
+     let history=first(route.Delegate as row where row.account==nominee order=row.id)
+     history!=null -> true
+     history.active,history.contact,history.account,history.contact.archived_at!=null,delegate_eligible(history) -> false,delegate_contact,nominee,true,false
+     call service_status {service=route,active=false,until=datetime("2021-01-01T00:00:00Z"),paid_evidence="Reviewed standalone mail purchase"} by=mail_operator
+     let expired_route=first(Service as row where row.source=="mail-journey-service" order=row.id)
+     expired_route!=null -> true
+     expired_route.active,live(expired_route),recipient(self,expired_route) -> false,false,true
+     let retained=first(Item as row where row.source=="mail-journey-receipt" order=row.id)
+     retained!=null -> true
+     call collect {item=retained,collector=self,evidence="Verified original recipient collected held property"} by=mail_operator
+     let collected_item=first(Item as row where row.source=="mail-journey-receipt" order=row.id)
+     collected_item!=null -> true
+     collected_item.state,count(collected_item.Handling),any(collected_item.Handling as handling,handling.kind==collection and handling.account==self and handling.author==mail_operator),collected_item.retention_until -> collected,1,true,now+collected_item.history_days*1d
+     call collect {item=collected_item,collector=self,evidence="Repeated collection"} by=mail_operator -> error(rule_failed)
+     let final_item=first(Item as row where row.source=="mail-journey-receipt" order=row.id)
+     final_item!=null -> true
+     final_item.state,count(final_item.Handling),count(expired_route.Delegate),recipient(self,expired_route),recipient(nominee,expired_route) -> collected,1,1,true,false
   # Match an unresolved receipt against the current paid service and notify separately. @{nl="Koppel een onopgeloste ontvangst aan de huidige betaalde dienst en meld afzonderlijk."}
   scenario match(item:Item,service:Service) by=mail_staff label="Match recipient"@{nl="Ontvanger koppelen"}
    require can_work(actor,item.location) and item.state==unmatched and service.location==item.location and live(service)
@@ -113,14 +170,18 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
     create Handling {parent=item,kind=collection,account=collector,instruction=item.service.instructions,revision=item.service.revision,evidence,source=operation.id} as handling
     set item {state=collected,completed=now,retention_until=now+item.history_days*1d}
     cancel format("mail-reminder-{item}",{item=item.id})
-   examples seed=[test_worker,test_admin,allocated,delegate,delegate_contact] item=parcel evidence="Identity verified"
+   examples seed=[test_worker,delegate] item=parcel evidence="Identity verified"
     as,collector,item.state,service.until,delegate.active,delegate_contact.verified -> item.state,count(parcel.Handling)
     mail_staff,self,collection_ready,datetime("2021-01-01T00:00:00Z"),true,true -> collected,1
-    mail_staff,other,collection_ready,datetime("2099-01-01T00:00:00Z"),true,true -> collected,1
-    mail_staff,other,collection_ready,datetime("2099-01-01T00:00:00Z"),false,true -> error(rule_failed)
-    mail_staff,other,collection_ready,datetime("2099-01-01T00:00:00Z"),true,false -> error(rule_failed)
+    mail_staff,nominee,collection_ready,datetime("2099-01-01T00:00:00Z"),true,true -> collected,1
+    mail_staff,nominee,collection_ready,datetime("2099-01-01T00:00:00Z"),false,true -> error(rule_failed)
+    mail_staff,nominee,collection_ready,datetime("2099-01-01T00:00:00Z"),true,false -> error(rule_failed)
     mail_staff,self,collected,datetime("2099-01-01T00:00:00Z"),true,true -> error(rule_failed)
-    members,self,collection_ready,datetime("2099-01-01T00:00:00Z"),true,true -> error(forbidden)
+    unrelated,self,collection_ready,datetime("2099-01-01T00:00:00Z"),true,true -> error(forbidden)
+   examples seed=[test_worker,delegate] item=parcel collector=nominee evidence="Identity verified"
+    as,delegate_contact.account,test_company.active -> item.state
+    mail_staff,null,true -> error(rule_failed)
+    mail_staff,nominee,false -> error(rule_failed)
   # Freeze a unique forwarding attempt and optional same-currency invoice charge. @{nl="Leg een unieke doorzendpoging en optionele factuurkosten in dezelfde valuta vast."}
   scenario forward(item:Item,fee:money? label=label_Handling_fee,destination_verified:bool label="Postal destination verified"@{nl="Postbestemming geverifieerd"}) by=mail_staff label="Prepare forwarding"@{nl="Doorzending voorbereiden"}
    require can_work(actor,item.location) and item.service!=null and item.state in [received,notified,collection_ready] and item.dispatch==null and live(item.service) and item.service.forwarding!=null and trim(item.service.forwarding)!=""
@@ -286,6 +347,7 @@ package mailroom label="Mailroom"@{nl="Postkamer"}
      form instructions arguments={service=row,revision=row.revision}
      form Delegate.create
      list row.Delegate
+      text row.contact,row.account,row.active
       edit
    card "Own mail outcomes"@{nl="Eigen postresultaten"}
     tabs preferences.view

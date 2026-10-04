@@ -44,8 +44,8 @@ import { Location } from "./rent_catalog.mjs";
 /* Handwritten desired target; every import is a proposed, unimplemented contract.
  * See DESIGN §13. The registry is linked once. Trusted c carries invocation data
  * and inherited query authority; records(c,model,{parent?,where?,order?,limit?,archived?})
- * preserves owner/team bounds, expiry and work limits. Viewer grants apply before
- * filtering and aggregation; pure derives inherit caller mode. Limits reject excess.
+ * preserves owner/team bounds, expiry and work limits. Viewer queries filter grants;
+ * mutation decision queries use bounded authority state. Pure derives inherit mode. Limits reject excess.
  * CRUD when callbacks inspect a normalized candidate before this write is staged;
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
@@ -161,9 +161,11 @@ export const appDefinition = {
       parent: "mailroom.Service",
       label: message("Collection delegate", { nl: "Afhaalgemachtigde" }),
       readGrants: [{ rule: "Delegate.read.1" }],
-      unique: [{ fields: ["account"] }],
+      unique: [{ fields: ["contact", "account"] }],
       invariants: ["Delegate.require.1"],
+      locks: ["Delegate.lock.1"],
       fields: {
+        contact: { type: Contact, label: message("Nominated contact", { nl: "Genomineerde contactpersoon" }) },
         account: { type: "user", label: accountCaption },
         active: { type: "bool", default: true },
       },
@@ -517,7 +519,7 @@ export const appDefinition = {
       model: "mailroom.Delegate",
       by: "authenticated",
       read: false,
-      inputs: { parent: { type: "mailroom.Service" }, fields: ["account", "active"] },
+      inputs: { parent: { type: "mailroom.Service" }, fields: ["contact", "account"] },
       when: "Delegate",
     },
     "mailroom.Delegate.update": {
@@ -526,7 +528,7 @@ export const appDefinition = {
       model: "mailroom.Delegate",
       by: "authenticated",
       read: false,
-      inputs: { record: { type: "mailroom.Delegate" }, changes: { fields: ["account", "active"] } },
+      inputs: { record: { type: "mailroom.Delegate" }, changes: { fields: ["active"] } },
       when: "Delegate",
     },
     "mailroom.receive": {
@@ -734,27 +736,32 @@ async function fee_charge(c, item, fee) {
     ].filter((value) => item.service.billing && fee !== null && fee.minor > 0n),
   );
 }
+async function delegate_eligible(c, delegate) {
+  return (
+    delegate.parent.parent.active &&
+    delegate.parent.parent.archived_at === null &&
+    delegate.contact.archived_at === null &&
+    delegate.contact.verified &&
+    same(delegate.contact.account, delegate.account)
+  );
+}
 async function permitted_collector(c, person, service) {
   return (
     (await recipient(c, person, service)) ||
-    (service.parent.active &&
-      service.parent.archived_at === null &&
-      (await any(
-        records(c, "mailroom.Delegate", { parent: service }),
-        (delegate) => same(delegate.account, person) && delegate.active,
-      )) &&
-      (await any(
-        records(c, Contact, { parent: service.parent }),
-        (contact) => same(contact.account, person) && contact.verified,
-      )))
+    (await any(
+      records(c, "mailroom.Delegate", { parent: service }),
+      async (delegate) => same(delegate.account, person) && delegate.active &&
+        (await delegate_eligible(c, delegate)),
+    ))
   );
 }
 
 export function canApp() {
   const crudWhen = {
     Delegate: async (c, row) =>
-      (await owns(c, c.actor, row.parent.parent)) ||
-      (await has_role(c, c.actor, row.parent.parent, "administrator")),
+      ((await owns(c, c.actor, row.parent.parent)) ||
+        (await has_role(c, c.actor, row.parent.parent, "administrator"))) &&
+      (!row.active || (await delegate_eligible(c, row))),
   };
   return {
     crudWhen,
@@ -763,6 +770,7 @@ export function canApp() {
     live,
     fee_charge,
     permitted_collector,
+    delegate_eligible,
     retention: { Item: (c, row) => row.retention_until },
     read: {
       "Service.read.1": async (c, row) =>
@@ -796,11 +804,7 @@ export function canApp() {
           (same(row.term.parent.parent, row.parent) &&
             row.term.locations.some((location) => same(location, row.location)) &&
             row.currency === row.term.price.currency)),
-      "Delegate.require.1": async (c, row) =>
-        await any(
-          records(c, Contact, { parent: row.parent.parent }),
-          (contact) => same(contact.account, row.account) && contact.verified,
-        ),
+      "Delegate.require.1": (c, row) => same(row.contact.parent, row.parent.parent),
       "Item.require.1": (c, row) =>
         (row.service === null ||
           (same(row.service.location, row.location) &&
@@ -814,6 +818,7 @@ export function canApp() {
         (row.charge === null || row.charge.source === row.source),
     },
     locks: {
+      "Delegate.lock.1": { fields: ["parent", "contact", "account"] },
       "Service.lock.1": {
         fields: ["parent", "location", "recipient", "source", "term", "currency", "billing"],
       },
@@ -1473,6 +1478,7 @@ export async function myMailPage(c) {
                 model: "mailroom.Delegate",
                 parent: service,
                 renderRow: (delegate, rowView) => [
+                  text({ context: rowView, values: [delegate.contact, delegate.account, delegate.active] }),
                   edit({
                     context: rowView,
                     operation: "mailroom.Delegate.update",
@@ -1533,6 +1539,8 @@ export const exampleImports = [
   { provider: "customer", member: "test_company", alias: "test_company" },
   { provider: "customer", member: "test_contact", alias: "test_contact" },
   { provider: "customer", member: "test_admin", alias: "test_admin" },
+  { provider: "customer", member: "test_directory_manager", alias: "test_directory_manager" },
+  { provider: "customer", member: "test_directory_employee", alias: "test_directory_employee" },
   { provider: "rent_catalog", member: "test_site", alias: "test_site" },
   { provider: "employee", member: "test_worker", alias: "test_worker" },
   { provider: "member_terms", member: "paid_term", alias: "paid_term" },
@@ -1540,8 +1548,15 @@ export const exampleImports = [
 ];
 
 export function exampleFixtures({ self, other, imported }) {
-  const { test_company, test_contact, test_admin, test_site, test_worker, paid_term, allocated } =
+  const { test_company, test_contact, test_admin, test_directory_manager, test_directory_employee, test_site, test_worker, paid_term, allocated } =
     imported;
+  const nominee = { dependencies: [], user: async (c, s) => ({}) };
+  const unrelated = { dependencies: [], user: async (c, s) => ({}) };
+  const mail_operator = { dependencies: [], user: async (c, s) => ({ roles: ["mailroom.mail_staff"] }) };
+  const mail_employee = {
+    model: "employee.Employee", dependencies: [mail_operator, test_site],
+    value: async (c, s) => ({ user: s.mail_operator, home: s.test_site, locations: [s.test_site], start: date("2026-10-01"), role: "mail operator" }),
+  };
   const service = {
     model: "mailroom.Service",
     dependencies: [test_company, test_contact, test_site, paid_term],
@@ -1573,19 +1588,19 @@ export function exampleFixtures({ self, other, imported }) {
   };
   const delegate_contact = {
     model: Contact,
-    dependencies: [test_company],
+    dependencies: [test_company, nominee],
     value: async (c, s) => ({
       parent: s.test_company,
       name: "Collection delegate",
       email: "delegate@example.test",
-      account: s.other,
+      account: s.nominee,
       verified: true,
     }),
   };
   const delegate = {
     model: "mailroom.Delegate",
-    dependencies: [service],
-    value: async (c, s) => ({ parent: s.service, account: s.other }),
+    dependencies: [service, delegate_contact, nominee],
+    value: async (c, s) => ({ parent: s.service, contact: s.delegate_contact, account: s.nominee }),
   };
   const prepared = {
     model: "mailroom.Dispatch",
@@ -1609,6 +1624,10 @@ export function exampleFixtures({ self, other, imported }) {
     }),
   };
   return {
+    nominee,
+    unrelated,
+    mail_operator,
+    mail_employee,
     service,
     parcel,
     prepared,
@@ -1617,52 +1636,45 @@ export function exampleFixtures({ self, other, imported }) {
     examples: [
       {
         operation: "mailroom.Delegate.create",
-        seed: [test_admin, delegate_contact],
-        dependencies: [service],
-        inputs: async (c, s) => ({ parent: s.service, account: s.other, active: true }),
-        selectors: ["as", "delegate_contact.verified", "test_admin.active"],
-        observations: [
-          async (c, s) => await count(records(c, "mailroom.Delegate", { parent: s.service })),
-        ],
+        seed: [test_admin],
+        dependencies: [service, delegate_contact, nominee],
+        inputs: async (c, s) => ({ parent: s.service, contact: s.delegate_contact, account: s.nominee }),
+        selectors: ["as", "delegate_contact.verified", "test_admin.active", "test_company.active"],
+        observations: [async (c, s) => await count(records(c, "mailroom.Delegate", { parent: s.service }))],
         rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => ["authenticated", true, true],
-            expected: async (c, s) => [1n],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["authenticated", false, true],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => ["authenticated", true, false],
-            error: "rule_failed",
-          },
-          { dependencies: [], values: async (c, s) => ["members", true, true], error: "forbidden" },
+          { dependencies: [], values: async (c, s) => ["members", true, true, true], expected: async (c, s) => [1n] },
+          { dependencies: [], values: async (c, s) => ["members", false, true, true], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["members", true, false, true], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["members", true, true, false], error: "rule_failed" },
+          { dependencies: [unrelated], values: async (c, s) => [s.unrelated, true, true, true], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["public", true, true, true], error: "forbidden" },
+        ],
+      },
+      {
+        operation: "mailroom.Delegate.update",
+        seed: [test_admin],
+        dependencies: [delegate],
+        inputs: async (c, s) => ({ record: s.delegate }),
+        selectors: ["as", "changes.active", "delegate_contact.verified"],
+        observations: [async (c, s) => s.delegate.active, async (c, s) => await count(records(c, "mailroom.Delegate", { parent: s.service }))],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["members", false, false], expected: async (c, s) => [false, 1n] },
+          { dependencies: [], values: async (c, s) => ["members", true, false], error: "rule_failed" },
+          { dependencies: [unrelated], values: async (c, s) => [s.unrelated, false, true], error: "rule_failed" },
         ],
       },
       {
         operation: "mailroom.instructions",
         seed: [test_admin, allocated],
         dependencies: [service],
-        inputs: async (c, s) => ({
-          service: s.service,
-          instructions: "Collect at reception",
-          forwarding: "New address",
-          revision: 1n,
-        }),
+        inputs: async (c, s) => ({ service: s.service, instructions: "Collect at reception", forwarding: "New address", revision: 1n }),
         selectors: ["as", "revision"],
         observations: [async (c, s) => s.service.forwarding, async (c, s) => s.service.revision],
         rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => ["authenticated", 1n],
-            expected: async (c, s) => ["New address", 2n],
-          },
-          { dependencies: [], values: async (c, s) => ["authenticated", 0n], error: "rule_failed" },
-          { dependencies: [], values: async (c, s) => ["members", 1n], error: "forbidden" },
+          { dependencies: [], values: async (c, s) => ["members", 1n], expected: async (c, s) => ["New address", 2n] },
+          { dependencies: [], values: async (c, s) => ["members", 0n], error: "rule_failed" },
+          { dependencies: [unrelated], values: async (c, s) => [s.unrelated, 1n], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["public", 1n], error: "forbidden" },
         ],
       },
       {
@@ -1708,95 +1720,108 @@ export function exampleFixtures({ self, other, imported }) {
         ],
       },
       {
+        operation: "mailroom.receive",
+        dependencies: [test_admin, test_contact, mail_employee, test_directory_employee, delegate_contact],
+        sequence: [
+          {
+            operation: "mailroom.configure", by: async (c, s, b) => s.mail_operator,
+            inputs: async (c, s, b) => ({ customer: s.test_company, location: s.test_site, recipient: s.test_contact, from: datetime("2020-01-01T00:00:00Z"), until: datetime("2099-01-01T00:00:00Z"), source: "mail-journey-service", term: null, paid_evidence: "Reviewed standalone mail purchase", currency: "EUR", instructions: "Collect at reception", forwarding: null }),
+          },
+          { let: "route", value: async (c, s, b) => await first(records(c, "mailroom.Service", { where: (row) => row.source === "mail-journey-service", order: ["id"] })) },
+          { observations: async (c, s, b) => [b.route !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          {
+            operation: "mailroom.receive", by: async (c, s, b) => s.mail_operator,
+            inputs: async (c, s, b) => ({ location: s.test_site, source: "mail-journey-receipt", kind: "parcel", storage: "Shelf B", service: b.route, photo: null }),
+          },
+          { let: "arrived", value: async (c, s, b) => await first(records(c, "mailroom.Item", { where: (row) => row.source === "mail-journey-receipt", order: ["id"] })) },
+          { observations: async (c, s, b) => [b.arrived !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          {
+            observations: async (c, s, b) => [b.arrived.state, b.arrived.notice_state, await count(records(c, "mailroom.Handling", { parent: b.arrived })), b.arrived.retention_until],
+            expected: async (c, s, b) => ["received", "pending", 0n, null], types: ["mailroom.Item.state", "mailroom.Item.notice_state", "int", "mailroom.Item.retention_until"],
+          },
+          {
+            operation: "mailroom.Delegate.create", by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ parent: b.route, contact: s.delegate_contact, account: s.nominee }),
+          },
+          { let: "nomination", value: async (c, s, b) => await first(records(c, "mailroom.Delegate", { parent: b.route, where: (row) => same(row.contact, s.delegate_contact) && same(row.account, s.nominee), order: ["id"] })) },
+          { observations: async (c, s, b) => [b.nomination !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { observations: async (c, s, b) => [b.nomination.active, await delegate_eligible(c, b.nomination)], expected: async (c, s, b) => [true, true], types: ["bool", "bool"] },
+          {
+            operation: "customer.Contact.update", by: async (c, s, b) => s.test_directory_manager,
+            inputs: async (c, s, b) => ({ record: s.delegate_contact, changes: { email: "replacement@example.test" } }),
+          },
+          { observations: async (c, s, b) => [s.delegate_contact.verified, s.delegate_contact.account], expected: async (c, s, b) => [false, null], types: ["bool", "customer.Contact.account"] },
+          {
+            operation: "mailroom.collect", by: async (c, s, b) => s.mail_operator,
+            inputs: async (c, s, b) => ({ item: b.arrived, collector: s.nominee, evidence: "Former nominee identity" }), error: "rule_failed",
+          },
+          { let: "held", value: async (c, s, b) => await first(records(c, "mailroom.Item", { where: (row) => row.source === "mail-journey-receipt", order: ["id"] })) },
+          { observations: async (c, s, b) => [b.held !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { observations: async (c, s, b) => [b.held.state, await count(records(c, "mailroom.Handling", { parent: b.held })), b.held.retention_until], expected: async (c, s, b) => ["received", 0n, null], types: ["mailroom.Item.state", "int", "mailroom.Item.retention_until"] },
+          { let: "current_nomination", value: async (c, s, b) => await first(records(c, "mailroom.Delegate", { parent: b.route, where: (row) => same(row.contact, s.delegate_contact) && same(row.account, s.nominee), order: ["id"] })) },
+          { observations: async (c, s, b) => [b.current_nomination !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          {
+            operation: "mailroom.Delegate.update", by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ record: b.current_nomination, changes: { active: false } }),
+          },
+          { operation: "customer.Contact.delete", by: async (c, s, b) => s.test_directory_manager, inputs: async (c, s, b) => ({ record: s.delegate_contact }) },
+          { let: "history", value: async (c, s, b) => await first(records(c, "mailroom.Delegate", { parent: b.route, where: (row) => same(row.account, s.nominee), order: ["id"] })) },
+          { observations: async (c, s, b) => [b.history !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { observations: async (c, s, b) => [b.history.active, b.history.contact, b.history.account, b.history.contact.archived_at !== null, await delegate_eligible(c, b.history)], expected: async (c, s, b) => [false, s.delegate_contact, s.nominee, true, false], types: ["bool", "customer.Contact", "user", "bool", "bool"] },
+          {
+            operation: "mailroom.service_status", by: async (c, s, b) => s.mail_operator,
+            inputs: async (c, s, b) => ({ service: b.route, active: false, until: datetime("2021-01-01T00:00:00Z"), paid_evidence: "Reviewed standalone mail purchase" }),
+          },
+          { let: "expired_route", value: async (c, s, b) => await first(records(c, "mailroom.Service", { where: (row) => row.source === "mail-journey-service", order: ["id"] })) },
+          { observations: async (c, s, b) => [b.expired_route !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { observations: async (c, s, b) => [b.expired_route.active, await live(c, b.expired_route), await recipient(c, s.self, b.expired_route)], expected: async (c, s, b) => [false, false, true], types: ["bool", "bool", "bool"] },
+          { let: "retained", value: async (c, s, b) => await first(records(c, "mailroom.Item", { where: (row) => row.source === "mail-journey-receipt", order: ["id"] })) },
+          { observations: async (c, s, b) => [b.retained !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          {
+            operation: "mailroom.collect", by: async (c, s, b) => s.mail_operator,
+            inputs: async (c, s, b) => ({ item: b.retained, collector: s.self, evidence: "Verified original recipient collected held property" }),
+          },
+          { let: "collected_item", value: async (c, s, b) => await first(records(c, "mailroom.Item", { where: (row) => row.source === "mail-journey-receipt", order: ["id"] })) },
+          { observations: async (c, s, b) => [b.collected_item !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          {
+            observations: async (c, s, b) => [b.collected_item.state, await count(records(c, "mailroom.Handling", { parent: b.collected_item })), await any(records(c, "mailroom.Handling", { parent: b.collected_item }), (handling) => handling.kind === "collection" && same(handling.account, s.self) && same(handling.author, s.mail_operator)), b.collected_item.retention_until],
+            expected: async (c, s, b) => ["collected", 1n, true, addDuration(c.now, int64(b.collected_item.history_days * 86400000n))], types: ["mailroom.Item.state", "int", "bool", "mailroom.Item.retention_until"],
+          },
+          {
+            operation: "mailroom.collect", by: async (c, s, b) => s.mail_operator,
+            inputs: async (c, s, b) => ({ item: b.collected_item, collector: s.self, evidence: "Repeated collection" }), error: "rule_failed",
+          },
+          { let: "final_item", value: async (c, s, b) => await first(records(c, "mailroom.Item", { where: (row) => row.source === "mail-journey-receipt", order: ["id"] })) },
+          { observations: async (c, s, b) => [b.final_item !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { observations: async (c, s, b) => [b.final_item.state, await count(records(c, "mailroom.Handling", { parent: b.final_item })), await count(records(c, "mailroom.Delegate", { parent: b.expired_route })), await recipient(c, s.self, b.expired_route), await recipient(c, s.nominee, b.expired_route)], expected: async (c, s, b) => ["collected", 1n, 1n, true, false], types: ["mailroom.Item.state", "int", "int", "bool", "bool"] },
+        ],
+      },
+      {
         operation: "mailroom.collect",
-        seed: [test_worker, test_admin, allocated, delegate, delegate_contact],
+        seed: [test_worker, delegate],
         dependencies: [parcel],
         inputs: async (c, s) => ({ item: s.parcel, evidence: "Identity verified" }),
-        selectors: [
-          "as",
-          "collector",
-          "item.state",
-          "service.until",
-          "delegate.active",
-          "delegate_contact.verified",
-        ],
-        observations: [
-          async (c, s) => s.item.state,
-          async (c, s) => await count(records(c, "mailroom.Handling", { parent: s.parcel })),
-        ],
+        selectors: ["as", "collector", "item.state", "service.until", "delegate.active", "delegate_contact.verified"],
+        observations: [async (c, s) => s.item.state, async (c, s) => await count(records(c, "mailroom.Handling", { parent: s.parcel }))],
         rows: [
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "mailroom.mail_staff",
-              s.self,
-              "collection_ready",
-              datetime("2021-01-01T00:00:00Z"),
-              true,
-              true,
-            ],
-            expected: async (c, s) => ["collected", 1n],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "mailroom.mail_staff",
-              s.other,
-              "collection_ready",
-              datetime("2099-01-01T00:00:00Z"),
-              true,
-              true,
-            ],
-            expected: async (c, s) => ["collected", 1n],
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "mailroom.mail_staff",
-              s.other,
-              "collection_ready",
-              datetime("2099-01-01T00:00:00Z"),
-              false,
-              true,
-            ],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "mailroom.mail_staff",
-              s.other,
-              "collection_ready",
-              datetime("2099-01-01T00:00:00Z"),
-              true,
-              false,
-            ],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "mailroom.mail_staff",
-              s.self,
-              "collected",
-              datetime("2099-01-01T00:00:00Z"),
-              true,
-              true,
-            ],
-            error: "rule_failed",
-          },
-          {
-            dependencies: [],
-            values: async (c, s) => [
-              "members",
-              s.self,
-              "collection_ready",
-              datetime("2099-01-01T00:00:00Z"),
-              true,
-              true,
-            ],
-            error: "forbidden",
-          },
+          { dependencies: [], values: async (c, s) => ["mailroom.mail_staff", s.self, "collection_ready", datetime("2021-01-01T00:00:00Z"), true, true], expected: async (c, s) => ["collected", 1n] },
+          { dependencies: [], values: async (c, s) => ["mailroom.mail_staff", s.nominee, "collection_ready", datetime("2099-01-01T00:00:00Z"), true, true], expected: async (c, s) => ["collected", 1n] },
+          { dependencies: [], values: async (c, s) => ["mailroom.mail_staff", s.nominee, "collection_ready", datetime("2099-01-01T00:00:00Z"), false, true], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["mailroom.mail_staff", s.nominee, "collection_ready", datetime("2099-01-01T00:00:00Z"), true, false], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["mailroom.mail_staff", s.self, "collected", datetime("2099-01-01T00:00:00Z"), true, true], error: "rule_failed" },
+          { dependencies: [unrelated], values: async (c, s) => [s.unrelated, s.self, "collection_ready", datetime("2099-01-01T00:00:00Z"), true, true], error: "forbidden" },
+        ],
+      },
+      {
+        operation: "mailroom.collect",
+        seed: [test_worker, delegate],
+        dependencies: [parcel, nominee],
+        inputs: async (c, s) => ({ item: s.parcel, collector: s.nominee, evidence: "Identity verified" }),
+        selectors: ["as", "delegate_contact.account", "test_company.active"],
+        observations: [async (c, s) => s.item.state],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["mailroom.mail_staff", null, true], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["mailroom.mail_staff", s.nominee, false], error: "rule_failed" },
         ],
       },
       {
