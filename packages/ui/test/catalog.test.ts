@@ -59,6 +59,17 @@ describe("component catalog", () => {
       renderState: 1,
       collectionExportLink: 1,
       collectionPrintLink: 1,
+      avatar: 1,
+      badge: 1,
+      countdown: 1,
+      divider: 1,
+      kbd: 1,
+      link: 1,
+      mockupCode: 1,
+      progress: 1,
+      radialProgress: 1,
+      status: 1,
+      textRotate: 1,
     };
     const record = ui as unknown as Record<string, unknown>;
     for (const entry of UI_CATALOG.entries) {
@@ -255,5 +266,13 @@ describe("component catalog", () => {
   it("round-trips through JSON for L1 consumers", () => {
     const json = JSON.stringify(UI_CATALOG);
     assert.deepStrictEqual(JSON.parse(json), UI_CATALOG);
+  });
+
+  it("serves the loading/skeleton spellings through renderState", () => {
+    const byId = new Map(UI_CATALOG.entries.map((entry) => [entry.id, entry]));
+    assert.equal(byId.get("loading")?.js, "renderState");
+    assert.equal(byId.get("loading")?.availability, "implemented");
+    assert.equal(byId.get("skeleton")?.js, "renderState");
+    assert.equal(byId.get("skeleton")?.availability, "implemented");
   });
 });

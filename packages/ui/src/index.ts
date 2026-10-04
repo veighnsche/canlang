@@ -80,6 +80,23 @@ export {
   staleMarker,
   validationStatusSwaps,
 } from "./htmx.js";
+export { appearanceClasses } from "./appearance.js";
+export type { AppearanceOpts } from "./appearance.js";
+export {
+  badge,
+  countdown,
+  divider,
+  kbd,
+  link,
+  mockupCode,
+  status,
+} from "./leaves.js";
+export {
+  avatar,
+  progress,
+  radialProgress,
+  textRotate,
+} from "./media.js";
 export type { ControlQueryState } from "./collections.js";
 export {
   action,
@@ -104,6 +121,8 @@ export type {
   AppearanceSize,
   AppearanceTone,
   AppearanceVariant,
+  AvatarProps,
+  BadgeProps,
   BoundArguments,
   Bcp47Tag as ContractBcp47Tag,
   CardProps,
@@ -118,8 +137,10 @@ export type {
   ComponentProfile,
   ComponentSlotDef,
   ContentProps,
+  CountdownProps,
   DeleteProps,
   DeliveryReceiptView,
+  DividerProps,
   EditProps,
   FilterCondition,
   FilterOperator,
@@ -130,6 +151,8 @@ export type {
   FormProps,
   FragmentRegionProps,
   HtmxRequest,
+  KbdProps,
+  LinkProps,
   ListProps,
   ListQueryArgs,
   ListQueryResult,
@@ -139,6 +162,7 @@ export type {
   MessageParamValue,
   MessageValue,
   MessageVariantMap,
+  MockupCodeProps,
   NavigationEntry,
   NavigationGroup,
   NavigationResult,
@@ -150,6 +174,8 @@ export type {
   PageDescriptor,
   PollProps,
   PresentationContext,
+  ProgressProps,
+  RadialProgressProps,
   RecordIdentity,
   RenderFn,
   RenderPageFn,
@@ -161,11 +187,13 @@ export type {
   ShellData,
   ShellRoutes,
   StaleMarkerProps,
+  StatusProps,
   StatusSwap,
   SwapStrategy,
   TableProps,
   TeamOption,
   TextProps,
+  TextRotateProps,
   TextValue,
   ThemeAccent,
   ThemeDensity,
