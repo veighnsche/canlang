@@ -13,6 +13,7 @@ import type {
   FilterCondition,
   ListProps,
   ListQueryArgs,
+  MessageValue,
   OrderSelector,
   PageChildren,
   PresentationContext,
@@ -21,7 +22,7 @@ import type {
 } from "../../contracts/src/presentation.js";
 import { renderState, rowHeading } from "./components.js";
 import { escapeAttr, escapeHtml, isolate, isSafeUrl, safeHref } from "./escape.js";
-import { hxAttrs } from "./htmx.js";
+import { assertRegionId, fragmentRegion, hxAttrs } from "./htmx.js";
 import {
   canonicalDefaultTag,
   canonicalPreferredTags,
@@ -108,6 +109,7 @@ function moreNote(context: PresentationContext, nextCursor: string | undefined):
 export async function list(props: ListProps): Promise<string> {
   if (props.controls !== undefined) {
     assertControls(props.controls, "list");
+    assertConsistentContext(props.context, props.controls.context, "list");
   }
   const result = await props.context.query(
     props.context.invocation,
@@ -118,7 +120,7 @@ export async function list(props: ListProps): Promise<string> {
     if (props.controls === undefined) {
       return renderState({ context: props.context, kind: "empty", message: props.empty });
     }
-    return wrapWithControls(props.controls, await emptyBody(props.controls, props));
+    return wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
   }
   const items: string[] = [];
   for (const row of result.rows) {
@@ -129,13 +131,14 @@ export async function list(props: ListProps): Promise<string> {
   if (props.controls === undefined) {
     return `${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
   }
-  return wrapWithControls(props.controls, rowsHtml);
+  return wrapWithControls(props.controls, rowsHtml, props);
 }
 
 /** Render one model table over the requested column subset. */
 export async function table(props: TableProps): Promise<string> {
   if (props.controls !== undefined) {
     assertControls(props.controls, "table");
+    assertConsistentContext(props.context, props.controls.context, "table");
   }
   const result = await props.context.query(
     props.context.invocation,
@@ -154,7 +157,7 @@ export async function table(props: TableProps): Promise<string> {
     if (props.controls === undefined) {
       return renderState({ context: props.context, kind: "empty", message: props.empty });
     }
-    return wrapWithControls(props.controls, await emptyBody(props.controls, props));
+    return wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
   }
   const metas: ColumnMeta[] = [];
   for (const field of props.columns) {
@@ -181,7 +184,7 @@ export async function table(props: TableProps): Promise<string> {
   if (props.controls === undefined) {
     return `${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
   }
-  return wrapWithControls(props.controls, rowsHtml);
+  return wrapWithControls(props.controls, rowsHtml, props);
 }
 
 /**
@@ -292,13 +295,6 @@ function isIdShaped(value: unknown): value is { readonly id: string } {
 // ---------------------------------------------------------------------------
 // S5 collection controls: toolbar, pagination, export/print, no-match.
 // ---------------------------------------------------------------------------
-
-/**
- * Automatic-region id shape, shared with the htmx fragment regions:
- * lowercase alphanumerics joined by single hyphens. Anything else throws;
- * validated ids are safe in id attributes and `#id` hx-target selectors.
- */
-const REGION_ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /** Closed generated filter-operator matrix; unknown operators fail closed. */
 const FILTER_OPS: ReadonlySet<string> = new Set([
@@ -416,7 +412,9 @@ function assertControls(controls: CollectionControls, factory: string): void {
   if (controls === null || typeof controls !== "object" || Array.isArray(controls)) {
     throw new Error(`${factory}: controls must be an object`);
   }
-  if (typeof controls.regionId !== "string" || !REGION_ID_RE.test(controls.regionId)) {
+  try {
+    assertRegionId(controls.regionId);
+  } catch {
     throw new Error(`${factory}: invalid regionId`);
   }
   if (typeof controls.baseHref !== "string") {
@@ -585,6 +583,7 @@ export async function collectionToolbar(controls: CollectionControls): Promise<s
     target: `#${controls.regionId}`,
     swap: "morph",
     trigger: "input changed delay:500ms, keyup[key=='Enter']",
+    include: "this",
   });
   const search =
     `<label class="sr-only" for="${escapeAttr(searchId)}">${searchLabel}</label>` +
@@ -604,40 +603,26 @@ export async function collectionToolbar(controls: CollectionControls): Promise<s
       `</span>`
     );
   });
-  const orderChips = order.map(
-    (selector) =>
-      `<span class="badge" data-order-chip>${escapeHtml(selector.field)} ${escapeHtml(selector.direction)}</span>`,
-  );
-  let orderSelect = "";
-  if (order.length > 0) {
-    const orderBase = controlHref(controls.baseHref, {
-      ...(query === "" ? {} : { q: query }),
-      ...(filters.length === 0 ? {} : { filters }),
-    });
-    const orderLabel = escapeHtml(resolveCaption(ORDER_LABEL, controls.context));
-    const orderId = `${controls.regionId}-order`;
-    const options = order
-      .map((selector, index) => {
-        const text = `${selector.field} ${selector.direction}`;
-        return (
-          `<option value="${escapeAttr(text)}"${index === 0 ? " selected" : ""}>` +
-          `${escapeHtml(text)}</option>`
-        );
-      })
-      .join("");
-    const orderAttrs = hxAttrs({
-      method: "get",
-      href: orderBase,
-      target: `#${controls.regionId}`,
-      swap: "morph",
-      trigger: "change",
-    });
-    orderSelect =
-      `<label class="sr-only" for="${escapeAttr(orderId)}">${orderLabel}</label>` +
-      `<select id="${escapeAttr(orderId)}" class="select select-sm" name="order" ` +
-      `${orderAttrs}>${options}</select>`;
-  }
-  return `<div class="flex gap-2" data-toolbar role="search">${search}${chips.join("")}${orderChips.join("")}${orderSelect}</div>`;
+  const orderBase = {
+    ...(query === "" ? {} : { q: query }),
+    ...(filters.length === 0 ? {} : { filters }),
+  };
+  const orderLabel = escapeHtml(resolveCaption(ORDER_LABEL, controls.context));
+  const orderLinks = order.map((selector, index) => {
+    const text = `${selector.field} ${selector.direction}`;
+    if (order.length < 2) {
+      return `<span class="badge" data-order-chip>${escapeHtml(text)}</span>`;
+    }
+    const rotated = [selector, ...order.filter((_, other) => other !== index)];
+    const href = controlHref(controls.baseHref, { ...orderBase, order: rotated });
+    return regionLink(
+      href,
+      controls.regionId,
+      escapeHtml(text),
+      ` class="badge" data-order-chip aria-label="${orderLabel}: ${escapeAttr(text)}"`,
+    );
+  });
+  return `<div class="flex gap-2" data-toolbar role="search">${search}${chips.join("")}${orderLinks.join("")}</div>`;
 }
 
 /**
@@ -664,7 +649,7 @@ export async function collectionPagination(controls: CollectionControls): Promis
   const prevLabel = escapeHtml(resolveCaption(PREV_LABEL, controls.context));
   const nextLabel = escapeHtml(resolveCaption(NEXT_LABEL, controls.context));
   const prev =
-    controls.pagination.prevCursor === undefined
+    controls.pagination.prevCursor === undefined || controls.pagination.prevCursor === ""
       ? `<button class="join-item btn btn-disabled" disabled aria-disabled="true">${prevLabel}</button>`
       : regionLink(
           pageHref(controls.pagination.prevCursor),
@@ -673,7 +658,7 @@ export async function collectionPagination(controls: CollectionControls): Promis
           ` class="join-item btn"`,
         );
   const next =
-    controls.pagination.nextCursor === undefined
+    controls.pagination.nextCursor === undefined || controls.pagination.nextCursor === ""
       ? `<button class="join-item btn btn-disabled" disabled aria-disabled="true">${nextLabel}</button>`
       : regionLink(
           pageHref(controls.pagination.nextCursor),
@@ -758,18 +743,46 @@ async function emptyBody(
 }
 
 /**
- * Wrap rows chrome in the automatic collection region: toolbar, body,
+ * Rows and toolbar captions must resolve under one effective locale/theme:
+ * generated code passes a single context; a divergent controls context is a
+ * caller bug that would otherwise render mixed-locale output. Throws.
+ */
+function assertConsistentContext(
+  outer: PresentationContext,
+  inner: PresentationContext,
+  factory: string,
+): void {
+  const fingerprint = (context: PresentationContext): string =>
+    JSON.stringify({
+      locales: context.preferredLocales,
+      def: context.appDefaultLocale,
+      theme: context.theme,
+    });
+  if (fingerprint(outer) !== fingerprint(inner)) {
+    throw new Error(`${factory}: controls context diverges from collection context`);
+  }
+}
+
+/**
+ * Wrap rows chrome in the canonical automatic collection region via
+ * fragmentRegion (stable id, morph default, aria-label): toolbar, body,
  * pagination, share controls. Pagination replaces the S3 more-note here;
  * the runner cursor still flows through controls.pagination server-side.
  */
-async function wrapWithControls(controls: CollectionControls, bodyHtml: string): Promise<string> {
-  const region = escapeAttr(controls.regionId);
+async function wrapWithControls(
+  controls: CollectionControls,
+  bodyHtml: string,
+  props: Pick<ListProps, "model">,
+): Promise<string> {
+  const label: MessageValue = controls.label ?? props.model;
   const toolbar = await collectionToolbar(controls);
   const pagination = await collectionPagination(controls);
   const share = await collectionShareControls(controls);
-  return (
-    `<section id="${region}" data-region="${region}">` +
-    `${toolbar}${bodyHtml}${pagination}${share}</section>`
-  );
+  return fragmentRegion({
+    context: controls.context,
+    regionId: controls.regionId,
+    content: [toolbar, bodyHtml, pagination, share],
+    label,
+  });
 }
 

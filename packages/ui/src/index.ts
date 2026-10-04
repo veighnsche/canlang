@@ -71,6 +71,7 @@ export {
   table,
 } from "./collections.js";
 export {
+  assertRegionId,
   fragmentRegion,
   hxAttrs,
   pollTrigger,
@@ -78,6 +79,7 @@ export {
   staleMarker,
   validationStatusSwaps,
 } from "./htmx.js";
+export type { ControlQueryState } from "./collections.js";
 export {
   action,
   actions,

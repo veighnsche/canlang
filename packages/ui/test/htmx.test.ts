@@ -69,6 +69,16 @@ describe("hxAttrs", () => {
     assert.ok(!out.includes("hx-swap"));
   });
 
+  it("emits hx-include for GET controls and validates the selector", () => {
+    const out = hxAttrs({ method: "get", href: "/x", target: "#a", include: "this" });
+    assert.ok(out.includes('hx-include="this"'));
+    assert.throws(() => hxAttrs({ method: "get", href: "/x", target: "#a", include: "" }), /include/);
+    assert.throws(
+      () => hxAttrs({ method: "get", href: "/x", target: "#a", include: "div > p" }),
+      /include/,
+    );
+  });
+
   it("emits trigger and indicator when given", () => {
     const out = hxAttrs({
       method: "get",
@@ -395,16 +405,15 @@ describe("validationStatusSwaps", () => {
 
 describe("refreshTrigger", () => {
   it("returns the every-Ns trigger string", () => {
-    assert.equal(refreshTrigger("TeamTasks.Todo.list", 60), "every 60s");
-    assert.equal(refreshTrigger("op", 1), "every 1s");
-    assert.equal(refreshTrigger("op", 3600), "every 3600s");
+    assert.equal(refreshTrigger(60), "every 60s");
+    assert.equal(refreshTrigger(1), "every 1s");
+    assert.equal(refreshTrigger(3600), "every 3600s");
   });
 
-  it("validates operation and bounds", () => {
-    assert.throws(() => refreshTrigger("", 60), /operation/);
-    assert.throws(() => refreshTrigger("op", 0), /bounds/);
-    assert.throws(() => refreshTrigger("op", 3601), /bounds/);
-    assert.throws(() => refreshTrigger("op", 2.5), /integer/);
+  it("validates bounds", () => {
+    assert.throws(() => refreshTrigger(0), /bounds/);
+    assert.throws(() => refreshTrigger(3601), /bounds/);
+    assert.throws(() => refreshTrigger(2.5), /integer/);
   });
 });
 
@@ -427,7 +436,10 @@ describe("htmx DOM behavior", () => {
     }
   });
 
-  it("resetting an unrelated region preserves focus (morph scope)", async () => {
+  it("regions scope swaps: touching one region leaves focus in another", async () => {
+    // Library-owned claim: stable region ids scope swaps to one subtree.
+    // Focus retention across a real morph is htmx runtime behavior, verified
+    // at the L7 browser join; here the harness stands in for the swap.
     const form = await fragmentRegion({
       context: makeContext(),
       regionId: "expense-form",
@@ -442,8 +454,8 @@ describe("htmx DOM behavior", () => {
     });
     const page = await loadHtml(`${form}${rows}`);
     try {
-      // No DOM lib in this tsconfig (harness.ts carries the DOM types, with its
-      // own pre-existing lib errors): use structural types, never DOM names.
+      // No DOM lib in this tsconfig (harness.ts carries the happy-dom types):
+      // use structural types, never DOM global names.
       const input = page.document.querySelector("#title") as unknown as {
         focus(): void;
       } | null;

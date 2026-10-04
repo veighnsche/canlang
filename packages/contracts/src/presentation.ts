@@ -651,6 +651,8 @@ export interface CollectionControls {
   /** Dispatcher-supplied shared export/print targets; absent omits the control. */
   readonly exportHref?: string;
   readonly printHref?: string;
+  /** Region aria-label; defaults to the collection model name. */
+  readonly label?: MessageValue;
 }
 
 // ---------------------------------------------------------------------------
@@ -684,6 +686,11 @@ export interface HtmxRequest {
   readonly swap?: SwapStrategy;
   readonly trigger?: string;
   readonly indicator?: string;
+  /**
+   * Extra values to submit, emitted as hx-include. Required for GET controls
+   * (search/order): GET never carries element values without it.
+   */
+  readonly include?: string;
   readonly statusSwaps?: ReadonlyArray<StatusSwap>;
   readonly pushUrl?: boolean;
 }

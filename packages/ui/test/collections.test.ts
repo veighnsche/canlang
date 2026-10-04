@@ -878,6 +878,7 @@ describe("collectionToolbar", () => {
         input.getAttribute("hx-trigger"),
         "input changed delay:500ms, keyup[key=='Enter']",
       );
+      assert.equal(input.getAttribute("hx-include"), "this");
     } finally {
       await page.close();
     }
@@ -942,47 +943,50 @@ describe("collectionToolbar", () => {
     }
   });
 
-  it("renders order chips plus a select over exactly the accepted selectors", async () => {
+  it("renders order links rotating the chosen selector first", async () => {
     const controls = makeControls({ search: { query: "milk" }, filters, order });
     const page = await loadHtml(await collectionToolbar(controls));
     try {
+      assert.equal(page.document.querySelector("select[name='order']"), null);
       const chips = page.document.querySelectorAll("[data-order-chip]");
       assert.equal(chips.length, 2);
-      assert.ok((chips.item(0)?.textContent ?? "").includes("due asc"));
-      const select = page.document.querySelector("select[name='order']") as unknown as {
-        getAttribute(name: string): string | null;
-      } | null;
-      assert.ok(select !== null);
-      assert.equal(select.getAttribute("hx-trigger"), "change");
-      assert.equal(select.getAttribute("hx-target"), "#todo-rows");
-      const params = controlParams(select.getAttribute("hx-get") ?? "");
-      assert.equal(params.get("q"), "milk");
-      assert.equal(params.get("f[0][field]"), "status");
-      assert.equal(params.get("o[0][field]"), null);
-      const options = page.document.querySelectorAll("select[name='order'] option");
-      assert.equal(options.length, 2);
-      const first = options.item(0) as unknown as {
-        textContent: string | null;
-        getAttribute(name: string): string | null;
-        hasAttribute(name: string): boolean;
-      } | null;
-      const second = options.item(1) as unknown as {
-        textContent: string | null;
-        getAttribute(name: string): string | null;
-        hasAttribute(name: string): boolean;
-      } | null;
-      assert.ok(first !== null && second !== null);
-      assert.equal(first.getAttribute("value"), "due asc");
-      assert.equal(first.textContent, "due asc");
-      assert.equal(first.hasAttribute("selected"), true);
-      assert.equal(second.getAttribute("value"), "title desc");
-      assert.equal(second.hasAttribute("selected"), false);
+      const first = chips.item(0);
+      const second = chips.item(1);
+      assert.equal(first?.tagName, "A");
+      assert.equal(second?.tagName, "A");
+      assert.ok((first?.textContent ?? "").includes("due asc"));
+      assert.ok((second?.textContent ?? "").includes("title desc"));
+      assert.equal(first?.getAttribute("hx-target"), "#todo-rows");
+      assert.equal(first?.getAttribute("hx-swap"), "outerMorph");
+      const firstParams = controlParams(first?.getAttribute("href") ?? "");
+      assert.equal(firstParams.get("o[0][field]"), "due");
+      assert.equal(firstParams.get("o[0][dir]"), "asc");
+      assert.equal(firstParams.get("o[1][field]"), "title");
+      assert.equal(firstParams.get("q"), "milk");
+      assert.equal(firstParams.get("f[0][field]"), "status");
+      const secondParams = controlParams(second?.getAttribute("href") ?? "");
+      assert.equal(secondParams.get("o[0][field]"), "title");
+      assert.equal(secondParams.get("o[0][dir]"), "desc");
+      assert.equal(secondParams.get("o[1][field]"), "due");
+      assert.equal(secondParams.get("o[1][dir]"), "asc");
     } finally {
       await page.close();
     }
   });
 
-  it("omits chips and the order select when that state is absent", async () => {
+  it("renders a lone selector as a static chip, not a self-link", async () => {
+    const controls = makeControls({ order: [{ field: "due", direction: "asc" }] });
+    const page = await loadHtml(await collectionToolbar(controls));
+    try {
+      const chips = page.document.querySelectorAll("[data-order-chip]");
+      assert.equal(chips.length, 1);
+      assert.equal(chips.item(0)?.tagName, "SPAN");
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("omits chips and order links when that state is absent", async () => {
     const page = await loadHtml(await collectionToolbar(makeControls()));
     try {
       assert.equal(page.document.querySelectorAll("[data-chip]").length, 0);
@@ -1228,6 +1232,73 @@ describe("list/table with controls", () => {
     }
   });
 
+  it("collection regions match fragment parity: morph default, hook, label", async () => {
+    const seen: SeenCall[] = [];
+    const controls = controlled(seen, { rows: [row("a")], columns: [] });
+    const html = await list({
+      context: controls.context,
+      model: "TeamTasks.Todo",
+      empty: "No todos",
+      renderRow: (item) => [item.id],
+      controls,
+    });
+    const page = await loadHtml(html);
+    try {
+      const section = page.document.querySelector("section#todo-rows");
+      assert.ok(section !== null);
+      assert.equal(section.getAttribute("hx-swap"), "outerMorph");
+      assert.ok((section.getAttribute("class") ?? "").split(" ").includes("can-region"));
+      assert.equal(section.getAttribute("aria-label"), "TeamTasks.Todo");
+    } finally {
+      await page.close();
+    }
+    const labeled = controlled(seen, { rows: [row("a")], columns: [] }, { label: "My todos" });
+    const labeledHtml = await list({
+      context: labeled.context,
+      model: "TeamTasks.Todo",
+      empty: "No todos",
+      renderRow: (item) => [item.id],
+      controls: labeled,
+    });
+    const labeledPage = await loadHtml(labeledHtml);
+    try {
+      assert.equal(
+        labeledPage.document.querySelector("section#todo-rows")?.getAttribute("aria-label"),
+        "My todos",
+      );
+    } finally {
+      await labeledPage.close();
+    }
+  });
+
+  it("rejects a controls context that diverges from the collection context", async () => {
+    const seen: SeenCall[] = [];
+    const controls = controlled(seen, { rows: [row("a")], columns: [] });
+    const other = makeContext({ query: stubRunner(seen, { rows: [], columns: [] }) });
+    await assert.rejects(
+      () =>
+        list({
+          context: { ...other, appDefaultLocale: "nl" },
+          model: "TeamTasks.Todo",
+          empty: "No todos",
+          renderRow: (item) => [item.id],
+          controls,
+        }),
+      /diverges/,
+    );
+  });
+
+  it("renders empty-string cursors as disabled buttons", async () => {
+    const controls = makeControls({ pagination: { prevCursor: "", nextCursor: "" } });
+    const page = await loadHtml(await collectionPagination(controls));
+    try {
+      assert.equal(page.document.querySelectorAll("[data-pagination] a").length, 0);
+      assert.equal(page.document.querySelectorAll("[data-pagination] button[disabled]").length, 2);
+    } finally {
+      await page.close();
+    }
+  });
+
   it("table wraps rows in the region with toolbar and rows intact", async () => {
     const seen: SeenCall[] = [];
     const controls = controlled(seen, {
@@ -1437,8 +1508,8 @@ describe("collection controls XSS sweep", () => {
       const chip = page.document.querySelector("[data-chip]");
       assert.ok((chip?.textContent ?? "").includes(hostileField));
       assert.ok((chip?.textContent ?? "").includes(hostileValue));
-      const option = page.document.querySelector("select[name='order'] option");
-      assert.ok((option?.textContent ?? "").includes(hostileField));
+      const orderChip = page.document.querySelector("[data-order-chip]");
+      assert.ok((orderChip?.textContent ?? "").includes(hostileField));
     } finally {
       await page.close();
     }

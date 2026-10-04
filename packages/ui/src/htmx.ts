@@ -51,7 +51,8 @@ const EXTENDED_TARGET_RE = /^(?:this|(?:closest|find|next|previous)\s+\S[\s\S]*)
 const MIN_INTERVAL_SECONDS = 1;
 const MAX_INTERVAL_SECONDS = 3600;
 
-function assertRegionId(regionId: string): void {
+/** Canonical region-id guard, shared with collection regions. */
+export function assertRegionId(regionId: string): void {
   if (typeof regionId !== "string" || !REGION_ID_RE.test(regionId)) {
     throw new Error(
       `invalid region id ${JSON.stringify(regionId)}: must match /^[a-z0-9]+(-[a-z0-9]+)*$/`,
@@ -128,8 +129,9 @@ async function renderChildren(children: PageChildren): Promise<string> {
 /**
  * Render a declarative HTMX request as escaped hx-* attributes. Deterministic
  * order: hx-get/hx-post, hx-target, hx-swap (when given), hx-trigger,
- * hx-indicator, hx-status:* entries, hx-push-url. The swap default lives on
- * the region (outerMorph), so an absent `swap` emits no hx-swap attribute.
+ * hx-indicator, hx-include, hx-status:* entries, hx-push-url. The swap
+ * default lives on the region (outerMorph), so an absent `swap` emits no
+ * hx-swap attribute.
  */
 export function hxAttrs(req: HtmxRequest): string {
   if (req.method !== "get" && req.method !== "post") {
@@ -151,6 +153,10 @@ export function hxAttrs(req: HtmxRequest): string {
   if (req.indicator !== undefined) {
     assertNonEmptyString(req.indicator, "indicator");
     attrs.push(`hx-indicator="${escapeAttr(req.indicator)}"`);
+  }
+  if (req.include !== undefined) {
+    assertTarget(req.include, "include");
+    attrs.push(`hx-include="${escapeAttr(req.include)}"`);
   }
   for (const entry of req.statusSwaps ?? []) {
     attrs.push(statusSwapAttr(entry));
@@ -243,10 +249,10 @@ export function validationStatusSwaps(formRegionTarget: string): StatusSwap[] {
  * DESIGN refresh contract (documented, enforced by the dispatcher/runtime):
  * an explicit user submit happens first; repeats stay on the same
  * page/principal/team; every repeat carries CSRF; one outstanding reread via
- * hx-sync="this:abort". This helper returns the trigger string only.
+ * hx-sync="this:abort". The owning operation is identified by the form the
+ * trigger is attached to, so this helper takes only the cadence.
  */
-export function refreshTrigger(operation: string, intervalSeconds: number): string {
-  assertNonEmptyString(operation, "operation");
+export function refreshTrigger(intervalSeconds: number): string {
   assertIntervalSeconds(intervalSeconds, "intervalSeconds");
   return `every ${intervalSeconds}s`;
 }
