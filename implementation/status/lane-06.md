@@ -355,7 +355,7 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     main's lock + SDK edge re-applied; suites re-verified green;
     merged with lane-06 + workspace CI green (lock sync fixed the
     `npm ci` failure the new dep had introduced).
-- S6 (in progress): branch `muse/lane-06-identity-interfaces/uploads`
+- S6 (MERGED 2026-10-04 as 3819b23, PR #44): branch `muse/lane-06-identity-interfaces/uploads`
   from origin/main (090f7b4). Scope: POST /files/intents, PUT
   /files/content/{id} (append + auto-complete), POST
   /files/finalize/{id} per DESIGN section 8; session+bearer auth,
@@ -396,7 +396,9 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     pins (PUT CSRF, grant-over-cookie precedence, session-as-bearer,
     expired grant, session receiver, garbage content-length); F4
     JSON content-type gate on intent/finalize. After fixes:
-    interfaces 199/199, identity 38/38.
+    interfaces 199/199, identity 38/38. Delta re-review APPROVED
+    (F1 docs decision accepted, all switches/pins verified);
+    merged with lane-06 + workspace CI green, no rebase needed.
 
 ## Remaining work and cleanup
 
