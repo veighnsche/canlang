@@ -1,0 +1,34 @@
+{
+  "request": {
+    "state": "A proposed departmental CRM synchronization app links existing external accounts and allows corrections only to name, phone and website. Operators prepare changes; a different current reviewer approves the exact intended values. Salesforce Account PATCH supports an atomic If-Match ETag condition; this support is not assumed for other objects. Remote identity/existence remain provider-owned. Reads can become stale and a write reply can be lost after the remote write. A read matching desired values establishes observed convergence, not who caused it. No implemented Can runtime exists; existing draft primitives provide records, current permissions, immutable evidence, atomic local operations, typed asynchronous sends/receipts and keyed scheduling. We need an end-to-end realistic app with compact authored business rules and reusable provider mechanics. Option A freezes the complete three-field proposed projection and provider ETag; any revision conflict requires a fresh read, a new proposal and fresh review, even for a remote change irrelevant to those three fields. Option B retains the baseline and reviewed per-field delta; after a conditional conflict it rereads and automatically rebases only when none of the changed proposed fields conflicts, preserving unrelated remote edits and the exact previously approved proposed values, with a new conditional write; overlapping field conflicts require human review. Both retain original unknown outcomes, bound recovery attempts, recheck present authority before dispatch and never use read-then-unconditional-write. A has fewer policy branches and more reviewer interruptions. B reduces interruptions and needs precise merge, consent, retry and evidence rules. Assess business usability and authored semantic complexity together; neither safety nor feasibility is assumed.",
+    "questions": {
+      "conflict_policy": {
+        "type": "choice",
+        "instructions": "Which initial complete business policy best suits this bounded departmental synchronization app, accounting for review effort, concise authoring, faithful approvals and recovery clarity?",
+        "criteria": {
+          "whole": "Require a new reviewed proposal after any provider revision conflict, preserving a whole-projection baseline and intended values.",
+          "fields": "Automatically rebase a previously reviewed field delta when a fresh provider snapshot proves those changed fields have no conflict; require review for overlapping changes."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "conflict_policy": {
+        "type": "choice",
+        "choice": "fields",
+        "confidence": 0.91,
+        "probabilities": {
+          "whole": 0.04,
+          "fields": 0.96
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 698,
+      "output_tokens": 33
+    }
+  }
+}

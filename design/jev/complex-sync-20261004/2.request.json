@@ -1,0 +1,13 @@
+{
+  "state": "Consider a company account-maintenance draft, before any runtime is built. Only three external properties can be corrected: company name, telephone and website; the provider controls record identity and absence. One employee proposes and another presently authorized reviewer approves exact changes. The documented Salesforce Account endpoint offers conditional PATCH through If-Match and opaque ETags, without implying other objects support it. Source observations may age, and a PATCH acknowledgement may disappear after acceptance. Later equal values prove current agreement only, not the particular operation outcome. Existing language contracts include stored records, live authority checks, locked evidence, local transactions, typed durable provider calls with receipts and per-record timers. The draft should be genuinely useful while keeping repeated provider machinery shared and business source compact. Under whole, all three desired fields and the old ETag are frozen; every stale ETag leads to reread, replacement proposal and renewed approval, including unrelated remote modifications. Under fields, retain the approved field delta and prior snapshot; reread on conflict and retry with a new ETag only if every proposed changed field is still nonconflicting, keeping the approved values and unrelated external changes; an overlap returns to reviewers. Either policy preserves uncertain prior receipts, uses finite recovery, validates current authority before sending, and requires an atomic provider condition rather than a check followed by blind overwrite. Whole has a smaller decision surface but asks people to revisit more changes. Fields can spare those revisits but needs specified merging, authorization continuity, retries and retained proof. No option is stipulated correct.",
+  "questions": {
+    "conflict_policy": {
+      "type": "choice",
+      "instructions": "For the first fully specified version, select the conflict approach offering the better balance of everyday work, compact company policy, exact consent and understandable failure recovery.",
+      "criteria": {
+        "whole": "Freeze the entire allowed projection and demand renewed human review whenever the provider revision differs.",
+        "fields": "Keep the authorized per-field patch, merge only demonstrably nonoverlapping provider changes under a new conditional revision, and escalate overlapping changes."
+      }
+    }
+  }
+}

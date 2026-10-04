@@ -1,0 +1,14 @@
+{
+  "state": "A company wants repeatable discovery from two source bindings followed by reviewed sales intake. Published provider documentation supports iteration for one source and shows offset pagination metadata for the other; neither may be assumed to certify every opportunity worldwide or a stable historical snapshot. Runs must retain queries, per-source cursors and explicit gaps, bounded cited content, source-key deduplication, changed-revision conflicts and unparsed deadlines. Extraction and scoring produce typed proposals only. Review freezes exact evidence before a current-authorized canonical CRM call; untrusted documents cannot select operations, providers or recipients. The draft language already has durable capability requests, typed completion events, observable associated receipts, data policies/locks and timers. Collection work bounds fail on overflow. A new temporal workflow syntax would be allowed if justified, since nothing is implemented. Repeated runs must freeze configuration, account for reserved cost, retain known paid results, stop new work on cancel and expose uncertain/late responses without unsafe retries. Alternatives must provide the same partial coverage and business evidence; no empirical cost data is available.",
+  "questions": {
+    "orchestration": {
+      "type": "choice",
+      "instructions": "Choose the most appropriate complete control model for this limited research application.",
+      "criteria": {
+        "explicit_pages": "Represent each source traversal with ordinary state and use typed page requests plus existing completion handlers. Commit evidence and cursor advancement together, and make later analysis/review explicit. This keeps the current execution model and reviewable edges but leaves several correlation and recovery transitions in app source.",
+        "resumable_source": "Introduce a persisted sequential form for awaited source/analysis calls, retaining authored stop, budget and iteration rules. It may shorten workflow notation, at the cost of specifying a new execution model for suspension, retries, permission revocation and transaction boundaries.",
+        "delegated_search": "Delegate bounded traversal to an explicit typed research-job binding with progress and per-source evidence/coverage results. Application orchestration gets shorter while job adapters own more reusable pagination, spend, cancellation and resume behavior. The boundary cannot authorize unreviewed business promotion."
+      }
+    }
+  }
+}
