@@ -429,6 +429,28 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     oversized GET state, encoded namespace, method normalization).
     After notes: interfaces 237/237. Merged with lane-06 + workspace
     CI green, no rebase needed (review already APPROVE-WITH-NOTES).
+- B1/B2 lane-06 evidence (in progress): branch
+  `muse/lane-06-identity-interfaces/b1-evidence` from origin/main.
+  integration-parity.test.ts (14) + integration-lifecycle.test.ts (8):
+  shared-assembly two-user flows over the real identity store —
+  same-op browser/MCP equivalence, single-derivation proof, equal
+  rejection (forged/expired/revoked/unknown-team/unknown-arg/
+  missing-op-id/denied/owner-only), replay passthrough, error-shape
+  parity without leaks, full OAuth dance driving MCP, team-bound
+  consent, mid-flow revocation, removeMember lifecycle, uploads
+  journey, ingress journey, cross-user isolation. interfaces 259/259.
+  /tmp/s6-kernel-probe.mjs re-run on current main: PROBE PASS 9/9.
+  - BLOCKED (cross-lane compile+run, exact unmet contracts): L1 T4
+    emission unmerged (compiler has syntax/CLI only; no
+    appDefinition/registry artifact, so no real registry to call
+    through); L3 engine callable exists only against interim
+    engine-local descriptors (version/role/field semantics are
+    L3's to enforce at the join); L5 consent screens interim
+    (descriptor); L7 workerd/D1 local runner needed for the
+    deployed-shape run. Lane-06 port boundaries (OperationInvoker,
+    OperationRegistry, SchemaCatalog, PageRegistry, FileKernel,
+    IngressVerifier/Sink) stand ready with B1 binding as the
+    compile-time forcing function.
 
 ## Remaining work and cleanup
 
