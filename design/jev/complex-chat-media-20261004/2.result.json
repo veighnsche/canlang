@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "We are choosing a shared source interface for three proposed Can apps, not implementing a runtime. The apps must support owned chat histories and alternate branches, bounded generation, retained streaming progress, reconnect without resubmission, explicit per-run cancellation, ambiguous submission recovery, revocation-safe pages/files, employee-published immutable ComfyUI graph mappings, image-file finalization and reviewed shared collections. Lossless playback of individual tokens is outside the requirement. Existing language tools are owner transactions, durable typed send/receipts, verified capability events and periodically reauthorized page reads. There is no existing run keyword. All candidates must use a durable adapter that authenticates provider observations, binds original source/revision to an immutable request digest, deduplicates identities, records provider references, retains uncertainty and isolates cancellation. A successful delivery may only be a queued run, not finished business work. Native Ollama uses streaming NDJSON; its SDK cancellation is client-instance wide unless isolated, and documented token replay is absent. Native ComfyUI queues via prompt and generic interrupt alone is unsafe for shared targeted cancellation; deployment verifies the actual provider version. Worker request lifetime is not a substitute for durable controller state. Shared output processing must admit only finalized application files. Hard reservations cover supported token/job/dimension ceilings, with unsettled usage held; monetary guarantees require separate provider support. All approaches below must preserve those facts and the same company workflows.",
+    "questions": {
+      "run_interface": {
+        "type": "choice",
+        "instructions": "For the next complete source and desired-JavaScript drafts, which interface is most suitable when weighing reusable lifecycle behavior, comprehensibility, fidelity, recovery and design/implementation burden equally?",
+        "criteria": {
+          "typed_snapshots": "Define reusable standard text/image capabilities for start, stop, query and authenticated cumulative changes, then use ordinary sends and handlers to project the latest business run. Put stream decoding, durable run/provider tracking, coalescing and finalized files inside shared adapters. Render existing authorized polling lists/content/forms. No new grammar is needed; app-level correlation/admission and reservation handlers remain authored and there is only current-state replay.",
+          "run_construct": "Add a language-level generation-independent durable run abstraction with standard observation and cancellation/reconciliation controls. The compiler/runtime supplies the common projection and lifecycle glue; business authors still specify permissions, frozen inputs, costs and domain completion. It offers shorter authoring and reusable UI but introduces new type/effect, restart, revision, authority and target-output rules needing review.",
+          "event_log": "Expose a shared durable sequence of normalized generation events with read cursors and reauthorized subscriptions; projects fold events into business/UI state. This allows precise replay of recorded chunks and audit across clients. It requires more retention, flow control and cursor semantics than snapshots and does not repair provider output never durably observed."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "run_interface": {
+        "type": "choice",
+        "choice": "typed_snapshots",
+        "confidence": 0.72,
+        "probabilities": {
+          "run_construct": 0.17,
+          "typed_snapshots": 0.81,
+          "event_log": 0.02
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 872,
+      "output_tokens": 49
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "scope": "Descriptor inventory and references only; no operations, BDD or runtime executed",
+  "report": [
+    {
+      "app": "CanChat",
+      "models": 6,
+      "userOperations": 7,
+      "trustedHandlers": 2,
+      "pages": 3,
+      "fixtures": 12,
+      "tables": 7,
+      "rows": 17,
+      "sequences": 1
+    },
+    {
+      "app": "CanCreative",
+      "models": 5,
+      "userOperations": 8,
+      "trustedHandlers": 4,
+      "pages": 4,
+      "fixtures": 15,
+      "tables": 6,
+      "rows": 19,
+      "sequences": 0
+    },
+    {
+      "app": "CanGallery",
+      "models": 3,
+      "userOperations": 4,
+      "trustedHandlers": 0,
+      "pages": 4,
+      "fixtures": 6,
+      "tables": 2,
+      "rows": 8,
+      "sequences": 1
+    }
+  ]
+}

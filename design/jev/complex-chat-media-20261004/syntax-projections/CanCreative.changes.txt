@@ -1,0 +1,8 @@
+line 12: substitute delivery association types only for syntax projection
+line 13: substitute delivery association types only for syntax projection
+line 15: substitute delivery association types only for syntax projection
+line 187: omit accepted poll attribute unsupported by prototype
+line 193: project gallery to established list syntax
+line 196: omit accepted poll attribute unsupported by prototype
+line 205: omit accepted poll attribute unsupported by prototype
+line 209: omit accepted poll attribute unsupported by prototype
