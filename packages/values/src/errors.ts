@@ -1,4 +1,4 @@
-import type { DeliveryError, Violation } from "../../contracts/src/values.js";
+import type { Violation } from "../../contracts/src/values.js";
 
 /** Evaluation-failure codes for checked values. These are never business codes. */
 export type ValueFailureCode =
@@ -45,26 +45,8 @@ export class SchemaError extends Error {
   }
 }
 
-/** Closed `{code,message}` delivery error value (DESIGN §8). */
-export function makeDeliveryError(code: string, message: string): DeliveryError {
-  if (typeof code !== "string" || code.length === 0) {
-    throw new ValueError("invalid-construction", "DeliveryError code must be non-empty");
-  }
-  if (typeof message !== "string" || message.length === 0) {
-    throw new ValueError("invalid-construction", "DeliveryError message must be non-empty");
-  }
-  return Object.freeze({ code, message });
-}
-
-export function isDeliveryError(value: unknown): value is DeliveryError {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  const keys = Object.keys(record);
-  return (
-    keys.length === 2 &&
-    typeof record["code"] === "string" &&
-    record["code"].length > 0 &&
-    typeof record["message"] === "string" &&
-    record["message"].length > 0
-  );
-}
+/**
+ * The closed `{code,message}` delivery error value and its maker/guard were
+ * removed here: lane 04 owns `DeliveryError` in `services.ts` (single
+ * definition; L7 handoff resolved by this removal).
+ */

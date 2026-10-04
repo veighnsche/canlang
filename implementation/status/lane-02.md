@@ -4,9 +4,11 @@ Status: active coordination. Coordinator session 01a10710-7482-7093-8e17-2382b07
 goal goal-01a10711-f621-7501-9494-d85e4f5f865d (native, no token budget).
 Worktree (owned, cleanup: this coordinator after all writers/viewers release):
 `/Users/vince/Projects/canlang-worktrees/lane-02-values`, branch prefix
-`muse/lane-02-values/`, base origin/main 14fa6a0 (lanes 1/3/4/7 B0 merged as
-PRs #1-4; slice rebased from b06d873). Current branch:
-`muse/lane-02-values/scaffold`. The primary checkout is never touched.
+`muse/lane-02-values/`, base origin/main 53f6f29 (PR1 #8 merged; L4 S2 #5,
+L6 S1 #6, L5 S1 #7, L7 PR2 #9, L5 S2 #10, L7 PR3 #11, L6 S2 #12, L7 PR4 #14
+also in — L7 PR3/PR4 bring the testkit table runner + integration skeleton
+relevant to PR6). Current branch: `muse/lane-02-values/scalars` (PR2 slice).
+The primary checkout is never touched.
 
 Owner prompt: [lane 02](../prompts/02-values.md). Binding: PLAN, WORKFLOW,
 CONTRACTS, DIAGNOSTICS, AGENTS.md (all read at b06d873).
@@ -116,7 +118,10 @@ branches or PRs (checked `git ls-remote`, `gh pr list`: empty).
   map to envelopes. `SchemaError` (shape/setup) vs `ValueError`
   (overflow/rounding/constructor/evaluation failure) are distinct classes so a
   schema error can never satisfy a BDD business error; business-code mapping
-  stays with L3/L7.
+  stays with L3/L7. `DeliveryError` is L4-owned (`services.ts`, landed first
+  in their S2 #5): this lane removes its duplicate in PR2 and keeps a doc
+  pointer (handshake proposed in PR2 description; L4 ack requested). Caution
+  to L7: wire `values.ts` into the contracts index only after PR2 merges.
 - R5 Catalog: `catalog.ts` is the single authored definition (Can builtins +
   §13 runtime helpers + features + per-entry implementation owner/status);
   build script emits versioned JSON envelope + fails if runtime exports
@@ -184,8 +189,9 @@ implementation/evidence/jev/values-20261004/  # JEV round (done)
 ### 6. Reuse and qualification
 
 - Decimal: OWN BigInt implementation (library precision-models mismatch Can
-  scale semantics); `decimal.js` pinned dev-only as independent cross-check
-  oracle on randomized vectors (never in src).
+  scale semantics); `decimal.js` 10.6.0 cross-check oracle DEFERRED to PR5
+  (workspace-era nested installs need the L7 root-lock follow-up; PR2 uses
+  normative vectors + algebraic property checks instead).
 - Calendar/zones: OWN Hinnant proleptic algorithms + `Intl.DateTimeFormat`
   round-trip zone resolution with explicit fold/gap handling; cross-check vs
   `Date`/TZ-stable vectors. No Temporal/date-lib dependency (host variance).
@@ -276,9 +282,46 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
 - PR1 built 2026-10-04 on 14fa6a0: scaffold + `values.ts` contract v1 +
   kinds/errors + 50-entry catalog + CI; typecheck clean, 16/16 tests green,
   catalog emits; TS 5.9.3 aligned with L3; zero contracts export clashes.
-- Reserved: all §4 paths to lane-02 workers by slice; `contracts/src/values.ts`,
-  `lane-02.yml`, this file to coordinator. No cross-lane file overlaps.
-- Active workers: none yet (PR1 is coordinator-built).
+- PR1 merged 2026-10-04 as 48dbb77 (PR #8, squash, head 2f7f21a): independent
+  review returned merge-after-fix (10 minor/nit, no blockers), all fixed,
+  19/19 green, both CI runs green, mergeState CLEAN. L4 S2 #5 merged just
+  before (0dbfb2e).
+- PR2 branch `muse/lane-02-values/scalars` cut from 48dbb77. New clash found:
+  `DeliveryError` now in L4 `services.ts` and lane-02 `values.ts` — removal
+  + handshake decided (R4). Coordinator-owned shared files this slice:
+  `package.json`, `catalog.ts`, `index.ts`, `errors.ts`, `contracts/src/values.ts`
+  (removal), this file. Workers touch ONLY their listed files.
+- L7 PR2 #9 joined `values.ts` into the contracts index (interim
+  `DeliveryError` pick: services) and integrated `@canlang/values` into the
+  root lock — both PR1 follow-ups done. Handoff to L2+L4 to deduplicate
+  `DeliveryError`: this lane removes its duplicate in PR2 (R4). Nested-lock
+  retirement + root-ci switch: acked, scheduled as a small follow-up PR
+  after PR2 (PR2 keeps the proven member flow).
+- 2026-10-04: instance restart killed both PR2/PR3 implementation workers
+  with zero files written (both runs `failed`, no cause recorded). No
+  worktree damage; toolchain re-verified green (19/19) on 540a281.
+  Respawning both with identical briefs.
+- Scalars worker done: int/decimal/money/currency-data + 69 tests, all green.
+  Currency table fetched from SIX list-one.xml (Pblshd 2026-09-17): 165 pinned
+  codes (17×0/139×2/7×3/2×4), 13 N.A. codes excluded with rationale; counts
+  and 20 spot values re-verified by coordinator.
+- Temporal worker done: temporal/timezone + 55 tests, all green; coordinator
+  reviewed (Hinnant bounds, ctor strictness, fold/gap probing all correct).
+  One fix applied: `remainderDuration` now int64-checks its result. Files
+  HELD UNCOMMITTED for the PR3 branch (PR2 stages scalar files only).
+- PR2 assembly (coordinator): `DeliveryError` removed (contracts + errors +
+  tests, doc pointers to L4 `services.ts` — L7 handoff resolved); catalog
+  50→55 entries (5 gap helpers: add/subtract/multiply/negateDecimal,
+  divideMoney — operator-matrix-required but absent from the L992 draft
+  list, L1 join to confirm) + 11 availability flips + 5 feature flips;
+  index exports scalar modules. Verified: PR2-only tree 87/87 green from
+  clean dist; full tree 142/142 green; catalog emits.
+- L992 lowering gaps discovered (need L1 confirmation): decimal +,-,*,unary-
+  and money/int|decimal `/` have no §13 helper; duration/int exact division
+  (`divideDurationByInt`) likewise (rides PR3). Int ops lower via the
+  `int64()` wrapper (draft-witnessed); int/duration/text comparisons lower
+  to native operators. Carried in the PR2 description.
+- Active workers: none (both slices delivered; coordinator assembling PR2).
 
 ## Interface requests and handoffs
 
@@ -289,9 +332,20 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
 - To L1: PR1 implements IR-01 envelope sketch — ack requested on
   `catalog_version`/`entries` shape + `js`/`notes`/`features` additions;
   checker/codegen joins at B1. (PR1/PR5 descriptions.)
+- To L1 (with PR2): confirm 5 gap-helper names (add/subtract/multiply/
+  negateDecimal, divideMoney) + PR3 `divideDurationByInt` — required by the
+  operator matrix, absent from the L992 draft list. Counter-propose names
+  before B1 codegen if preferred.
 - To L3: façade export list (final with PR5); `random_secret`/`active_member`/
   query-aggregate/`action()` implementation ownership; `Violation[]` mapping.
 - To L4/L6: delivery/file wire mapping joint confirmation (proposed R3).
+- To L4 (HANDSHAKE with PR2): `DeliveryError` defined in both `services.ts`
+  (landed first, #5) and lane-02 `values.ts` (PR1 #8) — identical DESIGN §8
+  shape. Proposal: L4 owns it; lane-02 PR2 removes its duplicate
+  (interface + maker/guard + tests) and doc-points to `services.ts`.
+  Optional: adopt `readonly` fields (our strict guard required exact keys +
+  non-empty strings). L4 ack or counter requested before L7 wires either
+  file into the contracts index.
 - From L1 (IR-01): catalog envelope sketch + `language_version "1.0"`
   provisional — adopted in PR1.
 - From L3: B1 need "exact value equality + canonical JSON codec" — acknowledged,
@@ -301,7 +355,12 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
 
 ## PR and verification evidence
 
-No PRs yet. Per-slice records (reviewed head, checks, URL, limits) go here.
+- PR #8 (scaffold) MERGED 2026-10-04 as 48dbb77: 24 files, reviewed head
+  2f7f21a (fixup over reviewed 0e7fd2f implementing all 10 review asks),
+  typecheck clean, 19/19 node:test green, catalog 50 entries/15 features,
+  both `values` CI runs green, mergeStateStatus CLEAN, branch unprotected.
+  Limits: all entries planned/external; export-conformance in PR5.
+  URL: https://github.com/veighnsche/canlang/pull/8
 
 ## Remaining work and cleanup
 

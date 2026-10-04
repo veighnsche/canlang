@@ -196,11 +196,11 @@ export interface Violation {
   readonly actual?: string;
 }
 
-/** Closed `{code,message}` delivery error value. */
-export interface DeliveryError {
-  readonly code: string;
-  readonly message: string;
-}
+/**
+ * The closed `{code,message}` delivery error value is owned by lane 04
+ * (`services.ts`, which landed first); it is intentionally not repeated here
+ * (L7 handoff: L2+L4 deduplicate; interim barrel pick is services).
+ */
 
 /**
  * One catalog entry. Envelope shape follows the L1 IR-01 sketch
