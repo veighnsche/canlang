@@ -85,8 +85,8 @@ package appointments
     public,date("2099-01-02") -> error(forbidden)
   # Stage a replacement while the original host and venue remain allocated. @{nl="Bereid vervanging voor terwijl de oorspronkelijke gastheer en ruimte gereserveerd blijven."}
   export scenario reschedule(visit:Appointment,from:datetime label=label_Window_from) by=authenticated or host_manager label="Reschedule appointment"@{nl="Afspraak verplaatsen"}
-   require visit.state==confirmed and from>=now and from!=visit.from
-   require (visit.contact.account==actor and visit.contact.verified and now<visit.from-visit.parent.parent.cutoff) or (host_manager and can_work(actor,visit.parent.parent.location))
+   require visit.state in [confirmed,unavailable] and from>=now and from!=visit.from
+   require (visit.contact.account==actor and visit.contact.verified and (visit.state==unavailable or now<visit.from-visit.parent.parent.cutoff)) or (host_manager and can_work(actor,visit.parent.parent.location))
    require visit.parent.parent.active and available(visit.parent.parent,from,from+visit.duration)
    require not any(visit.Attempt as attempt,attempt.state in [pending,failed,cancelled,retired])
    do
@@ -103,10 +103,14 @@ package appointments
     members,datetime("2099-01-01T10:00:00Z") -> datetime("2099-01-01T09:00:00Z"),2
     members,datetime("2099-01-01T09:00:00Z") -> error(rule_failed)
     public,datetime("2099-01-01T10:00:00Z") -> error(forbidden)
+   examples seed=[test_worker,open_site,opening,published,original] visit=booked from=datetime("2099-01-01T10:00:00Z")
+    as,visit.state,host_calendar.cutoff -> visit.state,visit.active_source,count(visit.Attempt)
+    members,unavailable,36500d -> unavailable,"tour",2
+    members,confirmed,36500d -> error(rule_failed)
   # Cancel the active reservation and all pending candidates with recoverable releases. @{nl="Annuleer de actieve reservering en alle wachtende kandidaten met herstelbare vrijgave."}
   export scenario cancel(appointment:Appointment,reason:text) by=authenticated or host_manager
-   require appointment.state in [pending,confirmed] and trim(reason)!=""
-   require (appointment.contact.account==actor and appointment.contact.verified and now<appointment.from-appointment.parent.parent.cutoff) or (host_manager and can_work(actor,appointment.parent.parent.location))
+   require appointment.state in [pending,confirmed,unavailable] and trim(reason)!=""
+   require (appointment.contact.account==actor and appointment.contact.verified and (appointment.state==unavailable or now<appointment.from-appointment.parent.parent.cutoff)) or (host_manager and can_work(actor,appointment.parent.parent.location))
    do
     set appointment {state=cancelled,reason}
     cancel appointment.id
@@ -117,9 +121,13 @@ package appointments
     members,confirmed -> cancelled
     members,cancelled -> error(rule_failed)
     public,confirmed -> error(forbidden)
-  # Abandon a pending replacement while keeping the currently confirmed appointment. @{nl="Stop een wachtende vervanging en behoud de huidige bevestigde afspraak."}
-  scenario discard_reschedule(visit:Appointment) by=authenticated or host_manager label="Keep original appointment"@{nl="Oorspronkelijke afspraak behouden"}
-   require visit.state==confirmed
+   examples seed=[test_worker,original] appointment=booked reason="Host unavailable"
+    as,appointment.state,host_calendar.cutoff -> appointment.state,original.state
+    members,unavailable,36500d -> cancelled,cancelled
+    members,confirmed,36500d -> error(rule_failed)
+  # Abandon a pending replacement while retaining the original appointment and its current availability. @{nl="Stop een wachtende vervanging en behoud de oorspronkelijke afspraak en haar huidige beschikbaarheid."}
+  scenario discard_reschedule(visit:Appointment) by=authenticated or host_manager label="Discard reschedule"@{nl="Verplaatsing afbreken"}
+   require visit.state in [confirmed,unavailable]
    require (visit.contact.account==actor and visit.contact.verified) or (host_manager and can_work(actor,visit.parent.parent.location))
    do
     for attempt in visit.Attempt as item where item.kind==movement and item.state==pending limit=100
@@ -128,6 +136,9 @@ package appointments
     as -> candidate.state,visit.from,visit.state
     members -> cancelled,datetime("2099-01-01T09:00:00Z"),confirmed
     public -> error(forbidden)
+   examples seed=[test_worker,original,candidate] visit=booked
+    as,visit.state -> candidate.state,visit.state,original.state
+    members,unavailable -> cancelled,unavailable,active
   # Retry failed resource cleanup without reopening or changing the retained original slot. @{nl="Probeer mislukte vrijgave opnieuw zonder de behouden oorspronkelijke afspraak te wijzigen."}
   scenario retry_cleanup(appointment:Appointment) by=authenticated or host_manager label="Retry reservation cleanup"@{nl="Vrijgave opnieuw proberen"}
    require (appointment.contact.account==actor and appointment.contact.verified) or (host_manager and can_work(actor,appointment.parent.parent.location))
@@ -145,6 +156,10 @@ package appointments
      set appointment {state=attended,reason}
     else
      set appointment {state=no_show,reason}
+   examples seed=[test_worker] appointment=booked attend=true reason="Attendance reviewed"
+    as,appointment.state,appointment.from,appointment.until -> appointment.state
+    host_manager,confirmed,now-30m,now -> attended
+    host_manager,unavailable,now-30m,now -> error(rule_failed)
   scenario host_result on=StaffSchedule.reserve.completed
    do
     for attempt in Attempt as item where item.host_delivery==event.delivery_id and item.state==pending limit=1
@@ -219,13 +234,36 @@ package appointments
        set attempt {room_unknown=true}
   scenario host_changed on=StaffSchedule.changed
    do
-    for attempt in Attempt as item where item.source==event.value.source and item.state==pending limit=1
-     if event.value.revision==1 and event.value.state==confirmed
-      set attempt {host_ok=true,host_unknown=false,host_revision=event.value.revision}
-     if event.value.state in [unavailable,failed,released]
-      set attempt {state=failed,host_unknown=false}
-      if attempt.kind==initial and attempt.parent.state==pending
-       set attempt.parent {state=unavailable}
+    for attempt in Attempt as item where item.source==event.value.source and item.host_revision==event.value.revision and item.state in [pending,active] limit=1
+     if attempt.state==pending
+      if event.value.state==confirmed
+       set attempt {host_ok=true,host_unknown=false}
+      if event.value.state in [unavailable,failed,released]
+       set attempt {state=failed,host_ok=false,host_unknown=false}
+       if attempt.kind==initial and attempt.parent.state==pending
+        set attempt.parent {state=unavailable,host_ok=false}
+     else
+      ## Keep the active allocations for explicit cancellation or a freshly confirmed replacement.
+      if attempt.parent.active_source==attempt.source and attempt.parent.state==confirmed and event.value.state in [unavailable,failed,released]
+       set attempt {host_ok=false,host_unknown=false}
+       set attempt.parent {state=unavailable,host_ok=false,reason=format("Host commitment unavailable; cancel or request a new appointment time."@{nl="De gastheer is niet meer beschikbaar; annuleer of vraag een nieuw afspraaktijdstip aan."},locale=null)}
+       cancel attempt.parent.id
+   ## The provider's commercial revision identifies this commitment; it is not an event sequence.
+   ## A late confirmed observation cannot revive an invalidated active appointment.
+   examples seed=[test_worker,original] event={value={source="tour",revision=1,state=unavailable,reference="host-commitment",detail=null}}
+    original.state,booked.state,booked.active_source,event.value.source,event.value.revision,event.value.state -> booked.state,original.state,booked.host_ok,original.host_ok,booked.room_ok,original.host_release,original.room_release
+    active,confirmed,"tour","tour",1,unavailable -> unavailable,active,false,false,true,null,null
+    active,confirmed,"tour","tour",1,released -> unavailable,active,false,false,true,null,null
+    active,confirmed,"tour","other",1,unavailable -> confirmed,active,true,true,true,null,null
+    active,confirmed,"tour","tour",2,unavailable -> confirmed,active,true,true,true,null,null
+    active,confirmed,"replacement","tour",1,unavailable -> confirmed,active,true,true,true,null,null
+    retired,confirmed,"tour","tour",1,unavailable -> confirmed,retired,true,true,true,null,null
+    active,cancelled,"tour","tour",1,unavailable -> cancelled,active,true,true,true,null,null
+    active,attended,"tour","tour",1,unavailable -> attended,active,true,true,true,null,null
+    pending,pending,"tour","tour",1,unavailable -> unavailable,failed,false,false,true,null,null
+   examples seed=[test_worker,original] event={value={source="tour",revision=1,state=confirmed,reference="host-commitment",detail=null}}
+    booked.state,booked.host_ok,original.host_ok -> booked.state,booked.host_ok,original.host_ok
+    unavailable,false,false -> unavailable,false,false
   scenario venue_changed on=Rooms.changed
    do
     for attempt in Attempt as item where item.source==event.value.source and item.state==pending limit=1
@@ -262,12 +300,12 @@ package appointments
     let attempt=event.attempt
     if attempt.state==pending and attempt.host_ok and attempt.room_ok and not attempt.host_unknown and not attempt.room_unknown
      let appointment=attempt.parent
-     if (attempt.kind==initial and appointment.state==pending) or (attempt.kind==movement and appointment.state==confirmed and appointment.active_source==attempt.previous_source)
+     if (attempt.kind==initial and appointment.state==pending) or (attempt.kind==movement and appointment.state in [confirmed,unavailable] and appointment.active_source==attempt.previous_source)
       if attempt.previous_source!=null
        for previous in appointment.Attempt as item where item.source==attempt.previous_source and item.state==active limit=1
         set previous {state=retired}
       cancel appointment.id
-      set appointment {from=attempt.from,until=attempt.until,active_source=attempt.source,state=confirmed,host_ok=true,room_ok=true,host_delivery=attempt.host_delivery,room_delivery=attempt.room_delivery}
+      set appointment {from=attempt.from,until=attempt.until,active_source=attempt.source,state=confirmed,host_ok=true,room_ok=true,host_delivery=attempt.host_delivery,room_delivery=attempt.room_delivery,reason=null}
       set attempt {state=active}
       send Mail.send {to=appointment.contact.email,subject=format("Appointment confirmed"@{nl="Afspraak bevestigd"},locale=null),body=appointment.parent.parent.instructions} when=appointment.state==confirmed and appointment.active_source==attempt.source as confirmed_notice
       create Notice {parent=appointment,kind=confirmation,source=attempt.source,delivery=confirmed_notice.id} as notice
@@ -285,6 +323,10 @@ package appointments
    examples seed=[test_worker,original] event={attempt=candidate}
     candidate.state,candidate.host_ok,booked.active_source,booked.from,booked.until,original.state -> candidate.state,original.state,booked.from,count(Notice)
     active,true,"move",candidate.from,candidate.until,retired -> active,retired,datetime("2099-01-01T10:00:00Z"),0
+   examples seed=[test_worker,original] event={attempt=candidate}
+    booked.state,booked.host_ok,booked.reason,candidate.host_ok,candidate.room_ok -> booked.state,booked.host_ok,booked.reason,candidate.state,original.state
+    unavailable,false,"Host unavailable",true,true -> confirmed,true,null,active,retired
+    unavailable,false,"Host unavailable",false,true -> unavailable,false,"Host unavailable",pending,active
   scenario cleanup on=AttemptProgress
    do
     let attempt=event.attempt
@@ -323,6 +365,11 @@ package appointments
    do
     send Mail.send {to=event.appointment.contact.email,subject=format("Appointment reminder"@{nl="Afspraakherinnering"},locale=null),body=event.appointment.parent.parent.instructions} when=event.appointment.state==confirmed and event.appointment.version==event.revision as delivery
     create Notice {parent=event.appointment,kind=reminder,source=event.appointment.active_source,delivery=delivery.id} as notice
+   examples seed=[test_worker] event={appointment=booked,revision=1}
+    booked.state,event.revision -> count(Notice)
+    unavailable,1 -> error(rule_failed)
+    confirmed,0 -> error(rule_failed)
+    confirmed,1 -> 1
   scenario notice_result on=Mail.send.completed
    do
     for notice in Notice as item where item.delivery==event.delivery_id limit=1
@@ -385,6 +432,6 @@ package appointments
        edit
    card "Appointment agenda"@{nl="Afsprakenagenda"}
     calendar Appointment start=from end=until filter=state defaults={state=preferences.appointment_state}
-     text row.state,row.duration,row.host_ok,row.room_ok
+     text row.state,row.duration,row.host_ok,row.room_ok,row.reason
      actions attendance,cancel,reschedule,discard_reschedule,retry_cleanup
      history
