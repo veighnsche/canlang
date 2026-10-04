@@ -28,6 +28,17 @@ implementation/prompts/08-frontend-catalog-migration.md
 
 If these changes are absent from remote main, the migration coordinator is authorized to carry **only the verified UI documentation diff on those paths** into its initial documentation PR. Inspect `git diff 9eaa4e2 706c70a -- <the exact paths above>`, reconcile its UI hunks against current remote contracts, and review the resulting PR. Include the documentation-only initial catalog/evidence prerequisite if absent, plus this handoff and subsequent verified prompt corrections. Never copy whole dirty normative files, import app-source changes, reset the primary checkout or transplant unrelated parent history. Source writers retain their own app work and merge responsibilities.
 
+Launch prompts now stay short and refer to detailed briefs. Include the current verified prompt corrections and these approved documentation files in that initial documentation PR when absent from remote main:
+
+```text
+implementation/UI-CATALOG-ADOPTION.md
+implementation/briefs/05-ui.md
+implementation/briefs/08-frontend-catalog-migration.md
+implementation/prompts/05-ui-steering.md
+```
+
+Lane 05 builds the reusable UI library and typed catalog; lane 08 migrates the active authored `.can` app drafts/examples and applicable companions. The running lane 05 has a separate short steering prompt, with correction steps in its brief. Updating files does not itself inject input into an already running Muse session; the user pastes that steering prompt to trigger the change of course.
+
 The normal PR loop applies to that documentation PR too: actual diff review, independent review, focused checks, fixes, protected merge of the reviewed head, then fetch main and start the next branch from fresh main. This handoff provides exact approval and scope for importing the documentation subset; it is not authorization to adopt unrelated design changes found nearby. If required non-documentation dependencies are missing, name their owners and continue ready inventory/implementation rather than inventing replacements.
 
 No `.can` file was edited by the UI adoption work. `.can` files appearing in the mixed commit belong to concurrent draft work and are outside this documentation handoff.
