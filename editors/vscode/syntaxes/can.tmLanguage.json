@@ -104,6 +104,32 @@
           ]
         },
         {
+          "begin": "^( *)(?:((?:export))\\s+)?(judgment)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "end": "^(?!\\1 )(?= *[^ #\\s])",
+          "beginCaptures": {
+            "2": {
+              "name": "storage.modifier.export.can"
+            },
+            "3": {
+              "name": "keyword.declaration.can"
+            },
+            "4": {
+              "name": "entity.name.type.can"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#markers"
+            },
+            {
+              "include": "#judgment-item"
+            },
+            {
+              "include": "#code"
+            }
+          ]
+        },
+        {
           "begin": "^( *)(?:((?:export))\\s+)?(capability)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
           "end": "^(?!\\1 )(?= *[^ #\\s])",
           "beginCaptures": {
@@ -353,6 +379,23 @@
               "name": "punctuation.separator.invariant.can"
             }
           }
+        },
+        {
+          "begin": "(?:^ *|(?<=;) *)(corpus)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "end": "(?=;|$)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.declaration.can"
+            },
+            "2": {
+              "name": "entity.name.type.can"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#corpus-header"
+            }
+          ]
         },
         {
           "include": "#examples"
@@ -690,7 +733,7 @@
           "match": "\\G\\s+$"
         },
         {
-          "begin": "\\G[ \\t]*(action)[ \\t]*(\\()",
+          "begin": "\\G[ \\t]*(action|delivery|invocation)[ \\t]*(\\()",
           "end": "[ \\t]*(server|min|max|label)\\b([ \\t]*=)?|(?=[=,;})])|(?=\\s*[A-Za-z_][A-Za-z0-9_]*)",
           "beginCaptures": {
             "1": {
@@ -1202,7 +1245,7 @@
           ]
         },
         {
-          "begin": "\\b(action)\\s*(\\()",
+          "begin": "\\b(action|delivery|invocation)\\s*(\\()",
           "end": "\\)",
           "beginCaptures": {
             "1": {
@@ -1256,7 +1299,7 @@
           "include": "#markers"
         },
         {
-          "begin": "\\G[ \\t]*(action)[ \\t]*(\\()",
+          "begin": "\\G[ \\t]*(action|delivery|invocation)[ \\t]*(\\()",
           "end": "[ \\t]*(server|min|max|label)\\b([ \\t]*=)?|(?=[=,;})])|(?=\\s*[A-Za-z_][A-Za-z0-9_]*)|$",
           "beginCaptures": {
             "1": {
@@ -1742,7 +1785,7 @@
           ]
         },
         {
-          "begin": "(?:^ *|(?<=;) *)(list|table|board|calendar)(?=\\s|$)",
+          "begin": "(?:^ *|(?<=;) *)(list|table|board|calendar|gallery)(?=\\s|$)",
           "end": "(?=;|$)",
           "beginCaptures": {
             "1": {
@@ -1781,7 +1824,7 @@
     "pages": {
       "patterns": [
         {
-          "begin": "^( *)(page)\\s+(/(?:(?:[A-Za-z0-9_-]+|\\{[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*\\.id\\}|\\{[A-Za-z_][A-Za-z0-9_]*:(?:[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?:\\|[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)*|enum\\([A-Za-z_][A-Za-z0-9_]*(?:,[A-Za-z_][A-Za-z0-9_]*)*,?\\)|action\\([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?:,[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)*,?\\))(?:\\[\\])?\\??\\})(?:/(?:[A-Za-z0-9_-]+|\\{[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*\\.id\\}|\\{[A-Za-z_][A-Za-z0-9_]*:(?:[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?:\\|[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)*|enum\\([A-Za-z_][A-Za-z0-9_]*(?:,[A-Za-z_][A-Za-z0-9_]*)*,?\\)|action\\([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?:,[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)*,?\\))(?:\\[\\])?\\??\\}))*)?)(?=\\s|$)",
+          "begin": "^( *)(page)\\s+(/(?:(?:[A-Za-z0-9_-]+|\\{[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*\\.id\\}|\\{[A-Za-z_][A-Za-z0-9_]*:(?:[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?:\\|[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)*|enum\\([A-Za-z_][A-Za-z0-9_]*(?:,[A-Za-z_][A-Za-z0-9_]*)*,?\\)|(?:action|delivery|invocation)\\([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?:,[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)*,?\\))(?:\\[\\])?\\??\\})(?:/(?:[A-Za-z0-9_-]+|\\{[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*\\.id\\}|\\{[A-Za-z_][A-Za-z0-9_]*:(?:[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?:\\|[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)*|enum\\([A-Za-z_][A-Za-z0-9_]*(?:,[A-Za-z_][A-Za-z0-9_]*)*,?\\)|(?:action|delivery|invocation)\\([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?:,[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)*,?\\))(?:\\[\\])?\\??\\}))*)?)(?=\\s|$)",
           "end": "^(?!\\1 )(?= *[^ #\\s])",
           "beginCaptures": {
             "2": {
@@ -1976,6 +2019,66 @@
         }
       ]
     },
+    "corpus-header": {
+      "patterns": [
+        {
+          "begin": "\\b(content)\\s*(=)(?!=)",
+          "end": "(?=[;)}\\]])|(?=$)|(?=\\s+[A-Za-z_][A-Za-z0-9_]*\\s*=(?!=))",
+          "name": "meta.selector-list.can",
+          "beginCaptures": {
+            "1": {
+              "name": "variable.other.property.key.can"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.can"
+            }
+          },
+          "patterns": [
+            {
+              "match": "[A-Za-z_][A-Za-z0-9_]*(?:\\s*\\.\\s*[A-Za-z_][A-Za-z0-9_]*)*",
+              "name": "variable.other.property.selector.can"
+            },
+            {
+              "include": "#punctuation"
+            }
+          ]
+        },
+        {
+          "include": "#expression"
+        }
+      ]
+    },
+    "judgment-item": {
+      "begin": "(?:^ *|(?<=;) *)([A-Za-z_][A-Za-z0-9_]*)\\s+(noul|choice|score)(?=\\s|$)",
+      "end": "(?=;|$)",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.name.function.can"
+        },
+        "2": {
+          "name": "keyword.control.can"
+        }
+      },
+      "patterns": [
+        {
+          "match": "\\b(options)\\s*(=)\\s*(runtime)\\b",
+          "captures": {
+            "1": {
+              "name": "variable.other.property.key.can"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.can"
+            },
+            "3": {
+              "name": "keyword.control.can"
+            }
+          }
+        },
+        {
+          "include": "#expression"
+        }
+      ]
+    },
     "collection-header": {
       "patterns": [
         {
@@ -2111,7 +2214,7 @@
           ]
         },
         {
-          "begin": "\\b(columns|order|search|filter|by|start|end)\\s*(=)(?!=)",
+          "begin": "\\b(columns|order|search|filter|by|start|end|image)\\s*(=)(?!=)",
           "end": "(?=[;)}\\]])|(?=$)|(?=\\s+[A-Za-z_][A-Za-z0-9_]*\\s*=(?!=))",
           "name": "meta.selector-list.can",
           "beginCaptures": {
@@ -2360,6 +2463,32 @@
           }
         },
         {
+          "begin": "^( *)(?:((?:export))\\s+)?(judgment)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "end": "^(?!\\1 )(?= *[^ #\\s])",
+          "beginCaptures": {
+            "2": {
+              "name": "storage.modifier.export.can"
+            },
+            "3": {
+              "name": "keyword.declaration.can"
+            },
+            "4": {
+              "name": "entity.name.type.can"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#markers"
+            },
+            {
+              "include": "#judgment-item"
+            },
+            {
+              "include": "#code"
+            }
+          ]
+        },
+        {
           "begin": "^( *)(?:((?:export))\\s+)?(capability)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
           "end": "^(?!\\1 )(?= *[^ #\\s])",
           "beginCaptures": {
@@ -2522,6 +2651,23 @@
               "name": "punctuation.separator.invariant.can"
             }
           }
+        },
+        {
+          "begin": "(?:^ *|(?<=;) *)(corpus)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "end": "(?=;|$)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.declaration.can"
+            },
+            "2": {
+              "name": "entity.name.type.can"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#corpus-header"
+            }
+          ]
         },
         {
           "match": "(?:^ *|(?<=export) +|(?<=;) *)(role)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",

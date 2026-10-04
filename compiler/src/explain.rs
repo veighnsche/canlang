@@ -907,20 +907,20 @@ const CATALOG: [CodeInfo; 108] = [
         example_invalid: "can run   # without can-platform installed",
     },
     CodeInfo {
-        code: "E7005",
-        title: "formatter-unimplemented",
-        severity: Severity::Error,
-        explanation: "`can fmt` needs the lossless CST formatter (slice 2b). Until then it reports this error and never a false clean. Exit status is 2.",
-        example_valid: "can check main.can",
-        example_invalid: "can fmt --check main.can   # until slice 2b",
-    },
-    CodeInfo {
         code: "E7006",
         title: "analysis-incomplete",
         severity: Severity::Error,
         explanation: "A check-pipeline pass did not run, so the result reports `complete=false`. The production pipeline always runs every pass; this fires only when a pass is skipped. Run the full `can check`.",
         example_valid: "can check main.can",
         example_invalid: "can check main.can   # with a pass skipped (internal)",
+    },
+    CodeInfo {
+        code: "E7007",
+        title: "unwritable-output",
+        severity: Severity::Error,
+        explanation: "`can fmt` formatted the input but could not write the file back (missing, read-only or unwritable path). Earlier files in the same invocation may already be rewritten. Exit status is 2. Check the path and permissions.",
+        example_valid: "can fmt main.can",
+        example_invalid: "can fmt readonly-dir/main.can",
     },
     CodeInfo {
         code: "I1001",

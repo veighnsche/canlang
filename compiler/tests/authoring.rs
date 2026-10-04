@@ -123,9 +123,12 @@ fn cli_every_subcommand_answers_help() {
 fn cli_check_like_commands_emit_envelope_json() {
     let file = TempFile::new("main.can", "app Main\nGiven\nWhen\nThen\n");
     let stub = StubAnalyzer;
-    // `compile` needs a pipeline analyzer (see cli_compile_* below); the
-    // stub keeps no checked program, so it reports E7001 there.
-    for cmd in ["check", "lint"] {
+    // `compile` and `lint` need a pipeline analyzer (see cli_compile_*
+    // below); the stub keeps no checked program, so they report E7001.
+    let result = dispatch_with(&argv(&["lint", "--format=json", &file.arg()]), &stub);
+    assert_eq!(result.code, exit::TOOL_FAILURE);
+    assert!(result.stderr.contains("E7001"), "{}", result.stderr);
+    for cmd in ["check"] {
         let result = dispatch_with(&argv(&[cmd, "--format=json", &file.arg()]), &stub);
         assert_eq!(result.code, exit::OK, "{cmd} should be clean");
         assert!(result.stderr.is_empty());
@@ -234,20 +237,157 @@ fn cli_explain_json_shape_and_unknown_code() {
     // Lists known codes so the user can pick one.
     assert!(result.stderr.contains("E1001"));
     assert!(result.stderr.contains("E7004"));
+
+    // E7005 (slice-2a formatter stub) retired when `can fmt` shipped: it
+    // resolves as unknown, like any other unallocated code.
+    let result = dispatch(&argv(&["explain", "E7005"]));
+    assert_eq!(result.code, exit::TOOL_FAILURE);
+    assert!(result.stderr.contains("E7003"));
+    assert!(result.stderr.contains("E7005"));
 }
 
 #[test]
-fn cli_fmt_never_reports_false_clean() {
-    let file = TempFile::new("fmt.can", "app F\nGiven\nWhen\nThen\n");
+fn cli_fmt_check_clean_and_drift() {
+    let clean = TempFile::new("fmt-clean.can", "app F\nGiven\nWhen\nThen\n");
+    let result = dispatch(&argv(&["fmt", "--check", &clean.arg()]));
+    assert_eq!(result.code, exit::OK);
+    assert!(result.stdout.is_empty());
+    assert!(result.stderr.is_empty());
+
+    let drifted = "app F   \nGiven\nWhen\nThen";
+    let drift = TempFile::new("fmt-drift.can", drifted);
+    let result = dispatch(&argv(&["fmt", "--check", &drift.arg()]));
+    assert_eq!(result.code, exit::DIAGNOSTICS);
+    assert_eq!(result.stdout.trim(), drift.arg());
+    assert!(result.stderr.is_empty());
+    // --check writes nothing.
+    assert_eq!(std::fs::read_to_string(&drift.path).unwrap(), drifted);
+}
+
+#[test]
+fn cli_fmt_rewrites_files_in_place() {
+    let file = TempFile::new("fmt-write.can", "app F   \nGiven\nWhen\nThen");
+    let result = dispatch(&argv(&["fmt", &file.arg()]));
+    assert_eq!(result.code, exit::OK, "{}", result.stderr);
+    assert_eq!(
+        std::fs::read_to_string(&file.path).unwrap(),
+        "app F\nGiven\nWhen\nThen\n"
+    );
+    // Second run is a no-op success.
+    let result = dispatch(&argv(&["fmt", "--check", &file.arg()]));
+    assert_eq!(result.code, exit::OK);
+    assert!(result.stdout.is_empty());
+}
+
+#[test]
+fn cli_fmt_parse_failure_reports_envelope_and_writes_nothing() {
+    let before = "app F\nGiven\n\tTodo {x:int}\nWhen\nThen\n";
+    let file = TempFile::new("fmt-bad.can", before);
     for args in [
         argv(&["fmt", "--check", &file.arg()]),
         argv(&["fmt", &file.arg()]),
     ] {
         let result = dispatch(&args);
-        assert_eq!(result.code, exit::TOOL_FAILURE, "fmt must fail: {args:?}");
-        assert_ne!(result.code, exit::OK);
-        assert!(result.stderr.contains("E7005"));
+        assert_eq!(result.code, exit::DIAGNOSTICS, "{args:?}");
+        assert!(result.stdout.contains("\"E1003\""), "{}", result.stdout);
+        assert!(
+            result.stdout.contains("\"diagnostics\""),
+            "{}",
+            result.stdout
+        );
+        assert!(result.stderr.is_empty());
     }
+    assert_eq!(std::fs::read_to_string(&file.path).unwrap(), before);
+}
+
+#[test]
+fn cli_fmt_missing_file_is_tool_failure() {
+    let file = TempFile::new("fmt-gone.can", "app F\nGiven\nWhen\nThen\n");
+    std::fs::remove_file(&file.path).unwrap();
+    let result = dispatch(&argv(&["fmt", &file.arg()]));
+    assert_eq!(result.code, exit::TOOL_FAILURE);
+    assert!(result.stdout.is_empty());
+    assert!(result.stderr.contains("E7002"), "{}", result.stderr);
+}
+
+/// Minimal hermetic catalog: the lint fixtures use no builtins, so an
+/// empty entry list still loads clean and silences E6002.
+const LINT_CATALOG_JSON: &str = r#"{
+  "language_version": "1.0",
+  "catalog_version": "lint-cli-test-0",
+  "entries": []
+}"#;
+
+const LINT_SCENARIO: &str = "app T\nGiven\n Todo { title:text }\nWhen\n scenario s(task:Todo) by=members\n  do\n   require false\n   set task {title=\"z\"}\nThen\n";
+
+#[test]
+fn cli_lint_reports_findings_and_exits_zero() {
+    let catalog = TempFile::new("lint-catalog.json", LINT_CATALOG_JSON);
+    let file = TempFile::new("lint-find.can", LINT_SCENARIO);
+    // Warnings never block: findings print, exit stays 0.
+    let result = dispatch(&argv(&["lint", &file.arg(), "--catalog", &catalog.arg()]));
+    assert_eq!(result.code, exit::OK, "{}", result.stderr);
+    assert!(result.stderr.is_empty());
+    assert!(result.stdout.contains("W1001"), "{}", result.stdout);
+    let result = dispatch(&argv(&[
+        "lint",
+        "--format=json",
+        &file.arg(),
+        "--catalog",
+        &catalog.arg(),
+    ]));
+    assert_eq!(result.code, exit::OK, "{}", result.stderr);
+    assert!(result.stdout.contains("\"W1001\""), "{}", result.stdout);
+    assert!(
+        result.stdout.contains("\"diagnostics\""),
+        "{}",
+        result.stdout
+    );
+}
+
+#[test]
+fn cli_lint_clean_file_reports_empty_envelope() {
+    let catalog = TempFile::new("lint-catalog.json", LINT_CATALOG_JSON);
+    let clean = TempFile::new("lint-clean.can", "app F\nGiven\nWhen\nThen\n");
+    let result = dispatch(&argv(&[
+        "lint",
+        "--format=json",
+        &clean.arg(),
+        "--catalog",
+        &catalog.arg(),
+    ]));
+    assert_eq!(result.code, exit::OK, "{}", result.stderr);
+    assert!(
+        result.stdout.contains("\"diagnostics\":[]"),
+        "{}",
+        result.stdout
+    );
+}
+
+#[test]
+fn cli_lint_analysis_errors_exit_10_without_findings() {
+    let catalog = TempFile::new("lint-catalog.json", LINT_CATALOG_JSON);
+    let bad = TempFile::new(
+        "lint-bad.can",
+        "app T\nGiven\n Todo { title:nosuchtype }\nWhen\nThen\n",
+    );
+    let result = dispatch(&argv(&["lint", &bad.arg(), "--catalog", &catalog.arg()]));
+    assert_eq!(result.code, exit::DIAGNOSTICS, "{}", result.stdout);
+    assert!(!result.stdout.contains("W1001"), "{}", result.stdout);
+}
+
+#[test]
+fn cli_lint_operand_errors_are_tool_failures() {
+    let result = dispatch(&argv(&["lint"]));
+    assert_eq!(result.code, exit::TOOL_FAILURE);
+    assert!(result.stderr.contains("E7001"), "{}", result.stderr);
+    let missing = std::env::temp_dir().join(format!(
+        "can-authoring-{}-lint-missing.can",
+        std::process::id()
+    ));
+    let result = dispatch(&argv(&["lint", &missing.to_string_lossy()]));
+    assert_eq!(result.code, exit::TOOL_FAILURE);
+    assert!(result.stderr.contains("E7002"), "{}", result.stderr);
 }
 
 #[test]
