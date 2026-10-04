@@ -1,0 +1,15 @@
+{
+  "model": "jev-latest",
+  "state": "Verified design constraints: Can uses Given fixture declarations and operation-owned example tables; a table row runs one production operation in separate seeded state. The predefined local identities are self and other, while outsider has a different team. A role in as makes self the caller with that role; absence of as means member self. A declared role may be queried on a subject user, provided current membership holds. Correct assignment coverage needs a role on a user who is not invoking the action; correct finance coverage additionally needs three mutually different teammates. No existing facility defines that setup. Parsing permits path-valued fixture constructors already, though no semantic BDD runner exists. Evaluate comparable outcomes: few tokens, preserved valid old examples, reproducible identities, and explicit permissions. Actor provisioning does not itself create a shared-state chain of calls across rows.",
+  "questions": {
+    "actors": {
+      "type": "choice",
+      "instructions": "Select the most suitable bounded change for this missing test capability.",
+      "criteria": {
+        "user_fixture": "Extend the fixture family with fixture name=user {roles=[reviewer]}, yielding a unique active account in the row team. Membership comes automatically and roles may be absent/empty or list owner and declared roles. as can reference this account and the existing self/other users; older role selections continue to target self. Load demanded account recipes ahead of records/files, retain their canonical declaration identity throughout the row, and disallow patches to recipe attributes or identity/role mixtures in as arrays. This relies on the existing declaration form with an additional checked recipe meaning.",
+        "actors_map": "Add a named actor map to examples common bindings, e.g. actors={claimant:{roles:[]},reviewer:{roles:[reviewer]},finance:{roles:[finance]}}. Each key denotes a stable row-local team user available to as; old selectors remain valid. Account setup becomes explicit table metadata rather than another fixture kind. The cost is another binding category and either duplicated maps or specified map reuse.",
+        "defer": "Make no actor extension. Explain that only two same-team accounts and roles granted to self are available. This minimizes language growth, but the requested third-account success and noncalling reviewer eligibility cannot be authored faithfully."
+      }
+    }
+  }
+}
