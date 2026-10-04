@@ -211,9 +211,9 @@ export const appDefinition = {
       label: message("Advocate", { nl: "Ambassadeur" }),
       exported: true,
       readGrants: [
-        { rule: "Advocate.read.0", fields: ["code", "parent"] },
-        { rule: "Advocate.read.1" },
+        { rule: "Advocate.read.1", fields: ["code", "parent"] },
         { rule: "Advocate.read.2" },
+        { rule: "Advocate.read.3" },
       ],
       invariants: ["Advocate.require.1"],
       locks: ["Advocate.lock.1"],
@@ -491,19 +491,19 @@ export function canApp() {
       "Program.read.2": async (c, row) =>
         (hasRole(c, "refer.program_manager") || hasRole(c, "refer.finance")) &&
         (await all(row.locations, (location) => can_work(c, c.actor, location))),
-      "Advocate.read.0": (c, row) => hasRole(c, "public"),
-      "Capture.read.1": (c, row) =>
+      "Advocate.read.1": (c, row) => hasRole(c, "public"),
+      "Capture.read.1": async (c, row) =>
         hasRole(c, "authenticated") &&
         same(row.account, c.actor) &&
-        (owns(c, c.actor, row.parent) ||
-          has_role(c, c.actor, row.parent, "administrator") ||
-          has_role(c, c.actor, row.parent, "booker")),
+        (await owns(c, c.actor, row.parent) ||
+          await has_role(c, c.actor, row.parent, "administrator") ||
+          await has_role(c, c.actor, row.parent, "booker")),
       "SourceEvidence.read.1": async (c, row) =>
         (hasRole(c, "refer.program_manager") || hasRole(c, "refer.finance")) &&
         (await all(row.advocate.parent.locations, (location) => can_work(c, c.actor, location))),
-      "Advocate.read.1": (c, row) =>
+      "Advocate.read.2": (c, row) =>
         hasRole(c, "authenticated") && c.actor.email_verified && same(row.account, c.actor),
-      "Advocate.read.2": async (c, row) =>
+      "Advocate.read.3": async (c, row) =>
         (hasRole(c, "refer.program_manager") || hasRole(c, "refer.finance")) &&
         (await all(row.parent.locations, (location) => can_work(c, c.actor, location))),
       "Credit.read.1": (c, row) =>
