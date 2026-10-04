@@ -315,6 +315,8 @@ function projectRow(
     createdBy: row.createdBy,
     updatedBy: row.updatedBy,
     archivedAt: row.archivedAt,
+    // S5: parent passes through unprojected (linkage, not domain data).
+    parent: row.parent ?? null,
     data,
   };
 }
@@ -603,6 +605,8 @@ function toProjectedRecord(row: StoredRow): ProjectedRecord {
     createdBy: row.createdBy,
     updatedBy: row.updatedBy,
     archivedAt: row.archivedAt,
+    // S5: parent passes through (`undefined` reads as null for pre-S5 rows).
+    parent: row.parent ?? null,
     data: row.data,
   };
 }

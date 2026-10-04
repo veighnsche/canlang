@@ -36,7 +36,7 @@ import type { MembershipReader } from '../policy/roles.js';
 import { admit, receiptIdentityFor, type AdmittedCall } from './admission.js';
 import { buildContext, type ClockPort } from './context.js';
 import { StateError, storageToStateError } from '../errors.js';
-import { FenceConflictError } from '../storage/port.js';
+import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
 
 /** Fenced-commit attempts per invocation, per DESIGN §7. */
 export const MAX_ADMISSION_ATTEMPTS = 3;
@@ -127,7 +127,55 @@ export async function invoke(input: {
         result: outcome.result ?? null,
       };
     }
-    const effects = await input.execute(call);
+    // S5: business rejections commit a rejected receipt (same fence, empty
+    // effects) so replays observe the rejection deterministically. The
+    // ORIGINAL StateError is rethrown to THIS caller (fields/retryable
+    // preserved); replays get code/message only — the receipt shape carries
+    // no fields. Non-StateError bugs propagate untouched, never receipted.
+    let effects: ExecutionEffects;
+    try {
+      effects = await input.execute(call);
+    } catch (error) {
+      if (!(error instanceof StateError)) {
+        throw error;
+      }
+      const rejected: Receipt = {
+        identity: receiptIdentityFor(context),
+        inputHash: call.inputHash,
+        resolvedDefaults: {},
+        outcome: { status: 'rejected', code: error.code, message: error.message },
+        committedRevision: (call.revision + 1) as Revision,
+        createdAt: now,
+      };
+      try {
+        await input.store.commit({
+          expectedRevision: call.revision,
+          writes: [],
+          history: [],
+          receipt: rejected,
+          outbox: [],
+          schedules: [],
+          uniqueClaims: [],
+          uniqueReleases: [],
+        });
+      } catch (commitError) {
+        // Lost the fence or the receipt already landed: retry like any
+        // contention (consuming an attempt); the next pass replays or
+        // recomputes. Any other storage failure is the operative fact, so
+        // the original rejection is dropped in favor of reporting it.
+        if (commitError instanceof FenceConflictError) {
+          continue;
+        }
+        if (
+          commitError instanceof StorageConstraintError &&
+          commitError.kind === 'receipt_reuse'
+        ) {
+          continue;
+        }
+        throw storageToStateError(commitError);
+      }
+      throw error;
+    }
     const receipt: Receipt = {
       identity: receiptIdentityFor(context),
       inputHash: call.inputHash,

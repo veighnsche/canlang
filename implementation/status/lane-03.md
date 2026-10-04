@@ -236,6 +236,29 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   in both shape-check and per-row eval, policy clone wrapped to plain
   Error. Minors fixed per reviewer's own suggestion + coordinator
   self-review of the small diff; no third review round.
+  S4 merged (471f1ed, PR #33). S5 branch `muse/lane-03-state/mutation-history`
+  from 471f1ed. S5 implemented (delegated impl+tests, disjoint files):
+  `src/mutation/{models,pipeline,crud}.ts` (interim descriptors, ordered
+  provisional pipeline, CRUD bridge), rejected-receipt `invoke` path,
+  parent linkage in StoredRow + all three adapters + ProjectedRecord;
+  48 mutation tests + 3 parent conformance cases x3 backends, full suite
+  239/239 locally. Coordinator self-review fixed: archive diffs uniques
+  like update (hook-adjusted divergence), CRUD defs frozen, proto-safe
+  resolvedDefaults, same-batch claim+release limitation documented,
+  stale S2 parent comments updated. One S3 test updated to intended S5
+  semantics (execute rejections now fenced-receipted; was unreceipted).
+  Open: rejected replays restore code/message only (no fields); same-batch
+  self-canceling writes unsupported interim; bigint money minors still
+  need the L2 codec join.
+  Independent review NEEDS-CHANGES (2 major + 7 minor) all fixed +
+  regressed, suite 247/247: F1 optional parent-bound defaults read as
+  missing parentless (required decides); F2 post-hook unknown-field check
+  on all paths; F3 archive re-validates refs; F4 model/ref/field typeof
+  guards; F5 write-id typeof check; F6 JSON clone wrapper + post-hook
+  serializability probe (bigints/circular/functions -> validation, never
+  commit-time TypeError); F7 flat-resolvedDefaults limitation documented;
+  F8 memory normalizes parent to null + strict conformance pins; F9
+  archived-update pipeline/admission split documented.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
@@ -295,6 +318,18 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   contract, one-line note due at L6 join).
   Residual: interim registry/codec; OperationId branding + age/archived
   `validation` mappings await L6 confirm; rejected-receipt writers are S5.
+- PR4 S4 query/policy: branch `muse/lane-03-state/query-policy`, reviewed
+  head `68a4a7be57e16ec84a2c635b3fb7baa2a004f9a9`, merged as `471f1ed`
+  (https://github.com/veighnsche/canlang/pull/33, squash, --match-head-commit).
+  Checks: local typecheck + `npm test` 182/182; CI `state` x2 / `tools` /
+  `workspace` pass. Independent review NEEDS-CHANGES (4 major incl.
+  cross-grant where/aggregate value leak + array secret carve, 3 minor) all
+  fixed + regressed; re-review APPROVE; its 2 non-blocking minors also
+  closed + regressed without a third round (reviewer's own suggestion +
+  coordinator diff self-review).
+  Residual: interim policy tables -> L1 join; interim scalar codec (bigint
+  money minors, rich comparisons) -> L2 join; owner authority unverified at
+  engine (trust boundary documented; gating is admission's).
 
 ## Remaining work and cleanup
 
