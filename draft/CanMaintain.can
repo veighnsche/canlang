@@ -10,6 +10,7 @@ package maintain
  use supplier {Supplier}
  use employee {Employee,can_work,test_worker}
  use field {dispatch as dispatch_visit,ReportSubmitted}
+ use std {DeliveryResult}
  use std {EmailV1 as Mail} from=deployment.mail
  use rent_reservations {AffectedBookings,RoomsV1 as Rooms} from=deployment.rooms
  Given
@@ -29,7 +30,9 @@ package maintain
   export Repair in Asset { affected:AffectedBookings? label="Affected bookings"@{nl="Getroffen boekingen"}, affected_delivery:text? label="Affected-booking lookup delivery"@{nl="Verzending opvraag getroffen boekingen"}, affected_state:enum(none,pending,fresh,failed,unknown)=none label={text="Booking review read"@{nl="Lezen boekingsbeoordeling"},values={none="Not requested"@{nl="Niet aangevraagd"},pending=label_Inspection_result_pending,fresh="Fresh snapshot"@{nl="Actuele momentopname"},failed=label_Inspection_result_failed,unknown="Unknown"@{nl="Onbekend"}}}, assignment:Assignment? label="Current assignment"@{nl="Huidige opdracht"}, block_from:datetime? label="Downtime start"@{nl="Begin uitval"}, block_until:datetime? label="Downtime end"@{nl="Einde uitval"}, block_action:enum(downtime,restore)=downtime label={text="Availability action"@{nl="Beschikbaarheidsactie"},values={downtime="Downtime"@{nl="Uitval"},restore="Restore"@{nl="Herstellen"}}}, block_revision:int=0, restore_evidence:text? label="Release evidence"@{nl="Vrijgavebewijs"}, visit_review:bool=false label="Visit report needs review"@{nl="Bezoekverslag vereist beoordeling"}, title:text trim min=1, description:text, severity:enum(low,normal,urgent)=normal label={text="Severity"@{nl="Ernst"},values={low="Low"@{nl="Laag"},normal="Normal"@{nl="Normaal"},urgent="Urgent"@{nl="Dringend"}}}, reporter:user? label="Reporter"@{nl="Melder"}, reporter_email:email? label="Reporter email"@{nl="E-mailadres melder"}, photo:file? label=label_Repair_photo, contractor:Supplier? label="Contractor"@{nl="Uitvoerder"}, due:date?, cost:money? label="Cost"@{nl="Kosten"}, state:enum(open,assigned,in_progress,awaiting_verification,fixed)=open label={text="State"@{nl="Status"},values={open="Open"@{nl="Open"},assigned="Assigned"@{nl="Toegewezen"},in_progress="In progress"@{nl="In uitvoering"},awaiting_verification="Awaiting verification"@{nl="Wacht op verificatie"},fixed="Fixed"@{nl="Hersteld"}}}, completion:text? label="Completion evidence"@{nl="Afrondingsbewijs"}, verified_by:user? label="Verified by"@{nl="Geverifieerd door"}, block_resource:text? label="Blocked resource"@{nl="Geblokkeerde voorziening"}, block_source:text? label="Downtime reference"@{nl="Uitvalreferentie"}, block_state:enum(none,pending,confirmed,failed,unknown,released)=none label={text="Downtime outcome"@{nl="Uitvalresultaat"},values={pending=label_Inspection_result_pending,failed=label_Inspection_result_failed,none="None"@{nl="Geen"},confirmed="Confirmed"@{nl="Bevestigd"},unknown="Unknown"@{nl="Onbekend"},released="Released"@{nl="Vrijgegeven"}}}, delivery:text? label="Delivery reference"@{nl="Verzendingsreferentie"} } label="Repair"@{nl="Reparatie"}
   Verification in Repair { completion:text, evidence:text, author:user server=actor, at:datetime server=now } label="Repair verification"@{nl="Reparatieverificatie"}
   Assignment in Repair { body:text label="Frozen assignment details"@{nl="Vastgelegde opdrachtdetails"}, supplier:Supplier, contact:email label="Contact"@{nl="Contact"}, reason:text, author:user server=actor label="Author"@{nl="Auteur"} } label="Contractor assignment"@{nl="Opdracht aan leverancier"}
-  Notice in Assignment { delivery:text, state:enum(pending,succeeded,failed,unknown,skipped)=pending label={text="Delivery outcome"@{nl="Verzendingsresultaat"},values={pending=label_Inspection_result_pending,succeeded="Delivered"@{nl="Bezorgd"},failed=label_Inspection_result_failed,unknown="Unknown"@{nl="Onbekend"},skipped="Superseded"@{nl="Vervangen"}}} } label="Assignment delivery"@{nl="Opdrachtverzending"}
+  Notice in Assignment { delivery:delivery(Mail.send) } label="Assignment delivery"@{nl="Opdrachtverzending"}
+  ## Each notice keeps its Mail attempt; state observes the receipt status.
+  derive Notice.state:DeliveryResult.status = row.delivery.status label={text="Delivery outcome"@{nl="Verzendingsresultaat"},values={pending=label_Inspection_result_pending,succeeded="Delivered"@{nl="Bezorgd"},failed=label_Inspection_result_failed,unknown="Unknown"@{nl="Onbekend"},skipped="Superseded"@{nl="Vervangen"}}}
   Cancellation in Asset { plan:Plan?, through:int min=0, cutoff:date, reason:enum(plan_revised,asset_retired), author:user server=actor, at:datetime server=now, after:text?, phase:enum(plans,inspections,complete)=inspections } label="Inspection cancellation"@{nl="Inspectieannulering"}
   event CancellationStep { cancellation:Cancellation }
   derive plan_eligible(plan:Plan):bool = plan.active and not plan.parent.retired and plan.asset_epoch==plan.parent.inspection_epoch and technician(plan.assignee) and can_work(plan.assignee,plan.parent.location)
@@ -176,17 +179,13 @@ package maintain
     create Assignment {parent=repair,supplier,contact=supplier.contact,reason,body=repair.description} as assignment
     set repair {contractor=supplier,assignment,state=assigned}
     send Mail.send {to=assignment.contact,subject=format("Repair assignment"@{nl="Reparatieopdracht"},locale=null),body=assignment.body} when=repair.assignment==assignment and supplier.active and repair.state in [assigned,in_progress] as notice
-    create Notice {parent=assignment,delivery=notice.id} as receipt
+    create Notice {parent=assignment,delivery=notice} as receipt
   # Retry a definitely failed assignment notice only for its current active destination. @{nl="Probeer een definitief mislukte opdrachtmelding opnieuw voor de huidige actieve bestemming."}
   scenario retry_notice(notice:Notice) by=maintenance_manager label="Retry assignment notice"@{nl="Opdrachtmelding opnieuw sturen"}
    require can_work(actor,notice.parent.parent.parent.location) and notice.state==failed and not any(notice.parent.Notice as item,item.state in [pending,unknown,succeeded]) and notice.parent.parent.assignment==notice.parent and notice.parent.supplier.active and notice.parent.parent.state in [assigned,in_progress]
    do
-    send Mail.send {to=notice.parent.contact,subject=format("Repair assignment"@{nl="Reparatieopdracht"},locale=null),body=notice.parent.body} when=notice.parent.parent.assignment==notice.parent and notice.parent.supplier.active and notice.parent.parent.state in [assigned,in_progress] as delivery
-    create Notice {parent=notice.parent,delivery=delivery.id} as receipt
-  scenario notice_result on=Mail.send.completed
-   do
-    for notice in Notice as item where item.delivery==event.delivery_id and item.state in [pending,unknown] limit=1
-     set notice {state=event.status}
+    send Mail.send {to=notice.parent.contact,subject=format("Repair assignment"@{nl="Reparatieopdracht"},locale=null),body=notice.parent.body} when=notice.parent.parent.assignment==notice.parent and notice.parent.supplier.active and notice.parent.parent.state in [assigned,in_progress] as attempt
+    create Notice {parent=notice.parent,delivery=attempt} as receipt
   # Start an assigned repair without claiming acceptance from assignment delivery. @{nl="Start een toegewezen reparatie zonder aanvaarding af te leiden uit de opdrachtverzending."}
   scenario start(repair:Repair) by=technician label="Start repair"@{nl="Reparatie starten"}
    require can_work(actor,repair.parent.location) and repair.state==assigned
