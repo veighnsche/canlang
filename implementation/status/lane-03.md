@@ -197,9 +197,10 @@ all evidence is local miniflare + node suites recorded below with commands/versi
 
 - 2026-10-04: worktree created from origin/main b06d873; goal active; plan written.
   S1 merged (fb8cf1f). S2 branch `muse/lane-03-state/storage-fence` from fb8cf1f.
-  S2 implemented (delegated impl+tests, disjoint files) + independent review
-  NEEDS-CHANGES (F1 future-revision fence hole, F2/F3 memory conformance,
-  F4–F9/N1–N4) + coordinator fixes, all verified 60/60 x3 locally.
+  S2 merged (5a271a6). S3 branch `muse/lane-03-state/admission` from 5a271a6.
+  S3 implemented (delegated impl+tests, disjoint files) + independent review
+  NEEDS-CHANGES (14 findings incl. receipt-before-age + revision-first
+  normative orderings) + coordinator fixes, verified 125/125 locally.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
@@ -236,6 +237,13 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   typescript 5.9.3, @types/node 26.6.4); CI `state` job pass x2. Self-reviewed
   full diff; no independent subagent review (scaffold + types only, no behavior).
   Residual: engine modules in S2–S8; interim ESNext/Bundler tsconfig to L7 join.
+- PR2 S2 storage: branch `muse/lane-03-state/storage-fence`, reviewed head
+  `ce0f98294072534ab5d338c4965a894e8d4cbed0`, merged as `5a271a6`
+  (https://github.com/veighnsche/canlang/pull/15, squash, --match-head-commit).
+  Checks: local typecheck + `npm test` 60/60 x3 (miniflare 4.20260730.0,
+  workers-types 5.20261004.1); contracts assembly check clean; CI `state` x2
+  pass. Independent review NEEDS-CHANGES (F1–F9/N1–N4) all fixed + regressed.
+  Residual: no parent linkage/expiry yet; interim contracts import/tsconfig.
 
 ## Remaining work and cleanup
 
