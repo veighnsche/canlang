@@ -285,54 +285,149 @@ package hire label="Recruitment"@{nl="Werving"}
  Then
   # Find published vacancies and submit your own application. @{nl="Vind gepubliceerde vacatures en dien je eigen sollicitatie in."}
   page /careers title="Careers"@{nl="Vacatures"}
+   breadcrumbs
+   hero "Join our team"@{nl="Kom bij ons werken"}
+    text "Published openings welcome your application."@{nl="Gepubliceerde vacatures staan open voor je sollicitatie."}
+   card "Your applications"@{nl="Je sollicitaties"}
+    require authenticated
+    link target=app_url("/careers/mine") caption="My applications"@{nl="Mijn sollicitaties"}
    card "Published vacancies"@{nl="Gepubliceerde vacatures"}
-    list Vacancy as vacancy where vacancy.published and vacancy.open filter=location search=title defaults={location=preferences.location}
+    list Vacancy as vacancy where vacancy.published and vacancy.open filter=location search=title defaults={location=preferences.location} empty="No open vacancies."@{nl="Geen open vacatures."}
+     pagination
      text row.title,row.location,row.description,row.employment,row.skills
-     form apply
+     form apply display=inline
+      fieldset "Your application"@{nl="Je sollicitatie"}
+       input name
+       textarea application
+       file_input cv
 
   # Follow your own submission without private interviewer feedback. @{nl="Volg je eigen sollicitatie zonder private interviewerfeedback."}
   page /careers/mine title="My applications"@{nl="Mijn sollicitaties"}
+   breadcrumbs
    require authenticated
+   ## In-context saved default for the stage filter below.
+   filter preferences.stage
    card heading_own_application_outcomes
-    table Candidate as candidate where candidate.account==actor columns=name,stage,reason filter=stage defaults={stage=preferences.stage}
+    table Candidate as candidate where candidate.account==actor columns=name,stage,reason filter=stage defaults={stage=preferences.stage} search=name empty="No applications yet."@{nl="Nog geen sollicitaties."}
+     pagination
      details heading_own_application_outcomes display=drawer
+      badge row.stage
       text row.application,row.cv
-      action withdraw
+      ## Nullable file target: lane-05 handoff — shared unavailable presentation when no CV was supplied.
+      link target=row.cv caption="Download CV"@{nl="CV downloaden"}
+      tooltip "Withdraws your application and cancels interviews"@{nl="Trekt je sollicitatie in en annuleert gesprekken"}
+       action withdraw
 
   # Coordinate private candidates and restricted interview evidence. @{nl="Coördineer private kandidaten en afgeschermd gespreksbewijs."}
   page /hiring title="Hiring"@{nl="Werving"}
+   breadcrumbs
    require recruiter
+   ## In-context saved default for the stage filter below.
+   filter preferences.stage
    card "Vacancy authoring"@{nl="Vacatures beheren"}
-    form Vacancy.create
-    list Vacancy filter=location search=title defaults={location=preferences.location} display=split
+    form Vacancy.create display=inline
+     fieldset "Vacancy"@{nl="Vacature"}
+      input title
+      textarea description
+      input employment
+    ## Static pipeline legend; per-stage highlight of the current candidate is desired behavior pending a catalog selection binding (proposed).
+    steps
+     slot item
+      text "Applied"@{nl="Gesolliciteerd"}
+     slot item
+      text label_Candidate_stage_interview
+     slot item
+      text "Offer"@{nl="Aanbod"}
+     slot item
+      text "Hired"@{nl="Aangenomen"}
+    list Vacancy filter=location search=title defaults={location=preferences.location} display=split empty="No vacancies yet."@{nl="Nog geen vacatures."}
+     pagination
+     text row.title,row.open,row.published
+     collapse "Retention"@{nl="Bewaartermijn"}
+      require row.retention_until!=null
+      text row.retention_until
      edit
+      toggle published
      actions close,reopen_vacancy
-     form intake
-     list row.Candidate filter=stage defaults={stage=preferences.stage}
-      text row.name,row.application,row.cv,row.stage
+     form intake display=inline
+      fieldset "Record candidate intake"@{nl="Kandidaat registreren"}
+       input name
+       input email
+       textarea application
+       file_input cv
+       input source
+     list row.Candidate filter=stage defaults={stage=preferences.stage} empty="No candidates."@{nl="Geen kandidaten."}
+      pagination
+      badge row.stage
+      text row.name,row.application,row.cv
+      ## Nullable file target: same lane-05 handoff as the applicant drawer above.
+      link target=row.cv caption="Download CV"@{nl="CV downloaden"}
       card "Recruiter decision"@{nl="Besluit van de recruiter"}
        require recruiter and can_work(actor,row.parent.location)
        text row.reason
-      actions schedule,decide,reopen_application
-      list row.Interview order=from
+      tooltip "Requests one interviewer reservation"@{nl="Vraagt één interviewerreservering aan"}
+       button opens=schedule_interview
+      modal "Schedule interview"@{nl="Gesprek plannen"} id=schedule_interview
+       slot content
+        form schedule arguments={candidate=row} display=inline
+      button opens=record_outcome
+      modal "Record decision"@{nl="Besluit vastleggen"} id=record_outcome
+       slot content
+        form decide arguments={candidate=row} display=inline
+         fieldset "Hiring outcome"@{nl="Wervingsuitkomst"}
+          radio stage
+          textarea reason
+      button opens=reopen_case
+      modal "Reopen application"@{nl="Sollicitatie heropenen"} id=reopen_case
+       slot content
+        form reopen_application arguments={candidate=row} display=inline
+         textarea reason
+      list row.Interview order=from empty="No interviews scheduled."@{nl="Geen gesprekken gepland."}
+       pagination
        details "Interview evidence"@{nl="Gespreksbewijs"} display=drawer
-        text row.from,row.until,row.timezone,row.state,row.feedback,row.release_state,row.notice_state
-        action reschedule
-        actions cancel_interview,retry_release
-        form feedback
+        ## state and release_state are enums: badges. notice_state is a nullable delivery derive: status.
+        badge row.state
+        badge row.release_state
+        status row.notice_state
+        text row.from,row.until,row.timezone,row.feedback
+        tooltip "Keeps the confirmed interview until the replacement is accepted"@{nl="Behoudt het bevestigde gesprek totdat de vervanging is aanvaard"}
+         button opens=reschedule_booking
+        modal "Reschedule interview"@{nl="Gesprek verplaatsen"} id=reschedule_booking
+         slot content
+          form reschedule arguments={booking=row} display=inline
+        button opens=cancel_booking
+        modal "Cancel interview"@{nl="Gesprek annuleren"} id=cancel_booking
+         slot content
+          form cancel_interview arguments={interview=row} display=inline
+           textarea reason
+        action retry_release
+        button opens=record_feedback
+        modal label_Interview_feedback id=record_feedback
+         slot content
+          form feedback arguments={interview=row} display=inline
+           textarea notes
       history
 
   # Review hired account identity using the canonical HR employee creation and checklist workflow. @{nl="Beoordeel de aangenomen accountidentiteit via de canonieke HR-medewerker- en checklistworkflow."}
   page /hiring/handoff title="Hiring handoff"@{nl="Wervingsoverdracht"}
+   breadcrumbs
    require hr
    card "Reviewed employee identity"@{nl="Beoordeelde medewerkeridentiteit"}
     form Employee.create
-    list Candidate as candidate where candidate.stage==hired and candidate.onboarding_reference==null
+    list Candidate as candidate where candidate.stage==hired and candidate.onboarding_reference==null empty="No pending handoffs."@{nl="Geen openstaande overdrachten."}
+     pagination
      text row.name,row.email,row.account
-     form handoff
+     form handoff display=inline
+      textarea evidence
   # Record private feedback only for your own active confirmed interview assignment. @{nl="Registreer private feedback alleen voor je eigen actieve bevestigde gesprekstoewijzing."}
   page /hiring/interviews title="My interviews"@{nl="Mijn gesprekken"}
+   breadcrumbs
    require interviewer
-   list Interview as interview where interview.interviewer.user==actor and interview.interviewer.active and can_work(actor,interview.parent.parent.location) and interview.state==confirmed order=from
+   list Interview as interview where interview.interviewer.user==actor and interview.interviewer.active and can_work(actor,interview.parent.parent.location) and interview.state==confirmed order=from empty="No assigned interviews."@{nl="Geen toegewezen gesprekken."}
+    pagination
     text row.parent.name,row.parent.application,row.parent.cv,row.from,row.until,row.timezone,row.feedback
-    form feedback
+    button opens=record_feedback
+    modal label_Interview_feedback id=record_feedback
+     slot content
+      form feedback arguments={interview=row} display=inline
+       textarea notes

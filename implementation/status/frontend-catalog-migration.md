@@ -82,7 +82,38 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
-## Slice 9: full replans Expense/Feedback/Field (branch muse/frontend-catalog-migration/slice-09-replan-h1, in progress)
+## Slice 10: full replans Grant/Hire/Leave (branch muse/frontend-catalog-migration/slice-10-replan-h2, in progress)
+
+Paths: draft/CanGrant, CanHire, CanLeave (.can+.md+.mjs each) + this status file.
+Source: lane-H spec (/tmp/laneH-spec.md), applied + corrected by coordinator.
+Coordinator corrections to spec: non-nullable none-defaulted enums sync/release_state
+render as badge, not status (status stays for the nullable DeliveryResult.status?
+derives: Grant + Hire notice_state, corrected in Hire during verification);
+breadcrumbs + pagination on every page/collection (spec places
+one pagination); Leave table->agenda conversion keeps the narrowed projection
+(columns=location,state; from/until become endpoints) with no suite; Leave
+layout=columns kept (GRAMMAR L104: layout=NAME stack/columns is grammar, not CSS);
+radial gated on row.days>0; preferences panel edits the owning year/bucket memory
+inline; preview/count stats stay result-only; Hire CV stays a nullable download link;
+modals keep exactly one binding with button openers in witnesses.
+Given/When byte-identical (Then hunks only; all .can removals are Then-keyword lines).
+Witnesses: surgical desired lowerings in the existing style (lowercase factories, one
+props object, desired-unimplemented comments), node --check clean; Leave witness keeps
+its full Given/When lowering (1554-line file preserved, UI sections only).
+Verified against catalog: badge leaves, status, calendar control vs agenda collection
+(same `calendar` factory, two documented shapes), stat, radial_progress with max,
+preferences, modal+slot+button, tooltip-annotated action, collapse, edit, filter
+saved-defaults, search, display=split, empty=. New literals carry nl variants.
+Drift: +108 E1200 (Grant 31, Hire 45, Leave 32) + 1 E1204 (Leave direct-child
+`calendar date` in Day.create: same L1 control-form gap as Expense/Book). All three
+ok on main. Prototype: all three stop at pre-existing Given/BDD gaps byte-identical
+(zero new drift).
+Handoff: (a) nullable link targets (Hire CV file?); (b) select reference sourcing
+(Feedback duplicate); (c) gated-suite suppression semantics; (d) stat/radial/calendar/
+agenda/preferences/modal renderers; (e) `calendar` control-vs-agenda factory naming
+for 05 (kept one faithful name, two shapes).
+
+## Slice 9: full replans Expense/Feedback/Field (merged as 8b35eef, PR #80)
 
 Paths: draft/CanExpense (.can+.md+.mjs), CanFeedback (.can+.md+.mjs), CanField (.can+.md;
 no .mjs: gap) + this status file. Source: lane-H spec (/tmp/laneH-spec.md), applied +
