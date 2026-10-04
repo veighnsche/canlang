@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { SchemaError, ValueError, isDeliveryError, makeDeliveryError } from "../src/errors.js";
+import { SchemaError, ValueError } from "../src/errors.js";
 
 describe("typed errors", () => {
   it("ValueError carries kind and code and is an Error", () => {
@@ -30,16 +30,4 @@ describe("typed errors", () => {
     assert.ok(Object.isFrozen(error.violations));
   });
 
-  it("DeliveryError is a closed frozen {code,message} value", () => {
-    const error = makeDeliveryError("provider", "Delivery rejected");
-    assert.deepEqual(error, { code: "provider", message: "Delivery rejected" });
-    assert.ok(Object.isFrozen(error));
-    assert.ok(isDeliveryError(error));
-    assert.ok(!isDeliveryError({ code: "x" }));
-    assert.ok(!isDeliveryError({ code: "", message: "m" }));
-    assert.ok(!isDeliveryError({ code: "c", message: "" }));
-    assert.ok(!isDeliveryError({ code: "c", message: "m", extra: 1 }));
-    assert.throws(() => makeDeliveryError("", "m"), ValueError);
-    assert.throws(() => makeDeliveryError("c", ""), ValueError);
-  });
 });

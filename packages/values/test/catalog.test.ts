@@ -20,6 +20,15 @@ const EXPECTED_HELPERS = [
   "equalValue", "int64",
 ];
 
+/**
+ * Helpers the operator matrix requires but L992 omits (gap notes in the
+ * catalog; L1 join to confirm). Tracked separately from the §13 oracle.
+ */
+const EXPECTED_GAP_HELPERS = [
+  "addDecimal", "subtractDecimal", "multiplyDecimal", "negateDecimal",
+  "divideMoney",
+];
+
 describe("builtin catalog", () => {
   it("carries the draft envelope version over language 1.0", () => {
     assert.equal(CATALOG.catalog_version, LANE02_CATALOG_VERSION);
@@ -39,11 +48,11 @@ describe("builtin catalog", () => {
     );
   });
 
-  it("lists exactly the §13 helpers and no banned spellings", () => {
+  it("lists exactly the §13 helpers plus gap helpers, and no banned spellings", () => {
     const helpers = CATALOG.entries.filter((entry) => entry.kind === "helper");
     assert.deepEqual(
       helpers.map((entry) => entry.id).sort(),
-      [...EXPECTED_HELPERS].sort(),
+      [...EXPECTED_HELPERS, ...EXPECTED_GAP_HELPERS].sort(),
     );
     for (const entry of CATALOG.entries) {
       assert.ok(!entry.js.startsWith("money_"), entry.js);
