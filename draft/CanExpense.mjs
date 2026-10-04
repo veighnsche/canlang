@@ -59,6 +59,37 @@ const paidCaption = message("Payment date", { nl: "Betaaldatum" });
 
 const reimbursementCaption = message("Evidenced reimbursement", { nl: "Onderbouwde vergoeding" });
 
+const minePageDescriptor = {
+  owner: "expense",
+  path: "/expenses/mine",
+  title: message("My expenses", { nl: "Mijn onkosten" }),
+  description: message("Submit your receipts and see their private decision history.", {
+    nl: "Dien je bonnen in en bekijk hun privébesluithistorie.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "members"), "forbidden");
+    return {};
+  },
+  render: minePage,
+};
+
+const reviewPageDescriptor = {
+  owner: "expense",
+  path: "/expenses/review",
+  title: message("Expense review", { nl: "Onkostenbeoordeling" }),
+  description: message(
+    "Review assigned claims and record evidenced reimbursement under finance grants.",
+    {
+      nl: "Beoordeel toegewezen declaraties en leg onderbouwde vergoeding vast binnen financiële bevoegdheden.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "expense.reviewer") || hasRole(c, "expense.finance"), "forbidden");
+    return {};
+  },
+  render: reviewPage,
+};
+
 export const appDefinition = {
   id: "CanExpense",
   uses: ["expense"],
@@ -293,8 +324,8 @@ export const appDefinition = {
     },
   },
   pages: [
-    { path: "/expenses/mine", render: minePage },
-    { path: "/expenses/review", render: reviewPage },
+    minePageDescriptor,
+    reviewPageDescriptor,
   ],
   disabled: ["expense.Expense.delete"],
 };
@@ -478,18 +509,10 @@ export function canApp() {
   };
 }
 
-export async function minePage(c) {
-  check(hasRole(c, "members"), "forbidden");
+export async function minePage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "expense",
-      path: "/expenses/mine",
-      title: message("My expenses", { nl: "Mijn onkosten" }),
-      description: message("Submit your receipts and see their private decision history.", {
-        nl: "Dien je bonnen in en bekijk hun privébesluithistorie.",
-      }),
-    },
+    minePageDescriptor,
     () => [
       card({
         context: c,
@@ -563,21 +586,10 @@ export async function minePage(c) {
   );
 }
 
-export async function reviewPage(c) {
-  check(hasRole(c, "expense.reviewer") || hasRole(c, "expense.finance"), "forbidden");
+export async function reviewPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "expense",
-      path: "/expenses/review",
-      title: message("Expense review", { nl: "Onkostenbeoordeling" }),
-      description: message(
-        "Review assigned claims and record evidenced reimbursement under finance grants.",
-        {
-          nl: "Beoordeel toegewezen declaraties en leg onderbouwde vergoeding vast binnen financiële bevoegdheden.",
-        },
-      ),
-    },
+    reviewPageDescriptor,
     () => [
       table({
         context: c,
