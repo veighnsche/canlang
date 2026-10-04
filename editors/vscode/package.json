@@ -2,7 +2,7 @@
   "name": "canlang-draft-highlighting",
   "displayName": "Canlang Draft Syntax",
   "description": "Syntax highlighting for the current canlang draft grammar. No language server.",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "publisher": "canlang",
   "engines": {
     "vscode": "^1.91.0"
