@@ -18,6 +18,9 @@ import type {
   CapabilityCompletion,
   EmailAccepted,
   EmailSendInput,
+  ModelChatInput,
+  ModelChatReply,
+  ModelRunSnapshot,
 } from '../../contracts/src/services.js';
 import { randomUUID } from 'node:crypto';
 import http from 'node:http';
@@ -48,6 +51,48 @@ export interface MailSender {
     options: { readonly deliveryId: string },
   ): Promise<CapabilityCompletion<EmailAccepted>>;
   reconcile(deliveryId: string): Promise<CapabilityCompletion<EmailAccepted>>;
+}
+
+/**
+ * Live handle for one streaming model run. Snapshots are ordered
+ * observations (sequence-dense, bounded tail); `cancel()` requests
+ * cancellation and resolves with the terminal completion, which may
+ * still be the final reply when completion raced cancellation.
+ */
+export interface ModelRunHandle {
+  readonly deliveryId: string;
+  /** True once `cancel()` was called (requested, not yet confirmed). */
+  readonly cancelRequested: boolean;
+  snapshots(): readonly ModelRunSnapshot[];
+  cancel(): Promise<CapabilityCompletion<ModelChatReply>>;
+  done(): Promise<CapabilityCompletion<ModelChatReply>>;
+}
+
+export interface ModelChatPort {
+  /**
+   * Final-only generation. The runtime always supplies its own stable
+   * delivery id; the adapter never mints identity.
+   */
+  generate(
+    input: ModelChatInput,
+    options: { readonly deliveryId: string },
+  ): Promise<CapabilityCompletion<ModelChatReply>>;
+  /**
+   * Streaming generation. Returns the run handle immediately; throws
+   * synchronously on validation failures (nothing is sent).
+   */
+  generateStream(
+    input: ModelChatInput,
+    options: {
+      readonly deliveryId: string;
+      readonly onSnapshot?: (snapshot: ModelRunSnapshot) => void;
+    },
+  ): ModelRunHandle;
+  /**
+   * Reconcile an uncertain generation through its original identity.
+   * Providers without a documented run lookup honestly stay `unknown`.
+   */
+  reconcile(deliveryId: string): Promise<CapabilityCompletion<ModelChatReply>>;
 }
 
 export function systemClock(): Clock {

@@ -247,3 +247,59 @@ export interface ErrorReport {
 export interface ErrorAccepted {
   reference: string;
 }
+
+/**
+ * Provider-owned `ai.ChatV1` message (research sketch "final chat";
+ * `design/research-ai-capabilities-20261004.md`). Minimal final-only
+ * shape: no tools/images/thinking until an app uses them.
+ */
+export interface ModelMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string;
+}
+
+/** Provider-owned `ai.ChatV1` generate inputs. */
+export interface ModelChatInput {
+  /** Bound model id; validated against the deployment allowlist. */
+  model: string;
+  /** Frozen authorized history; the adapter sends this, never a hidden provider conversation. */
+  messages: ModelMessage[];
+  /** Generation output budget; provider options stay adapter-owned. */
+  maxTokens: number;
+}
+
+/**
+ * Provider-owned `ai.ChatV1` final reply. Usage is nullable because
+ * providers may omit it; absence never fails an otherwise complete reply.
+ */
+export interface ModelChatReply {
+  content: string;
+  model: string;
+  /** Provider done/finish reason. */
+  finish: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+}
+
+/** Provider-owned `ai.ChatV1` run observation state. */
+export type ModelRunState =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'unknown'
+  | 'cancelled';
+
+/**
+ * Provider-owned `ai.ChatV1` run snapshot. `sequence` orders snapshots
+ * within one run; correlation (source/revision/delivery) travels with
+ * the frozen request and the delivery association, never inside model
+ * content. Snapshots are bounded presentation state, not lossless
+ * token replay.
+ */
+export interface ModelRunSnapshot {
+  sequence: number;
+  state: ModelRunState;
+  /** Cumulative user-visible content; provider thinking stays separate. */
+  content: string;
+}
