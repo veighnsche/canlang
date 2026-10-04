@@ -307,8 +307,33 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   conformance cases x3. Coordinator follow-ups: StagedRow created/
   createdBy/archivedAt (publish prefers staged); publish claim moves in
   same batch; flip records actual revision; reset lists clear migration
-  tables. Legs green: memory 43/43, D1 46/46, DO 44/44. Engine worker
-  RUNNING (briefed on additive contract updates).
+  tables. S7 engine DONE (`716ba53`): transition intake, constrained
+  mappers, chunked staging, staged validation, chunked publish with
+  migration history, fenced flip, resume (`src/migration/*` ~2.7k lines,
+  `test/migration/*` ~3k lines). Coordinator self-review fixes F1–F4
+  (`53e6a9e` storage/contracts + engine-side in `716ba53`): F1
+  rename-source disposal (move-not-copy, remove-history chains audit);
+  F2 dropOwner removal flip (nullable snapshot + owner key; publish-start
+  AND flip-time missing-pointer blocks so no silent skip/outcome loss);
+  F3 drop gating (locked rows, retained-live referrers, staged referrers
+  that kept the ref; co-drops and ref-removing staged rows masked); F4
+  staged ref ID-existence against staged-plus-retained-live view
+  (missing/archived-changed block; unchanged legacy refs to archived rows
+  pass). 11 regression tests, all confirmed running green by name.
+  Legs green: npm test 493/493, D1 47/47, DO 45/45; state + contracts
+  typecheck clean (node v24.21.0, TS 5.9.3, miniflare 4.20260730.0).
+  Self-review round 2 (`5307a1b`): activation evidence gate (predecessor
+  re-verified pre-publish incl. rename-from owner + drop from-match;
+  rename-target collision; from==to intake rejection; activate/resume
+  throw on no-op flips — no silent skip/outcome loss, no resume
+  livelock). Loud notes: inventory attestation trust (L4 owes
+  contract→intent mapping), deployer serializes same-owner migrations.
+  6 regression tests; 16 activation tests seed predecessors via real
+  flip. Legs: 499/499 + D1 47/47 + DO 45/45, typechecks clean.
+  Residual: staged rows of completed/abandoned migrations retained (no
+  fenced cleanup writer yet); pure model renames leave target rows
+  without a history entry (name-only silence; source remove chains via
+  preserved recordId + migration operationId).
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
