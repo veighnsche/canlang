@@ -524,7 +524,7 @@ export const appDefinition = {
   capabilities: {
     [ScheduleV1]: {
       exported: true,
-      version: 1,
+      version: 1n,
       operations: {
         reserve: { inputs: { value: { type: CommitmentRequest } }, result: OperationOutcome },
         stage: {
@@ -544,7 +544,7 @@ export const appDefinition = {
     },
     [ScheduleIngressV1]: {
       exported: true,
-      version: 1,
+      version: 1n,
       events: {
         reserve: {
           fields: {

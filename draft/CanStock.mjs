@@ -230,12 +230,12 @@ export const appDefinition = {
   capabilities: {
     [StockIngressV1]: {
       exported: true,
-      version: 1,
+      version: 1n,
       events: { post: { fields: { value: { type: StockReceipt } } } },
     },
     "stock.StockV1": {
       exported: true,
-      version: 1,
+      version: 1n,
       operations: {
         post: { inputs: { value: { type: "stock.StockReceipt" } }, result: OperationOutcome },
       },
