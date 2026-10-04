@@ -98,7 +98,10 @@ export {
   divider,
   kbd,
   link,
+  mockupBrowser,
   mockupCode,
+  mockupPhone,
+  mockupWindow,
   status,
 } from "./leaves.js";
 export {
@@ -155,6 +158,8 @@ export {
   tooltip,
 } from "./overlays.js";
 export { review } from "./review.js";
+export { copy, history, tabs } from "./panels.js";
+export { renderSettingsPanel } from "./settings.js";
 export type { ControlQueryState } from "./collections.js";
 export {
   action,
@@ -214,6 +219,7 @@ export type {
   ComponentProfile,
   ComponentSlotDef,
   ContentProps,
+  CopyProps,
   CountdownProps,
   CsvImportProps,
   CsvImportReview,
@@ -245,6 +251,8 @@ export type {
   FragmentRegionProps,
   HeroProps,
   HeroSlots,
+  HistoryEntry,
+  HistoryProps,
   Hover3dProps,
   HoverGalleryImage,
   HoverGalleryProps,
@@ -267,7 +275,10 @@ export type {
   MessageParamValue,
   MessageValue,
   MessageVariantMap,
+  MockupBrowserProps,
   MockupCodeProps,
+  MockupPhoneProps,
+  MockupWindowProps,
   ModalProps,
   NavbarProps,
   NavigationEntry,
@@ -282,6 +293,7 @@ export type {
   PageDescriptor,
   PaginationProps,
   PollProps,
+  PreferenceSection,
   PresentationContext,
   ProgressProps,
   RadialProgressProps,
@@ -296,7 +308,9 @@ export type {
   RowQueryRunner,
   RowView,
   SelectProps,
+  SettingsBaseControls,
   SettingsFrameData,
+  SettingsPanelProps,
   SettingsSection,
   SharedStateProps,
   ShellData,
@@ -310,7 +324,11 @@ export type {
   StepsProps,
   SwapProps,
   SwapStrategy,
+  TabItem,
   TableProps,
+  TabsBinding,
+  TabsOption,
+  TabsProps,
   TeamOption,
   TextareaProps,
   TextProps,
