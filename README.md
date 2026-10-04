@@ -4,7 +4,7 @@ Canlang is an AI-native language for custom business SaaS applications. It descr
 
 The goal is to help companies replace expensive SaaS subscriptions with applications tailored to their operations and economical to generate, run, and change. Canlang is designed for AI to write: canonical business primitives and shared defaults reduce boilerplate and competing implementation patterns. Its scope is CRUD-centered applications such as task management, expense approval, bookings, and invoicing.
 
-**Current status:** this repository contains the language specification, reference examples, application drafts, a Python syntax parser, editor highlighting, and a Rust CLI scaffold. Application compilation and execution are not implemented yet.
+**Current status:** this repository contains the language specification, reference examples, an application-drafts submodule, a Python syntax parser, editor highlighting, and a Rust CLI scaffold. Application compilation and execution are not implemented yet.
 
 ## A small app
 
@@ -38,6 +38,16 @@ For fuller examples, read [TeamTasks.can](examples/TeamTasks.can), which adds as
 
 The planned stack compiles Canlang directly to JavaScript for **workerd**, with **Cloudflare D1** storage, inferred **R2** file storage, **daisyUI/HTMX** presentation, and a generated **MCP** interface. These are specified defaults and targets; the runtime and generators remain implementation work. Arbitrary app-level HTML, CSS, JavaScript, and specialized visual editors are outside v1.
 
+## Getting the source
+
+Application drafts live in the independent [canlang-drafts](https://github.com/veighnsche/canlang-drafts) repository, included at `draft/` as a Git submodule pinned to a specific commit. Clone both repositories for corpus checks and draft work:
+
+```sh
+git clone --recurse-submodules https://github.com/veighnsche/canlang.git
+```
+
+For an existing checkout, run `git submodule update --init --recursive` after pulling changes. Draft edits are committed and pushed inside `draft/`; then commit the updated `draft` pointer in Canlang. Before editing a detached submodule checkout, create a drafts branch from the pinned commit with `git -C draft switch -c <draft-branch>`. Historical draft commits remain available in both repositories; the extracted history uses new commit IDs.
+
 ## Explore what exists
 
 From the repository root, use Python 3 to parse the reference examples or inspect a syntax tree. The parser uses only the standard library:
@@ -64,6 +74,6 @@ Its help and version output work; `compile`, `lint`, and `fmt` are reserved comm
 - [Requirements](REQUIREMENTS.md): purpose, scope, and product goals.
 - [Language design](DESIGN.md): semantics, defaults, permissions, operations, integrations, and interfaces.
 - [Grammar](GRAMMAR.md): exact syntax and layout rules, including one-space indentation.
-- [Application drafts](draft/README.md): larger business sources and their companion requirements; [coverage and remaining gaps](draft/MIGRATION.md) records unfinished behavior.
+- [Application drafts](https://github.com/veighnsche/canlang-drafts/blob/main/README.md): larger business sources and their companion requirements; [coverage and remaining gaps](https://github.com/veighnsche/canlang-drafts/blob/main/MIGRATION.md) records unfinished behavior.
 
 The handwritten JavaScript targets in `draft/` illustrate desired output. Their proposed library imports are unimplemented; they are not generated or runnable applications.
