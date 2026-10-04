@@ -20,7 +20,6 @@ package customer
   export CompanyRole in Customer { account:user label=label_Contact_account, role:enum(administrator,booker,billing) label={text=label_CompanyRole_role,values={administrator="Administrator"@{nl="Beheerder"},booker="Booker"@{nl="Boeker"},billing="Billing"@{nl="Facturatie"}}}, locations:Location[] label=label_Customer_locations, active:bool=true } label="Company role"@{nl="Bedrijfsrol"}
   export Invitation in Customer { invited_by:user server=actor label="Invited by"@{nl="Uitgenodigd door"}, email:email, role:CompanyRole.role, locations:Location[] label=label_Customer_locations, expires:datetime label="Expires at"@{nl="Verloopt op"}, status:enum(open,accepted,expired,revoked)=open label={text="Status"@{nl="Status"},values={open="Open"@{nl="Open"},accepted="Accepted"@{nl="Geaccepteerd"},expired="Expired"@{nl="Verlopen"},revoked="Revoked"@{nl="Ingetrokken"}}}, accepted_by:user? label="Accepted by"@{nl="Geaccepteerd door"} } label=notice_company_invitation
   export Alias { from_customer:Customer label="Source customer"@{nl="Bronklant"}, to_customer:Customer label=label_Alias_to_customer, reason:text, approved_by:user server=actor label="Approved by"@{nl="Goedgekeurd door"} } label="Reviewed customer alias"@{nl="Beoordeelde klantalias"}
-  Reconciliation in Customer { account:user label=label_Contact_account, revision:int, state:enum(pending,applied,conflict)=pending label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In behandeling"},applied="Applied"@{nl="Toegepast"},conflict="Conflict"@{nl="Conflict"}}}, detail:text? label="Details"@{nl="Details"} } label="Access reconciliation"@{nl="Toegangsafstemming"}
   export event CompanyAccessChanged { customer:Customer, account:user?, revision:int }
   event InvitationExpiry { invitation:Invitation }
   export derive has_role(person:user,org:Customer,role:CompanyRole.role):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)
@@ -45,8 +44,6 @@ package customer
   policy BillingProfile read=authenticated where=owns(actor,row.parent) or has_role(actor,row.parent,billing)
   policy BillingProfile read=customer_manager and customer_staff(actor,row.parent)
   policy Alias read=customer_manager and customer_staff(actor,row.from_customer) and customer_staff(actor,row.to_customer)
-  policy Reconciliation read=customer_manager and customer_staff(actor,row.parent)
-  policy Reconciliation read=authenticated where=has_role(actor,row.parent,administrator)
   invariant BillingProfile: row.contact.parent==row.parent and (not row.on_account or (count(row.approved_locations)>0 and row.approved_by!=null and row.approved_at!=null and row.approval_reason!=null))
   invariant CompanyRole: row.parent.kind==company
   invariant Alias: row.from_customer!=row.to_customer
@@ -151,13 +148,12 @@ package customer
    examples seed=[test_admin] invitation=company_invitation
     test_admin.locations -> invitation.status
     [] -> error(rule_failed)
-  # Remove a company role now, preserving paid bookings and pending reconciliation. @{nl="Verwijder een bedrijfsrol direct met behoud van betaalde boekingen en wachtende afstemming."}
+  # Remove a company role now, preserving paid bookings and owner review evidence. @{nl="Verwijder een bedrijfsrol direct met behoud van betaalde boekingen en beoordelingsbewijs bij de eigenaar."}
   export scenario remove(grant:CompanyRole label="Company role grant"@{nl="Bedrijfsroltoewijzing"}) by=authenticated label="Remove company role"@{nl="Bedrijfsrol verwijderen"}
    require grant.active and has_role(actor,grant.parent,administrator) and all(grant.locations as location,has_location_role(actor,grant.parent,administrator,location))
    require grant.role!=administrator or count(grant.parent.CompanyRole as role where role.active and role.role==administrator)>1
    do
     set grant {active=false}
-    create Reconciliation {parent=grant.parent,account=grant.account,revision=grant.version+1} as pending
     emit CompanyAccessChanged {customer=grant.parent,account=grant.account,revision=grant.version+1}
    examples seed=[test_admin] grant=test_booker
     grant.role -> grant.active
@@ -268,8 +264,8 @@ package customer
     list row.Invitation
      text row.email,row.role,row.locations,row.status,row.expires
    details "Independent access reconciliation"@{nl="Afzonderlijke toegangsafstemming"}
-    list row.Reconciliation
-     text row.state,row.detail
+    text "Company grants apply immediately. Paid seats and allowance review remain with Membership; visitor admission and credential confirmations remain with Reception."@{nl="Bedrijfsrechten gelden direct. Betaalde plaatsen en tegoedbeoordeling blijven bij Lidmaatschap; gasttoelating en sleutelbevestigingen blijven bij Receptie."}
+    text "Use Membership access review and Reception access review when those services are available in your product. Unavailable services have no reported reconciliation outcome here."@{nl="Gebruik Beoordeling lidmaatschapstoegang en Beoordeling receptietoegang wanneer die diensten beschikbaar zijn in je product. Voor niet-beschikbare diensten wordt hier geen afstemmingsresultaat gemeld."}
   # Review your addressed invitations without purchasing benefits or staff access. @{nl="Beoordeel je gerichte uitnodigingen zonder voordelen of personeelstoegang te kopen."}
   page /company-invitations title="Invitations"@{nl="Uitnodigingen"}
    require authenticated
