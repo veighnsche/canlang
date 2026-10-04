@@ -289,15 +289,24 @@ package leave label="Leave"@{nl="Verlof"}
      ## sync/release_state are enums: badge, not status.
      badge row.sync
      badge row.release_state
-     modal "Decide request"@{nl="Aanvraag beoordelen"}
-      action decide
-     modal "Cancel request"@{nl="Aanvraag annuleren"}
-      action cancel
+     button opens=decide_request
+     modal "Decide request"@{nl="Aanvraag beoordelen"} id=decide_request
+      slot content
+       form decide arguments={request=row} display=inline
+        fieldset "Decision"@{nl="Besluit"}
+         checkbox approve
+         textarea reason
+     button opens=cancel_request
+     modal "Cancel request"@{nl="Aanvraag annuleren"} id=cancel_request
+      slot content
+       form cancel arguments={request=row} display=inline
+        textarea reason
      action retry_release
      collapse "Recorded date portions"@{nl="Vastgelegde datumdelen"}
       list row.Portion empty="No portions."@{nl="Geen delen."}
        pagination
        text row.days,row.dates
+     history
    card "Allowance and calendar policies"@{nl="Tegoed en kalenderbeleid"}
     require hr
     form Allowance.create
@@ -315,7 +324,7 @@ package leave label="Leave"@{nl="Verlof"}
      form Day.create
       calendar date
      form Category.create
-     table row.Category columns=name,allowance_bucket empty="No absence categories configured."@{nl="Geen afwezigheidscategorieen ingesteld."}
+     table row.Category columns=name,allowance_bucket empty="No absence categories configured."@{nl="Geen afwezigheidscategorieën ingesteld."}
       pagination
       edit
      table row.Day columns=date,working empty="No calendar days configured."@{nl="Geen kalenderdagen ingesteld."}

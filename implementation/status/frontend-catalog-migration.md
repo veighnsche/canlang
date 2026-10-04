@@ -104,10 +104,15 @@ Verified against catalog: badge leaves, status, calendar control vs agenda colle
 (same `calendar` factory, two documented shapes), stat, radial_progress with max,
 preferences, modal+slot+button, tooltip-annotated action, collapse, edit, filter
 saved-defaults, search, display=split, empty=. New literals carry nl variants.
-Drift: +108 E1200 (Grant 31, Hire 45, Leave 32) + 1 E1204 (Leave direct-child
+Drift: +110 E1200 (Grant 31, Hire 45, Leave 34) + 1 E1204 (Leave direct-child
 `calendar date` in Day.create: same L1 control-form gap as Expense/Book). All three
 ok on main. Prototype: all three stop at pre-existing Given/BDD gaps byte-identical
 (zero new drift).
+Review (independent, PR #84): 1 blocker + 2 nits, all fixed in-branch. Leave review
+modals converted to the catalog shape (button opens + modal id + slot content +
+form with placed controls: decide gains checkbox approve + textarea reason, cancel
+gains textarea reason); review-table history restored (existing vocabulary, Grant/
+Hire keep it); nl categorieën typo fixed in .can + .mjs.
 Handoff: (a) nullable link targets (Hire CV file?); (b) select reference sourcing
 (Feedback duplicate); (c) gated-suite suppression semantics; (d) stat/radial/calendar/
 agenda/preferences/modal renderers; (e) `calendar` control-vs-agenda factory naming

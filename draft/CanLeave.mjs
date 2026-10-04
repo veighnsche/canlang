@@ -30,6 +30,7 @@ import {
   button,
   calendar,
   card,
+  checkbox,
   collapse,
   details,
   edit,
@@ -1161,6 +1162,17 @@ export async function reviewPage(c, bindings) {
                         operation: "leave.decide",
                         arguments: { request },
                         display: "inline",
+                        /* desired-unimplemented: placed controls move the generated fields. */
+                        children: [
+                          fieldset({
+                            context: view,
+                            caption: message("Decision", { nl: "Besluit" }),
+                            children: [
+                              checkbox({ context: view, field: "approve" }),
+                              textarea({ context: view, field: "reason" }),
+                            ],
+                          }),
+                        ],
                       }),
                     ],
                   }),
@@ -1181,6 +1193,8 @@ export async function reviewPage(c, bindings) {
                         operation: "leave.cancel",
                         arguments: { request },
                         display: "inline",
+                        /* desired-unimplemented: placed controls move the generated fields. */
+                        children: [textarea({ context: view, field: "reason" })],
                       }),
                     ],
                   }),
@@ -1211,6 +1225,7 @@ export async function reviewPage(c, bindings) {
                   }),
                 ],
               }),
+              history({ context: view, record: request }),
             ],
           }),
         ],
@@ -1282,7 +1297,7 @@ export async function reviewPage(c, bindings) {
                       parent: calendar,
                       columns: ["name", "allowance_bucket"],
                       empty: message("No absence categories configured.", {
-                        nl: "Geen afwezigheidscategorieen ingesteld.",
+                        nl: "Geen afwezigheidscategorieën ingesteld.",
                       }),
                       renderRow: (category, w) => [
                         /* desired-unimplemented: pagination consumes this collection cursor. */
