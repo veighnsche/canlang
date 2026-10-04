@@ -114,7 +114,8 @@ progress budget leaf. Given/When byte-identical (cmp-verified).
 node --check + import-vs-usage scan clean. Census: 33 collections
 w/ empty+pagination (7+13+13); 10 pages w/ breadcrumbs; 4 modals
 (Gallery 2, Knowledge 2; Inbox modal-free, base-kept bare forms).
-Drift: TBD E1200 (no E1204). Prototype stops byte-identical
+Drift: +79 E1200 (base 6; head 12/26/47), no E1204. Prototype stops
+byte-identical
 (pre-existing Given gaps). Handoff: (a) array control (evidence/
 attachments/destinations); (b) user refs generated; (c) progress/
 collapse/badge/status/gallery renderers.
