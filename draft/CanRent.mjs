@@ -3350,7 +3350,9 @@ export const appDefinition = {
   ],
   disabled: [
     "rent_reservations.Resource.delete",
+    "rent_reservations.DayCalendar.delete",
     "rent_reservations.Window.delete",
+    "rent_reservations.Desk.delete",
     "rent_reservations.Booking.create",
     "rent_reservations.Downtime.create",
     "rent_reservations.Booking.update",

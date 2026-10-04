@@ -131,26 +131,26 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: Compact declaration/callback inventory with exact mismatch fixes or no-change evidence. New semantic questions are returned to Astra. No needless repeat of unrelated policy/body reviews.
   - Evidence: writer 01a106fb-c8d9-75e2-9d72-f4b2258101f9 released. NO-CHANGE: 3 crud declarations (Budget/Request/Line, all delete=none), 6 enabled entries; disabled list = 3 explicit deletes + 21 fully-disabled non-crud-model ops (closed-world convention, verified complete). Coordinator spot-verified declarations, entries, full disabled list and model coverage; no files modified, .md untouched. No design question.
 
-- [ ] **J04 — Refer CRUD/hook source-target correspondence**
+- [x] **J04 — Refer CRUD/hook source-target correspondence**
   - Prerequisites: M00; source pair writer released
   - Owner / files / interfaces: Muse implementation agent; draft/CanRefer.can, draft/CanRefer.mjs; companion .md only for actual requirement correction
   - Changes / traceability: Q2; finish the unreviewed CRUD/hook slice using settled rules. Compare canonical enabled/disabled entries, fields, guards, qualified roles, hook versions/order and actual bodies. Correct only unambiguous divergence.
   - Acceptance: Compact declaration/callback inventory with exact mismatch fixes or no-change evidence. New semantic questions are returned to Astra. No needless repeat of unrelated policy/body reviews.
-  - Evidence: pending.
+  - Evidence: writer 01a106ff-5911-7a62-a97f-57f5887f716b released. NO-CHANGE: 1 crud declaration (Program, delete=none), 2 enabled entries + 1 disabled identity reconcile exactly; create/update fields/by/when match; no hooks (qualify is a committed-event handler). Coordinator spot-verified; no files modified, .md untouched. Recorded at H004 catch-up (staging was held).
 
-- [ ] **J05 — Rent CRUD/hook source-target correspondence**
+- [x] **J05 — Rent CRUD/hook source-target correspondence**
   - Prerequisites: M00; source pair writer released; D09
   - Owner / files / interfaces: Muse implementation agent; draft/CanRent.can, draft/CanRent.mjs; companion .md only for actual requirement correction
   - Changes / traceability: Q2; finish the unreviewed CRUD/hook slice using settled rules. Compare canonical enabled/disabled entries, fields, guards, qualified roles, hook versions/order and actual bodies. Correct only unambiguous divergence.
   - Acceptance: Compact declaration/callback inventory with exact mismatch fixes or no-change evidence. New semantic questions are returned to Astra. No needless repeat of unrelated policy/body reviews.
-  - Evidence: pending.
+  - Evidence: writer 01a106ff-5a10-7b61-912f-5c5cda3b8173 released. ONE FIX on post-D09 state: added 2 missing disabled identities (DayCalendar.delete, Desk.delete; both delete=none with existing create/update entries). 4 declarations verified; no source change needed. Coordinator verified entry/disabled reconciliation + node --check OK. Recorded at H004 catch-up (staging was held).
 
-- [ ] **J06 — Stock CRUD/hook source-target correspondence**
+- [x] **J06 — Stock CRUD/hook source-target correspondence**
   - Prerequisites: M00; source pair writer released
   - Owner / files / interfaces: Muse implementation agent; draft/CanStock.can, draft/CanStock.mjs; companion .md only for actual requirement correction
   - Changes / traceability: Q2; finish the unreviewed CRUD/hook slice using settled rules. Compare canonical enabled/disabled entries, fields, guards, qualified roles, hook versions/order and actual bodies. Correct only unambiguous divergence.
   - Acceptance: Compact declaration/callback inventory with exact mismatch fixes or no-change evidence. New semantic questions are returned to Astra. No needless repeat of unrelated policy/body reviews.
-  - Evidence: pending.
+  - Evidence: writer 01a10700-4a34-7c63-aad6-6bad3e9bfea1 released. NO-CHANGE: 2 crud declarations (Item/Threshold, delete=none), 4 enabled entries + 8 disabled identities (closed-world Movement/Projection) reconcile exactly; entry spot-check matches. Coordinator spot-verified; no files modified, .md untouched. Recorded at H004 catch-up (staging was held).
 
 - [ ] **A01 — Feedback selector and safe public decision history**
   - Prerequisites: BLOCKED DESIGN: READY inbox message linking feedback-design.md; all overlapping writers released
@@ -301,7 +301,12 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - RESERVED D01: draft/CanBook.can, draft/CanBook.md — writer 01a106e9-5e60-7ab0-baaa-f3a392f581ac (D01 CanBook/1) batch 1 active, no .mjs in scope.
 - RESERVED D02: draft/CanCatch.can, draft/CanCatch.md — writer 01a106e9-5fa5-7173-b4db-affb9fe22fe7 (D02 CanCatch/2) batch 1 active, no .mjs in scope.
 - RESERVED D03: draft/CanDesk.can, draft/CanDesk.md — writer 01a106e9-60b0-7df1-8514-c73fee43624e (D03 CanDesk/3) batch 1 active, no .mjs in scope.
-- QUEUED ready: J06. All J04/J05 dispatched; J06 next on first free slot.
+- QUEUED: ready agent queue EXHAUSTED (D01-D10, J01-J06 all verified). Remaining: M01/M02 + design-blocked A01-A06/N01-N10 awaiting READY.
+- DONE J04: writer 01a106ff-5911-7a62-a97f-57f5887f716b RELEASED draft/CanRefer.can, draft/CanRefer.mjs (no changes).
+- DONE J05: writer 01a106ff-5a10-7b61-912f-5c5cda3b8173 RELEASED draft/CanRent.can, draft/CanRent.mjs (2-line disabled-list fix).
+- DONE J06: writer 01a10700-4a34-7c63-aad6-6bad3e9bfea1 RELEASED draft/CanStock.can, draft/CanStock.mjs (no changes).
+- ACK H004 READY ownership returned: accepted. Codex b06d873 confirmed as child of 0a79ac7; staging/commit ownership resumed. Production prompts are not Muse tasks; no new sessions; no reservations/design adopted. Staging inbox.md + monitor.md UNCHANGED per H004 authorization (both remain Codex-authored/read-only).
+- LIMITATION H002 watcher: wait-for-inbox.py crashes immediately (select.kqueue context-manager TypeError); Codex-owned, not patched by Muse. Used 5-min goal wakes + inbox re-reads instead; no busy polling. H004 latency unaffected in practice.
 - DONE D09: writer 01a106f7-5074-75b0-b216-779ca7635ae9 RELEASED draft/CanRent.can, draft/CanRent.md, draft/CanRent.mjs (incl coordinator Q2 repair). Inbox re-read: H001+H002+H003.
 - DONE J02: writer 01a106fb-c7b6-7ab1-a6e6-a7a4467f9aed RELEASED draft/CanLoyalty.can, draft/CanLoyalty.mjs (no changes). No new inbox IDs at verification.
 - DONE J03: writer 01a106fb-c8d9-75e2-9d72-f4b2258101f9 RELEASED draft/CanPurchase.can, draft/CanPurchase.mjs (no changes).
