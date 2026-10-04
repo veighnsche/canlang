@@ -355,6 +355,38 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     main's lock + SDK edge re-applied; suites re-verified green;
     merged with lane-06 + workspace CI green (lock sync fixed the
     `npm ci` failure the new dep had introduced).
+- S6 (in progress): branch `muse/lane-06-identity-interfaces/uploads`
+  from origin/main (090f7b4). Scope: POST /files/intents, PUT
+  /files/content/{id} (append + auto-complete), POST
+  /files/finalize/{id} per DESIGN section 8; session+bearer auth,
+  usesFiles gating, principal/binding construction, kernel-outcome
+  error mapping; _meta/intentsUrl consistency (S5 double fixed to
+  /files/intents).
+  - Join J6 (new, L4): @canlang/files ships no built surface, so S6
+    routes against a `FileKernel` port mirroring the real L4 entry
+    points (upload/index.ts + bridge.ts + finalize/index.ts) with
+    contracts file types; B1 binds the real kernel (compile-time
+    forcing function). Committed tests script the port (routing/auth/
+    mapping, like the L3 invoker precedent); kernel semantics stay
+    covered by L4 journey tests; a /tmp probe exercises the real
+    kernel through these routes as supplementary evidence.
+  - Lane-06 decisions: team slot falls back to user id in non-team
+    apps (L4 binder rejects empty); binding adapter constant
+    `bridge-v1`, deliveryId=upload_id, resultPath=field; PUT
+    auto-completes via kernel complete after every append (partial
+    = stay-open success, not error); foreign/expired collapse to
+    not_found (no oracle).
+  - Coordinator files: ports.ts (AppInfo.appId, FileUseInfo,
+    UploadReceiver/Binding, kernel outcomes, FileKernel, UploadDeps,
+    HttpDeps.uploads), testing.ts (fake kernel/use-info/upload deps),
+    routes.ts /files mount + UPLOADS_PREFIX, spy/literal updates.
+  - Implementer I owns uploads/{principals,routes}.ts + uploads.test.ts.
+  - Verification: interfaces 192/192 (32 new), committed tests script
+    the port; /tmp/s6-kernel-probe.mjs (supplementary, kept out of the
+    repo) drives the REAL L4 kernel through the compiled routes:
+    PROBE PASS 9/9 (grant, same-origin destinations, PUT complete with
+    accepted pdf check, wrong-digest conflict, finalize ref + repeat,
+    invented-intent 404, oversized 429, cross-team 404).
 
 ## Remaining work and cleanup
 

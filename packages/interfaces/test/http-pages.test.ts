@@ -89,11 +89,13 @@ function boomPage(): PageDescriptor {
 function spySub(overrides: Partial<HttpSubHandlers> = {}): HttpSubHandlers & {
   operationsCalls: Array<{ op: string }>;
   authCalls: number;
+  uploadsCalls: number;
 } {
   const operationsCalls: Array<{ op: string }> = [];
   const spy = {
     operationsCalls,
     authCalls: 0,
+    uploadsCalls: 0,
     operations: async (_req: Request, op: string) => {
       operationsCalls.push({ op });
       return new Response('op!', { status: 200 });
@@ -101,6 +103,10 @@ function spySub(overrides: Partial<HttpSubHandlers> = {}): HttpSubHandlers & {
     auth: async (_req: Request) => {
       spy.authCalls += 1;
       return new Response('auth!', { status: 200 });
+    },
+    uploads: async (_req: Request) => {
+      spy.uploadsCalls += 1;
+      return new Response('up!', { status: 200 });
     },
     ...overrides,
   };
