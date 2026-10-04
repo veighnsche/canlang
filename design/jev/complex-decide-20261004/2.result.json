@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Consider an unimplemented declarative application language. Its current named judgment feature writes binary-probability, categorical and rubric-score questions once and derives a remote evaluation signature, closed static categories, normalized evidence and probability-bearing results. It also supports ordinary typed service calls and retained, locked business records. The proposed app helps a company choose a process improvement: a schema-checked language-model reply supplies an evidence synopsis and up to eight candidate actions, while a person reviews or edits both before choosing to send the assessment. Fixed questions about information quality and practical feasibility accompany the variable candidate comparison. Two fixed exits must permit keeping the present process or requesting more evidence. Candidate identifiers cannot collide, response distributions must contain every and only admitted option, and all questions share one immutable reviewed snapshot. Regeneration creates a new review revision and makes old recommendations inapplicable to it. No output performs a company action or grants authority. Verified provider documentation describes TypeSafe choice inputs as request-local state/questions/criteria and outputs as a winner, probabilities and confidence; Ollama accepts a structured output schema whose returned data still requires validation. Draft interfaces may change freely. Compare alternatives using the same disclosure, cancellation, failed/uncertain delivery, bounded input and provenance duties; weigh both app repetition and shared-language obligations.",
+    "questions": {
+      "representation": {
+        "type": "choice",
+        "instructions": "Which design should own this fixed-rubric assessment of a reviewed model-created candidate list?",
+        "criteria": {
+          "extended": "Introduce a variable-candidate variant within the existing choice question declaration. The named judgment continues to own the other questions and predefined fallback cases, and its generated evaluator gains an options object keyed by only those variable questions. String candidate keys replace a compile-time enum only for such answers. Validation ties the exact input union and complete response to the frozen request. The arrangement shares today's interface and result generation while enlarging its type and correlation contract.",
+          "capability": "Specify one ordinary library capability for this evaluation, receiving the approved state, retained source specification and candidate collections and producing standard answer types. Existing static judgments remain available independently. Business records and existing sends maintain review/version association. The design avoids altering declaration grammar and centralizes generic schemas, but leaves two callable assessment forms and explicit answer/question matching in consumers.",
+          "runtime_spec": "Generalize evaluator inputs to a full typed runtime question specification. The app starts from company-written fixed guidance, substitutes reviewed choices and freezes the resulting mixed specification as one request. A common normalizer accepts generic answer shapes against that exact input. This also permits later changes to questions without another construct, but expands what can vary, requires broader instruction review and cannot promise static option literal types for these calls."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "representation": {
+        "type": "choice",
+        "choice": "extended",
+        "confidence": 0.8,
+        "probabilities": {
+          "capability": 0.1,
+          "extended": 0.87,
+          "runtime_spec": 0.03
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 838,
+      "output_tokens": 41
+    }
+  }
+}
