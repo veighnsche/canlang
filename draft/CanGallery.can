@@ -89,33 +89,61 @@ package gallery
  Then
   page /gallery title="Approved collections"@{nl="Goedgekeurde collecties"} poll=1s
    require members
-   list Collection as collection where can_read(actor,collection)
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
+   list Collection as collection where can_read(actor,collection) empty="No collections available"@{nl="Geen collecties beschikbaar"}
+    pagination
     title row.name
     form approved arguments={collection=row}
-     gallery result image=image
+     gallery result image=image empty="No approved images yet"@{nl="Nog geen goedgekeurde beelden"}
+      pagination
       title row.title
       text row.author,row.rights,row.decided_at
   page /gallery/submit title="My images and submissions"@{nl="Mijn beelden en inzendingen"} poll=1s
    require members
-   gallery Output as output where output.parent.state==succeeded image=image
+   breadcrumbs
+   gallery Output as output where output.parent.state==succeeded image=image empty="No successful images to submit"@{nl="Geen geslaagde beelden om in te dienen"}
+    pagination
     form submit arguments={output=row}
-   gallery Submission as submission where submission.author==actor image=image
+     select collection
+     input title
+     textarea statement
+     textarea rights
+   gallery Submission as submission where submission.author==actor image=image empty="No submissions yet"@{nl="Nog geen inzendingen"}
+    pagination
     title row.title
-    text row.state,row.reason,row.withdraw_reason
-    action withdraw
+    badge row.state
+    text row.reason,row.withdraw_reason
+    button opens=withdraw_image
+    modal "Withdraw image"@{nl="Beeld intrekken"} id=withdraw_image
+     slot content
+      form withdraw arguments={submission=row} display=inline
+       textarea reason
   page /gallery/review title="Image review"@{nl="Beeldbeoordeling"} poll=1s
    require reviewer
-   gallery Submission as submission where submission.state==pending and can_review(actor,submission.parent) image=image
+   breadcrumbs
+   gallery Submission as submission where submission.state==pending and can_review(actor,submission.parent) image=image empty="No images awaiting review"@{nl="Geen beelden ter beoordeling"}
+    pagination
     title row.title
     content row.statement
     text row.author,row.rights
-    action review
+    button opens=review_image
+    modal "Review image"@{nl="Beeld beoordelen"} id=review_image
+     slot content
+      form review arguments={submission=row} display=inline
+       checkbox approve
+       textarea reason
   page /gallery/access title="Collection access"@{nl="Collectietoegang"}
    require curator
+   breadcrumbs
    form Collection.create
-   list Collection as collection where collection.owner==actor
+    input name
+   list Collection as collection where collection.owner==actor empty="No collections yet"@{nl="Nog geen collecties"}
+    pagination
     title row.name
     edit fields=name,active
+    ## account:user stays generated: no user-picker vocabulary.
     form Access.create arguments={parent=row}
-    table row.Access columns=account,active
+    table row.Access columns=account,active empty="No granted accounts"@{nl="Geen accounts met toegang"}
+     pagination
      edit fields=active

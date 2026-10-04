@@ -317,63 +317,119 @@ package inbox label="Departmental inbox"@{nl="Afdelingspostvak"}
   # Work only with messages granted to your current queue; review preserves every earlier decision. @{nl="Werk alleen met berichten waarvoor je huidige wachtrij toegang geeft; elke eerdere beslissing blijft bewaard."}
   page /inbox title="Departmental inbox"@{nl="Afdelingspostvak"} poll=5s
    require mail_staff or inbox_admin
-   table Message as mail columns=envelope.received,envelope.sender,envelope.subject,queue,state filter=queue,state defaults={queue=preferences.queue,state=preferences.state} search=envelope.subject display=split
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
+   table Message as mail columns=envelope.received,envelope.sender,envelope.subject,queue,state filter=queue,state defaults={queue=preferences.queue,state=preferences.state} search=envelope.subject display=split empty="No messages in this queue"@{nl="Geen berichten in deze wachtrij"}
+    pagination
+    badge row.state
     text row.envelope.reply_to,row.envelope.body_complete,row.envelope.attachments_complete,row.envelope.attachment_count
     content row.envelope.body
     text row.envelope.attachments
-    details "Classification evidence"@{nl="Classificatiebewijs"}
-     text "Predictions do not grant another department access. Attachment contents are not classified."@{nl="Voorspellingen geven een andere afdeling geen inzage. Bijlage-inhoud wordt niet geclassificeerd."}
+    collapse "Classification evidence"@{nl="Classificatiebewijs"}
+     alert "Predictions do not grant another department access. Attachment contents are not classified."@{nl="Voorspellingen geven een andere afdeling geen inzage. Bijlage-inhoud wordt niet geclassificeerd."}
      form classify arguments={message=mail}
-     list mail.Assessment as assessment display=split
-      text row.number,row.state,row.error
+      checkbox additional
+     list mail.Assessment as assessment display=split empty="No assessments yet"@{nl="Nog geen beoordelingen"}
+      pagination
+      status row.state
+      text row.number,row.error
       text row.input,row.specification
-      details "Questions and complete results"@{nl="Vragen en volledige resultaten"}
+      collapse "Questions and complete results"@{nl="Vragen en volledige resultaten"}
        require row.result!=null
-       text row.result.model,row.result.specification_revision,row.result.reply.probability,row.result.route.choice,row.result.route.confidence,row.result.urgency.score,row.result.urgency.confidence,row.result.input_tokens,row.result.output_tokens
-       table row.result.route.probabilities columns=option,probability
-       table row.result.urgency.levels columns=level,index,description,probability
-    details "Review and permitted transfer"@{nl="Beoordeling en toegestane overdracht"}
+       badge row.result.route.choice
+       text row.result.model,row.result.specification_revision,row.result.reply.probability,row.result.route.confidence,row.result.urgency.score,row.result.urgency.confidence,row.result.input_tokens,row.result.output_tokens
+       table row.result.route.probabilities columns=option,probability empty="No route probabilities"@{nl="Geen routekansen"}
+        pagination
+       table row.result.urgency.levels columns=level,index,description,probability empty="No urgency levels"@{nl="Geen urgentieniveaus"}
+        pagination
+    collapse "Review and permitted transfer"@{nl="Beoordeling en toegestane overdracht"}
      require queue_route(actor,mail.queue)
-     list mail.mailbox.destinations as destination where destination.active display=split
-      text row.name,row.kind
+     list mail.mailbox.destinations as destination where destination.active display=split empty="No permitted destinations"@{nl="Geen toegestane doelwachtrijen"}
+      pagination
+      badge row.kind
+      text row.name
       form review arguments={message=mail,queue=destination}
-    list mail.Review
-     text row.queue,row.reply_needed,row.urgency,row.reason,row.evidence,row.reviewer,row.reviewed
-    details "Reviewed replies"@{nl="Beoordeelde antwoorden"}
-     details "Compose a reply"@{nl="Antwoord opstellen"}
+       checkbox reply_needed
+       radio urgency
+       textarea reason
+       ## evidence:file[] stays generated: no catalog array control.
+    list mail.Review empty="No routing decisions yet"@{nl="Nog geen toewijzingsbesluiten"}
+     pagination
+     badge row.urgency
+     text row.queue,row.reply_needed,row.reason,row.evidence,row.reviewer,row.reviewed
+    collapse "Reviewed replies"@{nl="Beoordeelde antwoorden"}
+     collapse "Compose a reply"@{nl="Antwoord opstellen"}
       require queue_reply(actor,mail.queue)
       form draft_reply arguments={message=mail}
-     list mail.Reply as reply display=split
-      text row.to,row.subject,row.body,row.attachments,row.state
-      details "Edit and approve draft"@{nl="Concept bewerken en goedkeuren"}
+       textarea body
+       ## attachments:file[] stays generated: no catalog array control.
+     list mail.Reply as reply display=split empty="No replies yet"@{nl="Nog geen antwoorden"}
+      pagination
+      badge row.state
+      content row.body
+      text row.to,row.subject,row.attachments
+      collapse "Edit and approve draft"@{nl="Concept bewerken en goedkeuren"}
        require row.state==draft and queue_reply(actor,mail.queue)
        form revise arguments={reply}
+        textarea body
+        ## attachments:file[] stays generated: no catalog array control.
        actions submit,discard
-      list reply.Attempt as attempt
-       text row.approved_by,row.approved_at,row.state,row.reference,row.detail,row.checks
-       details "Reconcile outcome"@{nl="Resultaat controleren"}
+      list reply.Attempt as attempt empty="No send attempts"@{nl="Geen verzendpogingen"}
+       pagination
+       badge row.state
+       text row.approved_by,row.approved_at,row.reference,row.detail,row.checks
+       collapse "Reconcile outcome"@{nl="Resultaat controleren"}
         require row==reply.current and row.state==unknown and queue_reply(actor,mail.queue)
         form reconcile arguments={attempt}
-       details "Resubmit proven unsent reply"@{nl="Bewezen onverzonden antwoord opnieuw indienen"}
+       collapse "Resubmit proven unsent reply"@{nl="Bewezen onverzonden antwoord opnieuw indienen"}
         require row==reply.current and row.state==not_sent and queue_reply(actor,mail.queue)
         form resubmit arguments={attempt}
        history
-    details "Resolve or reopen"@{nl="Afhandelen of heropenen"}
+    collapse "Resolve or reopen"@{nl="Afhandelen of heropenen"}
      require queue_route(actor,mail.queue) or queue_reply(actor,mail.queue)
      form resolve arguments={message=mail}
-    list mail.Disposition
+      checkbox close
+      textarea reason
+    list mail.Disposition empty="No resolutions recorded"@{nl="Geen afhandelingen vastgelegd"}
+     pagination
      text row.closed,row.reason,row.reviewer,row.reviewed
   # Configure mailbox boundaries, explicit departmental grants and classification budgets. @{nl="Stel postvakgrenzen, expliciete afdelingsmachtigingen en classificatiebudgetten in."}
   page /inbox/settings title="Inbox settings"@{nl="Postvakinstellingen"}
    require inbox_admin
+   breadcrumbs
    form Queue.create
-   table Queue columns=name,kind,active display=split
+    input name
+    radio kind
+    checkbox active
+   table Queue columns=name,kind,active display=split empty="No queues yet"@{nl="Nog geen wachtrijen"}
+    pagination
+    badge row.kind
+    text row.name,row.active
     edit
     form Grant.create
-    table row.Grant columns=account,route,reply,active
+     checkbox route
+     checkbox reply
+     checkbox active
+     ## account:user stays generated: no user-picker vocabulary.
+    table row.Grant columns=account,route,reply,active empty="No grants yet"@{nl="Nog geen machtigingen"}
+     pagination
+     text row.account,row.route,row.reply,row.active
      edit
    form Mailbox.create
-   table Mailbox columns=name,key,intake,enabled,classify,daily_limit display=split
+    fieldset "Identity and intake"@{nl="Identiteit en ontvangst"}
+     input key
+     input name
+     select intake
+    fieldset "Classification"@{nl="Classificatie"}
+     checkbox enabled
+     checkbox classify
+     input daily_limit
+    ## destinations:Queue[] stays generated: no catalog array control.
+   table Mailbox columns=name,key,intake,enabled,classify,daily_limit display=split empty="No mailboxes configured"@{nl="Geen postvakken ingesteld"}
+    pagination
     text row.destinations
+    text row.name,row.key,row.intake,row.enabled,row.classify,row.daily_limit
     edit
-    table row.DailyUsage columns=day,requests order=-day
+    table row.DailyUsage columns=day,requests order=-day empty="No usage recorded"@{nl="Geen verbruik geregistreerd"}
+     pagination
+     progress row.requests max=row.parent.daily_limit

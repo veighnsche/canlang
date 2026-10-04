@@ -3,7 +3,7 @@ import {
   int64, judgmentSpecification, local_date, records, require as check, same, send, set, trim,
 } from "@canlang/stdlib";
 import {
-  actions, content, details, edit, form, history, list, message, renderPage, table, text,
+  actions, alert, badge, breadcrumbs, checkbox, collapse, content, edit, fieldset, form, history, input as uiInput, list, message, pagination, progress, radio, renderPage, select, status, table, text, textarea,
 } from "@canlang/ui";
 
 /* Handwritten desired target, not implemented compiler output. DESIGN §13 owns
@@ -11,6 +11,10 @@ import {
  * exact scalars, localization and the shared shell. Judgment schemas are derived
  * once from judgments below; no hand-copied probability/option result schema.
  * Provider binding/reconciliation and the isolated BDD runner are unimplemented.
+ * Catalog factories added by the frontend replan (breadcrumbs, pagination, badge,
+ * status, collapse, alert, fieldset, input, select, checkbox, textarea, progress)
+ * are desired contracts. UI input is imported as uiInput because derive
+ * inbox.input owns the input binding; the compiler must qualify one side.
  */
 const inboxPageDescriptor = {
   owner: "inbox", path: "/inbox", title: message("Departmental inbox", { nl: "Afdelingspostvak" }), poll: 5000n,
@@ -377,59 +381,81 @@ export function canApp() {
 
 export async function inboxPage(c, bindings) {
   return renderPage(c, inboxPageDescriptor, () => [
+    /* desired-unimplemented: breadcrumbs, pagination, badge, status, collapse, alert, checkbox, select, textarea. */
+    breadcrumbs({ context: c }),
     table({
       context: c, model: "inbox.Message", columns: ["envelope.received", "envelope.sender", "envelope.subject", "queue", "state"],
       filter: ["queue", "state"], defaults: { queue: c.preferences.inbox.queue, state: c.preferences.inbox.state }, search: ["envelope.subject"], display: "split",
+      empty: message("No messages in this queue", { nl: "Geen berichten in deze wachtrij" }),
       renderRow: async (mail, view) => [
+        pagination({ context: view }),
+        badge({ context: view, value: mail.state }),
         text({ context: view, values: [mail.envelope.reply_to, mail.envelope.body_complete, mail.envelope.attachments_complete, mail.envelope.attachment_count] }),
         content({ context: view, value: mail.envelope.body }),
         text({ context: view, values: [mail.envelope.attachments] }),
-        details({ context: view, caption: message("Classification evidence", { nl: "Classificatiebewijs" }), children: [
-          text({ context: view, values: [message("Predictions do not grant another department access. Attachment contents are not classified.", { nl: "Voorspellingen geven een andere afdeling geen inzage. Bijlage-inhoud wordt niet geclassificeerd." })] }),
-          form({ context: view, operation: "inbox.classify", arguments: { message: mail } }),
-          list({ context: view, model: "inbox.Assessment", parent: mail, display: "split", renderRow: (assessment, assessmentView) => [
-            text({ context: assessmentView, values: [assessment.number, assessment.state, assessment.error] }),
+        collapse({ context: view, caption: message("Classification evidence", { nl: "Classificatiebewijs" }), children: [
+          alert({ context: view, value: message("Predictions do not grant another department access. Attachment contents are not classified.", { nl: "Voorspellingen geven een andere afdeling geen inzage. Bijlage-inhoud wordt niet geclassificeerd." }) }),
+          form({ context: view, operation: "inbox.classify", arguments: { message: mail }, children: [checkbox({ context: view, field: "additional" })] }),
+          list({ context: view, model: "inbox.Assessment", parent: mail, display: "split", empty: message("No assessments yet", { nl: "Nog geen beoordelingen" }), renderRow: (assessment, assessmentView) => [
+            pagination({ context: assessmentView }),
+            status({ context: assessmentView, value: assessment.state }),
+            text({ context: assessmentView, values: [assessment.number, assessment.error] }),
             text({ context: assessmentView, values: [assessment.input, assessment.specification] }),
-            ...(assessment.result !== null ? [details({ context: assessmentView, caption: message("Questions and complete results", { nl: "Vragen en volledige resultaten" }), children: [
-              text({ context: assessmentView, values: [assessment.result.model, assessment.result.specification_revision, assessment.result.reply.probability, assessment.result.route.choice, assessment.result.route.confidence, assessment.result.urgency.score, assessment.result.urgency.confidence, assessment.result.input_tokens, assessment.result.output_tokens] }),
-              table({ context: assessmentView, items: assessment.result.route.probabilities, contract: "inbox.Triage.route.probabilities.item", columns: ["option", "probability"] }),
-              table({ context: assessmentView, items: assessment.result.urgency.levels, contract: "inbox.Triage.urgency.levels.item", columns: ["level", "index", "description", "probability"] }),
+            ...(assessment.result !== null ? [collapse({ context: assessmentView, caption: message("Questions and complete results", { nl: "Vragen en volledige resultaten" }), children: [
+              badge({ context: assessmentView, value: assessment.result.route.choice }),
+              text({ context: assessmentView, values: [assessment.result.model, assessment.result.specification_revision, assessment.result.reply.probability, assessment.result.route.confidence, assessment.result.urgency.score, assessment.result.urgency.confidence, assessment.result.input_tokens, assessment.result.output_tokens] }),
+              table({ context: assessmentView, items: assessment.result.route.probabilities, contract: "inbox.Triage.route.probabilities.item", columns: ["option", "probability"], empty: message("No route probabilities", { nl: "Geen routekansen" }), renderRow: (row, rowView) => [pagination({ context: rowView })] }),
+              table({ context: assessmentView, items: assessment.result.urgency.levels, contract: "inbox.Triage.urgency.levels.item", columns: ["level", "index", "description", "probability"], empty: message("No urgency levels", { nl: "Geen urgentieniveaus" }), renderRow: (row, rowView) => [pagination({ context: rowView })] }),
             ] })] : []),
           ] }),
         ] }),
-        ...(await queue_route(view, view.actor, mail.queue) ? [details({ context: view, caption: message("Review and permitted transfer", { nl: "Beoordeling en toegestane overdracht" }), children: [
-          list({ context: view, items: mail.mailbox.destinations.filter(destination => destination.active), display: "split", renderRow: (destination, destinationView) => [
-            text({ context: destinationView, values: [destination.name, destination.kind] }),
-            form({ context: destinationView, operation: "inbox.review", arguments: { message: mail, queue: destination } }),
+        ...(await queue_route(view, view.actor, mail.queue) ? [collapse({ context: view, caption: message("Review and permitted transfer", { nl: "Beoordeling en toegestane overdracht" }), children: [
+          list({ context: view, items: mail.mailbox.destinations.filter(destination => destination.active), display: "split", empty: message("No permitted destinations", { nl: "Geen toegestane doelwachtrijen" }), renderRow: (destination, destinationView) => [
+            pagination({ context: destinationView }),
+            badge({ context: destinationView, value: destination.kind }),
+            text({ context: destinationView, values: [destination.name] }),
+            form({ context: destinationView, operation: "inbox.review", arguments: { message: mail, queue: destination }, children: [checkbox({ context: destinationView, field: "reply_needed" }), radio({ context: destinationView, field: "urgency" }), textarea({ context: destinationView, field: "reason" })] }),
           ] }),
         ] })] : []),
-        list({ context: view, model: "inbox.Review", parent: mail, renderRow: (review, reviewView) => [text({ context: reviewView, values: [review.queue, review.reply_needed, review.urgency, review.reason, review.evidence, review.reviewer, review.reviewed] })] }),
-        details({ context: view, caption: message("Reviewed replies", { nl: "Beoordeelde antwoorden" }), children: [
-          ...(await queue_reply(view, view.actor, mail.queue) ? [details({ context: view, caption: message("Compose a reply", { nl: "Antwoord opstellen" }), children: [
-            form({ context: view, operation: "inbox.draft_reply", arguments: { message: mail } }),
+        list({ context: view, model: "inbox.Review", parent: mail, empty: message("No routing decisions yet", { nl: "Nog geen toewijzingsbesluiten" }), renderRow: (review, reviewView) => [
+          pagination({ context: reviewView }),
+          badge({ context: reviewView, value: review.urgency }),
+          text({ context: reviewView, values: [review.queue, review.reply_needed, review.reason, review.evidence, review.reviewer, review.reviewed] }),
+        ] }),
+        collapse({ context: view, caption: message("Reviewed replies", { nl: "Beoordeelde antwoorden" }), children: [
+          ...(await queue_reply(view, view.actor, mail.queue) ? [collapse({ context: view, caption: message("Compose a reply", { nl: "Antwoord opstellen" }), children: [
+            form({ context: view, operation: "inbox.draft_reply", arguments: { message: mail }, children: [textarea({ context: view, field: "body" })] }),
           ] })] : []),
-          list({ context: view, model: "inbox.Reply", parent: mail, display: "split", renderRow: async (reply, replyView) => [
-            text({ context: replyView, values: [reply.to, reply.subject, reply.body, reply.attachments, reply.state] }),
-            ...(reply.state === "draft" && await queue_reply(replyView, replyView.actor, mail.queue) ? [details({ context: replyView, caption: message("Edit and approve draft", { nl: "Concept bewerken en goedkeuren" }), children: [
-              form({ context: replyView, operation: "inbox.revise", arguments: { reply } }),
+          list({ context: view, model: "inbox.Reply", parent: mail, display: "split", empty: message("No replies yet", { nl: "Nog geen antwoorden" }), renderRow: async (reply, replyView) => [
+            pagination({ context: replyView }),
+            badge({ context: replyView, value: reply.state }),
+            content({ context: replyView, value: reply.body }),
+            text({ context: replyView, values: [reply.to, reply.subject, reply.attachments] }),
+            ...(reply.state === "draft" && await queue_reply(replyView, replyView.actor, mail.queue) ? [collapse({ context: replyView, caption: message("Edit and approve draft", { nl: "Concept bewerken en goedkeuren" }), children: [
+              form({ context: replyView, operation: "inbox.revise", arguments: { reply }, children: [textarea({ context: replyView, field: "body" })] }),
               actions({ context: replyView, operations: ["inbox.submit", "inbox.discard"], boundArgs: { reply } }),
             ] })] : []),
-            list({ context: replyView, model: "inbox.Attempt", parent: reply, renderRow: async (attempt, attemptView) => [
-              text({ context: attemptView, values: [attempt.approved_by, attempt.approved_at, attempt.state, attempt.reference, attempt.detail, attempt.checks] }),
-              ...(same(attempt, reply.current) && attempt.state === "unknown" && await queue_reply(attemptView, attemptView.actor, mail.queue) ? [details({ context: attemptView, caption: message("Reconcile outcome", { nl: "Resultaat controleren" }), children: [
+            list({ context: replyView, model: "inbox.Attempt", parent: reply, empty: message("No send attempts", { nl: "Geen verzendpogingen" }), renderRow: async (attempt, attemptView) => [
+              pagination({ context: attemptView }),
+              badge({ context: attemptView, value: attempt.state }),
+              text({ context: attemptView, values: [attempt.approved_by, attempt.approved_at, attempt.reference, attempt.detail, attempt.checks] }),
+              ...(same(attempt, reply.current) && attempt.state === "unknown" && await queue_reply(attemptView, attemptView.actor, mail.queue) ? [collapse({ context: attemptView, caption: message("Reconcile outcome", { nl: "Resultaat controleren" }), children: [
                 form({ context: attemptView, operation: "inbox.reconcile", arguments: { attempt } }),
               ] })] : []),
-              ...(same(attempt, reply.current) && attempt.state === "not_sent" && await queue_reply(attemptView, attemptView.actor, mail.queue) ? [details({ context: attemptView, caption: message("Resubmit proven unsent reply", { nl: "Bewezen onverzonden antwoord opnieuw indienen" }), children: [
+              ...(same(attempt, reply.current) && attempt.state === "not_sent" && await queue_reply(attemptView, attemptView.actor, mail.queue) ? [collapse({ context: attemptView, caption: message("Resubmit proven unsent reply", { nl: "Bewezen onverzonden antwoord opnieuw indienen" }), children: [
                 form({ context: attemptView, operation: "inbox.resubmit", arguments: { attempt } }),
               ] })] : []),
               history({ context: attemptView, record: attempt }),
             ] }),
           ] }),
         ] }),
-        ...(await queue_route(view, view.actor, mail.queue) || await queue_reply(view, view.actor, mail.queue) ? [details({ context: view, caption: message("Resolve or reopen", { nl: "Afhandelen of heropenen" }), children: [
-          form({ context: view, operation: "inbox.resolve", arguments: { message: mail } }),
+        ...(await queue_route(view, view.actor, mail.queue) || await queue_reply(view, view.actor, mail.queue) ? [collapse({ context: view, caption: message("Resolve or reopen", { nl: "Afhandelen of heropenen" }), children: [
+          form({ context: view, operation: "inbox.resolve", arguments: { message: mail }, children: [checkbox({ context: view, field: "close" }), textarea({ context: view, field: "reason" })] }),
         ] })] : []),
-        list({ context: view, model: "inbox.Disposition", parent: mail, renderRow: (decision, decisionView) => [text({ context: decisionView, values: [decision.closed, decision.reason, decision.reviewer, decision.reviewed] })] }),
+        list({ context: view, model: "inbox.Disposition", parent: mail, empty: message("No resolutions recorded", { nl: "Geen afhandelingen vastgelegd" }), renderRow: (decision, decisionView) => [
+          pagination({ context: decisionView }),
+          text({ context: decisionView, values: [decision.closed, decision.reason, decision.reviewer, decision.reviewed] }),
+        ] }),
       ],
     }),
   ]);
@@ -437,17 +463,34 @@ export async function inboxPage(c, bindings) {
 
 export async function settingsPage(c, bindings) {
   return renderPage(c, settingsPageDescriptor, () => [
-    form({ context: c, operation: "inbox.Queue.create" }),
-    table({ context: c, model: "inbox.Queue", columns: ["name", "kind", "active"], display: "split", renderRow: (queue, view) => [
+    /* desired-unimplemented: breadcrumbs, pagination, badge, fieldset, input, select, checkbox, progress. */
+    breadcrumbs({ context: c }),
+    form({ context: c, operation: "inbox.Queue.create", children: [uiInput({ context: c, field: "name" }), radio({ context: c, field: "kind" }), checkbox({ context: c, field: "active" })] }),
+    table({ context: c, model: "inbox.Queue", columns: ["name", "kind", "active"], display: "split", empty: message("No queues yet", { nl: "Nog geen wachtrijen" }), renderRow: (queue, view) => [
+      pagination({ context: view }),
+      badge({ context: view, value: queue.kind }),
+      text({ context: view, values: [queue.name, queue.active] }),
       edit({ context: view, operation: "inbox.Queue.update", record: queue }),
-      form({ context: view, operation: "inbox.Grant.create", arguments: { parent: queue } }),
-      table({ context: view, model: "inbox.Grant", parent: queue, columns: ["account", "route", "reply", "active"], renderRow: (grant, grantView) => [edit({ context: grantView, operation: "inbox.Grant.update", record: grant })] }),
+      form({ context: view, operation: "inbox.Grant.create", arguments: { parent: queue }, children: [checkbox({ context: view, field: "route" }), checkbox({ context: view, field: "reply" }), checkbox({ context: view, field: "active" })] }),
+      table({ context: view, model: "inbox.Grant", parent: queue, columns: ["account", "route", "reply", "active"], empty: message("No grants yet", { nl: "Nog geen machtigingen" }), renderRow: (grant, grantView) => [
+        pagination({ context: grantView }),
+        text({ context: grantView, values: [grant.account, grant.route, grant.reply, grant.active] }),
+        edit({ context: grantView, operation: "inbox.Grant.update", record: grant }),
+      ] }),
     ] }),
-    form({ context: c, operation: "inbox.Mailbox.create" }),
-    table({ context: c, model: "inbox.Mailbox", columns: ["name", "key", "intake", "enabled", "classify", "daily_limit"], display: "split", renderRow: (mailbox, view) => [
+    form({ context: c, operation: "inbox.Mailbox.create", children: [
+      fieldset({ context: c, caption: message("Identity and intake", { nl: "Identiteit en ontvangst" }), children: [uiInput({ context: c, field: "key" }), uiInput({ context: c, field: "name" }), select({ context: c, field: "intake" })] }),
+      fieldset({ context: c, caption: message("Classification", { nl: "Classificatie" }), children: [checkbox({ context: c, field: "enabled" }), checkbox({ context: c, field: "classify" }), uiInput({ context: c, field: "daily_limit" })] }),
+    ] }),
+    table({ context: c, model: "inbox.Mailbox", columns: ["name", "key", "intake", "enabled", "classify", "daily_limit"], display: "split", empty: message("No mailboxes configured", { nl: "Geen postvakken ingesteld" }), renderRow: (mailbox, view) => [
+      pagination({ context: view }),
       text({ context: view, values: [mailbox.destinations] }),
+      text({ context: view, values: [mailbox.name, mailbox.key, mailbox.intake, mailbox.enabled, mailbox.classify, mailbox.daily_limit] }),
       edit({ context: view, operation: "inbox.Mailbox.update", record: mailbox }),
-      table({ context: view, model: "inbox.DailyUsage", parent: mailbox, columns: ["day", "requests"], order: ["-day"] }),
+      table({ context: view, model: "inbox.DailyUsage", parent: mailbox, columns: ["day", "requests"], order: ["-day"], empty: message("No usage recorded", { nl: "Geen verbruik geregistreerd" }), renderRow: (usage, usageView) => [
+        pagination({ context: usageView }),
+        progress({ context: usageView, value: usage.requests, max: mailbox.daily_limit }),
+      ] }),
     ] }),
   ]);
 }
