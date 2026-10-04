@@ -63,7 +63,9 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
   it("-h and -V match their long aliases", async () => {
     const help = await runCli(["-h"]);
     expect(help.code).toBe(0);
-    expect(envelope(help.stdout)).toMatchObject({ ok: true });
+    const helpBody = envelope(help.stdout);
+    expect(helpBody).toMatchObject({ ok: true, name: "can-platform", version: "0.1.0" });
+    expect(typeof helpBody["usage"]).toBe("string");
     const version = await runCli(["-V"]);
     expect(version.code).toBe(0);
     expect(envelope(version.stdout)).toEqual({
@@ -91,6 +93,12 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
     const dupEnv = await runCli(["run", "--artifact", path, "--env", "a", "--env", "b"]);
     expect(dupEnv.code).toBe(2);
     expect(envelope(dupEnv.stdout)).toMatchObject({ ok: false, code: "usage" });
+  });
+
+  it("trailing flag without a value is a usage failure", async () => {
+    const result = await runCli(["run", "--artifact"]);
+    expect(result.code).toBe(2);
+    expect(envelope(result.stdout)).toMatchObject({ ok: false, code: "usage" });
   });
 
   it("no command is a usage failure", async () => {
