@@ -1,0 +1,48 @@
+{
+  "request": {
+    "state": {
+      "context": "Can specifies typed SaaS source for AI generation. A user asks for language-level access to the complete daisyUI collection, explaining that the small existing set causes agents to restrict their designs. Official upstream material identifies 68 components in 5.7.47. The current authored surface consists of page/form/action and collection declarations plus card, details, tabs and metrics, with some widgets generated implicitly. Its grammar has closed header and attribute lists. Newer documented forms exceed the old parser, the Rust binary has reserved commands only, and the UI implementation lane is still awaiting launch. The following options are draft syntax designs, not available library functions.",
+      "constraints": "An acceptable choice must cover every entry, continue deriving input types and allowed writes from canonical operations, and maintain read disclosure, server permission/guard checks, version handling and escaping. Page metadata owns route navigation, common preferences own theme state, collection machinery owns cursors, and defaults own the standard shell. Do not add handwritten HTML/CSS/JS, per-app UI imports, repeated input contracts or a competing business invocation path. The earlier UI subset is a changeable design choice. Library styles alone do not deliver behavior: calendar styles need an input adapter distinct from an agenda, OTP decoration is not an auth workflow, and paging/theme presentations must reuse their existing state owners. All proposals incur parser/checker and interaction implementation work.",
+      "evaluation": "Judge all candidates against adoption and AI discovery, concise source, determinate context-based parsing, repairable diagnostics, reuse of authoritative bindings and long-term engineering cost. This language has no deployed compatibility obligation, although changing drafts and readability are real considerations. Do not equate source length or classifier confidence with a functioning application.",
+      "sources": [
+        "https://daisyui.com/components/",
+        "REQUIREMENTS.md",
+        "DESIGN.md §9",
+        "GRAMMAR.md Presentation and routes",
+        "implementation/status/lane-05.md"
+      ],
+      "technical_evidence": "form_header = \"form\" expr attributes ;\ncollection_head = \"list\" | \"table\" | \"board\" | \"calendar\" | \"gallery\" ;"
+    },
+    "questions": {
+      "surface": {
+        "type": "choice",
+        "instructions": "Select the notation with the best overall balance for complete component availability under these conditions.",
+        "criteria": {
+          "direct": "Allow recognizable component words, for example badge, tooltip, rating and modal, as headers distinguished by their presentation context while keeping semantic declarations. A typed inventory governs arguments, child slots and permitted parents, connecting controls to existing form/operation, setting and destination ownership. Names are visible with low per-use overhead; added productions/checks and ambiguous names such as calendar increase specification and maintenance demands.",
+          "generic": "Route all widgets through component NAME and a full checked catalog without removing semantic constructs. Payload types, child structure and parent rules enforce exactly the same binding contract. This unifies syntax dispatch and update handling, but spends extra tokens on the shared prefix and requires disciplined per-widget diagnostics to avoid an untyped property escape hatch.",
+          "mixed": "Attach display=NAME to the semantic constructs that can own a widget, using present NAME for the remaining inventory. The catalog remains complete and typed, including child/context restrictions and identical authority rules. Binding reuse is explicit and part of the grammar can stay small; heterogeneous selection syntax and sometimes deeper composition make agent discovery and authoring more demanding."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "surface": {
+        "type": "choice",
+        "choice": "direct",
+        "confidence": 0.45,
+        "probabilities": {
+          "mixed": 0.21,
+          "direct": 0.63,
+          "generic": 0.16
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 995,
+      "output_tokens": 38
+    }
+  }
+}
