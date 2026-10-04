@@ -4491,6 +4491,18 @@ impl<'a> Resolver<'a> {
             SyntaxKind::CatalogItem => {
                 for child in kids(node) {
                     if is_expression(child.kind) {
+                        // M6 extension (PR6): a bare-word header position
+                        // (`input title`) is catalog vocabulary — a field
+                        // selector against the component's record — not a
+                        // name reference. Binding it needs per-component
+                        // header profiles, and no producer UI catalog
+                        // exists yet, so it stays silent like `NAME=word`
+                        // options (recorded hole, see module docs).
+                        // Complex expressions (calls, member paths) still
+                        // resolve: only single names are vocabulary.
+                        if child.kind == SyntaxKind::NameRef {
+                            continue;
+                        }
                         self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags);
                     } else if is_ui_child(child.kind) {
                         self.walk_ui(text, module, scope, child, diags);

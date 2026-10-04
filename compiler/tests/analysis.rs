@@ -673,7 +673,17 @@ fn draft_outcome_table() {
     };
     let catalog = load_real_catalog(&path);
     // (file, expected diagnostic count). Counts regenerated 2026-10-04
-    // for the PR5 review fixes (M1: the dedup key now includes
+    // for PR6 (slice-23 example drift + 2 checker fixes), attribution
+    // proven per file against a PR5-merged binary on the same drafts:
+    // E2 -778 (781 catalog-header E2001s silenced by the M6 extension,
+    // 3 E2013 row-member finds on CanCheck from typed rows); E3 -3 net
+    // (+2 CanDesk member/type finds, -5 cascades incl. 2 E3001
+    // follow-ons sampled on CanRent); E1/E4/E5 unchanged (E4 still 0,
+    // E5 26 after draft-side moves). CanShift 4 / CanVolunteer 3 hold.
+    // Checker-attributed movement is -781; the table total moved 8196
+    // -> 7474 (-722), so draft-side slices 16-23 replans between the
+    // two regens contribute +59 net drift (real, confirmed movement).
+    // Previous regen (PR5 review fixes) (M1: the dedup key now includes
     // end+message), restoring 249 findings the old (file, start, code)
     // key had collapsed (E2 +14, E3 +233, E5 +2 -- CanCRM and CanTable
     // each regain one intra-pass E5 repeat). Attribution is measured
@@ -700,53 +710,53 @@ fn draft_outcome_table() {
     // other adds) plus the PR5B carryover (CanCreative -1:
     // `application/json` fixture type now accepted per DESIGN §5).
     let table: &[(&str, usize)] = &[
-        ("draft/CanAffiliate.can", 108),
-        ("draft/CanApprove.can", 103),
-        ("draft/CanBoard.can", 14),
-        ("draft/CanBook.can", 233),
-        ("draft/CanCRM.can", 197),
-        ("draft/CanCatch.can", 111),
-        ("draft/CanChat.can", 147),
-        ("draft/CanCheck.can", 100),
-        ("draft/CanContract.can", 102),
-        ("draft/CanCreative.can", 219),
-        ("draft/CanCustomer.can", 109),
-        ("draft/CanDecide.can", 66),
-        ("draft/CanDesk.can", 157),
-        ("draft/CanDiscover.can", 179),
-        ("draft/CanDo.can", 64),
-        ("draft/CanEnrich.can", 53),
-        ("draft/CanEvent.can", 478),
-        ("draft/CanExpense.can", 128),
-        ("draft/CanFeedback.can", 36),
-        ("draft/CanField.can", 131),
-        ("draft/CanGallery.can", 40),
-        ("draft/CanGrant.can", 102),
-        ("draft/CanHire.can", 164),
-        ("draft/CanInbox.can", 201),
-        ("draft/CanInvoice.can", 660),
-        ("draft/CanKnowledge.can", 123),
-        ("draft/CanLearn.can", 50),
-        ("draft/CanLeave.can", 105),
-        ("draft/CanLoyalty.can", 133),
-        ("draft/CanMail.can", 241),
-        ("draft/CanMaintain.can", 186),
-        ("draft/CanMember.can", 566),
+        ("draft/CanAffiliate.can", 105),
+        ("draft/CanApprove.can", 93),
+        ("draft/CanBoard.can", 7),
+        ("draft/CanBook.can", 222),
+        ("draft/CanCRM.can", 158),
+        ("draft/CanCatch.can", 104),
+        ("draft/CanChat.can", 134),
+        ("draft/CanCheck.can", 103),
+        ("draft/CanContract.can", 72),
+        ("draft/CanCreative.can", 195),
+        ("draft/CanCustomer.can", 95),
+        ("draft/CanDecide.can", 60),
+        ("draft/CanDesk.can", 140),
+        ("draft/CanDiscover.can", 158),
+        ("draft/CanDo.can", 56),
+        ("draft/CanEnrich.can", 46),
+        ("draft/CanEvent.can", 465),
+        ("draft/CanExpense.can", 107),
+        ("draft/CanFeedback.can", 26),
+        ("draft/CanField.can", 116),
+        ("draft/CanGallery.can", 32),
+        ("draft/CanGrant.can", 89),
+        ("draft/CanHire.can", 146),
+        ("draft/CanInbox.can", 182),
+        ("draft/CanInvoice.can", 615),
+        ("draft/CanKnowledge.can", 102),
+        ("draft/CanLearn.can", 55),
+        ("draft/CanLeave.can", 91),
+        ("draft/CanLoyalty.can", 121),
+        ("draft/CanMail.can", 234),
+        ("draft/CanMaintain.can", 178),
+        ("draft/CanMember.can", 528),
         ("draft/CanOnboard.can", 67),
-        ("draft/CanPropose.can", 201),
-        ("draft/CanPurchase.can", 238),
-        ("draft/CanReception.can", 258),
-        ("draft/CanRefer.can", 139),
-        ("draft/CanRent.can", 1032),
+        ("draft/CanPropose.can", 182),
+        ("draft/CanPurchase.can", 196),
+        ("draft/CanReception.can", 238),
+        ("draft/CanRefer.can", 132),
+        ("draft/CanRent.can", 932),
         ("draft/CanReport.can", 52),
         ("draft/CanShift.can", 4),
         ("draft/CanStats.can", 82),
-        ("draft/CanStock.can", 142),
+        ("draft/CanStock.can", 125),
         ("draft/CanSuccess.can", 107),
-        ("draft/CanSync.can", 71),
-        ("draft/CanTable.can", 73),
-        ("draft/CanTime.can", 163),
-        ("draft/CanTrade.can", 43),
+        ("draft/CanSync.can", 75),
+        ("draft/CanTable.can", 53),
+        ("draft/CanTime.can", 147),
+        ("draft/CanTrade.can", 29),
         ("draft/CanVolunteer.can", 3),
         ("draft/CanWorkbench.can", 140),
         ("draft/shared/Employees.can", 14),
@@ -1254,19 +1264,48 @@ fn read_scenarios_rejected_as_action_targets() {
 /// their siblings; positional catalog domains are expressions.
 /// Catalog `NAME=word` options stay silent: words are PR5 membership
 /// work (a word is not a name reference), pinned here deliberately.
+/// M6 extension (PR6): bare-word catalog headers (`input title`) are
+/// field-selector vocabulary, not references — silent until
+/// per-component header profiles land (no producer UI catalog exists
+/// yet). Core leafs (`text`) stay strict, and complex catalog
+/// expressions (calls, member paths) still resolve.
 #[test]
 fn ui_transparent_groups_resolve() {
     let catalog = fixture();
-    let src = "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\nThen\n page /t title=\"T\"\n  modal \"M\" id=dlg\n   slot content\n    text nosuchvar\n  badge nosuchvar2\n";
+    let src = "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\nThen\n page /t title=\"T\"\n  modal \"M\" id=dlg\n   slot content\n    text nosuchvar\n  badge nosuchvar2\n  badge count(nosuchvar3)\n";
     assert_findings(
         src,
         &check(src, Some(&catalog)),
-        &[("E2001", "nosuchvar", 1), ("E2001", "nosuchvar2", 1)],
+        &[("E2001", "nosuchvar", 1), ("E2001", "nosuchvar3", 1)],
     );
     // Option words are catalog vocabulary, not references: silent.
     assert_clean(
         "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\nThen\n page /t title=\"T\"\n  badge \"x\" tone=primary\n",
         Some(&catalog),
+    );
+    // Bare-word catalog headers are field-selector vocabulary: silent.
+    assert_clean(
+        "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\nThen\n page /t title=\"T\"\n  card \"C\"\n   input title\n",
+        Some(&catalog),
+    );
+}
+
+/// PR6: `row` in UI collections types from the domain model, so
+/// enum cases claim in collection children (`require row.status==x`)
+/// exactly like scenario guards. Unknown cases still E2001.
+#[test]
+fn ui_row_enum_cases_claim() {
+    let catalog = fixture();
+    let given = "app T\nGiven\n Expense { status:enum(draft,submitted)=draft }\n policy Expense read=members\nWhen\nThen\n page / title=\"E\"\n  card \"C\"\n   list Expense\n";
+    assert_clean(
+        &format!("{given}    alert\n     require row.status==draft\n     text row.status\n"),
+        Some(&catalog),
+    );
+    let bad = format!("{given}    alert\n     require row.status==nosuchcase\n");
+    assert_findings(
+        &bad,
+        &check(&bad, Some(&catalog)),
+        &[("E2001", "nosuchcase", 1)],
     );
 }
 
