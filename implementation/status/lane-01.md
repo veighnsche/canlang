@@ -100,6 +100,9 @@ Agent rules (all): one owned worktree, disjoint exact files above, no git/stage/
 ## Progress and file reservations
 
 - 2026-10-04: worktree + goal created; plan written. Reserved: coordinator `compiler/src/{lib,main,source,diagnostic}.rs`, `compiler/tests/foundation.rs`, `.github/workflows/lane-01.yml`, `packages/contracts/src/{artifact,diagnostic}.ts`, this file. Free: `syntax/*`, `analysis/*`, `codegen/*`, `{cli,lint,format,ide,lsp}/*`, `editors/vscode/src/*`.
+- 2026-10-04: slice 1 SYNTAX done (agent): `syntax/{lexer,layout,cst,parser,mod}.rs` + `tests/syntax.rs`; 23 lib + 36 integration tests, 44/44 corpus clean, clippy/fmt clean. Coordinator wired `pub mod syntax`, verified all 90 tests green.
+- 2026-10-04: slice 2a AUTHOR done (agent): `cli.rs`, `explain.rs`, `lsp/*`, `tests/authoring.rs` (27 tests, wiring shim to remove), `editors/vscode/src/*` + package.json/README. Verified green; wiring + PR3 after PR2 merges.
+- 2026-10-04: main advanced e204d07→f5f2b5e (16 lane merges). GRAMMAR/DESIGN unchanged; no main changes under compiler/editors/vscode/lane-01 files. Branch rebased via checkout -B; full suite re-verified green. IR-02 SATISFIED: L7 index.ts re-exports artifact+diagnostic. L2 catalog live (50+ entries, adopted IR-01 sketch) — analysis slice can consume it.
 
 ## Interface requests and handoffs
 
@@ -109,7 +112,7 @@ Agent rules (all): one owned worktree, disjoint exact files above, no git/stage/
 
 ## PR and verification evidence
 
-No PRs yet. Per-slice entries will record: branch, reviewed head sha, checks run with results, contracts touched, residual limits, merge sha.
+- PR1 https://github.com/veighnsche/canlang/pull/2 (merged 2026-10-04 as `e204d07`): slice-0 foundation. Branch `muse/lane-01-language/plan`, reviewed head `85c9dae` (2 commits incl. review fixes), squash-merged with `--match-head-commit`. Checks: lane-01 rust/contracts/editor all SUCCESS (push + PR runs); local `cargo test` 12 passed, clippy `-D warnings` clean, fmt clean, tsc strict clean. Independent read-only subagent review: 2 material CRLF location findings + 4 nits, all fixed and re-verified before merge. Residual: binary still scaffold-only; no parser/analysis/emission.
 
 ## Remaining work and cleanup
 
