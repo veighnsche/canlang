@@ -4,8 +4,10 @@
  * - One fixed base URL per client; requests outside its origin are
  *   rejected before sending, and cross-origin redirects are refused
  *   with `HttpRedirectError` (same-origin redirects are followed).
- * - `AbortController` timeout: expiry yields a `timeout` transport
- *   error, unreachable hosts a `network-error` transport error.
+ * - `AbortController` timeout: one deadline covers headers, redirect hops
+ *   and the bounded body read. Expiry yields a `timeout` transport error
+ *   (even mid-body: a header-then-drip response cannot hang the adapter);
+ *   unreachable hosts yield `network-error`.
  * - Response bodies are read through a bounded reader (`maxBodyBytes`);
  *   oversized bodies yield `HttpBodyLimitError`, never truncation.
  * - Non-2xx responses yield `HttpStatusError` with 4xx-permanent /
@@ -161,6 +163,7 @@ export async function httpRequest(
   let body: string | undefined = request.body;
   let hops = 0;
   let response: Response;
+  let bodyText: string;
   try {
     for (;;) {
       const headers: Record<string, string> = {};
@@ -192,7 +195,13 @@ export async function httpRequest(
       try {
         await response.arrayBuffer();
       } catch {
+        if (timedOut) {
+          throw new HttpTransportError('timeout');
+        }
         // Drained body is best effort; the hop below is what matters.
+      }
+      if (timedOut) {
+        throw new HttpTransportError('timeout');
       }
       if (location === null) {
         break;
@@ -215,14 +224,23 @@ export async function httpRequest(
       }
       url = next;
     }
+    try {
+      bodyText = await readBoundedBody(
+        response,
+        config.maxBodyBytes,
+        response.status,
+      );
+    } catch (err) {
+      if (err instanceof HttpBodyLimitError) {
+        throw err;
+      }
+      throw new HttpTransportError(
+        timedOut || controller.signal.aborted ? 'timeout' : 'network-error',
+      );
+    }
   } finally {
     clearTimeout(timer);
   }
-  const bodyText = await readBoundedBody(
-    response,
-    config.maxBodyBytes,
-    response.status,
-  );
   if (response.status < 200 || response.status > 299) {
     throw new HttpStatusError(response.status, bodyText);
   }

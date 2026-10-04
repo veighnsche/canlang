@@ -13,7 +13,6 @@ import {
 import {
   fixedAttachmentSizes,
   fixedClock,
-  sequentialIds,
   startControlledMailServer,
 } from '../src/ports.ts';
 import type {
@@ -45,7 +44,6 @@ function makeAdapter(baseUrl: string): EmailV1Adapter {
     maxBodyBytes: 1_000_000,
     maxTransportBytes: null,
     clock: fixedClock(1_758_000_000_000),
-    ids: sequentialIds('del'),
     sizes: fixedAttachmentSizes({}),
   });
 }
@@ -67,7 +65,7 @@ describe('mail redaction', () => {
       await withServer(
         { kind: 'reject', status: 400, body },
         async (server) => {
-          const completion = await makeAdapter(server.url).send(INPUT);
+          const completion = await makeAdapter(server.url).send(INPUT, { deliveryId: 'del_1' });
           assert.equal(completion.status, 'failed');
           assert.deepEqual(completion.error, {
             code: 'provider_rejected',
@@ -90,7 +88,7 @@ describe('mail redaction', () => {
         body: { error: 'Unknown recipient domain' },
       },
       async (server) => {
-        const completion = await makeAdapter(server.url).send(INPUT);
+        const completion = await makeAdapter(server.url).send(INPUT, { deliveryId: 'del_1' });
         assert.equal(completion.status, 'failed');
         assert.equal(completion.error?.code, 'provider_rejected');
         assert.equal(completion.error?.message, 'Unknown recipient domain');
@@ -106,7 +104,7 @@ describe('mail redaction', () => {
         body: { message: 'first line\nsecond line' },
       },
       async (server) => {
-        const completion = await makeAdapter(server.url).send(INPUT);
+        const completion = await makeAdapter(server.url).send(INPUT, { deliveryId: 'del_1' });
         assert.equal(
           completion.error?.message,
           'Mail delivery rejected by provider.',

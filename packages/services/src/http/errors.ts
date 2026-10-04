@@ -4,7 +4,9 @@
  * Classification (S4 brief + DESIGN section 8):
  * - network-error / timeout -> unknown-or-transient; never proof of no
  *   remote effect.
- * - HTTP 4xx -> permanent; HTTP 5xx -> transient.
+ * - HTTP 4xx -> permanent, except 408/429 (explicit try-again signals),
+ *   which ride the section-7 retry budget as transient; HTTP 5xx ->
+ *   transient.
  * - cross-origin redirect -> refused with a typed error. Adapter config
  *   fixes one base URL; only same-origin responses are accepted.
  *
@@ -26,9 +28,10 @@ export class HttpTransportError extends Error {
 }
 
 /**
- * Non-2xx response. `transient` is true for 5xx, false otherwise (4xx is
- * permanent, including 408/429: retries reuse the same delivery identity,
- * so a duplicate send is impossible; see the adapter mapping).
+ * Non-2xx response. `transient` is true for 5xx and for the explicit
+ * try-again 4xx (408/429); other 4xx is permanent. Retries reuse the same
+ * delivery identity, so a duplicate send is impossible; see the adapter
+ * mapping.
  */
 export class HttpStatusError extends Error {
   readonly status: number;
@@ -39,7 +42,8 @@ export class HttpStatusError extends Error {
     super(`Request failed with status ${status}`);
     this.name = 'HttpStatusError';
     this.status = status;
-    this.transient = status >= 500 && status <= 599;
+    this.transient =
+      (status >= 500 && status <= 599) || status === 408 || status === 429;
     this.bodyText = bodyText;
   }
 }

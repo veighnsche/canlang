@@ -17,7 +17,6 @@ import {
 import {
   fixedAttachmentSizes,
   fixedClock,
-  sequentialIds,
   startControlledMailServer,
 } from '../src/ports.ts';
 import type {
@@ -37,16 +36,20 @@ function makeAdapter(
   opts?: {
     timeoutMs?: number;
     maxTransportBytes?: number | null;
+    maxBodyBytes?: number;
     sizes?: Record<string, number>;
+    authorization?: string;
   },
 ): EmailV1Adapter {
   return new EmailV1Adapter({
     baseUrl,
     timeoutMs: opts?.timeoutMs ?? 5000,
-    maxBodyBytes: 1_000_000,
+    maxBodyBytes: opts?.maxBodyBytes ?? 1_000_000,
     maxTransportBytes: opts?.maxTransportBytes ?? 10_000_000,
+    ...(opts?.authorization === undefined
+      ? {}
+      : { authorization: opts.authorization }),
     clock: fixedClock(CLOCK_NOW),
-    ids: sequentialIds('del'),
     sizes: fixedAttachmentSizes(
       opts?.sizes ?? { file_a: 1000, file_b: 2000 },
     ),
@@ -79,9 +82,9 @@ describe('EmailV1 adapter', () => {
   it('returns the acceptance receipt on provider accept', async () => {
     await withServer({ kind: 'accept' }, async (server) => {
       const adapter = makeAdapter(server.url);
-      const completion = await adapter.send(
-        inputFor({ attachments: ['file_a'] }),
-      );
+      const completion = await adapter.send(inputFor({ attachments: ['file_a'] }), {
+        deliveryId: 'del_1',
+      });
       assert.equal(completion.delivery_id, 'del_1');
       assert.equal(completion.status, 'succeeded');
       assert.deepEqual(completion.result, { reference: 'mail_1' });
@@ -110,7 +113,9 @@ describe('EmailV1 adapter', () => {
       { kind: 'reject', status: 400, body: { error: 'No mailbox here' } },
       async (server) => {
         const adapter = makeAdapter(server.url);
-        const completion = await adapter.send(inputFor());
+        const completion = await adapter.send(inputFor(), {
+          deliveryId: 'del_1',
+        });
         assert.equal(completion.delivery_id, 'del_1');
         assert.equal(completion.status, 'failed');
         assert.equal(completion.result, null);
@@ -126,12 +131,48 @@ describe('EmailV1 adapter', () => {
     );
   });
 
+  it('sends the configured authorization without logging its value', async () => {
+    await withServer({ kind: 'accept' }, async (server) => {
+      const authed = makeAdapter(server.url, { authorization: 'Bearer test-secret' });
+      const completion = await authed.send(inputFor(), { deliveryId: 'del_1' });
+      assert.equal(completion.status, 'succeeded');
+      assert.equal(server.requests.length, 1);
+      assert.equal(server.requests[0]?.hadAuth, true);
+      const anon = makeAdapter(server.url);
+      await anon.send(inputFor(), { deliveryId: 'del_2' });
+      assert.equal(server.requests[1]?.hadAuth, false);
+    });
+  });
+
+  it('maps 429 and 408 to unknown so the retry budget applies', async () => {
+    for (const [status, code] of [
+      [429, 'provider_rate_limited'],
+      [408, 'provider_client_timeout'],
+    ] as const) {
+      await withServer(
+        { kind: 'reject', status, body: { error: 'slow down' } },
+        async (server) => {
+          const adapter = makeAdapter(server.url);
+          const completion = await adapter.send(inputFor(), {
+          deliveryId: 'del_1',
+        });
+          assert.equal(completion.delivery_id, 'del_1');
+          assert.equal(completion.status, 'unknown');
+          assert.equal(completion.result, null);
+          assert.equal(completion.error?.code, code);
+        },
+      );
+    }
+  });
+
   it('times out to unknown, then reconciles success by identity', async () => {
     await withServer(
       { kind: 'hang', reconcile: 'accepted' },
       async (server) => {
         const adapter = makeAdapter(server.url, { timeoutMs: 50 });
-        const lost = await adapter.send(inputFor());
+        const lost = await adapter.send(inputFor(), {
+          deliveryId: 'del_1',
+        });
         assert.equal(lost.status, 'unknown');
         assert.equal(lost.delivery_id, 'del_1');
         assert.equal(lost.result, null);
@@ -153,7 +194,9 @@ describe('EmailV1 adapter', () => {
       { kind: 'hang', reconcile: 'rejected' },
       async (server) => {
         const adapter = makeAdapter(server.url, { timeoutMs: 50 });
-        const lost = await adapter.send(inputFor());
+        const lost = await adapter.send(inputFor(), {
+          deliveryId: 'del_1',
+        });
         assert.equal(lost.status, 'unknown');
         assert.equal(lost.delivery_id, 'del_1');
         const confirmed = await adapter.reconcile('del_1');
@@ -168,6 +211,57 @@ describe('EmailV1 adapter', () => {
     );
   });
 
+  it('stays unknown when reconcile reports pending', async () => {
+    await withServer(
+      { kind: 'hang', reconcile: 'pending' },
+      async (server) => {
+        const adapter = makeAdapter(server.url, { timeoutMs: 50 });
+        const lost = await adapter.send(inputFor(), {
+          deliveryId: 'del_1',
+        });
+        assert.equal(lost.status, 'unknown');
+        const still = await adapter.reconcile('del_1');
+        assert.equal(still.delivery_id, 'del_1');
+        assert.equal(still.status, 'unknown');
+        assert.equal(still.result, null);
+        assert.equal(still.error, null);
+      },
+    );
+  });
+
+  it('fails an unreadable acceptance body as an invalid response', async () => {
+    await withServer({ kind: 'accept' }, async (server) => {
+      const adapter = makeAdapter(server.url, { maxBodyBytes: 5 });
+      const completion = await adapter.send(inputFor(), {
+        deliveryId: 'del_1',
+      });
+      assert.equal(completion.delivery_id, 'del_1');
+      assert.equal(completion.status, 'failed');
+      assert.equal(completion.result, null);
+      assert.deepEqual(completion.error, {
+        code: 'invalid_response',
+        message: 'Mail provider returned an invalid response.',
+      });
+    });
+  });
+
+  it('maps an unreachable provider to unknown, never failed', async () => {
+    const doomed = await startControlledMailServer({ kind: 'accept' });
+    const url = doomed.url;
+    await doomed.close();
+    const adapter = makeAdapter(url);
+    const completion = await adapter.send(inputFor(), {
+      deliveryId: 'del_1',
+    });
+    assert.equal(completion.delivery_id, 'del_1');
+    assert.equal(completion.status, 'unknown');
+    assert.equal(completion.result, null);
+    assert.deepEqual(completion.error, {
+      code: 'transport_unreachable',
+      message: 'Mail provider unreachable; outcome unknown.',
+    });
+  });
+
   it('rejects oversized aggregates pre-send, attachments intact', async () => {
     await withServer({ kind: 'accept' }, async (server) => {
       const adapter = makeAdapter(server.url, {
@@ -176,7 +270,9 @@ describe('EmailV1 adapter', () => {
       });
       let caught: unknown;
       try {
-        await adapter.send(inputFor({ attachments: ['file_a', 'file_b'] }));
+        await adapter.send(inputFor({ attachments: ['file_a', 'file_b'] }), {
+          deliveryId: 'del_1',
+        });
       } catch (err) {
         caught = err;
       }
@@ -200,7 +296,9 @@ describe('EmailV1 adapter', () => {
     for (const body of bodies) {
       await withServer({ kind: 'invalid-schema', body }, async (server) => {
         const adapter = makeAdapter(server.url);
-        const completion = await adapter.send(inputFor());
+        const completion = await adapter.send(inputFor(), {
+          deliveryId: 'del_1',
+        });
         assert.equal(completion.status, 'failed');
         assert.notEqual(completion.status, 'pending');
         assert.equal(completion.result, null);
@@ -253,7 +351,9 @@ describe('EmailV1 adapter', () => {
         { kind: 'redirect', status: 302, location: `${other.url}/send` },
         async (server) => {
           const adapter = makeAdapter(server.url);
-          const completion = await adapter.send(inputFor());
+          const completion = await adapter.send(inputFor(), {
+          deliveryId: 'del_1',
+        });
           assert.equal(completion.delivery_id, 'del_1');
           assert.equal(completion.status, 'unknown');
           assert.equal(completion.result, null);
@@ -272,7 +372,9 @@ describe('EmailV1 adapter', () => {
       { kind: 'redirect', status: 307, location: '/send' },
       async (server) => {
         const adapter = makeAdapter(server.url);
-        const completion = await adapter.send(inputFor());
+        const completion = await adapter.send(inputFor(), {
+          deliveryId: 'del_1',
+        });
         assert.equal(completion.delivery_id, 'del_1');
         assert.equal(completion.status, 'unknown');
         assert.equal(completion.result, null);
@@ -289,7 +391,9 @@ describe('EmailV1 adapter', () => {
     await withServer({ kind: 'accept' }, async (server) => {
       const adapter = makeAdapter(server.url);
       await assert.rejects(
-        adapter.send(inputFor({ attachments: ['ghost'] })),
+        adapter.send(inputFor({ attachments: ['ghost'] }), {
+          deliveryId: 'del_1',
+        }),
         (err: unknown) => {
           assert.ok(err instanceof MailAttachmentError);
           assert.deepEqual([...err.refs], ['ghost']);

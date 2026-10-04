@@ -34,17 +34,8 @@ import {
   HttpTransportError,
 } from '../http/errors.ts';
 import { deliveryError, specificOrGeneric } from './redact.ts';
-import {
-  fixedAttachmentSizes,
-  systemClock,
-  uniqueIds,
-} from '../ports.ts';
-import type {
-  AttachmentSizes,
-  Clock,
-  DeliveryIds,
-  MailSender,
-} from '../ports.ts';
+import { fixedAttachmentSizes, systemClock } from '../ports.ts';
+import type { AttachmentSizes, Clock, MailSender } from '../ports.ts';
 
 export type AttachmentRef = EmailSendInput['attachments'][number];
 
@@ -53,6 +44,8 @@ export interface EmailAdapterConfig {
   readonly baseUrl: string;
   readonly timeoutMs: number;
   readonly maxBodyBytes: number;
+  /** Literal `Authorization` header value; server-only, never logged. */
+  readonly authorization?: string;
   /**
    * Declared aggregate attachment limit in bytes. `null` means the
    * deployment declares no limit, so enforcement is skipped.
@@ -60,8 +53,6 @@ export interface EmailAdapterConfig {
   readonly maxTransportBytes: number | null;
   /** Injected for deterministic tests; defaults to wall clock. */
   readonly clock?: Clock;
-  /** Injected for deterministic tests; defaults to unique ids. */
-  readonly ids?: DeliveryIds;
   /** Resolves finalized refs to byte sizes; unknown refs reject. */
   readonly sizes?: AttachmentSizes;
 }
@@ -132,6 +123,8 @@ const DELIVERIES_PREFIX = '/deliveries/';
 
 const GENERIC = {
   rejected: 'Mail delivery rejected by provider.',
+  rateLimited: 'Mail provider rate-limited the send; outcome unknown.',
+  clientTimeout: 'Mail provider timed out waiting for the send; outcome unknown.',
   transient: 'Mail provider returned a transient error; outcome unknown.',
   timeout: 'Mail send timed out; outcome unknown.',
   unreachable: 'Mail provider unreachable; outcome unknown.',
@@ -372,6 +365,15 @@ export function mapSendResponse(
     }
     return succeededCompletion(deliveryId, reference);
   }
+  if (status === 408 || status === 429) {
+    return unknownCompletion(
+      deliveryId,
+      deliveryError(
+        status === 429 ? 'provider_rate_limited' : 'provider_client_timeout',
+        status === 429 ? GENERIC.rateLimited : GENERIC.clientTimeout,
+      ),
+    );
+  }
   if (status >= 400 && status <= 499) {
     const message = specificOrGeneric(
       readProviderMessage(bodyText),
@@ -494,6 +496,15 @@ export function mapReconcileResponse(
       deliveryError('unknown_delivery', GENERIC.unknownDelivery),
     );
   }
+  if (status === 408 || status === 429) {
+    return unknownCompletion(
+      deliveryId,
+      deliveryError(
+        status === 429 ? 'provider_rate_limited' : 'provider_client_timeout',
+        status === 429 ? GENERIC.rateLimited : GENERIC.clientTimeout,
+      ),
+    );
+  }
   if (status >= 400 && status <= 499) {
     return failedCompletion(
       deliveryId,
@@ -559,7 +570,6 @@ export class EmailV1Adapter implements MailSender {
   private readonly http: HttpClientConfig;
   private readonly maxTransportBytes: number | null;
   private readonly clock: Clock;
-  private readonly ids: DeliveryIds;
   private readonly sizes: AttachmentSizes;
 
   constructor(config: EmailAdapterConfig) {
@@ -581,18 +591,20 @@ export class EmailV1Adapter implements MailSender {
       baseUrl: config.baseUrl,
       timeoutMs: config.timeoutMs,
       maxBodyBytes: config.maxBodyBytes,
+      ...(config.authorization === undefined
+        ? {}
+        : { authorization: config.authorization }),
     };
     this.maxTransportBytes = config.maxTransportBytes;
     this.clock = config.clock ?? systemClock();
-    this.ids = config.ids ?? uniqueIds();
     this.sizes = config.sizes ?? fixedAttachmentSizes({});
   }
 
   async send(
     input: EmailSendInput,
-    options: { readonly deliveryId?: string } = {},
+    options: { readonly deliveryId: string },
   ): Promise<CapabilityCompletion<EmailAccepted>> {
-    const deliveryId = options.deliveryId ?? this.ids.next();
+    const deliveryId = options.deliveryId;
     if (typeof deliveryId !== 'string' || deliveryId.length === 0) {
       throw new MailValidationError(
         'deliveryId must be a non-empty string',

@@ -166,6 +166,35 @@ describe('http client', () => {
     );
   });
 
+  it('times out a dripping body under the same deadline', async () => {
+    await withServer({ kind: 'drip', delayMs: 5000 }, async (server) => {
+      const config = configFor(server);
+      await assert.rejects(
+        httpRequest({ ...config, timeoutMs: 50 }, {
+          method: 'POST',
+          path: '/send',
+          body: '{}',
+        }),
+        (err: unknown) => {
+          assert.ok(err instanceof HttpTransportError);
+          assert.equal(err.kind, 'timeout');
+          return true;
+        },
+      );
+    });
+    await withServer({ kind: 'drip', delayMs: 20 }, async (server) => {
+      const response = await httpRequest(configFor(server), {
+        method: 'POST',
+        path: '/send',
+        body: '{}',
+      });
+      assert.equal(response.status, 200);
+      assert.deepEqual(JSON.parse(response.bodyText), {
+        reference: 'mail_drip',
+      });
+    });
+  });
+
   it('maps a refused connection to a network transport error', async () => {
     const server = await startControlledMailServer({ kind: 'accept' });
     const url = server.url;

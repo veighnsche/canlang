@@ -39,9 +39,13 @@ export interface AttachmentSizes {
 }
 
 export interface MailSender {
+  /**
+   * The runtime always supplies its own stable delivery id; the adapter
+   * never mints identity, so caller retries stay idempotent.
+   */
   send(
     input: EmailSendInput,
-    options?: { readonly deliveryId?: string },
+    options: { readonly deliveryId: string },
   ): Promise<CapabilityCompletion<EmailAccepted>>;
   reconcile(deliveryId: string): Promise<CapabilityCompletion<EmailAccepted>>;
 }
@@ -83,35 +87,44 @@ export function fixedAttachmentSizes(
  * Scripted provider behaviors:
  * - `accept`: 200 `{reference}` on POST /send.
  * - `reject`: configured 4xx on POST /send; a string body is served raw
- *   (covers `reject-4xx` and `token-in-body-for-redaction`).
+ *   (this one kind covers both the plain-reject and the token-in-body
+ *   redaction tests).
  * - `flaky-then-accept`: N x 500, then accept (`flaky-then-accept`).
- * - `hang`: records the send as accepted-or-rejected (possible commit)
- *   but never responds, so the client times out; GET /deliveries/{id}
- *   then reconciles (`hang-then-timeout`).
+ * - `hang`: records the send as accepted, rejected or still pending
+ *   (possible commit) but never responds, so the client times out; GET
+ *   /deliveries/{id} then reconciles (`hang-then-timeout`).
  * - `invalid-schema`: 200 with a bogus body on POST /send and a bogus
  *   reconcile payload (`invalid-schema`).
  * - `redirect`: configured 3xx status with the given Location on POST
  *   /send (307 preserves POST to `/send-final`; same-origin 302
  *   converts to GET /send-final; cross-origin targets must be refused
  *   before any second request is sent).
+ * - `drip`: 200 headers immediately on POST /send, body delayed by
+ *   `delayMs` (covers header-then-drip timeouts).
  */
 export type ControlledScenario =
   | { readonly kind: 'accept' }
   | { readonly kind: 'reject'; readonly status: number; readonly body: unknown }
   | { readonly kind: 'flaky-then-accept'; readonly failures: number }
   | { readonly kind: 'invalid-schema'; readonly body: unknown }
-  | { readonly kind: 'hang'; readonly reconcile: 'accepted' | 'rejected' }
+  | {
+      readonly kind: 'hang';
+      readonly reconcile: 'accepted' | 'rejected' | 'pending';
+    }
   | {
       readonly kind: 'redirect';
       readonly status: number;
       readonly location: string;
-    };
+    }
+  | { readonly kind: 'drip'; readonly delayMs: number };
 
 export interface ControlledRequestLog {
   readonly method: string;
   readonly path: string;
   readonly idempotencyKey: string | null;
   readonly bodyText: string;
+  /** Whether an Authorization header was present; the value is never logged. */
+  readonly hadAuth: boolean;
 }
 
 export interface ControlledMailServer {
@@ -168,7 +181,7 @@ export function startControlledMailServer(
     const requests: ControlledRequestLog[] = [];
     const deliveries = new Map<
       string,
-      { outcome: 'accepted' | 'rejected'; reference: string }
+      { outcome: 'accepted' | 'rejected' | 'pending'; reference: string }
     >();
     let counter = 0;
     let sendAttempts = 0;
@@ -206,7 +219,13 @@ export function startControlledMailServer(
         typeof keyHeader === 'string' ? keyHeader : null;
       if (method === 'POST' && (rawPath === '/send' || rawPath === '/send-final')) {
         const bodyText = await readTextBody(req);
-        requests.push({ method, path: rawPath, idempotencyKey, bodyText });
+        requests.push({
+          method,
+          path: rawPath,
+          idempotencyKey,
+          bodyText,
+          hadAuth: req.headers['authorization'] !== undefined,
+        });
         if (rawPath === '/send-final') {
           acceptSend(res, idempotencyKey);
           return;
@@ -248,6 +267,23 @@ export function startControlledMailServer(
             });
             res.end();
             return;
+          case 'drip': {
+            const text = JSON.stringify({ reference: 'mail_drip' });
+            res.writeHead(200, {
+              'content-type': 'application/json',
+              'content-length': Buffer.byteLength(text),
+            });
+            setTimeout(() => {
+              try {
+                if (!res.destroyed) {
+                  res.end(text);
+                }
+              } catch {
+                // Client already gone (e.g. timed out).
+              }
+            }, scenario.delayMs);
+            return;
+          }
         }
       }
       if (method === 'GET' && rawPath === '/send-final') {
@@ -267,6 +303,10 @@ export function startControlledMailServer(
         const record = deliveries.get(id);
         if (record === undefined) {
           sendBody(res, 404, { error: 'unknown delivery' });
+          return;
+        }
+        if (record.outcome === 'pending') {
+          sendBody(res, 200, { status: 'pending' });
           return;
         }
         if (record.outcome === 'accepted') {
