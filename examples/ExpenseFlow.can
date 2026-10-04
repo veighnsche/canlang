@@ -19,6 +19,8 @@ package expenses
   invariant Expense: row.amount.minor>0
   lock Expense fields=purpose,amount,submitted_by when=row.status!=draft
   lock Expense fields=status,decision_note,decided_by,decided_at when=row.status in [approved,rejected]
+  fixture reviewer_one=user {roles=[reviewer]}
+  fixture reviewer_two=user {roles=[reviewer]}
   fixture pending=Expense {purpose="Travel",amount=money(25,"EUR"),submitted_by=other,status=submitted}
  When
   crud Expense by=members fields=purpose,amount when=row.submitted_by==actor and row.status==draft delete=none
@@ -26,6 +28,11 @@ package expenses
   scenario submit(expense:Expense) by=members
    require expense.submitted_by==actor and expense.status==draft
    do set expense {status=submitted}
+   ## Grants belong to two noncalling same-team accounts; claimant is other.
+   ## This checks one submission, not a shared-state multi-operation journey.
+   examples expense=pending seed=[reviewer_one,reviewer_two]
+    as,expense.status -> expense.status,reviewer(reviewer_one),reviewer(reviewer_two),reviewer_one!=reviewer_two,expense.submitted_by!=reviewer_one,expense.submitted_by!=reviewer_two
+    other,draft -> submitted,true,true,true,true,true
   # Approve a submitted expense from another teammate, optionally recording a note. @{nl="Keur een ingediende onkost van een andere teamgenoot goed en leg desgewenst een toelichting vast."}
   scenario approve(expense:Expense,note:text? label=label_Expense_decision_note) by=reviewer label="Approve expense"@{nl="Onkost goedkeuren"}
    require expense.status==submitted and expense.submitted_by!=actor
@@ -36,6 +43,11 @@ package expenses
     reviewer,draft,other -> error(rule_failed)
     members,submitted,other -> error(forbidden)
     reviewer,submitted,self -> error(rule_failed)
+   ## Either distinct provisioned reviewer can act; the other keeps its grant.
+   examples expense=pending seed=[reviewer_one,reviewer_two]
+    as -> expense.status,expense.decided_by,reviewer(reviewer_one),reviewer(reviewer_two)
+    reviewer_one -> approved,reviewer_one,true,true
+    reviewer_two -> approved,reviewer_two,true,true
   # Reject a submitted expense from another teammate and explain the decision. @{nl="Wijs een ingediende onkost van een andere teamgenoot af en leg de beslissing uit."}
   scenario reject(expense:Expense,note:text label=label_Expense_decision_note) by=reviewer label="Reject expense"@{nl="Onkost afwijzen"}
    require expense.status==submitted and expense.submitted_by!=actor and trim(note)!=""
