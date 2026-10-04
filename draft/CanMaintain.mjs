@@ -5,6 +5,8 @@ import {
   create,
   set,
   records,
+  first,
+  emit,
   any,
   compareInstant,
   compareDate,
@@ -20,6 +22,7 @@ import {
   schedule,
   max,
   date,
+  datetime,
 } from "@canlang/stdlib";
 import {
   message,
@@ -35,7 +38,7 @@ import {
   tabs,
   text,
 } from "@canlang/ui";
-import { can_work } from "./employee.mjs";
+import { Employee, can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
 import { Supplier } from "./supplier.mjs";
 import { AffectedBookings } from "./rent_reservations.mjs";
@@ -63,6 +66,7 @@ export const report = "maintain.report";
 export const inspect = "maintain.inspect";
 export const work = "maintain.work";
 export const work_detail = "maintain.work_detail";
+const Cancellation = "maintain.Cancellation";
 
 const facilitiesPageDescriptor = {
   owner: "maintain",
@@ -194,6 +198,7 @@ export const appDefinition = {
           label: message("Warranty expiry", { nl: "Garantie-einddatum" }),
         },
         manual: { type: "file", nullable: true, label: message("Manual", { nl: "Handleiding" }) },
+        inspection_epoch: { type: "int", default: 0n, min: 0n },
         retired: {
           type: "bool",
           default: false,
@@ -204,7 +209,7 @@ export const appDefinition = {
     "maintain.Plan": {
       parent: "maintain.Asset",
       label: message("Inspection plan", { nl: "Inspectieplan" }),
-      readGrants: [{ rule: "Plan.read.1" }],
+      readGrants: [{ rule: "Plan.read.1" }, { rule: "Plan.read.2", fields: ["name"] }],
       invariants: ["Plan.require.1"],
       fields: {
         name: { type: "text" },
@@ -224,6 +229,7 @@ export const appDefinition = {
         },
         checklist: { type: "text", array: true, requiredArray: true, label: checklistCaption },
         revision: { type: "int", default: 1n },
+        asset_epoch: { type: "int", default: 0n, min: 0n },
         active: { type: "bool", default: true },
       },
     },
@@ -233,7 +239,7 @@ export const appDefinition = {
       label: message("Inspection", { nl: "Inspectie" }),
       readGrants: [{ rule: "Inspection.read.1" }, { rule: "Inspection.read.2" }],
       invariants: ["Inspection.require.1"],
-      locks: ["Inspection.lock.1", "Inspection.lock.2"],
+      locks: ["Inspection.lock.1", "Inspection.lock.2", "Inspection.lock.3"],
       fields: {
         cancelled: {
           type: "bool",
@@ -271,6 +277,7 @@ export const appDefinition = {
         },
         due: { type: "date" },
         checklist: { type: "text", array: true, requiredArray: true, label: checklistCaption },
+        asset_epoch: { type: "int", default: 0n, min: 0n },
         template_version: {
           type: "int",
           label: message("Template version", { nl: "Templateversie" }),
@@ -467,6 +474,16 @@ export const appDefinition = {
         },
       },
     },
+    "maintain.Verification": {
+      parent: Repair,
+      label: message("Repair verification", { nl: "Reparatieverificatie" }),
+      readGrants: [{ rule: "Verification.read.1" }],
+      locks: ["Verification.lock.1"],
+      fields: {
+        completion: { type: "text" }, evidence: { type: "text" },
+        author: { type: "user", server: "actor" }, at: { type: "datetime", server: "now" },
+      },
+    },
     "maintain.Assignment": {
       parent: Repair,
       label: message("Contractor assignment", { nl: "Opdracht aan leverancier" }),
@@ -506,8 +523,26 @@ export const appDefinition = {
         },
       },
     },
+    [Cancellation]: {
+      parent: Asset,
+      label: message("Inspection cancellation", { nl: "Inspectieannulering" }),
+      readGrants: [{ rule: "Cancellation.read.1" }],
+      invariants: ["Cancellation.require.1"],
+      locks: ["Cancellation.lock.1"],
+      fields: {
+        plan: { type: "maintain.Plan", nullable: true },
+        through: { type: "int", min: 0n },
+        cutoff: { type: "date" },
+        reason: { type: "enum", cases: ["plan_revised", "asset_retired"] },
+        author: { type: "user", server: "actor" },
+        at: { type: "datetime", server: "now" },
+        after: { type: "text", nullable: true },
+        phase: { type: "enum", cases: ["plans", "inspections", "complete"], default: "inspections" },
+      },
+    },
   },
   events: {
+    "maintain.CancellationStep": { fields: { cancellation: { type: Cancellation } } },
     "maintain.Reminder": {
       fields: { inspection: { type: Inspection }, revision: { type: "int" } },
     },
@@ -524,6 +559,14 @@ export const appDefinition = {
     },
   },
   operations: {
+    "maintain.resume_cancellation": {
+      handler: "resume_cancellation",
+      read: false,
+      by: "maintain.maintenance_manager",
+      inputs: { cancellation: { type: Cancellation } },
+      description: message("Resume the retained cancellation without changing its original scope or attribution.", { nl: "Hervat de vastgelegde annulering zonder haar oorspronkelijke bereik of toeschrijving te wijzigen." }),
+      label: message("Resume inspection cancellation", { nl: "Inspectieannulering hervatten" }),
+    },
     "maintain.work": {
       handler: "work",
       exported: true,
@@ -794,6 +837,7 @@ export const appDefinition = {
     },
   },
   handlers: {
+    "maintain.cancel_inspection_step": { handler: "cancel_inspection_step", on: "maintain.CancellationStep" },
     "maintain.activate_plan": { handler: "activate_plan", on: "maintain.Plan.create" },
     "maintain.revise_plan": { handler: "revise_plan", on: "maintain.Plan.update" },
     "maintain.retire_asset": { handler: "retire_asset", on: "maintain.Asset.update" },
@@ -825,21 +869,53 @@ export const appDefinition = {
   ],
 };
 
+async function plan_eligible(c, plan) {
+  return plan.active && !plan.parent.retired &&
+    plan.asset_epoch === plan.parent.inspection_epoch &&
+    hasRole(c, "maintain.technician", plan.assignee) &&
+    (await can_work(c, plan.assignee, plan.parent.location));
+}
+function matches_cancellation(c, change, inspection) {
+  return same(change.parent, inspection.parent.parent) &&
+    compareDate(inspection.due, change.cutoff) > 0 &&
+    ((change.reason === "plan_revised" && same(change.plan, inspection.parent) &&
+      inspection.template_version <= change.through) ||
+     (change.reason === "asset_retired" && inspection.asset_epoch <= change.through));
+}
+async function inspection_superseded(c, inspection) {
+  return await any(records(c, Cancellation, { parent: inspection.parent.parent }),
+    (change) => matches_cancellation(c, change, inspection));
+}
+async function inspection_pending(c, inspection) {
+  return inspection.result === "pending" && !inspection.cancelled &&
+    !(await inspection_superseded(c, inspection));
+}
+
 export function canApp() {
   const crudWhen = {
     Asset: (c, row) => can_work(c, c.actor, row.location),
-    Plan: (c, row) => can_work(c, c.actor, row.parent.location),
+    Plan: async (c, row) => (await can_work(c, c.actor, row.parent.location)) &&
+      (!row.active || (!row.parent.retired && hasRole(c, "maintain.technician", row.assignee) &&
+        (await can_work(c, row.assignee, row.parent.location)))),
     Repair: async (c, row) =>
       (await can_work(c, c.actor, row.parent.location)) && row.state === "open",
   };
   return {
+    plan_eligible,
+    matches_cancellation,
+    inspection_pending,
+    inspection_superseded,
     read: {
       "Asset.read.1": (c, row) => hasRole(c, "authenticated") && !row.retired,
       "Asset.read.2": async (c, row) =>
         (hasRole(c, "maintain.maintenance_manager") || hasRole(c, "maintain.technician")) &&
         (await can_work(c, c.actor, row.location)),
+      "Cancellation.read.1": async (c, row) => hasRole(c, "maintain.maintenance_manager") &&
+        (await can_work(c, c.actor, row.parent.location)),
       "Plan.read.1": async (c, row) =>
         hasRole(c, "maintain.maintenance_manager") &&
+        (await can_work(c, c.actor, row.parent.location)),
+      "Plan.read.2": async (c, row) => hasRole(c, "maintain.technician") &&
         (await can_work(c, c.actor, row.parent.location)),
       "Inspection.read.1": async (c, row) =>
         hasRole(c, "maintain.maintenance_manager") &&
@@ -852,6 +928,9 @@ export function canApp() {
         (hasRole(c, "maintain.maintenance_manager") || hasRole(c, "maintain.technician")) &&
         (await can_work(c, c.actor, row.parent.location)),
       "Repair.read.2": (c, row) => hasRole(c, "authenticated") && same(row.reporter, c.actor),
+      "Verification.read.1": async (c, row) =>
+        (hasRole(c, "maintain.maintenance_manager") || hasRole(c, "maintain.technician")) &&
+        (await can_work(c, c.actor, row.parent.parent.location)),
       "Assignment.read.1": async (c, row) =>
         hasRole(c, "maintain.maintenance_manager") &&
         (await can_work(c, c.actor, row.parent.parent.location)),
@@ -860,13 +939,10 @@ export function canApp() {
         (await can_work(c, c.actor, row.parent.parent.parent.location)),
     },
     invariants: {
-      "Plan.require.1": async (c, row) =>
-        row.cadence_days > 0n &&
-        (await count(row.checklist)) > 0n &&
-        (!row.active ||
-          (!row.parent.retired &&
-            hasRole(c, "maintain.technician", row.assignee) &&
-            (await can_work(c, row.assignee, row.parent.location)))),
+      "Cancellation.require.1": (c, row) =>
+        (row.reason === "plan_revised" && row.plan !== null && same(row.plan.parent, row.parent)) ||
+        (row.reason === "asset_retired" && row.plan === null),
+      "Plan.require.1": async (c, row) => row.cadence_days > 0n && (await count(row.checklist)) > 0n,
       "Inspection.require.1": async (c, row) =>
         row.result === "pending" ||
         (row.evidence !== null &&
@@ -876,13 +952,16 @@ export function canApp() {
         row.state !== "fixed" || (row.completion !== null && row.verified_by !== null),
     },
     locks: {
+      "Cancellation.lock.1": { fields: ["plan", "through", "cutoff", "reason", "author", "at"] },
       "Inspection.lock.1": {
-        fields: ["occurrence", "due", "checklist", "template_version", "inspector"],
+        fields: ["occurrence", "due", "checklist", "template_version", "asset_epoch", "inspector"],
       },
       "Inspection.lock.2": {
         fields: ["answers", "result", "evidence", "inspected_at"],
         when: (c, row) => row.result !== "pending",
       },
+      "Inspection.lock.3": { fields: ["cancelled", "cancellation", "cancelled_by", "cancelled_at"], when: (c, row) => row.cancelled },
+      "Verification.lock.1": { fields: ["completion", "evidence", "author", "at"] },
       "Assignment.lock.1": { fields: ["supplier", "contact", "reason", "author", "body"] },
     },
     crudWhen,
@@ -911,79 +990,68 @@ export function canApp() {
       await set(c, record, changes, { when: crudWhen.Repair });
     },
     async activate_plan(c, { event }) {
-      if (event.after.active)
-        await schedule(
-          c,
-          event.after.id,
-          await max([
-            c.now,
-            local_instant(event.after.next_due, "00:00", event.after.parent.location.timezone, {
-              fold: "earlier",
-            }),
-          ]),
-          "maintain.PlanDue",
-          { plan: event.after, revision: event.after.revision, due: event.after.next_due },
-        );
+      await set(c, event.after, { asset_epoch: event.after.parent.inspection_epoch });
+      if (await plan_eligible(c, event.after))
+        await schedule(c, event.after.id, await max([c.now,
+          local_instant(event.after.next_due, "00:00", event.after.parent.location.timezone, { fold: "earlier" })]),
+          "maintain.PlanDue", { plan: event.after, revision: event.after.revision, due: event.after.next_due });
     },
     async revise_plan(c, { event }) {
-      await set(c, event.after, { revision: int64(event.before.revision + 1n) });
-      for await (const inspection of records(c, Inspection, {
-        parent: event.before,
-        where: (item) =>
-          item.result === "pending" &&
-          !item.cancelled &&
-          compareDate(item.due, local_date(c.now, event.before.parent.location.timezone)) > 0,
-        limit: 100n,
-      })) {
-        await set(c, inspection, {
-          cancelled: true,
-          cancellation: "Plan revised",
-          cancelled_by: c.actor,
-          cancelled_at: c.now,
-        });
-        await cancel(c, inspection.id);
-      }
+      await set(c, event.after, { revision: int64(event.before.revision + 1n),
+        asset_epoch: event.after.parent.inspection_epoch });
+      const change = await create(c, Cancellation, { parent: event.after.parent, plan: event.after,
+        through: event.before.revision, cutoff: local_date(c.now, event.after.parent.location.timezone),
+        reason: "plan_revised" });
+      await emit(c, "maintain.CancellationStep", { cancellation: change });
       await cancel(c, event.after.id);
-      if (event.after.active)
-        await schedule(
-          c,
-          event.after.id,
-          await max([
-            c.now,
-            local_instant(event.after.next_due, "00:00", event.after.parent.location.timezone, {
-              fold: "earlier",
-            }),
-          ]),
-          "maintain.PlanDue",
-          { plan: event.after, revision: event.after.revision, due: event.after.next_due },
-        );
+      if (await plan_eligible(c, event.after))
+        await schedule(c, event.after.id, await max([c.now,
+          local_instant(event.after.next_due, "00:00", event.after.parent.location.timezone, { fold: "earlier" })]),
+          "maintain.PlanDue", { plan: event.after, revision: event.after.revision, due: event.after.next_due });
     },
     async retire_asset(c, { event }) {
       if (event.after.retired && !event.before.retired) {
-        for await (const plan of records(c, "maintain.Plan", {
-          parent: event.before,
-          limit: 100n,
-        })) {
+        await set(c, event.after, { inspection_epoch: int64(event.before.inspection_epoch + 1n) });
+        const change = await create(c, Cancellation, { parent: event.after, plan: null,
+          through: event.before.inspection_epoch, cutoff: local_date(c.now, event.after.location.timezone),
+          reason: "asset_retired", phase: "plans" });
+        await emit(c, "maintain.CancellationStep", { cancellation: change });
+      }
+    },
+    async cancel_inspection_step(c, { event }) {
+      const change = event.cancellation;
+      if (change.phase === "plans") {
+        const plan = await first(records(c, "maintain.Plan", { parent: change.parent,
+          where: (row) => row.asset_epoch <= change.through &&
+            (change.after === null || row.id > change.after), order: ["id"] }));
+        if (plan !== null) {
           await set(c, plan, { active: false, revision: int64(plan.revision + 1n) });
           await cancel(c, plan.id);
-          for await (const inspection of records(c, Inspection, {
-            parent: plan,
-            where: (item) =>
-              item.result === "pending" &&
-              !item.cancelled &&
-              compareDate(item.due, local_date(c.now, event.before.location.timezone)) > 0,
-            limit: 100n,
-          })) {
-            await set(c, inspection, {
-              cancelled: true,
-              cancellation: "Asset retired",
-              cancelled_by: c.actor,
-              cancelled_at: c.now,
-            });
-            await cancel(c, inspection.id);
-          }
+          await set(c, change, { after: plan.id });
+          await emit(c, "maintain.CancellationStep", { cancellation: change });
+        } else {
+          await set(c, change, { phase: "inspections", after: null });
+          await emit(c, "maintain.CancellationStep", { cancellation: change });
         }
+      } else if (change.phase === "inspections") {
+        const inspection = await first(records(c, Inspection, {
+          where: (row) => row.result === "pending" && !row.cancelled &&
+            matches_cancellation(c, change, row) && (change.after === null || row.id > change.after),
+          order: ["id"] }));
+        if (inspection !== null) {
+          await set(c, inspection, { cancelled: true, cancellation: "Plan revised",
+            cancelled_by: change.author, cancelled_at: change.at });
+          if (change.reason === "asset_retired") await set(c, inspection, { cancellation: "Asset retired" });
+          await cancel(c, inspection.id);
+          await set(c, change, { after: inspection.id });
+          await emit(c, "maintain.CancellationStep", { cancellation: change });
+        } else await set(c, change, { phase: "complete" });
       }
+    },
+    async resume_cancellation(c, { cancellation }) {
+      check(hasRole(c, "maintain.maintenance_manager"), "forbidden");
+      check((await can_work(c, c.actor, cancellation.parent.location)) && cancellation.phase !== "complete");
+      await emit(c, "maintain.CancellationStep", { cancellation });
     },
     async report(c, { asset, title, description, photo = null }) {
       check(hasRole(c, "authenticated"), "forbidden");
@@ -1129,6 +1197,7 @@ export function canApp() {
           repair.completion !== null &&
           evidence.trim() !== "",
       );
+      await create(c, "maintain.Verification", { parent: repair, completion: repair.completion, evidence });
       await set(c, repair, { state: "fixed", verified_by: c.actor, visit_review: false });
       if (repair.block_source !== null && repair.block_state !== "released") {
         check(repair.block_resource !== null);
@@ -1162,8 +1231,7 @@ export function canApp() {
       check(
         (await can_work(c, c.actor, inspection.parent.parent.location)) &&
           same(inspection.inspector, c.actor) &&
-          inspection.result === "pending" &&
-          !inspection.cancelled &&
+          (await inspection_pending(c, inspection)) &&
           ["passed", "failed", "blocked"].includes(result) &&
           (await count(answers)) === (await count(inspection.checklist)) &&
           evidence.trim() !== "",
@@ -1196,12 +1264,9 @@ export function canApp() {
     async generate(c, { event }) {
       const plan = event.plan;
       if (
-        plan.active &&
+        (await plan_eligible(c, plan)) &&
         plan.revision === event.revision &&
         compareDate(plan.next_due, event.due) === 0 &&
-        !plan.parent.retired &&
-        hasRole(c, "maintain.technician", plan.assignee) &&
-        (await can_work(c, plan.assignee, plan.parent.location)) &&
         compareDate(plan.next_due, local_date(c.now, plan.parent.location.timezone)) <= 0
       ) {
         const occurrence = format(c, "{plan}:{due}:{revision}", {
@@ -1212,8 +1277,10 @@ export function canApp() {
         if (
           !(await any(
             records(c, Inspection, { parent: plan }),
-            (inspection) =>
-              !inspection.cancelled && compareDate(inspection.due, plan.next_due) === 0,
+            async (inspection) =>
+              !inspection.cancelled &&
+              !(inspection.result === "pending" && (await inspection_superseded(c, inspection))) &&
+              compareDate(inspection.due, plan.next_due) === 0,
           ))
         ) {
           const inspection = await create(c, Inspection, {
@@ -1222,6 +1289,7 @@ export function canApp() {
             due: plan.next_due,
             checklist: plan.checklist,
             template_version: plan.revision,
+            asset_epoch: plan.asset_epoch,
             inspector: plan.assignee,
             reminder_email: plan.assignee_email,
           });
@@ -1256,8 +1324,7 @@ export function canApp() {
     async remind(c, { event }) {
       const inspection = event.inspection;
       if (
-        inspection.result === "pending" &&
-        !inspection.cancelled &&
+        (await inspection_pending(c, inspection)) &&
         inspection.template_version === event.revision &&
         inspection.parent.revision === event.revision &&
         same(inspection.inspector, inspection.parent.assignee) &&
@@ -1267,10 +1334,8 @@ export function canApp() {
           }),
           c.now,
         ) <= 0 &&
-        inspection.parent.active &&
-        !inspection.parent.parent.retired &&
-        hasRole(c, "maintain.technician", inspection.inspector) &&
-        (await can_work(c, inspection.inspector, inspection.parent.parent.location))
+        (await plan_eligible(c, inspection.parent)) &&
+        inspection.asset_epoch === inspection.parent.asset_epoch
       ) {
         await send(
           c,
@@ -1284,8 +1349,7 @@ export function canApp() {
           },
           {
             when: async () =>
-              inspection.result === "pending" &&
-              !inspection.cancelled &&
+              (await inspection_pending(c, inspection)) &&
               inspection.template_version === event.revision &&
               inspection.parent.revision === event.revision &&
               same(inspection.inspector, inspection.parent.assignee) &&
@@ -1295,10 +1359,8 @@ export function canApp() {
                 }),
                 c.now,
               ) <= 0 &&
-              inspection.parent.active &&
-              !inspection.parent.parent.retired &&
-              hasRole(c, "maintain.technician", inspection.inspector) &&
-              (await can_work(c, inspection.inspector, inspection.parent.parent.location)),
+              (await plan_eligible(c, inspection.parent)) &&
+              inspection.asset_epoch === inspection.parent.asset_epoch,
           },
         );
         await set(c, inspection, { reminded_at: c.now });
@@ -1425,8 +1487,7 @@ export function canApp() {
       for await (const item of records(c, Inspection, {
         where: async (item) =>
           same(item.inspector, c.actor) &&
-          item.result === "pending" &&
-          !item.cancelled &&
+          (await inspection_pending(c, item)) &&
           (await can_work(c, c.actor, item.parent.parent.location)) &&
           ((await count(locations)) === 0n || locations.includes(item.parent.parent.location.id)),
       }))
@@ -1447,8 +1508,7 @@ export function canApp() {
       check(hasRole(c, "maintain.technician"), "forbidden");
       check(
         same(record.inspector, c.actor) &&
-          record.result === "pending" &&
-          !record.cancelled &&
+          (await inspection_pending(c, record)) &&
           (await can_work(c, c.actor, record.parent.parent.location)),
       );
       return {
@@ -1503,6 +1563,10 @@ export async function facilitiesPage(c, bindings) {
                       nl: "Inspectieplannen en checklists",
                     }),
                     children: [
+                      table({ context: v, model: Cancellation, parent: asset,
+                        columns: ["reason", "cutoff", "author", "at", "phase"],
+                        renderRow: (cancellation, cv) => [actions({ context: cv,
+                          operations: ["maintain.resume_cancellation"], boundArgs: { cancellation } })] }),
                       form({
                         context: v,
                         operation: "maintain.Plan.create",
@@ -1601,6 +1665,8 @@ export async function facilitiesPage(c, bindings) {
                             ],
                             boundArgs: { repair },
                           }),
+                          table({ context: rv, model: "maintain.Verification", parent: repair,
+                            columns: ["completion", "evidence", "author", "at"] }),
                           ...(repair.affected !== null
                             ? [
                                 card({
@@ -1709,6 +1775,13 @@ export const exampleImports = [
 
 export function exampleFixtures({ self, other, imported }) {
   const { test_site, test_worker } = imported;
+  const fault_reporter = { dependencies: [], user: async () => ({ roles: [] }) };
+  const inspection_manager = { dependencies: [], user: async () => ({ roles: ["maintain.maintenance_manager"] }) };
+  const inspection_technician = { dependencies: [], user: async () => ({ roles: ["maintain.technician"] }) };
+  const manager_employee = { model: Employee, dependencies: [inspection_manager, test_site], value: async (c, s) => ({
+    user: s.inspection_manager, home: s.test_site, locations: [s.test_site], start: date("2020-01-01"), role: "maintenance manager" }) };
+  const technician_employee = { model: Employee, dependencies: [inspection_technician, test_site], value: async (c, s) => ({
+    user: s.inspection_technician, home: s.test_site, locations: [s.test_site], start: date("2020-01-01"), role: "inspection technician" }) };
   const equipment = {
     model: "maintain.Asset",
     dependencies: [test_site],
@@ -1721,11 +1794,11 @@ export function exampleFixtures({ self, other, imported }) {
   };
   const recurring = {
     model: "maintain.Plan",
-    dependencies: [equipment],
+    dependencies: [equipment, inspection_technician],
     value: async (c, s) => ({
       parent: s.equipment,
       name: "Cooling inspection",
-      assignee: s.self,
+      assignee: s.inspection_technician,
       assignee_email: "technician@example.test",
       cadence_days: 30n,
       next_due: date("2099-12-01"),
@@ -1742,10 +1815,12 @@ export function exampleFixtures({ self, other, imported }) {
       due: date("2099-12-01"),
       checklist: ["Cooling works"],
       template_version: 1n,
-      inspector: s.self,
+      inspector: s.inspection_technician,
       reminder_email: "technician@example.test",
     }),
   };
+  const service_supplier = { model: Supplier, dependencies: [test_site], value: async(c,s) => ({
+    name: "Cooling service", contact: "service@example.test", locations: [s.test_site] }) };
   const awaiting = {
     model: "maintain.Repair",
     dependencies: [equipment],
@@ -1757,12 +1832,158 @@ export function exampleFixtures({ self, other, imported }) {
       completion: "Repaired",
     }),
   };
+  const superseded = { model: Cancellation, dependencies: [equipment, recurring, inspection_manager], value: async (c, s) => ({
+    parent: s.equipment, plan: s.recurring, through: 1n, cutoff: date("2020-01-01"), reason: "plan_revised",
+    author: s.inspection_manager, at: datetime("2020-01-01T12:00:00Z") }) };
+  const retired_work = { model: Cancellation, dependencies: [equipment, inspection_manager], value: async (c, s) => ({
+    parent: s.equipment, plan: null, through: 0n, cutoff: date("2020-01-01"), reason: "asset_retired", phase: "plans",
+    author: s.inspection_manager, at: datetime("2020-01-01T12:00:00Z") }) };
   return {
+    fault_reporter, inspection_manager, inspection_technician, manager_employee, technician_employee, superseded, retired_work, service_supplier,
     awaiting,
     check,
     equipment,
     recurring,
     examples: [
+      {operation:"maintain.resume_cancellation",dependencies:[manager_employee,superseded],inputs:async(c,s)=>({cancellation:s.superseded}),
+        selectors:["as","cancellation.phase","manager_employee.active"],observations:[async(c,s)=>s.cancellation.phase],
+        rows:[
+          {dependencies:[],values:async(c,s)=>[s.inspection_manager,"inspections",true],expected:async()=>["inspections"]},
+          {dependencies:[],values:async(c,s)=>[s.inspection_manager,"complete",true],error:"rule_failed"},
+          {dependencies:[],values:async(c,s)=>[s.inspection_manager,"inspections",false],error:"rule_failed"},
+          {dependencies:[inspection_technician],values:async(c,s)=>[s.inspection_technician,"inspections",true],error:"forbidden"},
+          {dependencies:[],values:async()=>["public","inspections",true],error:"forbidden"},
+        ]},
+      {operation:"maintain.generate", dependencies:[technician_employee,check,superseded],
+        inputs:async(c,s)=>({event:{plan:s.recurring,revision:2n,due:local_date(c.now,s.test_site.timezone)}}),
+        selectors:["superseded.cutoff","recurring.revision","recurring.active","recurring.next_due","check.due","check.result","check.answers","check.evidence","check.inspected_at"],
+        observations:[async(c,s)=>await count(records(c,Inspection,{parent:s.recurring}))],
+        rows:[
+          {dependencies:[],values:async(c,s)=>[add_days(local_date(c.now,s.test_site.timezone),-1n),2n,true,local_date(c.now,s.test_site.timezone),local_date(c.now,s.test_site.timezone),"pending",[],null,null],expected:async()=>[2n]},
+          {dependencies:[],values:async(c,s)=>[add_days(local_date(c.now,s.test_site.timezone),-1n),2n,true,local_date(c.now,s.test_site.timezone),local_date(c.now,s.test_site.timezone),"passed",["Cooling works"],"Already checked",c.now],expected:async()=>[1n]},
+        ]},
+      {operation:"maintain.generate", dependencies:[technician_employee,recurring],
+        inputs:async(c,s)=>({event:{plan:s.recurring,revision:1n,due:local_date(c.now,s.test_site.timezone)}}),
+        selectors:["recurring.active","recurring.next_due","technician_employee.active","equipment.inspection_epoch"],
+        observations:[async(c,s)=>await count(records(c,Inspection,{parent:s.recurring}))],
+        rows:[
+          {dependencies:[],values:async(c,s)=>[true,local_date(c.now,s.test_site.timezone),false,0n],expected:async()=>[0n]},
+          {dependencies:[],values:async(c,s)=>[true,local_date(c.now,s.test_site.timezone),true,1n],expected:async()=>[0n]},
+        ]},
+      {operation:"maintain.verify",dependencies:[manager_employee,technician_employee,service_supplier,fault_reporter],sequence:[
+        {operation:"maintain.report",by:async(c,s,b)=>s.fault_reporter,inputs:async(c,s,b)=>({asset:s.equipment,title:"Cooling fault",description:"No cooling",photo:null}),bind:"initial_fault"},
+        {operation:"maintain.assign",by:async(c,s,b)=>s.inspection_manager,inputs:async(c,s,b)=>({repair:b.initial_fault,supplier:s.service_supplier,reason:"Repair cooling"})},
+        {let:"first_assignment",value:async(c,s,b)=>await first(records(c,"maintain.Repair",{where:row=>row.id===b.initial_fault.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.first_assignment!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"maintain.start",by:async(c,s,b)=>s.inspection_technician,inputs:async(c,s,b)=>({repair:b.first_assignment})},
+        {let:"first_started",value:async(c,s,b)=>await first(records(c,"maintain.Repair",{where:row=>row.id===b.initial_fault.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.first_started!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"maintain.finish",by:async(c,s,b)=>s.inspection_technician,inputs:async(c,s,b)=>({repair:b.first_started,evidence:"Repaired"})},
+        {let:"first_submitted",value:async(c,s,b)=>await first(records(c,"maintain.Repair",{where:row=>row.id===b.initial_fault.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.first_submitted!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"maintain.verify",by:async(c,s,b)=>s.inspection_manager,inputs:async(c,s,b)=>({repair:b.first_submitted,evidence:"Manager checked cooling"})},
+        {let:"verified_repair",value:async(c,s,b)=>await first(records(c,"maintain.Repair",{where:row=>row.id===b.initial_fault.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.verified_repair!==null],expected:async()=>[true],types:["bool"]},
+        {let:"initial",value:async(c,s,b)=>await first(records(c,"maintain.Verification",{parent:b.verified_repair,where:row=>true,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.initial!==null],expected:async()=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.verified_repair.state,b.verified_repair.block_state,b.initial.completion,b.initial.evidence,b.initial.author,b.initial.at],expected:async(c,s,b)=>["fixed","none","Repaired","Manager checked cooling",s.inspection_manager,c.now],types:["maintain.Repair.state", "maintain.Repair.block_state", "text", "text", "user", "datetime"]},
+        {operation:"maintain.reopen",by:async(c,s,b)=>s.inspection_manager,inputs:async(c,s,b)=>({repair:b.verified_repair,reason:"Cooling failed again"})},
+        {let:"reopened",value:async(c,s,b)=>await first(records(c,"maintain.Repair",{where:row=>row.id===b.initial_fault.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.reopened!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"maintain.assign",by:async(c,s,b)=>s.inspection_manager,inputs:async(c,s,b)=>({repair:b.reopened,supplier:s.service_supplier,reason:"Investigate recurrence"})},
+        {let:"assigned",value:async(c,s,b)=>await first(records(c,"maintain.Repair",{where:row=>row.id===b.initial_fault.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.assigned!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"maintain.start",by:async(c,s,b)=>s.inspection_technician,inputs:async(c,s,b)=>({repair:b.assigned})},
+        {let:"started",value:async(c,s,b)=>await first(records(c,"maintain.Repair",{where:row=>row.id===b.initial_fault.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.started!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"maintain.finish",by:async(c,s,b)=>s.inspection_technician,inputs:async(c,s,b)=>({repair:b.started,evidence:"Replaced compressor"})},
+        {let:"submitted",value:async(c,s,b)=>await first(records(c,"maintain.Repair",{where:row=>row.id===b.initial_fault.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.submitted!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"maintain.verify",by:async(c,s,b)=>s.inspection_manager,inputs:async(c,s,b)=>({repair:b.submitted,evidence:"Load test passed"})},
+        {let:"final",value:async(c,s,b)=>await first(records(c,"maintain.Repair",{where:row=>row.id===b.initial_fault.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.final!==null],expected:async()=>[true],types:["bool"]},
+        {let:"latest",value:async(c,s,b)=>await first(records(c,"maintain.Verification",{parent:b.final,where:row=>row.evidence==="Load test passed",order:["id"]}))},
+        {observations:async(c,s,b)=>[b.latest!==null],expected:async()=>[true],types:["bool"]},
+        {let:"previous",value:async(c,s,b)=>await first(records(c,"maintain.Verification",{parent:b.final,where:row=>row.id===b.initial.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.previous!==null],expected:async()=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.final.state,b.final.completion,b.final.block_state,b.final.block_source,await count(records(c,"maintain.Verification",{parent:b.final})),b.previous.completion,b.previous.evidence,b.latest.completion,b.latest.evidence,b.latest.author,b.latest.at],expected:async(c,s,b)=>["fixed","Replaced compressor","none",null,2n,"Repaired","Manager checked cooling","Replaced compressor","Load test passed",s.inspection_manager,c.now],types:["maintain.Repair.state", "text?", "maintain.Repair.block_state", "text?", "int", "text", "text", "text", "text", "user", "datetime"]}
+      ]},
+      { operation: "maintain.Plan.update", dependencies: [recurring,test_worker,technician_employee], inputs: async (c,s) => ({record:s.recurring}),
+        selectors: ["as", "changes.active", "changes.assignee", "equipment.retired"],
+        observations: [async(c,s)=>s.recurring.revision,async(c,s)=>await count(records(c,Cancellation,{parent:s.equipment}))],
+        rows: [
+          { dependencies: [], values: async(c,s)=>["maintain.maintenance_manager",true,s.inspection_technician,false], expected: async(c,s)=>[2n,1n] },
+          { dependencies: [], values: async(c,s)=>["maintain.maintenance_manager",true,s.other,false], error: "rule_failed" },
+          { dependencies: [], values: async(c,s)=>["maintain.maintenance_manager",true,s.inspection_technician,true], error: "rule_failed" },
+          { dependencies: [], values: async(c,s)=>["maintain.maintenance_manager",false,s.other,true], expected: async(c,s)=>[2n,1n] },
+        ] },
+      { operation: "maintain.cancel_inspection_step", dependencies: [check,superseded], inputs: async (c,s) => ({event:{cancellation:s.superseded}}),
+        selectors: ["check.due", "check.result", "check.answers", "check.evidence", "check.inspected_at", "superseded.phase"],
+        observations: [async(c,s)=>s.check.cancelled,async(c,s)=>s.check.result,async(c,s)=>s.superseded.phase,async(c,s)=>s.check.cancelled_by,async(c,s)=>s.check.cancelled_at],
+        rows: [
+          { dependencies: [], values: async(c,s)=>[date("2099-12-01"),"pending",[],null,null,"inspections"], expected: async(c,s)=>[true,"pending","inspections",s.inspection_manager,s.superseded.at] },
+          { dependencies: [], values: async(c,s)=>[date("2020-01-01"),"pending",[],null,null,"inspections"], expected: async(c,s)=>[false,"pending","complete",null,null] },
+          { dependencies: [], values: async(c,s)=>[date("2019-12-31"),"pending",[],null,null,"inspections"], expected: async(c,s)=>[false,"pending","complete",null,null] },
+          { dependencies: [], values: async(c,s)=>[date("2099-12-01"),"passed",["Cooling works"],"Measured cooling",datetime("2019-12-31T12:00:00Z"),"inspections"], expected: async(c,s)=>[false,"passed","complete",null,null] },
+          { dependencies: [], values: async(c,s)=>[date("2099-12-01"),"pending",[],null,null,"complete"], expected: async(c,s)=>[false,"pending","complete",null,null] },
+        ] },
+      { operation: "maintain.cancel_inspection_step", dependencies: [check,retired_work], inputs: async (c,s) => ({event:{cancellation:s.retired_work}}),
+        selectors: ["equipment.inspection_epoch", "recurring.asset_epoch", "check.asset_epoch", "recurring.active"],
+        observations: [async(c,s)=>s.recurring.active,async(c,s)=>s.recurring.revision,async(c,s)=>s.retired_work.phase,async(c,s)=>s.check.cancelled],
+        rows: [
+          { dependencies: [], values: async(c,s)=>[1n,0n,0n,true], expected: async(c,s)=>[false,2n,"plans",false] },
+          { dependencies: [], values: async(c,s)=>[1n,1n,1n,true], expected: async(c,s)=>[true,1n,"inspections",false] },
+        ] },
+      { operation: "maintain.cancel_inspection_step", dependencies: [check,retired_work], inputs: async (c,s) => ({event:{cancellation:s.retired_work}}),
+        selectors: ["retired_work.phase", "equipment.inspection_epoch", "check.asset_epoch"],
+        observations: [async(c,s)=>s.check.cancelled,async(c,s)=>s.retired_work.phase],
+        rows: [
+          { dependencies: [], values: async(c,s)=>["inspections",1n,0n], expected: async(c,s)=>[true,"inspections"] },
+          { dependencies: [], values: async(c,s)=>["inspections",1n,1n], expected: async(c,s)=>[false,"complete"] },
+        ] },
+      { operation: "maintain.inspect", dependencies: [check,technician_employee], inputs: async (c,s) => ({inspection:s.check,answers:["Cooling works"],result:"passed",evidence:"Measured cooling"}),
+        selectors: ["as", "technician_employee.active"],
+        observations: [async(c,s)=>s.inspection.result],
+        rows: [
+          { dependencies: [], values: async(c,s)=>[s.inspection_technician,false], error: "rule_failed" },
+        ] },
+      {operation:"maintain.inspect", dependencies:[manager_employee,technician_employee,check], sequence:[
+        {operation:"maintain.Plan.update", by:async(c,s,b)=>s.inspection_manager, inputs:async(c,s,b)=>({record:s.recurring,changes:{name:"Revised cooling check"}})},
+        {let:"future", value:async(c,s,b)=>await first(records(c,"maintain.Inspection",{where:(row)=>row.occurrence==="check", order:["id"]}))},
+        {observations:async(c,s,b)=>[b.future!==null], expected:async(c,s,b)=>[true], types:["bool"]},
+        {observations:async(c,s,b)=>[b.future.result,b.future.cancelled,await inspection_pending(c,b.future),await count(records(c,Cancellation,{parent:s.equipment}))], expected:async(c,s,b)=>["pending",false,false,1n], types:["maintain.Inspection.result", "bool", "bool", "int"]},
+        {operation:"maintain.inspect", by:async(c,s,b)=>s.inspection_technician, inputs:async(c,s,b)=>({inspection:b.future,answers:["Cooling works"],result:"passed",evidence:"Superseded checklist"}), error:"rule_failed"},
+        {let:"revised", value:async(c,s,b)=>await first(records(c,"maintain.Plan",{where:(row)=>row.id===s.recurring.id, order:["id"]}))},
+        {observations:async(c,s,b)=>[b.revised!==null], expected:async(c,s,b)=>[true], types:["bool"]},
+        {operation:"maintain.Plan.update", by:async(c,s,b)=>s.inspection_manager, inputs:async(c,s,b)=>({record:b.revised,changes:{checklist:["Replacement checklist"]}})},
+        {operation:"maintain.Asset.update", by:async(c,s,b)=>s.inspection_manager, inputs:async(c,s,b)=>({record:s.equipment,changes:{retired:true}})},
+        {let:"retired", value:async(c,s,b)=>await first(records(c,"maintain.Asset",{where:(row)=>row.id===s.equipment.id, order:["id"]}))},
+        {observations:async(c,s,b)=>[b.retired!==null], expected:async(c,s,b)=>[true], types:["bool"]},
+        {observations:async(c,s,b)=>[b.retired.retired,b.retired.inspection_epoch], expected:async(c,s,b)=>[true,1n], types:["bool", "int"]},
+        {operation:"maintain.Asset.update", by:async(c,s,b)=>s.inspection_manager, inputs:async(c,s,b)=>({record:b.retired,changes:{retired:false}})},
+        {let:"configured", value:async(c,s,b)=>await first(records(c,"maintain.Plan",{where:(row)=>row.id===s.recurring.id, order:["id"]}))},
+        {observations:async(c,s,b)=>[b.configured!==null], expected:async(c,s,b)=>[true], types:["bool"]},
+        {operation:"maintain.Plan.update", by:async(c,s,b)=>s.inspection_manager, inputs:async(c,s,b)=>({record:b.configured,changes:{active:true}})},
+        {let:"renewed", value:async(c,s,b)=>await first(records(c,"maintain.Plan",{where:(row)=>row.id===s.recurring.id, order:["id"]}))},
+        {observations:async(c,s,b)=>[b.renewed!==null], expected:async(c,s,b)=>[true], types:["bool"]},
+        {observations:async(c,s,b)=>[b.renewed.asset_epoch,await plan_eligible(c,b.renewed),b.future.checklist,await inspection_pending(c,b.future)], expected:async(c,s,b)=>[1n,true,["Cooling works"],false], types:["int", "bool", "text[]", "bool"]},
+        {operation:"maintain.inspect", by:async(c,s,b)=>s.inspection_technician, inputs:async(c,s,b)=>({inspection:b.future,answers:["Cooling works"],result:"passed",evidence:"Old work after reinstatement"}), error:"rule_failed"},
+        {operation:"maintain.Plan.update", by:async(c,s,b)=>s.inspection_manager, inputs:async(c,s,b)=>({record:b.renewed,changes:{name:"Stale change"}}), error:"conflict", request:async(c,s,b)=>({record:{version:1n}})},
+        {let:"cancellation", value:async(c,s,b)=>await first(records(c,"maintain.Cancellation",{parent:s.equipment, where:(row)=>row.reason==="asset_retired", order:["id"]}))},
+        {observations:async(c,s,b)=>[b.cancellation!==null], expected:async(c,s,b)=>[true], types:["bool"]},
+        {operation:"maintain.resume_cancellation", by:async(c,s,b)=>s.inspection_manager, inputs:async(c,s,b)=>({cancellation:b.cancellation})},
+        {let:"history", value:async(c,s,b)=>await first(records(c,"maintain.Cancellation",{parent:s.equipment, where:(row)=>row.id===b.cancellation.id, order:["id"]}))},
+        {observations:async(c,s,b)=>[b.history!==null], expected:async(c,s,b)=>[true], types:["bool"]},
+        {observations:async(c,s,b)=>[b.history.phase,b.history.author,b.history.at,b.history.through,b.future.result,b.future.cancelled], expected:async(c,s,b)=>["plans",s.inspection_manager,c.now,0n,"pending",false], types:["maintain.Cancellation.phase", "user", "datetime", "int", "maintain.Inspection.result", "bool"]}
+      ]},
+      {operation:"maintain.inspect", dependencies:[manager_employee,technician_employee,check], sequence:[
+        {operation:"maintain.inspect", by:async(c,s,b)=>s.inspection_technician, inputs:async(c,s,b)=>({inspection:s.check,answers:["Cooling works"],result:"passed",evidence:"Measured cooling"})},
+        {operation:"maintain.Asset.update", by:async(c,s,b)=>s.inspection_manager, inputs:async(c,s,b)=>({record:s.equipment,changes:{retired:true}})},
+        {let:"completed_check", value:async(c,s,b)=>await first(records(c,"maintain.Inspection",{where:(row)=>row.occurrence==="check", order:["id"]}))},
+        {observations:async(c,s,b)=>[b.completed_check!==null], expected:async(c,s,b)=>[true], types:["bool"]},
+        {observations:async(c,s,b)=>[b.completed_check.result,b.completed_check.answers,b.completed_check.evidence,b.completed_check.inspector,b.completed_check.inspected_at,b.completed_check.cancelled], expected:async(c,s,b)=>["passed",["Cooling works"],"Measured cooling",s.inspection_technician,c.now,false], types:["maintain.Inspection.result", "text[]", "text?", "user", "datetime?", "bool"]},
+        {operation:"maintain.inspect", by:async(c,s,b)=>s.inspection_technician, inputs:async(c,s,b)=>({inspection:b.completed_check,answers:["Replacement"],result:"failed",evidence:"Overwrite result"}), error:"rule_failed"}
+      ]},
       {
         operation: "maintain.report",
         dependencies: [equipment],
@@ -1801,23 +2022,25 @@ export function exampleFixtures({ self, other, imported }) {
           async (c, s) => s.recurring.revision,
           async (c, s) => s.check.cancelled,
           async (c, s) => s.check.result,
+          async (c, s) => await inspection_pending(c, s.check),
+          async (c, s) => await count(records(c, Cancellation, { parent: s.equipment })),
         ],
         rows: [
           {
             dependencies: [],
             values: async (c, s) => ["maintain.maintenance_manager", "Revised cooling check"],
-            expected: async (c, s) => [2n, true, "pending"],
+            expected: async (c, s) => [2n, false, "pending", false, 1n],
           },
           {
             dependencies: [],
-            values: async (c, s) => ["maintain.technician", "Revised cooling check"],
+            values: async (c, s) => [s.inspection_technician, "Revised cooling check"],
             error: "forbidden",
           },
         ],
       },
       {
         operation: "maintain.start",
-        seed: [test_worker],
+        seed: [technician_employee],
         dependencies: [awaiting],
         inputs: async (c, s) => ({ repair: s.awaiting }),
         selectors: ["as", "repair.state"],
@@ -1825,12 +2048,12 @@ export function exampleFixtures({ self, other, imported }) {
         rows: [
           {
             dependencies: [],
-            values: async (c, s) => ["maintain.technician", "assigned"],
+            values: async (c, s) => [s.inspection_technician, "assigned"],
             expected: async (c, s) => ["in_progress"],
           },
           {
             dependencies: [],
-            values: async (c, s) => ["maintain.technician", "open"],
+            values: async (c, s) => [s.inspection_technician, "open"],
             error: "rule_failed",
           },
           {
@@ -1842,16 +2065,17 @@ export function exampleFixtures({ self, other, imported }) {
       },
       {
         operation: "maintain.verify",
-        seed: [test_worker],
+        seed: [technician_employee],
         dependencies: [awaiting],
         inputs: async (c, s) => ({ repair: s.awaiting }),
         selectors: ["as", "evidence"],
-        observations: [async (c, s) => s.repair.state, async (c, s) => s.repair.verified_by],
+        observations: [async (c, s) => s.repair.state, async (c, s) => s.repair.verified_by,
+          async(c,s)=>(await first(records(c,"maintain.Verification",{parent:s.repair,order:["id"]})))?.evidence],
         rows: [
           {
             dependencies: [],
             values: async (c, s) => ["maintain.maintenance_manager", "Checked cooling"],
-            expected: async (c, s) => ["fixed", s.self],
+            expected: async (c, s) => ["fixed", s.self, "Checked cooling"],
           },
           {
             dependencies: [],
@@ -1860,14 +2084,14 @@ export function exampleFixtures({ self, other, imported }) {
           },
           {
             dependencies: [],
-            values: async (c, s) => ["maintain.technician", "Checked cooling"],
+            values: async (c, s) => [s.inspection_technician, "Checked cooling"],
             error: "forbidden",
           },
         ],
       },
       {
         operation: "maintain.reopen",
-        seed: [test_worker],
+        seed: [technician_employee],
         dependencies: [awaiting],
         inputs: async (c, s) => ({ repair: s.awaiting, reason: "Cooling failed again" }),
         selectors: [
@@ -1905,7 +2129,7 @@ export function exampleFixtures({ self, other, imported }) {
       },
       {
         operation: "maintain.inspect",
-        seed: [test_worker],
+        seed: [technician_employee],
         dependencies: [check],
         inputs: async (c, s) => ({
           inspection: s.check,
@@ -1921,17 +2145,17 @@ export function exampleFixtures({ self, other, imported }) {
         rows: [
           {
             dependencies: [],
-            values: async (c, s) => ["maintain.technician", "failed", false],
+            values: async (c, s) => [s.inspection_technician, "failed", false],
             expected: async (c, s) => ["failed", 1n],
           },
           {
             dependencies: [],
-            values: async (c, s) => ["maintain.technician", "passed", false],
+            values: async (c, s) => [s.inspection_technician, "passed", false],
             expected: async (c, s) => ["passed", 0n],
           },
           {
             dependencies: [],
-            values: async (c, s) => ["maintain.technician", "failed", true],
+            values: async (c, s) => [s.inspection_technician, "failed", true],
             error: "rule_failed",
           },
         ],

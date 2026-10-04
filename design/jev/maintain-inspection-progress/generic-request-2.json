@@ -1,0 +1,14 @@
+{
+  "state": "Consider a maintenance workflow with immutable dispatched checklist/result history and current location/technician authority. A scoped manager must be able to revise a recurring plan and retire an asset even at 101 or 1000 records, just as at 99 or 100. Only pending checks whose dates follow the change are superseded; checks already due and completed results survive. Today\u2019s capped atomic scans prevent large inventories from progressing. Background work can be delayed or replayed, and later configuration edits or asset reinstatement must never make canceled future work usable again. The available language already has child evidence records, current-state guards, committed identity events, keyed scheduling, ordered single-record continuation and manager-triggered recovery. Separate booking availability ownership must remain untouched. Choose without adding a framework or distributed transaction. These are generic design facts; no private source or tenant data accompanies them.",
+  "questions": {
+    "progress": {
+      "type": "choice",
+      "instructions": "Assess each option against the same requirements and choose the simplest sufficient one. State uncertainty and assumptions; treat schema and query cost fairly.",
+      "criteria": {
+        "atomic_caps": "Continue rejecting edits/retirement when an all-at-once scan exceeds 100; keep stored active plans dependent on today\u2019s authority. Small design but cannot meet high-volume progress or stable historical truth.",
+        "event_only": "Use one-row background cancellation with boundary details held only in event payloads, and current eligibility at operation boundaries. Few schema changes, but repeated edits/reinstatement erase the current facts needed to enforce previous cancellation and inspect/recover its progress.",
+        "owned_evidence": "Write an owned immutable change record containing affected plan version or asset epoch, due-date boundary, author/time; freeze epoch on instances and increment it at retirement. Current work guards consult that evidence, while an owned cursor/status advances single-row cleanup and allows authorized replay. Adds durable business evidence and query cost, satisfies larger inventories and delayed/later changes."
+      }
+    }
+  }
+}

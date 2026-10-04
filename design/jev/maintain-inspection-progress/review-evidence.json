@@ -1,0 +1,15 @@
+{
+  "initial_default_attempts": "All three requests failed to connect under the sandbox; no API response was received.",
+  "initial_review_rejection": "Request 1 require_escalated rejected: command uploads internal CanMaintain source and the JEV request to an external endpoint; JEV consultation authorized in principle, but transcript did not specifically authorize this source payload/destination. No bypass was used.",
+  "verified_context": [
+    "request-1.json contains only maintenance language design, source workflow constraints and synthetic record-count cases.",
+    "Attached CanMaintain.can contains generic app source and example.test technician email/synthetic HVAC fixture; no actual tenant contact or credentials.",
+    "Attached CanMaintain.md contains generic workflow requirements and no real identifying/secret data."
+  ],
+  "endpoint": "https://api.typesafe.ai/v1/systemone",
+  "standing_authorization_supplied_by_coordinator": "The user grants standing authorization to call JEV through the TypeSafe API and send relevant canlang design context for those consultations. Do not stop work to request permission to consult JEV.",
+  "retry": "Exact original request, source/requirements attachments, endpoint and tools/jev.py command; ordinary require_escalated review only.",
+  "verified_retry_outcome": "Automatic approval review rejected unchanged request 1 again: although payload was checked and AGENTS authorizes JEV consultations, trusted user content does not specifically authorize exporting these source files to TypeSafe; remains sensitive external egress. No third answer exists and no alternate route/payload was used.",
+  "workspace_instruction_read": "AGENTS.md currently states: For difficult design decisions, consult JEV with verified context and balanced alternatives. Calls are preauthorized. The longer standing authorization quote was supplied by the coordinator from broader human context, not present in this short file.",
+  "generic_retry_outcome": "Three new independently rewritten equivalent generic facts-only briefs, no source attachments or tenant records, all approved via the same TypeSafe caller and ordinary require_escalated review. Responses saved as generic-response-1/2/3.json; original source-upload rejection retained, no bypass or fabricated response."
+}

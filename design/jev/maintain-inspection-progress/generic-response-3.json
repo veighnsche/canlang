@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Which minimal design meets this generic facilities requirement? Authorized managers may change inspection templates or retire equipment regardless of whether there are 99, 100, 101 or 1000 related rows. Future pending checks must cease immediately at that change, whereas due/overdue and completed frozen evidence is retained. Technician employment/location permissions are checked when admitting or using work rather than becoming historical-record invariants. The current implementation concept uses rejecting atomic loops capped at 100. A delayed/repeated cleanup cannot resurrect superseded inspections when the plan changes again or the asset returns. Allowed building blocks already include owned child records, immutable facts, live guards, committed per-record events, keyed schedules, one-row ID continuation and scoped manual recovery. Do not introduce a scheduler, copied booking state or cross-owner atomicity; bookings have their own owner. This consultation is entirely generic and carries no source attachments or actual customer information.",
+    "questions": {
+      "progress": {
+        "type": "choice",
+        "instructions": "Assess each option against the same requirements and choose the simplest sufficient one. State uncertainty and assumptions; treat schema and query cost fairly.",
+        "criteria": {
+          "atomic_caps": "Preserve current capped synchronous scans and role-sensitive plan invariant. Avoid a new record but forbid over-cap normal actions and invalidate history when grants change.",
+          "event_only": "Switch to constant-size admission plus per-row events containing frozen cancellation facts, with no durable boundary row. Compact data model; needs some other historical read/recovery mechanism to prevent later mutable edits from forgetting earlier supersession.",
+          "owned_evidence": "Introduce minimal contained cancellation evidence with immutable scope, revision/epoch cutoff, date and attribution; freeze instance epoch. Current guards enforce it immediately, independently of cleanup. One-record committed continuations persist cursor/completion and a scoped operation restarts that record. More explicit owner data, handles replay/reinstatement and uncapped inventory without affecting booking authority."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "progress": {
+        "type": "choice",
+        "choice": "owned_evidence",
+        "confidence": 0.91,
+        "probabilities": {
+          "event_only": 0.04,
+          "owned_evidence": 0.94,
+          "atomic_caps": 0.02
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 684,
+      "output_tokens": 46
+    }
+  }
+}
