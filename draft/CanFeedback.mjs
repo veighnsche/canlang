@@ -15,19 +15,37 @@ import {
 } from "@canlang/stdlib";
 import {
   actions,
+  alert,
+  badge,
+  breadcrumbs,
+  button,
   card,
+  collapse,
   content,
   delete as remove,
-  details,
+  divider,
   edit,
+  fieldset,
+  filter,
   form,
+  hero,
   history,
+  input,
   list,
   message,
+  modal,
+  pagination,
+  radio,
   renderPage,
+  select,
+  slot,
   table,
   text,
+  textarea,
   title,
+  toggle,
+  tooltip,
+  swap,
 } from "@canlang/ui";
 import { can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -42,6 +60,15 @@ import { open_request } from "./desk.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * UI sections mirror the replanned CanFeedback.can Then: breadcrumbs, hero
+ * intro, in-context saved-default filters, alert notices, fieldset-grouped
+ * intake with typed controls, paged vote-ranked roadmaps, hidden-state swaps,
+ * cooldown-annotated votes, roadmap/moderation modals with radio/select/toggle
+ * controls, collapse disclosures, empty states and paginated collections.
+ * collapse replaces details under their shared disclosure contract. Lowercase
+ * UI factories take one props object; slots are prop arrays. All UI imports
+ * and calls are desired/unimplemented. This file passes node --check (syntax
+ * only) and never runs.
  */
 
 const suggestionCaption = message("Suggestion", { nl: "Suggestie" });
@@ -688,6 +715,25 @@ export async function feedbackPage(c, bindings) {
     c,
     feedbackPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
+      /* desired-unimplemented: hero groups the page intro. */
+      hero({
+        context: c,
+        caption: message("Improve your workspace", { nl: "Verbeter je werkplek" }),
+        children: [
+          text({
+            context: c,
+            values: [
+              message("Published ideas welcome your vote. New suggestions await owner review.", {
+                nl: "Gepubliceerde ideeën kun je steunen met je stem. Nieuwe suggesties wachten op beoordeling.",
+              }),
+            ],
+          }),
+        ],
+      }),
+      /* desired-unimplemented: filter edits the owned saved-default preference. */
+      filter({ context: c, preference: "feedback.status" }),
       list({
         context: c,
         rows: choices,
@@ -698,22 +744,24 @@ export async function feedbackPage(c, bindings) {
           location: c.preferences.feedback.location,
         },
         search: ["name"],
+        empty: message("No products yet.", { nl: "Nog geen producten." }),
         renderRow: (choice, view) => [
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: view }),
           text({ context: view, values: [choice.name, choice.location] }),
           card({
             context: view,
             title: message("Urgent private issue", { nl: "Dringend privéprobleem" }),
             children: [
-              text({
+              /* desired-unimplemented: alert renders the readable notice. */
+              alert({
                 context: view,
-                values: [
-                  message(
-                    "Use private support for incidents. Never put access instructions or anyone’s contact details in a suggestion. New suggestions await owner review.",
-                    {
-                      nl: "Gebruik privésupport voor incidenten. Zet nooit toegangsinstructies of contactgegevens van anderen in een suggestie. Nieuwe suggesties wachten op beoordeling door de verantwoordelijke.",
-                    },
-                  ),
-                ],
+                notice: message(
+                  "Use private support for incidents. Never put access instructions or anyone’s contact details in a suggestion. New suggestions await owner review.",
+                  {
+                    nl: "Gebruik privésupport voor incidenten. Zet nooit toegangsinstructies of contactgegevens van anderen in een suggestie. Nieuwe suggesties wachten op beoordeling door de verantwoordelijke.",
+                  },
+                ),
               }),
               form({ context: view, operation: open_request, arguments: { priority: "urgent" } }),
             ],
@@ -726,6 +774,19 @@ export async function feedbackPage(c, bindings) {
                 context: view,
                 operation: "feedback.Suggestion.create",
                 arguments: { parent: choice.product },
+                display: "inline",
+                /* desired-unimplemented: placed controls move the generated fields. */
+                children: [
+                  fieldset({
+                    context: view,
+                    caption: message("Your suggestion", { nl: "Je suggestie" }),
+                    children: [
+                      input({ context: view, field: "title" }),
+                      textarea({ context: view, field: "description" }),
+                      input({ context: view, field: "category" }),
+                    ],
+                  }),
+                ],
               }),
             ],
           }),
@@ -751,6 +812,11 @@ export async function feedbackPage(c, bindings) {
                       status: c.preferences.feedback.status,
                     },
                     order: ["-votes"],
+                    empty: message("No published ideas yet.", { nl: "Nog geen gepubliceerde ideeën." }),
+                    renderRow: (item, w) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: w }),
+                    ],
                   }),
                 ],
               }),
@@ -758,7 +824,7 @@ export async function feedbackPage(c, bindings) {
           }),
           ...(hasRole(view, "authenticated")
             ? [
-                details({
+                collapse({
                   context: view,
                   caption: message("Your submissions and review state", {
                     nl: "Je bijdragen en beoordelingsstatus",
@@ -774,13 +840,35 @@ export async function feedbackPage(c, bindings) {
                         category: c.preferences.feedback.category,
                         status: c.preferences.feedback.status,
                       },
+                      empty: message("You have no submissions yet.", { nl: "Je hebt nog geen bijdragen." }),
                       renderRow: (suggestion, rowView) => [
-                        title({ context: rowView, value: suggestion.title }),
-                        content({ context: rowView, value: suggestion.description }),
-                        text({
+                        /* desired-unimplemented: pagination consumes this collection cursor. */
+                        pagination({ context: rowView }),
+                        /* desired-unimplemented: swap selects display off the readable bool. */
+                        swap({
                           context: rowView,
-                          values: [suggestion.category, suggestion.status, suggestion.response,
-                            suggestion.hidden, suggestion.moderation_reason, suggestion.duplicate],
+                          value: suggestion.hidden,
+                          off: [
+                            title({ context: rowView, value: suggestion.title }),
+                            content({ context: rowView, value: suggestion.description }),
+                            /* desired-unimplemented: badge presents the readable typed value. */
+                            badge({ context: rowView, value: suggestion.status }),
+                            text({
+                              context: rowView,
+                              values: [suggestion.category, suggestion.response, suggestion.duplicate],
+                            }),
+                          ],
+                          on: [
+                            badge({ context: rowView, value: suggestion.status }),
+                            text({
+                              context: rowView,
+                              values: [suggestion.title, suggestion.moderation_reason],
+                            }),
+                            alert({
+                              context: rowView,
+                              notice: message("Awaiting owner review.", { nl: "Wacht op beoordeling." }),
+                            }),
+                          ],
                         }),
                         edit({ context: rowView, operation: "feedback.Suggestion.update", record: suggestion }),
                         remove({ context: rowView, operation: "feedback.Suggestion.delete", record: suggestion }),
@@ -791,7 +879,7 @@ export async function feedbackPage(c, bindings) {
                 }),
               ]
             : []),
-          details({
+          collapse({
             context: view,
             caption: message("Suggestions and your votes", {
               nl: "Suggesties en je eigen stemmen",
@@ -806,24 +894,38 @@ export async function feedbackPage(c, bindings) {
                   category: c.preferences.feedback.category,
                   status: c.preferences.feedback.status,
                 },
+                empty: message("No suggestions yet.", { nl: "Nog geen suggesties." }),
                 renderRow: (suggestion, rowView) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: rowView }),
+                  /* desired-unimplemented: badge presents the readable typed value. */
+                  badge({ context: rowView, value: suggestion.status }),
                   title({ context: rowView, value: suggestion.title }),
                   content({ context: rowView, value: suggestion.description }),
                   text({
                     context: rowView,
-                    values: [suggestion.category, suggestion.status, suggestion.response],
+                    values: [suggestion.category, suggestion.response],
                   }),
                   edit({
                     context: rowView,
                     operation: "feedback.Suggestion.update",
                     record: suggestion,
                   }),
-                  actions({
+                  /* desired-unimplemented: tooltip annotates the canonical action. */
+                  tooltip({
                     context: rowView,
-                    operations: ["feedback.vote"],
-                    boundArgs: { suggestion },
+                    caption: message("Vote for this idea. Votes are spaced ten seconds apart.", {
+                      nl: "Stem op dit idee. Stemmen volgen elkaar op met tien seconden ertussen.",
+                    }),
+                    children: [
+                      actions({
+                        context: rowView,
+                        operations: ["feedback.vote"],
+                        boundArgs: { suggestion },
+                      }),
+                    ],
                   }),
-                  details({
+                  collapse({
                     context: rowView,
                     caption: message("Operator decision history", {
                       nl: "Geschiedenis exploitantbesluiten",
@@ -839,6 +941,10 @@ export async function feedbackPage(c, bindings) {
                             rows: result.items,
                             contract: "feedback.DecisionCard",
                             columns: ["published_at", "status", "response"],
+                            renderRow: (item, w) => [
+                              /* desired-unimplemented: pagination consumes this collection cursor. */
+                              pagination({ context: w }),
+                            ],
                           }),
                         ],
                       }),
@@ -846,7 +952,7 @@ export async function feedbackPage(c, bindings) {
                   }),
                   ...(hasRole(rowView, "authenticated")
                     ? [
-                        details({
+                        collapse({
                           context: rowView,
                           caption: message("Your votes", { nl: "Je eigen stemmen" }),
                           children: [
@@ -854,7 +960,10 @@ export async function feedbackPage(c, bindings) {
                               context: rowView,
                               model: "feedback.Vote",
                               parent: suggestion,
+                              empty: message("No vote yet.", { nl: "Nog geen stem." }),
                               renderRow: (vote, voteView) => [
+                                /* desired-unimplemented: pagination consumes this collection cursor. */
+                                pagination({ context: voteView }),
                                 text({ context: voteView, values: [vote.active] }),
                                 actions({
                                   context: voteView,
@@ -883,10 +992,22 @@ export async function moderationPage(c, bindings) {
     c,
     moderationPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
+      /* desired-unimplemented: filter edits the owned saved-default preference. */
+      filter({ context: c, preference: "feedback.status" }),
       card({
         context: c,
         title: message("Product intake", { nl: "Product aanmaken" }),
-        children: [form({ context: c, operation: "feedback.Product.create" })],
+        children: [
+          form({
+            context: c,
+            operation: "feedback.Product.create",
+            display: "inline",
+            /* desired-unimplemented: placed control moves the generated field. */
+            children: [input({ context: c, field: "name" })],
+          }),
+        ],
       }),
       list({
         context: c,
@@ -898,12 +1019,17 @@ export async function moderationPage(c, bindings) {
           location: c.preferences.feedback.location,
         },
         search: ["name"],
+        empty: message("No owned products.", { nl: "Geen eigen producten." }),
         renderRow: (choice, view) => [
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: view }),
           text({ context: view, values: [choice.name, choice.location] }),
           form({
             context: view,
             operation: "feedback.Product.update",
             arguments: { record: choice.product },
+            /* desired-unimplemented: placed control moves the generated field. */
+            children: [input({ context: view, field: "name" })],
           }),
           list({
             context: view,
@@ -912,13 +1038,19 @@ export async function moderationPage(c, bindings) {
             filter: ["hidden", "status"],
             defaults: { status: c.preferences.feedback.status },
             display: "split",
+            search: ["title"],
+            empty: message("No suggestions to review.", { nl: "Geen suggesties te beoordelen." }),
             renderRow: (suggestion, rowView) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: rowView }),
               card({
                 context: rowView,
                 title: message("Suggestion and roadmap outcome", {
                   nl: "Suggestie en roadmapuitkomst",
                 }),
                 children: [
+                  /* desired-unimplemented: badge presents the readable typed value. */
+                  badge({ context: rowView, value: suggestion.status }),
                   title({ context: rowView, value: suggestion.title }),
                   content({ context: rowView, value: suggestion.description }),
                   text({
@@ -926,22 +1058,83 @@ export async function moderationPage(c, bindings) {
                     values: [
                       suggestion.category,
                       suggestion.author,
-                      suggestion.status,
                       suggestion.response,
                       suggestion.hidden,
                       suggestion.moderation_reason,
                       suggestion.duplicate,
                     ],
                   }),
-                  actions({
+                  /* desired-unimplemented: divider structures the dense card. */
+                  divider({ context: rowView, caption: message("Decisions", { nl: "Besluiten" }) }),
+                  /* desired-unimplemented: button opens activates the local modal. */
+                  button({ context: rowView, opens: "roadmap_decision" }),
+                  /* desired-unimplemented: modal declares the local activation identity. */
+                  modal({
                     context: rowView,
-                    operations: ["feedback.roadmap", "feedback.moderate"],
-                    boundArgs: { suggestion },
+                    caption: message("Record roadmap decision", { nl: "Roadmapbesluit vastleggen" }),
+                    id: "roadmap_decision",
+                    children: [
+                      slot({
+                        context: rowView,
+                        name: "content",
+                        children: [
+                          form({
+                            context: rowView,
+                            operation: "feedback.roadmap",
+                            arguments: { suggestion },
+                            display: "inline",
+                            /* desired-unimplemented: placed controls move the generated fields. */
+                            children: [
+                              fieldset({
+                                context: rowView,
+                                caption: message("Roadmap outcome", { nl: "Roadmapuitkomst" }),
+                                children: [
+                                  radio({ context: rowView, field: "status" }),
+                                  textarea({ context: rowView, field: "response" }),
+                                  select({ context: rowView, field: "duplicate" }),
+                                ],
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  button({ context: rowView, opens: "moderate_content" }),
+                  modal({
+                    context: rowView,
+                    caption: message("Moderate suggestion", { nl: "Suggestie modereren" }),
+                    id: "moderate_content",
+                    children: [
+                      slot({
+                        context: rowView,
+                        name: "content",
+                        children: [
+                          form({
+                            context: rowView,
+                            operation: "feedback.moderate",
+                            arguments: { suggestion },
+                            display: "inline",
+                            /* desired-unimplemented: placed controls move the generated fields. */
+                            children: [
+                              fieldset({
+                                context: rowView,
+                                caption: message("Moderation", { nl: "Moderatie" }),
+                                children: [
+                                  toggle({ context: rowView, field: "hidden" }),
+                                  textarea({ context: rowView, field: "reason" }),
+                                ],
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
                 ],
               }),
               history({ context: rowView, record: suggestion }),
-              details({
+              collapse({
                 context: rowView,
                 caption: message("Operator decisions and withdrawals", {
                   nl: "Exploitantbesluiten en intrekkingen",
@@ -953,6 +1146,8 @@ export async function moderationPage(c, bindings) {
                     parent: suggestion,
                     order: ["created"],
                     renderRow: (decision, decisionView) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: decisionView }),
                       text({
                         context: decisionView,
                         values: [
