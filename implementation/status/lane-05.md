@@ -396,8 +396,12 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
       index exports, 8 catalog flips, arity pins. Coordinator hardening: label guards (7),
       null-binding filter + opens typeof, button inputs via forms serializer, theme-controller
       hook + cancel reset, megamenu group-caption check. Suite 685/685.
-- [ ] C7 collections + agenda + files + review: calendar (agenda dispatch), board, gallery (semantic),
-      file/media controls, CSV import panel, company review.ts, date-picker adapter (JEV selection). Two workers.
+- [ ] C7 collections + files + review (branch muse/lane-05-ui/c7-collections, PR pending):
+      contract v0.13.0 (7 Props/view types), board + csvImport (collections.ts), fileControl
+      (controls.ts), review.ts (new). Props in contract (appearance dims dropped: words admit
+      none); index exports; 4 catalog flips; arity pins; review caption guard. Suite 732/732.
+      Calendar closed: agenda shipped in C4a; JEV adopts C (no static grid); gallery unwarranted
+      (no catalog word; list/board/hover_gallery cover). Evidence: jev/lane-05-c7-20261004/.
 - [ ] C8 settings + panels: preferences sections/panels, tabs, details/drawer completion, history, copy
       (old S6 scope reconciled with new profiles). One worker + coordinator.
 - [ ] C9 catalog completion + B1/B2/B3 + discovery evidence: availability truthfulness audit, L1/L6/L7 joins,
