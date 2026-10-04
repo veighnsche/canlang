@@ -283,12 +283,7 @@ function toOperand(name: string, param: MessageParamValue): ScalarOperand {
       // "expense.Expense.status") arrive as dotted type ids. Non-string
       // values still fail closed below, so a mistyped record/array/object
       // can never be formatted as an enum case.
-      if (
-        type === "enum" ||
-        type.startsWith("enum.") ||
-        type.startsWith("enum:") ||
-        type.includes(".")
-      ) {
+      if (isEnumTypeId(type)) {
         if (typeof value !== "string") fail(name, `type ${type} needs a stable case name`);
         return { kind: "enum", value: value as string };
       }
@@ -1033,9 +1028,17 @@ export function canonicalDefaultTag(tag: string): string {
   }
 }
 
+/** True for enum type ids: "enum", prefixed, or qualified dotted identities. */
+export function isEnumTypeId(type: string): boolean {
+  return (
+    type === "enum" || type.startsWith("enum.") || type.startsWith("enum:") || type.includes(".")
+  );
+}
+
 export interface CaptionContext {
   readonly preferredLocales: readonly string[];
   readonly appDefaultLocale: string;
+  readonly currencyScales?: Record<string, number>;
 }
 
 /**
@@ -1052,6 +1055,7 @@ export function resolveCaption(value: MessageValue, context: CaptionContext): st
     preferredLocales: canonicalPreferredTags(context.preferredLocales),
     appDefaultLocale: canonicalDefaultTag(context.appDefaultLocale),
     timeZone: "UTC",
+    ...(context.currencyScales === undefined ? {} : { currencyScales: context.currencyScales }),
   });
 }
 

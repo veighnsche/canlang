@@ -23,6 +23,7 @@ export {
   formatMessage,
   formatMoneyExact,
   formatScalar,
+  isEnumTypeId,
   localeNumberSystem,
   localeSeparators,
   message,

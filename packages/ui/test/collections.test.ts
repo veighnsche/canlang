@@ -10,7 +10,7 @@ import type {
 } from "../../contracts/src/presentation.js";
 import { list, table } from "../src/collections.js";
 import { renderState, rowHeading } from "../src/components.js";
-import { escapeAttr } from "../src/escape.js";
+import { escapeAttr, isolate } from "../src/escape.js";
 import { message } from "../src/messages.js";
 
 interface SeenCall {
@@ -267,8 +267,12 @@ describe("table", () => {
     });
     const html = await table({ context, model: "TeamTasks.Todo", columns: ["title", "count"], empty: "No todos" });
     assert.ok(html.startsWith("<table class=\"table\">"));
-    assert.ok(html.includes("<thead><tr><th>Title</th><th>Count</th></tr></thead>"));
-    assert.ok(html.includes("<tbody><tr><td>Buy milk</td><td>1,234,567</td></tr></tbody>"));
+    assert.ok(html.includes("<thead><tr><th scope=\"col\">Title</th><th scope=\"col\">Count</th></tr></thead>"));
+    assert.ok(
+      html.includes(
+        `<tbody><tr><td>${isolate("Buy milk")}</td><td>${isolate("1,234,567")}</td></tr></tbody>`,
+      ),
+    );
   });
 
   it("resolves descriptor labels per viewer locale", async () => {
@@ -285,14 +289,14 @@ describe("table", () => {
       columns: ["title"],
       empty: "No todos",
     });
-    assert.ok(en.includes("<th>Title</th>"));
+    assert.ok(en.includes("<th scope=\"col\">Title</th>"));
     const nl = await table({
       context: tableContext(seen, result, { preferredLocales: ["nl"] }),
       model: "TeamTasks.Todo",
       columns: ["title"],
       empty: "No todos",
     });
-    assert.ok(nl.includes("<th>Titel</th>"));
+    assert.ok(nl.includes("<th scope=\"col\">Titel</th>"));
   });
 
   it("renders bool badges from valueLabels", async () => {
@@ -412,7 +416,19 @@ describe("table", () => {
     });
     const html = await table({ context, model: "TeamTasks.Todo", columns: ["title"], empty: "No todos" });
     assert.ok(!html.includes(payload));
-    assert.ok(html.includes("<td>&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;</td>"));
+    assert.ok(html.includes(`<td>${isolate("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;")}</td>`));
+  });
+
+  it("isolates cell text with explicit bidi marks", async () => {
+    const titleCol: ColumnMeta = { field: "title", label: message("Title"), type: "text" };
+    const seen: SeenCall[] = [];
+    const context = tableContext(seen, {
+      rows: [row("a", { title: "Buy milk" })],
+      columns: [titleCol],
+    });
+    const html = await table({ context, model: "TeamTasks.Todo", columns: ["title"], empty: "No todos" });
+    // Pinned with escapes, not via the isolate() helper under test.
+    assert.ok(html.includes("<td>\u2068Buy milk\u2069</td>"));
   });
 
   it("escapes labels", async () => {
@@ -424,7 +440,7 @@ describe("table", () => {
     });
     const html = await table({ context, model: "TeamTasks.Todo", columns: ["title"], empty: "No todos" });
     assert.ok(!html.includes("<b>Hi</b>"));
-    assert.ok(html.includes("<th>&lt;b&gt;Hi&lt;/b&gt;</th>"));
+    assert.ok(html.includes("<th scope=\"col\">&lt;b&gt;Hi&lt;/b&gt;</th>"));
   });
 
   it("formats money with currency scales", async () => {
@@ -439,7 +455,7 @@ describe("table", () => {
       { currencyScales: { USD: 2 } },
     );
     const html = await table({ context, model: "TeamTasks.Todo", columns: ["total"], empty: "No todos" });
-    assert.ok(html.includes("<td>$123.45</td>"));
+    assert.ok(html.includes(`<td>${isolate("$123.45")}</td>`));
   });
 
   it("throws a column error for money without scales", async () => {
@@ -467,7 +483,7 @@ describe("table", () => {
     const expected = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" }).format(
       new Date("2026-03-14T00:00:00Z"),
     );
-    assert.ok(html.includes(`<td>${expected}</td>`));
+    assert.ok(html.includes(`<td>${isolate(expected)}</td>`));
   });
 
   it("renders nested RowView values via rowHeading", async () => {
@@ -480,7 +496,7 @@ describe("table", () => {
       columns: [ownerCol],
     });
     const html = await table({ context, model: "TeamTasks.Todo", columns: ["owner"], empty: "No todos" });
-    assert.ok(html.includes(`<td>${rowHeading(nested, ownerLabel, context)}</td>`));
+    assert.ok(html.includes(`<td>${isolate(rowHeading(nested, ownerLabel, context))}</td>`));
   });
 
   it("renders dotted model-ref columns with nested rows structurally, not as badges", async () => {
@@ -493,7 +509,7 @@ describe("table", () => {
       columns: [ownerCol],
     });
     const html = await table({ context, model: "TeamTasks.Todo", columns: ["owner"], empty: "No todos" });
-    assert.ok(html.includes(`<td>${rowHeading(nested, ownerLabel, context)}</td>`));
+    assert.ok(html.includes(`<td>${isolate(rowHeading(nested, ownerLabel, context))}</td>`));
     assert.ok(!html.includes("badge"));
   });
 
@@ -506,7 +522,7 @@ describe("table", () => {
     });
     const html = await table({ context, model: "TeamTasks.Todo", columns: ["doc"], empty: "No todos" });
     assert.ok(!html.includes("<doc-1>"));
-    assert.ok(html.includes("<td>&lt;doc-1&gt;</td>"));
+    assert.ok(html.includes(`<td>${isolate("&lt;doc-1&gt;")}</td>`));
   });
 
   it("throws naming field and type for unsupported structural values", async () => {
@@ -570,6 +586,59 @@ describe("table", () => {
       empty: "No todos",
     });
     assert.ok(html.includes("<tr><td></td><td></td></tr>"));
+  });
+
+  it("never renders unselected fields, even when the runner returns extras", async () => {
+    const seen: SeenCall[] = [];
+    const secret = "forbidden-secret-value";
+    const context = tableContext(seen, {
+      rows: [row("a", { title: "Buy milk", secret })],
+      columns: [titleCol],
+    });
+    const html = await table({ context, model: "TeamTasks.Todo", columns: ["title"], empty: "No todos" });
+    assert.ok(html.includes(isolate("Buy milk")));
+    assert.ok(!html.includes(secret));
+  });
+
+  it("badges enum:-prefixed column types like other enum spellings", async () => {
+    const seen: SeenCall[] = [];
+    const stateCol: ColumnMeta = {
+      field: "state",
+      label: "State",
+      type: "enum:Expense.state",
+      valueLabels: { open: message("Open") },
+    };
+    const context = tableContext(seen, {
+      rows: [row("a", { state: "open" })],
+      columns: [stateCol],
+    });
+    const html = await table({ context, model: "Expense", columns: ["state"], empty: "No rows" });
+    assert.ok(html.includes('<span class="badge">Open</span>'));
+  });
+
+  it("rejects out-of-range limits without querying", async () => {
+    const seen: SeenCall[] = [];
+    const context = tableContext(seen, { rows: [], columns: [titleCol] });
+    for (const limit of [0, -1, 101, 1.5, Number.NaN]) {
+      await rejectsWith(
+        () => table({ context, model: "TeamTasks.Todo", columns: ["title"], empty: "No todos", limit }),
+        "table: limit must be an integer 1..100",
+      );
+      await rejectsWith(
+        () =>
+          list({
+            context,
+            model: "TeamTasks.Todo",
+            empty: "No todos",
+            limit,
+            renderRow: () => [],
+          }),
+        "list: limit must be an integer 1..100",
+      );
+    }
+    assert.equal(seen.length, 0);
+    await table({ context, model: "TeamTasks.Todo", columns: ["title"], empty: "No todos", limit: 100 });
+    assert.equal(seen.length, 1);
   });
 
   it("passes query args, invocation and model through", async () => {

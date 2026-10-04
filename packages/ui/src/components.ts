@@ -97,6 +97,8 @@ export function renderTextValue(value: TextValue, context: PresentationContext):
  * Row label rule over the supplied authorized projection only: the first
  * nonempty non-whitespace exact-string `title`, else `name`, else
  * "<model caption> <id>". Returns escaped text; callers must not re-escape.
+ * Assemblers (cells, generated rows) apply bidi isolation around the result;
+ * this helper does not isolate, so nested use never double-wraps.
  */
 export function rowHeading(
   row: RowView,

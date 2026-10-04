@@ -289,12 +289,22 @@ tests, themes.css + audit tests, index wiring, daisyui 5.7.47 devDep pin.
 Workers: W-A core components (29 tests), W-B list/table (35 tests).
 Coordinator fixes: shell `active`→`menu-active` (audit-caught, daisyUI v5
 renamed it), badge routing by value shape for dotted model-ref columns.
-Checks (local, node v24.21.0): 172/172 pass (101 carried + 29 components +
-35 collections + 2 catalog + 5 themes).
+Checks (local, node v24.21.0): 183/183 pass (101 carried + 30 components +
+38 collections + 3 catalog + 7 themes + 4 renderer helpers).
 L1/L3/L6 ack requested: query-seam decision (factories keep §13 call shape;
 dispatcher supplies invocation+query on context; result carries column
 metadata). L7: presentation/index + check.json joins still pending.
-PR: (to be filled) number, reviewed head, review notes, merge result.
+PR #16 (muse/lane-05-ui/s3-components -> main). Self-review: full diff +
+worker implementations read end to end. Independent read-only review verdict
+approve-with-nits; all addressed in-branch: N1 collection bounds pinned
+(limit 1..100, runner default 25/max 100); N2 scales threaded through
+resolveCaption; N3 shared isEnumTypeId predicate; N4 audit hardened (can-*
+allowlist, per-theme var completeness, system-override coverage proof);
+N5 cell bidi isolation (rowHeading deliberately unisolated, no double-wrap);
+N6 catalog arity pins; N7 th scope=col; T1 forbidden-field test, T2 caption
+money test, T3 enum: badge test, T4 no-match/validation/conflict/pending
+documented as S4/S5 extensions. Literal bidi marks converted to \u escapes.
+Merge: (to be filled) reviewed head sha, checks, squash merge result.
 
 ## Remaining work and cleanup
 

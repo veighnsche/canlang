@@ -24,6 +24,15 @@ const THEME_NAMES = [
   "can-system-purple",
 ];
 
+/** Structural `can-*` markup hooks owned by this package (reviewed). */
+const CAN_HOOKS = new Set([
+  "can-account",
+  "can-brand",
+  "can-more",
+  "can-settings-panel",
+  "can-settings-sidebar",
+]);
+
 /**
  * Tailwind utility tokens used in src markup, reviewed by hand. Anything used
  * in src that is neither can-* structural, nor in daisyUI's CSS, nor listed
@@ -129,6 +138,58 @@ describe("themes.css", () => {
     }
   });
 
+  it("defines the complete variable set in every theme block", () => {
+    const expected = new Set<string>();
+    const stock = readFileSync(join(daisyRoot, "theme", "light.css"), "utf8");
+    for (const match of stock.matchAll(/--[a-z][a-z0-9-]*/g)) {
+      expected.add(match[0]);
+    }
+    for (const name of THEME_NAMES) {
+      const open = themesCss.indexOf(`[data-theme="${name}"]`);
+      assert.ok(open !== -1, `themes.css lacks ${name}`);
+      const close = themesCss.indexOf("}", open);
+      const block = themesCss.slice(open, close);
+      for (const variable of expected) {
+        assert.ok(
+          block.includes(variable),
+          `theme ${name} drops ${variable}`,
+        );
+      }
+    }
+  });
+
+  it("covers every stock light/dark difference in the system overrides", () => {
+    const varsOf = (base: string): Map<string, string> => {
+      const css = readFileSync(join(daisyRoot, "theme", `${base}.css`), "utf8");
+      const map = new Map<string, string>();
+      for (const match of css.matchAll(/(--[a-z][a-z0-9-]*)\s*:\s*([^;]*);/g)) {
+        map.set(match[1] as string, (match[2] as string).trim());
+      }
+      return map;
+    };
+    const light = varsOf("light");
+    const dark = varsOf("dark");
+    const differing: string[] = [];
+    for (const [name, value] of light) {
+      if (dark.get(name) !== value) {
+        differing.push(name);
+      }
+    }
+    assert.ok(differing.length > 0);
+    for (const accent of ["blue", "green", "purple"]) {
+      const marker = `[data-theme="can-system-${accent}"]`;
+      // The dark override is the second block with this selector (in @media).
+      const first = themesCss.indexOf(marker);
+      const second = themesCss.indexOf(marker, first + marker.length);
+      assert.ok(second !== -1, `system theme ${accent} lacks a dark override block`);
+      const close = themesCss.indexOf("}", second);
+      const block = themesCss.slice(second, close);
+      for (const name of differing) {
+        assert.ok(block.includes(name), `system ${accent} override drops ${name}`);
+      }
+    }
+  });
+
   it("pins the audited daisyUI version", () => {
     const manifest = JSON.parse(
       readFileSync(join(packageRoot, "package.json"), "utf8"),
@@ -147,6 +208,9 @@ describe("class audit", () => {
     const unknown: string[] = [];
     for (const token of extractClassTokens()) {
       if (token.startsWith("can-")) {
+        if (!CAN_HOOKS.has(token)) {
+          unknown.push(token);
+        }
         continue;
       }
       const base = token.includes(":") ? (token.split(":").pop() as string) : token;

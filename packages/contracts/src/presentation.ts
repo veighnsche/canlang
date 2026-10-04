@@ -339,6 +339,10 @@ export interface ColumnMeta {
 export interface ListQueryArgs {
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
+  /**
+   * Requested page size, 1..100. UI rejects anything outside; the runner
+   * defaults to 25 rows when absent and rejects overflow by design.
+   */
   readonly limit?: number;
   readonly cursor?: string;
 }
@@ -351,8 +355,9 @@ export interface ListQueryResult {
 
 /**
  * Authorized row query: invocation is the opaque canonical context, model
- * the qualified model name. Enforces viewer grants, limits and projection
- * before returning; UI renders exactly what it receives.
+ * the qualified model name. Enforces viewer grants, collection bounds
+ * (default 25 rows, max 100, overflow rejected) and projection before
+ * returning; UI renders exactly what it receives.
  */
 export type RowQueryRunner = (
   invocation: unknown,
@@ -402,6 +407,11 @@ export interface ContentProps {
 
 export interface SharedStateProps {
   readonly context: PresentationContext;
+  /**
+   * Rendered state. "no-match" (filtered-empty with clear-filters affordance)
+   * extends this union in the S5 collections-controls slice; validation,
+   * conflict and pending outcomes arrive with S4 forms.
+   */
   readonly kind: "loading" | "empty" | "error";
   readonly message: MessageValue;
   readonly detail?: MessageValue;

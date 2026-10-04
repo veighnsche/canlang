@@ -139,19 +139,19 @@ describe("renderTextValue", () => {
 
   it("renders strings verbatim, escaped and isolated", () => {
     const out = renderTextValue("a&b", ctx);
-    assert.equal(out, "⁨a&amp;b⁩");
+    assert.equal(out, "\u2068a&amp;b\u2069");
   });
 
   it("renders booleans as true/false", () => {
-    assert.equal(renderTextValue(true, ctx), "⁨true⁩");
-    assert.equal(renderTextValue(false, ctx), "⁨false⁩");
+    assert.equal(renderTextValue(true, ctx), "\u2068true\u2069");
+    assert.equal(renderTextValue(false, ctx), "\u2068false\u2069");
   });
 
   it("renders bigint and safe-int numbers exactly with page locale", () => {
-    assert.equal(renderTextValue(1234567n, ctx), "⁨1,234,567⁩");
-    assert.equal(renderTextValue(42, ctx), "⁨42⁩");
+    assert.equal(renderTextValue(1234567n, ctx), "\u20681,234,567\u2069");
+    assert.equal(renderTextValue(42, ctx), "\u206842\u2069");
     const de = makeContext({ preferredLocales: ["de"] });
-    assert.equal(renderTextValue(1234567n, de), "⁨1.234.567⁩");
+    assert.equal(renderTextValue(1234567n, de), "\u20681.234.567\u2069");
   });
 
   it("throws a TypeError naming {type, value} for non-integer numbers", () => {
@@ -167,19 +167,19 @@ describe("renderTextValue", () => {
       }),
       ctx,
     );
-    assert.equal(out, "⁨2 things⁩");
+    assert.equal(out, "\u20682 things\u2069");
   });
 
   it("renders typed scalar pairs with UTC and currency scales", () => {
-    assert.equal(renderTextValue({ type: "decimal", value: "1234.50" }, ctx), "⁨1,234.5⁩");
+    assert.equal(renderTextValue({ type: "decimal", value: "1234.50" }, ctx), "\u20681,234.5\u2069");
     const money = makeContext({ currencyScales: { USD: 2 } });
     assert.equal(
       renderTextValue({ type: "money", value: { minor: 1234n, currency: "USD" } }, money),
-      "⁨$12.34⁩",
+      "\u2068$12.34\u2069",
     );
     assert.equal(
       renderTextValue({ type: "date", value: "2026-01-02" }, ctx),
-      `⁨${new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" }).format(new Date("2026-01-02T00:00:00Z"))}⁩`,
+      `\u2068${new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" }).format(new Date("2026-01-02T00:00:00Z"))}\u2069`,
     );
   });
 
@@ -193,7 +193,7 @@ describe("renderTextValue", () => {
 
   it("falls back to the app default when preferences are invalid", () => {
     const bad = makeContext({ preferredLocales: ["!!"], appDefaultLocale: "en" });
-    assert.equal(renderTextValue(1234567n, bad), "⁨1,234,567⁩");
+    assert.equal(renderTextValue(1234567n, bad), "\u20681,234,567\u2069");
   });
 });
 
@@ -214,7 +214,7 @@ describe("text", () => {
     });
     assert.ok(html.startsWith("<p>"));
     assert.ok(html.endsWith("</p>"));
-    for (const part of ["⁨hi⁩", "⁨7⁩", "⁨8⁩", "⁨true⁩", "⁨Yo⁩", "⁨1.5⁩"]) {
+    for (const part of ["\u2068hi\u2069", "\u20687\u2069", "\u20688\u2069", "\u2068true\u2069", "\u2068Yo\u2069", "\u20681.5\u2069"]) {
       assert.ok(html.includes(part), `missing ${part}`);
     }
   });
@@ -331,6 +331,11 @@ describe("rowHeading", () => {
     assert.ok(evil.includes("&lt;img"));
     const evilId = rowHeading(row({}, "<b>id</b>"), caption, ctx);
     assert.ok(evilId.includes("&lt;b&gt;id&lt;/b&gt;"));
+  });
+
+  it("leaves bidi isolation to assemblers (no double-wrap)", () => {
+    const heading = rowHeading(row({ title: "T" }), caption, ctx);
+    assert.ok(!heading.includes("\u2068") && !heading.includes("\u2069"));
   });
 });
 

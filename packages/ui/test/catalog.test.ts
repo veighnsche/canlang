@@ -33,4 +33,34 @@ describe("component catalog", () => {
       }
     }
   });
+
+  it("pins implemented factory arities against signature drift", () => {
+    // Reviewed call shapes: renderPage(context, descriptor, children, shell?),
+    // discovery (candidates, outcomes, options), factories (props). Optional
+    // shell has no default, so renderPage.length counts it.
+    const arities: Record<string, number> = {
+      renderPage: 4,
+      buildNavigation: 3,
+      card: 1,
+      title: 1,
+      text: 1,
+      content: 1,
+      list: 1,
+      table: 1,
+      renderState: 1,
+    };
+    const record = ui as unknown as Record<string, unknown>;
+    for (const entry of UI_CATALOG.entries) {
+      if (entry.availability !== "implemented") {
+        continue;
+      }
+      const target = record[entry.js];
+      assert.equal(typeof target, "function", `${entry.js} is not a function`);
+      assert.equal(
+        (target as (...args: never[]) => unknown).length,
+        arities[entry.js],
+        `${entry.js} arity drifted`,
+      );
+    }
+  });
 });

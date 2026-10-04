@@ -17,11 +17,12 @@ import type {
   TableProps,
 } from "../../contracts/src/presentation.js";
 import { renderState, rowHeading } from "./components.js";
-import { escapeAttr, escapeHtml } from "./escape.js";
+import { escapeAttr, escapeHtml, isolate } from "./escape.js";
 import {
   canonicalDefaultTag,
   canonicalPreferredTags,
   formatScalar,
+  isEnumTypeId,
   message,
   resolveCaption,
 } from "./messages.js";
@@ -49,10 +50,20 @@ const SCALAR_CELL_TYPES = new Set([
   "datetime",
 ]);
 
+/** Collection page-size bound: default 25 (runner), max 100, reject overflow. */
+const MAX_LIMIT = 100;
+
 /** Pass S3 query args through, including only defined optionals. */
 function queryArgs(
   props: Pick<ListProps, "parent" | "where" | "limit" | "cursor">,
+  factory: string,
 ): ListQueryArgs {
+  if (
+    props.limit !== undefined &&
+    (!Number.isInteger(props.limit) || props.limit < 1 || props.limit > MAX_LIMIT)
+  ) {
+    throw new Error(`${factory}: limit must be an integer 1..${String(MAX_LIMIT)}`);
+  }
   return {
     ...(props.parent === undefined ? {} : { parent: props.parent }),
     ...(props.where === undefined ? {} : { where: props.where }),
@@ -94,7 +105,7 @@ export async function list(props: ListProps): Promise<string> {
   const result = await props.context.query(
     props.context.invocation,
     props.model,
-    queryArgs(props),
+    queryArgs(props, "list"),
   );
   if (result.rows.length === 0) {
     return renderState({ context: props.context, kind: "empty", message: props.empty });
@@ -112,7 +123,7 @@ export async function table(props: TableProps): Promise<string> {
   const result = await props.context.query(
     props.context.invocation,
     props.model,
-    queryArgs(props),
+    queryArgs(props, "table"),
   );
   const byField = new Map<string, ColumnMeta>();
   for (const column of result.columns) {
@@ -135,7 +146,7 @@ export async function table(props: TableProps): Promise<string> {
     metas.push(meta);
   }
   const head = metas
-    .map((meta) => `<th>${escapeHtml(resolveCaption(meta.label, props.context))}</th>`)
+    .map((meta) => `<th scope="col">${escapeHtml(resolveCaption(meta.label, props.context))}</th>`)
     .join("");
   const body: string[] = [];
   for (const row of result.rows) {
@@ -160,7 +171,8 @@ export async function table(props: TableProps): Promise<string> {
  */
 function renderCell(meta: ColumnMeta, value: unknown, context: PresentationContext): string {
   try {
-    return renderCellInner(meta, value, context);
+    const rendered = renderCellInner(meta, value, context);
+    return rendered === "" ? "" : isolate(rendered);
   } catch (error) {
     const cause = error instanceof Error ? error.message : String(error);
     throw new Error(`column ${meta.field}: ${cause}`);
@@ -177,11 +189,12 @@ function renderCellInner(
   }
   // Badge-worthy values are booleans and stable case-name strings; object
   // values (nested rows, id shapes, money) keep their own branches below even
-  // when the type id is dotted (e.g. model references).
-  if (
-    (meta.type === "bool" || meta.type === "enum" || meta.type.includes(".")) &&
-    (typeof value === "boolean" || typeof value === "string")
-  ) {
+  // when the type id is dotted (e.g. model references). Enum spellings align
+  // with messages.ts via the shared predicate.
+  if (meta.type === "bool") {
+    return renderBadge(meta, value, context);
+  }
+  if (isEnumTypeId(meta.type) && typeof value === "string") {
     return renderBadge(meta, value, context);
   }
   if (SCALAR_CELL_TYPES.has(meta.type)) {

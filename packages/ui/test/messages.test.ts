@@ -2,8 +2,11 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   formatMessage,
+  formatScalar,
+  isEnumTypeId,
   message,
   normalizeTag,
+  resolveCaption,
   resolveMessage,
 } from "../src/messages.js";
 import { TEAMTASKS_MESSAGES } from "./fixtures/descriptors.js";
@@ -304,5 +307,45 @@ describe("formatMessage select/number/date/money", () => {
       }),
       "xy",
     );
+  });
+});
+
+describe("renderer helpers", () => {
+  it("resolveCaption keeps strings verbatim and formats descriptors with scales", () => {
+    assert.equal(
+      resolveCaption("Use {x} daily", { preferredLocales: ["en"], appDefaultLocale: "en" }),
+      "Use {x} daily",
+    );
+    const money = message("Total: {m}", {}, { m: { type: "money", value: { minor: 2500n, currency: "EUR" } } });
+    assert.equal(
+      resolveCaption(money, {
+        preferredLocales: ["en"],
+        appDefaultLocale: "en",
+        currencyScales: { EUR: 2 },
+      }),
+      "Total: €25.00",
+    );
+    assert.throws(() =>
+      resolveCaption(money, { preferredLocales: ["en"], appDefaultLocale: "en" }),
+    );
+  });
+
+  it("formatScalar renders typed scalars with locale and scales", () => {
+    assert.equal(formatScalar({ type: "int", value: 1234567 }, { locale: "en" }), "1,234,567");
+    assert.equal(
+      formatScalar({ type: "money", value: { minor: 99n, currency: "USD" } }, { locale: "en", currencyScales: { USD: 2 } }),
+      "$0.99",
+    );
+    assert.throws(() => formatScalar({ type: "money", value: { minor: 1n, currency: "USD" } }, { locale: "en" }));
+    assert.throws(() => formatScalar({ type: "decimal", value: 1.1 }, { locale: "en" }));
+  });
+
+  it("isEnumTypeId accepts enum spellings and rejects scalars", () => {
+    for (const type of ["enum", "enum.Expense.state", "enum:Expense.state", "expense.Expense.status"]) {
+      assert.equal(isEnumTypeId(type), true, type);
+    }
+    for (const type of ["text", "int", "bool", "money", "date"]) {
+      assert.equal(isEnumTypeId(type), false, type);
+    }
   });
 });
