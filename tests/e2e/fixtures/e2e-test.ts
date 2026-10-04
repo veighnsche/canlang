@@ -28,7 +28,7 @@ export interface E2EWorkerFixtures {
   readonly bridge: HttpBridge;
 }
 
-function d1Binding(assembly: WorkerAssembly): string {
+export function d1Binding(assembly: WorkerAssembly): string {
   const first = assembly.d1Databases[0];
   if (first === undefined) throw new Error("e2e fixtures: assembly has no D1 database");
   return first.binding;

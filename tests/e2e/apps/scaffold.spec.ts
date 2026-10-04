@@ -5,7 +5,7 @@
  * mistaken for a compiled-artifact run. Per-app journeys arrive in Phase 3.
  */
 import { expect } from "@playwright/test";
-import { test } from "../fixtures/e2e-test.js";
+import { d1Binding, test } from "../fixtures/e2e-test.js";
 import { seedFixtureTask, seedTeamUsers } from "../fixtures/seed.js";
 
 const ALICE = { email: "alice@example.com", password: "correct-horse-42" };
@@ -15,8 +15,9 @@ test.describe("scaffold smoke", () => {
 
   test.beforeAll(async ({ assembly, bridge, dev }) => {
     expect(assembly.label).toBe("fixture/handbuilt/teamtasks");
-    await seedFixtureTask(dev, "DB");
+    await seedFixtureTask(dev, d1Binding(assembly));
     const seed = await seedTeamUsers(bridge.url, [ALICE]);
+    expect(seed.label).toBe(assembly.label);
     expect(seed.users).toHaveLength(1);
     const user = seed.users[0];
     if (user === undefined) throw new Error("scaffold smoke: seed returned no users");
