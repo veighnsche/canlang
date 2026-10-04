@@ -1,5 +1,5 @@
 import { require as check,hasRole,active_member,same,records,count,any,first,create,set,trim } from "@canlang/stdlib";
-import { message,renderPage,list,gallery,table,form,actions,content,text,title,edit,badge,breadcrumbs,button,checkbox,input,modal,pagination,select,slot,textarea } from "@canlang/ui";
+import { message,renderPage,list,gallery,table,form,content,text,title,edit,badge,breadcrumbs,button,checkbox,input,modal,pagination,select,slot,textarea } from "@canlang/ui";
 import { Output,can_view } from "./creative.mjs";
 /* Handwritten desired target; shared runtime, gallery renderer and fixture runner
  * are unimplemented. A submission intentionally owns a selected authorized file

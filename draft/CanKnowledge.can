@@ -281,6 +281,7 @@ package knowledge label="Company knowledge"@{nl="Bedrijfskennis"}
       badge document.current.index.state
       text document.current.title
       content document.current.body
+      text document.current.index.checked,document.current.index.detail
       text document.current.attachments
     table row.Question as question where question.account==actor columns=request_value.question,state,coverage,transport,unfinished display=split empty="No questions yet"@{nl="Nog geen vragen"}
      pagination
