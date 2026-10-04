@@ -76,14 +76,36 @@ package expenses
  Then
   # Prepare expenses and follow their review status. @{nl="Bereid onkosten voor en volg hun beoordelingsstatus."}
   page / title="Expenses"@{nl="Onkosten"}
+   breadcrumbs
    card "Prepare an expense"@{nl="Een onkost voorbereiden"}
     form Expense.create
+     input purpose
+     input amount
+     ## submitted_by is server-owned and never editable.
    card "Review status and decisions"@{nl="Beoordelingsstatus en besluiten"}
-    list Expense order=-created filter=status defaults={status=preferences.status} display=split
+    list Expense order=-created filter=status defaults={status=preferences.status} display=split empty="No expenses yet"@{nl="Nog geen onkosten"}
      badge row.status
+     text row.purpose,row.amount,row.submitted_by
      edit
-     actions submit,approve,reject
+     action submit
+     alert
+      require row.status==rejected
+      text row.decision_note
+     divider "Review decision"@{nl="Beoordelingsbesluit"}
+     text row.decision_note,row.decided_by,row.decided_at
+     join
+      button opens=approve_expense
+      button opens=reject_expense
+     modal "Approve expense"@{nl="Onkost goedkeuren"} id=approve_expense
+      slot content
+       form approve arguments={expense=row} display=inline
+        textarea note
+     modal "Reject expense"@{nl="Onkost afwijzen"} id=reject_expense
+      slot content
+       form reject arguments={expense=row} display=inline
+        textarea note
      history
+     pagination
 package reporting label="Expense reports"@{nl="Onkostenrapporten"}
  use expenses {Expense}
  Given
@@ -103,7 +125,10 @@ package reporting label="Expense reports"@{nl="Onkostenrapporten"}
  Then
   # Choose a currency and status to total the expenses visible to you. @{nl="Kies een valuta en status om de voor jou zichtbare onkosten op te tellen."}
   page /reports title="Expense summary"@{nl="Onkostenoverzicht"}
+   breadcrumbs
    card "Visible expenses by currency and status"@{nl="Zichtbare onkosten per valuta en status"}
     tabs preferences.status
     form summarize arguments={status=preferences.status} display=inline
-     metrics result.count,result.total
+     input currency
+     ## status binds the selected tab.
+     stat result.count,result.total

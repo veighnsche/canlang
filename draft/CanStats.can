@@ -155,30 +155,55 @@ package stats
   # Inspect configured sites and clearly labeled tracker-observed goals. @{nl="Bekijk ingestelde websites en duidelijk gelabelde doelen die de tracker heeft waargenomen."}
   page /traffic title="Website traffic"@{nl="Websiteverkeer"} poll=5s
    require analyst
+   breadcrumbs
    card "Configured site and reporting range"@{nl="Ingestelde website en rapportagebereik"}
-    list Site as site where preferences.site==null or site==preferences.site
-     badge row.active
-     text row.name,row.domain,row.timezone,row.goals
+    list Site as site where preferences.site==null or site==preferences.site empty="No configured sites"@{nl="Geen ingestelde websites"}
+     text row.name,row.domain,row.timezone,row.active,row.goals
      card "Observed traffic and identifier coverage"@{nl="Gemeten verkeer en identificatiedekking"}
       form summary display=inline
+       calendar from
+       calendar until
+       ## site binds the enclosing row.
        badge result.state
-       text result.state,result.generated
-       metrics result.events,result.goals,result.goal_rate,result.visitors,result.sessions,result.live,result.identity_coverage
-       details "Observed goals"@{nl="Gemeten doelen"}
+       text result.generated
+       stat result.events,result.goals,result.visitors,result.sessions
+       stat result.live,result.identified
+       progress result.goal_rate max=1
+       progress result.identity_coverage max=1
+       collapse "Observed goals"@{nl="Gemeten doelen"}
         require result.goal_counts!=null
-        table result.goal_counts columns=name,events
+        table result.goal_counts columns=name,events empty="No observed goals"@{nl="Geen gemeten doelen"}
+         pagination
      card "Weighted dimension estimates"@{nl="Gewogen dimensieschattingen"}
-      form breakdown
-      list row.Breakdown as report where report.account==actor and report.current
+      button opens=request_breakdown
+      modal "Request breakdown"@{nl="Uitsplitsing aanvragen"} id=request_breakdown
+       slot content
+        form breakdown arguments={site=row} display=inline
+         calendar from
+         calendar until
+         radio dimension
+         input goal
+      list row.Breakdown as report where report.account==actor and report.current empty="No current reports"@{nl="Geen actuele rapporten"}
        badge row.state
-       text row.state,row.requested,row.goal,row.configured_goals,row.error
-       details "Report result"@{nl="Rapportresultaat"}
+       text row.requested,row.goal,row.configured_goals,row.error
+       collapse "Report result"@{nl="Rapportresultaat"}
         require row.result!=null
         text row.result.from,row.result.until,row.result.sampled,row.result.complete,row.result.generated
-        metrics row.result.events,row.result.goals,row.result.identified
-        table row.result.rows columns=key,events,goals,identified
+        stat row.result.events,row.result.goals,row.result.identified
+        table row.result.rows columns=key,events,goals,identified empty="No report rows"@{nl="Geen rapportrijen"}
+         pagination
+       pagination
      tabs
       tab health_title
-       table row.Health columns=accepted,rejected,dropped,last_processed,observed,state
+       table row.Health columns=accepted,rejected,dropped,last_processed,observed,state empty="No health records"@{nl="Geen statusrecords"}
+        badge row.state
+        alert
+         require row.state==lagging
+         text "Processing is delayed. Live activity excludes old queued events."@{nl="Verwerking is vertraagd. Live activiteit sluit oude gebeurtenissen in de wachtrij uit."}
+        pagination
       tab "Accepted event inspection"@{nl="Geaccepteerde gebeurtenissen bekijken"}
-       table row.AcceptedEvent columns=name,occurred,path,location,workspace,source,medium filter=name,location,path order=-occurred
+       table row.AcceptedEvent columns=name,occurred,path,location,workspace,source,medium filter=name,location,path order=-occurred empty="No accepted events"@{nl="Geen geaccepteerde gebeurtenissen"}
+        pagination
+     pagination
+   footer
+    text "Weighted breakdowns are sampled estimates; exact counts come from accepted D1 events."@{nl="Gewogen uitsplitsingen zijn geschatte steekproeven; exacte aantallen komen uit geaccepteerde D1-gebeurtenissen."}
