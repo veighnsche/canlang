@@ -103,12 +103,12 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: No redundant pure receipt-status mirror remains for the selected notice. Source/existing target, authorized projection/UI and examples agree; focused checks and compact diff evidence. If the mapping needs a new rule, report the exact design question and work on another ready task.
   - Evidence: pending.
 
-- [ ] **D10 — Success notification delivery association**
+- [x] **D10 — Success notification delivery association**
   - Prerequisites: M00; exclusive ownership of this pair
   - Owner / files / interfaces: Muse implementation agent; draft/CanSuccess.can, draft/CanSuccess.md; DESIGN §8.1 (read-only)
   - Changes / traceability: Q1/Q2; apply the settled association to the inspected notification/notice callback only. Preserve business guards, immutable inputs, diagnostics, audience-safe id/status/result/error leaves and meaningful examples. Do not wholesale-convert all raw IDs.
   - Acceptance: No redundant pure receipt-status mirror remains for the selected notice. Source/existing target, authorized projection/UI and examples agree; focused checks and compact diff evidence. If the mapping needs a new rule, report the exact design question and work on another ready task.
-  - Evidence: pending.
+  - Evidence: writer 01a106f7-51a4-7062-8c42-f6deb119d806 released. Notice.delivery text unique→delivery(Mail.send), stored state→derived status (Delivered=succeeded; skipped now covered, was unrepresentable), policy +delivery.id/.status leaves, lock kept on delivery identity, 2 producers store handle, guarded pure notice_result removed. No examples referenced notice state; none stale. Coordinator verified no stale refs, projection parse exit 0; no design question.
 
 - [ ] **J01 — Feedback CRUD/hook source-target correspondence**
   - Prerequisites: M00; source pair writer released
@@ -301,11 +301,13 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - RESERVED D01: draft/CanBook.can, draft/CanBook.md — writer 01a106e9-5e60-7ab0-baaa-f3a392f581ac (D01 CanBook/1) batch 1 active, no .mjs in scope.
 - RESERVED D02: draft/CanCatch.can, draft/CanCatch.md — writer 01a106e9-5fa5-7173-b4db-affb9fe22fe7 (D02 CanCatch/2) batch 1 active, no .mjs in scope.
 - RESERVED D03: draft/CanDesk.can, draft/CanDesk.md — writer 01a106e9-60b0-7df1-8514-c73fee43624e (D03 CanDesk/3) batch 1 active, no .mjs in scope.
-- QUEUED ready disjoint: J01/J02/J03/J04/J06. J02 unblocked by D06 release; J05 waits D09 release.
+- QUEUED ready disjoint: J02/J03/J04/J06. J02 unblocked by D06 release; J05 waits D09 release.
+- DONE D10: writer 01a106f7-51a4-7062-8c42-f6deb119d806 RELEASED draft/CanSuccess.can, draft/CanSuccess.md. Inbox re-read: H001+H002 only.
+- RESERVED J01: draft/CanFeedback.can, draft/CanFeedback.mjs (+ .md only for actual requirement correction) — writer pending spawn batch 6. Note: correspondence only; selector/history design is A01-blocked, do not touch.
 - DONE D08: writer 01a106f4-105e-79b1-a7d5-325dfb6472d1 RELEASED draft/CanReception.can, draft/CanReception.md. Inbox re-read: H001+H002 only.
-- RESERVED D10: draft/CanSuccess.can, draft/CanSuccess.md — writer pending spawn batch 5, no .mjs in scope.
+- RESERVED D10: draft/CanSuccess.can, draft/CanSuccess.md — writer 01a106f7-51a4-7062-8c42-f6deb119d806 (D10 CanSuccess/10) batch 5 active, no .mjs in scope.
 - DONE D06: writer 01a106f0-8288-7af3-9d03-2340cfca77f1 RELEASED draft/CanLoyalty.can, draft/CanLoyalty.md, draft/CanLoyalty.mjs. Inbox re-read: H001+H002 only.
-- RESERVED D09: draft/CanRent.can, draft/CanRent.md, draft/CanRent.mjs — writer pending spawn batch 5. J05 gated on D09 release. Note: notice callback only; history/capture, money, charge/refund work excluded.
+- RESERVED D09: draft/CanRent.can, draft/CanRent.md, draft/CanRent.mjs — writer 01a106f7-5074-75b0-b216-779ca7635ae9 (D09 CanRent/9) batch 5 active. J05 gated on D09 release. Note: notice callback only; history/capture, money, charge/refund work excluded.
 - DONE D04: writer 01a106ee-0d5e-78e0-82aa-3296498e1fad RELEASED draft/CanEvent.can, draft/CanEvent.md. Inbox re-read after results: H001+H002 only.
 - DONE D05: writer 01a106ee-0e65-7670-9327-063030f84315 RELEASED draft/CanHire.can, draft/CanHire.md, draft/CanHire.mjs. No new inbox IDs.
 - RESERVED D07: draft/CanMaintain.can, draft/CanMaintain.md, draft/CanMaintain.mjs — writer 01a106f4-0f69-72b2-8ce3-c7987750d3ff (D07 CanMaintain/7) batch 4 active.
