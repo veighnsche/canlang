@@ -26,6 +26,8 @@ The user identifies file-tree foresight as a Muse weakness. Additional risks her
 
 ## Parallel contracts and merge order
 
+Draft design precedes implementation: 08's complete `.can`/desired-output pairs drive 05's UI library and 01's compiler, with other stdlib owners deriving their relevant behavior. Do not gate drafting on current parser/factory availability or a producer merge. Reviewed draft commits/PRs supply implementation handoffs while other drafts continue. Producer-first ordering below governs runtime compatibility, not draft authoring. Draft PRs retain real review/protection requirements; a mandatory unsupported-syntax check gets an exact L1 handoff, not weakened tests or fabricated runtime evidence.
+
 Implementers can start independent work immediately. Send a dependency request as a committed status entry and PR description naming producer, exact type/function/behavior, a consuming example and earliest needed milestone. The owning lane ships its minimal contract/implementation increment; the consumer fetches/rebases after merge. Do not copy the missing producer into your lane.
 
 L1 owns Rust Cargo manifests/lock and editor package; L7 owns root Node workspace/lock/shared CI configuration; package owners own their own manifests and source catalogs. Route root lock updates to L7 with exact manifest changes. L7 must process these early instead of accumulating a last-day integration pile. Each contract source file has its producer owner in PLAN. Shared root documentation changes follow the owning contract and require affected consumers' acknowledgment for breaking semantics.
