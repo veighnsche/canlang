@@ -21,7 +21,12 @@ import type {
   ShellData,
 } from "../../contracts/src/presentation.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
-import { formatMessage, message, normalizeTag } from "./messages.js";
+import {
+  canonicalDefaultTag,
+  canonicalPreferredTags,
+  message,
+  resolveCaption,
+} from "./messages.js";
 
 /**
  * Shell chrome wording, en source + nl variants. Seed of the shared runtime
@@ -41,39 +46,17 @@ const CHROME = {
   close: message("Close", { nl: "Sluiten" }),
 } as const;
 
-/** Canonical preferred locales, skipping invalid tags. */
-function validPreferred(context: PresentationContext): string[] {
-  const out: string[] = [];
-  for (const tag of context.preferredLocales) {
-    try {
-      out.push(normalizeTag(tag));
-    } catch {
-      // Skip invalid viewer preferences; resolution falls through.
-    }
-  }
-  return out;
-}
-
-/** App default locale, falling back to "en" when invalid (dispatcher bug). */
-function effectiveDefault(context: PresentationContext): string {
-  try {
-    return normalizeTag(context.appDefaultLocale);
-  } catch {
-    return "en";
-  }
-}
-
 /**
  * Page locale: first valid preferred locale, else the app default. An invalid
  * app default falls back to "en" so the lang attribute is always well-formed.
  */
 export function pageLocale(context: PresentationContext): string {
-  const preferred = validPreferred(context);
+  const preferred = canonicalPreferredTags(context.preferredLocales);
   const first = preferred[0];
   if (first !== undefined) {
     return first;
   }
-  return effectiveDefault(context);
+  return canonicalDefaultTag(context.appDefaultLocale);
 }
 
 /** Writing direction for a locale tag; unknown tags fall back to "ltr". */
@@ -92,18 +75,7 @@ export function pageDirection(locale: string): string {
 }
 
 function resolveText(value: MessageValue, context: PresentationContext): string {
-  // Plain strings stay verbatim (literal braces are text, not patterns);
-  // descriptors render through the formatter so bound params apply. Caption
-  // datetimes use UTC: team-timezone rendering awaits a PresentationContext
-  // timezone field (L6 join). Money params fail loudly without lane 2 scales.
-  if (typeof value === "string") {
-    return value;
-  }
-  return formatMessage(value, {
-    preferredLocales: validPreferred(context),
-    appDefaultLocale: effectiveDefault(context),
-    timeZone: "UTC",
-  });
+  return resolveCaption(value, context);
 }
 
 function renderEntry(
@@ -113,7 +85,7 @@ function renderEntry(
   const title = escapeHtml(resolveText(entry.title, context));
   const href = escapeAttr(safeHref(entry.path));
   if (entry.active) {
-    return `<li><a href="${href}" class="active" aria-current="page">${title}</a></li>`;
+    return `<li><a href="${href}" class="menu-active" aria-current="page">${title}</a></li>`;
   }
   return `<li><a href="${href}">${title}</a></li>`;
 }

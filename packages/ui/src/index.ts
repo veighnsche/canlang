@@ -16,22 +16,29 @@ export {
   safeHref,
 } from "./escape.js";
 export {
+  canonicalDefaultTag,
+  canonicalPreferredTags,
   formatDecimalExact,
   formatIntExact,
   formatMessage,
   formatMoneyExact,
+  formatScalar,
+  isEnumTypeId,
   localeNumberSystem,
   localeSeparators,
   message,
   normalizeTag,
+  resolveCaption,
   resolveMessage,
   selectPluralCategory,
 } from "./messages.js";
 export type {
   Bcp47Tag,
+  CaptionContext,
   LocaleNumberSystem,
   MessageParams,
   ResolvedMessage,
+  ScalarFormatOptions,
   ThemeTokens,
 } from "./messages.js";
 export {
@@ -44,6 +51,17 @@ export {
   pageLocale,
   renderPage,
 } from "./shell.js";
+export {
+  card,
+  content,
+  renderState,
+  renderTextValue,
+  rowHeading,
+  text,
+  title,
+} from "./components.js";
+export { list, table } from "./collections.js";
+export { LANE05_CATALOG_VERSION, UI_CATALOG } from "./catalog.js";
 // Temporary B0 wiring: re-exported contract types until lane 7 assembles
 // @canlang/contracts; see README.
 export type {
@@ -53,6 +71,14 @@ export type {
   AdmissionOutcome,
   BoundArguments,
   Bcp47Tag as ContractBcp47Tag,
+  CardProps,
+  ColumnMeta,
+  ComponentCatalog,
+  ComponentCatalogEntry,
+  ContentProps,
+  ListProps,
+  ListQueryArgs,
+  ListQueryResult,
   MessageDescriptor,
   MessageFactory,
   MessageParamValue,
@@ -70,15 +96,22 @@ export type {
   RecordIdentity,
   RenderFn,
   RenderPageFn,
+  RowQueryRunner,
+  RowView,
   SettingsFrameData,
   SettingsSection,
+  SharedStateProps,
   ShellData,
   ShellRoutes,
+  TableProps,
   TeamOption,
+  TextProps,
+  TextValue,
   ThemeAccent,
   ThemeDensity,
   ThemeMode,
   ThemeTokens as ContractThemeTokens,
+  TitleProps,
 } from "../../contracts/src/presentation.js";
 export {
   CSRF_FIELD,

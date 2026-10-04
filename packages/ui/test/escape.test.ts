@@ -89,6 +89,6 @@ describe("csvFormulaProtect", () => {
 
 describe("isolate", () => {
   it("wraps values in bidi isolates", () => {
-    assert.equal(isolate("abc"), "⁨abc⁩");
+    assert.equal(isolate("abc"), "\u2068abc\u2069");
   });
 });
