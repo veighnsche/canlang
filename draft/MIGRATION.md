@@ -115,6 +115,8 @@ The [qualified field-type review](../design/field-type-reuse-20261004.md) resolv
 
 The existing closed DeliveryError shape is now paired with precise completion-status consistency and safe retry/disclosure meaning. Report's failed/null-error and Rent's failed/string-error fixtures are corrected; unknown/null remains valid and business outcomes are unchanged. Grant's matched/mismatched failed notice witnesses use the same type while preserving approval evidence. These are typed authored fixtures and syntax checks, not provider execution or task 14's separate association decision.
 
+The focused hook-boundary correction removes three unreachable background contracts: Customer schedules Invitation expiry in its sole invite producer; Invoice listens to Attempt.created for all payment/refund producers; Catch listens to Notice.created and reloads an unassociated exact row. Approve applies the same committed-event boundary with its associated-delivery correction. CRUD hooks are not assumed to run for ordinary scenario effects. Source parsing/inspection is not executed queue/timer evidence.
+
 ## Next concrete app correction
 
 **Expense, Mail and Grant corrections are reviewed.** Grant now includes actual subject-role eligibility, frozen intake, attributed recovery and separate notices. All 21 target page descriptors use one convention. Approve and Maintain E1 corrections are reviewed; delivery-association/person-choice application continues through focused owners. Shared contracts are settled with Grant/Mail/Expense witnesses. Employee `role:text` still confers no language role assignment.
