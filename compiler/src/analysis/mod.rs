@@ -15,8 +15,15 @@
 //! Recorded hole (M6): catalog-item `NAME=word` options are catalog
 //! vocabulary, not name references, so neither pass resolves them and
 //! no `E2001` fires for an unknown option word; membership checking
-//! needs the PR5 component catalogs. Positional catalog domains and
-//! `slot`/`preferences` children resolve and type normally.
+//! needs the PR5 component catalogs. Complex positional catalog
+//! domains (calls, member paths) and `slot`/`preferences` children
+//! resolve and type normally.
+//!
+//! Recorded hole (M6 extension, PR6): bare-word catalog headers
+//! (`input title`) are field-selector vocabulary, also silent: binding
+//! them needs per-component header profiles, and no producer UI
+//! catalog exists yet. Core leafs (`text`) stay strict. The boundary
+//! is pinned by `ui_transparent_groups_resolve`.
 
 pub mod catalog;
 pub mod check;
