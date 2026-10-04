@@ -181,14 +181,14 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Evidence: pending.
 
 - [ ] **A05 — Mail/Customer dependency and availability application**
-  - Prerequisites: BLOCKED DESIGN: READY inbox message linking dependency-design.md; all overlapping writers released
+  - Prerequisites: SATISFIED BY USER-OVERRIDE 2026-10-04 (was: READY linking dependency-design.md): coordinator-completed W1-W4 witness appended to dependency-design.md; all overlapping writers released
   - Owner / files / interfaces: Muse implementation agent; draft/CanMail.can, draft/CanMail.md, draft/CanMail.mjs, draft/CanCustomer.can, draft/CanCustomer.md
   - Changes / traceability: Q1–Q3; apply the complete accepted design witness and its explicitly listed cases. The document filename is a destination, not a claim a design exists.
   - Acceptance: Agreed behavior, permissions and exact source/JS expectations match; focused checks; no unstated policy or invented dependency.
   - Evidence: pending.
 
 - [ ] **A06 — Mail notice retry/reconciliation**
-  - Prerequisites: BLOCKED DESIGN: READY inbox message linking mail-recovery-design.md; all overlapping writers released
+  - Prerequisites: SATISFIED BY USER-OVERRIDE 2026-10-04 (was: READY linking mail-recovery-design.md): coordinator-completed acknowledged_resend witness appended to mail-recovery-design.md; all overlapping writers released
   - Owner / files / interfaces: Muse implementation agent; draft/CanMail.can, draft/CanMail.md, draft/CanMail.mjs
   - Changes / traceability: Q1–Q3; apply the complete accepted design witness and its explicitly listed cases. The document filename is a destination, not a claim a design exists.
   - Acceptance: Agreed behavior, permissions and exact source/JS expectations match; focused checks; no unstated policy or invented dependency.
@@ -322,6 +322,9 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - USER-OVERRIDE 2026-10-04 (gridlock breaker; user selected 'I design + implement'): coordinator completes missing design-stage work then implements A02-A06 + N10 without inbox READY. Design reservations (coordinator-owned exact paths): append witness to mail-recovery-design.md (A06), append witness to dependency-design.md (A05), new history-design.md (A04), new extraction-design.md (N10), coordinator review of progress-design.md (A02/A03). Preserved: no DESIGN/GRAMMAR/shared-contract changes; no rejected-JEV retry/rephrase; max 3 active; exact-path commits; Codex C01/C02 review after. Any arriving inbox READY supersedes coordinator candidates for its task.
 - DISPATCH design batch 1 (3/3 slots): A06-witness writer, A05-witness writer, A04-design writer (exact design paths above). Queued: N10 design, A02/A03 coordinator review, then A02-A06/N10 implementation writers (A05 before A06: shared CanMail files).
 - DONE coordinator review A02/A03: acceptance analysis appended to progress-design.md (user-authorized; Codex review pending). ACCEPTED: Shift witness verbatim; Volunteer cancellation subset + 5 companions + reminder refresh. NOT accepted: DESIGN/GRAMMAR edits, material reschedule/venue_changed (negative BDD stands). JEV gap disclosed (2/3 advisory, request 2 not retried). Drift check clean. A02/A03 inputs READY-BY-OVERRIDE; implementation writers queued behind design batch 1 releases.
+- DONE design A06: writer 01a107ab-3794-77b2-b865-983591efa71f RELEASED mail-recovery-design.md (append-only 201+, JEV disagreement investigated to acknowledged_resend, delivery-identity rule, Can + desired-JS witnesses, 12 BDD scenarios; scope discipline verified, nothing applied to drafts).
+- DONE design A05: writer 01a107ab-3982-7ef2-9bf1-80435fa77d6f RELEASED dependency-design.md (append-only 89+, W1 grouped bound import + W2 JS counterpart per CanRent precedent, W3 honest no-reduction closure, W4 BDD; .md replacement text left to application). A05/A06 inputs READY-BY-OVERRIDE.
+- DISPATCH batch 2 (slots freed x2): N10-design writer (new extraction-design.md), A02 implementation writer (CanShift triplet). A04-design still running. Queued: A03/A04/A05/A06/N10 implementation (A05 before A06).
 - ACK H005 NOTE watcher repaired: accepted. contextlib.closing fix noted; H002 command reusable when ready work next exhausts (not now — A01 active). No TUI-push claim.
 - ACK H006 READY A01 accepted: complete C4 feedback-design.md (457 lines) + review.md limits read in full. Scope: Decision/current_decision/contracts/policy/invariant/locks/derive, roadmap/moderate bodies, withdraw_decision/decision_history, both page roots, full target mirror, journey observations + withdrawal table + decision_history sequence, 15-row required-cases table. No DESIGN/GRAMMAR/runtime work. C1/Rent-history/C3/C5 remain unadopted.
 - RESERVED A01: draft/CanFeedback.can, draft/CanFeedback.md, draft/CanFeedback.mjs — writer 01a10715-f84a-75c0-839e-02675ad1d0e3 (A01 Feedback/17) active. J01 released; no pending Feedback edits at handoff (verified clean).

@@ -53,3 +53,92 @@ Full actual optional-provider omission and the proposed static-role/value-only i
 The original detailed-project third JEV request was automatically rejected for insufficient authorization to export nonpublic architecture/workflow context. The [saved rejection](../jev/optional-dependency-closure-20261004/3.rejection.md) remains authoritative. Its later abstract hypothetical was explicitly nonequivalent and does not complete the required three equivalent consultations. Root confirmed that no later specific user approval covers the rejected export. No JEV request was made during this C3 assignment, and none was resent/reworded around that rejection. This is advice/approval evidence, not proof of any alternative's semantics.
 
 On handoff, `/root/astra_progress_handoff` was informed that Mail stays required, outage does not alter entitlement, and existing pending work requires its actual compatible contract. No C5 recovery API or receipt field was introduced here.
+
+## Coordinator-completed witness (user-authorized 2026-10-04; Codex review pending)
+
+Scope: witnesses for the C3 dependency application only. No draft source, target, requirements, tracker, inbox or Git index was edited. No new composition contract is introduced: no static-role/value-only exemption, no optional binding declaration, no `available(Service)` builtin, no scenario `when` attribute. Business `Service.billing=false` and `Service.term=null` do not alter deployment requirements. No compiler, stdlib or infrastructure design is claimed.
+
+### W1 — Mail grouped bound Invoice import (changed-section Can)
+
+Before (`draft/CanMail.can:8-9`):
+
+```can
+ use invoice {Charge}
+ use invoice {BillingV1 as Billing} from=deployment.billing
+```
+
+After (already-supported grouped bound import; same shape as `draft/CanRent.can:39`):
+
+```can
+ use invoice {BillingV1 as Billing,Charge} from=deployment.billing
+```
+
+Nothing else in the `use` block changes. Under DESIGN §1 (bound imports resolve only a versioned exported interface and its reachable value types; the provider executable need not participate), this removes only Mail's direct accidental executable edge to the invoice package.
+
+### W2 — Desired-JS counterpart (CanRent convention)
+
+Before (`draft/CanMail.mjs:42`):
+
+```js
+import { Charge } from "./invoice.mjs";
+```
+
+After (convention at `draft/CanRent.mjs:74`):
+
+```js
+import { Charge } from "./deployment.billing.mjs";
+```
+
+The existing binding descriptor stays unchanged (`draft/CanMail.mjs:148-150`):
+
+```js
+"mailroom.Billing": { capability: "invoice.BillingV1", from: "deployment.billing" },
+```
+
+No other target line moves. `Charge` remains the bound value type used by `fee_charge`, `Dispatch.charge` and the `Billing.charge` / `Billing.reconcile` sends.
+
+### W3 — Closure effect (no deployment-key reduction)
+
+Customer keeps its plain production import (`draft/CanCustomer.can:11`, `use invoice {finance}`) and its finance-guarded Billing approvals page (`draft/CanCustomer.can:248-252`); the canonical `invoice.finance` role is not copied, relocated or renamed. Under DESIGN §1 a plain production import includes the whole owning executable package, so Customer's finance-role import still reaches Invoice. The 2026-10-04 scan sets in the verified boundary above are therefore unchanged: Mail still has the Customer executable-owner set plus mailroom, member_plans, member_terms, and the Customer bound deployment-key set plus membership_ingress. `deployment.billing` stays required.
+
+### W4 — C3-owned billing import, visibility and entitlement (isolated BDD)
+
+Import (consistent with the verified boundary):
+
+- Given the Customer package imports `invoice {finance}` as a plain production import, when deployment resolves Customer, then the invoice executable package is included and `finance` keeps its actual role, employee/location checks and attributed decisions.
+- Given Mail uses the W1 grouped bound import, when deployment resolves Mail, then only the versioned `invoice.BillingV1` interface and its reachable value types resolve through `deployment.billing`; Mail's direct executable edge to the invoice package is gone.
+
+Visibility (existing grants only):
+
+- Given a prepared `Dispatch` with any `charge_state`, when mail staff opens the staff index, then the frozen destination, fee, `charge_state` and invoice reference remain visible (`draft/CanMail.can:46,334`); custody, notice outcome and fee-invoice outcome stay separate.
+- Given the same dispatch, when the verified recipient opens My mail, then no fee, charge or provider payload is exposed (`draft/CanMail.can:43`); the recipient sees only its existing safe notice-state projection.
+
+Entitlement (manual versus automatic fees; `derive fee_charge`, `draft/CanMail.can:35`):
+
+| service.billing | fee | frozen Charge | Billing.charge send |
+| --- | --- | --- | --- |
+| false | money(5,"EUR") | none | none |
+| true | money(5,"EUR") | frozen, source `mail-forward-{item}` | one send, `charge_state=pending` |
+| true | money(0,"EUR") | none | none |
+| true | null | none | none |
+
+- Given `billing=false`, when staff prepares forwarding with a positive fee, then a manual handling fee is recorded without an invoice request and `charge_state` stays `none`; `deployment.billing` remains a required binding.
+- Given `billing=true` with `term=null` and reviewed nonblank paid evidence, when staff prepares forwarding with a positive same-currency fee, then the identical frozen Charge is created; a denied linked term still cannot fall back to manual paid evidence.
+
+Deactivation preserving pending/unknown fee and physical state:
+
+- Given a `forward_pending` dispatch with `charge_state` in {pending, unknown, failed}, when staff runs `service_status` with `active=false`, then the service becomes inactive and `live=false`, while the dispatch keeps its state, frozen fee/charge and `charge_state`; held items stay available for explicit collection/return resolution.
+- Given the same deactivated service, when staff runs `retry_fee` on a dispatch with `charge_state` in {failed, unknown}, then reconciliation reuses the original frozen source (`draft/CanMail.can:251-255`); provider failure never mints a fresh logical charge.
+
+Confirmation of a prepared dispatch after deactivation:
+
+- Given a `forward_pending` dispatch on a deactivated service, when staff runs `dispatched` with the current revision, carrier and evidence, then the item becomes `forwarded` with immutable Handling carrying the frozen snapshot (`draft/CanMail.can:211-216` requires no `live(service)` check); the outcome is independent of `charge_state`.
+- Given `charge_state=failed` on that dispatch, when staff records dispatch evidence, then physical dispatch is still recorded: billing failed/unknown/pending never prevents recording actual dispatch evidence, and billing settlement cannot prove physical dispatch.
+
+Exact requirements replacement text for `draft/CanMail.md` / `draft/CanCustomer.md` remains future work; this section supplies only the Can/JS/BDD witnesses.
+
+### Checks run
+
+- Re-read `draft/CanMail.can:1-70,192-216,251-255`, `draft/CanMail.mjs:42,148-150`, `draft/CanCustomer.can:11,248-252`, `draft/CanRent.can:39`, `draft/CanRent.mjs:74`, DESIGN §1 executable/bound import rules, and the unadopted proposal headings (background only; nothing adopted).
+- Verified: grouped bound import spelling matches the supported CanRent precedent; desired-JS import path matches the CanRent convention; `mailroom.Billing` descriptor unchanged; Customer finance import and page untouched; no `available(`/`when=`/optional-binding language used anywhere in this section.
+- Not run: no compiler, parser, test runner or execution exists for these witnesses; Codex review pending.
