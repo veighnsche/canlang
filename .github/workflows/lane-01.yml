@@ -5,6 +5,8 @@ on:
     branches: ["muse/lane-01-language/**"]
     paths:
       - "compiler/**"
+      - "draft"
+      - ".gitmodules"
       - "editors/vscode/**"
       - "packages/contracts/src/artifact.ts"
       - "packages/contracts/src/diagnostic.ts"
@@ -12,6 +14,8 @@ on:
   pull_request:
     paths:
       - "compiler/**"
+      - "draft"
+      - ".gitmodules"
       - "editors/vscode/**"
       - "packages/contracts/src/artifact.ts"
       - "packages/contracts/src/diagnostic.ts"
@@ -22,6 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.99.0"
