@@ -25,3 +25,7 @@ export * from './mcp/discovery.js';
 export * from './mcp/server.js';
 export * from './uploads/principals.js';
 export * from './uploads/routes.js';
+export * from './ingress/mapping.js';
+export * from './ingress/routes.js';
+export * from './oauth/metadata.js';
+export * from './oauth/routes.js';

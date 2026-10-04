@@ -17,8 +17,12 @@ import type { DurableObjectStorage } from '@cloudflare/workers-types';
 import type {
   CommitBatch,
   CommitResult,
+  HistoryEntry,
   ModelName,
+  OperationId,
+  OperationName,
   OrderTerm,
+  OutboxIntent,
   QueryPredicate,
   QuerySpec,
   Receipt,
@@ -26,6 +30,7 @@ import type {
   RecordId,
   RecordVersion,
   Revision,
+  ScheduleEntry,
   StoredRow,
 } from '../../../contracts/src/state.js';
 import { FenceConflictError, StorageConstraintError } from './port.js';
@@ -212,6 +217,17 @@ function checkLimit(limit: number): void {
 }
 
 /**
+ * S6: `schedulesDue` limit must be an integer >= 1. Plain Error (programmer
+ * bug), mirroring `checkLimit` style. Zero is rejected here (unlike query
+ * limit) because a scheduler page must return at least one row to make sense.
+ */
+function checkSchedulesLimit(limit: number): void {
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new Error(`Invalid schedules limit: ${JSON.stringify(limit)}`);
+  }
+}
+
+/**
  * Enforce per-row `expectedVersion` for updates/removes before opening the
  * transaction. Stale or missing rows fail with kind 'version'. There is no
  * check-to-transaction interleaving window: this runs fully synchronously
@@ -275,7 +291,7 @@ function toCommitError(
     }
     return new FenceConflictError(expected, actual);
   }
-  if (message.includes('unique_claims')) {
+  if (message.includes('unique_claims') || message.includes('outbox')) {
     return new StorageConstraintError('unique', message);
   }
   if (message.includes('receipts')) {
@@ -316,6 +332,84 @@ function toReceipt(row: ReceiptRow): Receipt {
     outcome: JSON.parse(row.outcome) as Receipt['outcome'],
     committedRevision: row.committed_revision as Revision,
     createdAt: row.created_at,
+  };
+}
+
+/** S6: raw `outbox` row as `sql.exec` returns it (snake_case columns). */
+type OutboxRow = {
+  readonly intent_id: string;
+  readonly operation: string;
+  readonly operation_id: string;
+  readonly target: string;
+  readonly arguments: string;
+  readonly occurrence_index: number;
+  readonly dispatch_guard: string | null;
+};
+
+const OUTBOX_COLUMNS =
+  'intent_id, operation, operation_id, target, arguments, occurrence_index, dispatch_guard';
+
+function toOutboxIntent(row: OutboxRow): OutboxIntent {
+  return {
+    intentId: row.intent_id,
+    operation: row.operation as OperationName,
+    operationId: row.operation_id as OperationId,
+    target: row.target,
+    arguments: JSON.parse(row.arguments) as Record<string, unknown>,
+    occurrenceIndex: row.occurrence_index,
+    // NULL guard stays absent (never explicit undefined: exactOptionalPropertyTypes).
+    ...(row.dispatch_guard === null ? {} : { dispatchGuard: row.dispatch_guard }),
+  };
+}
+
+/** S6: raw `schedules` row as `sql.exec` returns it. */
+type ScheduleRow = {
+  readonly key: string;
+  readonly at: number;
+  readonly event: string;
+  readonly payload: string;
+};
+
+const SCHEDULE_COLUMNS = '"key", at, event, payload';
+
+function toScheduleEntry(row: ScheduleRow): ScheduleEntry {
+  return {
+    key: row.key,
+    at: row.at,
+    event: row.event as OperationName,
+    payload: JSON.parse(row.payload) as Record<string, unknown>,
+  };
+}
+
+/** S6: raw `history` row as `sql.exec` returns it (snake_case columns). */
+type HistoryRow = {
+  readonly model: string;
+  readonly record_id: string;
+  readonly version: number;
+  readonly operation: string;
+  readonly operation_id: string;
+  readonly actor: string;
+  readonly at: number;
+  readonly change: string;
+  readonly before: string | null;
+  readonly after: string | null;
+};
+
+const HISTORY_COLUMNS =
+  'model, record_id, version, operation, operation_id, actor, at, change, "before", "after"';
+
+function toHistoryEntry(row: HistoryRow): HistoryEntry {
+  return {
+    model: row.model as ModelName,
+    recordId: row.record_id as RecordId,
+    version: row.version as RecordVersion,
+    operation: row.operation as OperationName,
+    operationId: row.operation_id as OperationId,
+    actor: row.actor,
+    at: row.at,
+    change: row.change as HistoryEntry['change'],
+    before: row.before === null ? null : (JSON.parse(row.before) as Record<string, unknown>),
+    after: row.after === null ? null : (JSON.parse(row.after) as Record<string, unknown>),
   };
 }
 
@@ -468,6 +562,16 @@ function planCommit(batch: CommitBatch, next: number, at: number, operation: str
       ],
     });
   }
+  // S6: acks run AFTER the intent inserts in this same atomic transaction,
+  // so acking an id staged in this SAME batch marks it dispatched. One
+  // UPDATE per id; unknown or already-dispatched ids match zero rows
+  // (idempotent no-op — dispatchers retry at-least-once). `undefined` is [].
+  for (const intentId of batch.outboxAck ?? []) {
+    statements.push({
+      sql: "UPDATE outbox SET status = 'dispatched' WHERE intent_id = ?",
+      bindings: [intentId],
+    });
+  }
   for (const schedule of batch.schedules) {
     if (schedule.op === 'replace') {
       statements.push({
@@ -585,6 +689,52 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
         .toArray();
       const row = rows[0] ?? null;
       return row === null ? null : toReceipt(row);
+    },
+
+    async outboxPending(): Promise<ReadonlyArray<OutboxIntent>> {
+      // S6: pending only, deterministic (created_at, intent_id) order —
+      // identical ordering to the memory adapter's comparator.
+      const rows = storage.sql
+        .exec<OutboxRow>(
+          `SELECT ${OUTBOX_COLUMNS} FROM outbox WHERE status = 'pending' ` +
+            'ORDER BY created_at, intent_id',
+        )
+        .toArray();
+      return rows.map(toOutboxIntent);
+    },
+
+    async scheduleGet(key: string): Promise<ScheduleEntry | null> {
+      const rows = storage.sql
+        .exec<ScheduleRow>(`SELECT ${SCHEDULE_COLUMNS} FROM schedules WHERE "key" = ?`, key)
+        .toArray();
+      const row = rows[0] ?? null;
+      return row === null ? null : toScheduleEntry(row);
+    },
+
+    async schedulesDue(now: number, limit: number): Promise<ReadonlyArray<ScheduleEntry>> {
+      checkSchedulesLimit(limit);
+      const rows = storage.sql
+        .exec<ScheduleRow>(
+          `SELECT ${SCHEDULE_COLUMNS} FROM schedules WHERE at <= ? ORDER BY at, "key" LIMIT ?`,
+          now,
+          limit,
+        )
+        .toArray();
+      return rows.map(toScheduleEntry);
+    },
+
+    async historyFor(model: ModelName, recordId: RecordId): Promise<ReadonlyArray<HistoryEntry>> {
+      const rows = storage.sql
+        .exec<HistoryRow>(
+          `SELECT ${HISTORY_COLUMNS} FROM history WHERE model = ? AND record_id = ? ` +
+            // S6 review: `seq` tiebreaks duplicate versions (reachable only via
+            // direct unstaged commits); fenced writes carry unique versions.
+            'ORDER BY version, seq',
+          model as string,
+          recordId as string,
+        )
+        .toArray();
+      return rows.map(toHistoryEntry);
     },
   };
 }

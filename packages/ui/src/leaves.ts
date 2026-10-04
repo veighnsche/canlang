@@ -1,0 +1,234 @@
+/**
+ * C3 readable leaf factories: badge, status, kbd, mockupCode, countdown,
+ * divider, link.
+ *
+ * Each factory takes contract props and returns escaped HTML. Appearance
+ * modifiers come only from appearanceClasses() under the word's exact
+ * catalog id, so unadmitted tokens throw instead of degrading. All base
+ * classes and modifiers below are pinned against daisyUI upstream
+ * (node_modules/daisyUI/components/<word>/object.js):
+ * badge (tones, sizes, outline/soft/ghost), status (tones, sizes), kbd
+ * (sizes), link (tones), divider (tones, horizontal/vertical), countdown
+ * and mockup-code (base class only).
+ *
+ * Divider orientation documents an upstream nuance: the default horizontal
+ * divider needs no modifier class, but appearanceClasses() emits
+ * `divider-horizontal` explicitly when orientation="horizontal" is passed.
+ * That class exists upstream and is visually identical to the default, so
+ * the explicit token is kept rather than special-cased.
+ *
+ * Countdown is view-only: it renders the integer part of `value`
+ * (Math.floor) into the upstream `--value` custom property and schedules
+ * no timers. kbd renders notation only and registers no handlers.
+ * mockupCode escapes every line and never interprets content.
+ */
+
+import type {
+  AppearanceOrientation,
+  AppearanceSize,
+  AppearanceTone,
+  AppearanceVariant,
+  BadgeProps,
+  CountdownProps,
+  DividerProps,
+  KbdProps,
+  LinkProps,
+  MockupCodeProps,
+  MessageDescriptor,
+  MessageParamValue,
+  MessageValue,
+  PresentationContext,
+  StatusProps,
+  TextValue,
+} from "../../contracts/src/presentation.js";
+import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
+import { renderTextValue } from "./components.js";
+import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
+import {
+  canonicalDefaultTag,
+  canonicalPreferredTags,
+  formatScalar,
+  resolveCaption,
+} from "./messages.js";
+
+function joinClasses(base: string, modifiers: string): string {
+  return modifiers === "" ? base : `${base} ${modifiers}`;
+}
+
+/**
+ * Collect every appearance key present at runtime (including undeclared
+ * extras from JS callers) so appearanceClasses() judges them against the
+ * word's admitted matrix: unadmitted tokens throw, never silently drop.
+ */
+function pickAppearance(props: object): AppearanceOpts {
+  const record = props as Record<string, unknown>;
+  const opts: {
+    tone?: AppearanceTone;
+    size?: AppearanceSize;
+    variant?: AppearanceVariant;
+    orientation?: AppearanceOrientation;
+  } = {};
+  if (record["tone"] !== undefined) {
+    opts.tone = record["tone"] as AppearanceTone;
+  }
+  if (record["size"] !== undefined) {
+    opts.size = record["size"] as AppearanceSize;
+  }
+  if (record["variant"] !== undefined) {
+    opts.variant = record["variant"] as AppearanceVariant;
+  }
+  if (record["orientation"] !== undefined) {
+    opts.orientation = record["orientation"] as AppearanceOrientation;
+  }
+  return opts;
+}
+
+function pageLocaleOf(context: PresentationContext): string {
+  const preferred = canonicalPreferredTags(context.preferredLocales);
+  return preferred[0] ?? canonicalDefaultTag(context.appDefaultLocale);
+}
+
+function isMessageDescriptor(
+  value: MessageDescriptor | MessageParamValue,
+): value is MessageDescriptor {
+  return typeof (value as MessageDescriptor).source === "string";
+}
+
+/**
+ * Plain (unescaped, unisolated) text of a TextValue for aria-label sinks.
+ * Callers must escape the result for the attribute sink. Primitives use
+ * String() (bigint-safe); descriptors resolve captions; {type, value}
+ * pairs format as scalars; null/undefined render as empty.
+ */
+function plainTextOf(value: TextValue, context: PresentationContext): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (typeof value === "string" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (typeof value === "number" || typeof value === "bigint") {
+    return String(value);
+  }
+  if (isMessageDescriptor(value)) {
+    return resolveCaption(value, context);
+  }
+  return formatScalar(value, {
+    locale: pageLocaleOf(context),
+    timeZone: "UTC",
+    ...(context.currencyScales !== undefined
+      ? { currencyScales: context.currencyScales }
+      : {}),
+  });
+}
+
+function captionText(caption: MessageValue, context: PresentationContext): string {
+  return resolveCaption(caption, context);
+}
+
+/**
+ * Readable typed value with its owning caption. The value renders visibly;
+ * when a caption is present it prefixes the accessible name as
+ * "{caption}: {value}".
+ */
+export async function badge(props: BadgeProps): Promise<string> {
+  const modifiers = appearanceClasses("badge", "badge", pickAppearance(props));
+  const visible = renderTextValue(props.value, props.context);
+  const label =
+    props.caption === undefined
+      ? ""
+      : ` aria-label="${escapeAttr(`${captionText(props.caption, props.context)}: ${plainTextOf(props.value, props.context)}`)}"`;
+  return `<span class="${escapeAttr(joinClasses("badge", modifiers))}"${label}>${visible}</span>`;
+}
+
+/**
+ * Explicit readable state: a visible dot plus a screen-reader text
+ * alternative. The accessible name is the caption when present, else the
+ * value text.
+ */
+export async function status(props: StatusProps): Promise<string> {
+  const modifiers = appearanceClasses("status", "status", pickAppearance(props));
+  const valueText = plainTextOf(props.value, props.context);
+  const label =
+    props.caption === undefined ? valueText : captionText(props.caption, props.context);
+  const visible = renderTextValue(props.value, props.context);
+  return (
+    `<span class="${escapeAttr(joinClasses("status", modifiers))}" aria-label="${escapeAttr(label)}">` +
+    `<span class="sr-only">${visible}</span></span>`
+  );
+}
+
+/**
+ * Shortcut notation: one kbd element per key, joined with "+" text.
+ * Registers no keyboard handler. Throws when `keys` is empty.
+ */
+export async function kbd(props: KbdProps): Promise<string> {
+  if (props.keys.length === 0) {
+    throw new Error("kbd needs at least one key");
+  }
+  const modifiers = appearanceClasses("kbd", "kbd", pickAppearance(props));
+  const cls = escapeAttr(joinClasses("kbd", modifiers));
+  return props.keys.map((key) => `<kbd class="${cls}">${escapeHtml(key)}</kbd>`).join("+");
+}
+
+/**
+ * Escaped code display: one upstream `pre[data-prefix]` line per source
+ * line (prefix "$"), inside `.mockup-code`. Content is never interpreted.
+ */
+export async function mockupCode(props: MockupCodeProps): Promise<string> {
+  // mockup_code admits no appearance matrix: any runtime appearance key
+  // throws via the membership check below.
+  appearanceClasses("mockup_code", "mockup-code", pickAppearance(props));
+  if (typeof props.code !== "string") {
+    throw new TypeError("mockupCode code must be a string");
+  }
+  const lines = props.code.split(/\r?\n/);
+  const rendered = lines
+    .map((line) => `<pre data-prefix="$"><code>${escapeHtml(line)}</code></pre>`)
+    .join("");
+  return `<div class="mockup-code">${rendered}</div>`;
+}
+
+/**
+ * View-only numeric display in the upstream countdown shape. `value` must
+ * be a finite number >= 0 (else RangeError); the integer part renders via
+ * the `--value` custom property. Schedules no timers. A caption becomes
+ * the accessible name.
+ */
+export async function countdown(props: CountdownProps): Promise<string> {
+  // countdown admits only the base class (variant "solid" is a no-op);
+  // any other runtime appearance key throws here.
+  appearanceClasses("countdown", "countdown", pickAppearance(props));
+  if (typeof props.value !== "number" || !Number.isFinite(props.value) || props.value < 0) {
+    throw new RangeError(`countdown value must be a finite number >= 0, got ${String(props.value)}`);
+  }
+  const label =
+    props.caption === undefined
+      ? ""
+      : ` aria-label="${escapeAttr(captionText(props.caption, props.context))}"`;
+  return `<span class="countdown"${label}><span style="--value:${String(Math.floor(props.value))}"></span></span>`;
+}
+
+/**
+ * Separation with an optional authored caption. Empty when no caption is
+ * given (upstream `.divider:not(:empty)` draws the captioned variant).
+ */
+export async function divider(props: DividerProps): Promise<string> {
+  const modifiers = appearanceClasses("divider", "divider", pickAppearance(props));
+  const body = props.caption === undefined ? "" : escapeHtml(captionText(props.caption, props.context));
+  return `<div class="${escapeAttr(joinClasses("divider", modifiers))}">${body}</div>`;
+}
+
+/**
+ * Checked-destination link. The caption (else the target) renders as text;
+ * hostile targets fall back to "#" via safeHref.
+ */
+export async function link(props: LinkProps): Promise<string> {
+  const modifiers = appearanceClasses("link", "link", pickAppearance(props));
+  const href = escapeAttr(safeHref(props.target));
+  const text =
+    props.caption === undefined
+      ? escapeHtml(props.target)
+      : escapeHtml(captionText(props.caption, props.context));
+  return `<a class="${escapeAttr(joinClasses("link", modifiers))}" href="${href}">${text}</a>`;
+}

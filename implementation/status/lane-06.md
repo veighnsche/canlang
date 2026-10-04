@@ -355,7 +355,7 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     main's lock + SDK edge re-applied; suites re-verified green;
     merged with lane-06 + workspace CI green (lock sync fixed the
     `npm ci` failure the new dep had introduced).
-- S6 (in progress): branch `muse/lane-06-identity-interfaces/uploads`
+- S6 (MERGED 2026-10-04 as 3819b23, PR #44): branch `muse/lane-06-identity-interfaces/uploads`
   from origin/main (090f7b4). Scope: POST /files/intents, PUT
   /files/content/{id} (append + auto-complete), POST
   /files/finalize/{id} per DESIGN section 8; session+bearer auth,
@@ -396,7 +396,74 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     pins (PUT CSRF, grant-over-cookie precedence, session-as-bearer,
     expired grant, session receiver, garbage content-length); F4
     JSON content-type gate on intent/finalize. After fixes:
-    interfaces 199/199, identity 38/38.
+    interfaces 199/199, identity 38/38. Delta re-review APPROVED
+    (F1 docs decision accepted, all switches/pins verified);
+    merged with lane-06 + workspace CI green, no rebase needed.
+- S7 (MERGED 2026-10-04 as 2cbd471, PR #51): branch `muse/lane-06-identity-interfaces/ingress-trust`
+  from origin/main (3819b23). Scope: provider-ingress auth framework
+  (POST /ingress/{namespace}, L4 `IngressVerifier` port, delegated
+  mapping with actor=null, `IngressSink` port) + OAuth authorization
+  server (metadata, dynamic registration, two-step authorize with
+  session+CSRF consent, PKCE-S256 code exchange minting McpGrant
+  Bearers) + WWW-Authenticate challenges on S5/S6 401s.
+  - No L4 verifier has landed: S7 defines the port, L4 binds at S8.
+    No exchange-step credential: audience decision stands (S6 F1).
+    OAuth v1 limits (documented): public clients only, no refresh
+    tokens, scopes uninterpreted, two-step authorize (GET descriptor
+    + POST consent) so codes are never CSRF-mintable.
+  - Coordinator files: contracts OAuthClient/AuthCode, IdentityStore
+    OAuth methods, ports (ingress + OAuth + HttpDeps.ingress),
+    testing doubles, routes mounts (ingress/oauth/well-known),
+    oauth/metadata.ts, S5/S6 401 challenges, spy/literal updates.
+  - Implementer K owns ingress/{mapping,routes}.ts + ingress.test.ts;
+    L owns identity oauth.ts + memory store methods + oauth.test.ts
+    (identity), interfaces oauth/routes.ts + oauth.test.ts.
+  - Verification: identity 47/47 (9 new), interfaces 230/230 (31 new).
+    Coordinator assembly: identity index export, ports type re-export,
+    HttpDeps/sub-handler literals, grant_type-absent spec fix
+    (invalid_request vs unsupported_grant_type).
+  - PR #51 open at b5d3db6. Independent review APPROVE-WITH-NOTES:
+    F1 empty-team asymmetry fixed (GET normalizes like POST); all
+    T-gaps pinned (401 challenge headers, content-type edges,
+    empty-team, register boundaries, removal-then-exchange,
+    oversized GET state, encoded namespace, method normalization).
+    After notes: interfaces 237/237. Merged with lane-06 + workspace
+    CI green, no rebase needed (review already APPROVE-WITH-NOTES).
+- B1/B2 lane-06 evidence (MERGED 2026-10-04 as e818eb5, PR #59): branch
+  `muse/lane-06-identity-interfaces/b1-evidence` from origin/main.
+  integration-parity.test.ts (14) + integration-lifecycle.test.ts (8):
+  shared-assembly two-user flows over the real identity store —
+  same-op browser/MCP equivalence, single-derivation proof, equal
+  rejection (forged/expired/revoked/unknown-team/unknown-arg/
+  missing-op-id/denied/owner-only), replay passthrough, error-shape
+  parity without leaks, full OAuth dance driving MCP, team-bound
+  consent, mid-flow revocation, removeMember lifecycle, uploads
+  journey, ingress journey, cross-user isolation. interfaces 259/259.
+  /tmp/s6-kernel-probe.mjs re-run on current main: PROBE PASS 9/9.
+  - Rebased onto 3a345c7 (L4 S8 changed files.ts: finalizedAt ->
+    DatetimeValue, UploadIntentRequest now re-exported from wire.ts
+    per the X1 dedupe direction); adapted two FinalizedFile test
+    literals to the DatetimeValue shape. 259/259 + 47/47 + probe PASS.
+  - BLOCKED (cross-lane compile+run, exact unmet contracts): L1 T4
+    emission unmerged (compiler has syntax/CLI only; no
+    appDefinition/registry artifact, so no real registry to call
+    through); L3 engine callable exists only against interim
+    engine-local descriptors (version/role/field semantics are
+    L3's to enforce at the join); L5 consent screens interim
+    (descriptor); L7 workerd/D1 local runner needed for the
+    deployed-shape run. Lane-06 port boundaries (OperationInvoker,
+    OperationRegistry, SchemaCatalog, PageRegistry, FileKernel,
+    IngressVerifier/Sink) stand ready with B1 binding as the
+    compile-time forcing function. Review REQUEST-CHANGES on F1
+    (vacuous cross-store team comparison) fixed with a single-assembly
+    deny/allow pair + positive binding assertion; delta re-review
+    APPROVED; probe output attached to the PR (N3). Merged with
+    lane-06 + workspace CI green after the L4 S8 adaptation.
+- LANE COMPLETE 2026-10-04: S1-S7 + B1/B2 evidence all merged
+  (PRs #6, #12, #19, #22, #32, #44, #51, #59). Final: identity
+  47/47, interfaces 259/259, strict tsc clean, lane-06 + workspace
+  CI green on main. All writers released; worktree retained for the
+  B1 cross-lane join when producers land.
 
 ## Remaining work and cleanup
 

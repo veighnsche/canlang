@@ -15,6 +15,14 @@ import type {
   UploadIntentGrant,
   UploadIntentRequest,
 } from '../../contracts/src/files.js';
+import type {
+  FILE_TRANSFER_META_KEY as WireFileTransferMetaKey,
+  FileTransferMeta as WireFileTransferMeta,
+  UploadFinalizeResponse,
+  UploadIntentRequest as WireUploadIntentRequest,
+  UploadIntentResponse,
+} from '../../contracts/src/wire.js';
+import { FILE_TRANSFER_META_KEY } from '../src/bridge.ts';
 
 describe('files contracts', () => {
   it('models the upload intent request and grant', () => {
@@ -22,7 +30,7 @@ describe('files contracts', () => {
       upload_id: 'upl_1',
       operation: 'expense.Expense.create',
       field: '/receipt',
-      arguments: { amount: { minorUnits: '2500', currency: 'EUR' } },
+      arguments: { amount: { minor: '2500', currency: 'EUR' } },
       name: 'receipt.pdf',
       type: 'application/pdf',
       size: '1048576',
@@ -36,6 +44,41 @@ describe('files contracts', () => {
     assert.equal(request.size, '1048576');
     assert.ok(!('receipt' in request.arguments));
     assert.ok(grant.content.startsWith('https://app.example.test/'));
+  });
+
+  it('bridge shapes converge with the lane-6 wire route contract', () => {
+    // Re-exported names are the wire declarations (same symbol); if
+    // either side re-declares with a divergent shape, these pins fail
+    // to compile.
+    type Equal<A, B> =
+      (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+        ? true
+        : false;
+    const requestIsWire: Equal<UploadIntentRequest, WireUploadIntentRequest> =
+      true;
+    const metaIsWire: Equal<FileTransferMeta, WireFileTransferMeta> = true;
+    // Literal tripwire: both key consts must stay the same string.
+    const keyIsWire: Equal<
+      typeof FILE_TRANSFER_META_KEY,
+      typeof WireFileTransferMetaKey
+    > = true;
+    assert.equal(requestIsWire, true);
+    assert.equal(metaIsWire, true);
+    assert.equal(keyIsWire, true);
+    assert.equal(FILE_TRANSFER_META_KEY, 'org.canlang/fileTransfer');
+    // Lifecycle outputs satisfy the wire route responses one way: the
+    // bridge returns these over L6-owned routes.
+    const grant: UploadIntentGrant = {
+      intent_id: 'intent_1',
+      content: 'https://app.example.test/files/content/intent_1',
+      finalize: 'https://app.example.test/files/finalize/intent_1',
+      expires_at: '2026-10-04T16:00:00Z',
+    };
+    const routeGrant: UploadIntentResponse = grant;
+    const result: FinalizeResult = { file: 'file_1' };
+    const routeResult: UploadFinalizeResponse = result;
+    assert.equal(routeGrant.intent_id, 'intent_1');
+    assert.equal(routeResult.file, 'file_1');
   });
 
   it('finalizes intents into opaque immutable references', () => {
@@ -83,7 +126,10 @@ describe('files contracts', () => {
       contentType: 'application/pdf',
       sizeBytes: 1048576,
       bytesDigest: 'sha256:def',
-      finalizedAt: '2026-10-04T15:00:00Z',
+      finalizedAt: {
+        kind: 'datetime',
+        ms: BigInt(Date.parse('2026-10-04T15:00:00Z')),
+      },
     };
     assert.equal(requestProvenance.kind, 'request');
     assert.equal(eventProvenance.itemIndex, 0);

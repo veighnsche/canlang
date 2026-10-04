@@ -16,18 +16,39 @@ import {
   set,
   sum,
 } from "@canlang/stdlib";
+// Desired/unimplemented UI contracts: every @canlang/ui factory below is proposed, not
+// installed. The replanned Then section adds alert, badge, breadcrumbs, button, fieldset,
+// input, label, modal, pagination, select, stat, status, tab, tabs, textarea, timeline,
+// toggle, tooltip and validator; actions() and metrics() have no remaining use.
 import {
-  actions,
+  alert,
+  badge,
+  breadcrumbs,
+  button,
   card,
   edit,
+  fieldset,
   form,
   history,
+  input,
+  label,
   list,
   message,
-  metrics,
+  modal,
+  pagination,
   renderPage,
+  select,
+  stat,
+  status,
+  tab,
   table,
+  tabs,
   text,
+  textarea,
+  timeline,
+  toggle,
+  tooltip,
+  validator,
 } from "@canlang/ui";
 import { can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -41,6 +62,22 @@ import { Location } from "./rent_catalog.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ *
+ * Desired UI lowering (unimplemented, for lane 05/01): each new factory takes one
+ * props object with `context` plus children arrays, per DESIGN-13. badge({context,
+ * value}) and status({context,value}) present one readable value; stat({context,
+ * result,fields}) shares the typed metric contract and stat({context,value}) presents
+ * a bare read result. button() takes exactly one of action/submit/target/opens.
+ * modal({context,caption,id,content,actions?,trigger?}) takes slot arrays; an external
+ * button opens= suppresses its implicit opener. fieldset({context,caption,children})
+ * groups controls; input/textarea/select/toggle({context,field}) name an existing
+ * writable input; label()/validator() move that field's label/feedback outlet.
+ * breadcrumbs()/pagination() consume derived ancestry / the enclosing cursor; tabs()
+ * hosts tab() panels; tooltip({context,caption,children}) annotates content;
+ * timeline({context,model,parent,renderItem}) renders one item template per admitted
+ * row. form() accepts children for explicit field placement in source order. Every
+ * use site below is marked desired/unimplemented; this file must pass node --check
+ * (syntax only) and never claims to run.
  */
 
 // Canonical references exported by the authored package; no adapter implementation.
@@ -817,117 +854,369 @@ export async function stockPage(c, bindings) {
     c,
     stockPageDescriptor,
     () => [
-      card({
+      // desired/unimplemented: breadcrumbs() consumes the current declared route ancestry.
+      breadcrumbs({ context: c }),
+      // desired/unimplemented: tabs()/tab() host transient panels; captions are localized text.
+      tabs({
         context: c,
-        title: message("Purchase posting queue", { nl: "Wachtrij inkoopboekingen" }),
         children: [
-          list({
+          tab({
             context: c,
-            model: "stock.Projection",
-            filter: ["state", "location"],
-            defaults: { location: c.preferences.stock.location },
-            renderRow: (projection, view) => [
-              text({
-                context: view,
-                values: [
-                  projection.source,
-                  projection.value.order,
-                  projection.value.sku,
-                  projection.value.unit,
-                  projection.value.quantity,
-                  projection.location,
-                  projection.state,
-                  projection.detail,
-                ],
-              }),
-              actions({ context: view, operations: ["stock.retry"], boundArgs: { projection } }),
-              history({ context: view, record: projection }),
-            ],
-          }),
-        ],
-      }),
-      card({
-        context: c,
-        title: message("Item identities and fixed units", {
-          nl: "Artikelidentiteiten en vaste eenheden",
-        }),
-        children: [
-          form({ context: c, operation: "stock.Item.create" }),
-          list({
-            context: c,
-            model: "stock.Item",
-            search: ["name"],
-            filter: ["active"],
-            display: "split",
-            renderRow: (item, view) => [
-              text({ context: view, values: [item.sku, item.unit] }),
-              metrics({ context: view, result: item, fields: ["total", "low"] }),
-              edit({ context: view, operation: "stock.Item.update", record: item }),
+            caption: message("Posting queue", { nl: "Boekingswachtrij" }),
+            children: [
               card({
-                context: view,
-                title: message("Location reorder thresholds", { nl: "Besteldrempels per locatie" }),
+                context: c,
+                title: message("Purchase posting queue", { nl: "Wachtrij inkoopboekingen" }),
                 children: [
-                  form({
-                    context: view,
-                    operation: "stock.Threshold.create",
-                    arguments: { parent: item },
+                  // desired/unimplemented: alert() renders a readable notice; no business invocation.
+                  alert({
+                    context: c,
+                    message: message(
+                      "Failed projections need investigation before retry; rejected quantities never become usable stock.",
+                      {
+                        nl: "Mislukte boekingen vereisen onderzoek vóór herhalen; afgekeurde aantallen worden nooit bruikbare voorraad.",
+                      },
+                    ),
                   }),
                   list({
-                    context: view,
-                    model: "stock.Threshold",
-                    parent: item,
-                    filter: ["location"],
+                    context: c,
+                    model: "stock.Projection",
+                    filter: ["state", "location"],
                     defaults: { location: c.preferences.stock.location },
-                    renderRow: (threshold, rowView) => [
-                      metrics({
-                        context: rowView,
-                        result: threshold,
-                        fields: ["available", "reorder", "low"],
+                    empty: message("No purchase projections match these filters", {
+                      nl: "Geen inkoopboekingen voor deze filters",
+                    }),
+                    renderRow: (projection, view) => [
+                      text({
+                        context: view,
+                        values: [
+                          projection.source,
+                          projection.value.order,
+                          projection.value.sku,
+                          projection.value.unit,
+                          projection.value.quantity,
+                          projection.location,
+                          projection.detail,
+                        ],
                       }),
-                      text({ context: rowView, values: [threshold.location] }),
-                      edit({
-                        context: rowView,
-                        operation: "stock.Threshold.update",
-                        record: threshold,
+                      // desired/unimplemented: badge() presents one readable typed value + owning caption.
+                      badge({ context: view, value: projection.state }),
+                      text({ context: view, values: [projection.movement] }),
+                      // desired/unimplemented: tooltip() annotates content; the button lowers to the
+                      // existing canonical retry binding (same node as the former action control).
+                      tooltip({
+                        context: view,
+                        caption: message("Retry this failed projection", {
+                          nl: "Herhaal deze mislukte boeking",
+                        }),
+                        children: [
+                          button({
+                            context: view,
+                            action: "stock.retry",
+                            boundArgs: { projection },
+                          }),
+                        ],
                       }),
+                      history({ context: view, record: projection }),
+                      // desired/unimplemented: pagination() consumes the enclosing collection cursor.
+                      pagination({ context: view }),
                     ],
                   }),
                 ],
               }),
+            ],
+          }),
+          tab({
+            context: c,
+            caption: message("Items and ledger", { nl: "Artikelen en register" }),
+            children: [
               card({
-                context: view,
-                title: message("Ledger movements and corrections", {
-                  nl: "Voorraadmutaties en correcties",
+                context: c,
+                title: message("Item identities and fixed units", {
+                  nl: "Artikelidentiteiten en vaste eenheden",
                 }),
                 children: [
-                  actions({
-                    context: view,
-                    operations: ["stock.adjust", "stock.transfer"],
-                    boundArgs: { item },
-                  }),
+                  // desired/unimplemented: form children express explicit field placement in source
+                  // order (fieldset/input/toggle/label/button); the unplaced remainder follows.
                   form({
-                    context: view,
-                    operation: "stock.balance",
-                    arguments: { item },
-                    renderResult: (result, resultView) => [
-                      text({ context: resultView, values: [result] }),
+                    context: c,
+                    operation: "stock.Item.create",
+                    children: [
+                      fieldset({
+                        context: c,
+                        caption: message("Identity", { nl: "Identiteit" }),
+                        children: [
+                          label({ context: c, field: "sku" }),
+                          input({ context: c, field: "sku" }),
+                          input({ context: c, field: "name" }),
+                          input({ context: c, field: "unit" }),
+                        ],
+                      }),
+                      fieldset({
+                        context: c,
+                        caption: message("Replenishment", { nl: "Aanvulling" }),
+                        children: [
+                          input({ context: c, field: "reorder" }),
+                          toggle({ context: c, field: "active" }),
+                        ],
+                      }),
+                      button({ context: c, submit: true }),
                     ],
                   }),
-                  table({
-                    context: view,
-                    model: "stock.Movement",
-                    parent: item,
-                    columns: ["location", "quantity", "reason", "source", "order", "actor"],
-                    order: ["-created"],
-                    filter: ["location"],
-                    defaults: { location: c.preferences.stock.location },
-                    renderRow: (movement, rowView) => [
-                      actions({
-                        context: rowView,
-                        operations: ["stock.reverse"],
-                        boundArgs: { movement },
+                  list({
+                    context: c,
+                    model: "stock.Item",
+                    search: ["name"],
+                    filter: ["active"],
+                    display: "split",
+                    empty: message("No items match this search", {
+                      nl: "Geen artikelen voor deze zoekopdracht",
+                    }),
+                    renderRow: (item, view) => [
+                      // desired/unimplemented: badge()/status() present readable values; status adds
+                      // a text alternative for the bool. stat() shares the typed metric contract.
+                      badge({ context: view, value: item.sku }),
+                      status({ context: view, value: item.active }),
+                      stat({ context: view, result: item, fields: ["total", "low"] }),
+                      // desired/unimplemented: edit() accepts a presentation suite over the same
+                      // canonical update schema and version contract.
+                      edit({
+                        context: view,
+                        operation: "stock.Item.update",
+                        record: item,
+                        children: [
+                          fieldset({
+                            context: view,
+                            caption: message("Item maintenance", { nl: "Artikelbeheer" }),
+                            children: [
+                              input({ context: view, field: "sku" }),
+                              input({ context: view, field: "name" }),
+                              input({ context: view, field: "unit" }),
+                              input({ context: view, field: "reorder" }),
+                              toggle({ context: view, field: "active" }),
+                            ],
+                          }),
+                          button({ context: view, submit: true }),
+                        ],
                       }),
-                      history({ context: rowView, record: movement }),
+                      card({
+                        context: view,
+                        title: message("Location reorder thresholds", {
+                          nl: "Besteldrempels per locatie",
+                        }),
+                        children: [
+                          form({
+                            context: view,
+                            operation: "stock.Threshold.create",
+                            arguments: { parent: item },
+                            children: [
+                              fieldset({
+                                context: view,
+                                caption: message("Threshold", { nl: "Drempel" }),
+                                children: [
+                                  label({ context: view, field: "location" }),
+                                  select({ context: view, field: "location" }),
+                                  input({ context: view, field: "reorder" }),
+                                  validator({ context: view, field: "reorder" }),
+                                ],
+                              }),
+                              button({ context: view, submit: true }),
+                            ],
+                          }),
+                          table({
+                            context: view,
+                            model: "stock.Threshold",
+                            parent: item,
+                            columns: ["location", "reorder"],
+                            order: ["location"],
+                            filter: ["location"],
+                            defaults: { location: c.preferences.stock.location },
+                            empty: message("No thresholds for this location", {
+                              nl: "Geen drempels voor deze locatie",
+                            }),
+                            renderRow: (threshold, rowView) => [
+                              // desired/unimplemented: stat()/status() replace the former metrics()
+                              // row; edit keeps the canonical update binding.
+                              stat({ context: rowView, result: threshold, fields: ["available"] }),
+                              status({ context: rowView, value: threshold.low }),
+                              edit({
+                                context: rowView,
+                                operation: "stock.Threshold.update",
+                                record: threshold,
+                              }),
+                              pagination({ context: rowView }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      card({
+                        context: view,
+                        title: message("Ledger movements and corrections", {
+                          nl: "Voorraadmutaties en correcties",
+                        }),
+                        children: [
+                          // desired/unimplemented: button opens= activates the matching modal id in
+                          // this row scope; captions derive from the target panel.
+                          button({ context: view, opens: "adjust_stock" }),
+                          button({ context: view, opens: "transfer_stock" }),
+                          // desired/unimplemented: modal() takes content/actions slots; the external
+                          // opener suppresses the implicit opener for this instance.
+                          modal({
+                            context: view,
+                            caption: message("Adjust stock", { nl: "Voorraad corrigeren" }),
+                            id: "adjust_stock",
+                            content: [
+                              form({
+                                context: view,
+                                operation: "stock.adjust",
+                                arguments: { item },
+                                children: [
+                                  fieldset({
+                                    context: view,
+                                    caption: message("Adjustment", { nl: "Correctie" }),
+                                    children: [
+                                      select({ context: view, field: "location" }),
+                                      label({ context: view, field: "quantity" }),
+                                      input({ context: view, field: "quantity" }),
+                                      validator({ context: view, field: "quantity" }),
+                                      textarea({ context: view, field: "reason" }),
+                                    ],
+                                  }),
+                                  button({ context: view, submit: true }),
+                                ],
+                              }),
+                            ],
+                          }),
+                          modal({
+                            context: view,
+                            caption: message("Transfer stock", { nl: "Voorraad overboeken" }),
+                            id: "transfer_stock",
+                            content: [
+                              form({
+                                context: view,
+                                operation: "stock.transfer",
+                                arguments: { item },
+                                children: [
+                                  fieldset({
+                                    context: view,
+                                    caption: message("Route", { nl: "Route" }),
+                                    children: [
+                                      select({ context: view, field: "from" }),
+                                      select({ context: view, field: "to" }),
+                                    ],
+                                  }),
+                                  fieldset({
+                                    context: view,
+                                    caption: message("Quantity and reason", {
+                                      nl: "Aantal en reden",
+                                    }),
+                                    children: [
+                                      input({ context: view, field: "quantity" }),
+                                      textarea({ context: view, field: "reason" }),
+                                    ],
+                                  }),
+                                  button({ context: view, submit: true }),
+                                ],
+                              }),
+                            ],
+                          }),
+                          form({
+                            context: view,
+                            operation: "stock.balance",
+                            arguments: { item },
+                            children: [
+                              fieldset({
+                                context: view,
+                                caption: message("Scoped balance", { nl: "Locatiesaldo" }),
+                                children: [select({ context: view, field: "location" })],
+                              }),
+                              button({ context: view, submit: true }),
+                            ],
+                            renderResult: (result, resultView) => [
+                              // desired/unimplemented: stat() presents the typed read result.
+                              stat({ context: resultView, value: result }),
+                            ],
+                          }),
+                          table({
+                            context: view,
+                            model: "stock.Movement",
+                            parent: item,
+                            columns: ["location", "reason", "source", "order", "actor"],
+                            order: ["-created"],
+                            filter: ["location"],
+                            defaults: { location: c.preferences.stock.location },
+                            empty: message("No ledger movements for this location", {
+                              nl: "Geen voorraadmutaties voor deze locatie",
+                            }),
+                            renderRow: (movement, rowView) => [
+                              // desired/unimplemented: badge() carries the signed quantity column.
+                              badge({ context: rowView, value: movement.quantity }),
+                              text({
+                                context: rowView,
+                                values: [
+                                  movement.reversal,
+                                  movement.transfer,
+                                  movement.revision,
+                                  movement.unit,
+                                ],
+                              }),
+                              button({ context: rowView, opens: "reverse_movement" }),
+                              modal({
+                                context: rowView,
+                                caption: message("Reverse stock movement", {
+                                  nl: "Voorraadmutatie terugboeken",
+                                }),
+                                id: "reverse_movement",
+                                content: [
+                                  alert({
+                                    context: rowView,
+                                    message: message(
+                                      "Reversal appends a linked movement; posted history stays immutable.",
+                                      {
+                                        nl: "Terugboeking voegt een gekoppelde mutatie toe; vastgelegde historie blijft ongewijzigd.",
+                                      },
+                                    ),
+                                  }),
+                                  form({
+                                    context: rowView,
+                                    operation: "stock.reverse",
+                                    arguments: { movement },
+                                    children: [
+                                      textarea({ context: rowView, field: "reason" }),
+                                      button({ context: rowView, submit: true }),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                              history({ context: rowView, record: movement }),
+                              pagination({ context: rowView }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      card({
+                        context: view,
+                        title: message("Recent ledger activity", {
+                          nl: "Recente voorraadactiviteit",
+                        }),
+                        children: [
+                          // desired/unimplemented: timeline() renders one item template per admitted
+                          // row, reusing the collection evaluator and row chain.
+                          timeline({
+                            context: view,
+                            model: "stock.Movement",
+                            parent: item,
+                            renderItem: (movement, movementView) => [
+                              badge({ context: movementView, value: movement.quantity }),
+                              text({
+                                context: movementView,
+                                values: [movement.reason, movement.location, movement.source],
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      pagination({ context: view }),
                     ],
                   }),
                 ],

@@ -36,6 +36,7 @@ import type { MembershipReader } from '../policy/roles.js';
 import { admit, receiptIdentityFor, type AdmittedCall } from './admission.js';
 import { buildContext, type ClockPort } from './context.js';
 import { StateError, storageToStateError } from '../errors.js';
+import { stageEffectsStaging } from '../effects/staging.js';
 import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
 
 /** Fenced-commit attempts per invocation, per DESIGN §7. */
@@ -134,7 +135,16 @@ export async function invoke(input: {
     // no fields. Non-StateError bugs propagate untouched, never receipted.
     let effects: ExecutionEffects;
     try {
-      effects = await input.execute(call);
+      const raw = await input.execute(call);
+      // S6: validate executor-staged outbox/schedules INSIDE the try, so
+      // malformed executor output becomes a fenced rejected receipt via the
+      // path below — never a crash. crudExecute's empty arrays pass
+      // trivially; the commit and deliveries below consume the staged clone.
+      const staged = stageEffectsStaging(
+        { outbox: raw.outbox, schedules: raw.schedules },
+        { operationId: context.operationId },
+      );
+      effects = { ...raw, outbox: staged.outbox, schedules: staged.schedules };
     } catch (error) {
       if (!(error instanceof StateError)) {
         throw error;

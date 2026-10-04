@@ -1,7 +1,8 @@
 /**
  * Export assembly (lane 07). Producer lanes own their boundary module bodies;
  * this file only re-exports them. All 12 modules landed; `assembly.test.ts`
- * pins the interim conflict picks plus the L5 S4 re-export identities.
+ * pins the interim conflict picks plus the re-export identities (L5 S4
+ * wire set, L4 S8 files set) and the S8b runtime policy pin.
  *
  * KNOWN CONFLICTS (handoffs to L3/L4/L6, see lane-07 status): several
  * producer modules export the same name with different definitions, which
@@ -11,11 +12,11 @@
  * - `OperationId` (state branded vs wire plain): state; narrows to string.
  * - `DeliveryStatus` (services vs wire, identical text): services; L4 owns
  *   the outcome vocabulary.
- * - `FileTransferMeta` (files mutable vs wire readonly+documented): wire.
- * - `UploadIntentRequest` (files intent vs wire envelope, divergent):
- *   files; the wire shape may need a rename, not a merge.
  *
  * Resolved: `DeliveryError` (L2 PR2 deduplicated; services owns it now).
+ * Resolved: `FileTransferMeta` + `UploadIntentRequest` (L4 S8 re-exports
+ * both from wire; same symbol, no ambiguity — pinned as identities in
+ * `assembly.test.ts` instead of interim picks).
  */
 export const CONTRACTS_VERSION = 1;
 
@@ -33,5 +34,3 @@ export * from "./wire.js";
 export * from "./work.js";
 export type { OperationId } from "./state.js";
 export type { DeliveryStatus } from "./services.js";
-export type { FileTransferMeta } from "./wire.js";
-export type { UploadIntentRequest } from "./files.js";

@@ -24,6 +24,7 @@ import type {
 } from '../../../contracts/src/state.js';
 import type { StoragePort } from '../storage/port.js';
 import { StateError } from '../errors.js';
+import { jsonClone } from '../internal/json.js';
 import { evalPredicateForRow, resolveRowPath } from '../policy/grants.js';
 import { isParentPathDefault, type InterimModelDef, type ModelTable } from './models.js';
 
@@ -90,18 +91,6 @@ function safeSet(target: Record<string, unknown>, key: string, value: unknown): 
     writable: true,
     configurable: true,
   });
-}
-
-/**
- * Clone caller/hook data into the pipeline. Uncloneable values (functions,
- * symbols) are caller errors, never DataCloneError crashes.
- */
-function jsonClone<T>(value: T, what: string): T {
-  try {
-    return structuredClone(value);
-  } catch {
-    throw new StateError('validation', `${what} must be JSON data.`);
-  }
 }
 
 /** Deep-freeze staged rows so invariant views cannot mutate provisional state. */

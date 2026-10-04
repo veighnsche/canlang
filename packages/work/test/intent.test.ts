@@ -58,6 +58,23 @@ describe('intent: frozen-request builder', () => {
   it('rejects uncloneable requests', () => {
     assert.throws(() => freezeRequest({ fn: () => 1 }));
   });
+
+  it('rejects non-record requests the fence cannot carry', () => {
+    for (const request of [[], ['a'], 'text', 7, null, undefined, true]) {
+      assert.throws(() => freezeRequest(request), TypeError);
+      assert.throws(
+        () =>
+          stageOutboxIntent({
+            operationId: OPERATION,
+            source: 'Mail.send',
+            occurrenceIndex: 0,
+            request,
+            originOccurrence: null,
+          }),
+        TypeError,
+      );
+    }
+  });
 });
 
 describe('intent: commit gate', () => {

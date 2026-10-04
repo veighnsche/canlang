@@ -354,6 +354,11 @@ is closed. tsconfig.check.json inclusion for packages/ui still pending.
 ## Remaining work and cleanup
 
 Full lane scope per correction slices C1–C9 below (supersedes S1–S8 as completion criteria; S1–S5 merged stand).
+
+NOTE 2026-10-04: foreign doc/brief/prompt edits (lane-08 steering activity) keep landing in this worktree
+uncommitted. They are never lane-05's to commit: set aside in stash `foreign-doc-edits-20261004` plus
+/tmp/lane05-steering-backup/ and /tmp/lane05-foreign-conflicts/ (3 files conflicted vs origin/main on pop;
+both sides preserved). Owner attention needed; lane-05 commits only owned paths.
 Owned resources: this worktree only; no build caches beyond packages/ui/node_modules (owned, disposable).
 No producer/docsandbox writes. Cleanup of worktree after final merge + writer/viewer release; never delete
 shared caches or unrelated processes. Known risks: L1 catalog-consumption timing (C2 ships contract + witness;
@@ -370,11 +375,17 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
       (b) branch muse/lane-05-ui/c2b-appearance, PR pending — appearance-token matrix on 44/68 words,
       substantiated against pinned daisyUI 5.7.47 CSS (9 tests), alternates on hero/footer/navbar,
       contract v0.8.0. Suite 371/371 green. Props per family land with C3–C8 renderers.
-- [ ] C3 readable leaves + mockups: avatar, badge, status, kbd, mockup_code, countdown, progress,
-      radial_progress, divider, loading, skeleton, link, breadcrumbs, text_rotate. Two workers by file split.
-- [ ] C4 field controls + form integration: input, textarea, checkbox, toggle, radio, select, range, rating,
-      file_input, otp, label, validator, filter, calendar(field dispatch), explicit-control placement +
-      remainder/duplication rules in forms.ts. Two workers (controls + forms integration).
+- [x] C3 readable leaves (branch muse/lane-05-ui/c3-leaves, PR pending): contract v0.9.0
+      (11 leaf Props), src/appearance.ts closed token renderer, leaves.ts (badge/status/kbd/mockupCode/
+      countdown/divider/link) + media.ts (avatar/progress/radialProgress/textRotate), 11 catalog flips.
+      Breadcrumbs deferred to C6 (needs descriptor ancestry). Suite 448/448 green.
+- [x] C4a field-control factories (branch muse/lane-05-ui/c4a-controls, PR pending): contract
+      v0.10.0 (FieldControlKind, FieldControlProps+timeZone, Label/Validator/per-control/Calendar/Filter
+      props; control+labelCaption on FormFieldDef), controls.ts 14 factories, shared field-id helpers,
+      14 catalog flips. Coordinator closed the timeZone gap (zoned datetime/agenda). Suite 483/483.
+- [x] C4b form placement integration (branch muse/lane-05-ui/c4b-placement, PR pending):
+      renderExplicitControl dispatch (12 kinds), assertUniqueFieldPaths, multipart for file fields,
+      renderField reuses label()/validator() fragments (byte-identical). Suite 504/504 green.
 - [ ] C5 groups + slots: accordion, collapse(=details), hero, footer, fieldset, join, stack, aura, mask,
       hover_3d, tooltip, alert, toast, diff, indicator, chat_bubble, dropdown, modal, drawer, swap, fab,
       stat suite, carousel, hover_gallery, steps, timeline. Two workers by file split.

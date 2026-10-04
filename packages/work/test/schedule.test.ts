@@ -75,6 +75,51 @@ describe('schedule: keyed put', () => {
     assert.throws(() => putSchedule(deps, pendingEntry({ key: '' })), RangeError);
     assert.throws(() => putSchedule(deps, pendingEntry({ event: '' })), RangeError);
   });
+
+  it('freezes record payloads and rejects non-records the fence cannot carry', () => {
+    const deps = setup();
+    const payload = { noticeId: 'n_1', nested: { tags: ['x'] } };
+    const result = putSchedule(deps, pendingEntry({ payload }));
+    payload.noticeId = 'mutated';
+    payload.nested.tags.push('y');
+    assert.deepEqual(result.admitted.payload, {
+      noticeId: 'n_1',
+      nested: { tags: ['x'] },
+    });
+    assert.ok(Object.isFrozen(result.admitted.payload));
+    for (const bad of [[], 'text', 7, null, undefined, true]) {
+      assert.throws(
+        () =>
+          putSchedule(
+            deps,
+            pendingEntry({ payload: bad as unknown as Record<string, unknown> }),
+          ),
+        TypeError,
+      );
+    }
+  });
+
+  it('rejected replacements leave the previous entry and intents untouched', () => {
+    const deps = setup();
+    const first = putSchedule(deps, pendingEntry());
+    deps.outbox.put(
+      outboxItem('obx_a', 'Approval.remind', 'pending', first.admitted.occurrenceId),
+    );
+    assert.throws(
+      () =>
+        replaceSchedule(
+          deps,
+          pendingEntry({ payload: ['not', 'a', 'record'] as unknown as Record<string, unknown> }),
+        ),
+      TypeError,
+    );
+    assert.equal(deps.schedules.get(scope, 'reminder-1')?.state, 'pending');
+    assert.equal(
+      deps.schedules.get(scope, 'reminder-1')?.occurrenceId,
+      first.admitted.occurrenceId,
+    );
+    assert.equal(deps.supersessions.isSuperseded('obx_a'), false);
+  });
 });
 
 describe('schedule: replace supersedes pending occurrences', () => {
