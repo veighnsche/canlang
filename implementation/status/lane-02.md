@@ -441,6 +441,16 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
   join case green both paths locally. Independent review MERGE
   (13 rows recomputed; 2 cosmetic nits applied by coordinator).
   L3 façade request + L7 pretest join request filed above.
+- PR6 merged 2026-10-04 as d32c1ab (PR #48, squash, head 665910e):
+  680/680 values suite, catalog 56/15, join case green both paths
+  locally + unsupported-clean in root CI; all CI green. Delivered:
+  conformance/v1 fixtures + README, conformance runner, L7-dir join
+  case. LANE COMPLETE except producer-blocked real B1/B2 calls:
+  all 6 PRs merged (#8, #17, #20, #28, #40, #48); unmet contracts
+  restated — L1 `can compile` emission (+ ArtifactTestModule loader),
+  L3 exported invocable surface + op descriptors, L6 two-user auth
+  helper, L5 page descriptors, L7 pretest values build; L1 catalog
+  ack + 6 gap-helper names + L4 DeliveryError-dedup ack still open.
 
 ## Interface requests and handoffs
 
