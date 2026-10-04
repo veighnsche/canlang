@@ -157,9 +157,11 @@ package stats
    require analyst
    card "Configured site and reporting range"@{nl="Ingestelde website en rapportagebereik"}
     list Site as site where preferences.site==null or site==preferences.site
+     badge row.active
      text row.name,row.domain,row.timezone,row.goals
      card "Observed traffic and identifier coverage"@{nl="Gemeten verkeer en identificatiedekking"}
       form summary display=inline
+       badge result.state
        text result.state,result.generated
        metrics result.events,result.goals,result.goal_rate,result.visitors,result.sessions,result.live,result.identity_coverage
        details "Observed goals"@{nl="Gemeten doelen"}
@@ -168,6 +170,7 @@ package stats
      card "Weighted dimension estimates"@{nl="Gewogen dimensieschattingen"}
       form breakdown
       list row.Breakdown as report where report.account==actor and report.current
+       badge row.state
        text row.state,row.requested,row.goal,row.configured_goals,row.error
        details "Report result"@{nl="Rapportresultaat"}
         require row.result!=null

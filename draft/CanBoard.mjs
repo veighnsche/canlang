@@ -680,6 +680,7 @@ export async function boardPage(c, bindings) {
         search: ["title"],
         display: "split",
         renderRow: (meeting, v) => [
+          // Desired: badge row.finalized — no verified @canlang/ui badge factory yet; awaits the L5 producer contract.
           card({
             context: v,
             title: message("Meeting and attendance", { nl: "Vergadering en aanwezigheid" }),
@@ -738,6 +739,7 @@ export async function boardPage(c, bindings) {
                     parent: meeting,
                     columns: ["title", "outcome", "evidence"],
                     renderRow: (resolution, rv) => [
+                      // Desired: badge row.outcome — no verified @canlang/ui badge factory yet; awaits the L5 producer contract.
                       actions({
                         context: rv,
                         operations: ["board.decide"],
@@ -756,6 +758,7 @@ export async function boardPage(c, bindings) {
                         order: ["due"],
                         filter: ["done"],
                         renderRow: (action, av) => [
+                          // Desired: badge row.done — no verified @canlang/ui badge factory yet; awaits the L5 producer contract.
                           actions({
                             context: av,
                             operations: ["board.complete"],
@@ -824,6 +827,7 @@ export async function boardPage(c, bindings) {
                             model: "board.Amendment",
                             parent: result,
                             renderRow: (amendment, av) =>
+                              // Source now uses content row.text + text row.paper,row.author; text() witness retained until the producer contract confirms a content factory.
                               text({
                                 context: av,
                                 values: [amendment.text, amendment.paper, amendment.author],
@@ -862,6 +866,7 @@ export async function actionsPage(c, bindings) {
         filter: ["done"],
         display: "split",
         renderRow: (action, v) => [
+          // Desired: badge row.done — no verified @canlang/ui badge factory yet; awaits the L5 producer contract.
           form({
             context: v,
             operation: "board.origin",

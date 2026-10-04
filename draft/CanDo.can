@@ -121,14 +121,18 @@ package todo
     form Task.create display=inline
    tabs preferences.view
    table Task as task where preferences.view==all or (task.due!=null and ((preferences.view==today and local_date(task.due,team.timezone)==local_date(now,team.timezone)) or (preferences.view==overdue and task.due<now and not task.done))) columns=title,assignee,due,priority,done order={by=preferences.view,default=[due],cases={all=[-created]}} filter=location,assignee,priority,done defaults={location=preferences.location,done=preferences.done} search=title display=split
+    badge row.done
+    badge row.priority
     card "Current task"@{nl="Huidige taak"}
-     text row.title,row.description,row.assignee,row.due,row.priority,row.done,row.completed_by,row.completed_at
+     text row.title,row.assignee,row.due,row.priority,row.done,row.completed_by,row.completed_at
+     content row.description
      edit
      actions complete,reopen
     card "Attributed comments"@{nl="Toegeschreven reacties"}
      form Comment.create
      list row.Comment
-      text row.body,row.author
+      content row.body
+      text row.author
     history
   # Keep unavailable source work visible without granting source authority. @{nl="Houd niet-beschikbaar bronwerk zichtbaar zonder bronbevoegdheid te verlenen."}
   page /tasks/my-work title="My work"@{nl="Mijn werk"} poll=5s refresh=refresh
@@ -137,10 +141,13 @@ package todo
     form refresh display=inline
    list WorkView as view where view.account==actor and view.current order=-view.requested
     text row.state,row.requested
+    badge row.state
     card source_freshness_caption
      table row.sources columns=source,state,detail
+      badge row.state
     card "Authorized work and actions"@{nl="Toegestaan werk en acties"}
      table row.items columns=title,source,location,due,state filter=source,location,due,state
+      badge row.state
       content row.detail
       form row.action
     text "Submit refresh once to enable automatic source refresh while this page remains open."@{nl="Vernieuw één keer om automatisch bronwerk te vernieuwen zolang deze pagina geopend blijft."}
