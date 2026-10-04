@@ -35,7 +35,7 @@ no row passes until it executes against real components.
 - L3: invocation/commit engine behind the `state.ts` ports. S6 (`160db71`)
   exports `createInvoker`/`BoundInvoker` + staging + system registry
   (328/328 suite), but the registry is interim ("replaced outright at
-  the L1 descriptors") and `admit`/`invoke` stay unexported. Engine
+  the L1 codegen join") and `admit`/`invoke` stay unexported. Engine
   side B1-ready; B1.3/B1.4 critical path is now L1 emission + op
   descriptors only. No testkit wiring until real handlers exist
   (interim-registry execution would be a mock pass).

@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "CanLang lane 07 (platform) must answer lane 04's S8d handoff: name the row fixture-seed vocabulary + provider/file fixture mechanism the testkit will use at B2.\nVerified facts:\n- TableRowSpec.seed is `readonly string[]`, uninterpreted; only `[]` used today (packages/testkit/src/runner/table.ts).\n- Testkit row scopes are per-row workerd instances with isolated D1 (createLocalRowScope); rows must stay isolated and hermetic.\n- L4's completion/error contract shapes (DeliveryResult {id,status}, DeliveryStatus closed union pending/succeeded/failed/unknown/skipped, DeliveryError closed {code,message}) are authoritative for what fixtures must produce.\n- L4's existing harnesses are node:http and workerd-incompatible; L4 will supply scenario data or a fixture server along the named interface, not ahead of it.\n- B2 journeys need scripted provider outcomes: failed/unknown/skipped delivery, retry-then-succeed, changed versions.\n- L2 precedent: contributed join cases run against real dists when present, else honest `unsupported` rows — never green on mocks.\n- No consumer executes seeds today; L4 S8 PR #49 (with the handoff) is still open; B1 itself is blocked on L1 emission (slice 4).\n- L7 owns testkit + the seed field; L4 owns provider semantics. The decision must keep that split: L7 names mechanism + vocabulary, L4 authors fixture content.\n",
+    "questions": {
+      "q3": {
+        "type": "choice",
+        "text": "Lane 04 awaits a named consumer interface before supplying fixtures. Given uninterpreted seeds, workerd-incompatible node harnesses, and no running B1 yet, which option should L7 commit to?",
+        "criteria": {
+          "scenario-data": "L7 defines a seed vocabulary of scenario-data references; L4 authors scenario tables conforming to their completion/error contracts; testkit row scopes interpret them via an embedded scripted transport.",
+          "fixture-server": "L7 defines a workerd fixture-server interface; L4 authors a workerd-compatible fixture server that row scopes delegate provider calls to.",
+          "thin-now": "L7 names only opaque seed refs + a per-row provisioning hook now; the interpretation mechanism is deferred until B2's first journey forces it."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "q3": {
+        "type": "choice",
+        "choice": "fixture-server",
+        "confidence": 0.12,
+        "probabilities": {
+          "thin-now": 0.29,
+          "fixture-server": 0.41,
+          "scenario-data": 0.3
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 737,
+      "output_tokens": 43
+    }
+  }
+}
