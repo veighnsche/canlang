@@ -930,6 +930,17 @@ describe("fileControl", () => {
         field: field("doc", { type: "file" }),
         idPrefix: "f",
         mode: "create",
+        files: [{ href: "/f", caption: 42 as unknown as string }],
+      }),
+      /field "doc": file caption must be a message value/,
+      "non-message caption",
+    );
+    await assert.rejects(
+      fileControl({
+        context: ctx,
+        field: field("doc", { type: "file" }),
+        idPrefix: "f",
+        mode: "create",
         files: [{ href: "/f", status: "<script>" as unknown as "pending" }],
       }),
       /field "doc"/,

@@ -1012,10 +1012,16 @@ function fileItem(fieldPath: string, file: FileLinkView, context: PresentationCo
       `field "${fieldPath}": file status must be a declared DeliveryStatus, got ${JSON.stringify(file.status)}`,
     );
   }
-  const text =
-    file.caption !== undefined
-      ? resolveCaption(file.caption, context)
-      : (file.name ?? file.href);
+  let text: string;
+  if (file.caption !== undefined) {
+    try {
+      text = resolveCaption(file.caption, context);
+    } catch {
+      throw new TypeError(`field "${fieldPath}": file caption must be a message value`);
+    }
+  } else {
+    text = file.name ?? file.href;
+  }
   const status =
     file.status === undefined ? "" : ` <span role="status">${escapeHtml(file.status)}</span>`;
   return `<li><a class="link" href="${escapeAttr(safeHref(file.href))}">${escapeHtml(text)}</a>${status}</li>`;

@@ -805,10 +805,10 @@ async function wrapWithControls(
 // ---------------------------------------------------------------------------
 // C7 collection factories: board, csvImport.
 //
-// Pure async string builders (no h(), hydration or client state). Props types
-// are defined locally; the coordinator moves them to the shared contract.
-// Both route appearance through appearanceClasses() under their exact
-// catalog id; neither word admits an appearance matrix, so any token throws.
+// Pure async string builders (no h(), hydration or client state). Props live
+// in the presentation contract. Both route appearance through
+// appearanceClasses() under their exact catalog id; neither word admits an
+// appearance matrix, so any token throws.
 // ---------------------------------------------------------------------------
 
 /**
