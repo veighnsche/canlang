@@ -2,7 +2,8 @@
  * Export assembly (lane 07). Producer lanes own their boundary module bodies;
  * this file only re-exports them. All 12 modules landed; `assembly.test.ts`
  * pins the interim conflict picks plus the re-export identities (L5 S4
- * wire set, L4 S8 files set) and the S8b runtime policy pin.
+ * wire set, L4 S8 files set, L5 C8 HistoryEntry) and the S8b runtime
+ * policy pin.
  *
  * KNOWN CONFLICTS (handoffs to L3/L4/L6, see lane-07 status): several
  * producer modules export the same name with different definitions, which
