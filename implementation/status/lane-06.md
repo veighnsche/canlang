@@ -429,7 +429,7 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     oversized GET state, encoded namespace, method normalization).
     After notes: interfaces 237/237. Merged with lane-06 + workspace
     CI green, no rebase needed (review already APPROVE-WITH-NOTES).
-- B1/B2 lane-06 evidence (in progress): branch
+- B1/B2 lane-06 evidence (MERGED 2026-10-04 as e818eb5, PR #59): branch
   `muse/lane-06-identity-interfaces/b1-evidence` from origin/main.
   integration-parity.test.ts (14) + integration-lifecycle.test.ts (8):
   shared-assembly two-user flows over the real identity store —
@@ -454,7 +454,16 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     deployed-shape run. Lane-06 port boundaries (OperationInvoker,
     OperationRegistry, SchemaCatalog, PageRegistry, FileKernel,
     IngressVerifier/Sink) stand ready with B1 binding as the
-    compile-time forcing function.
+    compile-time forcing function. Review REQUEST-CHANGES on F1
+    (vacuous cross-store team comparison) fixed with a single-assembly
+    deny/allow pair + positive binding assertion; delta re-review
+    APPROVED; probe output attached to the PR (N3). Merged with
+    lane-06 + workspace CI green after the L4 S8 adaptation.
+- LANE COMPLETE 2026-10-04: S1-S7 + B1/B2 evidence all merged
+  (PRs #6, #12, #19, #22, #32, #44, #51, #59). Final: identity
+  47/47, interfaces 259/259, strict tsc clean, lane-06 + workspace
+  CI green on main. All writers released; worktree retained for the
+  B1 cross-lane join when producers land.
 
 ## Remaining work and cleanup
 
