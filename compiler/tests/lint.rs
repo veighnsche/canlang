@@ -666,6 +666,23 @@ fn rule_table_is_consistent() {
 }
 
 #[test]
+fn rule_codes_resolve_in_explain_catalog() {
+    // Every shipped lint code must have a live `can explain` entry
+    // with matching title/severity — no stale placeholders, no gaps.
+    for rule in RULES {
+        let info = canlang_compiler::explain::lookup(rule.code)
+            .unwrap_or_else(|| panic!("{} has no explain entry", rule.code));
+        assert_eq!(info.title, rule.title, "{}", rule.code);
+        assert_eq!(info.severity, rule.severity, "{}", rule.code);
+        assert!(
+            !info.explanation.contains("not emitted in this build"),
+            "{} explain is a stale placeholder",
+            rule.code
+        );
+    }
+}
+
+#[test]
 fn default_config_is_recommended_without_fixes_or_catalog() {
     let config = LintConfig::default();
     assert_eq!(config.enabled, RuleSet::recommended());

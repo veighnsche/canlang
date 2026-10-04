@@ -828,9 +828,11 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
 /// `can lint`: full analysis, then the lint driver over the checked
 /// program. Operand and input failures follow [`run_check_like`]
 /// (`E7001`/`E7002`, exit 2). Analysis errors exit 10 with diagnostics
-/// and no lint findings; on a clean analysis the lint findings
-/// (recommended rules; warnings/informational only) print as the
-/// diagnostic envelope with exit 0 — warnings never block.
+/// and no lint findings (one signal per run; the LSP server merges
+/// both instead, since editor buffers are always mid-edit). On a
+/// clean analysis the lint findings (recommended rules;
+/// warnings/informational only) print as the diagnostic envelope
+/// with exit 0 — warnings never block.
 fn run_lint(operands: &[String], format: OutputFormat, analyzer: &dyn Analyzer) -> DispatchResult {
     if operands.is_empty() {
         return DispatchResult::tool_error(

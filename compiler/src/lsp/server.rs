@@ -282,6 +282,10 @@ impl RealAnalysis {
 
 impl LanguageAnalysis for RealAnalysis {
     fn diagnostics(&self, db: &SourceDb, id: SourceId) -> Vec<Diagnostic> {
+        // Deliberate divergence from `can lint`: the CLI suppresses
+        // lint findings while analysis errors report (one signal per
+        // run), but an editor buffer is always mid-edit, so the server
+        // merges both — errors and lint findings side by side.
         let snapshot = self.snapshot(db, id);
         let mut diagnostics: Vec<Diagnostic> = snapshot.diagnostics().to_vec();
         for mut diagnostic in self.catalog_diags.clone() {
@@ -492,6 +496,9 @@ fn diagnostic_fix_to_action(
     text: &str,
     fix: &fixes::DiagnosticFix,
 ) -> CodeAction {
+    // `SourceId(0)` below discards the edit's file id: safe only
+    // because callers pre-filter fixes to this same file. Multi-file
+    // fixes must thread the real id through instead.
     let edits = if crate::source::sha256_hex(text.as_bytes()) == fix.expected_sha256 {
         fix.edits
             .iter()
