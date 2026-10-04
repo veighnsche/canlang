@@ -1,0 +1,14 @@
+{
+  // Extends-compatible with tsconfig.base.json (lane 07); route root-check
+  // inclusion via the S1 PR. Relative contract imports stay test-only until
+  // L7 join J1 exports identity/wire from @canlang/contracts.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "outDir": "dist",
+    "rootDir": "..",
+    "noEmitOnError": true
+  },
+  "include": ["test/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

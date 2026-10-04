@@ -1,0 +1,20 @@
+{
+  "name": "@canlang/identity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CanLang account/session/team identity (lane 06). B0: contract conformance only; implementation lands in S2.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && cp -r test/fixtures dist/identity/test/fixtures",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test \"dist/identity/test/**/*.test.js\"",
+    "clean": "rm -rf dist/"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
