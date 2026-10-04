@@ -61,3 +61,5 @@ jobs:
       - name: Validate extension manifests and grammar JSON
         run: >
           node -e "for (const f of ['editors/vscode/package.json','editors/vscode/syntaxes/can.tmLanguage.json']) { JSON.parse(require('fs').readFileSync(f,'utf8')); console.log('ok', f); }"
+      - name: Typecheck LSP client (no emit)
+        run: npx -y -p typescript@5.6.3 tsc --noEmit --strict --target es2022 --lib es2022 editors/vscode/src/extension.ts editors/vscode/src/client.ts

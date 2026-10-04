@@ -1,0 +1,534 @@
+//! Diagnostic code catalog served by `can explain CODE`.
+//!
+//! Every range from the lane-01 policy is covered: `E1xxx` syntax/layout,
+//! `E2xxx` names/imports/composition, `E3xxx` types/schemas, `E4xxx`
+//! effects/owners/disclosure/authority-shape, `E5xxx`
+//! operations/fixtures/examples, `E6xxx` codegen/artifact/capability,
+//! `E7xxx` tool/config, `W1xxx` unreachable, `W2xxx` shadowing (opt-in),
+//! `W3xxx` deprecated, `I1xxx` unused/redundant/locale-fallback.
+//!
+//! The `E1xxx` entries are reconciled with the real `syntax` emission
+//! sites: lexer `E1001`–`E1007`, layout `E1101`–`E1103`/`E1120`–`E1126`
+//! and parser `E1200`–`E1216` (see `syntax::mod` for the per-code
+//! summary). The `E7xxx` entries describe behavior this binary actually
+//! implements. `E2xxx`–`E6xxx`, `W1xxx`–`W3xxx` and `I1xxx` are reserved
+//! placeholders for stages that do not emit them yet; unknown codes are
+//! never invented at explain time (see [`lookup`]).
+
+use crate::diagnostic::Severity;
+use std::fmt::Write as _;
+
+/// One documented diagnostic code.
+#[derive(Debug, Clone, Copy)]
+pub struct CodeInfo {
+    /// Stable machine code, e.g. `E1001`.
+    pub code: &'static str,
+    /// Short kebab-case title.
+    pub title: &'static str,
+    /// Severity findings under this code carry.
+    pub severity: Severity,
+    /// What the code means and how to fix it.
+    pub explanation: &'static str,
+    /// Small example that does not trigger the code.
+    pub example_valid: &'static str,
+    /// Small example that triggers the code.
+    pub example_invalid: &'static str,
+}
+
+/// The full catalog in code order.
+pub fn all() -> &'static [CodeInfo] {
+    &CATALOG
+}
+
+/// Look up one code. Matching trims whitespace and is ASCII-case-insensitive
+/// so `e1001` finds `E1001`. Returns `None` for unknown codes; callers must
+/// report `E7003` and list [`known_codes`] instead of inventing an entry.
+pub fn lookup(code: &str) -> Option<&'static CodeInfo> {
+    let normalized = code.trim().to_ascii_uppercase();
+    CATALOG.iter().find(|info| info.code == normalized)
+}
+
+/// Every known code in catalog order, for `E7003` error messages.
+pub fn known_codes() -> Vec<&'static str> {
+    CATALOG.iter().map(|info| info.code).collect()
+}
+
+/// Render one entry as deterministic single-line JSON.
+pub fn entry_to_json(info: &CodeInfo) -> String {
+    let mut out = String::new();
+    out.push_str("{\"code\":");
+    crate::diagnostic::push_json_str(&mut out, info.code);
+    out.push_str(",\"title\":");
+    crate::diagnostic::push_json_str(&mut out, info.title);
+    out.push_str(",\"severity\":");
+    crate::diagnostic::push_json_str(&mut out, info.severity.as_str());
+    out.push_str(",\"explanation\":");
+    crate::diagnostic::push_json_str(&mut out, info.explanation);
+    out.push_str(",\"example_valid\":");
+    crate::diagnostic::push_json_str(&mut out, info.example_valid);
+    out.push_str(",\"example_invalid\":");
+    crate::diagnostic::push_json_str(&mut out, info.example_invalid);
+    out.push('}');
+    out
+}
+
+/// Render one entry as human-readable text.
+pub fn entry_to_text(info: &CodeInfo) -> String {
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "{} [{}]: {}",
+        info.code,
+        info.severity.as_str(),
+        info.title
+    );
+    out.push_str(info.explanation);
+    out.push('\n');
+    out.push_str("\nvalid:\n");
+    out.push_str(info.example_valid);
+    out.push_str("\n\ninvalid:\n");
+    out.push_str(info.example_invalid);
+    out.push('\n');
+    out
+}
+
+const CATALOG: [CodeInfo; 49] = [
+    CodeInfo {
+        code: "E1001",
+        title: "bare-carriage-return",
+        severity: Severity::Error,
+        explanation: "Source uses LF or CRLF line endings (GRAMMAR Tokens and layout). A carriage return not immediately followed by LF is a bare CR, reported once where it stands; the byte stays as an error token so coverage is preserved. Normalize the file to LF and remove the stray CR.",
+        example_valid: "app T\nGiven\nWhen\nThen\n## note\n",
+        example_invalid: "app T\nGiven\nWhen\nThen\n## a\rb\n",
+    },
+    CodeInfo {
+        code: "E1002",
+        title: "invalid-utf8",
+        severity: Severity::Error,
+        explanation: "Source must be valid UTF-8 (GRAMMAR Tokens and layout). The bytes entry point rejects the first malformed byte; the text entry point cannot see this error. Re-save the file as UTF-8.",
+        example_valid: "app T\nGiven\nWhen\nThen\n",
+        example_invalid: "bytes `app \\xff\\n` (invalid UTF-8; reported only by the bytes entry point)",
+    },
+    CodeInfo {
+        code: "E1003",
+        title: "tab-in-indentation-or-code",
+        severity: Severity::Error,
+        explanation: "Tabs are never indentation or code (GRAMMAR Tokens and layout): each tab in leading indentation or between code tokens is an error. Tabs are prose only inside `#`/`##` line content and are rejected inside strings. Replace tabs with spaces (one space per block level).",
+        example_valid: "app T\nGiven\nWhen\nThen\n",
+        example_invalid: "\tapp T\nGiven\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1004",
+        title: "backslash-continuation",
+        severity: Severity::Error,
+        explanation: "A backslash as the last character of a physical line is a rejected line continuation (GRAMMAR Tokens and layout): physical lines join only inside balanced delimiters. A backslash elsewhere in code is E1007. Join the lines with an explicit delimiter pair or keep one logical line per line.",
+        example_valid: "app T\nGiven\nWhen\nThen\n",
+        example_invalid: "app T\\\nGiven\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1005",
+        title: "invalid-numeric-literal",
+        severity: Severity::Error,
+        explanation: "Integer units must be adjacent (`5m`, not `5 m`); decimals take no unit; unknown units (`5minutes`) and identifier tails (`5m2x`) are errors (GRAMMAR Tokens and layout: durations ms/s/m/h/d, bytes B/KiB/MiB/GiB). Use an adjacent valid unit or separate the tokens.",
+        example_valid: "app T\nGiven\nWhen\n scenario s() by=members\n  require n > 5m\n  do\n   return 1\nThen\n",
+        example_invalid: "app T\nGiven\nWhen\n scenario s() by=members\n  require n > 5 m\n  do\n   return 1\nThen\n",
+    },
+    CodeInfo {
+        code: "E1006",
+        title: "invalid-string",
+        severity: Severity::Error,
+        explanation: "Strings are single-line JSON strings (GRAMMAR Tokens and layout): no literal newlines, no unescaped control characters or tabs, and only valid escapes (`\" \\ / b f n r t uXXXX` with well-formed surrogate pairs). Close the string on the same line and use valid JSON escapes.",
+        example_valid: "app T\nGiven\n message m = \"a\\u00e9b\"@{}\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n message m = \"a\\qb\"@{}\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1007",
+        title: "unexpected-character",
+        severity: Severity::Error,
+        explanation: "Outside strings only NAME tokens, JSON strings and the GRAMMAR punctuation set are valid. Anything else (e.g. `$`), an inline `#` (prose markers must start the physical line) or a mid-line backslash is reported; the byte stays as an error token so coverage is preserved. Remove or quote the character.",
+        example_valid: "app T\nGiven\n role a label=\"A\"\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n role a label=\"A\" $\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1101",
+        title: "mismatched-closing-delimiter",
+        severity: Severity::Error,
+        explanation: "Balanced `()`, `[]` and `{}` join physical lines, but each closer must match the innermost opener (GRAMMAR Tokens and layout). A mismatched closer is reported at that token and layout pops one level to recover. Use the closer that matches the opener.",
+        example_valid: "app T\nGiven\n Todo { title:text }\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n Todo { title:text ]\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1102",
+        title: "unclosed-delimiter",
+        severity: Severity::Error,
+        explanation: "Every opener needs its closer (GRAMMAR Tokens and layout); joined lines keep no block meaning. An opener still open at end of file is reported at the opener and the pending tokens flush as one line. Close the delimiter.",
+        example_valid: "app T\nGiven\n Todo { title:text }\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n Todo { title:text\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1103",
+        title: "bad-indentation",
+        severity: Severity::Error,
+        explanation: "A block adds exactly one space to its header's indentation, dedentation returns to an existing level, and the first top-level declaration starts at column 1 (GRAMMAR Tokens and layout). Past the nesting budget the line attaches as a sibling instead. Fix the column of the flagged line.",
+        example_valid: "app T\nGiven\n Todo { title:text }\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n  Todo { title:text }\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1120",
+        title: "description-column-mismatch",
+        severity: Severity::Error,
+        explanation: "Each description line must start at the same physical column as its declaration (GRAMMAR Descriptions and comments). A line at another column is reported. Align the `#` marker column with the owner.",
+        example_valid: "# Track work.\napp T\nGiven\nWhen\nThen\n",
+        example_invalid: "# line one.\n # line two.\napp T\nGiven\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1121",
+        title: "description-prose-reference-mixing",
+        severity: Severity::Error,
+        explanation: "One description set is either prose lines or a single `#= path` reference, never both, and never multiple references (GRAMMAR Descriptions and comments). The second line is reported. Keep one `#=` line alone or use prose only.",
+        example_valid: "# About tasks.\napp T\nGiven\nWhen\nThen\n",
+        example_invalid: "# prose.\n#= docs.x\napp T\nGiven\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1122",
+        title: "invalid-description-reference",
+        severity: Severity::Error,
+        explanation: "`#=` (no space between marker and `=`) must be followed by exactly one message path `NAME(.NAME)*` with no call, suffix or extra tokens (GRAMMAR Descriptions and comments). The offending token is reported. Write exactly one path.",
+        example_valid: "#= docs.tasks\napp T\nGiven\nWhen\nThen\n",
+        example_invalid: "#= 123\napp T\nGiven\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1123",
+        title: "misplaced-description-suffix",
+        severity: Severity::Error,
+        explanation: "One unescaped `@{...}` suffix may appear on the final prose line only (GRAMMAR Descriptions and comments); a suffix on an earlier line is reported and treated as literal prose. Move the suffix to the last line (or quote it with `\\@{`).",
+        example_valid: "# About tasks. @{en=\"Tasks\"}\napp T\nGiven\nWhen\nThen\n",
+        example_invalid: "# A @{nl=\"x\"}\n# B\napp Test\nGiven\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1124",
+        title: "invalid-description-suffix",
+        severity: Severity::Error,
+        explanation: "The `@{...}` suffix is a contiguous marker plus `locale=\"string\"|null` variants consuming the rest of the line (GRAMMAR Descriptions and comments). A split marker, bad key, missing `=`/`}`, non-string value, duplicate locale or trailing tokens is reported. Write `@{locale=\"text\",...}` with no gap after `@`.",
+        example_valid: "# About tasks. @{en=\"Tasks\"}\napp T\nGiven\nWhen\nThen\n",
+        example_invalid: "# A @{nl}\napp Test\nGiven\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1125",
+        title: "dangling-description",
+        severity: Severity::Error,
+        explanation: "A description needs a following eligible declaration at the same indentation; a trailing description dangles (GRAMMAR Descriptions and comments). Reported at the first dangling line; the set is kept as a marker so bytes stay covered. Attach it to a declaration or turn it into `##`.",
+        example_valid: "# Track work.\napp T\nGiven\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\nWhen\nThen\n# trailing.\n",
+    },
+    CodeInfo {
+        code: "E1126",
+        title: "description-on-ineligible-item",
+        severity: Severity::Error,
+        explanation: "Section markers, `do`, guards/effects, `if`/`else`, `for`, examples headers/rows and presentation `require` (plus anything inside a `do`/`examples` suite) cannot carry descriptions (GRAMMAR Descriptions and comments). Reported at the description. Use `##` for those notes.",
+        example_valid: "app T\n## on a marker.\nGiven\nWhen\nThen\n",
+        example_invalid: "app T\n# on a marker.\nGiven\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1200",
+        title: "invalid-syntax-shape",
+        severity: Severity::Error,
+        explanation: "Catch-all for malformed declarations: unknown introducer, wrong production shape, unclosed inline bracket, misplaced suite, or an empty construct that must be omitted (GRAMMAR: a recognized introducer must have its full shape). The declaration becomes an Error node and parsing continues. Match the GRAMMAR production for the introducer.",
+        example_valid: "app T\nGiven\n policy Todo read=members where=true\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n policy\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1201",
+        title: "trailing-tokens",
+        severity: Severity::Error,
+        explanation: "No production permits an unparsed tail (GRAMMAR: unknown syntax is an error). Any token after a complete statement, including after a section marker or `else`, is reported at that token. Remove the tail or move it to its own declaration.",
+        example_valid: "app T\nGiven\n message m = \"Hi\"@{}\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n message m = \"Hi\"@{} extra\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1202",
+        title: "duplicate-attribute",
+        severity: Severity::Error,
+        explanation: "A named attribute is present at most once per header; the same holds for field modifiers, call/object/label slots, order members, scenario attributes and example bindings (GRAMMAR Contextual roles). The repeat is reported. Keep one.",
+        example_valid: "app T\nGiven\n Todo { title:text max=1 }\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n Todo { title:text max=1 max=2 }\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1203",
+        title: "unknown-attribute",
+        severity: Severity::Error,
+        explanation: "Only the attributes and slots the GRAMMAR production lists are accepted; there are no arbitrary extension words. The unknown word is reported. Remove it or use a production attribute.",
+        example_valid: "app T\nGiven\n Todo { title:text }\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n Todo { title:text foo=1 }\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1204",
+        title: "missing-required-item",
+        severity: Severity::Error,
+        explanation: "Required attributes, suites, sections and bodies must be present: CRUD needs fields, scenario/if/for/else need bodies, a package needs its sections. Reported at the header or end of input. Add the named item or omit the empty construct.",
+        example_valid: "app T\nGiven\n Todo { title:text }\nWhen\n crud Todo by=members fields=title\nThen\n",
+        example_invalid: "app T\nGiven\n Todo { title:text }\nWhen\n crud Todo by=members\nThen\n",
+    },
+    CodeInfo {
+        code: "E1205",
+        title: "invalid-semicolon-sequence",
+        severity: Severity::Error,
+        explanation: "Same-category leaves may share one logical line (`role a; role b`), but empty entries, a trailing `;`, compound headers (scenario/capability/page/...), top-level declarations, example rows/steps, and any line owning an indented suite cannot (GRAMMAR leaf_lines). Give each entry its own line or drop the empty entry.",
+        example_valid: "app T\nGiven\n role a label=\"A\"; role b label=\"B\"\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n role a label=\"A\";; role b label=\"B\"\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1206",
+        title: "invalid-query-clause-order",
+        severity: Severity::Error,
+        explanation: "Query clauses are unique and ordered `archived/as/where/order/select` (GRAMMAR Queries and scope). A repeated or out-of-order clause is reported. Order the clauses.",
+        example_valid: "app T\nGiven\n Todo { title:text }\nWhen\n scenario s() by=members\n  require count(Todo as t where t.done order=-created select t) >= 0\n  do\n   return 1\nThen\n",
+        example_invalid: "app T\nGiven\nWhen\n scenario s() by=members\n  require count(Todo order=x where y) > 0\n  do\n   return 1\nThen\n",
+    },
+    CodeInfo {
+        code: "E1207",
+        title: "chained-comparison",
+        severity: Severity::Error,
+        explanation: "Comparisons do not chain: `1 < 2 < 3` is an error (GRAMMAR Expressions and values). Reported at the second operator. Parenthesize and join with `and`.",
+        example_valid: "app T\nGiven\nWhen\n scenario s() by=members\n  require 1 < 2\n  do\n   return 1\nThen\n",
+        example_invalid: "app T\nGiven\nWhen\n scenario s() by=members\n  require 1 < 2 < 3\n  do\n   return 1\nThen\n",
+    },
+    CodeInfo {
+        code: "E1208",
+        title: "mixed-coalescing-operator",
+        severity: Severity::Error,
+        explanation: "Mixing `??` with `and`/`or` without parentheses is an error (GRAMMAR Expressions and values). Reported at the operator. Parenthesize the `??` operand.",
+        example_valid: "app T\nGiven\nWhen\n scenario s() by=members\n  require (a ?? b) or c\n  do\n   return 1\nThen\n",
+        example_invalid: "app T\nGiven\nWhen\n scenario s() by=members\n  require a ?? b or c\n  do\n   return 1\nThen\n",
+    },
+    CodeInfo {
+        code: "E1209",
+        title: "invalid-route",
+        severity: Severity::Error,
+        explanation: "Routes are contiguous `/`-separated segments on one physical line: static lowercase, `{name:type}` scalar or `{Model.id}` record parameters; only `/` may end in `/` (GRAMMAR Presentation and routes). Reported at the offending segment. Match the route shape.",
+        example_valid: "app T\nGiven\n Todo { title:text }\nWhen\nThen\n page /s/{name:text} title=\"S\"\n",
+        example_invalid: "app T\nGiven\nWhen\nThen\n page /x/{id} title=\"T\"\n",
+    },
+    CodeInfo {
+        code: "E1210",
+        title: "invalid-examples-shape",
+        severity: Severity::Error,
+        explanation: "Behavior examples are a header plus matching-arity rows (`inputs -> expected`, with `error(code)` replacing a whole expected row) or, for user scenarios only, a `do` sequence of calls then assertions (GRAMMAR Inline behavior examples). Wrong arity, a bad operation, child suites, semicolons or sequence misuse is reported. Match the header arity and the table/sequence shape.",
+        example_valid: "app T\nGiven\n Todo { title:text }\nWhen\n crud Todo by=members fields=title\n  examples update record=task\n   as,changes.done -> record.done\n   members,true -> true\nThen\n",
+        example_invalid: "app T\nGiven\n Todo { title:text }\nWhen\n crud Todo by=members fields=title\n  examples update record=task\n   as,changes.done -> record.done\n   members -> true\nThen\n",
+    },
+    CodeInfo {
+        code: "E1211",
+        title: "invalid-file-structure",
+        severity: Severity::Error,
+        explanation: "Files hold `app`/`package`/`migration` heads; implicit apps need Given/When/Then once in order; imports precede Given; composed apps (`uses=`) take imports only (GRAMMAR Files, composition and sections). The stray line is reported. Use the file skeleton.",
+        example_valid: "app T\nGiven\nWhen\nThen\n",
+        example_invalid: "hello\napp T\nGiven\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1212",
+        title: "invalid-export",
+        severity: Severity::Error,
+        explanation: "Only exportable declarations take `export`: preferences, derived fields (not functions), invariants, CRUD and trusted handlers cannot be exported, and `export` outside Given is rejected (GRAMMAR Given/When declarations). Drop `export` or export an eligible declaration.",
+        example_valid: "app T\nGiven\n export capability Mail version=1\n  send(to:text) -> bool\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n Todo { title:text }\nWhen\n export crud Todo by=members fields=title\nThen\n",
+    },
+    CodeInfo {
+        code: "E1213",
+        title: "invalid-type-syntax",
+        severity: Severity::Error,
+        explanation: "Types allow one array suffix then one nullable suffix (`text[]?`); `!` is required-array field metadata, not a scalar suffix; `enum()`/`action()` need entries (GRAMMAR Types, schemas and signatures). Match the type shape.",
+        example_valid: "app T\nGiven\n M { a:int[] }\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n M { a:int[][] }\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1214",
+        title: "invalid-label-or-message",
+        severity: Severity::Error,
+        explanation: "Labels need a string caption, message path or valid label object (`text`/`values`/CRUD ops, no duplicates, no unknown slots); message declarations need a contiguous `@{...}` descriptor with valid locale variants (GRAMMAR Inline messages, labels and locales). Match the label/message shape.",
+        example_valid: "app T\nGiven\n M { a:int label=\"A\" }\nWhen\nThen\n",
+        example_invalid: "app T\nGiven\n M { a:int label=123 }\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1215",
+        title: "invalid-expression",
+        severity: Severity::Error,
+        explanation: "Value expressions reject missing operands, misplaced `not`, optional calls, non-path constructors, postfix indexing, out-of-order or anonymous-call argument mistakes, and nesting past the budget (GRAMMAR Expressions and values). Complete the expression per the grammar.",
+        example_valid: "app T\nGiven\nWhen\n scenario s() by=members\n  require 1 + 2\n  do\n   return 1\nThen\n",
+        example_invalid: "app T\nGiven\nWhen\n scenario s() by=members\n  require 1 +\n  do\n   return 1\nThen\n",
+    },
+    CodeInfo {
+        code: "E1216",
+        title: "invalid-statement-or-effect",
+        severity: Severity::Error,
+        explanation: "Execution suites hold leading `require` guards, exactly one `do` body, then `examples`; `do` bodies hold only the GRAMMAR effect statements (migration mappers only let/require/if/set-row). Unknown statements and misplaced guards/bodies are reported. Use a valid statement in a valid position.",
+        example_valid: "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   return 1\nThen\n",
+        example_invalid: "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   frobnicate x\nThen\n",
+    },
+    CodeInfo {
+        code: "E2001",
+        title: "unresolved-name",
+        severity: Severity::Error,
+        explanation: "Reserved placeholder: not emitted by the syntax stage in this build. A later name-resolution stage will emit it when a name resolves in no visible scope. Check spelling, the owning declaration and `use` imports. The parser never guesses resolution.",
+        example_valid: "use shop {Price} from=shop\nderive total(): int = Price(1)",
+        example_invalid: "derive total(): int = Price(1)",
+    },
+    CodeInfo {
+        code: "E3001",
+        title: "type-mismatch",
+        severity: Severity::Error,
+        explanation: "Reserved placeholder: not emitted by the syntax stage in this build. A later type-checking stage will emit it when a value's type does not fit its slot (field, parameter, attribute or operator operand). There is no implicit coercion.",
+        example_valid: "title:text = \"hello\"",
+        example_invalid: "title:text = 42",
+    },
+    CodeInfo {
+        code: "E4001",
+        title: "effect-not-permitted",
+        severity: Severity::Error,
+        explanation: "Reserved placeholder: not emitted by the syntax stage in this build. A later analysis stage will emit it when an effect is not permitted in its context (wrong owner, disclosure shape or authority). Parsing a path never grants authority.",
+        example_valid: "do\n create Todo {title=\"t\"} as row",
+        example_invalid: "mapper `do` body: create Todo {title=\"t\"} as row",
+    },
+    CodeInfo {
+        code: "E5001",
+        title: "invalid-example",
+        severity: Severity::Error,
+        explanation: "Reserved placeholder: not emitted by the syntax stage in this build (syntactic example shape is E1210). A later analysis stage will emit it for semantically malformed inline examples: unresolvable selectors, overlapping seed paths or missing required invocations.",
+        example_valid: "examples\n title -> done\n \"t\" -> false",
+        example_invalid: "examples\n title -> done\n \"t\" -> false -> true",
+    },
+    CodeInfo {
+        code: "E6001",
+        title: "unavailable-capability",
+        severity: Severity::Error,
+        explanation: "Reserved placeholder: not emitted by the syntax stage in this build. A later codegen stage will emit it when compilation needs a producer capability that is not available in the linked catalogs. Name the producer and provide a supported alternative.",
+        example_valid: "capability Store version=1",
+        example_invalid: "capability Store version=99",
+    },
+    CodeInfo {
+        code: "E7001",
+        title: "cli-usage",
+        severity: Severity::Error,
+        explanation: "`can` argument error: unknown command, unknown flag, bad `--format` value, misplaced `--check`, or a missing/wrong operand. Exit status is 2. Run `can --help` or `can <COMMAND> --help`.",
+        example_valid: "can check main.can --format=json",
+        example_invalid: "can check main.can --format=yaml",
+    },
+    CodeInfo {
+        code: "E7002",
+        title: "unreadable-input",
+        severity: Severity::Error,
+        explanation: "An input file could not be read (missing, unreadable or invalid UTF-8). Exit status is 2. Check the path and permissions.",
+        example_valid: "can check main.can",
+        example_invalid: "can check does-not-exist.can",
+    },
+    CodeInfo {
+        code: "E7003",
+        title: "unknown-code",
+        severity: Severity::Error,
+        explanation: "`can explain` was given a code that is not in this catalog. Exit status is 2. Pick one of the listed known codes.",
+        example_valid: "can explain E1001",
+        example_invalid: "can explain E9999",
+    },
+    CodeInfo {
+        code: "E7004",
+        title: "missing-producer",
+        severity: Severity::Error,
+        explanation: "`can run|test|build|deploy` are thin lane-7 entries that exec the `can-platform` CLI with argument passthrough. It was not found on PATH and `CAN_PLATFORM_BIN` is unset. Install the lane-7 producer or set `CAN_PLATFORM_BIN`. `can` never embeds a second platform engine.",
+        example_valid: "CAN_PLATFORM_BIN=/usr/local/bin/can-platform can run",
+        example_invalid: "can run   # without can-platform installed",
+    },
+    CodeInfo {
+        code: "E7005",
+        title: "formatter-unimplemented",
+        severity: Severity::Error,
+        explanation: "`can fmt` needs the lossless CST formatter (slice 2b). Until then it reports this error and never a false clean. Exit status is 2.",
+        example_valid: "can check main.can",
+        example_invalid: "can fmt --check main.can   # until slice 2b",
+    },
+    CodeInfo {
+        code: "I1001",
+        title: "unused-symbol",
+        severity: Severity::Info,
+        explanation: "Reserved placeholder: not emitted in this build. A later analysis stage will emit it for a proven unused pure local or private symbol. Informational only and kept out of default build output.",
+        example_valid: "do\n let total = 1\n return total",
+        example_invalid: "do\n let total = 1\n return 0",
+    },
+    CodeInfo {
+        code: "I1002",
+        title: "redundant-default",
+        severity: Severity::Info,
+        explanation: "Reserved placeholder: not emitted in this build. A later analysis stage will emit it for a redundant equivalent default or guard that can be removed without changing meaning. Informational only; source-reduction hints appear only when equivalence and reachability are established.",
+        example_valid: "lock Todo fields=title",
+        example_invalid: "lock Todo fields=title when=true",
+    },
+    CodeInfo {
+        code: "W1001",
+        title: "unreachable-effect",
+        severity: Severity::Warning,
+        explanation: "Reserved placeholder: not emitted in this build. A later analysis stage will emit it when the accepted control-flow rules prove an operation path can never execute (e.g. after unconditional termination or a literal-false guard). Does not block output. Fix by removing the dead path or correcting the decisive guard named in the diagnostic.",
+        example_valid: "do\n require ok\n create Todo {title=\"t\"} as row",
+        example_invalid: "do\n return 1\n create Todo {title=\"t\"} as row",
+    },
+    CodeInfo {
+        code: "W2001",
+        title: "suspicious-shadowing",
+        severity: Severity::Warning,
+        explanation: "Reserved placeholder: not emitted in this build. A later analysis stage will emit it (opt-in until precise low-noise detection ships) when a local declaration hides an outer same-named value actually referenced nearby. Disjoint scopes and canonical contextual names are excluded.",
+        example_valid: "do\n let total = 1\n return total",
+        example_invalid: "do\n let user = owner\n let user = other\n return user",
+    },
+    CodeInfo {
+        code: "W3001",
+        title: "deprecated-capability",
+        severity: Severity::Warning,
+        explanation: "Reserved placeholder: not emitted in this build. A later stage will emit it when a linked producer catalog marks a still-supported operation/construct deprecated and names a replacement. Migrate to the canonical replacement; removed capabilities are errors, never this warning.",
+        example_valid: "call store.v2.save {row=row}",
+        example_invalid: "call store.v1.save {row=row}",
+    },
+];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn catalog_is_sorted_unique_and_covers_policy_ranges() {
+        let codes: Vec<_> = CATALOG.iter().map(|info| info.code).collect();
+        let mut sorted = codes.clone();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(codes, sorted, "catalog must be sorted with unique codes");
+        for prefix in [
+            "E1", "E2", "E3", "E4", "E5", "E6", "E7", "W1", "W2", "W3", "I1",
+        ] {
+            assert!(
+                codes.iter().any(|code| code.starts_with(prefix)),
+                "missing range {prefix}"
+            );
+        }
+    }
+
+    #[test]
+    fn lookup_normalizes_case_and_whitespace() {
+        assert_eq!(lookup("e1001").unwrap().code, "E1001");
+        assert_eq!(lookup("  E7003\n").unwrap().code, "E7003");
+        assert!(lookup("E9999").is_none());
+        assert!(lookup("").is_none());
+    }
+
+    #[test]
+    fn json_shape_has_all_fields() {
+        let json = entry_to_json(&CATALOG[0]);
+        assert!(!json.contains('\n'));
+        for field in [
+            "\"code\":\"E1001\"",
+            "\"title\":",
+            "\"severity\":\"error\"",
+            "\"explanation\":",
+            "\"example_valid\":",
+            "\"example_invalid\":",
+        ] {
+            assert!(json.contains(field), "missing {field} in {json}");
+        }
+    }
+}
