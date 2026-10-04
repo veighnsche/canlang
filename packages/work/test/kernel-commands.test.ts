@@ -660,7 +660,10 @@ describe('kernel commands: dispatch.requeue', () => {
       const write = dead.writes?.[0];
       assert.equal(write?.kind, 'update');
       if (write?.kind === 'update') {
-        assert.equal(readDispatchRow(write.row).state, 'dead');
+        const data = readDispatchRow(write.row);
+        assert.equal(data.state, 'dead');
+        // Dead-lettering keeps the last classification as provenance.
+        assert.equal(data.retryClass, intentId === 'op_1#1' ? 'transient' : null);
       }
     }
   });

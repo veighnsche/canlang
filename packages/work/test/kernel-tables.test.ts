@@ -293,6 +293,11 @@ describe('kernel tables: every-slot and supersession rows', () => {
       row.id,
       everySlotRowId('CanTasks', 'TeamTasks.tick', 'team', 'team_1'),
     );
+    // Exact escaping pin: `/` in components must not collide with separators.
+    assert.equal(
+      everySlotRowId('CanTasks', 'TeamTasks.tick', 'team', 't/1'),
+      'every/v1/CanTasks/TeamTasks.tick/team/t%2F1',
+    );
     assert.deepEqual(readEverySlotRow(row).slot, 42);
     assert.throws(
       () =>
