@@ -113,8 +113,9 @@ export function toJsonSchema(inputs: McpInputSchema): {
 /**
  * Full tool input schema for one operation. Reads/lists get the plain closed
  * schema. Mutations get `operation_id` added as a required string, plus an
- * `anyOf` handle-mode alternative carrying only the sealed handle and the
- * operation id.
+ * `anyOf` handle-mode alternative carrying the sealed handle and the
+ * operation id (required) plus every non-ref typed input as optional
+ * members (wire `ActionHandleInvocation`).
  */
 export function toToolInputSchema(descriptor: OperationDescriptor): Record<string, unknown> {
   const ordinary = toJsonSchema(descriptor.inputs);

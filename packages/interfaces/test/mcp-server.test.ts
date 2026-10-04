@@ -508,7 +508,9 @@ test('tools/call handle mode with a record input is InvalidParams', async () => 
     },
     { grant: t.grantToken },
   );
-  assert.equal(rpcError(body).code, -32602);
+  const error = rpcError(body);
+  assert.equal(error.code, -32602);
+  assert.ok(error.message.includes('sealed'));
   assert.equal(t.invoker.mutations.length, 0);
 });
 

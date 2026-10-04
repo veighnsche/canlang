@@ -147,7 +147,7 @@ type ToolCallResult = {
  * Error projection: the S3 `toMcpError` text + envelope, reshaped to the
  * SDK result type (the S3 projection uses readonly members). Denials and
  * business errors are journaled at info level like S4 `deny()`, so probing
- * stays visible; only the safe code travels to the log fields.
+ * stays visible; only safe envelope members travel to the log fields.
  */
 function errorResult(deps: McpDeps, operation: string, error: BusinessError): ToolCallResult {
   logBusinessError(deps.logger, error, { route: 'mcp', tool: operation });
