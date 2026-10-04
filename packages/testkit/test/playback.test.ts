@@ -739,6 +739,12 @@ describe("playback fail-loud", () => {
         } as unknown as ScenarioTable,
       ]),
     ).toThrow(PlaybackScriptError);
+    expect(() =>
+      createPlaybackHandler([null as unknown as ScenarioTable]),
+    ).toThrow(PlaybackScriptError);
+    expect(() =>
+      createPlaybackHandler(["mail:send-ok" as unknown as ScenarioTable]),
+    ).toThrow(PlaybackScriptError);
   });
 });
 

@@ -617,6 +617,12 @@ function checkSeedTable(table: PlaybackScenarioTable): {
   key: string;
   state: SeedState;
 } {
+  // Fail closed like L4's `checkRecord` before touching keys: null /
+  // non-objects become `PlaybackScriptError`, never `TypeError`.
+  // (PR23 review advisory 2.)
+  if (typeof table !== "object" || table === null || Array.isArray(table)) {
+    throw new PlaybackScriptError("scenario table must be an object.");
+  }
   // Top-level allowlist mirrors L4's `TABLE_KEYS`: extra table keys
   // are rejected, never ignored. (PR22 review N3.)
   playbackKeys(
