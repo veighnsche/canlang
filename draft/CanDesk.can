@@ -182,35 +182,113 @@ package desk
  Then
   # Triage location queues and distinguish internal notes from customer replies. @{nl="Beoordeel locatiewachtrijen en onderscheid interne notities van klantantwoorden."}
   page /support title="Support"@{nl="Support"}
+   breadcrumbs
    require support
    card "Ticket intake"@{nl="Supportverzoek aanmaken"}
+    ## due is a nullable datetime: no date-only calendar control applies.
     form Ticket.create
-   details "Unmatched mail triage"@{nl="Ongekoppelde mail beoordelen"}
+     input subject
+     input email
+     input category
+     radio priority
+     input queue
+   collapse "Unmatched mail triage"@{nl="Ongekoppelde mail beoordelen"}
     table Unmatched as mail where mail.state==pending columns=sender,subject,received order=-received
+     pagination
      text row.recipient,row.body,row.attachments,row.thread
      form triage
+      input category
+      input queue
+      input subject
    list Ticket columns=subject,customer,queue,priority,state,assignee,due,overdue filter=location,state,priority,assignee,unassigned,overdue,category,queue defaults={state=preferences.state,priority=preferences.priority} search=subject display=split
+    pagination
+    ## Uncaptioned dividers structure the dense card (divider may omit its
+    ## caption); the escalation alert renders only when recorded (gated suite).
     card "Request and responsible queue"@{nl="Verzoek en verantwoordelijke wachtrij"}
-     text row.location,row.customer,row.email,row.category,row.queue,row.priority,row.assignee,row.state,row.due,row.overdue,row.escalation,row.escalated_by,row.escalated_at,row.booking,row.membership,row.invoice,row.repair
+     badge row.state
+     badge row.priority
+     status row.overdue
+     status row.unassigned
+     text row.location,row.customer,row.email,row.category,row.queue,row.assignee,row.due
+     divider
+     alert
+      require row.escalation!=null
+      text row.escalation,row.escalated_by,row.escalated_at
+     divider
+     text row.booking,row.membership,row.invoice,row.repair
      edit
+      input subject
+      input category
+      radio priority
+      radio state
+      input queue
      form escalate
+      input queue
+      textarea reason
      form handoff
+      textarea description
+      file_input photo
     tabs
      tab "Customer conversation"@{nl="Klantgesprek"}
       form reply
-      table row.Message as message where message.kind!=note columns=kind,body,sender,recipient,attachments,state order=created
-       text row.author,row.created
+       textarea body
+      ## chat_bubble slots preserve the enclosing row chain; every column of the
+      ## former message table stays visible (kind badge, sender/recipient/time,
+      ## paragraph body, attachment links, delivery badge, author).
+      list row.Message as message where message.kind!=note order=created
+       pagination
+       chat_bubble
+        slot header
+         badge row.kind
+         text row.sender,row.recipient,row.created
+        slot content
+         content row.body
+         text row.attachments
+        slot footer
+         badge row.state
+         text row.author
      tab "Private staff notes"@{nl="Privénotities"}
       form note
-      table row.Message as message where message.kind==note columns=body,author,created order=created
-       text row.kind,row.sender,row.recipient,row.attachments,row.state
+       textarea body
+      list row.Message as message where message.kind==note order=created
+       pagination
+       chat_bubble
+        slot header
+         badge row.kind
+         text row.sender,row.recipient,row.created
+        slot content
+         content row.body
+         text row.attachments
+        slot footer
+         badge row.state
+         text row.author
     history
   # Read only your authenticated customer conversation. @{nl="Lees uitsluitend je geauthenticeerde klantgesprek."}
   page /support/mine title="My support requests"@{nl="Mijn supportverzoeken"}
+   breadcrumbs
    require authenticated and actor.email_verified
    card "Private support intake"@{nl="Privésupportverzoek"}
     form open_request
+     input subject
+     textarea body
+     input category
+     radio priority
    list Ticket as ticket where ticket.email==actor.email filter=state,priority defaults={state=preferences.state,priority=preferences.priority} display=split
-    text row.subject,row.category,row.priority,row.state
+    pagination
+    badge row.state
+    badge row.priority
+    text row.subject,row.category
     form respond
-    table row.Message columns=kind,body,sender,recipient,attachments,state,created order=created
+     textarea body
+    ## No kind predicate here: the customer Message policy already excludes notes.
+    list row.Message order=created
+     pagination
+     chat_bubble
+      slot header
+       badge row.kind
+       text row.sender,row.recipient,row.created
+      slot content
+       content row.body
+       text row.attachments
+      slot footer
+       badge row.state

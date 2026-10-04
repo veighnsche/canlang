@@ -82,7 +82,31 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
-## Slice 7: full replans Affiliate/Approve/Book (branch muse/frontend-catalog-migration/slice-07-replan-g1, in progress)
+## Slice 8: full replans Customer/Desk/Event (branch muse/frontend-catalog-migration/slice-08-replan-g2, in progress)
+
+Paths: draft/CanCustomer/CanDesk/CanEvent (.can+.md each; no .mjs anywhere: Desk has none
+per owner .md, Customer/Event never had targets) + this status file.
+Source: lane-G read-only planning spec (/tmp/laneG-spec.md), applied + corrected by coordinator.
+Coordinator corrections to spec: breadcrumbs + pagination added on every page/collection (spec
+omitted); Desk `calendar due` (2x) and Event `calendar from/until/sales_until/refund_before`
+(9x: create/edit/change) all rejected (datetime fields, incl. nullable due); Event discovery
+keeps row.terms (visitors review terms before registering) alongside the modal decision-time
+alert; Event `action abandon` kept (required reason: arg-incomplete for button).
+Given/When byte-identical (single Then hunk per file at each Then line: Customer L227, Desk
+L182, Event L526). Verified: fieldset message-path caption (DESIGN line 704), divider
+omission (UI-COMPONENTS), chat_bubble header/content/footer slots, customer Message policy
+excludes notes (no kind predicate on mine page), all 8 message fields preserved per bubble,
+progress int/max bounds, `as` row bindings, modal/slot row-chain use.
+Drift: +111 E1200 (Customer 40, Desk 37, Event 34); no E1204 (no control-form calendar
+authored, consistent with slice-7 analysis). All three files ok on main. Prototype parser:
+all stop at pre-existing Given/When gaps byte-identical on baseline.
+Handoff to 01/05/owners: (a) Event.available public readability (derive not in public Event
+fields; counts non-public registrations); (b) nullable badge targets (Message.state,
+charge_status); (c) nullable email/text inputs (register email, Contact phone/external_id,
+BillingProfile tax_reference); (d) slots inherit the enclosing row/result chain
+(chat_bubble/modal/stat interpretation); (e) bare-form implicit row binding.
+
+## Slice 7: full replans Affiliate/Approve/Book (merged as 807e5ec, PR #73)
 
 Paths: draft/CanAffiliate (.can+.md), CanApprove (.can+.md+.mjs), CanBook (.can+.md) + this status file.
 Source: lane-G read-only planning spec (/tmp/laneG-spec.md), applied + corrected by coordinator.
