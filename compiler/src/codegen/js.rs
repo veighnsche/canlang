@@ -2511,7 +2511,11 @@ impl<'a> Emitter<'a> {
     fn emit_params_schema(&mut self, params: &[crate::analysis::resolve::SymbolId]) -> String {
         let mut parts = Vec::new();
         for param_id in params {
-            let param = self.ir.items[param_id.0 as usize].clone();
+            // Never direct-index: a dangling row (unreachable from the
+            // 1:1 IR build) drops the entry instead of panicking.
+            let Some(param) = self.ir.items.get(param_id.0 as usize).cloned() else {
+                continue;
+            };
             if let IrItemKind::Param {
                 ty, default, label, ..
             } = &param.kind

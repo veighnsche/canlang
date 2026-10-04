@@ -680,6 +680,9 @@ fn draft_outcome_table() {
     // (+2 CanDesk member/type finds, -5 cascades incl. 2 E3001
     // follow-ons sampled on CanRent); E1/E4/E5 unchanged (E4 still 0,
     // E5 26 after draft-side moves). CanShift 4 / CanVolunteer 3 hold.
+    // Checker-attributed movement is -781; the table total moved 8196
+    // -> 7474 (-722), so draft-side slices 16-23 replans between the
+    // two regens contribute +59 net drift (real, confirmed movement).
     // Previous regen (PR5 review fixes) (M1: the dedup key now includes
     // end+message), restoring 249 findings the old (file, start, code)
     // key had collapsed (E2 +14, E3 +233, E5 +2 -- CanCRM and CanTable

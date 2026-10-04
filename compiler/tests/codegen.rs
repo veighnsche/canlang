@@ -440,7 +440,9 @@ fn golden_teamtasks_structure() {
         "form operation"
     );
     // Slice 23 nests `input`/`textarea` inside the forms: children lower
-    // as loud throwing factories (E6008), counted above.
+    // as loud throwing factories (E6008), counted above. No-recurse rule:
+    // children of an *unlowered* factory are swallowed by its placeholder
+    // (one E6008 for the factory, none for the absorbed children).
     assert!(
         entry.contains("children:[(() => { throw new Error(\"unknown UI factory input\"); })()]"),
         "form children"
@@ -2146,9 +2148,13 @@ fn construct_fixtures_and_recipes() {
         js.contains("const attempt={dependencies:[job],delivery:\"demo.Svc.ping\",values:async(c,s)=>({request:{to:\"ops\"},status:\"failed\"})};"),
         "delivery recipe:\n{js}"
     );
+    // DESIGN §13 normative: exactly `{fixtures:{...},examples:[...]}`;
+    // recipes never share the top-level namespace with example metadata.
+    // (CanCheck.mjs oracle is flat here; per the file rule above the
+    // normative text wins.)
     assert!(
-        js.contains("return {job,worker,attempt,examples:[]};"),
-        "return shape"
+        js.contains("return {fixtures:{job,worker,attempt},examples:[]};"),
+        "return shape:\n{js}"
     );
 }
 

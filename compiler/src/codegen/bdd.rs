@@ -116,7 +116,7 @@ pub fn emit_suite(
         suite.span,
         Some("exampleFixtures".to_string()),
         &format!(
-            "return {{{},examples:[{}]}};",
+            "return {{fixtures:{{{}}},examples:[{}]}};",
             names.join(","),
             examples.join(",")
         ),
@@ -155,11 +155,21 @@ pub fn emit_fixture_shell(ir: &IrProgram, item: &IrItem) -> BddModule {
     };
     let message = format!("unchecked fixture recipe: {}", item.canonical);
     let recipe = match target {
-        crate::analysis::resolve::FixtureTarget::Model(model) => format!(
-            "{{model:{},dependencies:[],value:async(c,s)=>{{throw new Error({});}}}}",
-            js_string(&ir.items[model.0 as usize].canonical),
-            js_string(&message)
-        ),
+        crate::analysis::resolve::FixtureTarget::Model(model) => {
+            // Never direct-index: like the Operation arm, a missing row
+            // keeps the recipe shape against the fixture name. The shell
+            // still throws; only the model label loses precision.
+            let name = ir
+                .items
+                .get(model.0 as usize)
+                .map(|row| row.canonical.clone())
+                .unwrap_or_else(|| item.canonical.clone());
+            format!(
+                "{{model:{},dependencies:[],value:async(c,s)=>{{throw new Error({});}}}}",
+                js_string(&name),
+                js_string(&message)
+            )
+        }
         crate::analysis::resolve::FixtureTarget::User => format!(
             "{{dependencies:[],user:async(c,s)=>{{throw new Error({});}}}}",
             js_string(&message)
@@ -206,7 +216,10 @@ pub fn emit_fixture_shell(ir: &IrProgram, item: &IrItem) -> BddModule {
     out.push(
         item.span,
         Some(item.canonical.clone()),
-        &format!("return {{{},examples:[]}};", sanitize(&item.name)),
+        &format!(
+            "return {{fixtures:{{{}}},examples:[]}};",
+            sanitize(&item.name)
+        ),
     );
     out.push(item.span, Some(item.canonical.clone()), "}");
     BddModule {

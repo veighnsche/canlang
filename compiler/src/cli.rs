@@ -594,6 +594,9 @@ fn run_compile(
     }
     let owned = analyzer.analyze_owned(&db, tool_version());
     let mut result = owned.result;
+    // First sort covers the early analysis-error return below
+    // (`emit_diagnostics` does not sort); the second covers the merged
+    // analysis+emission diagnostics. `finish` is an idempotent sort.
     result.finish();
     if result.has_errors() {
         return emit_diagnostics(&result, &db, format);

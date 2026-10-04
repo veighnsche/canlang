@@ -10,9 +10,10 @@
 //!
 //! * `E6005` `incomplete-analysis`: the driver refuses an incomplete
 //!   analysis (`DiagnosticResult.complete == false`) unless the caller
-//!   passes the explicit test-only acknowledgment. Analysis stays
-//!   incomplete until PR5 lands effects, examples, UI shape rules and
-//!   handler sources.
+//!   passes the explicit test-only acknowledgment. The pipeline analysis
+//!   is complete (effects, examples, UI shape rules, handler sources),
+//!   so production `can compile` never reports this; the acknowledgment
+//!   exists for hermetic golden tests over partial fixtures.
 //! * `E6006` `unchecked-position`: analysis left a position unchecked that
 //!   emission needs. One diagnostic per affected item (scenario bodies,
 //!   CRUD guards, fixture recipes, message text, derive expressions,
@@ -29,9 +30,10 @@
 //!   `planned` or `external` in the consumed catalog. Names the producer
 //!   and availability; never a silent emit.
 //! * `E6008` `unsupported-emission`: a checked position has no DESIGN §13
-//!   lowering (unlowerable type in schema position, scalar combination
-//!   without an assigned import name, unknown UI factory, call effect).
-//!   The emitted placeholder throws loudly.
+//!   lowering — an unknown UI factory, named builtin arguments, a
+//!   value-domain query, an unlowered authority scope/trigger/retains
+//!   shape, or another unlowered position. The emitted placeholder
+//!   throws loudly.
 
 pub mod artifact;
 pub mod bdd;
@@ -52,9 +54,9 @@ use crate::source::{SourceDb, SourceId, Span};
 #[derive(Debug, Clone)]
 pub struct EmitOptions {
     /// Explicit test-only acknowledgment that the analysis is incomplete.
-    /// Golden tests set this to exercise emission before PR5 lands; it
-    /// must never gate production compilation, and artifacts produced
-    /// under it make no runtime-success claims.
+    /// Hermetic golden tests over partial fixtures set this; it must
+    /// never gate production compilation, and artifacts produced under
+    /// it make no runtime-success claims.
     pub allow_incomplete_test_only: bool,
 }
 
