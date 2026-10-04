@@ -98,6 +98,28 @@ describe('schedule: keyed put', () => {
       );
     }
   });
+
+  it('rejected replacements leave the previous entry and intents untouched', () => {
+    const deps = setup();
+    const first = putSchedule(deps, pendingEntry());
+    deps.outbox.put(
+      outboxItem('obx_a', 'Approval.remind', 'pending', first.admitted.occurrenceId),
+    );
+    assert.throws(
+      () =>
+        replaceSchedule(
+          deps,
+          pendingEntry({ payload: ['not', 'a', 'record'] as unknown as Record<string, unknown> }),
+        ),
+      TypeError,
+    );
+    assert.equal(deps.schedules.get(scope, 'reminder-1')?.state, 'pending');
+    assert.equal(
+      deps.schedules.get(scope, 'reminder-1')?.occurrenceId,
+      first.admitted.occurrenceId,
+    );
+    assert.equal(deps.supersessions.isSuperseded('obx_a'), false);
+  });
 });
 
 describe('schedule: replace supersedes pending occurrences', () => {

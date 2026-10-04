@@ -109,6 +109,12 @@ function upsertKeyedSchedule(
   entry: NewScheduledOccurrence,
 ): PutScheduleResult {
   assertPendingEntry(entry);
+  // Freeze first through the same record-only gate as staged outbox
+  // requests (lane-3 `ScheduleOp.replace.payload` is record-typed):
+  // every throw precedes any store mutation, so a rejected
+  // replacement leaves the previous entry — and its undispatched
+  // intents — untouched.
+  const payload = freezeRequest(entry.payload);
   const previous = deps.schedules.get(entry.scope, entry.key);
   let superseded: ScheduledOccurrence | null = null;
   let supersededId: OccurrenceId | null = null;
@@ -122,15 +128,11 @@ function upsertKeyedSchedule(
   // A non-pending predecessor (admitted work in flight, or a terminal entry)
   // is not superseded: its in-flight work may complete while the key now
   // addresses the fresh pending entry.
-  // The payload is cloned and frozen through the same record-only gate
-  // as staged outbox requests: later caller mutation cannot leak in,
-  // and non-records throw instead of staging a row the fence cannot
-  // carry (lane-3 `ScheduleOp.replace.payload` is record-typed).
   const admitted: ScheduledOccurrence = {
     ...entry,
     state: 'pending',
     occurrenceId: deps.ids.nextOccurrenceId(),
-    payload: freezeRequest(entry.payload),
+    payload,
   };
   deps.schedules.put(admitted);
   return { admitted, superseded, supersededId, affectedOutboxIds };
