@@ -208,7 +208,21 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   (`test/invocation/fixtures.ts`) so the standalone state build stays green
   until the L7 `@canlang/*` join; re-verified typecheck clean + 125/125.
   S3 merged (21dd47f, PR #23). S4 branch `muse/lane-03-state/query-policy`
-  from 21dd47f.
+  from 21dd47f. S4 implemented (delegated impl+tests, disjoint files):
+  `src/policy/grants.ts` (interim grant tables, fail-fast build, pure row
+  predicate eval), `src/query/engine.ts` (`queryRecords` viewer/owner
+  overloads + `queryAggregate`; revision-first, unbounded scan, in-memory
+  visibility/filter/sort, overflow-fails-`validation`, union projection,
+  exact aggregates), contracts S4 types; 46 query tests, full suite 171/171
+  locally. Coordinator self-review fixed one bug (overlapping grants across
+  grants shadowed wider siblings; widest-first projection + either-order
+  regression test) and reconciled one spec point (empty sum -> 0, domain
+  unknowable without schema; `no currency` only for money missing currency).
+  A2 seedMember hardening landed (explicit-id miss throws; no existing test
+  hit it). Open: money min/max rejected (fail-closed; extension needs value
+  semantics join); bigint-minor money cannot round-trip storage JSON until
+  the L2 codec join; owner authority unverified at engine (gating is
+  admission's); `when`-on-secret oracle question for review.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
