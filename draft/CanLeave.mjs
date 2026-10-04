@@ -695,6 +695,7 @@ export function canApp() {
           calendar.parent.active &&
           compareDate(from, until) <= 0 &&
           !same(reviewer, c.actor) &&
+          hasRole(c, "leave.leave_reviewer", reviewer) &&
           (await can_work(c, reviewer, calendar.parent.home)) &&
           reason.trim() !== "",
       );
@@ -892,10 +893,8 @@ export function canApp() {
           if (event.result.state === "confirmed") await set(c, request, { sync: "confirmed" });
           else if (event.result.state === "unavailable")
             await set(c, request, { sync: "conflict" });
-          else if (["failed", "unknown"].includes(event.result.state))
-            await set(c, request, { sync: "unavailable" });
-        } else if (["failed", "unknown", "skipped"].includes(event.status))
-          await set(c, request, { sync: "unavailable" });
+          else await set(c, request, { sync: "unavailable" });
+        } else await set(c, request, { sync: "unavailable" });
       }
     },
     async release_result(c, { event }) {
@@ -916,7 +915,7 @@ export function canApp() {
           await set(c, request, { release_state: "released" });
         else if (["failed", "skipped"].includes(event.status))
           await set(c, request, { release_state: "failed" });
-        else if (event.status === "unknown") await set(c, request, { release_state: "unknown" });
+        else await set(c, request, { release_state: "unknown" });
       }
     },
   };
@@ -941,6 +940,7 @@ export async function minePage(c, bindings) {
               list({
                 context: c,
                 model: "leave.Calendar",
+                where: calendar => same(calendar.parent.user,c.actor),
                 display: "split",
                 renderRow: (calendar, view) => [
                   form({
@@ -993,6 +993,7 @@ export async function minePage(c, bindings) {
               table({
                 context: c,
                 model: "leave.Allowance",
+                where: allowance => same(allowance.parent.user,c.actor),
                 columns: ["year", "bucket", "days", "remaining"],
                 filter: ["year", "bucket"],
                 defaults: { year: c.preferences.leave.year, bucket: c.preferences.leave.bucket },
@@ -1064,10 +1065,13 @@ export async function reviewPage(c, bindings) {
                   renderRow: (allowance, v) =>
                     edit({ context: v, operation: "leave.Allowance.update", record: allowance }),
                 }),
+                form({context:c,operation:"leave.Calendar.create"}),
                 list({
                   context: c,
                   model: "leave.Calendar",
                   renderRow: (calendar, v) => [
+                    edit({context:v,operation:"leave.Calendar.update",record:calendar}),
+                    form({context:v,operation:"leave.Day.create",arguments:{parent:calendar}}),
                     form({
                       context: v,
                       operation: "leave.Category.create",
@@ -1174,11 +1178,14 @@ export function exampleFixtures({ self, other, imported }) {
       calendar_version: 1n,
     }),
   };
+  const leave_hr={dependencies:[],user:async()=>({roles:["leave.hr"]})};
+  const assigned_reviewer={dependencies:[],user:async()=>({roles:["leave.leave_reviewer"]})};
+  const ordinary_reviewer={model:"employee.Employee",dependencies:[test_site],value:async(c,s)=>({user:s.other,home:s.test_site,locations:[s.test_site],start:date("2026-10-01"),role:"Reviewer candidate"})};
   const reviewer_worker = {
     model: "employee.Employee",
-    dependencies: [test_site],
+    dependencies: [test_site,assigned_reviewer],
     value: async (c, s) => ({
-      user: s.other,
+      user: s.assigned_reviewer,
       home: s.test_site,
       locations: [s.test_site],
       start: date("2026-10-01"),
@@ -1237,8 +1244,42 @@ export function exampleFixtures({ self, other, imported }) {
     january_1,
     january_2,
     pending,
+    leave_hr,assigned_reviewer,ordinary_reviewer,
     reviewer_worker,
     examples: [
+      {operation:"leave.request",seed:[sick,ordinary_reviewer,january_2],dependencies:[calendar],inputs:async(c,s)=>({calendar:s.calendar,from:date("2100-01-02"),until:date("2100-01-02"),bucket:"sick",reason:"Unwell",reviewer:s.other}),selectors:["as"],observations:[async(c,s)=>await count(records(c,"leave.Request",{parent:s.calendar}))],rows:[{values:async()=>["members"],error:"rule_failed"}]},
+      {operation:"leave.reserve_result",seed:[pending],dependencies:[],inputs:async()=>({event:{delivery_id:"reserve-current",status:"succeeded",result:{source:"leave-source",revision:1n,state:"confirmed",reference:null,detail:null},error:null}}),selectors:["pending.state","pending.schedule_source","pending.schedule_revision","pending.reserve_delivery","pending.sync","event.delivery_id","event.result"],observations:[async(c,s)=>s.pending.state,async(c,s)=>s.pending.sync],types:["leave.Request.state","leave.Request.sync"],rows:[
+        {values:async()=>["approved","leave-source",1n,"reserve-current","pending","reserve-current",{source:"leave-source",revision:1n,state:"confirmed",reference:null,detail:null}],expected:async()=>["approved","confirmed"]},
+        {values:async()=>["approved","leave-source",1n,"reserve-current","pending","reserve-current",{source:"different-source",revision:1n,state:"confirmed",reference:null,detail:null}],expected:async()=>["approved","unavailable"]},
+        {values:async()=>["approved","leave-source",1n,"reserve-current","pending","reserve-old",{source:"leave-source",revision:1n,state:"confirmed",reference:null,detail:null}],expected:async()=>["approved","pending"]},
+        {values:async()=>["cancelled","leave-source",2n,"reserve-current","none","reserve-current",{source:"leave-source",revision:1n,state:"confirmed",reference:null,detail:null}],expected:async()=>["cancelled","none"]}
+      ]},
+      {operation:"leave.release_result",seed:[pending],dependencies:[],inputs:async()=>({event:{delivery_id:"release-current",status:"succeeded",result:{source:"leave-source",revision:2n,state:"released",reference:null,detail:null},error:null}}),selectors:["pending.state","pending.schedule_source","pending.schedule_revision","pending.release_delivery","pending.release_state","event.delivery_id","event.result","event.status","event.error"],observations:[async(c,s)=>s.pending.release_state],types:["leave.Request.release_state"],rows:[
+{values:async()=>["cancelled","leave-source",2n,"release-current","pending","release-current",{source:"leave-source",revision:2n,state:"released",reference:null,detail:null},"succeeded",null],expected:async()=>["released"]},
+{values:async()=>["cancelled","leave-source",2n,"release-current","pending","release-current",{source:"different-source",revision:2n,state:"released",reference:null,detail:null},"succeeded",null],expected:async()=>["unknown"]},
+{values:async()=>["cancelled","leave-source",2n,"release-current","pending","release-current",{source:"leave-source",revision:1n,state:"released",reference:null,detail:null},"succeeded",null],expected:async()=>["unknown"]},
+{values:async()=>["cancelled","leave-source",2n,"release-current","pending","release-old",{source:"leave-source",revision:2n,state:"released",reference:null,detail:null},"succeeded",null],expected:async()=>["pending"]},
+{values:async()=>["cancelled","leave-source",2n,"release-current","released","release-current",{source:"different-source",revision:2n,state:"released",reference:null,detail:null},"succeeded",null],expected:async()=>["released"]},
+{values:async()=>["cancelled","leave-source",2n,"release-current","pending","release-current",null,"failed",{code:"provider",message:"Release rejected"}],expected:async()=>["failed"]}
+      ]},
+      {operation:"leave.cancel",dependencies:[leave_hr,reviewer_worker,vacation,december_30,december_31,january_1,january_2,allowance_2099,allowance_2100],sequence:[
+        {operation:"leave.request",by:async()=>self,inputs:async(c,s)=>({calendar:s.calendar,from:date("2099-12-30"),until:date("2100-01-02"),bucket:"vacation",reason:"Year-end leave",reviewer:s.assigned_reviewer})},
+        {let:"retained",value:async(c,s)=>await first(records(c,"leave.Request",{parent:s.calendar,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.retained!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"leave.Day.update",by:async(c,s)=>s.leave_hr,inputs:async(c,s)=>({record:s.december_30,changes:{working:false}})},
+        {operation:"leave.Category.update",by:async(c,s)=>s.leave_hr,inputs:async(c,s)=>({record:s.vacation,changes:{allowance_bucket:null}})},
+        {observations:async(c,s,b)=>[b.retained.calendar_version,b.retained.allowance_bucket,(await collect(records(c,"leave.Portion",{parent:b.retained,order:["allowance.year"]}))).map(row=>row.days)],expected:async()=>[1n,"vacation",[2n,1n]],types:["int","text?","int[]"]},
+        {operation:"leave.decide",by:async(c,s)=>s.assigned_reviewer,inputs:async(c,s,b)=>({request:b.retained,approve:true,reason:"Recorded dates checked"})},
+        {observations:async(c,s)=>[s.allowance_2099.remaining,s.allowance_2100.remaining],expected:async()=>[18n,19n],types:["int","int"]},
+        {let:"accepted",value:async(c,s,b)=>await first(records(c,"leave.Request",{parent:s.calendar,where:row=>row.id===b.retained.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.accepted!==null],expected:async()=>[true],types:["bool"]},
+        {operation:"leave.cancel",by:async(c,s)=>s.assigned_reviewer,inputs:async(c,s,b)=>({request:b.accepted,reason:"Plans changed"})},
+        {let:"cancelled_request",value:async(c,s,b)=>await first(records(c,"leave.Request",{parent:s.calendar,where:row=>row.id===b.retained.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.cancelled_request!==null],expected:async()=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[s.allowance_2099.remaining,s.allowance_2100.remaining,b.cancelled_request.state,b.cancelled_request.release_state],expected:async()=>[20n,20n,"cancelled","pending"],types:["int","int","leave.Request.state","leave.Request.release_state"]},
+        {operation:"leave.cancel",by:async(c,s)=>s.assigned_reviewer,inputs:async(c,s,b)=>({request:b.cancelled_request,reason:"Repeated cancellation"}),error:"rule_failed"}
+      ]},
+
       {
         operation: "leave.preview",
         seed: [
@@ -1289,7 +1330,7 @@ export function exampleFixtures({ self, other, imported }) {
           until: date("2100-01-02"),
           bucket: "vacation",
           reason: "Year-end leave",
-          reviewer: s.other,
+          reviewer: s.assigned_reviewer,
         }),
         selectors: ["as"],
         observations: [
@@ -1343,7 +1384,7 @@ export function exampleFixtures({ self, other, imported }) {
           until: date("2100-01-02"),
           bucket: "vacation",
           reason: "Year-end leave",
-          reviewer: s.other,
+          reviewer: s.assigned_reviewer,
         }),
         selectors: ["as"],
         observations: [
@@ -1361,7 +1402,7 @@ export function exampleFixtures({ self, other, imported }) {
           until: date("2100-01-02"),
           bucket: "sick",
           reason: "Unwell",
-          reviewer: s.other,
+          reviewer: s.assigned_reviewer,
         }),
         selectors: ["as"],
         observations: [

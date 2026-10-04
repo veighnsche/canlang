@@ -51,7 +51,10 @@ package leave label="Leave"@{nl="Verlof"}
   fixture vacation=Category {parent=calendar,name="vacation",allowance_bucket="vacation"}
   fixture sick=Category {parent=calendar,name="sick"}
   fixture pending=Request {parent=calendar,location=test_site,from=date("2099-01-02"),until=date("2099-01-02"),bucket="vacation",reason="Holiday",reviewer=other,timezone="Europe/Brussels",calendar_version=1}
-  fixture reviewer_worker=Employee {user=other,home=test_site,locations=[test_site],start=date("2026-10-01"),role="reviewer"}
+  fixture leave_hr=user {roles=[hr]}
+  fixture assigned_reviewer=user {roles=[leave_reviewer]}
+  fixture ordinary_reviewer=Employee {user=other,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer candidate"}
+  fixture reviewer_worker=Employee {user=assigned_reviewer,home=test_site,locations=[test_site],start=date("2026-10-01"),role="reviewer"}
   fixture december_30=Day {parent=calendar,date=date("2099-12-30"),working=true}
   fixture december_31=Day {parent=calendar,date=date("2099-12-31"),working=true}
   fixture january_1=Day {parent=calendar,date=date("2100-01-01"),working=false}
@@ -91,7 +94,7 @@ package leave label="Leave"@{nl="Verlof"}
     members -> 3,[2,1]
   # Snapshot configured working dates and split the request against each applicable year. @{nl="Leg ingestelde werkdagen vast en verdeel de aanvraag over alle toepasselijke jaren."}
   scenario request(calendar:Calendar,from:date label=label_Request_from,until:date label=label_Request_until,bucket:text label=label_preferences_bucket,reason:text,reviewer:user label=label_Request_reviewer) by=members label="Request leave"@{nl="Verlof aanvragen"}
-   require calendar.parent.user==actor and calendar.parent.active and from<=until and reviewer!=actor and can_work(reviewer,calendar.parent.home) and trim(reason)!=""
+   require calendar.parent.user==actor and calendar.parent.active and from<=until and reviewer!=actor and leave_reviewer(reviewer) and can_work(reviewer,calendar.parent.home) and trim(reason)!=""
    require not any(calendar.Request as old,old.state in [pending,approved] and overlaps(from,add_days(until,1),old.from,add_days(old.until,1)))
    ## Process at most 3660 calendar dates per request; reject larger ranges without truncation.
    require all(dates(from,add_days(until,1),3660) as day_date,any(calendar.Day as day,day.date==day_date))
@@ -105,15 +108,18 @@ package leave label="Leave"@{nl="Verlof"}
      let allowance=first(calendar.parent.Allowance as allowance where allowance.year==year.key and allowance.bucket==policy.allowance_bucket order=allowance.id)
      require policy.allowance_bucket==null or allowance!=null
      create Portion {parent=request,allowance,days=count(year.items),dates=year.items as day select day.date} as portion
-   examples seed=[vacation,reviewer_worker,december_30,december_31,january_1,january_2,allowance_2099,allowance_2100] calendar=calendar from=date("2099-12-30") until=date("2100-01-02") bucket="vacation" reason="Year-end leave" reviewer=other
+   examples seed=[vacation,reviewer_worker,december_30,december_31,january_1,january_2,allowance_2099,allowance_2100] calendar=calendar from=date("2099-12-30") until=date("2100-01-02") bucket="vacation" reason="Year-end leave" reviewer=assigned_reviewer
     as -> Portion as portion where portion.parent.parent==calendar order=portion.allowance.year select portion.allowance.year,Portion as portion where portion.parent.parent==calendar order=portion.allowance.year select portion.days
     members -> [2099,2100],[2,1]
-   examples seed=[vacation,reviewer_worker,december_30,december_31,january_2,allowance_2099,allowance_2100] calendar=calendar from=date("2099-12-30") until=date("2100-01-02") bucket="vacation" reason="Year-end leave" reviewer=other
+   examples seed=[vacation,reviewer_worker,december_30,december_31,january_2,allowance_2099,allowance_2100] calendar=calendar from=date("2099-12-30") until=date("2100-01-02") bucket="vacation" reason="Year-end leave" reviewer=assigned_reviewer
     as -> count(calendar.Request)
     members -> error(rule_failed)
-   examples seed=[sick,reviewer_worker,january_2] calendar=calendar from=date("2100-01-02") until=date("2100-01-02") bucket="sick" reason="Unwell" reviewer=other
+   examples seed=[sick,reviewer_worker,january_2] calendar=calendar from=date("2100-01-02") until=date("2100-01-02") bucket="sick" reason="Unwell" reviewer=assigned_reviewer
     as -> Portion as portion where portion.parent.parent==calendar select portion.allowance,Portion as portion where portion.parent.parent==calendar select portion.days
     members -> [null],[1]
+   examples seed=[sick,ordinary_reviewer,january_2] calendar=calendar from=date("2100-01-02") until=date("2100-01-02") bucket="sick" reason="Unwell" reviewer=other
+    as -> count(calendar.Request)
+    members -> error(rule_failed)
   # Reserve all applicable yearly allowances atomically and publish only absence dates. @{nl="Reserveer alle toepasselijke jaarlijkse tegoeden atomair en publiceer uitsluitend afwezigheidsdatums."}
   scenario decide(request:Request,approve:bool label="Approve"@{nl="Goedkeuren"},reason:text) by=leave_reviewer label="Record decision"@{nl="Besluit vastleggen"}
    require request.state==pending and request.reviewer==actor and request.parent.parent.user!=actor and can_work(actor,request.parent.parent.home) and trim(reason)!=""
@@ -151,6 +157,23 @@ package leave label="Leave"@{nl="Verlof"}
     as,request.state,request.schedule_source -> request.state,allowance_2099.remaining,request.release_state
     hr,approved,"leave-source" -> cancelled,20,pending
     hr,cancelled,"leave-source" -> error(rule_failed)
+   examples seed=[leave_hr,reviewer_worker,vacation,december_30,december_31,january_1,january_2,allowance_2099,allowance_2100]
+    do
+     call request {calendar=calendar,from=date("2099-12-30"),until=date("2100-01-02"),bucket="vacation",reason="Year-end leave",reviewer=assigned_reviewer} by=self
+     let retained=first(calendar.Request as row order=row.id)
+     retained!=null -> true
+     call Day.update {record=december_30,changes={working=false}} by=leave_hr
+     call Category.update {record=vacation,changes={allowance_bucket=null}} by=leave_hr
+     retained.calendar_version,retained.allowance_bucket,retained.Portion as portion order=portion.allowance.year select portion.days -> 1,"vacation",[2,1]
+     call decide {request=retained,approve=true,reason="Recorded dates checked"} by=assigned_reviewer
+     allowance_2099.remaining,allowance_2100.remaining -> 18,19
+     let accepted=first(calendar.Request as row where row.id==retained.id order=row.id)
+     accepted!=null -> true
+     call cancel {request=accepted,reason="Plans changed"} by=assigned_reviewer
+     let cancelled_request=first(calendar.Request as row where row.id==retained.id order=row.id)
+     cancelled_request!=null -> true
+     allowance_2099.remaining,allowance_2100.remaining,cancelled_request.state,cancelled_request.release_state -> 20,20,cancelled,pending
+     call cancel {request=cancelled_request,reason="Repeated cancellation"} by=assigned_reviewer -> error(rule_failed)
   # Retry an unresolved cancellation using its retained absence release fence. @{nl="Herhaal een onopgeloste annulering met de behouden vrijgavegrens voor afwezigheid."}
   scenario retry_release(request:Request) by=hr or leave_reviewer label="Retry absence release"@{nl="Vrijgave afwezigheid herhalen"}
    require request.state==cancelled and request.schedule_source!=null and request.release_state in [failed,unknown] and (hr or (request.reviewer==actor and can_work(actor,request.parent.parent.home)))
@@ -187,11 +210,15 @@ package leave label="Leave"@{nl="Verlof"}
        if event.result.state==unavailable
         set request {sync=conflict}
        else
-        if event.result.state in [failed,unknown]
-         set request {sync=unavailable}
+        set request {sync=unavailable}
      else
-      if event.status in [failed,unknown,skipped]
-       set request {sync=unavailable}
+      set request {sync=unavailable}
+   examples seed=[pending] event={delivery_id="reserve-current",status=succeeded,result={source="leave-source",revision=1,state=confirmed,reference=null,detail=null},error=null}
+    pending.state,pending.schedule_source,pending.schedule_revision,pending.reserve_delivery,pending.sync,event.delivery_id,event.result -> pending.state,pending.sync
+    approved,"leave-source",1,"reserve-current",pending,"reserve-current",{source="leave-source",revision=1,state=confirmed,reference=null,detail=null} -> approved,confirmed
+    approved,"leave-source",1,"reserve-current",pending,"reserve-current",{source="different-source",revision=1,state=confirmed,reference=null,detail=null} -> approved,unavailable
+    approved,"leave-source",1,"reserve-current",pending,"reserve-old",{source="leave-source",revision=1,state=confirmed,reference=null,detail=null} -> approved,pending
+    cancelled,"leave-source",2,"reserve-current",none,"reserve-current",{source="leave-source",revision=1,state=confirmed,reference=null,detail=null} -> cancelled,none
   scenario release_result on=StaffSchedule.release.completed
    do
     for request in Request as item where item.release_delivery==event.delivery_id and item.state==cancelled and item.release_state!=released limit=1
@@ -201,15 +228,22 @@ package leave label="Leave"@{nl="Verlof"}
       if event.status in [failed,skipped]
        set request {release_state=failed}
       else
-       if event.status==unknown
-        set request {release_state=unknown}
+       set request {release_state=unknown}
+   examples seed=[pending] event={delivery_id="release-current",status=succeeded,result={source="leave-source",revision=2,state=released,reference=null,detail=null},error=null}
+    pending.state,pending.schedule_source,pending.schedule_revision,pending.release_delivery,pending.release_state,event.delivery_id,event.result,event.status,event.error -> pending.release_state
+    cancelled,"leave-source",2,"release-current",pending,"release-current",{source="leave-source",revision=2,state=released,reference=null,detail=null},succeeded,null -> released
+    cancelled,"leave-source",2,"release-current",pending,"release-current",{source="different-source",revision=2,state=released,reference=null,detail=null},succeeded,null -> unknown
+    cancelled,"leave-source",2,"release-current",pending,"release-current",{source="leave-source",revision=1,state=released,reference=null,detail=null},succeeded,null -> unknown
+    cancelled,"leave-source",2,"release-current",pending,"release-old",{source="leave-source",revision=2,state=released,reference=null,detail=null},succeeded,null -> pending
+    cancelled,"leave-source",2,"release-current",released,"release-current",{source="different-source",revision=2,state=released,reference=null,detail=null},succeeded,null -> released
+    cancelled,"leave-source",2,"release-current",pending,"release-current",null,failed,{code="provider",message="Release rejected"} -> failed
  Then
   # Preview recorded calendar and allowance data before requesting whole working days. @{nl="Bekijk vastgelegde kalender- en tegoedgegevens voordat je hele werkdagen aanvraagt."}
   page /leave/mine title="My leave"@{nl="Mijn verlof"}
    require members
    card "Leave dates and allowance"@{nl="Verlofdatums en tegoed"} layout=columns
     card "Working calendar and request intake"@{nl="Werkkalender en verlofaanvraag"}
-     list Calendar display=split
+     list Calendar as calendar where calendar.parent.user==actor display=split
       form preview
        text result.days
        list result.portions
@@ -219,7 +253,7 @@ package leave label="Leave"@{nl="Verlof"}
       table row.Request columns=from,until,bucket,state,decision,sync order=-from filter=bucket,state defaults={bucket=preferences.bucket}
        action withdraw
     card "Annual allowance"@{nl="Jaarlijks verloftegoed"}
-     table Allowance columns=year,bucket,days,remaining filter=year,bucket defaults={year=preferences.year,bucket=preferences.bucket}
+     table Allowance as allowance where allowance.parent.user==actor columns=year,bucket,days,remaining filter=year,bucket defaults={year=preferences.year,bucket=preferences.bucket}
 
   # Decide assigned leave while keeping private reasons out of the shared absence calendar. @{nl="Beoordeel toegewezen verlof en houd private redenen buiten de gedeelde afwezigheidskalender."}
   page /leave/review title="Leave review"@{nl="Verlof beoordelen"}
@@ -236,7 +270,10 @@ package leave label="Leave"@{nl="Verlof"}
     form Allowance.create
     table Allowance columns=year,bucket,days,remaining filter=year,bucket
      edit
+    form Calendar.create
     list Calendar
+     edit
+     form Day.create
      form Category.create
      table row.Category columns=name,allowance_bucket
       edit
