@@ -35,9 +35,10 @@ implementation/UI-CATALOG-ADOPTION.md
 implementation/briefs/05-ui.md
 implementation/briefs/08-frontend-catalog-migration.md
 implementation/prompts/05-ui-steering.md
+implementation/prompts/08-frontend-catalog-steering.md
 ```
 
-Lane 05 builds the reusable UI library and typed catalog; lane 08 migrates the active authored `.can` app drafts/examples and applicable companions. The running lane 05 has a separate short steering prompt, with correction steps in its brief. Updating files does not itself inject input into an already running Muse session; the user pastes that steering prompt to trigger the change of course.
+**Lane 08 drafts first; lane 05 depends on those drafts.** Compiler and standard-library contracts derive from reviewed `.can`/desired-output pairs, not from existing APIs. Lane 08 replans each active app's entire frontend against the full vocabulary and authors complete source/output companions; lane 05 implements the resulting reusable UI library/catalog and lane 01 the compiler. Missing support is a downstream task, not a draft gate. The running lane 05 has a separate short steering prompt, with correction steps in its brief. Updating files does not itself inject input into an already running Muse session; the user pastes that steering prompt to trigger the change of course.
 
 The normal PR loop applies to that documentation PR too: actual diff review, independent review, focused checks, fixes, protected merge of the reviewed head, then fetch main and start the next branch from fresh main. This handoff provides exact approval and scope for importing the documentation subset; it is not authorization to adopt unrelated design changes found nearby. If required non-documentation dependencies are missing, name their owners and continue ready inventory/implementation rather than inventing replacements.
 

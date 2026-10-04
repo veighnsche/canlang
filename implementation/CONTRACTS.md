@@ -1,6 +1,6 @@
 # Shared implementation boundaries
 
-These are high-level interface obligations for producer-owned bootstrap PRs. They are not implemented APIs. Producers define exact signatures from the current accepted language contracts, with actual consumer witnesses; consumers must not guess imports or make competing definitions. Early additions can be compatible; a breaking change requires the affected owners' explicit handoff and a coherent merge sequence.
+These are high-level interface obligations for producer-owned bootstrap PRs. They are not implemented APIs. Reviewed `.can` drafts and desired-output witnesses define the required behavior; compiler and stdlib producers derive exact signatures and implementations from those drafts and accepted language contracts. Production consumers must not guess installed imports or make competing definitions. Draft witnesses may specify minimal coherent target APIs explicitly labelled desired/unimplemented; the owning producer formalizes and implements them. Early additions can be compatible; a breaking change requires the affected owners' explicit handoff and a coherent merge sequence.
 
 | Boundary / owner | Required contents and meaning | Consumers |
 | --- | --- | --- |
@@ -23,6 +23,8 @@ Each library owner authors its signatures, descriptions, type/constraint and eff
 Define a common catalog envelope/version in the first L1/L2 contract join; L3–L6 add their owned entries. Exact-value tags, record/file/reference provenance and numeric bounds must survive JSON transport. Never serialize BigInt with ordinary JSON or collapse decimal/money into JS Number. Library feature availability is checked at build/activation; missing implementations cannot masquerade as callable contracts.
 
 ## Dependency direction
+
+**Design flows from drafts to implementation:** lane 08 designs the app frontend first; lane 05 derives UI contracts/renderers and lane 01 derives checking/emission from reviewed source/target pairs. Other stdlib owners likewise implement semantics established by the drafts. Runtime package dependencies below do not reverse this design relationship. Do not require installed APIs or successful execution before a faithful draft can be authored/reviewed; record implementation gaps with their owners.
 
 - `contracts` contains data/types only. L2 values depend on runtime standard APIs and vetted value libraries; they never obtain current actor, time, network or records implicitly.
 - State uses values and provider-neutral ports. State is the only authoritative commit engine. Work/files/identity submit registered, constrained system commands through it rather than raw SQL around the fence.
