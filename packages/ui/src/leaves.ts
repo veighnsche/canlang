@@ -33,10 +33,14 @@ import type {
   DividerProps,
   KbdProps,
   LinkProps,
+  MockupBrowserProps,
   MockupCodeProps,
+  MockupPhoneProps,
+  MockupWindowProps,
   MessageDescriptor,
   MessageParamValue,
   MessageValue,
+  PageChildren,
   PresentationContext,
   StatusProps,
   TextValue,
@@ -231,4 +235,78 @@ export async function link(props: LinkProps): Promise<string> {
       ? escapeHtml(props.target)
       : escapeHtml(captionText(props.caption, props.context));
   return `<a class="${escapeAttr(joinClasses("link", modifiers))}" href="${href}">${text}</a>`;
+}
+
+// ---------------------------------------------------------------------------
+// mockup browser/phone/window (C8)
+// ---------------------------------------------------------------------------
+
+/** Await trusted pre-rendered children; empty suites fail closed. */
+async function renderMockupKids(factory: string, children: PageChildren): Promise<string> {
+  const kids = typeof children === "function" ? await children() : children;
+  if (kids.length === 0) {
+    throw new Error(`${factory} needs a nonempty content suite`);
+  }
+  return (await Promise.all(kids)).join("");
+}
+
+function mockupLabel(caption: MessageValue | undefined, context: PresentationContext): string {
+  if (caption === undefined) {
+    return "";
+  }
+  const text = resolveCaption(caption, context);
+  if (text === "") {
+    throw new Error("mockup caption must not be empty");
+  }
+  return ` aria-label="${escapeAttr(text)}"`;
+}
+
+/**
+ * Browser-chrome presentation wrapper: toolbar dots plus a URL bar holding
+ * escaped text (never a link or engine). Children are trusted pre-rendered
+ * HTML from sibling factories (the card-children precedent).
+ */
+export async function mockupBrowser(props: MockupBrowserProps): Promise<string> {
+  // mockup_browser admits no appearance matrix: any runtime appearance key
+  // throws via the membership check below.
+  appearanceClasses("mockup_browser", "mockup-browser", pickAppearance(props));
+  const body = await renderMockupKids("mockupBrowser", props.children);
+  const url =
+    props.url === undefined ? "" : escapeHtml(resolveCaption(props.url, props.context));
+  return (
+    `<div class="mockup-browser"${mockupLabel(props.caption, props.context)}>` +
+    `<div class="mockup-browser-toolbar"><div class="input">${url}</div></div>` +
+    `<div>${body}</div></div>`
+  );
+}
+
+/**
+ * Phone-chrome presentation wrapper: camera notch plus display slot holding
+ * trusted children. No device frame behavior beyond the pinned CSS.
+ */
+export async function mockupPhone(props: MockupPhoneProps): Promise<string> {
+  // mockup_phone admits no appearance matrix: any runtime appearance key
+  // throws via the membership check below.
+  appearanceClasses("mockup_phone", "mockup-phone", pickAppearance(props));
+  const body = await renderMockupKids("mockupPhone", props.children);
+  return (
+    `<div class="mockup-phone"${mockupLabel(props.caption, props.context)}>` +
+    `<div class="mockup-phone-camera"></div>` +
+    `<div class="mockup-phone-display">${body}</div></div>`
+  );
+}
+
+/**
+ * Window-chrome presentation wrapper: title dots plus a content slot
+ * holding trusted children. No window-manager behavior.
+ */
+export async function mockupWindow(props: MockupWindowProps): Promise<string> {
+  // mockup_window admits no appearance matrix: any runtime appearance key
+  // throws via the membership check below.
+  appearanceClasses("mockup_window", "mockup-window", pickAppearance(props));
+  const body = await renderMockupKids("mockupWindow", props.children);
+  return (
+    `<div class="mockup-window"${mockupLabel(props.caption, props.context)}>` +
+    `<div>${body}</div></div>`
+  );
 }

@@ -122,6 +122,13 @@ describe("component catalog", () => {
       csvImport: 1,
       fileControl: 1,
       review: 1,
+      tabs: 1,
+      history: 1,
+      copy: 1,
+      renderSettingsPanel: 1,
+      mockupBrowser: 1,
+      mockupPhone: 1,
+      mockupWindow: 1,
     };
     const record = ui as unknown as Record<string, unknown>;
     for (const entry of UI_CATALOG.entries) {
