@@ -82,6 +82,33 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
+## Slice 15: full replan Rent (branch muse/frontend-catalog-migration/slice-15-rent, in progress)
+
+Paths: draft/CanRent (.can+.md+.mjs) + this status file. Source: lane-K
+drafter output under /tmp/sliceK-rent, applied + corrected by coordinator.
+Coordinator corrections to draft: 5 bool badges become text (Location/
+QuoteHold/Downtime active, 2x result.available); 4 details become collapse;
+22 modal forms gain display=inline; move/move_membership gain fieldsets +
+from/until inputs; block/assign_desk/Window gain from/until inputs; extend
+gains until + amount; kind select becomes radio; legacy_matches list, agenda
+and result.rows table gain pagination; booking_reconcile modal removed
+(row-only op -> bare actions, join dropped); hourly.increment typo split to
+hourly, increment; Location/WeeklyHours/DateHours/Resource creates completed
+with placeable scalars (arrays omitted, Loyalty precedent); status
+row.state KEPT (real DeliveryResult.status derive, non-nullable —
+component-domain match). All mirrored in the witness (incl. modal caption:
+convention; witness already had hourly/increment split). .md wording fixed
+to match (availability/active text, inline reconcile, placed desk select).
+Given/When byte-identical (splice-verified; details removals are base-Then
+vocabulary). node --check clean.
+Census: 28 collections + agenda + board, all w/ empty+pagination (30/30);
+9 pages w/ breadcrumbs; 22/22/22 modal/button/inline (+dropdown slot).
+Drift: +238 E1200 (base clean), no E1204. Ok on main. Prototype stops at
+L17 breadcrumbs (new catalog); base stops at pre-existing L126 Given gap.
+Handoff: (a) array control; (b) duration/money/datetime scalar rendering;
+(c) modal/agenda/board/collapse/accordion/badge/status/stat/steps/validator/
+dropdown renderers.
+
 ## Slice 14: full replan Member (branch muse/frontend-catalog-migration/slice-14-member, in progress)
 
 Paths: draft/CanMember (.can+.md, .mjs new) + this status file. Source:
