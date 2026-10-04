@@ -334,6 +334,12 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   fenced cleanup writer yet); pure model renames leave target rows
   without a history entry (name-only silence; source remove chains via
   preserved recordId + migration operationId).
+  Independent review APPROVE (`28271f5` fixes 4 minors + 3 nits, no third
+  round per reviewer suggestion + coordinator diff self-review): flip-race
+  + flip fence-loss pins, single-owner-store loud note, isExpiredRow
+  drop pre-scan, revision-stability assert, unmapped-model comment fix,
+  unique-swap conflict pin. Legs: 499->505/505, D1 47->48/48, DO
+  45->46/46; typechecks clean.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
