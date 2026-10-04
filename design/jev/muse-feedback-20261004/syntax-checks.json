@@ -1,0 +1,62 @@
+{
+  "baseline_head": "99a53f93d2e3cccd392a6f328b5347e7d96b3128",
+  "source_sha256": "e51e7d810c9499bd6d451c70e835f07fc99925bdf5c75699d415c3caeb56df2c",
+  "nonsequence_can": {
+    "ok": true,
+    "omitted_sequence_blocks": 1
+  },
+  "js_blocks": [
+    {
+      "name": "product_choices",
+      "ok": true,
+      "diagnostic": ""
+    },
+    {
+      "name": "handlers",
+      "ok": true,
+      "diagnostic": ""
+    },
+    {
+      "name": "history_ui",
+      "ok": true,
+      "diagnostic": ""
+    },
+    {
+      "name": "moderation_ui",
+      "ok": true,
+      "diagnostic": ""
+    },
+    {
+      "name": "sequence",
+      "ok": true,
+      "diagnostic": ""
+    },
+    {
+      "name": "suggestion_field",
+      "ok": true,
+      "diagnostic": ""
+    },
+    {
+      "name": "decision_model",
+      "ok": true,
+      "diagnostic": ""
+    },
+    {
+      "name": "contracts",
+      "ok": true,
+      "diagnostic": ""
+    },
+    {
+      "name": "pure_metadata",
+      "ok": true,
+      "diagnostic": ""
+    },
+    {
+      "name": "operations",
+      "ok": true,
+      "diagnostic": ""
+    }
+  ],
+  "limits": "Syntax only. In-memory synthetic application of changed blocks; no app files, type checking, policies, runtime, renderer or BDD execution.",
+  "handoff_sha256": "b0466363272b44ec402b12730377b0edc89c53b50261420c784ae9e2b4fd67d1"
+}

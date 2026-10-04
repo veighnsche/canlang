@@ -28,6 +28,8 @@ Codex-owned authoritative runtime record. Muse reads but does not edit this file
 - Latest verified task state: M00 and D01–D10/J01–J03 are evidenced in checklist; pane additionally reports J04–J06 verified and all app writers released. Full integration/review remains pending. A01 is now released by accepted complete design; A02–A06 and N01–N10 retain their individual prerequisites until an appropriate READY.
 - Recorded at: 2026-10-04T13:16:49Z
 
+C3 intake note: the dependency worker found an earlier rejected detailed-project JEV export in design/jev/optional-dependency-closure-20261004/3.rejection.md. No new external call was made. Root confirmed no later exact-payload approval is available; the worker will trace and specify already accepted behavior, keeping any genuinely new blocked shared-contract choice explicit. This is an inherited constraint, not a new failed consultation or a reason to stop unrelated draft work.
+
 ## User-steered production planning boundary
 
 The user now forbids Codex from starting new Muse Spark sessions and will personally launch the production implementation coordinators. The seven prompts and higher-level file tree are in implementation/PLAN.md and implementation/prompts/. These are not tasks for the existing draft coordinator. Codex plans/reviews them only. The existing draft run retains its saved app scope.

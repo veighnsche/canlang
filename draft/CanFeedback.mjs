@@ -125,7 +125,7 @@ export const appDefinition = {
     "feedback.Suggestion": {
       parent: "feedback.Product",
       label: suggestionCaption,
-      invariants: ["Suggestion.require.1"],
+      invariants: ["Suggestion.require.1", "Suggestion.require.2"],
       locks: ["Suggestion.lock.1"],
       readGrants: [
         {
@@ -168,6 +168,11 @@ export const appDefinition = {
         },
         response: { type: "text", nullable: true, label: responseCaption },
         duplicate: { type: "feedback.Suggestion", nullable: true, label: duplicateCaption },
+        current_decision: {
+          type: "feedback.Decision",
+          nullable: true,
+          label: message("Current operator decision", { nl: "Huidig exploitantbesluit" }),
+        },
       },
     },
     "feedback.Vote": {
@@ -183,6 +188,31 @@ export const appDefinition = {
           type: "datetime",
           server: "now",
           label: message("Last vote time", { nl: "Laatste stemtijd" }),
+        },
+      },
+    },
+    "feedback.Decision": {
+      parent: "feedback.Suggestion",
+      label: message("Operator decision", { nl: "Exploitantbesluit" }),
+      readGrants: [{ rule: "Decision.read.1" }],
+      locks: ["Decision.lock.1", "Decision.lock.2", "Decision.lock.3"],
+      fields: {
+        status: { type: "feedback.Suggestion.status" },
+        response: { type: "text", label: responseCaption },
+        published_at: {
+          type: "datetime",
+          nullable: true,
+          label: message("Released at", { nl: "Vrijgegeven op" }),
+        },
+        withdrawn: {
+          type: "bool",
+          default: false,
+          label: message("Withdrawn", { nl: "Ingetrokken" }),
+        },
+        withdrawal_reason: {
+          type: "text",
+          nullable: true,
+          label: message("Withdrawal reason", { nl: "Reden van intrekking" }),
         },
       },
     },
@@ -209,6 +239,30 @@ export const appDefinition = {
           requiredArray: true,
           label: message("Items", { nl: "Items" }),
         },
+      },
+    },
+    "feedback.DecisionCard": {
+      fields: {
+        status: { type: "feedback.Suggestion.status" },
+        response: { type: "text", label: responseCaption },
+        published_at: { type: "datetime", label: message("Released at", { nl: "Vrijgegeven op" }) },
+      },
+    },
+    "feedback.DecisionHistory": {
+      fields: {
+        items: {
+          type: "feedback.DecisionCard",
+          array: true,
+          requiredArray: true,
+          label: message("Released decisions", { nl: "Vrijgegeven besluiten" }),
+        },
+      },
+    },
+    "feedback.ProductChoice": {
+      fields: {
+        product: { type: "feedback.Product", label: message("Product", { nl: "Product" }) },
+        name: { type: "text" },
+        location: { type: Location, nullable: true },
       },
     },
   },
@@ -308,9 +362,9 @@ export const appDefinition = {
       read: false,
       label: message("Record roadmap decision", { nl: "Roadmapbesluit vastleggen" }),
       description: message(
-        "Record an operator roadmap decision without changing authorship or votes.",
+        "Record an operator roadmap decision without changing authorship or votes; visible decisions release to public history.",
         {
-          nl: "Leg een exploitantbesluit over de roadmap vast zonder auteurschap of stemmen te wijzigen.",
+          nl: "Leg een exploitantbesluit over de roadmap vast zonder auteurschap of stemmen te wijzigen; zichtbare besluiten worden vrijgegeven voor de openbare geschiedenis.",
         },
       ),
       inputs: {
@@ -330,9 +384,12 @@ export const appDefinition = {
       by: "feedback.product_owner",
       read: false,
       label: message("Moderate suggestion", { nl: "Suggestie modereren" }),
-      description: message("Hide abusive content with a reason under product-owner moderation.", {
-        nl: "Verberg misbruik met een reden binnen moderatie door de productverantwoordelijke.",
-      }),
+      description: message(
+        "Hide abusive content with a reason under product-owner moderation; approving releases the selected decision.",
+        {
+          nl: "Verberg misbruik met een reden binnen moderatie door de productverantwoordelijke; bij goedkeuring wordt het geselecteerde besluit vrijgegeven.",
+        },
+      ),
       inputs: {
         suggestion: { type: "feedback.Suggestion" },
         hidden: { type: "bool", label: hiddenCaption },
@@ -354,6 +411,34 @@ export const appDefinition = {
       ),
       inputs: { product: { type: "feedback.Product" } },
     },
+    "feedback.withdraw_decision": {
+      handler: "withdraw_decision",
+      by: "feedback.product_owner",
+      read: false,
+      label: message("Withdraw operator decision", { nl: "Exploitantbesluit intrekken" }),
+      description: message(
+        "Withdraw released or private staff text while retaining owner evidence.",
+        {
+          nl: "Trek vrijgegeven of private medewerkerstekst in en behoud het bewijs voor de verantwoordelijke.",
+        },
+      ),
+      inputs: { decision: { type: "feedback.Decision" }, reason: { type: "text" } },
+    },
+    "feedback.decision_history": {
+      handler: "decision_history",
+      by: "public",
+      read: true,
+      scope: "authority",
+      result: "feedback.DecisionHistory",
+      label: message("Read operator decision history", { nl: "Geschiedenis exploitantbesluiten lezen" }),
+      description: message(
+        "Read released operator decisions without private revisions or account identities.",
+        {
+          nl: "Lees vrijgegeven exploitantbesluiten zonder private revisies of accountidentiteiten.",
+        },
+      ),
+      inputs: { suggestion: { type: "feedback.Suggestion" } },
+    },
   },
   handlers: {
     "feedback.contribution_limit": {
@@ -361,6 +446,13 @@ export const appDefinition = {
       on: "feedback.Suggestion.create",
     },
     "feedback.review_edited": { handler: "review_edited", on: "feedback.Suggestion.update" },
+  },
+  pure: {
+    "feedback.product_choices": {
+      handler: "product_choices",
+      inputs: {},
+      result: { type: "feedback.ProductChoice", array: true },
+    },
   },
   pages: [
     feedbackPageDescriptor,
@@ -371,8 +463,19 @@ export const appDefinition = {
     "feedback.Vote.create",
     "feedback.Vote.update",
     "feedback.Vote.delete",
+    "feedback.Decision.create",
+    "feedback.Decision.update",
+    "feedback.Decision.delete",
   ],
 };
+
+async function product_choices(c) {
+  const rows = [];
+  for await (const product of records(c, "feedback.Product")) {
+    rows.push({ product, name: product.name, location: product.location });
+  }
+  return rows;
+}
 
 export function canApp() {
   const crudWhen = {
@@ -386,6 +489,7 @@ export function canApp() {
   };
   return {
     crudWhen,
+    product_choices,
 
     read: {
       "Product.read.1": (c, row) => hasRole(c, "public") && row.published,
@@ -396,6 +500,8 @@ export function canApp() {
       "Suggestion.read.3": (c, row) =>
         hasRole(c, "feedback.product_owner") && same(row.parent.owner, c.actor),
       "Vote.read.1": (c, row) => hasRole(c, "authenticated") && same(row.account, c.actor),
+      "Decision.read.1": (c, row) =>
+        hasRole(c, "feedback.product_owner") && same(row.parent.parent.owner, c.actor),
     },
     invariants: {
       "Suggestion.require.1": (c, row) =>
@@ -403,8 +509,26 @@ export function canApp() {
         (!same(row.duplicate, row) &&
           same(row.duplicate.parent, row.parent) &&
           row.duplicate.duplicate === null),
+      "Suggestion.require.2": (c, row) =>
+        row.current_decision === null ||
+        (same(row.current_decision.parent, row) &&
+          row.current_decision.status === row.status &&
+          row.current_decision.response === row.response &&
+          !row.current_decision.withdrawn),
     },
-    locks: { "Suggestion.lock.1": { fields: ["author"] }, "Vote.lock.1": { fields: ["account"] } },
+    locks: {
+      "Suggestion.lock.1": { fields: ["author"] },
+      "Vote.lock.1": { fields: ["account"] },
+      "Decision.lock.1": { fields: ["status", "response"] },
+      "Decision.lock.2": {
+        fields: ["published_at"],
+        when: (c, row) => row.published_at !== null,
+      },
+      "Decision.lock.3": {
+        fields: ["withdrawn", "withdrawal_reason"],
+        when: (c, row) => row.withdrawn,
+      },
+    },
     async createProduct(c, input) {
       check(hasRole(c, "feedback.product_owner"), "forbidden");
       await create(c, "feedback.Product", input, { when: crudWhen.Product });
@@ -473,12 +597,60 @@ export function canApp() {
     async roadmap(c, { suggestion, status, response, duplicate = null }) {
       check(hasRole(c, "feedback.product_owner"), "forbidden");
       check(same(suggestion.parent.owner, c.actor) && response.trim() !== "");
-      await set(c, suggestion, { status, response, duplicate });
+      const decision = await create(c, "feedback.Decision", { parent: suggestion, status, response });
+      if (!suggestion.hidden) await set(c, decision, { published_at: c.now });
+      await set(c, suggestion, { status, response, duplicate, current_decision: decision });
     },
     async moderate(c, { suggestion, hidden, reason }) {
       check(hasRole(c, "feedback.product_owner"), "forbidden");
       check(same(suggestion.parent.owner, c.actor) && reason.trim() !== "");
+      if (
+        !hidden &&
+        suggestion.current_decision !== null &&
+        suggestion.current_decision.published_at === null
+      ) {
+        await set(c, suggestion.current_decision, { published_at: c.now });
+      }
       await set(c, suggestion, { hidden, moderation_reason: reason });
+    },
+    async withdraw_decision(c, { decision, reason }) {
+      check(hasRole(c, "feedback.product_owner"), "forbidden");
+      check(
+        same(decision.parent.parent.owner, c.actor) && reason.trim() !== "" && !decision.withdrawn,
+      );
+      if (same(decision.parent.current_decision, decision)) {
+        await set(c, decision.parent, {
+          hidden: true,
+          moderation_reason: reason,
+          status: "proposed",
+          response: null,
+          duplicate: null,
+          current_decision: null,
+        });
+      }
+      await set(c, decision, { withdrawn: true, withdrawal_reason: reason });
+    },
+    async decision_history(c, { suggestion }) {
+      check(hasRole(c, "public"), "forbidden");
+      check(
+        suggestion.archived_at === null &&
+          suggestion.parent.archived_at === null &&
+          suggestion.parent.published &&
+          !suggestion.hidden,
+      );
+      const items = [];
+      for await (const decision of records(c, "feedback.Decision", {
+        parent: suggestion,
+        where: (decision) => decision.published_at !== null && !decision.withdrawn,
+        order: ["published_at"],
+      })) {
+        items.push({
+          status: decision.status,
+          response: decision.response,
+          published_at: decision.published_at,
+        });
+      }
+      return { items };
     },
     async published(c, { product }) {
       check(hasRole(c, "public"), "forbidden");
@@ -511,19 +683,23 @@ export function canApp() {
 }
 
 export async function feedbackPage(c, bindings) {
+  const choices = await product_choices(c);
   return renderPage(
     c,
     feedbackPageDescriptor,
     () => [
       list({
         context: c,
-        model: "feedback.Product",
-        where: (product) => c.preferences.feedback.product === null || same(product, c.preferences.feedback.product),
-        filter: ["location"],
-        defaults: { location: c.preferences.feedback.location },
+        rows: choices,
+        contract: "feedback.ProductChoice",
+        filter: ["product", "location"],
+        defaults: {
+          product: c.preferences.feedback.product,
+          location: c.preferences.feedback.location,
+        },
         search: ["name"],
-        renderRow: (product, view) => [
-          text({ context: view, values: [product.name, product.location] }),
+        renderRow: (choice, view) => [
+          text({ context: view, values: [choice.name, choice.location] }),
           card({
             context: view,
             title: message("Urgent private issue", { nl: "Dringend privéprobleem" }),
@@ -549,7 +725,7 @@ export async function feedbackPage(c, bindings) {
               form({
                 context: view,
                 operation: "feedback.Suggestion.create",
-                arguments: { parent: product },
+                arguments: { parent: choice.product },
               }),
             ],
           }),
@@ -562,7 +738,7 @@ export async function feedbackPage(c, bindings) {
               form({
                 context: view,
                 operation: "feedback.published",
-                arguments: { product },
+                arguments: { product: choice.product },
                 renderResult: (result, resultView) => [
                   table({
                     context: resultView,
@@ -591,7 +767,7 @@ export async function feedbackPage(c, bindings) {
                     list({
                       context: view,
                       model: "feedback.Suggestion",
-                      parent: product,
+                      parent: choice.product,
                       where: (suggestion) => same(suggestion.author, view.actor),
                       filter: ["category", "status"],
                       defaults: {
@@ -624,7 +800,7 @@ export async function feedbackPage(c, bindings) {
               list({
                 context: view,
                 model: "feedback.Suggestion",
-                parent: product,
+                parent: choice.product,
                 filter: ["category", "status"],
                 defaults: {
                   category: c.preferences.feedback.category,
@@ -646,6 +822,27 @@ export async function feedbackPage(c, bindings) {
                     context: rowView,
                     operations: ["feedback.vote"],
                     boundArgs: { suggestion },
+                  }),
+                  details({
+                    context: rowView,
+                    caption: message("Operator decision history", {
+                      nl: "Geschiedenis exploitantbesluiten",
+                    }),
+                    children: [
+                      form({
+                        context: rowView,
+                        operation: "feedback.decision_history",
+                        arguments: { suggestion },
+                        renderResult: (result, resultView) => [
+                          table({
+                            context: resultView,
+                            rows: result.items,
+                            contract: "feedback.DecisionCard",
+                            columns: ["published_at", "status", "response"],
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
                   ...(hasRole(rowView, "authenticated")
                     ? [
@@ -681,6 +878,7 @@ export async function feedbackPage(c, bindings) {
 }
 
 export async function moderationPage(c, bindings) {
+  const choices = await product_choices(c);
   return renderPage(
     c,
     moderationPageDescriptor,
@@ -692,19 +890,25 @@ export async function moderationPage(c, bindings) {
       }),
       list({
         context: c,
-        model: "feedback.Product",
-        where: (product) => same(product.owner, c.actor) &&
-          (c.preferences.feedback.product === null || same(product, c.preferences.feedback.product)),
-        filter: ["location"],
-        defaults: { location: c.preferences.feedback.location },
+        rows: choices.filter((choice) => same(choice.product.owner, c.actor)),
+        contract: "feedback.ProductChoice",
+        filter: ["product", "location"],
+        defaults: {
+          product: c.preferences.feedback.product,
+          location: c.preferences.feedback.location,
+        },
         search: ["name"],
-        renderRow: (product, view) => [
-          text({ context: view, values: [product.name, product.location] }),
-          edit({ context: view, operation: "feedback.Product.update", record: product }),
+        renderRow: (choice, view) => [
+          text({ context: view, values: [choice.name, choice.location] }),
+          form({
+            context: view,
+            operation: "feedback.Product.update",
+            arguments: { record: choice.product },
+          }),
           list({
             context: view,
             model: "feedback.Suggestion",
-            parent: product,
+            parent: choice.product,
             filter: ["hidden", "status"],
             defaults: { status: c.preferences.feedback.status },
             display: "split",
@@ -737,6 +941,37 @@ export async function moderationPage(c, bindings) {
                 ],
               }),
               history({ context: rowView, record: suggestion }),
+              details({
+                context: rowView,
+                caption: message("Operator decisions and withdrawals", {
+                  nl: "Exploitantbesluiten en intrekkingen",
+                }),
+                children: [
+                  list({
+                    context: rowView,
+                    model: "feedback.Decision",
+                    parent: suggestion,
+                    order: ["created"],
+                    renderRow: (decision, decisionView) => [
+                      text({
+                        context: decisionView,
+                        values: [
+                          decision.status,
+                          decision.response,
+                          decision.published_at,
+                          decision.withdrawn,
+                          decision.withdrawal_reason,
+                        ],
+                      }),
+                      actions({
+                        context: decisionView,
+                        operations: ["feedback.withdraw_decision"],
+                        boundArgs: { decision },
+                      }),
+                    ],
+                  }),
+                ],
+              }),
             ],
           }),
         ],
@@ -795,6 +1030,15 @@ export function exampleFixtures({ self, other, imported }) {
       parent: s.suggestion,
       account: s.other,
       cast_at: subtractDuration(c.now, 60000n),
+    }),
+  };
+  const decision = {
+    model: "feedback.Decision",
+    dependencies: [suggestion],
+    value: async (c, s) => ({
+      parent: s.suggestion,
+      status: "planned",
+      response: "Two booths this quarter",
     }),
   };
   const recent = {
@@ -862,6 +1106,7 @@ export function exampleFixtures({ self, other, imported }) {
     root,
     own_vote,
     foreign_vote,
+    decision,
     recent,
     recent2,
     recent3,
@@ -890,6 +1135,8 @@ export function exampleFixtures({ self, other, imported }) {
           { operation: "feedback.published", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ product: s.journey_product }), bind: "visible_roadmap" },
           { observations: async (c, s, b) => [await count(b.visible_roadmap.items), (await first(b.visible_roadmap.items))?.category ?? null, (await first(b.visible_roadmap.items))?.status ?? null, (await first(b.visible_roadmap.items))?.response ?? null],
             expected: async (c, s, b) => [1n, "Amenity", "planned", "Two booths this quarter"], types: ["int", "text?", "feedback.Suggestion.status?", "text?"] },
+          { operation: "feedback.decision_history", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ suggestion: b.visible }), bind: "first_history" },
+          { observations: async (c, s, b) => [await count(b.first_history.items), (await first(b.first_history.items))?.response ?? null], expected: async (c, s, b) => [1n, "Two booths this quarter"], types: ["int", "text?"] },
           { operation: "feedback.vote", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ suggestion: b.visible }), bind: "cast_vote" },
           { operation: "feedback.unvote", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ vote: b.cast_vote }) },
           { let: "withdrawn", value: async (c, s, b) => await first(records(c, "feedback.Vote", { parent: b.visible, where: (item) => same(item.account, s.self) })) },
@@ -905,6 +1152,7 @@ export function exampleFixtures({ self, other, imported }) {
           { observations: async (c, s, b) => [b.edited.title, b.edited.hidden, b.edited.moderation_reason, b.edited.author], expected: async (c, s, b) => ["More phone booths", true, null, s.self], types: ["text", "bool", "text?", "user"] },
           { operation: "feedback.published", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ product: s.journey_product }), bind: "review_roadmap" },
           { observations: async (c, s, b) => [await count(b.review_roadmap.items)], expected: async (c, s, b) => [0n], types: ["int"] },
+          { operation: "feedback.decision_history", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ suggestion: b.edited }), error: "rule_failed" },
           { operation: "feedback.moderate", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ suggestion: b.edited, hidden: true, reason: "Private contact details" }) },
           { let: "blocked", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
           { observations: async (c, s, b) => [b.blocked !== null], expected: async (c, s, b) => [true], types: ["bool"] },
@@ -918,12 +1166,15 @@ export function exampleFixtures({ self, other, imported }) {
           { observations: async (c, s, b) => [b.approved !== null], expected: async (c, s, b) => [true], types: ["bool"] },
           { operation: "feedback.published", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ product: s.journey_product }), bind: "shipped_roadmap" },
           { observations: async (c, s, b) => [(await first(b.shipped_roadmap.items))?.status ?? null, (await first(b.shipped_roadmap.items))?.response ?? null, (await first(b.shipped_roadmap.items))?.votes ?? null], expected: async (c, s, b) => ["shipped", "Two booths installed", 0n], types: ["feedback.Suggestion.status?", "text?", "int?"] },
+          { operation: "feedback.decision_history", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ suggestion: b.approved }), bind: "shipped_history" },
+          { observations: async (c, s, b) => [await count(b.shipped_history.items)], expected: async (c, s, b) => [2n], types: ["int"] },
           { operation: "feedback.Suggestion.delete", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ record: b.approved }) },
           { let: "archived", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { archived: "include", where: (item) => item.id === b.submitted.id })) },
           { observations: async (c, s, b) => [b.archived !== null], expected: async (c, s, b) => [true], types: ["bool"] },
           { observations: async (c, s, b) => [b.archived.archived_at !== null, b.archived.author], expected: async (c, s, b) => [true, s.self], types: ["bool", "user"] },
           { operation: "feedback.published", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ product: s.journey_product }), bind: "archived_roadmap" },
           { observations: async (c, s, b) => [await count(b.archived_roadmap.items)], expected: async (c, s, b) => [0n], types: ["int"] },
+          { operation: "feedback.decision_history", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ suggestion: b.archived }), error: "rule_failed" },
         ],
       },
       {
@@ -1222,6 +1473,85 @@ export function exampleFixtures({ self, other, imported }) {
             values: async (c, s) => ["public", s.root, true],
             expected: async (c, s) => [null],
           },
+        ],
+      },
+      {
+        operation: "feedback.withdraw_decision",
+        dependencies: [decision],
+        inputs: async (c, s) => ({ decision: s.decision, reason: "Response needs correction" }),
+        selectors: ["as", "decision.parent.parent.owner", "reason", "decision.withdrawn"],
+        observations: [async (c, s) => s.decision.withdrawn],
+        rows: [
+          {
+            dependencies: [],
+            values: async (c, s) => ["members", s.self, "Response needs correction", false],
+            error: "forbidden",
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => [
+              "feedback.product_owner",
+              s.other,
+              "Response needs correction",
+              false,
+            ],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => ["feedback.product_owner", s.self, "", false],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => [
+              "feedback.product_owner",
+              s.self,
+              "Response needs correction",
+              true,
+            ],
+            error: "rule_failed",
+          },
+        ],
+      },
+      {
+        operation: "feedback.decision_history",
+        dependencies: [journey_product],
+        sequence: [
+          { operation: "feedback.Suggestion.create", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ parent: s.journey_product, title: "Quiet spaces", description: "More booths", category: "Amenity" }) },
+          { let: "submitted", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => same(item.author, s.self) })) },
+          { observations: async (c, s, b) => [b.submitted !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.roadmap", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ suggestion: b.submitted, status: "planned", response: "Private draft containing a phone number", duplicate: null }) },
+          { let: "drafted", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.drafted !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.roadmap", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ suggestion: b.drafted, status: "planned", response: "Two booths this quarter", duplicate: null }) },
+          { let: "ready", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.ready !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.decision_history", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ suggestion: b.ready }), error: "rule_failed" },
+          { operation: "feedback.moderate", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ suggestion: b.ready, hidden: false, reason: "Reviewed current text and response" }) },
+          { let: "visible", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.visible !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.decision_history", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ suggestion: b.visible }), bind: "released" },
+          { observations: async (c, s, b) => [await count(b.released.items), (await first(b.released.items))?.response ?? null], expected: async (c, s, b) => [1n, "Two booths this quarter"], types: ["int", "text?"] },
+          { operation: "feedback.roadmap", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ suggestion: b.visible, status: "shipped", response: "Two booths installed", duplicate: null }) },
+          { let: "shipped", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.shipped !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.decision_history", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ suggestion: b.shipped }), bind: "history_before" },
+          { observations: async (c, s, b) => [await count(b.history_before.items), await any(b.history_before.items, (item) => item.response === "Private draft containing a phone number")], expected: async (c, s, b) => [2n, false], types: ["int", "bool"] },
+          { observations: async (c, s, b) => [b.shipped.current_decision !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.withdraw_decision", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ decision: b.shipped.current_decision, reason: "Response needs correction" }) },
+          { let: "withdrawn", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.withdrawn !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { observations: async (c, s, b) => [b.withdrawn.hidden, b.withdrawn.status, b.withdrawn.response, b.withdrawn.current_decision], expected: async (c, s, b) => [true, "proposed", null, null], types: ["bool", "feedback.Suggestion.status", "text?", "feedback.Decision?"] },
+          { operation: "feedback.decision_history", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ suggestion: b.withdrawn }), error: "rule_failed" },
+          { operation: "feedback.roadmap", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ suggestion: b.withdrawn, status: "planned", response: "Installation postponed", duplicate: null }) },
+          { let: "corrected", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.corrected !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.moderate", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ suggestion: b.corrected, hidden: false, reason: "Reviewed replacement" }) },
+          { let: "republished", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.republished !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.decision_history", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ suggestion: b.republished }), bind: "history_after" },
+          { observations: async (c, s, b) => [await count(b.history_after.items), await any(b.history_after.items, (item) => item.response === "Two booths installed"), await any(b.history_after.items, (item) => item.response === "Installation postponed")], expected: async (c, s, b) => [2n, false, true], types: ["int", "bool", "bool"] },
         ],
       },
     ],
