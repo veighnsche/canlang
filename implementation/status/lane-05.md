@@ -383,8 +383,9 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
       v0.10.0 (FieldControlKind, FieldControlProps+timeZone, Label/Validator/per-control/Calendar/Filter
       props; control+labelCaption on FormFieldDef), controls.ts 14 factories, shared field-id helpers,
       14 catalog flips. Coordinator closed the timeZone gap (zoned datetime/agenda). Suite 483/483.
-- [ ] C4b form placement integration: form() honors field.control + labelCaption, duplicate-path throw,
-      multipart encoding for file fields (L6 ack), remainder/default preservation. One worker.
+- [x] C4b form placement integration (branch muse/lane-05-ui/c4b-placement, PR pending):
+      renderExplicitControl dispatch (12 kinds), assertUniqueFieldPaths, multipart for file fields,
+      renderField reuses label()/validator() fragments (byte-identical). Suite 504/504 green.
 - [ ] C5 groups + slots: accordion, collapse(=details), hero, footer, fieldset, join, stack, aura, mask,
       hover_3d, tooltip, alert, toast, diff, indicator, chat_bubble, dropdown, modal, drawer, swap, fab,
       stat suite, carousel, hover_gallery, steps, timeline. Two workers by file split.
