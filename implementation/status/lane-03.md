@@ -259,6 +259,8 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   commit-time TypeError); F7 flat-resolvedDefaults limitation documented;
   F8 memory normalizes parent to null + strict conformance pins; F9
   archived-update pipeline/admission split documented.
+  S5 merged (2c3610a, PR #41). S6 branch `muse/lane-03-state/ports-staging`
+  from 2c3610a.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
@@ -330,6 +332,17 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   Residual: interim policy tables -> L1 join; interim scalar codec (bigint
   money minors, rich comparisons) -> L2 join; owner authority unverified at
   engine (trust boundary documented; gating is admission's).
+- PR5 S5 mutation/history: branch `muse/lane-03-state/mutation-history`,
+  reviewed head `4adf383f8f86c55ad9a260d47832d78de592b31b`, merged as
+  `2c3610a` (https://github.com/veighnsche/canlang/pull/41, squash,
+  --match-head-commit). Checks: local typecheck + `npm test` 247/247; CI
+  `state` x2 / `tools` / `workspace` pass. Independent review
+  NEEDS-CHANGES (2 major + 7 minor: optional parent defaults, post-hook
+  checks, JSON probe, guards, parent-null unity) all fixed + regressed;
+  re-review APPROVE with no advisories.
+  Residual: interim descriptors/envelopes -> L1 join; rejected-replay field
+  fidelity gap; flat resolvedDefaults per batch; same-batch self-canceling
+  writes unsupported; bigint money codec -> L2.
 
 ## Remaining work and cleanup
 
