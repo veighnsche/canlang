@@ -20,6 +20,16 @@
  * lands, L7 records operator-visible failure in `UpgradeState` and the
  * stored `MigrationProgress` keeps its last successful phase, so resume
  * retries from the last committed cursor. Flagged for the coordinator.
+ *
+ * DEPLOYER PROTOCOL (loud): same-owner migrations run SERIALIZED by the
+ * deployer (L7), with admissions closed for the whole run (DESIGN §11.3).
+ * The engine holds no cross-migration lock: staging/progress rows are
+ * keyed by migration id (concurrent ids would interleave publish writes
+ * onto one layout), and only the shared revision fence plus the
+ * activation evidence gate (predecessor re-verified before any row moves;
+ * flip no-ops throw) stand between a mis-schedule and corruption. A
+ * concurrent same-owner migration therefore fails loud (busy or
+ * validation), never silently — but L7 must still never schedule one.
  */
 
 import type {
@@ -181,6 +191,19 @@ export async function resumeMigration(
       );
       const flip = await flipToInstalled(store, plan, now, disposition);
       const after = await store.readMigrationProgress(plan.migrationId);
+      if (after?.phase !== 'active') {
+        // Goal-state check (stronger than the flip flag): publish ran and
+        // the flip returned, but this migration is not active — the flip
+        // no-opped (foreign-installed target) or progress was tampered
+        // with. Returning a still-publishing result would livelock the
+        // next resume with silently unrecorded skips/outcomes: fail loud.
+        throw new StateError(
+          'validation',
+          `Migration flip committed nothing for ${JSON.stringify(plan.migrationId)}: ` +
+            `progress is ${JSON.stringify(after?.phase ?? 'missing')} ` +
+            `(another migration owns the installed target?).`,
+        );
+      }
       return { progress: after, flip };
     }
     case 'active':

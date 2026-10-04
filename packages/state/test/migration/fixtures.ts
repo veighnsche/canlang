@@ -219,6 +219,29 @@ export async function seedOutbox(
   return staged;
 }
 
+/**
+ * Install a snapshot pointer through the REAL fenced flip (seed id
+ * `mig-seed`, empty disposition): predecessor evidence for activation
+ * tests. Transitions apply onto installed snapshots, so every activation
+ * test installs its `from` first.
+ */
+export async function installSnapshot(
+  store: StoragePort,
+  snapshot: InstalledSnapshot,
+  migrationId = 'mig-seed',
+): Promise<void> {
+  const revision = await store.readRevision();
+  await store.flipInstalledSnapshot({
+    expectedRevision: revision,
+    migrationId,
+    owner: snapshot.owner,
+    snapshot,
+    renameFromOwner: null,
+    invalidatedIntentIds: [],
+    outcomes: [],
+  });
+}
+
 /** One inventoried work item (undispatched by default). */
 export function inventoryItem(
   intentId: string,

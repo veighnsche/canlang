@@ -247,6 +247,15 @@ export function validateTransition(
   if (fromDigest !== installed.digest) {
     throw new StateError('validation', 'Migration predecessor mismatch: fromDigest differs.');
   }
+  if (fromSnapshotId === toSnapshotId && fromDigest === toDigest) {
+    // A transition onto its own snapshot declares no change: fail fast
+    // here (never stage/validate/publish a no-op, and never reach the
+    // flip, where target-already-installed would read as foreign).
+    throw new StateError(
+      'validation',
+      `Migration transition from ${JSON.stringify(fromSnapshotId)} to itself changes nothing.`,
+    );
+  }
 
   const renameOwners = plan.directives.filter(
     (directive) => (directive as MigrationDirective).kind === 'renameOwner',

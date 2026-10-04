@@ -29,6 +29,8 @@ import {
   asModel,
   captureStateError,
   fixedClock,
+  installSnapshot,
+  makeInstalled,
   oldLocks,
   seedLive,
   setupMigrationWorld,
@@ -93,6 +95,7 @@ describe('resume observation', () => {
     const { store } = setupMigrationWorld();
     await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
     const plan = todoPlan();
+    await installSnapshot(store, makeInstalled());
     await stageAndValidate(store, plan);
     const { oldModels, desiredModels } = todoTables();
     const flip = await activate({
@@ -114,6 +117,7 @@ describe('resume observation', () => {
     const { store } = setupMigrationWorld();
     await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
     const plan = todoPlan();
+    await installSnapshot(store, makeInstalled());
     await stageAndValidate(store, plan);
     const { oldModels, desiredModels } = todoTables();
     await activate({
@@ -265,6 +269,7 @@ describe('resume publishing', () => {
       { id: 'c', data: { label: 'c', done: true } },
     ]);
     const plan = todoPlan();
+    await installSnapshot(store, makeInstalled());
     const { oldModels, desiredModels } = todoTables();
     const mappers = new Map<ModelName, MigrationMapper>([[asModel(TODO_MODEL), priorityMapper()]]);
     for (;;) {
@@ -320,5 +325,42 @@ describe('resume publishing', () => {
       assert.equal(history.length, 1);
       assert.equal(history[0]?.change, 'update');
     }
+  });
+
+  it('fails loud when a resumed flip commits nothing', async () => {
+    const { store } = setupMigrationWorld();
+    await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
+    const plan = todoPlan();
+    await installSnapshot(store, makeInstalled());
+    await stageAndValidate(store, plan);
+    // Force publishing (as an interrupted run would leave it).
+    const staged = await store.readMigrationProgress('mig-1');
+    const revision = await store.readRevision();
+    await store.stageMigrationRows({
+      expectedRevision: revision,
+      migrationId: 'mig-1',
+      rows: [],
+      progress: {
+        migrationId: 'mig-1',
+        phase: 'publishing',
+        stagedCursor: staged?.stagedCursor ?? null,
+        publishCursor: null,
+        updatedRevision: (revision as number + 1) as Revision,
+      },
+    });
+    // Fault injection around the REAL adapter: the flip reports a no-op
+    // (only out-of-band surgery reaches this past the evidence gate).
+    const lying: StoragePort = {
+      ...store,
+      async flipInstalledSnapshot() {
+        return { revision: await store.readRevision(), flipped: false };
+      },
+    };
+    const error = await captureStateError(() => resumeMigration(resumeBag(lying, plan, 1)));
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, /committed nothing/);
+    // Still publishing, skips/outcomes unrecorded: no silent success.
+    assert.equal((await store.readMigrationProgress('mig-1'))?.phase, 'publishing');
+    assert.deepEqual(await store.readMigrationOutcomes('mig-1'), []);
   });
 });

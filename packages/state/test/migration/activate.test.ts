@@ -30,6 +30,7 @@ import {
   desiredTodoDef,
   field,
   fixedClock,
+  installSnapshot,
   makeBatch,
   makeInstalled,
   makeRow,
@@ -148,6 +149,7 @@ describe('activation preconditions', () => {
     const { store } = setupMigrationWorld();
     await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
     const plan = todoPlan();
+    await installSnapshot(store, makeInstalled());
     const { oldModels, desiredModels } = todoTables();
     await stageAndValidate(store, plan, await todoMappers());
     const first = await activate({
@@ -331,6 +333,108 @@ describe('activation preconditions', () => {
     );
     assert.equal(error.code, 'validation');
   });
+
+  it('blocks activation when another migration installed our target', async () => {
+    const { store } = setupMigrationWorld();
+    await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
+    const plan = todoPlan();
+    // Deployer mis-schedule: another migration installs OUR target first.
+    await installSnapshot(store, makeInstalled({ snapshotId: 'snap-2', digest: 'digest-2' }), 'mig-other');
+    const { oldModels, desiredModels } = todoTables();
+    await stageAndValidate(store, plan, await todoMappers());
+    const error = await captureStateError(() =>
+      activate({ store, plan, inventory: [], oldModels, desiredModels, chunkSize: 10, clock: fixedClock() }),
+    );
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, /predecessor changed under us/);
+    // The evidence gate runs before any row moves: old shape and version.
+    const live = await store.load(asModel(TODO_MODEL), 'a' as StoredRow['id']);
+    assert.deepEqual(live?.data, { label: 'a', done: true });
+    assert.equal(live?.version as number, 1);
+    assert.equal((await store.readMigrationProgress('mig-1'))?.phase, 'staged');
+  });
+
+  it('blocks activation when the predecessor pointer vanishes', async () => {
+    const { store } = setupMigrationWorld();
+    await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
+    const plan = todoPlan();
+    await installSnapshot(store, makeInstalled());
+    const { oldModels, desiredModels } = todoTables();
+    await stageAndValidate(store, plan, await todoMappers());
+    // Out-of-band removal between validation and activation.
+    const revision = await store.readRevision();
+    const removed = await store.flipInstalledSnapshot({
+      expectedRevision: revision,
+      migrationId: 'mig-other',
+      owner: 'acme',
+      snapshot: null,
+      renameFromOwner: null,
+      invalidatedIntentIds: [],
+      outcomes: [],
+    });
+    assert.equal(removed.flipped, true);
+    const error = await captureStateError(() =>
+      activate({ store, plan, inventory: [], oldModels, desiredModels, chunkSize: 10, clock: fixedClock() }),
+    );
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, /missing predecessor evidence/);
+    assert.ok((await store.load(asModel(TODO_MODEL), 'a' as StoredRow['id'])) !== null);
+    assert.equal((await store.readMigrationProgress('mig-1'))?.phase, 'staged');
+  });
+
+  it('blocks an owner rename onto an installed owner name', async () => {
+    const { store } = setupMigrationWorld();
+    await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
+    const { oldModels, desiredModels } = todoTables();
+    const plan = validateTransition(
+      makeInstalled(),
+      makeTransition({
+        owner: 'acme2',
+        directives: [...todoDirectives(), { kind: 'renameOwner', from: 'acme' }],
+      }),
+      oldModels,
+      desiredModels,
+    );
+    await installSnapshot(store, makeInstalled());
+    await installSnapshot(
+      store,
+      makeInstalled({ owner: 'acme2', snapshotId: 'snap-9', digest: 'digest-9' }),
+      'mig-seed-2',
+    );
+    await stageAndValidate(store, plan, await todoMappers());
+    const error = await captureStateError(() =>
+      activate({ store, plan, inventory: [], oldModels, desiredModels, chunkSize: 10, clock: fixedClock() }),
+    );
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, /already installed/);
+    assert.equal((await store.readMigrationProgress('mig-1'))?.phase, 'staged');
+  });
+
+  it('fails loud when the flip commits nothing', async () => {
+    const { store } = setupMigrationWorld();
+    await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
+    const plan = todoPlan();
+    await installSnapshot(store, makeInstalled());
+    const { oldModels, desiredModels } = todoTables();
+    await stageAndValidate(store, plan, await todoMappers());
+    // Fault injection around the REAL adapter: the flip reports a no-op
+    // (only out-of-band surgery reaches this past the evidence gate).
+    const lying: StoragePort = {
+      ...store,
+      async flipInstalledSnapshot() {
+        return { revision: await store.readRevision(), flipped: false };
+      },
+    };
+    const error = await captureStateError(() =>
+      activate({ store: lying, plan, inventory: [], oldModels, desiredModels, chunkSize: 10, clock: fixedClock() }),
+    );
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, /committed nothing/);
+    // Publish ran (conversion applied), the flip refused: resume territory.
+    const live = await store.load(asModel(TODO_MODEL), 'a' as StoredRow['id']);
+    assert.equal(live?.version as number, 2);
+    assert.equal((await store.readMigrationProgress('mig-1'))?.phase, 'publishing');
+  });
 });
 
 describe('activation publish and flip', () => {
@@ -342,6 +446,7 @@ describe('activation publish and flip', () => {
       { id: 'c', data: { label: 'c', done: true } },
     ]);
     const plan = todoPlan();
+    await installSnapshot(store, makeInstalled());
     const { oldModels, desiredModels } = todoTables();
     await stageAndValidate(store, plan, await todoMappers());
     const flip = await activate({
@@ -376,6 +481,7 @@ describe('activation publish and flip', () => {
     const { store } = setupMigrationWorld();
     await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
     const plan = todoPlan();
+    await installSnapshot(store, makeInstalled());
     const { oldModels, desiredModels } = todoTables();
     await stageAndValidate(store, plan, await todoMappers());
     const flip = await activate({
@@ -401,6 +507,7 @@ describe('activation publish and flip', () => {
     const { store } = setupMigrationWorld();
     await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
     const plan = todoPlan();
+    await installSnapshot(store, makeInstalled());
     const { oldModels, desiredModels } = todoTables();
     await stageAndValidate(store, plan, await todoMappers());
     await activate({
@@ -435,6 +542,7 @@ describe('activation publish and flip', () => {
       oldModels,
       desiredModels,
     );
+    await installSnapshot(store, makeInstalled());
     for (;;) {
       const result = await stageNextChunk({
         store,
@@ -481,6 +589,7 @@ describe('activation publish and flip', () => {
       oldModels,
       desiredModels,
     );
+    await installSnapshot(store, makeInstalled());
     for (;;) {
       const result = await stageNextChunk({
         store,
@@ -552,6 +661,7 @@ describe('activation publish and flip', () => {
       oldModels,
       desiredModels,
     );
+    await installSnapshot(store, makeInstalled());
     for (;;) {
       const result = await stageNextChunk({
         store,
@@ -666,6 +776,7 @@ describe('activation publish and flip', () => {
       oldModels,
       desiredModels,
     );
+    await installSnapshot(store, makeInstalled());
     const mapper: MigrationMapper = (_before, row) => {
       row.set('slug', 'b');
     };
@@ -744,6 +855,7 @@ describe('activation publish and flip', () => {
       oldModels,
       desiredModels,
     );
+    await installSnapshot(store, makeInstalled());
     for (;;) {
       const result = await stageNextChunk({
         store,
@@ -777,6 +889,7 @@ describe('activation publish and flip', () => {
     const { store } = setupMigrationWorld();
     await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
     const plan = todoPlan();
+    await installSnapshot(store, makeInstalled());
     const { oldModels, desiredModels } = todoTables();
     await stageAndValidate(store, plan, await todoMappers());
     const flip = await activate({

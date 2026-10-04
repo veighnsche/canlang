@@ -19,6 +19,7 @@ import {
   asModel,
   captureStateError,
   fixedClock,
+  installSnapshot,
   inventoryItem,
   makeInstalled,
   makeTransition,
@@ -86,6 +87,7 @@ describe('invalidate disposition', () => {
     await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
     await seedOutbox(store, [{ intentId: 'i-1' }, { intentId: 'i-2' }]);
     const plan = invalidatePlan();
+    await installSnapshot(store, makeInstalled());
     await stageAndValidate(store, plan);
     const flip = await activateWith(store, plan, [
       inventoryItem('i-1', CONTRACT),
@@ -106,6 +108,7 @@ describe('invalidate disposition', () => {
     await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
     await seedOutbox(store, [{ intentId: 'i-1' }, { intentId: 'i-keep' }]);
     const plan = invalidatePlan();
+    await installSnapshot(store, makeInstalled());
     await stageAndValidate(store, plan);
     await activateWith(store, plan, [inventoryItem('i-1', CONTRACT)]);
     const pending = await store.outboxPending();
@@ -119,6 +122,7 @@ describe('invalidate disposition', () => {
     await seedLive(store, TODO_MODEL, [{ id: 'a', data: { label: 'a', done: true } }]);
     await seedOutbox(store, [{ intentId: 'i-1' }]);
     const plan = invalidatePlan();
+    await installSnapshot(store, makeInstalled());
     await stageAndValidate(store, plan);
     await activateWith(store, plan, [inventoryItem('i-1', CONTRACT), inventoryItem('i-1', CONTRACT)]);
     const outcomes = await store.readMigrationOutcomes('mig-1');

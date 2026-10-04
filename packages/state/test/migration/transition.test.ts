@@ -85,6 +85,20 @@ describe('transition predecessor', () => {
     assert.equal(error.code, 'validation');
     assert.match(error.message, /predecessor mismatch/);
   });
+
+  it('blocks a transition from a snapshot to itself', async () => {
+    const { oldModels, desiredModels } = tables();
+    const error = await captureStateError(() =>
+      validateTransition(
+        makeInstalled(),
+        makeTransition({ toSnapshotId: 'snap-1', toDigest: 'digest-1', directives: [] }),
+        oldModels,
+        desiredModels,
+      ),
+    );
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, /to itself changes nothing/);
+  });
 });
 
 describe('transition owner directives', () => {

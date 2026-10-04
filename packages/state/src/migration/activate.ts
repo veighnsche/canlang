@@ -126,7 +126,21 @@ export async function activate(input: ActivateInput): Promise<FlipResult> {
   }
   const actor = `migration:${plan.toSnapshotId}`;
   await publishStagedAndDrops(store, plan, oldModels, desiredModels, chunkSize, now, actor);
-  return flipToInstalled(store, plan, now, disposition);
+  const result = await flipToInstalled(store, plan, now, disposition);
+  if (!result.flipped) {
+    // The evidence gate proved installed == from (and from != target) up
+    // front, so a no-op flip means the pointer moved under us past the
+    // fence (no interleaved commit is possible without a busy) or a forged
+    // plan. Either way the skips/outcomes did NOT record and progress is
+    // NOT active: fail loud, never return a still-publishing state that
+    // resume would livelock on.
+    throw new StateError(
+      'validation',
+      `Migration flip committed nothing for ${JSON.stringify(plan.migrationId)} ` +
+        `(another migration owns the installed target?).`,
+    );
+  }
+  return result;
 }
 
 /** Fail closed when callers pass tables the plan was not validated against. */
@@ -168,6 +182,12 @@ function checkTableAgreement(
  * L7's job), unpinned undispatched items block (no disposition), and
  * pinned ids no longer pending in the outbox block (evidence changed
  * under us; missing evidence blocks).
+ *
+ * TRUST BOUNDARY (loud): the engine trusts the caller's (L4/L7)
+ * attestation that each item carries the stated handler contract —
+ * outbox rows carry no contract field in this slice, so the pinned check
+ * is attestation-vs-plan plus still-pending presence. L4 owes the
+ * contract→intent mapping at the join.
  */
 export async function checkActivationInventory(
   store: StoragePort,
@@ -257,6 +277,61 @@ export async function checkActivationInventory(
 }
 
 /**
+ * Activation evidence gate (shared by `activate` and `resumeMigration`,
+ * first thing before any row moves): intake proved the predecessor at
+ * validation time, but the pointer may have moved since (deployer
+ * mis-schedule, out-of-band surgery), so activation re-proves it here —
+ * DESIGN §11.1: missing or mismatched predecessor evidence blocks an
+ * upgrade. Same-owner migrations are deployer-serialized (see
+ * `index.ts`); this gate fails the violation loud instead of publishing
+ * onto a stranger's layout and stranding skips/outcomes on a no-op flip.
+ */
+async function checkActivationEvidence(store: StoragePort, plan: ValidatedMigrationPlan): Promise<void> {
+  const predecessorOwner = plan.ownerAction.kind === 'rename' ? plan.ownerAction.from : plan.owner;
+  const installed = await store.readInstalledSnapshot(predecessorOwner);
+  if (installed === null) {
+    throw new StateError(
+      'validation',
+      `Migration cannot run for owner ${JSON.stringify(plan.owner)}: ` +
+        `no installed snapshot pointer (missing predecessor evidence).`,
+    );
+  }
+  if (installed.snapshotId !== plan.fromSnapshotId || installed.digest !== plan.fromDigest) {
+    throw new StateError(
+      'validation',
+      `Migration predecessor changed under us: transition is from snapshot ` +
+        `${JSON.stringify(plan.fromSnapshotId)} but installed is ` +
+        `${JSON.stringify(installed.snapshotId)}.`,
+    );
+  }
+  if (plan.ownerAction.kind === 'drop') {
+    return;
+  }
+  if (plan.ownerAction.kind === 'rename') {
+    // The new owner name must be fresh: an installed pointer there is a
+    // name collision (merges are rejected, DESIGN §11.1).
+    if ((await store.readInstalledSnapshot(plan.owner)) !== null) {
+      throw new StateError(
+        'validation',
+        `Migration cannot rename owner ${JSON.stringify(predecessorOwner)} to ` +
+          `${JSON.stringify(plan.owner)}: target owner already installed.`,
+      );
+    }
+    return;
+  }
+  // Retain: the predecessor check above proves installed == from, and
+  // intake rejects from==target no-ops — so installed == target here
+  // means a forged plan or a foreign install, never a legitimate state.
+  if (installed.snapshotId === plan.toSnapshotId && installed.digest === plan.toDigest) {
+    throw new StateError(
+      'validation',
+      `Migration target ${JSON.stringify(plan.toSnapshotId)} already installed ` +
+        `(another migration owns this target?).`,
+    );
+  }
+}
+
+/**
  * Publish loop (shared by `activate` and `resumeMigration`): bounded
  * staged reads after the publish cursor plus bounded drop enumeration per
  * chunk until both exhaust. Drop enumeration is state-derived (disposed
@@ -272,19 +347,7 @@ export async function publishStagedAndDrops(
   now: number,
   actor: string,
 ): Promise<void> {
-  if (plan.ownerAction.kind === 'drop') {
-    // Fail fast BEFORE disposing anything: a removal flip against an
-    // absent pointer would no-op success while silently dropping its
-    // skips/outcomes, so missing stored evidence blocks up front (the
-    // flip re-checks against concurrent removal; see flipToInstalled).
-    if ((await store.readInstalledSnapshot(plan.owner)) === null) {
-      throw new StateError(
-        'validation',
-        `Migration cannot remove owner ${JSON.stringify(plan.owner)}: ` +
-          `no installed snapshot pointer (missing predecessor evidence).`,
-      );
-    }
-  }
+  await checkActivationEvidence(store, plan);
   for (;;) {
     const progress = await store.readMigrationProgress(plan.migrationId);
     if (progress === null) {
@@ -585,8 +648,12 @@ async function enumerateDrops(
  * Final fenced flip (shared by `activate` and `resumeMigration`):
  * install the new snapshot pointer (removing the renamed-away owner
  * pointer when present), mark invalidated intents skipped, record
- * outcomes, mark progress active. Idempotent: an already-installed target
- * returns the current revision with `flipped: false`.
+ * outcomes, mark progress active. Adapter-idempotent: an
+ * already-installed target (or an already-absent pointer for a removal)
+ * returns the current revision with `flipped: false` and commits nothing.
+ * Both orchestrators treat that no-op as an anomaly and throw (see
+ * `activate`): a legitimate flip always takes effect, because the
+ * evidence gate proved installed == from (and from != target) up front.
  */
 export async function flipToInstalled(
   store: StoragePort,
