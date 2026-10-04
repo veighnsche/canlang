@@ -23,7 +23,7 @@ import type { DeliveryStatus } from "./services.js";
 export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
 export type { DeliveryStatus } from "./services.js";
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.5.0";
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.6.0";
 
 /**
  * Name of the hidden CSRF field in every canonical POST form. Rendered by
@@ -320,6 +320,24 @@ export type RenderPageFn = (
   children: PageChildren,
   shell?: ShellData,
 ) => Promise<string>;
+
+/**
+ * Canonical login screen props. The form POSTs to the lane-6 signIn route
+ * with CSRF; lane 05 renders only and never implements an account flow.
+ * `next` is a same-app relative path preserved across sign-in; anything
+ * else fails closed to the app root.
+ */
+export interface LoginProps {
+  readonly context: PresentationContext;
+  /** Dispatcher-supplied signIn POST target; lane 05 never invents URLs. */
+  readonly action: string;
+  readonly brand: MessageValue;
+  /** Safe L6-supplied failure text; absent renders no error. */
+  readonly error?: MessageValue;
+  readonly next?: string;
+  /** Caller-unique prefix for input ids (deterministic for tests). */
+  readonly idPrefix: string;
+}
 
 /**
  * One projected row for list/table rendering. Fields hold the authorized
