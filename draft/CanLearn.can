@@ -4,7 +4,7 @@ app CanLearn uses=[learn]
 # Publish immutable text-course versions and record each learner's own acknowledgments. @{nl="Publiceer onveranderlijke tekstcursusversies en registreer de eigen bevestigingen van iedere deelnemer."}
 package learn label="Learning"@{nl="Opleidingen"}
  use rent_catalog {Location,test_site}
- use employee {can_work,staff as is_staff,test_worker}
+ use employee {Employee,can_work,staff as is_staff,test_worker}
  use member_terms {Term,eligible_term,paid_term,allocated}
  use customer {test_contact,test_admin}
  Given
@@ -14,7 +14,7 @@ package learn label="Learning"@{nl="Opleidingen"}
   message label_DraftLesson_content = "Lesson content"@{nl="Lesinhoud"}
   message label_DraftLesson_position = "Position"@{nl="Volgorde"}
   message label_Enrollment_account = "Account"@{nl="Account"}
-  preferences { view:enum(all,required,optional,overdue)=all label={text="Course view"@{nl="Cursusweergave"},values={all="All courses"@{nl="Alle cursussen"},required="Required courses"@{nl="Verplichte cursussen"},optional="Optional courses"@{nl="Optionele cursussen"},overdue="Overdue courses"@{nl="Achterstallige cursussen"}}} }
+  preferences { view:enum(all,required,optional,overdue)=all label={text="Course view"@{nl="Cursusweergave"},values={all="All courses"@{nl="Alle cursussen"},required="Required courses"@{nl="Verplichte cursussen"},optional="Optional courses"@{nl="Optionele cursussen"},overdue="Overdue courses"@{nl="Achterstallige cursussen"}}}, location:Location?, audience:Course.audience?, order:enum(due,title)=due label={text="Course order"@{nl="Cursusvolgorde"},values={due="Due date"@{nl="Vervaldatum"},title="Course title"@{nl="Cursustitel"}}} }
   role instructor label="Instructor"@{nl="Docent"}
   Course { title:text, audience:enum(staff,member) label={text="Audience"@{nl="Doelgroep"},values={staff="Staff"@{nl="Personeel"},member="Member"@{nl="Lid"}}}, locations:Location[]! min=1 label=label_Course_locations, required:bool=false label=label_Course_required, revision:int=0 } label="Course"@{nl="Cursus"}
   DraftLesson in Course { title:text, content:text label=label_DraftLesson_content, position:int min=1 label=label_DraftLesson_position } label="Draft lesson"@{nl="Conceptles"}
@@ -45,6 +45,10 @@ package learn label="Learning"@{nl="Opleidingen"}
   lock Version fields=number,audience,required,title,locations
   lock Lesson fields=title,content,position
   lock Completion fields=lesson,author,completed
+  fixture course_instructor=user {roles=[instructor]}
+  fixture course_learner=user {}
+  fixture instructor_employee=Employee {user=course_instructor,home=test_site,locations=[test_site],start=date("2020-01-01"),role="Instructor"}
+  fixture learner_employee=Employee {user=course_learner,home=test_site,locations=[test_site],start=date("2020-01-01"),role="Learner"}
   fixture course=Course {title="Opening",audience=staff,locations=[test_site]}
   fixture published=Version {parent=course,number=1,audience=staff,required=true,title="Opening",locations=[test_site]}
   fixture lesson=Lesson {parent=published,title="Unlock",content="Follow procedure",position=1}
@@ -62,6 +66,46 @@ package learn label="Learning"@{nl="Opleidingen"}
     for draft in course.DraftLesson as lesson order=lesson.position limit=100
      create Lesson {parent=version,title=draft.title,content=draft.content,position=draft.position} as lesson
     set course {revision=number}
+   examples seed=[instructor_employee,learner_employee]
+    do
+     call Course.create {title="Opening procedure",audience=staff,locations=[test_site],required=true} by=course_instructor
+     let authored=first(Course as row where row.title=="Opening procedure" order=row.id)
+     authored!=null -> true
+     call DraftLesson.create {parent=authored,title="Unlock",content="Original procedure",position=1} by=course_instructor
+     let first_draft=first(authored.DraftLesson as row order=row.position)
+     first_draft!=null -> true
+     call publish {course=authored} by=course_instructor
+     let first_version=first(Version as row where row.parent==authored and row.number==1 order=row.id)
+     first_version!=null -> true
+     call enroll {version=first_version,account=course_learner,due=null} by=course_instructor
+     let first_enrollment=first(first_version.Enrollment as row where row.account==course_learner order=row.id)
+     first_enrollment!=null -> true
+     let first_lesson=first(first_version.Lesson as row order=row.position)
+     first_lesson!=null -> true
+     call complete {enrollment=first_enrollment,lesson=first_lesson} by=course_instructor -> error(rule_failed)
+     call complete {enrollment=first_enrollment,lesson=first_lesson} by=course_learner
+     call complete {enrollment=first_enrollment,lesson=first_lesson} by=course_learner
+     call DraftLesson.update {record=first_draft,changes={content="Revised procedure"}} by=course_instructor
+     let revised_course=first(Course as row where row.id==authored.id order=row.id)
+     revised_course!=null -> true
+     call publish {course=revised_course} by=course_instructor
+     let second_version=first(Version as row where row.parent==revised_course and row.number==2 order=row.id)
+     second_version!=null -> true
+     call enroll {version=second_version,account=course_learner,due=null} by=course_instructor
+     let second_enrollment=first(second_version.Enrollment as row where row.account==course_learner order=row.id)
+     second_enrollment!=null -> true
+     let original=first(first_version.Lesson as row order=row.position)
+     original!=null -> true
+     let replacement=first(second_version.Lesson as row order=row.position)
+     replacement!=null -> true
+     first_enrollment.total,count(first_enrollment.Completion),original.content,second_enrollment.total,count(second_enrollment.Completion),replacement.content -> 1,1,"Original procedure",1,0,"Revised procedure"
+     call complete {enrollment=first_enrollment,lesson=replacement} by=course_learner -> error(rule_failed)
+     call withdraw {enrollment=first_enrollment} by=course_instructor
+     let withdrawn=first(Enrollment as row where row.id==first_enrollment.id order=row.id)
+     withdrawn!=null -> true
+     call complete {enrollment=withdrawn,lesson=first_lesson} by=course_learner -> error(rule_failed)
+     call progress {enrollment=withdrawn} by=course_learner as retained
+     retained.active,retained.total,retained.completed,retained.percentage -> false,1,1,100
   # Enroll an explicit authorized audience in one published version. @{nl="Schrijf een expliciete geautoriseerde doelgroep in voor één gepubliceerde versie."}
   scenario enroll(version:Version,account:user label=label_Enrollment_account,due:date?) by=instructor label="Enroll learner"@{nl="Deelnemer inschrijven"}
    require all(version.locations as location,can_work(actor,location))
@@ -103,12 +147,16 @@ package learn label="Learning"@{nl="Opleidingen"}
    require authenticated
    card "Own enrolled versions"@{nl="Eigen ingeschreven versies"}
     tabs preferences.view
-    list Enrollment as enrollment where enrollment.account==actor and (preferences.view==all or (preferences.view==required and enrollment.parent.required) or (preferences.view==optional and not enrollment.parent.required) or (preferences.view==overdue and enrollment.due!=null and enrollment.due<local_date(now,team.timezone))) display=split
+    list Enrollment as enrollment where enrollment.account==actor and (preferences.view==all or (preferences.view==required and enrollment.parent.required) or (preferences.view==optional and not enrollment.parent.required) or (preferences.view==overdue and enrollment.due!=null and enrollment.due<local_date(now,team.timezone) and enrollment.active and enrollment.progress<100)) and (preferences.location==null or preferences.location in enrollment.parent.locations) and (preferences.audience==null or enrollment.parent.audience==preferences.audience) order={by=preferences.order,default=[due,parent.title],cases={title=[parent.title,due]}} display=split
      text row.parent.title,row.parent.required,row.due,row.active
      metrics row.progress,row.total
-     list row.parent.Lesson order=position
+     card "Lesson access unavailable; your acknowledgments remain in history."@{nl="Lesinhoud niet beschikbaar; je bevestigingen blijven in de historiek."}
+      require not row.active or not actor.email_verified or not eligible(actor,row.parent)
+      table row.Completion columns=author,completed order=completed
+     list row.parent.Lesson order=position display=split
       title row.title
       content row.content
+      text any(enrollment.Completion as acknowledgment,acknowledgment.lesson==row)
       form complete arguments={enrollment=enrollment,lesson=row}
 
   # Author and publish course versions and inspect attributed completion. @{nl="Maak en publiceer cursusversies en bekijk herleidbare afronding."}
@@ -116,7 +164,7 @@ package learn label="Learning"@{nl="Opleidingen"}
    require instructor
    card page_learning_courses_title
     form Course.create
-    list Course filter=audience,required search=title display=split
+    list Course as course where preferences.location==null or preferences.location in course.locations filter=audience,required defaults={audience=preferences.audience} search=title display=split
      edit
      tabs
       tab "Ordered draft lessons"@{nl="Geordende conceptlessen"}

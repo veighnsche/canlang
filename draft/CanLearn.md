@@ -8,7 +8,7 @@ Help workspace operators deliver text-based staff induction, safety procedures, 
 
 ## Users and Permissions
 
-Instructors manage course content and enrollments. Authenticated learners see only published course versions they are actively enrolled in and record only their own completions. Team membership is not a substitute for learner access.
+Instructors manage course content and enrollments. Authenticated learners read lesson content only in their active, currently eligible published enrollment and record only their own completions. Withdrawn learners retain their own version metadata and completion evidence. Team membership is not a substitute for learner access.
 
 ## Data and Ownership
 
@@ -74,3 +74,11 @@ Enrollment freezes its lesson total. Withdrawn learners can still read their own
 The exported canonical `progress(enrollment)` read returns only the exact authorized enrollment/version and its counts. Consumers bind that typed operation under the learner's or instructor's existing authority; it grants no unrestricted HR access or writable completion flag. The instructor's selected-version enrollment/completion tables use the standard permission-scoped CSV export. No enrollment email was added: the requirements explicitly specify no background actions for this version. The old backlog item requesting enrollment notices was not an app requirement.
 
 Inline examples distinguish staff and member enrollment, unpaid member rejection, withdrawal and duplicate acknowledgment. These remain authored expectations rather than executed tests.
+
+### October 4 draft correspondence correction
+
+Personal configuration now declares permitted location/audience choices and due/title list ordering, using the shared preference-order contract rather than duplicate list variants. The own-enrollment query applies those choices; instructor authoring uses the same saved audience/location. Overdue means an active, incomplete enrollment past its due date, not a completed or withdrawn history row. The inaccessible-content card explains withdrawal/current eligibility loss while retaining attributed acknowledgments; sorted split lesson selection and Boolean acknowledgment display reuse canonical components. No frontend business state or extra page shell is added.
+
+A named instructor and learner with real current Employee grants author one course/lesson, publish, enroll, reject instructor acknowledgment, acknowledge twice without duplication, edit the draft, publish/enroll a new version, reject a cross-version lesson, withdraw and read the exact retained original progress. This one attached 14-call journey establishes authored causal expectations for unchanged old content/denominator and preserved completion; it remains unexecuted. Existing staff/member, unpaid-term and isolated withdrawal examples remain. Live publication/enrollment requires lessons; the zero-denominator rule is defensive for retained/imported historical snapshots, not permission to publish an empty live course.
+
+The syntax prototype does not implement attached sequences or preference ordering. A temporary projection excludes the sequence and reduces only the preference order object to its default selector list to check surrounding declarations/legacy tables. No matching MJS target exists for this app; none is added solely for symmetry. These checks do not execute learning, verify rendered accessibility or certify every runtime acceptance case.
