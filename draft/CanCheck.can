@@ -165,15 +165,27 @@ package check
   # Read configured checks and perform only authorized pause and resume. @{nl="Lees geconfigureerde controles en voer uitsluitend toegestane pauze- en hervatacties uit."}
   page /job-health title="Job health"@{nl="Taakgezondheid"}
    require operations
-   table Check columns=name,application,location,owner,state,enabled,last_ping,due,period,grace order=name search=name filter=application,location,state defaults={application=preferences.application,location=preferences.location} display=split
+   breadcrumbs
+   table Check columns=name,application,location,owner,state,enabled,last_ping,due,period,grace order=name search=name filter=application,location,state defaults={application=preferences.application,location=preferences.location} display=split empty="No checks found"@{nl="Geen controles gevonden"}
     card "Current recorded health"@{nl="Huidige vastgelegde gezondheid"}
      badge row.state
-     text row.purpose,row.state,row.enabled,row.last_ping,row.due,row.armed,row.revision
-     card "No heartbeat received yet"@{nl="Nog geen heartbeat ontvangen"}
+     text row.purpose,row.application,row.location,row.owner
+     text row.enabled,row.armed,row.revision
+     text row.last_ping,row.due
+     stat row.period,row.grace
+     alert
       require row.last_ping==null
-     metrics row.period,row.grace
+      text "No heartbeat received yet. The first missed deadline marks this check down."@{nl="Nog geen heartbeat ontvangen. De eerste gemiste deadline markeert deze controle als uitgevallen."}
      actions pause,resume
-    details "Transition and recovery history"@{nl="Overgangs- en herstelhistorie"}
-     table row.Transition columns=from,to,occurred order=-occurred
-     table row.Notice columns=kind,outcome,detail,occurred order=-occurred
-     history
+    divider "Recorded history"@{nl="Vastgelegde historiek"}
+    tabs
+     tab "Transitions"@{nl="Overgangen"}
+      timeline row.Transition
+       slot item
+        text row.from,row.to,row.occurred
+     tab "Notifications"@{nl="Meldingen"}
+      table row.Notice columns=kind,outcome,detail,occurred order=-occurred empty="No notifications yet"@{nl="Nog geen meldingen"}
+       status row.outcome
+       pagination
+    history
+    pagination
