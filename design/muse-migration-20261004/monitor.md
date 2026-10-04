@@ -11,7 +11,7 @@ Codex-owned authoritative runtime record. Muse reads but does not edit this file
 - Owned temporary resources: /private/tmp/canlang-muse-20261004-01a10349, its tmux.sock, prompt.txt, launch.zsh, wait-for-inbox.py, inbox-seen.sha256 and bounded startup captures. No transcript dump or checkout copy.
 - Cleanup owner: Codex in this chat, after all writers/processes release; preserve attached user viewing and record pending cleanup.
 - Chat: 01a10349-602f-7c02-8a23-98b8b40bb4ac
-- Run: HANDOFF READY, reverified at the 2026-10-04 16:56 UTC Git wake: same live PID/start identity, idle completed TUI, one attached viewer. C01/C02 independent acceptance remains pending.
+- Run: HANDOFF READY, reverified at the 2026-10-04 17:46 UTC Git wake: same live PID/start identity, completed TUI, one attached viewer. C01/C02 independent acceptance remains pending.
 - Intended mode: interactive TUI; muse-spark-1.3-contributor, MAX, scoped --yolo, --worktree off.
 - Socket: /private/tmp/canlang-muse-20261004-01a10349/tmux.sock
 - tmux session: canlang-muse
@@ -20,13 +20,13 @@ Codex-owned authoritative runtime record. Muse reads but does not edit this file
 - Read-only view: /opt/homebrew/bin/tmux -S /private/tmp/canlang-muse-20261004-01a10349/tmux.sock attach-session -r -t '=canlang-muse'
 - Detach: Ctrl-b then d. Attached clients: 1 (/dev/ttys000) at the 15:54 UTC wake; preserve the viewing session.
 - Heartbeat: canlang-muse-and-astra-migration; automation_update confirmed ACTIVE, same chat, every 15 minutes, default notifications with prompt limiting updates to meaningful changes/completion/failure/required input.
-- Latest observation: H013 publication was verified after the prior sync (a14cb32, matching local/actual origin and clean checkout). Existing coordinator is idle; final writer-release evidence remains intact. H014 acknowledgment and Git/checkout release are verified; zero active writers or reservations. Normal merge completed without conflicts.
+- Latest observation: H015 publication was verified; H016 now explicitly releases Git/index/checkout ownership with zero active writers/reservations. Existing coordinator holds mutations until H017. A peer session asked about roles; no role change is established by this sync.
 - Notification limitation: external session-message ingress remains unavailable. H002/H005 are acknowledged; current pane evidences five-minute native-goal inbox rereads, not a running filesystem watcher. The H011 file is published, but this inspection does not prove live intake.
-- Next action: verify H014 release, integrate new origin commits normally and return ownership through H015 publication. Preserve separate worktrees and the pending C01/C02 review.
+- Next action: integrate released local editor and origin commits normally, verify focused checks and return ownership through H017 publication. Preserve other worktrees and pending C01/C02 review.
 - Design ownership: Codex owns independent C01/C02 acceptance. Muse applied A02–A06/N10 after a separately recorded user override authorizing design plus application. Those changes are released and committed, but independent acceptance remains pending. No rejected JEV retry or new shared language rules are authorized by this Git handoff.
 
 - Latest verified task state: M00–M02, D01–D10, J01–J06, A01–A06 and N10 evidenced by Muse; N01–N09 completed externally. Zero active writers/reservations. C01/C02 remain pending with explicit runtime/projection limits.
-- Recorded at: 2026-10-04T16:57:19.423575+00:00
+- Recorded at: 2026-10-04T17:48:13.565947+00:00
 
 C3 intake note: the dependency worker found an earlier rejected detailed-project JEV export in design/jev/optional-dependency-closure-20261004/3.rejection.md. No new external call was made. Root confirmed no later exact-payload approval is available; the worker will trace and specify already accepted behavior, keeping any genuinely new blocked shared-contract choice explicit. This is an inherited constraint, not a new failed consultation or a reason to stop unrelated draft work.
 

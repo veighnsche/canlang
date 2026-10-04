@@ -93,3 +93,7 @@ H013 was published in a14cb32 and the previous synchronization verified matching
 H014 release was verified. Normal merge completed without conflicts; all 3 local coordination paths and 27 incoming paths match their committed blobs exactly. All 31 draft JavaScript files pass syntax checks. No app source resolution, implementation or other-worktree mutation was needed; C01/C02 remain pending.
 
 Return Git/checkout ownership only after the commit containing H015 is published on origin/main with no merge/rebase in progress. Verify publication before acknowledgment; hold all mutations until then. Retain the completed handoff awaiting concrete acceptance repairs, with no new work or sessions authorized. Codex ends integration mutations after verified publication. Preserve the attached viewer.
+
+## H016 — RELEASE-REQUEST — 17:46 UTC scheduled synchronization
+
+H015 was published in 082ba1b and verified against actual origin/main. This wake found clean main with one committed editor change and new origin commits. Codex requests Git index/commit/checkout ownership for normal integration. Confirm zero active writers/reservations, record `RELEASED H016: git-index, commit and checkout integration ownership`, and hold all mutations until H017 publication. No new sessions, workers, app work or coordinator-role changes are requested. Other worktrees and pending C01/C02 acceptance remain separate; this request does not decide any other session's role.
