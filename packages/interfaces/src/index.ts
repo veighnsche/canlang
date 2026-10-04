@@ -19,3 +19,7 @@ export * from './http/operations.js';
 export * from './http/fragments.js';
 export * from './http/limits.js';
 export * from './http/auth.js';
+export * from './mcp/schemas.js';
+export * from './mcp/tools.js';
+export * from './mcp/discovery.js';
+export * from './mcp/server.js';

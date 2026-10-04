@@ -116,3 +116,92 @@ export interface HttpDeps {
   /** Secure cookie flag; false only for local http:// development. */
   readonly secureCookies: boolean;
 }
+
+/* ------------------------------------------------------------------ */
+/* S5 MCP server ports.                                                */
+/*                                                                     */
+/* Production bindings: OperationRegistry reads the owning L1          */
+/* operation registry (join J3) with author descriptions and typed     */
+/* input fields; McpPermissions rechecks L3 grants per call (join J2); */
+/* McpFilesInfo reports L1/L7 file-upload support. Tests use the       */
+/* doubles in testing.ts.                                              */
+/* ------------------------------------------------------------------ */
+
+/** Typed input field for generated MCP tool schemas (closed objects). */
+export type McpSchemaField =
+  | { readonly kind: 'ref'; readonly model: string; readonly requireVersion: boolean }
+  | { readonly kind: 'string' }
+  | { readonly kind: 'integer' }
+  | { readonly kind: 'decimal' }
+  | { readonly kind: 'money' }
+  | { readonly kind: 'datetime' }
+  | { readonly kind: 'boolean' }
+  | { readonly kind: 'file' }
+  | { readonly kind: 'enum'; readonly values: readonly string[] };
+
+export interface McpNamedField {
+  readonly name: string;
+  readonly field: McpSchemaField;
+  readonly required: boolean;
+}
+
+/** Typed input schema for one operation; rendered closed. */
+export interface McpInputSchema {
+  readonly fields: readonly McpNamedField[];
+}
+
+export type McpOperationKind =
+  | 'read'
+  | 'list'
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'scenario'
+  | 'team';
+
+/**
+ * One generated tool source: canonical operation name, authored `#`
+ * description, kind, and typed inputs. Descriptions are derived once here;
+ * both transports share the same registry.
+ */
+export interface OperationDescriptor {
+  /** Canonical name: `package.Model.read`, `package.scenario`, `system.team.*`. */
+  readonly name: string;
+  readonly kind: McpOperationKind;
+  /** Authored `#` description text, verbatim. */
+  readonly description: string;
+  readonly inputs: McpInputSchema;
+}
+
+/** Owning-operation registry the MCP tool list is generated from. */
+export interface OperationRegistry {
+  list(app: AppInfo): readonly OperationDescriptor[];
+}
+
+/**
+ * Per-call permission rechecks against current identity/grants. Discovery
+ * filters the tool list; invocation rechecks before every call.
+ */
+export interface McpPermissions {
+  canDiscover(identity: ResolvedIdentity, operation: string): boolean | Promise<boolean>;
+  canCall(identity: ResolvedIdentity, operation: string): boolean | Promise<boolean>;
+}
+
+/** File-upload support facts for the `_meta` capability advertisement. */
+export interface McpFilesInfo {
+  usesFiles(app: AppInfo): boolean;
+  intentsUrl(app: AppInfo): string;
+}
+
+/** Assembled MCP dependencies. The L7 worker assembly constructs these. */
+export interface McpDeps {
+  readonly app: AppInfo;
+  readonly registry: OperationRegistry;
+  readonly permissions: McpPermissions;
+  readonly invoker: OperationInvoker;
+  readonly catalog: SchemaCatalog;
+  readonly files: McpFilesInfo;
+  readonly identity: IdentityDeps;
+  readonly logger: Logger;
+  readonly clock: InterfacesClock;
+}
