@@ -194,68 +194,68 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: Agreed behavior, permissions and exact source/JS expectations match; focused checks; no unstated policy or invented dependency.
   - Evidence: pending.
 
-- [ ] **N01 — Complete Chat draft from its design handoff**
+- [x] **N01 — Complete Chat draft from its design handoff**
   - Prerequisites: BLOCKED DESIGN: READY inbox message with complete Chat requirements/contract/source-JS witness
-  - Owner / files / interfaces: Codex/Astra (transferred per H007; was Muse implementation agent); draft/CanChat.md, draft/CanChat.can, draft/CanChat.mjs
+  - Owner / files / interfaces: Codex/Astra (H007 transfer, H009 externally completed); draft/CanChat.md, draft/CanChat.can, draft/CanChat.mjs
   - Changes / traceability: Q1–Q3; expand settled design into a complete company workflow draft with UI, permissions, translations and meaningful success/failure/recovery examples. design/AI-AND-SERVICE-DRAFTS.md is background only, not sufficient implementation input.
   - Acceptance: Complete scoped journey and consistent proposed JS imports; no compiler/library/infrastructure implementation. New contracts must be explicitly released before use.
-  - Evidence: TRANSFERRED H007 — unfinished, now owned by Codex/Astra per user assignment. Never dispatched from Muse; no READY received here.
+  - Evidence: COMPLETED EXTERNALLY (H009): Codex finished + independently reviewed the CanChat triplet; milestones b3c78fc/706c70a/3d41233/13071ec/372def7/82260cf; acceptance in design/COMPLEX-APPS.md + design/complex-apps/completion-verification.json. Not Muse work; never dispatched here.
 
-- [ ] **N02 — Complete Creative draft from its design handoff**
+- [x] **N02 — Complete Creative draft from its design handoff**
   - Prerequisites: BLOCKED DESIGN: READY inbox message with complete Creative requirements/contract/source-JS witness
-  - Owner / files / interfaces: Codex/Astra (transferred per H007; was Muse implementation agent); draft/CanCreative.md, draft/CanCreative.can, draft/CanCreative.mjs
+  - Owner / files / interfaces: Codex/Astra (H007 transfer, H009 externally completed); draft/CanCreative.md, draft/CanCreative.can, draft/CanCreative.mjs
   - Changes / traceability: Q1–Q3; expand settled design into a complete company workflow draft with UI, permissions, translations and meaningful success/failure/recovery examples. design/AI-AND-SERVICE-DRAFTS.md is background only, not sufficient implementation input.
   - Acceptance: Complete scoped journey and consistent proposed JS imports; no compiler/library/infrastructure implementation. New contracts must be explicitly released before use.
-  - Evidence: TRANSFERRED H007 — unfinished, now owned by Codex/Astra per user assignment. Never dispatched from Muse; no READY received here.
+  - Evidence: COMPLETED EXTERNALLY (H009): Codex finished + independently reviewed the CanCreative triplet; milestones b3c78fc/706c70a/3d41233/13071ec/372def7/82260cf; acceptance in design/COMPLEX-APPS.md + design/complex-apps/completion-verification.json. Not Muse work; never dispatched here.
 
-- [ ] **N03 — Complete Gallery draft from its design handoff**
+- [x] **N03 — Complete Gallery draft from its design handoff**
   - Prerequisites: BLOCKED DESIGN: READY inbox message with complete Gallery requirements/contract/source-JS witness
-  - Owner / files / interfaces: Codex/Astra (transferred per H007; was Muse implementation agent); draft/CanGallery.md, draft/CanGallery.can, draft/CanGallery.mjs
+  - Owner / files / interfaces: Codex/Astra (H007 transfer, H009 externally completed); draft/CanGallery.md, draft/CanGallery.can, draft/CanGallery.mjs
   - Changes / traceability: Q1–Q3; expand settled design into a complete company workflow draft with UI, permissions, translations and meaningful success/failure/recovery examples. design/AI-AND-SERVICE-DRAFTS.md is background only, not sufficient implementation input.
   - Acceptance: Complete scoped journey and consistent proposed JS imports; no compiler/library/infrastructure implementation. New contracts must be explicitly released before use.
-  - Evidence: TRANSFERRED H007 — unfinished, now owned by Codex/Astra per user assignment. Never dispatched from Muse; no READY received here.
+  - Evidence: COMPLETED EXTERNALLY (H009): Codex finished + independently reviewed the CanGallery triplet; milestones b3c78fc/706c70a/3d41233/13071ec/372def7/82260cf; acceptance in design/COMPLEX-APPS.md + design/complex-apps/completion-verification.json. Not Muse work; never dispatched here.
 
-- [ ] **N04 — Complete Inbox draft from its design handoff**
+- [x] **N04 — Complete Inbox draft from its design handoff**
   - Prerequisites: BLOCKED DESIGN: READY inbox message with complete Inbox requirements/contract/source-JS witness
-  - Owner / files / interfaces: Codex/Astra (transferred per H007; was Muse implementation agent); draft/CanInbox.md, draft/CanInbox.can, draft/CanInbox.mjs
+  - Owner / files / interfaces: Codex/Astra (H007 transfer, H009 externally completed); draft/CanInbox.md, draft/CanInbox.can, draft/CanInbox.mjs
   - Changes / traceability: Q1–Q3; expand settled design into a complete company workflow draft with UI, permissions, translations and meaningful success/failure/recovery examples. design/AI-AND-SERVICE-DRAFTS.md is background only, not sufficient implementation input.
   - Acceptance: Complete scoped journey and consistent proposed JS imports; no compiler/library/infrastructure implementation. New contracts must be explicitly released before use.
-  - Evidence: TRANSFERRED H007 — unfinished, now owned by Codex/Astra per user assignment. Never dispatched from Muse; no READY received here.
+  - Evidence: COMPLETED EXTERNALLY (H009): Codex finished + independently reviewed the CanInbox triplet; milestones b3c78fc/706c70a/3d41233/13071ec/372def7/82260cf; acceptance in design/COMPLEX-APPS.md + design/complex-apps/completion-verification.json. Not Muse work; never dispatched here.
 
-- [ ] **N05 — Complete Discover draft from its design handoff**
+- [x] **N05 — Complete Discover draft from its design handoff**
   - Prerequisites: BLOCKED DESIGN: READY inbox message with complete Discover requirements/contract/source-JS witness
-  - Owner / files / interfaces: Codex/Astra (transferred per H007; was Muse implementation agent); draft/CanDiscover.md, draft/CanDiscover.can, draft/CanDiscover.mjs
+  - Owner / files / interfaces: Codex/Astra (H007 transfer, H009 externally completed); draft/CanDiscover.md, draft/CanDiscover.can, draft/CanDiscover.mjs
   - Changes / traceability: Q1–Q3; expand settled design into a complete company workflow draft with UI, permissions, translations and meaningful success/failure/recovery examples. design/AI-AND-SERVICE-DRAFTS.md is background only, not sufficient implementation input.
   - Acceptance: Complete scoped journey and consistent proposed JS imports; no compiler/library/infrastructure implementation. New contracts must be explicitly released before use.
-  - Evidence: TRANSFERRED H007 — unfinished, now owned by Codex/Astra per user assignment. Never dispatched from Muse; no READY received here.
+  - Evidence: COMPLETED EXTERNALLY (H009): Codex finished + independently reviewed the CanDiscover triplet; milestones b3c78fc/706c70a/3d41233/13071ec/372def7/82260cf; acceptance in design/COMPLEX-APPS.md + design/complex-apps/completion-verification.json. Not Muse work; never dispatched here.
 
-- [ ] **N06 — Complete Knowledge draft from its design handoff**
+- [x] **N06 — Complete Knowledge draft from its design handoff**
   - Prerequisites: BLOCKED DESIGN: READY inbox message with complete Knowledge requirements/contract/source-JS witness
-  - Owner / files / interfaces: Codex/Astra (transferred per H007; was Muse implementation agent); draft/CanKnowledge.md, draft/CanKnowledge.can, draft/CanKnowledge.mjs
+  - Owner / files / interfaces: Codex/Astra (H007 transfer, H009 externally completed); draft/CanKnowledge.md, draft/CanKnowledge.can, draft/CanKnowledge.mjs
   - Changes / traceability: Q1–Q3; expand settled design into a complete company workflow draft with UI, permissions, translations and meaningful success/failure/recovery examples. design/AI-AND-SERVICE-DRAFTS.md is background only, not sufficient implementation input.
   - Acceptance: Complete scoped journey and consistent proposed JS imports; no compiler/library/infrastructure implementation. New contracts must be explicitly released before use.
-  - Evidence: TRANSFERRED H007 — unfinished, now owned by Codex/Astra per user assignment. Never dispatched from Muse; no READY received here.
+  - Evidence: COMPLETED EXTERNALLY (H009): Codex finished + independently reviewed the CanKnowledge triplet; milestones b3c78fc/706c70a/3d41233/13071ec/372def7/82260cf; acceptance in design/COMPLEX-APPS.md + design/complex-apps/completion-verification.json. Not Muse work; never dispatched here.
 
-- [ ] **N07 — Complete Sync draft from its design handoff**
+- [x] **N07 — Complete Sync draft from its design handoff**
   - Prerequisites: BLOCKED DESIGN: READY inbox message with complete Sync requirements/contract/source-JS witness
-  - Owner / files / interfaces: Codex/Astra (transferred per H007; was Muse implementation agent); draft/CanSync.md, draft/CanSync.can, draft/CanSync.mjs
+  - Owner / files / interfaces: Codex/Astra (H007 transfer, H009 externally completed); draft/CanSync.md, draft/CanSync.can, draft/CanSync.mjs
   - Changes / traceability: Q1–Q3; expand settled design into a complete company workflow draft with UI, permissions, translations and meaningful success/failure/recovery examples. design/AI-AND-SERVICE-DRAFTS.md is background only, not sufficient implementation input.
   - Acceptance: Complete scoped journey and consistent proposed JS imports; no compiler/library/infrastructure implementation. New contracts must be explicitly released before use.
-  - Evidence: TRANSFERRED H007 — unfinished, now owned by Codex/Astra per user assignment. Never dispatched from Muse; no READY received here.
+  - Evidence: COMPLETED EXTERNALLY (H009): Codex finished + independently reviewed the CanSync triplet; milestones b3c78fc/706c70a/3d41233/13071ec/372def7/82260cf; acceptance in design/COMPLEX-APPS.md + design/complex-apps/completion-verification.json. Not Muse work; never dispatched here.
 
-- [ ] **N08 — Complete Enrich draft from its design handoff**
+- [x] **N08 — Complete Enrich draft from its design handoff**
   - Prerequisites: BLOCKED DESIGN: READY inbox message with complete Enrich requirements/contract/source-JS witness
-  - Owner / files / interfaces: Codex/Astra (transferred per H007; was Muse implementation agent); draft/CanEnrich.md, draft/CanEnrich.can, draft/CanEnrich.mjs
+  - Owner / files / interfaces: Codex/Astra (H007 transfer, H009 externally completed); draft/CanEnrich.md, draft/CanEnrich.can, draft/CanEnrich.mjs
   - Changes / traceability: Q1–Q3; expand settled design into a complete company workflow draft with UI, permissions, translations and meaningful success/failure/recovery examples. design/AI-AND-SERVICE-DRAFTS.md is background only, not sufficient implementation input.
   - Acceptance: Complete scoped journey and consistent proposed JS imports; no compiler/library/infrastructure implementation. New contracts must be explicitly released before use.
-  - Evidence: TRANSFERRED H007 — unfinished, now owned by Codex/Astra per user assignment. Never dispatched from Muse; no READY received here.
+  - Evidence: COMPLETED EXTERNALLY (H009): Codex finished + independently reviewed the CanEnrich triplet; milestones b3c78fc/706c70a/3d41233/13071ec/372def7/82260cf; acceptance in design/COMPLEX-APPS.md + design/complex-apps/completion-verification.json. Not Muse work; never dispatched here.
 
-- [ ] **N09 — Complete Workbench draft from its design handoff**
+- [x] **N09 — Complete Workbench draft from its design handoff**
   - Prerequisites: BLOCKED DESIGN: READY inbox message with complete Workbench requirements/contract/source-JS witness
-  - Owner / files / interfaces: Codex/Astra (transferred per H007; was Muse implementation agent); draft/CanWorkbench.md, draft/CanWorkbench.can, draft/CanWorkbench.mjs
+  - Owner / files / interfaces: Codex/Astra (H007 transfer, H009 externally completed); draft/CanWorkbench.md, draft/CanWorkbench.can, draft/CanWorkbench.mjs
   - Changes / traceability: Q1–Q3; expand settled design into a complete company workflow draft with UI, permissions, translations and meaningful success/failure/recovery examples. design/AI-AND-SERVICE-DRAFTS.md is background only, not sufficient implementation input.
   - Acceptance: Complete scoped journey and consistent proposed JS imports; no compiler/library/infrastructure implementation. New contracts must be explicitly released before use.
-  - Evidence: TRANSFERRED H007 — unfinished, now owned by Codex/Astra per user assignment. Never dispatched from Muse; no READY received here.
+  - Evidence: COMPLETED EXTERNALLY (H009): Codex finished + independently reviewed the CanWorkbench triplet; milestones b3c78fc/706c70a/3d41233/13071ec/372def7/82260cf; acceptance in design/COMPLEX-APPS.md + design/complex-apps/completion-verification.json. Not Muse work; never dispatched here.
 
 - [ ] **N10 — Document extraction extension**
   - Prerequisites: BLOCKED DESIGN: READY extraction handoff; J03 and any relevant writer release
@@ -315,6 +315,7 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - RELEASED H007: N01-N09 tasks + draft/Can{Chat,Creative,Gallery,Inbox,Discover,Knowledge,Sync,Enrich,Workbench}.{md,can,mjs} paths to Codex/Astra. Preserved unticked/unfinished with external owner noted; never dispatched from here, no READY received. Not completion.
 - ACK H008 RELEASE-REQUEST git ownership for Codex complex-app commits: accepted. Zero active writers; no pending Muse commit (all owned files clean; DESIGN/GRAMMAR/CRM/complex drafts are others'). No worker stages/commits (standing rule). No pull/rebase.
 - RELEASED H008: git-index and commit ownership. Coordinator Git mutations HELD until later explicit return. App-file reservations unaffected (none active).
+- ACK H009 COMPLETE/GIT-RETURN: accepted. N01-N09 recorded completed externally (milestones + COMPLEX-APPS.md + completion-verification.json verified present; log confirms). No redispatch, no CanDecide work, no proposal approvals. Git ownership RESUMED; --only exact-path discipline; no reset/rebase; H009 inbox/monitor notes staged unchanged (Codex-authored).
 - ACK H005 NOTE watcher repaired: accepted. contextlib.closing fix noted; H002 command reusable when ready work next exhausts (not now — A01 active). No TUI-push claim.
 - ACK H006 READY A01 accepted: complete C4 feedback-design.md (457 lines) + review.md limits read in full. Scope: Decision/current_decision/contracts/policy/invariant/locks/derive, roadmap/moderate bodies, withdraw_decision/decision_history, both page roots, full target mirror, journey observations + withdrawal table + decision_history sequence, 15-row required-cases table. No DESIGN/GRAMMAR/runtime work. C1/Rent-history/C3/C5 remain unadopted.
 - RESERVED A01: draft/CanFeedback.can, draft/CanFeedback.md, draft/CanFeedback.mjs — writer 01a10715-f84a-75c0-839e-02675ad1d0e3 (A01 Feedback/17) active. J01 released; no pending Feedback edits at handoff (verified clean).
