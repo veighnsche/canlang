@@ -1,0 +1,14 @@
+{
+  "state": "Can is a draft language without compiler/runtime compatibility requirements. Expense.reviewer is user; Employee has unique user, active, work locations, role and skills, but no human name. Employee policies grant members who are current staff only user/home/locations/operator_wide/active/role/skills; HR fields stay private. A user exposes stable id only; actor alone exposes verified email. No global directory grant is defined. Expense draft CRUD by members checks own active claimant and work location; submit additionally requires distinct reviewer, expense.reviewer(subject), and can_work(subject,location). Role subject tests require active team membership but do not enumerate identities. Existing typed lists, filtered queries, pure read scenarios, form arguments and protected user references can show a readable Employee and bind its user into Expense.create without changing operation inputs. UI/MCP share canonical operations/read grants. Existing reference labels prefer readable name/title with identity fallback. Desired outcomes: recognizable current eligible reviewer choice, duplicate-name disambiguation, no private HR/email leakage, revocation checked on submit, unchanged immutable historical user attribution, parity for browser/MCP and no directory for unrelated external accounts. No usability trial proves one option faster. Choose a draft contract and illustrative authoring path, not implementation.",
+  "questions": {
+    "selection": {
+      "type": "choice",
+      "instructions": "Which approach best meets every stated outcome with the smallest additional contract?",
+      "criteria": {
+        "employee_labels": "Add an explicitly authored work name to existing Employee, include only that name in its existing staff work-field grant, retain user-valued reviewer, and show explicitly filtered eligible Employee choices using existing queries and bound canonical form arguments/read tools. No automatic guard solver or account directory; app owns the one work-name value and full IDs disambiguate.",
+        "auth_roster": "Define a new explicit scoped authentication-directory disclosure grant and shared lookup contract giving eligible account display names directly. Preserve reviewer:user and existing submission guards. This avoids a business work-name copy but adds directory provenance, maintenance, exposure and eligibility-selection semantics.",
+        "employee_reference": "Change reviewer to Employee so ordinary reference pickers use an added readable employee name and fields, then derive user at submission/decision for historical actor attribution. This reuses model pickers but changes source identity/type contracts and requires careful account/employee mapping."
+      }
+    }
+  }
+}

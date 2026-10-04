@@ -747,3 +747,17 @@ No new `.can` navigation syntax, compiler, renderer or library implementation wa
 Reuse the existing browser upload intent/content/finalization flow through one versioned host bridge, advertised as generated MCP metadata. A supporting host transfers actual selected bytes and passes only the finalized opaque reference into the canonical business operation. Registry-derived field/context binding, current principal/team rights and final business checks stay authoritative. Unsupported hosts require the browser handoff or an explicit limitation. No additional `.can` upload lines, binary business tools or per-app schemas are added.
 
 Three fully rewritten JEV consultations assigned the host-flow option .80/.81/.64, runtime tools .02/.03/.03 and browser-only .17/.16/.33, with confidence .70/.72/.46. Browser-only's real benefit is avoiding an extension; its extra handoff explains the reasoned choice of shared host support plus truthful fallback. Agreement does not establish compatibility, security, performance or adoption. [Saved requests/results, wording check and assessment](design/jev/mcp-file-handoff-20261004/assessment.md) retain uncertainty and framing limits. DESIGN §8 pins the concrete bridge contract; implementations remain omitted.
+
+
+## Associated delivery references — October 4, 2026
+
+Use `delivery(Target)` with existing send/set to associate the runtime-owned current attempt, replacing only duplicated transport mirrors. Explicit business callbacks, frozen outcomes and validated attachments remain. The reference derives its result schema, protects origin/binding authority, fences mutable receipt observations without domain version churn and retains only safe summary evidence beyond sensitive-content expiry. Complete typed test requests provision isolated receipts; they never establish a real send or its guards.
+
+Three rewritten JEV choices prefer typed association .98/.88/.96, field-scoped effect sugar .00/.02/.02 and explicit mirrors .02/.10/.02, confidence .96/.81/.94. Explicit mirrors have real domain-version/retention benefits; retaining independently meaningful business evidence and defining read fencing/summary lifetime addresses those costs without implicit completion hooks. [Full contracts, alternatives, wording checks and uncertainty](design/delivery-association-20261004.md). This adopts a draft contract and desired JS helper, not library/compiler execution or measured adoption/performance. App application is tracked separately in MIGRATION.
+
+
+## Authorized person selection — October 4, 2026
+
+Retain canonical user input/attribution, add optional explicitly readable Employee work names and use an ordinary eligible-candidate read in Expense. Browser/MCP share its operation; names never become identity or permission, private HR fields remain withheld, and submit rechecks actual role/work eligibility. No auth-directory primitive, separate picker schema or automatic extraction of mutation guards is added.
+
+JEV Employee-label/directory/Employee-reference probabilities were .98/.00/.02, .95/.00/.05 and .73/.22/.05, confidence .97/.92/.60. The third directory probability warrants attention: central auth names could reduce maintenance, but current sources define no profile disclosure to reuse. [Saved full consultations and current witness](design/person-selection-20261004.md) retain that tradeoff. The optional name avoids fixture boilerplate; Expense adds eight single-call rows and a real deactivation selection sequence. No executed picker, privacy or adoption proof is claimed.

@@ -2,6 +2,7 @@ import {
   any,
   require as check,
   count,
+  collect,
   compareDate,
   add_days,
   local_date,
@@ -257,6 +258,15 @@ export const appDefinition = {
       },
       when: "Expense",
     },
+    "expense.reviewer_choices": {
+      handler: "reviewer_choices", by: "members", read: true,
+      inputs: { location: { type: "rent_catalog.Location" } },
+      result: "employee.Employee[]",
+      label: message("Choose reviewer", { nl: "Beoordelaar kiezen" }),
+      description: message("Find readable current reviewer work identities for this location.", {
+        nl: "Vind leesbare huidige werkidentiteiten van beoordelaars voor deze locatie.",
+      }),
+    },
     "expense.submit": {
       handler: "submit",
       by: "members",
@@ -389,6 +399,15 @@ export function canApp() {
       },
       "Reimbursement.lock.1": { fields: ["amount", "reference", "paid", "reason", "recorded_by"] },
     },
+    async reviewer_choices(c, { location }) {
+      check(hasRole(c, "members"), "forbidden");
+      check(await can_work(c, c.actor, location));
+      return collect(records(c, "employee.Employee", {
+        where: async (candidate) => !same(candidate.user, c.actor) &&
+          hasRole(c, "expense.reviewer", candidate.user) &&
+          await can_work(c, candidate.user, location),
+      }));
+    },
     async createExpense(c, input) {
       check(hasRole(c, "members"), "forbidden");
       await create(c, "expense.Expense", input, { when: crudWhen.Expense });
@@ -517,7 +536,32 @@ export async function minePage(c, bindings) {
       card({
         context: c,
         title: message("Claim intake", { nl: "Declaratie aanmaken" }),
-        children: [form({ context: c, operation: "expense.Expense.create" })],
+        children: [
+          list({
+            context: c, model: Employee,
+            where: (claimant) => same(claimant.user, c.actor) && claimant.active,
+            renderRow: (claimant, claimantView) => [
+              list({
+                context: claimantView, model: Location,
+                where: async (site) => await can_work(claimantView, claimantView.actor, site),
+                renderRow: (site, siteView) => [
+                  form({
+                    context: siteView, operation: "expense.reviewer_choices", arguments: { location: site },
+                    renderResult: (result, resultView) => [
+                      list({
+                        context: resultView, rows: result, columns: ["name", "user", "role", "home"],
+                        renderRow: (candidate, candidateView) => [
+                          form({ context: candidateView, operation: "expense.Expense.create",
+                            arguments: { parent: claimant, location: site, reviewer: candidate.user } }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
       }),
       list({
         context: c,
@@ -726,7 +770,7 @@ export function exampleFixtures({ self, other, imported }) {
   const replacement_user = { dependencies: [], user: async (c, s) => ({ roles: ["expense.reviewer"] }) };
   const replacement_worker = {
     model: "employee.Employee", dependencies: [test_site, replacement_user],
-    value: async (c, s) => ({ user: s.replacement_user, home: s.test_site, locations: [s.test_site], start: date("2026-10-01"), role: "Replacement reviewer" }),
+    value: async (c, s) => ({ user: s.replacement_user, name: "Alex", home: s.test_site, locations: [s.test_site], start: date("2026-10-01"), role: "Replacement reviewer" }),
   };
   const reviewer_user = { dependencies: [], user: async (c, s) => ({ roles: ["expense.reviewer"] }) };
   const finance_user = { dependencies: [], user: async (c, s) => ({ roles: ["expense.finance"] }) };
@@ -735,8 +779,8 @@ export function exampleFixtures({ self, other, imported }) {
     model: "employee.Employee",
     dependencies: [test_site, reviewer_user],
     value: async (c, s) => ({
-      user: s.reviewer_user, home: s.test_site, locations: [s.test_site],
-      start: date("2026-10-01"), role: "Reviewer",
+      user: s.reviewer_user, name: "Alex", home: s.test_site, locations: [s.test_site],
+      start: date("2026-10-01"), role: "Reviewer", private_notes: "Confidential HR review",
     }),
   };
   const finance_worker = {
@@ -751,7 +795,7 @@ export function exampleFixtures({ self, other, imported }) {
     model: "employee.Employee",
     dependencies: [test_site, ordinary_user],
     value: async (c, s) => ({
-      user: s.ordinary_user, home: s.test_site, locations: [s.test_site],
+      user: s.ordinary_user, name: "Alex", home: s.test_site, locations: [s.test_site],
       start: date("2026-10-01"), role: "Operator",
     }),
   };
@@ -789,6 +833,35 @@ export function exampleFixtures({ self, other, imported }) {
     receipt, corrected_receipt, hr_user, replacement_user, replacement_worker, reviewer_user, finance_user, ordinary_user, reviewer_worker, finance_worker, ordinary_worker,
     claim, previous_claim, previous_payment, rejected_decision, other_site,
     examples: [
+      {
+        operation: "expense.reviewer_choices",
+        seed: [test_worker, reviewer_worker, replacement_worker, ordinary_worker],
+        dependencies: [test_site],
+        inputs: async (c, s) => ({ location: s.test_site }),
+        selectors: ["as", "reviewer_worker.active", "reviewer_worker.name", "test_worker.active", "location"],
+        observations: [async (c, s) => await count(s.result), async (c, s) => await count(s.result.filter((candidate) => candidate.name === "Alex"))],
+        rows: [
+          { dependencies: [], values: async (c, s) => [s.self, true, "Alex", true, s.test_site], expected: async () => [2n, 2n] },
+          { dependencies: [], values: async (c, s) => ["expense.reviewer", true, "Alex", true, s.test_site], expected: async () => [2n, 2n] },
+          { dependencies: [], values: async (c, s) => [s.self, false, "Alex", true, s.test_site], expected: async () => [1n, 1n] },
+          { dependencies: [], values: async (c, s) => [s.self, true, null, true, s.test_site], expected: async () => [2n, 1n] },
+          { dependencies: [], values: async (c, s) => [s.self, true, "Alex", false, s.test_site], error: "rule_failed" },
+          { dependencies: [other_site], values: async (c, s) => [s.self, true, "Alex", true, s.other_site], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => [s.outsider, true, "Alex", true, s.test_site], error: "forbidden" },
+          { dependencies: [], values: async (c, s) => ["public", true, "Alex", true, s.test_site], error: "forbidden" },
+        ],
+      },
+      {
+        operation: "expense.reviewer_choices",
+        dependencies: [test_worker, reviewer_worker, hr_user, test_site],
+        sequence: [
+          { operation: "expense.reviewer_choices", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ location: s.test_site }), bind: "before" },
+          { observations: async (c, s, b) => [await count(b.before), await any(b.before, (candidate) => same(candidate.user, s.reviewer_user))], expected: async () => [1n, true], types: ["int", "bool"] },
+          { operation: "employee.deactivate", by: async (c, s, b) => s.hr_user, inputs: async (c, s, b) => ({ employee: s.reviewer_worker, ended: date("2026-10-02") }) },
+          { operation: "expense.reviewer_choices", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ location: s.test_site }), bind: "after" },
+          { observations: async (c, s, b) => [await count(b.after), hasRole(c, "expense.reviewer", s.reviewer_user), s.reviewer_worker.active], expected: async () => [0n, true, false], types: ["int", "bool", "bool"] },
+        ],
+      },
       {
         operation: "expense.submit",
         seed: [reviewer_worker, ordinary_worker],

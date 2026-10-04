@@ -1,0 +1,14 @@
+{
+  "state": "Verified sources show a user-valued reviewer on Expense and a separate Employee model whose user is unique. Staff members may read specified work fields from Employee; HR has broader access. No employee name is authored. Other users offer id, not email or profile enumeration; only actor has authenticated email facts. Submission requires the claimant to be active and authorized locally and the selected account to differ from caller, carry the reviewer team role and pass can_work for that site. Draft creation does not promise those later checks already passed. Existing query/list/form-binding syntax can filter permitted Employee records then bind the chosen user, and an ordinary pure read can serve chat clients. Browser and MCP authorization is shared. Labels derive from readable name or title when present, otherwise references remain opaque. Resolve selection without losing account evidence, with equal names distinguishable, grant loss handled at invocation and outside customers excluded from the staff roster. Keep confidential employment information and email private. This is a language/product draft with no compiler compatibility constraint; actual selection performance has not been measured.",
+  "questions": {
+    "selection": {
+      "type": "choice",
+      "instructions": "Which design should the draft adopt to close the identification gap while respecting the documented boundaries?",
+      "criteria": {
+        "employee_labels": "Reuse Employee as the visible work identity: declare a name there and explicitly grant that field with its existing staff subset. Continue storing user in Expense. An authored eligibility-filtered list or canonical read supplies the employee.user to the existing operation; preserve ID-based duplicate handling and final guard rechecks. This introduces maintained work-label data but no directory primitive.",
+        "auth_roster": "Specify a canonical auth-directory capability to disclose names under an expressly bounded team grant, with selected user IDs passed unchanged to business operations. Business checks remain final. A shared identity label avoids employee naming duplication, but the new grant and lookup semantics need definition.",
+        "employee_reference": "Use the employee model itself as the reviewer parameter/field and provide it a permitted name. Translate to its user for current role checks and frozen decision actor evidence. Existing model-reference selection applies, but reviewer schema changes and record/account history require reconciliation."
+      }
+    }
+  }
+}
