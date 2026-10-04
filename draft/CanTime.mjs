@@ -112,7 +112,7 @@ export const appDefinition = {
         billable: { type: "bool", default: true, label: billableCaption },
         origin: {
           type: "enum",
-          values: ["timer", "manual"],
+          cases: ["timer", "manual"],
           label: {
             text: message("Time origin", { nl: "Herkomst tijdregistratie" }),
             values: {
@@ -131,7 +131,7 @@ export const appDefinition = {
         overlap_author: { type: "user", nullable: true },
         state: {
           type: "enum",
-          values: ["draft", "submitted", "approved", "exported", "superseded"],
+          cases: ["draft", "submitted", "approved", "exported", "superseded"],
           default: "draft",
         },
         review: { type: "time.PeriodReview", nullable: true },
@@ -158,7 +158,7 @@ export const appDefinition = {
         entries: { type: "time.Entry", array: true, requiredArray: true },
         state: {
           type: "enum",
-          values: ["submitted", "approved", "rejected", "withdrawn"],
+          cases: ["submitted", "approved", "rejected", "withdrawn"],
           default: "submitted",
         },
         submitted_by: { type: "user", server: "actor" },
@@ -181,7 +181,7 @@ export const appDefinition = {
         cancel_delivery: { type: "text", nullable: true },
         cancel_status: {
           type: "enum",
-          values: ["pending", "succeeded", "failed", "unknown"],
+          cases: ["pending", "succeeded", "failed", "unknown"],
           default: "pending",
         },
         fenced: { type: "bool", default: false },
@@ -197,13 +197,13 @@ export const appDefinition = {
         refund_status: {
           type: "enum",
           nullable: true,
-          values: ["pending", "succeeded", "failed", "unknown"],
+          cases: ["pending", "succeeded", "failed", "unknown"],
         },
         reconcile_delivery: { type: "text", nullable: true },
         reconcile_status: {
           type: "enum",
           nullable: true,
-          values: ["pending", "succeeded", "failed", "unknown"],
+          cases: ["pending", "succeeded", "failed", "unknown"],
         },
       },
       readGrants: [{ rule: "Correction.read.1" }, { rule: "Correction.read.2" }],
