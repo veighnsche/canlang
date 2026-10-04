@@ -53,6 +53,8 @@ describe("component catalog", () => {
       list: 1,
       table: 1,
       renderState: 1,
+      collectionExportLink: 1,
+      collectionPrintLink: 1,
     };
     const record = ui as unknown as Record<string, unknown>;
     for (const entry of UI_CATALOG.entries) {

@@ -1,0 +1,14 @@
+{
+  "state": "The @canlang/ui library renders pages on the server and updates them with HTMX 4 partial responses. The governing design requires that re-rendered read regions keep unrelated in-progress input and keyboard focus intact, that failed validation redisplays what the user typed, that a version conflict shows current authorized values side by side without overwriting the draft, and that any value whose grant was revoked disappears rather than lingering as a preserved draft. Polling refetches read regions and must leave drafts alone. Available tools: morphing swaps that merge new markup into live DOM and thereby keep focus and typed values (but cannot clear a form), freeze markers that exempt marked subtrees from an otherwise replacing swap, ordinary replacing swaps that drop all DOM state, and the already-implemented server behavior of echoing submitted values after validation failure. Option A makes morphing the default keyed by stable region identity and uses replacement only when reset is intended. Option B replaces by default and marks each draft-bearing subtree to freeze. Option C has the server remember drafts per session and page and embed them in every re-render.",
+  "questions": {
+    "preservation": {
+      "type": "choice",
+      "instructions": "Considering draft preservation, focus retention, revoked-value removal, and robustness against authoring omissions, which mechanism is the strongest default for partial re-renders?",
+      "criteria": {
+        "A": "Default to morphing swaps on stable region identity; replacement only for intended reset.",
+        "B": "Default to replacing swaps; freeze each draft-bearing subtree with explicit markers.",
+        "C": "Server retains per-session per-page drafts and embeds them in re-rendered regions."
+      }
+    }
+  }
+}
