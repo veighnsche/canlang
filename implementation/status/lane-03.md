@@ -230,7 +230,12 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   `when`-on-secret rejected at build; F5 same-currency money min/max
   implemented; F6 owner-aggregate test added; F7 `by` validated +
   policy AST cloned/frozen at build. Owner-authority trust boundary
-  documented on queryRecords.
+  documented on queryRecords. Re-review APPROVE; its 2 non-blocking minors
+  also closed + regressed (suite 182/182): empty and/or rejected (fail-open
+  vacuous-true gone), predicate field paths validated to non-empty strings
+  in both shape-check and per-row eval, policy clone wrapped to plain
+  Error. Minors fixed per reviewer's own suggestion + coordinator
+  self-review of the small diff; no third review round.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
