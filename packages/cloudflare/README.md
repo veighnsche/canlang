@@ -24,7 +24,9 @@ can-platform --help | -h | --version | -V
 ```
 
 Exactly one JSON envelope on stdout on every path (`--help` included,
-as `{ok:true,name,version,usage}`); human text on stderr only. Exit 0
+as `{ok:true,name,version,usage}`); human text on stderr only. `--help`
+is honored in subcommand position too (`can-platform run --help`),
+because L1 thin entries pass flags through verbatim. Exit 0
 carries `{ok:true,...}`; exit 2 carries `{ok:false,command,code,detail}`
 with `code` one of `usage`, `missing-artifact`, `missing-producer`
 (names `producer` + `contract`), and exit 1 `internal`. Until L1 emission
