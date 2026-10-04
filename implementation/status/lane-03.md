@@ -278,6 +278,13 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   adapters now map outbox dup to `unique` (memory direct; D1/DO match
   'outbox' in SQLite message) -> thrown StateError `conflict` per plan;
   conformance pins kind on all 3 backends, atomicity pins conflict.
+  Independent review APPROVE (no blockers; null-raw edge and thrown-conflict
+  confirmed contract-consistent). All 9 accepted minors fixed + regressed:
+  atomicity header; dup-schedule last-wins conformance x3; empty-ack +
+  malformed-replace pins; system edges (fence->busy, non-object args, bad
+  operationId, absent result->null); reader deep-copy isolation x3;
+  bound-deps-win smuggling pin + dead-branch collapse; collation tiebreak
+  contract note; historyFor ORDER BY version,seq on all 3. Suite 328/328.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).

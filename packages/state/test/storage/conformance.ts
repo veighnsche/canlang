@@ -1632,5 +1632,99 @@ export function storageConformance(
       assert.deepEqual(await store.historyFor(asModel('shop.Order'), asId('ord-other')), [other]);
       assert.deepEqual(await store.historyFor(asModel('shop.Order'), asId('ord-missing')), []);
     });
+
+    it('same-batch duplicate schedule keys apply in order, last op wins', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      // S6 review: pins adapter apply order on every backend (D1 batch()
+      // statement order, DO sequential exec, memory sequential loop).
+      await store.commit(
+        makeBatch(0, {
+          schedules: [
+            {
+              op: 'replace',
+              key: 'dup-rr',
+              at: 1_000,
+              event: asOperation('t.due'),
+              payload: { v: 1 },
+            },
+            {
+              op: 'replace',
+              key: 'dup-rr',
+              at: 2_000,
+              event: asOperation('t.due'),
+              payload: { v: 2 },
+            },
+            { op: 'replace', key: 'dup-rc', at: 1_000, event: asOperation('t.due'), payload: {} },
+            { op: 'cancel', key: 'dup-rc' },
+            { op: 'cancel', key: 'dup-cr' },
+            { op: 'replace', key: 'dup-cr', at: 3_000, event: asOperation('t.due'), payload: {} },
+          ],
+        }),
+      );
+      assert.deepEqual((await store.scheduleGet('dup-rr'))?.at, 2_000);
+      assert.deepEqual((await store.scheduleGet('dup-rr'))?.payload, { v: 2 });
+      assert.equal(await store.scheduleGet('dup-rc'), null);
+      assert.deepEqual((await store.scheduleGet('dup-cr'))?.at, 3_000);
+    });
+
+    it('readers return deep copies isolated from stored state', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      await store.commit(
+        makeBatch(0, {
+          outbox: [makeIntent({ intentId: 'dc-i', operationId: 'op-dc' })],
+          schedules: [
+            { op: 'replace', key: 'dc-k', at: 1_000, event: asOperation('t.due'), payload: { n: 1 } },
+          ],
+          history: [makeHistory({ model: 't.Doc', recordId: 'dc-r', version: 1, after: { n: 1 } })],
+        }),
+      );
+      const pending = await store.outboxPending();
+      assert.equal(pending.length, 1);
+      const pendingArgs = pending[0]?.arguments as Record<string, unknown>;
+      pendingArgs['to'] = 'mutated@example.com';
+      pendingArgs['added'] = true;
+      const sched = await store.scheduleGet('dc-k');
+      assert.ok(sched !== null);
+      (sched.payload as Record<string, unknown>)['n'] = 999;
+      const due = await store.schedulesDue(9_999_999_999_999, 10);
+      assert.equal(due.length, 1);
+      (due[0]?.payload as Record<string, unknown>)['n'] = 999;
+      const hist = await store.historyFor(asModel('t.Doc'), asId('dc-r'));
+      assert.equal(hist.length, 1);
+      (hist[0]?.after as Record<string, unknown>)['n'] = 999;
+      // Re-reads observe pristine state on every backend.
+      assert.deepEqual((await store.outboxPending())[0]?.arguments, { to: 'a@example.com' });
+      assert.deepEqual((await store.scheduleGet('dc-k'))?.payload, { n: 1 });
+      assert.deepEqual((await store.schedulesDue(9_999_999_999_999, 10))[0]?.payload, { n: 1 });
+      assert.deepEqual((await store.historyFor(asModel('t.Doc'), asId('dc-r')))[0]?.after, {
+        n: 1,
+      });
+    });
+
+    it('historyFor orders duplicate versions by insertion sequence', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      // Duplicate versions are reachable only via direct unstaged commits
+      // (the pipeline assigns unique versions); the (version, seq) order
+      // keeps the reader total and deterministic on every backend.
+      const first = makeHistory({
+        model: 't.Doc',
+        recordId: 'dv-r',
+        version: 1,
+        operationId: 'op-dv-1',
+        after: { n: 1 },
+      });
+      const second = makeHistory({
+        model: 't.Doc',
+        recordId: 'dv-r',
+        version: 1,
+        operationId: 'op-dv-2',
+        after: { n: 2 },
+      });
+      await store.commit(makeBatch(0, { history: [first, second] }));
+      assert.deepEqual(await store.historyFor(asModel('t.Doc'), asId('dv-r')), [first, second]);
+    });
   });
 }

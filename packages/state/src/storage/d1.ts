@@ -708,7 +708,9 @@ export function createD1Storage(db: D1Database): StoragePort {
       const result = await db
         .prepare(
           `SELECT ${HISTORY_COLUMNS} FROM history WHERE model = ? AND record_id = ? ` +
-            'ORDER BY version',
+            // S6 review: `seq` tiebreaks duplicate versions (reachable only via
+            // direct unstaged commits); fenced writes carry unique versions.
+            'ORDER BY version, seq',
         )
         .bind(model as string, recordId as string)
         .all<HistoryRow>();

@@ -6,8 +6,13 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createReadPort } from '../../src/ports/index.js';
-import { makeReceipt, makeReceiptIdentity, seedReceipt } from '../invocation/fixtures.js';
+import { createReadPort, type ReadViewerRecordsArgs } from '../../src/ports/index.js';
+import {
+  createMemoryIdentityStore,
+  makeReceipt,
+  makeReceiptIdentity,
+  seedReceipt,
+} from '../invocation/fixtures.js';
 import {
   captureStateError,
   grant,
@@ -58,6 +63,34 @@ describe('createReadPort', () => {
       context: { actorUserId: world.alice.user.user_id, teamId: world.team.team_id },
     });
     assert.deepEqual(out.records, []);
+  });
+
+  it('lets bound dependencies win over smuggled per-call extras', async () => {
+    const world = await setupReadWorld();
+    await seedRows(world.store, world.model, ROWS);
+    const port = createReadPort({
+      policy: policyTable(modelPolicy(world.model, { grants: [grant('members', ['title'])] })),
+      store: world.store,
+      memberships: world.memberships,
+    });
+    // Each smuggled dep would change the outcome if honored: empty policy and
+    // empty memberships would show zero rows, and the throwing store would
+    // explode. The cast models an untyped JS caller sneaking extras past Omit.
+    const smuggled = {
+      authority: 'viewer',
+      model: world.model,
+      context: { actorUserId: world.alice.user.user_id, teamId: world.team.team_id },
+      policy: policyTable(modelPolicy(world.model, { grants: [] })),
+      store: {
+        query: () => {
+          throw new Error('smuggled store must not be called');
+        },
+      },
+      memberships: createMemoryIdentityStore(),
+    } as unknown as ReadViewerRecordsArgs;
+    const out = await port.queryRecords(smuggled);
+    assert.equal(out.records.length, 2);
+    assert.deepEqual(out.records[0]?.data, { title: 'First' });
   });
 
   it('returns full stored rows under owner authority', async () => {

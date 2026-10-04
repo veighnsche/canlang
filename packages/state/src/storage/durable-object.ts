@@ -727,7 +727,9 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
       const rows = storage.sql
         .exec<HistoryRow>(
           `SELECT ${HISTORY_COLUMNS} FROM history WHERE model = ? AND record_id = ? ` +
-            'ORDER BY version',
+            // S6 review: `seq` tiebreaks duplicate versions (reachable only via
+            // direct unstaged commits); fenced writes carry unique versions.
+            'ORDER BY version, seq',
           model as string,
           recordId as string,
         )

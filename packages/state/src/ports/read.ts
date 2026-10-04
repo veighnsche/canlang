@@ -72,9 +72,7 @@ function bindQueryRecords(bound: {
   function queryRecords(
     args: ReadViewerRecordsArgs | ReadOwnerRecordsArgs,
   ): Promise<AuthorizedRecordsResult | AuthorityRowsResult> {
-    if (args.authority === 'owner') {
-      return engineQueryRecords({ ...args, ...bound });
-    }
+    // One arm: overload selection is compile-time; bound deps always win.
     return engineQueryRecords({ ...args, ...bound });
   }
   return queryRecords;

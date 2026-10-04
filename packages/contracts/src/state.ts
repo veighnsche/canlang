@@ -367,14 +367,17 @@ export interface StoragePort {
   readReceipt(identity: ReceiptIdentity): Promise<Receipt | null>;
   /**
    * S6: status-pending outbox intents, ordered by (created_at, intent_id).
-   * Readers observe committed state only; results are deep copies.
+   * Readers observe committed state only; results are deep copies. The id
+   * tiebreak is backend-defined for non-ASCII ids (JS UTF-16 order vs SQLite
+   * BINARY); realistic ids are ASCII, where the orders agree.
    */
   outboxPending(): Promise<ReadonlyArray<OutboxIntent>>;
   /** S6: one schedule row by key, or null when absent. */
   scheduleGet(key: string): Promise<ScheduleEntry | null>;
   /**
    * S6: schedules with `at <= now`, ordered by (at, key), capped at `limit`.
-   * `limit` must be an integer >= 1; anything else throws a plain Error.
+   * `limit` must be an integer >= 1; anything else throws a plain Error. The
+   * key tiebreak is backend-defined for non-ASCII keys (see outboxPending).
    */
   schedulesDue(now: number, limit: number): Promise<ReadonlyArray<ScheduleEntry>>;
   /** S6: history for one record, ordered by version ascending. */

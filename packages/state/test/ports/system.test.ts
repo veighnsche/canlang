@@ -14,7 +14,7 @@ import {
   scheduleCancelCommand,
   scheduleReplaceCommand,
 } from '../../src/ports/index.js';
-import { asOperationId } from '../invocation/fixtures.js';
+import { asOperationId, makeBatch } from '../invocation/fixtures.js';
 import {
   FIXED_NOW,
   asOperation,
@@ -140,6 +140,92 @@ describe('createSystemRegistry', () => {
       { store: world.store },
     );
     assert.deepEqual(await pendingIntentIds(world.store), []);
+  });
+
+  it('rejects an empty or missing ack id list with validation', async () => {
+    const world = await setupPortsWorld();
+    const commands = registry();
+    const deps = { store: world.store };
+    // Contrast schedule.cancel, where an empty list is an allowed no-op.
+    for (const args of [{ intentIds: [] }, {}]) {
+      const error = await captureStateError(() =>
+        commands.run('outbox.ack', args, runCtx('sys-run-0'), deps),
+      );
+      assert.equal(error.code, 'validation');
+    }
+  });
+
+  it('rejects malformed schedule.replace args with validation', async () => {
+    const world = await setupPortsWorld();
+    const commands = registry();
+    const deps = { store: world.store };
+    const good = { key: 'sys-k', at: 5_000, event: 'Acme.due', payload: { n: 1 } };
+    const bads: unknown[] = [
+      { ...good, key: '' },
+      { ...good, key: undefined },
+      { ...good, at: -1 },
+      { ...good, at: Number.NaN },
+      { ...good, event: '' },
+      { ...good, payload: [] },
+      { ...good, payload: undefined },
+    ];
+    for (const args of bads) {
+      const error = await captureStateError(() =>
+        commands.run('schedule.replace', args, runCtx('sys-run-0'), deps),
+      );
+      assert.equal(error.code, 'validation');
+    }
+    assert.equal(await world.store.scheduleGet('sys-k'), null);
+  });
+
+  it('rejects non-object args and bad run identities with validation', async () => {
+    const world = await setupPortsWorld();
+    const commands = registry();
+    const deps = { store: world.store };
+    for (const args of [[], 'keys', null]) {
+      const error = await captureStateError(() =>
+        commands.run('schedule.cancel', args, runCtx('sys-run-0'), deps),
+      );
+      assert.equal(error.code, 'validation');
+    }
+    for (const operationId of ['', 'x'.repeat(129)]) {
+      const error = await captureStateError(() =>
+        commands.run('schedule.cancel', { keys: [] }, runCtx(operationId), deps),
+      );
+      assert.equal(error.code, 'validation');
+    }
+  });
+
+  it('maps a lost run fence to retryable busy', async () => {
+    const world = await setupPortsWorld();
+    // The stage hook runs between run()'s revision read and its commit, so a
+    // direct commit there steals the fence deterministically.
+    const steal = defineSystemCommand({
+      name: 'test.steal',
+      stage: async () => {
+        await world.store.commit(makeBatch(await world.store.readRevision()));
+        return { result: null };
+      },
+    });
+    const commands = createSystemRegistry([steal]);
+    const error = await captureStateError(() =>
+      commands.run('test.steal', {}, runCtx('sys-run-0'), { store: world.store }),
+    );
+    assert.equal(error.code, 'busy');
+    assert.equal(error.retryable, true);
+  });
+
+  it('reads an absent staged result as null', async () => {
+    const world = await setupPortsWorld();
+    const noresult = defineSystemCommand({
+      name: 'test.noresult',
+      stage: () => ({}),
+    });
+    const commands = createSystemRegistry([noresult]);
+    const out = await commands.run('test.noresult', {}, runCtx('sys-run-0'), {
+      store: world.store,
+    });
+    assert.equal(out.result, null);
   });
 
   it('fails a run with a malformed staged intent and persists nothing', async () => {

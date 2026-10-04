@@ -629,16 +629,20 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
     },
 
     async historyFor(model: ModelName, recordId: RecordId): Promise<ReadonlyArray<HistoryEntry>> {
-      // S6: version ascending, sorted explicitly — never assume insert order.
-      const matched = state.history
-        .map((row) => row.entry as HistoryEntry)
-        .filter(
-          (entry) =>
-            (entry.model as string) === (model as string) &&
-            (entry.recordId as string) === (recordId as string),
-        );
-      matched.sort((a, b) => (a.version as number) - (b.version as number));
-      return matched.map((entry) => jsonCopy(entry));
+      // S6: (version, seq) ascending, matching the SQL `ORDER BY version,
+      // seq` — the seq tiebreak orders duplicate versions by insertion
+      // (reachable only via direct unstaged commits). Never assume order.
+      const matched = state.history.filter(
+        (row) =>
+          ((row.entry as HistoryEntry).model as string) === (model as string) &&
+          ((row.entry as HistoryEntry).recordId as string) === (recordId as string),
+      );
+      matched.sort(
+        (a, b) =>
+          ((a.entry as HistoryEntry).version as number) -
+            ((b.entry as HistoryEntry).version as number) || a.seq - b.seq,
+      );
+      return matched.map((row) => jsonCopy(row.entry as HistoryEntry));
     },
   };
 }

@@ -1,9 +1,10 @@
 /**
  * Lane 03 S6 atomicity tests: execute-staged domain writes, outbox intents,
  * and schedules commit as one fenced batch. A cross-invoke duplicate intent
- * id fails the whole second commit (the store surfaces its constraint raw —
- * pinned here as observed, see below), and malformed staged schedules take
- * the rejected-receipt path with nothing else persisted.
+ * id fails the whole second commit with a thrown StateError `conflict`
+ * (commit-path constraint, like unique-claim violations — not receipted),
+ * and malformed staged schedules take the rejected-receipt path with
+ * nothing else persisted.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
