@@ -28,21 +28,38 @@ import {
   sum,
   min,
 } from "@canlang/stdlib";
+/* Desired, unimplemented @canlang/ui contracts. Every factory below is proposed;
+ * none is an installed export and this file never runs. See file header. */
 import {
-  actions,
+  alert,
+  badge,
+  breadcrumbs,
+  button,
+  calendarField,
   card,
   copy,
+  divider,
   edit,
+  fieldset,
   form,
+  hero,
   history,
+  input,
+  link,
   list,
   message,
-  metrics,
+  modal,
+  pagination,
   renderPage,
+  select,
+  slot,
+  stat,
   tab,
   table,
   tabs,
   text,
+  textarea,
+  tooltip,
 } from "@canlang/ui";
 import { can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -62,6 +79,15 @@ export const Advocate = "refer.Advocate";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * UI sections mirror the replanned CanRefer.can Then: breadcrumbs, badges,
+ * tooltip join buttons, owed-only alert card, divider, paginated evidence
+ * tables, reject modal with reason textarea, settle fieldset with typed
+ * controls, and hero share page with link and customer select. stat replaces
+ * metrics under their shared typed-metric contract; actions() has no
+ * remaining use. Lowercase UI factories take one props object; slots are
+ * prop arrays. calendarField is the desired date-input contract.
+ * All UI imports and calls are desired/unimplemented. This file passes
+ * node --check (syntax only) and never runs.
  */
 
 const balances = message("Earned and paid rewards", { nl: "Verdiende en uitbetaalde beloningen" });
@@ -962,8 +988,26 @@ export async function sharePage(c, bindings) {
     c,
     sharePageDescriptor,
     () => [
-      text({ context: c, values: [row.code, row.parent.destination] }),
-      form({ context: c, operation: capture, arguments: { advocate: row }, fields: ["customer"] }),
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
+      /* desired-unimplemented: hero groups the public invitation content. */
+      hero({
+        context: c,
+        children: [
+          /* desired-unimplemented: badge presents a readable typed value. */
+          badge({ context: c, value: row.code }),
+          /* desired-unimplemented: link targets the configured destination. */
+          link({ context: c, target: row.parent.destination, caption: row.parent.destination }),
+          form({
+            context: c,
+            operation: capture,
+            arguments: { advocate: row },
+            fields: ["customer"],
+            /* desired-unimplemented: placed select moves the generated control. */
+            children: [select({ context: c, field: "customer" })],
+          }),
+        ],
+      }),
     ],
   );
 }
@@ -973,6 +1017,8 @@ export async function referralsPage(c, bindings) {
     c,
     referralsPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Programs and your referral code", {
@@ -982,8 +1028,19 @@ export async function referralsPage(c, bindings) {
           list({
             context: c,
             model: "refer.Program",
-            renderRow: (program, v) =>
-              actions({ context: v, operations: ["refer.join"], boundArgs: { program } }),
+            renderRow: (program, v) => [
+              /* desired-unimplemented: badge presents a readable typed value. */
+              badge({ context: v, value: program.reward }),
+              /* desired-unimplemented: tooltip annotates the join control. */
+              tooltip({
+                context: v,
+                caption: message("Join this program", { nl: "Deelnemen aan dit programma" }),
+                children: [
+                  /* desired-unimplemented: button action lowers to the canonical binding. */
+                  button({ context: v, action: "refer.join", arguments: { program } }),
+                ],
+              }),
+            ],
           }),
           list({
             context: c,
@@ -997,18 +1054,39 @@ export async function referralsPage(c, bindings) {
                 context: v,
                 value: app_url(format(c, "/referrals/share/{id}", { id: advocate.id })),
               }),
-              text({ context: v, values: [advocate.code, advocate.parent.destination] }),
+              text({ context: v, values: [advocate.parent.destination] }),
+              /* desired-unimplemented: badge presents a readable typed value. */
+              badge({ context: v, value: advocate.code }),
               card({
                 context: v,
                 title: balances,
                 children: [
-                  metrics({
+                  /* desired-unimplemented: stat shares the metric contract. */
+                  stat({
                     context: v,
                     result: advocate,
                     fields: ["earned", "paid", "available", "owed"],
                   }),
                 ],
               }),
+              /* The require gate renders the owed card only for a positive owed balance. */
+              ...(compareMoney(advocate.owed, money(0n, advocate.parent.reward.currency)) > 0
+                ? [
+                    card({
+                      context: v,
+                      title: message("Owed balance", { nl: "Verschuldigd saldo" }),
+                      children: [
+                        /* desired-unimplemented: alert carries readable content. */
+                        alert({
+                          context: v,
+                          children: [text({ context: v, values: [advocate.owed] })],
+                        }),
+                      ],
+                    }),
+                  ]
+                : []),
+              /* desired-unimplemented: divider separates the evidence section. */
+              divider({ context: v, caption: message("Evidence", { nl: "Bewijs" }) }),
               tabs({
                 context: v,
                 children: [
@@ -1023,6 +1101,11 @@ export async function referralsPage(c, bindings) {
                         model: "refer.Credit",
                         parent: advocate,
                         columns: ["source", "amount", "reversal", "qualification"],
+                        empty: message("No conversions yet", { nl: "Nog geen conversies" }),
+                        renderRow: (credit, w) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: w }),
+                        ],
                       }),
                     ],
                   }),
@@ -1044,6 +1127,10 @@ export async function referralsPage(c, bindings) {
                           "method",
                           "evidence",
                         ],
+                        renderRow: (settlement, w) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: w }),
+                        ],
                       }),
                     ],
                   }),
@@ -1062,6 +1149,8 @@ export async function workPage(c, bindings) {
     c,
     workPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Program maintenance", { nl: "Programmabeheer" }),
@@ -1070,8 +1159,11 @@ export async function workPage(c, bindings) {
           list({
             context: c,
             model: "refer.Program",
-            renderRow: (program, v) =>
+            renderRow: (program, v) => [
+              /* desired-unimplemented: badge presents a readable typed value. */
+              badge({ context: v, value: program.reward }),
               edit({ context: v, operation: "refer.Program.update", record: program }),
+            ],
           }),
         ],
       }),
@@ -1084,7 +1176,8 @@ export async function workPage(c, bindings) {
             model: "refer.Advocate",
             ...advocateOptions(c),
             renderRow: (advocate, v) => [
-              metrics({
+              /* desired-unimplemented: stat shares the metric contract. */
+              stat({
                 context: v,
                 result: advocate,
                 fields: ["earned", "paid", "available", "owed"],
@@ -1101,18 +1194,61 @@ export async function workPage(c, bindings) {
                   "reversed",
                   "reason",
                 ],
-                renderRow: (source, w) =>
-                  actions({
+                renderRow: (source, w) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: w }),
+                  /* desired-unimplemented: button opens activates the local modal. */
+                  button({ context: w, opens: "reject_dialog" }),
+                  /* desired-unimplemented: modal declares the local activation identity. */
+                  modal({
                     context: w,
-                    operations: ["refer.reject_source"],
-                    boundArgs: { evidence: source },
+                    caption: message("Reject source qualification", {
+                      nl: "Bronkwalificatie afwijzen",
+                    }),
+                    id: "reject_dialog",
+                    children: [
+                      slot({
+                        context: w,
+                        name: "content",
+                        children: [
+                          form({
+                            context: w,
+                            operation: "refer.reject_source",
+                            arguments: { evidence: source },
+                            display: "inline",
+                            /* desired-unimplemented: placed textarea moves the generated control. */
+                            children: [textarea({ context: w, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
+                ],
               }),
               card({
                 context: v,
                 title: message("Record a cash settlement", { nl: "Een uitbetaling vastleggen" }),
                 children: [
-                  form({ context: v, operation: "refer.settle", arguments: { advocate } }),
+                  form({
+                    context: v,
+                    operation: "refer.settle",
+                    arguments: { advocate },
+                    /* desired-unimplemented: fieldset groups explicitly placed controls. */
+                    children: [
+                      fieldset({
+                        context: v,
+                        caption: message("Payment evidence", { nl: "Betalingsbewijs" }),
+                        children: [
+                          /* desired-unimplemented: input/calendarField place generated controls. */
+                          input({ context: v, field: "payment_source" }),
+                          input({ context: v, field: "reference" }),
+                          input({ context: v, field: "method" }),
+                          input({ context: v, field: "evidence" }),
+                          calendarField({ context: v, field: "paid" }),
+                        ],
+                      }),
+                    ],
+                  }),
                 ],
               }),
               history({ context: v, record: advocate }),

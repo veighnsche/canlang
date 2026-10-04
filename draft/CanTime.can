@@ -251,42 +251,88 @@ package time label="Time tracking"@{nl="Tijdregistratie"}
   # Start, stop and submit your own time with separate observed and entered evidence. @{nl="Start, stop en dien je eigen tijd in met afzonderlijk gemeten en ingevoerd bewijs."}
   page /time/mine title="My time"@{nl="Mijn tijd"}
    require members
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
    card "Timer and manual time intake"@{nl="Timer- en handmatige tijdinvoer"} layout=columns
     form start display=inline
+     ## service keeps its generated control; instants come from server time.
+     fieldset "Start timer"@{nl="Timer starten"}
+      select employee
+      select project
+      textarea description
+      toggle billable
     form manual
+     ## instants, service and the manager-only exception keep generated controls.
+     fieldset "Manual entry"@{nl="Handmatige registratie"}
+      select employee
+      select project
+      textarea description
+      toggle billable
+      textarea reason
     form submit
+     select employee
    list Entry as entry where entry.parent.user==actor and entry.until==null
-    text row.project,row.from,row.duration
-    action stop
+    stat row.duration
+    text row.project,row.from
+    button action=stop
    table Entry as entry where entry.parent.user==actor and (preferences.location==null or entry.project.location==preferences.location) and (preferences.week==null or (local_date(entry.from,team.timezone)>=preferences.week and local_date(entry.from,team.timezone)<add_days(preferences.week,7))) columns=project,service,description,from,until,origin,duration,rate,amount,state filter=project,project.location,from,until,billable,state defaults={project=preferences.project,billable=preferences.billable_filter} order=-from display=split
+    pagination
     actions stop,revise
-    details "Observed, entered and review evidence"@{nl="Gemeten, ingevoerd en beoordelingsbewijs"}
-     text row.author,row.billable,row.reason,row.overlap_reason,row.overlap_author,row.decision,row.review
+    status row.billable
+    collapse "Observed, entered and review evidence"@{nl="Gemeten, ingevoerd en beoordelingsbewijs"}
+     text row.author,row.reason,row.overlap_reason,row.overlap_author,row.decision,row.review
     history
    list group((Entry as entry where entry.parent.user==actor and entry.until!=null and entry.state!=superseded and (preferences.project==null or entry.project==preferences.project) and (preferences.location==null or entry.project.location==preferences.location) and (preferences.billable_filter==null or entry.billable==preferences.billable_filter) and (preferences.week==null or (local_date(entry.from,team.timezone)>=preferences.week and local_date(entry.from,team.timezone)<add_days(preferences.week,7)))) as entry,entry.rate.currency)
-    metrics row.key,sum(row.items as entry select entry.duration),sum(row.items as entry select entry.amount,row.key)
+    stat row.key,sum(row.items as entry select entry.duration),sum(row.items as entry select entry.amount,row.key)
    table PeriodReview as review where review.parent.user==actor columns=from,until,state,reason
+    pagination
     action withdraw
+    ## A rejection returns entries to draft; the reason stays visible on the frozen review.
+    alert
+     require row.state==rejected
+     text row.reason
     history
   # Review fixed periods and preserve correction financial uncertainty until the invoice owner resolves it. @{nl="Beoordeel vastgelegde periodes en bewaar financiële correctieonzekerheid totdat de factuureigenaar deze oplost."}
   page /time/review title="Time review"@{nl="Tijdbeoordeling"}
    require project_manager
+   breadcrumbs
    card "Project rates"@{nl="Projecttarieven"}
     form Project.create
+     ## rate keeps its generated money control.
+     fieldset "New project"@{nl="Nieuw project"}
+      input name
+      select location
+      select customer
     table Project columns=name,location,customer,rate,active
+     pagination
      edit
    table PeriodReview columns=parent,from,until,state,decided_by,reason filter=parent,from,until,state order=-from display=split
-    actions decide,withdraw
+    pagination
+    actions withdraw
+    button opens=decide_dialog
+    ## The dialog keeps the frozen review row; approval and reason are the entered inputs.
+    modal "Decide period"@{nl="Periode beoordelen"} id=decide_dialog
+     slot content
+      form decide arguments={review=row} display=inline
+       toggle approve
+       textarea reason
+    alert
+     require row.state==rejected
+     text row.reason
     table row.entries columns=project,from,until,rate,amount,overlap_reason,overlap_author,state
+     pagination
     history
    table Entry as entry where preferences.location==null or entry.project.location==preferences.location columns=parent,project,from,until,rate,amount,state filter=parent,project,project.location,from,until,state,billable defaults={project=preferences.project,billable=preferences.billable_filter} order=-from display=split
+    pagination
     actions correct,bill
-    details "Correction and billing evidence"@{nl="Correctie- en facturatiebewijs"}
+    collapse "Correction and billing evidence"@{nl="Correctie- en facturatiebewijs"}
      text row.service,row.origin,row.billable,row.reason,row.decision,row.exported_source,row.delivery
      table row.Correction columns=reason,replacement,author,original_source,cancel_status,collected,refunded,collection_pending,refund_pending,refund_status,reconcile_status,ready
+      pagination
       actions retry_cancel,reconcile,refund
     history
    list group((Entry as entry where entry.state==approved and entry.billable and (preferences.project==null or entry.project==preferences.project) and (preferences.location==null or entry.project.location==preferences.location)) as entry,entry.rate.currency)
-    metrics row.key,sum(row.items as entry select entry.amount,row.key)
+    stat row.key,sum(row.items as entry select entry.amount,row.key)
     table row.items columns=parent,project,duration,rate,amount,state
+     pagination
      action bill
