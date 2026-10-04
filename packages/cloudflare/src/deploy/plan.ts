@@ -47,6 +47,12 @@ function resolveId(
   if (resolved === undefined) {
     throw new Error(`deploy plan needs a selected resource for binding ${requirement.binding}`);
   }
+  if (
+    resolved.requirement.kind !== requirement.kind ||
+    resolved.requirement.logicalName !== requirement.logicalName
+  ) {
+    throw new Error(`binding ${requirement.binding} resolves to a different requirement`);
+  }
   return resolved.resourceId;
 }
 
@@ -110,8 +116,12 @@ export function buildDeployPlan(
           dataset: requirement.logicalName,
         });
         break;
+      default: {
+        const unknownKind: never = requirement.kind;
+        throw new Error(`deploy plan has no mapping for resource kind ${String(unknownKind)}`);
+      }
     }
   }
 
-  return { wrangler, schedules: descriptor.schedules };
+  return { wrangler, schedules: [...descriptor.schedules] };
 }

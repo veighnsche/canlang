@@ -47,6 +47,8 @@ export function checkCompatibility(
   }
 
   for (const capability of descriptor.requiredCapabilities) {
+    // Unknown IDs also land here until a capability registry distinguishes
+    // "unknown" from "known but not installed"; both fail closed either way.
     if (!installed.capabilities.includes(capability)) {
       reasons.push({ code: "missing-capability", detail: capability });
     }

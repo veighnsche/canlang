@@ -74,8 +74,24 @@ describe("buildDeployPlan", () => {
   it("passes schedules through unmapped and throws on unresolved bindings", () => {
     const plan = buildDeployPlan(descriptor, environment, options);
     expect(plan.schedules).toEqual(descriptor.schedules);
+    expect(plan.schedules).not.toBe(descriptor.schedules);
     expect(() => buildDeployPlan(descriptor, { ...environment, resources: [] }, options)).toThrow(
       /binding DB/,
     );
+    expect(() =>
+      buildDeployPlan(
+        descriptor,
+        {
+          ...environment,
+          resources: [
+            {
+              requirement: { binding: "DB", kind: "r2", logicalName: "wrong" },
+              resourceId: "x",
+            },
+          ],
+        },
+        options,
+      ),
+    ).toThrow(/different requirement/);
   });
 });
