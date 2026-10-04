@@ -459,3 +459,70 @@ test('undecodable cookie values resolve public (least privilege)', async () => {
   assert.equal(res.status, 200);
   assert.ok((await res.text()).includes('<p>hi</p>'));
 });
+
+function queryingPage(): PageDescriptor {
+  return helloPage({
+    path: '/todos',
+    title: 'Todos',
+    render: async (context: PresentationContext) => {
+      const result = await context.query(context.invocation, 'TestApp.Todo', { limit: 10 });
+      return `<ul>${result.rows.map((row) => `<li>${row.fields['title'] ?? ''}</li>`).join('')}</ul>`;
+    },
+  });
+}
+
+const TODO_LIST_RESULT = {
+  rows: [{ id: 't1', fields: { title: 'Write tests' } }],
+  columns: [{ field: 'title', label: 'Title', type: 'text' }],
+};
+
+test('in-render row queries flow through the read invoker', async () => {
+  const seen: Array<{ operation: string; inputs: unknown }> = [];
+  const { deps } = await createTestDeps({
+    descriptors: [queryingPage()],
+    reads: {
+      'TestApp.Todo.list': (envelope) => {
+        seen.push({ operation: envelope.operation, inputs: envelope.inputs });
+        return { result: TODO_LIST_RESULT };
+      },
+    },
+  });
+  const handler = createHttpHandler(deps, spySub());
+  const res = await handler(testRequest('/todos', { method: 'GET' }));
+  assert.equal(res.status, 200);
+  assert.ok((await res.text()).includes('Write tests'));
+  assert.deepEqual(seen, [
+    { operation: 'TestApp.Todo.list', inputs: { limit: 10 } },
+  ]);
+});
+
+test('in-render read denials keep their safe meaning (not generic)', async () => {
+  const { deps } = await createTestDeps({
+    descriptors: [queryingPage()],
+    reads: {
+      'TestApp.Todo.list': () => ({
+        error: { code: 'forbidden', message: 'No entry.', retryable: false },
+      }),
+    },
+  });
+  const handler = createHttpHandler(deps, spySub());
+  const res = await handler(testRequest('/todos', { method: 'GET' }));
+  assert.equal(res.status, 403);
+  assert.deepEqual(await res.json(), { code: 'forbidden', message: 'No entry.', retryable: false });
+});
+
+test('in-render queries enforce collection bounds', async () => {
+  const overflowing = helloPage({
+    path: '/overflow',
+    title: 'Overflow',
+    render: async (context: PresentationContext) => {
+      await context.query(context.invocation, 'TestApp.Todo', { limit: 500 });
+      return '<p>unreachable</p>';
+    },
+  });
+  const { deps } = await createTestDeps({ descriptors: [overflowing] });
+  const handler = createHttpHandler(deps, spySub());
+  const res = await handler(testRequest('/overflow', { method: 'GET' }));
+  assert.equal(res.status, 400);
+  assert.equal((await res.json() as { code: string }).code, 'validation');
+});

@@ -15,15 +15,23 @@
  * an incident id and answers the generic envelope; denial throws keep
  * their safe code and message.
  */
-import { DEFAULT_THEME, PAGE_MAX_RESPONSE_BYTES } from '@canlang/contracts';
+import {
+  COLLECTION_DEFAULT_LIMIT,
+  COLLECTION_MAX_LIMIT,
+  DEFAULT_THEME,
+  PAGE_MAX_RESPONSE_BYTES,
+} from '@canlang/contracts';
 import type {
   AccountMenuData,
   AdmittedBindings,
   AdmissionOutcome,
+  ListQueryArgs,
+  ListQueryResult,
   NavigationResult,
   PageDescriptor,
   PresentationContext,
   ResolvedIdentity,
+  RowQueryRunner,
   ShellData,
   TeamOption,
 } from '@canlang/contracts';
@@ -52,6 +60,57 @@ function internalResponse(deps: HttpDeps, err: unknown, path: string): Response 
   logInternalError(deps.logger, err, { path });
   const error = fromUnknown(err);
   return jsonErrorResponse(error, httpStatusFor(error.code));
+}
+
+/** Render-path throw mapping: business denials keep meaning, else internal. */
+function renderThrowResponse(deps: HttpDeps, err: unknown, path: string): Response {
+  if (isBusinessThrow(err)) {
+    const error = caughtToBusinessError(err);
+    return jsonErrorResponse(error, httpStatusFor(error.code));
+  }
+  return internalResponse(deps, err, path);
+}
+
+/**
+ * Bind the row-query runner to canonical reads. `invocation` carries the
+ * resolved identity (opaque to presentation); the runner maps
+ * (model, args) to the `<model>.list` read operation per the DESIGN
+ * section-10 tool-name convention, enforces collection bounds, and throws
+ * business denials (mapped by the render path) instead of hiding them.
+ * The args→inputs mapping (where→filters passthrough) is lane-06 authored,
+ * pending L3 acknowledgment.
+ */
+function bindRowQueryRunner(deps: HttpDeps, identity: ResolvedIdentity): RowQueryRunner {
+  return async (_invocation: unknown, model: string, args: ListQueryArgs): Promise<ListQueryResult> => {
+    const limit = args.limit ?? COLLECTION_DEFAULT_LIMIT;
+    if (!Number.isInteger(limit) || limit < 1 || limit > COLLECTION_MAX_LIMIT) {
+      throw buildBusinessError('validation', 'Invalid collection limit.');
+    }
+    const outcome = await deps.invoker.invokeRead(
+      {
+        operation: `${model}.list`,
+        inputs: {
+          ...(args.parent === undefined ? {} : { parent: args.parent }),
+          ...(args.where === undefined ? {} : { filters: args.where }),
+          limit,
+          ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
+        },
+      },
+      identity,
+    );
+    if ('error' in outcome) throw outcome.error;
+    const result = outcome.result as Partial<ListQueryResult> | null | undefined;
+    if (
+      typeof result !== 'object' ||
+      result === null ||
+      !Array.isArray(result.rows) ||
+      !Array.isArray(result.columns) ||
+      (result.nextCursor !== undefined && typeof result.nextCursor !== 'string')
+    ) {
+      throw new Error(`read ${model}.list returned a malformed collection result.`);
+    }
+    return { rows: result.rows, columns: result.columns, ...(result.nextCursor === undefined ? {} : { nextCursor: result.nextCursor }) };
+  };
 }
 
 interface RouteMatch {
@@ -249,6 +308,7 @@ export async function handlePageRequest(deps: HttpDeps, request: Request): Promi
   }
 
   const partial = isPartialRequest(request);
+  const query = bindRowQueryRunner(deps, identity);
   if (partial) {
     const context: PresentationContext = {
       preferredLocales: parseAcceptLanguage(request.headers.get('accept-language')),
@@ -258,12 +318,14 @@ export async function handlePageRequest(deps: HttpDeps, request: Request): Promi
       isPartial: true,
       csrfToken,
       principal: identity,
+      invocation: identity,
+      query,
     };
     let children: string;
     try {
       children = await match.descriptor.render(context, bindings);
     } catch (err) {
-      return internalResponse(deps, err, pathname);
+      return renderThrowResponse(deps, err, pathname);
     }
     let html: string;
     try {
@@ -313,12 +375,14 @@ export async function handlePageRequest(deps: HttpDeps, request: Request): Promi
     isPartial: false,
     csrfToken,
     principal: identity,
+    invocation: identity,
+    query,
   };
   let children: string;
   try {
     children = await match.descriptor.render(context, bindings);
   } catch (err) {
-    return internalResponse(deps, err, pathname);
+    return renderThrowResponse(deps, err, pathname);
   }
   let html: string;
   try {
