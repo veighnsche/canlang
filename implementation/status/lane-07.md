@@ -198,6 +198,10 @@ Active reservations: none (coordinator holds all owned files until first delegat
 - PR #63 (branch `muse/lane-07-platform/nits-17`, reviewed head `a1a6063`, base `0a2fdad`, squash-merged as `93c6cad`): folded NITs + evidence + survey. Checks: integration.yml green on PR (workspace 1m18s, tools 8s); typecheck clean; vitest 84/84 (16 files); independent review MERGEABLE (1 NIT: `.ts`-import file count 6 not 4, verified + fixed in PR18). Limits: B1 still L1-blocked.
 - Lane 06 B1/B2 merged as PR #59 (`e818eb5`): integration-evidence suite (22 new interfaces tests: browser/MCP parity, OAuth lifecycle, uploads/ingress journeys over real dispatchers + identity store). Tests-only, no src/contracts/manifest changes — no assembly/lock action. Suite: interfaces 259/259 (was 237). Restates exact blocks: L1 T4 emission, L3 interim descriptors, L5 consent interim, L7 runner binding (the B1 act itself — consistent with my B1 record, no new ask).
 
+- PR #65 (branch `muse/lane-07-platform/b1b2-join`, reviewed head `114e3f5`, base `93c6cad`, squash-merged as `298c51b`): B1/B2 join evidence + count fix. Checks: integration.yml green on PR (workspace 43s, tools 8s); typecheck clean; vitest 84/84 (16 files); interfaces 259/259; independent review MERGEABLE with zero findings. Limits: B1 still L1-blocked.
+- Lane 05 C4b merged as PR #62 (`f23d1df`): forms-only as surveyed (ui forms/tests, no contracts/manifests — no assembly/lock action). Suite: ui 504/504 (was 487).
+- Lane 06 completion #64 (`dcc6f71`, status-only): S1–S7 + B1/B2 all merged, writers released, worktree retained for the B1 join. No L7 ask; their B1 record matches mine (L1 emission + L3 descriptors + L5 consent + L7 binding act).
+
 ## Remaining work and cleanup
 
 Full authorized scope remains except B0 planning. Owned resources: one worktree (above), no background processes, no cloud credentials used. Cleanup on completion: release subagents, remove worktree after merges settle, record final revisions.
