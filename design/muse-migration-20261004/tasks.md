@@ -166,12 +166,12 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: Agreed behavior, permissions and exact source/JS expectations match; focused checks; no unstated policy or invented dependency.
   - Evidence: writer 01a107ad-31a8-7312-84eb-ffc930ff1ceb released (READY-BY-OVERRIDE). EligibilityReview + 5 emitting adapters + review_commitment/review_swap applied verbatim; JS schema/metadata/bodies match; .md states finite-cohort guarantee, retains 100-bounds. 2 stale sync-outcome examples + fixtures removed (no invented each selectors, per doc prohibition). Coordinator verified: added lines touch no forbidden area, only limit=100/1 remain, node --check OK, independent projection parse exit 0 (disclosed: delivery→text, derive label stripped, each= stripped). Unexecuted behavior disclosed.
 
-- [ ] **A03 — Volunteer complete population progress**
+- [x] **A03 — Volunteer complete population progress**
   - Prerequisites: SATISFIED BY USER-OVERRIDE 2026-10-04 (was: READY linking progress-design.md): coordinator acceptance analysis appended to progress-design.md; all overlapping writers released
   - Owner / files / interfaces: Muse implementation agent; draft/CanVolunteer.can, draft/CanVolunteer.md, draft/CanVolunteer.mjs
   - Changes / traceability: Q1–Q3; apply the complete accepted design witness and its explicitly listed cases. The document filename is a destination, not a claim a design exists.
   - Acceptance: Agreed behavior, permissions and exact source/JS expectations match; focused checks; no unstated policy or invented dependency.
-  - Evidence: pending.
+  - Evidence: writer 01a107b2-7b51-78d3-a418-680db88c10ee released (READY-BY-OVERRIDE). Cancellation subset + all 5 companions + reminder refresh applied verbatim; reschedule/venue_changed bodies untouched (material paths excluded per acceptance). choose() confirmed precedented (DESIGN:249/1100, CanSync/CanEnrich). Coordinator verified: .mjs markers complete, no material-path touches, node --check OK, direct parse identical pre/post (pre-existing 20:134), independent projection parse exit 0 (disclosed: delivery→text, each= stripped). Unexecuted behavior disclosed.
 
 - [ ] **A04 — Rent retained-history application**
   - Prerequisites: SATISFIED BY USER-OVERRIDE 2026-10-04 (was: READY linking history-design.md): coordinator-authored history-design.md (499 lines: H1-H4 investigation, G1-G5 gaps, flagged D1-D9, Can + JS witnesses, 14 cases); all overlapping writers released
@@ -332,6 +332,8 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - DISPATCH batch 4 (slot freed x1): A05 implementation writer (CanMail triplet + CanCustomer.can/.md). A03/A04 still running. Queued: A06 (after A05 release), N10 implementation.
 - DONE A05: writer 01a107b6-0d0d-79e2-9f1d-44d65bf8c06a RELEASED draft/CanMail.can, draft/CanMail.md, draft/CanMail.mjs, draft/CanCustomer.md (CanCustomer.can untouched). Task ticked complete (see A05 evidence).
 - DISPATCH batch 5 (slot freed x1): A06 implementation writer (CanMail triplet; A05 released, ordering satisfied). A03/A04 still running. Queued: N10 implementation.
+- DONE A03: writer 01a107b2-7b51-78d3-a418-680db88c10ee RELEASED draft/CanVolunteer.can, draft/CanVolunteer.md, draft/CanVolunteer.mjs. Task ticked complete (see A03 evidence).
+- DISPATCH batch 6 (slot freed x1): N10 implementation writer (Purchase + Expense triplets). A04/A06 running. Queue empty; final integration + handoff after releases.
 - ACK H005 NOTE watcher repaired: accepted. contextlib.closing fix noted; H002 command reusable when ready work next exhausts (not now — A01 active). No TUI-push claim.
 - ACK H006 READY A01 accepted: complete C4 feedback-design.md (457 lines) + review.md limits read in full. Scope: Decision/current_decision/contracts/policy/invariant/locks/derive, roadmap/moderate bodies, withdraw_decision/decision_history, both page roots, full target mirror, journey observations + withdrawal table + decision_history sequence, 15-row required-cases table. No DESIGN/GRAMMAR/runtime work. C1/Rent-history/C3/C5 remain unadopted.
 - RESERVED A01: draft/CanFeedback.can, draft/CanFeedback.md, draft/CanFeedback.mjs — writer 01a10715-f84a-75c0-839e-02675ad1d0e3 (A01 Feedback/17) active. J01 released; no pending Feedback edits at handoff (verified clean).
