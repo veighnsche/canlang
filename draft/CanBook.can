@@ -376,52 +376,123 @@ package appointments
  Then
   # Choose a location, appointment type and published host window. @{nl="Kies een locatie, afspraaktype en gepubliceerd gastheervenster."}
   page /appointments title="Appointments"@{nl="Afspraken"}
-   card "Published host windows"@{nl="Gepubliceerde gastheervensters"}
+   breadcrumbs
+   hero "Published host windows"@{nl="Gepubliceerde gastheervensters"}
     list Calendar columns=location,timezone,duration,active filter=location,active defaults={location=preferences.location} display=split
-     text row.timezone,row.hours,row.instructions,row.cutoff
+     pagination
+     text row.timezone,row.hours
+     ## Readable pre-booking notice (alert: nonempty readable-content suite, no
+     ## invocation children). content preserves the instruction paragraphs.
+     alert
+      content row.instructions
+      text row.cutoff
      table row.WeeklyHours columns=weekday,opens,closes
+      pagination
      table row.ClosedDay columns=day,reason
+      pagination
      table row.Window columns=from,until,available order=from
+      pagination
      list row.Type
+      pagination
       text row.name,row.duration
+      ## book takes type from the row; customer/contact/from keep generated
+      ## controls (from is a datetime: no date-only calendar control applies).
       form book
    card "Own appointments"@{nl="Eigen afspraken"}
-    table Appointment columns=from,until,duration,state,reason order=from filter=state defaults={state=preferences.appointment_state} display=split
-     actions cancel,reschedule,discard_reschedule,retry_cleanup
-     details "Appointment coordination"@{nl="Afspraakafstemming"}
-      text row.host_ok,row.room_ok,row.host_delivery,row.room_delivery
-      list row.Attempt columns=kind,from,until,state,host_ok,room_ok,host_unknown,room_unknown,host_released,room_released
-       actions recover_attempt
-      list row.Notice columns=kind,state
+    ## Unbound tabs require nonempty captioned suites (GRAMMAR tabs_group). Both
+    ## tabs together show every appointment; both keep the full action set so a
+    ## verified customer can still resolve an old failed/unavailable row (a
+    ## read-only Past would strand retry_cleanup: the agenda is host-only).
+    ## now-bounded view predicates use the ordinary query grammar.
+    tabs
+     tab "Upcoming"@{nl="Aankomend"}
+      table Appointment as visit where visit.from>=now columns=from,until,duration,state,reason order=from filter=state defaults={state=preferences.appointment_state} display=split
+       pagination
+       badge row.state
+       status row.host_ok
+       status row.room_ok
+       actions cancel,reschedule,discard_reschedule,retry_cleanup
+       collapse "Appointment coordination"@{nl="Afspraakafstemming"}
+        text row.host_ok,row.room_ok,row.host_delivery,row.room_delivery
+        list row.Attempt columns=kind,from,until,state,host_ok,room_ok,host_unknown,room_unknown,host_released,room_released
+         pagination
+         badge row.state
+         button action=recover_attempt arguments={attempt=row}
+        list row.Notice columns=kind,state
+         pagination
+         badge row.state
+     tab "Past"@{nl="Verleden"}
+      table Appointment as visit where visit.from<now columns=from,until,duration,state,reason order=from filter=state defaults={state=preferences.appointment_state} display=split
+       pagination
+       badge row.state
+       status row.host_ok
+       status row.room_ok
+       actions cancel,reschedule,discard_reschedule,retry_cleanup
+       collapse "Appointment coordination"@{nl="Afspraakafstemming"}
+        text row.host_ok,row.room_ok,row.host_delivery,row.room_delivery
+        list row.Attempt columns=kind,from,until,state,host_ok,room_ok,host_unknown,room_unknown,host_released,room_released
+         pagination
+         badge row.state
+         button action=recover_attempt arguments={attempt=row}
+        list row.Notice columns=kind,state
+         pagination
+         badge row.state
   # Maintain availability and record attendance under host grants. @{nl="Beheer beschikbaarheid en leg aanwezigheid vast binnen gastheerbevoegdheden."}
   page /appointments/hosts title="Host calendars"@{nl="Gastheerkalenders"}
+   breadcrumbs
    require host_manager
    card "Calendar intake"@{nl="Kalender aanmaken"}
     form Calendar.create
+     input hours
+     textarea instructions
    list Calendar display=split
+    pagination
     card "Calendar configuration"@{nl="Kalenderinstellingen"}
      text row.location,row.timezone,row.hours,row.instructions,row.cutoff
+     ## edit keeps its canonical update schema; the suite only places the active
+     ## control first (UI-COMPONENTS Forms-and-field-placement; GRAMMAR edit_group).
      edit
+      checkbox active
     tabs
      tab "Weekly hours and holidays"@{nl="Wekelijkse uren en feestdagen"}
       form WeeklyHours.create
+       input opens
+       input closes
+       radio fold
       list row.WeeklyHours columns=weekday,opens,closes
+       pagination
        edit
        delete
       form ClosedDay.create
+       calendar day
+       input reason
       list row.ClosedDay columns=day,reason
+       pagination
        edit
        delete
      tab "Dated availability"@{nl="Gedateerde beschikbaarheid"}
+      ## Window bounds are datetimes: no date-only calendar control applies.
       form Window.create
       list row.Window order=from
+       pagination
        edit
      tab "Appointment types"@{nl="Afspraaktypen"}
       form Type.create
+       input name
+       input room
       list row.Type
+       pagination
        edit
    card "Appointment agenda"@{nl="Afsprakenagenda"}
     calendar Appointment start=from end=until filter=state defaults={state=preferences.appointment_state}
-     text row.state,row.duration,row.host_ok,row.room_ok,row.reason
-     actions attendance,cancel,reschedule,discard_reschedule,retry_cleanup
+     pagination
+     badge row.state
+     status row.host_ok
+     status row.room_ok
+     text row.duration,row.reason
+     ## attendance takes the row; placed controls move the generated fields.
+     form attendance arguments={appointment=row}
+      checkbox attend
+      textarea reason
+     actions cancel,reschedule,discard_reschedule,retry_cleanup
      history

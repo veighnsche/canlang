@@ -272,33 +272,69 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
   # Submit and follow your own exact document versions. @{nl="Dien je eigen exacte documentversies in en volg ze."}
   page /documents title="My submissions"@{nl="Mijn inzendingen"}
    require members
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
    card "Document intake"@{nl="Document aanmaken"}
     form Document.create
+     input title
+     input category
+     input subject
+     input email
    list Document as document where document.submitter==actor columns=title,location,category,current filter=location,category search=title display=split
+    pagination
     card "Current document"@{nl="Huidig document"}
      edit
      form submit
+      file_input file
+      textarea note
+      input reviewer_email
+      ## due stays generated: it is a zone-aware datetime, not a date control.
+     ## Candidate-bound submit keeps the generated remainder: same operation and guards as the form above.
      form reviewer_choices arguments={document}
       list result as candidate columns=name,user,role,home
+       pagination
        form submit arguments={document,assignee=candidate.user}
-    details "Submitted version history"@{nl="Ingediende versiehistorie"} open=preferences.versions_open
+    ## Collapse shares the details disclosure contract; open= applies only to Collapse.
+    collapse "Submitted version history"@{nl="Ingediende versiehistorie"} open=preferences.versions_open
      table row.Submission columns=revision,file,note,reviewer,due,overdue,state,reason order=-revision filter=state,reviewer,overdue
-      action withdraw
-      details "Version decision history"@{nl="Besluithistorie versies"}
+      pagination
+      badge row.state
+      status row.overdue
+      button action=withdraw arguments={submission=row}
+      collapse "Version decision history"@{nl="Besluithistorie versies"}
        text row.decided_by,row.decided_at
        history
       table row.Notice columns=assignment,kind,recipient,state,created_by,created order=created
+       pagination
   # Review assigned submissions or coordinate permitted assignments. @{nl="Beoordeel toegewezen inzendingen of coördineer toegestane toewijzingen."}
   page /documents/review title="Review queue"@{nl="Beoordelingswachtrij"}
    require reviewer or coordinator
+   breadcrumbs
    table Submission as submission columns=parent,revision,file,note,reviewer,due,overdue,state order=due filter=state,reviewer,parent.location,parent.category,overdue defaults={state=preferences.review_state} display=split
+    pagination
     card "Exact submitted version"@{nl="Exact ingediende versie"}
-     text row.revision,row.file,row.note,row.due,row.state,row.reason
-     actions decide,assign
+     badge row.state
+     status row.overdue
+     text row.revision,row.file,row.note,row.due,row.reason
+     ## One binding per button; each modal id is unique in this page scope; the external opener suppresses the implicit opener.
+     join
+      button opens=decide_dialog
+      button opens=assign_dialog
+     modal "Record decision"@{nl="Besluit vastleggen"} id=decide_dialog
+      slot content
+       form decide arguments={submission=row} display=inline
+        checkbox approve
+        textarea reason
+     modal "Assign"@{nl="Toewijzen"} id=assign_dialog
+      slot content
+       form assign arguments={submission=row} display=inline
+        input email
      form reviewer_choices arguments={document=submission.parent}
       list result as candidate columns=name,user,role,home
+       pagination
        form assign arguments={submission,assignee=candidate.user}
-    details "Review history"@{nl="Beoordelingshistorie"}
+    collapse "Review history"@{nl="Beoordelingshistorie"}
      text row.decided_by,row.decided_at
      history
     table row.Notice columns=assignment,kind,recipient,state,created_by,created order=created
+     pagination
