@@ -244,9 +244,8 @@ export function datetime(value: string): DatetimeValue {
   if (hour > 23 || minute > 59 || second > 59) {
     throw new ValueError("invalid-construction", `invalid time of day: ${value}`);
   }
-  if (zone === "") {
-    throw new ValueError("invalid-construction", `missing zone offset: ${value}`);
-  }
+  // No missing-zone check: DATETIME_RE mandates Z or a numeric offset, so
+  // `zone` always participates; an empty fallback would fail downstream.
   if (sign !== undefined && (offHour > 23 || offMinute > 59)) {
     throw new ValueError("invalid-construction", `invalid zone offset: ${value}`);
   }
@@ -339,10 +338,11 @@ export function weekday(value: DateValue): bigint {
 
 /**
  * `dates(from:date, until:date, limit:int) -> date[]`: consecutive dates in
- * ascending half-open [from,until) order. Equal endpoints give []; reversed
- * endpoints or a nonpositive limit fail; more than `limit` dates fails with
- * limit-exceeded (the limit is a work bound, never truncation). Inclusive
- * business intervals pass add_days(until,1) explicitly.
+ * ascending half-open [from,until) order. Equal endpoints give [] without
+ * consulting the limit (zero work needs no bound); otherwise reversed
+ * endpoints or a nonpositive limit fail, and more than `limit` dates fails
+ * with limit-exceeded (the limit is a work bound, never truncation).
+ * Inclusive business intervals pass add_days(until,1) explicitly.
  */
 export function dates(from: DateValue, until: DateValue, limit: bigint): ReadonlyArray<DateValue> {
   const start = requireDate(from, "dates from");

@@ -252,6 +252,8 @@ describe("dates() half-open enumeration", () => {
 
   it("treats the limit as a failing work bound, never truncation", () => {
     assert.deepEqual(dates(date("2026-10-04"), date("2026-10-04"), 10n), []);
+    assert.deepEqual(dates(date("2026-10-04"), date("2026-10-04"), 0n), []);
+    assert.deepEqual(dates(date("2026-10-04"), date("2026-10-04"), -3n), []);
     assert.deepEqual(dates(date("2026-10-01"), date("2026-10-04"), 3n).length, 3);
     assert.equal(codeOf(() => dates(date("2026-10-01"), date("2026-10-04"), 2n)), "limit-exceeded");
     assert.equal(codeOf(() => dates(date("2026-10-01"), date("2026-10-04"), 0n)), "invalid-construction");

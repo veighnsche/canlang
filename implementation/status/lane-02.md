@@ -196,9 +196,12 @@ implementation/evidence/jev/values-20261004/  # JEV round (done)
 - Case/whitespace/scalars: native `toLowerCase/toUpperCase`, `\p{White_Space}`,
   string iteration; native `TextEncoder`/URL (app_url origin is injected trusted
   context, never request Host).
-- ICU: reuse `@formatjs/icu-messageformat-parser` (pinned; pure JS, workerd-safe)
-  for parsing + OWN validator/renderer enforcing the bounded profile. Qualify:
-  banned constructs rejected, bound constructs render per vectors.
+- ICU: OWN bounded parser+validator+renderer (evaluated `@formatjs/
+  icu-messageformat-parser` 3.5.20 and rejected it: it supersets Can semantics,
+  so the required validator approaches own-parser cost while adding dep +
+  root-lock coordination; structural bounds in an owned parser reject banned
+  constructs as syntax errors). Native `Intl.PluralRules`/`Intl` parts supply
+  locale rules; exact digit rendering is own code (never Number-routed).
 - Runner/build: `node:test` built-in + `tsc` build to dist; `typescript` pinned
   devDep. No framework added. src uses no `node:` imports (workerd-safe).
 - ISO 4217 scale table: generated at author time from an authoritative public
@@ -327,9 +330,13 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
   documented on the PR; L3/L7 own the fix. No rebase past 53f6f29 was needed
   (L3 S2 touches disjoint paths; merge commit already includes it).
 - PR3 branch `muse/lane-02-values/temporal` cut from c949174: 4 temporal
-  files + catalog (16 flips + `divideDurationByInt` gap entry + 2 feature
+  files + catalog (15 flips + `divideDurationByInt` gap entry + 2 feature
   flips) + index exports. Catalog now 56 entries: 32 implemented, 22
   planned, 2 external (audited by exact script, not grep).
+- PR3 review (verdict merge): 1 MINOR (`dates()` equal-endpoints/limit
+  order — decided: equal gives [] without consulting the limit, doc + 2
+  vectors added) + 1 NIT (dead zone branch removed) + flip-count correction
+  (15, not 16).
 - Active workers: none (coordinator assembling PR3; next delegation is the
   PR4 text/collections slice).
 
