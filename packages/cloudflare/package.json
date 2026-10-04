@@ -1,0 +1,32 @@
+{
+  "name": "@canlang/cloudflare",
+  "version": "0.1.0",
+  "description": "CanLang Cloudflare delivery: local dev, deploy plans, compatibility checks, upgrade orchestration (lane 07). Node-side tooling only; Worker entry is a separate export.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./worker": {
+      "types": "./dist/worker/entry.d.ts",
+      "default": "./dist/worker/entry.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@canlang/contracts": "0.1.0",
+    "miniflare": "^5.20261001.0-alpha"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261004.1"
+  }
+}
