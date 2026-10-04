@@ -1,5 +1,6 @@
 import {
   active_member,
+  delivery,
   EmailV1,
   flatten,
   format,
@@ -140,6 +141,7 @@ async function fits(c, roster, employee, from, until, before, after, skip) {
 async function eligible(c, commitment) {
   return (
     commitment.active &&
+    commitment.location.active &&
     commitment.employee.active &&
     (await can_work(c, commitment.employee.user, commitment.location)) &&
     (commitment.kind === "absence" || commitment.employee.skills.includes(commitment.skill)) &&
@@ -412,30 +414,25 @@ export const appDefinition = {
       },
     },
     "shift.Notice": {
-      parent: "shift.Duty",
-      label: message("Roster notice", { nl: "Roosterbericht" }),
-      readGrants: [{ rule: "Notice.read.1" }, { rule: "Notice.read.2" }],
+      parent: "shift.Duty", label: message("Roster notice", { nl: "Roosterbericht" }),
+      readGrants: [
+        { rule: "Notice.read.1", fields: ["parent", "recipient", "revision", "kind", "delivery.id", "delivery.status", "state", "created", "created_by", "updated", "updated_by", "archived_at"] },
+        { rule: "Notice.read.2", fields: ["parent", "recipient", "revision", "kind", "delivery.id", "delivery.status", "state", "created", "created_by", "updated", "updated_by", "archived_at"] },
+      ],
       fields: {
-        recipient: { type: "user" },
-        revision: { type: "int" },
-        kind: { type: "shift.DutyNotice.kind" },
-        delivery: { type: "text", unique: true },
-        state: {
-          type: "enum",
-          cases: ["pending", "succeeded", "failed", "unknown", "skipped"],
-          default: "pending",
-          label: {
-            text: message("Notice delivery", { nl: "Berichtverzending" }),
-            values: {
-              pending: message("Pending", { nl: "In afwachting" }),
-              succeeded: message("Sent", { nl: "Verzonden" }),
-              failed: message("Failed", { nl: "Mislukt" }),
-              unknown: message("Unknown", { nl: "Onbekend" }),
-              skipped: message("Skipped", { nl: "Overgeslagen" }),
-            },
-          },
-        },
+        recipient: { type: "user" }, revision: { type: "int" }, kind: { type: "shift.DutyNotice.kind" },
+        delivery: { type: "delivery", operation: "shift.Mail.send" },
       },
+      derived: { state: { type: "std.DeliveryResult.status", handler: "Notice.state", label: {
+        text: message("Notice delivery", { nl: "Berichtverzending" }),
+        values: {
+          pending: message("Pending", { nl: "In afwachting" }),
+          succeeded: message("Sent", { nl: "Verzonden" }),
+          failed: message("Failed", { nl: "Mislukt" }),
+          unknown: message("Unknown", { nl: "Onbekend" }),
+          skipped: message("Skipped", { nl: "Overgeslagen" }),
+        },
+      } } },
     },
     "shift.Swap": {
       parent: "shift.Duty",
@@ -657,6 +654,12 @@ export const appDefinition = {
       read: false,
       inputs: { record: { type: "shift.Roster" }, changes: { fields: ["name"] } },
     },
+    "shift.recover_commitment": {
+      handler: "recover_commitment", read: false, by: "shift.scheduler",
+      inputs: { commitment: { type: "shift.Commitment" } },
+      label: message("Review commitment eligibility", { nl: "Controleer inzetgeschiktheid" }),
+      description: message("Review one retained commitment and its pending swaps after bounded automatic reconciliation fails.", { nl: "Controleer één behouden inzetverplichting en de openstaande dienstruilen nadat begrensde automatische reconciliatie faalt." }),
+    },
     "shift.reconcile": {
       handler: "reconcile",
       read: false,
@@ -811,6 +814,7 @@ export const appDefinition = {
   },
   handlers: {
     "shift.employee_changed": { handler: "employee_changed", on: EmployeeChanged },
+    "shift.location_changed": { handler: "location_changed", on: "rent_catalog.Location.updated" },
     "shift.member_removed": { handler: "member_removed", on: "teams.member_removed" },
     "shift.availability_created": {
       handler: "availability_created",
@@ -821,10 +825,6 @@ export const appDefinition = {
       on: "shift.Availability.update",
     },
     "shift.duty_notice": { handler: "duty_notice", on: "shift.DutyNotice" },
-    "shift.notice_result": {
-      handler: "notice_result",
-      on: { capability: "shift.Mail", operation: "send", event: "completed" },
-    },
     "shift.reserve_connected": {
       handler: "reserve_connected",
       on: "shift.ScheduleRequests.reserve",
@@ -890,7 +890,10 @@ export function canApp() {
         hasRole(c, "members") &&
         (same(row.substitute.user, c.actor) || same(row.original.user, c.actor)),
     },
-    derives: { "Coverage.met": async (c, row) => await coverage_met(c, row.parent, row, null) },
+    derives: {
+      "Coverage.met": async (c, row) => await coverage_met(c, row.parent, row, null),
+      "Notice.state": async (c, row) => (await delivery(c, { record: row, field: "delivery" }, ["status"])).status,
+    },
     invariants: {
       "Roster.require.1": async (c, row) => (await count(records(c, "shift.Roster"))) === 1n,
       "Coverage.require.1": (c, row) => compareInstant(row.from, row.until) < 0,
@@ -933,7 +936,8 @@ export function canApp() {
     ) {
       check(hasRole(c, "shift.scheduler"), "forbidden");
       check(
-        (await can_work(c, c.actor, location)) &&
+        location.active &&
+          (await can_work(c, c.actor, location)) &&
           (await can_work(c, employee.user, location)) &&
           employee.role === role &&
           employee.skills.includes(skill) &&
@@ -999,6 +1003,8 @@ export function canApp() {
           duty.parent.active &&
           compareInstant(duty.parent.until, c.now) > 0 &&
           same(duty.parent.employee.user, c.actor) &&
+          duty.parent.location.active &&
+          (await can_work(c, c.actor, duty.parent.location)) &&
           !same(substitute.user, c.actor) &&
           substitute.active &&
           substitute.role === duty.role &&
@@ -1023,6 +1029,9 @@ export function canApp() {
       check(hasRole(c, "members"), "forbidden");
       check(
         swap.state === "open" &&
+          swap.parent.published &&
+          swap.parent.parent.active &&
+          swap.parent.parent.location.active &&
           compareInstant(swap.parent.parent.until, c.now) > 0 &&
           same(swap.substitute.user, c.actor) &&
           swap.substitute.active &&
@@ -1072,6 +1081,7 @@ export function canApp() {
       );
       await set(c, swap.parent.parent, {
         employee: swap.substitute,
+        conflict: false,
         revision: int64(swap.parent.parent.revision + 1n),
       });
       await set(c, swap, { state: "accepted" });
@@ -1144,7 +1154,8 @@ export function canApp() {
     async reconcile(c, { duty, employee, from, until, before = 0n, after = 0n, reason }) {
       check(hasRole(c, "shift.scheduler"), "forbidden");
       check(
-        (await can_work(c, c.actor, duty.parent.location)) &&
+        duty.parent.location.active &&
+          (await can_work(c, c.actor, duty.parent.location)) &&
           duty.parent.active &&
           reason.trim() !== "" &&
           (await can_work(c, employee.user, duty.parent.location)) &&
@@ -1179,6 +1190,8 @@ export function canApp() {
         )),
       );
       const original = duty.parent.employee;
+      const original_from = duty.parent.from;
+      const original_until = duty.parent.until;
       await set(c, duty.parent, {
         employee,
         from,
@@ -1201,7 +1214,8 @@ export function canApp() {
             async (window) =>
               !same(window.location, duty.parent.location) ||
               window.role !== duty.role ||
-              !overlaps(duty.parent.from, duty.parent.until, window.from, window.until) ||
+              (!overlaps(original_from, original_until, window.from, window.until) &&
+                !overlaps(duty.parent.from, duty.parent.until, window.from, window.until)) ||
               (await coverage_met(c, duty.parent.parent, window, duty)),
           ),
         );
@@ -1223,6 +1237,25 @@ export function canApp() {
             revision: duty.parent.revision,
             kind: "changed",
           });
+      }
+    },
+    async recover_commitment(c, { commitment }) {
+      check(hasRole(c, "shift.scheduler"), "forbidden");
+      check((await can_work(c, c.actor, commitment.location)) && commitment.active && compareInstant(addDuration(commitment.until, commitment.after), c.now) > 0);
+      if (commitment.conflict || !(await eligible(c, commitment)) || (await any(records(c, "shift.Duty", { parent: commitment }), (duty) => duty.role !== commitment.employee.role))) {
+        await set(c, commitment, { conflict: true });
+        await emit(c, ReservationOutcome, { value: { source: commitment.source, revision: commitment.revision, state: "unavailable", reference: commitment.id } });
+      }
+      for await (const swap of records(c, "shift.Swap", {
+        where: (item) => same(item.parent.parent, commitment) && item.state === "open" && compareInstant(item.parent.parent.until, c.now) > 0,
+        limit: 100n,
+      })) {
+        if (commitment.conflict || !commitment.location.active || !same(swap.original, commitment.employee) || commitment.version !== swap.revision ||
+          !(await can_work(c, swap.original.user, commitment.location)) || !(await can_work(c, swap.substitute.user, commitment.location)) ||
+          swap.original.role !== swap.parent.role || swap.substitute.role !== swap.parent.role || !swap.substitute.skills.includes(commitment.skill) ||
+          !(await fits(c, commitment.parent, swap.substitute, commitment.from, commitment.until, commitment.before, commitment.after, commitment)) ||
+          !(await travel_entered(c, commitment.parent, swap.substitute, commitment.location, commitment.from, commitment.until, commitment.before, commitment.after, commitment)))
+          await set(c, swap, { state: "obsolete" });
       }
     },
     async employee_changed(c, { event }) {
@@ -1265,6 +1298,23 @@ export function canApp() {
           !swap.substitute.skills.includes(swap.parent.parent.skill)
         )
           await set(c, swap, { state: "obsolete" });
+    },
+    async location_changed(c, { event }) {
+      for await (const commitment of records(c, "shift.Commitment", {
+        where: (item) => item.active && compareInstant(addDuration(item.until, item.after), c.now) > 0 &&
+          item.location.id === event.id && !item.location.active,
+        limit: 500n,
+      })) {
+        await set(c, commitment, { conflict: true });
+        await emit(c, ReservationOutcome, { value: {
+          source: commitment.source, revision: commitment.revision, state: "unavailable", reference: commitment.id,
+        } });
+      }
+      for await (const swap of records(c, "shift.Swap", {
+        where: (item) => item.state === "open" && compareInstant(item.parent.parent.until, c.now) > 0 &&
+          item.parent.parent.location.id === event.id && !item.parent.parent.location.active,
+        limit: 500n,
+      })) await set(c, swap, { state: "obsolete" });
     },
     async member_removed(c, { event }) {
       for await (const commitment of records(c, "shift.Commitment", {
@@ -1402,7 +1452,7 @@ export function canApp() {
       }
     },
     async duty_notice(c, { event }) {
-      const delivery = await send(
+      const attempt = await send(
         c,
         "shift.Mail.send",
         {
@@ -1438,20 +1488,14 @@ export function canApp() {
         recipient: event.recipient,
         revision: event.revision,
         kind: event.kind,
-        delivery: delivery.id,
+        delivery: attempt,
       });
-    },
-    async notice_result(c, { event }) {
-      for await (const notice of records(c, "shift.Notice", {
-        where: (item) => item.delivery === event.delivery_id,
-        limit: 1n,
-      }))
-        await set(c, notice, { state: event.status });
     },
     async reserve_connected(c, { event }) {
       check(
         same(event.employee.user, event.value.employee) &&
           event.location.id === event.value.location &&
+          event.location.active &&
           event.employee.active &&
           compareInstant(event.value.from, event.value.until) < 0 &&
           event.value.before >= 0n &&
@@ -1476,7 +1520,7 @@ export function canApp() {
           order: ["id"],
         }),
       );
-      if (previous !== null && previous.revision >= event.value.revision) {
+      if (previous !== null) {
         check(
           previous.revision === event.value.revision &&
             previous.active &&
@@ -1493,7 +1537,7 @@ export function canApp() {
           value: {
             source: previous.source,
             revision: previous.revision,
-            state: "confirmed",
+            state: previous.conflict || !(await eligible(c, previous)) ? "unavailable" : "confirmed",
             reference: previous.id,
           },
         });
@@ -1571,50 +1615,27 @@ export function canApp() {
             },
           });
         else {
-          if (previous === null) {
-            const commitment = await create(c, "shift.Commitment", {
-              parent: event.roster,
-              employee: event.employee,
-              location: event.location,
-              from: event.value.from,
-              until: event.value.until,
-              before: event.value.before,
-              after: event.value.after,
-              skill: event.value.skill,
-              kind: event.value.kind,
-              source: event.value.source,
-              revision: event.value.revision,
-            });
-            await emit(c, ReservationOutcome, {
-              value: {
-                source: commitment.source,
-                revision: commitment.revision,
-                state: "confirmed",
-                reference: commitment.id,
-              },
-            });
-          } else {
-            await set(c, previous, {
-              employee: event.employee,
-              location: event.location,
-              from: event.value.from,
-              until: event.value.until,
-              before: event.value.before,
-              after: event.value.after,
-              skill: event.value.skill,
-              kind: event.value.kind,
-              revision: event.value.revision,
-              active: true,
-            });
-            await emit(c, ReservationOutcome, {
-              value: {
-                source: previous.source,
-                revision: event.value.revision,
-                state: "confirmed",
-                reference: previous.id,
-              },
-            });
-          }
+          const commitment = await create(c, "shift.Commitment", {
+            parent: event.roster,
+            employee: event.employee,
+            location: event.location,
+            from: event.value.from,
+            until: event.value.until,
+            before: event.value.before,
+            after: event.value.after,
+            skill: event.value.skill,
+            kind: event.value.kind,
+            source: event.value.source,
+            revision: event.value.revision,
+          });
+          await emit(c, ReservationOutcome, {
+            value: {
+              source: commitment.source,
+              revision: commitment.revision,
+              state: "confirmed",
+              reference: commitment.id,
+            },
+          });
           if (event.value.kind === "absence")
             for await (const conflict of bounded(conflicts, 100n)) {
               await set(c, conflict, { conflict: true });
@@ -1634,6 +1655,7 @@ export function canApp() {
       check(
         same(event.employee.user, event.value.employee) &&
           event.location.id === event.value.location &&
+          event.location.active &&
           event.employee.active &&
           compareInstant(event.value.from, event.value.until) < 0 &&
           event.value.before >= 0n &&
@@ -1699,7 +1721,7 @@ export function canApp() {
           value: {
             source: candidate.source,
             revision: candidate.revision,
-            state: "confirmed",
+            state: candidate.conflict || !(await eligible(c, candidate)) ? "unavailable" : "confirmed",
             reference: candidate.id,
           },
         });
@@ -1831,6 +1853,12 @@ export function canApp() {
         limit: 1n,
       })) {
         check(event.revision >= commitment.revision);
+        check(commitment.kind !== "duty" || !(await any(
+          records(c, "shift.Commitment", { parent: event.roster }),
+          (dependent) => dependent.active && same(dependent.employee, commitment.employee) &&
+            ["visit", "appointment", "interview"].includes(dependent.kind) &&
+            overlaps(dependent.from, dependent.until, commitment.from, commitment.until),
+        )));
         await set(c, commitment, { active: false, revision: event.revision });
       }
       await emit(c, ReservationOutcome, {
@@ -1882,6 +1910,7 @@ export async function rosterPage(c, bindings) {
                       commitment.conflict,
                     ],
                   }),
+                  actions({ context: cv, operations: ["shift.recover_commitment"], boundArgs: { commitment } }),
                   list({
                     context: cv,
                     model: "shift.Duty",
@@ -2130,7 +2159,21 @@ export function exampleFixtures({ self, other, imported }) {
       revision: 1n,
     }),
   };
+  const away = {
+    model: "rent_catalog.Location", dependencies: [],
+    value: async (c, s) => ({ name: "Second site", address: "2 Example Road", timezone: "Europe/Brussels", currency: "EUR", hours: "09:00–18:00", arrival: "Report to reception" }),
+  };
+  const unavailable = {
+    model: "shift.Availability", dependencies: [roster, test_worker],
+    value: async (c, s) => ({ parent: s.roster, employee: s.test_worker, from: datetime("2099-01-01T17:00:00Z"), until: datetime("2099-01-01T17:15:00Z"), available: false }),
+  };
+  const notice_attempt = { dependencies: [], delivery: "shift.Mail.send", values: async (c, s) => ({ request: { to: "staff@example.test", subject: "Roster", body: "Review the current roster" } }) };
+  const notification = { model: "shift.Notice", dependencies: [duty, notice_attempt], value: async (c, s) => ({ parent: s.duty, recipient: s.self, revision: 1n, kind: "published", delivery: s.notice_attempt }) };
   return {
+    notice_attempt,
+    notification,
+    away,
+    unavailable,
     working,
     replacement_hours,
     target,
@@ -2166,6 +2209,24 @@ export function exampleFixtures({ self, other, imported }) {
         rows: [
           { dependencies: [], values: async (c, s) => ["shift.scheduler"], error: "rule_failed" },
         ],
+      },
+      {
+        operation: "shift.assign", seed: [working, assignment], dependencies: [roster, test_worker, away],
+        inputs: async (c, s) => ({ roster: s.roster, employee: s.test_worker, location: s.away, from: datetime("2099-01-01T17:30:00Z"), until: datetime("2099-01-01T18:00:00Z"), role: "Reception", skill: "reception" }),
+        selectors: ["as", "before", "test_worker.locations", "test_worker.role", "test_worker.skills"],
+        observations: [async (c, s) => await count(records(c, "shift.Commitment", { parent: s.roster }))],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["shift.scheduler", 1800000n, [s.test_site, s.away], "Reception", ["reception"]], expected: async (c, s) => [2n] },
+          { dependencies: [], values: async (c, s) => ["shift.scheduler", 0n, [s.test_site, s.away], "Reception", ["reception"]], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["shift.scheduler", 3600000n, [s.test_site, s.away], "Reception", ["reception"]], error: "rule_failed" },
+        ],
+      },
+      {
+        operation: "shift.assign", seed: [working, assignment, unavailable], dependencies: [roster, test_worker, away],
+        inputs: async (c, s) => ({ roster: s.roster, employee: s.test_worker, location: s.away, from: datetime("2099-01-01T17:30:00Z"), until: datetime("2099-01-01T18:00:00Z"), role: "Reception", skill: "reception", before: 1800000n }),
+        selectors: ["as", "test_worker.locations", "test_worker.role", "test_worker.skills"],
+        observations: [async (c, s) => await count(records(c, "shift.Commitment", { parent: s.roster }))],
+        rows: [{ dependencies: [], values: async (c, s) => ["shift.scheduler", [s.test_site, s.away], "Reception", ["reception"]], error: "rule_failed" }],
       },
       {
         operation: "shift.publish",
@@ -2231,6 +2292,49 @@ export function exampleFixtures({ self, other, imported }) {
         ],
       },
       {
+        operation: "shift.accept", seed: [working], dependencies: [proposed],
+        inputs: async (c, s) => ({ swap: s.proposed }),
+        selectors: ["as", "assignment.employee", "test_worker.role", "test_worker.skills", "assignment.conflict", "assignment.active", "duty.published"],
+        observations: [async (c, s) => s.swap.state, async (c, s) => s.assignment.employee, async (c, s) => s.assignment.conflict],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["members", s.substitute, "Reception", ["reception"], true, true, true], expected: async (c, s) => ["accepted", s.test_worker, false] },
+          { dependencies: [], values: async (c, s) => ["members", s.substitute, "Reception", ["reception"], true, false, true], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["members", s.substitute, "Reception", ["reception"], true, true, false], error: "rule_failed" },
+        ],
+      },
+      {
+        operation: "shift.reconcile", seed: [working, target], dependencies: [duty, test_worker],
+        inputs: async (c, s) => ({ duty: s.duty, employee: s.test_worker, from: datetime("2099-01-01T09:00:00Z"), until: datetime("2099-01-01T17:00:00Z"), reason: "Restore eligible coverage" }),
+        selectors: ["as", "assignment.employee.role", "assignment.employee.skills", "assignment.conflict", "from", "until"],
+        observations: [async (c, s) => s.assignment.conflict, async (c, s) => s.duty.published_revision],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["shift.scheduler", "Reception", ["reception"], true, datetime("2099-01-01T09:00:00Z"), datetime("2099-01-01T17:00:00Z")], expected: async (c, s) => [false, 2n] },
+          { dependencies: [], values: async (c, s) => ["shift.scheduler", "Reception", ["reception"], false, datetime("2099-01-01T17:00:00Z"), datetime("2099-01-01T18:00:00Z")], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["shift.scheduler", "Reception", ["reception"], false, datetime("2099-01-01T09:00:00Z"), datetime("2099-01-01T13:00:00Z")], error: "rule_failed" },
+        ],
+      },
+      {
+        operation: "shift.reserve_connected", seed: [working, assignment], dependencies: [roster, test_worker, test_site],
+        inputs: async (c, s) => ({ event: { roster: s.roster, employee: s.test_worker, location: s.test_site, value: { source: "duty", employee: s.self, location: s.test_site.id, from: datetime("2099-01-01T09:00:00Z"), until: datetime("2099-01-01T17:00:00Z"), before: 0n, after: 0n, skill: "reception", kind: "duty", revision: 1n } } }),
+        selectors: ["event.value.revision", "event.value.until", "test_worker.skills"],
+        observations: [async (c, s) => s.assignment.from, async (c, s) => s.assignment.until, async (c, s) => s.assignment.revision],
+        rows: [
+          { dependencies: [], values: async (c, s) => [1n, datetime("2099-01-01T17:00:00Z"), ["reception"]], expected: async (c, s) => [datetime("2099-01-01T09:00:00Z"), datetime("2099-01-01T17:00:00Z"), 1n] },
+          { dependencies: [], values: async (c, s) => [2n, datetime("2099-01-01T18:00:00Z"), ["reception"]], error: "rule_failed" },
+        ],
+      },
+      {
+        operation: "shift.recover_commitment", seed: [working, replacement_hours, proposed], dependencies: [assignment],
+        inputs: async (c, s) => ({ commitment: s.assignment }),
+        selectors: ["as", "test_worker.role", "test_worker.skills", "proposed.original", "proposed.substitute"],
+        observations: [async (c, s) => s.assignment.active, async (c, s) => s.assignment.conflict, async (c, s) => s.proposed.state],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["shift.scheduler", "Reception", ["reception"], s.test_worker, s.substitute], expected: async (c, s) => [true, false, "open"] },
+          { dependencies: [], values: async (c, s) => ["shift.scheduler", "Reception", [], s.test_worker, s.substitute], expected: async (c, s) => [true, true, "obsolete"] },
+          { dependencies: [], values: async (c, s) => ["members", "Reception", ["reception"], s.test_worker, s.substitute], error: "forbidden" },
+        ],
+      },
+      {
         operation: "shift.employee_changed",
         seed: [assignment, proposed],
         dependencies: [test_worker],
@@ -2262,6 +2366,19 @@ export function exampleFixtures({ self, other, imported }) {
             values: async (c, s) => [s.self],
             expected: async (c, s) => [true, "obsolete"],
           },
+        ],
+      },
+      {
+        operation: "shift.decline", seed: [notification], dependencies: [proposed, notice_attempt],
+        inputs: async (c, s) => ({ swap: s.proposed }),
+        selectors: ["as", "notice_attempt.status", "notice_attempt.result", "notice_attempt.error"],
+        observations: [async (c, s) => s.swap.state, async (c, s) => (await delivery(c, { record: s.notification, field: "delivery" }, ["status"])).status],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["members", "pending", null, null], expected: async (c, s) => ["rejected", "pending"] },
+          { dependencies: [], values: async (c, s) => ["members", "succeeded", { reference: "accepted-roster" }, null], expected: async (c, s) => ["rejected", "succeeded"] },
+          { dependencies: [], values: async (c, s) => ["members", "failed", null, { code: "provider", message: "Delivery rejected" }], expected: async (c, s) => ["rejected", "failed"] },
+          { dependencies: [], values: async (c, s) => ["members", "unknown", null, { code: "timeout", message: "Acceptance uncertain" }], expected: async (c, s) => ["rejected", "unknown"] },
+          { dependencies: [], values: async (c, s) => ["members", "skipped", null, null], expected: async (c, s) => ["rejected", "skipped"] },
         ],
       },
       {
