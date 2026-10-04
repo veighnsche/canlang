@@ -12,10 +12,10 @@
 //! `lsp` returns [`DispatchResult::run_lsp`] for [`run`] to serve and
 //! `run|test|build|deploy` spawn the lane-7 producer as a side effect.
 //!
-//! Analysis status (PR4): `check`/`lint`/`compile` load sources and run
+//! Analysis status (PR5): `check`/`lint`/`compile` load sources and run
 //! the [`Analyzer`] hook, whose default implementation is [`CatalogAnalyzer`]
-//! (parse + resolve + types over the producer catalog, `complete=false`
-//! until PR5 effects/examples land). [`StubAnalyzer`] remains as the
+//! (full pipeline over the producer catalog, `complete=true` via the
+//! [`check::readiness`] gate). [`StubAnalyzer`] remains as the
 //! deterministic empty backend behind the [`dispatch_with`] test seam;
 //! this module never fabricates diagnostics to look busy.
 
@@ -104,8 +104,8 @@ impl Analyzer for StubAnalyzer {
 /// `./packages/values/dist/catalog.json` (emitted by `npm run catalog`
 /// in `packages/values`). A missing catalog is one precise `E6002`
 /// naming every location tried; without a catalog, builtin names do not
-/// resolve (each use is `E2001`). The result is always `complete=false`:
-/// effects, examples and emission are PR5+.
+/// resolve (each use is `E2001`). The result is `complete=true`: the full
+/// pipeline ran (see [`check::readiness`]); emission is PR6+.
 #[derive(Debug, Clone, Default)]
 pub struct CatalogAnalyzer {
     /// `--catalog PATH` flag value.
@@ -158,7 +158,13 @@ impl Analyzer for CatalogAnalyzer {
         for diagnostic in diags {
             result.push(diagnostic);
         }
-        result.complete = false;
+        let gate = crate::analysis::check::readiness(crate::analysis::check::CompleteInputs::all(
+            Span::new(first, 0, 0),
+        ));
+        result.complete = gate.is_empty();
+        for diagnostic in gate {
+            result.push(diagnostic);
+        }
         result.finish();
         result
     }
@@ -471,7 +477,7 @@ Exit codes: 0 clean, 10 errors reported, 2 tool failure.
 fn command_help(cmd: &str) -> String {
     match cmd {
         "check" | "lint" | "compile" => format!(
-            "can {cmd} — analyze sources and report diagnostics (parse + resolve + types over the producer catalog; result is complete=false until PR5 effects/examples land)\n\nUsage: can {cmd} [--format=json|text] [--catalog=PATH] FILE.can...\n\nCatalog order: --catalog PATH, CAN_CATALOG, ./can-catalog.json, ./packages/values/dist/catalog.json (emit it with `npm run catalog` in packages/values). Without a catalog, builtin names do not resolve.\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n"
+            "can {cmd} — analyze sources and report diagnostics (full pipeline over the producer catalog; result is complete=true)\n\nUsage: can {cmd} [--format=json|text] [--catalog=PATH] FILE.can...\n\nCatalog order: --catalog PATH, CAN_CATALOG, ./can-catalog.json, ./packages/values/dist/catalog.json (emit it with `npm run catalog` in packages/values). Without a catalog, builtin names do not resolve.\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n"
         ),
         "explain" => "can explain — print a diagnostic catalog entry\n\nUsage: can explain [--format=json|text] CODE\n\nExit codes: 0 printed, 2 unknown code (E7003) or bad usage.\n".to_string(),
         "fmt" => "can fmt — check formatting (slice 2a: unimplemented)\n\nUsage: can fmt [--check] FILE.can...\n\nAlways reports E7005 until the slice-2b formatter lands; never a false clean.\n".to_string(),
