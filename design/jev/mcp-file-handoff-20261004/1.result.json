@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Can is a draft SaaS DSL: source contracts and handwritten JavaScript exist, but no compiler, file runtime or MCP host integration has been implemented. Adoption and compact authored source matter; required receipts and permissions must remain real. DESIGN §8 already defines shared upload intent, actual bytes, bounded validation, immutable finalization, expiry of unattached uploads and attachment through current authorized operations. File inputs accept completed opaque references owned by app/team/principal or existing attachments the caller may read; possession of an ID alone grants nothing. DESIGN §10 has one generated business-operation registry for browser and MCP. Connections bind app/user/team, calls recheck current grants, and mutations use operation_id. CanExpense's canonical Expense.create accepts a required receipt:file; source fixtures provide finalized files, never production uploads. MCP 2025-11-25 permits custom _meta; resources/read retrieves server resources and is not an upload method. No evidence establishes that arbitrary chatbot hosts can transfer local bytes. A host may have a user-selected file and a Can-specific integration; a host without that integration needs an explicit supported fallback. No approach may accept a URL/local path/metadata as a finalized file, let the model choose storage credentials or upload endpoints, bypass destination limits/authorization, claim an executed attachment journey or add per-app upload declarations. Compare designs assuming identical file ownership, quotas, content checks, principal/team scope and final business validation. Do not research or infer performance measurements.",
+    "questions": {
+      "handoff": {
+        "type": "choice",
+        "instructions": "Select the smallest complete draft contract for staff attaching a receipt from a chatbot, weighing host compatibility and model context costs alongside reuse and explicit failure boundaries.",
+        "criteria": {
+          "shared_host_flow": "Advertise a versioned Can host-transfer descriptor in generated MCP metadata. A supporting host uses the same authorized HTTPS upload-intent/bytes/finalize flow as browser forms, then puts the opaque result into the canonical business call. Schema and target binding derive from the operation registry, not copied app upload logic; model context contains the reference rather than bytes. Unsupported hosts explicitly fall back to that browser upload flow. This requires a Can-specific host adapter and a documented extension; it does not make arbitrary MCP clients attachment-capable.",
+          "runtime_tools": "Publish shared runtime MCP tools for beginning an upload, transferring base64 chunks and finalizing it, with identical principal/target/policy checks, then invoke the business operation with its reference. No per-app authoring or business upload scenario is added. Existing tool-call plumbing can carry the data without a separate HTTP host bridge, but binary data can consume substantial model/tool context and requires reliable chunking and host byte access; standard tool support alone does not supply local bytes.",
+          "browser_only": "Keep MCP limited to already-finalized authorized references and require every new file to pass through the generated browser upload control before a chatbot can invoke the operation. This avoids a new host extension and binary tool machinery while retaining existing validation. It adds a browser handoff even for hosts capable of supplying bytes, so the ordinary new-receipt task cannot stay within chat."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "handoff": {
+        "type": "choice",
+        "choice": "shared_host_flow",
+        "confidence": 0.7,
+        "probabilities": {
+          "shared_host_flow": 0.8,
+          "runtime_tools": 0.02,
+          "browser_only": 0.17
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 929,
+      "output_tokens": 45
+    }
+  }
+}
