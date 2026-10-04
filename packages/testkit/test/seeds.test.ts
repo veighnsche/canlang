@@ -14,15 +14,28 @@ describe("parseSeedRef", () => {
     ["", "exactly one"],
     ["mail", "exactly one"],
     ["mail:send:extra", "exactly one"],
+    [":", "empty"],
+    ["::", "exactly one"],
     [":send", "provider is empty"],
     ["mail:", "scenario is empty"],
     ["Mail:send", "kebab-case"],
     ["mail:Send", "kebab-case"],
+    ["mail:sénd", "kebab-case"],
     ["9mail:send", "kebab-case"],
     ["mail:send_ok", "kebab-case"],
     ["mail:send ok", "kebab-case"],
-  ])("rejects %j (%s)", (ref) => {
+    ["mail:-send", "kebab-case"],
+    ["mail:send-", "kebab-case"],
+    ["mail:se--nd", "kebab-case"],
+  ])("rejects %j (%s)", (ref, fragment) => {
     expect(() => parseSeedRef(ref)).toThrow(SeedRefError);
+    expect(() => parseSeedRef(ref)).toThrow(fragment);
+  });
+
+  it("accepts long segments without catastrophic backtracking", () => {
+    const provider = "m".repeat(500);
+    const scenario = "s".repeat(500);
+    expect(parseSeedRef(`${provider}:${scenario}`)).toEqual({ provider, scenario });
   });
 
   it("carries the ref and a reason", () => {
@@ -44,6 +57,7 @@ describe("parseSeedRefs", () => {
       { provider: "mail", scenario: "send-ok" },
       { provider: "files", scenario: "up-ok" },
     ]);
+    expect(() => parseSeedRefs(["mail:send-ok", "mail:send-ok"])).toThrow(SeedRefError);
     expect(() => parseSeedRefs(["mail:send-ok", "mail:send-ok"])).toThrow(/duplicate/);
   });
 });
