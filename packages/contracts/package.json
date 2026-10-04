@@ -1,0 +1,21 @@
+{
+  "name": "@canlang/contracts",
+  "version": "0.1.0",
+  "description": "CanLang shared type-only boundaries. Manifest/export assembly: lane 07; each src module owned by its PLAN producer.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}
