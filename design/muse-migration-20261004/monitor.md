@@ -15,18 +15,18 @@ Codex-owned authoritative runtime record. Muse reads but does not edit this file
 - Intended mode: interactive TUI; muse-spark-1.3-contributor, MAX, scoped --yolo, --worktree off.
 - Socket: /private/tmp/canlang-muse-20261004-01a10349/tmux.sock
 - tmux session: canlang-muse
-- Pane: %0; PID: 73928; observed live (dead=0), exit/signal unset; start identity: Sun Oct 4 14:33:03 2026; executable /Users/vince/.local/bin/muse-bin-1.4.2-R4684.1.
+- Pane: %0; PID: 73928; verified live (dead=0), exit/signal unset at the 2026-10-04 13:16 UTC wake; start identity: Sun Oct 4 14:33:03 2026; executable /Users/vince/.local/bin/muse-bin-1.4.2-R4684.1.
 - Normal view: /opt/homebrew/bin/tmux -S /private/tmp/canlang-muse-20261004-01a10349/tmux.sock attach-session -t '=canlang-muse'
 - Read-only view: /opt/homebrew/bin/tmux -S /private/tmp/canlang-muse-20261004-01a10349/tmux.sock attach-session -r -t '=canlang-muse'
-- Detach: Ctrl-b then d. Attached clients: 0 at startup.
+- Detach: Ctrl-b then d. Attached clients: 1 at this wake; preserve the viewing session.
 - Heartbeat: canlang-muse-and-astra-migration; automation_update confirmed ACTIVE, same chat, every 15 minutes, default notifications with prompt limiting updates to meaningful changes/completion/failure/required input.
-- Latest observation: Muse Code 1.4.2 TUI explicitly shows muse-spark-1.3-contributor · max · ~/Projects/canlang · YOLO, reads the full handoff, and is actively thinking. Prelaunch inventory found no competing Muse/tmux process.
-- Notification limitation: session-message registry returns external_agent_ingress_closed. H002 supplies one-shot kqueue file waiting for the same native Muse goal; no external message push is claimed. H001 acknowledged; H002 watcher runtime adoption awaits Muse acknowledgment at the next protocol boundary.
-- Next action: scheduled bounded inspection in 15 minutes; verify H002 acknowledgment/watcher support, app-agent assignments and first task evidence, collect Astra handoffs and deliver accepted designs through inbox. No active polling.
-- Design ownership: Astra feedback worker -> feedback-design.md; Astra progress worker -> progress-design.md. Root owns inbox and shared design documents. No Muse app writer may take unacknowledged design proposals as adopted rules.
+- Latest observation: one bounded process/pane/checklist inspection verified the same Spark 1.3 Contributor MAX session and native goal at 49%. Muse reports D01–D10 and J01–J06 done with all writers released; J04–J06 evidence and J05's two missing disabled-operation identities await catch-up recording after H004. Checklist still records H003 hold, so H004 receipt is not yet confirmed. Do not mistake the ready-queue completion for the full design-gated migration's completion.
+- Notification limitation: external session-message ingress remains unavailable. H002 is acknowledged, but its helper crashed on unsupported kqueue context-manager use. Muse reports five-minute native goal wakes with inbox rereads as fallback. Codex repaired the helper with contextlib.closing and verified actual isolated native wait/wake; H005 communicates the repair. No running watcher or automatic delivery of H004–H006 is claimed.
+- Next action: at the next scheduled bounded check, verify H004–H006 acknowledgment, catch-up/M01 evidence and A01 assignment; collect the focused C3/C5 design handoffs. No active polling or replacement coordinator. Retain the current terminal while attached.
+- Design ownership: Feedback C4 is accepted via H006 for Muse A01 application. Astra feedback worker now owns only dependency-design.md plus its consultation evidence (C3/A05); Astra progress worker now owns only mail-recovery-design.md plus its consultation evidence (C5/A06). Earlier progress-design.md remains blocked/unadopted, and Rent history remains pending; no retry of a rejected payload is authorized by this monitoring wake. Root owns inbox/shared design acceptance. No Muse app writer may take an unacknowledged proposal as adopted rules.
 
-- Latest verified task state: M00 complete; D01 Book, D02 Catch and D03 Desk reserved for the first Muse worker batch. Other initial tasks queued; design tasks gated.
-- Recorded at: 2026-10-04T14:35:29.684435+02:00
+- Latest verified task state: M00 and D01–D10/J01–J03 are evidenced in checklist; pane additionally reports J04–J06 verified and all app writers released. Full integration/review remains pending. A01 is now released by accepted complete design; A02–A06 and N01–N10 retain their individual prerequisites until an appropriate READY.
+- Recorded at: 2026-10-04T13:16:49Z
 
 ## User-steered production planning boundary
 
@@ -35,3 +35,5 @@ The user now forbids Codex from starting new Muse Spark sessions and will person
 H003 was acknowledged in the Muse checklist as `RELEASED H003: git-index and commit ownership`; root may commit only its own implementation planning/inbox/monitor paths, preserving current draft changes. Return ownership via H004 after the planning push.
 
 GitHub: private https://github.com/veighnsche/canlang, origin added and main initially pushed successfully. No production implementation coordinator has been launched.
+
+Planning handoff complete: commit b06d873eaeb4acaff2a3a0abca62d98b698782c8 was pushed successfully to origin/main; local HEAD and origin/main matched afterward. Seven production lane prompts, shared boundaries, diagnostic policy, execution protocol and consultation evidence are committed. H004 returns Git index/commit ownership to the existing draft coordinator. Codex has finished its Git mutations; app/source writers retain their own reservations. Unrelated draft, editor and earlier design-handoff changes were left untouched.
