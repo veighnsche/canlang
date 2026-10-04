@@ -95,9 +95,10 @@ impl Span {
         Self { file, start, end }
     }
 
-    /// Length in bytes.
+    /// Length in bytes. Saturates so an inverted span (debug-only
+    /// assertion in [`Span::new`]) cannot wrap in release builds.
     pub fn len(&self) -> u32 {
-        self.end - self.start
+        self.end.saturating_sub(self.start)
     }
 
     /// Whether the span is empty.
@@ -137,8 +138,13 @@ impl LineIndex {
         let offset = offset.min(text.len() as u32);
         let line0 = self.starts.partition_point(|&s| s <= offset) - 1;
         let mut col = (offset - self.starts[line0]) as usize + 1;
-        // A CRLF line break: the \r is not an addressable column.
-        if offset > 0 && text.as_bytes().get(offset as usize - 1) == Some(&b'\r') {
+        // A CRLF line break: the \r is not an addressable column. A bare \r
+        // (a lexer error, but locations must stay accurate) counts normally.
+        let bytes = text.as_bytes();
+        if offset > 0
+            && bytes.get(offset as usize - 1) == Some(&b'\r')
+            && bytes.get(offset as usize) == Some(&b'\n')
+        {
             col = col.saturating_sub(1).max(1);
         }
         (line0 + 1, col)
@@ -159,7 +165,12 @@ impl LineIndex {
         }
         let line0 = self.starts.partition_point(|&s| s <= offset as u32) - 1;
         let line_start = self.starts[line0] as usize;
-        let prefix = &text[line_start..offset.max(line_start)];
+        let mut prefix = &text[line_start..offset.max(line_start)];
+        // A \r ending the prefix is part of a CRLF break, not a character;
+        // a bare \r (lexer error, but locations stay accurate) counts.
+        if text.as_bytes().get(offset) == Some(&b'\n') {
+            prefix = prefix.strip_suffix('\r').unwrap_or(prefix);
+        }
         let character = if utf16 {
             prefix.encode_utf16().count() as u32
         } else {
@@ -263,6 +274,20 @@ mod tests {
             sha256_hex(b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"),
             "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"
         );
+        // Padding boundaries, verified against `sha256sum`: 55 bytes pad to
+        // one block, 56 and 64 bytes need two.
+        assert_eq!(
+            sha256_hex(&[b'a'; 55]),
+            "9f4390f8d30c2dd92ec9f095b65e2b9ae9b0a925a5258e241c9f1e910f734318"
+        );
+        assert_eq!(
+            sha256_hex(&[b'c'; 56]),
+            "f6c7b87acd114115d66897c8cb138c16a8b886673d1b93737f4918be472ea878"
+        );
+        assert_eq!(
+            sha256_hex(&[b'b'; 64]),
+            "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
+        );
     }
 
     #[test]
@@ -270,10 +295,18 @@ mod tests {
         let text = "ab\r\ncde\nf";
         let idx = LineIndex::new(text);
         assert_eq!(idx.line_col(text, 0), (1, 1));
-        assert_eq!(idx.line_col(text, 2), (1, 3)); // the \r clamps to line 1 end
+        assert_eq!(idx.line_col(text, 2), (1, 3)); // at \r: line 1 end
+        assert_eq!(idx.line_col(text, 3), (1, 3)); // at \n: \r not a column
         assert_eq!(idx.line_col(text, 4), (2, 1));
         assert_eq!(idx.line_col(text, 8), (3, 1));
         assert_eq!(idx.line_col(text, 99), (3, 2)); // clamped past end
+        // LSP excludes the CRLF break from the character offset.
+        assert_eq!(idx.to_lsp(text, 3, true), (0, 2));
+        // Bare \r is a lexer error, but locations stay accurate.
+        let bare = "a\rb";
+        let bare_idx = LineIndex::new(bare);
+        assert_eq!(bare_idx.line_col(bare, 2), (1, 3));
+        assert_eq!(bare_idx.to_lsp(bare, 2, true), (0, 2));
     }
 
     #[test]

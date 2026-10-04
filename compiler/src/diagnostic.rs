@@ -97,7 +97,7 @@ pub struct DiagnosticResult {
     /// False when analysis was incomplete or cancelled; diagnostics must
     /// then never be read as "only these problems exist".
     pub complete: bool,
-    /// Diagnostics in deterministic order: file, start byte, then code.
+    /// Diagnostics in deterministic order: file, start, end, code, message.
     pub diagnostics: Vec<Diagnostic>,
     /// Diagnostics withheld by an output limit. Always disclosed; a
     /// nonzero value means the output must never suggest a clean file.
@@ -142,14 +142,24 @@ impl DiagnosticResult {
             .any(|d| d.severity == Severity::Error)
     }
 
-    /// Sort diagnostics into canonical order. Idempotent.
+    /// Sort diagnostics into canonical order. The full key makes
+    /// byte-determinism independent of insertion order. Idempotent.
     pub fn finish(&mut self) {
         self.diagnostics.sort_by(|a, b| {
-            (a.primary.file, a.primary.start, a.code).cmp(&(
-                b.primary.file,
-                b.primary.start,
-                b.code,
-            ))
+            (
+                a.primary.file,
+                a.primary.start,
+                a.primary.end,
+                a.code,
+                &a.message,
+            )
+                .cmp(&(
+                    b.primary.file,
+                    b.primary.start,
+                    b.primary.end,
+                    b.code,
+                    &b.message,
+                ))
         });
     }
 

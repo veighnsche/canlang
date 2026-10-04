@@ -22,7 +22,7 @@ export type DiagnosticSeverity = "error" | "warning" | "info";
  * via the shared line index, never transported separately.
  */
 export interface DiagnosticSpan {
-  /** Index into `DiagnosticResult.sources`. */
+  /** Matches a `DiagnosticSource.id` in `DiagnosticResult.sources`. */
   file: number;
   /** Inclusive start byte offset. */
   start: number;
@@ -60,7 +60,7 @@ export interface DiagnosticSource {
 /**
  * Complete versioned result of one analysis pass.
  * Key order on the wire is fixed (tool first, omitted last) and diagnostics
- * are sorted by (file, start, code) so output is byte-deterministic.
+ * are sorted by (file, start, end, code, message) so output is byte-deterministic.
  */
 export interface DiagnosticResult {
   tool: "can";
