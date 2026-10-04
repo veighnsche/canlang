@@ -18,6 +18,9 @@ on:
       - "packages/identity/**"
       - "packages/contracts/**"
       - "packages/cloudflare/**"
+      # The hand-built fixture witnesses examples/TeamTasks.can bytes;
+      # without this, example replans (slice 23) break e2e silently.
+      - "examples/**"
   push:
     branches: ["main"]
     paths:
@@ -30,6 +33,7 @@ on:
       - "packages/identity/**"
       - "packages/contracts/**"
       - "packages/cloudflare/**"
+      - "examples/**"
   workflow_dispatch:
 
 jobs:

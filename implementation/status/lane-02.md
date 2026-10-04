@@ -1,7 +1,9 @@
 # Lane 02: Exact values, schemas and pure standard library
 
-Status: active coordination. Coordinator session 01a10710-7482-7093-8e17-2382b074102b,
-goal goal-01a10711-f621-7501-9494-d85e4f5f865d (native, no token budget).
+Status: COMPLETE as producer scope (closeout audit 2026-10-05: all §7
+PR1–PR6 + audit fix round merged, catalog + modules + fixtures + CI
+green). Former coordinator session 01a10710-7482-7093-8e17-2382b074102b;
+no worktree or branches remain.
 Worktree (owned, cleanup: this coordinator after all writers/viewers release):
 `/Users/vince/Projects/canlang-worktrees/lane-02-values`, branch prefix
 `muse/lane-02-values/`, base origin/main 2f2585e (PR3 #20 merged; L6 S3
@@ -215,19 +217,20 @@ Max two active implementation subagents; disjoint exact files; workers never run
 git/commit/branch commands. Coordinator does scaffold review, git, PRs, merges.
 
 - [x] P0 inventory (done): two read-only researchers; JEV round done.
-- [ ] PR1 `muse/lane-02-values/scaffold` (coordinator): package scaffold,
+- [x] PR1 scaffold (PR #8, `48dbb77`): package scaffold,
   `contracts/src/values.ts`, `kinds.ts`, `errors.ts`, catalog envelope draft,
   `lane-02.yml`, status+evidence. Green build + shape tests.
-- [ ] PR2 `.../scalars` (worker A): `int/decimal/money/currency-data` + scalar
+- [x] PR2 scalars (PR #17, `c949174`): `int/decimal/money/currency-data` + scalar
   vectors + scalar wire + decimal.js cross-checks.
-- [ ] PR3 `.../temporal` (worker B): `temporal/timezone` + vectors. Parallel w/ A.
-- [ ] PR4 `.../collections-text` (worker B or C): `text/icu/locale/array/
+- [x] PR3 temporal (PR #20, `2f2585e`): `temporal/timezone` + vectors.
+- [x] PR4 collections-text (PR #28, `64d459a`): `text/icu/locale/array/
   equality` + vectors.
-- [ ] PR5 `.../schema-catalog` (worker C): `schema/types/wire/catalog/
+- [x] PR5 schema-catalog (PR #40, `742c618`): `schema/types/wire/catalog/
   stdlib-pure/index/emit-catalog` + full suite + export-conformance gate.
-- [ ] PR6 `.../integration`: B1/B2 joins (real calls when producers land;
-  until then BDD-shaped pure-call tables + consumer fixtures), coverage of all
+- [x] PR6 integration (PR #48, `d32c1ab`): B1/B2 joins, coverage of all
   accepted pure builtins, façade export request to L3.
+(All six verified merged on main by the 2026-10-05 closeout audit:
+59-entry catalog, 19/19 src modules, conformance fixtures, CI green.)
 - Reviews: one bounded independent read-only subagent review per semantic PR
   (PR2-PR6); coordinator inspects every diff.
 
@@ -579,7 +582,10 @@ bytes); CanCheck `"provider"` code drift (draft-owner question, low priority).
 
 ## Remaining work and cleanup
 
-Full scope §7 PR1-PR6 + B1/B2 producer joins. Owned resources: the worktree,
-branch set `muse/lane-02-values/*`, `node_modules` under `packages/values`
-only. Cleanup after final merge + writer/viewer release; never kill unrelated
-processes or shared caches.
+Producer scope complete. Genuinely remaining (all cross-lane):
+(1) B1 real-catalog join in CI (lane-1/7 CI job — the B1 gate
+SKIPs without a built catalog); (2) gap-helper name join
+(L1+L2 decision: codegen currently E6008s lane-02's canonical
+decimal/money helper names); (3) runtime consumption (lane-7
+runtime slice, Vince's implement/defer call). No worktree or
+branches remain; nothing to clean up.
