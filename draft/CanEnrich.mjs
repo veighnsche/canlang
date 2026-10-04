@@ -1,7 +1,7 @@
 import {choose, count, create, delivery, emit, equalValue, first, hasRole, int64, local_date, records, require as check, same, send, set, subtractDuration, compareInstant, any} from "@canlang/stdlib";
-import {actions, details, edit, form, history, message, renderPage, table, text, breadcrumbs, preferences, toggle, input, pagination, checkbox, button, modal, diff, divider, radio, textarea} from "@canlang/ui";
+import {actions, details, edit, form, history, message, renderPage, table, text, breadcrumbs, preferences, toggle, input, pagination, checkbox, button, modal, diff, divider, radio, textarea, select} from "@canlang/ui";
 // Desired lowering: breadcrumbs, preferences, toggle, input, pagination,
-// checkbox, button, modal, diff, divider, radio and textarea are proposed
+// checkbox, button, modal, diff, divider, radio, textarea and select are proposed
 // @canlang/ui contracts (desired/unimplemented). modal uses caption.
 import {Customer} from "./customer.mjs";
 

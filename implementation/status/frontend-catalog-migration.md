@@ -111,8 +111,10 @@ leaves; fallback modal + refresh/fallback/start checkboxes complete.
 Given/When byte-identical (cmp-verified). node --check clean.
 Census: 14 collections w/ empty+pagination (Decide 3, Discover 7,
 Enrich 4; timeline correctly unpaginated); 3 pages w/ breadcrumbs;
-1 modal w/ button/inline. Drift: +58 E1200 (base 1; head 18/24/17),
-no E1204. Prototype
+2 modals w/ button/inline (Decide decide_dialog, Enrich fallback_dialog).
+Drift: +58 E1200 (base 1; head 18/24/17), no E1204. Independent review
+approve-with-3-nits, all fixed in-branch: Enrich.mjs select import +
+comment; Enrich.md customer-select prose; this modal count. Prototype
 stops byte-identical (pre-existing Given gaps). Handoff: (a) array
 control (choices/quotes); (b) user refs generated; (c) runtime-option
 choice + row-scoped lookup/prior pickers; (d) timeline/diff/steps/
