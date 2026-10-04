@@ -15,7 +15,9 @@
     "clean": "rm -rf dist/"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "5.20261004.1",
     "@types/node": "26.6.4",
+    "miniflare": "4.20260730.0",
     "typescript": "5.9.3"
   },
   "engines": {

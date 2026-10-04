@@ -1,0 +1,58 @@
+/**
+ * Lane 03 S2: shared SQLite schema for the revision-fenced state store.
+ *
+ * Valid for both D1 and Durable Object SQLite. Every adapter commits through
+ * the same fence protocol (DESIGN §7):
+ *
+ * 1. `INSERT INTO fence_log(revision, at, operation) VALUES (expected + 1, …)`.
+ *    Revisions are dense from 1, so any stale `expected` revision collides
+ *    with an existing `fence_log` row and the whole batch aborts with a SQL
+ *    PRIMARY KEY error. This SQL-error assertion is the fence; a zero-row
+ *    UPDATE would be insufficient.
+ * 2. `UPDATE fence SET revision = expected + 1 WHERE id = 1`.
+ * 3. All record/claim/history/receipt/outbox/schedule writes in the same
+ *    atomic batch (D1 batch) or transaction (DO `transactionSync`).
+ *
+ * `records.data` holds the JSON-encoded domain fields only; reserved metadata
+ * lives in columns. The `owner` / `parent_*` columns exist for later slices:
+ * S2 inserts always write the defaults (`''` / NULL) because `StoredRow`
+ * carries no owner or parent yet, so parent-scoped queries match nothing
+ * until a later slice stores the linkage.
+ */
+
+import type { Revision } from '../../../contracts/src/state.js';
+
+/** The fence table holds exactly one row, always with id 1. */
+export const FENCE_ROW_ID = 1;
+
+/** Revision of a freshly initialized store, before any commit. */
+export const INITIAL_REVISION: Revision = 0 as Revision;
+
+/**
+ * Ordered, idempotent schema statements. Each entry is exactly ONE statement
+ * on ONE line (no trailing semicolon, no newlines): D1 `.exec()` and DO
+ * `sql.exec()` accept a single statement per call, so adapters run these
+ * sequentially, not as one script. Single-line is load-bearing: D1 `exec()`
+ * rejects multi-line input with `incomplete input` on the local test backend.
+ */
+export const SCHEMA_STATEMENTS: ReadonlyArray<string> = [
+  'CREATE TABLE IF NOT EXISTS fence(id INTEGER PRIMARY KEY CHECK(id = 1), revision INTEGER NOT NULL)',
+  'INSERT OR IGNORE INTO fence(id, revision) VALUES (1, 0)',
+  'CREATE TABLE IF NOT EXISTS fence_log(revision INTEGER PRIMARY KEY, at INTEGER NOT NULL, operation TEXT NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS records(model TEXT NOT NULL, id TEXT NOT NULL, version INTEGER NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL, created_by TEXT NOT NULL, updated_by TEXT NOT NULL, archived_at INTEGER NULL, owner TEXT NOT NULL DEFAULT \'\', parent_model TEXT NULL, parent_id TEXT NULL, data TEXT NOT NULL, PRIMARY KEY(model, id))',
+  'CREATE TABLE IF NOT EXISTS receipts(app TEXT NOT NULL, owner TEXT NOT NULL, principal TEXT NOT NULL, operation TEXT NOT NULL, operation_id TEXT NOT NULL, input_hash TEXT NOT NULL, resolved_defaults TEXT NOT NULL, outcome TEXT NOT NULL, committed_revision INTEGER NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(app, owner, principal, operation, operation_id))',
+  'CREATE TABLE IF NOT EXISTS history(seq INTEGER PRIMARY KEY AUTOINCREMENT, model TEXT NOT NULL, record_id TEXT NOT NULL, version INTEGER NOT NULL, operation TEXT NOT NULL, operation_id TEXT NOT NULL, actor TEXT NOT NULL, at INTEGER NOT NULL, change TEXT NOT NULL, "before" TEXT NULL, "after" TEXT NULL)',
+  'CREATE TABLE IF NOT EXISTS outbox(intent_id TEXT PRIMARY KEY, operation TEXT NOT NULL, operation_id TEXT NOT NULL, target TEXT NOT NULL, arguments TEXT NOT NULL, occurrence_index INTEGER NOT NULL, dispatch_guard TEXT NULL, status TEXT NOT NULL DEFAULT \'pending\', created_at INTEGER NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS schedules("key" TEXT PRIMARY KEY, at INTEGER NOT NULL, event TEXT NOT NULL, payload TEXT NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS unique_claims(model TEXT NOT NULL, key_name TEXT NOT NULL, key_value TEXT NOT NULL, record_id TEXT NOT NULL, PRIMARY KEY(model, key_name, key_value))',
+  'CREATE INDEX IF NOT EXISTS idx_records_owner_model ON records(owner, model)',
+  'CREATE INDEX IF NOT EXISTS idx_history_model_record ON history(model, record_id)',
+  'CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox(status)',
+];
+
+/**
+ * Whole schema as one multi-statement script, derived from SCHEMA_STATEMENTS.
+ * For documentation and migration tooling; adapters must run SCHEMA_STATEMENTS
+ * sequentially because neither D1 `.exec()` nor DO `sql.exec()` runs scripts.
+ */
+export const SCHEMA_SQL: string = SCHEMA_STATEMENTS.map((s) => `${s};`).join('\n');
