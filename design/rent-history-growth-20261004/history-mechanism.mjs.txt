@@ -1,0 +1,252 @@
+const selectedHistory = {
+  "rent_reservations.Resource": {type:"rent_reservations.ResourceEvidence",fields:['active', 'capacity', 'pooled', 'timezone'],until:()=>null,readGrants:[{rule:"Resource.history.read.1"}]},
+  "rent_reservations.Booking": {type:"rent_reservations.ReportBooking",fields:['from', 'until', 'intervals', 'quantity', 'status', 'checked_in', 'checked_out', 'arrival_buffer', 'departure_buffer'],until:()=>null,readGrants:[{rule:"Booking.history.read.1"}]},
+  "rent_reservations.VenueReservation": {type:"rent_reservations.ReportVenue",fields:['from', 'until', 'quantity', 'status'],until:()=>null,readGrants:[{rule:"VenueReservation.history.read.1"}]},
+  "rent_reservations.Window": {type:"rent_reservations.ReportWindow",fields:['from', 'until', 'closed'],until:()=>null,readGrants:[{rule:"Window.history.read.1"}]},
+  "rent_reservations.Downtime": {type:"rent_reservations.ReportDowntime",fields:['from', 'until', 'active'],until:()=>null,readGrants:[{rule:"Downtime.history.read.1"}]},
+};
+const historyReadRules = {
+  "Resource.history.read.1":async(c,row)=>hasRole(c,"rent_reservations.reservation_manager") && await can_work(c,c.actor,row.location),
+  "Booking.history.read.1":async(c,row)=>hasRole(c,"rent_reservations.reservation_manager") && await can_work(c,c.actor,row.parent.location),
+  "VenueReservation.history.read.1":async(c,row)=>hasRole(c,"rent_reservations.reservation_manager") && await can_work(c,c.actor,row.parent.location),
+  "Window.history.read.1":async(c,row)=>hasRole(c,"rent_reservations.reservation_manager") && await can_work(c,c.actor,row.parent.location),
+  "Downtime.history.read.1":async(c,row)=>hasRole(c,"rent_reservations.reservation_manager") && await can_work(c,c.actor,row.parent.location),
+};
+const resourceEvidenceFields={active:{type:"bool"},capacity:{type:"int"},pooled:{type:"bool"},timezone:{type:"timezone"}};
+async function saved_saleable(c, policy, opening, left, right) {
+  return (
+    policy.value.active &&
+    (await policy_open(c, opening, left, right)) &&
+    (await any(
+      policy.value.windows,
+      (window) =>
+        !window.closed &&
+        compareInstant(window.from, left) <= 0 &&
+        compareInstant(right, window.until) <= 0,
+    )) &&
+    !(await any(
+      policy.value.windows,
+      (window) => window.closed && overlaps(left, right, window.from, window.until),
+    )) &&
+    !(await any(
+      policy.value.downtime,
+      (downtime) =>
+        downtime.active &&
+        compareInstant(downtime.from, right) < 0 &&
+        (downtime.until === null || compareInstant(left, downtime.until) < 0),
+    ))
+  );
+}
+async function saved_rows(c, resource, points, until, timelines) {
+  const rows = [];
+  for (const left of points)
+    if (compareInstant(left, until) < 0) {
+      const rightBound = next_boundary(c, points, left, until);
+      const spans = Object.values(timelines).map(h => h.coverage.find(span => span.from <= left && rightBound <= span.until));
+      if (spans.some(span => span === undefined)) continue;
+      const values = h => h.entries.filter(e => e.from <= left && left < e.until).map(e => e.value);
+      const resourceValue = values(timelines.resources)[0];
+      if (resourceValue === undefined) continue;
+      const policy = {sequence: spans.reduce((n,s) => n>s.sequence?n:s.sequence,0n), value: {
+        ...resourceValue, bookings:values(timelines.bookings), venues:values(timelines.venues),
+        windows:values(timelines.windows), downtime:values(timelines.downtime),
+      }};
+      const opening = await first(
+        records(c, "rent_catalog.LocationPolicy", {
+          parent: resource.location,
+          where: (candidate) => compareInstant(candidate.effective, left) <= 0,
+          order: ["-sequence"],
+        }),
+      );
+      if (policy === null || opening === null) continue;
+      const right = next_boundary(c, points, left, until),
+        minutes = divideDecimal(durationBetween(right, left), 60000n),
+        saleable = await saved_saleable(c, policy, opening, left, right),
+        common = {
+          source: resource.id,
+          revision: policy.sequence,
+          location: resource.location.id,
+          from: left,
+          until: right,
+          unit: policy.value.pooled ? "seat-minute" : "room-minute",
+        };
+      rows.push(
+        {
+          ...common,
+          metric: "booked_minutes", provisional: left>=c.now,
+          quantity: addDecimal(
+            multiplyDecimal(
+              minutes,
+              await sum(
+                policy.value.bookings.filter(
+                  (booking) =>
+                    ["confirmed", "occupied", "completed"].includes(booking.status) &&
+                    saved_service(c, booking, left),
+                ),
+                (booking) => booking.quantity,
+              ),
+            ),
+            multiplyDecimal(
+              minutes,
+              await sum(
+                policy.value.venues.filter(
+                  (venue) =>
+                    venue.status === "confirmed" &&
+                    compareInstant(venue.from, left) <= 0 &&
+                    compareInstant(left, venue.until) < 0,
+                ),
+                (venue) => venue.quantity,
+              ),
+            ),
+          ),
+        },
+        {
+          ...common,
+          metric: "occupied_minutes",
+          quantity: multiplyDecimal(
+            minutes,
+            await sum(
+              policy.value.bookings.filter(
+                (booking) =>
+                  booking.checked_in !== null &&
+                  compareInstant(booking.checked_in, left) <= 0 &&
+                  compareInstant(left, booking.checked_out ?? c.now) < 0,
+              ),
+              (booking) => booking.quantity,
+            ),
+          ),
+          provisional: left>=c.now || await any(
+            policy.value.bookings,
+            (booking) => booking.checked_in !== null && booking.checked_out === null,
+          ),
+        },
+        {
+          ...common,
+          metric: "saleable_minutes", provisional: left>=c.now,
+          quantity: multiplyDecimal(minutes, saleable ? policy.value.capacity : 0n),
+        },
+        {
+          ...common,
+          metric: "excluded_minutes", provisional: left>=c.now,
+          quantity: multiplyDecimal(minutes, saleable ? 0n : policy.value.capacity),
+        },
+      );
+    }
+  return rows;
+}
+const reportHandlers = {
+    async resource_report(c, { resource, from, until }) {
+      check(hasRole(c, "rent_reservations.reservation_manager"), "forbidden");
+      check((await can_work(c, c.actor, resource.location)) && compareInstant(from, until) < 0);
+      const days = dates(
+          add_days(local_date(from, resource.timezone), -1n),
+          add_days(local_date(until, resource.timezone), 1n),
+          1000n,
+        ),
+        openings = await collect(
+          records(c, "rent_catalog.LocationPolicy", { parent: resource.location }),
+        );
+      const retained = {
+        resources:await recordHistory(c,{model:"rent_reservations.Resource",record:resource,from,until}),
+        bookings:await recordHistory(c,{model:"rent_reservations.Booking",parent:resource,from,until}),
+        venues:await recordHistory(c,{model:"rent_reservations.VenueReservation",parent:resource,from,until}),
+        windows:await recordHistory(c,{model:"rent_reservations.Window",parent:resource,from,until}),
+        downtime:await recordHistory(c,{model:"rent_reservations.Downtime",parent:resource,from,until}),
+      };
+      // Explicit projection, not historical coverage after the observation instant.
+      const timelines = Object.fromEntries(Object.entries(retained).map(([name,h])=>[name,{
+        ...h,
+        entries:[...h.entries,...(c.now<until?h.current.map(item=>({key:item.key,from:from>c.now?from:c.now,until,sequence:h.current_sequence,value:item.value})):[])],
+        coverage:[...h.coverage,...(c.now<until?[{from:from>c.now?from:c.now,until,sequence:h.current_sequence}]:[])],
+      }]));
+      const weekly = flatten(
+        flatten(
+          openings.map((policy) =>
+            flatten(
+              days.map((day) =>
+                policy.weekly
+                  .filter((hours) => weekday(day) === hours.weekday)
+                  .map((hours) => [
+                    local_instant(day, hours.opens, policy.timezone, { fold: hours.fold }),
+                    local_instant(add_days(day, hours.close_after), hours.closes, policy.timezone, {
+                      fold: hours.fold,
+                    }),
+                  ]),
+              ),
+            ),
+          ),
+        ),
+      );
+      const dated = flatten(
+        flatten(
+          openings.map((policy) =>
+            policy.dated
+              .filter((hours) => !hours.closed)
+              .map((hours) => [
+                local_instant(hours.day, hours.opens, policy.timezone, { fold: hours.fold }),
+                local_instant(
+                  add_days(hours.day, hours.close_after),
+                  hours.closes,
+                  policy.timezone,
+                  { fold: hours.fold },
+                ),
+              ]),
+          ),
+        ),
+      );
+      const midnight = days.map((day) =>
+          local_instant(day, "00:00", resource.timezone, { fold: "earlier" }),
+        ),
+        windows = timelines.windows.entries.flatMap(({value:w})=>[w.from,w.until]),
+        downtime = timelines.downtime.entries.flatMap(({value:d})=>[d.from,d.until??until]),
+        service = timelines.bookings.entries.flatMap(({value:b})=>[b.from,b.until,b.checked_in??from,b.checked_out??c.now]),
+        access = timelines.bookings.entries.flatMap(({value:b})=>b.intervals.flatMap(i=>[addDuration(i.from,b.arrival_buffer),subtractDuration(i.until,b.departure_buffer)])),
+        venues = timelines.venues.entries.flatMap(({value:v})=>[v.from,v.until]);
+      const boundaries = [
+          from,
+          until,
+          c.now,
+          ...weekly,
+          ...dated,
+          ...midnight,
+          ...windows,
+          ...downtime,
+          ...service,
+          ...access,
+          ...venues,
+          ...Object.values(timelines).flatMap(h=>[...h.entries,...h.coverage].flatMap(e=>[e.from,e.until])),
+          ...openings.map((policy) => policy.effective),
+        ],
+        points = (
+          await group(
+            boundaries.filter(
+              (point) => compareInstant(from, point) <= 0 && compareInstant(point, until) <= 0,
+            ),
+            (point) => point,
+          )
+        )
+          .map((point) => point.key)
+          .sort(compareInstant);
+      const complete =
+          Object.values(retained).every(h=>h.coverage.reduce((n,s)=>n+s.until-s.from,0n) === ((until<c.now?until:c.now)>from?(until<c.now?until:c.now)-from:0n)) &&
+          (await any(openings, (policy) => compareInstant(policy.effective, from) <= 0)),
+        stamp =
+          Object.values(timelines).map(h=>h.revision).join(":") + ":" +
+          openings
+            .sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0))
+            .map((policy) =>
+              format("{id}:{sequence}", { id: policy.id, sequence: policy.sequence }),
+            )
+            .join(",");
+      return {
+        checkpoint: {
+          source: resource.id,
+          revision: stamp,
+          generated: c.now,
+          state: complete ? "fresh" : "partial",
+          complete,
+        },
+        rows: await saved_rows(c, resource, points, until, timelines),
+      };
+    }
+};

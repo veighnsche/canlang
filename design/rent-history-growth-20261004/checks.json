@@ -1,0 +1,35 @@
+{
+  "limits": "Syntax only. New history/advance contracts and BDD/runtime/imports unimplemented.",
+  "checks": [
+    {
+      "command": [
+        "python3",
+        "tools/can_parser.py",
+        "/private/tmp/rent-history-witness-projection.can"
+      ],
+      "exit": 0,
+      "stdout": "Parsed 1 .can files (syntax only).\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "design/rent-history-growth-20261004/witness.mjs"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "/private/tmp/rent-history-mechanism.mjs"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

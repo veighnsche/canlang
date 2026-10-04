@@ -1,0 +1,80 @@
+## Desired standalone contract witness; not an installed app or executed report.
+## Existing shared declarations supply real location and current worker eligibility.
+package rent_history_witness
+ use rent_catalog {Location,test_site}
+ use employee {Employee,can_work,hr,deactivate}
+ Given
+  role manager
+  Resource {location:Location,capacity:int min=1}
+  lock Resource fields=location
+  Booking in Resource {from:datetime,until:datetime,intervals:Interval[],quantity:int min=1,status:enum(confirmed,cancelled)=confirmed,checked_in:datetime?,checked_out:datetime?}
+  contract Interval {from:datetime,until:datetime}
+  contract Capacity {capacity:int}
+  contract SavedBooking {from:datetime,until:datetime,intervals:Interval[],quantity:int,status:Booking.status,checked_in:datetime?,checked_out:datetime?}
+  contract Sample {complete:bool,provisional:bool,booked:int?,occupied:int?,capacity:int?}
+  policy Resource read=manager and can_work(actor,row.location)
+  policy Booking read=manager and can_work(actor,row.parent.location)
+  history Resource as Capacity until=null read=manager and can_work(actor,row.location)
+  history Booking as SavedBooking until=null read=manager and can_work(actor,row.parent.location)
+  fixture hr_user=user {roles=[hr]}
+  fixture operator=user {roles=[manager]}
+  fixture worker=Employee {user=operator,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Operator"}
+ When
+  scenario open(location:Location) by=manager -> Resource
+   require can_work(actor,location)
+   do
+    create Resource {location,capacity=2} as resource
+    return resource
+  scenario book(resource:Resource,from:datetime,until:datetime) by=manager -> Booking
+   require can_work(actor,resource.location) and from<until
+   do
+    create Booking {parent=resource,from,until,intervals=[{from,until}],quantity=1,checked_in=now,checked_out=null} as booking
+    set booking {quantity=2}
+    return booking
+  scenario cancel_booking(booking:Booking) by=manager
+   require can_work(actor,booking.parent.location) and booking.status==confirmed
+   do set booking {status=cancelled}
+  scenario checkout(booking:Booking) by=manager
+   require can_work(actor,booking.parent.location) and booking.checked_in!=null and booking.checked_out==null
+   do set booking {checked_out=now}
+  scenario sample(resource:Resource,point:datetime,until:datetime) read=true scope=authority by=manager -> Sample
+   require can_work(actor,resource.location) and point<until
+   do
+    let resources=history(resource,point,until)
+    let bookings=history(resource.Booking,point,until)
+    let projected=point>=now
+    let known=projected or (any(resources.coverage as span,span.from<=point and point<span.until) and any(bookings.coverage as span,span.from<=point and point<span.until))
+    if not known
+     return Sample {complete=false,provisional=false,booked=null,occupied=null,capacity=null}
+    let policy=first((resources.entries as entry where entry.from<=point and point<entry.until select entry.value)+(resources.current as item where projected select item.value))
+    require policy!=null
+    let active=(bookings.entries as entry where entry.from<=point and point<entry.until select entry.value)+(bookings.current as item where projected select item.value)
+    return Sample {complete=true,provisional=projected,booked=sum(active as booking where booking.status==confirmed and any(booking.intervals as interval,interval.from<=point and point<interval.until) select booking.quantity),occupied=sum(active as booking where booking.checked_in!=null and booking.checked_in<=point and point<(booking.checked_out??now) select booking.quantity),capacity=policy.capacity}
+   examples seed=[worker,hr_user]
+    do
+     let t0=now
+     call open {location=test_site} by=operator as resource
+     call book {resource,from=t0,until=t0+4m} by=operator as booking
+     advance 1m
+     call sample {resource,point=t0,until=now} by=operator
+     result.complete,result.booked,result.occupied,result.capacity -> true,2,2,2
+     call sample {resource,point=now+1m,until=now+2m} by=operator
+     result.complete,result.provisional,result.booked,result.occupied -> true,true,2,0
+     call cancel_booking {booking} by=operator
+     let cancelled=first(resource.Booking as row where row.id==booking.id)
+     cancelled!=null -> true
+     advance 1m
+     call sample {resource,point=t0+1m,until=now} by=operator
+     result.complete,result.booked,result.occupied -> true,0,2
+     call sample {resource,point=t0,until=now} by=operator
+     result.booked,result.occupied -> 2,2
+     call checkout {booking=cancelled} by=operator
+     advance 1m
+     call sample {resource,point=t0+2m,until=now} by=operator
+     result.complete,result.booked,result.occupied -> true,0,0
+     call sample {resource,point=t0-1m,until=t0} by=operator
+     result.complete -> false
+     call sample {resource,point=t0,until=now} by=other -> error(forbidden)
+     call deactivate {employee=worker,ended=date("2026-10-02")} by=hr_user
+     call sample {resource,point=t0,until=now} by=operator -> error(rule_failed)
+ Then

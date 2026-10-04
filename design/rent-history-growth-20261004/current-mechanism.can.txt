@@ -1,0 +1,80 @@
+  derive saved_rows(resource:Resource,points:datetime[],until:datetime):Contribution[] = flatten(points as left where left<until select flatten(resource.ResourcePolicy as policy where policy==first(resource.ResourcePolicy as candidate where candidate.effective<=left order=-candidate.sequence) select flatten(resource.location.LocationPolicy as opening where opening==first(resource.location.LocationPolicy as candidate where candidate.effective<=left order=-candidate.sequence) select [Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=booked_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum(policy.value.bookings as booking where booking.status in [confirmed,occupied,completed] and saved_service(booking,left) select booking.quantity)+((next_boundary(points,left,until)-left)/1m)*sum(policy.value.venues as venue where venue.status==confirmed and venue.from<=left and left<venue.until select venue.quantity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute"},Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=occupied_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum(policy.value.bookings as booking where booking.checked_in!=null and booking.checked_in<=left and left<(booking.checked_out ?? now) select booking.quantity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute",provisional=any(policy.value.bookings as booking,booking.checked_in!=null and booking.checked_out==null)},Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=saleable_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum([policy.value.capacity] as capacity where saved_saleable(policy,opening,left,next_boundary(points,left,until)) select capacity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute"},Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=excluded_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum([policy.value.capacity] as capacity where not saved_saleable(policy,opening,left,next_boundary(points,left,until)) select capacity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute"}])))
+  contract ResourceEvidence { active:bool,capacity:int,pooled:bool,timezone:timezone,windows:ReportWindow[],downtime:ReportDowntime[],bookings:ReportBooking[],venues:ReportVenue[] }
+  ResourcePolicy in Resource { effective:datetime server=now,sequence:int,value:ResourceEvidence }
+  policy ResourcePolicy read=reservation_manager and can_work(actor,row.parent.location)
+  lock ResourcePolicy fields=effective,sequence,value
+  derive resource_evidence(resource:Resource):ResourceEvidence = ResourceEvidence {active=resource.active,capacity=resource.capacity,pooled=resource.pooled,timezone=resource.timezone,windows=resource.Window as window select ReportWindow {from=window.from,until=window.until,closed=window.closed},downtime=resource.Downtime as downtime select ReportDowntime {from=downtime.from,until=downtime.until,active=downtime.active},bookings=resource.Booking as booking select ReportBooking {from=booking.from,until=booking.until,intervals=booking.intervals,quantity=booking.quantity,status=booking.status,checked_in=booking.checked_in,checked_out=booking.checked_out,arrival_buffer=booking.arrival_buffer,departure_buffer=booking.departure_buffer},venues=resource.VenueReservation as venue select ReportVenue {from=venue.from,until=venue.until,quantity=venue.quantity,status=venue.status}}
+  derive saved_saleable(policy:ResourcePolicy,opening:LocationPolicy,left:datetime,right:datetime):bool = policy.value.active and policy_open(opening,left,right) and any(policy.value.windows as window,not window.closed and window.from<=left and right<=window.until) and not any(policy.value.windows as window,window.closed and overlaps(left,right,window.from,window.until)) and not any(policy.value.downtime as downtime,downtime.active and downtime.from<right and (downtime.until==null or left<downtime.until))
+  export scenario resource_report(resource:Resource,from:datetime,until:datetime) read=true scope=authority -> ReportBatch by=reservation_manager label="Workspace source measures"@{nl="Werkplekbronmaatstaven"}
+   require can_work(actor,resource.location) and from<until
+   do
+    let days=dates(add_days(local_date(from,resource.timezone),-1),add_days(local_date(until,resource.timezone),1),1000)
+    let policies=resource.ResourcePolicy
+    let openings=resource.location.LocationPolicy
+    let weekly=flatten(flatten(openings as policy select flatten(days as day select (policy.weekly as hours where weekday(day)==hours.weekday select [local_instant(day,hours.opens,policy.timezone,fold=hours.fold),local_instant(add_days(day,hours.close_after),hours.closes,policy.timezone,fold=hours.fold)]))))
+    let dated=flatten(flatten(openings as policy select (policy.dated as hours where not hours.closed select [local_instant(hours.day,hours.opens,policy.timezone,fold=hours.fold),local_instant(add_days(hours.day,hours.close_after),hours.closes,policy.timezone,fold=hours.fold)])))
+    let midnight=days as day select local_instant(day,"00:00",resource.timezone,fold=earlier)
+    let windows=flatten(flatten(policies as policy select (policy.value.windows as window select [window.from,window.until])))
+    let downtime=flatten(flatten(policies as policy select (policy.value.downtime as downtime select [downtime.from,downtime.until ?? until])))
+    let service=flatten(flatten(policies as policy select (policy.value.bookings as booking select [booking.from,booking.until,booking.checked_in ?? from,booking.checked_out ?? now])))
+    let access=flatten(flatten(policies as policy select (policy.value.bookings as booking select flatten(booking.intervals as interval select [interval.from+booking.arrival_buffer,interval.until-booking.departure_buffer]))))
+    let venues=flatten(flatten(policies as policy select (policy.value.venues as venue select [venue.from,venue.until])))
+    let boundaries=[from,until]+weekly+dated+midnight+windows+downtime+service+access+venues+(policies as policy select policy.effective)+(openings as policy select policy.effective)
+    let points=group((boundaries as point where from<=point and point<=until) as point,point) as point order=point.key select point.key
+    let complete=any(policies as policy,policy.effective<=from) and any(openings as policy,policy.effective<=from)
+    let stamp=join((policies as policy order=policy.sequence select format("{id}:{sequence}",{id=policy.id,sequence=policy.sequence})),",")+":"+join((openings as policy order=policy.sequence select format("{id}:{sequence}",{id=policy.id,sequence=policy.sequence})),",")
+    if complete
+     return ReportBatch {checkpoint=Checkpoint {source=resource.id,revision=stamp,generated=now,state=fresh,complete=true},rows=saved_rows(resource,points,until)}
+    return ReportBatch {checkpoint=Checkpoint {source=resource.id,revision=stamp,generated=now,state=partial,complete=false},rows=saved_rows(resource,points,until)}
+    create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,value=resource_evidence(resource)} as policy_snapshot_1
+    create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,value=resource_evidence(resource)} as policy_snapshot_1
+    create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,value=resource_evidence(resource)} as policy_snapshot_1
+    create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,value=resource_evidence(resource)} as policy_snapshot_1
+    create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,value=resource_evidence(resource)} as policy_snapshot_1
+    create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,value=resource_evidence(resource)} as policy_snapshot_1
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_move
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_4
+    create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+    create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_2
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+     create ResourcePolicy {parent=venue.parent,sequence=count(venue.parent.ResourcePolicy)+1,value=resource_evidence(venue.parent)} as policy_snapshot_1
+       create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+       create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+     create ResourcePolicy {parent=venue.parent,sequence=count(venue.parent.ResourcePolicy)+1,value=resource_evidence(venue.parent)} as policy_snapshot_1
+     create ResourcePolicy {parent=venue.parent,sequence=count(venue.parent.ResourcePolicy)+1,value=resource_evidence(venue.parent)} as policy_snapshot_1
+     create ResourcePolicy {parent=venue.parent,sequence=count(venue.parent.ResourcePolicy)+1,value=resource_evidence(venue.parent)} as policy_snapshot_1
+       create ResourcePolicy {parent=venue.parent,sequence=count(venue.parent.ResourcePolicy)+1,value=resource_evidence(venue.parent)} as policy_snapshot_1
+    create ResourcePolicy {parent=event.venue.parent,sequence=count(event.venue.parent.ResourcePolicy)+1,value=resource_evidence(event.venue.parent)} as policy_snapshot_1
+      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,value=resource_evidence(resource)} as policy_snapshot_1
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_2
+      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_3
+      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+         create ResourcePolicy {parent=adjustment.parent.parent,sequence=count(adjustment.parent.parent.ResourcePolicy)+1,value=resource_evidence(adjustment.parent.parent)} as policy_snapshot_1
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+         create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_2
+         create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_3
+       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_4
+       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_5
+      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_6
+          create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+           create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_2
+            create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_3
+            create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_4
+         create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_5
+       create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_6
+      create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create ResourcePolicy {parent=event.booking.parent,sequence=count(event.booking.parent.ResourcePolicy)+1,value=resource_evidence(event.booking.parent)} as policy_snapshot_1

@@ -1,0 +1,149 @@
+    async resource_report(c, { resource, from, until }) {
+      check(hasRole(c, "rent_reservations.reservation_manager"), "forbidden");
+      check((await can_work(c, c.actor, resource.location)) && compareInstant(from, until) < 0);
+      const days = dates(
+          add_days(local_date(from, resource.timezone), -1n),
+          add_days(local_date(until, resource.timezone), 1n),
+          1000n,
+        ),
+        policies = await collect(
+          records(c, "rent_reservations.ResourcePolicy", { parent: resource }),
+        ),
+        openings = await collect(
+          records(c, "rent_catalog.LocationPolicy", { parent: resource.location }),
+        );
+      const weekly = flatten(
+        flatten(
+          openings.map((policy) =>
+            flatten(
+              days.map((day) =>
+                policy.weekly
+                  .filter((hours) => weekday(day) === hours.weekday)
+                  .map((hours) => [
+                    local_instant(day, hours.opens, policy.timezone, { fold: hours.fold }),
+                    local_instant(add_days(day, hours.close_after), hours.closes, policy.timezone, {
+                      fold: hours.fold,
+                    }),
+                  ]),
+              ),
+            ),
+          ),
+        ),
+      );
+      const dated = flatten(
+        flatten(
+          openings.map((policy) =>
+            policy.dated
+              .filter((hours) => !hours.closed)
+              .map((hours) => [
+                local_instant(hours.day, hours.opens, policy.timezone, { fold: hours.fold }),
+                local_instant(
+                  add_days(hours.day, hours.close_after),
+                  hours.closes,
+                  policy.timezone,
+                  { fold: hours.fold },
+                ),
+              ]),
+          ),
+        ),
+      );
+      const midnight = days.map((day) =>
+          local_instant(day, "00:00", resource.timezone, { fold: "earlier" }),
+        ),
+        windows = flatten(
+          flatten(
+            policies.map((policy) =>
+              policy.value.windows.map((window) => [window.from, window.until]),
+            ),
+          ),
+        ),
+        downtime = flatten(
+          flatten(
+            policies.map((policy) =>
+              policy.value.downtime.map((downtime) => [downtime.from, downtime.until ?? until]),
+            ),
+          ),
+        ),
+        service = flatten(
+          flatten(
+            policies.map((policy) =>
+              policy.value.bookings.map((booking) => [
+                booking.from,
+                booking.until,
+                booking.checked_in ?? from,
+                booking.checked_out ?? c.now,
+              ]),
+            ),
+          ),
+        ),
+        access = flatten(
+          flatten(
+            policies.map((policy) =>
+              policy.value.bookings.map((booking) =>
+                flatten(
+                  booking.intervals.map((interval) => [
+                    addDuration(interval.from, booking.arrival_buffer),
+                    subtractDuration(interval.until, booking.departure_buffer),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+        ),
+        venues = flatten(
+          flatten(
+            policies.map((policy) => policy.value.venues.map((venue) => [venue.from, venue.until])),
+          ),
+        );
+      const boundaries = [
+          from,
+          until,
+          ...weekly,
+          ...dated,
+          ...midnight,
+          ...windows,
+          ...downtime,
+          ...service,
+          ...access,
+          ...venues,
+          ...policies.map((policy) => policy.effective),
+          ...openings.map((policy) => policy.effective),
+        ],
+        points = (
+          await group(
+            boundaries.filter(
+              (point) => compareInstant(from, point) <= 0 && compareInstant(point, until) <= 0,
+            ),
+            (point) => point,
+          )
+        )
+          .map((point) => point.key)
+          .sort(compareInstant);
+      const complete =
+          (await any(policies, (policy) => compareInstant(policy.effective, from) <= 0)) &&
+          (await any(openings, (policy) => compareInstant(policy.effective, from) <= 0)),
+        stamp =
+          policies
+            .sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0))
+            .map((policy) =>
+              format("{id}:{sequence}", { id: policy.id, sequence: policy.sequence }),
+            )
+            .join(",") +
+          ":" +
+          openings
+            .sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0))
+            .map((policy) =>
+              format("{id}:{sequence}", { id: policy.id, sequence: policy.sequence }),
+            )
+            .join(",");
+      return {
+        checkpoint: {
+          source: resource.id,
+          revision: stamp,
+          generated: c.now,
+          state: complete ? "fresh" : "partial",
+          complete,
+        },
+        rows: await saved_rows(c, resource, points, until),
+      };
+    }

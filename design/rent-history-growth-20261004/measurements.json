@@ -1,0 +1,77 @@
+{
+  "method": "Exact selected mechanism extracts, handwritten desired target; not whole-app or actual GPT-6 billing tokens. Common Report* value contracts, saved_service, surrounding business handlers and presentation excluded equally. Current retains52 capture statements after coordinator coalescing. Proposed includes five declarations and explicit forecast labeling; shared contract prose and BDD measured separately. No execution/performance claim.",
+  "files": {
+    "witness.can": {
+      "sha256": "9d008229c1ad84688d35b2e139984fa7f8b80e2cff9a1732179cd523c28bc04e",
+      "lines": 80,
+      "bytes": 5070,
+      "tokens": {
+        "o200k_base": 1234,
+        "cl100k_base": 1237
+      }
+    },
+    "history-mechanism.mjs.txt": {
+      "sha256": "3df10178dfb760b624dd2ff09793453d2cb3607239c148fc01726d0ce95597c1",
+      "lines": 252,
+      "bytes": 11490,
+      "tokens": {
+        "o200k_base": 2606,
+        "cl100k_base": 2578
+      }
+    },
+    "current-mechanism.can.txt": {
+      "sha256": "732fb2d846d78f19ff06b4be7d2033ee68fd6993c805636eaeff6458f83c03f5",
+      "lines": 80,
+      "bytes": 15646,
+      "tokens": {
+        "o200k_base": 3402,
+        "cl100k_base": 3407
+      }
+    },
+    "current-mechanism.mjs.txt": {
+      "sha256": "56ee3444402616a30756fd52807fef0f3995a7d780b001e3c8a8bcc90d7ff5cd",
+      "lines": 781,
+      "bytes": 29047,
+      "tokens": {
+        "o200k_base": 6067,
+        "cl100k_base": 5947
+      }
+    },
+    "history-mechanism.can.txt": {
+      "sha256": "78b4bf53fe4aa631c0d4d6c8d4ad5be9ab13582fff54b543b29474343995b0bb",
+      "lines": 45,
+      "bytes": 12738,
+      "tokens": {
+        "o200k_base": 2872,
+        "cl100k_base": 2849
+      }
+    },
+    "witness.mjs": {
+      "sha256": "32b99ebef59b62af7221f1aeafe37f819bedfdd7044721c1ca2946472470e701",
+      "lines": 82,
+      "bytes": 7659,
+      "tokens": {
+        "o200k_base": 2051,
+        "cl100k_base": 1992
+      }
+    }
+  },
+  "delta": {
+    "can": {
+      "lines": -35,
+      "bytes": -2908,
+      "tokens": {
+        "o200k_base": -530,
+        "cl100k_base": -558
+      }
+    },
+    "mjs": {
+      "lines": -529,
+      "bytes": -17557,
+      "tokens": {
+        "o200k_base": -3461,
+        "cl100k_base": -3369
+      }
+    }
+  }
+}

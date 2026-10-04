@@ -1,0 +1,121 @@
+async function saved_saleable(c, policy, opening, left, right) {
+  return (
+    policy.value.active &&
+    (await policy_open(c, opening, left, right)) &&
+    (await any(
+      policy.value.windows,
+      (window) =>
+        !window.closed &&
+        compareInstant(window.from, left) <= 0 &&
+        compareInstant(right, window.until) <= 0,
+    )) &&
+    !(await any(
+      policy.value.windows,
+      (window) => window.closed && overlaps(left, right, window.from, window.until),
+    )) &&
+    !(await any(
+      policy.value.downtime,
+      (downtime) =>
+        downtime.active &&
+        compareInstant(downtime.from, right) < 0 &&
+        (downtime.until === null || compareInstant(left, downtime.until) < 0),
+    ))
+  );
+}
+async function saved_rows(c, resource, points, until, timelines) {
+  const rows = [];
+  for (const left of points)
+    if (compareInstant(left, until) < 0) {
+      const rightBound = next_boundary(c, points, left, until);
+      const spans = Object.values(timelines).map(h => h.coverage.find(span => span.from <= left && rightBound <= span.until));
+      if (spans.some(span => span === undefined)) continue;
+      const values = h => h.entries.filter(e => e.from <= left && left < e.until).map(e => e.value);
+      const resourceValue = values(timelines.resources)[0];
+      if (resourceValue === undefined) continue;
+      const policy = {sequence: spans.reduce((n,s) => n>s.sequence?n:s.sequence,0n), value: {
+        ...resourceValue, bookings:values(timelines.bookings), venues:values(timelines.venues),
+        windows:values(timelines.windows), downtime:values(timelines.downtime),
+      }};
+      const opening = await first(
+        records(c, "rent_catalog.LocationPolicy", {
+          parent: resource.location,
+          where: (candidate) => compareInstant(candidate.effective, left) <= 0,
+          order: ["-sequence"],
+        }),
+      );
+      if (policy === null || opening === null) continue;
+      const right = next_boundary(c, points, left, until),
+        minutes = divideDecimal(durationBetween(right, left), 60000n),
+        saleable = await saved_saleable(c, policy, opening, left, right),
+        common = {
+          source: resource.id,
+          revision: policy.sequence,
+          location: resource.location.id,
+          from: left,
+          until: right,
+          unit: policy.value.pooled ? "seat-minute" : "room-minute",
+        };
+      rows.push(
+        {
+          ...common,
+          metric: "booked_minutes",
+          quantity: addDecimal(
+            multiplyDecimal(
+              minutes,
+              await sum(
+                policy.value.bookings.filter(
+                  (booking) =>
+                    ["confirmed", "occupied", "completed"].includes(booking.status) &&
+                    saved_service(c, booking, left),
+                ),
+                (booking) => booking.quantity,
+              ),
+            ),
+            multiplyDecimal(
+              minutes,
+              await sum(
+                policy.value.venues.filter(
+                  (venue) =>
+                    venue.status === "confirmed" &&
+                    compareInstant(venue.from, left) <= 0 &&
+                    compareInstant(left, venue.until) < 0,
+                ),
+                (venue) => venue.quantity,
+              ),
+            ),
+          ),
+        },
+        {
+          ...common,
+          metric: "occupied_minutes",
+          quantity: multiplyDecimal(
+            minutes,
+            await sum(
+              policy.value.bookings.filter(
+                (booking) =>
+                  booking.checked_in !== null &&
+                  compareInstant(booking.checked_in, left) <= 0 &&
+                  compareInstant(left, booking.checked_out ?? c.now) < 0,
+              ),
+              (booking) => booking.quantity,
+            ),
+          ),
+          provisional: await any(
+            policy.value.bookings,
+            (booking) => booking.checked_in !== null && booking.checked_out === null,
+          ),
+        },
+        {
+          ...common,
+          metric: "saleable_minutes",
+          quantity: multiplyDecimal(minutes, saleable ? policy.value.capacity : 0n),
+        },
+        {
+          ...common,
+          metric: "excluded_minutes",
+          quantity: multiplyDecimal(minutes, saleable ? 0n : policy.value.capacity),
+        },
+      );
+    }
+  return rows;
+}

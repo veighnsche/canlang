@@ -1,0 +1,23 @@
+{
+  "state": "The language and runtime under consideration are not implemented, so an older handwritten target does not restrict their contracts. In one scheduling app, every reporting capture duplicates all child report projections; there are about fifty capture locations. Required answers include historical service and physical occupancy, capacity/exclusions, preserved buffers and time intervals, timezone transitions, and missing-history honesty. Billing facts cannot be recomputed from current joins. Access must use present manager/work-location checks. None of these source models presently expires. Existing automatic version auditing is transaction-final with a ninety-day default, whereas retained report records currently have no deadline. Source lifetime removes content from audit as well; an audit query must not override that. One candidate retains five named stored-field projections for an explicitly declared horizon, exposes immutable temporal values and coverage, and orders atomic owner commits under the ordinary consistency fence. Initial population must be proven; removal changes membership but does not by itself invent prior states. Historical values carry no write authority. The retained projection excludes unrelated personal and payment columns. Such an approach fits current indefinite models but becomes incomplete if their source content later expires; separate business evidence can survive under a different declared lifetime. The alternatives are authored locked per-entity revisions plus sequence markers, or full population snapshots with only within-transaction duplicate removal. All must preserve the same authorized measures, frozen facts and existing opening-policy interpretation. Benefits and costs have not been benchmarked. Test sequences currently make real production-admitted calls at one fixed instant; fixture snapshots are not evidence of earlier calls and direct data/grant/provider manipulation is forbidden.",
+  "questions": {
+    "representation": {
+      "type": "choice",
+      "instructions": "Select the report-evidence design that best balances the complete requirements and its disclosed obligations.",
+      "criteria": {
+        "typed_history": "Specify a restricted automatic-version projection for each of five models, with explicit retention, current disclosure and baseline/change/completeness operations. Eliminate the handwritten capture sites. Preserve current Rent outcomes and mark history partial after any future source expiry; do not claim independently retained evidence equivalence. Shared semantics grow while app bookkeeping shrinks.",
+        "explicit_facts": "Author four immutable entity-revision schemas and compact resource captures; append changed values at all relevant mutation paths and reconstruct each entity at a report boundary. Use normal models/locks/policies and independent evidence lifetimes. This keeps language machinery familiar while retaining application responsibilities for capture completeness and grouping.",
+        "full_snapshots": "Continue recording complete child collections alongside resource settings, eliminating only intermediate captures proven redundant in one transaction. Retain the existing lifespan and simple saved-state reports. The contract stays smaller, but successive admissions still duplicate the expanding population."
+      }
+    },
+    "test_time": {
+      "type": "choice",
+      "instructions": "Choose a minimal isolated-test time capability for proving calls across historical intervals, without granting production authority.",
+      "criteria": {
+        "advance": "Permit a strictly positive elapsed-time instruction in the current sequence body. Only the deterministic test clock changes; the next actual call performs lifecycle/admission checks and nothing dispatches automatically. This supports causal journeys but needs explicit interaction with due expiry and aged operation envelopes.",
+        "call_time": "Allow each test invocation to specify a nondecreasing absolute execution instant. Calls remain ordinary authorized operations and subsequent assertions observe that time. This avoids a standalone step but repeats timestamp inputs and needs a rule for evaluating earlier bindings and request age.",
+        "history_recipe": "Provision a checked temporal dataset through typed fixture recipes, with valid projected shapes and evidenced baseline semantics. This compresses historical setups but cannot establish that the supplied past operations occurred, cannot grant caller privilege, and leaves real elapsed-time journey testing unresolved."
+      }
+    }
+  }
+}

@@ -1,0 +1,837 @@
+{
+  "mailroom": {
+    "current": {
+      "executableOwners": [
+        "affiliate",
+        "customer",
+        "employee",
+        "invoice",
+        "mailroom",
+        "member_plans",
+        "member_terms",
+        "refer",
+        "rent_catalog",
+        "sales_attribution"
+      ],
+      "bindings": {
+        "deployment.billing": [
+          "mailroom",
+          "member_terms"
+        ],
+        "deployment.billing_ingress": [
+          "invoice"
+        ],
+        "deployment.commissions": [
+          "affiliate"
+        ],
+        "deployment.documents": [
+          "invoice"
+        ],
+        "deployment.mail": [
+          "customer",
+          "invoice",
+          "mailroom",
+          "refer"
+        ],
+        "deployment.membership_ingress": [
+          "member_terms"
+        ],
+        "deployment.payments": [
+          "invoice"
+        ],
+        "deployment.qualified_sales": [
+          "affiliate",
+          "refer"
+        ],
+        "deployment.sales_ingress": [
+          "invoice"
+        ]
+      },
+      "extractedAssets": []
+    },
+    "values": {
+      "executableOwners": [
+        "affiliate",
+        "customer",
+        "employee",
+        "mailroom",
+        "member_plans",
+        "member_terms",
+        "refer",
+        "rent_catalog",
+        "sales_attribution"
+      ],
+      "bindings": {
+        "deployment.billing": [
+          "mailroom",
+          "member_terms"
+        ],
+        "deployment.commissions": [
+          "affiliate"
+        ],
+        "deployment.mail": [
+          "customer",
+          "mailroom",
+          "refer"
+        ],
+        "deployment.membership_ingress": [
+          "member_terms"
+        ],
+        "deployment.qualified_sales": [
+          "affiliate",
+          "refer"
+        ]
+      },
+      "extractedAssets": [
+        {
+          "consumer": "mailroom",
+          "provider": "invoice",
+          "members": [
+            "Charge"
+          ]
+        },
+        {
+          "consumer": "customer",
+          "provider": "invoice",
+          "members": [
+            "finance"
+          ]
+        }
+      ]
+    },
+    "declarationSites": {
+      "affiliate": {
+        "file": "draft/CanAffiliate.can",
+        "line": 5,
+        "imports": [
+          {
+            "provider": "rent_catalog",
+            "members": [
+              "Location",
+              "test_site"
+            ],
+            "binding": null,
+            "line": 6
+          },
+          {
+            "provider": "employee",
+            "members": [
+              "can_work",
+              "test_worker"
+            ],
+            "binding": null,
+            "line": 7
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "SalesV1",
+              "Qualification"
+            ],
+            "binding": "deployment.qualified_sales",
+            "line": 8
+          },
+          {
+            "provider": "affiliate",
+            "members": [
+              "CommissionV1"
+            ],
+            "binding": "deployment.commissions",
+            "line": 9
+          },
+          {
+            "provider": "sales_attribution",
+            "members": [
+              "capture"
+            ],
+            "binding": null,
+            "line": 10
+          }
+        ]
+      },
+      "customer": {
+        "file": "draft/CanCustomer.can",
+        "line": 8,
+        "imports": [
+          {
+            "provider": "rent_catalog",
+            "members": [
+              "Location",
+              "test_site"
+            ],
+            "binding": null,
+            "line": 9
+          },
+          {
+            "provider": "employee",
+            "members": [
+              "Employee",
+              "can_work",
+              "test_worker"
+            ],
+            "binding": null,
+            "line": 10
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "finance"
+            ],
+            "binding": null,
+            "line": 11
+          },
+          {
+            "provider": "std",
+            "members": [
+              "EmailV1"
+            ],
+            "binding": "deployment.mail",
+            "line": 12
+          }
+        ]
+      },
+      "employee": {
+        "file": "draft/shared/Employees.can",
+        "line": 2,
+        "imports": [
+          {
+            "provider": "rent_catalog",
+            "members": [
+              "Location",
+              "test_site"
+            ],
+            "binding": null,
+            "line": 3
+          }
+        ]
+      },
+      "invoice": {
+        "file": "draft/CanInvoice.can",
+        "line": 8,
+        "imports": [
+          {
+            "provider": "customer",
+            "members": [
+              "Customer",
+              "BillingProfile",
+              "owns",
+              "has_role",
+              "test_company",
+              "test_contact",
+              "test_billing"
+            ],
+            "binding": null,
+            "line": 9
+          },
+          {
+            "provider": "rent_catalog",
+            "members": [
+              "Location",
+              "test_site"
+            ],
+            "binding": null,
+            "line": 10
+          },
+          {
+            "provider": "employee",
+            "members": [
+              "can_work",
+              "test_worker"
+            ],
+            "binding": null,
+            "line": 11
+          },
+          {
+            "provider": "std",
+            "members": [
+              "PaymentState",
+              "OperationOutcome"
+            ],
+            "binding": null,
+            "line": 12
+          },
+          {
+            "provider": "std",
+            "members": [
+              "EmailV1"
+            ],
+            "binding": "deployment.mail",
+            "line": 13
+          },
+          {
+            "provider": "std",
+            "members": [
+              "PaymentsV1"
+            ],
+            "binding": "deployment.payments",
+            "line": 14
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "BillingIngressV1"
+            ],
+            "binding": "deployment.billing_ingress",
+            "line": 15
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "DocumentsV1"
+            ],
+            "binding": "deployment.documents",
+            "line": 16
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "SalesIngressV1"
+            ],
+            "binding": "deployment.sales_ingress",
+            "line": 17
+          }
+        ]
+      },
+      "mailroom": {
+        "file": "draft/CanMail.can",
+        "line": 5,
+        "imports": [
+          {
+            "provider": "customer",
+            "members": [
+              "Customer",
+              "Contact",
+              "owns",
+              "has_role",
+              "test_company",
+              "test_contact",
+              "test_admin",
+              "test_directory_manager",
+              "test_directory_employee"
+            ],
+            "binding": null,
+            "line": 6
+          },
+          {
+            "provider": "member_terms",
+            "members": [
+              "Term",
+              "eligible_term",
+              "paid_term",
+              "allocated"
+            ],
+            "binding": null,
+            "line": 7
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "Charge"
+            ],
+            "binding": null,
+            "line": 8
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "BillingV1"
+            ],
+            "binding": "deployment.billing",
+            "line": 9
+          },
+          {
+            "provider": "rent_catalog",
+            "members": [
+              "Location",
+              "test_site"
+            ],
+            "binding": null,
+            "line": 10
+          },
+          {
+            "provider": "employee",
+            "members": [
+              "Employee",
+              "can_work",
+              "test_worker"
+            ],
+            "binding": null,
+            "line": 11
+          },
+          {
+            "provider": "std",
+            "members": [
+              "DeliveryResult"
+            ],
+            "binding": null,
+            "line": 12
+          },
+          {
+            "provider": "std",
+            "members": [
+              "EmailV1"
+            ],
+            "binding": "deployment.mail",
+            "line": 13
+          }
+        ]
+      },
+      "member_plans": {
+        "file": "draft/CanMember.can",
+        "line": 5,
+        "imports": [
+          {
+            "provider": "rent_catalog",
+            "members": [
+              "Location"
+            ],
+            "binding": null,
+            "line": 6
+          },
+          {
+            "provider": "employee",
+            "members": [
+              "can_work"
+            ],
+            "binding": null,
+            "line": 7
+          }
+        ]
+      },
+      "member_terms": {
+        "file": "draft/CanMember.can",
+        "line": 44,
+        "imports": [
+          {
+            "provider": "member_plans",
+            "members": [
+              "Plan",
+              "Benefit",
+              "AccessHours",
+              "MemberHours"
+            ],
+            "binding": null,
+            "line": 45
+          },
+          {
+            "provider": "customer",
+            "members": [
+              "Customer",
+              "Contact",
+              "CompanyAccessChanged",
+              "owns",
+              "has_role",
+              "has_location_role",
+              "test_company",
+              "test_contact",
+              "test_admin",
+              "test_booker",
+              "test_directory_manager",
+              "test_directory_employee",
+              "remove"
+            ],
+            "binding": null,
+            "line": 46
+          },
+          {
+            "provider": "rent_catalog",
+            "members": [
+              "test_site",
+              "Location",
+              "DateHours",
+              "is_open"
+            ],
+            "binding": null,
+            "line": 47
+          },
+          {
+            "provider": "employee",
+            "members": [
+              "can_work",
+              "test_worker"
+            ],
+            "binding": null,
+            "line": 48
+          },
+          {
+            "provider": "member_terms",
+            "members": [
+              "MembershipIngressV1"
+            ],
+            "binding": "deployment.membership_ingress",
+            "line": 49
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "BillingV1",
+              "Settlement",
+              "DocumentLine",
+              "SaleMilestone"
+            ],
+            "binding": "deployment.billing",
+            "line": 50
+          },
+          {
+            "provider": "std",
+            "members": [
+              "OperationOutcome"
+            ],
+            "binding": null,
+            "line": 51
+          },
+          {
+            "provider": "sales_attribution",
+            "members": [
+              "Capture",
+              "latest_capture"
+            ],
+            "binding": null,
+            "line": 52
+          },
+          {
+            "provider": "refer",
+            "members": [
+              "captured"
+            ],
+            "binding": null,
+            "line": 53
+          }
+        ]
+      },
+      "refer": {
+        "file": "draft/CanRefer.can",
+        "line": 8,
+        "imports": [
+          {
+            "provider": "rent_catalog",
+            "members": [
+              "Location",
+              "test_site"
+            ],
+            "binding": null,
+            "line": 9
+          },
+          {
+            "provider": "employee",
+            "members": [
+              "can_work",
+              "test_worker"
+            ],
+            "binding": null,
+            "line": 10
+          },
+          {
+            "provider": "std",
+            "members": [
+              "EmailV1"
+            ],
+            "binding": "deployment.mail",
+            "line": 11
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "SalesV1",
+              "Qualification"
+            ],
+            "binding": "deployment.qualified_sales",
+            "line": 12
+          },
+          {
+            "provider": "customer",
+            "members": [
+              "test_company"
+            ],
+            "binding": null,
+            "line": 13
+          },
+          {
+            "provider": "sales_attribution",
+            "members": [
+              "Capture",
+              "capture"
+            ],
+            "binding": null,
+            "line": 14
+          }
+        ]
+      },
+      "rent_catalog": {
+        "file": "draft/shared/Locations.can",
+        "line": 2,
+        "imports": [
+          {
+            "provider": "employee",
+            "members": [
+              "can_work"
+            ],
+            "binding": null,
+            "line": 3
+          }
+        ]
+      },
+      "sales_attribution": {
+        "file": "draft/CanRefer.can",
+        "line": 198,
+        "imports": [
+          {
+            "provider": "customer",
+            "members": [
+              "Customer",
+              "owns",
+              "has_role",
+              "test_company",
+              "test_contact",
+              "test_admin"
+            ],
+            "binding": null,
+            "line": 199
+          },
+          {
+            "provider": "rent_catalog",
+            "members": [
+              "Location"
+            ],
+            "binding": null,
+            "line": 200
+          },
+          {
+            "provider": "refer",
+            "members": [
+              "Advocate",
+              "advocate"
+            ],
+            "binding": null,
+            "line": 201
+          },
+          {
+            "provider": "affiliate",
+            "members": [
+              "Partner",
+              "broker"
+            ],
+            "binding": null,
+            "line": 202
+          }
+        ]
+      }
+    }
+  },
+  "customer": {
+    "current": {
+      "executableOwners": [
+        "customer",
+        "employee",
+        "invoice",
+        "rent_catalog"
+      ],
+      "bindings": {
+        "deployment.billing_ingress": [
+          "invoice"
+        ],
+        "deployment.documents": [
+          "invoice"
+        ],
+        "deployment.mail": [
+          "customer",
+          "invoice"
+        ],
+        "deployment.payments": [
+          "invoice"
+        ],
+        "deployment.sales_ingress": [
+          "invoice"
+        ]
+      },
+      "extractedAssets": []
+    },
+    "values": {
+      "executableOwners": [
+        "customer",
+        "employee",
+        "rent_catalog"
+      ],
+      "bindings": {
+        "deployment.mail": [
+          "customer"
+        ]
+      },
+      "extractedAssets": [
+        {
+          "consumer": "customer",
+          "provider": "invoice",
+          "members": [
+            "finance"
+          ]
+        }
+      ]
+    },
+    "declarationSites": {
+      "customer": {
+        "file": "draft/CanCustomer.can",
+        "line": 8,
+        "imports": [
+          {
+            "provider": "rent_catalog",
+            "members": [
+              "Location",
+              "test_site"
+            ],
+            "binding": null,
+            "line": 9
+          },
+          {
+            "provider": "employee",
+            "members": [
+              "Employee",
+              "can_work",
+              "test_worker"
+            ],
+            "binding": null,
+            "line": 10
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "finance"
+            ],
+            "binding": null,
+            "line": 11
+          },
+          {
+            "provider": "std",
+            "members": [
+              "EmailV1"
+            ],
+            "binding": "deployment.mail",
+            "line": 12
+          }
+        ]
+      },
+      "employee": {
+        "file": "draft/shared/Employees.can",
+        "line": 2,
+        "imports": [
+          {
+            "provider": "rent_catalog",
+            "members": [
+              "Location",
+              "test_site"
+            ],
+            "binding": null,
+            "line": 3
+          }
+        ]
+      },
+      "invoice": {
+        "file": "draft/CanInvoice.can",
+        "line": 8,
+        "imports": [
+          {
+            "provider": "customer",
+            "members": [
+              "Customer",
+              "BillingProfile",
+              "owns",
+              "has_role",
+              "test_company",
+              "test_contact",
+              "test_billing"
+            ],
+            "binding": null,
+            "line": 9
+          },
+          {
+            "provider": "rent_catalog",
+            "members": [
+              "Location",
+              "test_site"
+            ],
+            "binding": null,
+            "line": 10
+          },
+          {
+            "provider": "employee",
+            "members": [
+              "can_work",
+              "test_worker"
+            ],
+            "binding": null,
+            "line": 11
+          },
+          {
+            "provider": "std",
+            "members": [
+              "PaymentState",
+              "OperationOutcome"
+            ],
+            "binding": null,
+            "line": 12
+          },
+          {
+            "provider": "std",
+            "members": [
+              "EmailV1"
+            ],
+            "binding": "deployment.mail",
+            "line": 13
+          },
+          {
+            "provider": "std",
+            "members": [
+              "PaymentsV1"
+            ],
+            "binding": "deployment.payments",
+            "line": 14
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "BillingIngressV1"
+            ],
+            "binding": "deployment.billing_ingress",
+            "line": 15
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "DocumentsV1"
+            ],
+            "binding": "deployment.documents",
+            "line": 16
+          },
+          {
+            "provider": "invoice",
+            "members": [
+              "SalesIngressV1"
+            ],
+            "binding": "deployment.sales_ingress",
+            "line": 17
+          }
+        ]
+      },
+      "rent_catalog": {
+        "file": "draft/shared/Locations.can",
+        "line": 2,
+        "imports": [
+          {
+            "provider": "employee",
+            "members": [
+              "can_work"
+            ],
+            "binding": null,
+            "line": 3
+          }
+        ]
+      }
+    }
+  },
+  "scope": "Bounded static source trace, not a compiler/pruner. The only newly owner-free edges reached in these roots are invoice.finance and invoice.Charge. Charge's DocumentLine/labels are manually verified structural; live-record contracts would add their referenced owners. Fixture-only imports are excluded from production.",
+  "inputSHA256": {
+    "draft/CanMail.can": "a4b9a5acece06399eeb18f060b2439057278b6d3bc59b261eb26f508c5e191a5",
+    "draft/CanMember.can": "50cc78b4d2ff9a816c58479e032a890721d0b9ed4c640ba4b3e37b94057cce0d",
+    "draft/CanInvoice.can": "e4c7b06cbd0f715c55c030181031d4e4a690f3e2831b3b832cb8eda6a739d463",
+    "draft/CanCustomer.can": "76f52c992dfa8bab8afb03c33321f58ddc480e001159ab73c9a5caf16a4218af"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "request": {
+    "state": "Consider historical utilization in an unfinished workflow-language design. There is freedom to improve notation and contracts. Today a resource capture stores its settings and complete arrays of booking, venue, downtime and window report values, and around fifty business paths create captures. Required historical outputs distinguish booked service from actual occupancy and available capacity, retain frozen interval/buffer values, handle daylight saving and partial evidence, and enforce the current responsible manager/location scope. Existing opening-policy records remain the source for opening times. The relevant records currently have no expiry. There is already automatic final-commit auditing, normally retained ninety days, but no programmatic typed history query. Declared source expiry removes audit contents even if metadata remains. A proposed limited projection of stored fields could explicitly retain only the five report schemas, read atomically ordered committed versions with baseline/completeness information, and return nonassignable values; it would not copy contact or payment data or follow mutable historical references. Initial coverage must be established by creation or a fenced baseline, not inferred backwards. Removal and archive must preserve old membership evidence until content expiry. This can replace current Rent copies, but not universally replace separate evidence whose lifetime outlives the source. Another solution writes explicit locked per-identity facts at each business mutation, and a third keeps full snapshots after safe local coalescing. We have no timing, byte-storage or business-cost measurements. The example system currently seeds snapshots then invokes normal operations with fixed time; callers and permissions are real test identities, while direct state edits and provider execution are unavailable. Historical seed state alone does not prove a causal journey.",
+    "questions": {
+      "representation": {
+        "type": "choice",
+        "instructions": "For this bounded application, which complete approach should be carried forward?",
+        "criteria": {
+          "typed_history": "Use five selected audit-history contracts with authored lifespan and grants, plus typed as-of reconstruction and truthful coverage. Business operations stop writing report snapshots. Maintain all current measures, and explicitly lose completeness if future source expiry removes the content. This introduces shared temporal behavior in return for fewer app definitions and effect sites.",
+          "explicit_facts": "Represent changed report entities in four ordinary locked models with small resource sequence rows. Initialize known coverage, write every relevant revision explicitly, and select the newest fact at each cutoff. Independent retention remains available and no temporal builtin is required, at the expense of repetitive effects and reconstruction rules.",
+          "full_snapshots": "Retain the present locked complete resource values and their separate retention, simplifying only demonstrably redundant captures within one admission. The familiar reader stays intact and no new historical abstraction is needed; increasing collections still get copied after later admissions."
+        }
+      },
+      "test_time": {
+        "type": "choice",
+        "instructions": "Which addition gives honest time-separated behavior examples with the least complete-contract burden?",
+        "criteria": {
+          "advance": "Extend sequence statements with a positive-duration clock advance, confined to the test sandbox. No data, grants or background events are changed; later ordinary admissions enforce elapsed-time lifecycle and envelope rules. This makes transitions causal but requires an explicit deterministic clock contract.",
+          "call_time": "Give test calls an optional ordered absolute timestamp and keep all expressions after that invocation on its clock. It expresses time through call options rather than a new statement, while introducing repeated dates and evaluation-order questions for values prepared before the call.",
+          "history_recipe": "Describe prior versions in validated isolated typed fixtures. Long historical intervals become compact setups with no live services, but validation must distinguish missing history from empty history and cannot claim that fabricated prior calls executed; genuine journeys would still need clock-aware invocation."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "representation": {
+        "type": "choice",
+        "choice": "typed_history",
+        "confidence": 0.65,
+        "probabilities": {
+          "explicit_facts": 0.17,
+          "full_snapshots": 0.07,
+          "typed_history": 0.76
+        }
+      },
+      "test_time": {
+        "type": "choice",
+        "choice": "call_time",
+        "confidence": 0.19,
+        "probabilities": {
+          "advance": 0.36,
+          "history_recipe": 0.18,
+          "call_time": 0.46
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1028,
+      "output_tokens": 85
+    }
+  }
+}

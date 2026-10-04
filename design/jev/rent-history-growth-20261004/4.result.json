@@ -1,0 +1,55 @@
+{
+  "request": {
+    "state": "A draft reservation application repeats complete resource report snapshots at roughly fifty mutation sites. Each saves resource scalars plus every window, downtime, booking and venue report value; lists grow across admissions. Reports need exact booked, occupied, saleable and excluded minutes, frozen service intervals/buffers, actual checkout, DST opening evidence, current scoped manager authorization and honest partial coverage. Current selected models have no finite lifetime. Automatic audit already records final committed row versions, but defaults to ninety days and has no typed read surface. Content expiry also removes audit content; ordinary copied business evidence may have its own lifetime. A proposed narrow history declaration selects same-name stored fields into an existing contract, assigns explicit projection retention and current read grants. It would retain no copied contact/payment fields. History reads return typed baseline/changes plus coverage and monotonic owner commit ordering, never mutable historical references. They use one owner revision fence, preserve absence after archive/removal, and deny expired content. Complete initial capture is required; current data cannot prove earlier versions. Reports still use existing LocationPolicy and frozen Booking fields. A new history contract cannot universally replace independently retained business evidence after source expiry. A comparable explicit-fact design uses four locked per-entity models, small policy markers, every affected authored write, and joins. Full snapshots preserve current reconstruction but continue population copying. Prototype compatibility is irrelevant; total authoring, shared contract complexity, privacy, retention, truthful reporting and operational cost all matter. No performance has been measured. Current BDD sequences run real authorized calls with a fixed test clock, immutable bindings and no direct writes or provider dispatch; snapshots do not prove prior operations.",
+    "questions": {
+      "representation": {
+        "type": "choice",
+        "instructions": "Which bounded representation best serves this current application while preserving the stated limits?",
+        "criteria": {
+          "typed_history": "Declare five narrowly typed retained projections of existing automatic commit history, and specify baseline/change/coverage reads. Remove per-scenario capture bookkeeping. Current no-expiry Rent can preserve report history; future source expiry yields partial coverage, not an exemption. Adds shared typed history and retention/disclosure semantics; reduce source and grouping repetition without assuming cheaper runtime.",
+          "explicit_facts": "Keep history as ordinary locked business records: four changed-entity fact models, scalar policy sequence, explicit baseline, every mutation writing its affected fact. Preserve independent evidence lifetime and existing authorization mechanisms. No shared temporal API, but repeated capture obligations and latest-value reconstruction remain authored.",
+          "full_snapshots": "Keep full locked ResourcePolicy values, only coalescing proven same-admission intermediate captures. Preserve independent lifetime and straightforward report reconstruction. Avoid new semantics and per-key joins while retaining cross-admission growing-list copies and their authoring/storage work."
+        }
+      },
+      "test_time": {
+        "type": "choice",
+        "instructions": "Which test-only temporal mechanism best supports genuine multi-admission history without manufacturing a past workflow?",
+        "criteria": {
+          "advance": "Add one positive-duration advance statement inside existing example sequences. It moves the isolated clock, never changes business state, roles or dispatches background work. Calls still use normal admission and deterministic clocks; no history fabrication. Requires semantics for due expiry at the next admission and advancing beyond stale request windows.",
+          "call_time": "Attach an optional monotonic at datetime to each sequence call; inputs and admission use that instant, other observations use the last call time. No new statement or business patch. Repeats absolute times and needs clear behavior for references/observations before the next call and request-age rules.",
+          "history_recipe": "Add typed isolated history fixture recipes validated against declared projections, versions and complete baselines. Can set up long past intervals without many calls, but proves only snapshots and must reject invented metadata/authority; actual workflow evidence still needs a separate temporal call facility."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "representation": {
+        "type": "choice",
+        "choice": "typed_history",
+        "confidence": 0.93,
+        "probabilities": {
+          "full_snapshots": 0.01,
+          "explicit_facts": 0.04,
+          "typed_history": 0.95
+        }
+      },
+      "test_time": {
+        "type": "choice",
+        "choice": "advance",
+        "confidence": 0.59,
+        "probabilities": {
+          "advance": 0.73,
+          "history_recipe": 0.05,
+          "call_time": 0.22
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1083,
+      "output_tokens": 84
+    }
+  }
+}

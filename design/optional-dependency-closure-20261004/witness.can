@@ -1,0 +1,42 @@
+## Standalone proposed binding-availability witness, not a replacement Mail owner.
+app OptionalProbe uses=[probe]
+context
+ services optional=[deployment.billing]
+## Without this context, the same canonical probe owner requires both bindings.
+app FullProbe uses=[probe]
+package probe
+ use invoice {BillingV1 as Billing,Charge} from=deployment.billing
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  Probe { source:text unique, recipient:email, invoice_fee:bool=false label="Invoice fee", fee:money, state:enum(open,queued)=open label={text="State",values={open="Open",queued="Queued"}}, notice:delivery(Mail.send)?, charge_delivery:delivery(Billing.charge)? }
+  policy Probe read=members
+  invariant Probe: row.fee.minor>=0
+  lock Probe fields=source,recipient,invoice_fee,fee when=row.state==queued
+  ## Proposed pure binding presence, not provider health or delegated business authority.
+  derive invoice_ready(probe:Probe):bool = not (probe.invoice_fee and probe.fee.minor>0) or available(Billing)
+  fixture candidate=Probe {source="probe-one",recipient="recipient@example.test",fee=money(5,"EUR")}
+ When
+  ## Proposed canonical when admission also supplies bound-control availability.
+  scenario queue(probe:Probe) by=members when=invoice_ready(probe)
+   require probe.state==open
+   do
+    set probe {state=queued}
+    send Mail.send {to=probe.recipient,subject="Request recorded",body="Manual processing remains separate from invoicing."} as notice
+    set probe {notice}
+    if probe.invoice_fee and probe.fee.minor>0
+     send Billing.charge {value=Charge {source=probe.source,customer="fixture-customer",location="fixture-location",description="Frozen fee",amount=probe.fee,due=date("2090-01-01")}} as charge
+     set probe {charge_delivery=charge}
+   ## These five rows hold with Billing absent or present; commercial mode is a separate installation-case trace.
+   examples probe=candidate
+    as,probe.invoice_fee,probe.fee,probe.state -> probe.state,probe.notice?.status,probe.charge_delivery?.status,probe.version
+    self,false,money(5,"EUR"),open -> queued,pending,null,2
+    self,false,money(0,"EUR"),open -> queued,pending,null,2
+    self,true,money(0,"EUR"),open -> queued,pending,null,2
+    public,false,money(5,"EUR"),open -> error(forbidden)
+    self,false,money(5,"EUR"),queued -> error(rule_failed)
+ Then
+  page /probe title="Dependency probe"
+   require members
+   list Probe
+    text row.source,row.state,row.fee
+    form queue arguments={probe=row}

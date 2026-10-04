@@ -1,0 +1,781 @@
+    "rent_reservations.ResourcePolicy": {
+      parent: "rent_reservations.Resource",
+      readGrants: [{ rule: "ResourcePolicy.read.1" }],
+      locks: ["ResourcePolicy.lock.1"],
+      fields: {
+        effective: { type: "datetime", server: "now" },
+        sequence: { type: "int" },
+        value: { type: "rent_reservations.ResourceEvidence" },
+      },
+    },
+    "rent_reservations.ResourceEvidence": {
+      fields: {
+        active: { type: "bool" },
+        capacity: { type: "int" },
+        pooled: { type: "bool" },
+        timezone: { type: "timezone" },
+        windows: { type: "rent_reservations.ReportWindow", array: true },
+        downtime: { type: "rent_reservations.ReportDowntime", array: true },
+        bookings: { type: "rent_reservations.ReportBooking", array: true },
+        venues: { type: "rent_reservations.ReportVenue", array: true },
+      },
+    },
+      "ResourcePolicy.read.1": async (c, row) =>
+        hasRole(c, "rent_reservations.reservation_manager") &&
+        (await can_work(c, c.actor, row.parent.location)),
+      "ResourcePolicy.lock.1": { fields: ["effective", "sequence", "value"] },
+async function resource_evidence(c, resource) {
+  return {
+    active: resource.active,
+    capacity: resource.capacity,
+    pooled: resource.pooled,
+    timezone: resource.timezone,
+    windows: (await collect(records(c, "rent_reservations.Window", { parent: resource }))).map(
+      (window) => ({ from: window.from, until: window.until, closed: window.closed }),
+    ),
+    downtime: (await collect(records(c, "rent_reservations.Downtime", { parent: resource }))).map(
+      (downtime) => ({ from: downtime.from, until: downtime.until, active: downtime.active }),
+    ),
+    bookings: (await collect(records(c, "rent_reservations.Booking", { parent: resource }))).map(
+      (booking) => ({
+        from: booking.from,
+        until: booking.until,
+        intervals: booking.intervals,
+        quantity: booking.quantity,
+        status: booking.status,
+        checked_in: booking.checked_in,
+        checked_out: booking.checked_out,
+        arrival_buffer: booking.arrival_buffer,
+        departure_buffer: booking.departure_buffer,
+      }),
+    ),
+    venues: (
+      await collect(records(c, "rent_reservations.VenueReservation", { parent: resource }))
+    ).map((venue) => ({
+      from: venue.from,
+      until: venue.until,
+      quantity: venue.quantity,
+      status: venue.status,
+    })),
+  };
+}
+async function saved_saleable(c, policy, opening, left, right) {
+  return (
+    policy.value.active &&
+    (await policy_open(c, opening, left, right)) &&
+    (await any(
+      policy.value.windows,
+      (window) =>
+        !window.closed &&
+        compareInstant(window.from, left) <= 0 &&
+        compareInstant(right, window.until) <= 0,
+    )) &&
+    !(await any(
+      policy.value.windows,
+      (window) => window.closed && overlaps(left, right, window.from, window.until),
+    )) &&
+    !(await any(
+      policy.value.downtime,
+      (downtime) =>
+        downtime.active &&
+        compareInstant(downtime.from, right) < 0 &&
+        (downtime.until === null || compareInstant(left, downtime.until) < 0),
+    ))
+  );
+}
+async function saved_rows(c, resource, points, until) {
+  const rows = [];
+  for (const left of points)
+    if (compareInstant(left, until) < 0) {
+      const policy = await first(
+        records(c, "rent_reservations.ResourcePolicy", {
+          parent: resource,
+          where: (candidate) => compareInstant(candidate.effective, left) <= 0,
+          order: ["-sequence"],
+        }),
+      );
+      const opening = await first(
+        records(c, "rent_catalog.LocationPolicy", {
+          parent: resource.location,
+          where: (candidate) => compareInstant(candidate.effective, left) <= 0,
+          order: ["-sequence"],
+        }),
+      );
+      if (policy === null || opening === null) continue;
+      const right = next_boundary(c, points, left, until),
+        minutes = divideDecimal(durationBetween(right, left), 60000n),
+        saleable = await saved_saleable(c, policy, opening, left, right),
+        common = {
+          source: resource.id,
+          revision: policy.sequence,
+          location: resource.location.id,
+          from: left,
+          until: right,
+          unit: policy.value.pooled ? "seat-minute" : "room-minute",
+        };
+      rows.push(
+        {
+          ...common,
+          metric: "booked_minutes",
+          quantity: addDecimal(
+            multiplyDecimal(
+              minutes,
+              await sum(
+                policy.value.bookings.filter(
+                  (booking) =>
+                    ["confirmed", "occupied", "completed"].includes(booking.status) &&
+                    saved_service(c, booking, left),
+                ),
+                (booking) => booking.quantity,
+              ),
+            ),
+            multiplyDecimal(
+              minutes,
+              await sum(
+                policy.value.venues.filter(
+                  (venue) =>
+                    venue.status === "confirmed" &&
+                    compareInstant(venue.from, left) <= 0 &&
+                    compareInstant(left, venue.until) < 0,
+                ),
+                (venue) => venue.quantity,
+              ),
+            ),
+          ),
+        },
+        {
+          ...common,
+          metric: "occupied_minutes",
+          quantity: multiplyDecimal(
+            minutes,
+            await sum(
+              policy.value.bookings.filter(
+                (booking) =>
+                  booking.checked_in !== null &&
+                  compareInstant(booking.checked_in, left) <= 0 &&
+                  compareInstant(left, booking.checked_out ?? c.now) < 0,
+              ),
+              (booking) => booking.quantity,
+            ),
+          ),
+          provisional: await any(
+            policy.value.bookings,
+            (booking) => booking.checked_in !== null && booking.checked_out === null,
+          ),
+        },
+        {
+          ...common,
+          metric: "saleable_minutes",
+          quantity: multiplyDecimal(minutes, saleable ? policy.value.capacity : 0n),
+        },
+        {
+          ...common,
+          metric: "excluded_minutes",
+          quantity: multiplyDecimal(minutes, saleable ? 0n : policy.value.capacity),
+        },
+      );
+    }
+  return rows;
+}
+    async resource_report(c, { resource, from, until }) {
+      check(hasRole(c, "rent_reservations.reservation_manager"), "forbidden");
+      check((await can_work(c, c.actor, resource.location)) && compareInstant(from, until) < 0);
+      const days = dates(
+          add_days(local_date(from, resource.timezone), -1n),
+          add_days(local_date(until, resource.timezone), 1n),
+          1000n,
+        ),
+        policies = await collect(
+          records(c, "rent_reservations.ResourcePolicy", { parent: resource }),
+        ),
+        openings = await collect(
+          records(c, "rent_catalog.LocationPolicy", { parent: resource.location }),
+        );
+      const weekly = flatten(
+        flatten(
+          openings.map((policy) =>
+            flatten(
+              days.map((day) =>
+                policy.weekly
+                  .filter((hours) => weekday(day) === hours.weekday)
+                  .map((hours) => [
+                    local_instant(day, hours.opens, policy.timezone, { fold: hours.fold }),
+                    local_instant(add_days(day, hours.close_after), hours.closes, policy.timezone, {
+                      fold: hours.fold,
+                    }),
+                  ]),
+              ),
+            ),
+          ),
+        ),
+      );
+      const dated = flatten(
+        flatten(
+          openings.map((policy) =>
+            policy.dated
+              .filter((hours) => !hours.closed)
+              .map((hours) => [
+                local_instant(hours.day, hours.opens, policy.timezone, { fold: hours.fold }),
+                local_instant(
+                  add_days(hours.day, hours.close_after),
+                  hours.closes,
+                  policy.timezone,
+                  { fold: hours.fold },
+                ),
+              ]),
+          ),
+        ),
+      );
+      const midnight = days.map((day) =>
+          local_instant(day, "00:00", resource.timezone, { fold: "earlier" }),
+        ),
+        windows = flatten(
+          flatten(
+            policies.map((policy) =>
+              policy.value.windows.map((window) => [window.from, window.until]),
+            ),
+          ),
+        ),
+        downtime = flatten(
+          flatten(
+            policies.map((policy) =>
+              policy.value.downtime.map((downtime) => [downtime.from, downtime.until ?? until]),
+            ),
+          ),
+        ),
+        service = flatten(
+          flatten(
+            policies.map((policy) =>
+              policy.value.bookings.map((booking) => [
+                booking.from,
+                booking.until,
+                booking.checked_in ?? from,
+                booking.checked_out ?? c.now,
+              ]),
+            ),
+          ),
+        ),
+        access = flatten(
+          flatten(
+            policies.map((policy) =>
+              policy.value.bookings.map((booking) =>
+                flatten(
+                  booking.intervals.map((interval) => [
+                    addDuration(interval.from, booking.arrival_buffer),
+                    subtractDuration(interval.until, booking.departure_buffer),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+        ),
+        venues = flatten(
+          flatten(
+            policies.map((policy) => policy.value.venues.map((venue) => [venue.from, venue.until])),
+          ),
+        );
+      const boundaries = [
+          from,
+          until,
+          ...weekly,
+          ...dated,
+          ...midnight,
+          ...windows,
+          ...downtime,
+          ...service,
+          ...access,
+          ...venues,
+          ...policies.map((policy) => policy.effective),
+          ...openings.map((policy) => policy.effective),
+        ],
+        points = (
+          await group(
+            boundaries.filter(
+              (point) => compareInstant(from, point) <= 0 && compareInstant(point, until) <= 0,
+            ),
+            (point) => point,
+          )
+        )
+          .map((point) => point.key)
+          .sort(compareInstant);
+      const complete =
+          (await any(policies, (policy) => compareInstant(policy.effective, from) <= 0)) &&
+          (await any(openings, (policy) => compareInstant(policy.effective, from) <= 0)),
+        stamp =
+          policies
+            .sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0))
+            .map((policy) =>
+              format("{id}:{sequence}", { id: policy.id, sequence: policy.sequence }),
+            )
+            .join(",") +
+          ":" +
+          openings
+            .sort((a, b) => (a.sequence < b.sequence ? -1 : a.sequence > b.sequence ? 1 : 0))
+            .map((policy) =>
+              format("{id}:{sequence}", { id: policy.id, sequence: policy.sequence }),
+            )
+            .join(",");
+      return {
+        checkpoint: {
+          source: resource.id,
+          revision: stamp,
+          generated: c.now,
+          state: complete ? "fresh" : "partial",
+          complete,
+        },
+        rows: await saved_rows(c, resource, points, until),
+      };
+    }
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: resource,
+        sequence: int64(
+          (await count(records(c, "rent_reservations.ResourcePolicy", { parent: resource }))) + 1n,
+        ),
+        value: await resource_evidence(c, resource),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: resource,
+        sequence: int64(
+          (await count(records(c, "rent_reservations.ResourcePolicy", { parent: resource }))) + 1n,
+        ),
+        value: await resource_evidence(c, resource),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: resource,
+        sequence: int64(
+          (await count(records(c, "rent_reservations.ResourcePolicy", { parent: resource }))) + 1n,
+        ),
+        value: await resource_evidence(c, resource),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: resource,
+        sequence: int64(
+          (await count(records(c, "rent_reservations.ResourcePolicy", { parent: resource }))) + 1n,
+        ),
+        value: await resource_evidence(c, resource),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: resource,
+        sequence: int64(
+          (await count(records(c, "rent_reservations.ResourcePolicy", { parent: resource }))) + 1n,
+        ),
+        value: await resource_evidence(c, resource),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: resource,
+        sequence: int64(
+          (await count(records(c, "rent_reservations.ResourcePolicy", { parent: resource }))) + 1n,
+        ),
+        value: await resource_evidence(c, resource),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: booking.parent,
+        sequence: int64(
+          (await count(
+            records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+          )) + 1n,
+        ),
+        value: await resource_evidence(c, booking.parent),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: booking.parent,
+        sequence: int64(
+          (await count(
+            records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+          )) + 1n,
+        ),
+        value: await resource_evidence(c, booking.parent),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: booking.parent,
+        sequence: int64(
+          (await count(
+            records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+          )) + 1n,
+        ),
+        value: await resource_evidence(c, booking.parent),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: booking.parent,
+        sequence: int64(
+          (await count(
+            records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+          )) + 1n,
+        ),
+        value: await resource_evidence(c, booking.parent),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+            parent: booking.parent,
+            sequence: int64(
+              (await count(
+                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+              )) + 1n,
+            ),
+            value: await resource_evidence(c, booking.parent),
+          });
+await create(c, "rent_reservations.ResourcePolicy", {
+            parent: booking.parent,
+            sequence: int64(
+              (await count(
+                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+              )) + 1n,
+            ),
+            value: await resource_evidence(c, booking.parent),
+          });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: resource,
+        sequence: int64(
+          (await count(records(c, "rent_reservations.ResourcePolicy", { parent: resource }))) + 1n,
+        ),
+        value: await resource_evidence(c, resource),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: downtime.parent,
+        sequence: int64(
+          (await count(
+            records(c, "rent_reservations.ResourcePolicy", { parent: downtime.parent }),
+          )) + 1n,
+        ),
+        value: await resource_evidence(c, downtime.parent),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+          parent: booking.parent,
+          sequence: int64(
+            (await count(
+              records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+            )) + 1n,
+          ),
+          value: await resource_evidence(c, booking.parent),
+        });
+await create(c, "rent_reservations.ResourcePolicy", {
+          parent: booking.parent,
+          sequence: int64(
+            (await count(
+              records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+            )) + 1n,
+          ),
+          value: await resource_evidence(c, booking.parent),
+        });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: booking.parent,
+        sequence: int64(
+          (await count(
+            records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+          )) + 1n,
+        ),
+        value: await resource_evidence(c, booking.parent),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: booking.parent,
+        sequence: int64(
+          (await count(
+            records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+          )) + 1n,
+        ),
+        value: await resource_evidence(c, booking.parent),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: booking.parent,
+        sequence: int64(
+          (await count(
+            records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+          )) + 1n,
+        ),
+        value: await resource_evidence(c, booking.parent),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+          parent: venue.parent,
+          sequence: int64(
+            (await count(
+              records(c, "rent_reservations.ResourcePolicy", { parent: venue.parent }),
+            )) + 1n,
+          ),
+          value: await resource_evidence(c, venue.parent),
+        });
+await create(c, "rent_reservations.ResourcePolicy", {
+              parent: downtime.parent,
+              sequence: int64(
+                (await count(
+                  records(c, "rent_reservations.ResourcePolicy", { parent: downtime.parent }),
+                )) + 1n,
+              ),
+              value: await resource_evidence(c, downtime.parent),
+            });
+await create(c, "rent_reservations.ResourcePolicy", {
+              parent: downtime.parent,
+              sequence: int64(
+                (await count(
+                  records(c, "rent_reservations.ResourcePolicy", { parent: downtime.parent }),
+                )) + 1n,
+              ),
+              value: await resource_evidence(c, downtime.parent),
+            });
+await create(c, "rent_reservations.ResourcePolicy", {
+          parent: venue.parent,
+          sequence: int64(
+            (await count(
+              records(c, "rent_reservations.ResourcePolicy", { parent: venue.parent }),
+            )) + 1n,
+          ),
+          value: await resource_evidence(c, venue.parent),
+        });
+await create(c, "rent_reservations.ResourcePolicy", {
+          parent: venue.parent,
+          sequence: int64(
+            (await count(
+              records(c, "rent_reservations.ResourcePolicy", { parent: venue.parent }),
+            )) + 1n,
+          ),
+          value: await resource_evidence(c, venue.parent),
+        });
+await create(c, "rent_reservations.ResourcePolicy", {
+          parent: venue.parent,
+          sequence: int64(
+            (await count(
+              records(c, "rent_reservations.ResourcePolicy", { parent: venue.parent }),
+            )) + 1n,
+          ),
+          value: await resource_evidence(c, venue.parent),
+        });
+await create(c, "rent_reservations.ResourcePolicy", {
+              parent: venue.parent,
+              sequence: int64(
+                (await count(
+                  records(c, "rent_reservations.ResourcePolicy", { parent: venue.parent }),
+                )) + 1n,
+              ),
+              value: await resource_evidence(c, venue.parent),
+            });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: venue.parent,
+        sequence: int64(
+          (await count(records(c, "rent_reservations.ResourcePolicy", { parent: venue.parent }))) +
+            1n,
+        ),
+        value: await resource_evidence(c, venue.parent),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+            parent: booking.parent,
+            sequence: int64(
+              (await count(
+                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+              )) + 1n,
+            ),
+            value: await resource_evidence(c, booking.parent),
+          });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: resource,
+        sequence: int64(
+          (await count(records(c, "rent_reservations.ResourcePolicy", { parent: resource }))) + 1n,
+        ),
+        value: await resource_evidence(c, resource),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: booking.parent,
+        sequence: int64(
+          (await count(
+            records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+          )) + 1n,
+        ),
+        value: await resource_evidence(c, booking.parent),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+          parent: booking.parent,
+          sequence: int64(
+            (await count(
+              records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+            )) + 1n,
+          ),
+          value: await resource_evidence(c, booking.parent),
+        });
+await create(c, "rent_reservations.ResourcePolicy", {
+            parent: booking.parent,
+            sequence: int64(
+              (await count(
+                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+              )) + 1n,
+            ),
+            value: await resource_evidence(c, booking.parent),
+          });
+await create(c, "rent_reservations.ResourcePolicy", {
+            parent: booking.parent,
+            sequence: int64(
+              (await count(
+                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+              )) + 1n,
+            ),
+            value: await resource_evidence(c, booking.parent),
+          });
+await create(c, "rent_reservations.ResourcePolicy", {
+            parent: booking.parent,
+            sequence: int64(
+              (await count(
+                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+              )) + 1n,
+            ),
+            value: await resource_evidence(c, booking.parent),
+          });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: booking.parent,
+        sequence: int64(
+          (await count(
+            records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+          )) + 1n,
+        ),
+        value: await resource_evidence(c, booking.parent),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+              parent: adjustment.parent.parent,
+              sequence: int64(
+                (await count(
+                  records(c, "rent_reservations.ResourcePolicy", {
+                    parent: adjustment.parent.parent,
+                  }),
+                )) + 1n,
+              ),
+              value: await resource_evidence(c, adjustment.parent.parent),
+            });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: booking.parent,
+        sequence: int64(
+          (await count(
+            records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+          )) + 1n,
+        ),
+        value: await resource_evidence(c, booking.parent),
+      });
+await create(c, "rent_reservations.ResourcePolicy", {
+            parent: booking.parent,
+            sequence: int64(
+              (await count(
+                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+              )) + 1n,
+            ),
+            value: await resource_evidence(c, booking.parent),
+          });
+await create(c, "rent_reservations.ResourcePolicy", {
+              parent: booking.parent,
+              sequence: int64(
+                (await count(
+                  records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+                )) + 1n,
+              ),
+              value: await resource_evidence(c, booking.parent),
+            });
+await create(c, "rent_reservations.ResourcePolicy", {
+                parent: booking.parent,
+                sequence: int64(
+                  (await count(
+                    records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+                  )) + 1n,
+                ),
+                value: await resource_evidence(c, booking.parent),
+              });
+await create(c, "rent_reservations.ResourcePolicy", {
+                parent: booking.parent,
+                sequence: int64(
+                  (await count(
+                    records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+                  )) + 1n,
+                ),
+                value: await resource_evidence(c, booking.parent),
+              });
+await create(c, "rent_reservations.ResourcePolicy", {
+              parent: booking.parent,
+              sequence: int64(
+                (await count(
+                  records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+                )) + 1n,
+              ),
+              value: await resource_evidence(c, booking.parent),
+            });
+await create(c, "rent_reservations.ResourcePolicy", {
+              parent: booking.parent,
+              sequence: int64(
+                (await count(
+                  records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+                )) + 1n,
+              ),
+              value: await resource_evidence(c, booking.parent),
+            });
+await create(c, "rent_reservations.ResourcePolicy", {
+            parent: booking.parent,
+            sequence: int64(
+              (await count(
+                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+              )) + 1n,
+            ),
+            value: await resource_evidence(c, booking.parent),
+          });
+await create(c, "rent_reservations.ResourcePolicy", {
+                parent: booking.parent,
+                sequence: int64(
+                  (await count(
+                    records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+                  )) + 1n,
+                ),
+                value: await resource_evidence(c, booking.parent),
+              });
+await create(c, "rent_reservations.ResourcePolicy", {
+                parent: booking.parent,
+                sequence: int64(
+                  (await count(
+                    records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+                  )) + 1n,
+                ),
+                value: await resource_evidence(c, booking.parent),
+              });
+await create(c, "rent_reservations.ResourcePolicy", {
+                parent: booking.parent,
+                sequence: int64(
+                  (await count(
+                    records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+                  )) + 1n,
+                ),
+                value: await resource_evidence(c, booking.parent),
+              });
+await create(c, "rent_reservations.ResourcePolicy", {
+                parent: booking.parent,
+                sequence: int64(
+                  (await count(
+                    records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+                  )) + 1n,
+                ),
+                value: await resource_evidence(c, booking.parent),
+              });
+await create(c, "rent_reservations.ResourcePolicy", {
+              parent: booking.parent,
+              sequence: int64(
+                (await count(
+                  records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+                )) + 1n,
+              ),
+              value: await resource_evidence(c, booking.parent),
+            });
+await create(c, "rent_reservations.ResourcePolicy", {
+            parent: booking.parent,
+            sequence: int64(
+              (await count(
+                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+              )) + 1n,
+            ),
+            value: await resource_evidence(c, booking.parent),
+          });
+await create(c, "rent_reservations.ResourcePolicy", {
+            parent: booking.parent,
+            sequence: int64(
+              (await count(
+                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+              )) + 1n,
+            ),
+            value: await resource_evidence(c, booking.parent),
+          });
+await create(c, "rent_reservations.ResourcePolicy", {
+        parent: booking.parent,
+        sequence: int64(
+          (await count(
+            records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+          )) + 1n,
+        ),
+        value: await resource_evidence(c, booking.parent),
+      });
