@@ -10,7 +10,7 @@ package invoice label="Invoices"@{nl="Facturen"}
  use rent_catalog {Location,test_site}
  use rent_reservations {LegacyBooking,retain_legacy as retain_booking,history_user,history_worker,legacy_source,legacy_booking}
  use employee {can_work,test_worker}
- use std {PaymentState,OperationOutcome}
+ use std {PaymentState,OperationOutcome,DeliveryResult}
  use std {EmailV1 as Mail} from=deployment.mail
  use std {PaymentsV1 as Payments} from=deployment.payments
  use invoice {BillingIngressV1 as BillingRequests} from=deployment.billing_ingress
@@ -103,8 +103,11 @@ package invoice label="Invoices"@{nl="Facturen"}
   export Invoice in Customer { first_paid_at:datetime?, attempt_limit:int=3 min=1 max=10, retry_delay:duration=2d, retry_until:datetime?, next_collection:datetime?, ledger_revision:int=0 min=0, location:Location, source:text unique label=label_Charge_source, issuer:text label=label_InvoiceDocument_issuer, recipient:text label=label_InvoiceDocument_recipient, recipient_email:email label="Recipient email"@{nl="E-mailadres ontvanger"}, address:text, tax_reference:text? label=label_InvoiceDocument_tax_reference, currency:currency, description:text, terms:text?, source_items:DocumentLine[]?, due:date, number:text? label=label_InvoiceDocument_number, state:enum(draft,issued,void_pending,void)=draft label={text=label_Settlement_state,values={void=label_Settlement_state_void,draft="Draft"@{nl="Concept"},issued="Issued"@{nl="Uitgegeven"},void_pending="Void pending"@{nl="Ongeldigverklaring in afwachting"}}}, total:money, issued_at:datetime? label=label_InvoiceDocument_issued_at, consent:text? label=label_Charge_consent, needs_review:bool=false label="Needs review"@{nl="Beoordeling nodig"} } label=page_finance_invoice_Invoice_id_title
   Line in Invoice { description:text, position:int=0 min=0, quantity:decimal=1 min=0, unit:text?, service_from:datetime?, service_until:datetime?, service_location:text?, service_reference:text?, price:money, tax:money label=label_DocumentLine_tax, discount:money label=label_DocumentLine_discount } label="Line item"@{nl="Regel"}
   Attempt in Invoice { mode:enum(interactive,automatic)=interactive, requested:datetime server=now, outcome_at:datetime?, provider_revision:int=0 min=0, failure:PaymentState.failure, disabled:bool=false, reference:text unique, amount:money, kind:enum(collection,refund) label={text="Payment kind"@{nl="Betalingssoort"},values={collection="Collection"@{nl="Inning"},refund="Refund"@{nl="Terugbetaling"}}}, payment:text? label=label_Attempt, status:PaymentState.status=pending label={text="Status"@{nl="Status"},values={unknown=label_Settlement_state_unknown,pending="Pending"@{nl="In afwachting"},succeeded="Succeeded"@{nl="Geslaagd"},failed="Failed"@{nl="Mislukt"}}}, provider_reference:text? label="Provider reference"@{nl="Providerreferentie"}, checkout:url? label="Payment link"@{nl="Betaallink"}, received:datetime? label=label_Settlement_received, delivery:text? label=label_Attempt_delivery, reason:text? } label=label_Attempt
-  PaymentRequest in Attempt { kind:enum(cancel,reconcile), delivery:text unique }
-  lock PaymentRequest fields=kind,delivery
+  PaymentRequest in Attempt { kind:enum(cancel,reconcile) label={text="Request kind"@{nl="Aanvraagsoort"},values={cancel="Cancellation"@{nl="Annulering"},reconcile="Reconciliation"@{nl="Afstemming"}}}, cancellation:delivery(Payments.cancel)? label="Cancellation observation"@{nl="Annuleringswaarneming"}, reconciliation:delivery(Payments.reconcile)? label="Reconciliation observation"@{nl="Afstemmingswaarneming"}, review_reason:text? label="Review reason"@{nl="Beoordelingsreden"}, reviewed_by:user? label="Reviewed by"@{nl="Beoordeeld door"}, reviewed_at:datetime? label="Reviewed at"@{nl="Beoordeeld op"} } label="Payment observation request"@{nl="Aanvraag betalingswaarneming"}
+  lock PaymentRequest fields=kind,cancellation,reconciliation,review_reason,reviewed_by,reviewed_at
+  invariant PaymentRequest: (row.kind==cancel and row.cancellation!=null and row.reconciliation==null) or (row.kind==reconcile and row.reconciliation!=null and row.cancellation==null)
+  invariant PaymentRequest: (row.review_reason==null and row.reviewed_by==null and row.reviewed_at==null) or (row.kind==reconcile and trim(row.review_reason??"")!="" and row.reviewed_by!=null and row.reviewed_at!=null)
+  policy PaymentRequest read=finance and can_work(actor,row.parent.parent.location) fields=parent,kind,status,cancellation.id,cancellation.status,reconciliation.id,reconciliation.status,review_reason,reviewed_by,reviewed_at
   Credit in Invoice { source:text unique label=label_Charge_source, amount:money, reason:text, author:user? label=label_Credit_author } label="Credit adjustment"@{nl="Creditcorrectie"}
   ExternalPayment in Invoice { reference:text unique, amount:money, received:datetime label=label_Settlement_received, evidence:text, author:user server=actor label=label_Credit_author } label="External payment"@{nl="Externe betaling"}
   Document in Invoice { revision:int, kind:enum(invoice,receipt)=invoice, file:file, generated:datetime server=now label="Generated at"@{nl="Gegenereerd op"} } label="Invoice document"@{nl="Factuurdocument"}
@@ -115,6 +118,7 @@ package invoice label="Invoices"@{nl="Facturen"}
   event Overdue { invoice:Invoice, revision:int }
   event CollectionDue { invoice:Invoice }
   event ReconcileDue { attempt:Attempt }
+  derive PaymentRequest.status:DeliveryResult.status? = row.cancellation?.status ?? row.reconciliation?.status label={text="Observation status"@{nl="Waarnemingsstatus"},values={pending="Pending"@{nl="In afwachting"},succeeded="Succeeded"@{nl="Geslaagd"},failed="Failed"@{nl="Mislukt"},unknown=label_Settlement_state_unknown,skipped="Skipped"@{nl="Overgeslagen"}}}
   derive first_receipt(invoice:Invoice):datetime? = min((invoice.Attempt as attempt where attempt.kind==collection and attempt.status==succeeded and attempt.received!=null select attempt.received)+(invoice.ExternalPayment as payment select payment.received))
   derive first_paid_invoice(customer:Customer):Invoice? = first(customer.Invoice as invoice where invoice.received.minor>0 and first_receipt(invoice)!=null order=first_receipt(invoice))
   derive settlement(invoice:Invoice):Settlement = Settlement {source=invoice.source,invoice=invoice.id,revision=invoice.ledger_revision,amount=invoice.total,collected=invoice.received,refunded=invoice.refunded,collection_pending=any(invoice.Attempt as attempt,attempt.kind==collection and attempt.status in [pending,unknown]),refund_pending=any(invoice.Attempt as attempt,attempt.kind==refund and attempt.status in [pending,unknown]),state=invoice.state,recorded_at=now}
@@ -162,6 +166,10 @@ package invoice label="Invoices"@{nl="Facturen"}
   lock Attempt fields=mode,requested,reference,amount,kind,payment,reason
   fixture test_invoice=Invoice {parent=test_company,location=test_site,source="invoice-test",issuer="Operator",recipient="Company",recipient_email="customer@example.test",address="1 Road",currency="EUR",description="Room",due=date("2099-01-02"),total=money(100,"EUR"),state=issued,number="INV-TEST",issued_at=datetime("2099-01-01T00:00:00Z")}
   fixture test_payment=Attempt {parent=test_invoice,reference="provider-test",amount=money(100,"EUR"),kind=collection}
+  fixture test_refund=Attempt {parent=test_invoice,reference="refund-test",amount=money(20,"EUR"),kind=refund,payment=test_payment.reference,reason="Credit refund"}
+  fixture reconciliation_attempt=Payments.reconcile {request={reference=test_payment.reference}}
+  fixture pending_reconciliation=PaymentRequest {parent=test_payment,kind=reconcile,reconciliation=reconciliation_attempt}
+  fixture outside_site=Location {name="Outside work scope",address="2 Example Road",timezone="Europe/Brussels",currency="EUR",hours="09:00–18:00",arrival="Report to reception"}
   fixture test_credit=Credit {parent=test_invoice,source="credit-test",amount=money(20,"EUR"),reason="Agreed correction",author=self}
   fixture test_defaults=Defaults {issuer="Operator"}
   fixture test_profile=BillingProfile {parent=test_company,contact=test_contact,address="1 Road"}
@@ -262,7 +270,12 @@ package invoice label="Invoices"@{nl="Facturen"}
     history_user,legacy_booking,"vendor-w","B-18","Wrong key",1 -> error(rule_failed)
     history_user,legacy_booking,"vendor-w","B-17","Verified source identity",2 -> error(conflict)
     members,legacy_booking,"vendor-w","B-17","Verified source identity",1 -> error(forbidden)
-  crud Invoice by=finance fields=location,issuer,recipient,address,tax_reference,description,due create_fields=location,source,issuer,recipient,recipient_email,address,tax_reference,currency,description,due,total when=can_work(actor,row.location) and row.state==draft delete=none
+  crud Invoice by=finance fields=location,issuer,recipient,recipient_email,address,tax_reference,description,due create_fields=location,source,issuer,recipient,recipient_email,address,tax_reference,currency,description,due,total when=can_work(actor,row.location) and row.state==draft delete=none
+   examples update seed=[history_worker] record=test_invoice changes={recipient_email="corrected@example.test"}
+    as,test_invoice.state -> test_invoice.recipient_email
+    history_user,draft -> "corrected@example.test"
+    history_user,issued -> error(rule_failed)
+    members,draft -> error(forbidden)
   crud Line by=finance fields=description,position,quantity,unit,service_from,service_until,service_location,service_reference,price,tax,discount when=can_work(actor,row.parent.location) and row.parent.state==draft delete=remove
    examples create seed=[test_worker] parent=test_invoice description="Item" position=1 quantity=1 price=money(100,"EUR") tax=money(0,"EUR") discount=money(0,"EUR")
     as,test_invoice.state,request.quantity,request.tax -> count(test_invoice.Line)
@@ -309,9 +322,8 @@ package invoice label="Invoices"@{nl="Facturen"}
         set request {status=unknown,error=event.error?.message}
   # Generate a separate receipt only for evidenced full settlement. @{nl="Genereer een afzonderlijk betalingsbewijs alleen na bewezen volledige betaling."}
   scenario receipt(invoice:Invoice) by=finance or authenticated label="Generate receipt"@{nl="Betalingsbewijs genereren"}
-   require invoice.state==issued and invoice.number!=null and invoice.issued_at!=null and invoice.balance.minor==0 and invoice.received.minor>0
+   require invoice.settled and invoice.number!=null and invoice.issued_at!=null and invoice.received.minor>0
    require owns(actor,invoice.parent) or has_role(actor,invoice.parent,billing) or (finance and can_work(actor,invoice.location))
-   require not any(invoice.Attempt as attempt,attempt.kind==collection and attempt.status in [pending,unknown])
    do
     send Documents.receipt {source=invoice.id,revision=invoice.version,snapshot=issued_snapshot(invoice,invoice.number,invoice.issued_at)} as delivery
     create DocumentRequest {parent=invoice,revision=invoice.version,kind=receipt,delivery=delivery.id} as request
@@ -320,6 +332,15 @@ package invoice label="Invoices"@{nl="Facturen"}
     members,succeeded -> 1
     members,unknown -> error(rule_failed)
     members,failed -> error(rule_failed)
+   examples seed=[test_contact,test_billing,test_payment,test_credit,test_refund] invoice=test_invoice
+    as,test_payment.status,test_refund.status -> test_invoice.settled,count(test_invoice.DocumentRequest)
+    members,succeeded,pending -> error(rule_failed)
+    members,succeeded,unknown -> error(rule_failed)
+    members,succeeded,failed -> error(rule_failed)
+    members,succeeded,succeeded -> true,1
+   examples seed=[test_payment,test_credit] invoice=test_invoice
+    as,test_payment.status -> count(test_invoice.DocumentRequest)
+    finance,succeeded -> error(rule_failed)
   scenario receipt_result on=Documents.receipt.completed
    do
     for request in DocumentRequest as row where row.delivery==event.delivery_id and row.kind==receipt limit=1
@@ -381,7 +402,7 @@ package invoice label="Invoices"@{nl="Facturen"}
     for attempt in invoice.Attempt as pending where pending.kind==collection and pending.status in [pending,unknown] limit=100
      set attempt {disabled=true,checkout=null}
      send Payments.cancel {reference=attempt.reference} as delivery
-     create PaymentRequest {parent=attempt,kind=cancel,delivery=delivery.id} as request
+     create PaymentRequest {parent=attempt,kind=cancel,cancellation=delivery} as request
     if invoice.refund_due.minor>0
      set invoice {needs_review=true}
     set invoice {ledger_revision=invoice.ledger_revision+1}
@@ -433,7 +454,7 @@ package invoice label="Invoices"@{nl="Facturen"}
      for attempt in invoice.Attempt as pending where pending.kind==collection and pending.status in [pending,unknown] limit=100
       set attempt {disabled=true,checkout=null}
       send Payments.cancel {reference=attempt.reference} as delivery
-      create PaymentRequest {parent=attempt,kind=cancel,delivery=delivery.id} as request
+      create PaymentRequest {parent=attempt,kind=cancel,cancellation=delivery} as request
     else
      set invoice {state=void}
     set invoice {next_collection=null,ledger_revision=invoice.ledger_revision+1}
@@ -454,6 +475,8 @@ package invoice label="Invoices"@{nl="Facturen"}
      if attempt.status!=succeeded and event.value.revision>attempt.provider_revision
       if attempt.status==failed and event.value.status==succeeded
        set attempt.parent {needs_review=true}
+      if attempt.status==failed and event.value.status in [pending,unknown]
+       schedule format("reconcile-{id}",{id=attempt.id}) at=now+5m event=ReconcileDue {attempt}
       set attempt {status=event.value.status,provider_revision=max([attempt.provider_revision,event.value.revision]),failure=event.value.failure,provider_reference=event.value.provider_reference,outcome_at=now}
       if not attempt.disabled
        set attempt {checkout=event.value.checkout_url}
@@ -482,6 +505,14 @@ package invoice label="Invoices"@{nl="Facturen"}
     failed,money(100,"EUR") -> money(100,"EUR"),money(20,"EUR"),true,1
     succeeded,money(100,"EUR") -> money(100,"EUR"),money(20,"EUR"),false,0
     unknown,money(90,"EUR") -> error(rule_failed)
+   ## Only a newer verified provider observation may change the reviewed failure classification.
+   examples seed=[test_payment] event={value=PaymentState {reference="provider-test",revision=2,provider_reference=null,amount=money(100,"EUR"),status=failed,checkout_url=null,failure=transient}}
+    test_payment.status,test_payment.failure,test_payment.provider_revision,event.value.status,event.value.failure -> test_payment.status,test_payment.failure,test_payment.provider_revision,test_invoice.received,test_invoice.ledger_revision
+    failed,permanent,1,failed,transient -> failed,transient,2,money(0,"EUR"),1
+    failed,permanent,2,failed,permanent -> failed,permanent,2,money(0,"EUR"),0
+    failed,permanent,3,failed,transient -> failed,permanent,3,money(0,"EUR"),0
+    failed,permanent,1,unknown,null -> unknown,null,2,money(0,"EUR"),1
+    failed,permanent,1,pending,null -> pending,null,2,money(0,"EUR"),1
   scenario collected on=Payments.collect.completed
    do
     for attempt in Attempt as row where row.delivery==event.delivery_id and row.kind==collection limit=1
@@ -514,18 +545,55 @@ package invoice label="Invoices"@{nl="Facturen"}
        emit InvoiceSettlement {value=settlement(attempt.parent)}
   scenario checkout_cancelled on=Payments.cancel.completed
    do
-    for request in PaymentRequest as row where row.delivery==event.delivery_id and row.kind==cancel limit=1
+    for request in PaymentRequest as row where row.cancellation?.id==event.delivery_id and row.kind==cancel limit=1
      let attempt=request.parent
      if event.status==succeeded and event.result!=null
       require event.result.reference==attempt.reference and event.result.amount==attempt.amount
       emit ProviderReceipt {value=event.result}
   scenario reconciled on=Payments.reconcile.completed
    do
-    for request in PaymentRequest as row where row.delivery==event.delivery_id and row.kind==reconcile limit=1
+    for request in PaymentRequest as row where row.reconciliation?.id==event.delivery_id and row.kind==reconcile limit=1
      let attempt=request.parent
      if event.status==succeeded and event.result!=null
       require event.result.reference==attempt.reference and event.result.amount==attempt.amount
       emit ProviderReceipt {value=event.result}
+   ## Correlated transport acceptance forwards evidence; it does not itself rewrite payment state.
+   examples seed=[pending_reconciliation] event={delivery_id=reconciliation_attempt.id,status=succeeded,result=PaymentState {reference="provider-test",revision=1,provider_reference=null,amount=money(100,"EUR"),status=unknown,checkout_url=null,failure=null},error=null}
+    test_payment.status,test_payment.failure,event.result.reference,event.result.amount -> test_payment.status,test_payment.failure,test_invoice.received,test_invoice.ledger_revision
+    failed,permanent,"provider-test",money(100,"EUR") -> failed,permanent,money(0,"EUR"),0
+    failed,permanent,"wrong-reference",money(100,"EUR") -> error(rule_failed)
+    failed,permanent,"provider-test",money(90,"EUR") -> error(rule_failed)
+  # Review one definite failed collection or refund by reobserving its original provider reference. @{nl="Beoordeel één definitief mislukte inning of terugbetaling door de oorspronkelijke providerreferentie opnieuw waar te nemen."}
+  scenario review_attempt(attempt:Attempt label=label_Attempt,reason:text label="Review reason"@{nl="Beoordelingsreden"}) by=finance label="Review payment outcome"@{nl="Betalingsresultaat beoordelen"}
+   require can_work(actor,attempt.parent.location) and attempt.status==failed and trim(reason)!=""
+   require not any(attempt.PaymentRequest as request,request.kind==reconcile and request.reconciliation?.status==pending)
+   do
+    send Payments.reconcile {reference=attempt.reference} as delivery
+    create PaymentRequest {parent=attempt,kind=reconcile,reconciliation=delivery,review_reason=reason,reviewed_by=actor,reviewed_at=now} as request
+   examples seed=[history_worker] attempt=test_payment reason="Check the provider's current failure evidence"
+    as,test_payment.status,test_payment.failure,reason -> test_payment.status,test_payment.failure,count(test_payment.PaymentRequest),first(test_payment.PaymentRequest as request order=request.id)?.review_reason,first(test_payment.PaymentRequest as request order=request.id)?.reviewed_by,first(test_payment.PaymentRequest as request order=request.id)?.reviewed_at==now,first(test_payment.PaymentRequest as request order=request.id)?.reconciliation?.status
+    history_user,failed,permanent,"Check the provider's current failure evidence" -> failed,permanent,1,"Check the provider's current failure evidence",history_user,true,pending
+    history_user,failed,transient,"Check the provider's current failure evidence" -> failed,transient,1,"Check the provider's current failure evidence",history_user,true,pending
+    history_user,unknown,null,"Check the provider's current failure evidence" -> error(rule_failed)
+    history_user,pending,null,"Check the provider's current failure evidence" -> error(rule_failed)
+    history_user,succeeded,null,"Check the provider's current failure evidence" -> error(rule_failed)
+    history_user,failed,permanent," " -> error(rule_failed)
+    members,failed,permanent,"Check the provider's current failure evidence" -> error(forbidden)
+    public,failed,permanent,"Check the provider's current failure evidence" -> error(forbidden)
+   examples seed=[history_worker] attempt=test_payment reason="Review failed collection"
+    as,test_payment.status,test_payment.failure,test_invoice.location -> count(test_payment.PaymentRequest)
+    history_user,failed,permanent,outside_site -> error(rule_failed)
+   examples seed=[history_worker,test_credit] attempt=test_refund reason="Review failed refund"
+    as,test_payment.status,test_refund.status,test_refund.failure -> test_refund.status,test_refund.failure,count(test_refund.PaymentRequest),first(test_refund.PaymentRequest as request order=request.id)?.review_reason
+    history_user,succeeded,failed,permanent -> failed,permanent,1,"Review failed refund"
+   ## A completed uncertain observation permits another observation of the same payment, never a fresh charge.
+   examples seed=[history_worker,pending_reconciliation] attempt=test_payment reason="Recheck completed provider observation"
+    as,test_payment.status,test_payment.failure,reconciliation_attempt.status,reconciliation_attempt.result,reconciliation_attempt.error -> test_payment.status,test_payment.failure,count(test_payment.PaymentRequest),count(test_payment.PaymentRequest as request where request.review_reason=="Recheck completed provider observation" and request.reviewed_by==history_user and request.reviewed_at==now and request.reconciliation?.status==pending)
+    history_user,failed,permanent,pending,null,null -> error(rule_failed)
+    history_user,failed,permanent,unknown,null,null -> failed,permanent,2,1
+    history_user,failed,permanent,failed,null,{code="provider",message="Observation unavailable"} -> failed,permanent,2,1
+    history_user,failed,permanent,skipped,null,null -> failed,permanent,2,1
+    history_user,failed,permanent,succeeded,PaymentState {reference="provider-test",revision=1,provider_reference=null,amount=money(100,"EUR"),status=failed,checkout_url=null,failure=permanent},null -> failed,permanent,2,1
   scenario start_reconciliation on=Attempt.created
    do
     for attempt in Attempt as row where row.id==event.id and row.status in [pending,unknown] limit=1
@@ -535,7 +603,7 @@ package invoice label="Invoices"@{nl="Facturen"}
     let attempt=event.attempt
     if attempt.status in [pending,unknown]
      send Payments.reconcile {reference=attempt.reference} as delivery
-     create PaymentRequest {parent=attempt,kind=reconcile,delivery=delivery.id} as request
+     create PaymentRequest {parent=attempt,kind=reconcile,reconciliation=delivery} as request
      schedule format("reconcile-{id}",{id=attempt.id}) at=now+5m event=ReconcileDue {attempt}
    examples event={attempt=test_payment}
     test_payment.status -> count(test_payment.PaymentRequest)
@@ -700,7 +768,7 @@ package invoice label="Invoices"@{nl="Facturen"}
      for attempt in invoice.Attempt as pending where pending.kind==collection and pending.status in [pending,unknown] limit=100
       set attempt {disabled=true,checkout=null}
       send Payments.cancel {reference=attempt.reference} as delivery
-      create PaymentRequest {parent=attempt,kind=cancel,delivery=delivery.id} as request
+      create PaymentRequest {parent=attempt,kind=cancel,cancellation=delivery} as request
      set invoice {next_collection=null}
      cancel invoice.id
      cancel format("{invoice}:collection",{invoice=invoice.id})
@@ -804,9 +872,13 @@ package invoice label="Invoices"@{nl="Facturen"}
        text row.due,row.balance,row.next_collection,row.collection_pending,row.refund_pending,row.needs_review
        actions collect
        table row.Attempt columns=mode,requested,outcome_at,amount,status,failure,checkout,received
+        action review_attempt
+        table row.PaymentRequest columns=kind,status,review_reason,reviewed_by,reviewed_at
       tab "Collection and refund evidence"@{nl="Innings- en terugbetalingsbewijs"}
        actions issue,document,receipt,collect,record_payment,credit,refund,record_refund,void
        table row.Attempt columns=mode,requested,outcome_at,kind,amount,status,failure,checkout,received
+        action review_attempt
+        table row.PaymentRequest columns=kind,status,review_reason,reviewed_by,reviewed_at
        table row.ExternalPayment columns=reference,amount,received,evidence
        table row.ExternalRefund columns=reference,amount,received,evidence,reason
        history
