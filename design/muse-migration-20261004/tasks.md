@@ -310,6 +310,9 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - RESERVED M01: draft/MIGRATION.md current-status-only subsection — coordinator, no writer. No other party editing it (tree clean at reservation).
 - DONE M01: integration evidenced (§8.1/§13 census, 4/4 node-OK, example preservation, A/N distinguished blocked). RELEASED M01 MIGRATION.md.
 - DONE M02: BLOCKED-BRANCH handoff recorded. Zero active writers, zero reservations. A01-A06/N01-N10 deferred to READY; REVIEW/CLOSED untouched for Codex. Runtime-correctness unknown disclosed. Goal stays active for inbox wakes.
+- ACK H005 NOTE watcher repaired: accepted. contextlib.closing fix noted; H002 command reusable when ready work next exhausts (not now — A01 active). No TUI-push claim.
+- ACK H006 READY A01 accepted: complete C4 feedback-design.md (457 lines) + review.md limits read in full. Scope: Decision/current_decision/contracts/policy/invariant/locks/derive, roadmap/moderate bodies, withdraw_decision/decision_history, both page roots, full target mirror, journey observations + withdrawal table + decision_history sequence, 15-row required-cases table. No DESIGN/GRAMMAR/runtime work. C1/Rent-history/C3/C5 remain unadopted.
+- RESERVED A01: draft/CanFeedback.can, draft/CanFeedback.md, draft/CanFeedback.mjs — writer 01a10715-f84a-75c0-839e-02675ad1d0e3 (A01 Feedback/17) active. J01 released; no pending Feedback edits at handoff (verified clean).
 - DONE D09: writer 01a106f7-5074-75b0-b216-779ca7635ae9 RELEASED draft/CanRent.can, draft/CanRent.md, draft/CanRent.mjs (incl coordinator Q2 repair). Inbox re-read: H001+H002+H003.
 - DONE J02: writer 01a106fb-c7b6-7ab1-a6e6-a7a4467f9aed RELEASED draft/CanLoyalty.can, draft/CanLoyalty.mjs (no changes). No new inbox IDs at verification.
 - DONE J03: writer 01a106fb-c8d9-75e2-9d72-f4b2258101f9 RELEASED draft/CanPurchase.can, draft/CanPurchase.mjs (no changes).
