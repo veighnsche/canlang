@@ -218,52 +218,106 @@ package loyalty label=heading_rewards
   # View your point history and reserve an available manually fulfillable perk. @{nl="Bekijk je puntengeschiedenis en reserveer een beschikbaar handmatig uitvoerbaar voordeel."}
   page /loyalty title="My rewards"@{nl="Mijn beloningen"}
    require authenticated
-   card "Own earned and available points"@{nl="Eigen verdiende en beschikbare punten"}
-    list Account as account where account.contact.account==actor and account.contact.verified display=split
-     metrics account.available,account.earned,account.tier_progress,account.tier_span
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
+   hero
+    list Account as account where account.contact.account==actor and account.contact.verified display=split empty="No reward account yet"@{nl="Nog geen beloningsaccount"}
+     pagination
+     stat account.available,account.earned
      text account.tier,account.next_tier
+     text account.tier_progress,account.tier_span
+     ## Tier progress renders only when a next tier defines a positive span.
+     card "Tier progress"@{nl="Niveauvoortgang"}
+      require account.tier_span>0
+      progress account.tier_progress max=account.tier_span
      text "A negative available balance means points are owed; new rewards must be affordable"@{nl="Een negatief beschikbaar saldo betekent dat punten verschuldigd zijn; nieuwe beloningen moeten betaalbaar zijn"}
      tabs preferences.view
       tab rewards
-       list account.parent.Reward as reward where reward.active columns=name,cost,locations
+       list account.parent.Reward as reward where reward.active columns=name,cost,locations empty="No active rewards"@{nl="Geen actieve beloningen"}
+        pagination
         content reward.instructions
-        form redeem arguments={account,reward}
-       table account.Redemption columns=name,cost,location,instructions,state,evidence,notification filter=location,state defaults={location=preferences.location,state=preferences.redemption_state} display=split
+        tooltip "Reserve this reward"@{nl="Reserveer deze beloning"}
+         form redeem arguments={account,reward}
+       table account.Redemption columns=name,cost,location,instructions,state,evidence,notification filter=location,state defaults={location=preferences.location,state=preferences.redemption_state} display=split empty="No reservations yet"@{nl="Nog geen reserveringen"}
+        pagination
+        badge row.state
+        status row.notification
         text "A failed or uncertain notification does not cancel this reservation"@{nl="Een mislukte of onzekere melding annuleert deze reservering niet"}
         history
       tab history
-       table account.Earning columns=points,tier,reason,source,reversal,author,qualification
-
+       timeline account.Earning
+        slot item
+         pagination
+         text row.points,row.tier
+         text row.reason,row.source
+         text row.reversal,row.author,row.qualification
   # Fulfill or cancel reserved perks with evidence. @{nl="Voer gereserveerde voordelen uit of annuleer ze met bewijs."}
   page /loyalty/fulfillment title=page_loyalty_fulfillment_title
    require reward_staff
+   breadcrumbs
    card page_loyalty_fulfillment_title
     form Account.create
+   divider
    card "Evidence and history"@{nl="Bewijs en geschiedenis"}
-    table Redemption columns=parent,name,cost,location,instructions,state,evidence,fulfilled_by,cancelled_by,notification filter=location,state defaults={location=preferences.location,state=preferences.redemption_state}
-     actions fulfill,cancel
+    table Redemption columns=parent,name,cost,location,instructions,state,evidence,fulfilled_by,cancelled_by,notification filter=location,state defaults={location=preferences.location,state=preferences.redemption_state} empty="No reservations match these filters"@{nl="Geen reserveringen voor deze filters"}
+     pagination
+     badge row.state
+     status row.notification
+     button opens=fulfill_detail
+     modal "Fulfill reward"@{nl="Beloning uitvoeren"} id=fulfill_detail
+      slot content
+       form fulfill arguments={redemption=row} display=inline
+        fieldset "Evidence"@{nl="Bewijs"}
+         label evidence
+         textarea evidence
+         validator evidence
+     button opens=cancel_detail
+     modal "Cancel reservation"@{nl="Reservering annuleren"} id=cancel_detail
+      slot content
+       form cancel arguments={redemption=row} display=inline
+        textarea reason
      history
    card "Earning review and corrections"@{nl="Puntencontrole en correcties"}
-    list Account as account display=split
-     metrics account.available,account.earned
+    list Account as account display=split empty="No reward accounts"@{nl="Geen beloningsaccounts"}
+     pagination
+     stat account.available,account.earned
      form adjust arguments={account}
-     table account.Earning columns=points,tier,reason,source,reversal,author,qualification
-      actions reverse
+      fieldset "Correction"@{nl="Correctie"}
+       input points
+       checkbox tier
+       textarea reason
+     table account.Earning columns=points,tier,reason,source,reversal,author,qualification empty="No points entries yet"@{nl="Nog geen puntenboekingen"}
+      pagination
+      button opens=reverse_entry
+      modal "Reverse entry"@{nl="Boeking terugdraaien"} id=reverse_entry
+       slot content
+        form reverse arguments={entry=row} display=inline
+         textarea reason
       history
-
   # Set published program terms under the separate program-owner grant. @{nl="Stel gepubliceerde programmavoorwaarden vast onder het afzonderlijke programma-eigenaarsrecht."}
   page /loyalty/catalog title=page_loyalty_catalog_title
    require program_owner
+   breadcrumbs
    card "Program terms"@{nl="Programmavoorwaarden"}
     form Program.create
-    list Program display=split
+     fieldset "Program terms"@{nl="Programmavoorwaarden"}
+      input name
+      textarea terms
+      input points_per_sale
+      toggle active
+    list Program display=split empty="No reward programs"@{nl="Geen beloningsprogramma's"}
+     pagination
      edit
      tabs
       tab "Tiers"@{nl="Niveaus"}
        form Tier.create
-       list row.Tier
+       list row.Tier empty="No tiers recorded"@{nl="Geen niveaus vastgelegd"}
+        pagination
+        text row.threshold
         edit
       tab heading_rewards
        form Reward.create
-       list row.Reward
+       list row.Reward empty="No rewards recorded"@{nl="Geen beloningen vastgelegd"}
+        pagination
+        text row.cost,row.active
         edit

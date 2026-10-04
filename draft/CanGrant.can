@@ -342,39 +342,105 @@ package grant
  Then
   # Discover the published cash-award terms and use private applicant intake. @{nl="Bekijk de gepubliceerde subsidievoorwaarden en gebruik de private aanvraagprocedure."}
   page /awards title="Funded programs"@{nl="Financieringsprogramma's"}
+   breadcrumbs
+   ## In-context saved default for the application-state filter below.
+   filter preferences.application_state
    card "Published programs and terms"@{nl="Gepubliceerde programma's en voorwaarden"}
-    list Grant as program where program.published order=closes filter=location,closes defaults={location=preferences.location}
+    list Grant as program where program.published order=closes filter=location,closes defaults={location=preferences.location} empty="No published programs."@{nl="Geen gepubliceerde programma's."}
+     pagination
      text row.name,row.location,row.terms,row.questions,row.criteria,row.closes,row.timezone
-     form apply arguments={grant=row}
+     form apply arguments={grant=row} display=inline
+      fieldset "Your application"@{nl="Je aanvraag"}
+       input email
+       input title
+       textarea description
    card "Own application intake and status"@{nl="Eigen aanvraag en status"}
     require authenticated
-    table Application as application where application.account==actor columns=title,amount,state,decision,notice_state,received,correction filter=state defaults={state=preferences.application_state}
+    table Application as application where application.account==actor columns=title,amount,state,decision,notice_state,received,correction filter=state defaults={state=preferences.application_state} empty="No applications yet."@{nl="Nog geen aanvragen."}
+     pagination
+     badge row.state
+     status row.notice_state
      edit
      text row.terms,row.criteria,row.questions,row.answers
      actions submit,correct
-     table row.Recovery columns=previous,reviewer,reason,author,recorded
-     table row.Withdrawal columns=reason,author,recorded
+     table row.Recovery columns=previous,reviewer,reason,author,recorded empty="No reviewer changes."@{nl="Geen beoordelaarswijzigingen."}
+      pagination
+     table row.Withdrawal columns=reason,author,recorded empty="No withdrawals."@{nl="Geen intrekkingen."}
+      pagination
      history
 
   # Review assigned applications and visible monetary commitments. @{nl="Beoordeel toegewezen aanvragen en zichtbare financiële toezeggingen."}
   page /awards/review title="Award review"@{nl="Aanvragen beoordelen"}
+   breadcrumbs
    require reviewer or coordinator
+   ## In-context saved default for the application-state filter below.
+   filter preferences.application_state
    card heading_program_budget
     require coordinator
-    form Grant.create
+    form Grant.create display=inline
+     fieldset "Program details"@{nl="Programmagegevens"}
+      input name
+      textarea terms
+      textarea criteria
     form intake
    card "Assigned applications and decisions"@{nl="Toegewezen aanvragen en besluiten"}
-    list Grant order=closes filter=location,closes defaults={location=preferences.location} display=split
+    list Grant order=closes filter=location,closes defaults={location=preferences.location} display=split empty="No programs in scope."@{nl="Geen programma's binnen scope."}
+     pagination
      card heading_program_budget
       require coordinator and can_work(actor,row.location)
       edit
       metrics row.budget,row.requested,row.committed,row.withdrawn,row.remaining
+      ## Committed and budget share the program currency by invariant; in-range by the remaining>=0 invariant.
+      progress row.committed max=row.budget
       form award_export arguments={grant=row}
-       table result.items columns=application,title,amount,decided_at
-     table row.Application columns=title,description,terms,criteria,questions,answers,amount,received,receipt_evidence,override_reason,state,decision,notice_state,decided_by,decided_at order=received filter=state,reviewer defaults={state=preferences.application_state}
-      actions decide,external,recover,withdraw
-      form Comment.create
-      table row.Comment columns=body,author,recorded
-      table row.Recovery columns=previous,reviewer,reason,author,recorded
-      table row.Withdrawal columns=reason,author,recorded
+       table result.items columns=application,title,amount,decided_at empty="No approved awards."@{nl="Geen goedgekeurde toezeggingen."}
+        pagination
+     table row.Application columns=title,description,terms,criteria,questions,answers,amount,received,receipt_evidence,override_reason,state,decision,notice_state,decided_by,decided_at order=received filter=state,reviewer defaults={state=preferences.application_state} search=title empty="No applications to review."@{nl="Geen aanvragen te beoordelen."}
+      pagination
+      badge row.state
+      status row.notice_state
+      button opens=decide_application
+      modal "Record decision"@{nl="Besluit vastleggen"} id=decide_application
+       slot content
+        form decide arguments={application=row} display=inline
+         fieldset "Decision"@{nl="Besluit"}
+          checkbox approve
+          textarea reason
+      button opens=record_receipt
+      modal "Record external receipt"@{nl="Externe ontvangst registreren"} id=record_receipt
+       slot content
+        form external arguments={application=row} display=inline
+         textarea evidence
+         input override_reason
+      button opens=restore_review
+      modal "Restore review"@{nl="Beoordeling herstellen"} id=restore_review
+       slot content
+        form recover arguments={application=row} display=inline
+         textarea reason
+      button opens=withdraw_award
+      modal "Withdraw"@{nl="Intrekken"} id=withdraw_award
+       slot content
+        form withdraw arguments={application=row} display=inline
+         textarea reason
+      button opens=add_comment
+      modal "Private reviewer comment"@{nl="Privéopmerking beoordelaar"} id=add_comment
+       slot content
+        form Comment.create display=inline
+         textarea body
+      list row.Comment empty="No reviewer comments."@{nl="Geen beoordelaarsopmerkingen."}
+       pagination
+       chat_bubble
+        slot header
+         text row.author
+        slot content
+         text row.body
+        slot footer
+         text row.recorded
+      accordion
+       collapse "Reviewer recovery"@{nl="Herstel beoordelaar"}
+        table row.Recovery columns=previous,reviewer,reason,author,recorded empty="No reviewer changes."@{nl="Geen beoordelaarswijzigingen."}
+         pagination
+       collapse "Award withdrawals"@{nl="Intrekking toezeggingen"}
+        table row.Withdrawal columns=reason,author,recorded empty="No withdrawals."@{nl="Geen intrekkingen."}
+         pagination
       history
