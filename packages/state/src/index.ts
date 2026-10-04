@@ -5,6 +5,17 @@
  */
 export { stateCatalog, STATE_ENGINE_VERSION, type StateCatalog } from './catalog.js';
 export { StateError, isStateError, ruleFailed } from './errors.js';
+export {
+  queryRecords,
+  queryAggregate,
+  type AggregateQueryResult,
+  type BaseQueryInput,
+  type OwnerRecordsInput,
+  type QueryAggregateInput,
+  type QueryCallerContext,
+  type QueryRecordsInput,
+  type ViewerRecordsInput,
+} from './query/index.js';
 export { STATE_CONTRACT_VERSION } from '../../contracts/src/state.js';
 export type {
   StateErrorCode,
@@ -34,4 +45,11 @@ export type {
   CommitResult,
   FenceConflict,
   StoragePort,
+  FieldPath,
+  AggregateOp,
+  AggregateSpec,
+  AggregateResult,
+  ProjectedRecord,
+  AuthorizedRecordsResult,
+  AuthorityRowsResult,
 } from '../../contracts/src/state.js';

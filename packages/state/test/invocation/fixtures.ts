@@ -242,9 +242,9 @@ export function makeDef(overrides: Partial<InterimOperationDef> = {}): InterimOp
 }
 
 export interface SeedMemberOpts {
-  /** Reuse this team when it exists; otherwise a team is created. */
+  /** Reuse this seeded team; throws when no such team was seeded. */
   readonly teamId?: string;
-  /** Reuse this user when it exists; otherwise a user is created. */
+  /** Reuse this seeded user; throws when no such user was seeded. */
   readonly userId?: string;
   readonly email?: string;
   readonly isOwner: boolean;
@@ -265,6 +265,8 @@ let seedCounter = 0;
  * Seed one membership through the local test double's
  * createUser/createTeam/createMembership (+ removeMembership for
  * `status: 'removed'`). Returns the allocated rows with their real ids.
+ * An explicit `teamId`/`userId` must already be seeded (throws otherwise);
+ * ids are minted only when the corresponding option is omitted.
  */
 export async function seedMember(
   store: TestMembershipStore,
@@ -272,15 +274,23 @@ export async function seedMember(
 ): Promise<SeededMember> {
   seedCounter += 1;
   const n = seedCounter;
-  let team: Team | null =
-    opts.teamId === undefined ? null : await store.findTeamById(opts.teamId);
-  if (team === null) {
+  let team: Team | null;
+  if (opts.teamId === undefined) {
     team = await store.createTeam('UTC');
+  } else {
+    team = await store.findTeamById(opts.teamId);
+    if (team === null) {
+      throw new Error(`seedMember: unknown teamId ${JSON.stringify(opts.teamId)}`);
+    }
   }
-  let user: FixtureUser | null =
-    opts.userId === undefined ? null : await store.findUserById(opts.userId);
-  if (user === null) {
+  let user: FixtureUser | null;
+  if (opts.userId === undefined) {
     user = await store.createUser(opts.email ?? `s3member-${n}@example.test`);
+  } else {
+    user = await store.findUserById(opts.userId);
+    if (user === null) {
+      throw new Error(`seedMember: unknown userId ${JSON.stringify(opts.userId)}`);
+    }
   }
   const granter = user.user_id;
   const roles: RoleGrant[] = (opts.roles ?? []).map((role) =>
