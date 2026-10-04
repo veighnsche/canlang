@@ -87,8 +87,8 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 Paths: draft/CanPropose (.can+.md, .mjs new), CanPurchase (.can+.md+.mjs),
 CanReception (.can+.md, .mjs new) + this status file. Source: lane-I drafter
 (I2) output under /tmp/slice11-i2, applied + heavily corrected by coordinator.
-Coordinator corrections to draft: 15 bare actions with non-row params became
-catalog modals (Propose hold_inventory/offer_alternative; Purchase
+Coordinator corrections to draft: 21 bare actions with non-row params became
+catalog modals (22 modals; Propose hold_inventory/offer_alternative; Purchase
 decide/order/increase/close/cancel/adjust/record_payable/transcribe_claims/
 accept_invoice/reject_invoice/amend/return_goods; Reception
 arrive/depart/refuse/cancel/return_key/lost/manual_revoke incl. mine-page
