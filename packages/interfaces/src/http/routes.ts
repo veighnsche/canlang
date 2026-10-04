@@ -28,6 +28,8 @@ export const SIGN_OUT_PATH = '/auth/logout';
 export const SWITCH_TEAM_PATH = '/auth/select-team';
 /** Operation invocation prefix: POST only, op name is the decoded rest. */
 export const OPERATIONS_PREFIX = '/api/operations/';
+/** Upload-transport prefix (S6 bridge v1): intents/content/finalize. */
+export const UPLOADS_PREFIX = '/files/';
 
 /**
  * F-owned sub-handlers, injected so this module never imports the F-owned
@@ -38,6 +40,8 @@ export interface HttpSubHandlers {
   readonly operations: (req: Request, op: string) => Promise<Response>;
   /** Serve one `/auth/*` route (any method; the handler decides). */
   readonly auth: (req: Request) => Promise<Response>;
+  /** Serve one `/files/*` upload route (any method; the handler decides). */
+  readonly uploads: (req: Request) => Promise<Response>;
 }
 
 /** Authored unknown/method response: `not_found`, never a 405 oracle. */
@@ -85,6 +89,9 @@ export function createHttpHandler(
       }
       if (pathname.startsWith('/auth/')) {
         return await sub.auth(request);
+      }
+      if (pathname.startsWith(UPLOADS_PREFIX)) {
+        return await sub.uploads(request);
       }
       if (method !== 'GET' && method !== 'HEAD') return notFoundResponse();
       return await handlePageRequest(deps, request);
