@@ -37,7 +37,9 @@ test.describe("scaffold smoke", () => {
     ]);
     await page.goto(`${bridge.url}/`);
     await expect(page.getByText("Team tasks").first()).toBeVisible();
-    await expect(page.getByText("Ship prototype")).toBeVisible();
+    // `.first()`: sibling spec files sharing this worker seed their own
+    // witness row into the same D1, so several may render.
+    await expect(page.getByText("Ship prototype").first()).toBeVisible();
     await expect(page.getByText("Add team work")).toBeVisible();
   });
 
@@ -49,6 +51,6 @@ test.describe("scaffold smoke", () => {
     await page.locator("#e2e-task-title").fill("Smoke task");
     await page.getByRole("button", { name: "Add" }).click();
     await expect(page.getByText("Smoke task")).toBeVisible();
-    await expect(page.getByText("Ship prototype")).toBeVisible();
+    await expect(page.getByText("Ship prototype").first()).toBeVisible();
   });
 });
