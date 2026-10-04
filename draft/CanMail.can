@@ -5,8 +5,7 @@ app CanMail uses=[mailroom]
 package mailroom label="Mailroom"@{nl="Postkamer"}
  use customer {Customer,Contact,owns,has_role,test_company,test_contact,test_admin,test_directory_manager,test_directory_employee}
  use member_terms {Term,eligible_term,paid_term,allocated}
- use invoice {Charge}
- use invoice {BillingV1 as Billing} from=deployment.billing
+ use invoice {BillingV1 as Billing,Charge} from=deployment.billing
  use rent_catalog {Location,test_site}
  use employee {Employee,can_work,test_worker}
  use std {DeliveryResult}
