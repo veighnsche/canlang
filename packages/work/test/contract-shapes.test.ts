@@ -93,12 +93,13 @@ describe('work contracts', () => {
 
   it('observes receipts with revision, status, result and closed error', () => {
     const observed: ReceiptObservation = {
-      deliveryId: 'del_1',
+      id: 'del_1',
       revision: 42,
       status: 'failed',
       result: null,
       error: { code: 'provider', message: 'Delivery rejected' },
     };
+    assert.equal(observed.id, 'del_1');
     assert.equal(observed.revision, 42);
     assert.deepEqual(Object.keys(observed.error ?? {}).sort(), [
       'code',

@@ -17,7 +17,9 @@ import type {
   ErrorReport,
   OperationOutcome,
   PageRequest,
+  PaymentCancelInput,
   PaymentCollectInput,
+  PaymentReconcileInput,
   PaymentRefundInput,
   PaymentState,
   ProviderBinding,
@@ -103,10 +105,14 @@ describe('services contracts', () => {
       amount: money,
       reference: 'rf_1',
     };
+    const cancel: PaymentCancelInput = { reference: 'pay_1' };
+    const reconcile: PaymentReconcileInput = { reference: 'pay_1' };
     assert.equal(state.status, 'pending');
     assert.equal(state.failure, null);
     assert.equal(collect.consent, null);
     assert.equal(refund.reference, 'rf_1');
+    assert.equal(cancel.reference, 'pay_1');
+    assert.equal(reconcile.reference, 'pay_1');
   });
 
   it('models error reports and shared operation outcomes', () => {
@@ -139,7 +145,18 @@ describe('services contracts', () => {
     const contract: CapabilityContract = {
       name: 'std.EmailV1',
       version: 1,
-      operations: ['send'],
+      operations: [
+        {
+          name: 'send',
+          inputs: {
+            to: 'email',
+            subject: 'text',
+            body: 'text',
+            attachments: 'file[]',
+          },
+          result: 'EmailAccepted',
+        },
+      ],
       events: [],
     };
     const features: AdapterFeatures = {
@@ -156,6 +173,8 @@ describe('services contracts', () => {
     const page: ProviderPage<string> = { items: ['a'], nextCursor: null };
     assert.equal(binding.deployment, 'deployment.mail');
     assert.equal(contract.version, 1);
+    assert.equal(contract.operations[0]?.result, 'EmailAccepted');
+    assert.equal(contract.operations[0]?.inputs['to'], 'email');
     assert.equal(features.reconciliation, true);
     assert.equal(limits.maxTransportBytes, 25_000_000);
     assert.equal(request.limit, 50);

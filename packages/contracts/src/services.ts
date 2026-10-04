@@ -15,9 +15,6 @@
 
 import type { FinalizedFileRef } from './files.js';
 
-/** JSON-serializable capability value. Exact values keep lane-2 tags. */
-export type CapabilityValue = unknown;
-
 /** Closed delivery receipt summary (DESIGN section 8). */
 export interface DeliveryResult {
   id: string;
@@ -57,16 +54,28 @@ export interface CapabilityCompletion<R> {
   error: DeliveryError | null;
 }
 
-/** One typed capability operation: inputs in, eventual provider result out. */
+/**
+ * One typed capability operation: typed inputs in, eventual provider result
+ * out. `-> R` names the provider result, not the enqueue receipt (DESIGN
+ * section 8). Type names resolve through lanes 1/2; this contract carries
+ * references, not the schema language.
+ */
 export interface CapabilityOperation {
   name: string;
-  /** JSON-serializable typed inputs, frozen at send. */
-  inputs: Record<string, CapabilityValue>;
+  /** Parameter name to declared type name. */
+  inputs: Record<string, string>;
+  /** Declared provider-result type name. */
+  result: string;
 }
 
-/** Verified inbound event declared inside a capability. */
+/**
+ * Verified inbound event declared inside a capability
+ * (`event changed {fields}` in DESIGN section 8).
+ */
 export interface CapabilityEventDecl {
   name: string;
+  /** Field name to declared type name. */
+  fields: Record<string, string>;
 }
 
 /**
@@ -77,8 +86,8 @@ export interface CapabilityEventDecl {
 export interface CapabilityContract {
   name: string;
   version: number;
-  operations: string[];
-  events: string[];
+  operations: CapabilityOperation[];
+  events: CapabilityEventDecl[];
 }
 
 /**
@@ -207,6 +216,19 @@ export interface PaymentRefundInput {
   payment: string;
   /** Lane-2 money wire shape; must be positive. */
   amount: unknown;
+  reference: string;
+}
+
+/**
+ * `std.PaymentsV1` cancel inputs. Disables new use of the attempt's
+ * checkout; never a refund and never proof that uncertain money is gone.
+ */
+export interface PaymentCancelInput {
+  reference: string;
+}
+
+/** `std.PaymentsV1` reconcile inputs; reuses the original identity. */
+export interface PaymentReconcileInput {
   reference: string;
 }
 

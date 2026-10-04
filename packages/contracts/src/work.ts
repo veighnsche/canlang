@@ -48,13 +48,15 @@ export interface CommittedChangeEvent {
   occurrenceId: OccurrenceId;
 }
 
-/** Lifecycle of one keyed scheduled occurrence. */
+/**
+ * Lifecycle of one keyed scheduled occurrence. "Due" is a temporal
+ * condition (pending with `at` reached), not a persisted state.
+ */
 export type ScheduledOccurrenceState =
   | 'pending'
   | 'admitted'
   | 'superseded'
-  | 'cancelled'
-  | 'due';
+  | 'cancelled';
 
 /**
  * Keyed schedule entry. The key is unique within app/owner/package and
@@ -167,10 +169,11 @@ export interface RetryPolicy {
 /**
  * Immutable authorized receipt observation at the current owner checkpoint
  * (DESIGN section 8.1). Status/result/error are read through the containing
- * record and exact grants; a text id alone grants no lookup.
+ * record and exact grants; a text id alone grants no lookup. `id` is the
+ * association property; completion envelopes carry it as `delivery_id`.
  */
 export interface ReceiptObservation {
-  deliveryId: string;
+  id: string;
   /** Owner checkpoint revision enrolling this observation in the read fence. */
   revision: number;
   status: ReceiptStatus;
@@ -194,7 +197,11 @@ export interface ReceiptError {
   message: string;
 }
 
-/** Selectable receipt properties for authorized observation. */
+/**
+ * Selectable receipt properties for authorized observation: the value-leaf
+ * selectors of the Oct-04 status-only receipt-permissions decision. Leaf
+ * selectors cannot traverse other records or expose siblings.
+ */
 export type ReceiptProperty = 'id' | 'status' | 'result' | 'error';
 
 /**
