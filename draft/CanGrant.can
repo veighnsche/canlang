@@ -4,7 +4,7 @@ app CanGrant uses=[grant]
 # Keep applicant records private and reserve only affordable monetary award commitments. @{nl="Houd aanvragen privé en leg alleen betaalbare financiële toezeggingen vast."}
 package grant
  use rent_catalog {Location,test_site}
- use employee {Employee,can_work,test_worker}
+ use employee {Employee,can_work,test_worker,hr,deactivate}
  use std {EmailV1 as Mail} from=deployment.mail
  Given
   message heading_program_budget = "Program budget"@{nl="Programmabudget"}
@@ -20,34 +20,48 @@ package grant
   contract AwardBatch { items:AwardItem[]! }
   derive complete_answers(questions:Question[],answers:Answer[]):bool = count(questions)==count(answers) and all(questions as question,count(answers as answer where answer.question==question.key)==1)
   Grant { location:Location, name:text, terms:text label="Terms"@{nl="Voorwaarden"}, questions:Question[]! label="Questions"@{nl="Vragen"}, criteria:text label="Selection criteria"@{nl="Selectiecriteria"}, budget:money label="Budget"@{nl="Budget"}, closes:datetime label="Closing deadline"@{nl="Sluitingsdatum"}, timezone:timezone, published:bool=false label="Published"@{nl="Gepubliceerd"} } label="Funded program"@{nl="Financieringsprogramma"}
-  Application in Grant { account:user label="Account"@{nl="Account"}, email:email, title:text trim min=1, description:text trim min=1, questions:Question[]! label="Frozen questions"@{nl="Vastgelegde vragen"}, correction:Application? label="Corrects application"@{nl="Corrigeert aanvraag"}, answers:Answer[] label="Answers"@{nl="Antwoorden"}, amount:money, reviewer:user label=label_reviewer, received:datetime? label=label_Application_received, receipt_evidence:text? label="Receipt evidence"@{nl="Ontvangstbewijs"}, override_reason:text? label=label_Application_override_reason, state:enum(draft,submitted,approved,rejected,withdrawn,superseded)=draft label={text="State"@{nl="Status"},values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved="Approved"@{nl="Goedgekeurd"},rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"},superseded="Superseded"@{nl="Vervangen"}}}, decision:text? label="Decision"@{nl="Besluit"}, decided_by:user? label="Decided by"@{nl="Besloten door"}, decided_at:datetime? label="Decided at"@{nl="Besloten op"} } label="Application"@{nl="Aanvraag"}
+  Application in Grant { account:user label="Account"@{nl="Account"}, email:email, title:text trim min=1, description:text trim min=1, terms:text label="Frozen terms"@{nl="Vastgelegde voorwaarden"}, criteria:text label="Frozen criteria"@{nl="Vastgelegde criteria"}, questions:Question[]! label="Frozen questions"@{nl="Vastgelegde vragen"}, correction:Application? label="Corrects application"@{nl="Corrigeert aanvraag"}, answers:Answer[] label="Answers"@{nl="Antwoorden"}, amount:money, reviewer:user label=label_reviewer, received:datetime? label=label_Application_received, receipt_evidence:text? label="Receipt evidence"@{nl="Ontvangstbewijs"}, override_reason:text? label=label_Application_override_reason, state:enum(draft,submitted,approved,rejected,withdrawn,superseded)=draft label={text="State"@{nl="Status"},values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved="Approved"@{nl="Goedgekeurd"},rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"},superseded="Superseded"@{nl="Vervangen"}}}, decision:text? label="Decision"@{nl="Besluit"}, decided_by:user? label="Decided by"@{nl="Besloten door"}, decided_at:datetime? label="Decided at"@{nl="Besloten op"}, notice_delivery:text?, notice_state:enum(none,pending,succeeded,failed,unknown,skipped)=none label="Decision notice delivery"@{nl="Bezorging besluitbericht"} } label="Application"@{nl="Aanvraag"}
   Comment in Application { body:text trim min=1, author:user server=actor, recorded:datetime server=now } label="Private reviewer comment"@{nl="Privéopmerking beoordelaar"}
   Withdrawal in Application { reason:text trim min=1, author:user server=actor, recorded:datetime server=now } label="Award withdrawal"@{nl="Intrekking toezegging"}
+  Recovery in Application { previous:user label="Previous reviewer"@{nl="Vorige beoordelaar"}, reviewer:user label=label_reviewer, reason:text trim min=1, author:user server=actor, recorded:datetime server=now } label="Reviewer recovery"@{nl="Herstel beoordelaar"}
   derive Grant.requested:money = sum(row.Application as application where application.state in [submitted,approved,rejected,withdrawn] select application.amount,row.budget.currency) label="Requested amount"@{nl="Aangevraagd bedrag"}
   derive Grant.withdrawn:money = sum(row.Application as application where application.state==withdrawn select application.amount,row.budget.currency) label="Withdrawn amount"@{nl="Ingetrokken bedrag"}
   derive Grant.committed:money = sum(row.Application as application where application.state==approved select application.amount,row.budget.currency) label="Committed amount"@{nl="Vastgelegd bedrag"}
   derive Grant.remaining:money = row.budget-row.committed label="Remaining"@{nl="Resterend"}
-  policy Grant read=public where=row.published fields=location,name,terms,questions,criteria,closes,timezone
+  policy Grant read=public where=row.published fields=location,name,terms,questions,criteria,closes,timezone,published
   policy Grant read=coordinator and can_work(actor,row.location)
-  policy Grant read=reviewer where=can_work(actor,row.location) and any(row.Application as application,application.reviewer==actor and application.state==submitted) fields=location,name,terms,questions,criteria,closes,timezone
+  policy Grant read=reviewer where=can_work(actor,row.location) and any(row.Application as application,application.reviewer==actor and application.state==submitted) fields=location,name,terms,questions,criteria,closes,timezone,published
   policy Application read=authenticated where=row.account==actor
   policy Application read=reviewer where=row.reviewer==actor and row.state==submitted and can_work(actor,row.parent.location)
   policy Application read=coordinator and can_work(actor,row.parent.location)
   policy Comment read=reviewer where=row.parent.reviewer==actor and row.parent.state==submitted and row.parent.account!=actor and can_work(actor,row.parent.parent.location)
   policy Comment read=coordinator and can_work(actor,row.parent.parent.location)
   policy Withdrawal read=authenticated where=row.parent.account==actor or (coordinator and can_work(actor,row.parent.parent.location))
+  policy Recovery read=reviewer where=row.parent.reviewer==actor and row.parent.state==submitted and can_work(actor,row.parent.parent.location)
+  policy Recovery read=authenticated where=row.parent.account==actor or (coordinator and can_work(actor,row.parent.parent.location))
   unique Application fields=correction where=row.state==draft
   invariant Grant: count(row.questions)>0 and count(group(row.questions as question,question.key))==count(row.questions) and row.budget.minor>=0 and row.remaining.minor>=0
   invariant Application: row.amount.currency==row.parent.budget.currency and row.amount.minor>0 and (row.correction==null or (row.correction.parent==row.parent and row.correction.account==row.account))
-  lock Application fields=account,questions,correction
+  lock Application fields=account,terms,criteria,questions,correction
   lock Application fields=decision,decided_by,decided_at when=row.decided_at!=null
+  lock Application fields=notice_delivery when=row.notice_delivery!=null
   lock Comment fields=body,author,recorded
   lock Withdrawal fields=reason,author,recorded
-  lock Application fields=email,title,description,answers,amount,reviewer,received,receipt_evidence,override_reason when=row.state!=draft
-  fixture colleague=Employee {user=other,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer"}
+  lock Recovery fields=previous,reviewer,reason,author,recorded
+  lock Application fields=email,title,description,answers,amount,received,receipt_evidence,override_reason when=row.state!=draft
+  lock Application fields=reviewer when=row.state!=draft and (row.state!=submitted or (reviewer(row.reviewer) and can_work(row.reviewer,row.parent.location)))
+  fixture reviewer_user=user {roles=[reviewer]}
+  fixture replacement_user=user {roles=[reviewer]}
+  fixture coordinator_user=user {roles=[coordinator]}
+  fixture ordinary_user=user {}
+  fixture hr_user=user {roles=[hr]}
+  fixture replacement_worker=Employee {user=replacement_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Replacement reviewer"}
+  fixture coordinator_worker=Employee {user=coordinator_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Coordinator"}
+  fixture ordinary_worker=Employee {user=ordinary_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer"}
+  fixture colleague=Employee {user=reviewer_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer"}
   fixture program=Grant {location=test_site,name="Startup fund",terms="Cash award",questions=[Question {key="purpose",prompt="Purpose"}],criteria="Impact",budget=money(100,"EUR"),closes=datetime("2099-01-01T09:00:00Z"),timezone="Europe/Brussels",published=true}
-  fixture corrected=Application {parent=program,account=other,correction=submitted,email="applicant@example.test",title="Corrected project",description="Clarified business",questions=submitted.questions,answers=submitted.answers,amount=money(60,"EUR"),reviewer=self}
-  fixture submitted=Application {parent=program,account=other,email="applicant@example.test",title="Project",description="New business",questions=program.questions,answers=[Answer {question="purpose",value="Launch"}],amount=money(60,"EUR"),reviewer=self,received=datetime("2026-10-01T09:00:00Z"),state=submitted}
+  fixture corrected=Application {parent=program,account=other,correction=submitted,email="applicant@example.test",title="Corrected project",description="Clarified business",terms=submitted.terms,criteria=submitted.criteria,questions=submitted.questions,answers=submitted.answers,amount=money(60,"EUR"),reviewer=reviewer_user}
+  fixture submitted=Application {parent=program,account=other,email="applicant@example.test",title="Project",description="New business",terms=program.terms,criteria=program.criteria,questions=program.questions,answers=[Answer {question="purpose",value="Launch"}],amount=money(60,"EUR"),reviewer=reviewer_user,received=datetime("2026-10-01T09:00:00Z"),state=submitted}
  When
   crud Grant by=coordinator fields=name,terms,questions,criteria,budget,closes,published create_fields=location,name,terms,questions,criteria,budget,closes,timezone when=can_work(actor,row.location) delete=none
   crud Comment by=reviewer fields=body update=none delete=none when=row.parent.reviewer==actor and row.parent.state==submitted and row.parent.account!=actor and can_work(actor,row.parent.parent.location)
@@ -59,63 +73,192 @@ package grant
     members,other,draft,[] -> error(rule_failed)
   # Start your private draft with the program's frozen question definitions. @{nl="Begin je privéconcept met de vastgelegde vraagdefinities van het programma."}
   scenario apply(grant:Grant,email:email,title:Application.title,description:Application.description,amount:money,assignee:user label=label_reviewer) by=authenticated label="Start application"@{nl="Aanvraag beginnen"}
-   require grant.published and now<=grant.closes and assignee!=actor and can_work(assignee,grant.location)
-   do create Application {parent=grant,account=actor,email,title,description,questions=grant.questions,amount,reviewer=assignee} as application
-   examples seed=[colleague] grant=program email="applicant@example.test" title="Project" description="New business" amount=money(60,"EUR") assignee=other
-    as,assignee,grant.closes -> count(grant.Application)
-    members,other,datetime("2099-01-01T09:00:00Z") -> 1
-    members,self,datetime("2099-01-01T09:00:00Z") -> error(rule_failed)
-    members,other,datetime("2000-01-01T09:00:00Z") -> error(rule_failed)
+   require grant.published and now<=grant.closes and assignee!=actor and reviewer(assignee) and can_work(assignee,grant.location)
+   do create Application {parent=grant,account=actor,email,title,description,terms=grant.terms,criteria=grant.criteria,questions=grant.questions,amount,reviewer=assignee} as application
+   examples seed=[colleague,ordinary_worker] grant=program email="applicant@example.test" title="Project" description="New business" amount=money(60,"EUR") assignee=reviewer_user
+    as,assignee,grant.closes,amount -> count(grant.Application)
+    self,reviewer_user,datetime("2099-01-01T09:00:00Z"),money(60,"EUR") -> 1
+    self,self,datetime("2099-01-01T09:00:00Z"),money(60,"EUR") -> error(rule_failed)
+    self,reviewer_user,datetime("2000-01-01T09:00:00Z"),money(60,"EUR") -> error(rule_failed)
+    self,ordinary_user,datetime("2099-01-01T09:00:00Z"),money(60,"EUR") -> error(rule_failed)
+    self,reviewer_user,datetime("2099-01-01T09:00:00Z"),money(60,"USD") -> error(rule_failed)
+    self,reviewer_user,datetime("2099-01-01T09:00:00Z"),money(0,"EUR") -> error(rule_failed)
+   ## Shared-state sequences are proposed; the initial parser does not support their do grammar. Static user grants are not a live role-revocation event.
+   examples seed=[program,colleague,coordinator_worker,ordinary_user]
+    do
+     call apply {grant=program,email="applicant@example.test",title="Journey project",description="New business",amount=money(60,"EUR"),assignee=reviewer_user} by=self
+     let draft=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     draft!=null -> true
+     call submit {application=draft} by=self -> error(rule_failed)
+     call Application.update {record=draft,changes={answers=[Answer {question="purpose",value="Launch"}]}} by=self
+     let ready=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     ready!=null -> true
+     call submit {application=ready} by=self
+     let pending=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     pending!=null -> true
+     call decide {application=pending,approve=true,reason="Meets criteria"} by=ordinary_user -> error(forbidden)
+     count(program.Application) -> 0
+     call decide {application=pending,approve=true,reason="Meets criteria"} by=reviewer_user
+     call award_export {grant=program} by=coordinator_user as first_awards
+     count(first_awards.items),program.committed,program.remaining -> 1,money(60,"EUR"),money(40,"EUR")
+     call apply {grant=program,email="applicant@example.test",title="Competing project",description="New business",amount=money(60,"EUR"),assignee=reviewer_user} by=other
+     let competing_draft=first(program.Application as row where row.account==other and row.correction==null order=row.id)
+     competing_draft!=null -> true
+     call Application.update {record=competing_draft,changes={answers=[Answer {question="purpose",value="Launch"}]}} by=other
+     let competing_ready=first(program.Application as row where row.account==other and row.correction==null order=row.id)
+     competing_ready!=null -> true
+     call submit {application=competing_ready} by=other
+     let competing_pending=first(program.Application as row where row.account==other and row.correction==null order=row.id)
+     competing_pending!=null -> true
+     call decide {application=competing_pending,approve=true,reason="Impact also verified"} by=reviewer_user -> error(rule_failed)
+     program.Application as row where row.state==submitted select row.amount -> [money(60,"EUR")]
+     call decide {application=competing_pending,approve=false,reason="Funds already committed"} by=reviewer_user
+     call award_export {grant=program} by=coordinator_user as retained_awards
+     let approved=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     approved!=null -> true
+     call withdraw {application=approved,reason="Funding cancelled"} by=coordinator_user
+     let withdrawn=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     withdrawn!=null -> true
+     call withdraw {application=withdrawn,reason="Repeated withdrawal"} by=coordinator_user -> error(rule_failed)
+     call award_export {grant=program} by=coordinator_user as empty_awards
+     withdrawn.state,withdrawn.decision,withdrawn.decided_by,withdrawn.amount,count(withdrawn.Withdrawal),count(empty_awards.items),program.requested,program.committed,program.withdrawn,program.remaining -> withdrawn,"Meets criteria",reviewer_user,money(60,"EUR"),1,0,money(120,"EUR"),money(0,"EUR"),money(60,"EUR"),money(100,"EUR")
+   examples seed=[program,colleague,coordinator_worker]
+    do
+     call apply {grant=program,email="applicant@example.test",title="Journey project",description="New business",amount=money(60,"EUR"),assignee=reviewer_user} by=self
+     let draft=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     draft!=null -> true
+     call Application.update {record=draft,changes={answers=[Answer {question="purpose",value="Launch"}]}} by=self
+     let ready=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     ready!=null -> true
+     call submit {application=ready} by=self
+     let pending=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     pending!=null -> true
+     call Comment.create {parent=pending,body="Private assessment"} by=reviewer_user
+     call decide {application=pending,approve=false,reason="Clarify the plan"} by=reviewer_user
+     call award_export {grant=program} by=coordinator_user as rejected_awards
+     let rejected=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     rejected!=null -> true
+     call Application.update {record=rejected,changes={answers=[]}} by=self -> error(rule_failed)
+     count(rejected.Comment) -> 0
+     call Grant.update {record=program,changes={terms="New terms",criteria="New criteria"}} by=coordinator_user
+     call correct {application=rejected} by=self
+     call correct {application=rejected} by=self -> error(rule_failed)
+     let correction=first(program.Application as row where row.account==self and row.correction==rejected order=row.id)
+     correction!=null -> true
+     correction.terms,correction.criteria,correction.state,rejected.state,rejected.decision -> "Cash award","Impact",draft,rejected,"Clarify the plan"
+     call Application.update {record=correction,changes={answers=[Answer {question="purpose",value="Launch"}],amount=money(40,"EUR")}} by=self
+     let corrected_ready=first(program.Application as row where row.account==self and row.correction==rejected order=row.id)
+     corrected_ready!=null -> true
+     call submit {application=corrected_ready} by=self
+     let corrected_pending=first(program.Application as row where row.account==self and row.correction==rejected order=row.id)
+     corrected_pending!=null -> true
+     call decide {application=corrected_pending,approve=true,reason="Corrected plan checked"} by=reviewer_user
+     call award_export {grant=program} by=coordinator_user as corrected_awards
+     let corrected_approved=first(program.Application as row where row.account==self and row.correction==rejected order=row.id)
+     corrected_approved!=null -> true
+     let retained_rejection=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     retained_rejection!=null -> true
+     retained_rejection.state,retained_rejection.decision,corrected_approved.state,corrected_approved.amount,corrected_approved.terms,corrected_approved.criteria,corrected_approved.correction==rejected,count(corrected_awards.items),program.committed,program.remaining -> rejected,"Clarify the plan",approved,money(40,"EUR"),"Cash award","Impact",true,1,money(40,"EUR"),money(60,"EUR")
+   examples seed=[program,colleague,replacement_worker,coordinator_worker,ordinary_worker,hr_user]
+    do
+     call apply {grant=program,email="applicant@example.test",title="Journey project",description="New business",amount=money(60,"EUR"),assignee=reviewer_user} by=self
+     let draft=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     draft!=null -> true
+     call Application.update {record=draft,changes={answers=[Answer {question="purpose",value="Launch"}]}} by=self
+     let ready=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     ready!=null -> true
+     call submit {application=ready} by=self
+     let pending=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     pending!=null -> true
+     let submitted_version=pending.version
+     let original_received=pending.received
+     call Grant.update {record=program,changes={closes=now-1m,terms="New terms",criteria="New criteria",questions=[Question {key="new",prompt="New question"}]}} by=coordinator_user
+     call deactivate {employee=colleague,ended=date("2026-10-02")} by=hr_user
+     colleague.active,reviewer(reviewer_user),can_work(reviewer_user,test_site) -> false,true,false
+     call decide {application=pending,approve=true,reason="Meets criteria"} by=reviewer_user -> error(rule_failed)
+     call correct {application=pending} by=self -> error(rule_failed)
+     call recover {application=pending,assignee=replacement_user,reason="Reviewer unavailable"} by=ordinary_user -> error(forbidden)
+     call recover {application=pending,assignee=ordinary_user,reason="Reviewer unavailable"} by=coordinator_user -> error(rule_failed)
+     call recover {application=pending,assignee=replacement_user,reason=" Reviewer unavailable "} by=coordinator_user
+     let recovered=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     recovered!=null -> true
+     call recover {application=recovered,assignee=reviewer_user,reason="Repeat"} by=coordinator_user request={application={version=submitted_version}} -> error(conflict)
+     call recover {application=recovered,assignee=replacement_user,reason="Repeat"} by=coordinator_user -> error(rule_failed)
+     recovered.state,recovered.reviewer,recovered.received,recovered.amount,recovered.terms,recovered.criteria,recovered.questions==[Question {key="purpose",prompt="Purpose"}],count(recovered.Recovery),any(recovered.Recovery as evidence,evidence.previous==reviewer_user and evidence.reviewer==replacement_user and evidence.reason=="Reviewer unavailable" and evidence.author==coordinator_user),program.committed -> submitted,replacement_user,original_received,money(60,"EUR"),"Cash award","Impact",true,1,true,money(0,"EUR")
+     call decide {application=recovered,approve=true,reason="Meets criteria"} by=reviewer_user -> error(rule_failed)
+     call decide {application=recovered,approve=true,reason="Recovery reviewed"} by=replacement_user
+     call award_export {grant=program} by=coordinator_user as recovered_awards
+     let recovered_approved=first(program.Application as row where row.account==self and row.correction==null order=row.id)
+     recovered_approved!=null -> true
+     call recover {application=recovered_approved,assignee=reviewer_user,reason="After decision"} by=coordinator_user -> error(rule_failed)
+     recovered_approved.state,recovered_approved.reviewer,recovered_approved.decided_by,recovered_approved.decision,recovered_approved.received,recovered_approved.notice_state,count(recovered_awards.items),program.committed,program.remaining -> approved,replacement_user,replacement_user,"Recovery reviewed",original_received,pending,1,money(60,"EUR"),money(40,"EUR")
   # Make a private correction without reopening or deleting the previous intake. @{nl="Maak een privécorrectie zonder de eerdere aanvraag te heropenen of te verwijderen."}
   scenario correct(application:Application) by=authenticated label="Create correction draft"@{nl="Correctieconcept maken"}
    require application.account==actor and application.state in [submitted,rejected] and application.parent.published and now<=application.parent.closes
    require not any(application.parent.Application as replacement,replacement.correction==application and replacement.state in [draft,submitted,approved])
-   do create Application {parent=application.parent,account=actor,correction=application,email=application.email,title=application.title,description=application.description,questions=application.questions,answers=application.answers,amount=application.amount,reviewer=application.reviewer} as replacement
+   do create Application {parent=application.parent,account=actor,correction=application,email=application.email,title=application.title,description=application.description,terms=application.terms,criteria=application.criteria,questions=application.questions,answers=application.answers,amount=application.amount,reviewer=application.reviewer} as replacement
    examples application=submitted
     as,application.account,application.state -> application.state,count(application.parent.Application)
-    members,self,submitted -> submitted,2
-    members,self,rejected -> rejected,2
-    members,other,submitted -> error(rule_failed)
-    members,self,approved -> error(rule_failed)
+    self,self,submitted -> submitted,2
+    self,self,rejected -> rejected,2
+    self,other,submitted -> error(rule_failed)
+    self,self,approved -> error(rule_failed)
   # Submit your application at authoritative receipt time with the required recorded answers. @{nl="Dien je aanvraag in met het gezaghebbende ontvangsttijdstip en de vereiste vastgelegde antwoorden."}
   scenario submit(application:Application) by=authenticated
-   require application.account==actor and application.state==draft and now<=application.parent.closes and application.parent.published and application.reviewer!=actor and can_work(application.reviewer,application.parent.location) and complete_answers(application.questions,application.answers)
+   require application.account==actor and application.state==draft and now<=application.parent.closes and application.parent.published and application.reviewer!=actor and reviewer(application.reviewer) and can_work(application.reviewer,application.parent.location) and complete_answers(application.questions,application.answers)
    do
     if application.correction!=null
      require application.correction.state in [submitted,rejected]
      if application.correction.state==submitted
       set application.correction {state=superseded}
     set application {state=submitted,received=now}
-   examples seed=[colleague] application=submitted
-    as,application.account,application.reviewer,application.state,application.answers,application.parent.closes -> application.state,application.received
-    members,self,other,draft,[Answer {question="purpose",value="Launch"}],datetime("2099-01-01T09:00:00Z") -> submitted,now
-    members,self,self,draft,[Answer {question="purpose",value="Launch"}],datetime("2099-01-01T09:00:00Z") -> error(rule_failed)
-    members,self,other,draft,[],datetime("2099-01-01T09:00:00Z") -> error(rule_failed)
-    members,self,other,draft,[Answer {question="wrong",value="Launch"}],datetime("2099-01-01T09:00:00Z") -> error(rule_failed)
-    members,self,other,draft,[Answer {question="purpose",value="Launch"},Answer {question="purpose",value="Again"}],datetime("2099-01-01T09:00:00Z") -> error(rule_failed)
-    members,self,other,draft,[Answer {question="purpose",value="Launch"}],datetime("2000-01-01T09:00:00Z") -> error(rule_failed)
+   examples seed=[colleague,ordinary_worker] application=submitted
+    as,application.account,application.reviewer,application.state,application.answers,application.parent.closes,request.application.version -> application.state,application.received
+    self,self,reviewer_user,draft,[Answer {question="purpose",value="Launch"}],datetime("2099-01-01T09:00:00Z"),1 -> submitted,now
+    self,self,self,draft,[Answer {question="purpose",value="Launch"}],datetime("2099-01-01T09:00:00Z"),1 -> error(rule_failed)
+    self,self,reviewer_user,draft,[],datetime("2099-01-01T09:00:00Z"),1 -> error(rule_failed)
+    self,self,reviewer_user,draft,[Answer {question="wrong",value="Launch"}],datetime("2099-01-01T09:00:00Z"),1 -> error(rule_failed)
+    self,self,reviewer_user,draft,[Answer {question="purpose",value="Launch"},Answer {question="purpose",value="Again"}],datetime("2099-01-01T09:00:00Z"),1 -> error(rule_failed)
+    self,self,reviewer_user,draft,[Answer {question="purpose",value="Launch"}],datetime("2000-01-01T09:00:00Z"),1 -> error(rule_failed)
+    self,self,ordinary_user,draft,[Answer {question="purpose",value="Launch"}],datetime("2099-01-01T09:00:00Z"),1 -> error(rule_failed)
+    self,self,reviewer_user,draft,[Answer {question="purpose",value="Launch"}],datetime("2099-01-01T09:00:00Z"),2 -> error(conflict)
    examples seed=[colleague] application=corrected
     as,application.account,submitted.account,application.reviewer,submitted.state -> application.state,submitted.state,submitted.received,application.received
-    members,self,self,other,submitted -> submitted,superseded,datetime("2026-10-01T09:00:00Z"),now
-    members,self,self,other,rejected -> submitted,rejected,datetime("2026-10-01T09:00:00Z"),now
-    members,self,self,other,approved -> error(rule_failed)
+    self,self,self,reviewer_user,submitted -> submitted,superseded,datetime("2026-10-01T09:00:00Z"),now
+    self,self,self,reviewer_user,rejected -> submitted,rejected,datetime("2026-10-01T09:00:00Z"),now
+    self,self,self,reviewer_user,approved -> error(rule_failed)
   # Enter an externally received application for its actual applicant before recording receipt evidence. @{nl="Voer een extern ontvangen aanvraag in voor de echte aanvrager en leg het ontvangstbewijs vast."}
   scenario intake(grant:Grant,applicant:user,email:email,title:Application.title,description:Application.description,answers:Answer[],amount:money,assignee:user label=label_reviewer,received:datetime label=label_Application_received,evidence:text,override_reason:text? label=label_Application_override_reason) by=coordinator label="External applicant intake"@{nl="Externe aanvraag invoeren"}
    require can_work(actor,grant.location)
    do
-    create Application {parent=grant,account=applicant,email,title,description,questions=grant.questions,answers,amount,reviewer=assignee} as application
+    create Application {parent=grant,account=applicant,email,title,description,terms=grant.terms,criteria=grant.criteria,questions=grant.questions,answers,amount,reviewer=assignee} as application
     call external {application,received,evidence,override_reason}
+   ## The external-intake sequence uses normal calls; failed receipt admission rolls back its create.
+   examples seed=[program,colleague,coordinator_worker,ordinary_user]
+    do
+     call Grant.update {record=program,changes={closes=now-1m}} by=coordinator_user
+     call intake {grant=program,applicant=other,email="external@example.test",title="External project",description="Recorded application",answers=[Answer {question="purpose",value="Launch"}],amount=money(60,"EUR"),assignee=reviewer_user,received=now,evidence="Signed receipt",override_reason=null} by=coordinator_user -> error(rule_failed)
+     count(program.Application) -> 0
+     call intake {grant=program,applicant=other,email="external@example.test",title="External project",description="Recorded application",answers=[Answer {question="purpose",value="Launch"}],amount=money(60,"EUR"),assignee=reviewer_user,received=now+1m,evidence="Signed receipt",override_reason="Documented exception"} by=coordinator_user -> error(rule_failed)
+     call intake {grant=program,applicant=other,email="external@example.test",title="External project",description="Recorded application",answers=[Answer {question="purpose",value="Launch"}],amount=money(60,"EUR"),assignee=reviewer_user,received=now,evidence="Signed receipt",override_reason="Documented exception"} by=ordinary_user -> error(forbidden)
+     call intake {grant=program,applicant=other,email="external@example.test",title="External project",description="Recorded application",answers=[Answer {question="purpose",value="Launch"}],amount=money(60,"EUR"),assignee=reviewer_user,received=now,evidence="Signed receipt",override_reason="Documented exception"} by=coordinator_user
+     let external_application=first(program.Application as row where row.account==other and row.correction==null order=row.id)
+     external_application!=null -> true
+     external_application.account,external_application.state,external_application.received,external_application.receipt_evidence,external_application.override_reason,external_application.terms,external_application.criteria -> other,submitted,now,"Signed receipt","Documented exception","Cash award","Impact"
+     call decide {application=external_application,approve=true,reason="External evidence checked"} by=reviewer_user
+     call award_export {grant=program} by=coordinator_user as external_awards
+     count(external_awards.items),program.committed,program.remaining -> 1,money(60,"EUR"),money(40,"EUR")
   # Record an evidenced external receipt with an explicit late override where needed. @{nl="Registreer een bewezen externe ontvangst, indien nodig met een expliciete uitzondering op de deadline."}
   scenario external(application:Application,received:datetime label=label_Application_received,evidence:text,override_reason:text? label=label_Application_override_reason) by=coordinator label="Record external receipt"@{nl="Externe ontvangst registreren"}
    require can_work(actor,application.parent.location) and application.state==draft and trim(evidence)!="" and received<=now and (received<=application.parent.closes or (override_reason!=null and trim(override_reason)!=""))
-   require application.reviewer!=application.account and can_work(application.reviewer,application.parent.location) and complete_answers(application.questions,application.answers)
+   require application.reviewer!=application.account and reviewer(application.reviewer) and can_work(application.reviewer,application.parent.location) and complete_answers(application.questions,application.answers)
    do
     if application.correction!=null
      require application.correction.state in [submitted,rejected]
      if application.correction.state==submitted
       set application.correction {state=superseded}
     set application {state=submitted,received,receipt_evidence=evidence,override_reason}
-   examples seed=[test_worker] application=submitted received=datetime("2026-10-01T09:00:00Z") evidence="Signed receipt"
+   examples seed=[test_worker,colleague] application=submitted received=datetime("2026-10-01T09:00:00Z") evidence="Signed receipt"
     as,application.state,application.answers,application.parent.closes,override_reason -> application.state,application.received,application.override_reason
     coordinator,draft,[Answer {question="purpose",value="Launch"}],datetime("2099-01-01T09:00:00Z"),null -> submitted,datetime("2026-10-01T09:00:00Z"),null
     coordinator,draft,[Answer {question="purpose",value="Launch"}],datetime("2000-01-01T09:00:00Z"),null -> error(rule_failed)
@@ -131,12 +274,48 @@ package grant
     else
      set application {state=rejected,decision=reason,decided_by=actor,decided_at=now}
     send Mail.send {to=application.email,subject=format("Award decision"@{nl="Besluit over aanvraag"},locale=null),body=reason} as notice
-   examples seed=[test_worker] application=submitted approve=true reason="Meets criteria"
-    as,application.account,application.amount -> application.state,program.remaining
-    reviewer,other,money(60,"EUR") -> approved,money(40,"EUR")
-    reviewer,self,money(60,"EUR") -> error(rule_failed)
-    reviewer,other,money(101,"EUR") -> error(rule_failed)
-    members,other,money(60,"EUR") -> error(forbidden)
+    set application {notice_delivery=notice.id,notice_state=pending}
+   examples seed=[test_worker,colleague] application=submitted approve=true reason="Meets criteria"
+    as,application.reviewer,application.account,application.amount,request.application.version -> application.state,program.remaining,application.notice_state
+    reviewer,self,other,money(60,"EUR"),1 -> approved,money(40,"EUR"),pending
+    reviewer,self,self,money(60,"EUR"),1 -> error(rule_failed)
+    reviewer,self,other,money(101,"EUR"),1 -> error(rule_failed)
+    members,self,other,money(60,"EUR"),1 -> error(forbidden)
+    reviewer,self,other,money(60,"EUR"),2 -> error(conflict)
+  ## Recovery keeps the original submitted intake and receipt. Only an unavailable reviewer can be replaced; the pre-state lock remains absolute after any decision.
+  scenario recover(application:Application,assignee:user label=label_reviewer,reason:text) by=coordinator label="Restore review"@{nl="Beoordeling herstellen"}
+   require can_work(actor,application.parent.location) and application.state==submitted and trim(reason)!=""
+   require not reviewer(application.reviewer) or not can_work(application.reviewer,application.parent.location)
+   require assignee!=application.account and reviewer(assignee) and can_work(assignee,application.parent.location)
+   do
+    create Recovery {parent=application,previous=application.reviewer,reviewer=assignee,reason} as recovery
+    set application {reviewer=assignee}
+   examples seed=[colleague,ordinary_worker,replacement_worker,coordinator_worker] application=submitted assignee=replacement_user reason="Review unavailable"
+    as,application.state,application.reviewer,colleague.active,assignee,reason,request.application.version -> application.reviewer,application.state,application.received,application.amount,application.terms,application.criteria,count(application.Recovery),any(application.Recovery as recovery,recovery.previous==reviewer_user and recovery.reviewer==replacement_user and recovery.reason=="Review unavailable" and recovery.author==coordinator_user)
+    coordinator_user,submitted,reviewer_user,false,replacement_user," Review unavailable ",1 -> replacement_user,submitted,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),"Cash award","Impact",1,true
+    coordinator_user,submitted,ordinary_user,true,replacement_user," Review unavailable ",1 -> replacement_user,submitted,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),"Cash award","Impact",1,false
+    coordinator_user,submitted,reviewer_user,true,replacement_user,"Review unavailable",1 -> error(rule_failed)
+    coordinator_user,submitted,reviewer_user,false,ordinary_user,"Review unavailable",1 -> error(rule_failed)
+    coordinator_user,submitted,reviewer_user,false,other,"Review unavailable",1 -> error(rule_failed)
+    coordinator_user,approved,reviewer_user,false,replacement_user,"Review unavailable",1 -> error(rule_failed)
+    ordinary_user,submitted,reviewer_user,false,replacement_user,"Review unavailable",1 -> error(forbidden)
+    coordinator_user,submitted,reviewer_user,false,replacement_user," ",1 -> error(rule_failed)
+    coordinator_user,submitted,reviewer_user,false,replacement_user,"Review unavailable",2 -> error(conflict)
+  scenario notice_result on=Mail.send.completed
+   do
+    for application in Application as row where row.notice_delivery==event.delivery_id limit=1
+     set application {notice_state=event.status}
+   examples seed=[submitted] event={delivery_id="delivery",status=unknown,result=null,error=null}
+    submitted.notice_delivery,submitted.notice_state,event.delivery_id,event.status,event.result -> submitted.notice_state,submitted.state
+    "delivery",pending,"delivery",succeeded,{reference="accepted-mail"} -> succeeded,submitted
+    "delivery",pending,"delivery",unknown,null -> unknown,submitted
+    "delivery",pending,"delivery",skipped,null -> skipped,submitted
+    "delivery",pending,"different",succeeded,{reference="accepted-mail"} -> pending,submitted
+   ## Failed completion uses the closed safe DeliveryError shape; failure cannot undo an approved award or authorize a retry.
+   examples seed=[submitted] event={delivery_id="delivery",status=failed,result=null,error={code="provider",message="Delivery rejected"}}
+    submitted.notice_delivery,submitted.notice_state,submitted.state,submitted.decision,submitted.decided_by,submitted.decided_at,event.delivery_id,event.error -> submitted.notice_state,submitted.state,submitted.decision,submitted.decided_by,submitted.decided_at,submitted.amount
+    "delivery",pending,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),"delivery",{code="provider",message="Delivery rejected"} -> failed,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR")
+    "delivery",pending,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),"different",{code="provider",message="Delivery rejected"} -> pending,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR")
   # Withdraw an approved commitment by a reasoned coordinator decision; this is not a disbursement. @{nl="Trek een goedgekeurde toezegging in met een gemotiveerd coördinatorbesluit; dit is geen uitbetaling."}
   scenario withdraw(application:Application,reason:text) by=coordinator label="Withdraw"@{nl="Intrekken"}
    require can_work(actor,application.parent.location) and application.state==approved and trim(reason)!=""
@@ -144,26 +323,31 @@ package grant
     create Withdrawal {parent=application,reason} as withdrawal
     set application {state=withdrawn}
    examples seed=[test_worker] application=submitted reason="Funding cancelled"
-    as,application.state,application.decision -> application.state,application.decision,count(application.Withdrawal),program.remaining
-    coordinator,approved,"Meets criteria" -> withdrawn,"Meets criteria",1,money(100,"EUR")
-    coordinator,withdrawn,"Meets criteria" -> error(rule_failed)
+    as,application.state,application.decision,application.decided_by,application.decided_at -> application.state,application.decision,count(application.Withdrawal),program.remaining,application.decided_by,application.decided_at
+    coordinator,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z") -> withdrawn,"Meets criteria",1,money(100,"EUR"),reviewer_user,datetime("2026-10-01T09:00:00Z")
+    coordinator,withdrawn,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z") -> error(rule_failed)
   # Export authorized approved commitments with exact currency and decision time. @{nl="Exporteer toegestane goedgekeurde toezeggingen met exacte valuta en besluittijd."}
   scenario award_export(grant:Grant) read=true -> AwardBatch by=coordinator label="Export awards"@{nl="Toezeggingen exporteren"}
    require can_work(actor,grant.location)
    do return AwardBatch {items=grant.Application as application where application.state==approved and application.decided_at!=null select AwardItem {application=application.id,title=application.title,amount=application.amount,decided_at=application.decided_at}}
+   examples seed=[coordinator_worker] grant=program
+    as -> count(result.items)
+    coordinator_user -> 0
+    ordinary_user -> error(forbidden)
  Then
   # Discover the published cash-award terms and use private applicant intake. @{nl="Bekijk de gepubliceerde subsidievoorwaarden en gebruik de private aanvraagprocedure."}
   page /awards title="Funded programs"@{nl="Financieringsprogramma's"}
    card "Published programs and terms"@{nl="Gepubliceerde programma's en voorwaarden"}
-    list Grant order=closes filter=location,closes defaults={location=preferences.location}
+    list Grant as program where program.published order=closes filter=location,closes defaults={location=preferences.location}
      text row.name,row.location,row.terms,row.questions,row.criteria,row.closes,row.timezone
      form apply arguments={grant=row}
    card "Own application intake and status"@{nl="Eigen aanvraag en status"}
     require authenticated
-    table Application as application where application.account==actor columns=title,amount,state,decision,received,correction filter=state defaults={state=preferences.application_state}
+    table Application as application where application.account==actor columns=title,amount,state,decision,notice_state,received,correction filter=state defaults={state=preferences.application_state}
      edit
-     text row.questions,row.answers
+     text row.terms,row.criteria,row.questions,row.answers
      actions submit,correct
+     table row.Recovery columns=previous,reviewer,reason,author,recorded
      table row.Withdrawal columns=reason,author,recorded
      history
 
@@ -182,9 +366,10 @@ package grant
       metrics row.budget,row.requested,row.committed,row.withdrawn,row.remaining
       form award_export arguments={grant=row}
        table result.items columns=application,title,amount,decided_at
-     table row.Application columns=title,description,questions,answers,amount,received,receipt_evidence,override_reason,state,decision,decided_by,decided_at order=received filter=state,reviewer defaults={state=preferences.application_state}
-      actions decide,external,withdraw
+     table row.Application columns=title,description,terms,criteria,questions,answers,amount,received,receipt_evidence,override_reason,state,decision,notice_state,decided_by,decided_at order=received filter=state,reviewer defaults={state=preferences.application_state}
+      actions decide,external,recover,withdraw
       form Comment.create
       table row.Comment columns=body,author,recorded
+      table row.Recovery columns=previous,reviewer,reason,author,recorded
       table row.Withdrawal columns=reason,author,recorded
       history
