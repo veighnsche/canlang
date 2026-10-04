@@ -1,0 +1,93 @@
+import type { CatalogEntry, CatalogEnvelope, CatalogFeature } from "../../contracts/src/values.js";
+
+export const LANE02_CATALOG_VERSION = "0.1.0-lane02-draft";
+
+/**
+ * Single authored definition of every pure builtin signature (DESIGN §3) and
+ * operator-lowering helper (DESIGN §13) owned by lane 02. Signatures are
+ * transcribed from DESIGN; implementation lands per slice and flips
+ * `availability`. JS names equal Can names verbatim for builtins (draft
+ * witness: `local_date`, `add_days`); helpers use the §13 names. The two
+ * `startsWith` draft hits are pre-uniformity drift, not a second convention.
+ * Envelope shape implements the L1 IR-01 sketch; L1 acknowledgment pending.
+ */
+const BUILTINS: ReadonlyArray<CatalogEntry> = [
+  { id: "count", js: "count", owner: "lane-02", kind: "builtin", signature: "count(domain:C<T>)->int", effects: "pure", availability: "planned", notes: "Supplied-array evaluation here; record-query evaluation by lane-03." },
+  { id: "flatten", js: "flatten", owner: "lane-02", kind: "builtin", signature: "flatten(domain:C<C<T>>)->T[]", effects: "pure", availability: "planned" },
+  { id: "sum", js: "sum", owner: "lane-02", kind: "builtin", signature: "sum(domain:C<int>)->int; sum(domain:C<decimal>)->decimal; sum(domain:C<duration>)->duration; sum(domain:C<money>,currency:currency)->money; sum(domain:nonempty C<money>)->money", effects: "pure", availability: "planned", notes: "Supplied-array evaluation here; record-query evaluation by lane-03. Empty int/decimal/duration sums yield typed zero." },
+  { id: "min", js: "min", owner: "lane-02", kind: "builtin", signature: "min(domain:C<O>)->O?; min(domain:nonempty C<O>)->O", effects: "pure", availability: "planned", notes: "Supplied-array evaluation here; record-query evaluation by lane-03. Money min rejects inconsistent currencies." },
+  { id: "max", js: "max", owner: "lane-02", kind: "builtin", signature: "max(domain:C<O>)->O?; max(domain:nonempty C<O>)->O", effects: "pure", availability: "planned", notes: "Supplied-array evaluation here; record-query evaluation by lane-03. Money max rejects inconsistent currencies." },
+  { id: "any", js: "any", owner: "lane-02", kind: "builtin", signature: "any(domain:C<T> as x,predicate:bool in x scope)->bool", effects: "pure", availability: "planned", notes: "Alias-scoped predicate expression, not a callback. Empty domain is false." },
+  { id: "all", js: "all", owner: "lane-02", kind: "builtin", signature: "all(domain:C<T> as x,predicate:bool in x scope)->bool", effects: "pure", availability: "planned", notes: "Alias-scoped predicate expression, not a callback. Empty domain is true." },
+  { id: "first", js: "first", owner: "lane-02", kind: "builtin", signature: "first(domain:ordered C<T>)->T?", effects: "pure", availability: "planned", notes: "Requires stable ordering. Supplied-array evaluation here; record-query evaluation by lane-03." },
+  { id: "group", js: "group", owner: "lane-02", kind: "builtin", signature: "group(domain:C<T> as x,key:K in x scope)->C<{key:K,items:T[]}>", effects: "pure", availability: "planned", notes: "Typed equality incl. one null group; encounter order; only {key,items}." },
+  { id: "at", js: "at", owner: "lane-02", kind: "builtin", signature: "at(array:T[],index:int)->T?", effects: "pure", availability: "planned", notes: "Null for negative or out-of-range indices." },
+  { id: "abs", js: "abs", owner: "lane-02", kind: "builtin", signature: "abs(value:int)->int; abs(value:decimal)->decimal; abs(value:duration)->duration; abs(value:money)->money", effects: "pure", availability: "planned", notes: "Same overflow boundaries as negation." },
+  { id: "round", js: "round", owner: "lane-02", kind: "builtin", signature: "round(value:int,scale:int)->decimal; round(value:decimal,scale:int)->decimal", effects: "pure", availability: "planned", notes: "Scale 0-18, half-even; other scales fail." },
+  { id: "lower", js: "lower", owner: "lane-02", kind: "builtin", signature: "lower(value:S)->text", effects: "pure", availability: "planned", notes: "Full default Unicode case conversion. Result is text." },
+  { id: "upper", js: "upper", owner: "lane-02", kind: "builtin", signature: "upper(value:S)->text", effects: "pure", availability: "planned", notes: "Full default Unicode case conversion. Result is text." },
+  { id: "trim", js: "trim", owner: "lane-02", kind: "builtin", signature: "trim(value:S)->text", effects: "pure", availability: "planned", notes: "Removes pinned Unicode White_Space at both ends. Result is text." },
+  { id: "contains", js: "contains", owner: "lane-02", kind: "builtin", signature: "contains(value:S,needle:text)->bool", effects: "pure", availability: "planned", notes: "Exact case-sensitive scalar matching." },
+  { id: "starts_with", js: "starts_with", owner: "lane-02", kind: "builtin", signature: "starts_with(value:S,prefix:text)->bool", effects: "pure", availability: "planned", notes: "Exact case-sensitive scalar matching. Two camelCase draft hits are drift." },
+  { id: "join", js: "join", owner: "lane-02", kind: "builtin", signature: "join(values:C<S>,separator:text)->text", effects: "pure", availability: "planned", notes: "Domain order; empty domain yields empty text." },
+  { id: "format", js: "format", owner: "lane-02", kind: "builtin", signature: "format(template:text,values:closed object of Display)->text; format(descriptor:message,locale:locale?)->text", effects: "pure", availability: "planned", notes: "Display excludes decimal/money/datetime. Message overload requires explicit locale= (null selects app default)." },
+  { id: "app_url", js: "app_url", owner: "lane-02", kind: "builtin", signature: "app_url(path:text)->url", effects: "pure", availability: "planned", notes: "Pure link construction against injected trusted origin; grants nothing." },
+  { id: "active_member", js: "active_member", owner: "lane-03", kind: "builtin", signature: "active_member(person:user,team:Team)->bool", effects: "state-read", availability: "external", notes: "Needs membership state; signature authored here, implementation by lane-03." },
+  { id: "overlaps", js: "overlaps", owner: "lane-02", kind: "builtin", signature: "overlaps(aStart:date,aEnd:date,bStart:date,bEnd:date)->bool; overlaps(aStart:datetime,aEnd:datetime,bStart:datetime,bEnd:datetime)->bool", effects: "pure", availability: "planned", notes: "Nonempty half-open test; empty/reversed ranges return false." },
+  { id: "local_date", js: "local_date", owner: "lane-02", kind: "builtin", signature: "local_date(value:datetime,zone:timezone)->date", effects: "pure", availability: "planned", notes: "Civil date in pinned IANA zone; changes nothing." },
+  { id: "local_instant", js: "local_instant", owner: "lane-02", kind: "builtin", signature: "local_instant(date:date,time:text,zone:timezone,fold:enum(earlier,later))->datetime", effects: "pure", availability: "planned", notes: "Fold required when ambiguous; nonexistent local times fail. Time is HH:MM[:SS]." },
+  { id: "add_days", js: "add_days", owner: "lane-02", kind: "builtin", signature: "add_days(value:date,days:int)->date", effects: "pure", availability: "planned", notes: "Calendar days." },
+  { id: "add_months", js: "add_months", owner: "lane-02", kind: "builtin", signature: "add_months(value:date,months:int)->date", effects: "pure", availability: "planned", notes: "Original-anchor month-end clamping; overflow fails." },
+  { id: "date_year", js: "date_year", owner: "lane-02", kind: "builtin", signature: "date_year(value:date)->int", effects: "pure", availability: "planned", notes: "Gregorian year." },
+  { id: "weekday", js: "weekday", owner: "lane-02", kind: "builtin", signature: "weekday(value:date)->int", effects: "pure", availability: "planned", notes: "ISO Monday=1 through Sunday=7." },
+  { id: "dates", js: "dates", owner: "lane-02", kind: "builtin", signature: "dates(from:date,until:date,limit:int)->date[]", effects: "pure", availability: "planned", notes: "Ascending half-open [from,until). Limit is a work bound; excess fails." },
+  { id: "money", js: "money", owner: "lane-02", kind: "builtin", signature: "money(value:int,currency:currency)->money; money(value:decimal,currency:currency)->money", effects: "pure", availability: "planned", notes: "Checked constructor; rounds once to currency minor-unit scale, half-even." },
+  { id: "date", js: "date", owner: "lane-02", kind: "builtin", signature: "date(value:text)->date", effects: "pure", availability: "planned", notes: "Checked text constructor, YYYY-MM-DD." },
+  { id: "datetime", js: "datetime", owner: "lane-02", kind: "builtin", signature: "datetime(value:text)->datetime", effects: "pure", availability: "planned", notes: "Checked text constructor, RFC 3339 instant; nonzero sub-ms fractions rejected." },
+  { id: "action", js: "action", owner: "lane-02", kind: "builtin", signature: "action(target:canonical user mutation,bindings:closed object of every record parameter)->singleton action(target)", effects: "pure", availability: "planned", notes: "Packaging here; static target/canonicity validation by lane 1." },
+  { id: "random_secret", js: "random_secret", owner: "lane-03", kind: "builtin", signature: "random_secret()->secret", effects: "server-default-only", availability: "external", notes: "Server-defaults-only, stable per committed operation identity; not pure or client-callable." },
+];
+
+const HELPERS: ReadonlyArray<CatalogEntry> = [
+  { id: "addMoney", js: "addMoney", owner: "lane-02", kind: "helper", signature: "addMoney(a:money,b:money)->money; same currency", effects: "pure", availability: "planned" },
+  { id: "subtractMoney", js: "subtractMoney", owner: "lane-02", kind: "helper", signature: "subtractMoney(a:money,b:money)->money; same currency", effects: "pure", availability: "planned" },
+  { id: "multiplyMoney", js: "multiplyMoney", owner: "lane-02", kind: "helper", signature: "multiplyMoney(m:money,f:int|decimal)->money", effects: "pure", availability: "planned" },
+  { id: "compareMoney", js: "compareMoney", owner: "lane-02", kind: "helper", signature: "compareMoney(a:money,b:money)->-1|0|1; same currency", effects: "pure", availability: "planned" },
+  { id: "equalMoney", js: "equalMoney", owner: "lane-02", kind: "helper", signature: "equalMoney(a:money,b:money)->bool; decidable across currencies (unequal)", effects: "pure", availability: "planned" },
+  { id: "negateMoney", js: "negateMoney", owner: "lane-02", kind: "helper", signature: "negateMoney(m:money)->money", effects: "pure", availability: "planned" },
+  { id: "divideDecimal", js: "divideDecimal", owner: "lane-02", kind: "helper", signature: "divideDecimal(a:int|decimal|money,b:int|decimal|money)->decimal; decimal rounding", effects: "pure", availability: "planned" },
+  { id: "durationBetween", js: "durationBetween", owner: "lane-02", kind: "helper", signature: "durationBetween(a:datetime,b:datetime)->duration", effects: "pure", availability: "planned" },
+  { id: "compareInstant", js: "compareInstant", owner: "lane-02", kind: "helper", signature: "compareInstant(a:datetime,b:datetime)->-1|0|1", effects: "pure", availability: "planned" },
+  { id: "compareDate", js: "compareDate", owner: "lane-02", kind: "helper", signature: "compareDate(a:date,b:date)->-1|0|1", effects: "pure", availability: "planned" },
+  { id: "compareDecimal", js: "compareDecimal", owner: "lane-02", kind: "helper", signature: "compareDecimal(a:decimal,b:decimal)->-1|0|1", effects: "pure", availability: "planned" },
+  { id: "addDuration", js: "addDuration", owner: "lane-02", kind: "helper", signature: "addDuration(d:duration,x:duration|datetime)->duration|datetime", effects: "pure", availability: "planned" },
+  { id: "subtractDuration", js: "subtractDuration", owner: "lane-02", kind: "helper", signature: "subtractDuration(d:duration|datetime,x:duration)->duration|datetime", effects: "pure", availability: "planned" },
+  { id: "same", js: "same", owner: "lane-02", kind: "helper", signature: "same(a:ref,b:ref)->bool; reference identity", effects: "pure", availability: "planned" },
+  { id: "equalValue", js: "equalValue", owner: "lane-02", kind: "helper", signature: "equalValue(canonicalTypeId:string,a:CanValue,b:CanValue)->bool; typed structural equality", effects: "pure", availability: "planned" },
+  { id: "int64", js: "int64", owner: "lane-02", kind: "helper", signature: "int64(v:bigint)->bigint; checked int64", effects: "pure", availability: "planned" },
+];
+
+const FEATURES: ReadonlyArray<CatalogFeature> = [
+  { name: "exact-int64", status: "planned", description: "Checked signed 64-bit integer arithmetic and comparisons." },
+  { name: "decimal-38-18-half-even", status: "planned", description: "Exact decimal, <=38 significant digits, <=18 fractional, half-even boundaries." },
+  { name: "money-pinned-scales", status: "planned", description: "Money as minor units plus currency with pinned per-currency scales." },
+  { name: "currency-iso-table", status: "planned", description: "Pinned ISO 4217 admission table for currency values." },
+  { name: "temporal-pure-helpers", status: "planned", description: "Pure date/datetime/duration helpers with gap/fold/month-end rules." },
+  { name: "timezone-pinned-intl", status: "planned", description: "IANA zone resolution over pinned zone data via Intl." },
+  { name: "unicode-scalar-text", status: "planned", description: "Scalar-counted text ops with full default case conversion, no implicit normalization." },
+  { name: "bounded-icu-profile", status: "planned", description: "Bounded ICU MessageFormat validation and rendering." },
+  { name: "locale-fallback-rfc4647", status: "planned", description: "Whole-message RFC 4647 fallback with selected-locale plural rules." },
+  { name: "pure-arrays", status: "planned", description: "Pure array helpers over supplied values; record queries stay lane 3." },
+  { name: "structural-equality", status: "planned", description: "Typed structural equality plus reference identity." },
+  { name: "schema-validation", status: "planned", description: "Schema normalization and validation yielding structured violations." },
+  { name: "wire-canonical-json", status: "planned", description: "Exact canonical JSON/wire codecs per type id." },
+  { name: "typed-errors", status: "planned", description: "SchemaError/ValueError/DeliveryError shapes distinct from business errors." },
+  { name: "builtin-catalog", status: "draft", description: "This versioned single-authored signature catalog consumed by Rust and callers." },
+];
+
+export const CATALOG: CatalogEnvelope = {
+  catalog_version: LANE02_CATALOG_VERSION,
+  language_version: "1.0",
+  entries: [...BUILTINS, ...HELPERS],
+  features: FEATURES,
+};

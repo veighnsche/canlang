@@ -1,0 +1,37 @@
+name: lane-02 values
+
+on:
+  push:
+    branches:
+      - "muse/lane-02-values/**"
+    paths:
+      - "packages/values/**"
+      - "packages/contracts/src/values.ts"
+      - ".github/workflows/lane-02.yml"
+  pull_request:
+    paths:
+      - "packages/values/**"
+      - "packages/contracts/src/values.ts"
+      - ".github/workflows/lane-02.yml"
+  workflow_dispatch:
+
+jobs:
+  values:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install values package
+        working-directory: packages/values
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        working-directory: packages/values
+        run: npm run typecheck
+      - name: Build and test
+        working-directory: packages/values
+        run: npm test
+      - name: Emit catalog
+        working-directory: packages/values
+        run: npm run catalog

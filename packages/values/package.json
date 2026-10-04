@@ -1,0 +1,25 @@
+{
+  "name": "@canlang/values",
+  "version": "0.1.0",
+  "description": "CanLang exact values, schemas, codecs and pure builtins (internal package, lane 02)",
+  "type": "module",
+  "main": "./dist/values/src/index.js",
+  "types": "./dist/values/src/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test \"dist/values/test/**/*.test.js\"",
+    "catalog": "npm run build && node scripts/emit-catalog.mjs",
+    "clean": "rm -rf dist/"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

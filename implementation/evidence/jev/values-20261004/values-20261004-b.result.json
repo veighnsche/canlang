@@ -1,0 +1,79 @@
+{
+  "request": {
+    "questions": {
+      "admit_currency": {
+        "criteria": {
+          "any_code_fail_later": "Three uppercase letters always form a currency value; report an error only when money construction or arithmetic first requires the missing scale.",
+          "any_code_scale_two": "Three uppercase letters always form a currency value; unknown codes quietly assume 2 minor-unit digits.",
+          "pinned_members": "Only members of the version-pinned ISO 4217 table, with their pinned scales, form currency values; anything else is rejected where checked."
+        },
+        "instructions": "Given the verified excerpts, which admission rule for currency values is most consistent?",
+        "type": "choice"
+      },
+      "compare_money": {
+        "criteria": {
+          "equality_open_ordering_closed": "== and != decide mismatched currencies as unequal; <, <=, > and >= fail on mismatched currencies.",
+          "minor_disregarding_unit": "Every comparison operator weighs minor units alone and disregards currency.",
+          "mismatch_always_errors": "==, != and all ordering operators fail whenever currencies differ."
+        },
+        "instructions": "Given the verified excerpts, which mixed-currency comparison behavior is most consistent?",
+        "type": "choice"
+      },
+      "encode_decimal": {
+        "criteria": {
+          "fixed_width": "All decimals are written with a decimal point followed by exactly 18 digits.",
+          "stored_form": "The encoding keeps whatever scale the value was stored with, so equal values may encode differently.",
+          "trimmed_form": "Fractional trailing zeros are removed, integral values omit the point, and negative zero is written 0, giving one encoding per value."
+        },
+        "instructions": "Given the verified excerpts, which decimal wire encoding is most consistent?",
+        "type": "choice"
+      }
+    },
+    "state": {
+      "brief": "Three CanLang value-semantics details need rulings grounded strictly in the attached verified excerpts. First, decimal values cross the MCP boundary as canonical decimal strings: decide the exact canonical text form. Second, currency is an ISO code and money rounds to the currency's pinned minor-unit scale: decide whether codes outside the pinned table are values at all, and if so what scale they carry. Third, money of unlike currencies must remain groupable but never ordered or summed: decide what == and the ordering operators do when currencies differ.",
+      "files": {
+        "context.md": "# Verified context: lane-02 value-semantics round (2026-10-04)\n\nVerbatim normative excerpts from worktree revision b06d873 (origin/main).\nPaths are repo-relative; line numbers are exact.\n\n## Decimal\n\n- DESIGN.md:107 — \"`text`, `bool`, `int`, `decimal` | Unicode string, boolean,\n  signed 64-bit integer, exact decimal with at most 38 significant digits and\n  18 fractional digits; overflow is an error\"\n- DESIGN.md:213 — \"Decimal arithmetic computes the mathematical result, rounds\n  half-even to at most 18 fractional places, then checks the 38-significant-digit\n  representation bound. An exact terminating result needing fewer places is\n  retained; trailing zero normalization does not change its value. Out-of-range\n  results, division by zero and invalid inputs fail; no NaN or infinity. Decimal\n  literals/inputs remain checked representations rather than silently rounded\n  inputs.\"\n- DESIGN.md:872 — \"All int/decimal values use canonical decimal strings at the\n  MCP boundary, including money.minor and record.version; there is no\n  magnitude-dependent wire type.\"\n- DESIGN.md:231 — \"Decimal/money/datetime interpolation is outside this\n  plain-template overload until canonical encodings are specified\".\n- GRAMMAR tokens: `DECIMAL=[0-9]+\\.[0-9]+`; no exponent literals, no numeric\n  separators; sign is an operator, never part of the token.\n\n## Money and currency\n\n- DESIGN.md:112 — \"`currency`, `money` | ISO currency code;\n  `{minor:int,currency:currency}` with pinned currency minor-unit scales\"\n- DESIGN.md:159 — \"A string literal can inhabit an expected validated\n  string-like type, such as currency, email, or URL, after validation; this does\n  not coerce an arbitrary text variable.\" and \"Currency values never coerce to\n  decimal.\"\n- DESIGN.md:209 — \"Money comparison requires matching currencies.\" and\n  \"Array/contract equality is typed structural equality; references compare\n  identities of their declared reference type.\"\n- DESIGN.md:225 — \"`money(decimal,currency)` rounds once to that currency's\n  minor units. Add/subtract/compare money only with matching currencies.\n  Currency conversion requires an explicit typed provider/result workflow.\"\n- DESIGN.md:261 — \"Money sums require an explicit currency unless a nonempty\n  literal supplies it; amounts and any explicit currency must all match. Money\n  min/max also reject inconsistent currencies.\"\n- DESIGN.md:263 — \"`group` groups by typed equality (including one null group),\n  preserves item encounter order and emits groups in first-encounter order.\"\n- DESIGN.md:888 — \"The language version pins builtin signatures, wire schemas,\n  currency scales, timezone data, runtime defaults, and component behavior.\"\n- DECISIONS.md:387 — \"144. **MINE** — Group unlike currencies rather than\n  implicitly sum them together.\"\n- DECISIONS.md:389 — \"145. **MINE** — Require explicit currency conversion\n  support before combining currencies.\"\n- REQUIREMENTS.md:184 — \"Store money with a currency and deterministic rounding,\n  never binary floating-point totals. Snapshot prices, rates, and costs when a\n  transaction is committed so later configuration changes cannot rewrite history.\n  An app must explicitly support currency conversion before combining currencies.\"\n\n## Operator matrix (money rows)\n\n- DESIGN.md:190-193 — \"money, money | `+ -` | money, same currency\",\n  \"money, money | `/` | decimal, same currency\". No `money+int`, no `money%`.\n"
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "admit_currency": {
+        "type": "choice",
+        "choice": "pinned_members",
+        "confidence": 0.98,
+        "probabilities": {
+          "any_code_fail_later": 0.01,
+          "pinned_members": 0.99,
+          "any_code_scale_two": 0.0
+        }
+      },
+      "compare_money": {
+        "type": "choice",
+        "choice": "equality_open_ordering_closed",
+        "confidence": 0.57,
+        "probabilities": {
+          "minor_disregarding_unit": 0.0,
+          "mismatch_always_errors": 0.29,
+          "equality_open_ordering_closed": 0.71
+        }
+      },
+      "encode_decimal": {
+        "type": "choice",
+        "choice": "trimmed_form",
+        "confidence": 0.48,
+        "probabilities": {
+          "trimmed_form": 0.65,
+          "fixed_width": 0.0,
+          "stored_form": 0.35
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1632,
+      "output_tokens": 154
+    }
+  }
+}

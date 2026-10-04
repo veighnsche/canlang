@@ -1,0 +1,10 @@
+/**
+ * @canlang/values entry (internal package, lane 02). Generated programs import
+ * the thin `@canlang/stdlib` facade instead; that assembly re-exports producer
+ * surfaces and must never be imported back here.
+ */
+export type * from "../../contracts/src/values.js";
+export { VALUES_CONTRACT_VERSION } from "../../contracts/src/values.js";
+export * from "./catalog.js";
+export * from "./errors.js";
+export * from "./kinds.js";
