@@ -1,4 +1,4 @@
-import {any,call,count,create,delete as remove,first,hasRole,records,require as check,same,set} from "@canlang/stdlib";
+import {any,call,count,create,deleteRecord,first,hasRole,records,require as check,same,set} from "@canlang/stdlib";
 import {actions,card,edit,form,history,message,renderPage,table,text} from "@canlang/ui";
 
 /* Standalone handwritten desired output, not an implementation.
@@ -47,7 +47,7 @@ export function handlers(){
     locks:{"Employee.lock.1":{fields:["user"]},"Request.lock.1":{fields:["submitted_by","department"]},"Request.lock.2":{fields:["archive_reason"],when:(c,row)=>row.archive_reason!==null}},
     async createRequest(c,input){check(hasRole(c,"members"),"forbidden");await create(c,"ArchiveExposure.Request",input,{when:crudWhen.Request});},
     async updateRequest(c,{record,changes}){check(hasRole(c,"members"),"forbidden");await set(c,record,changes,{when:crudWhen.Request});},
-    async deleteRequest(c,{record}){check(hasRole(c,"members"),"forbidden");check(await crudWhen.Request(c,record));await remove(c,record,{mode:"archive"});},
+    async deleteRequest(c,{record}){check(hasRole(c,"members"),"forbidden");check(await crudWhen.Request(c,record));await deleteRecord(c,record,{mode:"archive"});},
     async archive(c,{request,reason}){
       check(hasRole(c,"members"),"forbidden");
       check(same(request.submitted_by,c.actor)&&request.archived_at===null);

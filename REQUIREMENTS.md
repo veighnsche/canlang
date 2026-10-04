@@ -36,6 +36,8 @@ Provide exactly one canonical way to express each basic SaaS primitive, includin
 
 Enforce this constraint in the language itself so AI cannot introduce competing patterns or unnecessary layers for the same behavior.
 
+Company staff must be able to review the selected app’s permissions, actions, exceptions and assumptions in business language derived from the same source revision and examples. Distinguish language defaults from company policy; do not infer human approval from an AI-authored description. Keep unresolved intent visible and regenerate changes from source, without a second authored policy contract. DESIGN §12 defines that intended review boundary.
+
 ## Tests alongside business logic
 
 Business behavior includes executable examples in the same `.can` source, attached to the operation they check. Reuse the operation's types and invocation instead of copying API signatures or writing separate step definitions. Declare shared test fixtures once; compact example tables vary only relevant state, inputs, actors, and expected outcomes.
