@@ -27,6 +27,19 @@ jobs:
         run: npm run typecheck
       - name: Test lane-07 suites (incl. local workerd smoke)
         run: npm test
+      - name: Verify deterministic library build (B5 reproducibility)
+        run: |
+          hash_dist() {
+            find packages/contracts/dist packages/cloudflare/dist packages/testkit/dist \
+              -type f \( -name '*.js' -o -name '*.d.ts' -o -name '*.map' \) \
+              | sort | xargs sha256sum | sha256sum
+          }
+          hash_dist | tee /tmp/build-first.sha
+          rm -rf packages/contracts/dist packages/cloudflare/dist packages/testkit/dist \
+            packages/*/*.tsbuildinfo
+          npm run build
+          hash_dist | tee /tmp/build-second.sha
+          cmp /tmp/build-first.sha /tmp/build-second.sha
 
   tools:
     runs-on: ubuntu-latest
