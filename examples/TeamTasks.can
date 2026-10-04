@@ -19,15 +19,20 @@ When
 Then
  # Add work, assign teammates, and track what is finished. @{nl="Voeg werk toe, wijs teamleden toe en volg wat klaar is."}
  page / title="Team tasks"@{nl="Teamtaken"}
+  breadcrumbs
   card "Add team work"@{nl="Teamwerk toevoegen"}
    form Todo.create fields=title,assignee display=inline
+    input title
+    ## assignee keeps its authorized member picker; done stays at its default.
   card "Tasks and completion"@{nl="Taken en voortgang"}
    text task_count(count(Todo))
    tabs preferences.view
    list Todo as task where preferences.view==all or (preferences.view==unfinished and not task.done) or (preferences.view==finished and task.done) order=-created search=title filter=done empty="No tasks yet. Add your first task."@{nl="Nog geen taken. Voeg je eerste taak toe."}
-    badge row.done
+    text row.title,row.assignee,row.done
     edit
-    delete
+    tooltip "Permanently remove this task"@{nl="Deze taak definitief verwijderen"}
+     delete
+    pagination
 # Keep shared team notes. @{nl="Bewaar gedeelde teamnotities."}
 app TeamNotes
 use TeamTasks {add,field_title}
@@ -40,13 +45,17 @@ When
 Then
  # Write and browse the team's notes. @{nl="Schrijf en bekijk de notities van het team."}
  page /notes title="Team notes"@{nl="Teamnotities"}
+  breadcrumbs
   card "Write a note"@{nl="Een notitie schrijven"}
    form Note.create display=inline
+    input title
+    textarea content
   card "Shared notes"@{nl="Gedeelde notities"}
-   list Note search=title display=split
+   list Note search=title display=split empty="No notes yet"@{nl="Nog geen notities"}
     edit
     delete
-    details "Note content"@{nl="Notitie-inhoud"} open=preferences.show_content
+    collapse "Note content"@{nl="Notitie-inhoud"} open=preferences.show_content
      content row.content
+    pagination
 # Manage tasks and notes together. @{nl="Beheer taken en notities samen."}
 app TeamOffice uses=[TeamTasks,TeamNotes]
