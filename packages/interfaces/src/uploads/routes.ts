@@ -23,6 +23,10 @@
  * through to the session path; a well-formed but invalid Bearer never
  * falls through.
  *
+ * Audience rule (F1, S6 decision; see identity audience.ts): /files/*
+ * explicitly accepts both same-origin credentials (browser-session and
+ * mcp-grant), because DESIGN section 8 gives browser and supporting host
+ * the same upload flow.
  * Bodies: intent/finalize JSON via the S4 capped reader (`parseJsonBody`,
  * 1 MiB default cap); non-object JSON is `validation`. PUT bytes
  * early-reject when `content-length` exceeds the kernel ceiling (kernel
@@ -177,6 +181,10 @@ function jsonOk(value: unknown): Response {
 }
 
 async function parseObjectBody(request: Request): Promise<Record<string, unknown>> {
+  const mediaType = (request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
+  if (mediaType !== 'application/json') {
+    throw new IdentityError('validation', 'Unsupported content type.');
+  }
   const body = await parseJsonBody(request);
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw new IdentityError('validation', 'Invalid request body.');
@@ -227,8 +235,12 @@ async function handleIntent(
           // Defensive: the route pre-authenticates every caller, so the
           // kernel should never see an unauthenticated one.
           return deny(deps, buildBusinessError('forbidden', 'Authentication required.'), tool);
+        default:
+          return deny(deps, buildBusinessError('rule_failed', 'Upload failed.'), tool);
       }
     }
+    default:
+      return deny(deps, buildBusinessError('rule_failed', 'Upload failed.'), tool);
   }
 }
 
@@ -258,6 +270,8 @@ async function handleContent(
         return notFound(deps, tool);
       case 'closed':
         return deny(deps, buildBusinessError('rule_failed', 'Upload is closed.'), tool);
+      default:
+        return deny(deps, buildBusinessError('rule_failed', 'Upload failed.'), tool);
       case 'oversized':
         return deny(deps, buildBusinessError('limit', 'Upload exceeds the size limit.'), tool);
     }
@@ -284,6 +298,8 @@ async function handleContent(
     case 'malformed':
     case 'rejected':
       return deny(deps, buildBusinessError('validation', 'Upload content rejected.'), tool);
+    default:
+      return deny(deps, buildBusinessError('rule_failed', 'Upload failed.'), tool);
   }
 }
 
@@ -322,8 +338,12 @@ async function handleFinalize(
           return deny(deps, buildBusinessError('rule_failed', 'Upload is incomplete.'), tool);
         case 'conflict':
           return deny(deps, buildBusinessError('conflict', 'Conflicting finalize request.'), tool);
+        default:
+          return deny(deps, buildBusinessError('rule_failed', 'Upload failed.'), tool);
       }
     }
+    default:
+      return deny(deps, buildBusinessError('rule_failed', 'Upload failed.'), tool);
   }
 }
 

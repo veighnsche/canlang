@@ -10,6 +10,7 @@ import {
   IdentityError,
   deriveCsrfToken,
   issueMcpGrant,
+  resolveIdentity,
   revokeMcpGrantByToken,
 } from '@canlang/identity';
 import type { ContentCheck, ResolvedIdentity, UploadIntentGrant } from '@canlang/contracts';
@@ -301,6 +302,102 @@ test('auth spot-check: content and finalize without credentials are 401', async 
     assert.equal(err.status, 401, req.url);
     assert.equal(err.code, 'forbidden', req.url);
   }
+  assert.equal(t.kernel.calls.length, 0);
+});
+
+test('auth: PUT content with bad CSRF is 403 and never touches the kernel', async () => {
+  const t = await setup();
+  const res = await handleUploadRequest(
+    t.deps,
+    testRequest('/files/content/intent-1', {
+      method: 'PUT',
+      cookie: t.identity.cookie,
+      headers: { 'x-csrf-token': 'wrong-token' },
+      body: 'ab',
+    }),
+  );
+  const err = await errorOf(res);
+  assert.equal(err.status, 403);
+  assert.equal(err.code, 'forbidden');
+  assert.equal(t.kernel.calls.length, 0);
+});
+
+test('auth: valid grant wins over the session cookie with no CSRF', async () => {
+  const t = await setup(grantedKernel('intent-5'));
+  const res = await handleUploadRequest(
+    t.deps,
+    testRequest('/files/intents', {
+      method: 'POST',
+      cookie: t.identity.cookie,
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${t.grant}` },
+      body: JSON.stringify(intentBody()),
+    }),
+  );
+  assert.equal(res.status, 200);
+});
+
+test('auth: session token presented as a grant Bearer [REDACTED] 401', async () => {
+  const t = await setup();
+  const res = await handleUploadRequest(t.deps, bearerIntent(t.identity.sessionToken, intentBody()));
+  const err = await errorOf(res);
+  assert.equal(err.status, 401);
+  assert.equal(err.code, 'forbidden');
+  assert.equal(t.kernel.calls.length, 0);
+});
+
+test('auth: expired grant is 401', async () => {
+  const t = await setup();
+  const { token } = await issueMcpGrant(
+    t.deps.identity.store,
+    { user_id: t.identity.userId, team_id: t.identity.teamId, client_id: 'expired' },
+    { ttlMs: -1000 },
+  );
+  const res = await handleUploadRequest(t.deps, bearerIntent(token, intentBody()));
+  const err = await errorOf(res);
+  assert.equal(err.status, 401);
+  assert.equal(err.code, 'forbidden');
+  assert.equal(t.kernel.calls.length, 0);
+});
+
+test('auth: session path passes the receiver from the cookie identity', async () => {
+  const t = await setup(grantedKernel('intent-6'));
+  const resolved = await resolveIdentity(t.deps.identity.store, { session_token: t.identity.sessionToken });
+  const res = await handleUploadRequest(t.deps, sessionIntent(t, intentBody()));
+  assert.equal(res.status, 200);
+  const call = callDetail(t, 0);
+  assert.equal(call.method, 'createIntent');
+  const input = call.detail as { receiver: Record<string, unknown> };
+  assert.equal(input.receiver['principal'], t.identity.userId);
+  assert.equal(input.receiver['team'], resolved.team?.team_id ?? t.identity.userId);
+});
+
+test('content: garbage content-length falls through to the streaming cap', async () => {
+  const t = await setup({
+    maxBytes: 8,
+    append: () => ({ status: 'appended', receivedBytes: 2 }),
+    complete: () => ({ status: 'failed', reason: 'partial' }),
+  });
+  const res = await handleUploadRequest(
+    t.deps,
+    sessionPut(t, '/files/content/intent-1', { body: 'ab', headers: { 'content-length': 'not-a-number' } }),
+  );
+  assert.equal(res.status, 200);
+  assert.equal(t.kernel.calls.length, 2);
+});
+
+test('intent rejects a non-JSON content type', async () => {
+  const t = await setup();
+  const res = await handleUploadRequest(
+    t.deps,
+    testRequest('/files/intents', {
+      method: 'POST',
+      cookie: t.identity.cookie,
+      headers: { 'content-type': 'text/plain', 'x-csrf-token': t.csrf },
+      body: JSON.stringify(intentBody()),
+    }),
+  );
+  const err = await errorOf(res);
+  assert.equal(err.code, 'validation');
   assert.equal(t.kernel.calls.length, 0);
 });
 

@@ -387,6 +387,16 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     PROBE PASS 9/9 (grant, same-origin destinations, PUT complete with
     accepted pdf check, wrong-digest conflict, finalize ref + repeat,
     invented-intent 404, oversized 429, cross-team 404).
+  - PR #44 open at c734fbb (interfaces 192/192). Independent review
+    REQUEST-CHANGES, all addressed: F1 audience (docs decision —
+    routes declare accepted audiences; /files explicitly accepts
+    both same-origin credentials since the grant's audience was
+    always the app; audience.ts + route doc realigned); F2 switch
+    exhaustiveness defaults (inner + outer, rule_failed); F3 six
+    pins (PUT CSRF, grant-over-cookie precedence, session-as-bearer,
+    expired grant, session receiver, garbage content-length); F4
+    JSON content-type gate on intent/finalize. After fixes:
+    interfaces 199/199, identity 38/38.
 
 ## Remaining work and cleanup
 
