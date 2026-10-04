@@ -1,0 +1,75 @@
+# Lane 07 release assembly: one coherent CLI/library/editor bundle.
+# Builds every shippable artifact and uploads them to the workflow run.
+# Deliberately NO registry publishing (npm/crates/vsix marketplace) and no
+# GitHub Release creation: those need explicit B5 authorization.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  rust-binary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pinned 2026-10-01 (was @stable, as in lane-01.yml); release jobs pin.
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: "1.99.0"
+      - name: Build can (release, locked)
+        run: cargo build --release --locked
+        working-directory: compiler
+      - uses: actions/upload-artifact@v4
+        with:
+          name: can-ubuntu-x86_64
+          path: compiler/target/release/can
+
+  node-libraries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install from lock
+        run: npm ci --no-audit --no-fund
+      - name: Build lane-07 packages
+        run: npm run build
+      - name: Build packed producer packages
+        # Each packed non-L7 workspace builds standalone (their own tsconfigs).
+        # Extend this list together with the pack loop below.
+        run: npm run build -w @canlang/state -w @canlang/values
+      - name: Pack publishable workspaces
+        # Only non-private workspaces with a dist build. Private internals
+        # (identity, interfaces, work, services, files) and the ui lib join
+        # this loop when their owners flip them public.
+        run: |
+          mkdir -p release-artifacts
+          for w in contracts cloudflare testkit state values; do
+            npm pack -w "@canlang/$w" --pack-destination "$PWD/release-artifacts"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: node-libraries
+          path: release-artifacts/*.tgz
+
+  editor-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive the VSCode/Cursor extension payload
+        # Explicit payload, not the whole directory: audit evidence and any
+        # future build output stay out of the bundle. L1 extends this list
+        # with src/ when the client build lands.
+        run: |
+          mkdir -p release-artifacts
+          cd editors/vscode
+          zip -r ../../release-artifacts/canlang-vscode.zip package.json README.md token-colors.json syntaxes
+          if [ -d src ]; then zip -r ../../release-artifacts/canlang-vscode.zip src; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: editor-bundle
+          path: release-artifacts/canlang-vscode.zip
