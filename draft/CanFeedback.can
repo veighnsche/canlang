@@ -11,7 +11,7 @@ package feedback
   Product { name:text, location:Location?, owner:user label="Responsible person"@{nl="Verantwoordelijke"}, published:bool=true label="Published"@{nl="Gepubliceerd"} } label="Product"@{nl="Product"}
   Suggestion in Product { title:text trim min=1 max=300, description:text trim min=1 max=5000, category:text trim min=1 max=100 label="Category"@{nl="Categorie"}, author:user server=actor label="Author"@{nl="Auteur"}, status:enum(proposed,planned,shipped,declined)=proposed label={text=label_Suggestion_status,values={proposed="Proposed"@{nl="Voorgesteld"},planned="Planned"@{nl="Gepland"},shipped="Shipped"@{nl="Opgeleverd"},declined="Declined"@{nl="Afgewezen"}}}, hidden:bool=true label=label_Suggestion_hidden, moderation_reason:text? label="Moderation reason"@{nl="Moderatiegrond"}, response:text? label=label_Suggestion_response, duplicate:Suggestion? label=label_Suggestion_duplicate } label=label_Suggestion
   Vote in Suggestion { account:user server=actor label="Account"@{nl="Account"}, active:bool=true, cast_at:datetime server=now label="Last vote time"@{nl="Laatste stemtijd"} } label="Own vote"@{nl="Eigen stem"}
-  contract Card { suggestion:Suggestion label=label_Suggestion, title:text, status:Suggestion.status, response:text? label=label_Suggestion_response, duplicate:Suggestion? label=label_Suggestion_duplicate, votes:int label="Votes"@{nl="Stemmen"} } label="Published suggestion"@{nl="Gepubliceerde suggestie"}
+  contract Card { suggestion:Suggestion label=label_Suggestion, title:text, category:Suggestion.category, status:Suggestion.status, response:text? label=label_Suggestion_response, duplicate:Suggestion? label=label_Suggestion_duplicate, votes:int label="Votes"@{nl="Stemmen"} } label="Published suggestion"@{nl="Gepubliceerde suggestie"}
   contract Roadmap { items:Card[]! label="Items"@{nl="Items"} } label="Published roadmap"@{nl="Gepubliceerde roadmap"}
   policy Product read=public where=row.published
   policy Product read=product_owner where=row.owner==actor
@@ -33,7 +33,9 @@ package feedback
   fixture recent3=Suggestion {parent=product,title="Desks",description="Add sit-stand desks",category="Amenity"}
   fixture recent4=Suggestion {parent=product,title="Lighting",description="Adjust desk lights",category="Amenity"}
   fixture recent5=Suggestion {parent=product,title="Plants",description="Add greenery",category="Amenity"}
-  preferences { location:Location?, category:Suggestion.category?, status:Suggestion.status? }
+  fixture moderator=user {roles=[product_owner]}
+  fixture journey_product=Product {name="Facilities",owner=moderator}
+  preferences { product:Product? label="Product"@{nl="Product"}, location:Location?, category:Suggestion.category?, status:Suggestion.status? }
   message label_Suggestion = "Suggestion"@{nl="Suggestie"}
   message label_Suggestion_status = "Status"@{nl="Status"}
   message label_Suggestion_hidden = "Hidden"@{nl="Verborgen"}
@@ -85,6 +87,55 @@ package feedback
     members,true,now-1m -> 2,2,true,other
     members,false,now-1m -> 2,2,true,other
     members,false,now -> error(rule_failed)
+   examples seed=[journey_product]
+    do
+     call Suggestion.create {parent=journey_product,title="Phone booths",description="Add private call spaces",category="Amenity"} by=self
+     let submitted=first(journey_product.Suggestion as item where item.author==self)
+     submitted!=null -> true
+     submitted.hidden,submitted.author,submitted.status -> true,self,proposed
+     call published {product=journey_product} by=public as pending_roadmap
+     count(pending_roadmap.items) -> 0
+     call moderate {suggestion=submitted,hidden=false,reason="Reviewed for public roadmap"} by=moderator
+     let reviewed=first(journey_product.Suggestion as item where item.id==submitted.id)
+     reviewed!=null -> true
+     call roadmap {suggestion=reviewed,status=planned,response="Two booths this quarter",duplicate=null} by=moderator
+     let visible=first(journey_product.Suggestion as item where item.id==submitted.id)
+     visible!=null -> true
+     call published {product=journey_product} by=public as visible_roadmap
+     count(visible_roadmap.items),first(visible_roadmap.items)?.category,first(visible_roadmap.items)?.status,first(visible_roadmap.items)?.response -> 1,"Amenity",planned,"Two booths this quarter"
+     call vote {suggestion=visible} by=self as cast_vote
+     call unvote {vote=cast_vote} by=self
+     let withdrawn=first(visible.Vote as item where item.account==self)
+     withdrawn!=null -> true
+     withdrawn==cast_vote,withdrawn.active,count(visible.Vote),count(visible.Vote as item where item.active) -> true,false,1,0
+     call unvote {vote=withdrawn} by=self
+     call vote {suggestion=visible} by=self -> error(rule_failed)
+     count(visible.Vote),count(visible.Vote as item where item.active) -> 1,0
+     call Suggestion.update {record=visible,changes={title="More phone booths"}} by=self
+     let edited=first(journey_product.Suggestion as item where item.id==submitted.id)
+     edited!=null -> true
+     edited.title,edited.hidden,edited.moderation_reason,edited.author -> "More phone booths",true,null,self
+     call published {product=journey_product} by=public as review_roadmap
+     count(review_roadmap.items) -> 0
+     call moderate {suggestion=edited,hidden=true,reason="Private contact details"} by=moderator
+     let blocked=first(journey_product.Suggestion as item where item.id==submitted.id)
+     blocked!=null -> true
+     call Suggestion.update {record=blocked,changes={title="Try again"}} by=self -> error(rule_failed)
+     blocked.title,blocked.author,blocked.moderation_reason -> "More phone booths",self,"Private contact details"
+     call moderate {suggestion=blocked,hidden=false,reason="Reviewed correction"} by=moderator
+     let corrected=first(journey_product.Suggestion as item where item.id==submitted.id)
+     corrected!=null -> true
+     call roadmap {suggestion=corrected,status=shipped,response="Two booths installed",duplicate=null} by=moderator
+     let approved=first(journey_product.Suggestion as item where item.id==submitted.id)
+     approved!=null -> true
+     call published {product=journey_product} by=public as shipped_roadmap
+     first(shipped_roadmap.items)?.status,first(shipped_roadmap.items)?.response,first(shipped_roadmap.items)?.votes -> shipped,"Two booths installed",0
+     call Suggestion.delete {record=approved} by=self
+     let archived=first(Suggestion archived=include as item where item.id==submitted.id)
+     archived!=null -> true
+     archived.archived_at!=null,archived.author -> true,self
+     call published {product=journey_product} by=public as archived_roadmap
+     count(archived_roadmap.items) -> 0
   # Withdraw only your own vote, retaining its identity and cooldown across retries. @{nl="Trek uitsluitend je eigen stem in en behoud de identiteit en wachttijd bij herhaling."}
   scenario unvote(vote:Vote) by=authenticated label="Withdraw own vote"@{nl="Eigen stem intrekken"}
    require vote.account==actor
@@ -120,7 +171,7 @@ package feedback
   # Expose public aggregate counts, excluding voter identities and hidden content. @{nl="Toon openbare geaggregeerde aantallen zonder stemmeridentiteiten of verborgen inhoud."}
   scenario published(product:Product) read=true scope=authority -> Roadmap by=public label="Read published roadmap"@{nl="Gepubliceerde roadmap lezen"}
    require product.published
-   do return Roadmap {items=product.Suggestion as suggestion where not suggestion.hidden select Card {suggestion,title=suggestion.title,status=suggestion.status,response=suggestion.response,duplicate=first(product.Suggestion as item where item==suggestion.duplicate and not item.hidden),votes=count(suggestion.Vote as vote where vote.active)}}
+   do return Roadmap {items=product.Suggestion as suggestion where not suggestion.hidden select Card {suggestion,title=suggestion.title,category=suggestion.category,status=suggestion.status,response=suggestion.response,duplicate=first(product.Suggestion as item where item==suggestion.duplicate and not item.hidden),votes=count(suggestion.Vote as vote where vote.active)}}
    examples seed=[own_vote,foreign_vote] product=product
     as,suggestion.hidden,own_vote.active -> count(result.items),sum(result.items as item select item.votes)
     public,false,true -> 1,2
@@ -132,8 +183,8 @@ package feedback
  Then
   # Browse a public roadmap with counts that expose no voter records. @{nl="Bekijk een openbare roadmap met aantallen die geen stemmerrecords blootgeven."}
   page /feedback title="Suggestions"@{nl="Suggesties"}
-   list Product filter=location defaults={location=preferences.location} search=name
-    text row.name
+   list Product as product where preferences.product==null or product==preferences.product filter=location defaults={location=preferences.location} search=name
+    text row.name,row.location
     card "Urgent private issue"@{nl="Dringend privéprobleem"}
      text "Use private support for incidents. Never put access instructions or anyone’s contact details in a suggestion. New suggestions await owner review."@{nl="Gebruik privésupport voor incidenten. Zet nooit toegangsinstructies of contactgegevens van anderen in een suggestie. Nieuwe suggesties wachten op beoordeling door de verantwoordelijke."}
      form open_request arguments={priority=urgent}
@@ -141,11 +192,21 @@ package feedback
      form Suggestion.create
     card "Published roadmap and aggregate votes"@{nl="Gepubliceerde roadmap en stemtotalen"}
      form published
-      table result.items columns=title,status,response,duplicate,votes order=-votes
+      table result.items columns=title,category,status,response,duplicate,votes filter=category,status defaults={category=preferences.category,status=preferences.status} order=-votes
+    details "Your submissions and review state"@{nl="Je bijdragen en beoordelingsstatus"}
+     require authenticated
+     list row.Suggestion as suggestion where suggestion.author==actor filter=category,status defaults={category=preferences.category,status=preferences.status}
+      title row.title
+      content row.description
+      text row.category,row.status,row.response,row.hidden,row.moderation_reason,row.duplicate
+      edit
+      delete
+      history
     details "Suggestions and your votes"@{nl="Suggesties en je eigen stemmen"}
      list row.Suggestion filter=category,status defaults={category=preferences.category,status=preferences.status}
+      title row.title
       content row.description
-      text row.status,row.response
+      text row.category,row.status,row.response
       edit
       action vote
       details "Your votes"@{nl="Je eigen stemmen"}
@@ -158,11 +219,13 @@ package feedback
    require product_owner
    card "Product intake"@{nl="Product aanmaken"}
     form Product.create
-   list Product as product where product.owner==actor filter=location defaults={location=preferences.location} search=name
+   list Product as product where product.owner==actor and (preferences.product==null or product==preferences.product) filter=location defaults={location=preferences.location} search=name
+    text row.name,row.location
     edit
     list row.Suggestion filter=hidden,status defaults={status=preferences.status} display=split
      card "Suggestion and roadmap outcome"@{nl="Suggestie en roadmapuitkomst"}
+      title row.title
       content row.description
-      text row.status,row.response,row.hidden,row.moderation_reason,row.duplicate
+      text row.category,row.author,row.status,row.response,row.hidden,row.moderation_reason,row.duplicate
       actions roadmap,moderate
      history
