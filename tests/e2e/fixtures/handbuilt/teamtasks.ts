@@ -23,8 +23,16 @@ import type { CompileArtifact } from "@canlang/contracts";
 export const TEAMTASKS_WORKER_NAME = "e2e-teamtasks";
 export const TEAMTASKS_D1_BINDING = "DB";
 export const TEAMTASKS_SOURCE_RELATIVE = "examples/TeamTasks.can";
+// Slice-23 drift analysis (2026-10-05 closeout): the source gained
+// breadcrumbs, form input/textarea children, text-for-badge rows,
+// tooltip/pagination/empty-states and collapse-for-details — Then/UI
+// vocabulary only; Given/When byte-identical, so the Todo D1 schema
+// and the worker's rendered contract (headings, list content with
+// Done/Open + assignee, title form, seed, login) are unaffected and
+// every spec assertion still mirrors the source. Worker verified
+// current; pin re-based to the replanned bytes.
 export const TEAMTASKS_SOURCE_SHA256 =
-  "a483233beab09a6380e60f94f50795ad290e0a71ef066e9951de2d363c0b66aa";
+  "78020054ba06d0282047d4c400487ea1da070e7ebdb624637f0ff1802683f3d0";
 
 /**
  * Hand-built D1 schema mirroring the `Todo` record in TeamTasks.can
