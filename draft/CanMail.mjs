@@ -83,6 +83,40 @@ const queue = (view, item) =>
   (view === "forwarding" && ["forward_pending", "forwarded"].includes(item.state)) ||
   (view === "history" && ["collected", "forwarded", "returned"].includes(item.state));
 
+const mailroomPageDescriptor = {
+  owner: "mailroom",
+  path: "/mailroom",
+  order: 2n,
+  title: message("Mail and parcels", { nl: "Post en pakketten" }),
+  description: message(
+    "Receive, locate and resolve mail while restricting physical storage information.",
+    {
+      nl: "Ontvang, lokaliseer en handel post af terwijl fysieke opslaginformatie afgeschermd blijft.",
+    },
+  ),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "mailroom.mail_staff"), "forbidden");
+    return {};
+  },
+  render: mailroomPage,
+};
+
+const myMailPageDescriptor = {
+  owner: "mailroom",
+  path: "/mailroom/mine",
+  order: 1n,
+  title: message("My mail", { nl: "Mijn post" }),
+  description: message("Follow only your own mail and authorized collection delegates.", {
+    nl: "Volg uitsluitend je eigen post en geautoriseerde afhaalgemachtigden.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(c.team != null, "forbidden");
+    check(hasRole(c, "authenticated"), "forbidden");
+    return {};
+  },
+  render: myMailPage,
+};
+
 export const appDefinition = {
   id: "CanMail",
   uses: ["mailroom"],
@@ -661,8 +695,8 @@ export const appDefinition = {
     },
   },
   pages: [
-    { path: "/mailroom", render: mailroomPage },
-    { path: "/mailroom/mine", render: myMailPage },
+    mailroomPageDescriptor,
+    myMailPageDescriptor,
   ],
   disabled: [
     "mailroom.Service.create",
@@ -1284,22 +1318,10 @@ export function canApp() {
   };
 }
 
-export async function mailroomPage(c) {
-  check(hasRole(c, "mailroom.mail_staff"), "forbidden");
+export async function mailroomPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "mailroom",
-      path: "/mailroom",
-      order: 2,
-      title: message("Mail and parcels", { nl: "Post en pakketten" }),
-      description: message(
-        "Receive, locate and resolve mail while restricting physical storage information.",
-        {
-          nl: "Ontvang, lokaliseer en handel post af terwijl fysieke opslaginformatie afgeschermd blijft.",
-        },
-      ),
-    },
+    mailroomPageDescriptor,
     () => [
       card({
         context: c,
@@ -1429,19 +1451,10 @@ export async function mailroomPage(c) {
   );
 }
 
-export async function myMailPage(c) {
-  check(hasRole(c, "authenticated"), "forbidden");
+export async function myMailPage(c, bindings) {
   return renderPage(
     c,
-    {
-      owner: "mailroom",
-      path: "/mailroom/mine",
-      order: 1,
-      title: message("My mail", { nl: "Mijn post" }),
-      description: message("Follow only your own mail and authorized collection delegates.", {
-        nl: "Volg uitsluitend je eigen post en geautoriseerde afhaalgemachtigden.",
-      }),
-    },
+    myMailPageDescriptor,
     () => [
       card({
         context: c,
@@ -1737,7 +1750,7 @@ export function exampleFixtures({ self, other, imported }) {
           { observations: async (c, s, b) => [b.arrived !== null], expected: async (c, s, b) => [true], types: ["bool"] },
           {
             observations: async (c, s, b) => [b.arrived.state, b.arrived.notice_state, await count(records(c, "mailroom.Handling", { parent: b.arrived })), b.arrived.retention_until],
-            expected: async (c, s, b) => ["received", "pending", 0n, null], types: ["mailroom.Item.state", "mailroom.Item.notice_state", "int", "mailroom.Item.retention_until"],
+            expected: async (c, s, b) => ["received", "pending", 0n, null], types: ["mailroom.Item.state", "mailroom.Item.notice_state", "int", "datetime?"],
           },
           {
             operation: "mailroom.Delegate.create", by: async (c, s, b) => s.self,
@@ -1750,14 +1763,14 @@ export function exampleFixtures({ self, other, imported }) {
             operation: "customer.Contact.update", by: async (c, s, b) => s.test_directory_manager,
             inputs: async (c, s, b) => ({ record: s.delegate_contact, changes: { email: "replacement@example.test" } }),
           },
-          { observations: async (c, s, b) => [s.delegate_contact.verified, s.delegate_contact.account], expected: async (c, s, b) => [false, null], types: ["bool", "customer.Contact.account"] },
+          { observations: async (c, s, b) => [s.delegate_contact.verified, s.delegate_contact.account], expected: async (c, s, b) => [false, null], types: ["bool", "user?"] },
           {
             operation: "mailroom.collect", by: async (c, s, b) => s.mail_operator,
             inputs: async (c, s, b) => ({ item: b.arrived, collector: s.nominee, evidence: "Former nominee identity" }), error: "rule_failed",
           },
           { let: "held", value: async (c, s, b) => await first(records(c, "mailroom.Item", { where: (row) => row.source === "mail-journey-receipt", order: ["id"] })) },
           { observations: async (c, s, b) => [b.held !== null], expected: async (c, s, b) => [true], types: ["bool"] },
-          { observations: async (c, s, b) => [b.held.state, await count(records(c, "mailroom.Handling", { parent: b.held })), b.held.retention_until], expected: async (c, s, b) => ["received", 0n, null], types: ["mailroom.Item.state", "int", "mailroom.Item.retention_until"] },
+          { observations: async (c, s, b) => [b.held.state, await count(records(c, "mailroom.Handling", { parent: b.held })), b.held.retention_until], expected: async (c, s, b) => ["received", 0n, null], types: ["mailroom.Item.state", "int", "datetime?"] },
           { let: "current_nomination", value: async (c, s, b) => await first(records(c, "mailroom.Delegate", { parent: b.route, where: (row) => same(row.contact, s.delegate_contact) && same(row.account, s.nominee), order: ["id"] })) },
           { observations: async (c, s, b) => [b.current_nomination !== null], expected: async (c, s, b) => [true], types: ["bool"] },
           {
@@ -1785,7 +1798,7 @@ export function exampleFixtures({ self, other, imported }) {
           { observations: async (c, s, b) => [b.collected_item !== null], expected: async (c, s, b) => [true], types: ["bool"] },
           {
             observations: async (c, s, b) => [b.collected_item.state, await count(records(c, "mailroom.Handling", { parent: b.collected_item })), await any(records(c, "mailroom.Handling", { parent: b.collected_item }), (handling) => handling.kind === "collection" && same(handling.account, s.self) && same(handling.author, s.mail_operator)), b.collected_item.retention_until],
-            expected: async (c, s, b) => ["collected", 1n, true, addDuration(c.now, int64(b.collected_item.history_days * 86400000n))], types: ["mailroom.Item.state", "int", "bool", "mailroom.Item.retention_until"],
+            expected: async (c, s, b) => ["collected", 1n, true, addDuration(c.now, int64(b.collected_item.history_days * 86400000n))], types: ["mailroom.Item.state", "int", "bool", "datetime?"],
           },
           {
             operation: "mailroom.collect", by: async (c, s, b) => s.mail_operator,
