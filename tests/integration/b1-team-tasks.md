@@ -32,12 +32,13 @@ no row passes until it executes against real components.
   `can-platform` verbatim (B0 #36, verified end to end in PR12 — B5
   interop evidence). `can compile` still check-only; emission is L1
   slice 4 (named unblock for B1.1/B1.2/B1.3/B1.5).
-- L3: invocation/commit engine behind the `state.ts` ports. S4/S5
-  (`471f1ed`/`2c3610a`) export `queryRecords`/`queryAggregate` +
-  `crudExecute`/`runMutationWrites` (247/247 suite), but on `Interim*`
-  defs (L1 descriptors pending) and `admit`/`invoke` stay unexported.
-  B1.3/B1.4 now need: canonical invoke export + L1 op descriptors +
-  L1 emission.
+- L3: invocation/commit engine behind the `state.ts` ports. S6 (`160db71`)
+  exports `createInvoker`/`BoundInvoker` + staging + system registry
+  (328/328 suite), but the registry is interim ("replaced outright at
+  the L1 descriptors") and `admit`/`invoke` stay unexported. Engine
+  side B1-ready; B1.3/B1.4 critical path is now L1 emission + op
+  descriptors only. No testkit wiring until real handlers exist
+  (interim-registry execution would be a mock pass).
 - L6: `createHttpHandler(deps, sub)` WHATWG handler MERGED (S4 PR #22,
   `9a01b51`; interfaces suite 120/120). Its `HttpDeps` doc names the L7
   worker assembly as the B1 constructor of deps from environment bindings:
