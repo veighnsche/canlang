@@ -165,6 +165,9 @@ export interface McpGrant {
   /** Null only for app-only context in a non-team app. */
   readonly team_id: TeamId | null;
   readonly client_id: string;
+  /** Hex SHA-256 of the presented grant bearer token. Added in S2; the raw
+   * token is never stored, mirroring `Session.token_sha256`. */
+  readonly token_sha256: string;
   readonly issued_at: InstantString;
   readonly expires_at: InstantString;
   readonly revoked_at: InstantString | null;

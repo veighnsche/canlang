@@ -158,8 +158,10 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
       package.json+tsconfig; fixtures (two-user/team, revoked session);
       lane-06.yml; PR #6. Coordinator-authored (core design surface);
       implementer delegation starts at S2.
-- [ ] S2 identity-core: accounts/sessions/teams/authentication + ports +
+- [x] S2 identity-core: accounts/sessions/teams/authentication + ports +
       testing double; password/recovery/session/CSRF/team lifecycle tests.
+      Implemented inline after EMFILE killed both spawns (incident resolved
+      by instance restart; shell + subagents back).
 - [ ] S3 wire-errors: error envelope/safe/redact/logging + operation envelope
       codecs + version/operation_id validation; projection-before-disclosure
       enforcement point used by both transports.
@@ -204,13 +206,29 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
 
 ## Integration joins
 
-- J1 (needs L7; workspace landed in #4, follow-up routed via PR #6): (a)
-  re-export identity/wire from packages/contracts/src/index.ts; (b) run root
-  `npm install` to lock the new members (devDeps match lane-03 exactly:
-  @types/node 26.6.4, typescript 5.9.3, engines node>=22); (c) add
-  packages/identity + packages/interfaces to tsconfig.check.json include
-  (both tsconfigs extend tsconfig.base.json). Our tests then switch from
-  relative to @canlang/contracts imports. No root file is touched by lane 06.
+- J1 (L7; landed in #9 except root-check include): (a) index re-exports
+  identity/wire DONE; (b) root lock references both lane-06 members DONE
+  (CI confirms); (c) tsconfig.check.json include for packages/identity +
+  packages/interfaces still PENDING (tsconfigs are extends-compatible).
+  Our tests switch from relative to @canlang/contracts imports once (c)
+  lands and contracts/dist is built in CI. No root file is touched by
+  lane 06.
+- X1 (L7/L4 export conflicts, filed by L7 in #9 index comments; lane-06
+  acknowledgment): `UploadIntentRequest` (files vs wire) is NOT divergent —
+  both spell the identical DESIGN section-8 POST body
+  {upload_id,operation,field,arguments,name,type,size}; only readonly and
+  alias style differ. Same for `FileTransferMeta` and `DeliveryStatus`
+  (identical text). Counter-proposal: dedupe to one canonical definition
+  instead of renaming. CONTRACTS assigns upload transport to L6, so wire.ts
+  keeps the two transport envelopes (request/response/finalize) and files.ts
+  owns intent lifecycle/provenance, importing the envelopes; `DeliveryStatus`
+  + `DeliveryError` stay canonical in services.ts (L4 owns the outcome
+  vocabulary) with wire.ts importing them for the closed mutation result.
+  `OperationId` keeps BOTH spellings by layer (plain wire string in,
+  branded engine type constructed at admission). `StateErrorCode` vs
+  `BusinessErrorCode` need runtime equality at S4 admission, not a rename.
+  Scoped to S3 (wire codecs slice); S2 touches no wire.ts shape. Needs L4
+  + L7 acknowledgment; L7's interim picks stand until then.
 - J2 (needs L3): bind identity store port to fenced D1 tables; use canonical
   invocation callable in HTTP/MCP dispatch. Request: membership/session
   table contract + invocation port signature with a two-user witness.
@@ -223,12 +241,15 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
 
 ## Progress and file reservations
 
-- 2026-10-04: worktree+goal+inventory+plan done. Reservations: coordinator
-  holds implementation/status/lane-06.md; S1 workers (to spawn): A holds
-  packages/contracts/src/identity.ts + packages/identity/test/fixtures/;
-  B holds packages/contracts/src/wire.ts + .github/workflows/lane-06.yml.
-  Shared S1 scaffolds (package.json/tsconfig/index/ports) stay with the
-  coordinator to avoid merge skew.
+- 2026-10-04: worktree+goal+inventory+plan done. S1 merged as e5b7334
+  (PR #6). S2 branch: muse/lane-06-identity-interfaces/identity-core.
+- 2026-10-04 S2 incident (RESOLVED by instance restart): both implementer
+  subagent spawns failed with environment EMFILE, and coordinator shell
+  calls failed the same way for 4 turns; the coordinator implemented S2
+  inline and verified after recovery. Reservations: coordinator holds all
+  of packages/identity/src/**, test/accounts.test.ts, test/sessions.test.ts,
+  test/teams.test.ts, test/context.test.ts and this file until S2 merges.
+  No other lane-06 writer exists. Delegation resumes at S3.
 
 ## Interface requests and handoffs
 
@@ -249,7 +270,17 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
   removed (single root lock), CI installs at root workspace ephemerally.
   Local checks 2026-10-04 post-adaptation: `npm test --workspace
   @canlang/identity --workspace @canlang/interfaces` 4/4 + 7/7 pass
-  (Node v24.21.0). Merge sha: to be recorded.
+  (Node v24.21.0). Merged 2026-10-04 as e5b7334 (squash of reviewed head
+  66c12fa, CI contracts-conformance green). J1 (a)+(b) landed via L7 #9;
+  (c) root-check include and L3 convergence acknowledgment still pending,
+  tracked above, non-blocking.
+- S2 (in progress): branch muse/lane-06-identity-interfaces/identity-core.
+  Local checks post-rebase onto main #9: `npm test --workspace
+  @canlang/identity` 27/27 pass (Node v24.21.0); `tsc -b
+  packages/contracts` clean with the additive McpGrant.token_sha256 field.
+  Execution caught one real bug static review missed (opaque-token hash
+  must cover the presented text, not raw bytes) plus 3 strict-TS errors.
+  PR URL + review + merge sha: to be recorded.
 
 ## Remaining work and cleanup
 
