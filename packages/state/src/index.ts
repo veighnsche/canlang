@@ -81,3 +81,42 @@ export {
   type CrudExecuteInput,
   type CrudOperationDef,
 } from './mutation/index.js';
+export { checkJsonSafe, jsonClone } from './internal/json.js';
+export {
+  STAGING_MAX_ID_LENGTH,
+  outboxIntentId,
+  stageEffectsStaging,
+  stageOutboxIntents,
+  stageScheduleOps,
+  type StagingContext,
+} from './effects/staging.js';
+export {
+  createInvoker,
+  createReadPort,
+  createSystemRegistry,
+  createTransactionPort,
+  defineSystemCommand,
+  outboxAckCommand,
+  scheduleCancelCommand,
+  scheduleReplaceCommand,
+  type BoundInvoker,
+  type InvokerInput,
+  type InvokeArgs,
+  type ReadAggregateArgs,
+  type ReadOwnerRecordsArgs,
+  type ReadPort,
+  type ReadPortInput,
+  type ReadViewerRecordsArgs,
+  type SystemCommandContext,
+  type SystemCommandDef,
+  type SystemRegistry,
+  type SystemRunContext,
+  type SystemRunResult,
+  type SystemStaging,
+  type TransactionPort,
+} from './ports/index.js';
+export type { MembershipReader } from './policy/roles.js';
+export type { PolicyTable } from './policy/grants.js';
+export type { OperationRegistry } from './invocation/registry.js';
+export type { ClockPort } from './invocation/context.js';
+export type { ExecuteHandler } from './invocation/invoke.js';
