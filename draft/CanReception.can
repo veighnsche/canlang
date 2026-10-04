@@ -366,59 +366,137 @@ package reception
   # Discover safe owner review without mounting private reception work in Customer.
   page /reception/access-review title="Reception access review"@{nl="Beoordeling receptietoegang"}
    require receptionist or access_staff or any(Customer as customer,has_role(actor,customer,administrator))
+   breadcrumbs
    card "Current admission and credential outcomes"@{nl="Huidige toelatings- en sleutelresultaten"}
     form access_review
-     text result.admission_conflicts,result.admission_pending,result.on_site_review,result.revoke_needed,result.revoke_pending,result.revoke_failed,result.revoke_unknown,result.revoke_conflicts,result.revoke_confirmed
+     stat result.admission_conflicts,result.admission_pending,result.on_site_review,result.revoke_needed,result.revoke_pending,result.revoke_failed,result.revoke_unknown,result.revoke_conflicts,result.revoke_confirmed
     form recheck_access
   # Customer administrators inspect only safe owner outcomes; raw visitor and credential work retains staff grants.
   page /companies/{Customer.id}/reception-access title="Company reception access"@{nl="Bedrijfsreceptietoegang"}
    require has_role(actor,row,administrator) or ((receptionist or access_staff) and any(row.locations as location,can_work(actor,location)))
+   breadcrumbs
    card "Current admission and credential outcomes"@{nl="Huidige toelatings- en sleutelresultaten"}
     form access_review
-     text result.admission_conflicts,result.admission_pending,result.on_site_review,result.revoke_needed,result.revoke_pending,result.revoke_failed,result.revoke_unknown,result.revoke_conflicts,result.revoke_confirmed
+     stat result.admission_conflicts,result.admission_pending,result.on_site_review,result.revoke_needed,result.revoke_pending,result.revoke_failed,result.revoke_unknown,result.revoke_conflicts,result.revoke_confirmed
     form recheck_access
     text "Reception resolves guest admission and departure. Access staff records physical return or manual revocation and reconciles or retries uncertain device results."@{nl="Receptie behandelt gasttoelating en vertrek. Toegangsmedewerkers leggen fysieke retour of handmatige intrekking vast en controleren of herhalen onzekere apparaatresultaten."}
   # Record expected guests, on-site evidence and unresolved departures. @{nl="Registreer verwachte gasten, aanwezigheidsbewijs en onopgeloste vertrekken."}
   page /reception title="Reception"@{nl="Receptie"}
    require receptionist
+   breadcrumbs
    card "Host presence"@{nl="Aanwezigheid gastheer"}
     form host_arrived
-    table HostPresence columns=location,account,from,until,ended
+     fieldset "Host presence"@{nl="Aanwezigheid gastheer"}
+      input until
+      textarea evidence
+    table HostPresence columns=location,account,from,until,ended empty="No host presence recorded."@{nl="Geen aanwezigheid vastgelegd."}
+     pagination
      action host_departed
    card "Expected and on-site visits"@{nl="Verwachte en aanwezige bezoekers"}
     tabs preferences.queue
-    table Visit as visit where preferences.queue==all or (preferences.queue==expected and visit.state==expected) or (preferences.queue==today and local_date(visit.from,team.timezone)==local_date(now,team.timezone)) or (preferences.queue==on_site and visit.state==arrived and visit.departed==null) or (preferences.queue==overdue and visit.state==arrived and visit.until<now) columns=location,guest,host,from,until,state,arrived,departed order=from filter=location,state search=purpose defaults={location=preferences.location}
-     details "Physical arrival and departure history"@{nl="Geschiedenis van fysieke aankomst en vertrek"} display=drawer
-      text row.purpose,row.identity_evidence,row.reason,row.eligibility?.eligible,row.eligibility?.until,row.eligibility?.checked_at,row.eligibility?.guest_limit,row.access_review,row.notice_state
-      actions refresh,arrive,depart,refuse,cancel,resend
-      history
+    table Visit as visit where preferences.queue==all or (preferences.queue==expected and visit.state==expected) or (preferences.queue==today and local_date(visit.from,team.timezone)==local_date(now,team.timezone)) or (preferences.queue==on_site and visit.state==arrived and visit.departed==null) or (preferences.queue==overdue and visit.state==arrived and visit.until<now) columns=location,guest,host,from,until,state,arrived,departed order=from filter=location,state search=purpose defaults={location=preferences.location} empty="No visits match this queue."@{nl="Geen bezoekers voor deze wachtrij."}
+     pagination
+     badge row.state
+     status row.notice_state
+     button opens=visit_detail
+     drawer "Physical arrival and departure history"@{nl="Geschiedenis van fysieke aankomst en vertrek"} id=visit_detail
+      slot content
+       text row.purpose,row.identity_evidence,row.reason,row.eligibility?.eligible,row.eligibility?.until,row.eligibility?.checked_at,row.eligibility?.guest_limit,row.access_review,row.notice_state
+       actions refresh,resend
+       button opens=arrive_detail
+       modal "Record arrival"@{nl="Aankomst registreren"} id=arrive_detail
+        slot content
+         form arrive arguments={visit=row} display=inline
+          textarea evidence
+       button opens=depart_detail
+       modal "Record departure"@{nl="Vertrek registreren"} id=depart_detail
+        slot content
+         form depart arguments={visit=row} display=inline
+          textarea evidence
+       button opens=refuse_detail
+       modal "Refuse arrival"@{nl="Toegang weigeren"} id=refuse_detail
+        slot content
+         form refuse arguments={visit=row} display=inline
+          textarea reason
+       button opens=cancel_detail
+       modal "Cancel visit"@{nl="Bezoek annuleren"} id=cancel_detail
+        slot content
+         form cancel arguments={visit=row} display=inline
+          textarea reason
+       history
 
   # Track physical issue, return, loss and device uncertainty separately. @{nl="Volg fysieke uitgifte, teruggave, verlies en apparaatonzekerheid afzonderlijk."}
   page /reception/credentials title="Keys and cards"@{nl="Sleutels en kaarten"}
    require access_staff
+   breadcrumbs
    card "Visitor rules"@{nl="Bezoekersregels"}
     form GuestPolicy.create
-    list GuestPolicy
+     fieldset "Visitor rules"@{nl="Bezoekersregels"}
+      checkbox host_present
+      input visitor_days
+      input credential_days
+    list GuestPolicy empty="No visitor rules recorded."@{nl="Geen bezoekersregels vastgelegd."}
+     pagination
      edit
    card "Credential catalog"@{nl="Toegangsmiddelenregister"}
     form Credential.create
+     fieldset "Credential catalog"@{nl="Toegangsmiddelenregister"}
+      input identifier
+      input device
    card "Issue and device outcomes"@{nl="Uitgifte- en apparaatresultaten"}
-    list Credential filter=location,active defaults={location=preferences.location} display=split
+    list Credential filter=location,active defaults={location=preferences.location} display=split empty="No credentials recorded."@{nl="Geen toegangsmiddelen vastgelegd."}
+     pagination
      edit
      form issue
-     table row.Issue columns=holder,until,desired,confirmed,returned,lost_reason
-      details "Credential issue detail"@{nl="Details sleuteluitgifte"} display=drawer
-       text row.visit,row.evidence,row.revoke_evidence,row.issued_by
-       actions return_key,lost,manual_revoke,reconcile_device,retry_device
-       history
+      select visit
+      input holder
+      textarea evidence
+     table row.Issue columns=holder,until,desired,confirmed,returned,lost_reason empty="No credential issues recorded."@{nl="Geen sleuteluitgiften vastgelegd."}
+      pagination
+      badge row.desired
+      badge row.confirmed
+      button opens=issue_detail
+      drawer "Credential issue detail"@{nl="Details sleuteluitgifte"} id=issue_detail
+       slot content
+        text row.visit,row.evidence,row.revoke_evidence,row.issued_by
+        actions reconcile_device,retry_device
+        button opens=return_detail
+        modal "Record credential return"@{nl="Sleutelretour registreren"} id=return_detail
+         slot content
+          form return_key arguments={issue=row} display=inline
+           textarea evidence
+        button opens=lost_detail
+        modal "Record lost credential"@{nl="Verloren sleutel registreren"} id=lost_detail
+         slot content
+          form lost arguments={issue=row} display=inline
+           textarea reason
+        button opens=revoke_detail
+        modal "Record manual revocation"@{nl="Handmatige intrekking registreren"} id=revoke_detail
+         slot content
+          form manual_revoke arguments={issue=row} display=inline
+           textarea evidence
+        history
 
   # See only your invitations and current arrival instructions. @{nl="Bekijk uitsluitend je eigen uitnodigingen en huidige aankomstinstructies."}
   page /reception/mine title="My visitors"@{nl="Mijn bezoekers"}
    require authenticated
+   breadcrumbs
    card "Own visitor invitations"@{nl="Eigen bezoekersuitnodigingen"}
     form invite
+     textarea purpose
+     input source
    card "Window and state"@{nl="Tijdvenster en status"}
-    list Visit
+    list Visit empty="No invitations yet."@{nl="Nog geen uitnodigingen."}
+     pagination
+     badge row.state
      text row.location,row.guest,row.host,row.purpose,row.from,row.until,row.state
-     actions refresh,cancel,resend
+     actions refresh,resend
+     button opens=cancel_detail
+     modal "Cancel visit"@{nl="Bezoek annuleren"} id=cancel_detail
+      slot content
+       form cancel arguments={visit=row} display=inline
+        textarea reason
      text row.notice_state,row.access_review
+     collapse "Invitation delivery"@{nl="Uitnodigingsbezorging"}
+      require row.notice_state==failed
+      alert row.notice_state

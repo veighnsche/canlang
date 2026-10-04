@@ -16,9 +16,11 @@
     "typecheck": "tsc -p tsconfig.check.json",
     "pretest": "npm run build && npm run build:joins",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test --config=playwright.config.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

@@ -1,5 +1,6 @@
 export * from "./assertions/equal.js";
 export * from "./fixtures/accounts.js";
+export * from "./fixtures/playback.js";
 export * from "./fixtures/seeds.js";
 export * from "./reporting/report.js";
 export * from "./runner/table.js";
