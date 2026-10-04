@@ -1,7 +1,7 @@
 /**
  * Lane 03 S3 admission tests (worker B): `by` enforcement, closed-input
  * validation, record-ref/version checks, receipt replay short-circuit, and
- * revocation — all against the memory store plus seeded L6 memberships.
+ * revocation — all against the memory store plus the local membership double.
  *
  * Aligned to worker A's actuals: `admit` takes `{def, inputs, context,
  * store, memberships}` and returns `AdmittedCall` (`recordRefs`, `inputHash`,

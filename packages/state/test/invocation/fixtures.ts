@@ -1,24 +1,30 @@
 /**
- * Lane 03 S3 invocation/admission fixtures (worker B).
+ * Lane 03 S3 invocation/admission fixtures (worker B; membership double made
+ * local by the coordinator after L6 migrated its testing helper to workspace
+ * imports that the standalone state build cannot resolve).
  *
- * Builders only: no assertions, no miniflare. Every builder is deterministic
- * except L6-store-allocated ids (the memory identity store mints random
- * UUIDs, so `seedMember` returns the allocated rows and tests align their
- * identities/inputs with those real ids).
+ * Builders only: no assertions, no miniflare. Every builder is deterministic:
+ * the local membership double mints sequential ids, so `seedMember` returns
+ * the allocated rows and tests align their identities/inputs with those ids.
+ * Shapes come from the identity CONTRACT (stable); the L6 store remains the
+ * production `MembershipReader`, integrated at the B1 join.
  *
  * Single adjustment point for worker A's actuals: the `InterimOperationDef`
  * type import below (location + required members). Everything else imports
- * only contracts types, L6 testing doubles, and the existing `StateError`.
+ * only contracts types and the existing `StateError`.
  */
 import assert from 'node:assert/strict';
 import type {
   AuthenticatedActor,
   IdentityBinding,
   Membership,
+  MembershipId,
   MembershipStatus,
   ResolvedIdentity,
   RoleGrant,
   Team,
+  TeamId,
+  UserId,
 } from '../../../contracts/src/identity.js';
 import type { MutationEnvelope } from '../../../contracts/src/wire.js';
 import type {
@@ -40,14 +46,86 @@ import type {
   UniqueClaim,
   UniqueRelease,
 } from '../../../contracts/src/state.js';
-import type { IdentityStore, StoredUser } from '../../../identity/src/ports.js';
-import { createMemoryIdentityStore } from '../../../identity/src/testing.js';
 // Aligned to worker A's actuals: interim defs live in `invocation/registry.js`.
 import type { InterimOperationDef } from '../../src/invocation/registry.js';
 import { StateError } from '../../src/errors.js';
 
-export { createMemoryIdentityStore };
-export type { IdentityStore, StoredUser };
+/**
+ * TEST-ONLY local membership double. Implements the `MembershipReader` port
+ * (`findMembership`) that admission consumes, plus the minimal seeding
+ * surface the tests need. Production binds the port to the L6 identity
+ * store; this double never leaves the test tree.
+ */
+export interface FixtureUser {
+  readonly user_id: UserId;
+  readonly email: string;
+}
+
+export interface TestMembershipStore {
+  findMembership(teamId: string, userId: string): Promise<Membership | null>;
+  findMembershipById(membershipId: string): Promise<Membership | null>;
+  findTeamById(teamId: string): Promise<Team | null>;
+  findUserById(userId: string): Promise<FixtureUser | null>;
+  createTeam(timezone?: string): Promise<Team>;
+  createUser(email: string): Promise<FixtureUser>;
+  createMembership(input: {
+    team_id: TeamId;
+    user_id: UserId;
+    is_owner: boolean;
+    roles: Membership['roles'];
+  }): Promise<Membership>;
+  removeMembership(membershipId: string): Promise<void>;
+}
+
+export function createMemoryIdentityStore(): TestMembershipStore {
+  let seq = 0;
+  const users = new Map<string, FixtureUser>();
+  const teams = new Map<string, Team>();
+  const memberships = new Map<string, Membership>();
+  const stamp = (): string => new Date(FIXED_NOW).toISOString();
+  const key = (teamId: string, userId: string): string => `${teamId}\0${userId}`;
+  const index = new Map<string, string>();
+  return {
+    findMembership: async (teamId, userId) =>
+      memberships.get(index.get(key(teamId, userId)) ?? '') ?? null,
+    findMembershipById: async (membershipId) => memberships.get(membershipId) ?? null,
+    findTeamById: async (teamId) => teams.get(teamId) ?? null,
+    findUserById: async (userId) => users.get(userId) ?? null,
+    createTeam: async (timezone = 'UTC') => {
+      seq += 1;
+      const team: Team = { team_id: `team-${seq}`, timezone, created_at: stamp() };
+      teams.set(team.team_id, team);
+      return team;
+    },
+    createUser: async (email) => {
+      seq += 1;
+      const user: FixtureUser = { user_id: `user-${seq}`, email };
+      users.set(user.user_id, user);
+      return user;
+    },
+    createMembership: async (input) => {
+      seq += 1;
+      const membership: Membership = {
+        membership_id: `membership-${seq}` as MembershipId,
+        team_id: input.team_id,
+        user_id: input.user_id,
+        is_owner: input.is_owner,
+        roles: [...input.roles],
+        status: 'active',
+        created_at: stamp(),
+        updated_at: stamp(),
+      };
+      memberships.set(membership.membership_id, membership);
+      index.set(key(input.team_id, input.user_id), membership.membership_id);
+      return membership;
+    },
+    removeMembership: async (membershipId) => {
+      const current = memberships.get(membershipId) ?? null;
+      if (current === null) return;
+      memberships.set(membershipId, { ...current, status: 'removed', updated_at: stamp() });
+    },
+  };
+}
 
 /** Frozen test clock: 2026-10-04T00:00:00.000Z. */
 export const FIXED_NOW = 1_791_072_000_000;
@@ -176,7 +254,7 @@ export interface SeedMemberOpts {
 }
 
 export interface SeededMember {
-  readonly user: StoredUser;
+  readonly user: FixtureUser;
   readonly team: Team;
   readonly membership: Membership;
 }
@@ -184,12 +262,12 @@ export interface SeededMember {
 let seedCounter = 0;
 
 /**
- * Seed one membership through the L6 memory store's own
+ * Seed one membership through the local test double's
  * createUser/createTeam/createMembership (+ removeMembership for
  * `status: 'removed'`). Returns the allocated rows with their real ids.
  */
 export async function seedMember(
-  store: IdentityStore,
+  store: TestMembershipStore,
   opts: SeedMemberOpts,
 ): Promise<SeededMember> {
   seedCounter += 1;
@@ -197,16 +275,12 @@ export async function seedMember(
   let team: Team | null =
     opts.teamId === undefined ? null : await store.findTeamById(opts.teamId);
   if (team === null) {
-    team = await store.createTeam({ timezone: 'UTC' });
+    team = await store.createTeam('UTC');
   }
-  let user: StoredUser | null =
+  let user: FixtureUser | null =
     opts.userId === undefined ? null : await store.findUserById(opts.userId);
   if (user === null) {
-    user = await store.createUser({
-      email: opts.email ?? `s3member-${n}@example.test`,
-      password_hash: 'test-only-hash',
-      email_verified: true,
-    });
+    user = await store.createUser(opts.email ?? `s3member-${n}@example.test`);
   }
   const granter = user.user_id;
   const roles: RoleGrant[] = (opts.roles ?? []).map((role) =>

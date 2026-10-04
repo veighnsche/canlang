@@ -201,6 +201,10 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   S3 implemented (delegated impl+tests, disjoint files) + independent review
   NEEDS-CHANGES (14 findings incl. receipt-before-age + revision-first
   normative orderings) + coordinator fixes, verified 125/125 locally.
+  Post-review rebase onto origin/main 6980555; L6 `testing.ts`/`ports.ts`
+  imports replaced by an engine-local `TestMembershipStore` double
+  (`test/invocation/fixtures.ts`) so the standalone state build stays green
+  until the L7 `@canlang/*` join; re-verified typecheck clean + 125/125.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
@@ -225,8 +229,10 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   kinds/errors/catalog only — still interim in S3).
 - From L3 (when S6 lands): transaction/read/system-command ports + outbox/schedule
   staging shapes for L4/L6/L7.
-- From L6 (landed #6/#12, evaluate in S3): identity core + wire envelope for
-  admission consumption.
+- From L6 (landed #6/#12, evaluated in S3): consumed identity/wire/value
+  contracts as types only + structural `MembershipReader` subset. Runtime
+  `testing.ts` import dropped in favor of a local double (standalone build);
+  production `MembershipReader` rebind at the B1 join.
 
 ## PR and verification evidence
 
