@@ -13,6 +13,7 @@ import {
   create,
   EmailV1,
   format,
+  first,
   hasRole,
   int64,
   records,
@@ -650,17 +651,18 @@ export function canApp() {
         hasRole(c, "hire.interviewer") &&
         (await any(
           records(c, "hire.Interview", { parent: row }),
-          (interview) =>
+          async (interview) =>
             same(interview.interviewer.user, c.actor) &&
             interview.state === "confirmed" &&
-            interview.interviewer.active,
+            interview.interviewer.active &&
+            (await can_work(c, c.actor, row.parent.location)),
         )),
       "Interview.read.1": async (c, row) =>
         hasRole(c, "hire.recruiter") && (await can_work(c, c.actor, row.parent.parent.location)),
-      "Interview.read.2": (c, row) =>
+      "Interview.read.2": async (c, row) =>
         hasRole(c, "hire.interviewer") &&
         same(row.interviewer.user, c.actor) &&
-        row.interviewer.active,
+        row.interviewer.active && (await can_work(c,c.actor,row.parent.parent.location)),
     },
     invariants: {
       "Interview.require.1": (c, row) => compareInstant(row.from, row.until) < 0,
@@ -890,6 +892,7 @@ export function canApp() {
       check(
         same(interview.interviewer.user, c.actor) &&
           interview.interviewer.active &&
+          (await can_work(c,c.actor,interview.parent.parent.location)) &&
           interview.state === "confirmed" &&
           ["applied", "interview", "offer"].includes(interview.parent.stage) &&
           notes.trim() !== "",
@@ -1085,7 +1088,7 @@ export function canApp() {
     },
     async released(c, { event }) {
       for await (const interview of records(c, "hire.Interview", {
-        where: (item) => item.release_delivery === event.delivery_id,
+        where: (item) => item.release_delivery === event.delivery_id && item.release_state !== "released",
         limit: 1n,
       })) {
         if (
@@ -1105,7 +1108,8 @@ export function canApp() {
         event.interview.state === "confirmed" &&
           event.revision === 1n &&
           ["applied", "interview", "offer"].includes(event.interview.parent.stage) &&
-          event.interview.interviewer.active,
+          event.interview.interviewer.active &&
+          (await can_work(c,event.interview.interviewer.user,event.interview.parent.parent.location)),
       );
       const notice = await send(
         c,
@@ -1120,9 +1124,11 @@ export function canApp() {
           body: event.interview.parent.parent.title,
         },
         {
-          when: () =>
+          when: async () =>
             event.interview.state === "confirmed" &&
-            ["applied", "interview", "offer"].includes(event.interview.parent.stage),
+            ["applied", "interview", "offer"].includes(event.interview.parent.stage) &&
+            event.interview.interviewer.active &&
+            (await can_work(c,event.interview.interviewer.user,event.interview.parent.parent.location)),
         },
       );
       await set(c, event.interview, { notice_delivery: notice.id, notice_state: "pending" });
@@ -1351,9 +1357,10 @@ export async function interviewsPage(c, bindings) {
       list({
         context: c,
         model: "hire.Interview",
-        where: (interview) =>
+        where: async (interview) =>
           same(interview.interviewer.user, c.actor) &&
           interview.interviewer.active &&
+          (await can_work(c,c.actor,interview.parent.parent.location)) &&
           interview.state === "confirmed",
         order: ["from"],
         renderRow: (interview, view) => [
@@ -1452,6 +1459,26 @@ export function exampleFixtures({ self, other, imported }) {
     applicant,
     vacancy,
     examples: [
+      {operation:"hire.feedback",seed:[test_worker],dependencies:[booked],inputs:async(c,s)=>({interview:s.booked,notes:"Relevant experience"}),selectors:["as","test_worker.active","interview.state"],observations:[async(c,s)=>s.interview.feedback],types:["text?"],rows:[
+        {values:async()=>["hire.interviewer",true,"confirmed"],expected:async()=>["Relevant experience"]},
+        {values:async()=>["hire.interviewer",false,"confirmed"],error:"rule_failed"},
+        {values:async()=>["hire.interviewer",true,"cancelled"],error:"rule_failed"},
+        {values:async()=>["members",true,"confirmed"],error:"forbidden"}
+      ]},
+      {operation:"hire.withdraw",dependencies:[booked,proposed],sequence:[
+        {operation:"hire.withdraw",by:async()=>self,inputs:async(c,s)=>({candidate:s.applicant})},
+        {let:"withdrawn_candidate",value:async(c,s)=>await first(records(c,"hire.Candidate",{where:row=>row.id===s.applicant.id,order:["id"]}))},
+        {observations:async(c,s,b)=>[b.withdrawn_candidate!==null],expected:async()=>[true],types:["bool"]},
+        {observations:async(c,s,b)=>[b.withdrawn_candidate.stage,s.booked.state,s.booked.release_state,s.booked.release_delivery!==null,s.proposed.state,s.proposed.release_state,s.proposed.release_delivery!==null],expected:async()=>["withdrawn","cancelled","pending",true,"cancelled","pending",true],types:["hire.Candidate.stage","hire.Interview.state","hire.Interview.release_state","bool","hire.Interview.state","hire.Interview.release_state","bool"]},
+        {operation:"hire.withdraw",by:async()=>self,inputs:async(c,s,b)=>({candidate:b.withdrawn_candidate}),error:"rule_failed"}
+      ]},
+      {operation:"hire.released",seed:[booked],dependencies:[],inputs:async()=>({event:{delivery_id:"release-current",status:"succeeded",result:{source:"original-interview",revision:2n,state:"released",reference:null,detail:null},error:null}}),selectors:["booked.release_delivery","booked.release_state","event.delivery_id","event.status","event.result","event.error"],observations:[async(c,s)=>s.booked.release_state],types:["hire.Interview.release_state"],rows:[
+        {values:async()=>["release-current","pending","release-current","succeeded",{source:"original-interview",revision:2n,state:"released",reference:null,detail:null},null],expected:async()=>["released"]},
+        {values:async()=>["release-current","pending","release-old","succeeded",{source:"original-interview",revision:2n,state:"released",reference:null,detail:null},null],expected:async()=>["pending"]},
+        {values:async()=>["release-current","pending","release-current","succeeded",{source:"different-source",revision:2n,state:"released",reference:null,detail:null},null],expected:async()=>["unknown"]},
+        {values:async()=>["release-current","released","release-current","failed",null,{code:"provider",message:"Release rejected"}],expected:async()=>["released"]}
+      ]},
+
       {
         operation: "hire.replacement_reserved",
         dependencies: [test_worker, booked, proposed],

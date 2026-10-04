@@ -457,7 +457,7 @@ export const appDefinition = {
         location: { type: Location },
         product: { type: "text" },
       },
-      result: "sales_attribution.Capture?",
+      result: { type: "sales_attribution.Capture", nullable: true },
     },
   },
   handlers: { "refer.qualify": { handler: "qualify", on: "refer.Sales.qualification" } },

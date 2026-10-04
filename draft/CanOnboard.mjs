@@ -477,8 +477,9 @@ export function canApp() {
       "Checklist.total_steps": async (c, row) => count(records(c, Step, { parent: row })),
       "Checklist.progress": async (c, row) => {
         const completed = await count(records(c, Step, { parent: row, where: (s) => s.done }));
+        const numerator = int64(completed * 100n);
         const total = await count(records(c, Step, { parent: row }));
-        return divideDecimal(int64(completed * 100n), await max([1n, total]));
+        return divideDecimal(numerator, await max([1n, total]));
       },
     },
     invariants: {

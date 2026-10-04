@@ -430,6 +430,11 @@ export const appDefinition = {
       inputs: { item: { type: "mailroom.Item" }, fee: { type: "money", nullable: true } },
       result: { type: Charge, nullable: true },
     },
+    "mailroom.delegate_eligible": {
+      handler: "delegate_eligible",
+      inputs: { delegate: { type: "mailroom.Delegate" } },
+      result: "bool",
+    },
     "mailroom.permitted_collector": {
       handler: "permitted_collector",
       inputs: { person: { type: "user" }, service: { type: "mailroom.Service" } },
