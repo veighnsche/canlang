@@ -9,6 +9,7 @@ import {
   count,
   create,
   datetime,
+  delivery,
   deleteRecord,
   format,
   hasRole,
@@ -37,7 +38,7 @@ import {
 } from "@canlang/ui";
 import { can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
-import { Booking } from "./rent_reservations.mjs";
+import { Booking, can_read_booking_details } from "./rent_reservations.mjs";
 
 /* Handwritten desired target; every import is a proposed, unimplemented contract.
  * See DESIGN §13. The registry is linked once. Trusted c carries invocation data
@@ -77,10 +78,12 @@ export const Task = "volunteer.Task";
 
 export const complete = "volunteer.complete";
 
-/* Venue references require the caller's current CanRent booking read entitlement;
- * imports never grant booking access. Verified ReservationChanged consumption and
- * current dispatch reads are proposed unimplemented contracts, not atomic writes
- * across booking/volunteer authorities. No booking is reserved by Volunteer.
+/* Venue pickers preserve CanRent booking read grants; selected venue authoring
+ * also checks the owner's can_read_booking_details predicate for opaque-ID inputs.
+ * All current models share default team D1;
+ * imported package identity does not create a separate storage owner. Verified
+ * ReservationChanged consumption/current dispatch reads remain unimplemented.
+ * No booking is reserved by Volunteer.
  * Activity cancellation and rescheduling preserve participant/task history.
  */
 const activitiesPageDescriptor = {
@@ -202,7 +205,10 @@ export const appDefinition = {
     "volunteer.Signup": {
       parent: "volunteer.Opportunity",
       label: message("Volunteer signup", { nl: "Vrijwilligersinschrijving" }),
-      readGrants: [{ rule: "Signup.read.1" }, { rule: "Signup.read.2" }],
+      readGrants: [
+        { rule: "Signup.read.1", fields: ["account", "email", "needs_confirmation", "state", "notification.id", "notification.status"] },
+        { rule: "Signup.read.2", fields: ["account", "email", "needs_confirmation", "state", "notification.id", "notification.status"] },
+      ],
       unique: [{ fields: ["account"] }],
       fields: {
         account: {
@@ -211,6 +217,12 @@ export const appDefinition = {
           label: message("User account", { nl: "Gebruikersaccount" }),
         },
         email: { type: "email" },
+        notification: {
+          type: "delivery",
+          operation: "volunteer.Mail.send",
+          nullable: true,
+          label: message("Latest notice delivery", { nl: "Laatste berichtbezorging" }),
+        },
         needs_confirmation: {
           type: "bool",
           default: false,
@@ -557,8 +569,8 @@ export const appDefinition = {
       by: "volunteer.organizer",
       inputs: { signup: { type: "volunteer.Signup" }, attend: { type: "bool", label: attended } },
       label: message("Record attendance", { nl: "Aanwezigheid vastleggen" }),
-      description: message("Record attendance manually after the activity begins.", {
-        nl: "Leg aanwezigheid handmatig vast nadat de activiteit begint.",
+      description: message("Record attendance manually after the activity ends.", {
+        nl: "Leg aanwezigheid handmatig vast nadat de activiteit eindigt.",
       }),
     },
     "volunteer.cancel": {
@@ -572,6 +584,7 @@ export const appDefinition = {
     },
   },
   handlers: {
+    "volunteer.venue_on_create": { handler: "venue_on_create", on: "volunteer.Opportunity.create" },
     "volunteer.opportunity_changed": {
       handler: "opportunity_changed",
       on: "volunteer.Opportunity.update",
@@ -614,7 +627,10 @@ export function canApp() {
     },
     read: {
       "Community.read.1": (c, row) => hasRole(c, "volunteer.organizer"),
-      "Opportunity.read.1": (c, row) => hasRole(c, "public") && row.open && !row.cancelled,
+      "Opportunity.read.1": (c, row) =>
+        hasRole(c, "public") && row.open && !row.cancelled &&
+        compareInstant(row.from, c.now) > 0 &&
+        (row.venue === null || row.venue_confirmed),
       "Opportunity.read.2": async (c, row) =>
         hasRole(c, "volunteer.organizer") && (await can_work(c, c.actor, row.location)),
       "Signup.read.1": async (c, row) =>
@@ -636,6 +652,9 @@ export function canApp() {
         )) <= row.capacity,
     },
     crudWhen,
+    async venue_on_create(c, { event }) {
+      check(event.after.venue === null || (await can_read_booking_details(c, event.after.venue)));
+    },
     async opportunity_changed(c, { event }) {
       for await (const signup of records(c, "volunteer.Signup", {
         parent: event.after,
@@ -734,7 +753,6 @@ export function canApp() {
       await create(c, "volunteer.Signup", {
         parent: opportunity,
         email: c.actor.email,
-        account: c.actor,
       });
     },
     async confirm(c, { signup }) {
@@ -785,13 +803,17 @@ export function canApp() {
         (await can_work(c, c.actor, signup.parent.location)) &&
           signup.state === "confirmed" &&
           !signup.parent.cancelled &&
-          compareInstant(c.now, signup.parent.from) >= 0,
+          compareInstant(c.now, signup.parent.until) >= 0,
       );
       await set(c, signup, { state: attend ? "attended" : "no_show" });
     },
     async availability(c, { opportunity }) {
       check(hasRole(c, "public"), "forbidden");
-      check(opportunity.open && !opportunity.cancelled);
+      check(
+        opportunity.open && !opportunity.cancelled &&
+          compareInstant(opportunity.from, c.now) > 0 &&
+          (opportunity.venue === null || opportunity.venue_confirmed),
+      );
       return {
         remaining: int64(
           opportunity.capacity -
@@ -871,7 +893,16 @@ export function canApp() {
         (await can_work(c, c.actor, opportunity.location)) &&
           !opportunity.cancelled &&
           compareInstant(opportunity.from, c.now) > 0 &&
+          (await can_read_booking_details(c, venue)) &&
           (await venue_covers(c, venue, opportunity.location, opportunity.from, opportunity.until)),
+      );
+      check(
+        same(opportunity.venue, venue) ||
+          (!opportunity.open &&
+            !(await any(
+              records(c, "volunteer.Signup", { parent: opportunity }),
+              (signup) => activeStates.includes(signup.state),
+            ))),
       );
       await set(c, opportunity, { venue });
       for await (const signup of records(c, "volunteer.Signup", {
@@ -906,11 +937,14 @@ export function canApp() {
       check(
         compareInstant(opportunity.from, from) !== 0 ||
           compareInstant(opportunity.until, until) !== 0 ||
-          opportunity.timezone !== timezone,
+          opportunity.timezone !== timezone ||
+          !same(opportunity.venue, venue),
       );
       check(
         (opportunity.venue === null || venue !== null) &&
-          (venue === null || (await venue_covers(c, venue, opportunity.location, from, until))),
+          (venue === null ||
+            ((await can_read_booking_details(c, venue)) &&
+              (await venue_covers(c, venue, opportunity.location, from, until)))),
       );
       check(
         await all(
@@ -939,8 +973,8 @@ export function canApp() {
         await cancel(c, signup.id);
         const signup_revision = int64(signup.version + 1n),
           opportunity_revision = int64(opportunity.version + 1n);
-        if (was_confirmed)
-          await send(
+        if (was_confirmed) {
+          const notice = await send(
             c,
             "volunteer.Mail.send",
             {
@@ -962,6 +996,8 @@ export function canApp() {
                 !signup.parent.cancelled,
             },
           );
+          await set(c, signup, { notification: notice });
+        }
       }
     },
     async venue_changed(c, { event }) {
@@ -982,8 +1018,8 @@ export function canApp() {
           await cancel(c, signup.id);
           const signup_revision = int64(signup.version + 1n),
             opportunity_revision = int64(opportunity.version + 1n);
-          if (was_confirmed)
-            await send(
+          if (was_confirmed) {
+            const notice = await send(
               c,
               "volunteer.Mail.send",
               {
@@ -1005,6 +1041,8 @@ export function canApp() {
                   !signup.parent.cancelled,
               },
             );
+            await set(c, signup, { notification: notice });
+          }
         }
       }
     },
@@ -1023,9 +1061,8 @@ export function canApp() {
       })) {
         await set(c, signup, { state: "cancelled" });
         await cancel(c, signup.id);
-        const signup_revision = int64(signup.version + 1n),
-          opportunity_revision = int64(opportunity.version + 1n);
-        await send(
+        const signup_revision = int64(signup.version + 1n);
+        const notice = await send(
           c,
           "volunteer.Mail.send",
           {
@@ -1042,11 +1079,11 @@ export function canApp() {
           {
             when: () =>
               signup.version === signup_revision &&
-              signup.parent.version === opportunity_revision &&
               signup.state === "cancelled" &&
               signup.parent.cancelled,
           },
         );
+        await set(c, signup, { notification: notice });
       }
     },
     async remind(c, { event }) {
@@ -1057,7 +1094,9 @@ export function canApp() {
           !event.signup.parent.cancelled &&
           (event.signup.parent.venue === null || event.signup.parent.venue_confirmed),
       );
-      await send(
+      // Association is a versioned write; dispatch checks the resulting version.
+      const signup_revision = int64(event.signup.version + 1n);
+      const notice = await send(
         c,
         "volunteer.Mail.send",
         {
@@ -1072,12 +1111,13 @@ export function canApp() {
         {
           when: async () =>
             event.signup.state === "confirmed" &&
-            event.signup.version === event.revision &&
+            event.signup.version === signup_revision &&
             event.signup.parent.version === event.opportunity_revision &&
             !event.signup.parent.cancelled &&
             (event.signup.parent.venue === null || event.signup.parent.venue_confirmed),
         },
       );
+      await set(c, event.signup, { notification: notice });
     },
     async work(c, { locations }) {
       check(hasRole(c, "authenticated"), "forbidden");
@@ -1156,6 +1196,7 @@ export async function activitiesPage(c, bindings) {
                         values: [
                           opportunity.description,
                           opportunity.requirements,
+                          opportunity.timezone,
                           opportunity.from,
                           opportunity.until,
                           opportunity.capacity,
@@ -1195,9 +1236,17 @@ export async function activitiesPage(c, bindings) {
                         list({
                           context: c,
                           model: "volunteer.Signup",
+                          where: (signup) => same(signup.account, c.actor),
                           display: "split",
-                          renderRow: (signup, v) => [
-                            text({ context: v, values: [signup.state, signup.needs_confirmation] }),
+                          renderRow: async (signup, v) => [
+                            text({
+                              context: v,
+                              values: [
+                                signup.state,
+                                signup.needs_confirmation,
+                                (await delivery(v, { record: signup, field: "notification" }, ["status"]))?.status ?? null,
+                              ],
+                            }),
                             actions({
                               context: v,
                               operations: [
@@ -1286,10 +1335,15 @@ export async function workPage(c, bindings) {
                     context: v,
                     model: "volunteer.Signup",
                     parent: opportunity,
-                    renderRow: (signup, sv) => [
+                    renderRow: async (signup, sv) => [
                       text({
                         context: sv,
-                        values: [signup.email, signup.state, signup.needs_confirmation],
+                        values: [
+                          signup.email,
+                          signup.state,
+                          signup.needs_confirmation,
+                          (await delivery(sv, { record: signup, field: "notification" }, ["status"]))?.status ?? null,
+                        ],
                       }),
                       actions({
                         context: sv,
@@ -1331,10 +1385,11 @@ export async function workPage(c, bindings) {
 export const exampleImports = [
   { provider: "rent_catalog", member: "test_site", alias: "test_site" },
   { provider: "employee", member: "test_worker", alias: "test_worker" },
+  { provider: "rent_reservations", member: "test_hold", alias: "test_hold" },
 ];
 
 export function exampleFixtures({ self, other, imported }) {
-  const { test_site, test_worker } = imported;
+  const { test_site, test_worker, test_hold } = imported;
   const community = {
     model: "volunteer.Community",
     dependencies: [],
@@ -1372,6 +1427,57 @@ export function exampleFixtures({ self, other, imported }) {
     mentoring,
     place,
     examples: [
+      {
+        operation: "volunteer.attendance",
+        seed: [test_worker],
+        dependencies: [place],
+        inputs: async (c, s) => ({ signup: s.place, attend: true }),
+        selectors: ["as", "signup.parent.from", "signup.parent.until"],
+        observations: [async (c, s) => s.signup.state],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["volunteer.organizer", subtractDuration(c.now, 7200000n), c.now], expected: async (c, s) => ["attended"] },
+          { dependencies: [], values: async (c, s) => ["volunteer.organizer", subtractDuration(c.now, 3600000n), addDuration(c.now, 3600000n)], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["members", subtractDuration(c.now, 7200000n), c.now], error: "forbidden" },
+        ],
+      },
+      {
+        operation: "volunteer.link_venue",
+        seed: [test_worker],
+        dependencies: [mentoring, test_hold],
+        inputs: async (c, s) => ({ opportunity: s.mentoring, venue: s.test_hold }),
+        selectors: ["as", "opportunity.open", "venue.account", "venue.status", "venue.payment", "venue.allowance", "venue.from", "venue.until", "venue.reserved_from", "venue.reserved_until"],
+        observations: [async (c, s) => s.opportunity.venue],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["volunteer.organizer", false, s.self, "confirmed", "paid", "not_required", s.mentoring.from, s.mentoring.until, s.mentoring.from, s.mentoring.until], expected: async (c, s) => [s.test_hold] },
+          { dependencies: [], values: async (c, s) => ["volunteer.organizer", false, s.other, "confirmed", "paid", "not_required", s.mentoring.from, s.mentoring.until, s.mentoring.from, s.mentoring.until], error: "rule_failed" },
+        ],
+      },
+      {
+        operation: "volunteer.link_venue",
+        seed: [test_worker, place],
+        dependencies: [mentoring, test_hold],
+        inputs: async (c, s) => ({ opportunity: s.mentoring, venue: s.test_hold }),
+        selectors: ["as", "opportunity.venue", "place.state", "place.needs_confirmation", "venue.account", "venue.status", "venue.payment", "venue.allowance", "venue.from", "venue.until", "venue.reserved_from", "venue.reserved_until"],
+        observations: [async (c, s) => s.place.needs_confirmation, async (c, s) => s.place.state],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["volunteer.organizer", s.test_hold, "registered", true, s.self, "confirmed", "paid", "not_required", s.mentoring.from, s.mentoring.until, s.mentoring.from, s.mentoring.until], expected: async (c, s) => [true, "registered"] },
+        ],
+      },
+      {
+        operation: "volunteer.remind",
+        dependencies: [place, mentoring],
+        inputs: async (c, s) => ({ event: { signup: s.place, revision: s.place.version, opportunity_revision: s.mentoring.version } }),
+        selectors: ["event.signup.state", "event.revision"],
+        observations: [
+          async (c, s) => (await delivery(c, { record: s.place, field: "notification" }, ["status"]))?.status ?? null,
+          async (c, s) => s.place.state,
+        ],
+        rows: [
+          { dependencies: [], values: async (c, s) => ["confirmed", 1n], expected: async (c, s) => ["pending", "confirmed"] },
+          { dependencies: [], values: async (c, s) => ["withdrawn", 1n], error: "rule_failed" },
+          { dependencies: [], values: async (c, s) => ["confirmed", 2n], error: "rule_failed" },
+        ],
+      },
       {
         operation: "volunteer.withdraw",
         dependencies: [place],
@@ -1460,12 +1566,13 @@ export function exampleFixtures({ self, other, imported }) {
           async (c, s) => s.opportunity.from,
           async (c, s) => s.place.state,
           async (c, s) => s.place.needs_confirmation,
+          async (c, s) => (await delivery(c, { record: s.place, field: "notification" }, ["status"]))?.status ?? null,
         ],
         rows: [
           {
             dependencies: [],
             values: async (c, s) => ["volunteer.organizer", false],
-            expected: async (c, s) => [datetime("2099-01-03T09:00:00Z"), "registered", true],
+            expected: async (c, s) => [datetime("2099-01-03T09:00:00Z"), "registered", true, "pending"],
           },
           {
             dependencies: [],

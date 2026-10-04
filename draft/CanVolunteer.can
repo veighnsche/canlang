@@ -5,7 +5,7 @@ app CanVolunteer uses=[volunteer]
 package volunteer label="Volunteering"@{nl="Vrijwilligerswerk"}
  use rent_catalog {Location,test_site}
  use employee {can_work,test_worker}
- use rent_reservations {Booking,ReservationChanged}
+ use rent_reservations {Booking,ReservationChanged,can_read_booking_details,test_hold}
  use std {EmailV1 as Mail} from=deployment.mail
  Given
   contract Availability { remaining:int } label="Available volunteer places"@{nl="Beschikbare vrijwilligersplaatsen"}
@@ -17,17 +17,17 @@ package volunteer label="Volunteering"@{nl="Vrijwilligerswerk"}
   role organizer label="Organizer"@{nl="Organisator"}
   Community { name:text unique } label="Community"@{nl="Community"}
   Opportunity in Community { location:Location, title:text, description:text, requirements:text label="Activity requirements"@{nl="Activiteitsvereisten"}, contact:email label="Organizer email"@{nl="E-mail organisator"}, timezone:timezone, from:datetime label="From"@{nl="Van"}, until:datetime label="Until"@{nl="Tot"}, capacity:int min=1 label="Capacity"@{nl="Capaciteit"}, venue:Booking? label="Venue reservation"@{nl="Locatiereservering"}, open:bool=false label="Open"@{nl="Open"}, cancelled:bool=false label=label_Opportunity_cancelled } label="Volunteer activity"@{nl="Vrijwilligersactiviteit"}
-  Signup in Opportunity { account:user server=actor label="User account"@{nl="Gebruikersaccount"}, email:email, needs_confirmation:bool=false label="Reconfirmation required"@{nl="Herbevestiging vereist"}, state:enum(registered,confirmed,withdrawn,cancelled,attended,no_show)=registered label={text="State"@{nl="Status"},values={cancelled=label_Opportunity_cancelled,registered="Registered"@{nl="Ingeschreven"},confirmed="Confirmed"@{nl="Bevestigd"},withdrawn="Withdrawn"@{nl="Ingetrokken"},attended=label_Signup_state_attended,no_show="No-show"@{nl="Niet verschenen"}}} } label="Volunteer signup"@{nl="Vrijwilligersinschrijving"}
+  Signup in Opportunity { account:user server=actor label="User account"@{nl="Gebruikersaccount"}, email:email, notification:delivery(Mail.send)? label="Latest notice delivery"@{nl="Laatste berichtbezorging"}, needs_confirmation:bool=false label="Reconfirmation required"@{nl="Herbevestiging vereist"}, state:enum(registered,confirmed,withdrawn,cancelled,attended,no_show)=registered label={text="State"@{nl="Status"},values={cancelled=label_Opportunity_cancelled,registered="Registered"@{nl="Ingeschreven"},confirmed="Confirmed"@{nl="Bevestigd"},withdrawn="Withdrawn"@{nl="Ingetrokken"},attended=label_Signup_state_attended,no_show="No-show"@{nl="Niet verschenen"}}} } label="Volunteer signup"@{nl="Vrijwilligersinschrijving"}
   export Task in Signup { title:text, done:bool=false, completed_by:user? label="Completed by"@{nl="Afgerond door"}, completed_at:datetime? label="Completed at"@{nl="Afgerond op"} } label="Volunteer task"@{nl="Vrijwilligerstaak"}
   event Reminder { signup:Signup, revision:int, opportunity_revision:int }
   derive venue_covers(venue:Booking,location:Location,from:datetime,until:datetime):bool = venue.status in [confirmed,occupied] and venue.payment in [paid,free,on_account] and venue.allowance in [not_required,consumed] and venue.parent.location==location and ((count(venue.intervals)==0 and venue.from<=from and until<=venue.until) or any(venue.intervals as interval,interval.from<=from and until<=interval.until))
   derive Opportunity.venue_confirmed:bool = row.venue!=null and venue_covers(row.venue,row.location,row.from,row.until) label="Venue confirmed"@{nl="Locatie bevestigd"}
   derive Opportunity.remaining:int = row.capacity-count(row.Signup as signup where signup.state in [registered,confirmed]) label="Remaining places"@{nl="Resterende plaatsen"}
   policy Community read=organizer
-  policy Opportunity read=public where=row.open and not row.cancelled fields=location,title,description,requirements,contact,timezone,from,until,capacity
+  policy Opportunity read=public where=row.open and not row.cancelled and row.from>now and (row.venue==null or row.venue_confirmed) fields=location,title,description,requirements,contact,timezone,from,until,capacity
   policy Opportunity read=organizer and can_work(actor,row.location)
-  policy Signup read=organizer and can_work(actor,row.parent.location)
-  policy Signup read=authenticated where=row.account==actor
+  policy Signup read=organizer and can_work(actor,row.parent.location) fields=account,email,needs_confirmation,state,notification.id,notification.status
+  policy Signup read=authenticated where=row.account==actor fields=account,email,needs_confirmation,state,notification.id,notification.status
   policy Task read=organizer and can_work(actor,row.parent.parent.location)
   policy Task read=authenticated where=row.parent.account==actor
   invariant Opportunity: row.from<row.until and count(row.Signup as signup where signup.state in [registered,confirmed])<=row.capacity
@@ -39,6 +39,8 @@ package volunteer label="Volunteering"@{nl="Vrijwilligerswerk"}
   crud Community by=organizer fields=name
   crud Opportunity by=organizer fields=title,description,requirements,contact create_fields=location,title,description,requirements,contact,timezone,from,until,capacity,venue when=can_work(actor,row.location) and not row.open delete=none
   crud Task by=organizer fields=title when=can_work(actor,row.parent.parent.location) and row.parent.state in [registered,confirmed] delete=none
+  scenario venue_on_create on=Opportunity.create
+   do require event.after.venue==null or can_read_booking_details(event.after.venue)
   scenario opportunity_changed on=Opportunity.update
    do
     for signup in event.after.Signup as row where row.state==confirmed limit=500
@@ -81,17 +83,22 @@ package volunteer label="Volunteering"@{nl="Vrijwilligerswerk"}
   export scenario complete(task:Task) by=authenticated
    require task.parent.account==actor and task.parent.state==confirmed and not task.parent.parent.cancelled and (task.parent.parent.venue==null or task.parent.parent.venue_confirmed) and not task.done
    do set task {done=true,completed_by=actor,completed_at=now}
-  # Record attendance manually after the activity begins. @{nl="Leg aanwezigheid handmatig vast nadat de activiteit begint."}
+  # Record attendance manually after the activity ends. @{nl="Leg aanwezigheid handmatig vast nadat de activiteit eindigt."}
   scenario attendance(signup:Signup,attend:bool label=label_Signup_state_attended) by=organizer label="Record attendance"@{nl="Aanwezigheid vastleggen"}
-   require can_work(actor,signup.parent.location) and signup.state==confirmed and not signup.parent.cancelled and now>=signup.parent.from
+   require can_work(actor,signup.parent.location) and signup.state==confirmed and not signup.parent.cancelled and now>=signup.parent.until
    do
     if attend
      set signup {state=attended}
     else
      set signup {state=no_show}
+   examples seed=[test_worker] signup=place attend=true
+    as,signup.parent.from,signup.parent.until -> signup.state
+    organizer,now-2h,now -> attended
+    organizer,now-1h,now+1h -> error(rule_failed)
+    members,now-2h,now -> error(forbidden)
   # Publish an aggregate place count without granting participant records. @{nl="Toon een geaggregeerd aantal plaatsen zonder toegang tot deelnemersgegevens."}
   scenario availability(opportunity:Opportunity) read=true scope=authority -> Availability by=public
-   require opportunity.open and not opportunity.cancelled
+   require opportunity.open and not opportunity.cancelled and opportunity.from>now and (opportunity.venue==null or opportunity.venue_confirmed)
    do return Availability {remaining=opportunity.capacity-count(opportunity.Signup as signup where signup.state in [registered,confirmed])}
   # Reuse your withdrawn signup without consuming a second place or losing its history. @{nl="Hergebruik je ingetrokken inschrijving zonder een tweede plaats te bezetten of geschiedenis te verliezen."}
   scenario reactivate(signup:Signup) by=authenticated label="Register again"@{nl="Opnieuw inschrijven"}
@@ -115,18 +122,26 @@ package volunteer label="Volunteering"@{nl="Vrijwilligerswerk"}
     members,self,registered,false -> error(rule_failed)
   # Link an already entitled canonical rental; this operation never reserves its venue. @{nl="Koppel een canonieke huurreservering met geldig recht; deze operatie reserveert zelf geen locatie."}
   scenario link_venue(opportunity:Opportunity,venue:Booking) by=organizer label="Link venue reservation"@{nl="Locatiereservering koppelen"}
-   require can_work(actor,opportunity.location) and not opportunity.cancelled and opportunity.from>now and venue_covers(venue,opportunity.location,opportunity.from,opportunity.until)
+   require can_work(actor,opportunity.location) and not opportunity.cancelled and opportunity.from>now and can_read_booking_details(venue) and venue_covers(venue,opportunity.location,opportunity.from,opportunity.until)
+   require opportunity.venue==venue or (not opportunity.open and not any(opportunity.Signup as signup,signup.state in [registered,confirmed]))
    do
     set opportunity {venue}
     for signup in opportunity.Signup as row where row.state==confirmed limit=500
      cancel signup.id
      if opportunity.from>now+1d
       schedule signup.id at=opportunity.from-1d event=Reminder {signup,revision=signup.version,opportunity_revision=opportunity.version+1}
+   examples seed=[test_worker] opportunity=mentoring venue=test_hold
+    as,opportunity.open,venue.account,venue.status,venue.payment,venue.allowance,venue.from,venue.until,venue.reserved_from,venue.reserved_until -> opportunity.venue
+    organizer,false,self,confirmed,paid,not_required,mentoring.from,mentoring.until,mentoring.from,mentoring.until -> test_hold
+    organizer,false,other,confirmed,paid,not_required,mentoring.from,mentoring.until,mentoring.from,mentoring.until -> error(rule_failed)
+   examples seed=[test_worker,place] opportunity=mentoring venue=test_hold
+    as,opportunity.venue,place.state,place.needs_confirmation,venue.account,venue.status,venue.payment,venue.allowance,venue.from,venue.until,venue.reserved_from,venue.reserved_until -> place.needs_confirmation,place.state
+    organizer,test_hold,registered,true,self,confirmed,paid,not_required,mentoring.from,mentoring.until,mentoring.from,mentoring.until -> true,registered
   # Move only after conflict and venue checks; retain reserved places pending volunteer consent. @{nl="Verplaats alleen na conflict- en locatiecontrole; behoud gereserveerde plaatsen in afwachting van instemming."}
   scenario reschedule(opportunity:Opportunity,from:datetime,until:datetime,timezone:timezone,venue:Booking?,reason:text) by=organizer label="Reschedule activity"@{nl="Activiteit verplaatsen"}
    require can_work(actor,opportunity.location) and not opportunity.cancelled and now<from and from<until and trim(reason)!=""
-   require opportunity.from!=from or opportunity.until!=until or opportunity.timezone!=timezone
-   require (opportunity.venue==null or venue!=null) and (venue==null or venue_covers(venue,opportunity.location,from,until))
+   require opportunity.from!=from or opportunity.until!=until or opportunity.timezone!=timezone or opportunity.venue!=venue
+   require (opportunity.venue==null or venue!=null) and (venue==null or (can_read_booking_details(venue) and venue_covers(venue,opportunity.location,from,until)))
    require all(opportunity.Signup as signup,not (signup.state in [registered,confirmed]) or not any(Signup as other,other.parent!=opportunity and other.parent.parent==opportunity.parent and other.account==signup.account and other.state in [registered,confirmed] and overlaps(other.parent.from,other.parent.until,from,until)))
    do
     set opportunity {from,until,timezone,venue}
@@ -138,9 +153,10 @@ package volunteer label="Volunteering"@{nl="Vrijwilligerswerk"}
      let opportunity_revision=opportunity.version+1
      if was_confirmed
       send Mail.send {to=signup.email,subject=format("Volunteer activity rescheduled"@{nl="Vrijwilligersactiviteit verplaatst"},locale=null),body=reason} when=signup.version==signup_revision and signup.parent.version==opportunity_revision and signup.needs_confirmation and not signup.parent.cancelled as notice
+      set signup {notification=notice}
    examples seed=[test_worker,place] opportunity=mentoring from=datetime("2099-01-03T09:00:00Z") until=datetime("2099-01-03T10:00:00Z") timezone="Europe/Brussels" venue=null reason="New activity date"
-    as,opportunity.cancelled -> opportunity.from,place.state,place.needs_confirmation
-    organizer,false -> datetime("2099-01-03T09:00:00Z"),registered,true
+    as,opportunity.cancelled -> opportunity.from,place.state,place.needs_confirmation,place.notification?.status
+    organizer,false -> datetime("2099-01-03T09:00:00Z"),registered,true,pending
     organizer,true -> error(rule_failed)
     members,false -> error(forbidden)
   # A verified owner change invalidates venue-dependent confirmation and reminders. @{nl="Een geverifieerde wijziging bij de eigenaar maakt locatieafhankelijke bevestiging en herinneringen ongeldig."}
@@ -157,6 +173,7 @@ package volunteer label="Volunteering"@{nl="Vrijwilligerswerk"}
       let opportunity_revision=opportunity.version+1
       if was_confirmed
        send Mail.send {to=signup.email,subject=format("Volunteer venue unavailable"@{nl="Vrijwilligerslocatie niet beschikbaar"},locale=null),body=opportunity.title} when=signup.version==signup_revision and signup.parent.version==opportunity_revision and not signup.parent.open and not signup.parent.cancelled as notice
+       set signup {notification=notice}
   # Cancel opportunities while preserving signup and task evidence. @{nl="Annuleer activiteiten en behoud inschrijvings- en taakbewijs."}
   scenario cancel(opportunity:Opportunity,reason:text) by=organizer
    require can_work(actor,opportunity.location) and not opportunity.cancelled and trim(reason)!=""
@@ -166,11 +183,20 @@ package volunteer label="Volunteering"@{nl="Vrijwilligerswerk"}
      set signup {state=cancelled}
      cancel signup.id
      let signup_revision=signup.version+1
-     let opportunity_revision=opportunity.version+1
-     send Mail.send {to=signup.email,subject=format("Volunteer activity cancelled"@{nl="Vrijwilligersactiviteit geannuleerd"},locale=null),body=reason} when=signup.version==signup_revision and signup.parent.version==opportunity_revision and signup.state==cancelled and signup.parent.cancelled as notice
+     send Mail.send {to=signup.email,subject=format("Volunteer activity cancelled"@{nl="Vrijwilligersactiviteit geannuleerd"},locale=null),body=reason} when=signup.version==signup_revision and signup.state==cancelled and signup.parent.cancelled as notice
+     set signup {notification=notice}
   scenario remind on=Reminder
    require event.signup.state==confirmed and event.signup.version==event.revision and event.signup.parent.version==event.opportunity_revision and not event.signup.parent.cancelled and (event.signup.parent.venue==null or event.signup.parent.venue_confirmed)
-   do send Mail.send {to=event.signup.email,subject=format("Volunteer reminder"@{nl="Herinnering vrijwilligersactiviteit"},locale=null),body=event.signup.parent.description} when=event.signup.state==confirmed and event.signup.version==event.revision and event.signup.parent.version==event.opportunity_revision and not event.signup.parent.cancelled and (event.signup.parent.venue==null or event.signup.parent.venue_confirmed) as notice
+   do
+    ## Associating this attempt advances the signup once; dispatch checks that committed version.
+    let signup_revision=event.signup.version+1
+    send Mail.send {to=event.signup.email,subject=format("Volunteer reminder"@{nl="Herinnering vrijwilligersactiviteit"},locale=null),body=event.signup.parent.description} when=event.signup.state==confirmed and event.signup.version==signup_revision and event.signup.parent.version==event.opportunity_revision and not event.signup.parent.cancelled and (event.signup.parent.venue==null or event.signup.parent.venue_confirmed) as notice
+    set event.signup {notification=notice}
+   examples event={signup=place,revision=place.version,opportunity_revision=mentoring.version}
+    event.signup.state,event.revision -> place.notification?.status,place.state
+    confirmed,1 -> pending,confirmed
+    withdrawn,1 -> error(rule_failed)
+    confirmed,2 -> error(rule_failed)
   # Return only current eligible work under the canonical completion authority. @{nl="Geef alleen actueel uitvoerbaar werk terug binnen de canonieke afrondingsbevoegdheid."}
   export scenario work(locations:text[]) read=true scope=authority -> WorkBatch by=authenticated
    do return WorkBatch {items=Task as item where (item.parent.account==actor and item.parent.state==confirmed and not item.parent.parent.cancelled and (item.parent.parent.venue==null or item.parent.parent.venue_confirmed) and not item.done) and (count(locations)==0 or item.parent.parent.location.id in locations) select WorkItem {reference=item.id,revision=item.version,location=item.parent.parent.location.id,title=item.title,detail=item.parent.parent.title,due=item.parent.parent.from,action=action(complete,{task=item})}}
@@ -185,15 +211,15 @@ package volunteer label="Volunteering"@{nl="Vrijwilligerswerk"}
     tab discovery
      card "Published volunteer activities"@{nl="Gepubliceerde vrijwilligersactiviteiten"}
       list Opportunity filter=location defaults={location=preferences.location} order=from
-       text row.description,row.requirements,row.from,row.until,row.capacity
+       text row.description,row.requirements,row.timezone,row.from,row.until,row.capacity
        form availability
         metrics result.remaining
        action signup
     tab assignments
      require authenticated
      card "Your signups and assigned tasks"@{nl="Jouw inschrijvingen en toegewezen taken"}
-      list Signup display=split
-       text row.state,row.needs_confirmation
+      list Signup as signup where signup.account==actor display=split
+       text row.state,row.needs_confirmation,row.notification?.status
        actions withdraw,reactivate,reconfirm
        list row.Task
         text row.title,row.done,row.completed_by,row.completed_at
@@ -213,7 +239,7 @@ package volunteer label="Volunteering"@{nl="Vrijwilligerswerk"}
      actions publish,cancel
      card "Participants and attendance"@{nl="Deelnemers en aanwezigheid"}
       list row.Signup
-       text row.email,row.state,row.needs_confirmation
+       text row.email,row.state,row.needs_confirmation,row.notification?.status
        actions confirm,attendance
        card "Task assignments"@{nl="Taaktoewijzingen"}
         form Task.create
