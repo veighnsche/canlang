@@ -19,6 +19,7 @@ import {
   count,
   create,
   dates,
+  date,
   datetime,
   divideDecimal,
   durationBetween,
@@ -778,6 +779,9 @@ const publicResourceFields = [
 export const reservation_manager = "rent_reservations.reservation_manager";
 export const reception = "rent_reservations.reception";
 export const Resource = "rent_reservations.Resource";
+export const LegacyBooking = "rent_reservations.LegacyBooking";
+export const retain_legacy = "rent_reservations.retain_legacy";
+export const link_legacy = "rent_reservations.link_legacy";
 export const Booking = "rent_reservations.Booking";
 export const Notice = "rent_reservations.Notice";
 export const Movement = "rent_reservations.Movement";
@@ -801,6 +805,12 @@ export const extend = "rent_reservations.extend";
 export const resend_notice = "rent_reservations.resend_notice";
 export const reconcile_allowance = "rent_reservations.reconcile_allowance";
 export const reconcile_booking = "rent_reservations.reconcile_booking";
+
+const bookingHistoryPageDescriptor = {
+  owner:"rent_reservations",path:"/workspace/history",title:message("Historical booking evidence", {nl:"Historisch reserveringsbewijs"}),
+  description:message("Read retained booking evidence under current staff or explicitly mapped account access.", {nl:"Lees bewaard reserveringsbewijs met huidige medewerkersrechten of toegang voor een uitdrukkelijk gekoppeld account."}),
+  admit:async(c,routeBindings={})=>{check(hasRole(c,"authenticated"),"forbidden");return {};},render:bookingHistoryPage,
+};
 
 const workspaceCatalogPageDescriptor = {
   owner: "rent_catalog_ui",
@@ -1019,6 +1029,12 @@ export const appDefinition = {
     },
   },
   models: {
+    "rent_reservations.LegacyBooking": {label:message("Historical booking", {nl:"Historische reservering"}),
+      exported:true,unique:[{fields:["source","external_id"]}],locks:["LegacyBooking.lock.1"],invariants:["LegacyBooking.invariant.1"],
+      readGrants:[{rule:"LegacyBooking.read.1"},{rule:"LegacyBooking.read.2",fields:["source","external_id","location","facts","customer","resource"]}],
+      fields:{source:{type:"text",trim:true,min:1n,label:message("Source system", {nl:"Bronsysteem"})},external_id:{type:"text",min:1n,label:message("Original record key", {nl:"Oorspronkelijke recordsleutel"})},location:{type:Location,label:message("Current location scope", {nl:"Huidig locatiebereik"})},facts:{type:"rent_reservations.LegacyBookingFacts",label:message("Original booking facts", {nl:"Oorspronkelijke reserveringsgegevens"})},
+        source_evidence:{type:"file",label:message("Original source artifact", {nl:"Oorspronkelijk bronbestand"})},attestation:{type:"text",trim:true,min:1n,label:message("Intake attestation", {nl:"Verklaring bij invoer"})},customer:{type:Customer,nullable:true,label:message("Current customer", {nl:"Huidige klant"})},resource:{type:Resource,nullable:true,label:message("Current resource", {nl:"Huidige voorziening"})},account:{type:"user",nullable:true,label:message("Current account", {nl:"Huidig account"})},mapping_reason:{type:"text",nullable:true,label:message("Review reason", {nl:"Reden voor beoordeling"})},imported_by:{type:"user",server:"actor",label:message("Imported by", {nl:"Ingevoerd door"})},imported_at:{type:"datetime",server:"now",label:message("Imported at", {nl:"Ingevoerd op"})}},
+    },
     "rent_reservations.CommercialSale": {
       parent: "rent_reservations.Booking",
       unique: [{ fields: ["parent"] }],
@@ -1837,6 +1853,7 @@ export const appDefinition = {
     },
   },
   contracts: {
+    "rent_reservations.LegacyBookingFacts": {label:message("Original booking facts", {nl:"Oorspronkelijke reserveringsgegevens"}),"fields": {"customer_source": {"type": "text", "nullable": true,label:message("Original customer system", {nl:"Oorspronkelijk klantsysteem"})}, "customer_external_id": {"type": "text", "nullable": true,label:message("Original customer key", {nl:"Oorspronkelijke klantsleutel"})}, "resource_source": {"type": "text", "nullable": true,label:message("Original resource system", {nl:"Oorspronkelijk voorzieningensysteem"})}, "resource_external_id": {"type": "text", "nullable": true,label:message("Original resource key", {nl:"Oorspronkelijke voorzieningssleutel"})}, "actor": {"type": "text", "nullable": true,label:message("Original booker", {nl:"Oorspronkelijke boeker"})}, "from_original": {"type": "text", "nullable": true,label:message("Original start timestamp", {nl:"Oorspronkelijke begintijd"})}, "until_original": {"type": "text", "nullable": true,label:message("Original end timestamp", {nl:"Oorspronkelijke eindtijd"})}, "from": {"type": "datetime", "nullable": true,label:message("Parsed start instant", {nl:"Geparst begintijdstip"})}, "until": {"type": "datetime", "nullable": true,label:message("Parsed end instant", {nl:"Geparst eindtijdstip"})}, "status": {"type": "text", "nullable": true,label:message("Original status", {nl:"Oorspronkelijke status"})}, "payment": {"type": "text", "nullable": true,label:message("Original payment status", {nl:"Oorspronkelijke betaalstatus"})}, "quantity": {"type": "int", "nullable": true,label:message("Original quantity", {nl:"Oorspronkelijk aantal"})}, "amount": {"type": "money", "nullable": true,label:message("Original amount", {nl:"Oorspronkelijk bedrag"})}}},
     "rent_reservations.AffectedBooking": {
       exported: true,
       fields: {
@@ -2382,6 +2399,9 @@ export const appDefinition = {
     rent_reporting: { fields: { location: { type: Location, nullable: true, default: null } } },
   },
   operations: {
+    "rent_reservations.retain_legacy": {handler:"retain_legacy",exported:true,read:false,by:"rent_reservations.reservation_manager",result:LegacyBooking,label:message("Retain historical booking", {nl:"Historische reservering bewaren"}),description:message("Retain historical booking assertions without capacity, billing or allowance effects.", {nl:"Bewaar historische reserveringsclaims zonder capaciteit, facturatie of tegoeden te wijzigen."}),inputs:{source:{type:"text",label:message("Source system", {nl:"Bronsysteem"})},external_id:{type:"text",label:message("Original record key", {nl:"Oorspronkelijke recordsleutel"})},location:{type:Location,label:message("Current location scope", {nl:"Huidig locatiebereik"})},facts:{type:"rent_reservations.LegacyBookingFacts",label:message("Original booking facts", {nl:"Oorspronkelijke reserveringsgegevens"})},source_evidence:{type:"file",label:message("Original source artifact", {nl:"Oorspronkelijk bronbestand"})},attestation:{type:"text",label:message("Intake attestation", {nl:"Verklaring bij invoer"})}}},
+    "rent_reservations.legacy_matches": {handler:"legacy_matches",read:true,by:"authenticated",result:"rent_reservations.LegacyBooking[]",label:message("Find historical booking", {nl:"Historische reservering zoeken"}),description:message("Find readable source identities; the preview cannot reserve an import key.", {nl:"Zoek leesbare bronidentiteiten; het voorbeeld reserveert geen invoersleutel."}),inputs:{source:{type:"text",label:message("Source system", {nl:"Bronsysteem"})},external_id:{type:"text",label:message("Original record key", {nl:"Oorspronkelijke recordsleutel"})},location:{type:Location,label:message("Current location scope", {nl:"Huidig locatiebereik"})}}},
+    "rent_reservations.link_legacy": {handler:"link_legacy",exported:true,read:false,by:["rent_reservations.reservation_manager","invoice.finance"],label:message("Map historical booking", {nl:"Historische reservering koppelen"}),description:message("Review current references and access independently of original source facts.", {nl:"Beoordeel huidige verwijzingen en toegang los van de oorspronkelijke brongegevens."}),inputs:{entry:{type:LegacyBooking},customer:{type:Customer,nullable:true,label:message("Current customer", {nl:"Huidige klant"})},resource:{type:Resource,nullable:true,label:message("Current resource", {nl:"Huidige voorziening"})},account:{type:"user",nullable:true,label:message("Current account", {nl:"Huidig account"})},reason:{type:"text",label:message("Review reason", {nl:"Reden voor beoordeling"})}}},
     "rent_reservations.resource_report": {
       description: message(
         "Export saved calendar and resource evidence; dates before the first capture remain partial.",
@@ -3260,6 +3280,7 @@ export const appDefinition = {
   },
   pages: [
     workspaceCatalogPageDescriptor,
+    bookingHistoryPageDescriptor,
     financeReviewPageDescriptor,
     resourceCatalogPageDescriptor,
     workspacePageDescriptor,
@@ -3288,6 +3309,24 @@ export function canApp() {
     Desk: async (c, row) => await can_work(c, c.actor, row.parent.location),
   };
   return {
+    async retain_legacy(c,{source,external_id,location,facts,source_evidence,attestation}) {
+      check(hasRole(c,reservation_manager),"forbidden");
+      check(await can_work(c,c.actor,location) && source.trim()!=="" && external_id.trim()!=="" && attestation.trim()!=="");
+      check(!await any(records(c,LegacyBooking,{archived:"include"}),entry=>entry.source===source.trim() && entry.external_id===external_id));
+      return create(c,LegacyBooking,{source:source.trim(),external_id,location,facts,source_evidence,attestation:attestation.trim()});
+    },
+    async legacy_matches(c,{source,external_id,location}) {
+      check(hasRole(c,"authenticated"),"forbidden");
+      return collect(records(c,LegacyBooking,{archived:"include",where:entry=>entry.source===source.trim() && entry.external_id===external_id && same(entry.location,location)}));
+    },
+    async link_legacy(c,{entry,customer,resource,account,reason}) {
+      check(hasRole(c,reservation_manager)||hasRole(c,"invoice.finance"),"forbidden");
+      check(await can_work(c,c.actor,entry.location) && reason.trim()!=="");
+      check(customer===null || hasRole(c,"invoice.finance") && (entry.facts.customer_source??"").trim()!=="" && (entry.facts.customer_external_id??"").trim()!=="" && customer.locations.some(location=>same(location,entry.location)));
+      check(resource===null || hasRole(c,reservation_manager) && (entry.facts.resource_source??"").trim()!=="" && (entry.facts.resource_external_id??"").trim()!=="" && same(resource.location,entry.location));
+      check(account===null || customer!==null && (await owns(c,account,customer) || await has_location_role(c,account,customer,"booker",entry.location)));
+      await set(c,entry,{customer,resource,account,mapping_reason:reason.trim()});
+    },
     commercial,
     quote_covers,
     quote_available,
@@ -3307,6 +3346,8 @@ export function canApp() {
     saved_saleable,
     saved_rows,
     read: {
+      "LegacyBooking.read.1":async(c,row)=>(hasRole(c,reservation_manager)||hasRole(c,"invoice.finance")) && await can_work(c,c.actor,row.location),
+      "LegacyBooking.read.2":async(c,row)=>hasRole(c,"authenticated") && same(row.account,c.actor) && row.customer!==null && (await owns(c,c.actor,row.customer) || await has_location_role(c,c.actor,row.customer,"booker",row.location)),
       "ResourcePolicy.read.1": async (c, row) =>
         hasRole(c, "rent_reservations.reservation_manager") &&
         (await can_work(c, c.actor, row.parent.location)),
@@ -3387,6 +3428,7 @@ export function canApp() {
         (await can_work(c, c.actor, row.parent.location)),
     },
     invariants: {
+      "LegacyBooking.invariant.1":(c,row)=>(row.facts.customer_source===null)===(row.facts.customer_external_id===null) && (row.facts.resource_source===null)===(row.facts.resource_external_id===null),
       "DayCalendar.require.1": (c, row) =>
         compareInstant(
           local_instant(row.day, row.opens, row.parent.timezone, { fold: row.fold }),
@@ -3448,6 +3490,7 @@ export function canApp() {
         ),
     },
     locks: {
+      "LegacyBooking.lock.1":{fields:["source","external_id","location","facts","source_evidence","attestation","imported_by","imported_at"]},
       "ResourcePolicy.lock.1": { fields: ["effective", "sequence", "value"] },
       "Booking.lock.2": { fields: ["monetary_due"], when: (c, row) => row.monetary_due !== null },
       "Booking.lock.1": {
@@ -8199,6 +8242,17 @@ export async function occupancyPage(c, bindings) {
   );
 }
 
+export async function bookingHistoryPage(c,bindings) {
+  return renderPage(c,bookingHistoryPageDescriptor,()=>[
+    hasRole(c,reservation_manager) ? card({context:c,title:message("Retain source bookings", {nl:"Bronreserveringen bewaren"}),children:[form({context:c,operation:"rent_reservations.retain_legacy",import:"csv",review:"rent_reservations.legacy_matches"})]}) : null,
+    form({context:c,operation:"rent_reservations.legacy_matches",renderResult:(result,view)=>[list({context:view,rows:result,columns:["source","external_id","location"]})]}),
+    table({context:c,model:LegacyBooking,archived:"include",columns:["source","external_id","location"],display:"split",renderRow:(entry,view)=>[
+      text({context:view,values:[entry.facts.customer_source,entry.facts.customer_external_id,entry.facts.resource_source,entry.facts.resource_external_id,entry.facts.actor,entry.facts.from_original,entry.facts.until_original,entry.facts.from,entry.facts.until,entry.facts.status,entry.facts.payment,entry.facts.quantity,entry.facts.amount,entry.customer,entry.resource]}),
+      (hasRole(view,reservation_manager)||hasRole(view,"invoice.finance")) ? card({context:view,title:message("Current mapping and source evidence", {nl:"Huidige koppeling en bronbewijs"}),children:[action({context:view,operation:"rent_reservations.link_legacy",boundArgs:{entry}}),text({context:view,values:[entry.account,entry.mapping_reason,entry.source_evidence,entry.attestation,entry.imported_by,entry.imported_at]}),history({context:view,record:entry})]}) : null,
+    ]}),
+  ]);
+}
+
 /* Test-only fixture recipes and inline behavior examples. The future compiler
  * extracts these declarations and erases fixture-only imports from production.
  * Recipes retain identity; dependencies resolve before deferred value callbacks.
@@ -8215,6 +8269,7 @@ export const exampleImports = [
   { provider: "employee", member: "test_worker", alias: "test_worker" },
   { provider: "customer", member: "test_company", alias: "test_company" },
   { provider: "customer", member: "test_admin", alias: "test_admin" },
+  { provider:"customer",member:"test_booker",alias:"test_booker" },
 ];
 
 export function exampleFixtures({ self, other, imported }) {
@@ -8226,6 +8281,7 @@ export function exampleFixtures({ self, other, imported }) {
     test_worker,
     test_company,
     test_admin,
+    test_booker,
   } = imported;
   const test_room = {
     model: "rent_reservations.Resource",
@@ -8304,13 +8360,37 @@ export function exampleFixtures({ self, other, imported }) {
     dependencies: [test_hold],
     value: async (c, s) => ({ parent: s.test_hold }),
   };
+  const history_user={dependencies:[],user:async(c,s)=>({roles:[reservation_manager,"invoice.finance"]})};
+  const history_worker={model:"employee.Employee",dependencies:[history_user,test_site],value:async(c,s)=>({user:s.history_user,home:s.test_site,locations:[s.test_site],start:date("2026-10-01"),role:"Historical evidence steward"})};
+  const legacy_source={dependencies:[history_user],file:async(c,s)=>({owner:s.history_user})};
+  const legacy_booking={model:LegacyBooking,dependencies:[test_site,legacy_source],value:async(c,s)=>({source:"vendor-w",external_id:"B-17",location:s.test_site,facts:{customer_source:"vendor-w",customer_external_id:"C-9",resource_source:"vendor-w",resource_external_id:"R-2",actor:"Former booker",from_original:"2021-05-12 09:00",until_original:"2021-05-12 10:00",status:"Completed",payment:"Paid",amount:money(1000n,"EUR")},source_evidence:s.legacy_source,attestation:"Original export retained; local-time offset unknown"})};
   return {
+    history_user,history_worker,legacy_source,legacy_booking,
     test_sale,
     test_hold,
     test_room,
     test_window,
     recorded_resource,
     examples: [
+      {operation:"rent_reservations.retain_legacy",seed:[history_worker,legacy_booking],dependencies:[history_worker,legacy_booking,test_site,legacy_source],inputs:async(c,s)=>({source:"vendor-w",external_id:" B-18 ",location:s.test_site,facts:{customer_source:"vendor-w",customer_external_id:"C-9",from_original:"2021-05-12 09:00",status:"Unknown",amount:null},source_evidence:s.legacy_source,attestation:"Checked source export"}),selectors:["as","external_id","history_worker.active"],observations:[async(c,s)=>s.result.external_id,async(c,s)=>s.result.facts.from,async(c,s)=>s.result.facts.amount,async(c,s)=>s.result.account,async(c,s)=>s.result.imported_by,async(c,s)=>await count(records(c,Booking))],rows:[
+        {dependencies:[],values:async(c,s)=>[s.history_user," B-18 ",true],expected:async(c,s)=>[" B-18 ",null,null,null,s.history_user,0n]},
+        {dependencies:[],values:async(c,s)=>[s.history_user,"B-17",true],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>[s.history_user,"B-18",false],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>["members","B-18",true],error:"forbidden"},
+      ]},
+      {operation:"rent_reservations.legacy_matches",seed:[history_worker,legacy_booking],dependencies:[history_worker,legacy_booking,test_site],inputs:async(c,s)=>({source:"vendor-w",external_id:"B-17",location:s.test_site}),selectors:["as"],observations:[async(c,s)=>await count(s.result)],rows:[
+        {dependencies:[],values:async(c,s)=>[s.history_user],expected:async(c,s)=>[1n]},
+        {dependencies:[],values:async(c,s)=>["members"],expected:async(c,s)=>[0n]},
+        {dependencies:[],values:async(c,s)=>["public"],error:"forbidden"},
+      ]},
+      {operation:"rent_reservations.link_legacy",seed:[history_worker,test_booker],dependencies:[history_worker,test_booker,legacy_booking,test_company,test_room],inputs:async(c,s)=>({entry:s.legacy_booking,customer:s.test_company,resource:s.test_room,account:s.other,reason:"Reviewed original customer/resource keys against existing records"}),selectors:["as","customer","resource","account","reason","request.entry.version"],observations:[async(c,s)=>s.legacy_booking.customer,async(c,s)=>s.legacy_booking.resource,async(c,s)=>s.legacy_booking.account,async(c,s)=>s.legacy_booking.facts.customer_external_id,async(c,s)=>s.legacy_booking.mapping_reason],rows:[
+        {dependencies:[],values:async(c,s)=>[s.history_user,s.test_company,s.test_room,s.other,"Verified source keys",1n],expected:async(c,s)=>[s.test_company,s.test_room,s.other,"C-9","Verified source keys"]},
+        {dependencies:[],values:async(c,s)=>[s.history_user,null,null,null,"Revoke mistaken mapping",1n],expected:async(c,s)=>[null,null,null,"C-9","Revoke mistaken mapping"]},
+        {dependencies:[],values:async(c,s)=>[s.history_user,s.test_company,s.test_room,s.self,"Unverified account",1n],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>[s.history_user,s.test_company,s.test_room,s.other," ",1n],error:"rule_failed"},
+        {dependencies:[],values:async(c,s)=>[s.history_user,s.test_company,s.test_room,s.other,"Verified source keys",2n],error:"conflict"},
+        {dependencies:[],values:async(c,s)=>["members",s.test_company,s.test_room,s.other,"Verified source keys",1n],error:"forbidden"},
+      ]},
       {
         operation: "rent_reservations.commercial_check",
         seed: [test_sale],

@@ -8,6 +8,7 @@ app Finance uses=[CanInvoice,CanExpense,CanPurchase,CanReport]
 package invoice label="Invoices"@{nl="Facturen"}
  use customer {Customer,BillingProfile,owns,has_role,test_company,test_contact,test_billing}
  use rent_catalog {Location,test_site}
+ use rent_reservations {LegacyBooking,retain_legacy as retain_booking,history_user,history_worker,legacy_source,legacy_booking}
  use employee {can_work,test_worker}
  use std {PaymentState,OperationOutcome}
  use std {EmailV1 as Mail} from=deployment.mail
@@ -71,6 +72,22 @@ package invoice label="Invoices"@{nl="Facturen"}
    invoice(source:text,snapshot:InvoiceDocument,revision:int) -> PdfResult
    receipt(source:text,snapshot:InvoiceDocument,revision:int) -> PdfResult
   export role finance label="Finance staff"@{nl="Financieel medewerker"}
+  contract LegacyInvoiceFacts { customer_source:text? label="Original customer system"@{nl="Oorspronkelijk klantsysteem"}, customer_external_id:text? label="Original customer key"@{nl="Oorspronkelijke klantsleutel"}, number:text? label=label_InvoiceDocument_number, issuer:text? label=label_InvoiceDocument_issuer, recipient:text? label=label_InvoiceDocument_recipient, issued_original:text? label="Original issue timestamp"@{nl="Oorspronkelijke uitgiftetijd"}, issued_at:datetime? label="Parsed issue instant"@{nl="Geparst uitgiftetijdstip"}, due_original:text? label="Original due date"@{nl="Oorspronkelijke vervaldatum"}, due:date? label="Parsed due date"@{nl="Geparste vervaldatum"}, status:text? label="Original status"@{nl="Oorspronkelijke status"}, payment:text? label="Original payment status"@{nl="Oorspronkelijke betaalstatus"}, amount:money? label="Original amount"@{nl="Oorspronkelijk bedrag"}, booking_count:int? min=0 label="Evidenced booking count"@{nl="Bewezen aantal reserveringen"} } label="Original invoice facts"@{nl="Oorspronkelijke factuurgegevens"}
+  ## Source invoices cannot establish live debt, paid settlement or complete commercial history.
+  LegacyInvoice { source:text trim min=1 label="Source system"@{nl="Bronsysteem"}, external_id:text min=1 label="Original record key"@{nl="Oorspronkelijke recordsleutel"}, location:Location label="Current location scope"@{nl="Huidig locatiebereik"}, facts:LegacyInvoiceFacts label="Original invoice facts"@{nl="Oorspronkelijke factuurgegevens"}, document:file? label="Original invoice document"@{nl="Oorspronkelijk factuurdocument"}, document_issue:text? label="Document availability issue"@{nl="Probleem met documentbeschikbaarheid"}, source_evidence:file label="Original source artifact"@{nl="Oorspronkelijk bronbestand"}, attestation:text trim min=1 label="Intake attestation"@{nl="Verklaring bij invoer"}, customer:Customer? label="Current customer"@{nl="Huidige klant"}, mapping_reason:text? label="Review reason"@{nl="Reden voor beoordeling"}, imported_by:user server=actor label="Imported by"@{nl="Ingevoerd door"}, imported_at:datetime server=now label="Imported at"@{nl="Ingevoerd op"} } label="Historical invoice"@{nl="Historische factuur"}
+  LegacyInvoiceBooking in LegacyInvoice { booking_source:text min=1 label="Booking source system"@{nl="Bronsysteem van reservering"}, booking_external_id:text min=1 label="Original booking key"@{nl="Oorspronkelijke reserveringssleutel"}, source_evidence:file label="Original source artifact"@{nl="Oorspronkelijk bronbestand"}, attestation:text trim min=1 label="Intake attestation"@{nl="Verklaring bij invoer"}, booking:LegacyBooking? label="Retained booking evidence"@{nl="Bewaard reserveringsbewijs"}, mapping_reason:text trim min=1 label="Review reason"@{nl="Reden voor beoordeling"}, imported_by:user server=actor label="Imported by"@{nl="Ingevoerd door"}, imported_at:datetime server=now label="Imported at"@{nl="Ingevoerd op"} } label="Historical invoice booking link"@{nl="Historische factuur-reserveringskoppeling"}
+  unique LegacyInvoice fields=source,external_id
+  unique LegacyInvoiceBooking fields=booking_source,booking_external_id
+  lock LegacyInvoice fields=source,external_id,location,facts,document,document_issue,source_evidence,attestation,imported_by,imported_at
+  lock LegacyInvoiceBooking fields=booking_source,booking_external_id,source_evidence,attestation,imported_by,imported_at
+  policy LegacyInvoice read=finance and can_work(actor,row.location)
+  policy LegacyInvoice read=authenticated where=row.customer!=null and (owns(actor,row.customer) or has_role(actor,row.customer,billing)) fields=source,external_id,location,facts,document,document_issue,customer
+  policy LegacyInvoiceBooking read=finance and can_work(actor,row.parent.location)
+  policy LegacyInvoiceBooking read=authenticated where=row.parent.customer!=null and (owns(actor,row.parent.customer) or has_role(actor,row.parent.customer,billing)) fields=parent,booking_source,booking_external_id,booking
+  invariant LegacyInvoice: (row.facts.customer_source==null)==(row.facts.customer_external_id==null) and ((row.document!=null and row.document_issue==null) or (row.document==null and trim(row.document_issue??"")!=""))
+  fixture legacy_document=file {owner=history_user}
+  fixture legacy_invoice=LegacyInvoice {source="vendor-w",external_id="I-8",location=test_site,facts={customer_source="vendor-w",customer_external_id="C-9",number="2021-8",issuer="Original operator",recipient="Original billed party",issued_original="2021-05-12T09:00:00Z",issued_at=datetime("2021-05-12T09:00:00Z"),status="Issued",payment="Paid",amount=money(1000,"EUR"),booking_count=1},document=legacy_document,source_evidence=legacy_source,attestation="Per-invoice document checked separately from source export"}
+  fixture legacy_edge=LegacyInvoiceBooking {parent=legacy_invoice,booking_source="vendor-w",booking_external_id="B-17",source_evidence=legacy_source,attestation="Original booking relationship retained",mapping_reason="Booking evidence not yet resolved"}
   Defaults { issuer:text label=label_InvoiceDocument_issuer, attempt_limit:int=3 min=1 max=10, retry_delay:duration=2d, retry_window:duration=14d } label="Invoice defaults"@{nl="Factuurstandaarden"}
   export capability BillingIngressV1 version=1
    event charge { value:Charge }
@@ -152,6 +169,99 @@ package invoice label="Invoices"@{nl="Facturen"}
   fixture customer_history=CommercialHistory {parent=test_company,complete=true,first_invoice=test_invoice,evidence="Reviewed complete ledger"}
   fixture commercial_sale=CommercialSale {parent=test_company,source="invoice-test",source_revision=1,value={source="invoice-test",revision=1,customer=test_company.id,account=self,location=test_site.id,product="meeting",amount=money(100,"EUR"),purchased_at=datetime("2026-10-01T00:00:00Z"),occurred=datetime("2026-10-02T00:00:00Z"),milestone=completed,attribution="share",exclusive_program="refer.Program:reviewed",attributed_at=datetime("2026-10-01T00:00:00Z"),attribution_window=30d}}
  When
+  # Retain historical invoice evidence without issuing, collecting or qualifying a sale. @{nl="Bewaar historisch factuurbewijs zonder een factuur uit te geven, betaling te innen of een verkoop te kwalificeren."}
+  scenario retain_legacy(source:text label="Source system"@{nl="Bronsysteem"},external_id:text label="Original record key"@{nl="Oorspronkelijke recordsleutel"},location:Location label="Current location scope"@{nl="Huidig locatiebereik"},facts:LegacyInvoiceFacts label="Original invoice facts"@{nl="Oorspronkelijke factuurgegevens"},document:file? label="Original invoice document"@{nl="Oorspronkelijk factuurdocument"},document_issue:text? label="Document availability issue"@{nl="Probleem met documentbeschikbaarheid"},source_evidence:file label="Original source artifact"@{nl="Oorspronkelijk bronbestand"},attestation:text label="Intake attestation"@{nl="Verklaring bij invoer"}) by=finance -> LegacyInvoice label="Retain historical invoice"@{nl="Historische factuur bewaren"}
+   require can_work(actor,location) and trim(source)!="" and trim(external_id)!="" and trim(attestation)!=""
+   require not any(LegacyInvoice archived=include as entry,entry.source==trim(source) and entry.external_id==external_id)
+   do
+    create LegacyInvoice {source=trim(source),external_id,location,facts,document,document_issue,source_evidence,attestation=trim(attestation)} as entry
+    return entry
+   examples seed=[history_worker,legacy_invoice] source="vendor-w" external_id=" I-9 " location=test_site facts={customer_source="vendor-w",customer_external_id="C-9",payment="Unknown",amount=null,booking_count=null} document=legacy_document document_issue=null source_evidence=legacy_source attestation="Source export and individual invoice reviewed"
+    as,external_id,document,document_issue -> result.external_id,result.facts.amount,result.facts.booking_count,result.customer,result.imported_by,count(Invoice),count(Attempt),count(CommercialHistory)
+    history_user," I-9 ",legacy_document,null -> " I-9 ",null,null,null,history_user,0,0,0
+    history_user,"I-9",null,"Original document unavailable" -> "I-9",null,null,null,history_user,0,0,0
+    history_user,"I-8",legacy_document,null -> error(rule_failed)
+    history_user,"I-9",null,null -> error(rule_failed)
+    members,"I-9",legacy_document,null -> error(forbidden)
+   ## Canonical intake and mapping calls record current stewardship, never past issuing/payment.
+   examples seed=[history_worker,legacy_source,legacy_document,test_billing]
+    do
+     call retain_booking {source="vendor-w",external_id="journey-booking",location=test_site,facts={customer_source="vendor-w",customer_external_id="C-9",from_original="2021-05-12 09:00",status="Completed",payment="Paid"},source_evidence=legacy_source,attestation="Original booking export checked"} by=history_user as old_booking
+     call retain_legacy {source="vendor-w",external_id="journey-invoice",location=test_site,facts={customer_source="vendor-w",customer_external_id="C-9",number="2021-9",payment="Paid",booking_count=1},document=legacy_document,document_issue=null,source_evidence=legacy_source,attestation="Per-invoice document and source export checked"} by=history_user as old_invoice
+     count(Invoice),count(Attempt),count(CommercialHistory),count(LegacyInvoice),old_booking.facts.from,old_invoice.facts.issued_at -> 0,0,0,1,null,null
+     call retain_legacy_booking {entry=old_invoice,booking_source="vendor-w",booking_external_id="journey-booking",source_evidence=legacy_source,attestation="Actual source relationship checked",reason="Booking resolution pending"} by=history_user as edge
+     call link_legacy_booking {edge,booking=old_booking,reason="Exact source namespace/key match"} by=history_user
+     call legacy_matches {source="vendor-w",external_id="journey-invoice",location=test_site} by=self as hidden
+     count(hidden) -> 0
+     call link_legacy {entry=old_invoice,customer=test_company,reason="Source C-9 reviewed against existing customer"} by=history_user
+     call legacy_matches {source="vendor-w",external_id="journey-invoice",location=test_site} by=self as visible
+     count(visible) -> 1
+     let readable=first(visible)
+     readable!=null -> true
+     readable.document,readable.facts.payment -> legacy_document,"Paid"
+     call link_legacy {entry=old_invoice,customer=null,reason="Stale mapping version"} by=history_user -> error(conflict)
+     let mapped=first(LegacyInvoice as entry where entry.id==old_invoice.id)
+     mapped!=null -> true
+     call link_legacy {entry=mapped,customer=null,reason="Revoke mistaken current mapping"} by=history_user
+     call legacy_matches {source="vendor-w",external_id="journey-invoice",location=test_site} by=self as revoked
+     count(revoked),count(Invoice),count(Attempt),count(CommercialHistory) -> 0,0,0,0
+     let retained_edge=first(LegacyInvoiceBooking as candidate where candidate.id==edge.id)
+     retained_edge!=null -> true
+     retained_edge.booking,retained_edge.booking_source,retained_edge.booking_external_id -> old_booking,"vendor-w","journey-booking"
+  # Review readable original invoice identities without an upsert or hidden match. @{nl="Beoordeel leesbare oorspronkelijke factuuridentiteiten zonder automatisch bijwerken of verborgen overeenkomsten."}
+  scenario legacy_matches(source:text label="Source system"@{nl="Bronsysteem"},external_id:text label="Original record key"@{nl="Oorspronkelijke recordsleutel"},location:Location label="Current location scope"@{nl="Huidig locatiebereik"}) read=true -> LegacyInvoice[] by=authenticated label="Find historical invoice"@{nl="Historische factuur zoeken"}
+   do return LegacyInvoice archived=include as entry where entry.source==trim(source) and entry.external_id==external_id and entry.location==location
+   examples seed=[history_worker,legacy_invoice,test_billing] source="vendor-w" external_id="I-8" location=test_site
+    as,legacy_invoice.customer -> count(result)
+    history_user,null -> 1
+    self,null -> 0
+    self,test_company -> 1
+    other,test_company -> 0
+    public,null -> error(forbidden)
+  # Grant or revoke current billing disclosure after a reviewed exact customer-key match. @{nl="Verleen of trek huidige factuurinzage in na beoordeling van een exacte overeenkomst met de klantsleutel."}
+  scenario link_legacy(entry:LegacyInvoice,customer:Customer? label="Current customer"@{nl="Huidige klant"},reason:text label="Review reason"@{nl="Reden voor beoordeling"}) by=finance label="Map historical invoice customer"@{nl="Historische factuur aan klant koppelen"}
+   require can_work(actor,entry.location) and trim(reason)!=""
+   require customer==null or (trim(entry.facts.customer_source??"")!="" and trim(entry.facts.customer_external_id??"")!="" and entry.location in customer.locations)
+   do set entry {customer,mapping_reason=trim(reason)}
+   examples seed=[history_worker] entry=legacy_invoice customer=test_company reason="Verified original customer key against existing customer"
+    as,customer,reason,request.entry.version -> entry.customer,entry.facts.customer_external_id,entry.facts.payment,entry.mapping_reason
+    history_user,test_company,"Verified source key",1 -> test_company,"C-9","Paid","Verified source key"
+    history_user,null,"Revoke mistaken customer mapping",1 -> null,"C-9","Paid","Revoke mistaken customer mapping"
+    history_user,test_company," ",1 -> error(rule_failed)
+    history_user,test_company,"Verified source key",2 -> error(conflict)
+    members,test_company,"Verified source key",1 -> error(forbidden)
+  # Retain each evidenced source booking edge; absent booking evidence stays unresolved. @{nl="Bewaar elke bewezen koppeling met een bronreservering; ontbrekend reserveringsbewijs blijft onopgelost."}
+  scenario retain_legacy_booking(entry:LegacyInvoice,booking_source:text label="Booking source system"@{nl="Bronsysteem van reservering"},booking_external_id:text label="Original booking key"@{nl="Oorspronkelijke reserveringssleutel"},source_evidence:file label="Original source artifact"@{nl="Oorspronkelijk bronbestand"},attestation:text label="Intake attestation"@{nl="Verklaring bij invoer"},reason:text label="Review reason"@{nl="Reden voor beoordeling"}) by=finance -> LegacyInvoiceBooking label="Retain invoice booking link"@{nl="Factuur-reserveringskoppeling bewaren"}
+   require can_work(actor,entry.location) and trim(booking_source)!="" and trim(booking_external_id)!="" and trim(attestation)!="" and trim(reason)!=""
+   require not any(LegacyInvoiceBooking archived=include as edge,edge.parent==entry and edge.booking_source==booking_source and edge.booking_external_id==booking_external_id)
+   require entry.facts.booking_count==null or count(entry.LegacyInvoiceBooking archived=include)<entry.facts.booking_count
+   do
+    create LegacyInvoiceBooking {parent=entry,booking_source,booking_external_id,source_evidence,attestation=trim(attestation),mapping_reason=trim(reason)} as edge
+    return edge
+   examples seed=[history_worker,legacy_edge] entry=legacy_invoice booking_source="vendor-w" booking_external_id="B-18" source_evidence=legacy_source attestation="Actual edge from source export" reason="Booking source record not yet transferred"
+    as,entry.facts.booking_count,booking_external_id -> result.booking_external_id,result.booking,result.mapping_reason,count(Invoice)
+    history_user,null,"B-18" -> "B-18",null,"Booking source record not yet transferred",0
+    history_user,null,"B-17" -> error(rule_failed)
+    history_user,1,"B-18" -> error(rule_failed)
+    members,null,"B-18" -> error(forbidden)
+   examples seed=[history_worker] entry=legacy_invoice booking_source="vendor-w" booking_external_id="B-17" source_evidence=legacy_source attestation="Actual edge from source export" reason="Booking evidence not yet resolved"
+    as,entry.facts.booking_count -> result.booking_external_id,result.booking,count(entry.LegacyInvoiceBooking)
+    history_user,0 -> error(rule_failed)
+    history_user,1 -> "B-17",null,1
+    history_user,null -> "B-17",null,1
+  # Resolve or revoke one source-identified edge without changing its original evidence. @{nl="Koppel of ontkoppel één bronrelatie zonder het oorspronkelijke bewijs te wijzigen."}
+  scenario link_legacy_booking(edge:LegacyInvoiceBooking,booking:LegacyBooking? label="Retained booking evidence"@{nl="Bewaard reserveringsbewijs"},reason:text label="Review reason"@{nl="Reden voor beoordeling"}) by=finance label="Resolve invoice booking link"@{nl="Factuur-reserveringskoppeling oplossen"}
+   require can_work(actor,edge.parent.location) and trim(reason)!=""
+   require booking==null or (can_work(actor,booking.location) and booking.source==edge.booking_source and booking.external_id==edge.booking_external_id)
+   do set edge {booking,mapping_reason=trim(reason)}
+   examples seed=[history_worker,legacy_booking] edge=legacy_edge booking=legacy_booking reason="Verified retained source identity"
+    as,booking,edge.booking_source,edge.booking_external_id,reason,request.edge.version -> edge.booking,edge.booking_source,edge.booking_external_id,edge.mapping_reason
+    history_user,legacy_booking,"vendor-w","B-17","Verified source identity",1 -> legacy_booking,"vendor-w","B-17","Verified source identity"
+    history_user,null,"vendor-w","B-17","Revoke incorrect resolution",1 -> null,"vendor-w","B-17","Revoke incorrect resolution"
+    history_user,legacy_booking,"another-tenant","B-17","Wrong namespace",1 -> error(rule_failed)
+    history_user,legacy_booking,"vendor-w","B-18","Wrong key",1 -> error(rule_failed)
+    history_user,legacy_booking,"vendor-w","B-17","Verified source identity",2 -> error(conflict)
+    members,legacy_booking,"vendor-w","B-17","Verified source identity",1 -> error(forbidden)
   crud Invoice by=finance fields=location,issuer,recipient,address,tax_reference,description,due create_fields=location,source,issuer,recipient,recipient_email,address,tax_reference,currency,description,due,total when=can_work(actor,row.location) and row.state==draft delete=none
   crud Line by=finance fields=description,position,quantity,unit,service_from,service_until,service_location,service_reference,price,tax,discount when=can_work(actor,row.parent.location) and row.parent.state==draft delete=remove
    examples create seed=[test_worker] parent=test_invoice description="Item" position=1 quantity=1 price=money(100,"EUR") tax=money(0,"EUR") discount=money(0,"EUR")
@@ -640,6 +750,26 @@ package invoice label="Invoices"@{nl="Facturen"}
      require invoice.state!=draft
      emit ReconcileOutcome {source=event.source,value=settlement(invoice)}
  Then
+  # Read retained invoices and reviewed booking relationships under current billing access. @{nl="Lees bewaarde facturen en beoordeelde reserveringsrelaties met huidige factuurtoegang."}
+  page /finance/invoice-history title="Historical invoice evidence"@{nl="Historisch factuurbewijs"}
+   require authenticated
+   card "Retain source invoices"@{nl="Bronfacturen bewaren"}
+    require finance
+    form retain_legacy import=csv review=legacy_matches
+   form legacy_matches
+    list result columns=source,external_id,location
+   table LegacyInvoice archived=include as entry columns=source,external_id,location display=split
+    text entry.facts.number,entry.facts.issuer,entry.facts.recipient,entry.facts.issued_original,entry.facts.issued_at,entry.facts.due_original,entry.facts.due,entry.facts.status,entry.facts.payment,entry.facts.amount,entry.facts.booking_count,entry.document,entry.document_issue,entry.customer
+    table entry.LegacyInvoiceBooking archived=include columns=booking_source,booking_external_id,booking
+     card "Resolve retained booking evidence"@{nl="Bewaard reserveringsbewijs koppelen"}
+      require finance
+      action link_legacy_booking
+      text row.mapping_reason,row.attestation,row.source_evidence
+    card "Current customer mapping and original export"@{nl="Huidige klantkoppeling en oorspronkelijke export"}
+     require finance
+     actions link_legacy,retain_legacy_booking
+     text entry.mapping_reason,entry.attestation,entry.source_evidence,entry.imported_by,entry.imported_at
+     history
   # Keep own issued invoices and payment outcomes reachable after membership expiry. @{nl="Houd eigen uitgegeven facturen en betalingsresultaten bereikbaar na afloop van het lidmaatschap."}
   page /finance/my-invoices title="My invoices"@{nl="Mijn facturen"}
    require authenticated
