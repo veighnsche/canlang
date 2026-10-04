@@ -125,6 +125,7 @@ package customer
    require all(locations as location,location in org.locations and has_location_role(actor,org,administrator,location))
    do
     create Invitation {parent=org,email,role,locations,expires=now+7d} as invitation
+    schedule invitation.id at=invitation.expires event=InvitationExpiry {invitation}
     send Mail.send {to=email,subject=format(notice_company_invitation,locale=null),body=format("Sign in with your verified email to review your company invitation."@{nl="Meld je aan met je geverifieerde e-mailadres om je bedrijfsuitnodiging te bekijken."},locale=null)} as notice
   # Accept an addressed, unexpired invitation using the current verified account. @{nl="Accepteer een gerichte, niet-verlopen uitnodiging met het huidige geverifieerde account."}
   export scenario accept(invitation:Invitation) by=authenticated label="Accept invitation"@{nl="Uitnodiging accepteren"}
@@ -218,8 +219,6 @@ package customer
    do
     for changed in CompanyRole archived=include as row where row.id==event.id limit=1
      emit CompanyAccessChanged {customer=changed.parent,account=null,revision=event.version}
-  scenario invitation_created on=Invitation.create
-   do schedule event.after.id at=event.after.expires event=InvitationExpiry {invitation=event.after}
   scenario expire on=InvitationExpiry
    do
     if event.invitation.status==open and event.invitation.expires<=now

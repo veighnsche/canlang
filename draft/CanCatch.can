@@ -141,15 +141,15 @@ package catch
     1,now-2m,10 -> 1,10
     1,now-2m,11 -> error(rule_failed)
     2,now+1m,11 -> error(rule_failed)
-  scenario notify on=Notice.create
+  scenario notify on=Notice.created
    do
-    let notice=event.after
-    if notice.kind==new
-     send Alerts.notify {value={source=notice.id,destination=notice.destination,message=format("New application error"@{nl="Nieuwe applicatiefout"},locale=null)}} when=notice.parent.parent.active as delivery
-     set notice {delivery=delivery.id}
-    else
-     send Alerts.notify {value={source=notice.id,destination=notice.destination,message=format("Application error regression"@{nl="Applicatiefout teruggekeerd"},locale=null)}} when=notice.parent.parent.active as delivery
-     set notice {delivery=delivery.id}
+    for notice in Notice as row where row.id==event.id and row.delivery==null limit=1
+     if notice.kind==new
+      send Alerts.notify {value={source=notice.id,destination=notice.destination,message=format("New application error"@{nl="Nieuwe applicatiefout"},locale=null)}} when=notice.parent.parent.active as delivery
+      set notice {delivery=delivery.id}
+     else
+      send Alerts.notify {value={source=notice.id,destination=notice.destination,message=format("Application error regression"@{nl="Applicatiefout teruggekeerd"},locale=null)}} when=notice.parent.parent.active as delivery
+      set notice {delivery=delivery.id}
   scenario notification_result on=Alerts.notify.completed
    do
     let notice=first(Notice as notice where notice.delivery==event.delivery_id order=notice.id)

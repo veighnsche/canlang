@@ -416,8 +416,10 @@ package invoice label="Invoices"@{nl="Facturen"}
      if event.status==succeeded and event.result!=null
       require event.result.reference==attempt.reference and event.result.amount==attempt.amount
       emit ProviderReceipt {value=event.result}
-  scenario start_reconciliation on=Attempt.create
-   do schedule format("reconcile-{id}",{id=event.after.id}) at=now+5m event=ReconcileDue {attempt=event.after}
+  scenario start_reconciliation on=Attempt.created
+   do
+    for attempt in Attempt as row where row.id==event.id and row.status in [pending,unknown] limit=1
+     schedule format("reconcile-{id}",{id=attempt.id}) at=now+5m event=ReconcileDue {attempt}
   scenario reconcile on=ReconcileDue
    do
     let attempt=event.attempt
