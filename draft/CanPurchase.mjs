@@ -410,6 +410,53 @@ export const appDefinition = {
       locks: ["Payable.lock.1"],
       unique: [{ fields: ["invoice"] }],
     },
+    "purchase.InvoiceDocument": {
+      parent: "purchase.Order",
+      label: message("Supplier invoice document", { nl: "Leveranciersfactuurdocument" }),
+      fields: {
+        document: { type: "file", label: message("Invoice document", { nl: "Factuurdocument" }) },
+        source: { type: "text", unique: true, label: sourceCaption },
+        status: {
+          type: "enum",
+          cases: ["draft", "transcribed", "accepted", "rejected"],
+          default: "draft",
+          label: {
+            text: message("Extraction review", { nl: "Extractiebeoordeling" }),
+            values: {
+              draft: message("Draft", { nl: "Concept" }),
+              transcribed: message("Transcribed", { nl: "Overgenomen" }),
+              accepted: message("Accepted", { nl: "Geaccepteerd" }),
+              rejected: message("Rejected", { nl: "Afgewezen" }),
+            },
+          },
+        },
+        invoice: {
+          type: "text", nullable: true,
+          label: message("Claimed invoice number", { nl: "Geclaimd factuurnummer" }),
+        },
+        amount: {
+          type: "money", nullable: true,
+          label: message("Claimed amount", { nl: "Geclaimd bedrag" }),
+        },
+        issued: {
+          type: "date", nullable: true,
+          label: message("Claimed issue date", { nl: "Geclaimde uitgiftedatum" }),
+        },
+        decision: { type: "text", nullable: true, label: message("Decision", { nl: "Besluit" }) },
+        payable: {
+          type: "purchase.Payable", nullable: true,
+          label: message("Accepted payable", { nl: "Geaccepteerde schuld" }),
+        },
+      },
+      readGrants: [{ rule: "InvoiceDocument.read.1" }],
+      invariants: [
+        "InvoiceDocument.require.1",
+        "InvoiceDocument.require.2",
+        "InvoiceDocument.require.3",
+        "InvoiceDocument.require.4",
+      ],
+      locks: ["InvoiceDocument.lock.1", "InvoiceDocument.lock.2"],
+    },
     "purchase.Adjustment": {
       parent: "purchase.Budget",
       label: message("Spending adjustment", { nl: "Uitgavenaanpassing" }),
@@ -674,6 +721,70 @@ export const appDefinition = {
         { nl: "Leg leveranciersfactuurbewijs vast, gescheiden van klantfacturen en betalingen." },
       ),
     },
+    "purchase.intake_invoice": {
+      handler: "intake_invoice",
+      by: buyer,
+      read: false,
+      result: "purchase.InvoiceDocument",
+      inputs: {
+        order: { type: "purchase.Order" },
+        document: { type: "file" },
+        source: { type: "text", label: sourceCaption },
+      },
+      label: message("Intake invoice document", { nl: "Factuurdocument innemen" }),
+      description: message(
+        "Intake one supplier invoice document under its order; a duplicate source fails instead of silently overwriting.",
+        { nl: "Neem één leveranciersfactuurdocument in onder de bestelling; een dubbele bron faalt in plaats van stil te overschrijven." },
+      ),
+    },
+    "purchase.transcribe_claims": {
+      handler: "transcribe_claims",
+      by: buyer,
+      read: false,
+      inputs: {
+        invoice_document: { type: "purchase.InvoiceDocument" },
+        invoice: { type: "text" },
+        amount: { type: "money" },
+        issued: { type: "date" },
+      },
+      label: message("Transcribe invoice claims", { nl: "Factuurgegevens overnemen" }),
+      description: message(
+        "Transcribe or correct the claimed invoice totals from the frozen document pages.",
+        { nl: "Neem de geclaimde factuurtotalen over van de vastgelegde documentpagina's of corrigeer ze." },
+      ),
+    },
+    "purchase.accept_invoice": {
+      handler: "accept_invoice",
+      by: budget_manager,
+      read: false,
+      result: "purchase.Payable",
+      inputs: {
+        invoice_document: { type: "purchase.InvoiceDocument" },
+        invoice: { type: "text" },
+        amount: { type: "money" },
+        issued: { type: "date" },
+        evidence: { type: "text" },
+      },
+      label: message("Accept invoice document", { nl: "Factuurdocument accepteren" }),
+      description: message(
+        "Accept the reviewed claims as payable evidence against closed spending.",
+        { nl: "Accepteer de beoordeelde claims als schuldbewijs tegen afgesloten uitgaven." },
+      ),
+    },
+    "purchase.reject_invoice": {
+      handler: "reject_invoice",
+      by: budget_manager,
+      read: false,
+      inputs: {
+        invoice_document: { type: "purchase.InvoiceDocument" },
+        reason: { type: "text" },
+      },
+      label: message("Reject invoice document", { nl: "Factuurdocument afwijzen" }),
+      description: message(
+        "Reject transcribed claims with a reason while retaining the frozen document.",
+        { nl: "Wijs overgenomen claims af met een reden en behoud het vastgelegde document." },
+      ),
+    },
     "purchase.export_payable": {
       handler: "export_payable",
       by: budget_manager,
@@ -781,6 +892,9 @@ export const appDefinition = {
     "purchase.Adjustment.create",
     "purchase.Adjustment.update",
     "purchase.Adjustment.delete",
+    "purchase.InvoiceDocument.create",
+    "purchase.InvoiceDocument.update",
+    "purchase.InvoiceDocument.delete",
   ],
 };
 
@@ -840,6 +954,9 @@ export function canApp() {
         (hasRole(c, buyer) || hasRole(c, budget_manager)) &&
         (await can_work(c, c.actor, row.parent.parent.parent.location)),
       "Payable.read.1": async (c, row) =>
+        (hasRole(c, buyer) || hasRole(c, budget_manager)) &&
+        (await can_work(c, c.actor, row.parent.location)),
+      "InvoiceDocument.read.1": async (c, row) =>
         (hasRole(c, buyer) || hasRole(c, budget_manager)) &&
         (await can_work(c, c.actor, row.parent.location)),
       "Adjustment.read.1": async (c, row) =>
@@ -964,6 +1081,18 @@ export function canApp() {
         row.amount.minor >= 0n &&
         row.invoice.trim() !== "" &&
         row.evidence.trim() !== "",
+      "InvoiceDocument.require.1": (c, row) =>
+        row.status === "draft" || (row.invoice !== null && row.amount !== null && row.issued !== null),
+      "InvoiceDocument.require.2": (c, row) =>
+        (row.amount ?? row.parent.parent.amount).currency === row.parent.parent.amount.currency,
+      "InvoiceDocument.require.3": (c, row) =>
+        row.status !== "accepted" ||
+        (row.payable !== null && same(row.payable.parent, row.parent) && row.payable.source === row.source),
+      "InvoiceDocument.require.4": async (c, row) =>
+        !(await any(
+          records(c, "purchase.InvoiceDocument"),
+          (other) => !same(other, row) && other.source === row.source,
+        )),
     },
     locks: {
       "Request.lock.1": {
@@ -996,6 +1125,11 @@ export function canApp() {
       "Return.lock.1": { fields: ["source", "quantity", "returned", "evidence", "revision"] },
       "Payable.lock.1": {
         fields: ["source", "invoice", "amount", "issued", "evidence", "revision"],
+      },
+      "InvoiceDocument.lock.1": { fields: ["document", "source"] },
+      "InvoiceDocument.lock.2": {
+        fields: ["status", "invoice", "amount", "issued", "decision", "payable"],
+        when: (c, row) => row.status === "accepted" || row.status === "rejected",
       },
       "Adjustment.lock.1": { fields: ["request", "amount", "reason", "source"] },
     },
@@ -1295,6 +1429,102 @@ export function canApp() {
         issued,
         evidence,
       });
+    },
+    async intake_invoice(c, { order, document, source }) {
+      check(hasRole(c, buyer), "forbidden");
+      check(
+        (await can_work(c, c.actor, order.location)) &&
+          ["approved", "closed"].includes(order.parent.state) &&
+          source.trim() !== "",
+      );
+      check(
+        !(await any(
+          records(c, "purchase.InvoiceDocument"),
+          (item) => item.source === source.trim(),
+        )),
+      );
+      return await create(c, "purchase.InvoiceDocument", {
+        parent: order,
+        document,
+        source: source.trim(),
+      });
+    },
+    async transcribe_claims(c, { invoice_document, invoice, amount, issued }) {
+      check(hasRole(c, buyer), "forbidden");
+      check(
+        (await can_work(c, c.actor, invoice_document.parent.location)) &&
+          ["draft", "transcribed"].includes(invoice_document.status) &&
+          invoice.trim() !== "" &&
+          amount.currency === invoice_document.parent.parent.amount.currency &&
+          amount.minor >= 0n,
+      );
+      await set(c, invoice_document, {
+        invoice: invoice.trim(),
+        amount,
+        issued,
+        status: "transcribed",
+      });
+    },
+    async accept_invoice(c, { invoice_document, invoice, amount, issued, evidence }) {
+      check(hasRole(c, budget_manager), "forbidden");
+      check(
+        (await can_work(c, c.actor, invoice_document.parent.location)) &&
+          invoice_document.status === "transcribed" &&
+          invoice_document.parent.parent.state === "closed" &&
+          invoice.trim() !== "" &&
+          evidence.trim() !== "",
+      );
+      check(
+        invoice_document.invoice !== null &&
+          invoice_document.invoice === invoice &&
+          invoice_document.amount !== null &&
+          equalMoney(invoice_document.amount, amount) &&
+          invoice_document.issued !== null &&
+          compareDate(invoice_document.issued, issued) === 0,
+      );
+      const order = invoice_document.parent;
+      check(
+        compareMoney(
+          addMoney(
+            await sum(
+              records(c, "purchase.Payable", { parent: order }),
+              (payable) => payable.amount,
+              amount.currency,
+            ),
+            amount,
+          ),
+          addMoney(
+            order.parent.actual ?? money(0n, amount.currency),
+            await sum(
+              records(c, "purchase.Adjustment", {
+                parent: order.parent.parent,
+                where: (adjustment) => same(adjustment.request, order.parent),
+              }),
+              (adjustment) => adjustment.amount,
+              amount.currency,
+            ),
+          ),
+        ) <= 0,
+      );
+      const payable = await create(c, "purchase.Payable", {
+        parent: order,
+        source: invoice_document.source,
+        invoice,
+        amount,
+        issued,
+        evidence,
+      });
+      await set(c, invoice_document, { status: "accepted", payable });
+      return payable;
+    },
+    async reject_invoice(c, { invoice_document, reason }) {
+      check(hasRole(c, budget_manager), "forbidden");
+      check(
+        (await can_work(c, c.actor, invoice_document.parent.location)) &&
+          invoice_document.status === "transcribed" &&
+          reason.trim() !== "",
+      );
+      await set(c, invoice_document, { status: "rejected", decision: reason.trim() });
     },
     async export_payable(c, { payable }) {
       check(hasRole(c, budget_manager), "forbidden");
@@ -1657,6 +1887,25 @@ export async function purchasingPage(c, bindings) {
                             operations: ["purchase.export_payable"],
                             boundArgs: { payable },
                           }),
+                      }),
+                      form({ context: ov, operation: "purchase.intake_invoice", arguments: { order } }),
+                      table({
+                        context: ov,
+                        model: "purchase.InvoiceDocument",
+                        parent: order,
+                        columns: ["document", "source", "status", "invoice", "amount", "issued", "decision"],
+                        order: ["created"],
+                        renderRow: (invoice_document, iv) => [
+                          actions({
+                            context: iv,
+                            operations: [
+                              "purchase.transcribe_claims",
+                              "purchase.accept_invoice",
+                              "purchase.reject_invoice",
+                            ],
+                            boundArgs: { invoice_document },
+                          }),
+                        ],
                       }),
                       table({
                         context: ov,

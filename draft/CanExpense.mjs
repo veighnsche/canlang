@@ -238,6 +238,26 @@ export const appDefinition = {
       readGrants: [{ rule: "Reimbursement.read.1" }],
       locks: ["Reimbursement.lock.1"],
     },
+    "expense.ReceiptExtract": {
+      parent: "expense.Expense",
+      label: message("Receipt transcription", { nl: "Bontranscriptie" }),
+      fields: {
+        source: {
+          type: "text", unique: true,
+          label: message("Extraction source", { nl: "Extractiebron" }),
+        },
+        amount: { type: "money" },
+        spent_on: { type: "date", label: message("Receipt date", { nl: "Bondatum" }) },
+        merchant: { type: "text", label: message("Merchant", { nl: "Verkoper" }) },
+      },
+      readGrants: [
+        { rule: "ReceiptExtract.read.1" },
+        { rule: "ReceiptExtract.read.2" },
+        { rule: "ReceiptExtract.read.3" },
+      ],
+      invariants: ["ReceiptExtract.require.1"],
+      locks: ["ReceiptExtract.lock.1"],
+    },
   },
   preferences: {
     expense: {
@@ -314,8 +334,8 @@ export const appDefinition = {
       by: "members",
       read: false,
       inputs: { expense: { type: "expense.Expense" } },
-      description: message("Submit your draft after checking the active, distinct reviewer.", {
-        nl: "Dien je concept in na controle van een actieve, andere beoordelaar.",
+      description: message("Submit your draft after checking the active, distinct reviewer and an exact receipt transcription.", {
+        nl: "Dien je concept in na controle van een actieve, andere beoordelaar en een exacte bontranscriptie.",
       }),
     },
     "expense.decide": {
@@ -374,13 +394,36 @@ export const appDefinition = {
         { nl: "Leg één volledige vergoeding in dezelfde valuta vast met extern betalingsbewijs." },
       ),
     },
+    "expense.transcribe_receipt": {
+      handler: "transcribe_receipt",
+      by: "members",
+      read: false,
+      result: "expense.ReceiptExtract",
+      inputs: {
+        expense: { type: "expense.Expense" },
+        source: { type: "text" },
+        amount: { type: "money" },
+        spent_on: { type: "date" },
+        merchant: { type: "text" },
+      },
+      label: message("Transcribe receipt claims", { nl: "Bonclaims overnemen" }),
+      description: message(
+        "Transcribe the claimed totals from the frozen receipt while the claim is a draft.",
+        { nl: "Neem de geclaimde totalen over van de vastgelegde bon terwijl de declaratie een concept is." },
+      ),
+    },
   },
   pages: [
     minePageDescriptor,
     reviewPageDescriptor,
     historicalPageDescriptor,
   ],
-  disabled: ["expense.Expense.delete"],
+  disabled: [
+    "expense.Expense.delete",
+    "expense.ReceiptExtract.create",
+    "expense.ReceiptExtract.update",
+    "expense.ReceiptExtract.delete",
+  ],
 };
 
 export function canApp() {
@@ -417,6 +460,15 @@ export function canApp() {
         hasRole(c, "authenticated") &&
         (same(row.parent.parent.user, c.actor) ||
           (hasRole(c, "expense.finance") && (await can_work(c, c.actor, row.parent.location)))),
+      "ReceiptExtract.read.1": (c, row) =>
+        hasRole(c, "authenticated") && same(row.parent.parent.user, c.actor),
+      "ReceiptExtract.read.2": async (c, row) =>
+        hasRole(c, "expense.reviewer") &&
+        same(row.parent.reviewer, c.actor) &&
+        (await can_work(c, c.actor, row.parent.location)) &&
+        row.parent.status !== "draft",
+      "ReceiptExtract.read.3": async (c, row) =>
+        hasRole(c, "expense.finance") && (await can_work(c, c.actor, row.parent.location)),
     },
     invariants: {
       "LegacyExpense.invariant.1":(c,row)=>(row.claim.receipt!==null && row.claim.receipt_issue===null) ||
@@ -427,6 +479,10 @@ export function canApp() {
         (same(row.corrects.parent, row.parent) && ["rejected", "withdrawn"].includes(row.corrects.status)),
       "Expense.require.1": (c, row) =>
         row.amount.minor > 0n && row.amount.currency === row.location.currency,
+      "ReceiptExtract.require.1": (c, row) =>
+        row.amount.minor > 0n &&
+        row.amount.currency === row.parent.location.currency &&
+        row.merchant.trim() !== "",
     },
     locks: {
       "LegacyExpense.lock.1":{fields:["source","external_id","location","claim","source_evidence","attestation","imported_by","imported_at"]},
@@ -449,6 +505,7 @@ export function canApp() {
         fields: ["submission", "amount", "receipt", "reviewer", "approved", "reason", "decided_at"],
       },
       "Reimbursement.lock.1": { fields: ["amount", "reference", "paid", "reason", "recorded_by"] },
+      "ReceiptExtract.lock.1": { fields: ["source", "amount", "spent_on", "merchant"] },
     },
     async retain_legacy(c,{source,external_id,location,claim,source_evidence,attestation}) {
       check(hasRole(c,"expense.finance"),"forbidden");
@@ -493,9 +550,41 @@ export function canApp() {
           (await can_work(c, c.actor, expense.location)) &&
           !same(expense.reviewer, c.actor) &&
           hasRole(c, "expense.reviewer", expense.reviewer) &&
-          (await can_work(c, expense.reviewer, expense.location)),
+          (await can_work(c, expense.reviewer, expense.location)) &&
+          (await any(
+            records(c, "expense.ReceiptExtract", { parent: expense }),
+            (extract) =>
+              equalMoney(extract.amount, expense.amount) &&
+              compareDate(extract.spent_on, expense.business_date) === 0,
+          )),
       );
       await set(c, expense, { status: "submitted", submission: int64(expense.submission + 1n) });
+    },
+    async transcribe_receipt(c, { expense, source, amount, spent_on, merchant }) {
+      check(hasRole(c, "members"), "forbidden");
+      check(
+        same(expense.parent.user, c.actor) &&
+          expense.parent.active &&
+          (await can_work(c, c.actor, expense.location)) &&
+          expense.status === "draft" &&
+          source.trim() !== "" &&
+          merchant.trim() !== "" &&
+          amount.currency === expense.location.currency &&
+          amount.minor > 0n,
+      );
+      check(
+        !(await any(
+          records(c, "expense.ReceiptExtract"),
+          (extract) => extract.source === source.trim(),
+        )),
+      );
+      return await create(c, "expense.ReceiptExtract", {
+        parent: expense,
+        source: source.trim(),
+        amount,
+        spent_on,
+        merchant: merchant.trim(),
+      });
     },
     async decide(c, { expense, approve, reason }) {
       check(hasRole(c, "expense.reviewer"), "forbidden");
@@ -665,6 +754,18 @@ export async function minePage(c, bindings) {
                 operations: ["expense.submit", "expense.withdraw", "expense.correct"],
                 boundArgs: { expense },
               }),
+              form({ context: view, operation: "expense.transcribe_receipt", arguments: { expense } }),
+              list({
+                context: view,
+                model: "expense.ReceiptExtract",
+                parent: expense,
+                renderRow: (extract, extractView) => [
+                  text({
+                    context: extractView,
+                    values: [extract.source, extract.merchant, extract.amount, extract.spent_on],
+                  }),
+                ],
+              }),
             ],
           }),
           list({
@@ -732,6 +833,17 @@ export async function reviewPage(c, bindings) {
                 context: view,
                 operations: ["expense.decide", "expense.reimburse"],
                 boundArgs: { expense },
+              }),
+              list({
+                context: view,
+                model: "expense.ReceiptExtract",
+                parent: expense,
+                renderRow: (extract, extractView) => [
+                  text({
+                    context: extractView,
+                    values: [extract.source, extract.merchant, extract.amount, extract.spent_on],
+                  }),
+                ],
               }),
             ],
           }),
@@ -1852,6 +1964,71 @@ export function exampleFixtures({ self, other, imported }) {
         {operation:"expense.legacy_matches",by:async(c,s,b)=>s.finance_user,inputs:async(c,s,b)=>({source:"vendor-a",external_id:"journey-1",location:s.test_site}),bind:"former_steward"},
         {observations:async(c,s,b)=>[await count(b.former_steward),b.current.claim.actor,b.current.claim.status,b.current.claim.decided_at,b.current.claim.paid,b.current.imported_by,await count(records(c,"expense.Expense")),await count(records(c,"expense.Decision")),await count(records(c,"expense.Reimbursement"))],expected:async(c,s,b)=>[0n,"Former employee 41","Paid",datetime("2021-05-12T09:00:00Z"),date("2021-05-20"),s.finance_user,0n,0n,0n],types:["int", "text?", "text?", "datetime?", "date?", "user", "int", "int", "int"]}
       ]},
+      {
+        operation: "expense.transcribe_receipt",
+        dependencies: [claim, reviewer_worker],
+        sequence: [
+          {
+            operation: "expense.transcribe_receipt",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim, source: "extract-9", amount: money(30n, "EUR"), spent_on: date("2026-10-01"), merchant: "Station kiosk" }),
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              await count(records(c, "expense.ReceiptExtract", { parent: s.claim })),
+            ],
+            expected: async (c, s, b) => ["draft", 1n],
+            types: ["expense.Expense.status", "int"],
+          },
+          {
+            operation: "expense.submit",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim }),
+            error: "rule_failed",
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              await count(records(c, "expense.Decision", { parent: s.claim })),
+            ],
+            expected: async (c, s, b) => ["draft", 0n],
+            types: ["expense.Expense.status", "int"],
+          },
+          {
+            operation: "expense.transcribe_receipt",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim, source: "extract-10", amount: money(25n, "EUR"), spent_on: date("2026-10-01"), merchant: "Station kiosk" }),
+          },
+          {
+            operation: "expense.submit",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim }),
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              s.claim.submission,
+              await count(records(c, "expense.ReceiptExtract", { parent: s.claim })),
+            ],
+            expected: async (c, s, b) => ["submitted", 1n, 2n],
+            types: ["expense.Expense.status", "int", "int"],
+          },
+          {
+            operation: "expense.decide",
+            by: async (c, s, b) => s.reviewer_user,
+            inputs: async (c, s, b) => ({ expense: s.claim, approve: true, reason: "Receipt and transcription checked" }),
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              await count(records(c, "expense.Decision", { parent: s.claim })),
+            ],
+            expected: async (c, s, b) => ["approved", 1n],
+            types: ["expense.Expense.status", "int"],
+          },
+        ],
+      },
     ],
   };
 }
