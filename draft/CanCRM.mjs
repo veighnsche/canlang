@@ -62,6 +62,20 @@ const outcomeLabel = message("Confirmed outcome reference", {
   nl: "Referentie bevestigde uitkomst",
 });
 
+const salesPageDescriptor = {
+  owner: "crm",
+  path: "/sales",
+  title: message("Sales pipeline", { nl: "Verkoopkansen" }),
+  description: message("Review prospects, location needs and dated follow-up.", {
+    nl: "Bekijk prospects, locatiebehoeften en gedateerde vervolgacties.",
+  }),
+  admit: async (c, routeBindings = {}) => {
+    check(hasRole(c, "crm.salesperson"), "forbidden");
+    return {};
+  },
+  render: salesPage,
+};
+
 export const appDefinition = {
   id: "CanCRM",
   uses: ["crm", "customer", "appointments", "propose"],
@@ -417,7 +431,7 @@ export const appDefinition = {
       inputs: { currency: { type: "currency" } },
     },
   },
-  pages: [{ path: "/sales", render: salesPage }],
+  pages: [salesPageDescriptor],
   disabled: ["crm.Deal.delete", "crm.Activity.update", "crm.Activity.delete"],
 };
 
@@ -660,8 +674,7 @@ export function canApp() {
   };
 }
 
-export async function salesPage(c) {
-  check(hasRole(c, "crm.salesperson"), "forbidden");
+export async function salesPage(c, bindings) {
   const preferences = c.preferences.crm;
   const activityRows = (deal, context) =>
     list({
@@ -686,14 +699,7 @@ export async function salesPage(c) {
     });
   return renderPage(
     c,
-    {
-      owner: "crm",
-      path: "/sales",
-      title: message("Sales pipeline", { nl: "Verkoopkansen" }),
-      description: message("Review prospects, location needs and dated follow-up.", {
-        nl: "Bekijk prospects, locatiebehoeften en gedateerde vervolgacties.",
-      }),
-    },
+    salesPageDescriptor,
     () => [
       card({
         context: c,
