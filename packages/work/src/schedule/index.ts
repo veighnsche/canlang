@@ -35,6 +35,7 @@ import type {
   ScheduleStorePort,
   SupersessionPort,
 } from '../ports.ts';
+import { freezeRequest } from '../intent/index.ts';
 
 export interface ScheduleDeps {
   schedules: ScheduleStorePort;
@@ -108,6 +109,12 @@ function upsertKeyedSchedule(
   entry: NewScheduledOccurrence,
 ): PutScheduleResult {
   assertPendingEntry(entry);
+  // Freeze first through the same record-only gate as staged outbox
+  // requests (lane-3 `ScheduleOp.replace.payload` is record-typed):
+  // every throw precedes any store mutation, so a rejected
+  // replacement leaves the previous entry — and its undispatched
+  // intents — untouched.
+  const payload = freezeRequest(entry.payload);
   const previous = deps.schedules.get(entry.scope, entry.key);
   let superseded: ScheduledOccurrence | null = null;
   let supersededId: OccurrenceId | null = null;
@@ -125,6 +132,7 @@ function upsertKeyedSchedule(
     ...entry,
     state: 'pending',
     occurrenceId: deps.ids.nextOccurrenceId(),
+    payload,
   };
   deps.schedules.put(admitted);
   return { admitted, superseded, supersededId, affectedOutboxIds };

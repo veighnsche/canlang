@@ -22,8 +22,8 @@ import type {
   FilePolicy,
   UploadIntentGrant,
   UploadIntentId,
-  UploadIntentRequest,
 } from '../../../contracts/src/files.js';
+import type { UploadIntentRequest } from '../../../contracts/src/wire.js';
 import type {
   BlobStorePort,
   ClockPort,
@@ -39,10 +39,14 @@ import {
 } from '../provenance/index.ts';
 
 /**
- * Language-version-pinned baseline policy (DESIGN section 8, restated
- * from the `FilePolicy` contract comment; converges with the L6 wire
- * defaults at the S8 join). A `files` context declaration supplies only
- * deviations. Policy values never grant access.
+ * Language-version-pinned baseline policy (DESIGN section 8). Values
+ * mirror the lane-6 wire defaults (`DEFAULT_UPLOAD_TYPES`,
+ * `DEFAULT_UPLOAD_MAX_BYTES`); standalone TS-source tests cannot
+ * runtime-import contracts values, so a runtime equality pin belongs
+ * in L7's assembly test (handoff filed), and full value convergence
+ * awaits the `@canlang/contracts` workspace join. A `files` context
+ * declaration supplies only deviations. Policy values never grant
+ * access.
  */
 export const DEFAULT_FILE_POLICY: FilePolicy = {
   types: ['application/pdf', 'image/png', 'image/jpeg', 'text/plain'],
