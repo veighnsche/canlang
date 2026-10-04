@@ -1,0 +1,23 @@
+{
+  "name": "canlang",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CanLang: AI-native SaaS DSL on workerd. Root Node workspace (lane 07 integrates).",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

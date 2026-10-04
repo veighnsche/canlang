@@ -6,3 +6,13 @@ __pycache__/
 # Generated Rust build output and packaged editor extensions
 /compiler/target/
 /output/editor/*.vsix
+
+# Node workspace output (lane 07)
+node_modules/
+packages/*/dist/
+packages/*/coverage/
+coverage/
+.wrangler/
+.mf/
+miniflare.sqlite*
+*.tsbuildinfo
