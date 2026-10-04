@@ -49,5 +49,8 @@ jobs:
         # Owned production sources import the @canlang/contracts public
         # assembly (dist), avoiding the L7-flagged conflicted names.
         run: npm run build --workspace @canlang/contracts
+      - name: Build consumed workspaces
+        # interfaces consumes the built identity + ui entries.
+        run: npm run build --workspace @canlang/identity --workspace @canlang/ui
       - name: Test owned packages
         run: npm test --workspace @canlang/identity --workspace @canlang/interfaces

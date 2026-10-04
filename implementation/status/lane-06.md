@@ -283,12 +283,22 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
   Secure, F3 caller-now, F4 re-admission orphan, F5 grant collapse, F6-F9 test
   gaps, F10-F13 notes) — all addressed, delta re-review APPROVED, CI green.
   Execution also caught the opaque-token text-vs-bytes hash bug pre-PR.
-- S3 (in progress): branch muse/lane-06-identity-interfaces/wire-errors.
-  Scope: interfaces errors/* + envelope/* + projection/* with tests; upgrade
-  of owned production sources from relative to @canlang/contracts imports
-  (tests keep relative imports + the CI guard); CI builds contracts first.
-  New member->contracts dependency edges need an L7 root-lock regen —
-  flagged in the S3 PR (J1 follow-up). PR URL + review + merge: to record.
+- S3 (MERGED 2026-10-04 as f5a1db6, PR #19): errors/envelope/projection,
+  interfaces 60/60 (identity 33/33). Two disjoint implementers (C errors,
+  D envelope+projection); coordinator-reviewed. Independent review
+  REQUEST-CHANGES (F1 business-path redaction, F2 __proto__, F3 key list,
+  N1-N7 notes) — all addressed, delta re-review APPROVED, lane-06 CI
+  green. Note: the `integration`/`workspace` check is RED ON MAIN since
+  before #19 (root lock missing miniflare/workerd/sharp entries; L7-owned,
+  pre-existing — verified via main-branch run history, not lane-06 caused).
+  J1 follow-up for L7 stands (root-lock regen incl. new member->contracts
+  edges + tsconfig.check include).
+- S4 (in progress): branch muse/lane-06-identity-interfaces/http-routes.
+  Recon verdict: REAL @canlang/ui renderer + worker fetch seam consumable;
+  invocation/registry/stores stay ports (fake doubles). Scope: routes/
+  pages/fragments (E) + operations/auth/limits (F) with tests; coordinator
+  owns ports/context/testing/index/package/CI. Consumes built identity+ui
+  entries (CI builds them). PR URL + review + merge: to record.
 
 ## Remaining work and cleanup
 

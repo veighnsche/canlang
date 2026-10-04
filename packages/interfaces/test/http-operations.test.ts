@@ -1,0 +1,358 @@
+/**
+ * S4 operation-dispatch tests: authed mutation framing, CSRF, identity,
+ * envelope checks, form coercion, body caps, collection queries, and error
+ * passthrough.
+ */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
+import { IdentityError, deriveCsrfToken } from '@canlang/identity';
+import { buildBusinessError } from '../src/errors/envelope.js';
+import { handleOperationRequest } from '../src/http/operations.js';
+import {
+  parseCollectionQuery,
+  parseFormBody,
+  parseJsonBody,
+  readCappedBody,
+} from '../src/http/limits.js';
+import { createTestDeps, testRequest } from '../src/testing.js';
+
+const OP = 'acme.order';
+const SHAPES = { [OP]: { allowed: ['qty', 'label'], required: ['qty'] } };
+
+/** Fresh canonical UUIDv7 operation_id with the time field at `atMs`. */
+function freshOperationId(atMs: number = Date.now()): string {
+  const timeHex = atMs.toString(16).padStart(12, '0');
+  const rand = randomBytes(10).toString('hex');
+  return `${timeHex.slice(0, 8)}-${timeHex.slice(8, 12)}-7${rand.slice(0, 3)}-8${rand.slice(4, 7)}-${rand.slice(7, 19)}`;
+}
+
+async function setup() {
+  const t = await createTestDeps({
+    shapes: SHAPES,
+    mutations: {
+      [OP]: (envelope) => ({
+        result: {
+          status: 'committed',
+          operation_id: envelope.operation_id,
+          result: { echoed: envelope.inputs },
+        },
+      }),
+    },
+  });
+  return { ...t, csrf: await deriveCsrfToken(t.identity.sessionToken) };
+}
+
+function opRequest(opts: {
+  cookie?: string;
+  csrf?: string;
+  body: string;
+  contentType?: string;
+}): Request {
+  const headers: Record<string, string> = {};
+  if (opts.contentType !== undefined) headers['content-type'] = opts.contentType;
+  if (opts.csrf !== undefined) headers['x-csrf-token'] = opts.csrf;
+  return testRequest('/operations/acme.order', {
+    method: 'POST',
+    headers,
+    ...(opts.cookie === undefined ? {} : { cookie: opts.cookie }),
+    body: opts.body,
+  });
+}
+
+function jsonOpBody(extra: Record<string, unknown> = {}): string {
+  return JSON.stringify({ operation_id: freshOperationId(), inputs: { qty: 1 }, ...extra });
+}
+
+test('authed JSON mutation invokes with envelope + identity', async () => {
+  const t = await setup();
+  const operation_id = freshOperationId();
+  const res = await handleOperationRequest(
+    t.deps,
+    opRequest({
+      cookie: t.identity.cookie,
+      csrf: t.csrf,
+      contentType: 'application/json',
+      body: JSON.stringify({ operation: OP, operation_id, inputs: { qty: 2, label: 'x' } }),
+    }),
+    OP,
+  );
+  assert.equal(res.status, 200);
+  const payload = (await res.json()) as { status: string; operation_id: string };
+  assert.equal(payload.status, 'committed');
+  assert.equal(payload.operation_id, operation_id);
+  assert.equal(t.invoker.mutations.length, 1);
+  const call = t.invoker.mutations[0];
+  assert.ok(call);
+  assert.deepEqual(call.envelope, { operation: OP, operation_id, inputs: { qty: 2, label: 'x' } });
+  assert.equal(call.identity.actor?.user_id, t.identity.userId);
+});
+
+test('missing or stale CSRF is forbidden and never invokes', async () => {
+  const t = await setup();
+  const body = jsonOpBody();
+  const missing = await handleOperationRequest(
+    t.deps,
+    opRequest({ cookie: t.identity.cookie, contentType: 'application/json', body }),
+    OP,
+  );
+  assert.equal(missing.status, 403);
+  const stale = await handleOperationRequest(
+    t.deps,
+    opRequest({ cookie: t.identity.cookie, csrf: 'stale-token', contentType: 'application/json', body }),
+    OP,
+  );
+  assert.equal(stale.status, 403);
+  assert.equal((await stale.json() as { code: string }).code, 'forbidden');
+  assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('CSRF via inputs._csrf field succeeds and the field never reaches the invoker', async () => {
+  const t = await setup();
+  const res = await handleOperationRequest(
+    t.deps,
+    opRequest({
+      cookie: t.identity.cookie,
+      contentType: 'application/json',
+      body: JSON.stringify({ operation_id: freshOperationId(), inputs: { qty: 1, _csrf: t.csrf } }),
+    }),
+    OP,
+  );
+  assert.equal(res.status, 200);
+  const call = t.invoker.mutations[0];
+  assert.ok(call);
+  assert.deepEqual(call.envelope.inputs, { qty: 1 });
+});
+
+test('present-but-invalid session cookie is forbidden, never public', async () => {
+  const t = await setup();
+  const res = await handleOperationRequest(
+    t.deps,
+    opRequest({
+      cookie: 'can_session=garbage',
+      csrf: t.csrf,
+      contentType: 'application/json',
+      body: jsonOpBody(),
+    }),
+    OP,
+  );
+  assert.equal(res.status, 403);
+  assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('public POST without a session is rejected: anonymous mutations never accepted', async () => {
+  const t = await setup();
+  const res = await handleOperationRequest(
+    t.deps,
+    opRequest({ contentType: 'application/json', body: jsonOpBody() }),
+    OP,
+  );
+  assert.equal(res.status, 403);
+  const err = (await res.json()) as { code: string; message: string };
+  assert.equal(err.code, 'forbidden');
+  assert.equal(err.message, 'Authentication required.');
+  assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('malformed, expired, and future operation_ids are validation', async () => {
+  const t = await setup();
+  const ids = [
+    'not-a-uuid',
+    freshOperationId(Date.now() - 25 * 60 * 60 * 1000),
+    freshOperationId(Date.now() + 10 * 60 * 1000),
+    freshOperationId().toUpperCase(),
+  ];
+  for (const operation_id of ids) {
+    const res = await handleOperationRequest(
+      t.deps,
+      opRequest({
+        cookie: t.identity.cookie,
+        csrf: t.csrf,
+        contentType: 'application/json',
+        body: JSON.stringify({ operation_id, inputs: { qty: 1 } }),
+      }),
+      OP,
+    );
+    assert.equal(res.status, 400, operation_id);
+    assert.equal((await res.json() as { code: string }).code, 'validation');
+  }
+  assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('unknown operation name shape and unknown catalog entry are not_found', async () => {
+  const t = await setup();
+  const body = jsonOpBody();
+  const authed = { cookie: t.identity.cookie, csrf: t.csrf, contentType: 'application/json', body };
+  for (const name of ['nope', 'a.b.c.d', 'acme.nope', '1acme.order']) {
+    const res = await handleOperationRequest(t.deps, opRequest(authed), name);
+    assert.equal(res.status, 404, name);
+    assert.equal((await res.json() as { code: string }).code, 'not_found');
+  }
+  assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('unknown input member and missing required input are validation', async () => {
+  const t = await setup();
+  for (const inputs of [{ qty: 1, bogus: 2 }, { label: 'no-qty' }]) {
+    const res = await handleOperationRequest(
+      t.deps,
+      opRequest({
+        cookie: t.identity.cookie,
+        csrf: t.csrf,
+        contentType: 'application/json',
+        body: JSON.stringify({ operation_id: freshOperationId(), inputs }),
+      }),
+      OP,
+    );
+    assert.equal(res.status, 400, JSON.stringify(inputs));
+    assert.equal((await res.json() as { code: string }).code, 'validation');
+  }
+  assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('invoker business errors pass through with canonical status', async () => {
+  const t = await createTestDeps({
+    shapes: SHAPES,
+    mutations: { [OP]: () => ({ error: buildBusinessError('conflict', 'Stale version.') }) },
+  });
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  const res = await handleOperationRequest(
+    t.deps,
+    opRequest({
+      cookie: t.identity.cookie,
+      csrf,
+      contentType: 'application/json',
+      body: jsonOpBody(),
+    }),
+    OP,
+  );
+  assert.equal(res.status, 409);
+  const err = (await res.json()) as { code: string; message: string };
+  assert.deepEqual(err, { code: 'conflict', message: 'Stale version.', retryable: false });
+});
+
+test('form-encoded body coerces JSON values and plain strings; _csrf field works', async () => {
+  const t = await setup();
+  const operation_id = freshOperationId();
+  const form = new URLSearchParams({
+    operation_id,
+    inputs: JSON.stringify({ qty: 3, label: 'plain' }),
+    _csrf: t.csrf,
+  });
+  const res = await handleOperationRequest(
+    t.deps,
+    opRequest({
+      cookie: t.identity.cookie,
+      contentType: 'application/x-www-form-urlencoded',
+      body: form.toString(),
+    }),
+    OP,
+  );
+  assert.equal(res.status, 200);
+  const call = t.invoker.mutations[0];
+  assert.ok(call);
+  // operation_id/_csrf traveled raw (not valid JSON); inputs traveled as JSON text.
+  assert.deepEqual(call.envelope, {
+    operation: OP,
+    operation_id,
+    inputs: { qty: 3, label: 'plain' },
+  });
+});
+
+test('oversize body is a 429 quota breach', async () => {
+  const t = await setup();
+  const res = await handleOperationRequest(
+    t.deps,
+    opRequest({
+      cookie: t.identity.cookie,
+      csrf: t.csrf,
+      contentType: 'application/json',
+      body: JSON.stringify({ operation_id: freshOperationId(), inputs: { qty: 1, blob: 'x'.repeat(1_100_000) } }),
+    }),
+    OP,
+  );
+  assert.equal(res.status, 429);
+  assert.equal((await res.json() as { code: string }).code, 'limit');
+  assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('invalid JSON, wrong content-type, and body.operation mismatch are validation', async () => {
+  const t = await setup();
+  const auth = { cookie: t.identity.cookie, csrf: t.csrf };
+  const badJson = await handleOperationRequest(
+    t.deps,
+    opRequest({ ...auth, contentType: 'application/json', body: '{oops' }),
+    OP,
+  );
+  assert.equal(badJson.status, 400);
+  const wrongType = await handleOperationRequest(
+    t.deps,
+    opRequest({ ...auth, contentType: 'text/plain', body: '{}' }),
+    OP,
+  );
+  assert.equal(wrongType.status, 400);
+  assert.equal((await wrongType.json() as { code: string }).code, 'validation');
+  const mismatch = await handleOperationRequest(
+    t.deps,
+    opRequest({
+      ...auth,
+      contentType: 'application/json',
+      body: JSON.stringify({ operation: 'acme.other', operation_id: freshOperationId(), inputs: { qty: 1 } }),
+    }),
+    OP,
+  );
+  assert.equal(mismatch.status, 400);
+  assert.equal((await mismatch.json() as { code: string }).code, 'validation');
+  assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('GET on an operation route is not_found', async () => {
+  const t = await setup();
+  const res = await handleOperationRequest(
+    t.deps,
+    testRequest('/operations/acme.order', { method: 'GET', cookie: t.identity.cookie }),
+    OP,
+  );
+  assert.equal(res.status, 404);
+  assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('parseCollectionQuery: defaults, clamp, cursor, order, filters, validation', () => {
+  assert.deepEqual(parseCollectionQuery(new URL('https://x.invalid/')), {
+    request: { limit: 25 },
+  });
+  assert.deepEqual(parseCollectionQuery(new URL('https://x.invalid/?limit=10')), {
+    request: { limit: 10 },
+  });
+  assert.deepEqual(parseCollectionQuery(new URL('https://x.invalid/?limit=500')), {
+    request: { limit: 100 },
+  });
+  const full = parseCollectionQuery(
+    new URL('https://x.invalid/?cursor=abc&order=a,-b&filter%5Bstatus%5D=open&filter%5Bq%5D=x'),
+  );
+  assert.deepEqual(full, {
+    request: { limit: 25, cursor: 'abc', order: ['a', '-b'], filters: { status: 'open', q: 'x' } },
+  });
+  for (const raw of ['abc', '-1', '1.5', '']) {
+    const outcome = parseCollectionQuery(new URL(`https://x.invalid/?limit=${raw}`));
+    assert.ok('error' in outcome, raw);
+    assert.equal(outcome.error.code, 'validation');
+  }
+});
+
+test('body readers enforce caps and shapes', async () => {
+  const over = testRequest('/x', { method: 'POST', body: 'x'.repeat(100) });
+  await assert.rejects(readCappedBody(over, 10), (e: unknown) => e instanceof IdentityError && e.code === 'limit');
+  const badJson = testRequest('/x', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: 'nope',
+  });
+  await assert.rejects(parseJsonBody(badJson), (e: unknown) => e instanceof IdentityError && e.code === 'validation');
+  const dupes = testRequest('/x', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: 'a=1&a=2',
+  });
+  assert.deepEqual(await parseFormBody(dupes), { a: '2' });
+});
