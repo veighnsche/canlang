@@ -293,12 +293,62 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
   pre-existing — verified via main-branch run history, not lane-06 caused).
   J1 follow-up for L7 stands (root-lock regen incl. new member->contracts
   edges + tsconfig.check include).
-- S4 (in progress): branch muse/lane-06-identity-interfaces/http-routes.
-  Recon verdict: REAL @canlang/ui renderer + worker fetch seam consumable;
-  invocation/registry/stores stay ports (fake doubles). Scope: routes/
-  pages/fragments (E) + operations/auth/limits (F) with tests; coordinator
-  owns ports/context/testing/index/package/CI. Consumes built identity+ui
-  entries (CI builds them). PR URL + review + merge: to record.
+- S4 (MERGED 2026-10-04 as 9a01b51, PR #22): canonical HTTP dispatch,
+  interfaces 120/120 (identity 33/33). Two disjoint implementers (E routes/
+  pages/fragments, F operations/auth/limits) + coordinator seams. Review
+  APPROVE-WITH-NOTES (N1 clock, N2 logout idempotence, N3 urlencoded gaps,
+  N4 team oracle, N5 docs, N6 undecodable cookie, N7/N8 notes) — all fixed
+  with pins. Post-review main move (L5 S3 PresentationContext
+  invocation/query) adapted via row-query runner bound to read invoker;
+  delta re-review APPROVED; lane-06 + workspace CI green. Observed hazard
+  (L5/L7 owned): @canlang/ui dist bundles its own contracts copy — dual
+  type identities unless every consumer builds fresh in dependency order.
+- S5 (in progress): branch `muse/lane-06-identity-interfaces/mcp-server`
+  from origin/main (rebased onto 64d459a post Lane-02 PR4). Scope: MCP SDK
+  qualification, registry->tool generation, closed-schema derivation,
+  grant-bearer audience binding, discovery/call permission rechecks,
+  same-invocation proof with S4.
+  - QUALIFIED 2026-10-04: official `@modelcontextprotocol/sdk` 1.32.0
+    (pinned). Evidence: `WebStandardStreamableHTTPServerTransport` closure
+    (transport + shared/requestBody + shared/sseKeepAlive) contains zero
+    `node:` imports; documented Cloudflare-Workers-safe; stateless via
+    `sessionIdGenerator: undefined`; `LATEST_PROTOCOL_VERSION =
+    '2025-11-25'` matches the DESIGN-pinned MCP auth spec date; tool names
+    allow dots (`/^[A-Za-z0-9._-]{1,128}$/`), so canonical fq names are
+    used verbatim. SDK OAuth authorization-server code is express-bound
+    (not workerd-safe) -> full OAuth HTTP dance (metadata/authorize/token)
+    deferred to S7; S5 authenticates via grant bearers + `mcp-grant`
+    audience only. Local `npm install` run for dev; root-lock regen stays
+    L7-owned (J1 follow-up extended with the SDK edge).
+  - Coordinator files landed: identity `authentication/grants.ts`
+    (`issueMcpGrant`, 30-day TTL) + `test/grants.test.ts` (identity 36/36);
+    interfaces SDK dep, ports.ts S5 section (McpSchemaField, descriptors,
+    registry/permissions/files ports, McpDeps), testing.ts MCP doubles.
+  - Implementers: G owns mcp/{server,discovery}.ts + mcp-server.test.ts
+    (SDK Server + stateless transport, raw JSON-RPC round-trips,
+    same-invocation proof vs S4 HTTP); H owns mcp/{tools,schemas}.ts +
+    mcp-tools.test.ts (generation, closed schemas, handle-mode anyOf).
+    Coordinator pre-PR fixes: owner check on call path (not just
+    discovery), requireVersion-keyed ref parser (schema/server agree).
+  - PR #32 open at f25f460 (interfaces 148/148, identity 36/36).
+    Independent review REQUEST-CHANGES, all valid, all addressed: F1
+    integer renders decimal-string (was JSON number); F2 handle mode
+    admits non-record canonical inputs per wire ActionHandleInvocation
+    (schema branch + `handleModeAllowed` + forwarding; ref overrides
+    fail); F3 mutation schema root `type:'object'`; F4 oracle comments
+    corrected to the actual guarantee. Folded notes: N1 negotiation
+    fallback pin, N2/N3 auth+framing pins (lowercase bearer accepted
+    per RFC 9110, session-as-bearer/expiry 401s, read+op_id closed,
+    malformed op_id, ReadRef-with-version, catalog-skew not_found),
+    N5 case-insensitive scheme, N8 denial info-logging like S4 deny(),
+    N9 client_id trim + 256 bound, N10 catalog/descriptor consistency
+    comment, N12 results-unvalidated comment. Deferred with reason: N4
+    (keep collapsed auth message), N6/N7 (need L1 joins: initialize
+    instructions, union/array fields), N11 (SDK 4 MiB/413 + batch-100
+    vs S4 1 MiB/429 noted divergence, bounded). Discovered while
+    pinning: SDK protocol layer rejects unparseable params with
+    -32603 before our handler (test documents the seam).
+    After fixes: interfaces 160/160, identity 38/38.
 
 ## Remaining work and cleanup
 

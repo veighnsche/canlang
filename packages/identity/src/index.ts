@@ -18,3 +18,4 @@ export * from './teams/selection.js';
 export * from './authentication/context.js';
 export * from './authentication/revocation.js';
 export * from './authentication/audience.js';
+export * from './authentication/grants.js';
