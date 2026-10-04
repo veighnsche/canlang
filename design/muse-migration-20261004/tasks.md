@@ -302,3 +302,4 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - RESERVED D02: draft/CanCatch.can, draft/CanCatch.md — writer 01a106e9-5fa5-7173-b4db-affb9fe22fe7 (D02 CanCatch/2) batch 1 active, no .mjs in scope.
 - RESERVED D03: draft/CanDesk.can, draft/CanDesk.md — writer 01a106e9-60b0-7df1-8514-c73fee43624e (D03 CanDesk/3) batch 1 active, no .mjs in scope.
 - QUEUED ready disjoint: D04/D05/D06/D07/D08/D09/D10, J01/J03/J04/J06. J02 waits D06 release; J05 waits D09 release.
+- ACK H002 NOTE file waiting: accepted. External push unavailable (external_agent_ingress_closed); file protocol authoritative. One-shot kqueue watcher reserved for use only when ready queue is exhausted and intake still open; no watcher running while batch 1 active. Affected tasks: none.
