@@ -120,7 +120,7 @@ Each PR: rebase on current `origin/main`, focused checks exercising the change, 
 
 ## Progress and file reservations
 
-- 2026-10-04: S1 in progress. Reserved: `implementation/status/lane-04.md` (coordinator).
+- 2026-10-04: S1 merged (PR #1, squash `50b46b4`). S2 in progress on `muse/lane-04-work-services-files/contracts` from `origin/main@50b46b4`. Reserved: `packages/contracts/src/{work,services,files}.ts`, `packages/{work,services,files}/package.json|tsconfig.json`, `.github/workflows/lane-04.yml`, this file (coordinator).
 
 ## Interface requests and handoffs
 
@@ -128,7 +128,7 @@ Each PR: rebase on current `origin/main`, focused checks exercising the change, 
 
 ## PR and verification evidence
 
-- No PRs yet. Per-slice entries record reviewed head, checks, merged PR and material limitations.
+- PR #1 (S1 plan): head `aa04129`, docs-only single owned file, `mergeStateStatus=CLEAN`, no CI configured yet, self-reviewed diff, squash-merged as `50b46b4`. Limitation: plan only; all implementation pending.
 
 ## Remaining work and cleanup
 
