@@ -383,12 +383,13 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
       v0.10.0 (FieldControlKind, FieldControlProps+timeZone, Label/Validator/per-control/Calendar/Filter
       props; control+labelCaption on FormFieldDef), controls.ts 14 factories, shared field-id helpers,
       14 catalog flips. Coordinator closed the timeZone gap (zoned datetime/agenda). Suite 483/483.
-- [x] C4b form placement integration (branch muse/lane-05-ui/c4b-placement, PR pending):
-      renderExplicitControl dispatch (12 kinds), assertUniqueFieldPaths, multipart for file fields,
-      renderField reuses label()/validator() fragments (byte-identical). Suite 504/504 green.
-- [ ] C5 groups + slots: accordion, collapse(=details), hero, footer, fieldset, join, stack, aura, mask,
-      hover_3d, tooltip, alert, toast, diff, indicator, chat_bubble, dropdown, modal, drawer, swap, fab,
-      stat suite, carousel, hover_gallery, steps, timeline. Two workers by file split.
+- [x] C4b form placement integration (merged PR #62 as f23d1df, reviewed head, green):
+      renderExplicitControl dispatch (12 kinds), assertUniqueFieldPaths, multipart on file_input only
+      (review: dead file-type branch dropped), renderField reuses label()/validator() fragments
+      (byte-identical). Suite 504/504 green.
+- [ ] C5 groups + slots (branch muse/lane-05-ui/c5-groups, PR pending): contract v0.11.0
+      (32 Props/item/slot types), groups.ts 12 factories + overlays.ts 14 factories (Props moved
+      to contract, modules import), index exports, 26 catalog flips, arity pins. Suite 619/619.
 - [ ] C6 navigation + shared state: menu, navbar, dock, megamenu, theme_controller, pagination-in-collection,
       button exclusive bindings (action/submit/target/opens). One worker + coordinator.
 - [ ] C7 collections + agenda + files + review: calendar (agenda dispatch), board, gallery (semantic),

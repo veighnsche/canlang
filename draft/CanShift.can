@@ -325,38 +325,69 @@ package shift label="Staff scheduling"@{nl="Personeelsplanning"}
   # Plan drafts, publish coverage and resolve current commitments. @{nl="Plan concepten, publiceer bezetting en los huidige inzetverplichtingen op."}
   page /roster title=title_roster
    require scheduler
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
    form Roster.create
    list Roster
     card "Roster assignment"@{nl="Roostertoewijzing"}
      form assign
+      ## roster auto-binds the enclosing roster; instants and travel buffers keep generated controls.
+      fieldset "Assignment"@{nl="Toewijzing"}
+       select employee
+       select location
+       input role
+       input skill
     card "Dated employee commitments"@{nl="Gedateerde personeelsinzet"}
      calendar row.Commitment start=from end=until filter=location,kind,conflict defaults={location=preferences.location}
-      text row.employee,row.skill,row.active,row.conflict
+      badge row.skill
+      status row.conflict
+      text row.employee,row.active
       actions recover_commitment
       list row.Duty
+       status row.published
        text row.role,row.published_revision,row.override_reason,row.published_by
-       actions publish,cancel,reconcile
+       actions cancel,reconcile
+       button opens=publish_dialog
+       ## The dialog keeps the duty row; only the override reason is entered.
+       modal "Publish duty"@{nl="Dienst publiceren"} id=publish_dialog
+        slot content
+         form publish arguments={duty=row} display=inline
+          input override_reason
        history
        table row.Notice columns=kind,revision,state
+        pagination
     card "Coverage requirements"@{nl="Bezettingsvereisten"}
      form Coverage.create
-     table row.Coverage columns=location,role,from,until,minimum,met filter=location defaults={location=preferences.location}
+      ## The roster parent auto-binds; instants and minimum keep generated controls.
+      fieldset "Coverage window"@{nl="Bezettingstijdvak"}
+       select location
+       input role
+     table row.Coverage columns=location,role,from,until,minimum filter=location defaults={location=preferences.location}
       edit
+      status row.met
   # Maintain your availability separately from hidden roster drafts. @{nl="Beheer je beschikbaarheid afzonderlijk van verborgen conceptroosters."}
   page /roster/mine title="My shifts"@{nl="Mijn diensten"}
    require members
+   breadcrumbs
    card "Your availability"@{nl="Jouw beschikbaarheid"}
     form Availability.create
+     select employee
+     toggle available
     list Availability
-     text row.from,row.until,row.available
+     status row.available
+     text row.from,row.until
      edit
    card "Published duties and swap decisions"@{nl="Gepubliceerde diensten en ruilbesluiten"}
     list Duty display=split
-     text row.parent.location,row.parent.from,row.parent.until,row.parent.skill,row.role,row.published,row.published_revision,row.parent.before,row.parent.after,row.parent.conflict
+     status row.published
+     text row.parent.location,row.parent.from,row.parent.until,row.parent.skill,row.role,row.published_revision,row.parent.before,row.parent.after,row.parent.conflict
      history
      table row.Notice columns=kind,revision,state
+      pagination
      form request_swap
+      select substitute
      list row.Swap
-      text row.substitute,row.original,row.state
+      status row.state
+      text row.substitute,row.original
       actions accept,decline
       history

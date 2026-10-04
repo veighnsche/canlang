@@ -160,39 +160,73 @@ package refer
   # Share your configured referral destination and trace earned, paid and owed balances. @{nl="Deel de ingestelde verwijzingsbestemming en volg verdiende, betaalde en verschuldigde saldi."}
   page /referrals title="Referrals"@{nl="Verwijzingen"}
    require authenticated and actor.email_verified
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
    card "Programs and your referral code"@{nl="Programma's en je verwijzingscode"}
     list Program
-     action join
+     badge row.reward
+     ## join auto-binds the enclosing program; the canonical form opens only for missing inputs.
+     tooltip "Join this program"@{nl="Deelnemen aan dit programma"}
+      button action=join
     list Advocate as advocate where advocate.account==actor and (preferences.program==null or advocate.parent==preferences.program)
      copy app_url(format("/referrals/share/{id}",{id=row.id}))
-     text row.code,row.parent.destination
+     text row.parent.destination
+     badge row.code
      card balances_title
-      metrics row.earned,row.paid,row.available,row.owed
+      stat row.earned,row.paid,row.available,row.owed
+     ## A positive owed balance only appears after a reversal preserved a settled payment.
+     card "Owed balance"@{nl="Verschuldigd saldo"}
+      require row.owed>money(0,row.parent.reward.currency)
+      alert
+       text row.owed
+     divider "Evidence"@{nl="Bewijs"}
      tabs
       tab "Qualification and reversal evidence"@{nl="Kwalificatie- en terugboekingsbewijs"}
-       table row.Credit columns=source,amount,reversal,qualification
+       table row.Credit columns=source,amount,reversal,qualification empty="No conversions yet"@{nl="Nog geen conversies"}
+        pagination
       tab "External payment evidence"@{nl="Bewijs van externe betalingen"}
        table row.Settlement columns=amount,payment_source,reference,paid,method,evidence
+        pagination
   # Review cash rewards and evidence actual external settlement. @{nl="Beoordeel geldbeloningen en leg bewijs van daadwerkelijke externe uitbetaling vast."}
   page /referrals/work title="Referral rewards"@{nl="Verwijzingsbeloningen"}
    require program_manager or finance
+   breadcrumbs
    card "Program maintenance"@{nl="Programmabeheer"}
     form Program.create
     list Program
+     badge row.reward
      edit
    card balances_title
     list Advocate as advocate where preferences.program==null or advocate.parent==preferences.program
-     metrics row.earned,row.paid,row.available,row.owed
+     stat row.earned,row.paid,row.available,row.owed
      table SourceEvidence as source where source.advocate==advocate columns=source,value.milestone,value.history_known,value.first_customer,reversed,reason
-      action reject_source
+      pagination
+      button opens=reject_dialog
+      ## The modal keeps the evidence row; reason is the only entered input.
+      modal "Reject source qualification"@{nl="Bronkwalificatie afwijzen"} id=reject_dialog
+       slot content
+        form reject_source arguments={evidence=row} display=inline
+         textarea reason
      card "Record a cash settlement"@{nl="Een uitbetaling vastleggen"}
       form settle
+       ## advocate auto-binds the enclosing advocate; amount keeps its generated money control.
+       fieldset "Payment evidence"@{nl="Betalingsbewijs"}
+        input payment_source
+        input reference
+        input method
+        input evidence
+        calendar paid
+     ## History stays per-advocate-row as authored; the row chain already binds the advocate.
      history
   # A shared link discloses only its public code and configured destination; capture requires verified customer authority. @{nl="Een gedeelde link toont alleen de openbare code en ingestelde bestemming; vastlegging vereist geverifieerde klantbevoegdheid."}
   page /referrals/share/{Advocate.id} title="Referral invitation"@{nl="Verwijzingsuitnodiging"} nav=none
    require row.parent.active
-   text row.code,row.parent.destination
-   form capture arguments={advocate=row} fields=customer
+   breadcrumbs
+   hero
+    badge row.code
+    link target=row.parent.destination caption=row.parent.destination
+    form capture arguments={advocate=row} fields=customer
+     select customer
 
 # Capture one verified customer choice for either an advocate or a contracted partner. @{nl="Leg één geverifieerde klantkeuze vast voor een ambassadeur of een contractpartner."}
 package sales_attribution
