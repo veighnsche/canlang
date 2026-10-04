@@ -1,0 +1,77 @@
+{
+  "status": "Specified expected checks, not executed parser/runtime cases. Ellipsis/metavariable fragments are prose test descriptions, not runnable fixtures.",
+  "cases": [
+    {
+      "id": "production_advance",
+      "fragment": "scenario mutate by=manager do advance 1m",
+      "phase": "checking",
+      "reason": "Clock statements are example-only; not a production capability."
+    },
+    {
+      "id": "negative_clock",
+      "fragment": "advance -1m",
+      "phase": "setup",
+      "reason": "Positive duration required; no time reversal."
+    },
+    {
+      "id": "zero_clock",
+      "fragment": "advance 0s",
+      "phase": "setup",
+      "reason": "No-op clock changes are not canonical."
+    },
+    {
+      "id": "wrong_clock_type",
+      "fragment": "advance 1",
+      "phase": "checking",
+      "reason": "An int is not duration."
+    },
+    {
+      "id": "clock_overflow",
+      "fragment": "advance a_duration_that_exceeds_datetime_range",
+      "phase": "setup",
+      "reason": "Reject before executing any later call; not an error(code) result."
+    },
+    {
+      "id": "history_override",
+      "fragment": "fixture prior=Booking {version=2,created=past}",
+      "phase": "setup",
+      "reason": "Reserved metadata remains forbidden; source fixture cannot authorize earlier commits."
+    },
+    {
+      "id": "projection_join",
+      "fragment": "history Booking as IncludesCurrentCustomer until=null read=manager",
+      "phase": "checking",
+      "reason": "All projected names must be same-name stored scalar/embedded fields; model-reference/derived joins rejected."
+    },
+    {
+      "id": "filtered_history",
+      "fragment": "history(resource.Booking as b where b.status==confirmed,from,until)",
+      "phase": "checking",
+      "reason": "History input must identify whole declared population; current filters cannot rewrite old membership."
+    },
+    {
+      "id": "historical_write",
+      "fragment": "call cancel_booking {booking=first(timeline.entries).value} by=operator",
+      "phase": "checking",
+      "reason": "Projected contract is not a current Booking reference/version."
+    },
+    {
+      "id": "unknown_grants",
+      "fragment": "history Booking as SavedBooking until=null",
+      "phase": "checking",
+      "reason": "No implied source/public history grant; mandatory explicit read declaration."
+    },
+    {
+      "id": "backdated_seed",
+      "fragment": "fixture archived_version=HistoryEntry {...}",
+      "phase": "checking",
+      "reason": "A query value contract is not a stored model or provisioning recipe; no fixture can write runtime audit history. Pure value construction grants no record authority."
+    },
+    {
+      "id": "expired_content",
+      "fragment": "extend source deadline after it already expired",
+      "phase": "admission",
+      "reason": "Existing lifecycle rule denies resurrection; history coverage remains missing."
+    }
+  ]
+}
