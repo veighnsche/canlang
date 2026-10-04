@@ -1,0 +1,16 @@
+# Source-derived company policy review — 2026-10-04
+
+This specifies a draft authoring artifact, not an implemented report generator or a new `.can` declaration. Selected source and requirement links are the evidence. No live business records, private provider configuration or test execution are assumed.
+
+| Example statement from current Expense source | Canonical evidence | Review disposition |
+| --- | --- | --- |
+| A claim belongs to its Employee; reviewers decide only their assigned submitted claims with current workplace eligibility. | `expense.Expense` containment, reviewer read policy, `submit` and `decide` guards; named subject-role and recovery examples. | Company-specific policy; team ownership alone never implies these permissions. Confirm this scope against the company brief rather than treating it as a language default. |
+| Finance may retain old source assertions without recreating approval or reimbursement; claimant access can be granted or revoked after a reason-bearing identity match. | `LegacyExpense` locks/grants and `retain_legacy`/`link_legacy`; connected viewer-result journey. | Explicit added business workflow, still unexecuted. Actor text is historical evidence, not an account or past permission. Dataset identity/file provenance remains a reviewed input. |
+| A claimant can read their normalized historical claim and individual receipt but not the source batch export. | Exact claimant field grant `source,external_id,location,claim`; finance grant, attachment contract. | Declared access boundary; source serialization/download enforcement has not run. Do not translate this into a claim of verified privacy. |
+| Browser and chatbot use one canonical operation schema, version admission and receipt identity. | Shared operation/runtime/MCP contract; selected source identities. | Pinned language contract, not app-authored boilerplate or a working deployment result. |
+
+These are illustrative extracted statements, not a maintained second policy definition. A real review must resolve the selected revision's declarations and cite those locations; this note does not substitute for it. A source change to audience, field grants, account matching, retention or an operation guard changes the review even if labels/descriptions do not change. Descriptions may be incomplete; contradictions must remain visible rather than be smoothed into a favorable summary.
+
+The requirement brief may confirm a policy, contradict it or say nothing. Absence is not approval. Report unresolved company choices with their affected outcomes; no extra `assumption` annotations or repeated signatures are required in each app. Preserve actual company tailoring instead of flattening it into a global default. Qualified source identity keeps composed apps' ownership clear, and one suite review covers the complete selected outcome scope.
+
+Completion of the **draft contract** is these source/authority/provenance/change boundaries plus the concrete witness. Execution, summary accuracy across a real company, reviewer recognition and review time remain acceptance evidence to obtain later; neither an AI summary nor JEV's mock-company advice supplies those results. No separate verification framework or permission approval threshold is added.
