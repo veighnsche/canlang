@@ -303,7 +303,7 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
   delta re-review APPROVED; lane-06 + workspace CI green. Observed hazard
   (L5/L7 owned): @canlang/ui dist bundles its own contracts copy — dual
   type identities unless every consumer builds fresh in dependency order.
-- S5 (in progress): branch `muse/lane-06-identity-interfaces/mcp-server`
+- S5 (MERGED 2026-10-04 as 090f7b4, PR #32): branch `muse/lane-06-identity-interfaces/mcp-server`
   from origin/main (rebased onto 64d459a post Lane-02 PR4). Scope: MCP SDK
   qualification, registry->tool generation, closed-schema derivation,
   grant-bearer audience binding, discovery/call permission rechecks,
@@ -348,7 +348,13 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     vs S4 1 MiB/429 noted divergence, bounded). Discovered while
     pinning: SDK protocol layer rejects unparseable params with
     -32603 before our handler (test documents the seam).
-    After fixes: interfaces 160/160, identity 38/38.
+    After fixes: interfaces 160/160, identity 38/38. Delta re-review
+    REQUEST-CHANGES on two stale comments (R1/R2) + sealed-message pin
+    suggestion — all fixed, final confirm APPROVED. Rebased onto fb226e0
+    (L1 B0 + L3 S4 + L4 S5/S6 + L5 S5); lock conflict resolved with
+    main's lock + SDK edge re-applied; suites re-verified green;
+    merged with lane-06 + workspace CI green (lock sync fixed the
+    `npm ci` failure the new dep had introduced).
 
 ## Remaining work and cleanup
 
