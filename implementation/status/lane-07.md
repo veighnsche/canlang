@@ -84,7 +84,7 @@ Dependency requests go out as committed status entries + PR descriptions naming 
 
 Coordinator works inline for small slices; at most two active implementation subagents, disjoint exact files, no git commands from children; one bounded read-only review subagent on meaningful diffs.
 
-- [ ] PR1 `muse/lane-07-platform/plan`: this status plan + root workspace (`package.json`, `package-lock.json`, `tsconfig.base.json`, `.gitignore`) + `packages/contracts` scaffold (manifest, `index.ts`, `deployment.ts`, `examples.ts`, shape tests). Checks: `npm ci`, `tsc`, `vitest`.
+- [x] PR1 `muse/lane-07-platform/plan`: merged as #4 (`14fa6a0`). Root workspace + `@canlang/contracts` + L1/L3 assembly join + root-lock integration of `@canlang/state`.
 - [ ] PR2 `muse/lane-07-platform/cloudflare-scaffold`: `packages/cloudflare` (build/dev/deploy/upgrade/worker split, Node/Worker import-boundary test, miniflare local-D1 smoke over a fixture Worker, deploy-plan golden). No live credentials.
 - [ ] PR3 `muse/lane-07-platform/testkit-scaffold`: `packages/testkit` (report envelope, table-runner core on marked fixture artifacts, per-row isolation proof, loud `unsupported` for unlanded producers).
 - [ ] PR4 `muse/lane-07-platform/ci-skeleton`: `integration.yml` + `release.yml` (minimal, growing per milestone), `tests/integration` harness skeleton, `docs/dev-setup.md` verified on this machine.
@@ -115,7 +115,7 @@ Active reservations: none (coordinator holds all owned files until first delegat
 
 ## PR and verification evidence
 
-No PRs yet. Per merged slice record: PR URL, reviewed head SHA, checks run with results, source revision, material limitations.
+- PR #4 (branch `muse/lane-07-platform/plan`, reviewed head `c5a48a8`, base `e204d07`, squash-merged as `14fa6a0`): root workspace + `@canlang/contracts` + L1/L3 assembly join. Checks: `npm ci` clean; `npm run build` emits dist (assembly loads versions 1/1/1/1); `npm run typecheck` clean (covers src+test); vitest 10/10; lane-03 standalone flow green (typecheck 0, node:test 2/2); independent read-only subagent review (no blocking findings; 8 nits, 5 fixed incl. test typecheck coverage, 3 accepted/deferred). Limits: no CI on the PR itself (PR4); L3 nested-lock/package-import follow-up pending their ack.
 
 ## Remaining work and cleanup
 
