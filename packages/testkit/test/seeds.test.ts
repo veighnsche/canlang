@@ -32,6 +32,10 @@ describe("parseSeedRef", () => {
     expect(() => parseSeedRef(ref)).toThrow(fragment);
   });
 
+  it("accepts single-char segments", () => {
+    expect(parseSeedRef("a:b")).toEqual({ provider: "a", scenario: "b" });
+  });
+
   it("accepts long segments without catastrophic backtracking", () => {
     const provider = "m".repeat(500);
     const scenario = "s".repeat(500);
