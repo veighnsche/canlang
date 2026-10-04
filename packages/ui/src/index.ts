@@ -61,11 +61,22 @@ export {
   title,
 } from "./components.js";
 export { list, table } from "./collections.js";
+export {
+  action,
+  actions,
+  deleteRecord,
+  edit,
+  form,
+  formatDatetimeLocal,
+  pointerToFieldName,
+} from "./forms.js";
 export { LANE05_CATALOG_VERSION, UI_CATALOG } from "./catalog.js";
 // Temporary B0 wiring: re-exported contract types until lane 7 assembles
 // @canlang/contracts; see README.
 export type {
   AccountMenuData,
+  ActionProps,
+  ActionsProps,
   AdmittedBindings,
   AdmitFn,
   AdmissionOutcome,
@@ -76,6 +87,14 @@ export type {
   ComponentCatalog,
   ComponentCatalogEntry,
   ContentProps,
+  DeleteProps,
+  DeliveryReceiptView,
+  EditProps,
+  FormFieldDef,
+  FormFieldOption,
+  FormMode,
+  FormOutcome,
+  FormProps,
   ListProps,
   ListQueryArgs,
   ListQueryResult,
