@@ -111,11 +111,11 @@ package learn label="Learning"@{nl="Opleidingen"}
    require all(version.locations as location,can_work(actor,location))
    require eligible(account,version) and count(version.Lesson)>0
    do create Enrollment {parent=version,account,due,total=count(version.Lesson)} as enrollment
-   examples seed=[test_worker] version=published account=self due=null
+   examples seed=[test_worker,lesson] version=published account=self due=null
     as,version.audience -> count(version.Enrollment)
     instructor,staff -> 1
     instructor,member -> error(rule_failed)
-   examples seed=[test_worker,test_admin,test_contact,allocated] version=published account=self due=null
+   examples seed=[test_worker,test_admin,test_contact,allocated,lesson] version=published account=self due=null
     as,version.audience,paid_term.paid -> count(version.Enrollment)
     instructor,member,true -> 1
     instructor,member,false -> error(rule_failed)
