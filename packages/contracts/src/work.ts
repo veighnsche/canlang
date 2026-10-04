@@ -61,9 +61,12 @@ export type ScheduledOccurrenceState =
 /**
  * Keyed schedule entry. The key is unique within app/owner/package and
  * independent of the calling operation; replacement and cancellation commit
- * with business changes (DESIGN section 6).
+ * with business changes (DESIGN section 6). `occurrenceId` identifies this
+ * occurrence record: a replacement mints a new id while the superseded
+ * record keeps its own, so supersession scopes exactly per occurrence.
  */
 export interface ScheduledOccurrence {
+  occurrenceId: OccurrenceId;
   key: string;
   scope: WorkScope;
   /** Scheduled instant as UTC epoch milliseconds. */
@@ -110,6 +113,13 @@ export interface OutboxItem {
   occurrenceIndex: number;
   /** Frozen provider inputs; versions frozen at commit. */
   request: unknown;
+  /**
+   * Originating scheduled/recurring occurrence, stamped by the runtime when
+   * the intent is staged during an occurrence execution; null for direct
+   * business-operation sends. Supersession joins on this id, never on the
+   * event path, so same-event keys stay isolated (DESIGN section 6).
+   */
+  originOccurrence: OccurrenceId | null;
   /** Completed provider attempts so far. */
   attempts: number;
   state: OutboxItemState;
