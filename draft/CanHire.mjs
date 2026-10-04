@@ -6,6 +6,7 @@ import {
   call,
   count,
   datetime,
+  delivery,
   emit,
   cancel,
   require as check,
@@ -324,25 +325,10 @@ export const appDefinition = {
           label: message("Retained interview", { nl: "Behouden gesprek" }),
         },
         notice_delivery: {
-          type: "text",
+          type: "delivery",
+          operation: "hire.Mail.send",
           nullable: true,
           label: message("Reminder reference", { nl: "Herinneringsreferentie" }),
-        },
-        notice_state: {
-          type: "enum",
-          cases: ["none", "pending", "succeeded", "failed", "unknown", "skipped"],
-          default: "none",
-          label: {
-            text: message("Reminder delivery", { nl: "Verzending herinnering" }),
-            values: {
-              none: message("Not requested", { nl: "Niet aangevraagd" }),
-              pending: message("Pending", { nl: "In afwachting" }),
-              succeeded: message("Sent", { nl: "Verzonden" }),
-              failed: message("Failed", { nl: "Mislukt" }),
-              unknown: message("Unknown", { nl: "Onbekend" }),
-              skipped: message("Skipped", { nl: "Overgeslagen" }),
-            },
-          },
         },
         release_delivery: {
           type: "text",
@@ -369,6 +355,23 @@ export const appDefinition = {
           type: "text",
           nullable: true,
           label: message("Delivery reference", { nl: "Verzendingsreferentie" }),
+        },
+      },
+      derived: {
+        notice_state: {
+          type: "std.DeliveryResult.status",
+          nullable: true,
+          handler: "Interview.notice_state",
+          label: {
+            text: message("Reminder delivery", { nl: "Verzending herinnering" }),
+            values: {
+              pending: message("Pending", { nl: "In afwachting" }),
+              succeeded: message("Sent", { nl: "Verzonden" }),
+              failed: message("Failed", { nl: "Mislukt" }),
+              unknown: message("Unknown", { nl: "Onbekend" }),
+              skipped: message("Skipped", { nl: "Overgeslagen" }),
+            },
+          },
         },
       },
       readGrants: [{ rule: "Interview.read.1" }, { rule: "Interview.read.2" }],
@@ -603,10 +606,6 @@ export const appDefinition = {
       on: { capability: "hire.StaffSchedule", event: "changed" },
     },
     "hire.accept_interview": { handler: "accept_interview", on: "hire.InterviewAccepted" },
-    "hire.reminder_result": {
-      handler: "reminder_result",
-      on: { capability: "hire.Mail", operation: "send", event: "completed" },
-    },
     "hire.released": {
       handler: "released",
       on: { capability: "hire.StaffSchedule", operation: "release", event: "completed" },
@@ -664,6 +663,7 @@ export function canApp() {
         same(row.interviewer.user, c.actor) &&
         row.interviewer.active && (await can_work(c,c.actor,row.parent.parent.location)),
     },
+    derives: {"Interview.notice_state": async(c,row) => (await delivery(c,{record:row,field:"notice_delivery"},["status"]))?.status ?? null},
     invariants: {
       "Interview.require.1": (c, row) => compareInstant(row.from, row.until) < 0,
       "Vacancy.require.1": (c, row) =>
@@ -1131,19 +1131,7 @@ export function canApp() {
             (await can_work(c,event.interview.interviewer.user,event.interview.parent.parent.location)),
         },
       );
-      await set(c, event.interview, { notice_delivery: notice.id, notice_state: "pending" });
-    },
-    async reminder_result(c, { event }) {
-      for await (const interview of records(c, "hire.Interview", {
-        where: (item) => item.notice_delivery === event.delivery_id,
-        limit: 1n,
-      })) {
-        if (event.status === "succeeded") await set(c, interview, { notice_state: "succeeded" });
-        else if (event.status === "failed") await set(c, interview, { notice_state: "failed" });
-        else if (event.status === "skipped") await set(c, interview, { notice_state: "skipped" });
-        else if (event.status === "unknown") await set(c, interview, { notice_state: "unknown" });
-        else await set(c, interview, { notice_state: "pending" });
-      }
+      await set(c, event.interview, { notice_delivery: notice });
     },
   };
 }
