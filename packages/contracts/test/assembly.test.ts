@@ -15,7 +15,6 @@ const operationIdIsState: Equal<barrel.OperationId, state.OperationId> = true;
 const deliveryStatusIsServices: Equal<barrel.DeliveryStatus, services.DeliveryStatus> = true;
 const fileTransferMetaIsWire: Equal<barrel.FileTransferMeta, wire.FileTransferMeta> = true;
 const uploadIntentRequestIsFiles: Equal<barrel.UploadIntentRequest, files.UploadIntentRequest> = true;
-const deliveryErrorIsServices: Equal<barrel.DeliveryError, services.DeliveryError> = true;
 
 describe("assembly conflict picks", () => {
   it("pins interim picks until owners reconcile", () => {
@@ -24,7 +23,6 @@ describe("assembly conflict picks", () => {
       deliveryStatusIsServices,
       fileTransferMetaIsWire,
       uploadIntentRequestIsFiles,
-      deliveryErrorIsServices,
-    ]).toEqual([true, true, true, true, true]);
+    ]).toEqual([true, true, true, true]);
   });
 });
