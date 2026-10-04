@@ -196,8 +196,13 @@ all evidence is local miniflare + node suites recorded below with commands/versi
 ## Progress and file reservations
 
 - 2026-10-04: worktree created from origin/main b06d873; goal active; plan written.
-  Reserved (coordinator, S1): implementation/status/lane-03.md,
-  packages/contracts/src/state.ts, packages/state/**, .github/workflows/lane-03.yml.
+  S1 merged (fb8cf1f). S2 branch `muse/lane-03-state/storage-fence` from fb8cf1f.
+  S2 implemented (delegated impl+tests, disjoint files) + independent review
+  NEEDS-CHANGES (F1 future-revision fence hole, F2/F3 memory conformance,
+  F4–F9/N1–N4) + coordinator fixes, all verified 60/60 x3 locally.
+  Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
+  Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
+  (single SQL source embedded for workerd; avoids dual-source drift).
 
 ## Interface requests and handoffs
 
@@ -212,8 +217,13 @@ all evidence is local miniflare + node suites recorded below with commands/versi
 
 ## PR and verification evidence
 
-No PRs yet. Per-slice entries will record: branch, reviewed head SHA, checks run
-(commands + versions + results), merged PR URL, residual limits.
+- PR1 S1 scaffold: branch `muse/lane-03-state/plan`, reviewed head
+  `76e7b569ef58dab44eebd686d567f74ad802ea8e`, merged as `fb8cf1f`
+  (https://github.com/veighnsche/canlang/pull/3, squash, --match-head-commit).
+  Checks: local `npm run typecheck` + `npm test` (2/2 pass; node v24.21.0,
+  typescript 5.9.3, @types/node 26.6.4); CI `state` job pass x2. Self-reviewed
+  full diff; no independent subagent review (scaffold + types only, no behavior).
+  Residual: engine modules in S2–S8; interim ESNext/Bundler tsconfig to L7 join.
 
 ## Remaining work and cleanup
 
