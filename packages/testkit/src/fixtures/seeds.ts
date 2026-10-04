@@ -4,9 +4,10 @@
  * `TableRowSpec.seed` holds scenario refs of the form
  * `<provider>:<scenario>` (e.g. `mail:send-retry-success`). Each ref
  * selects one L4-authored scenario table; the row scope plays back its
- * per-call outcomes. Both segments are lowercase kebab-case starting
- * with a letter; anything else fails loud at parse time so a typo can
- * never silently select (or miss) a scenario.
+ * per-call outcomes. Both segments are strict lowercase kebab-case
+ * (letter-start, no leading/trailing/double hyphens); anything else
+ * fails loud at parse time so a typo can never silently select (or
+ * miss) a scenario.
  */
 
 export interface SeedRef {
@@ -14,7 +15,7 @@ export interface SeedRef {
   readonly scenario: string;
 }
 
-const SEGMENT = /^[a-z][a-z0-9-]*$/;
+const SEGMENT = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
 export class SeedRefError extends Error {
   readonly ref: string;
