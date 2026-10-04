@@ -61,7 +61,7 @@ Shared Rust types (slice 0, coordinator; agents consume, do not redefine):
 - `SourceId(u32)`; `SourceDb::add(path,text)->SourceId`; `Source{path,text,sha256_hex}`; `Span{file,start,end}` (u32 bytes).
 - `LineIndex::new(&str)`; `to_line_col(u32)->(line1,col1_bytes)`; `to_lsp(line0,utf16col)`; CRLF/LF; tab-in-indent rejected by lexer (E1xxx), never here.
 - `Severity::{Error,Warning,Info}`; `Diagnostic{code:&'static str,severity,message,primary:Span,related:Vec<(Span,String)>,tags:Vec<String>}`; `DiagnosticResult{tool,tool_version,language_version,schema_version,sources[{id,path,sha256}],complete:bool,diagnostics(sorted by file,start,code),omitted:u32}`; `to_json()` deterministic key order, `to_text()` one-line-per-diagnostic `path:line:col: SEV CODE message`.
-- CLI exit contract: 0 clean (or fmt-noop), 10 diagnostics-reported, 2 tool failure. JSON always on stdout, progress on stderr. `--format=json|text` on check/lint/explain; `fmt --check` reports diffs, never applies.
+- CLI exit contract: 0 clean-or-warnings-only (or fmt-noop), 10 errors-reported, 2 tool failure. JSON always on stdout, progress on stderr. `--format=json|text` on check/lint/explain; `fmt --check` reports diffs, never applies.
 - Fix contract (authoring): code action `{id,title,kind,safe:bool,edits:[{path,expected_sha256,range_bytes,new_text}]}`; stale hash rejects.
 
 Producer/consumer joins:
@@ -113,6 +113,10 @@ Agent rules (all): one owned worktree, disjoint exact files above, no git/stage/
 ## PR and verification evidence
 
 - PR1 https://github.com/veighnsche/canlang/pull/2 (merged 2026-10-04 as `e204d07`): slice-0 foundation. Branch `muse/lane-01-language/plan`, reviewed head `85c9dae` (2 commits incl. review fixes), squash-merged with `--match-head-commit`. Checks: lane-01 rust/contracts/editor all SUCCESS (push + PR runs); local `cargo test` 12 passed, clippy `-D warnings` clean, fmt clean, tsc strict clean. Independent read-only subagent review: 2 material CRLF location findings + 4 nits, all fixed and re-verified before merge. Residual: binary still scaffold-only; no parser/analysis/emission.
+- PR2 https://github.com/veighnsche/canlang/pull/30 (merged 2026-10-04 as `bc008f7`): slice-1 syntax. Branch `muse/lane-01-language/syntax`, reviewed head `d055065`, squash-merged with `--match-head-commit`. Checks: lane-01 rust/contracts/editor + L7 tools/workspace all SUCCESS. Local: 23 lib + 43 syntax tests (44/44 corpus), clippy/fmt clean. Independent review: 2 blocker panics + 4 material + 4 nits, all fixed with regression tests (coordinator confirmed one panic pre-fix, E1006 post-fix).
+- IR-03 SATISFIED 2026-10-04: L7 PR #21 ships `can-platform <run|test|build|deploy> --artifact <path> [--env]` (JSON envelope, exit 0/2/1); L1 thin entries exec `can-platform {cmd}` with verbatim passthrough, confirmed live against a fixture binary.
+- Exit-10 semantics settled: exit 10 = errors reported; warnings alone exit 0 (DIAGNOSTICS.md: warnings never block). Enforced by `cli_check_like_commands_exit_10_on_errors` via a `dispatch_with` analyzer seam.
+- Follow-up for analysis slice: `SourceDb` compaction API (LSP re-adds full text per distinct edit; identical-text no-ops already skip).
 
 ## Remaining work and cleanup
 
