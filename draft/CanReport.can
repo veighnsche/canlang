@@ -11,6 +11,8 @@ package report
   message label_Checkpoint = "Source checkpoint"@{nl="Broncontrolepunt"}
   message label_Checkpoint_source = "Source reference"@{nl="Bronreferentie"}
   message label_Checkpoint_generated = "Generated at"@{nl="Gegenereerd op"}
+  message label_Checkpoint_complete = "Complete source coverage"@{nl="Volledige brondekking"}
+  message label_Run_pending = "Processing pending"@{nl="Verwerking in afwachting"}
   message label_Contribution_from = "From"@{nl="Van"}
   message label_Contribution_until = "Until"@{nl="Tot"}
   message label_Contribution_unit = "Unit"@{nl="Eenheid"}
@@ -18,7 +20,7 @@ package report
   message label_Definition = "Report definition"@{nl="Rapportdefinitie"}
   message label_Definition_inclusion = "Inclusion rule"@{nl="Meetelregel"}
   message label_Run_locations = "Locations"@{nl="Locaties"}
-  export contract Checkpoint { source:text label=label_Checkpoint_source, revision:text label="Source revision"@{nl="Bronrevisie"}, generated:datetime label=label_Checkpoint_generated, state:enum(fresh,lagging,partial,unavailable) label={text="State"@{nl="Status"},values={fresh="Up to date"@{nl="Actueel"},lagging="Delayed"@{nl="Vertraagd"},partial="Incomplete"@{nl="Onvolledig"},unavailable="Unavailable"@{nl="Niet beschikbaar"}}}, complete:bool label="Complete source coverage"@{nl="Volledige brondekking"} } label=label_Checkpoint
+  export contract Checkpoint { source:text label=label_Checkpoint_source, revision:text label="Source revision"@{nl="Bronrevisie"}, generated:datetime label=label_Checkpoint_generated, state:enum(fresh,lagging,partial,unavailable) label={text="State"@{nl="Status"},values={fresh="Up to date"@{nl="Actueel"},lagging="Delayed"@{nl="Vertraagd"},partial="Incomplete"@{nl="Onvolledig"},unavailable="Unavailable"@{nl="Niet beschikbaar"}}}, complete:bool label=label_Checkpoint_complete } label=label_Checkpoint
   export contract Contribution { source:text label=label_Checkpoint_source, revision:int, location:text, from:datetime label=label_Contribution_from, until:datetime label=label_Contribution_until, metric:enum(booked_minutes,saleable_minutes,excluded_minutes,occupied_minutes,cash,receivable,renewal,backlog) label={text="Metric"@{nl="Maatstaf"},values={booked_minutes="Booked minutes"@{nl="Gereserveerde minuten"},saleable_minutes="Saleable minutes"@{nl="Verkoopbare minuten"},excluded_minutes="Excluded minutes"@{nl="Uitgesloten minuten"},occupied_minutes="Occupied minutes"@{nl="Werkelijk bezette minuten"},cash="Cash receipts"@{nl="Ontvangen betalingen"},receivable="Receivables"@{nl="Openstaande vorderingen"},renewal="Renewals"@{nl="Verlengingen"},backlog="Service backlog"@{nl="Werkachterstand"}}}, quantity:decimal, unit:text label=label_Contribution_unit, amount:money?, provisional:bool=false label="Provisional"@{nl="Voorlopig"}, reversal:text? label="Reversal reference"@{nl="Terugboekingsreferentie"} } label="Source contribution"@{nl="Bronbijdrage"}
   export contract ReportBatch { checkpoint:Checkpoint label=label_Checkpoint, rows:Contribution[]! label=label_ReportBatch_rows } label="Report batch"@{nl="Rapportbatch"}
   export capability ReportsV1 version=1
@@ -26,14 +28,15 @@ package report
   role manager label="Reporting manager"@{nl="Rapportagebeheerder"}
   role finance label="Finance"@{nl="Financiën"}
   Definition { name:text, metric:Contribution.metric, unit:text label=label_Contribution_unit, finance_only:bool=false label="Finance access only"@{nl="Alleen financiële toegang"}, inclusion:text label=label_Definition_inclusion, display_timezone:timezone label="Reporting timezone"@{nl="Rapportagetijdzone"}, enabled:bool=true } label=label_Definition
-  Run in Definition { account:user label="User account"@{nl="Gebruikersaccount"}, locations:Location[]! label=label_Run_locations, from:datetime label=label_Contribution_from, until:datetime label=label_Contribution_until, currency:currency?, requested:datetime server=now label="Requested at"@{nl="Aangevraagd op"}, delivery:text unique label="Delivery reference"@{nl="Verzendingsreferentie"}, checkpoint:Checkpoint? label=label_Checkpoint, rows:Contribution[] label=label_ReportBatch_rows, state:Checkpoint.state=unavailable, pending:bool=true label="Processing pending"@{nl="Verwerking in afwachting"} } label="Report run"@{nl="Rapportuitvoering"}
-  contract Measure { quantity:decimal?, numerator:decimal? label="Numerator"@{nl="Teller"}, denominator:decimal? label="Denominator"@{nl="Noemer"}, value:decimal? label="Measure value"@{nl="Meetwaarde"}, amount:money?, state:Run.state, generated:datetime? label=label_Checkpoint_generated, inclusion:text label=label_Definition_inclusion, unit:text label=label_Contribution_unit } label="Report measure"@{nl="Rapportmaatstaf"}
+  Run in Definition { account:user label="User account"@{nl="Gebruikersaccount"}, locations:Location[]! label=label_Run_locations, from:datetime label=label_Contribution_from, until:datetime label=label_Contribution_until, currency:currency?, requested:datetime server=now label="Requested at"@{nl="Aangevraagd op"}, delivery:text unique label="Delivery reference"@{nl="Verzendingsreferentie"}, checkpoint:Checkpoint? label=label_Checkpoint, rows:Contribution[] label=label_ReportBatch_rows, state:Checkpoint.state=unavailable, pending:bool=true label=label_Run_pending } label="Report run"@{nl="Rapportuitvoering"}
+  contract Measure { quantity:decimal?, numerator:decimal? label="Numerator"@{nl="Teller"}, denominator:decimal? label="Denominator"@{nl="Noemer"}, value:decimal? label="Measure value"@{nl="Meetwaarde"}, amount:money?, state:Run.state, complete:bool=false label=label_Checkpoint_complete, pending:bool=false label=label_Run_pending, generated:datetime? label=label_Checkpoint_generated, inclusion:text label=label_Definition_inclusion, unit:text label=label_Contribution_unit } label="Report measure"@{nl="Rapportmaatstaf"}
   policy Definition read=manager where=(not row.finance_only or finance) and (not (row.metric in [cash,receivable]) or finance)
   policy Run read=manager where=row.account==actor and all(row.locations as location,can_work(actor,location)) and (not row.parent.finance_only or finance) and (not (row.parent.metric in [cash,receivable]) or finance)
   invariant Run: row.from<row.until and count(row.locations)>0
   lock Run fields=account,locations,from,until,currency,requested,delivery
   fixture utilization=Definition {name="Utilization",metric=booked_minutes,unit="room-minute",inclusion="Confirmed resource minutes / saleable minutes",display_timezone="Europe/Brussels"}
-  fixture unavailable=Run {parent=utilization,account=self,locations=[test_site],from=datetime("2026-10-01T00:00:00Z"),until=datetime("2026-10-02T00:00:00Z"),delivery="report",state=unavailable,pending=false}
+  fixture unavailable=Run {parent=utilization,account=self,locations=[test_site],from=datetime("2026-10-01T00:00:00Z"),until=datetime("2026-10-02T00:00:00Z"),delivery="report",checkpoint={source="workspace",revision="1",generated=datetime("2026-10-02T01:00:00Z"),state=fresh,complete=true},state=unavailable,pending=false}
+  fixture service_backlog=Definition {name="Service backlog",metric=backlog,unit="job",inclusion="Authoritative open service jobs",display_timezone="Europe/Brussels"}
  When
   # Refresh one permitted metric range without mutating the source business records. @{nl="Vernieuw één toegestaan meetbereik zonder de zakelijke brongegevens te wijzigen."}
   scenario refresh(definition:Definition,locations:Location[] label=label_Run_locations,from:datetime label=label_Contribution_from,until:datetime label=label_Contribution_until,currency:currency?) by=manager
@@ -47,28 +50,69 @@ package report
      if event.status==succeeded and event.result!=null
       require all(event.result.rows as row,any(run.locations as location,location.id==row.location))
       set run {rows=(event.result.rows as contribution where contribution.metric==run.parent.metric or (run.parent.metric==booked_minutes and contribution.metric in [saleable_minutes,excluded_minutes])),checkpoint=event.result.checkpoint,state=event.result.checkpoint.state,pending=false}
+      ## Preserve the source checkpoint; incomplete coverage cannot admit a fresh exact measure.
+      if event.result.checkpoint.state==fresh and not event.result.checkpoint.complete
+       set run {state=partial}
      else
       set run {state=unavailable,pending=false}
+   examples seed=[unavailable] event={delivery_id="report",status=succeeded,result={checkpoint={source="workspace",revision="1",generated=datetime("2026-10-02T01:00:00Z"),state=fresh,complete=true},rows=[]},error=null}
+    event.result.checkpoint.state,event.result.checkpoint.complete,unavailable.checkpoint,unavailable.pending -> unavailable.state,unavailable.checkpoint.complete,unavailable.pending,count(unavailable.rows)
+    fresh,true,null,true -> fresh,true,false,0
+    fresh,false,null,true -> partial,false,false,0
+    partial,false,null,true -> partial,false,false,0
+    lagging,true,null,true -> lagging,true,false,0
+    unavailable,false,null,true -> unavailable,false,false,0
+   examples seed=[unavailable] event={delivery_id="report",status=failed,result=null,error=null}
+    event.status,unavailable.checkpoint,unavailable.pending -> unavailable.state,unavailable.checkpoint,unavailable.pending
+    failed,null,true -> unavailable,null,false
+    unknown,null,true -> unavailable,null,false
   # Expose the chosen measure with denominator and missing-source state, never an invented zero. @{nl="Toon de gekozen maatstaf met noemer en ontbrekende-bronstatus, nooit een verzonnen nul."}
   scenario measure(run:Run) read=true -> Measure by=manager label="Show report measure"@{nl="Rapportmaatstaf tonen"}
    require run.account==actor and all(run.locations as location,can_work(actor,location)) and (not run.parent.finance_only or finance) and (not (run.parent.metric in [cash,receivable]) or finance)
    do
-    if run.checkpoint==null or run.pending or run.state in [unavailable,partial]
-     return Measure {state=run.state,inclusion=run.parent.inclusion,unit=run.parent.unit}
+    if run.checkpoint==null
+     return Measure {state=unavailable,pending=run.pending,inclusion=run.parent.inclusion,unit=run.parent.unit}
+    if run.checkpoint.state==fresh and not run.checkpoint.complete
+     return Measure {state=partial,pending=run.pending,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
+    if run.checkpoint.state!=fresh
+     return Measure {state=run.checkpoint.state,complete=run.checkpoint.complete,pending=run.pending,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
+    if run.pending or run.state!=fresh
+     return Measure {state=run.state,complete=run.checkpoint.complete,pending=run.pending,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
+    ## Empty numeric sums are exact only after fresh, complete coverage is established.
     let selected=run.rows as row where row.metric==run.parent.metric and row.unit==run.parent.unit and row.reversal==null
     let quantity=sum(selected as row select row.quantity)
     if run.parent.metric==booked_minutes
      let denominator=sum(run.rows as row where row.metric==saleable_minutes and row.unit==run.parent.unit select row.quantity)
      if denominator==0
-      return Measure {quantity,numerator=quantity,denominator,value=null,state=run.state,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
-     return Measure {quantity,numerator=quantity,denominator,value=quantity/denominator,state=run.state,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
+      return Measure {quantity,numerator=quantity,denominator,value=null,state=run.state,complete=true,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
+     return Measure {quantity,numerator=quantity,denominator,value=quantity/denominator,state=run.state,complete=true,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
     if run.currency!=null
-     return Measure {quantity,amount=sum(selected as row where row.amount!=null and row.amount.currency==run.currency select row.amount,run.currency),state=run.state,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
-    return Measure {quantity,state=run.state,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
+     return Measure {quantity,amount=sum(selected as row where row.amount!=null and row.amount.currency==run.currency select row.amount,run.currency),state=run.state,complete=true,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
+    return Measure {quantity,state=run.state,complete=true,generated=run.checkpoint.generated,inclusion=run.parent.inclusion,unit=run.parent.unit}
    examples seed=[test_worker] run=unavailable
     as -> result.quantity,result.state
     manager -> null,unavailable
     members -> error(forbidden)
+   examples seed=[test_worker] run=unavailable
+    as,run.checkpoint.state,run.checkpoint.complete,run.state,run.pending -> result.quantity,result.numerator,result.denominator,result.value,result.state,result.complete,result.pending
+    manager,fresh,true,fresh,false -> 0,0,0,null,fresh,true,false
+    manager,fresh,false,fresh,false -> null,null,null,null,partial,false,false
+    manager,partial,false,partial,false -> null,null,null,null,partial,false,false
+    manager,lagging,true,lagging,false -> null,null,null,null,lagging,true,false
+    manager,unavailable,false,unavailable,false -> null,null,null,null,unavailable,false,false
+    manager,fresh,true,fresh,true -> null,null,null,null,fresh,true,true
+    manager,fresh,true,partial,false -> null,null,null,null,partial,true,false
+    members,fresh,true,fresh,false -> error(forbidden)
+   examples seed=[test_worker] run=unavailable
+    as,run.checkpoint,run.state -> result.quantity,result.state,result.complete,result.generated
+    manager,null,fresh -> null,unavailable,false,null
+   examples seed=[test_worker] run=unavailable
+    as,run.parent,run.state -> result.quantity,result.state,result.complete
+    manager,service_backlog,fresh -> 0,fresh,true
+   examples seed=[test_worker] run=unavailable
+    as,run.parent,run.state,run.checkpoint.complete,run.rows -> result.quantity,result.amount,result.state,result.complete
+    manager,service_backlog,fresh,false,[{source="job-1",revision=1,location=test_site.id,from=unavailable.from,until=unavailable.until,metric=backlog,quantity=1,unit="job"}] -> null,null,partial,false
+    manager,service_backlog,fresh,true,[{source="job-1",revision=1,location=test_site.id,from=unavailable.from,until=unavailable.until,metric=backlog,quantity=1,unit="job"}] -> 1,null,fresh,true
  Then
   # Compare booked and recorded occupancy, cash receipts, balances and service backlog. @{nl="Vergelijk gereserveerde en vastgelegde bezetting, ontvangen betalingen, saldi en serviceachterstand."}
   page /reports title="Operational reports"@{nl="Operationele rapporten"}
@@ -79,10 +123,10 @@ package report
      form refresh
      card "Run checkpoints and completeness"@{nl="Controlepunten en volledigheid van uitvoeringen"}
       list row.Run order=-requested display=split
-       text row.state,row.checkpoint,row.from,row.until,row.currency
+       text row.state,row.checkpoint,row.pending,row.from,row.until,row.currency
        card "Typed report measure"@{nl="Getypeerde rapportmaatstaf"}
         form measure
          metrics result.quantity,result.numerator,result.denominator,result.value,result.amount
-         text result.state,result.inclusion,result.unit
+         text result.state,result.complete,result.pending,result.generated,result.inclusion,result.unit
        details "Source contributions"@{nl="Bronbijdragen"}
         table row.rows columns=source,revision,location,metric,quantity,unit,amount,provisional
