@@ -70,6 +70,20 @@ describe("component catalog", () => {
       radialProgress: 1,
       status: 1,
       textRotate: 1,
+      calendar: 1,
+      checkbox: 1,
+      fileInput: 1,
+      filter: 1,
+      input: 1,
+      label: 1,
+      otp: 1,
+      radio: 1,
+      range: 1,
+      rating: 1,
+      select: 1,
+      textarea: 1,
+      toggle: 1,
+      validator: 1,
     };
     const record = ui as unknown as Record<string, unknown>;
     for (const entry of UI_CATALOG.entries) {
