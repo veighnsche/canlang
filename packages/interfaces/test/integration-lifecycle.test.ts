@@ -330,7 +330,7 @@ async function setup(opts: {
                   contentType: 'application/pdf',
                   sizeBytes: 4,
                   bytesDigest: 'sha256:deadbeef',
-                  finalizedAt: '2026-10-04T16:00:00.000Z',
+                  finalizedAt: { kind: 'datetime', ms: BigInt(Date.parse('2026-10-04T16:00:00.000Z')) },
                 },
               }
             : { status: 'failed', reason: 'foreign' },

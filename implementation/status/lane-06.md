@@ -440,6 +440,10 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
   consent, mid-flow revocation, removeMember lifecycle, uploads
   journey, ingress journey, cross-user isolation. interfaces 259/259.
   /tmp/s6-kernel-probe.mjs re-run on current main: PROBE PASS 9/9.
+  - Rebased onto 3a345c7 (L4 S8 changed files.ts: finalizedAt ->
+    DatetimeValue, UploadIntentRequest now re-exported from wire.ts
+    per the X1 dedupe direction); adapted two FinalizedFile test
+    literals to the DatetimeValue shape. 259/259 + 47/47 + probe PASS.
   - BLOCKED (cross-lane compile+run, exact unmet contracts): L1 T4
     emission unmerged (compiler has syntax/CLI only; no
     appDefinition/registry artifact, so no real registry to call
