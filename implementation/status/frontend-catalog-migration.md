@@ -79,6 +79,32 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 
 - PR #35 docs handoff: reviewed head d241592 (substance reviewed at 88733c7; delta was the reviewer's own 3-line status fix + conflict-free rebase onto fb226e0), tools+workspace green, squash-merged as 2451d85. URL: https://github.com/veighnsche/canlang/pull/35
 - PR #39 slice 1 examples: reviewed head 730b2a7 (substance fefe3a3 approve-with-nits; delta was the 2 requested status nits), tools+workspace green, squash-merged as fab9ba0. URL: https://github.com/veighnsche/canlang/pull/39. Golden-corpus impact live on main: 2 E1200 (badge lines), L1 track.
+- PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
+
+## Steering: draft-first full replans (received 2026-10-04 ~17:45)
+
+User steering + corrected docs placed in this worktree (single batch, 17:44; verified as user corrections, not worker drift):
+corrected briefs/08 (draft-first frontend design), and matching draft-first corrections to UI-COMPONENTS, PLAN, CONTRACTS,
+WORKFLOW, UI-CATALOG-ADOPTION, briefs/05, prompts/01-language, prompts/05-ui, prompts/05-ui-steering, prompts/08, plus new
+prompts/08-frontend-catalog-steering.md. Badge-insertion passes are insufficient; each app gets a full frontend replan.
+08's reviewed .can/desired-.mjs pairs drive 05's library and 01's compiler; implementation gaps never gate drafting.
+Witnesses must express actual desired composition/bindings with minimal proposed @canlang/ui contracts labeled
+desired/unimplemented — "await L5" comments are not the lowering and will be replaced.
+In-flight badge workers C/D were cancelled; their partial batch-B edits reverted (full replans supersede).
+ui-ux-pro-max skill assessed: its styling/palette/landing workflow is inapplicable (renderer owns all styling; finite theme
+tokens; no app-level CSS). Portable UX rules (states, focus, no-color-alone, reduced-motion) are already normative in
+DESIGN §9 + UI-COMPONENTS, which govern. No separate design system will be introduced.
+
+## Revised finite plan
+
+- Slice 4 (docs sync, in progress): carry the user doc corrections above into a reviewed docs PR. Then replan slices.
+- Replan slices (full frontend per app: users/tasks, pages+composition, component families/bindings, complete states,
+  defaults, source-target mapping recorded compactly before/with source): batch B (10 unstarted apps) in ~3 slices of
+  3-4 apps; batch C/D/E similarly; giants (Rent/Invoice/Member) 1 app per slice; shared/* no-change by whole-app review.
+- Rework slices: reference examples + batch A reassessed under the full-replan bar; keep useful badge/content lines,
+  complete the whole-frontend design and replace await-L5 comments with faithful desired lowerings.
+- Every slice hands reviewed source/target pairs + exact gaps/owners to 05/01 via status + PR descriptions.
+- Golden-corpus/parser drift reporting continues per slice as 01 gaps; draft design is never gated on them.
 
 ## Slice 2: batch A drafts (branch muse/frontend-catalog-migration/slice-02-drafts-a, in progress)
 
