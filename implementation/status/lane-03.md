@@ -250,6 +250,15 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   Open: rejected replays restore code/message only (no fields); same-batch
   self-canceling writes unsupported interim; bigint money minors still
   need the L2 codec join.
+  Independent review NEEDS-CHANGES (2 major + 7 minor) all fixed +
+  regressed, suite 247/247: F1 optional parent-bound defaults read as
+  missing parentless (required decides); F2 post-hook unknown-field check
+  on all paths; F3 archive re-validates refs; F4 model/ref/field typeof
+  guards; F5 write-id typeof check; F6 JSON clone wrapper + post-hook
+  serializability probe (bigints/circular/functions -> validation, never
+  commit-time TypeError); F7 flat-resolvedDefaults limitation documented;
+  F8 memory normalizes parent to null + strict conformance pins; F9
+  archived-update pipeline/admission split documented.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
