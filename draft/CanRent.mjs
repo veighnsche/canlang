@@ -8049,7 +8049,6 @@ export async function workspaceCatalogPage(c, bindings) {
                   input({ context: c, field: "currency" }),
                   input({ context: c, field: "hours" }),
                   textarea({ context: c, field: "arrival" }),
-                  checkbox({ context: c, field: "active" }),
                 ],
               }),
             ],

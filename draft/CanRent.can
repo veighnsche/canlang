@@ -27,7 +27,6 @@ package rent_catalog_ui
       input currency
       input hours
       textarea arrival
-      checkbox active
     table Location columns=name,address,timezone,currency,hours empty="No locations yet"@{nl="Nog geen locaties"}
      text row.active
      edit

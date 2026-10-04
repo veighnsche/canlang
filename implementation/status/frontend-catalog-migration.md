@@ -85,17 +85,22 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 ## Slice 18: create-form allowlist fixup (branch muse/frontend-catalog-migration/slice-18-create-allowlist-fixup, in progress)
 
 Paths: draft/CanRent + draft/CanMember (.can+.md/.mjs) + this status
-file. Removes 6 placed controls that bind non-create params (rule
+file. Removes 7 placed controls that bind non-create params (rule
 refined in slice-17 review: create-form placement ⊆ create_fields, or
-fields= when no create_fields): Rent Resource.create loses checkbox
+fields= when no create_fields; shared cruds count — Locations.can
+holds the Location allowlist): Rent Resource.create loses checkbox
 active + inputs increment/minimum/buffer_before/buffer_after (all
-excluded from create_fields; update params stay generated); Member
-Content.create loses checkbox staff_only (real table field but absent
-from crud fields, so not a create param). Witness children mirrors
-removed (Rent .mjs op contract already listed the correct create set);
-Rent.md fieldset prose narrowed; Member.md needed no change (generic).
-Slices 13/16 re-audited clean (only Table Cafe has create_fields; mine
-correct). Future review prompts gain the explicit allowlist check.
+excluded from create_fields); Rent Location.create loses checkbox
+active (excluded from shared crud Location create_fields,
+Locations.can:29; caught by independent review as 7th instance);
+update params stay generated. Member Content.create loses checkbox
+staff_only (real table field but absent from crud fields, so not a
+create param). Witness children mirrors removed (Rent .mjs op contract
+already listed the correct create set); Rent.md fieldset prose
+narrowed; Member.md needed no change (generic). Slices 5-12 never did
+scalar completion (no claims); 13/16 + Member/Rent remainders +
+Loyalty spot re-audited clean. Future review prompts gain the explicit
+allowlist check.
 
 ## Slice 17: full replans Chat/Creative (branch muse/frontend-catalog-migration/slice-17-n1-chat-creative, in progress)
 
