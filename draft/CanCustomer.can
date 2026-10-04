@@ -120,7 +120,7 @@ package customer
      test_contact.account,test_contact.verified -> self,true
      call Contact.update {record=test_contact,changes={email="replacement@example.test"}} by=test_directory_manager
      test_contact.account,test_contact.verified -> null,false
-     call claim {contact=test_contact} by=self -> error(not_found)
+     call claim {contact=test_contact} by=self -> error(rule_failed)
      test_contact.account,test_contact.verified -> null,false
   # Invite a colleague to an explicit company role without creating a paid seat. @{nl="Nodig een collega uit voor een expliciete bedrijfsrol zonder een betaalde plaats aan te maken."}
   export scenario invite(org:Customer label=label_Customer_kind_company,email:email,role:CompanyRole.role label=label_CompanyRole_role,locations:Location[] label=label_Customer_locations) by=authenticated label="Invite company colleague"@{nl="Bedrijfscollega uitnodigen"}
