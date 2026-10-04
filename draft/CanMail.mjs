@@ -1,4 +1,5 @@
 import {
+  delivery,
   any,
   addDuration,
   cancel,
@@ -211,7 +212,7 @@ export const appDefinition = {
         { rule: "Item.read.1" },
         {
           rule: "Item.read.2",
-          fields: ["service", "recipient", "kind", "state", "notice_state", "completed", "created"],
+          fields: ["service", "recipient", "kind", "state", "notice_state", "notification.status", "completed", "created"],
         },
       ],
       fields: {
@@ -259,23 +260,6 @@ export const appDefinition = {
             },
           },
         },
-        notice_state: {
-          type: "enum",
-          cases: ["none", "pending", "succeeded", "failed", "unknown", "skipped"],
-          default: "none",
-          label: {
-            text: message("Notification", { nl: "Melding" }),
-            values: {
-              none: message("Not sent", { nl: "Niet verzonden" }),
-              pending: message("Sending", { nl: "Wordt verzonden" }),
-              succeeded: message("Accepted", { nl: "Geaccepteerd" }),
-              failed: message("Failed", { nl: "Mislukt" }),
-              unknown: message("Uncertain", { nl: "Onzeker" }),
-              skipped: message("Skipped", { nl: "Overgeslagen" }),
-            },
-          },
-        },
-        notice_reference: { type: "text", nullable: true },
         reminders: { type: "int", default: 0n },
         reminder_delay: { type: "duration", default: 604800000n },
         reminder_limit: { type: "int", default: 2n, min: 0n, max: 5n },
@@ -283,7 +267,8 @@ export const appDefinition = {
         retention_until: { type: "datetime", nullable: true },
         dispatch: { type: "mailroom.Dispatch", nullable: true },
         notification: {
-          type: "text",
+          type: "delivery",
+          operation: "mailroom.Mail.send",
           nullable: true,
           label: message("Notification reference", { nl: "Meldingsreferentie" }),
         },
@@ -293,6 +278,23 @@ export const appDefinition = {
           label: message("Completed at", { nl: "Afgerond op" }),
         },
         incident: { type: "text", nullable: true, label: incidentCaption },
+      },
+      derived: {
+        notice_state: {
+          type: "std.DeliveryResult.status",
+          nullable: true,
+          handler: "Item.notice_state",
+          label: {
+            text: message("Notification", { nl: "Melding" }),
+            values: {
+              pending: message("Sending", { nl: "Wordt verzonden" }),
+              succeeded: message("Accepted", { nl: "Geaccepteerd" }),
+              failed: message("Failed", { nl: "Mislukt" }),
+              unknown: message("Uncertain", { nl: "Onzeker" }),
+              skipped: message("Skipped", { nl: "Overgeslagen" }),
+            },
+          },
+        },
       },
     },
     "mailroom.Handling": {
@@ -798,6 +800,7 @@ export function canApp() {
       (!row.active || (await delegate_eligible(c, row))),
   };
   return {
+    derives: {"Item.notice_state": async(c,row) => (await delivery(c,{record:row,field:"notification"},["status"]))?.status ?? null},
     crudWhen,
     recipient,
     manage,
@@ -992,7 +995,7 @@ export function canApp() {
               (await recipient(current, service.recipient.account, service)),
           },
         );
-        await set(c, item, { notification: notice.id, notice_state: "pending" });
+        await set(c, item, { notification: notice });
         await schedule(
           c,
           format(c, "mail-reminder-{item}", { item: item.id }),
@@ -1031,7 +1034,7 @@ export function canApp() {
             (await recipient(current, service.recipient.account, service)),
         },
       );
-      await set(c, item, { notification: notice.id, notice_state: "pending" });
+      await set(c, item, { notification: notice });
       await schedule(
         c,
         format(c, "mail-reminder-{item}", { item: item.id }),
@@ -1285,8 +1288,7 @@ export function canApp() {
           },
         );
         await set(c, item, {
-          notification: notice.id,
-          notice_state: "pending",
+          notification: notice,
           reminders: event.number,
         });
         if (item.reminders < item.reminder_limit)
@@ -1301,18 +1303,11 @@ export function canApp() {
     },
     async notice_result(c, { event }) {
       for (const item of await records(c, "mailroom.Item", {
-        where: (row) => row.notification === event.delivery_id,
+        where: async row => (await delivery(c,{record:row,field:"notification"},["id"]))?.id === event.delivery_id,
         limit: 1n,
       })) {
-        if (event.status === "succeeded" && event.result !== null) {
-          await set(c, item, {
-            notice_state: "succeeded",
-            notice_reference: event.result.reference,
-          });
-          if (item.state === "received") await set(c, item, { state: "notified" });
-        } else if (event.status === "failed") await set(c, item, { notice_state: "failed" });
-        else if (event.status === "unknown") await set(c, item, { notice_state: "unknown" });
-        else if (event.status === "skipped") await set(c, item, { notice_state: "skipped" });
+        if (event.status === "succeeded" && event.result !== null && item.state === "received")
+          await set(c, item, {state: "notified"});
       }
     },
   };
@@ -1636,7 +1631,13 @@ export function exampleFixtures({ self, other, imported }) {
       state: "pending",
     }),
   };
+  const pending_notice = {dependencies:[],delivery:"mailroom.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "pending", "result": null, "error": null})};
+  const accepted_notice = {dependencies:[],delivery:"mailroom.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "succeeded", "result": {"reference": "accepted-mail"}, "error": null})};
+  const unknown_notice = {dependencies:[],delivery:"mailroom.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "unknown", "result": null, "error": null})};
+  const failed_notice = {dependencies:[],delivery:"mailroom.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "failed", "result": null, "error": {"code": "provider", "message": "Delivery rejected"}})};
+  const skipped_notice = {dependencies:[],delivery:"mailroom.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "skipped", "result": null, "error": null})};
   return {
+    pending_notice, accepted_notice, unknown_notice, failed_notice, skipped_notice,
     nominee,
     unrelated,
     mail_operator,
@@ -1749,8 +1750,8 @@ export function exampleFixtures({ self, other, imported }) {
           { let: "arrived", value: async (c, s, b) => await first(records(c, "mailroom.Item", { where: (row) => row.source === "mail-journey-receipt", order: ["id"] })) },
           { observations: async (c, s, b) => [b.arrived !== null], expected: async (c, s, b) => [true], types: ["bool"] },
           {
-            observations: async (c, s, b) => [b.arrived.state, b.arrived.notice_state, await count(records(c, "mailroom.Handling", { parent: b.arrived })), b.arrived.retention_until],
-            expected: async (c, s, b) => ["received", "pending", 0n, null], types: ["mailroom.Item.state", "mailroom.Item.notice_state", "int", "datetime?"],
+            observations: async (c, s, b) => [b.arrived.state, ((await delivery(c,{record:b.arrived,field:"notification"},["status"]))?.status ?? null), await count(records(c, "mailroom.Handling", { parent: b.arrived })), b.arrived.retention_until],
+            expected: async (c, s, b) => ["received", "pending", 0n, null], types: ["mailroom.Item.state", "std.DeliveryResult.status?", "int", "datetime?"],
           },
           {
             operation: "mailroom.Delegate.create", by: async (c, s, b) => s.self,
@@ -2046,47 +2047,8 @@ export function exampleFixtures({ self, other, imported }) {
           },
         ],
       },
-      {
-        operation: "mailroom.notice_result",
-        dependencies: [],
-        inputs: async (c, s) => ({
-          event: {
-            delivery_id: "mail-notice",
-            status: "succeeded",
-            result: { reference: "accepted-mail" },
-            error: null,
-          },
-        }),
-        selectors: ["parcel.notification", "parcel.state", "event.status", "event.result"],
-        observations: [async (c, s) => s.parcel.state, async (c, s) => s.parcel.notice_state],
-        rows: [
-          {
-            dependencies: [parcel],
-            values: async (c, s) => [
-              "mail-notice",
-              "received",
-              "succeeded",
-              { reference: "accepted-mail" },
-            ],
-            expected: async (c, s) => ["notified", "succeeded"],
-          },
-          {
-            dependencies: [parcel],
-            values: async (c, s) => [
-              "old-notice",
-              "received",
-              "succeeded",
-              { reference: "accepted-mail" },
-            ],
-            expected: async (c, s) => ["received", "none"],
-          },
-          {
-            dependencies: [parcel],
-            values: async (c, s) => ["mail-notice", "received", "unknown", null],
-            expected: async (c, s) => ["received", "unknown"],
-          },
-        ],
-      },
+
+      {operation:"mailroom.notice_result",dependencies:[accepted_notice],inputs:async(c,s)=>({event:{delivery_id:s.accepted_notice.id,status:"succeeded",result:{reference:"accepted-mail"},error:null}}),selectors:["parcel.notification","parcel.state","event.delivery_id","event.status","event.result","event.error"],observations:[async(c,s)=>s.parcel.state,async(c,s)=>(await delivery(c,{record:s.parcel,field:"notification"},["status"]))?.status ?? null],rows:[{dependencies:[parcel,accepted_notice],values:async(c,s)=>[s.accepted_notice,"received",s.accepted_notice.id,"succeeded",{"reference": "accepted-mail"},null],expected:async(c,s)=>["notified", "succeeded"]},{dependencies:[parcel,accepted_notice,pending_notice],values:async(c,s)=>[s.pending_notice,"received",s.accepted_notice.id,"succeeded",{"reference": "accepted-mail"},null],expected:async(c,s)=>["received", "pending"]},{dependencies:[parcel,accepted_notice],values:async(c,s)=>[null,"received",s.accepted_notice.id,"succeeded",{"reference": "accepted-mail"},null],expected:async(c,s)=>["received", null]},{dependencies:[parcel,unknown_notice],values:async(c,s)=>[s.unknown_notice,"received",s.unknown_notice.id,"unknown",null,null],expected:async(c,s)=>["received", "unknown"]},{dependencies:[parcel,failed_notice],values:async(c,s)=>[s.failed_notice,"received",s.failed_notice.id,"failed",null,{"code": "provider", "message": "Delivery rejected"}],expected:async(c,s)=>["received", "failed"]},{dependencies:[parcel,skipped_notice],values:async(c,s)=>[s.skipped_notice,"received",s.skipped_notice.id,"skipped",null,null],expected:async(c,s)=>["received", "skipped"]},{dependencies:[parcel,accepted_notice],values:async(c,s)=>[s.accepted_notice,"collected",s.accepted_notice.id,"succeeded",{"reference": "accepted-mail"},null],expected:async(c,s)=>["collected", "succeeded"]}]},
     ],
   };
 }

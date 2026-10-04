@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "The design under consideration is specification-only: no production parser, storage library or permission engine must be preserved. A mail app associates Item.notification with one Mail.send delivery, and defines Item.notice_state by optional access to notification.status using the nullable standard status enum. An authenticated current recipient can read service, recipient, kind, state, notice_state, completed and created. That grant omits notification. Recipient eligibility uses a verified linked contact/account and active nonarchived customer/contact; a distinct mail-staff/work-location grant permits all ordinary Item fields. Read dependencies must themselves be allowed, computed expressions retain caller authority, and field grants combine by union. Selector grammar admits paths, yet no contract assigns permissions to a nested value path. Receipts contain id, status, typed result and safe error; current disclosure requires access to the record and association field plus content/lifetime checks. The proposed delivery(c,handle) observation is revision-fenced and does not increment the Item version; it lacks an explicit partial-field provenance design. Recipients must get only transport status including null for no association, with current revocation respected; staff detail must remain available. Receipt IDs, payloads, results and errors cannot become recipient data. Domain completion remains explicit: a successful nonnull response for the current attempt may change received to notified, never collection merely from transport. Privileged pure reads returning declared contracts and correlated callback-maintained ordinary status fields are existing alternatives. Evaluate the alternatives on equivalent visible status, authorization, bounded authoring and implementation clarity. No hidden data may become null as an authorization substitute or flow through an automatically privileged derive; there is no runtime evidence.",
+    "questions": {
+      "disclosure": {
+        "type": "choice",
+        "instructions": "Choose the complete design that most appropriately meets these access and presentation requirements.",
+        "criteria": {
+          "leaf_grants": "Extend policy path meaning to specific members inside embedded values or receipt observations, never to fields on referenced records. notification.status explicitly supplies the computed status dependency and nullable-path presence while leaving id/result/error and the container unavailable. Specify provenance-bearing target access, serialization, denied-value behavior and receipt fencing. The present table survives without copied state, at the cost of newly defined fine-grained value authorization.",
+          "authority_read": "Use the already defined privileged pure-operation boundary instead of refining fields. An authenticated status read checks the exact current recipient or existing staff/workplace entitlement and returns a contract containing only optional status. Browser read-form result and MCP share its identity. New explicit guard/result declarations and a different inline interaction accompany reuse of existing permission semantics.",
+          "status_mirror": "Restore an independently readable persisted transport summary. Sending initializes pending; the explicit callback compares its ID with the selected receipt before writing status and applying any legitimate received-to-notified transition. Recipients keep their present field grant and table. This preserves familiar authorization but duplicates transport observations, writes ordinary business versions/history and can lag until callback execution."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "disclosure": {
+        "type": "choice",
+        "choice": "leaf_grants",
+        "confidence": 0.18,
+        "probabilities": {
+          "leaf_grants": 0.46,
+          "status_mirror": 0.1,
+          "authority_read": 0.44
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 879,
+      "output_tokens": 48
+    }
+  }
+}
