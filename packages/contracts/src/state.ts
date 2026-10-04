@@ -386,4 +386,197 @@ export interface StoragePort {
    * direct unstaged commits; fenced writes carry unique versions).
    */
   historyFor(model: ModelName, recordId: RecordId): Promise<ReadonlyArray<HistoryEntry>>;
+  /**
+   * S7: installed owner snapshot, or null when the owner was never installed
+   * (fresh installs take a separate path and never apply transitions).
+   */
+  readInstalledSnapshot(owner: string): Promise<InstalledSnapshot | null>;
+  /** S7: resumable migration progress, or null when the migration never staged. */
+  readMigrationProgress(migrationId: string): Promise<MigrationProgress | null>;
+  /**
+   * S7: staged target rows for one migration in (model, record id) order,
+   * bounded by `limit` after `cursor`. `limit` follows the schedulesDue rule
+   * (integer >= 1, else plain Error). Deep copies.
+   */
+  readStagedRows(
+    migrationId: string,
+    cursor: StagedRowCursor | null,
+    limit: number,
+  ): Promise<ReadonlyArray<StagedRow>>;
+  /**
+   * S7: one fenced staging chunk: upsert staged rows (idempotent restage by
+   * migration/model/id key) and record progress atomically. Fence loss throws
+   * FenceConflictError; nothing is staged without its progress cursor.
+   */
+  stageMigrationRows(input: StageMigrationChunk): Promise<CommitResult>;
+  /**
+   * S7: one fenced publish chunk: apply staged rows to live records with
+   * their history entries, dispose drops, and advance the publish cursor
+   * atomically. Re-publishing an already-published cursor range is a
+   * caller error (resume reads the cursor first); history is never doubled.
+   */
+  publishMigrationChunk(input: PublishMigrationChunk): Promise<CommitResult>;
+  /**
+   * S7: the final fenced flip: install the new snapshot pointer (removing
+   * the renamed-away owner pointer when present), mark invalidated intents
+   * skipped, record outcomes, mark progress active. Idempotent: when the
+   * installed pointer already equals the target, returns the current
+   * revision with `flipped: false` and commits nothing.
+   */
+  flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult>;
+  /** S7: recorded migration outcomes (invalidate skips), in record order. */
+  readMigrationOutcomes(migrationId: string): Promise<ReadonlyArray<MigrationOutcome>>;
+}
+
+/* -- S7: owner-local migration execution intake (DESIGN §11). -- */
+
+/**
+ * S7: exact installed owner snapshot (DESIGN §11.1). INTERIM execution-side
+ * shape until L1 emits the canonical snapshot/plan format; the engine treats
+ * `snapshotId` + `digest` as the opaque predecessor identity it must match.
+ */
+export interface InstalledSnapshot {
+  readonly owner: string;
+  readonly snapshotId: string;
+  readonly digest: string;
+  readonly installedRevision: Revision;
+  readonly installedAt: number;
+}
+
+/**
+ * S7: structural mapping directives of one compiled per-owner transition
+ * (DESIGN §11.2). INTERIM intake until L1 emits the canonical plan; the
+ * engine validates directive consistency (each old model/field handled
+ * exactly once, each target at most one source) before staging anything.
+ */
+export type MigrationDirective =
+  | { readonly kind: 'renameOwner'; readonly from: string }
+  | { readonly kind: 'dropOwner' }
+  | { readonly kind: 'renameModel'; readonly from: string; readonly to: string }
+  | {
+      readonly kind: 'renameField';
+      readonly model: string;
+      readonly from: string;
+      readonly to: string;
+    }
+  | { readonly kind: 'dropModel'; readonly model: string }
+  | { readonly kind: 'dropField'; readonly model: string; readonly field: string }
+  | { readonly kind: 'backfill'; readonly model: string }
+  | { readonly kind: 'invalidate'; readonly handlerContract: string };
+
+/**
+ * S7: one compiled per-owner transition (INTERIM intake; L1 owns the
+ * canonical plan format when it lands). `fromSnapshotId` + `fromDigest` must
+ * match the installed snapshot exactly or the upgrade blocks; bodies are
+ * content-addressed by `bodyDigest`.
+ */
+export interface MigrationTransition {
+  readonly migrationId: string;
+  readonly owner: string;
+  readonly fromSnapshotId: string;
+  readonly fromDigest: string;
+  readonly toSnapshotId: string;
+  readonly toDigest: string;
+  readonly bodyDigest: string;
+  readonly directives: ReadonlyArray<MigrationDirective>;
+}
+
+/** S7: old-work delivery state in the caller-supplied inventory (DESIGN §11.3). */
+export type WorkItemState = 'undispatched' | 'inflight' | 'accepted' | 'uncertain';
+
+/**
+ * S7: one inventoried old-work item. Produced by L4/L7; L3 enforces:
+ * `invalidate` disposes ONLY undispatched items whose handlerContract is
+ * pinned by a directive — anything else blocks activation.
+ */
+export interface WorkInventoryItem {
+  readonly intentId: string;
+  readonly handlerContract: string;
+  readonly state: WorkItemState;
+}
+
+/** S7: resumable migration phase (maps to L7 UpgradeState; see migration/index). */
+export type MigrationPhase = 'staging' | 'staged' | 'publishing' | 'active' | 'failed';
+
+/** S7: ordered scan position in (model, record id) space, or null at the start. */
+export interface StagedRowCursor {
+  readonly model: string;
+  readonly recordId: string;
+}
+
+/**
+ * S7: resumable progress, stored under the fence and advanced atomically
+ * with the chunk it describes. `stagedCursor` bounds staging scans;
+ * `publishCursor` bounds publishing (both null at their phase start).
+ */
+export interface MigrationProgress {
+  readonly migrationId: string;
+  readonly phase: MigrationPhase;
+  readonly stagedCursor: StagedRowCursor | null;
+  readonly publishCursor: StagedRowCursor | null;
+  readonly updatedRevision: Revision;
+}
+
+/**
+ * S7: one staged target row: desired model + id, target version (source
+ * version for name-only, source + 1 for conversions), desired data, and the
+ * retained parent link. Staged output never becomes another row's input.
+ */
+export interface StagedRow {
+  readonly targetModel: ModelName;
+  readonly recordId: RecordId;
+  readonly version: RecordVersion;
+  readonly data: Readonly<Record<string, unknown>>;
+  readonly parent: RecordParent | null;
+  readonly converted: boolean;
+}
+
+/** S7: one fenced staging chunk (see `stageMigrationRows`). */
+export interface StageMigrationChunk {
+  readonly expectedRevision: Revision;
+  readonly migrationId: string;
+  readonly rows: ReadonlyArray<StagedRow>;
+  readonly progress: MigrationProgress;
+}
+
+/** S7: one row disposal executed by a publish chunk (drop directives). */
+export interface MigrationDrop {
+  readonly model: ModelName;
+  readonly recordId: RecordId;
+  readonly version: RecordVersion;
+  readonly history: HistoryEntry;
+}
+
+/** S7: one fenced publish chunk (see `publishMigrationChunk`). */
+export interface PublishMigrationChunk {
+  readonly expectedRevision: Revision;
+  readonly migrationId: string;
+  readonly rows: ReadonlyArray<StagedRow>;
+  readonly history: ReadonlyArray<HistoryEntry>;
+  readonly drops: ReadonlyArray<MigrationDrop>;
+  readonly progress: MigrationProgress;
+}
+
+/** S7: recorded skip of one invalidated intent (DESIGN §11.3 outcome). */
+export interface MigrationOutcome {
+  readonly migrationId: string;
+  readonly kind: 'invalidated';
+  readonly intentId: string;
+  readonly handlerContract: string;
+}
+
+/** S7: the final flip (see `flipInstalledSnapshot`). */
+export interface FlipInstalledSnapshot {
+  readonly expectedRevision: Revision;
+  readonly migrationId: string;
+  readonly snapshot: InstalledSnapshot;
+  readonly renameFromOwner: string | null;
+  readonly invalidatedIntentIds: ReadonlyArray<string>;
+  readonly outcomes: ReadonlyArray<MigrationOutcome>;
+}
+
+/** S7: flip result; `flipped: false` is the idempotent already-active path. */
+export interface FlipResult {
+  readonly revision: Revision;
+  readonly flipped: boolean;
 }
