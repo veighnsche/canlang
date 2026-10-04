@@ -28,9 +28,9 @@ The maximum of ten simultaneous runs is an explicit app concurrency policy and t
 
 ## Pages and composition
 
-- Conversations: new-conversation form, private conversation/branch drawers, ordered plain-text turns, finalized attachments, live partial status, send/regenerate/stop/reconcile controls and allowance summary.
-- Unresolved usage: safe run status and recovery controls, including after transcript revocation.
-- AI access and limits: immutable profile creation, activation and per-member resource allowance administration.
+- Conversations: route breadcrumbs; conversation creation with placed title/profile inputs; active-conversation list with pagination; per-conversation and per-branch drawers; frozen prefix and turn messages as chat bubbles with speaker headers; per-turn regenerate forms with title input; run cards with submission/stop/recovery receipt statuses, generation-state badge, token-usage progress, unfinished-run loading, partial text and stop/reconcile/release controls; tooltip-annotated inline send form with prompt input; revocation form; allowance table with pagination.
+- Unresolved usage: route breadcrumbs; notice that stopping is a request and unknown usage stays reserved; run table with pagination, submission-receipt status and stop/reconcile/release controls.
+- AI access and limits: breadcrumbs; profile creation grouped into model fields and token-range/duration limits; profile table with pagination and activation checkbox edits; allowance creation with placed cap/parallel inputs; allowance table with pagination and typed cap/parallel/active edits with placed cap label/validation outlets.
 
 All forms invoke the canonical operations under current authority. The shared UI owns shell, accessibility, focus/draft preservation, loading/error states, file authorization and polling. Captions use inline English/Dutch localization and shared field defaults.
 

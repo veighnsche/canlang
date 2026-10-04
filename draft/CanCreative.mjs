@@ -1,5 +1,8 @@
 import { require as check,hasRole,active_member,same,records,first,count,any,int64,create,set,send,call,delivery,trim } from "@canlang/stdlib";
-import { message,renderPage,list,gallery,table,form,actions,content,text,title,edit } from "@canlang/ui";
+import { message,renderPage,list,gallery,table,form,actions,content,text,title,edit,breadcrumbs,pagination,badge,status,loading,chat_bubble,alert,fieldset,input,textarea,select,range,checkbox,file_input } from "@canlang/ui";
+// Desired lowering: breadcrumbs, pagination, badge, status, loading, chat_bubble,
+// alert, fieldset, file_input and placed controls are proposed @canlang/ui
+// contracts (desired/unimplemented). gallery with empty+pagination (collection, GRAMMAR L419).
 import { Conversation,Branch,Turn,can_use } from "./chat.mjs";
 /* Handwritten desired target, not implemented code generation/runtime. ImagesV1
  * owns safe graph inspection, allowlist validation, durable provider correlation,
@@ -96,13 +99,83 @@ export function canApp(){
   }
  };
 }
-export async function studioPage(c){return renderPage(c,studioDescriptor,()=>[form({context:c,operation:generate,display:"inline"}),list({context:c,model:Run,where:r=>can_view(c,c.actor,r),order:["-created"],renderRow:async(run,rv)=>[
- title({context:rv,value:run.prompt}),text({context:rv,values:[run.state,(await delivery(rv,{record:run,field:"request"},["status"]))?.status??null,run.stop_requested,(await delivery(rv,{record:run,field:"cancellation"},["status"]))?.status??null,(await delivery(rv,{record:run,field:"reconciliation"},["status"]))?.status??null,run.used,run.detail]}),gallery({context:rv,model:Output,parent:run,image:"image",order:["position"]}),actions({context:rv,operations:["creative.stop","creative.reconcile","creative.release_skipped"],boundArgs:{run}})]}),table({context:c,model:"creative.Budget",columns:["cap","spent","held","running","active"]})]);}
-export async function chatPage(c){return renderPage(c,chatDescriptor,()=>[list({context:c,model:Conversation,where:r=>r.active,renderRow:(conversation,cv)=>[title({context:cv,value:conversation.title}),list({context:cv,model:Branch,parent:conversation,renderRow:(branch,bv)=>[title({context:bv,value:branch.title}),list({context:bv,model:Turn,parent:branch,order:["position"],renderRow:(turn,tv)=>[content({context:tv,value:turn.content}),form({context:tv,operation:"creative.from_turn",arguments:{turn}})]})]})]})]);}
-export async function recoveryPage(c){return renderPage(c,recoveryDescriptor,()=>[table({context:c,model:Run,where:r=>r.unfinished||r.used===null,columns:["state","delivery_state","stop_delivery","reconcile_delivery","used","detail"],renderRow:(run,rv)=>[actions({context:rv,operations:["creative.stop","creative.reconcile","creative.release_skipped"],boundArgs:{run}})]})]);}
-export async function workflowsPage(c){return renderPage(c,workflowsDescriptor,()=>[text({context:c,values:[message("Upload an allowed API-format graph. Inspect its inputs, map the four fields, validate a snapshot, then publish it.",{nl:"Upload een toegestane API-graaf. Inspecteer de invoer, koppel vier velden, valideer een momentopname en publiceer deze."})]}),form({context:c,operation:"creative.Template.create"}),list({context:c,model:"creative.Template",where:r=>same(r.owner,c.actor),renderRow:async(template,tv)=>{
- const inspection=await delivery(tv,{record:template,field:"inspection"},["status","result.fields"]);
- return [title({context:tv,value:template.name}),edit({context:tv,operation:"creative.Template.update",record:template}),actions({context:tv,operations:["creative.inspect"],boundArgs:{template}}),text({context:tv,values:[inspection?.status??null]}),list({context:tv,items:inspection?.result?.fields??[],renderRow:(row,rv)=>[text({context:rv,values:[row.node,row.key,row.kind,row.label]})]}),actions({context:tv,operations:["creative.validate"],boundArgs:{template}}),list({context:tv,model:"creative.Revision",parent:template,order:["-number"],renderRow:async(revision,rv)=>[text({context:rv,values:[revision.number,revision.published,(await delivery(rv,{record:revision,field:"validation"},["status"]))?.status??null,revision.digest]}),actions({context:rv,operations:["creative.publish"],boundArgs:{revision}})]})];}}),form({context:c,operation:"creative.Budget.create"}),table({context:c,model:"creative.Budget",columns:["account","cap","parallel","spent","held","running","active"],renderRow:(record,rv)=>[edit({context:rv,operation:"creative.Budget.update",record,fields:["cap","parallel","active"]})]})]);}
+export async function studioPage(c){return renderPage(c,studioDescriptor,()=>[
+ breadcrumbs({context:c}),
+ form({context:c,operation:generate,display:"inline",children:[
+  fieldset({context:c,caption:message("Image prompt",{nl:"Beeldprompt"}),children:[
+   select({context:c,field:"template"}),
+   textarea({context:c,field:"prompt"}),
+   textarea({context:c,field:"negative"})]}),
+  fieldset({context:c,caption:message("Size and context",{nl:"Formaat en context"}),children:[
+   input({context:c,field:"width"}),
+   input({context:c,field:"height"}),
+   select({context:c,field:"conversation"})]})]}),
+ list({context:c,model:Run,where:r=>can_view(c,c.actor,r),order:["-created"],empty:message("No image jobs yet",{nl:"Nog geen beeldtaken"}),renderRow:(run,rv)=>[
+  pagination({context:rv}),
+  title({context:rv,value:run.prompt}),
+  status({context:rv,value:run.delivery_state}),
+  status({context:rv,value:run.stop_delivery}),
+  status({context:rv,value:run.reconcile_delivery}),
+  badge({context:rv,value:run.state}),
+  text({context:rv,values:[run.stop_requested,run.used,run.detail]}),
+  loading({context:rv,value:run.unfinished}),
+  gallery({context:rv,model:Output,parent:run,image:"image",order:["position"],empty:message("No images yet",{nl:"Nog geen beelden"}),children:[pagination({context:rv})]}),
+  actions({context:rv,operations:["creative.stop","creative.reconcile","creative.release_skipped"],boundArgs:{run}}),
+ ]}),
+ table({context:c,model:"creative.Budget",columns:["cap","spent","held","running","active"],empty:message("No image-job allowances",{nl:"Geen budgetten voor beeldtaken"}),renderRow:(row,rv)=>[pagination({context:rv})]})
+ ]);}
+export async function chatPage(c){return renderPage(c,chatDescriptor,()=>[
+ breadcrumbs({context:c}),
+ list({context:c,model:Conversation,where:r=>r.active,empty:message("No conversations",{nl:"Geen gesprekken"}),renderRow:(conversation,cv)=>[
+  pagination({context:cv}),
+  title({context:cv,value:conversation.title}),
+  list({context:cv,model:Branch,parent:conversation,empty:message("No branches",{nl:"Geen vertakkingen"}),renderRow:(branch,bv)=>[
+   pagination({context:bv}),
+   title({context:bv,value:branch.title}),
+   list({context:bv,model:Turn,parent:branch,order:["position"],empty:message("No messages",{nl:"Geen berichten"}),renderRow:(turn,tv)=>[
+    pagination({context:tv}),
+    chat_bubble({context:tv,slots:{header:()=>[text({context:tv,values:[turn.role]})],content:()=>[content({context:tv,value:turn.content})]}}),
+    form({context:tv,operation:"creative.from_turn",arguments:{turn},children:[
+     fieldset({context:tv,caption:message("Image prompt",{nl:"Beeldprompt"}),children:[
+      select({context:tv,field:"template"}),
+      textarea({context:tv,field:"negative"})]}),
+     fieldset({context:tv,caption:message("Size",{nl:"Formaat"}),children:[
+      input({context:tv,field:"width"}),
+      input({context:tv,field:"height"})]})]})]})
+   ]})
+  ]})
+ ]);}
+export async function recoveryPage(c){return renderPage(c,recoveryDescriptor,()=>[
+ breadcrumbs({context:c}),
+ table({context:c,model:Run,where:r=>r.unfinished||r.used===null,columns:["state","delivery_state","stop_delivery","reconcile_delivery","used","detail"],empty:message("No unresolved image jobs",{nl:"Geen onopgeloste beeldtaken"}),renderRow:(run,rv)=>[pagination({context:rv}),status({context:rv,value:run.delivery_state}),actions({context:rv,operations:["creative.stop","creative.reconcile","creative.release_skipped"],boundArgs:{run}})]})
+ ]);}
+export async function workflowsPage(c){return renderPage(c,workflowsDescriptor,()=>[
+ breadcrumbs({context:c}),
+ alert({context:c,children:[text({context:c,values:[message("Upload an allowed API-format graph. Inspect its inputs, map the four fields, validate a snapshot, then publish it.",{nl:"Upload een toegestane API-graaf. Inspecteer de invoer, koppel vier velden, valideer een momentopname en publiceer deze."})]})]}),
+ form({context:c,operation:"creative.Template.create",children:[
+  fieldset({context:c,caption:message("Graph",{nl:"Graaf"}),children:[
+   input({context:c,field:"name"}),
+   file_input({context:c,field:"graph"})]}),
+  fieldset({context:c,caption:message("Input mapping",{nl:"Invoerkoppeling"}),children:[
+   input({context:c,field:"prompt_node"}),
+   input({context:c,field:"prompt_key"}),
+   input({context:c,field:"negative_node"}),
+   input({context:c,field:"negative_key"}),
+   input({context:c,field:"width_node"}),
+   input({context:c,field:"width_key"}),
+   input({context:c,field:"height_node"}),
+   input({context:c,field:"height_key"})]}),
+  fieldset({context:c,caption:message("Limits",{nl:"Limieten"}),children:[
+   range({context:c,field:"outputs"}),
+   input({context:c,field:"duration"})]})]}),
+ list({context:c,model:"creative.Template",where:r=>same(r.owner,c.actor),empty:message("No workflow templates yet",{nl:"Nog geen workflowsjablonen"}),renderRow:async(template,tv)=>{
+  const inspection=await delivery(tv,{record:template,field:"inspection"},["status","result.fields"]);
+  return [pagination({context:tv}),title({context:tv,value:template.name}),edit({context:tv,operation:"creative.Template.update",record:template}),actions({context:tv,operations:["creative.inspect"],boundArgs:{template}}),text({context:tv,values:[inspection?.status??null]}),list({context:tv,items:inspection?.result?.fields??[],empty:message("No input fields found",{nl:"Geen invoervelden gevonden"}),renderRow:(row,rv)=>[pagination({context:rv}),text({context:rv,values:[row.node,row.key,row.kind,row.label]})]}),actions({context:tv,operations:["creative.validate"],boundArgs:{template}}),list({context:tv,model:"creative.Revision",parent:template,order:["-number"],empty:message("No revisions yet",{nl:"Nog geen versies"}),renderRow:async(revision,rv)=>[pagination({context:rv}),text({context:rv,values:[revision.number,revision.published,(await delivery(rv,{record:revision,field:"validation"},["status"]))?.status??null,revision.digest]}),actions({context:rv,operations:["creative.publish"],boundArgs:{revision}})]})];}}),
+ form({context:c,operation:"creative.Budget.create",children:[
+  input({context:c,field:"cap"}),
+  range({context:c,field:"parallel"})]}),
+ table({context:c,model:"creative.Budget",columns:["account","cap","parallel","spent","held","running","active"],empty:message("No image-job allowances",{nl:"Geen budgetten voor beeldtaken"}),renderRow:(record,rv)=>[pagination({context:rv}),edit({context:rv,operation:"creative.Budget.update",record,fields:["cap","parallel","active"],children:[input({context:rv,field:"cap"}),range({context:rv,field:"parallel"}),checkbox({context:rv,field:"active"})]})]})
+ ]);}
 
 export const exampleImports=[{provider:"chat",member:"conversation",alias:"conversation"}];
 export function exampleFixtures({self,other,imported}){

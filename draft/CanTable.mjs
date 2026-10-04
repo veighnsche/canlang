@@ -13,18 +13,29 @@ import {
   subtractDuration,
 } from "@canlang/stdlib";
 import {
-  actions,
+  alert,
+  badge,
+  breadcrumbs,
+  button,
   card,
-  details,
+  checkbox,
+  collapse,
   edit,
+  fieldset,
   form,
   history,
+  input,
   list,
   message,
+  modal,
+  pagination,
   renderPage,
+  select,
+  slot,
   table,
   tabs,
   text,
+  textarea,
 } from "@canlang/ui";
 import { can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -38,6 +49,9 @@ import { Location } from "./rent_catalog.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * Then-replan composition (breadcrumbs, pagination, alert, badge, button, checkbox,
+ * collapse, fieldset, input, modal, select, slot, textarea) is likewise desired:
+ * each use site below is marked desired-unimplemented and never claims to run.
  */
 
 async function available(c, table, from, until, skip) {
@@ -550,25 +564,58 @@ export async function cafePage(c, bindings) {
     c,
     cafePageDescriptor,
     () => [
-      form({ context: c, operation: "cafe.Cafe.create" }),
+      /* desired-unimplemented: breadcrumbs consume the declared route ancestry. */
+      breadcrumbs({ context: c }),
+      form({
+        context: c,
+        operation: "cafe.Cafe.create",
+        /* desired-unimplemented: placed controls move the generated fields. */
+        children: [
+          input({ context: c, field: "name" }),
+          select({ context: c, field: "location" }),
+        ],
+      }),
       list({
         context: c,
         model: "cafe.Cafe",
         where: (cafe) => preferences.cafe === null || same(cafe, preferences.cafe),
+        empty: message("No cafés available.", { nl: "Geen cafés beschikbaar." }),
         renderRow: (cafe, view) => [
+          /* desired-unimplemented: pagination consumes this collection cursor. */
+          pagination({ context: view }),
           card({
             context: view,
             title: message("Café and table definitions", { nl: "Café- en tafeldefinities" }),
             children: [
               edit({ context: view, operation: "cafe.Cafe.update", record: cafe }),
               text({ context: view, values: [cafe.location] }),
-              form({ context: view, operation: "cafe.Table.create", arguments: { parent: cafe } }),
+              form({
+                context: view,
+                operation: "cafe.Table.create",
+                arguments: { parent: cafe },
+                /* desired-unimplemented: placed controls move the generated fields. */
+                children: [
+                  fieldset({
+                    context: view,
+                    caption: message("Dining table", { nl: "Cafétafel" }),
+                    children: [
+                      input({ context: view, field: "name" }),
+                      input({ context: view, field: "zone" }),
+                      input({ context: view, field: "seats" }),
+                      checkbox({ context: view, field: "active" }),
+                    ],
+                  }),
+                ],
+              }),
               table({
                 context: view,
                 model: "cafe.Table",
                 parent: cafe,
                 columns: ["name", "zone", "seats", "active"],
+                empty: message("No tables defined yet.", { nl: "Nog geen tafels gedefinieerd." }),
                 renderRow: (row, rowView) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: rowView }),
                   edit({ context: rowView, operation: "cafe.Table.update", record: row }),
                   history({ context: rowView, record: row }),
                 ],
@@ -584,6 +631,14 @@ export async function cafePage(c, bindings) {
                 operation: "cafe.Booking.create",
                 arguments: { parent: cafe },
                 display: "inline",
+                /* desired-unimplemented: placed controls move the generated fields. */
+                children: [
+                  input({ context: view, field: "name" }),
+                  input({ context: view, field: "contact" }),
+                  input({ context: view, field: "party" }),
+                  textarea({ context: view, field: "notes" }),
+                  input({ context: view, field: "priority" }),
+                ],
               }),
             ],
           }),
@@ -623,15 +678,182 @@ export async function cafePage(c, bindings) {
                 order: ["-priority", "arrived"],
                 filter: ["state"],
                 display: "split",
+                empty: message("No bookings match this view.", { nl: "Geen boekingen voor deze weergave." }),
                 renderRow: (booking, rowView) => [
-                  // Desired: badge row.state — no verified @canlang/ui badge factory yet; awaits the L5 producer contract.
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: rowView }),
+                  /* desired-unimplemented: badge presents the readable typed value. */
+                  badge({ context: rowView, value: booking.state }),
+                  ...(booking.overdue
+                    ? [
+                        /* desired-unimplemented: alert suite carries the overdue notice. */
+                        alert({
+                          context: rowView,
+                          children: [
+                            text({
+                              context: rowView,
+                              values: [
+                                message(
+                                  "Seating estimate exceeded; the table stays occupied until staff clear it.",
+                                  {
+                                    nl: "Zitschatting overschreden; de tafel blijft bezet tot het personeel deze vrijgeeft.",
+                                  },
+                                ),
+                              ],
+                            }),
+                          ],
+                        }),
+                      ]
+                    : []),
+                  ...(booking.conflict
+                    ? [
+                        /* desired-unimplemented: alert suite carries the conflict notice. */
+                        alert({
+                          context: rowView,
+                          children: [
+                            text({
+                              context: rowView,
+                              values: [
+                                message(
+                                  "This reservation conflicts with an uncleared party on the same table.",
+                                  {
+                                    nl: "Deze reservering botst met een niet-vrijgegeven groep aan dezelfde tafel.",
+                                  },
+                                ),
+                              ],
+                            }),
+                          ],
+                        }),
+                      ]
+                    : []),
                   edit({ context: rowView, operation: "cafe.Booking.update", record: booking }),
-                  actions({
+                  /* desired-unimplemented: button opens activates the local modal. */
+                  button({ context: rowView, opens: "reserve_table" }),
+                  /* desired-unimplemented: modal declares the local activation identity. */
+                  modal({
                     context: rowView,
-                    operations: ["cafe.reserve", "cafe.seat", "cafe.clear", "cafe.cancel"],
-                    boundArgs: { booking },
+                    caption: message("Reserve dining table", { nl: "Cafétafel reserveren" }),
+                    id: "reserve_table",
+                    children: [
+                      slot({
+                        context: rowView,
+                        name: "content",
+                        children: [
+                          form({
+                            context: rowView,
+                            operation: "cafe.reserve",
+                            arguments: { booking },
+                            display: "inline",
+                            /* desired-unimplemented: placed controls move the generated fields. */
+                            children: [
+                              fieldset({
+                                context: rowView,
+                                caption: message("Reservation interval", { nl: "Reserveringstijdvak" }),
+                                children: [
+                                  select({ context: rowView, field: "table" }),
+                                  input({ context: rowView, field: "from" }),
+                                  input({ context: rowView, field: "until" }),
+                                  textarea({ context: rowView, field: "reason" }),
+                                ],
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
-                  details({
+                  /* desired-unimplemented: button opens activates the local modal. */
+                  button({ context: rowView, opens: "record_seating" }),
+                  /* desired-unimplemented: modal declares the local activation identity. */
+                  modal({
+                    context: rowView,
+                    caption: message("Record seating", { nl: "Plaatsnemen vastleggen" }),
+                    id: "record_seating",
+                    children: [
+                      slot({
+                        context: rowView,
+                        name: "content",
+                        children: [
+                          form({
+                            context: rowView,
+                            operation: "cafe.seat",
+                            arguments: { booking },
+                            display: "inline",
+                            /* desired-unimplemented: placed controls move the generated fields. */
+                            children: [
+                              fieldset({
+                                context: rowView,
+                                caption: message("Seating", { nl: "Plaatsnemen" }),
+                                children: [
+                                  select({ context: rowView, field: "table" }),
+                                  input({ context: rowView, field: "estimated_until" }),
+                                ],
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  /* desired-unimplemented: button opens activates the local modal. */
+                  button({ context: rowView, opens: "clear_table" }),
+                  /* desired-unimplemented: modal declares the local activation identity. */
+                  modal({
+                    context: rowView,
+                    caption: message("Clear dining table", { nl: "Cafétafel vrijgeven" }),
+                    id: "clear_table",
+                    children: [
+                      slot({
+                        context: rowView,
+                        name: "content",
+                        children: [
+                          form({
+                            context: rowView,
+                            operation: "cafe.clear",
+                            arguments: { booking },
+                            display: "inline",
+                            /* desired-unimplemented: placed controls move the generated fields. */
+                            children: [textarea({ context: rowView, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  /* desired-unimplemented: button opens activates the local modal. */
+                  button({ context: rowView, opens: "cancel_booking" }),
+                  /* desired-unimplemented: modal declares the local activation identity. */
+                  modal({
+                    context: rowView,
+                    caption: message("Cancel booking", { nl: "Boeking annuleren" }),
+                    id: "cancel_booking",
+                    children: [
+                      slot({
+                        context: rowView,
+                        name: "content",
+                        children: [
+                          form({
+                            context: rowView,
+                            operation: "cafe.cancel",
+                            arguments: { booking },
+                            display: "inline",
+                            /* desired-unimplemented: placed controls move the generated fields. */
+                            children: [
+                              fieldset({
+                                context: rowView,
+                                caption: message("Cancellation", { nl: "Annulering" }),
+                                children: [
+                                  checkbox({ context: rowView, field: "missed" }),
+                                  textarea({ context: rowView, field: "reason" }),
+                                ],
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  /* desired-unimplemented: collapse shares the details disclosure contract. */
+                  collapse({
                     context: rowView,
                     caption: message("Guest and planned interval evidence", {
                       nl: "Gastgegevens en geplande tijdvakken",
@@ -645,7 +867,8 @@ export async function cafePage(c, bindings) {
                   }),
                   ...(booking.conflict
                     ? [
-                        details({
+                        /* desired-unimplemented: collapse shares the details disclosure contract. */
+                        collapse({
                           context: rowView,
                           caption: message("Uncleared diners affecting this reservation", {
                             nl: "Niet-vrijgegeven gasten die deze reservering raken",
@@ -667,7 +890,10 @@ export async function cafePage(c, bindings) {
                                 "estimated_until",
                                 "overdue",
                               ],
+                              empty: message("No uncleared diners.", { nl: "Geen niet-vrijgegeven gasten." }),
                               renderRow: (occupant, occupantView) => [
+                                /* desired-unimplemented: pagination consumes this collection cursor. */
+                                pagination({ context: occupantView }),
                                 form({
                                   context: occupantView,
                                   operation: "cafe.clear",
@@ -681,7 +907,8 @@ export async function cafePage(c, bindings) {
                     : []),
                   ...(booking.seated !== null && booking.cleared === null
                     ? [
-                        details({
+                        /* desired-unimplemented: collapse shares the details disclosure contract. */
+                        collapse({
                           context: rowView,
                           caption: message("Upcoming reservations affected by this occupancy", {
                             nl: "Toekomstige reserveringen geraakt door deze bezetting",
@@ -697,7 +924,10 @@ export async function cafePage(c, bindings) {
                                 upcoming.conflict,
                               columns: ["name", "party", "table", "from", "until", "conflict"],
                               order: ["from"],
+                              empty: message("No affected upcoming reservations.", { nl: "Geen geraakte toekomstige reserveringen." }),
                               renderRow: (upcoming, upcomingView) => [
+                                /* desired-unimplemented: pagination consumes this collection cursor. */
+                                pagination({ context: upcomingView }),
                                 form({
                                   context: upcomingView,
                                   operation: "cafe.reserve",
