@@ -1121,6 +1121,7 @@ export async function fulfillmentPage(c, bindings) {
                   }),
                 ],
               }),
+              /* desired-unimplemented: button opens activates the local modal. */
               button({ context: v, opens: "cancel_detail" }),
               /* desired-unimplemented: modal declares the local activation identity. */
               modal({
@@ -1198,6 +1199,7 @@ export async function fulfillmentPage(c, bindings) {
                 renderRow: (entry, ev) => [
                   /* desired-unimplemented: pagination consumes this collection cursor. */
                   pagination({ context: ev }),
+                  /* desired-unimplemented: button opens activates the local modal. */
                   button({ context: ev, opens: "reverse_entry" }),
                   /* desired-unimplemented: modal declares the local activation identity. */
                   modal({
