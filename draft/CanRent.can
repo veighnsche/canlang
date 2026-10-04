@@ -33,8 +33,9 @@ package rent_catalog_ui
 # Coordinate capacity, buffers, holds and downtime at each resource's single owner. @{nl="Coördineer capaciteit, buffers, tijdelijke reserveringen en uitval bij de enige eigenaar van elke voorziening."}
 package rent_reservations label="Workspace reservations"@{nl="Werkplekreserveringen"}
  use rent_catalog {Location,WeeklyHours,ClosedDate,DateHours,LocationPolicy,policy_open,is_open,catalog_owner,test_site,open_site,sunday_site,recorded_site}
- use employee {can_work,test_worker}
- use customer {Customer,BillingProfile,owns,has_location_role,test_company,test_admin}
+ use employee {Employee,can_work,test_worker}
+ use customer {Customer,BillingProfile,owns,has_location_role,test_company,test_admin,test_booker}
+ use invoice {finance}
  use invoice {BillingV1 as Billing,DocumentLine,Settlement,Charge,SaleMilestone} from=deployment.billing
  use member_terms {MembershipV1 as Membership,Entitlement,BenefitInterval,AllowanceOutcome} from=deployment.membership
  use propose {QuoteOffer,AcceptedOffer,QuoteDocument,quote_intervals_valid}
@@ -96,6 +97,18 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
   export role reservation_manager label="Reservation manager"@{nl="Reserveringsbeheerder"}
   export role reception label="Reception"@{nl="Receptie"}
   role billing label="Billing"@{nl="Facturatie"}
+  contract LegacyBookingFacts { customer_source:text? label="Original customer system"@{nl="Oorspronkelijk klantsysteem"}, customer_external_id:text? label="Original customer key"@{nl="Oorspronkelijke klantsleutel"}, resource_source:text? label="Original resource system"@{nl="Oorspronkelijk voorzieningensysteem"}, resource_external_id:text? label="Original resource key"@{nl="Oorspronkelijke voorzieningssleutel"}, actor:text? label="Original booker"@{nl="Oorspronkelijke boeker"}, from_original:text? label="Original start timestamp"@{nl="Oorspronkelijke begintijd"}, until_original:text? label="Original end timestamp"@{nl="Oorspronkelijke eindtijd"}, from:datetime? label="Parsed start instant"@{nl="Geparst begintijdstip"}, until:datetime? label="Parsed end instant"@{nl="Geparst eindtijdstip"}, status:text? label="Original status"@{nl="Oorspronkelijke status"}, payment:text? label="Original payment status"@{nl="Oorspronkelijke betaalstatus"}, quantity:int? label="Original quantity"@{nl="Oorspronkelijk aantal"}, amount:money? label="Original amount"@{nl="Oorspronkelijk bedrag"} } label="Original booking facts"@{nl="Oorspronkelijke reserveringsgegevens"}
+  ## Original assertions are locked evidence; current mappings grant no live reservation.
+  export LegacyBooking { source:text trim min=1 label="Source system"@{nl="Bronsysteem"}, external_id:text min=1 label="Original record key"@{nl="Oorspronkelijke recordsleutel"}, location:Location label="Current location scope"@{nl="Huidig locatiebereik"}, facts:LegacyBookingFacts label="Original booking facts"@{nl="Oorspronkelijke reserveringsgegevens"}, source_evidence:file label="Original source artifact"@{nl="Oorspronkelijk bronbestand"}, attestation:text trim min=1 label="Intake attestation"@{nl="Verklaring bij invoer"}, customer:Customer? label="Current customer"@{nl="Huidige klant"}, resource:Resource? label="Current resource"@{nl="Huidige voorziening"}, account:user? label="Current account"@{nl="Huidig account"}, mapping_reason:text? label="Review reason"@{nl="Reden voor beoordeling"}, imported_by:user server=actor label="Imported by"@{nl="Ingevoerd door"}, imported_at:datetime server=now label="Imported at"@{nl="Ingevoerd op"} } label="Historical booking"@{nl="Historische reservering"}
+  unique LegacyBooking fields=source,external_id
+  lock LegacyBooking fields=source,external_id,location,facts,source_evidence,attestation,imported_by,imported_at
+  policy LegacyBooking read=(reservation_manager or finance) and can_work(actor,row.location)
+  policy LegacyBooking read=authenticated where=row.account==actor and row.customer!=null and (owns(actor,row.customer) or has_location_role(actor,row.customer,booker,row.location)) fields=source,external_id,location,facts,customer,resource
+  invariant LegacyBooking: (row.facts.customer_source==null)==(row.facts.customer_external_id==null) and (row.facts.resource_source==null)==(row.facts.resource_external_id==null)
+  export fixture history_user=user {roles=[reservation_manager,finance]}
+  export fixture history_worker=Employee {user=history_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Historical evidence steward"}
+  export fixture legacy_source=file {owner=history_user}
+  export fixture legacy_booking=LegacyBooking {source="vendor-w",external_id="B-17",location=test_site,facts={customer_source="vendor-w",customer_external_id="C-9",resource_source="vendor-w",resource_external_id="R-2",actor="Former booker",from_original="2021-05-12 09:00",until_original="2021-05-12 10:00",status="Completed",payment="Paid",amount=money(1000,"EUR")},source_evidence=legacy_source,attestation="Original export retained; local-time offset unknown"}
   contract WorkspaceAvailability { resource:Resource, from:datetime, until:datetime, quantity:int, attendees:int, available:bool label={text="Availability"@{nl="Beschikbaarheid"},values={true="Available"@{nl="Beschikbaar"},false="Unavailable"@{nl="Niet beschikbaar"}}}, total:money, terms:text, refund_before:datetime }
   contract DayAvailability { resource:Resource, start:date, end:date, quantity:int, attendees:int, available:bool label={text="Availability"@{nl="Beschikbaarheid"},values={true="Available"@{nl="Beschikbaar"},false="Unavailable"@{nl="Niet beschikbaar"}}}, total:money, terms:text }
   contract BookingInterval { from:datetime, until:datetime }
@@ -206,6 +219,42 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
   fixture test_sale=CommercialSale {parent=test_hold}
   fixture test_hold=Booking {parent=test_room,customer=test_company,account=self,email="customer@example.test",from=datetime("2026-10-04T09:00:00Z"),until=datetime("2026-10-04T10:00:00Z"),rate=money(1000,"EUR"),subtotal=money(1000,"EUR"),tax=money(0,"EUR"),discount=money(0,"EUR"),refund_amount=money(1000,"EUR"),total=money(1000,"EUR"),terms="Full balance before admission",refund_before=datetime("2026-10-03T09:00:00Z"),reserved_from=datetime("2026-10-04T09:00:00Z"),reserved_until=datetime("2026-10-04T10:00:00Z"),expires=datetime("2026-10-03T12:15:00Z"),source="test-hold"}
  When
+  # Retain historical booking assertions without capacity, billing or allowance effects. @{nl="Bewaar historische reserveringsclaims zonder capaciteit, facturatie of tegoeden te wijzigen."}
+  export scenario retain_legacy(source:text label="Source system"@{nl="Bronsysteem"},external_id:text label="Original record key"@{nl="Oorspronkelijke recordsleutel"},location:Location label="Current location scope"@{nl="Huidig locatiebereik"},facts:LegacyBookingFacts label="Original booking facts"@{nl="Oorspronkelijke reserveringsgegevens"},source_evidence:file label="Original source artifact"@{nl="Oorspronkelijk bronbestand"},attestation:text label="Intake attestation"@{nl="Verklaring bij invoer"}) by=reservation_manager -> LegacyBooking label="Retain historical booking"@{nl="Historische reservering bewaren"}
+   require can_work(actor,location) and trim(source)!="" and trim(external_id)!="" and trim(attestation)!=""
+   require not any(LegacyBooking archived=include as entry,entry.source==trim(source) and entry.external_id==external_id)
+   do
+    create LegacyBooking {source=trim(source),external_id,location,facts,source_evidence,attestation=trim(attestation)} as entry
+    return entry
+   examples seed=[history_worker,legacy_booking] source="vendor-w" external_id=" B-18 " location=test_site facts={customer_source="vendor-w",customer_external_id="C-9",from_original="2021-05-12 09:00",status="Unknown",amount=null} source_evidence=legacy_source attestation="Checked source export"
+    as,external_id,history_worker.active -> result.external_id,result.facts.from,result.facts.amount,result.account,result.imported_by,count(Booking)
+    history_user," B-18 ",true -> " B-18 ",null,null,null,history_user,0
+    history_user,"B-17",true -> error(rule_failed)
+    history_user,"B-18",false -> error(rule_failed)
+    members,"B-18",true -> error(forbidden)
+  # Find readable source identities; the preview cannot reserve an import key. @{nl="Zoek leesbare bronidentiteiten; het voorbeeld reserveert geen invoersleutel."}
+  scenario legacy_matches(source:text label="Source system"@{nl="Bronsysteem"},external_id:text label="Original record key"@{nl="Oorspronkelijke recordsleutel"},location:Location label="Current location scope"@{nl="Huidig locatiebereik"}) read=true -> LegacyBooking[] by=authenticated label="Find historical booking"@{nl="Historische reservering zoeken"}
+   do return LegacyBooking archived=include as entry where entry.source==trim(source) and entry.external_id==external_id and entry.location==location
+   examples seed=[history_worker,legacy_booking] source="vendor-w" external_id="B-17" location=test_site
+    as -> count(result)
+    history_user -> 1
+    members -> 0
+    public -> error(forbidden)
+  # Review current references and access independently of original source facts. @{nl="Beoordeel huidige verwijzingen en toegang los van de oorspronkelijke brongegevens."}
+  export scenario link_legacy(entry:LegacyBooking,customer:Customer? label="Current customer"@{nl="Huidige klant"},resource:Resource? label="Current resource"@{nl="Huidige voorziening"},account:user? label="Current account"@{nl="Huidig account"},reason:text label="Review reason"@{nl="Reden voor beoordeling"}) by=reservation_manager or finance label="Map historical booking"@{nl="Historische reservering koppelen"}
+   require can_work(actor,entry.location) and trim(reason)!=""
+   require customer==null or (finance and trim(entry.facts.customer_source??"")!="" and trim(entry.facts.customer_external_id??"")!="" and entry.location in customer.locations)
+   require resource==null or (reservation_manager and trim(entry.facts.resource_source??"")!="" and trim(entry.facts.resource_external_id??"")!="" and resource.location==entry.location)
+   require account==null or (customer!=null and (owns(account,customer) or has_location_role(account,customer,booker,entry.location)))
+   do set entry {customer,resource,account,mapping_reason=trim(reason)}
+   examples seed=[history_worker,test_booker] entry=legacy_booking customer=test_company resource=test_room account=other reason="Reviewed original customer/resource keys against existing records"
+    as,customer,resource,account,reason,request.entry.version -> entry.customer,entry.resource,entry.account,entry.facts.customer_external_id,entry.mapping_reason
+    history_user,test_company,test_room,other,"Verified source keys",1 -> test_company,test_room,other,"C-9","Verified source keys"
+    history_user,null,null,null,"Revoke mistaken mapping",1 -> null,null,null,"C-9","Revoke mistaken mapping"
+    history_user,test_company,test_room,self,"Unverified account",1 -> error(rule_failed)
+    history_user,test_company,test_room,other," ",1 -> error(rule_failed)
+    history_user,test_company,test_room,other,"Verified source keys",2 -> error(conflict)
+    members,test_company,test_room,other,"Verified source keys",1 -> error(forbidden)
   crud Resource by=catalog_owner fields=name,active,hourly,daily,price_unit,tax_rate,discount_rate,cancellation_fee,increment,minimum,terms,refund_notice,buffer_before,buffer_after,amenities,accessibility,party_limit,kind,hold_for create_fields=location,name,pooled,capacity,timezone,currency,hourly,daily,price_unit,tax_rate,discount_rate,cancellation_fee,terms,refund_notice,accessibility,party_limit,kind,hold_for when=can_work(actor,row.location) delete=none
   crud DayCalendar by=reservation_manager fields=day,opens,closes,closed,fold when=can_work(actor,row.parent.location) delete=none
   crud Window by=reservation_manager fields=from,until,closed,reason when=can_work(actor,row.parent.location) delete=none
@@ -1198,6 +1247,21 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
       set event.booking {cancel_delivery=cancellation.id}
     emit ReservationChanged {booking=event.booking,revision=event.booking.version+1}
  Then
+  # Read retained booking evidence under current staff or explicitly mapped account access. @{nl="Lees bewaard reserveringsbewijs met huidige medewerkersrechten of toegang voor een uitdrukkelijk gekoppeld account."}
+  page /workspace/history title="Historical booking evidence"@{nl="Historisch reserveringsbewijs"}
+   require authenticated
+   card "Retain source bookings"@{nl="Bronreserveringen bewaren"}
+    require reservation_manager
+    form retain_legacy import=csv review=legacy_matches
+   form legacy_matches
+    list result columns=source,external_id,location
+   table LegacyBooking archived=include as entry columns=source,external_id,location display=split
+    text entry.facts.customer_source,entry.facts.customer_external_id,entry.facts.resource_source,entry.facts.resource_external_id,entry.facts.actor,entry.facts.from_original,entry.facts.until_original,entry.facts.from,entry.facts.until,entry.facts.status,entry.facts.payment,entry.facts.quantity,entry.facts.amount,entry.customer,entry.resource
+    card "Current mapping and source evidence"@{nl="Huidige koppeling en bronbewijs"}
+     require reservation_manager or finance
+     action link_legacy
+     text entry.account,entry.mapping_reason,entry.source_evidence,entry.attestation,entry.imported_by,entry.imported_at
+     history
   page /workspace/refund-review title="Booking finance exceptions"@{nl="Financiële reserveringsuitzonderingen"} order=8
    require billing
    list Booking as booking where booking.refund_state in [review,unknown,pending] display=split
