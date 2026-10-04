@@ -113,3 +113,7 @@ H017 was published in 58a7366 through verified main d8f3e3e. Clean main is now b
 H018 release was verified. Normal merge completed without conflicts; all 3 local coordination and 24 incoming changed paths match their committed blobs exactly. All 31 draft JavaScript syntax checks pass. No manual resolution, implementation or other-worktree mutation was needed; C01/C02 acceptance remains pending.
 
 Return Git/checkout ownership only after the commit containing H019 is published on origin/main with no merge/rebase in progress. Verify publication before acknowledgment; hold all mutations until then. Preserve the completed handoff and attached viewer; no new work, sessions or role changes are authorized. Codex ends integration mutations after verified publication.
+
+## H020 — RELEASE-REQUEST — 18:36 UTC scheduled synchronization
+
+H019 was published in b9f643a through verified main 6ac833c. Clean main is behind origin. Codex requests Git index/commit/checkout ownership for normal synchronization. Confirm zero active writers/reservations, record `RELEASED H020: git-index, commit and checkout integration ownership`, and hold mutations until H021 publication. No new work, workers, sessions or role changes; preserve other worktrees and pending C01/C02 acceptance.
