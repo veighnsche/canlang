@@ -18,6 +18,14 @@ import type {
   CapabilityCompletion,
   EmailAccepted,
   EmailSendInput,
+  ImageAccepted,
+  ImageGenerateInput,
+  ImageRun,
+  JudgmentBatchInput,
+  JudgmentBatchResult,
+  ModelChatInput,
+  ModelChatReply,
+  ModelRunSnapshot,
 } from '../../contracts/src/services.js';
 import { randomUUID } from 'node:crypto';
 import http from 'node:http';
@@ -48,6 +56,96 @@ export interface MailSender {
     options: { readonly deliveryId: string },
   ): Promise<CapabilityCompletion<EmailAccepted>>;
   reconcile(deliveryId: string): Promise<CapabilityCompletion<EmailAccepted>>;
+}
+
+/**
+ * Live handle for one streaming model run. Snapshots are ordered
+ * observations (sequence-dense, bounded tail); `cancel()` requests
+ * cancellation and resolves with the terminal completion, which may
+ * still be the final reply when completion raced cancellation.
+ */
+export interface ModelRunHandle {
+  readonly deliveryId: string;
+  /** True once `cancel()` was called (requested, not yet confirmed). */
+  readonly cancelRequested: boolean;
+  snapshots(): readonly ModelRunSnapshot[];
+  cancel(): Promise<CapabilityCompletion<ModelChatReply>>;
+  done(): Promise<CapabilityCompletion<ModelChatReply>>;
+}
+
+export interface ModelChatPort {
+  /**
+   * Final-only generation. The runtime always supplies its own stable
+   * delivery id; the adapter never mints identity.
+   */
+  generate(
+    input: ModelChatInput,
+    options: { readonly deliveryId: string },
+  ): Promise<CapabilityCompletion<ModelChatReply>>;
+  /**
+   * Streaming generation. Returns the run handle immediately; throws
+   * synchronously on validation failures (nothing is sent).
+   */
+  generateStream(
+    input: ModelChatInput,
+    options: {
+      readonly deliveryId: string;
+      readonly onSnapshot?: (snapshot: ModelRunSnapshot) => void;
+    },
+  ): ModelRunHandle;
+  /**
+   * Reconcile an uncertain generation through its original identity.
+   * Providers without a documented run lookup honestly stay `unknown`.
+   */
+  reconcile(deliveryId: string): Promise<CapabilityCompletion<ModelChatReply>>;
+}
+
+export interface JudgmentPort {
+  /**
+   * Evaluate one typed batch. The runtime always supplies its own
+   * stable delivery id; the adapter never mints identity.
+   */
+  evaluate(
+    input: JudgmentBatchInput,
+    options: { readonly deliveryId: string },
+  ): Promise<CapabilityCompletion<JudgmentBatchResult>>;
+  /**
+   * Reconcile an uncertain batch through its original identity.
+   * Providers without a documented batch lookup honestly stay `unknown`.
+   */
+  reconcile(
+    deliveryId: string,
+  ): Promise<CapabilityCompletion<JudgmentBatchResult>>;
+}
+
+export interface MediaPort {
+  /**
+   * Submit a generation. The caller may supply its own job id for
+   * crash recovery (an unknown submit with a known id stays
+   * pollable); otherwise the adapter mints one.
+   */
+  submit(
+    input: ImageGenerateInput,
+    options: { readonly deliveryId: string; readonly jobId?: string },
+  ): Promise<CapabilityCompletion<ImageAccepted>>;
+  /**
+   * Observe one job. A succeeded completion carries the observed run
+   * (which may itself be failed or unknown); completion failure
+   * means the observation itself failed.
+   */
+  reconcile(
+    job: string,
+    options: { readonly deliveryId: string },
+  ): Promise<CapabilityCompletion<ImageRun>>;
+  /**
+   * Request cancellation, then reconcile. The post-cancel
+   * observation is the answer; native polling exposes no
+   * `cancelled` marker, so none is fabricated.
+   */
+  cancel(
+    job: string,
+    options: { readonly deliveryId: string },
+  ): Promise<CapabilityCompletion<ImageRun>>;
 }
 
 export function systemClock(): Clock {

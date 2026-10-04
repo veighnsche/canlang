@@ -247,3 +247,220 @@ export interface ErrorReport {
 export interface ErrorAccepted {
   reference: string;
 }
+
+/**
+ * Provider-owned `ai.ChatV1` message (research sketch "final chat";
+ * `design/research-ai-capabilities-20261004.md`). Minimal final-only
+ * shape: no tools/images/thinking until an app uses them.
+ */
+export interface ModelMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string;
+}
+
+/** Provider-owned `ai.ChatV1` generate inputs. */
+export interface ModelChatInput {
+  /** Bound model id; validated against the deployment allowlist. */
+  model: string;
+  /** Frozen authorized history; the adapter sends this, never a hidden provider conversation. */
+  messages: ModelMessage[];
+  /** Generation output budget; provider options stay adapter-owned. */
+  maxTokens: number;
+}
+
+/**
+ * Provider-owned `ai.ChatV1` final reply. Usage is nullable because
+ * providers may omit it; absence never fails an otherwise complete reply.
+ */
+export interface ModelChatReply {
+  content: string;
+  model: string;
+  /** Provider done/finish reason. */
+  finish: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+}
+
+/** Provider-owned `ai.ChatV1` run observation state. */
+export type ModelRunState =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'unknown'
+  | 'cancelled';
+
+/**
+ * Provider-owned `ai.ChatV1` run snapshot. `sequence` orders snapshots
+ * within one run; correlation (source/revision/delivery) travels with
+ * the frozen request and the delivery association, never inside model
+ * content. Snapshots are bounded presentation state, not lossless
+ * token replay.
+ */
+export interface ModelRunSnapshot {
+  sequence: number;
+  state: ModelRunState;
+  /** Cumulative user-visible content; provider thinking stays separate. */
+  content: string;
+}
+
+/**
+ * Provider-owned `ai.SystemOneV1` judgment question. Wire shape follows
+ * the System One API (`tools/jev.py` plus documented answer shapes):
+ * questions ride as `{id: {type, instructions, criteria}}` with choice
+ * criteria as an option map and score criteria as an ordered level
+ * list. Thresholds and routing stay authored business policy; the
+ * adapter preserves distributions and never thresholds.
+ */
+export type JudgmentQuestion =
+  | { kind: 'noul'; id: string; instructions: string }
+  | {
+      kind: 'choice';
+      id: string;
+      instructions: string;
+      /** Option id to description; 1..provider-max entries. */
+      options: Record<string, string>;
+    }
+  | {
+      kind: 'score';
+      id: string;
+      instructions: string;
+      /** Ordered level descriptions, lowest first. */
+      levels: string[];
+    };
+
+/** Provider-owned `ai.SystemOneV1` batch inputs. */
+export interface JudgmentBatchInput {
+  /** Bound model id/alias; validated against the deployment allowlist. */
+  model: string;
+  /** App-typed minimized state, serialized once; must be JSON-serializable. */
+  state: Record<string, unknown>;
+  /** Non-empty; ids must be unique. */
+  questions: JudgmentQuestion[];
+}
+
+/** Noul answer: probability of yes. No confidence field exists. */
+export interface NoulAnswer {
+  probability: number;
+}
+
+/** Choice answer: selected label, full distribution, confidence. */
+export interface ChoiceAnswer {
+  choice: string;
+  probabilities: Record<string, number>;
+  confidence: number;
+}
+
+/** One ordered score level with its legend description and probability. */
+export interface ScoreLevel {
+  index: number;
+  description: string;
+  probability: number;
+}
+
+/** Score answer: probability-weighted index, ordered levels, confidence. */
+export interface ScoreAnswer {
+  score: number;
+  levels: ScoreLevel[];
+  confidence: number;
+}
+
+/** One normalized typed answer, keyed by the requested question id. */
+export type JudgmentAnswer =
+  | { kind: 'noul'; id: string; answer: NoulAnswer }
+  | { kind: 'choice'; id: string; answer: ChoiceAnswer }
+  | { kind: 'score'; id: string; answer: ScoreAnswer };
+
+/** Provider-owned `ai.SystemOneV1` batch result, in request order. */
+export interface JudgmentBatchResult {
+  /** Actual answering model (aliases resolve server-side). */
+  model: string;
+  /** One answer per requested question, in request order. */
+  answers: JudgmentAnswer[];
+  inputTokens: number | null;
+  outputTokens: number | null;
+}
+
+/**
+ * Provider-owned `ai.ImagesV1` business inputs. These are mapped onto
+ * graph node inputs by the binding's workflow map; the adapter
+ * substitutes only declared scalar slots and validates the graph
+ * digest, never inventing nodes or resizing silently.
+ */
+export interface ImageGenerateInput {
+  prompt: string;
+  negative: string;
+  width: number;
+  height: number;
+  seed: number;
+}
+
+/**
+ * Submission acceptance: a provider job reference. The business image
+ * run remains queued; acceptance never proves an image exists.
+ */
+export interface ImageAccepted {
+  job: string;
+}
+
+/**
+ * One downloaded output image. `position` is the stable index within
+ * the node's image list; `node` + `position` jointly identify the
+ * output. `contentType` is the transport claim; actual bytes win at
+ * files validation (S8 join).
+ */
+export interface GeneratedImage {
+  node: string;
+  position: number;
+  contentType: string;
+  sizeBytes: number;
+  bytes: Uint8Array;
+}
+
+/** Provider-owned `ai.ImagesV1` run state. */
+export type ImageRunState =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'unknown'
+  | 'cancelled';
+
+/**
+ * Provider-owned `ai.ImagesV1` observed run. Delivery success stays
+ * distinct from image-run success: a failed run is data (state +
+ * partial outputs + detail), and partial outputs followed by job
+ * failure stay distinguishable from full success.
+ */
+export interface ImageRun {
+  job: string;
+  state: ImageRunState;
+  outputs: GeneratedImage[];
+  detail: string | null;
+}
+
+/** One API-format graph node: class plus named inputs. */
+export interface ApiGraphNode {
+  class_type: string;
+  inputs: Record<string, unknown>;
+}
+
+/** Pinned API-format graph: node id to node. */
+export type ApiGraph = Record<string, ApiGraphNode>;
+
+/**
+ * Versioned workflow-node mapping. Adapter-owned typed configuration,
+ * NOT language syntax: it lives in the deployment binding (or a
+ * versioned template record at the S8 join), is validated against the
+ * pinned graph digest at submit, and frozen per run.
+ */
+export interface WorkflowNodeMapping {
+  /** Immutable workflow artifact id (never a path or URL). */
+  workflow: string;
+  /** Pinned graph digest the mapping was reviewed against (`sha256:` hex). */
+  graphDigest: string;
+  /** Business field to graph node/key destination; exactly the input fields. */
+  inputs: Record<string, { node: string; key: string }>;
+  /** Declared output node ids; only these nodes' images are collected. */
+  outputs: string[];
+}

@@ -264,4 +264,25 @@ describe('http client', () => {
       );
     });
   });
+
+  it('propagates an already-aborted caller signal without sending', async () => {
+    await withServer({ kind: 'accept' }, async (server) => {
+      const controller = new AbortController();
+      controller.abort();
+      await assert.rejects(
+        httpRequest(configFor(server), {
+          method: 'POST',
+          path: '/send',
+          body: '{}',
+          signal: controller.signal,
+        }),
+        (err: unknown) => {
+          assert.ok(err instanceof Error);
+          assert.equal(err.name, 'AbortError');
+          return true;
+        },
+      );
+      assert.equal(server.requests.length, 0);
+    });
+  });
 });
