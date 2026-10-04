@@ -253,9 +253,29 @@ const INVALID_DESCRIPTORS: ReadonlyArray<readonly [string, unknown, ReadonlyArra
     ['["contracts","A","fields","f","unique"]:"unknown-field"'],
   ],
   [
-    "field trim key rejected",
-    { contracts: { A: contract({ f: field("text", { trim: true }) }) } },
-    ['["contracts","A","fields","f","trim"]:"unknown-field"'],
+    "field trim on array rejected (text leaves only)",
+    { contracts: { A: contract({ f: field("text[]", { trim: true }) }) } },
+    ['["contracts","A","fields","f","trim"]:"type"'],
+  ],
+  [
+    "field trim on int rejected (text leaves only)",
+    { contracts: { A: contract({ f: field("int", { trim: true }) }) } },
+    ['["contracts","A","fields","f","trim"]:"type"'],
+  ],
+  [
+    "field trim on union rejected (text leaves only)",
+    { contracts: { A: contract({ f: field("X|Y", { trim: true }) }) } },
+    ['["contracts","A","fields","f","trim"]:"type"'],
+  ],
+  [
+    "field trim on nominal rejected (text leaves only)",
+    { contracts: { A: contract({ f: field("Todo", { trim: true }) }) } },
+    ['["contracts","A","fields","f","trim"]:"type"'],
+  ],
+  [
+    "field trim non-boolean rejected",
+    { contracts: { A: contract({ f: field("text", { trim: "yes" }) }) } },
+    ['["contracts","A","fields","f","trim"]:"type"'],
   ],
   [
     "field missing type",
@@ -669,6 +689,144 @@ describe("validateValue create", () => {
       "create",
     ) as ContractValue;
     assert.ok(out["dec"] instanceof Decimal);
+  });
+});
+
+describe("trim normalization (DESIGN L131)", () => {
+  it("trims padded values, then bounds the trimmed result", () => {
+    const schema = normalizeSchema({
+      contracts: { C: contract({ name: field("text", { trim: true, min: 1, max: 10 }) }) },
+    });
+    const out = validateValue(schema, "C", { name: "  Ada  " }, "create") as ContractValue;
+    assert.equal(out["name"], "Ada");
+    // Untrimmed input that trims below min still fails on the trimmed length.
+    assert.deepEqual(
+      codesOf(assertSchemaError(() => validateValue(schema, "C", { name: "   " }, "create"))),
+      ['["name"]:"bound"'],
+    );
+  });
+
+  it("passes a max violated only by untrimmed length", () => {
+    const schema = normalizeSchema({
+      contracts: {
+        C: contract({ t: field("text", { trim: true, max: 3 }), u: field("text", { max: 3 }) }),
+      },
+    });
+    const out = validateValue(schema, "C", { t: "  ab  ", u: "ab" }, "create") as ContractValue;
+    assert.equal(out["t"], "ab");
+    assert.deepEqual(
+      codesOf(assertSchemaError(() => validateValue(schema, "C", { t: "ab", u: "  ab  " }, "create"))),
+      ['["u"]:"bound"'],
+    );
+  });
+
+  it("leaves null alone and treats trim:false as absent", () => {
+    const schema = normalizeSchema({
+      contracts: {
+        C: contract({
+          n: field("text?", { trim: true }),
+          f: field("text", { trim: false, max: 3 }),
+        }),
+      },
+    });
+    const out = validateValue(schema, "C", { n: null, f: "abc" }, "create") as ContractValue;
+    assert.equal(out["n"], null);
+    assert.deepEqual(
+      codesOf(assertSchemaError(() => validateValue(schema, "C", { n: null, f: "  ab  " }, "create"))),
+      ['["f"]:"bound"'],
+    );
+  });
+
+  it("decodes stringlike leaves before trimming", () => {
+    const schema = normalizeSchema({
+      contracts: { C: contract({ e: field("email", { trim: true }) }) },
+    });
+    const out = validateValue(schema, "C", { e: "a@b.com" }, "create") as ContractValue;
+    assert.equal(out["e"], "a@b.com");
+    // Padded email never reaches trim: the wire decode rejects whitespace first.
+    assert.deepEqual(
+      codesOf(assertSchemaError(() => validateValue(schema, "C", { e: "  a@b.com  " }, "create"))),
+      ['["e"]:"format"'],
+    );
+  });
+
+  it("trims explicit defaults before their bound check", () => {
+    const schema = normalizeSchema({
+      contracts: { C: contract({ t: field("text", { trim: true, max: 1, default: "  x  " }) }) },
+    });
+    const out = validateValue(schema, "C", {}, "create") as ContractValue;
+    assert.equal(out["t"], "x");
+    assert.deepEqual(
+      codesOf(
+        assertSchemaError(() =>
+          normalizeSchema({
+            contracts: { C: contract({ t: field("text", { trim: true, max: 1, default: "  xy  " }) }) },
+          }),
+        ),
+      ),
+      ['["contracts","C","fields","t","default"]:"bound"'],
+    );
+  });
+
+  it("rejects trim outside text leaves with a clear error", () => {
+    const violations = assertSchemaError(() =>
+      normalizeSchema({ contracts: { A: contract({ f: field("int", { trim: true }) }) } }),
+    );
+    assert.equal(violations.length, 1);
+    assert.match(violations[0]?.message ?? "", /trim is only supported on text fields/);
+  });
+
+  it("trims operation inputs before their bound check", () => {
+    const schema = normalizeSchema({
+      operations: { op: { inputs: { q: field("text", { trim: true, max: 2 }) } } },
+    });
+    assert.deepEqual(validateOperationInput(schema, "op", { q: "  ab  " }), { q: "ab" });
+    assert.deepEqual(codesOf(assertSchemaError(() => validateOperationInput(schema, "op", { q: "  abc  " }))), [
+      '["q"]:"bound"',
+    ]);
+  });
+});
+
+describe("omitted bounded arrays fail closed (M2)", () => {
+  it("fails an omitted bounded array on create, like an explicit []", () => {
+    const schema = normalizeSchema({
+      contracts: { C: contract({ items: field("text[]", { min: 1 }) }) },
+    });
+    assert.deepEqual(codesOf(assertSchemaError(() => validateValue(schema, "C", {}, "create"))), [
+      '["items"]:"bound"',
+    ]);
+    assert.deepEqual(codesOf(assertSchemaError(() => validateValue(schema, "C", { items: [] }, "create"))), [
+      '["items"]:"bound"',
+    ]);
+    const out = validateValue(schema, "C", { items: ["a"] }, "create") as ContractValue;
+    assert.deepEqual(out["items"], ["a"]);
+  });
+
+  it("still yields [] for omitted unbounded arrays", () => {
+    const schema = normalizeSchema({ contracts: { C: contract({ items: field("text[]") }) } });
+    const out = validateValue(schema, "C", {}, "create") as ContractValue;
+    assert.deepEqual(out["items"], []);
+    assert.ok(Object.isFrozen(out["items"]));
+  });
+
+  it("still yields the sentinel for update-mode omission", () => {
+    const schema = normalizeSchema({
+      contracts: { C: contract({ items: field("text[]", { min: 1 }) }) },
+    });
+    const out = validateValue(schema, "C", {}, "update") as UpdateContract;
+    assert.ok(isUpdateOmitted(out["items"]));
+  });
+
+  it("fails omitted bounded operation inputs the same way", () => {
+    const schema = normalizeSchema({
+      operations: {
+        op: { inputs: { xs: field("text[]", { min: 1 }), ys: field("text[]") } },
+      },
+    });
+    assert.deepEqual(codesOf(assertSchemaError(() => validateOperationInput(schema, "op", {}))), [
+      '["xs"]:"bound"',
+    ]);
+    assert.deepEqual(validateOperationInput(schema, "op", { xs: ["a"] }), { xs: ["a"], ys: [] });
   });
 });
 

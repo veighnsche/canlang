@@ -80,6 +80,19 @@ export interface ActionRef {
   readonly bindings: Readonly<Record<string, RecordRef>>;
 }
 
+/**
+ * Complete normalized call value for one canonical local user mutation
+ * (DESIGN §2.2, GRAMMAR invocation_type). Runtime args are DECODED values;
+ * the wire form carries `{type, value}` pairs per argument (see
+ * InvocationWire). Nested record versions are preserved as-present;
+ * version/completeness enforcement is L3 admission, which owns op schemas.
+ */
+export interface InvocationRef {
+  readonly kind: "invocation";
+  readonly target: string;
+  readonly args: Readonly<Record<string, CanValue>>;
+}
+
 /** Opaque association to one durable delivery of a bound operation. */
 export interface DeliveryRef {
   readonly kind: "delivery";
@@ -124,6 +137,7 @@ export type CanValue =
   | ContractValue
   | UnionValue
   | ActionRef
+  | InvocationRef
   | DeliveryRef
   | FileValue
   | SecretValue
@@ -168,6 +182,16 @@ export interface WireUnion {
 export interface WireDelivery {
   id: string;
   operation: string;
+}
+
+/**
+ * Invocation on the wire: canonical target plus typed argument pairs.
+ * wire.ts builds this shape structurally from frozen pieces; the
+ * interface is the consumer (L1/L3) contract, not the encoder's type.
+ */
+export interface InvocationWire {
+  target: string;
+  arguments: Record<string, { type: string; value: WireValue }>;
 }
 
 export interface WireFile {

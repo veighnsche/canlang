@@ -483,7 +483,7 @@ describe("lane02 values join", () => {
 
     // Present path: run the key tables for real.
     const implemented = producer.CATALOG.entries.filter((entry) => entry.availability === "implemented");
-    expect(implemented.length).toBe(54);
+    expect(implemented.length).toBe(57);
     const fixtureIds = new Set(fixtures.builtinCallIds);
     const catalogRows = implemented.map((entry, rowIndex): TableRowResult => {
       if (!fixtureIds.has(entry.id)) {

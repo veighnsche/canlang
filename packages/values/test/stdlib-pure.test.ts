@@ -7,7 +7,7 @@ import { INT64_MAX, INT64_MIN, absInt } from "../src/int.js";
 import { makeDate, makeMoney, makeRecordRef, makeUserRef } from "../src/kinds.js";
 import type { FormatMessageOptions } from "../src/locale.js";
 import { absDuration } from "../src/temporal.js";
-import { abs, action, app_url, format, sum } from "../src/stdlib-pure.js";
+import { abs, action, app_url, choose, format, invocation, sum } from "../src/stdlib-pure.js";
 
 function assertValueError(fn: () => unknown, code: string): void {
   try {
@@ -92,10 +92,11 @@ describe("sum dispatcher", () => {
     );
     assertValueError(() => sum([], "money"), "invalid-construction");
     assertValueError(() => sum([makeMoney(1n, "USD")], "money", "ZZZ"), "unknown-currency");
-    assertValueError(
-      () => sum([makeMoney(1n, "ZZZ"), makeMoney(2n, "ZZZ")], "money"),
-      "unknown-currency",
-    );
+    // Direct literals: the maker itself rejects ZZZ, so only hand-built
+    // values reach sumMoney's membership check.
+    const zzz1 = { kind: "money" as const, minor: 1n, currency: "ZZZ" };
+    const zzz2 = { kind: "money" as const, minor: 2n, currency: "ZZZ" };
+    assertValueError(() => sum([zzz1, zzz2], "money"), "unknown-currency");
     assertValueError(() => sum([INT64_MAX, 1n], "int"), "overflow");
   });
 });
@@ -348,6 +349,87 @@ describe("action packaging", () => {
     );
     assertValueError(
       () => action("billing.inspect", [] as unknown as Record<string, never>),
+      "invalid-construction",
+    );
+  });
+});
+
+describe("choose", () => {
+  it("selects strictly, returning inputs as-is", () => {
+    assert.equal(choose(true, 1n, 2n), 1n);
+    assert.equal(choose(false, 1n, 2n), 2n);
+    assert.equal(choose(true, "y", "n"), "y");
+    assert.equal(choose(false, "y", "n"), "n");
+    assert.equal(choose(true, null, 1n), null);
+    const yes = Object.freeze({ v: 1n });
+    const no = Object.freeze({ v: 2n });
+    assert.equal(choose<unknown>(true, yes, no), yes);
+    assert.equal(choose<unknown>(false, yes, no), no);
+    const money = makeMoney(100n, "USD");
+    assert.equal(choose(true, money, makeMoney(1n, "USD")), money);
+  });
+
+  it("requires a boolean condition", () => {
+    for (const bad of ["true", 1, 0, null, undefined, {}, [], 1n]) {
+      assertValueError(() => choose(bad as unknown as boolean, 1n, 2n), "invalid-construction");
+    }
+  });
+});
+
+describe("invocation packaging", () => {
+  it("packages validated targets and decoded args frozen", () => {
+    const ref = invocation("todo.Task.update", {
+      record: makeRecordRef("Todo", "t1", 3n),
+      count: 5n,
+      title: "hi",
+    });
+    assert.equal(ref.kind, "invocation");
+    assert.equal(ref.target, "todo.Task.update");
+    assert.deepEqual(ref.args["record"], { kind: "ref", model: "Todo", id: "t1", version: 3n });
+    assert.equal(ref.args["count"], 5n);
+    assert.ok(Object.isFrozen(ref));
+    assert.ok(Object.isFrozen(ref.args));
+  });
+
+  it("preserves versionless refs instead of requiring versions", () => {
+    // Unlike action bindings, args can carry read refs needing only IDs.
+    const ref = invocation("todo.Task.read", { record: makeRecordRef("Todo", "t1") });
+    assert.deepEqual(ref.args["record"], { kind: "ref", model: "Todo", id: "t1" });
+    const empty = invocation("todo.ping", {});
+    assert.deepEqual(empty.args, {});
+    assert.ok(Object.isFrozen(empty));
+  });
+
+  it("rejects __proto__ argument names but keeps constructor", () => {
+    const args = JSON.parse('{"__proto__":{"kind":"ref","model":"M","id":"r"}}') as Record<
+      string,
+      { readonly version?: unknown }
+    >;
+    (args["__proto__"] as { version: unknown }).version = 1n;
+    let produced: unknown = null;
+    try {
+      produced = invocation("todo.Task.update", args as never);
+    } catch (err) {
+      assert.ok(err instanceof ValueError, `expected ValueError, got ${String(err)}`);
+      assert.equal(err.code, "invalid-construction");
+      assert.match(err.message, /invocation argument name "__proto__" is reserved/);
+    }
+    assert.equal(produced, null);
+    const ref = invocation("todo.Task.update", { constructor: makeRecordRef("M", "r", 1n) });
+    assert.ok(Object.hasOwn(ref.args, "constructor"));
+  });
+
+  it("rejects bad targets, non-record args and non-values", () => {
+    assertValueError(() => invocation("", {}), "invalid-construction");
+    assertValueError(() => invocation(5 as unknown as string, {}), "invalid-construction");
+    assertValueError(() => invocation("t", null as unknown as Record<string, never>), "invalid-construction");
+    assertValueError(() => invocation("t", [] as unknown as Record<string, never>), "invalid-construction");
+    assertValueError(
+      () => invocation("t", { x: undefined as unknown as never }),
+      "invalid-construction",
+    );
+    assertValueError(
+      () => invocation("t", { x: (() => 1) as unknown as never }),
       "invalid-construction",
     );
   });

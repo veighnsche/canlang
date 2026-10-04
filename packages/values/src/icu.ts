@@ -23,6 +23,13 @@ import { DATETIME_MAX_MS, DATETIME_MIN_MS } from "./temporal.js";
  * Exactness: ints/decimals are never routed through Number for digit
  * rendering; exact `=N` plural cases compare by exact decimal value.
  * Digits render Latin with locale separators/minus/grouping (exactness-first, Rust-reproducible).
+ *
+ * Plural/selectordinal category selection routes through Intl.PluralRules,
+ * which takes a Number operand (exact CLDR operands are infeasible through
+ * that API), so selection fails closed as out-of-range instead of guessing
+ * (DESIGN L893 anti-lossy rule). Ints are int64-narrowed at binding and
+ * select exactly within the safe range; safe-range-exceeding ints and
+ * decimals whose text does not round-trip Number exactly fail closed.
  */
 
 // ---------------------------------------------------------------------------
@@ -157,6 +164,12 @@ export function makeMessageDescriptor(
     frozenParams = {};
     declared = {};
     for (const [name, param] of Object.entries(params)) {
+      // `__proto__` would silently set the prototype instead of an own key
+      // on the accumulators below; reject it like wire.ts decodeAction so
+      // the param is never lost. Other dunder names are safe own keys.
+      if (name === "__proto__") {
+        throw new ValueError("invalid-construction", 'message param name "__proto__" is reserved');
+      }
       const checked = requireParam(name, param);
       checkParamValue(name, checked);
       frozenParams[name] = Object.freeze({ type: checked.type, value: freezeParamValue(checked.value) });
@@ -589,9 +602,8 @@ function usageLabel(usage: IcuUsage): string {
 function checkUsageCompatible(name: string, type: MessageParamType, usage: IcuUsage): void {
   const ok =
     usage === "any" ||
-    ((usage === "number" || usage === "integer" || usage === "cardinal") &&
-      (type === "int" || type === "decimal")) ||
-    (usage === "ordinal" && type === "int") ||
+    ((usage === "number" || usage === "cardinal") && (type === "int" || type === "decimal")) ||
+    ((usage === "integer" || usage === "ordinal") && type === "int") ||
     (usage === "date" && (type === "date" || type === "datetime")) ||
     (usage === "time" && type === "datetime") ||
     (usage === "select" && (type === "text" || type === "bool" || type === "enum"));
@@ -1099,7 +1111,8 @@ function roundHalfEvenToInt(coef: bigint, scale: number): bigint {
 /**
  * Locale number rendering (`{n,number}`, `integer` style, `#`): grouping and
  * decimal separators come from Intl parts; every digit is assembled from the
- * exact bigint/decimal value. `integer` style rounds half-even.
+ * exact bigint/decimal value. `integer` style requires int (DESIGN L893);
+ * the half-even rounding below is a defensive no-op for scale-0 values.
  */
 function formatNumberValue(value: ResolvedNumber, symbols: NumberSymbols, integerOnly: boolean): string {
   if (integerOnly) {

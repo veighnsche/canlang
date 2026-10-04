@@ -10,6 +10,7 @@ import {
   makeDatetime,
   makeDeliveryRef,
   makeFileValue,
+  makeInvocation,
   makeMemberRef,
   makeMoney,
   makeRecordRef,
@@ -166,7 +167,9 @@ describe("wire money", () => {
   });
 
   it("rejects encode mismatches and unknown currencies", () => {
-    assertValueError(() => encodeValue("money", makeMoney(100n, "XXX")));
+    // Direct literal: the maker itself rejects XXX (unknown-currency), so
+    // only a hand-built value reaches the encoder's membership check.
+    assertValueError(() => encodeValue("money", { kind: "money" as const, minor: 100n, currency: "XXX" }));
     assertValueError(() => encodeValue("money", 5n));
     assertValueError(() => encodeValue("money", null));
   });
@@ -235,7 +238,9 @@ describe("wire datetime", () => {
       assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("datetime", bad))), ['[]:"format"'], bad);
     }
     assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("datetime", 0))), ['[]:"type"']);
-    assertValueError(() => encodeValue("datetime", makeDatetime(253402300800000n)));
+    // Direct literal: the maker itself range-checks, so only a hand-built
+    // value reaches the encoder's range check.
+    assertValueError(() => encodeValue("datetime", { kind: "datetime" as const, ms: 253402300800000n }));
   });
 });
 
@@ -262,16 +267,48 @@ describe("wire text and bool", () => {
 });
 
 describe("wire validated string-likes", () => {
-  it("accepts email/url as plain strings with no invented format", () => {
-    // Recorded decision: email/url carry no format grammar at this layer.
-    for (const text of ["", "not-an-email", "notaurl", "a@b", "http://x", "x".repeat(500)]) {
-      assert.equal(decodeValue("email", text), text, text);
-      assert.equal(decodeValue("url", text), text, text);
-      assert.equal(encodeValue("email", text), text, text);
-      assert.equal(encodeValue("url", text), text, text);
+  it("validates email against the conservative floor, symmetrically", () => {
+    for (const good of ["a@b", "a@b.com", "user+tag@example.test", "x@y.zz"]) {
+      assert.equal(decodeValue("email", good), good, good);
+      assert.equal(encodeValue("email", good), good, good);
+    }
+    for (const bad of [
+      "",
+      "not-an-email",
+      "a@b@c",
+      "@b",
+      "a@",
+      "@",
+      " a@b",
+      "a@b ",
+      "a@ b",
+      "a\t@b",
+      "a@b\n",
+    ]) {
+      assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("email", bad))), ['[]:"format"'], bad);
+      assertValueError(() => encodeValue("email", bad));
     }
     assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("email", 5))), ['[]:"type"']);
+    assertValueError(() => encodeValue("email", 5 as unknown as CanValue));
+  });
+
+  it("validates url as http(s) WHATWG URLs with userinfo allowed, symmetrically", () => {
+    for (const good of [
+      "https://x.example/a",
+      "http://x",
+      "http://localhost:3000/app",
+      "https://user@host/path",
+      "https://user:pass@host:8443/p?q=1#f",
+    ]) {
+      assert.equal(decodeValue("url", good), good, good);
+      assert.equal(encodeValue("url", good), good, good);
+    }
+    for (const bad of ["", "notaurl", "ftp://x", "file:///etc/passwd", "javascript:alert(1)", ":::", "http//x", "//host/path"]) {
+      assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("url", bad))), ['[]:"format"'], bad);
+      assertValueError(() => encodeValue("url", bad));
+    }
     assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("url", null))), ['[]:"type"']);
+    assertValueError(() => encodeValue("url", null));
   });
 
   it("validates and canonicalizes locales", () => {
@@ -470,6 +507,238 @@ describe("wire action", () => {
       encodeValue("action", makeActionRef("t", { constructor: makeRecordRef("M", "r", 1n) })),
       { target: "t", bindings: { constructor: { id: "r", version: "1" } } },
     );
+  });
+});
+
+describe("wire invocation", () => {
+  const wire = {
+    target: "todo.Task.update",
+    arguments: {
+      record: { type: "Todo", value: { id: "t1", version: "007" } },
+      read: { type: "Todo", value: { id: "t2" } },
+      count: { type: "int", value: "5" },
+      title: { type: "text", value: "hi" },
+      flag: { type: "bool", value: true },
+      when: { type: "text?", value: null },
+      tags: { type: "text[]", value: ["a", "b"] },
+    },
+  };
+
+  it("round-trips typed args with versions preserved as-present", () => {
+    const decoded = decodeValue("invocation", wire);
+    assert.deepEqual(
+      decoded,
+      makeInvocation("todo.Task.update", {
+        record: makeRecordRef("Todo", "t1", 7n),
+        read: makeRecordRef("Todo", "t2"),
+        count: 5n,
+        title: "hi",
+        flag: true,
+        when: null,
+        tags: ["a", "b"],
+      }),
+    );
+    assert.ok(Object.isFrozen((decoded as { args: object }).args));
+    // Versions are preserved, never required: the versionless read ref
+    // survives, and the leading-zero version normalizes canonically.
+    assert.deepEqual(encodeValue("invocation", decoded), {
+      target: "todo.Task.update",
+      arguments: {
+        record: { type: "Todo", value: { id: "t1", version: "7" } },
+        read: { type: "Todo", value: { id: "t2" } },
+        count: { type: "int", value: "5" },
+        title: { type: "text", value: "hi" },
+        flag: { type: "bool", value: true },
+        when: { type: "text?", value: null },
+        tags: { type: "text[]", value: ["a", "b"] },
+      },
+    });
+    const empty = decodeValue("invocation", { target: "ping", arguments: {} });
+    assert.deepEqual(encodeValue("invocation", empty), { target: "ping", arguments: {} });
+  });
+
+  it("restricts the target under invocation(...) like action(...)", () => {
+    assert.deepEqual(decodeValue("invocation(todo.Task.update)", wire), decodeValue("invocation", wire));
+    assert.deepEqual(
+      encodeValue("invocation(todo.Task.update,other.Op)", decodeValue("invocation", wire)),
+      encodeValue("invocation", decodeValue("invocation", wire)),
+    );
+    assert.deepEqual(
+      codesOf(assertSchemaError(() => decodeValue("invocation(other.Op)", wire))),
+      ['["target"]:"format"'],
+    );
+    assertValueError(() => encodeValue("invocation(other.Op)", decodeValue("invocation", wire)));
+  });
+
+  it("rejects bad targets, shapes and argument types with precise paths", () => {
+    assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("invocation", { target: "", arguments: {} }))), [
+      '["target"]:"format"',
+    ]);
+    assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("invocation", { target: "t" }))), [
+      '["arguments"]:"required"',
+    ]);
+    assert.deepEqual(
+      codesOf(assertSchemaError(() => decodeValue("invocation", { target: "t", arguments: {}, z: 0 }))),
+      ['["z"]:"unknown-field"'],
+    );
+    assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("invocation", { target: "t", arguments: [] }))), [
+      '["arguments"]:"type"',
+    ]);
+    assert.deepEqual(
+      codesOf(
+        assertSchemaError(() =>
+          decodeValue("invocation", { target: "t", arguments: { n: { type: "int", value: "abc" } } }),
+        ),
+      ),
+      ['["arguments","n","value"]:"format"'],
+    );
+    assert.deepEqual(
+      codesOf(
+        assertSchemaError(() =>
+          decodeValue("invocation", { target: "t", arguments: { n: { type: "int?[]", value: "1" } } }),
+        ),
+      ),
+      ['["arguments","n","type"]:"format"'],
+    );
+    assert.deepEqual(
+      codesOf(
+        assertSchemaError(() => decodeValue("invocation", { target: "t", arguments: { n: { type: 5, value: "1" } } })),
+      ),
+      ['["arguments","n","type"]:"type"'],
+    );
+    assert.deepEqual(
+      codesOf(
+        assertSchemaError(() => decodeValue("invocation", { target: "t", arguments: { n: { type: "int" } } })),
+      ),
+      ['["arguments","n","value"]:"required"'],
+    );
+    assert.deepEqual(
+      codesOf(
+        assertSchemaError(() =>
+          decodeValue("invocation", { target: "t", arguments: { n: { type: "int", value: "1", z: 0 } } }),
+        ),
+      ),
+      ['["arguments","n","z"]:"unknown-field"'],
+    );
+    assertValueError(() => encodeValue("invocation", makeUserRef("u")));
+  });
+
+  it("rejects __proto__ argument names but keeps other dunder names", () => {
+    const bad = JSON.parse('{"target":"t","arguments":{"__proto__":{"type":"int","value":"1"}}}');
+    assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("invocation", bad))), [
+      '["arguments","__proto__"]:"unknown-field"',
+    ]);
+    const ok = decodeValue("invocation", {
+      target: "t",
+      arguments: { constructor: { type: "int", value: "1" } },
+    });
+    assert.deepEqual(ok, makeInvocation("t", { constructor: 1n }));
+    const args = JSON.parse('{"__proto__":{"type":"int","value":"1"}}') as Record<string, unknown>;
+    const err = assertValueError(() =>
+      encodeValue("invocation", { kind: "invocation", target: "t", args } as never),
+    );
+    assert.match(err.message, /invocation argument name "__proto__" is reserved/);
+  });
+
+  it("encodes runtime-derived arg types for ambiguous tags", () => {
+    // Durations and validated strings share runtime tags with int/text, so
+    // the wire tag normalizes while the VALUE round-trips exactly.
+    const durationArg = makeInvocation("t", { d: 1500n });
+    assert.deepEqual(encodeValue("invocation", durationArg), {
+      target: "t",
+      arguments: { d: { type: "int", value: "1500" } },
+    });
+    const emailArg = makeInvocation("t", { e: "a@b.com" });
+    assert.deepEqual(encodeValue("invocation", emailArg), {
+      target: "t",
+      arguments: { e: { type: "text", value: "a@b.com" } },
+    });
+    assert.deepEqual(decodeValue("invocation", encodeValue("invocation", durationArg)), durationArg);
+    const nested = makeInvocation("outer", { inner: makeInvocation("inner", { n: 1n }) });
+    assert.deepEqual(encodeValue("invocation", nested), {
+      target: "outer",
+      arguments: {
+        inner: {
+          type: "invocation",
+          value: { target: "inner", arguments: { n: { type: "int", value: "1" } } },
+        },
+      },
+    });
+    assert.deepEqual(decodeValue("invocation", encodeValue("invocation", nested)), nested);
+    assert.deepEqual(encodeValue("invocation", makeInvocation("t", { xs: [] })), {
+      target: "t",
+      arguments: { xs: { type: "text[]", value: [] } },
+    });
+  });
+
+  it("refuses contract/union args that need their schema type", () => {
+    assertValueError(() => encodeValue("invocation", makeInvocation("t", { c: { street: "Main" } })));
+    assertValueError(() => encodeValue("invocation", makeInvocation("t", { u: makeUnionValue("A", "x") })));
+    assertValueError(() => encodeValue("invocation", makeInvocation("t", { xs: [["nested"]] })));
+    assertValueError(() => encodeValue("invocation", makeInvocation("t", { xs: [1n, "mixed"] })));
+  });
+});
+
+describe("wire json", () => {
+  it("round-trips opaque JSON-native values as-is, frozen", () => {
+    for (const sample of [
+      "hi",
+      "",
+      true,
+      false,
+      { a: "1", b: true, c: null, d: ["x", null], e: { f: "g" } },
+      ["x", null, { k: "v" }, []],
+      {},
+      [],
+    ]) {
+      const decoded = decodeValue("json", sample);
+      assert.deepEqual(decoded, sample);
+      assert.deepEqual(encodeValue("json", decoded), sample);
+    }
+    const nested = decodeValue("json", { a: [{ b: "c" }] }) as { a: Array<{ b: string }> };
+    assert.ok(Object.isFrozen(nested));
+    assert.ok(Object.isFrozen(nested.a));
+    const first = nested.a[0];
+    assert.ok(first !== undefined && Object.isFrozen(first));
+    // No key canonicalization: insertion order and dunder keys survive.
+    const keys = Object.keys(decodeValue("json", { z: "1", a: "2" }) as object);
+    assert.deepEqual(keys, ["z", "a"]);
+    const protoWire = decodeValue("json", JSON.parse('{"__proto__":{"x":"y"}}'));
+    const proto = protoWire as Record<string, unknown>;
+    assert.ok(Object.hasOwn(proto, "__proto__"));
+    assert.deepEqual(proto["__proto__"], { x: "y" });
+    assert.deepEqual(encodeValue("json", protoWire), JSON.parse('{"__proto__":{"x":"y"}}'));
+  });
+
+  it("rejects numbers and non-JSON natives with precise paths", () => {
+    assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("json", 5))), ['[]:"type"']);
+    assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("json", 5n))), ['[]:"type"']);
+    assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("json", { a: 5 }))), ['["a"]:"type"']);
+    assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("json", [1]))), ['[0]:"type"']);
+    assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("json", { a: [{ b: 2.5 }] }))), [
+      '["a",0,"b"]:"type"',
+    ]);
+    assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("json", undefined))), ['[]:"type"']);
+    assert.deepEqual(
+      codesOf(assertSchemaError(() => decodeValue("json", { f: (() => 1) as unknown as string }))),
+      ['["f"]:"type"'],
+    );
+    // Null needs nullability, like every other type.
+    assert.deepEqual(codesOf(assertSchemaError(() => decodeValue("json", null))), ['[]:"type"']);
+    assert.equal(decodeValue("json?", null), null);
+    assert.equal(encodeValue("json?", null), null);
+  });
+
+  it("rejects hand-built numbers on encode, symmetrically", () => {
+    assertValueError(() => encodeValue("json", 5 as unknown as CanValue));
+    assertValueError(() => encodeValue("json", { a: 5 } as unknown as CanValue));
+    assertValueError(() => encodeValue("json", [1] as unknown as CanValue));
+    assertValueError(() => encodeValue("json", { a: 5n } as unknown as CanValue));
+    assertValueError(() => encodeValue("json", undefined as unknown as CanValue));
+    // Exact scalars nested inside fail through their number/bigint leaves.
+    assertValueError(() => encodeValue("json", { m: makeMoney(100n, "USD") } as unknown as CanValue));
+    // Opaque means opaque: an all-string tagged shape degrades to plain data.
+    assert.deepEqual(encodeValue("json", makeUserRef("u1")), { kind: "user", id: "u1" });
   });
 });
 

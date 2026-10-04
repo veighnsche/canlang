@@ -500,7 +500,7 @@ export function remainderDuration(a: bigint, b: bigint): bigint {
 }
 
 /** Duration comparator: -1, 0, or 1. */
-export function compareDuration(a: bigint, b: bigint): number {
+export function compareDuration(a: bigint, b: bigint): -1 | 0 | 1 {
   const left = requireDuration(a, "duration comparison");
   const right = requireDuration(b, "duration comparison");
   if (left < right) return -1;
@@ -535,7 +535,7 @@ export function durationBetween(a: DatetimeValue, b: DatetimeValue): bigint {
 }
 
 /** §13 compareInstant(a,b): -1, 0, or 1 by UTC instant. */
-export function compareInstant(a: DatetimeValue, b: DatetimeValue): number {
+export function compareInstant(a: DatetimeValue, b: DatetimeValue): -1 | 0 | 1 {
   const left = requireDatetime(a, "compareInstant");
   const right = requireDatetime(b, "compareInstant");
   if (left.ms < right.ms) return -1;
@@ -544,7 +544,7 @@ export function compareInstant(a: DatetimeValue, b: DatetimeValue): number {
 }
 
 /** §13 compareDate(a,b): -1, 0, or 1 by civil date. */
-export function compareDate(a: DateValue, b: DateValue): number {
+export function compareDate(a: DateValue, b: DateValue): -1 | 0 | 1 {
   const left = requireDate(a, "compareDate");
   const right = requireDate(b, "compareDate");
   if (left.year !== right.year) return left.year < right.year ? -1 : 1;
