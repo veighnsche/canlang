@@ -150,19 +150,54 @@ package decide label="Decision review"@{nl="Beslisbeoordeling"}
  Then
   page /decisions title="Process decisions"@{nl="Procesbeslissingen"} poll=2s
    require analyst or reviewer
+   breadcrumbs
    form Case.create
-   list Case as case order=-created
+    input title
+    textarea objective
+    textarea evidence
+   list Case as case order=-created empty="No process decisions yet"@{nl="Nog geen procesbeslissingen"}
+    pagination
     title row.title
-    text row.objective,row.active,row.generations,row.evaluations
+    text row.objective,row.active
+    stat row.generations,row.evaluations
     content row.evidence
     edit fields=active
+     checkbox active
     action generate
-    table row.Draft as draft columns=ordinal,delivery_state,stopped
+    ## Readable pipeline stages; the workflow itself stays in When guards.
+    steps
+     slot item
+      text "Generate"@{nl="Genereren"}
+     slot item
+      text "Review"@{nl="Beoordelen"}
+     slot item
+      text "Evaluate"@{nl="Evalueren"}
+     slot item
+      text "Decide"@{nl="Beslissen"}
+    table row.Draft as draft columns=ordinal,delivery_state,stopped empty="No drafts yet"@{nl="Nog geen concepten"}
+     pagination
+     status row.delivery_state
      text row.input,row.value,row.request?.error
      action stop
      form review arguments={draft=row}
-    table row.Review as review columns=ordinal,reviewed_by,delivery_state,decision,decided_by,decided_at
-     content row.state
-     text row.generated,row.choices,row.note,row.specification,row.result,row.judgment,row.reason,row.request?.error
-     actions evaluate,decide
+      textarea state
+      ## choices keeps its generated control: candidate arrays have no catalog control.
+      textarea note
+    table row.Review as review columns=ordinal,reviewed_by,delivery_state,decision,decided_by,decided_at empty="No reviews yet"@{nl="Nog geen beoordelingen"}
+     pagination
+     status row.delivery_state
+     ## Generated and reviewed state side by side; comparison stays human work.
+     diff
+      slot before
+       text row.generated
+      slot after
+       content row.state
+     text row.choices,row.note,row.specification,row.result,row.judgment,row.reason,row.request?.error
+     action evaluate
+     button opens=decide_dialog
+     modal "Record human decision"@{nl="Menselijke beslissing vastleggen"} id=decide_dialog
+      slot content
+       form decide arguments={review=row} display=inline
+        ## choice keeps its generated control: judgment options are runtime data, not a static choice list.
+        textarea reason
      history
