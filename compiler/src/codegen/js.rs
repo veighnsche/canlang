@@ -1696,7 +1696,9 @@ impl<'a> Emitter<'a> {
         self.pages.push(JsPage {
             owner: page.owner.clone(),
             path: page.path.clone(),
-            export: page.descriptor_name.clone(),
+            // Sanitized like the emitted binding above: the envelope
+            // cross-ref must name exactly what `export const` declares.
+            export: sanitize_ident(&page.descriptor_name),
         });
         let children = page
             .render

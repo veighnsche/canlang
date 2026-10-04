@@ -9,7 +9,7 @@
 //!
 //! Strict gates (never weakened to pass):
 //!
-//! * Zero `E1xxx`/`E2xxx`/`E3xxx`: B1 needs a supported source.
+//! * Zero error-severity analysis diagnostics: B1 needs a supported source.
 //! * `E6006 == 0` (every needed position bridged), `E6007 == 0`
 //!   (real catalog pins every builtin), `E6008 == 10` (the pinned
 //!   unlowered-UI-factory positions; each a throwing placeholder).
@@ -60,19 +60,26 @@ fn is_sha256_hex(value: &str) -> bool {
             .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
 }
 
-/// Every `from "..."` import source must be in the §13 allowlist.
+/// Every `from "..."` module source must be in the §13 allowlist
+/// (`import` lines and `export ... from` re-exports alike).
 fn imports_allowlisted(js: &str) -> Option<String> {
     for line in js.lines() {
-        let Some(rest) = line.trim().strip_prefix("import ") else {
+        let trimmed = line.trim();
+        let rest = match trimmed
+            .strip_prefix("import ")
+            .or_else(|| trimmed.strip_prefix("export "))
+        {
+            Some(rest) => rest,
+            None => continue,
+        };
+        let Some(from) = rest.rsplit("from ").next() else {
             continue;
         };
-        let source = rest
-            .rsplit("from ")
-            .next()
-            .unwrap()
-            .trim()
-            .trim_end_matches(';');
-        let source = source.trim_matches('"');
+        // Bare `export ...` (no `from`) declares locals; nothing to check.
+        if !rest.contains("from ") {
+            continue;
+        }
+        let source = from.trim().trim_end_matches(';').trim_matches('"');
         if !(source == "@canlang/stdlib" || source == "@canlang/ui" || source.starts_with("./")) {
             return Some(source.to_string());
         }
@@ -126,15 +133,15 @@ fn b1_teamtasks_artifact() {
 
     // Analyze with the real catalog (production: complete=true).
     let (program, analysis_diags) = check_program(&db, &[id], Some(&catalog));
+    // Any error-severity analysis diagnostic blocks B1 (not just
+    // E1/E2/E3: E4/E5/E7 families must not slip past either).
     let blocking: Vec<&Diagnostic> = analysis_diags
         .iter()
-        .filter(|d| {
-            d.code.starts_with("E1") || d.code.starts_with("E2") || d.code.starts_with("E3")
-        })
+        .filter(|d| d.severity == Severity::Error)
         .collect();
     if !blocking.is_empty() {
         let mut detail =
-            String::from("analysis blocking errors (B1 needs zero E1xxx/E2xxx/E3xxx):");
+            String::from("analysis blocking errors (B1 needs zero error-severity diagnostics):");
         for d in blocking.iter().take(10) {
             detail.push_str(&format!(
                 "\n  {} @{}..{} {}",
@@ -355,6 +362,10 @@ fn validate_artifact(artifact: &CompileArtifact, expected_sha: &str, failures: &
         }
         if !suite.module.js.contains("return {fixtures:{") {
             failures.push("suite lacks normative fixtures return shape".to_string());
+        }
+        // Both halves of `{fixtures:{...},examples:[...]}`.
+        if !suite.module.js.contains(",examples:[") {
+            failures.push("suite return lacks the examples half".to_string());
         }
         if suite.module.js.contains("from \"./") || suite.module.js.contains("from \"../") {
             failures.push("suite imports production modules".to_string());
