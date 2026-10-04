@@ -78,6 +78,21 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 ## Reviewed heads and merged PRs
 
 - PR #35 docs handoff: reviewed head d241592 (substance reviewed at 88733c7; delta was the reviewer's own 3-line status fix + conflict-free rebase onto fb226e0), tools+workspace green, squash-merged as 2451d85. URL: https://github.com/veighnsche/canlang/pull/35
+- PR #39 slice 1 examples: reviewed head 730b2a7 (substance fefe3a3 approve-with-nits; delta was the 2 requested status nits), tools+workspace green, squash-merged as fab9ba0. URL: https://github.com/veighnsche/canlang/pull/39. Golden-corpus impact live on main: 2 E1200 (badge lines), L1 track.
+
+## Slice 2: batch A drafts (branch muse/frontend-catalog-migration/slice-02-drafts-a, in progress)
+
+Paths: draft/CanTrade, CanReport, CanDo, CanTable, CanBoard (.can+.md; .mjs for Table, Board) + draft/CanOnboard, CanCheck, CanLearn, CanStats, CanSuccess (.can+.md; .mjs for Onboard, Check) + this status file.
+Workers (disjoint, no git): W-A Trade/Report/Do/Table/Board; W-B Onboard/Check/Learn/Stats/Success.
+Execution notes: W-B completed its files directly (10 badges; coordinator removed 1 as redundant/contract-stretching: CanLearn `badge any(...)` duplicated the adjacent text line with no owning captions). W-A lost file/shell tools (EMFILE, then tool grant restricted); coordinator applied W-A's extracted apply-spec verbatim after verifying each find against the files (15 badges + 4 contents). All hunks verified below each file's Then line; `node --check` passes on all 4 edited .mjs.
+Changes (Then-only; Given/When/BDD byte-identical):
+- CanTrade L90 badge state + L91 content description; L100 badge state; L116 badge resolved; L121 badge state.
+- CanReport L126 badge Run state. CanDo L124-125 badges done+priority; L128/L134 content description/body; L144/L147/L150 badge state.
+- CanTable L152 badge Booking state. CanBoard L131 badge finalized; L144 badge outcome; L148/L167 badge done; L159 content amendment text.
+- CanOnboard L145/L164 badge done, L173 badge active. CanCheck L170 badge state. CanLearn L151 badge active. CanStats L160 badge active, L164 badge result.state, L173 badge state. CanSuccess L158 badge risk.
+- Total: 24 added `badge` lines (approved, L1/L5 unimplemented) + 4 added `content` lines (existing core word, no gap).
+Companions: 4 .mjs witnesses got honest pending-contract comments at matching renderRows (Table 1, Board 5, Onboard 3, Check 1); no invented imports. All 10 .md unchanged with justification: each already specifies Badge presentation (Report fresh/lagging Badge; Do priority Badge; Board draft/final + completion Badges; Onboard blocker Badge; Check enabled/paused Badge; Learn completion Badge; Stats estimate/coverage Badges; Success portfolio Badges; Trade presentation table; Table color-alone rule better satisfied by text-bearing badges).
+Drift: golden_corpus E1200 counts per file equal badge counts exactly (24 total over these 10 files; content lines clean). Prototype: badge reached in Trade/Report/Table/Board; other 6 files fail on pre-existing Given/When lines first (sequence syntax, array-nullable suffixes, poll, preference-dispatched order).
 
 ## Slice 1: reference examples (branch muse/frontend-catalog-migration/slice-01-examples)
 

@@ -142,6 +142,7 @@ package onboard label=page_people_onboarding_title
    card "Assigned readiness steps"@{nl="Toegewezen inwerkstappen"}
     tabs preferences.view
     list Step as step where step.assignee==actor and (preferences.view==all or (preferences.view==unfinished and not step.done) or (preferences.view==overdue and not step.done and step.due<local_date(now,team.timezone))) order=step.due
+     badge row.done
      text row.title,row.due,row.blocked_reason,row.document,row.done,row.completed_by,row.completed_at
      action complete
 
@@ -160,6 +161,7 @@ package onboard label=page_people_onboarding_title
       metrics row.completed_steps,row.total_steps,row.progress
       form Step.create
       list row.Step as step where preferences.view==all or (preferences.view==unfinished and not step.done) or (preferences.view==overdue and not step.done and step.due<local_date(now,team.timezone)) order=due
+       badge row.done
        text row.title,row.due,row.assignee,row.category,row.blocked_reason,row.document,row.done,row.completed_by,row.completed_at
        edit
        actions complete,reopen
@@ -168,6 +170,7 @@ package onboard label=page_people_onboarding_title
    card "Reusable templates"@{nl="Herbruikbare templates"}
     form Template.create
     list Template display=split
+     badge row.active
      text row.revision,row.active
      edit
      form TemplateStep.create

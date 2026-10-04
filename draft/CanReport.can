@@ -123,6 +123,7 @@ package report
      form refresh
      card "Run checkpoints and completeness"@{nl="Controlepunten en volledigheid van uitvoeringen"}
       list row.Run order=-requested display=split
+       badge row.state
        text row.state,row.checkpoint,row.pending,row.from,row.until,row.currency
        card "Typed report measure"@{nl="Getypeerde rapportmaatstaf"}
         form measure

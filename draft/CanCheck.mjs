@@ -567,6 +567,8 @@ export async function jobHealthPage(c, bindings) {
             context: view,
             title: message("Current recorded health", { nl: "Huidige vastgelegde gezondheid" }),
             children: [
+              // Migrated source adds `badge row.state` here; its desired emitted
+              // factory awaits the L5 producer contract, so no new @canlang/ui import is invented.
               text({
                 context: view,
                 values: [

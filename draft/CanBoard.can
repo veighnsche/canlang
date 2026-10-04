@@ -128,6 +128,7 @@ package board label="Governance"@{nl="Bestuur"}
    card "Meeting intake"@{nl="Vergadering aanmaken"}
     form Meeting.create
    list Meeting columns=title,at,location,finalized order=-at filter=finalized defaults={finalized=preferences.finalized} search=title display=split
+    badge row.finalized
     card "Meeting and attendance"@{nl="Vergadering en aanwezigheid"}
      text row.at,row.timezone,row.location,row.attendance,row.minutes,row.finalized,row.finalized_by
      edit
@@ -140,9 +141,11 @@ package board label="Governance"@{nl="Bestuur"}
      tab "Resolutions and actions"@{nl="Besluiten en acties"}
       form Resolution.create
       list row.Resolution columns=title,outcome,evidence
+       badge row.outcome
        action decide
        form Action.create
        table row.Action columns=title,owner,due,done order=due filter=done
+        badge row.done
         action complete
         details "Completion evidence"@{nl="Bewijs afronding"}
          text row.completed_by,row.completed_at
@@ -153,13 +156,15 @@ package board label="Governance"@{nl="Bestuur"}
        list result.Resolution columns=title,outcome,evidence,decided_by,decided_at
        details "Recorded amendments"@{nl="Vastgelegde aanvullingen"} open=preferences.amendments_open
         list result.Amendment
-         text row.text,row.paper,row.author
+         content row.text
+         text row.paper,row.author
       form Amendment.create
     history
   # Follow assigned outstanding actions under their own operation. @{nl="Volg toegewezen openstaande acties via hun eigen operatie."}
   page /board/actions title="Board actions"@{nl="Bestuursacties"}
    require members
    table Action columns=title,owner,due,done order=due filter=done display=split
+    badge row.done
     form origin
      text result.resolution,result.meeting
     action complete
