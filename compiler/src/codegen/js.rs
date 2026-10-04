@@ -1689,7 +1689,9 @@ impl<'a> Emitter<'a> {
         out.push(
             page.span,
             Some(format!("page {}", page.path)),
-            &format!("const {descriptor}={{{}}};", members.join(",")),
+            // Exported: `artifact.pages[].export` names this binding as
+            // the importable page descriptor (artifact.ts contract).
+            &format!("export const {descriptor}={{{}}};", members.join(",")),
         );
         self.pages.push(JsPage {
             owner: page.owner.clone(),
