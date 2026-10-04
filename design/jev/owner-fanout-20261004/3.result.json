@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "We are designing Can for AI-generated internal company software. It retains Given/When/Then and values adoption, low authoring-token cost, explicit business rules and canonical shared operations. There is freedom to revise these draft contracts; deployed behavior and benchmarks are unavailable. An ordinary loop is one transaction: with limit=500 it fails wholly if its query finds 501 results. In Shift, changes to an employee, team membership or site require review of all existing commitments. Volunteer also needs complete processing of cancellations and changed-activity notifications. Increasing the cap does not solve arbitrary population size. The design already offers per-record creation notifications, keyed durable schedules and manual recovery of a selected record; none supplies the missing discovery of all records. Limit the proposed solution to one authoritative team D1 database rather than eventual lookup of several Durable Objects. Keep each record review transactional and acknowledge that population-wide work is non-atomic. Reusable traversal helpers and recoverable child failures are available design choices for all three options, and every option remains unbuilt. The intended semantics reconcile present eligibility; they do not reconstruct each earlier eligibility transition. The candidate population rule captures a durable owner-local creation ordinal ceiling when a run is admitted. Scan that whole finite prefix regardless of later predicate changes, load each surviving record's current state, and skip removals. Rows inserted afterward must pass current admission and be covered by later relevant events. A child key combines the source occurrence, declaration and row identity, with child admission committed atomically alongside its checkpoint. Failure of one child leaves the others able to advance. A subsequent event cannot retract effects already admitted; standard bounded for transactions retain their existing rejection semantics. These are proposed coverage/recovery obligations, not test results. Assess each option against the same 499, 500, 501 and 1000-row populations, duplicate delivery, interruption at a checkpoint, concurrent additions/deletions, eligibility returning and one failing child.",
+    "questions": {
+      "allocation": {
+        "type": "choice",
+        "instructions": "Select the responsibility split most worth trying in a complete Can example paired with its intended JS. Consider compactness, legibility, reliable coverage and combined system engineering effort. The selection is exploratory advice and cannot certify the eventual syntax or execution.",
+        "criteria": {
+          "authored": "Have each application model a reconciliation job and advance it through regular scenarios. Persist trigger identity, cutoff and cursor, use a shared bounded indexed traversal facility, dispatch the record review and schedule continuation. Domain-specific handling is readily visible and adjustable, but these applications duplicate much of the job-state and continuation machinery.",
+          "periodic": "Have each record maintain a recurring review timer, with a newly defined shared initialization/backfill process covering the existing population in bounded cohorts. Existing scheduling concepts remain sufficient at the app boundary and lost change notifications can be detected. Reviews arrive after an interval and consume resources even without changes; complete startup scheduling still needs design and implementation.",
+          "enumerated": "Add a declaration for applying an event to selected records with a conventional atomic body. Central execution carries the population cutoff, scan progress, record-level occurrence identities and restart handling. It economizes repeated source while keeping the app predicate and effects authored, but introduces a population-processing language contract and shifts adaptable lifecycle/recovery behavior into shared implementation."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "allocation": {
+        "type": "choice",
+        "choice": "enumerated",
+        "confidence": 0.82,
+        "probabilities": {
+          "periodic": 0.01,
+          "authored": 0.11,
+          "enumerated": 0.88
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 968,
+      "output_tokens": 45
+    }
+  }
+}

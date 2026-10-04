@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Can is an AI-authored Given/When/Then DSL for companies making their own business applications. Adoption, compact source, inspectable business decisions and one canonical mechanism matter. Its contracts are drafts and may change; no runtime measurements exist. Current atomic for loops with limit=500 reject the entire transaction when 501 records match. CanShift employee/member/location changes must eventually review all affected retained commitments; raising the number postpones this failure. Existing record-created events, keyed schedules and one-record recovery actions can advance known records but do not enumerate the population. CanVolunteer has the same issue in material-change and cancellation notifications. The immediate scope is a single authoritative team D1 owner, not a directory of independent Durable Objects. Each record's business effects must remain atomic. No approach may promise atomicity for the whole population. All approaches may add reusable runtime traversal support and retain child failures for recovery. None is currently implemented. The requested behavior is review against current eligibility, not replaying every historical eligibility state. A finite cohort can be defined by an owner-maintained immutable insertion ordinal and a cutoff captured durably when enumeration is admitted; current state is reloaded for each child, removed records are skipped, and post-cutoff records rely on current admission checks and subsequent owner events. A cursor must traverse that cohort without missing rows whose eligibility changes during traversal. Source occurrence plus declaration plus record identity supplies child deduplication; checkpoint advancement and child admission commit together. Independent children can progress despite one failed child. Already admitted effects are not undone by a newer source event. Existing ordinary bounded loops retain all-or-nothing behavior. These cohort and recovery rules are proposed requirements, not proven implementations. Compare 499, 500, 501 and 1000 records, duplicates, a crash around checkpoint/admission, concurrent insertion/removal, eligibility restoration and one failed child equally for all alternatives.",
+    "questions": {
+      "allocation": {
+        "type": "choice",
+        "instructions": "Which allocation of population-review responsibility should the next complete Can/desired-JavaScript witness investigate first, balancing authored repetition, clarity, coverage and total implementation work? This advice does not select final syntax or establish correctness.",
+        "criteria": {
+          "authored": "Keep orchestration in ordinary app records and scenarios: a reconciliation record holds source, cutoff and cursor; bounded indexed traversal admits one child and schedules the next step. Shared primitives supply the traversal guarantee above. Business-specific progress and recovery are explicit and customizable, but multiple apps repeat continuation state and handlers.",
+          "periodic": "Use record-bound eligibility schedules and a shared initialization/backfill contract that seeds existing records in bounded complete cohorts. Recurring checks reuse the current schedule mechanism and can catch missed change events. They impose detection lag and continuing work when nothing changes, and initialization is a new obligation rather than something creation events already solve.",
+          "enumerated": "Declare per-record event handling once, with the affected model/predicate and ordinary atomic child body; shared execution owns bounded cohort discovery, child identities and checkpoint recovery. The source is smaller across these apps and decisions stay explicit, but the language gains enumeration semantics and the runtime takes on generic lifecycle and recovery behavior instead of app-specific continuation code."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "allocation": {
+        "type": "choice",
+        "choice": "enumerated",
+        "confidence": 0.66,
+        "probabilities": {
+          "enumerated": 0.78,
+          "periodic": 0.0,
+          "authored": 0.22
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 952,
+      "output_tokens": 45
+    }
+  }
+}

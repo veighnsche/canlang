@@ -1,0 +1,17 @@
+{
+  "request": "2.request.json",
+  "sent": false,
+  "provider_response": null,
+  "approval_attempts": [
+    {
+      "result": "rejected",
+      "reason": "This sends substantial nonpublic CanLang design details to an external JEV service; standing authorization to consult JEV covers the destination and purpose but does not specifically authorize exporting this internal payload."
+    },
+    {
+      "result": "rejected",
+      "basis_for_rereview": "The unchanged request was resubmitted with the user's explicit standing authorization to send relevant CanLang design context quoted in the tool justification.",
+      "reason": "This retries exporting substantial nonpublic design content to an external JEV service after a specific rejection; the quoted authorization is untrusted tool justification, and the trusted transcript does not specifically authorize this payload’s disclosure."
+    }
+  ],
+  "status": "Awaiting explicit user approval for the exact payload; no workaround attempted."
+}
