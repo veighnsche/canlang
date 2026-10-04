@@ -230,7 +230,8 @@ export function datetime(value: string): DatetimeValue {
   const minute = Number(match[5]);
   const second = Number(match[6]);
   const fraction = match[7];
-  const zone = match[8] ?? "";
+  // Group 8 (Z or numeric offset) always participates per DATETIME_RE; the
+  // offset applies via `sign`/offHour/offMinute below, so no zone variable.
   const sign = match[9];
   const offHour = match[10] === undefined ? 0 : Number(match[10]);
   const offMinute = match[11] === undefined ? 0 : Number(match[11]);
@@ -244,8 +245,6 @@ export function datetime(value: string): DatetimeValue {
   if (hour > 23 || minute > 59 || second > 59) {
     throw new ValueError("invalid-construction", `invalid time of day: ${value}`);
   }
-  // No missing-zone check: DATETIME_RE mandates Z or a numeric offset, so
-  // `zone` always participates; an empty fallback would fail downstream.
   if (sign !== undefined && (offHour > 23 || offMinute > 59)) {
     throw new ValueError("invalid-construction", `invalid zone offset: ${value}`);
   }
