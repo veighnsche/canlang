@@ -2,7 +2,7 @@
 
 Current tracker updated October 4, 2026, after the [120-item evaluation](../EVALUATION.md). We are resuming the earlier work on the 39 app requirement/source pairs and 21 handwritten desired JavaScript targets. The evaluation produced findings and a correction plan; it did not apply those corrections to the product drafts. This current section supersedes historical completion claims, open-item descriptions and worker assignments further down this file.
 
-**Five-hour checkpoint:** the user requested winding down for reflection; the persistent migration goal is paused, not complete. No new tasks are being started. The final Feedback correction and five-app CRUD/hook review are recorded below; both workers have stopped. Queue entries below describe remaining ownership/dependencies, not currently running assignments. Resume only on the user's direction after this review.
+**Current execution:** the user has now authorized resuming through one Muse implementation coordinator while Astra handles design in parallel. The [Muse checklist](../design/muse-migration-20261004/tasks.md) owns routine task progress, the [design inbox](../design/muse-migration-20261004/inbox.md) carries acknowledged design handoffs, and the [monitoring record](../design/muse-migration-20261004/monitor.md) owns actual runtime status. The five-hour pause and final Feedback/CRUD checks below remain historical checkpoint evidence; they are not a completion claim. The old persistent-goal record was paused at that checkpoint; the Muse run must create and evidence its own native goal.
 
 ## Resumption point
 
@@ -14,11 +14,11 @@ The [integrated verdict and finite correction plan](../design/evaluation/ADOPTIO
 
 ## Parallel execution lanes
 
-Planning updated October 4, 2026. These are queues and ownership assignments; execution is paused at the five-hour checkpoint above. Completed milestones below identify actual changes and their checks. The four collaboration slots support the coordinator and at most three active workers, subject to the actual session limit. More execution capacity can be used for ready, disjoint tasks; it does not permit simultaneous writers to one file. Give each worker one bounded task and the relevant source, requirement, contract and evaluation evidence, rather than an entire lane's backlog or conversation history.
+Planning updated October 4, 2026. These are queues and ownership assignments; the linked Muse checklist and monitoring record now identify actual dispatch and execution. Completed milestones below identify actual changes and their checks. Keep implementation agents and design workers within their own available slots and the recorded resource limits. More execution capacity does not permit simultaneous writers to one file. Give each worker one bounded task and the relevant source, requirement, contract and evaluation evidence, rather than an entire lane's backlog or conversation history.
 
 ### Routine / design workload split — current assignment policy
 
-The user now assigns **routine work to Muse Code** and **creative/design work to Astra Ultra**. This supersedes the model recommendations in the older lane/task tables and cost-policy paragraph below; their app groupings, completed evidence and dependencies remain useful. This is an offload plan, not a dispatch or a resumption of the paused goal. Muse Code is the user's external execution destination; this plan does not assert that the current Codex dispatcher offers it or prescribe an unverified reasoning-effort setting.
+The user assigns **routine work to Muse** and **creative/design work to Astra Ultra**. This supersedes the model recommendations in the older lane/task tables and cost-policy paragraph below; their app groupings, completed evidence and dependencies remain useful. The explicitly invoked muse-implementation skill selects **muse-spark-1.3-contributor at MAX** for the single Muse coordinator and routine execution. The linked run checklist supersedes this planning table for actual file reservations and progress.
 
 Classify individual tasks, not entire apps. Routine means the relevant meaning, canonical pattern and expected outcome are already settled. Deciding permissions, financial meaning, failure recovery, historical disclosure, new syntax or a previously unspecified JavaScript translation belongs to design work even when the eventual edit is small. Comparing an occurrence with a settled rule can be routine; deciding whether the rule itself is sufficient is not.
 
@@ -43,7 +43,7 @@ Each design handoff stays small: the owning contract/requirement change, one com
 
 Parallelism: independent routine applications can run while Astra resolves unrelated design tasks. Keep one active writer per source/target/requirements set and one for shared design documents; the A/B/C groupings below are coordination boundaries, not three additional competing writers. Once a design question is settled, transfer its repetitive application to Muse instead of leaving Astra to edit the whole corpus. Keep commits focused and early under the existing commit rule. A single focused semantic review is sufficient for meaningful changes unless new evidence warrants another; routine work does not automatically require an Ultra review cycle.
 
-Difficult design decisions retain the project's JEV procedure: three fully reworded, semantically equivalent consultations using verified facts, balanced alternatives and the appropriate question type, with requests/responses and uncertainty saved. Existing exact-payload approval blocks remain in force; do not bypass them or relabel an incomplete consultation as complete. No new JEV calls, app edits or workers are started by this planning update.
+Difficult design decisions retain the project's JEV procedure: three fully reworded, semantically equivalent consultations using verified facts, balanced alternatives and the appropriate question type, with requests/responses and uncertainty saved. Existing exact-payload approval blocks remain in force; do not bypass them or relabel an incomplete consultation as complete. Actual calls, workers and edits must be evidenced in their owning task/run records.
 
 | Lane | Responsibility and exclusive source ownership | Normal model / reasoning |
 | --- | --- | --- |
