@@ -1,6 +1,6 @@
 # Lane 05: Server-rendered UI and presentation library
 
-Status: active coordinator. Worktree/branch/goal recorded below; B0 plan committed here; implementation in slices.
+Status: lane complete (2026-10-04). All slices S1–S5 + C1–C9 merged as reviewed green heads; worktree/branch/goal recorded below.
 
 ## Scope steering (2026-10-04, user-approved)
 
@@ -367,19 +367,19 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
 
 ## Correction slices C1–C9 (steering plan)
 
-- [x] C1 shell correction (branch muse/lane-05-ui/c1-shell, PR pending): drawer-end right sidebar,
+- [x] C1 shell correction (merged PR #37 as f9fe9bc, reviewed head, green): drawer-end right sidebar,
       bottom-right user menu (dropdown-top dropdown-end), user config dialog audit (panel region label,
       focusable toggles), canonical login screen (LoginProps v0.6.0, next sanitization, CSRF). Worker:
       shell.ts + shell.test.ts (53 shell tests). Suite 355/355 green.
 - [x] C2 full catalog contract, in two PRs: (a) merged #42 (v0.7.0, 362/362); L1 ACKED (HO-05).
-      (b) branch muse/lane-05-ui/c2b-appearance, PR pending — appearance-token matrix on 44/68 words,
+      (b) merged #45 as 5dd18e6 (v0.8.0, 371/371) — appearance-token matrix on 44/68 words,
       substantiated against pinned daisyUI 5.7.47 CSS (9 tests), alternates on hero/footer/navbar,
       contract v0.8.0. Suite 371/371 green. Props per family land with C3–C8 renderers.
-- [x] C3 readable leaves (branch muse/lane-05-ui/c3-leaves, PR pending): contract v0.9.0
+- [x] C3 readable leaves (merged PR #47 as 92655e8, reviewed head, green): contract v0.9.0
       (11 leaf Props), src/appearance.ts closed token renderer, leaves.ts (badge/status/kbd/mockupCode/
       countdown/divider/link) + media.ts (avatar/progress/radialProgress/textRotate), 11 catalog flips.
       Breadcrumbs deferred to C6 (needs descriptor ancestry). Suite 448/448 green.
-- [x] C4a field-control factories (branch muse/lane-05-ui/c4a-controls, PR pending): contract
+- [x] C4a field-control factories (merged PR #55 as 3c8f24d, reviewed head, green): contract
       v0.10.0 (FieldControlKind, FieldControlProps+timeZone, Label/Validator/per-control/Calendar/Filter
       props; control+labelCaption on FormFieldDef), controls.ts 14 factories, shared field-id helpers,
       14 catalog flips. Coordinator closed the timeZone gap (zoned datetime/agenda). Suite 483/483.
@@ -391,18 +391,18 @@ runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
       v0.11.0 (32 Props/item/slot types + accordion caption), groups.ts 12 factories + overlays.ts
       14 factories, index exports, 26 catalog flips, arity pins. Review: activation-id guard,
       trigger shapes, accordion labelling, steps note, swap/diff/fab/hover gaps. Suite 623/623.
-- [ ] C6 navigation + shared state (branch muse/lane-05-ui/c6-navigation, PR pending):
+- [x] C6 navigation + shared state (merged PR #71 as 22656ec, reviewed head, green):
       contract v0.12.0 (10 Props types), navigation.ts +8 factories (Props moved to contract),
       index exports, 8 catalog flips, arity pins. Coordinator hardening: label guards (7),
       null-binding filter + opens typeof, button inputs via forms serializer, theme-controller
       hook + cancel reset, megamenu group-caption check. Suite 685/685.
-- [ ] C7 collections + files + review (branch muse/lane-05-ui/c7-collections, PR pending):
+- [x] C7 collections + files + review (merged PR #75 as b7a51b6, reviewed head, green):
       contract v0.13.0 (7 Props/view types), board + csvImport (collections.ts), fileControl
       (controls.ts), review.ts (new). Props in contract (appearance dims dropped: words admit
       none); index exports; 4 catalog flips; arity pins; review caption guard. Suite 732/732.
       Calendar closed: agenda shipped in C4a; JEV adopts C (no static grid); gallery unwarranted
       (no catalog word; list/board/hover_gallery cover). Evidence: jev/lane-05-c7-20261004/.
-- [ ] C8 settings + panels (branch muse/lane-05-ui/c8-settings, PR pending): contract
+- [x] C8 settings + panels (merged PR #78 as dd3c9d8, reviewed head, green): contract
       v0.14.0 (12 Props types + HistoryEntry re-export), panels.ts (tabs/history/copy),
       settings.ts (renderSettingsPanel), leaves.ts +3 mockups. Props in contract (tabs
       variant dropped; TabsOption replaces ThemeOption misuse); state.js imports retargeted
@@ -425,6 +425,8 @@ Lane 05 complete (2026-10-04): all slices S1–S5 + C1–C9 merged as reviewed g
 Contract canlang.presentation/0.14.0; @canlang/ui 796/796 tests; 88/88 catalog entries
 implemented, 0 planned; 68-word ledger fully rendered. No lane-05-owned TODOs remain;
 foreign lane-08 doc edits preserved aside (stash + /tmp backups) for their owner.
+Main-head verification on ee2dd0b (#86): `npm run typecheck` clean, `npm test
+--workspace @canlang/ui` 796/796 pass, 0 fail.
 
 ## 68-component coverage ledger (2026-10-04; renderer = @canlang/ui factory)
 
