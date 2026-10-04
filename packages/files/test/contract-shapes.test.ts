@@ -83,7 +83,10 @@ describe('files contracts', () => {
       contentType: 'application/pdf',
       sizeBytes: 1048576,
       bytesDigest: 'sha256:def',
-      finalizedAt: '2026-10-04T15:00:00Z',
+      finalizedAt: {
+        kind: 'datetime',
+        ms: BigInt(Date.parse('2026-10-04T15:00:00Z')),
+      },
     };
     assert.equal(requestProvenance.kind, 'request');
     assert.equal(eventProvenance.itemIndex, 0);

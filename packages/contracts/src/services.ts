@@ -8,12 +8,12 @@
  *
  * Type-only boundary. Adapter transport, credential handling, pagination
  * execution and result mapping live in `@canlang/services`. Exact value
- * wire encodings (money, datetime, decimal) belong to lane 2: fields typed
- * `unknown` below name their lane-2 type in documentation and must survive
- * JSON transport with exact-value tags (CONTRACTS.md).
+ * shapes (money, datetime) are lane-2 types imported below; their wire
+ * encodings travel through L2 codecs with exact-value tags (CONTRACTS.md).
  */
 
 import type { FinalizedFileRef } from './files.js';
+import type { DatetimeValue, WireMoney } from './values.js';
 
 /** Closed delivery receipt summary (DESIGN section 8). */
 export interface DeliveryResult {
@@ -196,7 +196,7 @@ export interface PaymentState {
   revision: number;
   provider_reference: string | null;
   /** Lane-2 money wire shape. */
-  amount: unknown;
+  amount: WireMoney;
   status: 'pending' | 'unknown' | 'succeeded' | 'failed';
   checkout_url: string | null;
   failure: 'transient' | 'action_required' | 'permanent' | 'cancelled' | null;
@@ -206,7 +206,7 @@ export interface PaymentState {
 export interface PaymentCollectInput {
   customer: string;
   /** Lane-2 money wire shape; must be positive. */
-  amount: unknown;
+  amount: WireMoney;
   reference: string;
   consent: string | null;
 }
@@ -215,7 +215,7 @@ export interface PaymentCollectInput {
 export interface PaymentRefundInput {
   payment: string;
   /** Lane-2 money wire shape; must be positive. */
-  amount: unknown;
+  amount: WireMoney;
   reference: string;
 }
 
@@ -236,8 +236,8 @@ export interface PaymentReconcileInput {
 export interface ErrorReport {
   id: string;
   message: string;
-  /** Lane-2 datetime wire shape. */
-  occurred_at: unknown;
+  /** Lane-2 datetime value; wire encoding via L2 codecs. */
+  occurred_at: DatetimeValue;
   stack: string | null;
   release: string | null;
   environment: string | null;

@@ -10,6 +10,8 @@
  * record references belong to lane 3.
  */
 
+import type { DatetimeValue } from './values.js';
+
 /** Opaque immutable finalized file identity. Grants nothing by itself. */
 export type FinalizedFileRef = string;
 
@@ -125,8 +127,8 @@ export type FileProvenance = RequestProvenance | EventProvenance;
 
 /**
  * Immutable finalized file record. Content is never overwritten; replacing
- * a reference never overwrites bytes. Timestamps are UTC instants in the
- * lane-2 datetime wire shape.
+ * a reference never overwrites bytes. Timestamps are lane-2 datetime
+ * values; wire encoding via L2 codecs.
  */
 export interface FinalizedFile {
   id: FinalizedFileRef;
@@ -136,8 +138,8 @@ export interface FinalizedFile {
   sizeBytes: number;
   /** Digest of the immutable bytes for conflict detection. */
   bytesDigest: string;
-  /** Lane-2 datetime wire shape. */
-  finalizedAt: unknown;
+  /** Lane-2 datetime value; wire encoding via L2 codecs. */
+  finalizedAt: DatetimeValue;
 }
 
 /**
