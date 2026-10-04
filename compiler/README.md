@@ -17,6 +17,13 @@ Implemented so far (slice 0 foundation):
   matches the parser exactly; E2–E6 reserved placeholders).
 - `src/lsp/`: dependency-free stdio LSP server (framing, lifecycle,
   versioned diagnostics) behind stub analysis hooks.
+- `src/json.rs`: shared JSON value model (LSP transport + catalog loader).
+- `src/analysis/`: producer-catalog consumer (`--catalog`, `CAN_CATALOG`),
+  name resolution (E2xxx) and type checking (E3xxx) over the CST;
+  `can check` runs the real pipeline with `complete=false` until the
+  effects/examples slice lands. New grammar: judgment/corpus Given
+  declarations, `invocation(...)` types, gallery/slot/preference-panel/edit
+  UI, generic catalog-item shape (membership validates in analysis).
 - `src/syntax/`: lossless recoverable CST parser for the full GRAMMAR.md
   (lexer, layout/descriptions, CST, parser, E1xxx diagnostics). Parses the
   whole `examples/` + `draft/` corpus cleanly; see `tests/syntax.rs`.

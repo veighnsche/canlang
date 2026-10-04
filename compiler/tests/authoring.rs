@@ -1,7 +1,7 @@
 //! Slice-2a authoring tests: CLI dispatch, explain catalog, LSP transport
 //! framing, server version-staleness and thin lane-7 entries.
 
-use canlang_compiler::cli::{self, dispatch};
+use canlang_compiler::cli::{self, StubAnalyzer, dispatch, dispatch_with};
 use canlang_compiler::{exit, lsp};
 use std::io::{BufReader, Read};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -114,11 +114,17 @@ fn cli_every_subcommand_answers_help() {
     }
 }
 
+/// Envelope/JSON/determinism mechanics with the deterministic stub
+/// backend. (PR4: production `dispatch` runs the real catalog-aware
+/// pipeline — `complete=false`, `E6002` without a catalog — so these
+/// backend-independent mechanics pin the [`StubAnalyzer`] seam
+/// explicitly; real-backend CLI behavior is covered in `tests/analysis.rs`.)
 #[test]
 fn cli_check_like_commands_emit_envelope_json() {
     let file = TempFile::new("main.can", "app Main\nGiven\nWhen\nThen\n");
+    let stub = StubAnalyzer;
     for cmd in ["check", "lint", "compile"] {
-        let result = dispatch(&argv(&[cmd, "--format=json", &file.arg()]));
+        let result = dispatch_with(&argv(&[cmd, "--format=json", &file.arg()]), &stub);
         assert_eq!(result.code, exit::OK, "{cmd} should be clean");
         assert!(result.stderr.is_empty());
         let line = result.stdout.trim_end();
@@ -135,14 +141,14 @@ fn cli_check_like_commands_emit_envelope_json() {
             assert!(line.contains(field), "{cmd} missing {field}: {line}");
         }
         // Deterministic across reruns.
-        let again = dispatch(&argv(&[cmd, "--format=json", &file.arg()]));
+        let again = dispatch_with(&argv(&[cmd, "--format=json", &file.arg()]), &stub);
         assert_eq!(result.stdout, again.stdout);
     }
     // Space-separated --format form and text default.
-    let result = dispatch(&argv(&["check", "--format", "json", &file.arg()]));
+    let result = dispatch_with(&argv(&["check", "--format", "json", &file.arg()]), &stub);
     assert_eq!(result.code, exit::OK);
     assert!(result.stdout.contains("\"diagnostics\":[]"));
-    let result = dispatch(&argv(&["check", &file.arg()]));
+    let result = dispatch_with(&argv(&["check", &file.arg()]), &stub);
     assert_eq!(result.code, exit::OK);
     assert!(result.stdout.is_empty(), "stub text output is empty");
 }
@@ -384,7 +390,7 @@ fn cli_thin_entries_passthrough_args_and_exit_codes() {
 
 /// M8: analyzer returning one error diagnostic, exercising the exit-10
 /// path through the `dispatch_with` seam. [`StubAnalyzer`] behavior is
-/// unchanged (all other tests still go through `dispatch`).
+/// unchanged (the envelope-mechanics test above pins it explicitly).
 struct ErrorAnalyzer;
 
 impl cli::Analyzer for ErrorAnalyzer {
@@ -627,7 +633,9 @@ fn explain_round_trips_every_emitted_code() {
     assert_eq!(err.code, "E1002");
     seen.insert("E1002".to_string());
 
-    // The shipped corpus parses with zero diagnostics.
+    // The shipped corpus parses with zero diagnostics, except the
+    // KNOWN_CORPUS_DEFECTS pinned by tests/syntax.rs (mirrored here so
+    // the round-trip stays honest while drafts are fixed).
     let mut files = Vec::new();
     collect_can_files("../examples", &mut files);
     collect_can_files("../draft", &mut files);
@@ -641,12 +649,24 @@ fn explain_round_trips_every_emitted_code() {
     );
     assert!(
         files.len() >= 44,
-        "expected the 44-file corpus, found {}",
+        "expected at least the 44-file corpus, found {}",
         files.len()
     );
     for path in &files {
         let text = std::fs::read_to_string(path).unwrap();
         let (_tree, diags) = parse_source(SourceId(0), &text);
+        let rel = path.to_string_lossy().replace('\\', "/");
+        let known = rel.ends_with("draft/CanShift.can") || rel.ends_with("draft/CanVolunteer.can");
+        if known {
+            let codes: Vec<_> = diags.iter().map(|d| d.code).collect();
+            assert_eq!(
+                codes,
+                vec!["E1203", "E1203"],
+                "{rel} defect shape changed: update the known-defects mirror",
+            );
+            seen.insert("E1203".to_string());
+            continue;
+        }
         assert!(
             diags.is_empty(),
             "{} emitted {diags:?}",
