@@ -3,9 +3,8 @@
 // there is intentionally NO webServer block: one startLocalDev per worker
 // is the D1 isolation mechanism, and the bridge URL is dynamic per worker.
 //
-// Until L7 PR23 lands (@playwright/test + `test:e2e` script + CI job) this
-// file is unrunnable and excluded from tests/e2e/tsconfig.json; PR23
-// re-includes it. Chromium-only until the first green TeamTasks run.
+// Run with root `npm run test:e2e` (L7 PR23: @playwright/test + CI job).
+// Chromium-only until the first green TeamTasks run.
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({

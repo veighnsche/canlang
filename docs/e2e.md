@@ -14,17 +14,18 @@ tests/e2e/
   tsconfig.json             # scaffold check (NOT in root check or vitest)
   bridges/http-bridge.ts    # localhost TCP -> LocalDev.dispatch forwarder
   fixtures/artifact-loader.ts  # CompileArtifact v1 -> startLocalDev modules
+  fixtures/e2e-test.ts      # worker fixtures: workerd + bridge + D1 schema
   fixtures/seed.ts          # D1 + identity seeding over real backends
   fixtures/handbuilt/       # fixture workers (until L1 PR6 emission)
+  apps/scaffold.spec.ts     # harness smoke (label-asserted, always runs)
   apps/*.spec.ts            # per-app suites (Phase 3; TeamTasks first)
 docs/e2e.md                 # this file
 ```
 
 ## Running
 
-Requires L7 PR23 (`@playwright/test`, `test:e2e` script, CI job). Then:
-
 ```sh
+npm run build                  # contracts/cloudflare/testkit dists
 npm run build -w @canlang/ui
 npm run build -w @canlang/identity
 npx playwright install --with-deps chromium

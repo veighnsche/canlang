@@ -3,9 +3,7 @@
   // L7-owned packages (typecheck without requiring their dist); ui/identity
   // resolve to built dist (their owners' builds; the e2e CI job builds them).
   // This config is NOT in root tsconfig.check.json and NOT in vitest include:
-  // Playwright specs run under `test:e2e` (L7 PR23), never under `npm test`.
-  // playwright.config.ts is excluded until PR23 installs @playwright/test;
-  // PR23 re-adds "../../playwright.config.ts" to `include` below.
+  // Playwright specs run under `test:e2e`, never under `npm test`.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": false,
@@ -17,5 +15,5 @@
       "@canlang/testkit": ["./packages/testkit/src/index.ts"]
     }
   },
-  "include": ["."]
+  "include": [".", "../../playwright.config.ts"]
 }
