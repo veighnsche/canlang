@@ -1,0 +1,53 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": "Known Can design evidence: inline BDD currently means one containing action per fresh row, provisioned from shared Given recipes. An internal production call cannot impersonate another user or commit separately. Recently defined user recipes provide several distinct local members with selected roles. The runtime admission order is caller/team and by, typed reference/version resolution, ordered guards/effects, final constraints and commit. A forbidden caller therefore fails before an otherwise failing body guard. Fixtures must be valid before an operation error can count. Model server expressions hide fields from clients, yet the reference Expense fixture expressly sets its server=actor submitted_by field to other; missing initializers run in self context. Built-in metadata and initial versions come from test infrastructure. Execution/checking of examples is still unimplemented. We need actual ordered claimant/reviewer/finance invocations sharing committed state, not independently seeded snapshots. Hold these requirements constant for sequence designs: separately authorized calls, explicit actor per step, canonical typed arguments and return values, freshly resolved fixture versions, stable step request identities, independent expected observations, exact error matching with rollback of that step alone, and preservation of prior accepted work. Test calls cannot contact live providers or patch stored state/roles, and no handwritten step adapters are allowed. Retain existing tables for isolated cases; invalid types, names or setup cannot become expected rejections.",
+    "questions": {
+      "journey": {
+        "type": "choice",
+        "instructions": "Select the most economical coherent notation for the missing shared-state example capability.",
+        "criteria": {
+          "attached_do": "Give an attached examples seed=[...] a second body shape, do. Its statements are immutable let bindings, call submit {expense=claim} by=claimant with an optional typed as result, and checks such as claim.status -> submitted; an anticipated failing call carries -> error(rule_failed). Execute only the explicit calls, including at least one to the owning scenario, and require an observation check or expected rejection. This keeps sequences beside their canonical operation using familiar tokens, while needing a clearly checked distinction between table and sequence bodies plus caller attributes on test invocations.",
+          "package_journey": "Create a separate named journey declaration in package scope, carrying seed=[...] and do with the identical call/check syntax and transactional contract. Cross-operation coverage gets its own named location, leaving attached examples unchanged. The tradeoff is another declaration kind and test identity namespace in source even though both forms use the same fixtures and runtime.",
+          "defer": "Leave the inline test language limited to independent one-call rows. Record the inability to demonstrate connected multi-user flows instead of broadening syntax. This retains the smallest implementation burden but does not meet the required sequence coverage."
+        }
+      },
+      "server_fixture": {
+        "type": "choice",
+        "instructions": "Which interpretation of server-initialized domain fields makes fixture seeding consistent and reviewable?",
+        "criteria": {
+          "stored_snapshot": "Define fixtures as complete stored-state descriptions. An explicit value for a domain server field is allowed after ordinary type/reference/constraint/attachment validation; absent server/default values derive from self. Generated identity, version and audit attributes stay forbidden to authors. Validating such a snapshot proves initial-state validity, never that its prior business history executed. This keeps existing foreign-submitter fixtures meaningful without granting clients write access.",
+          "creation_inputs": "Apply creation-input restrictions to fixtures too: a server field must never appear explicitly, and its expression runs for a specified setup principal. Foreign authorship must be produced by a real creation step or by adding creator selection to fixture setup. The boundary resembles normal creation more closely, but requires migration of historical snapshots and additional means to choose their creator."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "journey": {
+        "type": "choice",
+        "choice": "attached_do",
+        "confidence": 0.9,
+        "probabilities": {
+          "defer": 0.02,
+          "package_journey": 0.05,
+          "attached_do": 0.93
+        }
+      },
+      "server_fixture": {
+        "type": "choice",
+        "choice": "stored_snapshot",
+        "confidence": 0.67,
+        "probabilities": {
+          "stored_snapshot": 0.83,
+          "creation_inputs": 0.17
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1049,
+      "output_tokens": 77
+    }
+  }
+}

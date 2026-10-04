@@ -96,7 +96,7 @@ Header attributes have the following closed sets. Fixed syntax before the attrib
 | execution/mapper guard | `require expr` | `message=expr`; a literal text or message value is required semantically; presentation require has no attributes |
 | send effect | `send ordinary values` | `when=ordinary`, followed by mandatory `as NAME` binding |
 | schedule effect | `schedule expr` | `at=expr` **required**, `event=path values` **required** |
-| scenario examples | `examples` | named input bindings `NAME=expr`, `seed=expr`; seed must resolve to a fixture list |
+| scenario examples | `examples` | tables: named input bindings `NAME=expr`, `seed=expr`; sequences: only optional `seed=expr`; seed resolves to a fixture list |
 | CRUD examples | `examples (create or update or delete)` | named input bindings `NAME=expr`, `seed=expr`; seed must resolve to a fixture list |
 | page | `page route` | `title=expr` **required**, `data=expr`, `order=expr`, `group=expr`, `nav=NAME`, `poll=expr`, `refresh=path`; refresh names a canonical user mutation and requires poll; nav supports only none, order is a constant integer, poll is a constant duration from 1s through 1h; title must be literal text or a message value, data a pure read call |
 | card | `card expr` | `layout=NAME`; supported values are stack/columns |
@@ -343,7 +343,8 @@ Leaf declarations in Given/context, import lines, named messages, leaf presentat
 ## Inline behavior examples
 
 ```ebnf
-scenario_examples = "examples" example_bindings suite(example_table) ;
+scenario_examples = "examples" (example_bindings suite(example_table)
+                  | ["seed" "=" expr] suite(example_sequence)) ;
 crud_examples     = {"examples" crud_action example_bindings suite(example_table)} ;
 crud_action       = "create" | "update" | "delete" ;
 example_bindings  = {NAME "=" expr} ;
@@ -351,11 +352,19 @@ example_table     = line(observations "->" observations) example_row {example_ro
 observations      = separated(expr) ;
 example_row       = line(separated(expr) "->" (separated(expr) | expected_error)) ;
 expected_error    = call_expr with bare callee "error" and exactly one argument ;
+example_sequence  = "do" suite(example_step {example_step}) ;
+example_step      = line(let | example_call | example_assertion) ;
+example_call      = "call" ordinary values "by" "=" example_caller
+                    ["request" "=" values] ["as" NAME] ["->" expected_error] ;
+example_caller    = path ;
+example_assertion = observations "->" observations ;
 ```
 
-The first child line is a header, and at least one row follows it. Both sides are nonempty. `->` at current delimiter depth divides header/row sides; commas divide columns only outside brackets/braces/calls. A sole `error(code)` on the expected side is recognized as a rejection expectation and replaces the whole expected row; it cannot be combined with expected observation cells. Other calls/expressions are parsed normally and validated in test scope. Neither a header nor a row admits semicolons or a child suite.
+In the table form, the first child line is a header, and at least one row follows it. Both sides are nonempty. `->` at current delimiter depth divides header/row sides; commas divide columns only outside brackets/braces/calls. A sole `error(code)` on the expected side is recognized as a rejection expectation and replaces the whole expected row; it cannot be combined with expected observation cells. Other calls/expressions are parsed normally and validated in test scope. Neither a header nor a row admits semicolons or a child suite.
 
 Common bindings use the operation's input names, including `event` for a trusted handler, and may include the special `seed` list. Duplicate input/seed bindings are invalid. Both header sides parse expression lists; checking must establish that the left expressions are permitted input-selector paths. `as`, `request.*`, record-fixture fields and generated CRUD input selectors acquire their specified test meaning during validation. Caller-role arrays, fixture names and deterministic account names are ordinary expression shapes with test-only resolution. `as` can select a named user fixture or explicit `self`/`other`; identity values cannot occur inside caller-role arrays, and user recipe attributes are not editable selectors. Header/row arity and the whole-row single-argument `error(...)` shape are checked structurally. Valid input selectors, fixture setup validity, observation types, exact error-code values and production behavior are not established by parsing.
+
+A scenario-attached sequence starts with a sole `do` child instead of a table header and accepts only `seed` on its examples header. It is available on user scenarios, not trusted handlers or CRUD declarations; calls inside it may name enabled generated CRUD operations. At least one explicit call must resolve to the enclosing scenario and at least one assertion or expected-error call must exist. There is no implicit invocation. `example_caller` must resolve to self/other/outsider/public or a user fixture, never a role expression/array; role grants stay fixed during a sequence. `request` is the existing envelope-override meaning in value-object form. `as` requires an actual declared typed operation result and is forbidden together with an expected error. The sequence body has no other effects or control flow. Observation tuples have matching nonzero arity; `condition -> true` permits the ordinary true-branch narrowing after the assertion. Name resolution, stored-snapshot setup validation, per-step admission/rollback and error codes follow DESIGN §5.1. Domain server fields can be explicitly initialized in fixtures; reserved metadata cannot. These sequence productions are a proposed grammar extension; the initial parser currently supports fixture shapes and tables only. No parser acceptance or BDD execution is claimed for a sequence witness.
 
 ## Presentation and routes
 

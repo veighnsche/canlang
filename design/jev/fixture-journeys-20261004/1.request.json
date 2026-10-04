@@ -1,0 +1,23 @@
+{
+  "model": "jev-latest",
+  "state": "Can is a draft SaaS DSL. Verified current rules: Given fixtures create isolated initial state; scenario-attached examples tables invoke their enclosing operation exactly once per independent row. Production call Operation {args} [as result] uses the same caller and transaction, so wrapping multiple calls cannot supply distinct users. User fixtures now provision explicit active same-team users and roles, with as caller selection. Authenticated admission checks by before record versions and authored guards, then effects/invariants/commit; normal errors include forbidden, rule_failed, conflict and validation. Invalid fixture setup cannot satisfy an expected business error. Server=expr fields exclude client inputs; existing reference fixtures explicitly set submitted_by (server=actor) to other, while omitted values evaluate as self. Reserved id/version/audit fields are runtime-generated. No semantic example runner exists. Required evidence is a real sequence: a claimant submits a draft, a separate reviewer decides, and distinct finance reimburses, preserving earlier state across later rejection. For every sequence option below, each call is separately admitted with explicit caller, ordinary declared typed inputs/results, current fixture versions, deterministic step identity, and normal production authorization. Expected errors apply only to that call and require unchanged domain state since immediately before it; previous commits remain. Pure observations are independently authored, calls never dispatch live providers, and no direct state/grant mutation or duplicate step definitions is introduced. Ordinary one-operation tables remain the shortest form. Static names/types/setup failures are never accepted business errors.",
+  "questions": {
+    "journey": {
+      "type": "choice",
+      "instructions": "Which bounded source form best supports shared-state multi-actor behavior while preserving existing compact tables?",
+      "criteria": {
+        "attached_do": "Allow a scenario-attached examples seed=[...] block to contain do instead of a table. Inside test-only do, reuse let; spell invocation call submit {expense=claim} by=claimant, optional as typed_result, and observation assertion claim.status -> submitted. A rejecting call ends -> error(rule_failed). Require at least one call to the enclosing operation and a nonempty assertion or exact-error outcome. All executable bindings stay under do. No implicit enclosing call runs. This reuses the examples home and most existing syntax, but its explicit multi-call meaning differs from table rows and its test call has a per-step caller attribute.",
+        "package_journey": "Introduce a named package-level journey block with seed=[...] and a do body using those same explicit calls, callers, typed bindings, observation arrows and per-call rejection expectations. Existing attached tables remain untouched. This gives cross-operation stories an independent discoverable home and avoids changing examples body meaning, but adds a top-level declaration category and names for test-only workflows.",
+        "defer": "Keep only current independent table rows and document shared-state stories as unsupported. No syntax/checking extension is needed; separately seeded stages remain useful for local rules, but they cannot establish an executed multi-actor sequence."
+      }
+    },
+    "server_fixture": {
+      "type": "choice",
+      "instructions": "How should model fixture values treat domain fields declared server=expr while preserving valid setup and honest historical evidence?",
+      "criteria": {
+        "stored_snapshot": "Treat model fixtures as typed stored-state recipes, not client create requests. Permit explicitly supplied domain server-owned fields if type, references, invariants and file authority are valid; omitted defaults/server expressions evaluate as self. Never accept authored reserved id/version/audit metadata, malformed server-field types or production request bypasses. Snapshot setup does not claim to execute the historical creation workflow. This preserves existing reference fixtures and deliberate historical state but must clearly distinguish fixtures from operation inputs.",
+        "creation_inputs": "Make fixture creation obey client/server field separation: reject all explicit server-owned fields and always evaluate server expressions as the fixture creator. Add a way to choose that creator, or require real create operations in a sequence for foreign-authored records. This follows production creation closely but invalidates existing explicit server-field snapshots and needs extra setup syntax or calls for those cases."
+      }
+    }
+  }
+}
