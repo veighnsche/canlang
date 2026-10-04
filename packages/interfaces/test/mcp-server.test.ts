@@ -18,6 +18,8 @@ import { createHttpHandler } from '../src/http/routes.js';
 import { handleOperationRequest } from '../src/http/operations.js';
 import {
   createFakeCatalog,
+  createFakeFileUseInfo,
+  createFakeKernel,
   createFakeRegistry,
   createMemoryRateLimiter,
   createTestApp,
@@ -218,7 +220,7 @@ test('initialize advertises the fileTransfer _meta when the app uses files', asy
   assert.equal(result.serverInfo.version, '0.1.0');
   assert.deepEqual(result._meta?.[FILE_TRANSFER_META_KEY], {
     version: 1,
-    intents: 'https://test.invalid/uploads/intents',
+    intents: 'https://test.invalid/files/intents',
   });
 });
 
@@ -740,10 +742,12 @@ test('same operation via S4 HTTP and MCP produces deep-equal inputs', async () =
     clock: systemInterfacesClock,
     identity: createTestIdentityDeps(t.identity),
     secureCookies: false,
+    uploads: { files: createFakeFileUseInfo(false), kernel: createFakeKernel({}) },
   };
   const http = createHttpHandler(httpDeps, {
     operations: (req, op) => handleOperationRequest(httpDeps, req, op),
     auth: () => Promise.resolve(new Response('unused', { status: 500 })),
+    uploads: () => Promise.resolve(new Response('unused', { status: 500 })),
   });
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
   const inputs = { qty: '2', label: 'x' };

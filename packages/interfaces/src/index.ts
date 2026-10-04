@@ -23,3 +23,5 @@ export * from './mcp/schemas.js';
 export * from './mcp/tools.js';
 export * from './mcp/discovery.js';
 export * from './mcp/server.js';
+export * from './uploads/principals.js';
+export * from './uploads/routes.js';

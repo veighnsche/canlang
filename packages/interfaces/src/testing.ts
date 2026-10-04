@@ -14,6 +14,7 @@ import type {
   PageDescriptor,
   ReadEnvelope,
   ResolvedIdentity,
+  UploadIntentRequest,
 } from '@canlang/contracts';
 import {
   createMemoryIdentityStore,
@@ -24,7 +25,13 @@ import type { IdentityStore, MailPort } from '@canlang/identity';
 import { buildSessionCookie, issueMcpGrant } from '@canlang/identity';
 import type {
   AppInfo,
+  FileKernel,
+  FileUseInfo,
   HttpDeps,
+  KernelAppendOutcome,
+  KernelCompleteOutcome,
+  KernelCreateOutcome,
+  KernelFinalizeOutcome,
   Logger,
   McpDeps,
   McpFilesInfo,
@@ -38,6 +45,9 @@ import type {
   RateLimiter,
   ReadOutcome,
   SchemaCatalog,
+  UploadBinding,
+  UploadDeps,
+  UploadReceiver,
 } from './ports.js';
 import { systemInterfacesClock } from './ports.js';
 
@@ -115,6 +125,7 @@ export function createMemoryRateLimiter(): RateLimiter {
 
 export function createTestApp(): AppInfo {
   return {
+    appId: 'test-app',
     brand: 'Test App',
     appDefaultLocale: 'en',
     ownerLabels: new Map([['TestApp', 'Test App']]),
@@ -236,7 +247,7 @@ export function createFakeMcpFilesInfo(opts: {
 } = {}): McpFilesInfo {
   return {
     usesFiles: () => opts.usesFiles ?? false,
-    intentsUrl: () => opts.intentsUrl ?? 'https://test.invalid/uploads/intents',
+    intentsUrl: () => opts.intentsUrl ?? 'https://test.invalid/files/intents',
   };
 }
 
@@ -302,6 +313,81 @@ export async function createTestMcpDeps(opts: {
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* S6 upload doubles.                                                */
+/* ------------------------------------------------------------------ */
+
+export function createFakeFileUseInfo(usesFiles = true): FileUseInfo {
+  return { usesFiles: () => usesFiles };
+}
+
+/** Scripted file kernel with a call log. Mirrors L4 outcome shapes. */
+export function createFakeKernel(handlers: {
+  maxBytes?: number;
+  createIntent?: (input: { request: UploadIntentRequest; receiver: UploadReceiver; binding: UploadBinding }) => KernelCreateOutcome | Promise<KernelCreateOutcome>;
+  append?: (intentId: string, caller: UploadReceiver, chunk: Uint8Array) => KernelAppendOutcome | Promise<KernelAppendOutcome>;
+  complete?: (intentId: string, caller: UploadReceiver) => KernelCompleteOutcome | Promise<KernelCompleteOutcome>;
+  finalize?: (input: { intentId: string; retryId: string; bytesDigest: string; caller: UploadReceiver }) => KernelFinalizeOutcome | Promise<KernelFinalizeOutcome>;
+} = {}): FileKernel & {
+  calls: Array<{ method: string; detail: unknown }>;
+} {
+  const calls: Array<{ method: string; detail: unknown }> = [];
+  return {
+    calls,
+    maxBytes: () => handlers.maxBytes ?? 1024,
+    async createIntent(input) {
+      calls.push({ method: 'createIntent', detail: input });
+      if (handlers.createIntent === undefined) throw new Error('fake kernel: createIntent not scripted');
+      return handlers.createIntent(input);
+    },
+    async append(intentId, caller, chunk) {
+      calls.push({ method: 'append', detail: { intentId, caller, bytes: chunk.length } });
+      if (handlers.append === undefined) throw new Error('fake kernel: append not scripted');
+      return handlers.append(intentId, caller, chunk);
+    },
+    async complete(intentId, caller) {
+      calls.push({ method: 'complete', detail: { intentId, caller } });
+      if (handlers.complete === undefined) throw new Error('fake kernel: complete not scripted');
+      return handlers.complete(intentId, caller);
+    },
+    async finalize(input) {
+      calls.push({ method: 'finalize', detail: input });
+      if (handlers.finalize === undefined) throw new Error('fake kernel: finalize not scripted');
+      return handlers.finalize(input);
+    },
+  };
+}
+
+export interface TestUploadDeps {
+  readonly deps: UploadDeps;
+  readonly logger: Logger & { calls: RecordedLog[] };
+  readonly kernel: FileKernel & { calls: Array<{ method: string; detail: unknown }> };
+  readonly identity: IdentityFixture;
+}
+
+/** Assemble UploadDeps from fakes with a real identity fixture. */
+export async function createTestUploadDeps(opts: {
+  usesFiles?: boolean;
+  kernel?: Parameters<typeof createFakeKernel>[0];
+} = {}): Promise<TestUploadDeps> {
+  const logger = createRecordingLogger();
+  const kernel = createFakeKernel(opts.kernel ?? {});
+  const identity = await createIdentityFixture({});
+  return {
+    logger,
+    kernel,
+    identity,
+    deps: {
+      app: createTestApp(),
+      files: createFakeFileUseInfo(opts.usesFiles ?? true),
+      kernel,
+      identity: createTestIdentityDeps(identity),
+      logger,
+      clock: systemInterfacesClock,
+    },
+  };
+}
+
 /** Assemble HttpDeps from fakes with recording logger + call logs. Async: builds a real identity fixture (verified owner + session). */
 export async function createTestDeps(opts: {
   descriptors?: readonly PageDescriptor[];
@@ -330,6 +416,7 @@ export async function createTestDeps(opts: {
       clock: systemInterfacesClock,
       identity: createTestIdentityDeps(identity),
       secureCookies: opts.secureCookies ?? false,
+      uploads: { files: createFakeFileUseInfo(false), kernel: createFakeKernel({}) },
     },
   };
 }

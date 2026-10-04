@@ -303,7 +303,7 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
   delta re-review APPROVED; lane-06 + workspace CI green. Observed hazard
   (L5/L7 owned): @canlang/ui dist bundles its own contracts copy — dual
   type identities unless every consumer builds fresh in dependency order.
-- S5 (in progress): branch `muse/lane-06-identity-interfaces/mcp-server`
+- S5 (MERGED 2026-10-04 as 090f7b4, PR #32): branch `muse/lane-06-identity-interfaces/mcp-server`
   from origin/main (rebased onto 64d459a post Lane-02 PR4). Scope: MCP SDK
   qualification, registry->tool generation, closed-schema derivation,
   grant-bearer audience binding, discovery/call permission rechecks,
@@ -348,7 +348,55 @@ git/worktree commands in children; command cadence yield_time_ms:120000.
     vs S4 1 MiB/429 noted divergence, bounded). Discovered while
     pinning: SDK protocol layer rejects unparseable params with
     -32603 before our handler (test documents the seam).
-    After fixes: interfaces 160/160, identity 38/38.
+    After fixes: interfaces 160/160, identity 38/38. Delta re-review
+    REQUEST-CHANGES on two stale comments (R1/R2) + sealed-message pin
+    suggestion — all fixed, final confirm APPROVED. Rebased onto fb226e0
+    (L1 B0 + L3 S4 + L4 S5/S6 + L5 S5); lock conflict resolved with
+    main's lock + SDK edge re-applied; suites re-verified green;
+    merged with lane-06 + workspace CI green (lock sync fixed the
+    `npm ci` failure the new dep had introduced).
+- S6 (in progress): branch `muse/lane-06-identity-interfaces/uploads`
+  from origin/main (090f7b4). Scope: POST /files/intents, PUT
+  /files/content/{id} (append + auto-complete), POST
+  /files/finalize/{id} per DESIGN section 8; session+bearer auth,
+  usesFiles gating, principal/binding construction, kernel-outcome
+  error mapping; _meta/intentsUrl consistency (S5 double fixed to
+  /files/intents).
+  - Join J6 (new, L4): @canlang/files ships no built surface, so S6
+    routes against a `FileKernel` port mirroring the real L4 entry
+    points (upload/index.ts + bridge.ts + finalize/index.ts) with
+    contracts file types; B1 binds the real kernel (compile-time
+    forcing function). Committed tests script the port (routing/auth/
+    mapping, like the L3 invoker precedent); kernel semantics stay
+    covered by L4 journey tests; a /tmp probe exercises the real
+    kernel through these routes as supplementary evidence.
+  - Lane-06 decisions: team slot falls back to user id in non-team
+    apps (L4 binder rejects empty); binding adapter constant
+    `bridge-v1`, deliveryId=upload_id, resultPath=field; PUT
+    auto-completes via kernel complete after every append (partial
+    = stay-open success, not error); foreign/expired collapse to
+    not_found (no oracle).
+  - Coordinator files: ports.ts (AppInfo.appId, FileUseInfo,
+    UploadReceiver/Binding, kernel outcomes, FileKernel, UploadDeps,
+    HttpDeps.uploads), testing.ts (fake kernel/use-info/upload deps),
+    routes.ts /files mount + UPLOADS_PREFIX, spy/literal updates.
+  - Implementer I owns uploads/{principals,routes}.ts + uploads.test.ts.
+  - Verification: interfaces 192/192 (32 new), committed tests script
+    the port; /tmp/s6-kernel-probe.mjs (supplementary, kept out of the
+    repo) drives the REAL L4 kernel through the compiled routes:
+    PROBE PASS 9/9 (grant, same-origin destinations, PUT complete with
+    accepted pdf check, wrong-digest conflict, finalize ref + repeat,
+    invented-intent 404, oversized 429, cross-team 404).
+  - PR #44 open at c734fbb (interfaces 192/192). Independent review
+    REQUEST-CHANGES, all addressed: F1 audience (docs decision —
+    routes declare accepted audiences; /files explicitly accepts
+    both same-origin credentials since the grant's audience was
+    always the app; audience.ts + route doc realigned); F2 switch
+    exhaustiveness defaults (inner + outer, rule_failed); F3 six
+    pins (PUT CSRF, grant-over-cookie precedence, session-as-bearer,
+    expired grant, session receiver, garbage content-length); F4
+    JSON content-type gate on intent/finalize. After fixes:
+    interfaces 199/199, identity 38/38.
 
 ## Remaining work and cleanup
 
