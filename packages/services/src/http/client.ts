@@ -53,6 +53,13 @@ export interface HttpRequest {
   readonly body?: string;
   /** Sent as the `Idempotency-Key` header when present. */
   readonly idempotencyKey?: string;
+  /**
+   * Caller-owned cancellation. When this aborts (and the deadline did
+   * not expire first), the original abort error propagates instead of a
+   * transport mapping, so the caller can tell its own cancellation
+   * apart from timeout/network failure.
+   */
+  readonly signal?: AbortSignal;
 }
 
 export interface HttpResponse {
@@ -84,13 +91,13 @@ export function assertValidHttpConfig(config: HttpClientConfig): void {
   }
 }
 
-async function readBoundedBody(
+async function readBoundedBytes(
   response: Response,
   maxBytes: number,
   status: number,
-): Promise<string> {
+): Promise<Uint8Array> {
   if (response.body === null) {
-    return '';
+    return new Uint8Array(0);
   }
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -129,14 +136,20 @@ async function readBoundedBody(
     merged.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return new TextDecoder().decode(merged);
+  return merged;
 }
 
-export async function httpRequest(
-  config: HttpClientConfig,
-  request: HttpRequest,
-): Promise<HttpResponse> {
-  assertValidHttpConfig(config);
+async function readBoundedBody(
+  response: Response,
+  maxBytes: number,
+  status: number,
+): Promise<string> {
+  return new TextDecoder().decode(
+    await readBoundedBytes(response, maxBytes, status),
+  );
+}
+
+function resolveRequestUrl(config: HttpClientConfig, request: HttpRequest): URL {
   const baseOrigin = baseOriginOf(config.baseUrl);
   let url: URL;
   try {
@@ -147,102 +160,412 @@ export async function httpRequest(
   if (url.origin !== baseOrigin) {
     throw new TypeError('request path escapes the configured base URL');
   }
-  const controller = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, config.timeoutMs);
-  // Same-endpoint redirect policy, enforced BEFORE following: manual mode
-  // exposes status + Location, so each hop's target origin is checked
-  // against the fixed base URL and a cross-origin redirect is refused
-  // without sending the second request. Same-origin hops are followed
-  // (301/302/303 convert POST to GET per fetch semantics; 307/308
-  // preserve method and body) up to a hop cap.
+  return url;
+}
+
+/**
+ * Combined abort wiring for one HTTP call. The caller-supplied signal is
+ * combined with the client's own deadline/redirect controller so either
+ * side can stop the transfer. The combination is wired by hand (not
+ * `AbortSignal.any`) so the client depends only on `addEventListener`
+ * on the caller signal, which every fetch-compatible runtime provides.
+ * `release()` removes the listeners so a long-lived caller signal
+ * never accumulates one listener pair per request. Distinguishing
+ * caller cancellation from the deadline stays the caller's job: it
+ * owns its signal and can read `signal.aborted`.
+ */
+interface CombinedSignals {
+  readonly signal: AbortSignal;
+  readonly release: () => void;
+}
+
+function combinedSignals(
+  controller: AbortController,
+  request: HttpRequest,
+): CombinedSignals {
+  if (request.signal === undefined) {
+    return { signal: controller.signal, release: () => {} };
+  }
+  const merged = new AbortController();
+  const forward = (): void => {
+    if (!merged.signal.aborted) merged.abort();
+  };
+  if (controller.signal.aborted || request.signal.aborted) {
+    merged.abort();
+  } else {
+    controller.signal.addEventListener('abort', forward, { once: true });
+    request.signal.addEventListener('abort', forward, { once: true });
+  }
+  return {
+    signal: merged.signal,
+    release: () => {
+      controller.signal.removeEventListener('abort', forward);
+      request.signal?.removeEventListener('abort', forward);
+    },
+  };
+}
+
+interface FetchedResponse {
+  readonly response: Response;
+  readonly url: URL;
+}
+
+// Same-endpoint redirect policy, enforced BEFORE following: manual mode
+// exposes status + Location, so each hop's target origin is checked
+// against the fixed base URL and a cross-origin redirect is refused
+// without sending the second request. Same-origin hops are followed
+// (301/302/303 convert POST to GET per fetch semantics; 307/308
+// preserve method and body) up to a hop cap. Shared by the buffered
+// and streaming readers so both enforce the identical policy.
+async function fetchWithRedirects(
+  config: HttpClientConfig,
+  request: HttpRequest,
+  startUrl: URL,
+  signal: AbortSignal,
+  timedOut: () => boolean,
+): Promise<FetchedResponse> {
+  const baseOrigin = baseOriginOf(config.baseUrl);
   let method: 'GET' | 'POST' = request.method;
   let body: string | undefined = request.body;
+  let url = startUrl;
   let hops = 0;
-  let response: Response;
-  let bodyText: string;
-  try {
-    for (;;) {
-      const headers: Record<string, string> = {};
-      if (body !== undefined) {
-        headers['content-type'] = 'application/json';
-      }
-      if (request.idempotencyKey !== undefined) {
-        headers['idempotency-key'] = request.idempotencyKey;
-      }
-      if (config.authorization !== undefined) {
-        headers['authorization'] = config.authorization;
-      }
-      try {
-        response = await fetch(url.href, {
-          method,
-          headers,
-          body,
-          signal: controller.signal,
-          redirect: 'manual',
-          credentials: 'omit',
-        });
-      } catch {
-        throw new HttpTransportError(timedOut ? 'timeout' : 'network-error');
-      }
-      if (!isRedirect(response.status)) {
-        break;
-      }
-      const location = response.headers.get('location');
-      try {
-        await response.arrayBuffer();
-      } catch {
-        if (timedOut) {
-          throw new HttpTransportError('timeout');
-        }
-        // Drained body is best effort; the hop below is what matters.
-      }
-      if (timedOut) {
+  for (;;) {
+    const headers: Record<string, string> = {};
+    if (body !== undefined) {
+      headers['content-type'] = 'application/json';
+    }
+    if (request.idempotencyKey !== undefined) {
+      headers['idempotency-key'] = request.idempotencyKey;
+    }
+    if (config.authorization !== undefined) {
+      headers['authorization'] = config.authorization;
+    }
+    let response: Response;
+    try {
+      response = await fetch(url.href, {
+        method,
+        headers,
+        body,
+        signal,
+        redirect: 'manual',
+        credentials: 'omit',
+      });
+    } catch (err) {
+      if (timedOut()) {
         throw new HttpTransportError('timeout');
       }
-      if (location === null) {
-        break;
+      if (request.signal?.aborted === true) {
+        throw err;
       }
-      const next = new URL(location, url);
-      if (next.origin !== baseOrigin) {
-        throw new HttpRedirectError(baseOrigin, next.origin);
-      }
-      hops += 1;
-      if (hops > MAX_REDIRECT_HOPS) {
-        throw new HttpTooManyRedirectsError(hops);
-      }
-      if (
-        response.status === 303 ||
-        ((response.status === 301 || response.status === 302) &&
-          method === 'POST')
-      ) {
-        method = 'GET';
-        body = undefined;
-      }
-      url = next;
+      throw new HttpTransportError('network-error');
     }
+    if (!isRedirect(response.status)) {
+      return { response, url };
+    }
+    const location = response.headers.get('location');
+    try {
+      await response.arrayBuffer();
+    } catch (err) {
+      if (timedOut()) {
+        throw new HttpTransportError('timeout');
+      }
+      if (request.signal?.aborted === true) {
+        throw err;
+      }
+      // Drained body is best effort; the hop below is what matters.
+    }
+    if (timedOut()) {
+      throw new HttpTransportError('timeout');
+    }
+    if (request.signal?.aborted === true) {
+      throw new DOMException('The operation was aborted.', 'AbortError');
+    }
+    if (location === null) {
+      return { response, url };
+    }
+    const next = new URL(location, url);
+    if (next.origin !== baseOrigin) {
+      throw new HttpRedirectError(baseOrigin, next.origin);
+    }
+    hops += 1;
+    if (hops > MAX_REDIRECT_HOPS) {
+      throw new HttpTooManyRedirectsError(hops);
+    }
+    if (
+      response.status === 303 ||
+      ((response.status === 301 || response.status === 302) &&
+        method === 'POST')
+    ) {
+      method = 'GET';
+      body = undefined;
+    }
+    url = next;
+  }
+}
+
+function startDeadline(
+  config: HttpClientConfig,
+): { controller: AbortController; timer: ReturnType<typeof setTimeout>; timedOut: () => boolean } {
+  const controller = new AbortController();
+  let expired = false;
+  const timer = setTimeout(() => {
+    expired = true;
+    controller.abort();
+  }, config.timeoutMs);
+  return { controller, timer, timedOut: () => expired };
+}
+
+export async function httpRequest(
+  config: HttpClientConfig,
+  request: HttpRequest,
+): Promise<HttpResponse> {
+  assertValidHttpConfig(config);
+  const startUrl = resolveRequestUrl(config, request);
+  const { controller, timer, timedOut } = startDeadline(config);
+  const { signal, release: releaseSignals } = combinedSignals(
+    controller,
+    request,
+  );
+  let bodyText: string;
+  let fetched: FetchedResponse;
+  try {
+    fetched = await fetchWithRedirects(
+      config,
+      request,
+      startUrl,
+      signal,
+      timedOut,
+    );
     try {
       bodyText = await readBoundedBody(
-        response,
+        fetched.response,
         config.maxBodyBytes,
-        response.status,
+        fetched.response.status,
       );
     } catch (err) {
       if (err instanceof HttpBodyLimitError) {
         throw err;
       }
-      throw new HttpTransportError(
-        timedOut || controller.signal.aborted ? 'timeout' : 'network-error',
-      );
+      if (timedOut()) {
+        throw new HttpTransportError('timeout');
+      }
+      if (request.signal?.aborted === true) {
+        throw err;
+      }
+      throw new HttpTransportError('network-error');
     }
   } finally {
     clearTimeout(timer);
+    releaseSignals();
   }
-  if (response.status < 200 || response.status > 299) {
-    throw new HttpStatusError(response.status, bodyText);
+  if (fetched.response.status < 200 || fetched.response.status > 299) {
+    throw new HttpStatusError(fetched.response.status, bodyText);
   }
-  return { status: response.status, url: url.href, bodyText };
+  return {
+    status: fetched.response.status,
+    url: fetched.url.href,
+    bodyText,
+  };
+}
+
+/** Binary response: exact bytes plus the transport content-type claim. */
+export interface HttpBinaryResponse {
+  readonly status: number;
+  readonly url: string;
+  readonly bytes: Uint8Array;
+  /** Raw `content-type` header, or null when absent. Untrusted claim. */
+  readonly contentType: string | null;
+}
+
+/**
+ * Binary variant of `httpRequest` for provider byte downloads: same
+ * origin/redirect/deadline/cap policy, but the body is returned as
+ * exact bytes (never UTF-8 decoded) with the transport content-type.
+ * Non-2xx statuses throw `HttpStatusError` with a bounded text body.
+ */
+export async function httpRequestBinary(
+  config: HttpClientConfig,
+  request: HttpRequest,
+): Promise<HttpBinaryResponse> {
+  assertValidHttpConfig(config);
+  const startUrl = resolveRequestUrl(config, request);
+  const { controller, timer, timedOut } = startDeadline(config);
+  const { signal, release: releaseSignals } = combinedSignals(
+    controller,
+    request,
+  );
+  let bytes: Uint8Array;
+  let fetched: FetchedResponse;
+  try {
+    fetched = await fetchWithRedirects(
+      config,
+      request,
+      startUrl,
+      signal,
+      timedOut,
+    );
+    try {
+      bytes = await readBoundedBytes(
+        fetched.response,
+        config.maxBodyBytes,
+        fetched.response.status,
+      );
+    } catch (err) {
+      if (err instanceof HttpBodyLimitError) {
+        throw err;
+      }
+      if (timedOut()) {
+        throw new HttpTransportError('timeout');
+      }
+      if (request.signal?.aborted === true) {
+        throw err;
+      }
+      throw new HttpTransportError('network-error');
+    }
+  } finally {
+    clearTimeout(timer);
+    releaseSignals();
+  }
+  if (fetched.response.status < 200 || fetched.response.status > 299) {
+    throw new HttpStatusError(
+      fetched.response.status,
+      new TextDecoder().decode(bytes),
+    );
+  }
+  return {
+    status: fetched.response.status,
+    url: fetched.url.href,
+    bytes,
+    contentType: fetched.response.headers.get('content-type'),
+  };
+}
+
+/** One incrementally decoded text segment of a streamed response. */
+export interface HttpStreamProgress {
+  /** Decoded text appended since the previous segment. */
+  readonly text: string;
+  /** Total response bytes received so far. */
+  readonly totalBytes: number;
+}
+
+/**
+ * Stream a response body as decoded text segments. Enforces the same
+ * policy as `httpRequest`: single deadline over headers, hops and the
+ * whole stream; same-origin redirects only; total byte cap (exceeding
+ * it throws `HttpBodyLimitError` mid-stream, never truncation).
+ * Non-2xx statuses throw `HttpStatusError` before any segment is
+ * yielded. Breaking out of the generator early cancels the
+ * underlying body (releasing the connection instead of leaving it
+ * open while the server keeps sending) and releases the deadline
+ * timer; caller-owned `request.signal` aborts surface as the
+ * original abort error.
+ */
+export async function* httpStreamText(
+  config: HttpClientConfig,
+  request: HttpRequest,
+): AsyncGenerator<HttpStreamProgress, { status: number; url: string }, void> {
+  assertValidHttpConfig(config);
+  const startUrl = resolveRequestUrl(config, request);
+  const { controller, timer, timedOut } = startDeadline(config);
+  const { signal, release: releaseSignals } = combinedSignals(
+    controller,
+    request,
+  );
+  try {
+    const fetched = await fetchWithRedirects(
+      config,
+      request,
+      startUrl,
+      signal,
+      timedOut,
+    );
+    const { response } = fetched;
+    if (response.status < 200 || response.status > 299) {
+      let bodyText = '';
+      try {
+        bodyText = await readBoundedBody(
+          response,
+          config.maxBodyBytes,
+          response.status,
+        );
+      } catch (err) {
+        if (err instanceof HttpBodyLimitError) {
+          throw err;
+        }
+        if (timedOut()) {
+          throw new HttpTransportError('timeout');
+        }
+        if (request.signal?.aborted === true) {
+          throw err;
+        }
+        throw new HttpTransportError('network-error');
+      }
+      throw new HttpStatusError(response.status, bodyText);
+    }
+    if (response.body === null) {
+      return { status: response.status, url: fetched.url.href };
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let total = 0;
+    // Set only when the loop reaches the natural end of the body. Any
+    // other exit (caller break/return, throw, deadline) cancels the
+    // reader so the connection is released instead of staying open
+    // while the server keeps sending.
+    let finished = false;
+    try {
+      for (;;) {
+        let read: ReadableStreamReadResult<Uint8Array>;
+        try {
+          read = await reader.read();
+        } catch (err) {
+          if (timedOut()) {
+            throw new HttpTransportError('timeout');
+          }
+          if (request.signal?.aborted === true) {
+            throw err;
+          }
+          throw new HttpTransportError('network-error');
+        }
+        if (read.done) {
+          break;
+        }
+        total += read.value.byteLength;
+        if (total > config.maxBodyBytes) {
+          try {
+            await reader.cancel();
+          } catch {
+            // Already closed; the limit error below is what matters.
+          }
+          throw new HttpBodyLimitError(response.status, config.maxBodyBytes);
+        }
+        const text = decoder.decode(read.value, { stream: true });
+        if (text.length > 0) {
+          yield { text, totalBytes: total };
+        }
+      }
+      finished = true;
+    } finally {
+      if (!finished) {
+        try {
+          await reader.cancel();
+        } catch {
+          // Already closed; the exit below is what matters.
+        }
+      }
+      try {
+        reader.releaseLock();
+      } catch {
+        // Already released via cancel.
+      }
+    }
+    const tail = decoder.decode();
+    if (tail.length > 0) {
+      yield { text: tail, totalBytes: total };
+    }
+    return { status: response.status, url: fetched.url.href };
+  } finally {
+    clearTimeout(timer);
+    releaseSignals();
+  }
 }
