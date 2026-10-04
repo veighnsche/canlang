@@ -13,7 +13,9 @@ import { seedFixtureTask, seedTeamUsers } from "../fixtures/seed.js";
 import type { WorkerAssembly } from "../fixtures/artifact-loader.js";
 
 const BOB = { email: "bob@example.com", password: "correct-horse-43" };
+const CAROL = { email: "carol@example.com", password: "correct-horse-44" };
 const JOURNEY_TITLE = "Journey persists this task";
+const CAROL_TITLE = "Carol shares this task";
 const CSRF_PROBE_TITLE = "CSRF probe must not persist";
 const ANON_PROBE_TITLE = "Anonymous probe must not persist";
 
@@ -25,16 +27,20 @@ function d1Binding(assembly: WorkerAssembly): string {
 
 test.describe("teamtasks journeys", () => {
   let sessionToken = "";
+  let carolToken = "";
 
   test.beforeAll(async ({ assembly, bridge, dev }) => {
     expect(assembly.label).toBe("fixture/handbuilt/teamtasks");
     await seedFixtureTask(dev, d1Binding(assembly));
-    const seed = await seedTeamUsers(bridge.url, [BOB]);
+    const seed = await seedTeamUsers(bridge.url, [BOB, CAROL]);
     expect(seed.label).toBe(assembly.label);
-    expect(seed.users).toHaveLength(1);
-    const user = seed.users[0];
-    if (user === undefined) throw new Error("teamtasks spec: seed returned no users");
-    sessionToken = user.session_token;
+    expect(seed.users).toHaveLength(2);
+    const [bob, carol] = seed.users;
+    if (bob === undefined || carol === undefined) {
+      throw new Error("teamtasks spec: seed returned no users");
+    }
+    sessionToken = bob.session_token;
+    carolToken = carol.session_token;
   });
 
   test("rejects a wrong password at login", async ({ page, bridge }) => {
@@ -105,6 +111,45 @@ test.describe("teamtasks journeys", () => {
       .bind(CSRF_PROBE_TITLE)
       .all();
     expect(results).toHaveLength(0);
+  });
+
+  // Shared-list visibility; per-team scoping needs the PR6 dispatcher
+  // (the fixture homePage SELECT has no team filter).
+  test("collaborators see each other's tasks", async ({ browser, bridge }) => {
+    const carolContext = await browser.newContext();
+    try {
+      await carolContext.addCookies([
+        { name: "can_session", value: carolToken, url: bridge.url },
+      ]);
+      const carolPage = await carolContext.newPage();
+      await carolPage.goto(`${bridge.url}/`);
+      await carolPage.locator("#e2e-task-title").fill(CAROL_TITLE);
+      await carolPage.getByRole("button", { name: "Add" }).click();
+      await expect(carolPage.getByText(CAROL_TITLE)).toBeVisible();
+    } finally {
+      await carolContext.close();
+    }
+
+    const bobContext = await browser.newContext();
+    try {
+      await bobContext.addCookies([
+        { name: "can_session", value: sessionToken, url: bridge.url },
+      ]);
+      const bobPage = await bobContext.newPage();
+      await bobPage.goto(`${bridge.url}/`);
+      await expect(bobPage.getByText(CAROL_TITLE)).toBeVisible();
+    } finally {
+      await bobContext.close();
+    }
+  });
+
+  test("unknown session shows the expired-session login", async ({ page, bridge }) => {
+    await page.context().addCookies([
+      { name: "can_session", value: "not-a-real-session-token", url: bridge.url },
+    ]);
+    await page.goto(`${bridge.url}/`);
+    await expect(page.getByRole("alert")).toContainText("Session expired or revoked.");
+    await expect(page.locator("#e2e-login-username")).toBeVisible();
   });
 
   test("rejects anonymous task creation", async ({ bridge, assembly, dev }) => {
