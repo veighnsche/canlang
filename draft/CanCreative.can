@@ -186,41 +186,102 @@ package creative
  Then
   page /creative title="Image studio"@{nl="Beeldstudio"} poll=1s
    require members
+   breadcrumbs
    form generate display=inline
-   list Run as run where can_view(actor,run) order=-created
+    fieldset "Image prompt"@{nl="Beeldprompt"}
+     select template
+     textarea prompt
+     textarea negative
+    fieldset "Size and context"@{nl="Formaat en context"}
+     input width
+     input height
+     select conversation
+   list Run as run where can_view(actor,run) order=-created empty="No image jobs yet"@{nl="Nog geen beeldtaken"}
+    pagination
     title row.prompt
-    text row.state,row.delivery_state,row.stop_requested,row.stop_delivery,row.reconcile_delivery,row.used,row.detail
-    gallery row.Output image=image order=position
+    status row.delivery_state
+    status row.stop_delivery
+    status row.reconcile_delivery
+    badge row.state
+    text row.stop_requested,row.used,row.detail
+    loading row.unfinished
+    gallery row.Output image=image order=position empty="No images yet"@{nl="Nog geen beelden"}
+     pagination
     actions stop,reconcile,release_skipped
-   table Budget columns=cap,spent,held,running,active
+   table Budget columns=cap,spent,held,running,active empty="No image-job allowances"@{nl="Geen budgetten voor beeldtaken"}
+    pagination
   page /creative/from-chat title="Chat to image"@{nl="Van gesprek naar beeld"} poll=1s
    require members
-   list Conversation as conversation where conversation.active
+   breadcrumbs
+   list Conversation as conversation where conversation.active empty="No conversations"@{nl="Geen gesprekken"}
+    pagination
     title row.title
-    list row.Branch
+    list row.Branch empty="No branches"@{nl="Geen vertakkingen"}
+     pagination
      title row.title
-     list row.Turn order=position
-      content row.content
+     list row.Turn order=position empty="No messages"@{nl="Geen berichten"}
+      pagination
+      chat_bubble
+       slot header
+        text row.role
+       slot content
+        content row.content
       form from_turn arguments={turn=row}
+       fieldset "Image prompt"@{nl="Beeldprompt"}
+        select template
+        textarea negative
+       fieldset "Size"@{nl="Formaat"}
+        input width
+        input height
   page /creative/recovery title="Unresolved image jobs"@{nl="Onopgeloste beeldtaken"} poll=1s
    require members
-   table Run as run where run.unfinished or run.used==null columns=state,delivery_state,stop_delivery,reconcile_delivery,used,detail
+   breadcrumbs
+   table Run as run where run.unfinished or run.used==null columns=state,delivery_state,stop_delivery,reconcile_delivery,used,detail empty="No unresolved image jobs"@{nl="Geen onopgeloste beeldtaken"}
+    pagination
+    status row.delivery_state
     actions stop,reconcile,release_skipped
   page /creative/workflows title="Workflow templates"@{nl="Workflowsjablonen"} poll=1s
    require creative_manager
-   text "Upload an allowed API-format graph. Inspect its inputs, map the four fields, validate a snapshot, then publish it."@{nl="Upload een toegestane API-graaf. Inspecteer de invoer, koppel vier velden, valideer een momentopname en publiceer deze."}
+   breadcrumbs
+   alert
+    text "Upload an allowed API-format graph. Inspect its inputs, map the four fields, validate a snapshot, then publish it."@{nl="Upload een toegestane API-graaf. Inspecteer de invoer, koppel vier velden, valideer een momentopname en publiceer deze."}
    form Template.create
-   list Template as template where template.owner==actor
+    fieldset "Graph"@{nl="Graaf"}
+     input name
+     file_input graph
+    fieldset "Input mapping"@{nl="Invoerkoppeling"}
+     input prompt_node
+     input prompt_key
+     input negative_node
+     input negative_key
+     input width_node
+     input width_key
+     input height_node
+     input height_key
+    fieldset "Limits"@{nl="Limieten"}
+     range outputs
+     input duration
+   list Template as template where template.owner==actor empty="No workflow templates yet"@{nl="Nog geen workflowsjablonen"}
+    pagination
     title row.name
     edit
     action inspect
     text row.inspection
-    list (row.inspection?.result?.fields ?? [])
+    list (row.inspection?.result?.fields ?? []) empty="No input fields found"@{nl="Geen invoervelden gevonden"}
+     pagination
      text row.node,row.key,row.kind,row.label
     action validate
-    list row.Revision order=-number
+    list row.Revision order=-number empty="No revisions yet"@{nl="Nog geen versies"}
+     pagination
      text row.number,row.published,row.validation,row.digest
      action publish
    form Budget.create
-   table Budget columns=account,cap,parallel,spent,held,running,active
+    ## account keeps its generated entry: user references have no catalog picker.
+    input cap
+    range parallel
+   table Budget columns=account,cap,parallel,spent,held,running,active empty="No image-job allowances"@{nl="Geen budgetten voor beeldtaken"}
+    pagination
     edit fields=cap,parallel,active
+     input cap
+     range parallel
+     checkbox active
