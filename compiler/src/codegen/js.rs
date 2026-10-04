@@ -26,9 +26,9 @@
 use crate::analysis::resolve::{CrudOp, ModuleKind};
 use crate::analysis::types::ResolvedType;
 use crate::codegen::ir::{
-    IrBinOp, IrCallTarget, IrDefault, IrExpr, IrFieldLabel, IrGuard, IrItemKind, IrMessage, IrPage,
-    IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin, ScalarFamily, TypedExpr,
-    expr_uses_async, is_structural, scalar_family,
+    IrBinOp, IrCallTarget, IrDefault, IrExpr, IrFieldLabel, IrGuard, IrItem, IrItemKind, IrMessage,
+    IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin, ScalarFamily,
+    TypedExpr, expr_uses_async, is_structural, scalar_family,
 };
 use crate::diagnostic::Diagnostic;
 use crate::source::Span;
@@ -65,6 +65,8 @@ pub struct JsCallable {
     pub kind: JsCallableKind,
     /// Registry member / export name.
     pub export: String,
+    /// Path segments into the module's `canApp()` registry object.
+    pub member: Vec<String>,
     /// Declaration span.
     pub span: Span,
 }
@@ -1238,8 +1240,9 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// Lower a query to `records(c, model, {parent?, where?, order?, limit?,
-    /// archived?})`: viewer read grants apply before filters and projection.
+    /// Lower a query to `await records(c, model, {parent?, where?, order?,
+    /// limit?, archived?})`: `records()` returns a promise and viewer read
+    /// grants apply before filters and projection.
     fn lower_query(&mut self, query: &crate::codegen::ir::IrQuery, _span: Span) -> String {
         self.stdlib.insert("records".to_string());
         let mut opts = Vec::new();
@@ -1276,7 +1279,7 @@ impl<'a> Emitter<'a> {
             opts.push(format!("archived:{}", self.lower_expr(archived)));
         }
         format!(
-            "records(c,{},{{{}}})",
+            "await records(c,{},{{{}}})",
             js_string(&query.model),
             opts.join(",")
         )
@@ -1879,6 +1882,29 @@ fn crud_when_key(when: Option<&String>) -> Option<String> {
     when.map(|key| sanitize_ident(key))
 }
 
+/// Registry path segments into the module's `canApp()` return object for
+/// one callable item (explicit linkage: the runtime walks these, it never
+/// re-derives handler names). Scenarios and derived functions address
+/// their top-level handler, CRUD ops their generated handler, derived
+/// fields their `derives` map entry. Segments stay an array because keys
+/// contain dots (`Todo.total`), so no joined string is unambiguous.
+fn registry_member(ir: &IrProgram, item: &IrItem) -> Vec<String> {
+    match &item.kind {
+        IrItemKind::Scenario { .. } | IrItemKind::DeriveFn { .. } => {
+            vec![sanitize_ident(&item.name)]
+        }
+        IrItemKind::CrudOp { model, op, .. } => {
+            let model_name = &ir.items[model.0 as usize].name;
+            vec![crud_handler_name(model_name, *op)]
+        }
+        IrItemKind::DeriveField { model, .. } => {
+            let model_name = &ir.items[model.0 as usize].name;
+            vec!["derives".to_string(), format!("{model_name}.{}", item.name)]
+        }
+        _ => unreachable!("registry_member: not a callable item"),
+    }
+}
+
 impl<'a> Emitter<'a> {
     /// Emit canonical user-operation identity constants: the registry
     /// holds implementations, the module exports qualified identities.
@@ -1921,6 +1947,7 @@ impl<'a> Emitter<'a> {
                 id: item.canonical.clone(),
                 kind,
                 export: export.clone(),
+                member: registry_member(self.ir, item),
                 span: item.span,
             });
             out.push(
@@ -2799,40 +2826,33 @@ impl<'a> Emitter<'a> {
     fn emit_derives_map(&mut self, out: &mut JsWriter, span: Span) {
         // Derived fields share one `derives` map keyed by local
         // `Model.field` per the oracle corpus.
-        let derive_items: Vec<(String, String, Span, Option<TypedExpr>)> = self
-            .ir
-            .items
-            .iter()
-            .filter_map(|item| match &item.kind {
-                IrItemKind::DeriveField { model, expr, .. } => {
-                    let key = format!(
-                        "{}.{}",
-                        self.ir.items[model.0 as usize].name.clone(),
-                        item.name
-                    );
-                    Some((key, item.canonical.clone(), item.span, expr.clone()))
-                }
-                _ => None,
-            })
-            .collect();
         let mut derives = Vec::new();
-        for (key, canonical, span, expr) in &derive_items {
+        for item in self.ir.items.clone() {
+            let IrItemKind::DeriveField { model, expr, .. } = &item.kind else {
+                continue;
+            };
+            let key = format!(
+                "{}.{}",
+                self.ir.items[model.0 as usize].name.clone(),
+                item.name
+            );
             self.callables.push(JsCallable {
-                id: canonical.clone(),
+                id: item.canonical.clone(),
                 kind: JsCallableKind::Pure,
                 export: key.clone(),
-                span: *span,
+                member: registry_member(self.ir, &item),
+                span: item.span,
             });
             match expr {
                 Some(expr) => {
                     let body_text = self.lower_expr(expr);
-                    derives.push(format!("{}:async(c,row)=>{body_text}", js_string(key)));
+                    derives.push(format!("{}:async(c,row)=>{body_text}", js_string(&key)));
                 }
                 None => {
                     derives.push(format!(
                         "{}:async(c,row)=>{{throw new Error({});}}",
-                        js_string(key),
-                        js_string(&format!("unchecked derive: {canonical}"))
+                        js_string(&key),
+                        js_string(&format!("unchecked derive: {}", item.canonical))
                     ));
                 }
             }
@@ -2990,6 +3010,7 @@ impl<'a> Emitter<'a> {
                         id: item.canonical.clone(),
                         kind: JsCallableKind::Pure,
                         export: name.clone(),
+                        member: registry_member(self.ir, item),
                         span: item.span,
                     });
                     match expr {

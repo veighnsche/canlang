@@ -93,21 +93,27 @@ spy store implementing the fenced protocol, labeled in-script):
 
 ## Filed follow-ups (the crisp B1 boundary, all fail-loud today)
 
-1. **Artifact→registry linkage.** DESIGN 1075: exports are identity
-   consts, implementations live in `canApp()`. The artifact carries
-   no member pointer, so `invokeCallable` (written to a direct-export
-   packet spec that contradicts 1075) reports e.g.
-   `export "TeamNotes_create" is string, not a function` — pinned by
-   a committed test. Fix: artifact member field or specified
-   convention; runtime must not guess.
+1. **Artifact→registry linkage — DONE on `muse/closeout/b1-followups`.**
+   `ArtifactCallable.member: string[]` added (contract + `js.rs`
+   `registry_member()` + `artifact.rs` emission); `invokeCallable`
+   walks `canApp()` by member segments with fail-loud per-segment
+   errors; loader + assembly assert validate the shape. Proven:
+   `invokeCallable(…,"TeamNotes.Note.create",…)` → `ok:true` +
+   exact fenced batch; anon → `forbidden`.
 2. **Page render needs `PresentationContext`.** ui components take
    presentation ctx (preferredLocales, theme, path, CSRF…); emission
-   passes the op ctx. CSRF minting is lane-6 — no interim token was
-   faked. Needs the L1/L5/L6 context-construction decision.
-3. **`await records` + form fields.** Codegen emits bare `records(`
-   (async store, one-line fix + 3 golden pins — deferred, not
-   hidden); `form Note.create` without `fields=` crashes ui forms
-   (L1-vs-L5 default decision).
+   forwards its first arg untouched, which is correct once the
+   dispatcher supplies a real pctx (F2 design: the real L6 dispatcher
+   already builds it inline — dedupe task in `packages/interfaces`,
+   NOT this lane). CSRF: lane-6 mint, `''`-for-anonymous (fails
+   closed, already the real-path behavior) — needs Vince's approval.
+   Open item for lane 6: pre-session login-CSRF story.
+3. **`await records` + form fields — DONE on
+   `muse/closeout/b1-followups`.** `lower_query` emits
+   `await records(` (+ `expr_uses_async` Query arm, 3 golden pins);
+   `decode_form` defaults `fields` from the resolved CRUD model
+   (explicit wins, unresolvable stays loud). Proven in fresh
+   `demo.can` output: 1 awaited / 0 bare; both forms carry fields.
 
 ## Gates
 
