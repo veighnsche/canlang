@@ -426,6 +426,61 @@ fn unresolved_imports_stay_quiet() {
 }
 
 #[test]
+fn imported_wrong_kind_names_fire() {
+    // M3 site 1: an imported model as selector root resolves to the
+    // wrong kind, so E5002 must fire (not Opaque silence).
+    let src = "app P\nGiven\n export Gadget { title:text }\nWhen\nThen\npackage Q\n use P {Gadget}\n Given\n  Expense { amount:int }\n  policy Expense read=members\n  fixture pending=Expense {amount=1}\n When\n  scenario approve(expense:Expense) by=members\n   do\n    let x = 1\n   examples expense=pending\n    as,Gadget.title -> expense.amount\n    members,1 -> 1\n Then\n";
+    assert_e5(src, &[("E5002", "Gadget.title", 1)]);
+    // M3 site 3: an imported model as sequence caller resolves to the
+    // wrong kind, so E5004 must fire.
+    let src = "app P\nGiven\n export Gadget { title:text }\nWhen\nThen\npackage Q\n use P {Gadget}\n Given\n  Expense { amount:int }\n  policy Expense read=members\n  fixture pending=Expense {amount=1}\n When\n  scenario approve(expense:Expense) by=members\n   do\n    let x = 1\n   examples\n    do\n     call approve {expense=pending} by=Gadget\n     1 -> 1\n Then\n";
+    assert_e5(src, &[("E5004", "Gadget", 3)]);
+    // M3 site 2: an imported scenario as CRUD head resolves to the
+    // wrong kind, so E5006 must fire.
+    let src = "app P\nGiven\nWhen\n export scenario work(n:int) -> int by=members\n  do return n\nThen\npackage Q\n use P {work}\n Given\n  Expense { amount:int }\n  policy Expense read=members\n  fixture pending=Expense {amount=1}\n When\n  scenario approve(expense:Expense) by=members\n   do\n    let x = 1\n   examples\n    do\n     call work.create {expense=pending} by=self\n     call approve {expense=pending} by=self\n     1 -> 1\n Then\n";
+    assert_e5(src, &[("E5006", "work.create", 1)]);
+}
+
+#[test]
+fn sequence_caller_names_known_wrong_kinds() {
+    // N4: a known-but-wrong-kind local names the fault instead of
+    // crying "unknown caller".
+    let one = " scenario approve(expense:Expense) by=members\n  do\n   let x = 1\n";
+    let src = sequence_source(
+        one,
+        "    call approve {expense=pending} by=approve\n    1 -> 1\n",
+    );
+    let diags = e5(&src);
+    assert_eq!(diags.len(), 1, "{diags:?}");
+    assert_eq!(diags[0].code, "E5004");
+    assert!(
+        diags[0].message.contains("cannot select a caller"),
+        "{}",
+        diags[0].message
+    );
+}
+
+#[test]
+fn broken_import_caller_and_crud_head_stay_quiet() {
+    // Genuinely unresolvable imports are resolve's E2005; the
+    // sequence-caller and CRUD-head checks stay silent on them.
+    let src = "app T\nuse nowhere {ghost}\nGiven\n Expense { amount:int }\n policy Expense read=members\n fixture pending=Expense {amount=1}\nWhen\n scenario approve(expense:Expense) by=members\n  do\n   let x = 1\n  examples\n   do\n    call approve {expense=pending} by=ghost\n    1 -> 1\nThen\n";
+    let (_, diags) = run_examples(src);
+    assert!(
+        diags.iter().any(|d| d.code == "E2005"),
+        "expected the broken import E2005: {diags:?}"
+    );
+    assert!(diags.iter().all(|d| !d.code.starts_with("E5")), "{diags:?}");
+    let src = "app T\nuse nowhere {ghost}\nGiven\n Expense { amount:int }\n policy Expense read=members\n fixture pending=Expense {amount=1}\nWhen\n scenario approve(expense:Expense) by=members\n  do\n   let x = 1\n  examples\n   do\n    call ghost.create {expense=pending} by=self\n    call approve {expense=pending} by=self\n    1 -> 1\nThen\n";
+    let (_, diags) = run_examples(src);
+    assert!(
+        diags.iter().any(|d| d.code == "E2005"),
+        "expected the broken import E2005: {diags:?}"
+    );
+    assert!(diags.iter().all(|d| !d.code.starts_with("E5")), "{diags:?}");
+}
+
+#[test]
 fn trusted_handlers_take_no_as() {
     let src = "app T\nGiven\nWhen\n scenario tick on=every(5m)\n  do\n   let x = 1\n  examples\n   as -> x\n   members -> 1\nThen\n";
     let diags = e5(src);
@@ -818,15 +873,30 @@ fn readiness_gate() {
 
 #[test]
 fn dedup_keeps_first_across_passes() {
+    // Exact repeats collapse, keeping the earliest pass's wording.
     let mut first = diag("E2001", Severity::Error, 0, 5);
     first.message = "resolve wording".to_string();
     let mut second = diag("E2001", Severity::Error, 0, 5);
-    second.message = "types wording".to_string();
+    second.message = "resolve wording".to_string();
+    // Same (file, start, code) with a different end or message is a
+    // distinct finding and must survive.
+    let mut other_message = diag("E2001", Severity::Error, 0, 5);
+    other_message.message = "types wording".to_string();
+    let mut other_end = diag("E2001", Severity::Error, 0, 5);
+    other_end.primary.end = 9;
     let other_code = diag("E3001", Severity::Error, 0, 5);
     let other_span = diag("E2001", Severity::Error, 0, 6);
     let other_file = diag("E2001", Severity::Error, 1, 5);
-    let out = dedup_diagnostics(vec![first, second, other_code, other_span, other_file]);
-    assert_eq!(out.len(), 4, "{out:?}");
+    let out = dedup_diagnostics(vec![
+        first,
+        second,
+        other_message,
+        other_end,
+        other_code,
+        other_span,
+        other_file,
+    ]);
+    assert_eq!(out.len(), 6, "{out:?}");
     assert_eq!(out[0].message, "resolve wording");
 }
 

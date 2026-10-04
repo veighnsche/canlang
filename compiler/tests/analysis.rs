@@ -673,69 +673,79 @@ fn draft_outcome_table() {
     };
     let catalog = load_real_catalog(&path);
     // (file, expected diagnostic count). Counts regenerated 2026-10-04
-    // for PR5, attribution proven per file against a PR4 binary on the
-    // same drafts (PR5 = PR4 - dedup + E5, zero violations in 52 files):
+    // for the PR5 review fixes (M1: the dedup key now includes
+    // end+message), restoring 249 findings the old (file, start, code)
+    // key had collapsed (E2 +14, E3 +233, E5 +2 -- CanCRM and CanTable
+    // each regain one intra-pass E5 repeat). Attribution is measured
+    // in-tree: the undeduped manual pipeline against check_program on
+    // the same drafts gives pre==post in every group (E1 4, E2 4773,
+    // E3 3393, E4 0, E5 26), so the new key removes 0 on drafts and
+    // every restored finding differed in end or message; the old-key
+    // run reproduces the previous table 52/52, pinning all movement to
+    // the key change (B1-B4/M3/N1 move no draft).
     // E4 adds 0 everywhere (effects skip `has_error` subtrees and drafts
-    // are pre-v1 sources failing early -- by design); E5 adds 24 total
-    // across 10 files (CanCRM 3, CanDesk 1, CanEvent 2, CanInvoice 1,
+    // are pre-v1 sources failing early -- by design); E5 adds 26 total
+    // across 10 files (CanCRM 4, CanDesk 1, CanEvent 2, CanInvoice 1,
     // CanLeave 6, CanPropose 2, CanPurchase 5, CanRefer 1, CanReport 2,
-    // CanTable 1); cross-pass dedup removes 247 duplicates (E2 -14,
-    // E3 -233); all other E1/E2/E3 moves are draft-side replans on main
-    // (50 files, slices #102-#110). CanShift 4 / CanVolunteer 3 hold.
-    // Previous regen (PR4 review fixes): B4 types `invocation(...)` positions
-    // (CanWorkbench +2: the line-15 target E2001s) and M6 resolves
-    // `slot`/catalog-item subtrees like their siblings (all other
-    // moves are UI-subtree E2001/E2013s under identical scoping, each
-    // family audited: no new codes, no other adds) plus the PR5B
-    // carryover (CanCreative -1: `application/json` fixture type now
-    // accepted per DESIGN §5).
+    // CanTable 2). This table pins the error-skip behavior, not E4
+    // precision/recall (that evidence rests on the unit tests and the
+    // explain round-trip). CanShift 4 / CanVolunteer 3 hold.
+    // Previous regen (PR5): PR5 = PR4 - dedup + E5, attribution against
+    // a PR4 binary; all other E1/E2/E3 moves were draft-side replans on
+    // main (50 files, slices #102-#110). Previous regen (PR4 review
+    // fixes): B4 types `invocation(...)` positions (CanWorkbench +2: the
+    // line-15 target E2001s) and M6 resolves `slot`/catalog-item subtrees
+    // like their siblings (all other moves are UI-subtree E2001/E2013s
+    // under identical scoping, each family audited: no new codes, no
+    // other adds) plus the PR5B carryover (CanCreative -1:
+    // `application/json` fixture type now accepted per DESIGN §5).
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 108),
-        ("draft/CanApprove.can", 99),
+        ("draft/CanApprove.can", 103),
         ("draft/CanBoard.can", 14),
         ("draft/CanBook.can", 233),
-        ("draft/CanCRM.can", 189),
+        ("draft/CanCRM.can", 197),
         ("draft/CanCatch.can", 111),
-        ("draft/CanChat.can", 134),
-        ("draft/CanCheck.can", 96),
-        ("draft/CanContract.can", 101),
-        ("draft/CanCreative.can", 203),
-        ("draft/CanCustomer.can", 106),
-        ("draft/CanDecide.can", 55),
-        ("draft/CanDesk.can", 133),
-        ("draft/CanDiscover.can", 173),
-        ("draft/CanDo.can", 62),
+        ("draft/CanChat.can", 147),
+        ("draft/CanCheck.can", 100),
+        ("draft/CanContract.can", 102),
+        ("draft/CanCreative.can", 219),
+        ("draft/CanCustomer.can", 109),
+        ("draft/CanDecide.can", 66),
+        ("draft/CanDesk.can", 157),
+        ("draft/CanDiscover.can", 179),
+        ("draft/CanDo.can", 64),
         ("draft/CanEnrich.can", 53),
-        ("draft/CanEvent.can", 454),
+        ("draft/CanEvent.can", 478),
         ("draft/CanExpense.can", 128),
         ("draft/CanFeedback.can", 36),
-        ("draft/CanField.can", 130),
-        ("draft/CanGallery.can", 39),
-        ("draft/CanGrant.can", 93),
-        ("draft/CanHire.can", 159),
-        ("draft/CanInbox.can", 193),
-        ("draft/CanInvoice.can", 638),
-        ("draft/CanKnowledge.can", 104),
+        ("draft/CanField.can", 131),
+        ("draft/CanGallery.can", 40),
+        ("draft/CanGrant.can", 102),
+        ("draft/CanHire.can", 164),
+        ("draft/CanInbox.can", 201),
+        ("draft/CanInvoice.can", 660),
+        ("draft/CanKnowledge.can", 123),
         ("draft/CanLearn.can", 50),
         ("draft/CanLeave.can", 105),
-        ("draft/CanLoyalty.can", 129),
-        ("draft/CanMail.can", 238),
-        ("draft/CanMaintain.can", 182),
-        ("draft/CanMember.can", 557),
-        ("draft/CanOnboard.can", 63),
-        ("draft/CanPropose.can", 194),
-        ("draft/CanPurchase.can", 235),
-        ("draft/CanReception.can", 254),
-        ("draft/CanRefer.can", 136),
-        ("draft/CanRent.can", 1022),
+        ("draft/CanLoyalty.can", 133),
+        ("draft/CanMail.can", 241),
+        ("draft/CanMaintain.can", 186),
+        ("draft/CanMember.can", 566),
+        ("draft/CanOnboard.can", 67),
+        ("draft/CanPropose.can", 201),
+        ("draft/CanPurchase.can", 238),
+        ("draft/CanReception.can", 258),
+        ("draft/CanRefer.can", 139),
+        ("draft/CanRent.can", 1032),
         ("draft/CanReport.can", 52),
         ("draft/CanShift.can", 4),
         ("draft/CanStats.can", 82),
-        ("draft/CanStock.can", 140),
-        ("draft/CanSuccess.can", 103),
+        ("draft/CanStock.can", 142),
+        ("draft/CanSuccess.can", 107),
         ("draft/CanSync.can", 71),
-        ("draft/CanTable.can", 69),
-        ("draft/CanTime.can", 156),
+        ("draft/CanTable.can", 73),
+        ("draft/CanTime.can", 163),
         ("draft/CanTrade.can", 43),
         ("draft/CanVolunteer.can", 3),
         ("draft/CanWorkbench.can", 140),

@@ -1174,7 +1174,11 @@ impl<'a> Typer<'a> {
                 return self.hook_record_target(cx, target, what, &segments);
             }
         }
+        // Record the target type: effects reads it back for member-path
+        // resolution (`E4001` ownership, `E4051` write evidence). The
+        // call below types on the fly without recording.
         let ty = self.type_path_value(cx, target);
+        let ty = self.record(target, ty);
         match ty {
             ResolvedType::Record {
                 symbol,

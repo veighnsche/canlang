@@ -286,6 +286,51 @@ fn cross_package_mutation() {
     );
 }
 
+// --- E4001 member-path mutation (PR5 review B2) ------------------------------
+
+const CROSS_MUTATION_MEMBER: &str = r#"# Cross-package member-path mutation fixture.
+app Shop
+Given
+ export Customer { name:text }
+ export Order { customer:Customer }
+When
+Then
+package Other
+ use Shop {Order, Customer}
+ Given
+ When
+  scenario touch_member(o:Order) by=members
+   do set o.customer {name="there"}
+  scenario drop_member(o:Order) by=members
+   do delete o.customer
+ Then
+"#;
+
+const SAME_PACKAGE_MEMBER: &str = r#"# Same-package member paths stay clean.
+app Shop
+Given
+ Customer { name:text }
+ Order { customer:Customer }
+When
+ scenario touch_member(o:Order) by=members
+  do set o.customer {name="here"}
+ scenario drop_member(o:Order) by=members
+  do delete o.customer
+Then
+"#;
+
+#[test]
+fn cross_package_member_mutation() {
+    let catalog = fixture();
+    let (_, _, diags) = run(CROSS_MUTATION_MEMBER, Some(&catalog));
+    assert_findings(
+        CROSS_MUTATION_MEMBER,
+        &diags,
+        &[("E4001", "o.customer", 1), ("E4001", "o.customer", 2)],
+    );
+    assert_codes(SAME_PACKAGE_MEMBER, Some(&catalog), &[]);
+}
+
 // --- E4002 cross-package rule ----------------------------------------------
 
 const CROSS_RULE: &str = r#"# Cross-package rule fixture.
@@ -385,6 +430,50 @@ fn secret_field_grant() {
     let (_, _, diags) = run(SECRET_GRANT, Some(&catalog));
     assert_findings(SECRET_GRANT, &diags, &[("E4010", "value", 2)]);
     assert_codes(SECRET_UNGRANTD, Some(&catalog), &[]);
+}
+
+// --- E4010 nullable secrets (PR5 review B3) ----------------------------------
+
+const SECRET_GRANT_NULLABLE: &str = r#"# Nullable secret grant fixture.
+app Shop
+Given
+ Token { value:secret? server=random_secret() }
+ policy Token read=members fields=value
+When
+Then
+"#;
+
+const SECRET_GRANT_NESTED_NULLABLE: &str = r#"# Nullable-intermediate secret grant fixture.
+app Shop
+Given
+ contract Profile { token:secret server=random_secret() }
+ Token { profile:Profile? }
+ policy Token read=members fields=profile.token
+When
+Then
+"#;
+
+const NULLABLE_NON_SECRET: &str = r#"# Nullable non-secret grants stay clean.
+app Shop
+Given
+ Token { nick:text? }
+ policy Token read=members fields=nick
+When
+Then
+"#;
+
+#[test]
+fn nullable_secret_grant() {
+    let catalog = fixture();
+    let (_, _, diags) = run(SECRET_GRANT_NULLABLE, Some(&catalog));
+    assert_findings(SECRET_GRANT_NULLABLE, &diags, &[("E4010", "value", 2)]);
+    let (_, _, diags) = run(SECRET_GRANT_NESTED_NULLABLE, Some(&catalog));
+    assert_findings(
+        SECRET_GRANT_NESTED_NULLABLE,
+        &diags,
+        &[("E4010", "profile.token", 1)],
+    );
+    assert_codes(NULLABLE_NON_SECRET, Some(&catalog), &[]);
 }
 
 // --- E4011 secret return ---------------------------------------------------
@@ -769,6 +858,40 @@ fn transitive_handler_scope() {
     assert_findings(TRANSITIVE_SCOPE, &diags, &[("E4051", "every(5m)", 1)]);
 }
 
+// --- E4051 write-only evidence (PR5 review B4) --------------------------------
+
+const WRITE_ONLY_SCOPE: &str = r#"# Write-only transitive scope fixture.
+app Shop
+Given
+ AppConfig in app { name:text }
+ TeamModel { title:text }
+ policy AppConfig read=members
+When
+ scenario passthru(m:TeamModel) -> TeamModel by=members
+  do return m
+ scenario tick on=every(5m)
+  do
+   call passthru {} as x
+   set x {title="t"}
+   create AppConfig {name="x"} as c
+Then
+"#;
+
+#[test]
+fn write_only_handler_scope() {
+    // B4: the helper's model set is empty (no query/create in its
+    // body), so the team model enters only through the `set` on the
+    // call result. E4051 must still fire. (The call omits its required
+    // input on purpose: E3009 pins the opaque entry.)
+    let catalog = fixture();
+    let (_, _, diags) = run(WRITE_ONLY_SCOPE, Some(&catalog));
+    assert_findings(
+        WRITE_ONLY_SCOPE,
+        &diags,
+        &[("E3009", "{}", 1), ("E4051", "every(5m)", 1)],
+    );
+}
+
 const HOOK_ADJUST: &str = r#"# Hook pending-record fixture.
 app Shop
 Given
@@ -871,4 +994,32 @@ fn bound_crud_call_exempt() {
     // accept them, so flagging the call would leave no valid path.
     let catalog = fixture();
     assert_codes(BOUND_CRUD_CALL, Some(&catalog), &[]);
+}
+
+// --- PR5 review: containment cycle terminates (B1) --------------------------
+
+const CONTAINMENT_CYCLE: &str = r#"# Containment cycle with a handler touch.
+app Shop
+Given
+ A in B { x:text }
+ B in A { y:text }
+When
+ scenario tick on=every(5m)
+  do
+   let n=count(A)
+Then
+"#;
+
+#[test]
+fn containment_cycle_terminates() {
+    // B1: resolve reports the cycle (E2008); the effects scope walk
+    // must terminate instead of looping on the ChildOf links. (Two
+    // nodes only: a regression hangs this test loudly by timeout.)
+    let catalog = fixture();
+    let (_, _, diags) = run(CONTAINMENT_CYCLE, Some(&catalog));
+    assert_findings(
+        CONTAINMENT_CYCLE,
+        &diags,
+        &[("E2008", "A", 1), ("E2008", "B", 2)],
+    );
 }

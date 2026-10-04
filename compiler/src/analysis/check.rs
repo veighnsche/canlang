@@ -5,8 +5,8 @@
 //! module before returning:
 //!
 //! - [`dedup_diagnostics`] drops duplicate findings across passes by
-//!   `(file, start, code)`, keeping the earliest pass's report (parse,
-//!   then resolve, types, effects, examples);
+//!   `(file, start, end, code, message)`, keeping the earliest pass's
+//!   report (parse, then resolve, types, effects, examples);
 //! - [`sort_diagnostics`] restores the deterministic
 //!   `(file, start, code)` order `check_program` has always produced;
 //! - [`has_errors`]/[`exit_code`] pin the warning policy: warnings
@@ -19,9 +19,11 @@
 //!   acknowledgement.
 //!
 //! A missing pass is reported as `E7006` (coordinator-owned tool
-//! range): production pipelines always run every pass, so the gate is
-//! empty by construction and exists to force a loud failure instead
-//! of a silently partial check.
+//! range). The gate trusts its input flags: production pipelines run
+//! every pass and claim so, leaving the gate empty by construction. It
+//! documents the completeness contract rather than enforcing it — a
+//! refactor that drops a pass without updating its claim would stay
+//! silent (deriving the flags from actual execution is future work).
 
 use std::collections::HashSet;
 
@@ -92,16 +94,27 @@ pub fn readiness(program_tables_available: CompleteInputs) -> Vec<Diagnostic> {
 }
 
 /// Drop duplicate diagnostics across passes by
-/// `(file, start, code)`, keeping the first occurrence.
+/// `(file, start, end, code, message)`, keeping the first occurrence.
 ///
 /// Pass outputs merge in pipeline order (parse, resolve, types,
 /// effects, examples), so the earliest pass's wording wins and later
-/// repeats of the same finding at the same position vanish.
+/// repeats of the same finding vanish. Findings sharing
+/// `(file, start, code)` but differing in end or message are distinct
+/// and all survive.
 pub fn dedup_diagnostics(diagnostics: Vec<Diagnostic>) -> Vec<Diagnostic> {
-    let mut seen: HashSet<(crate::source::SourceId, u32, &'static str)> = HashSet::new();
+    let mut seen: HashSet<(crate::source::SourceId, u32, u32, &'static str, String)> =
+        HashSet::new();
     diagnostics
         .into_iter()
-        .filter(|d| seen.insert((d.primary.file, d.primary.start, d.code)))
+        .filter(|d| {
+            seen.insert((
+                d.primary.file,
+                d.primary.start,
+                d.primary.end,
+                d.code,
+                d.message.clone(),
+            ))
+        })
         .collect()
 }
 

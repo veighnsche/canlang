@@ -565,7 +565,9 @@ pub struct CapabilityData {
     pub module: ModuleId,
     /// Capability declaration node.
     pub node: NodeKey,
-    /// Decoded `version=` int literal, when the declaration pins one.
+    /// Decoded `version=` int literal, when the declaration pins one
+    /// (`None` with `version_node` set means the literal was
+    /// unparseable, e.g. overflow).
     pub version: Option<i64>,
     /// `version=` value node.
     pub version_node: Option<NodeKey>,
@@ -1689,6 +1691,45 @@ impl<'a> Cx<'a> {
     }
 
     fn push_rule_ref(&mut self, module: ModuleId, rule: RuleRef) {
+        // Skip refs with no stored rule behind them: on dirty programs
+        // the target's model/record data can be missing (the rule push
+        // was skipped), and index 0 would dangle.
+        let anchored = match rule.kind {
+            RuleKind::Policy => self
+                .out
+                .models
+                .get(&rule.model)
+                .is_some_and(|m| rule.index < m.policies.len()),
+            RuleKind::Invariant => {
+                self.out
+                    .models
+                    .get(&rule.model)
+                    .is_some_and(|m| rule.index < m.invariants.len())
+                    || self
+                        .out
+                        .records
+                        .get(&rule.model)
+                        .is_some_and(|r| rule.index < r.invariants.len())
+            }
+            RuleKind::Unique => self
+                .out
+                .models
+                .get(&rule.model)
+                .is_some_and(|m| rule.index < m.uniques.len()),
+            RuleKind::Lock => self
+                .out
+                .models
+                .get(&rule.model)
+                .is_some_and(|m| rule.index < m.locks.len()),
+            RuleKind::Retain => self
+                .out
+                .models
+                .get(&rule.model)
+                .is_some_and(|m| rule.index < m.retains.len()),
+        };
+        if !anchored {
+            return;
+        }
         let Some(data) = self.out.modules.get_mut(&module) else {
             return;
         };
@@ -1735,7 +1776,9 @@ impl<'a> Cx<'a> {
 
     /// Whether a `fields=` selector path resolves to a `secret` leaf:
     /// the head must be a field of `model`; descent continues only
-    /// through singular contract/event records.
+    /// through contract/event records. Nullable layers never hide a
+    /// secret: both intermediates and the leaf unwrap one `Nullable`
+    /// (the types pass never nests them).
     fn selector_is_secret(&self, model: SymbolId, segments: &[&str]) -> bool {
         let [head, rest @ ..] = segments else {
             return false;
@@ -1745,6 +1788,9 @@ impl<'a> Cx<'a> {
         };
         let mut ty = self.types.symbol_types.get(&field).cloned();
         for segment in rest {
+            if let Some(ResolvedType::Nullable(inner)) = ty {
+                ty = Some(*inner);
+            }
             let Some(ResolvedType::Record { symbol, .. }) = ty else {
                 return false;
             };
@@ -1758,6 +1804,9 @@ impl<'a> Cx<'a> {
                 return false;
             };
             ty = self.types.symbol_types.get(&next).cloned();
+        }
+        if let Some(ResolvedType::Nullable(inner)) = ty {
+            ty = Some(*inner);
         }
         matches!(ty, Some(ResolvedType::Scalar(Scalar::Secret)))
     }
@@ -3105,14 +3154,24 @@ impl<'a> Cx<'a> {
     }
 
     /// Whether a model's scope root is app scope (`in app`); children
-    /// inherit their root ancestor's scope.
+    /// inherit their root ancestor's scope. Resolve reports containment
+    /// cycles (`E2008`) but leaves the links intact, so the walk carries
+    /// a visited set and treats a revisited model as team scope (the
+    /// program is already invalid; the scope answer is moot).
     fn scope_is_app(&self, mut model: SymbolId) -> bool {
+        let mut seen = HashSet::new();
+        seen.insert(model);
         loop {
             match &self.tables.symbols[model.0 as usize].kind {
                 SymbolKind::Model {
                     owner: ModelOwner::ChildOf(parent),
                     ..
-                } => model = *parent,
+                } => {
+                    if !seen.insert(*parent) {
+                        return false;
+                    }
+                    model = *parent;
+                }
                 SymbolKind::Model {
                     owner: ModelOwner::App,
                     ..
@@ -3792,6 +3851,9 @@ fn callee_ids(types: &TypeTable, target: &SyntaxNode) -> Vec<SymbolId> {
 /// Whether an argument value fits a declared input type: exact match, or
 /// a non-null value against a nullable input. Callers skip
 /// error/unknown/opaque values.
+// Known gap (post-2am item): narrower than the types pass's
+// `types_compatible` (no Array/Union/Object recursion, Record
+// stored-nuance, or Action/Invocation subset rules).
 fn fits_type(actual: &ResolvedType, expected: &ResolvedType) -> bool {
     if actual == expected {
         return true;

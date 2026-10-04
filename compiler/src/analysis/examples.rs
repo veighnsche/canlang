@@ -890,7 +890,12 @@ impl<'a> Checker<'a> {
             ));
             return None;
         }
-        if is_imported(&self.imports, module, &sel.root) {
+        // Import leniency covers only genuinely unresolvable names
+        // (resolve's E2004/E2005); a name that resolves to the wrong
+        // kind falls through to E5002 like a local one.
+        if is_imported(&self.imports, module, &sel.root)
+            && prod_symbol(self.tables, module, &sel.root).is_none()
+        {
             return Some(SelRoot::Opaque);
         }
         self.diags.push(Diagnostic::error(
@@ -1770,7 +1775,12 @@ impl<'a> Checker<'a> {
                 )
             });
             let Some(model) = model else {
-                if is_imported(&self.imports, module, &names[0]) {
+                // Import leniency covers only genuinely unresolvable
+                // heads (resolve's E2004/E2005); a head that resolves
+                // to a non-model falls through to E5006 like a local one.
+                if is_imported(&self.imports, module, &names[0])
+                    && prod_symbol(self.tables, module, &names[0]).is_none()
+                {
                     return None;
                 }
                 self.diags.push(Diagnostic::error(
@@ -1859,14 +1869,26 @@ impl<'a> Checker<'a> {
             ));
             return;
         }
-        if is_imported(&self.imports, module, word) {
-            return;
+        // Import leniency covers only genuinely unresolvable names
+        // (resolve's E2004/E2005). A resolved production name of the
+        // wrong kind is a known name misused, not an unknown caller.
+        match prod_symbol_kind(self.tables, module, word) {
+            Some(_) => {
+                self.diags.push(Diagnostic::error(
+                    "E5004",
+                    format!("'{word}' cannot select a caller"),
+                    span,
+                ));
+            }
+            None if is_imported(&self.imports, module, word) => {}
+            None => {
+                self.diags.push(Diagnostic::error(
+                    "E5004",
+                    format!("unknown caller '{word}'"),
+                    span,
+                ));
+            }
         }
-        self.diags.push(Diagnostic::error(
-            "E5004",
-            format!("unknown caller '{word}'"),
-            span,
-        ));
     }
 
     /// Check sequence call arguments: known inputs plus required
@@ -2775,6 +2797,7 @@ impl IcuType {
 /// to full styles, and nested plural/selectordinal/select with a
 /// mandatory `other` branch. Rejects offsets, choice/skeleton styles,
 /// duplicate branches, `#` outside a plural and unbalanced patterns.
+/// The profile is implementation-defined pending a DESIGN ruling.
 /// Declared-variable *coverage* stays the types pass (`E3016`); only
 /// structurally typed selectors are checked against `params` here.
 fn icu_error(template: &str, params: Option<&HashMap<String, IcuType>>) -> Option<String> {

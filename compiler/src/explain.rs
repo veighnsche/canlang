@@ -701,7 +701,7 @@ const CATALOG: [CodeInfo; 104] = [
         code: "E4040",
         title: "call-remote-target",
         severity: Severity::Error,
-        explanation: "A `call` targets a bound-imported (remote) operation. Remote targets use `send`; `call` is for local operations. Send a message instead (generated CRUD operations are exempt: neither applies).",
+        explanation: "A `call` targets a bound-imported (remote) operation. Remote targets use `send`; `call` is for local operations. Send a message instead. Generated CRUD operations are exempt from the remote restriction: `call` is their only path, so `call` still applies to them.",
         example_valid: "package Shop\n Given\n When\n  export scenario work(n:int) -> int by=members\n   do return n\n Then\npackage Third\n use Shop {work}\n Given\n When\n  scenario local(n:int) -> int by=members\n   do\n    call work {n=n} as r\n    return r\n Then\n",
         example_invalid: "package Shop\n Given\n When\n  export scenario work(n:int) -> int by=members\n   do return n\n Then\npackage Other\n use Shop {work} from=deployment.shop\n Given\n When\n  scenario remote(n:int) -> int by=members\n   do\n    call work {n=n} as r\n    return r\n Then\n",
     },
