@@ -35,7 +35,7 @@ import type {
 
 /** Exact absent-producer detail every producer-dependent row carries. */
 const ABSENT_SENTENCE =
-  "@canlang/values dist absent; run `npm run build` in packages/values; L7 pretest join pending";
+  "@canlang/values dist absent; run root `npm test` (pretest builds it) or `npm run build` in packages/values";
 const ABSENT_DETAIL = `local | ${ABSENT_SENTENCE}`;
 
 const LOCAL_CALLER: ResolvedCaller = {

@@ -12,8 +12,9 @@
   ],
   "scripts": {
     "build": "tsc -b packages/contracts packages/cloudflare packages/testkit",
+    "build:joins": "npm run build -w @canlang/values",
     "typecheck": "tsc -p tsconfig.check.json",
-    "pretest": "npm run build",
+    "pretest": "npm run build && npm run build:joins",
     "test": "vitest run",
     "test:watch": "vitest"
   },
