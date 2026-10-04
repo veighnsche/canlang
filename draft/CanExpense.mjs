@@ -9,6 +9,7 @@ import {
   date,
   datetime,
   equalMoney,
+  first,
   hasRole,
   int64,
   money,
@@ -106,7 +107,7 @@ export const appDefinition = {
         reviewer: { type: "user", label: reviewerCaption },
         status: {
           type: "enum",
-          cases: ["draft", "submitted", "approved", "rejected", "reimbursed"],
+          cases: ["draft", "submitted", "approved", "rejected", "withdrawn", "reimbursed"],
           default: "draft",
           label: {
             text: message("Status", { nl: "Status" }),
@@ -115,11 +116,17 @@ export const appDefinition = {
               submitted: message("Submitted", { nl: "Ingediend" }),
               approved: approvedCaption,
               rejected: message("Rejected", { nl: "Afgewezen" }),
+              withdrawn: message("Withdrawn", { nl: "Ingetrokken" }),
               reimbursed: message("Reimbursed", { nl: "Vergoed" }),
             },
           },
         },
         submission: { type: "int", default: 0n, label: submissionCaption },
+        withdrawal: {
+          type: "text",
+          nullable: true,
+          label: message("Withdrawal reason", { nl: "Reden voor intrekking" }),
+        },
         decision: { type: "text", nullable: true, label: message("Decision", { nl: "Besluit" }) },
         decided_by: {
           type: "user",
@@ -243,6 +250,17 @@ export const appDefinition = {
         { nl: "Beslis over precies het ingediende bedrag en de bon; afwijzing vereist een reden." },
       ),
     },
+    "expense.withdraw": {
+      handler: "withdraw",
+      by: "members",
+      read: false,
+      inputs: { expense: { type: "expense.Expense" }, reason: { type: "text" } },
+      label: message("Withdraw unavailable review", { nl: "Onbeschikbare beoordeling intrekken" }),
+      description: message(
+        "Withdraw an unavailable review without changing its frozen evidence or recording a reviewer decision.",
+        { nl: "Trek een onbeschikbare beoordeling in zonder vastgelegd bewijs te wijzigen of een beoordelaarsbesluit te registreren." },
+      ),
+    },
     "expense.correct": {
       handler: "correct",
       by: "members",
@@ -250,9 +268,9 @@ export const appDefinition = {
       inputs: { expense: { type: "expense.Expense" } },
       label: message("Create correction draft", { nl: "Correctieconcept maken" }),
       description: message(
-        "Create a corrected draft while preserving the rejected claim and its decision.",
+        "Create one corrected draft while preserving the rejected or withdrawn claim and its evidence.",
         {
-          nl: "Maak een gecorrigeerd concept met behoud van de afgewezen declaratie en het besluit.",
+          nl: "Maak één gecorrigeerd concept met behoud van de afgewezen of ingetrokken declaratie en het bewijs.",
         },
       ),
     },
@@ -316,7 +334,7 @@ export function canApp() {
     invariants: {
       "Expense.require.2": (c, row) =>
         row.corrects === null ||
-        (same(row.corrects.parent, row.parent) && row.corrects.status === "rejected"),
+        (same(row.corrects.parent, row.parent) && ["rejected", "withdrawn"].includes(row.corrects.status)),
       "Expense.require.1": (c, row) =>
         row.amount.minor > 0n && row.amount.currency === row.location.currency,
     },
@@ -354,7 +372,9 @@ export function canApp() {
         same(expense.parent.user, c.actor) &&
           expense.parent.active &&
           expense.status === "draft" &&
+          (await can_work(c, c.actor, expense.location)) &&
           !same(expense.reviewer, c.actor) &&
+          hasRole(c, "expense.reviewer", expense.reviewer) &&
           (await can_work(c, expense.reviewer, expense.location)),
       );
       await set(c, expense, { status: "submitted", submission: int64(expense.submission + 1n) });
@@ -393,11 +413,24 @@ export function canApp() {
           decided_at: c.now,
         });
     },
+    async withdraw(c, { expense, reason }) {
+      check(hasRole(c, "members"), "forbidden");
+      check(
+        same(expense.parent.user, c.actor) &&
+          expense.parent.active &&
+          (await can_work(c, c.actor, expense.location)) &&
+          expense.status === "submitted" &&
+          reason.trim() !== "" &&
+          (!hasRole(c, "expense.reviewer", expense.reviewer) ||
+            !(await can_work(c, expense.reviewer, expense.location))),
+      );
+      await set(c, expense, { status: "withdrawn", withdrawal: reason.trim() });
+    },
     async correct(c, { expense }) {
       check(hasRole(c, "members"), "forbidden");
       check(
         same(expense.parent.user, c.actor) &&
-          expense.status === "rejected" &&
+          ["rejected", "withdrawn"].includes(expense.status) &&
           expense.parent.active &&
           (await can_work(c, c.actor, expense.location)) &&
           !(await any(records(c, "expense.Expense"), (replacement) =>
@@ -488,12 +521,13 @@ export async function minePage(c) {
                   expense.status,
                   expense.submission,
                   expense.decision,
+                  expense.withdrawal,
                 ],
               }),
               edit({ context: view, operation: "expense.Expense.update", record: expense }),
               actions({
                 context: view,
-                operations: ["expense.submit", "expense.correct"],
+                operations: ["expense.submit", "expense.withdraw", "expense.correct"],
                 boundArgs: { expense },
               }),
             ],
@@ -663,6 +697,8 @@ export async function reviewPage(c) {
  * Each row provisions only seed/common-input/row dependencies and their closure.
  * Common bindings establish the baseline. Inputs, cells and expected values read
  * untouched seeded scope s; overrides apply together, observations use fresh scope.
+ * Sequences retain enclosing operation metadata, explicit canonical call identities,
+ * genuine named callers and immutable bindings; stored fixtures reload per statement.
  * No runner, provisioning implementation or Can-expression interpreter is added.
  */
 export const exampleImports = [
@@ -673,210 +709,749 @@ export const exampleImports = [
 export function exampleFixtures({ self, other, imported }) {
   const { test_site, test_worker } = imported;
   const receipt = { dependencies: [], file: async (c, s) => ({}) };
-  const other_worker = {
+  const corrected_receipt = { dependencies: [], file: async (c, s) => ({}) };
+  const hr_user = { dependencies: [], user: async (c, s) => ({ roles: ["employee.hr"] }) };
+  const replacement_user = { dependencies: [], user: async (c, s) => ({ roles: ["expense.reviewer"] }) };
+  const replacement_worker = {
+    model: "employee.Employee", dependencies: [test_site, replacement_user],
+    value: async (c, s) => ({ user: s.replacement_user, home: s.test_site, locations: [s.test_site], start: date("2026-10-01"), role: "Replacement reviewer" }),
+  };
+  const reviewer_user = { dependencies: [], user: async (c, s) => ({ roles: ["expense.reviewer"] }) };
+  const finance_user = { dependencies: [], user: async (c, s) => ({ roles: ["expense.finance"] }) };
+  const ordinary_user = { dependencies: [], user: async (c, s) => ({}) };
+  const reviewer_worker = {
     model: "employee.Employee",
-    dependencies: [test_site],
+    dependencies: [test_site, reviewer_user],
     value: async (c, s) => ({
-      user: s.other,
-      home: s.test_site,
-      locations: [s.test_site],
-      start: date("2026-10-01"),
-      role: "Reviewer",
+      user: s.reviewer_user, home: s.test_site, locations: [s.test_site],
+      start: date("2026-10-01"), role: "Reviewer",
+    }),
+  };
+  const finance_worker = {
+    model: "employee.Employee",
+    dependencies: [test_site, finance_user],
+    value: async (c, s) => ({
+      user: s.finance_user, home: s.test_site, locations: [s.test_site],
+      start: date("2026-10-01"), role: "Finance",
+    }),
+  };
+  const ordinary_worker = {
+    model: "employee.Employee",
+    dependencies: [test_site, ordinary_user],
+    value: async (c, s) => ({
+      user: s.ordinary_user, home: s.test_site, locations: [s.test_site],
+      start: date("2026-10-01"), role: "Operator",
     }),
   };
   const claim = {
     model: "expense.Expense",
-    dependencies: [receipt, test_site, test_worker],
+    dependencies: [receipt, test_site, test_worker, reviewer_user],
     value: async (c, s) => ({
-      parent: s.test_worker,
-      location: s.test_site,
-      purpose: "Travel between sites",
-      category: "Travel",
-      amount: money(25n, "EUR"),
-      business_date: date("2026-10-01"),
-      receipt: s.receipt,
-      reviewer: s.other,
+      parent: s.test_worker, location: s.test_site, purpose: "Travel between sites", category: "Travel",
+      amount: money(25n, "EUR"), business_date: date("2026-10-01"), receipt: s.receipt,
+      reviewer: s.reviewer_user,
     }),
   };
   const previous_claim = {
     model: "expense.Expense",
-    dependencies: [test_worker, test_site, receipt],
+    dependencies: [receipt, test_site, test_worker, reviewer_user],
     value: async (c, s) => ({
-      parent: s.test_worker,
-      location: s.test_site,
-      purpose: "Earlier supplies",
-      category: "Supplies",
-      amount: money(25n, "EUR"),
-      business_date: date("2026-10-01"),
-      receipt: s.receipt,
-      reviewer: s.other,
-      status: "reimbursed",
+      parent: s.test_worker, location: s.test_site, purpose: "Earlier supplies", category: "Supplies",
+      amount: money(25n, "EUR"), business_date: date("2026-10-01"), receipt: s.receipt,
+      reviewer: s.reviewer_user, status: "reimbursed",
     }),
+  };
+  const other_site = {
+    model: "rent_catalog.Location", dependencies: [],
+    value: async (c, s) => ({ name: "Elsewhere", address: "2 Example Road", timezone: "Europe/Brussels", currency: "EUR", hours: "09:00–18:00", arrival: "Report to reception" }),
   };
   const previous_payment = {
-    model: "expense.Reimbursement",
-    dependencies: [previous_claim],
-    value: async (c, s) => ({
-      parent: s.previous_claim,
-      amount: money(25n, "EUR"),
-      reference: "bank-previous",
-      paid: date("2026-10-01"),
-      reason: "Statement evidence",
-    }),
+    model: "expense.Reimbursement", dependencies: [previous_claim],
+    value: async (c, s) => ({ parent: s.previous_claim, amount: money(25n, "EUR"), reference: "bank-previous", paid: date("2026-10-01"), reason: "Statement evidence" }),
   };
   const rejected_decision = {
-    model: "expense.Decision",
-    dependencies: [claim, receipt],
-    value: async (c, s) => ({
-      parent: s.claim,
-      submission: 1n,
-      amount: money(25n, "EUR"),
-      receipt: s.receipt,
-      reviewer: s.other,
-      approved: false,
-      reason: "Clarify the journey",
-      decided_at: datetime("2026-10-02T09:00:00Z"),
-    }),
+    model: "expense.Decision", dependencies: [claim, receipt, reviewer_user],
+    value: async (c, s) => ({ parent: s.claim, submission: 1n, amount: money(25n, "EUR"), receipt: s.receipt, reviewer: s.reviewer_user, approved: false, reason: "Clarify the journey", decided_at: datetime("2026-10-02T09:00:00Z") }),
   };
   return {
-    claim,
-    other_worker,
-    receipt,
-    rejected_decision,
-    previous_claim,
-    previous_payment,
+    receipt, corrected_receipt, hr_user, replacement_user, replacement_worker, reviewer_user, finance_user, ordinary_user, reviewer_worker, finance_worker, ordinary_worker,
+    claim, previous_claim, previous_payment, rejected_decision, other_site,
     examples: [
       {
         operation: "expense.submit",
-        seed: [other_worker],
+        seed: [reviewer_worker, ordinary_worker],
         dependencies: [claim],
         inputs: async (c, s) => ({ expense: s.claim }),
-        selectors: ["expense.reviewer"],
+        selectors: ["as", "expense.reviewer", "reviewer_worker.active", "test_worker.active", "request.expense.version"],
         observations: [
           async (c, s) => s.expense.status,
           async (c, s) => s.expense.submission,
           async (c, s) => s.expense.receipt,
+          async (c, s) => s.expense.reviewer,
         ],
         rows: [
           {
-            dependencies: [],
-            values: async (c, s) => [s.other],
-            expected: async (c, s) => ["submitted", 1n, s.receipt],
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.self, s.reviewer_user, true, true, 1n],
+            expected: async (c, s) => ["submitted", 1n, s.receipt, s.reviewer_user],
           },
-          { dependencies: [], values: async (c, s) => [s.self], error: "rule_failed" },
+          {
+            dependencies: [ordinary_user],
+            values: async (c, s) => [s.self, s.ordinary_user, true, true, 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => [s.self, s.self, true, true, 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.self, s.reviewer_user, false, true, 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.self, s.reviewer_user, true, false, 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [ordinary_user, reviewer_user],
+            values: async (c, s) => [s.ordinary_user, s.reviewer_user, true, true, 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.self, s.reviewer_user, true, true, 2n],
+            error: "conflict",
+          },
+        ],
+      },
+      {
+        operation: "expense.submit",
+        seed: [reviewer_worker],
+        dependencies: [claim],
+        inputs: async (c, s) => ({ expense: s.claim }),
+        selectors: ["expense.location"],
+        observations: [
+          async (c, s) => s.expense.status,
+        ],
+        rows: [
+          {
+            dependencies: [other_site],
+            values: async (c, s) => [s.other_site],
+            error: "rule_failed",
+          },
+        ],
+      },
+      {
+        operation: "expense.submit",
+        dependencies: [claim, reviewer_worker, finance_worker, ordinary_user],
+        sequence: [
+          {
+            operation: "expense.submit",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim }),
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              s.claim.submission,
+              s.claim.receipt,
+            ],
+            expected: async (c, s, b) => [
+              "submitted",
+              1n,
+              s.receipt,
+            ],
+            types: ["expense.Expense.status", "int", "file"],
+          },
+          {
+            operation: "expense.decide",
+            by: async (c, s, b) => s.ordinary_user,
+            inputs: async (c, s, b) => ({ expense: s.claim, approve: true, reason: "Checked the journey" }),
+            error: "forbidden",
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              await count(records(c, "expense.Decision", { parent: s.claim })),
+            ],
+            expected: async (c, s, b) => [
+              "submitted",
+              0n,
+            ],
+            types: ["expense.Expense.status", "int"],
+          },
+          {
+            operation: "expense.decide",
+            by: async (c, s, b) => s.reviewer_user,
+            inputs: async (c, s, b) => ({ expense: s.claim, approve: true, reason: "Checked the journey" }),
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              s.claim.decided_by,
+              await count(records(c, "expense.Decision", { parent: s.claim })),
+            ],
+            expected: async (c, s, b) => [
+              "approved",
+              s.reviewer_user,
+              1n,
+            ],
+            types: ["expense.Expense.status", "user?", "int"],
+          },
+          {
+            operation: "expense.reimburse",
+            by: async (c, s, b) => s.reviewer_user,
+            inputs: async (c, s, b) => ({ expense: s.claim, amount: money(25n, "EUR"), reference: "bank-journey", paid: local_date(c.now, s.test_site.timezone), reason: "Bank statement" }),
+            error: "forbidden",
+          },
+          {
+            operation: "expense.reimburse",
+            by: async (c, s, b) => s.finance_user,
+            inputs: async (c, s, b) => ({ expense: s.claim, amount: money(25n, "EUR"), reference: "bank-journey", paid: local_date(c.now, s.test_site.timezone), reason: "Bank statement" }),
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              await count(records(c, "expense.Reimbursement", { parent: s.claim })),
+              await any(records(c, "expense.Reimbursement", { parent: s.claim }), (payment) => same(payment.recorded_by, s.finance_user) && equalMoney(payment.amount, money(25n, "EUR"))),
+            ],
+            expected: async (c, s, b) => [
+              "reimbursed",
+              1n,
+              true,
+            ],
+            types: ["expense.Expense.status", "int", "bool"],
+          },
+          {
+            operation: "expense.reimburse",
+            by: async (c, s, b) => s.finance_user,
+            inputs: async (c, s, b) => ({ expense: s.claim, amount: money(25n, "EUR"), reference: "bank-repeat", paid: local_date(c.now, s.test_site.timezone), reason: "Bank statement" }),
+            error: "rule_failed",
+          },
+        ],
+      },
+      {
+        operation: "expense.submit",
+        dependencies: [claim, reviewer_worker, finance_worker, corrected_receipt],
+        sequence: [
+          {
+            operation: "expense.submit",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim }),
+          },
+          {
+            operation: "expense.decide",
+            by: async (c, s, b) => s.reviewer_user,
+            inputs: async (c, s, b) => ({ expense: s.claim, approve: false, reason: "Clarify the journey" }),
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              s.claim.receipt,
+              await count(records(c, "expense.Decision", { parent: s.claim })),
+            ],
+            expected: async (c, s, b) => [
+              "rejected",
+              s.receipt,
+              1n,
+            ],
+            types: ["expense.Expense.status", "file", "int"],
+          },
+          {
+            operation: "expense.Expense.update",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ record: s.claim, changes: { receipt: s.corrected_receipt } }),
+            error: "rule_failed",
+          },
+          {
+            operation: "expense.correct",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim }),
+          },
+          {
+            let: "replacement",
+            value: async (c, s, b) => await first(records(c, "expense.Expense", { parent: s.claim.parent, where: (row) => same(row.corrects, s.claim), order: ["id"] })),
+          },
+          {
+            observations: async (c, s, b) => [
+              b.replacement !== null,
+            ],
+            expected: async (c, s, b) => [
+              true,
+            ],
+            types: ["bool"],
+          },
+          {
+            operation: "expense.Expense.update",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ record: b.replacement, changes: { purpose: "Journey evidence corrected", receipt: s.corrected_receipt, reviewer: s.reviewer_user } }),
+          },
+          {
+            let: "ready",
+            value: async (c, s, b) => await first(records(c, "expense.Expense", { parent: s.claim.parent, where: (row) => same(row.corrects, s.claim), order: ["id"] })),
+          },
+          {
+            observations: async (c, s, b) => [
+              b.ready !== null,
+            ],
+            expected: async (c, s, b) => [
+              true,
+            ],
+            types: ["bool"],
+          },
+          {
+            operation: "expense.submit",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: b.ready }),
+          },
+          {
+            let: "submitted_replacement",
+            value: async (c, s, b) => await first(records(c, "expense.Expense", { parent: s.claim.parent, where: (row) => same(row.corrects, s.claim), order: ["id"] })),
+          },
+          {
+            observations: async (c, s, b) => [
+              b.submitted_replacement !== null,
+            ],
+            expected: async (c, s, b) => [
+              true,
+            ],
+            types: ["bool"],
+          },
+          {
+            operation: "expense.decide",
+            by: async (c, s, b) => s.reviewer_user,
+            inputs: async (c, s, b) => ({ expense: b.submitted_replacement, approve: true, reason: "Corrected receipt checked" }),
+          },
+          {
+            let: "approved_replacement",
+            value: async (c, s, b) => await first(records(c, "expense.Expense", { parent: s.claim.parent, where: (row) => same(row.corrects, s.claim), order: ["id"] })),
+          },
+          {
+            observations: async (c, s, b) => [
+              b.approved_replacement !== null,
+            ],
+            expected: async (c, s, b) => [
+              true,
+            ],
+            types: ["bool"],
+          },
+          {
+            operation: "expense.reimburse",
+            by: async (c, s, b) => s.finance_user,
+            inputs: async (c, s, b) => ({ expense: b.approved_replacement, amount: money(25n, "EUR"), reference: "bank-correction", paid: local_date(c.now, s.test_site.timezone), reason: "Bank statement" }),
+          },
+          {
+            let: "paid_replacement",
+            value: async (c, s, b) => await first(records(c, "expense.Expense", { parent: s.claim.parent, where: (row) => same(row.corrects, s.claim), order: ["id"] })),
+          },
+          {
+            observations: async (c, s, b) => [
+              b.paid_replacement !== null,
+            ],
+            expected: async (c, s, b) => [
+              true,
+            ],
+            types: ["bool"],
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              s.claim.receipt,
+              s.claim.decision,
+              b.paid_replacement.status,
+              b.paid_replacement.submission,
+              b.paid_replacement.receipt,
+              await any(records(c, "expense.Decision", { parent: s.claim }), (decision) => !decision.approved && same(decision.receipt, s.receipt) && decision.reason === "Clarify the journey"),
+              await any(records(c, "expense.Decision", { parent: b.paid_replacement }), (decision) => decision.approved && decision.submission === 2n && same(decision.receipt, s.corrected_receipt)),
+              await count(records(c, "expense.Reimbursement", { parent: b.paid_replacement })),
+            ],
+            expected: async (c, s, b) => [
+              "rejected",
+              s.receipt,
+              "Clarify the journey",
+              "reimbursed",
+              2n,
+              s.corrected_receipt,
+              true,
+              true,
+              1n,
+            ],
+            types: ["expense.Expense.status", "file", "text?", "expense.Expense.status", "int", "file", "bool", "bool", "int"],
+          },
+        ],
+      },
+      {
+        operation: "expense.submit",
+        dependencies: [claim, reviewer_worker, replacement_worker, finance_worker, hr_user, corrected_receipt],
+        sequence: [
+          {
+            operation: "expense.submit",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim }),
+          },
+          {
+            let: "submitted_version",
+            value: async (c, s, b) => s.claim.version,
+          },
+          {
+            operation: "employee.deactivate",
+            by: async (c, s, b) => s.hr_user,
+            inputs: async (c, s, b) => ({ employee: s.reviewer_worker, ended: date("2026-10-02") }),
+          },
+          {
+            observations: async (c, s, b) => [
+              s.reviewer_worker.active,
+              hasRole(c, "expense.reviewer", s.reviewer_user),
+              await can_work(c, s.reviewer_user, s.test_site),
+              s.claim.status,
+            ],
+            expected: async (c, s, b) => [
+              false,
+              true,
+              false,
+              "submitted",
+            ],
+            types: ["bool", "bool", "bool", "expense.Expense.status"],
+          },
+          {
+            operation: "expense.decide",
+            by: async (c, s, b) => s.reviewer_user,
+            inputs: async (c, s, b) => ({ expense: s.claim, approve: true, reason: "Checked" }),
+            error: "rule_failed",
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              await count(records(c, "expense.Decision", { parent: s.claim })),
+            ],
+            expected: async (c, s, b) => [
+              "submitted",
+              0n,
+            ],
+            types: ["expense.Expense.status", "int"],
+          },
+          {
+            operation: "expense.withdraw",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim, reason: " Reviewer unavailable " }),
+          },
+          {
+            operation: "expense.withdraw",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim, reason: "Repeated recovery" }),
+            request: async (c, s, b) => ({ expense: { version: b.submitted_version } }),
+            error: "conflict",
+          },
+          {
+            operation: "expense.withdraw",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim, reason: "Repeated recovery" }),
+            error: "rule_failed",
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              s.claim.withdrawal,
+              s.claim.reviewer,
+              s.claim.receipt,
+              s.claim.amount,
+              await count(records(c, "expense.Decision", { parent: s.claim })),
+            ],
+            expected: async (c, s, b) => [
+              "withdrawn",
+              "Reviewer unavailable",
+              s.reviewer_user,
+              s.receipt,
+              money(25n, "EUR"),
+              0n,
+            ],
+            types: ["expense.Expense.status", "text?", "user", "file", "money", "int"],
+          },
+          {
+            operation: "expense.correct",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim }),
+          },
+          {
+            operation: "expense.correct",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: s.claim }),
+            error: "rule_failed",
+          },
+          {
+            let: "recovery_draft",
+            value: async (c, s, b) => await first(records(c, "expense.Expense", { parent: s.claim.parent, where: (row) => same(row.corrects, s.claim), order: ["id"] })),
+          },
+          {
+            observations: async (c, s, b) => [
+              b.recovery_draft !== null,
+            ],
+            expected: async (c, s, b) => [
+              true,
+            ],
+            types: ["bool"],
+          },
+          {
+            operation: "expense.Expense.update",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ record: b.recovery_draft, changes: { receipt: s.corrected_receipt, reviewer: s.replacement_user } }),
+          },
+          {
+            let: "recovery_ready",
+            value: async (c, s, b) => await first(records(c, "expense.Expense", { parent: s.claim.parent, where: (row) => same(row.corrects, s.claim), order: ["id"] })),
+          },
+          {
+            observations: async (c, s, b) => [
+              b.recovery_ready !== null,
+            ],
+            expected: async (c, s, b) => [
+              true,
+            ],
+            types: ["bool"],
+          },
+          {
+            operation: "expense.submit",
+            by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ expense: b.recovery_ready }),
+          },
+          {
+            let: "recovery_submitted",
+            value: async (c, s, b) => await first(records(c, "expense.Expense", { parent: s.claim.parent, where: (row) => same(row.corrects, s.claim), order: ["id"] })),
+          },
+          {
+            observations: async (c, s, b) => [
+              b.recovery_submitted !== null,
+            ],
+            expected: async (c, s, b) => [
+              true,
+            ],
+            types: ["bool"],
+          },
+          {
+            operation: "expense.decide",
+            by: async (c, s, b) => s.replacement_user,
+            inputs: async (c, s, b) => ({ expense: b.recovery_submitted, approve: true, reason: "Replacement review checked" }),
+          },
+          {
+            let: "recovery_approved",
+            value: async (c, s, b) => await first(records(c, "expense.Expense", { parent: s.claim.parent, where: (row) => same(row.corrects, s.claim), order: ["id"] })),
+          },
+          {
+            observations: async (c, s, b) => [
+              b.recovery_approved !== null,
+            ],
+            expected: async (c, s, b) => [
+              true,
+            ],
+            types: ["bool"],
+          },
+          {
+            operation: "expense.reimburse",
+            by: async (c, s, b) => s.finance_user,
+            inputs: async (c, s, b) => ({ expense: b.recovery_approved, amount: money(25n, "EUR"), reference: "bank-recovery", paid: local_date(c.now, s.test_site.timezone), reason: "Bank statement" }),
+          },
+          {
+            let: "recovery_paid",
+            value: async (c, s, b) => await first(records(c, "expense.Expense", { parent: s.claim.parent, where: (row) => same(row.corrects, s.claim), order: ["id"] })),
+          },
+          {
+            observations: async (c, s, b) => [
+              b.recovery_paid !== null,
+            ],
+            expected: async (c, s, b) => [
+              true,
+            ],
+            types: ["bool"],
+          },
+          {
+            observations: async (c, s, b) => [
+              s.claim.status,
+              s.claim.reviewer,
+              s.claim.receipt,
+              await count(records(c, "expense.Decision", { parent: s.claim })),
+              b.recovery_paid.status,
+              b.recovery_paid.reviewer,
+              b.recovery_paid.receipt,
+              b.recovery_paid.submission,
+              await count(records(c, "expense.Decision", { parent: b.recovery_paid })),
+              await count(records(c, "expense.Reimbursement", { parent: b.recovery_paid })),
+            ],
+            expected: async (c, s, b) => [
+              "withdrawn",
+              s.reviewer_user,
+              s.receipt,
+              0n,
+              "reimbursed",
+              s.replacement_user,
+              s.corrected_receipt,
+              2n,
+              1n,
+              1n,
+            ],
+            types: ["expense.Expense.status", "user", "file", "int", "expense.Expense.status", "user", "file", "int", "int", "int"],
+          },
         ],
       },
       {
         operation: "expense.decide",
-        seed: [other_worker],
+        seed: [reviewer_worker],
         dependencies: [claim],
         inputs: async (c, s) => ({ expense: s.claim }),
-        selectors: [
-          "as",
-          "expense.parent",
-          "expense.status",
-          "expense.reviewer",
-          "expense.submission",
-          "approve",
-          "reason",
-        ],
+        selectors: ["as", "expense.status", "expense.reviewer", "expense.submission", "reviewer_worker.active", "approve", "reason", "request.expense.version"],
         observations: [
           async (c, s) => s.expense.status,
           async (c, s) => s.expense.receipt,
           async (c, s) => s.expense.decided_by,
           async (c, s) => await count(records(c, "expense.Decision", { parent: s.expense })),
-          async (c, s) =>
-            await any(
-              records(c, "expense.Decision", { parent: s.expense }),
-              (decision) =>
-                decision.submission === 1n &&
-                equalMoney(decision.amount, money(25n, "EUR")) &&
-                same(decision.receipt, s.receipt) &&
-                same(decision.reviewer, s.self) &&
-                decision.approved === s.approve &&
-                decision.reason === s.reason,
-            ),
+          async (c, s) => await any(records(c, "expense.Decision", { parent: s.expense }), (decision) => decision.submission === 1n && equalMoney(decision.amount, money(25n, "EUR")) && same(decision.receipt, s.receipt) && same(decision.reviewer, s.expense.reviewer) && decision.approved === s.approve && decision.reason === s.reason),
         ],
         rows: [
           {
-            dependencies: [other_worker],
-            values: async (c, s) => [
-              "expense.reviewer",
-              s.other_worker,
-              "submitted",
-              s.self,
-              1n,
-              true,
-              "Checked the journey",
-            ],
-            expected: async (c, s) => ["approved", s.receipt, s.self, 1n, true],
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.reviewer_user, "submitted", s.reviewer_user, 1n, true, true, "Checked the journey", 1n],
+            expected: async (c, s) => ["approved", s.receipt, s.reviewer_user, 1n, true],
           },
           {
-            dependencies: [other_worker],
-            values: async (c, s) => [
-              "expense.reviewer",
-              s.other_worker,
-              "submitted",
-              s.self,
-              1n,
-              false,
-              "Clarify the journey",
-            ],
-            expected: async (c, s) => ["rejected", s.receipt, s.self, 1n, true],
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.reviewer_user, "submitted", s.reviewer_user, 1n, true, false, "Clarify the journey", 1n],
+            expected: async (c, s) => ["rejected", s.receipt, s.reviewer_user, 1n, true],
           },
           {
-            dependencies: [other_worker],
-            values: async (c, s) => [
-              "expense.reviewer",
-              s.other_worker,
-              "submitted",
-              s.self,
-              1n,
-              false,
-              "",
-            ],
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.reviewer_user, "submitted", s.reviewer_user, 1n, true, false, "", 1n],
             error: "rule_failed",
           },
           {
-            dependencies: [test_worker],
-            values: async (c, s) => [
-              "expense.reviewer",
-              s.test_worker,
-              "submitted",
-              s.self,
-              1n,
-              true,
-              "Checked the journey",
-            ],
+            dependencies: [],
+            values: async (c, s) => ["expense.reviewer", "submitted", s.self, 1n, true, true, "Checked the journey", 1n],
             error: "rule_failed",
           },
           {
-            dependencies: [test_worker],
-            values: async (c, s) => [
-              "members",
-              s.test_worker,
-              "submitted",
-              s.self,
-              1n,
-              true,
-              "Checked the journey",
-            ],
+            dependencies: [ordinary_user, reviewer_user],
+            values: async (c, s) => [s.ordinary_user, "submitted", s.reviewer_user, 1n, true, true, "Checked the journey", 1n],
             error: "forbidden",
+          },
+          {
+            dependencies: [finance_user, reviewer_user],
+            values: async (c, s) => [s.finance_user, "submitted", s.reviewer_user, 1n, true, true, "Checked the journey", 1n],
+            error: "forbidden",
+          },
+          {
+            dependencies: [reviewer_user, finance_user],
+            values: async (c, s) => [s.reviewer_user, "submitted", s.finance_user, 1n, true, true, "Checked the journey", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.reviewer_user, "approved", s.reviewer_user, 1n, true, true, "Checked the journey", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.reviewer_user, "submitted", s.reviewer_user, 1n, false, true, "Checked the journey", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.reviewer_user, "submitted", s.reviewer_user, 1n, true, true, "Checked the journey", 2n],
+            error: "conflict",
+          },
+        ],
+      },
+      {
+        operation: "expense.withdraw",
+        seed: [reviewer_worker, ordinary_worker],
+        dependencies: [claim],
+        inputs: async (c, s) => ({ expense: s.claim }),
+        selectors: ["as", "expense.reviewer", "expense.status", "expense.submission", "reviewer_worker.active", "test_worker.active", "reason", "request.expense.version"],
+        observations: [
+          async (c, s) => s.expense.status,
+          async (c, s) => s.expense.withdrawal,
+          async (c, s) => s.expense.receipt,
+          async (c, s) => s.expense.amount,
+          async (c, s) => s.expense.reviewer,
+          async (c, s) => await count(records(c, "expense.Decision", { parent: s.expense })),
+          async (c, s) => s.expense.submission,
+        ],
+        rows: [
+          {
+            dependencies: [ordinary_user],
+            values: async (c, s) => [s.self, s.ordinary_user, "submitted", 1n, true, true, " Review unavailable ", 1n],
+            expected: async (c, s) => ["withdrawn", "Review unavailable", s.receipt, money(25n, "EUR"), s.ordinary_user, 0n, 1n],
+          },
+          {
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.self, s.reviewer_user, "submitted", 1n, false, true, "Review unavailable", 1n],
+            expected: async (c, s) => ["withdrawn", "Review unavailable", s.receipt, money(25n, "EUR"), s.reviewer_user, 0n, 1n],
+          },
+          {
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.self, s.reviewer_user, "submitted", 1n, true, true, "Review unavailable", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [ordinary_user],
+            values: async (c, s) => [s.self, s.ordinary_user, "submitted", 1n, true, true, " ", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [ordinary_user],
+            values: async (c, s) => [s.self, s.ordinary_user, "approved", 1n, true, true, "Review unavailable", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [ordinary_user],
+            values: async (c, s) => [s.self, s.ordinary_user, "reimbursed", 1n, true, true, "Review unavailable", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [ordinary_user],
+            values: async (c, s) => [s.self, s.ordinary_user, "withdrawn", 1n, true, true, "Review unavailable", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [ordinary_user],
+            values: async (c, s) => [s.self, s.ordinary_user, "submitted", 1n, true, false, "Review unavailable", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [ordinary_user],
+            values: async (c, s) => [s.ordinary_user, s.ordinary_user, "submitted", 1n, true, true, "Review unavailable", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [ordinary_user],
+            values: async (c, s) => [s.self, s.ordinary_user, "submitted", 1n, true, true, "Review unavailable", 2n],
+            error: "conflict",
+          },
+        ],
+      },
+      {
+        operation: "expense.withdraw",
+        seed: [reviewer_worker],
+        dependencies: [claim],
+        inputs: async (c, s) => ({ expense: s.claim }),
+        selectors: ["expense.location", "expense.status", "reason"],
+        observations: [
+          async (c, s) => s.expense.status,
+        ],
+        rows: [
+          {
+            dependencies: [other_site],
+            values: async (c, s) => [s.other_site, "submitted", "Review unavailable"],
+            error: "rule_failed",
           },
         ],
       },
       {
         operation: "expense.correct",
-        seed: [other_worker, rejected_decision],
+        seed: [rejected_decision, reviewer_worker],
         dependencies: [claim],
         inputs: async (c, s) => ({ expense: s.claim }),
-        selectors: [
-          "expense.status",
-          "expense.submission",
-          "expense.decision",
-          "expense.decided_by",
-          "expense.decided_at",
-        ],
+        selectors: ["expense.status", "expense.submission", "expense.decision", "expense.decided_by", "expense.decided_at", "request.expense.version"],
         observations: [
           async (c, s) => s.expense.status,
           async (c, s) => s.expense.receipt,
@@ -887,141 +1462,151 @@ export function exampleFixtures({ self, other, imported }) {
           async (c, s) => s.rejected_decision.receipt,
           async (c, s) => s.rejected_decision.reason,
           async (c, s) => await count(records(c, "expense.Expense", { parent: s.expense.parent })),
-          async (c, s) =>
-            await any(
-              records(c, "expense.Expense", { parent: s.expense.parent }),
-              (replacement) =>
-                same(replacement.corrects, s.expense) &&
-                replacement.status === "draft" &&
-                same(replacement.receipt, s.receipt) &&
-                equalMoney(replacement.amount, money(25n, "EUR")) &&
-                replacement.submission === 1n &&
-                same(replacement.reviewer, s.other),
-            ),
+          async (c, s) => await any(records(c, "expense.Expense", { parent: s.expense.parent }), (replacement) => same(replacement.corrects, s.expense) && replacement.status === "draft" && same(replacement.receipt, s.receipt) && equalMoney(replacement.amount, money(25n, "EUR")) && replacement.submission === 1n && same(replacement.reviewer, s.expense.reviewer)),
+        ],
+        rows: [
+          {
+            dependencies: [reviewer_user],
+            values: async (c, s) => ["rejected", 1n, "Clarify the journey", s.reviewer_user, datetime("2026-10-02T09:00:00Z"), 1n],
+            expected: async (c, s) => ["rejected", s.receipt, "Clarify the journey", s.reviewer_user, datetime("2026-10-02T09:00:00Z"), 1n, s.receipt, "Clarify the journey", 2n, true],
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => ["submitted", 1n, null, null, null, 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [],
+            values: async (c, s) => ["approved", 1n, null, null, null, 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [reviewer_user],
+            values: async (c, s) => ["rejected", 1n, "Clarify the journey", s.reviewer_user, datetime("2026-10-02T09:00:00Z"), 2n],
+            error: "conflict",
+          },
+        ],
+      },
+      {
+        operation: "expense.correct",
+        seed: [reviewer_worker],
+        dependencies: [claim],
+        inputs: async (c, s) => ({ expense: s.claim }),
+        selectors: ["expense.status", "expense.submission", "expense.withdrawal", "test_worker.active"],
+        observations: [
+          async (c, s) => s.expense.status,
+          async (c, s) => s.expense.withdrawal,
+          async (c, s) => s.expense.receipt,
+          async (c, s) => await count(records(c, "expense.Decision", { parent: s.expense })),
+          async (c, s) => await count(records(c, "expense.Expense", { parent: s.expense.parent })),
+          async (c, s) => await any(records(c, "expense.Expense", { parent: s.expense.parent }), (replacement) => same(replacement.corrects, s.expense) && replacement.status === "draft" && same(replacement.receipt, s.receipt) && equalMoney(replacement.amount, money(25n, "EUR")) && replacement.submission === 1n && same(replacement.reviewer, s.expense.reviewer)),
         ],
         rows: [
           {
             dependencies: [],
-            values: async (c, s) => [
-              "rejected",
-              1n,
-              "Clarify the journey",
-              s.other,
-              datetime("2026-10-02T09:00:00Z"),
-            ],
-            expected: async (c, s) => [
-              "rejected",
-              s.receipt,
-              "Clarify the journey",
-              s.other,
-              datetime("2026-10-02T09:00:00Z"),
-              1n,
-              s.receipt,
-              "Clarify the journey",
-              2n,
-              true,
-            ],
+            values: async (c, s) => ["withdrawn", 1n, "Review unavailable", true],
+            expected: async (c, s) => ["withdrawn", "Review unavailable", s.receipt, 0n, 2n, true],
           },
           {
             dependencies: [],
-            values: async (c, s) => ["submitted", 1n, null, null, null],
+            values: async (c, s) => ["withdrawn", 1n, "Review unavailable", false],
+            error: "rule_failed",
+          },
+        ],
+      },
+      {
+        operation: "expense.correct",
+        seed: [],
+        dependencies: [claim],
+        inputs: async (c, s) => ({ expense: s.claim }),
+        selectors: ["expense.location", "expense.status"],
+        observations: [
+          async (c, s) => s.expense.status,
+        ],
+        rows: [
+          {
+            dependencies: [other_site],
+            values: async (c, s) => [s.other_site, "withdrawn"],
             error: "rule_failed",
           },
         ],
       },
       {
         operation: "expense.reimburse",
-        seed: [previous_payment],
+        seed: [previous_payment, finance_worker],
         dependencies: [claim],
-        inputs: async (c, s) => ({ expense: s.claim, reason: "Bank statement" }),
-        selectors: ["as", "expense.status", "amount", "reference", "paid"],
+        inputs: async (c, s) => ({ expense: s.claim }),
+        selectors: ["as", "expense.status", "finance_worker.active", "amount", "reference", "paid", "reason", "request.expense.version"],
         observations: [
           async (c, s) => s.expense.status,
           async (c, s) => await count(records(c, "expense.Reimbursement", { parent: s.expense })),
-          async (c, s) =>
-            await any(
-              records(c, "expense.Reimbursement", { parent: s.expense }),
-              (payment) =>
-                payment.reference === "bank-new" && equalMoney(payment.amount, money(25n, "EUR")),
-            ),
+          async (c, s) => await any(records(c, "expense.Reimbursement", { parent: s.expense }), (payment) => payment.reference === "bank-new" && equalMoney(payment.amount, money(25n, "EUR")) && same(payment.recorded_by, s.finance_user)),
         ],
         rows: [
           {
-            dependencies: [],
-            values: async (c, s) => [
-              "expense.finance",
-              "approved",
-              money(25n, "EUR"),
-              " bank-new ",
-              local_date(c.now, s.test_site.timezone),
-            ],
+            dependencies: [finance_user],
+            values: async (c, s) => [s.finance_user, "approved", true, money(25n, "EUR"), " bank-new ", local_date(c.now, s.test_site.timezone), "Bank statement", 1n],
             expected: async (c, s) => ["reimbursed", 1n, true],
           },
           {
-            dependencies: [],
-            values: async (c, s) => [
-              "expense.finance",
-              "approved",
-              money(25n, "EUR"),
-              "bank-previous",
-              local_date(c.now, s.test_site.timezone),
-            ],
+            dependencies: [finance_user],
+            values: async (c, s) => [s.finance_user, "approved", true, money(25n, "EUR"), "bank-previous", local_date(c.now, s.test_site.timezone), "Bank statement", 1n],
             error: "rule_failed",
           },
           {
-            dependencies: [],
-            values: async (c, s) => [
-              "expense.finance",
-              "approved",
-              money(20n, "EUR"),
-              "bank-new",
-              local_date(c.now, s.test_site.timezone),
-            ],
+            dependencies: [finance_user],
+            values: async (c, s) => [s.finance_user, "approved", true, money(20n, "EUR"), "bank-new", local_date(c.now, s.test_site.timezone), "Bank statement", 1n],
             error: "rule_failed",
           },
           {
-            dependencies: [],
-            values: async (c, s) => [
-              "expense.finance",
-              "approved",
-              money(25n, "USD"),
-              "bank-new",
-              local_date(c.now, s.test_site.timezone),
-            ],
+            dependencies: [finance_user],
+            values: async (c, s) => [s.finance_user, "approved", true, money(25n, "USD"), "bank-new", local_date(c.now, s.test_site.timezone), "Bank statement", 1n],
             error: "rule_failed",
           },
           {
-            dependencies: [],
-            values: async (c, s) => [
-              "expense.finance",
-              "approved",
-              money(25n, "EUR"),
-              "bank-new",
-              add_days(local_date(c.now, s.test_site.timezone), 1n),
-            ],
+            dependencies: [finance_user],
+            values: async (c, s) => [s.finance_user, "approved", true, money(25n, "EUR"), "bank-new", add_days(local_date(c.now, s.test_site.timezone), 1n), "Bank statement", 1n],
             error: "rule_failed",
           },
           {
-            dependencies: [],
-            values: async (c, s) => [
-              "expense.finance",
-              "submitted",
-              money(25n, "EUR"),
-              "bank-new",
-              local_date(c.now, s.test_site.timezone),
-            ],
+            dependencies: [finance_user],
+            values: async (c, s) => [s.finance_user, "submitted", true, money(25n, "EUR"), "bank-new", local_date(c.now, s.test_site.timezone), "Bank statement", 1n],
             error: "rule_failed",
           },
           {
-            dependencies: [],
-            values: async (c, s) => [
-              "members",
-              "approved",
-              money(25n, "EUR"),
-              "bank-new",
-              local_date(c.now, s.test_site.timezone),
-            ],
+            dependencies: [finance_user],
+            values: async (c, s) => [s.finance_user, "reimbursed", true, money(25n, "EUR"), "bank-new", local_date(c.now, s.test_site.timezone), "Bank statement", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [ordinary_user],
+            values: async (c, s) => [s.ordinary_user, "approved", true, money(25n, "EUR"), "bank-new", local_date(c.now, s.test_site.timezone), "Bank statement", 1n],
             error: "forbidden",
+          },
+          {
+            dependencies: [reviewer_user],
+            values: async (c, s) => [s.reviewer_user, "approved", true, money(25n, "EUR"), "bank-new", local_date(c.now, s.test_site.timezone), "Bank statement", 1n],
+            error: "forbidden",
+          },
+          {
+            dependencies: [finance_user],
+            values: async (c, s) => [s.finance_user, "approved", false, money(25n, "EUR"), "bank-new", local_date(c.now, s.test_site.timezone), "Bank statement", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [finance_user],
+            values: async (c, s) => [s.finance_user, "approved", true, money(25n, "EUR"), "bank-new", local_date(c.now, s.test_site.timezone), "Bank statement", 2n],
+            error: "conflict",
+          },
+          {
+            dependencies: [finance_user],
+            values: async (c, s) => [s.finance_user, "approved", true, money(25n, "EUR"), " ", local_date(c.now, s.test_site.timezone), "Bank statement", 1n],
+            error: "rule_failed",
+          },
+          {
+            dependencies: [finance_user],
+            values: async (c, s) => [s.finance_user, "approved", true, money(25n, "EUR"), "bank-new", local_date(c.now, s.test_site.timezone), " ", 1n],
+            error: "rule_failed",
           },
         ],
       },
