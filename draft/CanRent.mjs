@@ -4612,6 +4612,16 @@ export function canApp() {
             allowance_units: event.value.units,
             included_units: event.value.covered_units,
           });
+          if (booking.benefit_unit === "day") {
+            await set(c, booking, {
+              intervals: movement.intervals.map((interval) => ({
+                from: subtractDuration(interval.from, booking.arrival_buffer),
+                until: addDuration(interval.until, booking.departure_buffer),
+              })),
+            });
+          } else {
+            await set(c, booking, { intervals: [] });
+          }
           await create(c, "rent_reservations.ResourcePolicy", {
             parent: booking.parent,
             sequence: int64(
@@ -4621,34 +4631,6 @@ export function canApp() {
             ),
             value: await resource_evidence(c, booking.parent),
           });
-          if (booking.benefit_unit === "day") {
-            await set(c, booking, {
-              intervals: movement.intervals.map((interval) => ({
-                from: subtractDuration(interval.from, booking.arrival_buffer),
-                until: addDuration(interval.until, booking.departure_buffer),
-              })),
-            });
-            await create(c, "rent_reservations.ResourcePolicy", {
-              parent: booking.parent,
-              sequence: int64(
-                (await count(
-                  records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
-                )) + 1n,
-              ),
-              value: await resource_evidence(c, booking.parent),
-            });
-          } else {
-            await set(c, booking, { intervals: [] });
-            await create(c, "rent_reservations.ResourcePolicy", {
-              parent: booking.parent,
-              sequence: int64(
-                (await count(
-                  records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
-                )) + 1n,
-              ),
-              value: await resource_evidence(c, booking.parent),
-            });
-          }
           await set(c, movement, { state: "adopted", outcome: event.value });
           await cancel(c, movement.id);
           await emit(c, "rent_reservations.ReservationChanged", {
@@ -5964,15 +5946,6 @@ export function canApp() {
             ),
             benefit_intervals: [{ from: value.snapshot.from, until: value.snapshot.until }],
           });
-          await create(c, "rent_reservations.ResourcePolicy", {
-            parent: booking.parent,
-            sequence: int64(
-              (await count(
-                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
-              )) + 1n,
-            ),
-            value: await resource_evidence(c, booking.parent),
-          });
           if (booking.total.minor > 0n) {
             const charge = await send(c, "rent_reservations.Billing.charge", {
               value: {
@@ -6004,16 +5977,16 @@ export function canApp() {
               billing_delivery: charge.id,
               monetary_due: booking.total,
             });
-            await create(c, "rent_reservations.ResourcePolicy", {
-              parent: booking.parent,
-              sequence: int64(
-                (await count(
-                  records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
-                )) + 1n,
-              ),
-              value: await resource_evidence(c, booking.parent),
-            });
           }
+          await create(c, "rent_reservations.ResourcePolicy", {
+            parent: booking.parent,
+            sequence: int64(
+              (await count(
+                records(c, "rent_reservations.ResourcePolicy", { parent: booking.parent }),
+              )) + 1n,
+            ),
+            value: await resource_evidence(c, booking.parent),
+          });
           await schedule(c, booking.id, booking.expires, "rent_reservations.HoldDue", { booking });
           await emit(c, "rent_reservations.OfferOutcome", {
             value: {
