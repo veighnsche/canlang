@@ -25,19 +25,33 @@ import {
   datetime,
   delivery,
 } from "@canlang/stdlib";
+/* Desired, unimplemented @canlang/ui contracts. Every factory below is proposed;
+ * none is an installed export and this file never runs. See file header. */
 import {
   message,
   renderPage,
   actions,
+  badge,
+  breadcrumbs,
+  calendar,
   card,
+  collapse,
   edit,
+  fieldset,
+  file_input,
   form,
   history,
+  input,
+  link,
   list,
+  pagination,
+  radio,
   tab,
   table,
   tabs,
   text,
+  textarea,
+  toggle,
 } from "@canlang/ui";
 import { Employee, can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -1566,7 +1580,9 @@ export async function facilitiesPage(c, bindings) {
   return renderPage(
     c,
     facilitiesPageDescriptor,
-    () =>
+    () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Asset directory", { nl: "Bedrijfsmiddelenregister" }),
@@ -1579,8 +1595,29 @@ export async function facilitiesPage(c, bindings) {
             search: ["name"],
             defaults: { location: c.preferences.maintain.location },
             display: "split",
+            empty: message("No assets match these filters", {
+              nl: "Geen bedrijfsmiddelen voor deze filters",
+            }),
             renderRow: (asset, v) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: v }),
+              text({ context: v, values: [asset.retired] }),
               edit({ context: v, operation: "maintain.Asset.update", record: asset }),
+              // The manual collapse renders only when a manual is attached.
+              same(asset.manual, null)
+                ? null
+                : collapse({
+                    context: v,
+                    caption: message("Manual", { nl: "Handleiding" }),
+                    children: [
+                      /* desired-unimplemented: link targets the authorized file URL. */
+                      link({
+                        context: v,
+                        target: asset.manual,
+                        caption: message("Manual", { nl: "Handleiding" }),
+                      }),
+                    ],
+                  }),
               tabs({
                 context: v,
                 children: [
@@ -1592,18 +1629,41 @@ export async function facilitiesPage(c, bindings) {
                     children: [
                       table({ context: v, model: Cancellation, parent: asset,
                         columns: ["reason", "cutoff", "author", "at", "phase"],
-                        renderRow: (cancellation, cv) => [actions({ context: cv,
-                          operations: ["maintain.resume_cancellation"], boundArgs: { cancellation } })] }),
+                        empty: message("No cancellations recorded", {
+                          nl: "Geen annuleringen vastgelegd",
+                        }),
+                        renderRow: (cancellation, cv) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: cv }),
+                          actions({ context: cv,
+                            operations: ["maintain.resume_cancellation"], boundArgs: { cancellation } })] }),
                       form({
                         context: v,
                         operation: "maintain.Plan.create",
                         arguments: { parent: asset },
+                        /* desired-unimplemented: fieldset groups existing form fields. */
+                        children: [
+                          fieldset({
+                            context: v,
+                            caption: message("Inspection plan", { nl: "Inspectieplan" }),
+                            children: [
+                              /* desired-unimplemented: placed controls move the generated controls. */
+                              input({ context: v, field: "name" }),
+                              input({ context: v, field: "cadence_days" }),
+                              calendar({ context: v, field: "next_due" }),
+                              toggle({ context: v, field: "active" }),
+                            ],
+                          }),
+                        ],
                       }),
                       list({
                         context: v,
                         model: "maintain.Plan",
                         parent: asset,
+                        empty: message("No inspection plans", { nl: "Geen inspectieplannen" }),
                         renderRow: (plan, pv) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: pv }),
                           edit({ context: pv, operation: "maintain.Plan.update", record: plan }),
                           table({
                             context: pv,
@@ -1618,12 +1678,33 @@ export async function facilitiesPage(c, bindings) {
                               "repair",
                               "reminded_at",
                             ],
+                            empty: message("No inspections recorded", {
+                              nl: "Geen inspecties vastgelegd",
+                            }),
                             renderRow: (inspection, iv) => [
+                              /* desired-unimplemented: pagination consumes this collection cursor. */
+                              pagination({ context: iv }),
+                              /* desired-unimplemented: badge presents the readable enum value. */
+                              badge({ context: iv, value: inspection.result }),
                               text({ context: iv, values: [inspection.checklist] }),
                               form({
                                 context: iv,
                                 operation: "maintain.inspect",
                                 arguments: { inspection },
+                                /* desired-unimplemented: fieldset groups existing form fields. */
+                                children: [
+                                  fieldset({
+                                    context: iv,
+                                    caption: message("Checklist result", {
+                                      nl: "Checklistresultaat",
+                                    }),
+                                    children: [
+                                      /* desired-unimplemented: placed controls move the generated controls. */
+                                      radio({ context: iv, field: "result" }),
+                                      textarea({ context: iv, field: "evidence" }),
+                                    ],
+                                  }),
+                                ],
                               }),
                               form({
                                 context: iv,
@@ -1667,16 +1748,20 @@ export async function facilitiesPage(c, bindings) {
                         ],
                         filter: ["state", "severity"],
                         defaults: { severity: c.preferences.maintain.severity },
+                        empty: message("No repairs match these filters", {
+                          nl: "Geen reparaties voor deze filters",
+                        }),
                         renderRow: (repair, rv) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: rv }),
+                          /* desired-unimplemented: badge presents readable enum values. */
+                          badge({ context: rv, value: repair.state }),
+                          badge({ context: rv, value: repair.severity }),
+                          badge({ context: rv, value: repair.block_state }),
                           edit({
                             context: rv,
                             operation: "maintain.Repair.update",
                             record: repair,
-                          }),
-                          form({
-                            context: rv,
-                            operation: dispatch_visit,
-                            arguments: { repair, location: repair.parent.location },
                           }),
                           actions({
                             context: rv,
@@ -1692,8 +1777,11 @@ export async function facilitiesPage(c, bindings) {
                             ],
                             boundArgs: { repair },
                           }),
-                          table({ context: rv, model: "maintain.Verification", parent: repair,
-                            columns: ["completion", "evidence", "author", "at"] }),
+                          form({
+                            context: rv,
+                            operation: dispatch_visit,
+                            arguments: { repair, location: repair.parent.location },
+                          }),
                           ...(repair.affected !== null
                             ? [
                                 card({
@@ -1717,16 +1805,37 @@ export async function facilitiesPage(c, bindings) {
                                         "status",
                                         "conflict",
                                       ],
+                                      empty: message("No affected bookings", {
+                                        nl: "Geen getroffen boekingen",
+                                      }),
+                                      renderRow: (booking, bv) => [
+                                        /* desired-unimplemented: pagination consumes this collection cursor. */
+                                        pagination({ context: bv }),
+                                      ],
                                     }),
                                   ],
                                 }),
                               ]
                             : []),
+                          table({ context: rv, model: "maintain.Verification", parent: repair,
+                            columns: ["completion", "evidence", "author", "at"],
+                            empty: message("No verifications recorded", {
+                              nl: "Geen verificaties vastgelegd",
+                            }),
+                            renderRow: (verification, vv) => [
+                              /* desired-unimplemented: pagination consumes this collection cursor. */
+                              pagination({ context: vv }),
+                            ] }),
                           list({
                             context: rv,
                             model: "maintain.Assignment",
                             parent: repair,
+                            empty: message("No assignments recorded", {
+                              nl: "Geen opdrachten vastgelegd",
+                            }),
                             renderRow: (assignment, av) => [
+                              /* desired-unimplemented: pagination consumes this collection cursor. */
+                              pagination({ context: av }),
                               text({
                                 context: av,
                                 values: [assignment.reason, assignment.contact],
@@ -1736,7 +1845,12 @@ export async function facilitiesPage(c, bindings) {
                                 model: "maintain.Notice",
                                 parent: assignment,
                                 columns: ["state", "delivery"],
+                                empty: message("No delivery attempts", {
+                                  nl: "Geen verzendpogingen",
+                                }),
                                 renderRow: (notice, nv) => [
+                                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                                  pagination({ context: nv }),
                                   actions({
                                     context: nv,
                                     operations: ["maintain.retry_notice"],
@@ -1757,6 +1871,7 @@ export async function facilitiesPage(c, bindings) {
           }),
         ],
       }),
+    ],
   );
 }
 export async function reportsPage(c, bindings) {
@@ -1764,10 +1879,30 @@ export async function reportsPage(c, bindings) {
     c,
     reportsPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Own fault intake", { nl: "Eigen storing melden" }),
-        children: [form({ context: c, operation: "maintain.report" })],
+        children: [
+          form({
+            context: c,
+            operation: "maintain.report",
+            /* desired-unimplemented: fieldset groups existing form fields. */
+            children: [
+              fieldset({
+                context: c,
+                caption: message("Fault details", { nl: "Storingsdetails" }),
+                children: [
+                  /* desired-unimplemented: placed controls move the generated controls. */
+                  input({ context: c, field: "title" }),
+                  textarea({ context: c, field: "description" }),
+                  file_input({ context: c, field: "photo" }),
+                ],
+              }),
+            ],
+          }),
+        ],
       }),
       card({
         context: c,
@@ -1780,6 +1915,15 @@ export async function reportsPage(c, bindings) {
             columns: ["title", "description", "state", "due", "completion"],
             filter: ["severity", "state"],
             defaults: { severity: c.preferences.maintain.severity },
+            empty: message("No own reports match these filters", {
+              nl: "Geen eigen meldingen voor deze filters",
+            }),
+            renderRow: (report, v) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: v }),
+              /* desired-unimplemented: badge presents the readable enum value. */
+              badge({ context: v, value: report.state }),
+            ],
           }),
         ],
       }),
