@@ -14,8 +14,8 @@
  * - `FileTransferMeta` (files mutable vs wire readonly+documented): wire.
  * - `UploadIntentRequest` (files intent vs wire envelope, divergent):
  *   files; the wire shape may need a rename, not a merge.
- * - `DeliveryError` (services documented vs values readonly, same shape):
- *   services; L2+L4 must deduplicate.
+ *
+ * Resolved: `DeliveryError` (L2 PR2 deduplicated; services owns it now).
  */
 export const CONTRACTS_VERSION = 1;
 
@@ -35,4 +35,3 @@ export type { OperationId } from "./state.js";
 export type { DeliveryStatus } from "./services.js";
 export type { FileTransferMeta } from "./wire.js";
 export type { UploadIntentRequest } from "./files.js";
-export type { DeliveryError } from "./services.js";

@@ -26,7 +26,8 @@ describe("integration readiness", () => {
   it("boots local workerd and builds a machine-readable report", async () => {
     const dev = await startLocalDev({
       workerName: "readiness",
-      compatibilityDate: "2026-10-04",
+      // Within miniflare v4 workerd's supported range (newest: 2026-08-06).
+      compatibilityDate: "2026-07-15",
       mainModule: "worker.mjs",
       modules: {
         "worker.mjs": `export default { async fetch() { return Response.json({ ready: true }); } }`,
