@@ -5314,7 +5314,7 @@ impl<'a> Typer<'a> {
             FixtureTarget::File => {
                 self.check_fixture_file(&cx, node, module, object);
             }
-            FixtureTarget::Operation => {
+            FixtureTarget::Operation(_) => {
                 let op = head.and_then(|h| self.tables.node_symbol.get(&NodeKey::of(h)).copied());
                 match op {
                     Some(op) => self.check_fixture_operation(&cx, node, op, object),
@@ -8160,7 +8160,7 @@ impl<'a> Typer<'a> {
                 },
                 FixtureTarget::User => ResolvedType::Scalar(Scalar::User),
                 FixtureTarget::File => ResolvedType::Scalar(Scalar::File),
-                FixtureTarget::Operation => ResolvedType::Opaque("operation fixture"),
+                FixtureTarget::Operation(_) => ResolvedType::Opaque("operation fixture"),
                 FixtureTarget::Unknown => ResolvedType::Error,
             },
             SymbolKind::DeriveFn { .. } => {

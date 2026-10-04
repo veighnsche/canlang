@@ -62,7 +62,8 @@ const FIXTURE_JSON: &str = r#"{
     {"id": "invocation", "js": "invocation", "owner": "test", "kind": "builtin", "signature": "invocation(target:canonical local user mutation,arguments:complete owning input object)->singleton invocation(target)", "effects": "pure", "availability": "implemented"},
     {"id": "all", "js": "all", "owner": "test", "kind": "builtin", "signature": "all(domain:C<T> as x,predicate:bool in x scope)->bool", "effects": "pure", "availability": "implemented"},
     {"id": "planned_widget", "js": "plannedWidget", "owner": "test", "kind": "builtin", "signature": "planned_widget(domain:C<int>)->int", "effects": "pure", "availability": "planned"},
-    {"id": "help_inner", "js": "helpInner", "owner": "test", "kind": "helper", "signature": "help_inner(value:int)->int; JS-side helper", "effects": "pure", "availability": "implemented"}
+    {"id": "help_inner", "js": "helpInner", "owner": "test", "kind": "helper", "signature": "help_inner(value:int)->int; JS-side helper", "effects": "pure", "availability": "implemented"},
+    {"id": "random_secret", "js": "randomSecret", "owner": "test", "kind": "builtin", "signature": "random_secret()->secret", "effects": "server-default-only", "availability": "implemented"}
   ]
 }"#;
 
@@ -488,7 +489,7 @@ fn valid_corpus_checks_clean() {
         "app T\nGiven\nWhen\n scenario s(note:text) by=members\n  require trim(note)!=\"\"\n  do\n   let x = 1\nThen\n",
         "app T\nGiven\n Todo { title:text, done:bool }\n policy Todo read=members\n derive ok(): bool = all(Todo as t, t.done)\nWhen\nThen\n",
         // Imports, containment and composition compose.
-        "app T uses=[p,q]\npackage p\n Given\n  export M { a:int }\n  policy M read=members\n When\n Then\npackage q\n use p {M}\n Given\n When\n  scenario s(m:M) by=members\n   do set m {a=1}\n Then\n",
+        "app T uses=[p,q]\npackage p\n Given\n  export M { a:int }\n  policy M read=members\n When\n Then\npackage q\n use p {M}\n Given\n When\n  scenario s(m:M) by=members\n   do\n    let x = 1\n Then\n",
         "app T uses=[p]\npackage p\n Given\n When\n Then\n",
     ];
     for (index, src) in cases.iter().enumerate() {
@@ -500,10 +501,11 @@ fn valid_corpus_checks_clean() {
     }
 }
 
-/// `explain` round-trip for `E2xxx`/`E3xxx`/`E6001`/`E6002`: every
-/// `example_invalid` emits its code, every `example_valid` checks clean
-/// (against the fixture; `E6002` invalid runs without a catalog), and
-/// the observed code set equals the catalog set for the range.
+/// `explain` round-trip for `E2xxx`/`E3xxx`/`E4xxx`/`E5xxx`/
+/// `E6001`/`E6002`: every `example_invalid` emits its code, every
+/// `example_valid` checks clean (against the fixture; `E6002` invalid
+/// runs without a catalog), and the observed code set equals the catalog
+/// set for the range.
 #[test]
 fn explain_round_trip_source_codes() {
     let catalog = fixture();
@@ -512,11 +514,17 @@ fn explain_round_trip_source_codes() {
         .filter(|info| {
             info.code.starts_with("E2")
                 || info.code.starts_with("E3")
+                || info.code.starts_with("E4")
+                || info.code.starts_with("E5")
                 || info.code == "E6001"
                 || info.code == "E6002"
         })
         .collect();
-    assert_eq!(entries.len(), 15 + 18 + 2, "E2/E3/E6001/E6002 entry count");
+    assert_eq!(
+        entries.len(),
+        15 + 18 + 13 + 9 + 2,
+        "E2/E3/E4/E5/E6001/E6002 entry count"
+    );
     let mut seen = BTreeSet::new();
     for info in &entries {
         // E6002 comes from the loader rather than the source pipeline:
@@ -665,7 +673,16 @@ fn draft_outcome_table() {
     };
     let catalog = load_real_catalog(&path);
     // (file, expected diagnostic count). Counts regenerated 2026-10-04
-    // for the PR4 review fixes: B4 types `invocation(...)` positions
+    // for PR5, attribution proven per file against a PR4 binary on the
+    // same drafts (PR5 = PR4 - dedup + E5, zero violations in 52 files):
+    // E4 adds 0 everywhere (effects skip `has_error` subtrees and drafts
+    // are pre-v1 sources failing early -- by design); E5 adds 24 total
+    // across 10 files (CanCRM 3, CanDesk 1, CanEvent 2, CanInvoice 1,
+    // CanLeave 6, CanPropose 2, CanPurchase 5, CanRefer 1, CanReport 2,
+    // CanTable 1); cross-pass dedup removes 247 duplicates (E2 -14,
+    // E3 -233); all other E1/E2/E3 moves are draft-side replans on main
+    // (50 files, slices #102-#110). CanShift 4 / CanVolunteer 3 hold.
+    // Previous regen (PR4 review fixes): B4 types `invocation(...)` positions
     // (CanWorkbench +2: the line-15 target E2001s) and M6 resolves
     // `slot`/catalog-item subtrees like their siblings (all other
     // moves are UI-subtree E2001/E2013s under identical scoping, each
@@ -674,52 +691,52 @@ fn draft_outcome_table() {
     // accepted per DESIGN §5).
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 108),
-        ("draft/CanApprove.can", 103),
-        ("draft/CanBoard.can", 4),
+        ("draft/CanApprove.can", 99),
+        ("draft/CanBoard.can", 14),
         ("draft/CanBook.can", 233),
-        ("draft/CanCRM.can", 193),
+        ("draft/CanCRM.can", 189),
         ("draft/CanCatch.can", 111),
         ("draft/CanChat.can", 134),
-        ("draft/CanCheck.can", 100),
-        ("draft/CanContract.can", 102),
-        ("draft/CanCreative.can", 195),
-        ("draft/CanCustomer.can", 109),
-        ("draft/CanDecide.can", 60),
-        ("draft/CanDesk.can", 156),
-        ("draft/CanDiscover.can", 154),
-        ("draft/CanDo.can", 56),
-        ("draft/CanEnrich.can", 46),
-        ("draft/CanEvent.can", 476),
+        ("draft/CanCheck.can", 96),
+        ("draft/CanContract.can", 101),
+        ("draft/CanCreative.can", 203),
+        ("draft/CanCustomer.can", 106),
+        ("draft/CanDecide.can", 55),
+        ("draft/CanDesk.can", 133),
+        ("draft/CanDiscover.can", 173),
+        ("draft/CanDo.can", 62),
+        ("draft/CanEnrich.can", 53),
+        ("draft/CanEvent.can", 454),
         ("draft/CanExpense.can", 128),
         ("draft/CanFeedback.can", 36),
-        ("draft/CanField.can", 131),
-        ("draft/CanGallery.can", 32),
-        ("draft/CanGrant.can", 102),
-        ("draft/CanHire.can", 164),
-        ("draft/CanInbox.can", 182),
-        ("draft/CanInvoice.can", 659),
-        ("draft/CanKnowledge.can", 100),
+        ("draft/CanField.can", 130),
+        ("draft/CanGallery.can", 39),
+        ("draft/CanGrant.can", 93),
+        ("draft/CanHire.can", 159),
+        ("draft/CanInbox.can", 193),
+        ("draft/CanInvoice.can", 638),
+        ("draft/CanKnowledge.can", 104),
         ("draft/CanLearn.can", 50),
-        ("draft/CanLeave.can", 99),
-        ("draft/CanLoyalty.can", 133),
-        ("draft/CanMail.can", 241),
-        ("draft/CanMaintain.can", 186),
-        ("draft/CanMember.can", 567),
-        ("draft/CanOnboard.can", 67),
-        ("draft/CanPropose.can", 199),
-        ("draft/CanPurchase.can", 233),
-        ("draft/CanReception.can", 258),
-        ("draft/CanRefer.can", 138),
-        ("draft/CanRent.can", 931),
-        ("draft/CanReport.can", 50),
+        ("draft/CanLeave.can", 105),
+        ("draft/CanLoyalty.can", 129),
+        ("draft/CanMail.can", 238),
+        ("draft/CanMaintain.can", 182),
+        ("draft/CanMember.can", 557),
+        ("draft/CanOnboard.can", 63),
+        ("draft/CanPropose.can", 194),
+        ("draft/CanPurchase.can", 235),
+        ("draft/CanReception.can", 254),
+        ("draft/CanRefer.can", 136),
+        ("draft/CanRent.can", 1022),
+        ("draft/CanReport.can", 52),
         ("draft/CanShift.can", 4),
         ("draft/CanStats.can", 82),
-        ("draft/CanStock.can", 142),
-        ("draft/CanSuccess.can", 107),
+        ("draft/CanStock.can", 140),
+        ("draft/CanSuccess.can", 103),
         ("draft/CanSync.can", 71),
-        ("draft/CanTable.can", 51),
-        ("draft/CanTime.can", 163),
-        ("draft/CanTrade.can", 29),
+        ("draft/CanTable.can", 69),
+        ("draft/CanTime.can", 156),
+        ("draft/CanTrade.can", 43),
         ("draft/CanVolunteer.can", 3),
         ("draft/CanWorkbench.can", 140),
         ("draft/shared/Employees.can", 14),
@@ -852,7 +869,7 @@ fn cli_catalog_flag_forms() {
         );
         assert!(result.stderr.is_empty());
         assert!(
-            result.stdout.contains("\"complete\":false"),
+            result.stdout.contains("\"complete\":true"),
             "{}",
             result.stdout
         );
@@ -910,21 +927,22 @@ fn cli_real_pipeline_exit_codes_and_discipline() {
     assert!(!line.contains('\n'), "single-line JSON");
     for field in [
         "\"tool\":\"can\"",
-        "\"complete\":false",
+        "\"complete\":true",
         "\"code\":\"E3001\"",
         "\"severity\":\"error\"",
         "bad.can",
     ] {
         assert!(line.contains(field), "missing {field}: {line}");
     }
-    // Text form: path:line:col locations plus the incomplete note.
+    // Text form: path:line:col locations; complete analysis shows no
+    // incomplete note.
     let result = dispatch_with(&argv(&["check", &bad.to_string_lossy()]), &analyzer);
     assert_eq!(result.code, 10);
     assert!(result.stderr.is_empty());
     assert!(result.stdout.contains("bad.can:3:"), "{}", result.stdout);
     assert!(result.stdout.contains("error E3001"), "{}", result.stdout);
     assert!(
-        result.stdout.contains("note: analysis incomplete"),
+        !result.stdout.contains("note: analysis incomplete"),
         "{}",
         result.stdout
     );
@@ -952,10 +970,11 @@ fn cli_real_pipeline_exit_codes_and_discipline() {
             result.stdout
         );
     }
-    // An empty database never panics the analyzer.
+    // An empty database never panics the analyzer; the pipeline runs
+    // vacuously, so the result is complete.
     let db = SourceDb::new();
     let result = missing.analyze(&db, "test");
-    assert!(!result.complete);
+    assert!(result.complete);
 }
 
 /// Explicitly test-only lane-05-shaped fixture: synthetic ids no producer
