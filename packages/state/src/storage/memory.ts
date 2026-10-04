@@ -856,14 +856,27 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
     },
 
     async flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult> {
-      // S7: idempotent activation. When the installed pointer already equals
-      // the target, return the current revision with flipped:false and commit
-      // nothing (no fence check: activation retries must succeed). Otherwise
-      // ONE fenced write: install the pointer, remove the renamed-away owner
-      // pointer, mark invalidated intents skipped, record outcomes, and mark
-      // progress active — atomically.
-      const installed = state.snapshots.get(input.snapshot.owner) ?? null;
+      // S7: idempotent activation. A null snapshot is an owner REMOVAL flip
+      // (dropOwner): the pointer is deleted instead of installed. Removal
+      // renames nothing and installs nothing, so contradictory inputs are
+      // programmer bugs. Otherwise ONE fenced write: install the pointer,
+      // remove the renamed-away owner pointer, mark invalidated intents
+      // skipped, record outcomes, and mark progress active — atomically.
+      if (input.snapshot === null && input.renameFromOwner !== null) {
+        throw new Error('flipInstalledSnapshot: a removal flip renames nothing.');
+      }
       if (
+        input.snapshot !== null &&
+        (input.snapshot.owner as string) !== (input.owner as string)
+      ) {
+        throw new Error('flipInstalledSnapshot: snapshot.owner must equal the flip owner.');
+      }
+      const installed = state.snapshots.get(input.owner) ?? null;
+      if (input.snapshot === null) {
+        if (installed === null) {
+          return { revision: state.revision as Revision, flipped: false };
+        }
+      } else if (
         installed !== null &&
         installed.snapshotId === input.snapshot.snapshotId &&
         installed.digest === input.snapshot.digest
@@ -871,14 +884,18 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
         return { revision: state.revision as Revision, flipped: false };
       }
       checkFencedExpected(input.expectedRevision, state.revision);
-      const snapshot = jsonCopy(input.snapshot);
       const outcomes = input.outcomes.map((outcome) => jsonCopy(outcome));
       const next = state.revision + 1;
-      // The engine cannot know the flip revision pre-commit: record actual.
-      state.snapshots.set(input.snapshot.owner, {
-        ...snapshot,
-        installedRevision: next as Revision,
-      });
+      if (input.snapshot === null) {
+        state.snapshots.delete(input.owner);
+      } else {
+        const snapshot = jsonCopy(input.snapshot);
+        // The engine cannot know the flip revision pre-commit: record actual.
+        state.snapshots.set(input.owner, {
+          ...snapshot,
+          installedRevision: next as Revision,
+        });
+      }
       if (input.renameFromOwner !== null) {
         state.snapshots.delete(input.renameFromOwner);
       }

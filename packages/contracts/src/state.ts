@@ -418,10 +418,12 @@ export interface StoragePort {
   publishMigrationChunk(input: PublishMigrationChunk): Promise<CommitResult>;
   /**
    * S7: the final fenced flip: install the new snapshot pointer (removing
-   * the renamed-away owner pointer when present), mark invalidated intents
-   * skipped, record outcomes, mark progress active. Idempotent: when the
-   * installed pointer already equals the target, returns the current
-   * revision with `flipped: false` and commits nothing.
+   * the renamed-away owner pointer when present), or — when `snapshot` is
+   * null — remove the owner's pointer (dropOwner); either way mark
+   * invalidated intents skipped, record outcomes, mark progress active.
+   * Idempotent: when the installed pointer already equals the target
+   * (or is already absent for a removal), returns the current revision
+   * with `flipped: false` and commits nothing.
    */
   flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult>;
   /** S7: recorded migration outcomes (invalidate skips), in record order. */
@@ -583,12 +585,17 @@ export interface MigrationOutcome {
  * S7: the final flip (see `flipInstalledSnapshot`). The engine cannot know
  * the flip's commit revision before it commits, so adapters OVERWRITE
  * `snapshot.installedRevision` with the actual flip revision; `installedAt`
- * is honored from the input (engine clock).
+ * is honored from the input (engine clock). A null `snapshot` is an owner
+ * REMOVAL flip (dropOwner): the `owner` pointer is deleted instead of
+ * installed (renameFromOwner must be null then — a removal renames
+ * nothing); skips, outcomes, and the active mark still commit.
  */
 export interface FlipInstalledSnapshot {
   readonly expectedRevision: Revision;
   readonly migrationId: string;
-  readonly snapshot: InstalledSnapshot;
+  /** Pointer key for install AND removal (equals snapshot.owner when set). */
+  readonly owner: string;
+  readonly snapshot: InstalledSnapshot | null;
   readonly renameFromOwner: string | null;
   readonly invalidatedIntentIds: ReadonlyArray<string>;
   readonly outcomes: ReadonlyArray<MigrationOutcome>;

@@ -1135,17 +1135,27 @@ export function createD1Storage(db: D1Database): StoragePort {
     },
 
     async flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult> {
-      // S7: idempotent activation. When the installed pointer already equals
-      // the target, return the current revision with flipped:false and commit
-      // nothing (no fence check: activation retries must succeed). Otherwise
-      // ONE fenced batch: install the pointer, remove the renamed-away owner
+      // S7: idempotent activation. A null snapshot is an owner REMOVAL flip
+      // (dropOwner): the pointer is deleted instead of installed; a removal
+      // against an already-absent pointer is a no-op success. Otherwise ONE
+      // fenced batch: install the pointer, remove the renamed-away owner
       // pointer, mark invalidated intents skipped, record outcomes, and mark
       // progress active — atomically.
+      if (input.snapshot === null && input.renameFromOwner !== null) {
+        throw new Error('flipInstalledSnapshot: a removal flip renames nothing.');
+      }
+      if (input.snapshot !== null && input.snapshot.owner !== input.owner) {
+        throw new Error('flipInstalledSnapshot: snapshot.owner must equal the flip owner.');
+      }
       const installed = await db
         .prepare(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots WHERE owner = ?`)
-        .bind(input.snapshot.owner)
+        .bind(input.owner)
         .first<SnapshotRow>();
-      if (
+      if (input.snapshot === null) {
+        if (installed === null) {
+          return { revision: await readRevisionInner(db), flipped: false };
+        }
+      } else if (
         installed !== null &&
         installed.snapshot_id === input.snapshot.snapshotId &&
         installed.digest === input.snapshot.digest
@@ -1155,24 +1165,28 @@ export function createD1Storage(db: D1Database): StoragePort {
       await checkMigrationExpected(db, input.expectedRevision);
       const next = (input.expectedRevision as number) + 1;
       const at = Date.now();
+      const snapshotStatement =
+        input.snapshot === null
+          ? db.prepare('DELETE FROM snapshots WHERE owner = ?').bind(input.owner)
+          : db
+              .prepare(
+                'INSERT OR REPLACE INTO snapshots(owner, snapshot_id, digest, installed_revision, ' +
+                  'installed_at) VALUES (?, ?, ?, ?, ?)',
+              )
+              .bind(
+                input.snapshot.owner,
+                input.snapshot.snapshotId,
+                input.snapshot.digest,
+                // The engine cannot know the flip revision pre-commit: record actual.
+                next,
+                input.snapshot.installedAt,
+              );
       const statements = [
         db
           .prepare('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)')
           .bind(next, at, `migration:flip:${input.migrationId}`),
         db.prepare('UPDATE fence SET revision = ? WHERE id = ?').bind(next, FENCE_ROW_ID),
-        db
-          .prepare(
-            'INSERT OR REPLACE INTO snapshots(owner, snapshot_id, digest, installed_revision, ' +
-              'installed_at) VALUES (?, ?, ?, ?, ?)',
-          )
-          .bind(
-            input.snapshot.owner,
-            input.snapshot.snapshotId,
-            input.snapshot.digest,
-            // The engine cannot know the flip revision pre-commit: record actual.
-            next,
-            input.snapshot.installedAt,
-          ),
+        snapshotStatement,
       ];
       if (input.renameFromOwner !== null) {
         statements.push(

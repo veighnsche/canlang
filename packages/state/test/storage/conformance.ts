@@ -2289,6 +2289,7 @@ export function storageConformance(
       const flipped = await store.flipInstalledSnapshot({
         expectedRevision: asRevision(3),
         migrationId,
+        owner,
         snapshot,
         renameFromOwner: null,
         invalidatedIntentIds: [skip1, skip2, `unknown-${migrationId}`],
@@ -2325,6 +2326,87 @@ export function storageConformance(
       assert.deepEqual(await store.readMigrationOutcomes(migrationId), outcomes);
     });
 
+    it('S7: removal flip deletes the pointer, still skips/outcomes, idempotent', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const migrationId = freshId('mig-rmflip');
+      const owner = freshId('owner-rmflip');
+      await store.commit(
+        makeBatch(0, {
+          outbox: [makeIntent({ intentId: `rm-skip-${migrationId}` })],
+        }),
+      );
+      await store.flipInstalledSnapshot({
+        expectedRevision: asRevision(1),
+        migrationId,
+        owner,
+        snapshot: makeSnapshot(owner, { snapshotId: 'snap-1', digest: 'digest-1' }),
+        renameFromOwner: null,
+        invalidatedIntentIds: [],
+        outcomes: [],
+      });
+      assert.ok((await store.readInstalledSnapshot(owner)) !== null);
+      const outcomes = [makeOutcome(migrationId, `rm-skip-${migrationId}`)];
+      const removed = await store.flipInstalledSnapshot({
+        expectedRevision: asRevision(2),
+        migrationId,
+        owner,
+        snapshot: null,
+        renameFromOwner: null,
+        invalidatedIntentIds: [`rm-skip-${migrationId}`],
+        outcomes,
+      });
+      assert.deepEqual(removed, { revision: 3, flipped: true });
+      assert.equal(await store.readInstalledSnapshot(owner), null);
+      assert.deepEqual(await store.outboxPending(), []);
+      assert.deepEqual(await store.readMigrationOutcomes(migrationId), outcomes);
+      assert.deepEqual(await store.readMigrationProgress(migrationId), {
+        migrationId,
+        phase: 'active',
+        stagedCursor: null,
+        publishCursor: null,
+        updatedRevision: 3,
+      });
+      // Removal against an absent pointer is a no-op success (idempotent).
+      const rerun = await store.flipInstalledSnapshot({
+        expectedRevision: asRevision(0),
+        migrationId,
+        owner,
+        snapshot: null,
+        renameFromOwner: null,
+        invalidatedIntentIds: [],
+        outcomes: [makeOutcome(migrationId, 'rm-late')],
+      });
+      assert.deepEqual(rerun, { revision: 3, flipped: false });
+      assert.deepEqual(await store.readMigrationOutcomes(migrationId), outcomes);
+      // Contradictory removal inputs are programmer bugs (plain Error).
+      const badRename = await captureFailure(
+        store.flipInstalledSnapshot({
+          expectedRevision: asRevision(3),
+          migrationId,
+          owner,
+          snapshot: null,
+          renameFromOwner: owner,
+          invalidatedIntentIds: [],
+          outcomes: [],
+        }),
+      );
+      assert.ok(badRename instanceof Error && badRename.constructor === Error);
+      const badOwner = await captureFailure(
+        store.flipInstalledSnapshot({
+          expectedRevision: asRevision(3),
+          migrationId,
+          owner,
+          snapshot: makeSnapshot('other-owner'),
+          renameFromOwner: null,
+          invalidatedIntentIds: [],
+          outcomes: [],
+        }),
+      );
+      assert.ok(badOwner instanceof Error && badOwner.constructor === Error);
+      assert.equal(await store.readRevision(), 3);
+    });
+
     it('S7: flip is idempotent: a second flip commits nothing', async () => {
       const { store, reset } = await setup();
       await reset();
@@ -2334,6 +2416,7 @@ export function storageConformance(
       const first = await store.flipInstalledSnapshot({
         expectedRevision: asRevision(0),
         migrationId,
+        owner,
         snapshot,
         renameFromOwner: null,
         invalidatedIntentIds: [],
@@ -2345,6 +2428,7 @@ export function storageConformance(
       const second = await store.flipInstalledSnapshot({
         expectedRevision: asRevision(0),
         migrationId,
+        owner,
         snapshot,
         renameFromOwner: null,
         invalidatedIntentIds: [`skip-x-${migrationId}`],
@@ -2378,6 +2462,7 @@ export function storageConformance(
       await store.flipInstalledSnapshot({
         expectedRevision: asRevision(0),
         migrationId: firstId,
+        owner: oldOwner,
         snapshot: makeSnapshot(oldOwner, { snapshotId: 'snap-1', digest: 'digest-1' }),
         renameFromOwner: null,
         invalidatedIntentIds: [],
@@ -2388,6 +2473,7 @@ export function storageConformance(
       const result = await store.flipInstalledSnapshot({
         expectedRevision: asRevision(1),
         migrationId: secondId,
+        owner: newOwner,
         snapshot: renamed,
         renameFromOwner: oldOwner,
         invalidatedIntentIds: [],
@@ -2477,6 +2563,7 @@ export function storageConformance(
       const flipped = await store.flipInstalledSnapshot({
         expectedRevision: asRevision(3),
         migrationId,
+        owner,
         snapshot,
         renameFromOwner: null,
         invalidatedIntentIds: [],

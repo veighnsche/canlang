@@ -931,11 +931,31 @@ function planPublish(
 }
 
 /**
- * S7: plan the final fenced flip: pointer install (+ rename-source removal),
- * pending-only skip updates, outcome inserts, and the cursor-preserving
- * progress-to-active upsert (missing progress is created active).
+ * S7: plan the final fenced flip: pointer install (+ rename-source removal)
+ * or pointer deletion (removal flip), pending-only skip updates, outcome
+ * inserts, and the cursor-preserving progress-to-active upsert (missing
+ * progress is created active).
  */
 function planFlip(input: FlipInstalledSnapshot, next: number, at: number): PlannedStatement[] {
+  const snapshotStatement: PlannedStatement =
+    input.snapshot === null
+      ? {
+          sql: 'DELETE FROM snapshots WHERE owner = ?',
+          bindings: [input.owner],
+        }
+      : {
+          sql:
+            'INSERT OR REPLACE INTO snapshots(owner, snapshot_id, digest, installed_revision, ' +
+            'installed_at) VALUES (?, ?, ?, ?, ?)',
+          bindings: [
+            input.snapshot.owner,
+            input.snapshot.snapshotId,
+            input.snapshot.digest,
+            // The engine cannot know the flip revision pre-commit: record actual.
+            next,
+            input.snapshot.installedAt,
+          ],
+        };
   const statements: PlannedStatement[] = [
     {
       sql: 'INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)',
@@ -945,19 +965,7 @@ function planFlip(input: FlipInstalledSnapshot, next: number, at: number): Plann
       sql: 'UPDATE fence SET revision = ? WHERE id = ?',
       bindings: [next, FENCE_ROW_ID],
     },
-    {
-      sql:
-        'INSERT OR REPLACE INTO snapshots(owner, snapshot_id, digest, installed_revision, ' +
-        'installed_at) VALUES (?, ?, ?, ?, ?)',
-      bindings: [
-        input.snapshot.owner,
-        input.snapshot.snapshotId,
-        input.snapshot.digest,
-        // The engine cannot know the flip revision pre-commit: record actual.
-        next,
-        input.snapshot.installedAt,
-      ],
-    },
+    snapshotStatement,
   ];
   if (input.renameFromOwner !== null) {
     statements.push({
@@ -1228,18 +1236,28 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult> {
-      // S7: idempotent activation. When the installed pointer already equals
-      // the target, return the current revision with flipped:false and commit
-      // nothing (no fence check: activation retries must succeed). Otherwise
-      // ONE fenced transaction, as planned by planFlip.
+      // S7: idempotent activation. A null snapshot is an owner REMOVAL flip
+      // (dropOwner): the pointer is deleted instead of installed; a removal
+      // against an already-absent pointer is a no-op success. Otherwise ONE
+      // fenced transaction, as planned by planFlip.
+      if (input.snapshot === null && input.renameFromOwner !== null) {
+        throw new Error('flipInstalledSnapshot: a removal flip renames nothing.');
+      }
+      if (input.snapshot !== null && input.snapshot.owner !== input.owner) {
+        throw new Error('flipInstalledSnapshot: snapshot.owner must equal the flip owner.');
+      }
       const installed =
         storage.sql
           .exec<SnapshotRow>(
             `SELECT ${SNAPSHOT_COLUMNS} FROM snapshots WHERE owner = ?`,
-            input.snapshot.owner,
+            input.owner,
           )
           .toArray()[0] ?? null;
-      if (
+      if (input.snapshot === null) {
+        if (installed === null) {
+          return { revision: readRevisionInner(storage), flipped: false };
+        }
+      } else if (
         installed !== null &&
         installed.snapshot_id === input.snapshot.snapshotId &&
         installed.digest === input.snapshot.digest
