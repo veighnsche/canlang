@@ -107,6 +107,12 @@ The 17 evaluated gaps are not the entire earlier app-completion backlog. Keep th
 
 E1 can run whenever an owner's next app is free; it need not wait for all 17 tasks. E2/E3 review stable relevant commits while other files progress. Finish E4 after pending corrections are integrated. Every gap has one owner even when its application spans several lanes.
 
+## Current E2 correspondence slices
+
+Twenty settled targets (CanGrant excluded while its owner edits) were inspected for model identities, stored field names, direct array/nullability/required-array flags, enum cases and literal schema metadata against a supported production/table source projection. The 843 direct stored-field comparisons found Rent Movement.intervals incorrectly marked nonempty rather than explicit-required array, six Time enums using values instead of the canonical cases key, and Maintain Repair.title using a Number bound instead of exact BigInt. These target-only corrections preserve source meaning; required arrays permit explicitly empty values, with business nonemptiness enforced only by actual authored guards/bounds. Duration defaults were manually checked in milliseconds; apparent 7d/30d/15m/1h numeric differences are correct unit lowering.
+
+Twelve qualified field-type reuse occurrences remain outside this direct comparison and need resolved owner-type correspondence. The temporary inspection substitutes inert imports to inspect metadata only; it does not execute any imported capability, operation or runtime implementation. Production/scalar/query bodies, permissions, UI, examples and cross-app service journeys remain the rest of E2/E3. All 21 targets have one appDefinition/canApp/exampleFixtures shape, canonical readGrants and no h/Preact or legacy money-comparison spelling; that inventory does not prove uniform semantics.
+
 ## Next concrete app correction
 
 **Expense is corrected.** Its source and target now check the noncaller reviewer grant and preserve immutable submitted evidence through withdrawal/correction. Mail causal examples and safe shared-shell discovery are actively assigned, while the next independent E1 requirement/source/target pair is CanGrant. Employee `role:text` still confers no language role assignment.
@@ -118,7 +124,7 @@ The original planning pass changed no product source. Task 4 and the concrete Re
 - `bbf493f` — Report completeness/state admission and exact-measure guards, with 21 authored cases and companion requirements.
 - `3881d60` — Rent typed quote aggregates, refunds and comparisons reviewed against the unchanged Can source.
 - `bb02ae5` — Actor/grant milestone: existing user fixture recipes and named caller selection, reference witnesses and three saved JEV consultations; genuine shared-state journeys remain task 7.
-- Mail authority/custody correction — retained nomination identity and current use authority, with a ten-call canonical journey and matching target.
+- `a4eb3f4` — Mail authority/custody correction — retained nomination identity and current use authority, with a ten-call canonical journey and matching target.
 - `a00741c` — Expense authority/recovery correction — current role/eligibility, evidence-preserving successor recovery and matching target; 49 single-call expectations and three causal journeys.
 - `36000eb` / `6f264de` — Customer invitation/contact proof corrections, with exact business rejection semantics.
 - `a66f9fd` — Shared-state examples contract — typed snapshots, exact errors, independent authorized calls and a causal reference witness; app journeys are being applied.

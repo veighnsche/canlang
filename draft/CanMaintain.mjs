@@ -346,7 +346,7 @@ export const appDefinition = {
           default: false,
           label: message("Visit report needs review", { nl: "Bezoekverslag vereist beoordeling" }),
         },
-        title: { type: "text", trim: true, min: 1 },
+        title: { type: "text", trim: true, min: 1n },
         description: { type: "text" },
         severity: {
           type: "enum",
