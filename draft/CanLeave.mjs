@@ -25,16 +25,32 @@ import {
 } from "@canlang/stdlib";
 import {
   actions,
+  badge,
+  breadcrumbs,
+  button,
+  calendar,
   card,
+  checkbox,
+  collapse,
   details,
   edit,
+  fieldset,
   form,
   history,
+  input,
   list,
   message,
+  modal,
+  pagination,
+  preferences,
+  radial_progress,
   renderPage,
+  slot,
+  stat,
   table,
   text,
+  textarea,
+  tooltip,
 } from "@canlang/ui";
 import { can_work, Employee } from "./employee.mjs";
 
@@ -50,6 +66,16 @@ import { ScheduleV1 } from "./shift.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * UI sections mirror the replanned CanLeave.can Then: breadcrumbs, in-context
+ * view-default preferences, counted-day stats with cross-year portions,
+ * fieldset-grouped intake with calendar/input/textarea controls, state and
+ * synchronization badges, annotated withdraw, per-allowance balance collapses
+ * with remaining/days radial meters, decide/cancel modals, recorded-portions
+ * collapses, typed HR policy controls and an accepted-absence agenda calendar
+ * (start=from end=until) with empty states and paginated collections.
+ * Lowercase UI factories take one props object; slots are prop arrays. All UI
+ * imports and calls are desired/unimplemented. This file passes node --check
+ * (syntax only) and never runs.
  */
 
 const yearCaption = message("Year", { nl: "Jaar" });
@@ -926,6 +952,22 @@ export async function minePage(c, bindings) {
     c,
     minePageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
+      card({
+        context: c,
+        title: message("View defaults", { nl: "Weergavevoorkeuren" }),
+        children: [
+          /* desired-unimplemented: preferences edits the owned year/bucket memory in context. */
+          preferences({
+            context: c,
+            children: [
+              input({ context: c, field: "year" }),
+              input({ context: c, field: "bucket" }),
+            ],
+          }),
+        ],
+      }),
       card({
         context: c,
         title: message("Leave dates and allowance", { nl: "Verlofdatums en tegoed" }),
@@ -942,30 +984,64 @@ export async function minePage(c, bindings) {
                 model: "leave.Calendar",
                 where: calendar => same(calendar.parent.user,c.actor),
                 display: "split",
+                empty: message("No working calendar.", { nl: "Geen werkkalender." }),
                 renderRow: (calendar, view) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: view }),
                   form({
                     context: view,
                     operation: "leave.preview",
                     arguments: { calendar },
                     renderResult: (result, v) => [
-                      text({ context: v, values: [result.days] }),
+                      /* desired-unimplemented: stat presents the counted-day total. */
+                      stat({ context: v, value: result.days }),
                       list({
                         context: v,
                         items: result.portions,
-                        renderRow: (portion, w) =>
+                        empty: message("No counted days.", { nl: "Geen getelde dagen." }),
+                        renderRow: (portion, w) => [
+                          /* desired-unimplemented: pagination consumes this collection cursor. */
+                          pagination({ context: w }),
                           text({
                             context: w,
                             values: [portion.year, portion.days, portion.allowance?.remaining],
                           }),
+                        ],
                       }),
                     ],
                   }),
-                  form({ context: view, operation: "leave.request", arguments: { calendar } }),
+                  form({
+                    context: view,
+                    operation: "leave.request",
+                    arguments: { calendar },
+                    display: "inline",
+                    /* desired-unimplemented: placed controls move the generated fields. */
+                    children: [
+                      fieldset({
+                        context: view,
+                        caption: message("Request leave", { nl: "Verlof aanvragen" }),
+                        children: [
+                          /* desired-unimplemented: calendar control edits one date field. */
+                          calendar({ context: view, field: "from" }),
+                          calendar({ context: view, field: "until" }),
+                          input({ context: view, field: "bucket" }),
+                          textarea({ context: view, field: "reason" }),
+                        ],
+                      }),
+                    ],
+                  }),
                   table({
                     context: view,
                     model: "leave.Day",
                     parent: calendar,
                     columns: ["date", "working"],
+                    empty: message("No calendar days configured.", {
+                      nl: "Geen kalenderdagen ingesteld.",
+                    }),
+                    renderRow: (row, v) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: v }),
+                    ],
                   }),
                   table({
                     context: view,
@@ -975,12 +1051,28 @@ export async function minePage(c, bindings) {
                     order: ["-from"],
                     filter: ["bucket", "state"],
                     defaults: { bucket: c.preferences.leave.bucket },
-                    renderRow: (request, v) =>
-                      actions({
+                    empty: message("No leave requests.", { nl: "Geen verlofaanvragen." }),
+                    renderRow: (request, v) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: v }),
+                      /* desired-unimplemented: badge presents the readable enum value. */
+                      badge({ context: v, value: request.state }),
+                      badge({ context: v, value: request.sync }),
+                      /* desired-unimplemented: tooltip annotates the canonical action. */
+                      tooltip({
                         context: v,
-                        operations: ["leave.withdraw"],
-                        boundArgs: { request },
+                        caption: message("Withdraws your pending request", {
+                          nl: "Trekt je lopende aanvraag in",
+                        }),
+                        children: [
+                          actions({
+                            context: v,
+                            operations: ["leave.withdraw"],
+                            boundArgs: { request },
+                          }),
+                        ],
                       }),
+                    ],
                   }),
                 ],
               }),
@@ -997,6 +1089,27 @@ export async function minePage(c, bindings) {
                 columns: ["year", "bucket", "days", "remaining"],
                 filter: ["year", "bucket"],
                 defaults: { year: c.preferences.leave.year, bucket: c.preferences.leave.bucket },
+                empty: message("No allowances configured.", {
+                  nl: "Geen tegoeden ingesteld.",
+                }),
+                renderRow: (allowance, v) => [
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: v }),
+                  allowance.days > 0
+                    ? collapse({
+                        context: v,
+                        caption: message("Balance", { nl: "Saldo" }),
+                        children: [
+                          /* desired-unimplemented: radial_progress gauges remaining/days. */
+                          radial_progress({
+                            context: v,
+                            value: allowance.remaining,
+                            max: allowance.days,
+                          }),
+                        ],
+                      })
+                    : null,
+                ],
               }),
             ],
           }),
@@ -1011,6 +1124,8 @@ export async function reviewPage(c, bindings) {
     c,
     reviewPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Assigned review", { nl: "Toegewezen beoordeling" }),
@@ -1023,13 +1138,74 @@ export async function reviewPage(c, bindings) {
             filter: ["bucket", "state"],
             defaults: { bucket: c.preferences.leave.bucket },
             display: "split",
+            empty: message("No assigned leave.", { nl: "Geen toegewezen verlof." }),
             renderRow: (request, view) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: view }),
+              /* desired-unimplemented: badge presents the readable enum value. */
+              badge({ context: view, value: request.state }),
+              badge({ context: view, value: request.sync }),
+              badge({ context: view, value: request.release_state }),
+              button({ context: view, opens: "decide_request" }),
+              /* desired-unimplemented: modal declares the local activation identity. */
+              modal({
+                context: view,
+                caption: message("Decide request", { nl: "Aanvraag beoordelen" }),
+                id: "decide_request",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "leave.decide",
+                        arguments: { request },
+                        display: "inline",
+                        /* desired-unimplemented: placed controls move the generated fields. */
+                        children: [
+                          fieldset({
+                            context: view,
+                            caption: message("Decision", { nl: "Besluit" }),
+                            children: [
+                              checkbox({ context: view, field: "approve" }),
+                              textarea({ context: view, field: "reason" }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              button({ context: view, opens: "cancel_request" }),
+              modal({
+                context: view,
+                caption: message("Cancel request", { nl: "Aanvraag annuleren" }),
+                id: "cancel_request",
+                children: [
+                  slot({
+                    context: view,
+                    name: "content",
+                    children: [
+                      form({
+                        context: view,
+                        operation: "leave.cancel",
+                        arguments: { request },
+                        display: "inline",
+                        /* desired-unimplemented: placed controls move the generated fields. */
+                        children: [textarea({ context: view, field: "reason" })],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
               actions({
                 context: view,
-                operations: ["leave.decide", "leave.cancel", "leave.retry_release"],
+                operations: ["leave.retry_release"],
                 boundArgs: { request },
               }),
-              details({
+              collapse({
                 context: view,
                 caption: message("Recorded date portions", { nl: "Vastgelegde datumdelen" }),
                 children: [
@@ -1037,11 +1213,15 @@ export async function reviewPage(c, bindings) {
                     context: view,
                     model: "leave.Portion",
                     parent: request,
-                    renderRow: (portion, v) =>
+                    empty: message("No portions.", { nl: "Geen delen." }),
+                    renderRow: (portion, v) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: v }),
                       text({
                         context: v,
                         values: [portion.days, portion.dates],
                       }),
+                    ],
                   }),
                 ],
               }),
@@ -1056,22 +1236,56 @@ export async function reviewPage(c, bindings) {
               context: c,
               title: message("Allowance and calendar policies", { nl: "Tegoed en kalenderbeleid" }),
               children: [
-                form({ context: c, operation: "leave.Allowance.create" }),
+                form({
+                  context: c,
+                  operation: "leave.Allowance.create",
+                  /* desired-unimplemented: placed controls move the generated fields. */
+                  children: [
+                    input({ context: c, field: "year" }),
+                    input({ context: c, field: "bucket" }),
+                    input({ context: c, field: "days" }),
+                  ],
+                }),
                 table({
                   context: c,
                   model: "leave.Allowance",
                   columns: ["year", "bucket", "days", "remaining"],
                   filter: ["year", "bucket"],
-                  renderRow: (allowance, v) =>
+                  empty: message("No allowances configured.", {
+                    nl: "Geen tegoeden ingesteld.",
+                  }),
+                  renderRow: (allowance, v) => [
+                    /* desired-unimplemented: pagination consumes this collection cursor. */
+                    pagination({ context: v }),
                     edit({ context: v, operation: "leave.Allowance.update", record: allowance }),
+                  ],
                 }),
-                form({context:c,operation:"leave.Calendar.create"}),
+                form({
+                  context: c,
+                  operation: "leave.Calendar.create",
+                  /* desired-unimplemented: placed controls move the generated fields. */
+                  children: [input({ context: c, field: "name" })],
+                }),
                 list({
                   context: c,
                   model: "leave.Calendar",
+                  empty: message("No calendars configured.", {
+                    nl: "Geen kalenders ingesteld.",
+                  }),
                   renderRow: (calendar, v) => [
+                    /* desired-unimplemented: pagination consumes this collection cursor. */
+                    pagination({ context: v }),
                     edit({context:v,operation:"leave.Calendar.update",record:calendar}),
-                    form({context:v,operation:"leave.Day.create",arguments:{parent:calendar}}),
+                    form({
+                      context: v,
+                      operation: "leave.Day.create",
+                      arguments: { parent: calendar },
+                      /* desired-unimplemented: placed controls move the generated fields. */
+                      children: [
+                        /* desired-unimplemented: calendar control edits one date field. */
+                        calendar({ context: v, field: "date" }),
+                      ],
+                    }),
                     form({
                       context: v,
                       operation: "leave.Category.create",
@@ -1082,16 +1296,28 @@ export async function reviewPage(c, bindings) {
                       model: "leave.Category",
                       parent: calendar,
                       columns: ["name", "allowance_bucket"],
-                      renderRow: (category, w) =>
+                      empty: message("No absence categories configured.", {
+                        nl: "Geen afwezigheidscategorieën ingesteld.",
+                      }),
+                      renderRow: (category, w) => [
+                        /* desired-unimplemented: pagination consumes this collection cursor. */
+                        pagination({ context: w }),
                         edit({ context: w, operation: "leave.Category.update", record: category }),
+                      ],
                     }),
                     table({
                       context: v,
                       model: "leave.Day",
                       parent: calendar,
                       columns: ["date", "working"],
-                      renderRow: (day, w) =>
+                      empty: message("No calendar days configured.", {
+                        nl: "Geen kalenderdagen ingesteld.",
+                      }),
+                      renderRow: (day, w) => [
+                        /* desired-unimplemented: pagination consumes this collection cursor. */
+                        pagination({ context: w }),
                         edit({ context: w, operation: "leave.Day.update", record: day }),
+                      ],
                     }),
                   ],
                 }),
@@ -1108,16 +1334,28 @@ export async function absencePage(c, bindings) {
     c,
     absencePageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
       card({
         context: c,
         title: message("Scoped absence dates", { nl: "Afwezigheid binnen scope" }),
         children: [
-          table({
+          /* desired-unimplemented: calendar collection renders the from/until agenda. */
+          calendar({
             context: c,
             model: "leave.Request",
             where: (request) => request.state === "approved",
-            columns: ["location", "from", "until", "state"],
+            start: "from",
+            end: "until",
+            columns: ["location", "state"],
             filter: ["location", "from", "until"],
+            empty: message("No absence dates.", { nl: "Geen afwezigheidsdatums." }),
+            renderRow: (request, v) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: v }),
+              /* desired-unimplemented: badge presents the readable enum value. */
+              badge({ context: v, value: request.state }),
+            ],
           }),
         ],
       }),
