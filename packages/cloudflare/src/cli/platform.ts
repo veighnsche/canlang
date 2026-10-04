@@ -13,8 +13,13 @@
  * Missing-producer failures use `code: "missing-producer"` and name the
  * exact unmet contract — never a second engine, never a silent pass.
  */
-import { access } from "node:fs/promises";
+import { access, mkdtemp } from "node:fs/promises";
 import { constants } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { loadArtifactFile, type LoadedArtifact } from "../runtime/artifact.js";
+import { assembleModules } from "../runtime/modules.js";
 
 export const PLATFORM_CLI_NAME = "can-platform";
 export const PLATFORM_CLI_VERSION = "0.1.0";
@@ -120,17 +125,48 @@ async function artifactExists(path: string): Promise<boolean> {
   }
 }
 
+async function runArtifact(path: string): Promise<void> {
+  let loaded: LoadedArtifact;
+  try {
+    loaded = loadArtifactFile(path);
+  } catch (error) {
+    fail("run", "invalid-artifact", error instanceof Error ? error.message : String(error));
+  }
+  const workDir = await mkdtemp(join(tmpdir(), "can-platform-run-"));
+  // distRoot is the repo `packages/` dir, resolved from this file's
+  // compiled location (dist/cli/platform.js), mirroring how the CLI itself
+  // runs as tsc output rather than TS source.
+  const distRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+  // No runtime TS loader exists in this repo (no tsx/ts-node; bin points at
+  // dist JS): stdlib is referenced as its COMPILED sibling, exactly how
+  // this CLI file is executed after `tsc -p`.
+  const stdlibUrl = new URL("../runtime/stdlib.js", import.meta.url).href;
+  const asm = await assembleModules(loaded, { distRoot, workDir, stdlibUrl });
+  const artifact = loaded.artifact;
+  process.stderr.write(
+    `artifact: ${artifact.modules.length} modules, ` +
+      `${artifact.callables.length} callables, ${artifact.pages.length} pages\n`,
+  );
+  emit({
+    ok: true,
+    entry: asm.entryUrl,
+    callables: artifact.callables.map((callable) => callable.id),
+    pages: artifact.pages.map((page) => page.path),
+  });
+}
+
 async function main(): Promise<void> {
   const args = parse(process.argv.slice(2));
   if (!(await artifactExists(args.artifact))) {
     fail(args.command, "missing-artifact", `artifact not readable: ${args.artifact}`);
   }
-  // Producer gates, checked in dependency order: every command needs a real
-  // L1 CompileArtifact first; run/test additionally need the L3 invocation
-  // engine once emission exists. Until those land, report the exact unmet
-  // contract (PLAN: thin entries exec or print a precise missing-producer
-  // error). The first unmet gate wins, so run/test name lane-01 today.
-  if (args.command === "run" || args.command === "test") {
+  // run executes via loadArtifactFile + assembleModules; test/build/deploy
+  // keep their stubs (test still names lane-01).
+  if (args.command === "run") {
+    await runArtifact(args.artifact);
+    return;
+  }
+  if (args.command === "test") {
     fail(args.command, "missing-producer", "no L1 CompileArtifact emission to execute yet", {
       producer: "lane-01",
       contract: "can compile emission + ArtifactTestModule loader (§13 exampleFixtures)",

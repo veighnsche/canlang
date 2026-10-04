@@ -1407,8 +1407,8 @@ fn construct_scalars_per_op() {
     );
     assert_eq!(text, "negateMoney(money(100n,\"EUR\"))");
 
-    // Decimals: divideDecimal and compareDecimal against zero; equality
-    // is structural (equalValue); add/subtract/mul have no §13 name.
+    // Decimals: addDecimal/subtractDecimal/multiplyDecimal/divideDecimal
+    // and compareDecimal against zero; equality is structural (equalValue).
     let dec = |text: &str| typed(IrExpr::Decimal(text.to_string()), decimal_ty.clone());
     let (text, imports, diags) = lower(
         &ir,
@@ -1654,6 +1654,280 @@ fn construct_scalars_per_op() {
         text,
         "records(c,\"demo.Widget\",{where:(row)=>row.count === 1n,order:[\"-count\"],limit:10n})"
     );
+    assert!(diags.is_empty());
+}
+
+/// Gap-helper join: decimal `+` lowers to `addDecimal`, decimal/decimal
+/// and exact int/decimal mixes alike.
+#[test]
+fn gap_helper_add_decimal() {
+    let ir = fixture_ir();
+    let int_ty = ResolvedType::Scalar(Scalar::Int);
+    let decimal_ty = ResolvedType::Scalar(Scalar::Decimal);
+    let name = |name: &str, ty: ResolvedType| typed(IrExpr::Name(name.to_string()), ty);
+    let add = |l: TypedExpr, r: TypedExpr| {
+        typed(
+            IrExpr::Binary {
+                op: IrBinOp::Add,
+                left: Box::new(l),
+                right: Box::new(r),
+            },
+            decimal_ty.clone(),
+        )
+    };
+    let (text, imports, diags) = lower(
+        &ir,
+        &add(
+            name("price", decimal_ty.clone()),
+            name("fee", decimal_ty.clone()),
+        ),
+    );
+    assert_eq!(text, "addDecimal(price,fee)");
+    assert_eq!(
+        imports,
+        vec!["import { addDecimal } from \"@canlang/stdlib\";"]
+    );
+    assert!(diags.is_empty());
+    // Exact int promotion inside the operator lowers the same way.
+    let (text, _, diags) = lower(
+        &ir,
+        &add(
+            name("units", int_ty.clone()),
+            name("fee", decimal_ty.clone()),
+        ),
+    );
+    assert_eq!(text, "addDecimal(units,fee)");
+    assert!(diags.is_empty());
+}
+
+/// Gap-helper join: decimal `-` lowers to `subtractDecimal`, mixes alike.
+#[test]
+fn gap_helper_subtract_decimal() {
+    let ir = fixture_ir();
+    let int_ty = ResolvedType::Scalar(Scalar::Int);
+    let decimal_ty = ResolvedType::Scalar(Scalar::Decimal);
+    let name = |name: &str, ty: ResolvedType| typed(IrExpr::Name(name.to_string()), ty);
+    let sub = |l: TypedExpr, r: TypedExpr| {
+        typed(
+            IrExpr::Binary {
+                op: IrBinOp::Sub,
+                left: Box::new(l),
+                right: Box::new(r),
+            },
+            decimal_ty.clone(),
+        )
+    };
+    let (text, imports, diags) = lower(
+        &ir,
+        &sub(
+            name("price", decimal_ty.clone()),
+            name("fee", decimal_ty.clone()),
+        ),
+    );
+    assert_eq!(text, "subtractDecimal(price,fee)");
+    assert_eq!(
+        imports,
+        vec!["import { subtractDecimal } from \"@canlang/stdlib\";"]
+    );
+    assert!(diags.is_empty());
+    let (text, _, diags) = lower(
+        &ir,
+        &sub(
+            name("price", decimal_ty.clone()),
+            name("units", int_ty.clone()),
+        ),
+    );
+    assert_eq!(text, "subtractDecimal(price,units)");
+    assert!(diags.is_empty());
+}
+
+/// Gap-helper join: decimal `*` lowers to `multiplyDecimal`, mixes alike.
+#[test]
+fn gap_helper_multiply_decimal() {
+    let ir = fixture_ir();
+    let int_ty = ResolvedType::Scalar(Scalar::Int);
+    let decimal_ty = ResolvedType::Scalar(Scalar::Decimal);
+    let name = |name: &str, ty: ResolvedType| typed(IrExpr::Name(name.to_string()), ty);
+    let mul = |l: TypedExpr, r: TypedExpr| {
+        typed(
+            IrExpr::Binary {
+                op: IrBinOp::Mul,
+                left: Box::new(l),
+                right: Box::new(r),
+            },
+            decimal_ty.clone(),
+        )
+    };
+    let (text, imports, diags) = lower(
+        &ir,
+        &mul(
+            name("price", decimal_ty.clone()),
+            name("rate", decimal_ty.clone()),
+        ),
+    );
+    assert_eq!(text, "multiplyDecimal(price,rate)");
+    assert_eq!(
+        imports,
+        vec!["import { multiplyDecimal } from \"@canlang/stdlib\";"]
+    );
+    assert!(diags.is_empty());
+    let (text, _, diags) = lower(
+        &ir,
+        &mul(
+            name("units", int_ty.clone()),
+            name("price", decimal_ty.clone()),
+        ),
+    );
+    assert_eq!(text, "multiplyDecimal(units,price)");
+    assert!(diags.is_empty());
+}
+
+/// Gap-helper join: decimal unary `-` lowers to `negateDecimal`.
+#[test]
+fn gap_helper_negate_decimal() {
+    let ir = fixture_ir();
+    let decimal_ty = ResolvedType::Scalar(Scalar::Decimal);
+    let (text, imports, diags) = lower(
+        &ir,
+        &typed(
+            IrExpr::Unary {
+                op: IrUnOp::Neg,
+                operand: Box::new(typed(IrExpr::Name("price".to_string()), decimal_ty.clone())),
+            },
+            decimal_ty,
+        ),
+    );
+    assert_eq!(text, "negateDecimal(price)");
+    assert_eq!(
+        imports,
+        vec!["import { negateDecimal } from \"@canlang/stdlib\";"]
+    );
+    assert!(diags.is_empty());
+}
+
+/// Gap-helper join: `money / int|decimal` lowers to `divideMoney`.
+#[test]
+fn gap_helper_divide_money() {
+    let ir = fixture_ir();
+    let int_ty = ResolvedType::Scalar(Scalar::Int);
+    let decimal_ty = ResolvedType::Scalar(Scalar::Decimal);
+    let money_ty = ResolvedType::Scalar(Scalar::Money);
+    let name = |name: &str, ty: ResolvedType| typed(IrExpr::Name(name.to_string()), ty);
+    let div = |l: TypedExpr, r: TypedExpr| {
+        typed(
+            IrExpr::Binary {
+                op: IrBinOp::Div,
+                left: Box::new(l),
+                right: Box::new(r),
+            },
+            money_ty.clone(),
+        )
+    };
+    let (text, imports, diags) = lower(
+        &ir,
+        &div(name("budget", money_ty.clone()), name("parts", int_ty)),
+    );
+    assert_eq!(text, "divideMoney(budget,parts)");
+    assert_eq!(
+        imports,
+        vec!["import { divideMoney } from \"@canlang/stdlib\";"]
+    );
+    assert!(diags.is_empty());
+    let (text, _, diags) = lower(
+        &ir,
+        &div(
+            name("budget", money_ty.clone()),
+            name("ratio", decimal_ty.clone()),
+        ),
+    );
+    assert_eq!(text, "divideMoney(budget,ratio)");
+    assert!(diags.is_empty());
+}
+
+/// Gap-helper join: joined `divideDecimal` shapes — int/decimal mixed
+/// division and the money/money ratio (no currency unit, decimal
+/// rounding) both lower to `divideDecimal`.
+#[test]
+fn gap_helper_divide_decimal_shapes() {
+    let ir = fixture_ir();
+    let int_ty = ResolvedType::Scalar(Scalar::Int);
+    let decimal_ty = ResolvedType::Scalar(Scalar::Decimal);
+    let money_ty = ResolvedType::Scalar(Scalar::Money);
+    let name = |name: &str, ty: ResolvedType| typed(IrExpr::Name(name.to_string()), ty);
+    let div = |l: TypedExpr, r: TypedExpr| {
+        typed(
+            IrExpr::Binary {
+                op: IrBinOp::Div,
+                left: Box::new(l),
+                right: Box::new(r),
+            },
+            decimal_ty.clone(),
+        )
+    };
+    let (text, imports, diags) = lower(
+        &ir,
+        &div(
+            name("units", int_ty.clone()),
+            name("price", decimal_ty.clone()),
+        ),
+    );
+    assert_eq!(text, "divideDecimal(units,price)");
+    assert_eq!(
+        imports,
+        vec!["import { divideDecimal } from \"@canlang/stdlib\";"]
+    );
+    assert!(diags.is_empty());
+    let (text, _, diags) = lower(
+        &ir,
+        &div(
+            name("paid", money_ty.clone()),
+            name("due", money_ty.clone()),
+        ),
+    );
+    assert_eq!(text, "divideDecimal(paid,due)");
+    assert!(diags.is_empty());
+}
+
+/// Gap-helper join: scalar-first money products normalize money-first
+/// (`multiplyMoney(money, factor)` per lane-02).
+#[test]
+fn gap_helper_scalar_money_product() {
+    let ir = fixture_ir();
+    let int_ty = ResolvedType::Scalar(Scalar::Int);
+    let decimal_ty = ResolvedType::Scalar(Scalar::Decimal);
+    let money_ty = ResolvedType::Scalar(Scalar::Money);
+    let name = |name: &str, ty: ResolvedType| typed(IrExpr::Name(name.to_string()), ty);
+    let mul = |l: TypedExpr, r: TypedExpr| {
+        typed(
+            IrExpr::Binary {
+                op: IrBinOp::Mul,
+                left: Box::new(l),
+                right: Box::new(r),
+            },
+            money_ty.clone(),
+        )
+    };
+    let (text, imports, diags) = lower(
+        &ir,
+        &mul(
+            name("units", int_ty.clone()),
+            name("budget", money_ty.clone()),
+        ),
+    );
+    assert_eq!(text, "multiplyMoney(budget,units)");
+    assert_eq!(
+        imports,
+        vec!["import { multiplyMoney } from \"@canlang/stdlib\";"]
+    );
+    assert!(diags.is_empty());
+    let (text, _, diags) = lower(
+        &ir,
+        &mul(
+            name("ratio", decimal_ty.clone()),
+            name("budget", money_ty.clone()),
+        ),
+    );
+    assert_eq!(text, "multiplyMoney(budget,ratio)");
     assert!(diags.is_empty());
 }
 
