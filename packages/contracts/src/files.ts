@@ -36,27 +36,12 @@ export interface FilePolicy {
 
 /**
  * Bridge v1 step 1 request: `POST /files/intents` (DESIGN section 8).
- * Resolves app/user/team and operation authority; business guards with
+ * Lane 6 owns the route contract, so this name is the `wire.ts`
+ * declaration, re-exported here for the bridge's signatures. Resolves
+ * app/user/team and operation authority; business guards with
  * incomplete inputs stay unevaluated; never establishes acceptance.
  */
-export interface UploadIntentRequest {
-  upload_id: UploadRetryId;
-  /** Exposed canonical mutation identity. */
-  operation: string;
-  /** JSON Pointer to the writable file input in the operation schema. */
-  field: string;
-  /**
-   * Available canonical operation arguments with protected action-handle
-   * context; the selected file slot is absent. Cannot invent inputs.
-   */
-  arguments: Record<string, unknown>;
-  /** Untrusted filename metadata. */
-  name: string;
-  /** Untrusted claimed MIME type. */
-  type: string;
-  /** Canonical nonnegative integer string; untrusted until intake. */
-  size: string;
-}
+export type { UploadIntentRequest } from './wire.js';
 
 /**
  * Bridge v1 step 1 response. Opaque intent identity plus generated
@@ -155,11 +140,9 @@ export type StoredObjectState =
   | 'expired';
 
 /**
- * MCP `_meta["org.canlang/fileTransfer"]` advertisement (DESIGN section 8):
- * versioned host bridge shared by browser controls and supporting chatbot
- * hosts. Metadata grants no file access.
+ * MCP `_meta["org.canlang/fileTransfer"]` advertisement (DESIGN section 8).
+ * Lane 6 owns the route contract, so this name is the `wire.ts`
+ * declaration, re-exported here for the bridge's signatures. Metadata
+ * grants no file access.
  */
-export interface FileTransferMeta {
-  version: 1;
-  intents: string;
-}
+export type { FileTransferMeta } from './wire.js';
