@@ -4,7 +4,7 @@ app CanApprove uses=[approve]
 # Review immutable submitted document versions with current reviewer and no self-approval. @{nl="Beoordeel onveranderlijke ingediende documentversies met de huidige beoordelaar en zonder zelfgoedkeuring."}
 package approve label="Document review"@{nl="Documentbeoordeling"}
  use rent_catalog {Location,test_site}
- use employee {can_work,test_worker}
+ use employee {Employee,can_work,test_worker,hr,deactivate}
  use std {EmailV1 as Mail,DeliveryResult} from=deployment.mail
  Given
   role coordinator label="Coordinator"@{nl="Coördinator"}
@@ -12,11 +12,13 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
   export Document { location:Location?, title:text, category:text label="Category"@{nl="Categorie"}, subject:text?, submitter:user server=actor label="Submitter"@{nl="Indiener"}, email:email, current:int=0 label="Current revision"@{nl="Huidige revisie"} } label="Document"@{nl="Document"}
   export Submission in Document { assignment:int=1 label="Assignment revision"@{nl="Toewijzingsrevisie"}, revision:int, file:file, note:text label=label_Submission_note, reviewer:user label=label_reviewer, reviewer_email:email label=label_Submission_reviewer_email, due:datetime, state:enum(pending,approved,rejected,withdrawn)=pending label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In behandeling"},approved="Approved"@{nl="Goedgekeurd"},rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"}}}, reason:text?, decided_by:user? label="Decision maker"@{nl="Beslist door"}, decided_at:datetime? label="Decision time"@{nl="Beslist op"} } label="Submitted version"@{nl="Ingediende versie"}
   Notice in Submission { kind:enum(request,decision,reminder) label={text="Notice kind"@{nl="Soort bericht"},values={request="Review request"@{nl="Beoordelingsverzoek"},decision="Decision"@{nl="Besluit"},reminder="Reminder"@{nl="Herinnering"}}}, assignment:Submission.assignment, recipient:email label="Recipient"@{nl="Ontvanger"}, subject:text, body:text, delivery:text? label="Delivery reference"@{nl="Verzendingsreferentie"}, state:DeliveryResult.status=pending } label="Review notice"@{nl="Beoordelingsbericht"}
+  derive Submission.overdue:bool = row.state==pending and row.due<now label="Overdue"@{nl="Te laat"}
   event Due { submission:Submission, assignment:int }
   policy Notice read=members where=row.parent.parent.submitter==actor
   policy Notice read=coordinator where=row.parent.parent.location==null or can_work(actor,row.parent.parent.location)
   policy Notice read=reviewer where=row.parent.reviewer==actor and row.parent.state!=withdrawn and (row.parent.parent.location==null or can_work(actor,row.parent.parent.location))
   lock Notice fields=kind,assignment,recipient,subject,body
+  lock Notice fields=delivery when=row.delivery!=null
   policy Document read=members where=row.submitter==actor
   policy Document read=coordinator where=row.location==null or can_work(actor,row.location)
   policy Document read=reviewer where=(row.location==null or can_work(actor,row.location)) and any(row.Submission as submission,submission.reviewer==actor and submission.state!=withdrawn)
@@ -26,12 +28,22 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
   unique Submission fields=revision
   lock Submission fields=revision,file,note,due
   lock Submission fields=state,reason,decided_by,decided_at when=row.state in [approved,rejected,withdrawn]
-  fixture document=Document {location=test_site,title="Plan",category="Signage",submitter=self,email="submitter@example.test"}
+  lock Submission fields=reviewer,reviewer_email,assignment when=row.state!=pending
+  fixture reviewer_user=user {roles=[reviewer]}
+  fixture replacement_user=user {roles=[reviewer]}
+  fixture coordinator_user=user {roles=[coordinator]}
+  fixture ordinary_user=user {}
+  fixture hr_user=user {roles=[hr]}
+  fixture reviewer_worker=Employee {user=reviewer_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer"}
+  fixture replacement_worker=Employee {user=replacement_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Replacement reviewer"}
+  fixture coordinator_worker=Employee {user=coordinator_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Coordinator"}
+  fixture ordinary_worker=Employee {user=ordinary_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer"}
+  fixture document=Document {location=test_site,title="Plan",category="Signage",current=1,submitter=self,email="submitter@example.test"}
   fixture original=file {}
   fixture replacement=file {}
-  fixture pending_version=Submission {parent=document,revision=1,file=original,note="Signage",reviewer=other,reviewer_email="reviewer@example.test",due=now+1d}
+  fixture pending_version=Submission {parent=document,revision=1,file=original,note="Signage",reviewer=reviewer_user,reviewer_email="reviewer@example.test",due=now+1d}
   fixture pending_notice=Notice {parent=pending_version,kind=request,assignment=1,recipient="reviewer@example.test",subject="Review",body="Plan",delivery="notice"}
-  fixture accepted=Submission {parent=document,revision=1,file=original,note="Original",reviewer=other,reviewer_email="reviewer@example.test",due=now+1d,state=approved,decided_by=other,decided_at=now}
+  fixture accepted=Submission {parent=document,revision=1,file=original,note="Original",reviewer=reviewer_user,reviewer_email="reviewer@example.test",due=now+1d,state=approved,decided_by=reviewer_user,decided_at=now}
   preferences { review_state:Submission.state? label="Initial review state filter"@{nl="Eerste filter beoordelingsstatus"}, versions_open:bool=false label="Expand submitted version history"@{nl="Ingediende versiehistorie uitklappen"} }
   message label_reviewer = "Reviewer"@{nl="Beoordelaar"}
   message label_Submission_note = "Note"@{nl="Notitie"}
@@ -42,36 +54,127 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
     as,changes.title -> document.title
     members,"New title" -> "New title"
     outsider,"New title" -> error(not_found)
-  # Replace a pending file with a new submitted revision and invalidate its old decision. @{nl="Vervang een wachtend bestand door een nieuwe ingediende revisie en maak het oude besluit ongeldig."}
-  scenario submit(document:Document,file:file,note:text label=label_Submission_note,reviewer:user label=label_reviewer,reviewer_email:email label=label_Submission_reviewer_email,due:datetime) by=members
-   require document.submitter==actor and reviewer!=actor and (document.location==null or can_work(reviewer,document.location)) and due>now
+  # Submit a fresh immutable file revision, withdrawing pending reviews and retaining earlier decisions. @{nl="Dien een nieuwe onveranderlijke bestandsrevisie in, trek wachtende beoordelingen in en behoud eerdere besluiten."}
+  scenario submit(document:Document,file:file,note:text label=label_Submission_note,assignee:user label=label_reviewer,reviewer_email:email label=label_Submission_reviewer_email,due:datetime) by=members
+   require document.submitter==actor and (document.location==null or can_work(actor,document.location)) and assignee!=actor and reviewer(assignee) and (document.location==null or can_work(assignee,document.location)) and due>now
    do
     let revision=document.current+1
     for old in document.Submission as submission where submission.state==pending limit=100
      set old {state=withdrawn}
      cancel old.id
-    create Submission {parent=document,revision,file,note,reviewer,reviewer_email,due} as submission
+    create Submission {parent=document,revision,file,note,reviewer=assignee,reviewer_email,due} as submission
     set document {current=revision}
     create Notice {parent=submission,kind=request,assignment=submission.assignment,recipient=reviewer_email,subject=format("Document review requested"@{nl="Documentbeoordeling aangevraagd"},locale=null),body=document.title} as notice
     schedule submission.id at=due event=Due {submission,assignment=submission.assignment}
-   examples seed=[pending_version] document=document file=replacement note="Updated" reviewer=other reviewer_email="reviewer@example.test" due=now+1d
-    as,document.location,document.current -> document.current,pending_version.state,count(document.Submission)
-    members,null,1 -> 2,withdrawn,2
-    public,null,1 -> error(forbidden)
-   examples seed=[accepted] document=document file=replacement note="Updated" reviewer=other reviewer_email="reviewer@example.test" due=now+1d
+   examples seed=[pending_version,reviewer_worker,ordinary_worker,test_worker] document=document file=replacement note="Updated" assignee=reviewer_user reviewer_email="reviewer@example.test" due=now+1d
+    as,document.location,document.current,assignee,reviewer_worker.active,test_worker.active,due,request.document.version -> document.current,pending_version.state,pending_version.file,count(document.Submission)
+    self,null,1,reviewer_user,true,true,now+1d,1 -> 2,withdrawn,original,2
+    public,null,1,reviewer_user,true,true,now+1d,1 -> error(forbidden)
+    self,null,1,ordinary_user,true,true,now+1d,1 -> error(rule_failed)
+    self,null,1,self,true,true,now+1d,1 -> error(rule_failed)
+    self,test_site,1,reviewer_user,false,true,now+1d,1 -> error(rule_failed)
+    self,null,1,reviewer_user,true,true,now-1m,1 -> error(rule_failed)
+    self,null,1,reviewer_user,true,true,now+1d,2 -> error(conflict)
+    self,test_site,1,reviewer_user,true,true,now+1d,1 -> 2,withdrawn,original,2
+    self,test_site,1,reviewer_user,true,false,now+1d,1 -> error(rule_failed)
+   examples seed=[accepted] document=document file=replacement note="Updated" assignee=reviewer_user reviewer_email="reviewer@example.test" due=now+1d
     as,document.location,document.current -> accepted.state,accepted.file,count(document.Submission)
-    members,null,1 -> approved,original,2
+    self,null,1 -> approved,original,2
+   ## Shared-state journeys use the proposed sequence grammar; the unchanged syntax parser does not accept do examples.
+   examples seed=[test_worker,reviewer_worker,coordinator_worker,replacement_worker,original,replacement]
+    do
+     call Document.create {location=test_site,title="Signage plan",category="Signage",subject=null,email=actor.email} by=self
+     let document_record=first(Document as row where row.submitter==self order=row.id)
+     document_record!=null -> true
+     call submit {document=document_record,file=original,note="Submitted plan",assignee=reviewer_user,reviewer_email="reviewer@example.test",due=now+1d} by=self
+     let first_pending=first(document_record.Submission as row where row.revision==1 order=row.id)
+     first_pending!=null -> true
+     call decide {submission=first_pending,approve=false,reason="Replace page two"} by=reviewer_user
+     let first_rejected=first(document_record.Submission as row where row.revision==1 order=row.id)
+     first_rejected!=null -> true
+     call assign {submission=first_rejected,assignee=replacement_user,email="new-reviewer@example.test"} by=coordinator_user -> error(rule_failed)
+     let replacement_document=first(Document as row where row.submitter==self order=row.id)
+     replacement_document!=null -> true
+     call submit {document=replacement_document,file=replacement,note="Corrected page two",assignee=reviewer_user,reviewer_email="reviewer@example.test",due=now+1d} by=self
+     let second_pending=first(document_record.Submission as row where row.revision==2 order=row.id)
+     second_pending!=null -> true
+     call decide {submission=second_pending,approve=true,reason="Approved with conditions"} by=reviewer_user
+     let second_approved=first(document_record.Submission as row where row.revision==2 order=row.id)
+     second_approved!=null -> true
+     let retained_rejection=first(document_record.Submission as row where row.revision==1 order=row.id)
+     retained_rejection!=null -> true
+     retained_rejection.file,retained_rejection.state,retained_rejection.reason,retained_rejection.decided_by,second_approved.file,second_approved.state,second_approved.reason,second_approved.decided_by,any(retained_rejection.Notice as notice,notice.kind==decision and notice.body=="Replace page two" and notice.assignment==1),any(second_approved.Notice as notice,notice.kind==decision and notice.body=="Approved with conditions" and notice.assignment==1) -> original,rejected,"Replace page two",reviewer_user,replacement,approved,"Approved with conditions",reviewer_user,true,true
+   examples seed=[test_worker,reviewer_worker,coordinator_worker,replacement_worker,ordinary_user,original,replacement]
+    do
+     call Document.create {location=test_site,title="Signage plan",category="Signage",subject=null,email=actor.email} by=self
+     let document_record=first(Document as row where row.submitter==self order=row.id)
+     document_record!=null -> true
+     call submit {document=document_record,file=original,note="Submitted plan",assignee=reviewer_user,reviewer_email="reviewer@example.test",due=now+1d} by=self
+     let old_pending=first(document_record.Submission as row where row.revision==1 order=row.id)
+     old_pending!=null -> true
+     let current_document=first(Document as row where row.submitter==self order=row.id)
+     current_document!=null -> true
+     call submit {document=current_document,file=replacement,note="Invalid due attempt",assignee=reviewer_user,reviewer_email="reviewer@example.test",due=now} by=self -> error(rule_failed)
+     let preserved_pending=first(document_record.Submission as row where row.revision==1 order=row.id)
+     preserved_pending!=null -> true
+     preserved_pending.file,preserved_pending.state,count(document_record.Submission) -> original,pending,1
+     call submit {document=current_document,file=replacement,note="Submitted plan",assignee=reviewer_user,reviewer_email="reviewer@example.test",due=now+1d} by=self
+     call decide {submission=old_pending,approve=true,reason="Stale open review"} by=reviewer_user -> error(conflict)
+     let new_pending=first(document_record.Submission as row where row.revision==2 order=row.id)
+     new_pending!=null -> true
+     count(document_record.Submission) -> 1
+     call assign {submission=new_pending,assignee=replacement_user,email="new-reviewer@example.test"} by=ordinary_user -> error(forbidden)
+     count(Document),count(Submission) -> 0,0
+     call assign {submission=new_pending,assignee=replacement_user,email="new-reviewer@example.test"} by=coordinator_user
+     let reassigned=first(document_record.Submission as row where row.revision==2 order=row.id)
+     reassigned!=null -> true
+     call decide {submission=new_pending,approve=true,reason="Stale assignment"} by=reviewer_user -> error(conflict)
+     call decide {submission=reassigned,approve=true,reason="Former assignee"} by=reviewer_user -> error(rule_failed)
+     call decide {submission=reassigned,approve=true,reason="Replacement reviewer checked"} by=replacement_user
+     let approved_reassignment=first(document_record.Submission as row where row.revision==2 order=row.id)
+     approved_reassignment!=null -> true
+     approved_reassignment.file,approved_reassignment.reviewer,approved_reassignment.assignment,approved_reassignment.state,approved_reassignment.decided_by,any(approved_reassignment.Notice as notice,notice.kind==request and notice.assignment==1 and notice.recipient=="reviewer@example.test"),any(approved_reassignment.Notice as notice,notice.kind==request and notice.assignment==2 and notice.recipient=="new-reviewer@example.test" and notice.created_by==coordinator_user) -> replacement,replacement_user,2,approved,replacement_user,true,true
+   examples seed=[test_worker,reviewer_worker,replacement_worker,coordinator_worker,hr_user,original]
+    do
+     call Document.create {location=test_site,title="Signage plan",category="Signage",subject=null,email=actor.email} by=self
+     let document_record=first(Document as row where row.submitter==self order=row.id)
+     document_record!=null -> true
+     call submit {document=document_record,file=original,note="Submitted plan",assignee=reviewer_user,reviewer_email="reviewer@example.test",due=now+1d} by=self
+     let pending_review=first(document_record.Submission as row where row.revision==1 order=row.id)
+     pending_review!=null -> true
+     let review_version=pending_review.version
+     call deactivate {employee=reviewer_worker,ended=date("2026-10-02")} by=hr_user
+     reviewer_worker.active,reviewer(reviewer_user),can_work(reviewer_user,test_site) -> false,true,false
+     call decide {submission=pending_review,approve=true,reason="Unavailable reviewer"} by=reviewer_user -> error(rule_failed)
+     call assign {submission=pending_review,assignee=replacement_user,email="new-reviewer@example.test"} by=coordinator_user
+     let recovered_review=first(document_record.Submission as row where row.revision==1 order=row.id)
+     recovered_review!=null -> true
+     call assign {submission=recovered_review,assignee=replacement_user,email="new-reviewer@example.test"} by=coordinator_user request={submission={version=review_version}} -> error(conflict)
+     call decide {submission=recovered_review,approve=true,reason="Recovery checked"} by=replacement_user
+     let recovered_approval=first(document_record.Submission as row where row.revision==1 order=row.id)
+     recovered_approval!=null -> true
+     recovered_approval.revision,recovered_approval.file,recovered_approval.note,recovered_approval.due,recovered_approval.reviewer,recovered_approval.assignment,recovered_approval.state,recovered_approval.decided_by,count(recovered_approval.Notice) -> 1,original,"Submitted plan",now+1d,replacement_user,2,approved,replacement_user,3
   # Reassign the current pending review, retaining assignment history. @{nl="Wijs de huidige wachtende beoordeling opnieuw toe en behoud de toewijzingshistorie."}
-  scenario assign(submission:Submission,reviewer:user label=label_reviewer,email:email) by=coordinator
-   require (submission.parent.location==null or can_work(actor,submission.parent.location)) and submission.state==pending and reviewer!=submission.parent.submitter and (submission.parent.location==null or can_work(reviewer,submission.parent.location))
+  scenario assign(submission:Submission,assignee:user label=label_reviewer,email:email) by=coordinator
+   require (submission.parent.location==null or can_work(actor,submission.parent.location)) and submission.state==pending and submission.revision==submission.parent.current and assignee!=submission.parent.submitter and reviewer(assignee) and (submission.parent.location==null or can_work(assignee,submission.parent.location))
    do
-    set submission {reviewer,reviewer_email=email,assignment=submission.assignment+1}
+    set submission {reviewer=assignee,reviewer_email=email,assignment=submission.assignment+1}
     create Notice {parent=submission,kind=request,assignment=submission.assignment,recipient=email,subject=format("Document review requested"@{nl="Documentbeoordeling aangevraagd"},locale=null),body=submission.parent.title} as notice
     schedule submission.id at=max([now,submission.due]) event=Due {submission,assignment=submission.assignment}
-   examples submission=pending_version reviewer=other email="new-reviewer@example.test"
-    as,submission.parent.location,submission.parent.current -> submission.assignment,submission.reviewer_email,count(submission.Notice)
-    coordinator,null,1 -> 2,"new-reviewer@example.test",1
-    members,null,1 -> error(forbidden)
+   examples seed=[reviewer_worker,replacement_worker,coordinator_worker,ordinary_worker] submission=pending_version assignee=replacement_user email="new-reviewer@example.test"
+    as,submission.parent.location,submission.parent.current,submission.state,assignee,replacement_worker.active,coordinator_worker.active,request.submission.version -> submission.assignment,submission.reviewer,submission.reviewer_email,count(submission.Notice),submission.file
+    coordinator_user,null,1,pending,replacement_user,true,true,1 -> 2,replacement_user,"new-reviewer@example.test",1,original
+    members,null,1,pending,replacement_user,true,true,1 -> error(forbidden)
+    coordinator_user,null,2,pending,replacement_user,true,true,1 -> error(rule_failed)
+    coordinator_user,null,1,pending,ordinary_user,true,true,1 -> error(rule_failed)
+    coordinator_user,null,1,pending,self,true,true,1 -> error(rule_failed)
+    coordinator_user,test_site,1,pending,replacement_user,false,true,1 -> error(rule_failed)
+    coordinator_user,test_site,1,pending,replacement_user,true,false,1 -> error(rule_failed)
+    coordinator_user,null,1,approved,replacement_user,true,true,1 -> error(rule_failed)
+    coordinator_user,null,1,pending,replacement_user,true,true,2 -> error(conflict)
+   examples seed=[replacement_worker,coordinator_worker] submission=pending_version assignee=replacement_user email="new-reviewer@example.test"
+    as,submission.due -> submission.assignment,submission.due,submission.overdue
+    coordinator_user,now-1m -> 2,now-1m,true
   # Decide exactly the current pending file version with rejection reason or approval conditions. @{nl="Beslis over precies de huidige ingediende bestandsversie met afwijzingsreden of goedkeuringsvoorwaarden."}
   scenario decide(submission:Submission,approve:bool label="Approve"@{nl="Goedkeuren"},reason:text) by=reviewer label="Record decision"@{nl="Besluit vastleggen"}
    require submission.reviewer==actor and submission.parent.submitter!=actor and submission.state==pending and submission.revision==submission.parent.current and (submission.parent.location==null or can_work(actor,submission.parent.location)) and (approve or trim(reason)!="")
@@ -82,11 +185,15 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
      set submission {state=rejected,reason,decided_by=actor,decided_at=now}
     cancel submission.id
     create Notice {parent=submission,kind=decision,assignment=submission.assignment,recipient=submission.parent.email,subject=format("Document review decision"@{nl="Besluit documentbeoordeling"},locale=null),body=reason} as notice
-   examples submission=pending_version reason="Approved with conditions"
-    as,submission.parent.location,submission.parent.current,submission.reviewer,submission.parent.submitter,approve -> submission.state,submission.decided_by
-    reviewer,null,1,self,other,true -> approved,self
-    reviewer,null,2,self,other,true -> error(rule_failed)
-    reviewer,null,1,self,self,true -> error(rule_failed)
+   examples seed=[reviewer_worker] submission=pending_version reason="Approved with conditions"
+    as,submission.parent.location,submission.parent.current,submission.reviewer,submission.parent.submitter,approve,reviewer_worker.active,request.submission.version -> submission.state,submission.decided_by,submission.file,count(submission.Notice)
+    reviewer_user,null,1,reviewer_user,self,true,true,1 -> approved,reviewer_user,original,1
+    reviewer,null,1,self,other,true,true,1 -> approved,self,original,1
+    reviewer,null,2,self,other,true,true,1 -> error(rule_failed)
+    reviewer,null,1,self,self,true,true,1 -> error(rule_failed)
+    ordinary_user,null,1,reviewer_user,self,true,true,1 -> error(forbidden)
+    reviewer_user,test_site,1,reviewer_user,self,true,false,1 -> error(rule_failed)
+    reviewer_user,null,1,reviewer_user,self,true,true,2 -> error(conflict)
    examples submission=pending_version approve=false
     as,submission.parent.location,submission.parent.current,submission.reviewer,submission.parent.submitter,reason -> submission.state,submission.reason
     reviewer,null,1,self,other,"Replace page two" -> rejected,"Replace page two"
@@ -97,29 +204,44 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
    do
     set submission {state=withdrawn}
     cancel submission.id
+   examples submission=pending_version
+    as,submission.state -> submission.state,submission.file
+    self,pending -> withdrawn,original
+    ordinary_user,pending -> error(rule_failed)
+    self,approved -> error(rule_failed)
   scenario remind on=Due
-   require event.submission.state==pending and event.submission.assignment==event.assignment and event.submission.revision==event.submission.parent.current and now>=event.submission.due
+   require event.submission.state==pending and event.submission.assignment==event.assignment and event.submission.revision==event.submission.parent.current and now>=event.submission.due and reviewer(event.submission.reviewer) and (event.submission.parent.location==null or can_work(event.submission.reviewer,event.submission.parent.location))
    do create Notice {parent=event.submission,kind=reminder,assignment=event.assignment,recipient=event.submission.reviewer_email,subject=format("Document review due"@{nl="Deadline documentbeoordeling"},locale=null),body=event.submission.parent.title} as notice
-   examples event={submission=pending_version,assignment=1}
-    pending_version.parent.current,pending_version.due,pending_version.assignment,pending_version.state -> count(pending_version.Notice)
-    1,now-1m,1,pending -> 1
-    1,now-1m,2,pending -> error(rule_failed)
-    1,now-1m,1,withdrawn -> error(rule_failed)
-    1,now+1m,1,pending -> error(rule_failed)
+   examples seed=[reviewer_worker,ordinary_worker] event={submission=pending_version,assignment=1}
+    pending_version.parent.current,pending_version.due,pending_version.assignment,pending_version.state,pending_version.reviewer,pending_version.parent.location,reviewer_worker.active -> count(pending_version.Notice)
+    1,now-1m,1,pending,reviewer_user,null,true -> 1
+    1,now-1m,2,pending,reviewer_user,null,true -> error(rule_failed)
+    1,now-1m,1,withdrawn,reviewer_user,null,true -> error(rule_failed)
+    1,now+1m,1,pending,reviewer_user,null,true -> error(rule_failed)
+    1,now-1m,1,pending,ordinary_user,null,true -> error(rule_failed)
+    1,now-1m,1,pending,reviewer_user,test_site,false -> error(rule_failed)
   scenario notify on=Notice.create
    do
     let notice=event.after
-    send Mail.send {to=notice.recipient,subject=notice.subject,body=notice.body} when=notice.kind==decision or (notice.parent.state==pending and notice.parent.revision==notice.parent.parent.current and notice.parent.assignment==notice.assignment and notice.parent.reviewer_email==notice.recipient and (notice.parent.parent.location==null or can_work(notice.parent.reviewer,notice.parent.parent.location))) as delivery
+    send Mail.send {to=notice.recipient,subject=notice.subject,body=notice.body} when=notice.kind==decision or (notice.parent.state==pending and notice.parent.revision==notice.parent.parent.current and notice.parent.assignment==notice.assignment and notice.parent.reviewer_email==notice.recipient and reviewer(notice.parent.reviewer) and (notice.parent.parent.location==null or can_work(notice.parent.reviewer,notice.parent.parent.location))) as delivery
     set notice {delivery=delivery.id}
   scenario delivered on=Mail.send.completed
    do
     for notice in Notice as row where row.delivery==event.delivery_id limit=1
      set notice {state=event.status}
+
    examples seed=[pending_notice] event={delivery_id="notice",status=unknown,result=null,error=null}
-    event.status,event.result -> pending_notice.state,pending_version.state
-    succeeded,{reference="accepted-mail"} -> succeeded,pending
-    unknown,null -> unknown,pending
-    skipped,null -> skipped,pending
+    event.delivery_id,event.status,event.result,event.error -> pending_notice.state,pending_version.state
+    "notice",succeeded,{reference="accepted-mail"},null -> succeeded,pending
+    "notice",unknown,null,null -> unknown,pending
+    "notice",skipped,null,null -> skipped,pending
+    "notice",failed,null,{code="provider",message="Delivery rejected"} -> failed,pending
+    "different",failed,null,{code="provider",message="Delivery rejected"} -> pending,pending
+   ## Safe failed completion changes its decision Notice, never the approved file or decision; no retry is inferred from the error code.
+   examples seed=[pending_notice] event={delivery_id="notice",status=failed,result=null,error={code="provider",message="Delivery rejected"}}
+    pending_notice.kind,pending_notice.recipient,pending_notice.body,pending_version.state,pending_version.reason,pending_version.decided_by,pending_version.decided_at,event.delivery_id,event.status,event.result,event.error -> pending_notice.state,pending_version.state,pending_version.file,pending_version.reason,pending_version.decided_by,pending_version.decided_at
+    decision,"submitter@example.test","Approved with conditions",approved,"Approved with conditions",reviewer_user,now,"notice",failed,null,{code="provider",message="Delivery rejected"} -> failed,approved,original,"Approved with conditions",reviewer_user,now
+    decision,"submitter@example.test","Approved with conditions",approved,"Approved with conditions",reviewer_user,now,"different",failed,null,{code="provider",message="Delivery rejected"} -> pending,approved,original,"Approved with conditions",reviewer_user,now
 
  Then
   # Submit and follow your own exact document versions. @{nl="Dien je eigen exacte documentversies in en volg ze."}
@@ -127,25 +249,25 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
    require members
    card "Document intake"@{nl="Document aanmaken"}
     form Document.create
-   list Document columns=title,location,category,current filter=location,category search=title display=split
+   list Document as document where document.submitter==actor columns=title,location,category,current filter=location,category search=title display=split
     card "Current document"@{nl="Huidig document"}
      edit
      form submit
     details "Submitted version history"@{nl="Ingediende versiehistorie"} open=preferences.versions_open
-     table row.Submission columns=revision,file,note,reviewer,due,state,reason order=-revision
+     table row.Submission columns=revision,file,note,reviewer,due,overdue,state,reason order=-revision filter=state,reviewer,overdue
       action withdraw
       details "Version decision history"@{nl="Besluithistorie versies"}
        text row.decided_by,row.decided_at
        history
-      table row.Notice columns=kind,recipient,state,created order=created
+      table row.Notice columns=assignment,kind,recipient,state,created_by,created order=created
   # Review assigned submissions or coordinate permitted assignments. @{nl="Beoordeel toegewezen inzendingen of coördineer toegestane toewijzingen."}
   page /documents/review title="Review queue"@{nl="Beoordelingswachtrij"}
    require reviewer or coordinator
-   table Submission columns=parent,revision,file,note,reviewer,due,state order=due filter=state defaults={state=preferences.review_state} display=split
+   table Submission columns=parent,revision,file,note,reviewer,due,overdue,state order=due filter=state,reviewer,parent.location,parent.category,overdue defaults={state=preferences.review_state} display=split
     card "Exact submitted version"@{nl="Exact ingediende versie"}
      text row.revision,row.file,row.note,row.due,row.state,row.reason
      actions decide,assign
     details "Review history"@{nl="Beoordelingshistorie"}
      text row.decided_by,row.decided_at
      history
-    table row.Notice columns=kind,recipient,state,created order=created
+    table row.Notice columns=assignment,kind,recipient,state,created_by,created order=created

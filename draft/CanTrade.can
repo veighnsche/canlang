@@ -30,10 +30,17 @@ package trade
   lock Post fields=author
   lock Report fields=author,reason
   fixture listing=Post {kind=offered,category="Services",title="Accounting",description="Accounting services",contact="Published contact"}
+  fixture complaint=Report {parent=listing,author=other,reason="Reported abuse"}
  When
   crud Audience by=owner fields=allow_public delete=none
   crud Post by=authenticated fields=location,kind,category,title,description,amount,contact,visibility when=row.author==actor and actor.email_verified and eligible(actor,row.location) and row.state!=removed and count(Post archived=include as post where post.author==actor and post!=row and post.created>now-1d)<20 and (row.visibility!=public or any(Audience as audience,audience.allow_public))
-  crud Report by=authenticated fields=reason update=none delete=none when=actor.email_verified and eligible(actor,row.parent.location) and row.parent.state==active and row.parent.author!=actor and eligible(row.parent.author,row.parent.location) and (row.parent.visibility==member or any(Audience as audience,audience.allow_public)) and count(Report as report where report.author==actor and report.created>now-1d)<10
+   examples delete seed=[test_admin,test_contact,allocated] record=listing
+    as,record.author,request.record.version -> record.archived_at!=null,record.contact
+    members,self,1 -> true,"Published contact"
+    members,other,1 -> error(rule_failed)
+    members,self,0 -> error(conflict)
+    public,self,1 -> error(forbidden)
+  crud Report by=authenticated fields=reason update=none delete=none when=actor.email_verified and eligible(actor,row.parent.location) and row.parent.state==active and row.parent.author!=actor and eligible(row.parent.author,row.parent.location) and (row.parent.visibility==member or any(Audience as audience,audience.allow_public)) and count(Report archived=include as report where report.author==actor and report.created>now-1d)<10
   # Close or reopen your own listing without altering the published contact snapshot. @{nl="Sluit of heropen je eigen advertentie zonder de vastgelegde gepubliceerde contactgegevens te wijzigen."}
   scenario status(post:Post,open:bool label="Open"@{nl="Open"}) by=authenticated label="Change listing status"@{nl="Advertentiestatus wijzigen"}
    require post.author==actor and post.state in [active,closed] and (not open or (actor.email_verified and eligible(actor,post.location) and (post.visibility==member or any(Audience as audience,audience.allow_public))))
@@ -51,18 +58,25 @@ package trade
     public,active,true,false -> error(forbidden)
   # Remove reported abuse with a reason, preserving authorship and moderation history. @{nl="Verwijder gemeld misbruik met een reden en behoud auteurschap en moderatiegeschiedenis."}
   scenario moderate(post:Post,reason:text) by=moderator label="Remove reported listing"@{nl="Gemelde advertentie verwijderen"}
-   require trim(reason)!="" and post.state!=removed
+   require trim(reason)!="" and post.state!=removed and any(post.Report as report,not report.resolved)
    do
     set post {state=removed,moderation_reason=reason}
-   examples post=listing reason="Abusive publication"
-    as,reason -> post.state,post.moderation_reason
-    moderator,"Abusive publication" -> removed,"Abusive publication"
-    moderator," " -> error(rule_failed)
-    members,"Abusive publication" -> error(forbidden)
+   examples seed=[complaint] post=listing reason="Abusive publication"
+    as,reason,complaint.dismissed -> post.state,post.moderation_reason,post.author,complaint.resolved
+    moderator,"Abusive publication",false -> removed,"Abusive publication",self,true
+    moderator," ",false -> error(rule_failed)
+    moderator,"Abusive publication",true -> error(rule_failed)
+    members,"Abusive publication",false -> error(forbidden)
   # Dismiss an unfounded report while keeping its original report and decision history. @{nl="Wijs een ongegronde melding af met behoud van de oorspronkelijke melding en besluitgeschiedenis."}
   scenario dismiss(report:Report,reason:text) by=moderator label="Dismiss report"@{nl="Melding afwijzen"}
    require not report.resolved and trim(reason)!=""
    do set report {dismissed=true,decision=reason}
+   examples report=complaint reason="No abuse found"
+    as,reason,report.dismissed -> report.resolved,report.reason,report.author,report.decision
+    moderator,"No abuse found",false -> true,"Reported abuse",other,"No abuse found"
+    moderator," ",false -> error(rule_failed)
+    moderator,"No abuse found",true -> error(rule_failed)
+    members,"No abuse found",false -> error(forbidden)
  Then
   # Find active community listings and publish only contact details you deliberately choose. @{nl="Vind actieve communityadvertenties en publiceer alleen contactgegevens die je bewust kiest."}
   page /marketplace title="Community marketplace"@{nl="Communitymarktplaats"}
@@ -83,6 +97,7 @@ package trade
     require authenticated and preferences.view==mine
     table Post as post where post.author==actor columns=kind,title,visibility,state,moderation_reason filter=state display=split
      edit
+     delete
      action status
      history
   # Resolve reported listings under a separate moderation grant. @{nl="Behandel gemelde advertenties onder een afzonderlijke moderatiebevoegdheid."}
@@ -95,10 +110,10 @@ package trade
      edit
    card "Reported listings"@{nl="Gemelde advertenties"}
     require moderator
-    table Report columns=parent,reason,resolved,decision filter=resolved
+    table Report columns=parent,reason,resolved,decision filter=resolved defaults={resolved=false}
      action dismiss
    card "Moderation decisions"@{nl="Moderatiebesluiten"}
     require moderator
-    list Post display=split
+    list Post as post where any(post.Report as report,not report.resolved) display=split
      action moderate
      history
