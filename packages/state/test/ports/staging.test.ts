@@ -168,7 +168,10 @@ describe('stageScheduleOps', () => {
     assert.notEqual(first.payload, replace.payload);
   });
 
-  it('rejects an empty, missing, or overlong replace key', async () => {
+  it('accepts a 128-char replace key and rejects empty, missing, and 129-char keys', async () => {
+    const max = `k-${'x'.repeat(126)}`;
+    assert.equal(max.length, STAGING_MAX_ID_LENGTH);
+    assert.equal(stageScheduleOps([validReplace({ key: max })])[0]?.key, max);
     for (const key of ['', 'k'.repeat(129), undefined]) {
       const error = await captureStateError(() => stageScheduleOps([validReplace({ key })]));
       assert.equal(error.code, 'validation');

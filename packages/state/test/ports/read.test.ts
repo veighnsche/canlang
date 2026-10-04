@@ -6,7 +6,11 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createReadPort, type ReadViewerRecordsArgs } from '../../src/ports/index.js';
+import {
+  createReadPort,
+  type ReadAggregateArgs,
+  type ReadViewerRecordsArgs,
+} from '../../src/ports/index.js';
 import {
   createMemoryIdentityStore,
   makeReceipt,
@@ -91,6 +95,23 @@ describe('createReadPort', () => {
     const out = await port.queryRecords(smuggled);
     assert.equal(out.records.length, 2);
     assert.deepEqual(out.records[0]?.data, { title: 'First' });
+    // The aggregate path spreads bound deps the same way: smuggled extras
+    // lose there too.
+    const aggSmuggled = {
+      authority: 'viewer',
+      model: world.model,
+      context: { actorUserId: world.alice.user.user_id, teamId: world.team.team_id },
+      spec: { op: 'count' },
+      policy: policyTable(modelPolicy(world.model, { grants: [] })),
+      store: {
+        query: () => {
+          throw new Error('smuggled store must not be called');
+        },
+      },
+      memberships: createMemoryIdentityStore(),
+    } as unknown as ReadAggregateArgs;
+    const count = await port.queryAggregate(aggSmuggled);
+    assert.deepEqual(count.result, { op: 'count', value: 2 });
   });
 
   it('returns full stored rows under owner authority', async () => {

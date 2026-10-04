@@ -380,6 +380,10 @@ export interface StoragePort {
    * key tiebreak is backend-defined for non-ASCII keys (see outboxPending).
    */
   schedulesDue(now: number, limit: number): Promise<ReadonlyArray<ScheduleEntry>>;
-  /** S6: history for one record, ordered by version ascending. */
+  /**
+   * S6: history for one record, ordered by version ascending with insertion
+   * sequence as the tiebreak (duplicate versions are reachable only via
+   * direct unstaged commits; fenced writes carry unique versions).
+   */
   historyFor(model: ModelName, recordId: RecordId): Promise<ReadonlyArray<HistoryEntry>>;
 }
