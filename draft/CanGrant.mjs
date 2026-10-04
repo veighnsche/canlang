@@ -27,17 +27,33 @@ import {
   sum,
 } from "@canlang/stdlib";
 import {
+  accordion,
   actions,
+  badge,
+  breadcrumbs,
+  button,
   card,
+  chat_bubble,
+  checkbox,
+  collapse,
   edit,
+  fieldset,
+  filter,
   form,
   history,
+  input,
   list,
   message,
   metrics,
+  modal,
+  pagination,
+  progress,
   renderPage,
+  slot,
+  status,
   table,
   text,
+  textarea,
 } from "@canlang/ui";
 import { can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -51,6 +67,14 @@ import { Location } from "./rent_catalog.mjs";
  * final invariants see staged state. Shared admission owns versions, locks, replay
  * and atomic effects. UI factories own daisyUI/HTMX, schemas, escaping and grants.
  * No compiler, stdlib, renderer, adapter or example runner is implemented here.
+ * UI sections mirror the replanned CanGrant.can Then: breadcrumbs, in-context
+ * saved-default filters, fieldset-grouped intake with typed controls, state
+ * badges, notice-delivery statuses, committed-vs-budget progress, paged award
+ * export, title search, decision-family modals, chat-bubble reviewer comments,
+ * recovery/withdrawal accordions, empty states and paginated collections.
+ * Lowercase UI factories take one props object; slots are prop arrays. All UI
+ * imports and calls are desired/unimplemented. This file passes node --check
+ * (syntax only) and never runs.
  */
 
 const budgetCaption = message("Program budget", { nl: "Programmabudget" });
@@ -884,6 +908,10 @@ export async function awardsPage(c, bindings) {
     c,
     awardsPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
+      /* desired-unimplemented: filter edits the owned saved-default preference. */
+      filter({ context: c, preference: "grant.application_state" }),
       card({
         context: c,
         title: message("Published programs and terms", {
@@ -897,7 +925,10 @@ export async function awardsPage(c, bindings) {
             order: ["closes"],
             filter: ["location", "closes"],
             defaults: { location: c.preferences.grant.location },
+            empty: message("No published programs.", { nl: "Geen gepubliceerde programma's." }),
             renderRow: (grant, v) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: v }),
               text({
                 context: v,
                 values: [
@@ -914,6 +945,19 @@ export async function awardsPage(c, bindings) {
                 context: v,
                 operation: "grant.apply",
                 arguments: { grant },
+                display: "inline",
+                /* desired-unimplemented: placed controls move the generated fields. */
+                children: [
+                  fieldset({
+                    context: v,
+                    caption: message("Your application", { nl: "Je aanvraag" }),
+                    children: [
+                      input({ context: v, field: "email" }),
+                      input({ context: v, field: "title" }),
+                      textarea({ context: v, field: "description" }),
+                    ],
+                  }),
+                ],
               }),
             ],
           }),
@@ -934,7 +978,13 @@ export async function awardsPage(c, bindings) {
                   columns: ["title", "amount", "state", "decision", "notice_state", "received", "correction"],
                   filter: ["state"],
                   defaults: { state: c.preferences.grant.application_state },
+                  empty: message("No applications yet.", { nl: "Nog geen aanvragen." }),
                   renderRow: (application, v) => [
+                    /* desired-unimplemented: pagination consumes this collection cursor. */
+                    pagination({ context: v }),
+                    /* desired-unimplemented: badge/status present readable typed values. */
+                    badge({ context: v, value: application.state }),
+                    status({ context: v, value: application.notice_state }),
                     edit({
                       context: v,
                       operation: "grant.Application.update",
@@ -946,12 +996,22 @@ export async function awardsPage(c, bindings) {
                       operations: ["grant.submit", "grant.correct"],
                       boundArgs: { application },
                     }),
-                    table({context: v, model: "grant.Recovery", parent: application, columns: ["previous", "reviewer", "reason", "author", "recorded"]}),
+                    table({context: v, model: "grant.Recovery", parent: application, columns: ["previous", "reviewer", "reason", "author", "recorded"],
+                      empty: message("No reviewer changes.", { nl: "Geen beoordelaarswijzigingen." }),
+                      renderRow: (row, w) => [
+                        /* desired-unimplemented: pagination consumes this collection cursor. */
+                        pagination({ context: w }),
+                      ]}),
                     table({
                       context: v,
                       model: "grant.Withdrawal",
                       parent: application,
                       columns: ["reason", "author", "recorded"],
+                      empty: message("No withdrawals.", { nl: "Geen intrekkingen." }),
+                      renderRow: (row, w) => [
+                        /* desired-unimplemented: pagination consumes this collection cursor. */
+                        pagination({ context: w }),
+                      ],
                     }),
                     history({ context: v, record: application }),
                   ],
@@ -969,12 +1029,35 @@ export async function reviewPage(c, bindings) {
     c,
     reviewPageDescriptor,
     () => [
+      /* desired-unimplemented: breadcrumbs derives current declared ancestry. */
+      breadcrumbs({ context: c }),
+      /* desired-unimplemented: filter edits the owned saved-default preference. */
+      filter({ context: c, preference: "grant.application_state" }),
       ...(hasRole(c, "grant.coordinator")
         ? [
             card({
               context: c,
               title: budgetCaption,
-              children: [form({ context: c, operation: "grant.Grant.create" }), form({context: c, operation: "grant.intake"})],
+              children: [
+                form({
+                  context: c,
+                  operation: "grant.Grant.create",
+                  display: "inline",
+                  /* desired-unimplemented: placed controls move the generated fields. */
+                  children: [
+                    fieldset({
+                      context: c,
+                      caption: message("Program details", { nl: "Programmagegevens" }),
+                      children: [
+                        input({ context: c, field: "name" }),
+                        textarea({ context: c, field: "terms" }),
+                        textarea({ context: c, field: "criteria" }),
+                      ],
+                    }),
+                  ],
+                }),
+                form({context: c, operation: "grant.intake"}),
+              ],
             }),
           ]
         : []),
@@ -991,7 +1074,10 @@ export async function reviewPage(c, bindings) {
             filter: ["location", "closes"],
             defaults: { location: c.preferences.grant.location },
             display: "split",
+            empty: message("No programs in scope.", { nl: "Geen programma's binnen scope." }),
             renderRow: async (grant, v) => [
+              /* desired-unimplemented: pagination consumes this collection cursor. */
+              pagination({ context: v }),
               ...(hasRole(c, "grant.coordinator") && (await can_work(c, c.actor, grant.location))
                 ? [
                     card({
@@ -1009,6 +1095,8 @@ export async function reviewPage(c, bindings) {
                             grant.remaining,
                           ],
                         }),
+                        /* desired-unimplemented: progress checks compatible money units. */
+                        progress({ context: v, value: grant.committed, max: grant.budget }),
                         form({
                           context: v,
                           operation: "grant.award_export",
@@ -1018,6 +1106,11 @@ export async function reviewPage(c, bindings) {
                               context: rv,
                               items: result.items,
                               columns: ["application", "title", "amount", "decided_at"],
+                              empty: message("No approved awards.", { nl: "Geen goedgekeurde toezeggingen." }),
+                              renderRow: (item, w) => [
+                                /* desired-unimplemented: pagination consumes this collection cursor. */
+                                pagination({ context: w }),
+                              ],
                             }),
                           ],
                         }),
@@ -1049,29 +1142,189 @@ export async function reviewPage(c, bindings) {
                 order: ["received"],
                 filter: ["state", "reviewer"],
                 defaults: { state: c.preferences.grant.application_state },
+                search: ["title"],
+                empty: message("No applications to review.", { nl: "Geen aanvragen te beoordelen." }),
                 renderRow: (application, av) => [
-                  actions({
+                  /* desired-unimplemented: pagination consumes this collection cursor. */
+                  pagination({ context: av }),
+                  /* desired-unimplemented: badge/status present readable typed values. */
+                  badge({ context: av, value: application.state }),
+                  status({ context: av, value: application.notice_state }),
+                  /* desired-unimplemented: button opens activates the local modal. */
+                  button({ context: av, opens: "decide_application" }),
+                  /* desired-unimplemented: modal declares the local activation identity. */
+                  modal({
                     context: av,
-                    operations: ["grant.decide", "grant.external", "grant.recover", "grant.withdraw"],
-                    boundArgs: { application },
+                    caption: message("Record decision", { nl: "Besluit vastleggen" }),
+                    id: "decide_application",
+                    children: [
+                      slot({
+                        context: av,
+                        name: "content",
+                        children: [
+                          form({
+                            context: av,
+                            operation: "grant.decide",
+                            arguments: { application },
+                            display: "inline",
+                            /* desired-unimplemented: placed controls move the generated fields. */
+                            children: [
+                              fieldset({
+                                context: av,
+                                caption: message("Decision", { nl: "Besluit" }),
+                                children: [
+                                  checkbox({ context: av, field: "approve" }),
+                                  textarea({ context: av, field: "reason" }),
+                                ],
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
-                  form({
+                  button({ context: av, opens: "record_receipt" }),
+                  modal({
                     context: av,
-                    operation: "grant.Comment.create",
-                    arguments: { parent: application },
+                    caption: message("Record external receipt", { nl: "Externe ontvangst registreren" }),
+                    id: "record_receipt",
+                    children: [
+                      slot({
+                        context: av,
+                        name: "content",
+                        children: [
+                          form({
+                            context: av,
+                            operation: "grant.external",
+                            arguments: { application },
+                            display: "inline",
+                            /* desired-unimplemented: placed controls move the generated fields. */
+                            children: [
+                              textarea({ context: av, field: "evidence" }),
+                              input({ context: av, field: "override_reason" }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
-                  table({
+                  button({ context: av, opens: "restore_review" }),
+                  modal({
+                    context: av,
+                    caption: message("Restore review", { nl: "Beoordeling herstellen" }),
+                    id: "restore_review",
+                    children: [
+                      slot({
+                        context: av,
+                        name: "content",
+                        children: [
+                          form({
+                            context: av,
+                            operation: "grant.recover",
+                            arguments: { application },
+                            display: "inline",
+                            /* desired-unimplemented: placed control moves the generated field. */
+                            children: [textarea({ context: av, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  button({ context: av, opens: "withdraw_award" }),
+                  modal({
+                    context: av,
+                    caption: message("Withdraw", { nl: "Intrekken" }),
+                    id: "withdraw_award",
+                    children: [
+                      slot({
+                        context: av,
+                        name: "content",
+                        children: [
+                          form({
+                            context: av,
+                            operation: "grant.withdraw",
+                            arguments: { application },
+                            display: "inline",
+                            /* desired-unimplemented: placed control moves the generated field. */
+                            children: [textarea({ context: av, field: "reason" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  button({ context: av, opens: "add_comment" }),
+                  modal({
+                    context: av,
+                    caption: message("Private reviewer comment", { nl: "Privéopmerking beoordelaar" }),
+                    id: "add_comment",
+                    children: [
+                      slot({
+                        context: av,
+                        name: "content",
+                        children: [
+                          form({
+                            context: av,
+                            operation: "grant.Comment.create",
+                            arguments: { parent: application },
+                            display: "inline",
+                            /* desired-unimplemented: placed control moves the generated field. */
+                            children: [textarea({ context: av, field: "body" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  list({
                     context: av,
                     model: "grant.Comment",
                     parent: application,
-                    columns: ["body", "author", "recorded"],
+                    empty: message("No reviewer comments.", { nl: "Geen beoordelaarsopmerkingen." }),
+                    renderRow: (comment, v) => [
+                      /* desired-unimplemented: pagination consumes this collection cursor. */
+                      pagination({ context: v }),
+                      /* desired-unimplemented: chat_bubble slots preserve the row chain. */
+                      chat_bubble({
+                        context: v,
+                        header: [text({ context: v, values: [comment.author] })],
+                        content: [text({ context: v, values: [comment.body] })],
+                        footer: [text({ context: v, values: [comment.recorded] })],
+                      }),
+                    ],
                   }),
-                  table({context: av, model: "grant.Recovery", parent: application, columns: ["previous", "reviewer", "reason", "author", "recorded"]}),
-                  table({
+                  /* desired-unimplemented: accordion holds one open collapse child. */
+                  accordion({
                     context: av,
-                    model: "grant.Withdrawal",
-                    parent: application,
-                    columns: ["reason", "author", "recorded"],
+                    children: [
+                      collapse({
+                        context: av,
+                        caption: message("Reviewer recovery", { nl: "Herstel beoordelaar" }),
+                        children: [
+                          table({context: av, model: "grant.Recovery", parent: application, columns: ["previous", "reviewer", "reason", "author", "recorded"],
+                            empty: message("No reviewer changes.", { nl: "Geen beoordelaarswijzigingen." }),
+                            renderRow: (row, w) => [
+                              /* desired-unimplemented: pagination consumes this collection cursor. */
+                              pagination({ context: w }),
+                            ]}),
+                        ],
+                      }),
+                      collapse({
+                        context: av,
+                        caption: message("Award withdrawals", { nl: "Intrekking toezeggingen" }),
+                        children: [
+                          table({
+                            context: av,
+                            model: "grant.Withdrawal",
+                            parent: application,
+                            columns: ["reason", "author", "recorded"],
+                            empty: message("No withdrawals.", { nl: "Geen intrekkingen." }),
+                            renderRow: (row, w) => [
+                              /* desired-unimplemented: pagination consumes this collection cursor. */
+                              pagination({ context: w }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
                   }),
                   history({ context: av, record: application }),
                 ],

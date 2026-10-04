@@ -494,6 +494,39 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   slice 4 + op descriptors — exact unmet contracts); B2 L4-journey
   pending; B3 engine-side done; B4 L3-map recorded. L3 answers the B1
   join with the merged engine + stdlib v0 when L1/L7 call.
+- S9b ADDENDUM 2026-10-04 (post-completion, orchestrator-relayed L4
+  contracts from lane-04.md:160, all answered on the record, zero L3
+  code): (1) PRODUCER WRITE — the same-batch channel already exists
+  (`invoke` commits `effects.writes` + `effects.outbox` in one fenced
+  commit, `packages/state/src/invocation/invoke.ts`; L4's own
+  `work.schedule.put` proves the pattern). The sibling `work.dispatch`
+  row is one more DomainWrite in `effects.writes`; stores do not gate
+  model names. Named producer: L1 codegen operation bodies
+  (permanent); interim L7-runner executors / L4 occurrence-execution
+  code. `originOccurrence` is runtime-stamped per `work.ts`
+  (null direct; L4/L7 threads the id during occurrence execution).
+  L3 will not fabricate L4-owned rows. (2) SCHEDULE KEY SCOPING —
+  L3 decides: blessed scope-embedding key convention,
+  producer-applied; L3 keys stay opaque (store is key-global per
+  instance: `memory.ts`, D1 `schedules` PK(key) in `schema.ts`;
+  staging validates bounded <=128 opaque strings only). Proposed
+  encoding `enc(app)/enc(ownerPackage)/enc(owner)/enc(key)` (total
+  <=128 fail-closed; uniform across adapters) needs L4 ack + L1
+  adoption; enforcement L4-side now (`work.schedule.put`), L3-side
+  format validation offered as a follow-up slice. (3)
+  `dispatchGuard` SOURCE — named: L1 emission (compiled predicate
+  registry from authored Can `when` source, per `DispatchGuardRef`
+  in `packages/contracts/src/work.ts`). L3 carries the opaque name
+  only (staging validates, D1/DO persist `dispatch_guard`
+  verbatim); L3 owns no guard registry and has accepted no
+  guard-evaluation API. Tension flagged: `work.ts` header
+  (evaluation in `@canlang/work`) vs `DispatchGuardRef`
+  ("lanes 1/3") — L3 reads it as L1 compiles / L3 authorizes
+  predicate reads / L4 runs at claim; L3-executed predicates would
+  be a NEW unaccepted contract. Interim L3 position:
+  present-but-unresolvable guard names must not silently deliver.
+  Net: L3/L4 settlement answered; permanent producer + guard
+  registry remain L1-emission-blocked (pre-existing B1 block).
 
 ## Remaining work and cleanup
 
