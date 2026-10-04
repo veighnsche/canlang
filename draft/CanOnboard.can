@@ -4,7 +4,7 @@ app CanOnboard uses=[employee,onboard]
 # Own employee work identity and private, versioned onboarding checklists. @{nl="Beheer de werkidentiteit van medewerkers en private, geversioneerde inwerkchecklists."}
 package onboard label=page_people_onboarding_title
  use rent_catalog {Location,test_site}
- use employee {Employee,hr,test_worker,deactivate,can_work}
+ use employee {Employee,hr,test_worker,deactivate,can_work,staff}
  Given
   export contract WorkItem { reference:text, revision:int, location:text?, title:text, detail:text?, due:datetime?, action:action(complete) } label="Authorized work item"@{nl="Toegestaan werkitem"}
   export contract WorkBatch { items:WorkItem[]! max=500 } label="Authorized work batch"@{nl="Toegestane werkverzameling"}
@@ -13,7 +13,8 @@ package onboard label=page_people_onboarding_title
   export Template { name:text, role:text label="Role"@{nl="Rol"}, location:Location, active:bool=true label="Available template"@{nl="Beschikbare template"}, revision:int=1 } label="Checklist template"@{nl="Checklisttemplate"}
   TemplateStep in Template { title:text trim min=1, offset_days:int=0 label="Offset in days"@{nl="Verschuiving in dagen"}, category:enum(equipment,induction,account,training)=induction label={text="Category"@{nl="Categorie"},values={equipment="Equipment"@{nl="Uitrusting"},induction="Induction"@{nl="Introductie"},account="Account"@{nl="Account"},training="Training"@{nl="Opleiding"}}} } label="Template step"@{nl="Templatestap"}
   Checklist in Employee { template:Template, template_version:int label="Template version"@{nl="Templateversie"}, started:date label="Started on"@{nl="Gestart op"}, generation:text unique label="Generation reference"@{nl="Generatiereferentie"} } label="Onboarding checklist"@{nl="Inwerkchecklist"}
-  export Step in Checklist { title:text trim min=1, due:date, assignee:user label="Assignee"@{nl="Toegewezen persoon"}, category:TemplateStep.category, document:file? label="Generate document"@{nl="Document genereren"}, blocked_reason:text? label="Blocking reason"@{nl="Blokkeerreden"}, done:bool=false, completed_by:user? label="Completed by"@{nl="Afgerond door"}, completed_at:datetime? label="Completed at"@{nl="Afgerond op"} } label="Onboarding step"@{nl="Inwerkstap"}
+  export Step in Checklist { title:text trim min=1, due:date, assignee:user=parent.parent.user label="Assignee"@{nl="Toegewezen persoon"}, category:TemplateStep.category, document:file? label="Document attachment"@{nl="Documentbijlage"}, blocked_reason:text? label="Blocking reason"@{nl="Blokkeerreden"}, done:bool=false, completed_by:user? label="Completed by"@{nl="Afgerond door"}, completed_at:datetime? label="Completed at"@{nl="Afgerond op"} } label="Onboarding step"@{nl="Inwerkstap"}
+  derive can_complete(step:Step):bool = step.parent.parent.active and (hr or (authenticated and step.assignee==actor and staff(actor))) and not step.done and step.blocked_reason==null
   derive Checklist.completed_steps:int = count(row.Step as s where s.done) label="Completed steps"@{nl="Afgeronde stappen"}
   derive Checklist.total_steps:int = count(row.Step) label="Active steps"@{nl="Actieve stappen"}
   derive Checklist.progress:decimal = count(row.Step as s where s.done)*100/max([1,count(row.Step)]) label="Progress"@{nl="Voortgang"}
@@ -25,11 +26,21 @@ package onboard label=page_people_onboarding_title
   lock Checklist fields=template,template_version,started,generation
   export fixture test_template=Template {name="Opening",role="operator",location=test_site}
   fixture test_checklist=Checklist {parent=test_worker,template=test_template,template_version=1,started=date("2026-10-01"),generation="test-onboarding"}
+  fixture hr_user=user {roles=[hr]}
+  fixture assigned_user=user {}
+  fixture assigned_worker=Employee {user=assigned_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="operator"}
+  fixture opening_step=TemplateStep {parent=test_template,title="Induction",offset_days=2,category=induction}
   fixture test_step=Step {parent=test_checklist,title="Induction",due=date("2026-10-03"),assignee=self,category=induction}
  When
   crud Template by=hr fields=name,role,location,active create_fields=name,role,location
   crud TemplateStep by=hr fields=title,offset_days,category delete=remove
   crud Step by=hr fields=title,due,assignee,category,document,blocked_reason when=row.parent.parent.active and active_member(row.assignee,team)
+   examples create parent=test_checklist title="Manual induction" due=date("2026-10-03") category=induction
+    as -> count(test_checklist.Step),first(test_checklist.Step)?.assignee
+    hr -> 1,self
+   examples create seed=[assigned_worker] parent=test_checklist title="Assigned equipment" due=date("2026-10-03") category=equipment assignee=assigned_user
+    as -> count(test_checklist.Step),first(test_checklist.Step)?.assignee
+    hr -> 1,assigned_user
   scenario template_changed on=Template.update
    do set event.after {revision=event.before.revision+1}
   scenario template_step_created on=TemplateStep.create
@@ -44,18 +55,66 @@ package onboard label=page_people_onboarding_title
    do
     create Checklist {parent=employee,template,template_version=template.revision,started=employee.start,generation=operation.id} as checklist
     for source in template.TemplateStep limit=100
-     create Step {parent=checklist,title=source.title,due=add_days(employee.start,source.offset_days),assignee=employee.user,category=source.category} as step
+     create Step {parent=checklist,title=source.title,due=add_days(employee.start,source.offset_days),category=source.category} as step
    examples seed=[test_worker] employee=test_worker template=test_template
     as,employee.active,template.active -> count(employee.Checklist)
     hr,true,true -> 1
     hr,false,true -> error(rule_failed)
     hr,true,false -> error(rule_failed)
     members,true,true -> error(forbidden)
+   examples seed=[test_worker,test_template,opening_step,assigned_worker,hr_user]
+    do
+     call start {employee=test_worker,template=test_template} by=hr_user
+     let copied=first(test_worker.Checklist)
+     copied!=null -> true
+     let initial=first(copied.Step)
+     initial!=null -> true
+     initial.title,initial.due,initial.assignee,copied.total_steps,copied.completed_steps -> "Induction",date("2026-10-03"),self,1,0
+     call TemplateStep.update {record=opening_step,changes={title="Revised induction"}} by=hr_user
+     let independent=first(copied.Step)
+     independent!=null -> true
+     independent.title -> "Induction"
+     call Step.update {record=independent,changes={assignee=assigned_user,blocked_reason="Equipment pending"}} by=hr_user
+     let blocked=first(copied.Step)
+     blocked!=null -> true
+     call complete {step=blocked} by=assigned_user -> error(rule_failed)
+     blocked.done,blocked.blocked_reason -> false,"Equipment pending"
+     call Step.update {record=blocked,changes={blocked_reason=null}} by=hr_user
+     let ready=first(copied.Step)
+     ready!=null -> true
+     call complete {step=ready} by=assigned_user
+     let completed=first(copied.Step)
+     completed!=null -> true
+     completed.done,completed.completed_by,completed.completed_at!=null,copied.completed_steps,copied.total_steps -> true,assigned_user,true,1,1
+     call reopen {step=completed,reason="Equipment correction"} by=hr_user
+     let reopened=first(copied.Step)
+     reopened!=null -> true
+     reopened.done,reopened.completed_by,reopened.completed_at,reopened.blocked_reason,copied.completed_steps -> false,null,null,"Equipment correction",0
+     call Step.delete {record=reopened} by=hr_user
+     count(copied.Step),copied.total_steps,copied.completed_steps -> 0,0,0
+     call Step.create {parent=copied,title="Equipment",due=date("2026-10-03"),category=equipment} by=hr_user
+     let manual=first(copied.Step)
+     manual!=null -> true
+     manual.assignee,copied.total_steps -> self,1
+     call Step.update {record=manual,changes={assignee=assigned_user}} by=hr_user
+     let reassigned=first(copied.Step)
+     reassigned!=null -> true
+     call deactivate {employee=assigned_worker,ended=date("2026-10-03")} by=hr_user
+     call complete {step=reassigned} by=assigned_user -> error(rule_failed)
+     call work {locations=[]} by=assigned_user as remaining
+     count(remaining.items),test_worker.active,assigned_worker.active -> 0,true,false
+     call work_detail {record=reassigned} by=assigned_user -> error(rule_failed)
+     call complete {step=reassigned} by=hr_user
+     let recovered=first(copied.Step)
+     recovered!=null -> true
+     recovered.done,recovered.completed_by -> true,hr_user
+     call deactivate {employee=test_worker,ended=date("2026-10-03")} by=hr_user
+     call reopen {step=recovered,reason="After employment end"} by=hr_user -> error(rule_failed)
   # Record completion by the assigned employee or HR independently of document upload. @{nl="Registreer afronding door de toegewezen medewerker of HR onafhankelijk van documentupload."}
   export scenario complete(step:Step) by=hr or authenticated
-   require step.parent.parent.active and (hr or step.assignee==actor) and not step.done and step.blocked_reason==null
+   require can_complete(step)
    do set step {done=true,completed_by=actor,completed_at=now}
-   examples step=test_step
+   examples seed=[test_worker] step=test_step
     as,step.assignee,step.blocked_reason -> step.done
     members,self,null -> true
     members,other,null -> error(rule_failed)
@@ -71,10 +130,10 @@ package onboard label=page_people_onboarding_title
     members,false,null,null -> error(forbidden)
   # Return only current eligible work under the canonical completion authority. @{nl="Geef alleen actueel uitvoerbaar werk terug binnen de canonieke afrondingsbevoegdheid."}
   export scenario work(locations:text[]) read=true scope=authority -> WorkBatch by=hr or authenticated
-   do return WorkBatch {items=Step as item where (item.parent.parent.active and (hr or item.assignee==actor) and not item.done and item.blocked_reason==null) and (count(locations)==0 or item.parent.parent.home.id in locations) select WorkItem {reference=item.id,revision=item.version,location=item.parent.parent.home.id,title=item.title,detail=null,due=local_instant(item.due,"00:00",team.timezone,fold=earlier),action=action(complete,{step=item})}}
+   do return WorkBatch {items=Step as item where can_complete(item) and (count(locations)==0 or item.parent.parent.home.id in locations) select WorkItem {reference=item.id,revision=item.version,location=item.parent.parent.home.id,title=item.title,detail=null,due=local_instant(item.due,"00:00",team.timezone,fold=earlier),action=action(complete,{step=item})}}
   # Revalidate the selected item before presenting its protected canonical action. @{nl="Controleer het gekozen item opnieuw voordat de beschermde canonieke actie wordt getoond."}
   export scenario work_detail(record:Step) read=true scope=authority -> WorkItem by=hr or authenticated
-   require record.parent.parent.active and (hr or record.assignee==actor) and not record.done and record.blocked_reason==null
+   require can_complete(record)
    do return WorkItem {reference=record.id,revision=record.version,location=record.parent.parent.home.id,title=record.title,detail=null,due=local_instant(record.due,"00:00",team.timezone,fold=earlier),action=action(complete,{step=record})}
  Then
   # Follow your assigned readiness work and private attachments. @{nl="Volg je toegewezen inwerkstappen en private bijlagen."}
@@ -83,7 +142,7 @@ package onboard label=page_people_onboarding_title
    card "Assigned readiness steps"@{nl="Toegewezen inwerkstappen"}
     tabs preferences.view
     list Step as step where step.assignee==actor and (preferences.view==all or (preferences.view==unfinished and not step.done) or (preferences.view==overdue and not step.done and step.due<local_date(now,team.timezone))) order=step.due
-     text row.title,row.due,row.blocked_reason,row.document
+     text row.title,row.due,row.blocked_reason,row.document,row.done,row.completed_by,row.completed_at
      action complete
 
   # Prepare work identities and role/location checklists under HR document grants. @{nl="Bereid werkidentiteiten en rol- en locatiechecklists voor binnen HR-documentrechten."}
@@ -101,8 +160,10 @@ package onboard label=page_people_onboarding_title
       metrics row.completed_steps,row.total_steps,row.progress
       form Step.create
       list row.Step as step where preferences.view==all or (preferences.view==unfinished and not step.done) or (preferences.view==overdue and not step.done and step.due<local_date(now,team.timezone)) order=due
+       text row.title,row.due,row.assignee,row.category,row.blocked_reason,row.document,row.done,row.completed_by,row.completed_at
        edit
        actions complete,reopen
+       delete
        history
    card "Reusable templates"@{nl="Herbruikbare templates"}
     form Template.create
