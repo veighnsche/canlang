@@ -37,7 +37,9 @@ function validArtifact(): Record<string, unknown> {
         },
       },
     ],
-    callables: [{ id: "app.Thing.create", kind: "operation", module: "out/app.js", export: "create" }],
+    callables: [
+      { id: "app.Thing.create", kind: "operation", module: "out/app.js", export: "create", member: ["createThing"] },
+    ],
     pages: [{ owner: "app", path: "/", module: "out/app.js", export: "IndexPage" }],
     requires: [{ capability: "values.decimal", min_version: 2 }],
     tests: [{ scope: "app.Thing", module: TEST_MODULE, fixtures: ["app.Thing/basic"] }],
@@ -120,6 +122,30 @@ describe("loadArtifactFile", () => {
         (a) => void (a.pages = [{ owner: "app", path: "/", module: "out/gone.js", export: "e" }]),
       ),
       /pages\[0\]\.module "out\/gone\.js" names no modules\[\] entry/,
+    ],
+    [
+      "callables member missing",
+      mutate((a) => {
+        const callables = a.callables as Record<string, unknown>[];
+        if (callables[0]) delete callables[0]["member"];
+      }),
+      /callables\[0\]\.member for callable "app\.Thing\.create" must be a non-empty array/,
+    ],
+    [
+      "callables member empty",
+      mutate((a) => {
+        const callables = a.callables as Record<string, unknown>[];
+        if (callables[0]) callables[0]["member"] = [];
+      }),
+      /callables\[0\]\.member for callable "app\.Thing\.create" must be a non-empty array/,
+    ],
+    [
+      "callables member bad segment",
+      mutate((a) => {
+        const callables = a.callables as Record<string, unknown>[];
+        if (callables[0]) callables[0]["member"] = ["ok", ""];
+      }),
+      /callables\[0\]\.member for callable "app\.Thing\.create" must be a non-empty array/,
     ],
     [
       "pages owner",

@@ -116,6 +116,19 @@ export function loadArtifactFile(path: string): LoadedArtifact {
     if (!isNonEmptyString(callable.export)) {
       fail(path, `${where}.export must be a non-empty string`);
     }
+    const member: unknown = callable.member;
+    if (
+      !Array.isArray(member) ||
+      member.length === 0 ||
+      !member.every((segment) => typeof segment === "string" && segment.length > 0)
+    ) {
+      fail(
+        path,
+        `${where}.member for callable ${JSON.stringify(callable.id)} must be a non-empty ` +
+          `array of non-empty strings (registry path into canApp()); ` +
+          "recompile with the fixed `can compile`",
+      );
+    }
   }
 
   if (!Array.isArray(parsed.pages)) fail(path, "pages must be an array");

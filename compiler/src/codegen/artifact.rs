@@ -78,6 +78,8 @@ pub struct ArtifactCallable {
     pub module: String,
     /// Registry member / export name.
     pub export: String,
+    /// Path segments into the module's `canApp()` registry object.
+    pub member: Vec<String>,
 }
 
 /// Separately emitted test artifact for inline behavior examples.
@@ -154,6 +156,7 @@ pub fn assemble(
             kind: c.kind.as_str().to_string(),
             module: js.entry.path.clone(),
             export: c.export.clone(),
+            member: c.member.clone(),
         })
         .collect();
     let pages = js
@@ -404,7 +407,14 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
         push_json_str(&mut out, &callable.module);
         out.push_str(",\"export\":");
         push_json_str(&mut out, &callable.export);
-        out.push('}');
+        out.push_str(",\"member\":[");
+        for (j, segment) in callable.member.iter().enumerate() {
+            if j > 0 {
+                out.push(',');
+            }
+            push_json_str(&mut out, segment);
+        }
+        out.push_str("]}");
     }
     out.push_str("],\"pages\":[");
     for (i, page) in artifact.pages.iter().enumerate() {
