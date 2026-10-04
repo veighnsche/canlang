@@ -6,6 +6,7 @@ import {
   isDatetime,
   isDeliveryRef,
   isFileValue,
+  isInvocationRef,
   isMemberRef,
   isMoney,
   isRecordRef,
@@ -16,6 +17,7 @@ import {
   makeDatetime,
   makeDeliveryRef,
   makeFileValue,
+  makeInvocation,
   makeMemberRef,
   makeMoney,
   makeRecordRef,
@@ -23,6 +25,18 @@ import {
   makeUserRef,
 } from "../src/kinds.js";
 import { ValueError } from "../src/errors.js";
+import { DATETIME_MAX_MS, DATETIME_MIN_MS } from "../src/temporal.js";
+
+function assertCode(fn: () => unknown, code: string): void {
+  try {
+    fn();
+  } catch (err) {
+    assert.ok(err instanceof ValueError, `expected ValueError, got ${String(err)}`);
+    assert.equal(err.code, code);
+    return;
+  }
+  assert.fail(`expected ValueError(${code}), but nothing was thrown`);
+}
 
 describe("money tags", () => {
   it("constructs a frozen money value", () => {
@@ -35,11 +49,23 @@ describe("money tags", () => {
   it("rejects non-bigint minor and misshapen currency", () => {
     assert.throws(() => makeMoney(25 as unknown as bigint, "EUR"), ValueError);
     for (const bad of ["eur", "EURO", "E1R", "", "EU"]) {
-      assert.throws(() => makeMoney(1n, bad), ValueError);
+      assertCode(() => makeMoney(1n, bad), "invalid-construction");
       assert.ok(!isMoney({ kind: "money", minor: 1n, currency: bad }));
     }
     assert.ok(!isMoney({ kind: "money" }));
     assert.ok(!isMoney(null));
+  });
+
+  it("validates pinned-ISO-table membership like the money() builtin", () => {
+    // Shape-valid but excluded/unknown: XXX is an ISO code with N.A. minor
+    // units (see currency-data.js), ZZZ/AAA are not codes at all.
+    for (const unknown of ["XXX", "ZZZ", "AAA"]) {
+      assertCode(() => makeMoney(1n, unknown), "unknown-currency");
+    }
+    // The shape guard stays shape-only; membership is the maker's check.
+    assert.ok(isMoney({ kind: "money", minor: 1n, currency: "ZZZ" }));
+    assert.deepEqual(makeMoney(1n, "USD"), { kind: "money", minor: 1n, currency: "USD" });
+    assert.deepEqual(makeMoney(1n, "JPY"), { kind: "money", minor: 1n, currency: "JPY" });
   });
 });
 
@@ -78,6 +104,60 @@ describe("datetime tags", () => {
     assert.ok(Object.isFrozen(value));
     assert.ok(isDatetime(value));
     assert.throws(() => makeDatetime(0 as unknown as bigint), ValueError);
+  });
+
+  it("range-checks to 0001-9999 like the datetime() builtin", () => {
+    assert.deepEqual(makeDatetime(DATETIME_MIN_MS), { kind: "datetime", ms: DATETIME_MIN_MS });
+    assert.deepEqual(makeDatetime(DATETIME_MAX_MS), { kind: "datetime", ms: DATETIME_MAX_MS });
+    assertCode(() => makeDatetime(DATETIME_MIN_MS - 1n), "out-of-range");
+    assertCode(() => makeDatetime(DATETIME_MAX_MS + 1n), "out-of-range");
+    // The instant guard stays tag-only; range is the maker's check.
+    assert.ok(isDatetime({ kind: "datetime", ms: DATETIME_MAX_MS + 1n }));
+  });
+});
+
+describe("invocation tags", () => {
+  it("packages decoded args frozen with versions preserved", () => {
+    const value = makeInvocation("todo.Task.update", {
+      record: makeRecordRef("Todo", "t1"),
+      count: 3n,
+      title: "hi",
+      flag: true,
+      when: null,
+    });
+    assert.equal(value.kind, "invocation");
+    assert.equal(value.target, "todo.Task.update");
+    assert.deepEqual(value.args["record"], { kind: "ref", model: "Todo", id: "t1" });
+    assert.equal(value.args["count"], 3n);
+    assert.ok(Object.isFrozen(value));
+    assert.ok(Object.isFrozen(value.args));
+    assert.ok(isInvocationRef(value));
+    assert.ok(!isInvocationRef({ kind: "invocation", target: "", args: {} }));
+    assert.ok(!isInvocationRef({ kind: "invocation", target: "t" }));
+    assert.ok(!isInvocationRef(null));
+  });
+
+  it("rejects empty targets, non-record args and __proto__ names", () => {
+    assertCode(() => makeInvocation("", {}), "invalid-construction");
+    assertCode(() => makeInvocation(5 as unknown as string, {}), "invalid-construction");
+    assertCode(() => makeInvocation("t", null as unknown as Record<string, never>), "invalid-construction");
+    assertCode(() => makeInvocation("t", [] as unknown as Record<string, never>), "invalid-construction");
+    assertCode(
+      () => makeInvocation("t", { n: 5 } as unknown as Record<string, never>),
+      "invalid-construction",
+    );
+    const args = JSON.parse('{"__proto__":{"kind":"ref","model":"M","id":"r"}}') as Record<string, unknown>;
+    try {
+      makeInvocation("t", args as never);
+    } catch (err) {
+      assert.ok(err instanceof ValueError);
+      assert.equal(err.code, "invalid-construction");
+      assert.match(err.message, /invocation argument name "__proto__" is reserved/);
+      const dunder = makeInvocation("t", { constructor: makeRecordRef("M", "r", 1n) });
+      assert.ok(Object.hasOwn(dunder.args, "constructor"));
+      return;
+    }
+    assert.fail("expected __proto__ rejection, but nothing was thrown");
   });
 });
 

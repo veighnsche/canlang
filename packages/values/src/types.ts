@@ -12,26 +12,30 @@
  *           | "enum" "(" NAME {"," NAME} [","] ")"
  *           | "action" "(" path {"," path} [","] ")"
  *           | "delivery" "(" path ")"
+ *           | "invocation" "(" path {"," path} [","] ")"
+ *           | "json"                        // bare only; no call form
  *   path    = NAME {"." NAME}              // NAME: letter/underscore + alphanumerics
  *
  * Classification: scalars (int/decimal/money/date/datetime/duration/text/
  * bool), validated string-likes (email/url/locale/timezone/currency),
- * user/member/file/secret refs, bare or call-form action/delivery, inline
- * enum(...), multi-arm unions, and nominal paths (models, contracts, named
- * enums, field-reuse paths, message/json).
+ * user/member/file/secret refs, bare or call-form action/delivery/
+ * invocation, bare json (opaque bounded JSON), inline enum(...), multi-arm
+ * unions, and nominal paths (models, contracts, named enums, field-reuse
+ * paths, message).
  *
  * Decisions recorded here (no normative text found):
- * - Bare `action`/`delivery` (no parens) are builtins with an unconstrained
- *   target/operation; bare `enum` is a nominal (an enum needs cases, while a
- *   model or named enum may be spelled `enum` — GRAMMAR L179 does not ban
- *   these words as path components).
+ * - Bare `action`/`delivery`/`invocation` (no parens) are builtins with an
+ *   unconstrained target/operation; bare `enum` is a nominal (an enum needs
+ *   cases, while a model or named enum may be spelled `enum` — GRAMMAR L179
+ *   does not ban these words as path components).
  * - Union arms must be named paths: builtin scalar, string-like and secret
  *   spellings are rejected as arms (GRAMMAR L179: primitive unions are not
- *   authorized). Bare user/member/file/action/delivery/message/json and any
- *   dotted path are accepted as arms; arm *resolution* is the checker's.
+ *   authorized). Bare user/member/file/action/delivery/invocation/message/
+ *   json and any dotted path are accepted as arms; arm *resolution* is the
+ *   checker's.
  * - Duplicate union arms are accepted (harmless); duplicate inline-enum
- *   cases and duplicate action targets are rejected (GRAMMAR L179:
- *   "Checking requires distinct values").
+ *   cases and duplicate action/invocation targets are rejected
+ *   (GRAMMAR L179: "Checking requires distinct values").
  * - Every failure throws ValueError `invalid-construction` and carries the
  *   0-based failure index; non-string input fails without an index.
  */
@@ -55,7 +59,8 @@ export type StringLikeName = "email" | "url" | "locale" | "timezone" | "currency
 /**
  * The unsuffixed base of a type id. `action.targets === null` is bare
  * `action` (any canonical target); `delivery.operation === null` is bare
- * `delivery` (any bound operation). Union arms are bare path spellings.
+ * `delivery` (any bound operation); `invocation.targets === null` is bare
+ * `invocation` (any canonical target). Union arms are bare path spellings.
  */
 export type TypeBase =
   | { readonly kind: "scalar"; readonly name: ScalarName }
@@ -66,6 +71,8 @@ export type TypeBase =
   | { readonly kind: "secret" }
   | { readonly kind: "action"; readonly targets: readonly string[] | null }
   | { readonly kind: "delivery"; readonly operation: string | null }
+  | { readonly kind: "invocation"; readonly targets: readonly string[] | null }
+  | { readonly kind: "json" }
   | { readonly kind: "enum"; readonly cases: readonly string[] }
   | { readonly kind: "nominal"; readonly path: string }
   | { readonly kind: "union"; readonly arms: readonly string[] };
@@ -109,8 +116,8 @@ function isNamePart(ch: string | undefined): boolean {
   return isNameStart(ch) || (ch !== undefined && ch >= "0" && ch <= "9");
 }
 
-function callFormOf(name: string): "enum" | "action" | "delivery" | null {
-  if (name === "enum" || name === "action" || name === "delivery") return name;
+function callFormOf(name: string): "enum" | "action" | "delivery" | "invocation" | null {
+  if (name === "enum" || name === "action" || name === "delivery" || name === "invocation") return name;
   return null;
 }
 
@@ -129,6 +136,8 @@ function classifyPath(path: string): TypeBase {
     if (path === "secret") return { kind: "secret" };
     if (path === "action") return { kind: "action", targets: null };
     if (path === "delivery") return { kind: "delivery", operation: null };
+    if (path === "invocation") return { kind: "invocation", targets: null };
+    if (path === "json") return { kind: "json" };
   }
   return { kind: "nominal", path };
 }
@@ -238,7 +247,7 @@ class TypeIdParser {
     return { kind: "union", arms: Object.freeze(arms.map((arm) => arm.text)) };
   }
 
-  private parseCallForm(form: "enum" | "action" | "delivery"): TypeBase {
+  private parseCallForm(form: "enum" | "action" | "delivery" | "invocation"): TypeBase {
     this.pos += 1;
     if (form === "enum") {
       const cases = this.parseNameList("enum case");
@@ -249,6 +258,11 @@ class TypeIdParser {
       const targets = this.parsePathList("action target");
       this.expectClose(form);
       return { kind: "action", targets: Object.freeze(targets) };
+    }
+    if (form === "invocation") {
+      const targets = this.parsePathList("invocation target");
+      this.expectClose(form);
+      return { kind: "invocation", targets: Object.freeze(targets) };
     }
     if (this.peek() === ")") {
       this.fail("delivery() takes exactly one bound operation (empty lists are invalid)");
@@ -410,6 +424,8 @@ function assertBase(base: unknown): asserts base is TypeBase {
     case "secret":
     case "action":
     case "delivery":
+    case "invocation":
+    case "json":
     case "enum":
     case "nominal":
     case "union":
@@ -430,9 +446,12 @@ export function printTypeBase(base: TypeBase): string {
     case "member":
     case "file":
     case "secret":
+    case "json":
       return base.kind;
     case "action":
       return base.targets === null ? "action" : `action(${base.targets.join(",")})`;
+    case "invocation":
+      return base.targets === null ? "invocation" : `invocation(${base.targets.join(",")})`;
     case "delivery":
       return base.operation === null ? "delivery" : `delivery(${base.operation})`;
     case "enum":
@@ -447,7 +466,8 @@ export function printTypeBase(base: TypeBase): string {
 /**
  * Canonical spelling of a normalized type. `printTypeId(parseTypeId(id))`
  * is the identity on canonical ids (a trailing comma inside `enum(...)` /
- * `action(...)` is the only accepted non-canonical spelling, dropped here).
+ * `action(...)` / `invocation(...)` is the only accepted non-canonical
+ * spelling, dropped here).
  */
 export function printTypeId(type: NormalizedType): string {
   if (typeof type !== "object" || type === null) {

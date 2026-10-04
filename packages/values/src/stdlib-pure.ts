@@ -1,9 +1,11 @@
 /**
- * Lane 02 pure stdlib dispatchers: the `sum`/`abs`/`app_url`/`action`/`format` slice.
+ * Lane 02 pure stdlib dispatchers: the `sum`/`abs`/`app_url`/`action`/
+ * `invocation`/`choose`/`format` slice.
  *
  * Normative: DESIGN.md L147 (action bindings carry identity AND expected
  * version), L215-269 (builtin boundaries: L226 app_url, L231-242 signatures,
- * L257/L269 action, L261 money-sum currency rules, L263 abs overflow).
+ * L257/L269 action, L261 money-sum currency rules, L263 abs overflow),
+ * L265 (choose/invocation signatures), §2.2 (complete invocation values).
  *
  * Boundaries recorded here:
  * - `sum`/`abs` dispatch by static element tag / runtime kind onto the typed
@@ -18,20 +20,33 @@
  * - `action` only packages an already-validated (target, bindings) pair;
  *   static target/canonicity validation (canonical enabled user mutation,
  *   owner, exact protected-record coverage) is lane-01's.
+ * - `invocation` only packages an already-validated (target, args) pair of
+ *   DECODED values; construction checking is L1's and admission (versions,
+ *   completeness against the owner schema) is L3's. Unlike action bindings,
+ *   nested record versions are preserved as-present, never required here.
+ * - `choose` is strict: it returns one of its already-frozen inputs as-is;
+ *   any laziness is codegen's.
  * - `format` resolves its overload on the first argument: a text template
  *   routes to formatPlain, a message descriptor (via isMessageDescriptor)
  *   routes to formatMessage; any other first argument — or a second argument
  *   of the wrong shape for the detected overload — is `invalid-construction`.
  */
 
-import type { ActionRef, DecimalValue, MoneyValue, RecordRef } from "../../contracts/src/values.js";
+import type {
+  ActionRef,
+  CanValue,
+  DecimalValue,
+  InvocationRef,
+  MoneyValue,
+  RecordRef,
+} from "../../contracts/src/values.js";
 import { sumDecimal, sumDuration, sumInt, sumMoney } from "./array.js";
 import type { Decimal } from "./decimal.js";
 import { absDecimal, isDecimal } from "./decimal.js";
 import { ValueError } from "./errors.js";
 import { isMessageDescriptor, type MessageDescriptor } from "./icu.js";
 import { absInt } from "./int.js";
-import { isMoney, isRecordRef, makeActionRef } from "./kinds.js";
+import { isMoney, isRecordRef, makeActionRef, makeInvocation } from "./kinds.js";
 import { formatMessage, type FormatMessageOptions, type FormattedMessage } from "./locale.js";
 import { absMoney } from "./money.js";
 import { formatPlain } from "./text.js";
@@ -322,6 +337,51 @@ export function action(
     closed[param] = binding;
   }
   return makeActionRef(target, closed);
+}
+
+/**
+ * `choose` builtin (DESIGN L265 `choose(condition:bool,yes:T,no:T)->T`):
+ * strict pure selection. The condition must be a boolean; the winning input
+ * is returned as-is (already frozen). Any laziness is codegen's.
+ */
+export function choose<T>(condition: boolean, yes: T, no: T): T {
+  if (typeof condition !== "boolean") {
+    throw new ValueError("invalid-construction", "choose condition must be a boolean");
+  }
+  return condition ? yes : no;
+}
+
+/**
+ * `invocation` packaging (DESIGN §2.2/L265): shapes an already-validated
+ * (target, args) pair of DECODED values via makeInvocation. The target is
+ * non-empty canonical text; args are a closed record of CanValues with
+ * nested record versions preserved as-present, NEVER required here (unlike
+ * action bindings — args can carry read refs needing only IDs per DESIGN
+ * L340). Static construction checking is L1's; version/completeness
+ * admission against the owner schema is L3's. Returns a frozen
+ * InvocationRef.
+ */
+export function invocation(target: string, args: Readonly<Record<string, CanValue>>): InvocationRef {
+  if (typeof target !== "string" || target.length === 0) {
+    throw new ValueError("invalid-construction", "invocation target must be non-empty canonical text");
+  }
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    throw new ValueError("invalid-construction", "invocation arguments must be a closed record");
+  }
+  const closed: Record<string, CanValue> = {};
+  for (const [name, arg] of Object.entries(args)) {
+    // `__proto__` would silently set the prototype instead of an own key
+    // on the accumulator below; reject it so the argument is never lost
+    // (mirrors the wire decoder; other dunder names are safe own keys).
+    if (name === "__proto__") {
+      throw new ValueError("invalid-construction", 'invocation argument name "__proto__" is reserved');
+    }
+    if (arg === undefined || typeof arg === "function" || typeof arg === "symbol") {
+      throw new ValueError("invalid-construction", `invocation argument ${name} must be a Can value`);
+    }
+    closed[name] = arg;
+  }
+  return makeInvocation(target, closed);
 }
 
 export function format(

@@ -8,6 +8,7 @@ import {
   app_url,
   at,
   canonicalLocale,
+  choose,
   compareScalar,
   concat,
   contains,
@@ -21,6 +22,7 @@ import {
   formatMessage,
   formatPlain,
   group,
+  invocation,
   join,
   lower,
   makeMessageDescriptor,
@@ -55,9 +57,9 @@ import {
 describe("values barrel", () => {
   it("re-exports the PR4 text/array/equality surface", () => {
     const functions: ReadonlyArray<unknown> = [
-      abs, action, all, any, app_url, at, canonicalLocale, compareScalar,
+      abs, action, all, any, app_url, at, canonicalLocale, choose, compareScalar,
       concat, contains, count, decodeValue, encodeValue, equalValue, first,
-      flatten, format, formatMessage, formatPlain, group, join, lower,
+      flatten, format, formatMessage, formatPlain, group, invocation, join, lower,
       makeMessageDescriptor, max, min, normalizeSchema, parseMessageFormat,
       parseTypeId, renderMessage, resolveVariant, scalarChars, scalarLength,
       same, starts_with, sum, sumDecimal, sumDuration, sumInt, sumMoney,

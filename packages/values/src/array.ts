@@ -44,7 +44,7 @@ import { equalValue } from "./equality.js";
 import { ValueError } from "./errors.js";
 import { int64 } from "./int.js";
 import { isDateValue, isDatetime, isMoney, makeMoney } from "./kinds.js";
-import { addMoney, compareMoney, currencyScale } from "./money.js";
+import { compareMoney, currencyScale } from "./money.js";
 import { compareDate, compareDuration, compareInstant } from "./temporal.js";
 import { compareScalar } from "./text.js";
 
@@ -170,13 +170,15 @@ export function sumDuration(domain: ReadonlyArray<bigint>): bigint {
  * Money sum. With an explicit currency every amount must match it and the
  * empty sum is that currency's zero; without one the domain must be nonempty
  * and every amount must match the first element's currency. Mismatches are
- * `currency-mismatch`; minor totals are int64-checked per addition.
+ * `currency-mismatch`; the mathematical minor total is int64-checked once,
+ * mirroring `sumInt`, so intermediate totals may leave int64 while the total
+ * fits (binary `+` chains keep per-op checks via `addMoney`).
  */
 export function sumMoney(domain: ReadonlyArray<MoneyValue>, currency?: string): MoneyValue {
   const items = requireArray<MoneyValue>(domain, "sumMoney domain");
   if (currency !== undefined) {
     currencyScale(currency);
-    let total = makeMoney(0n, currency);
+    let total = 0n;
     for (const value of items) {
       if (!isMoney(value)) {
         throw new ValueError("invalid-construction", "sumMoney needs money elements");
@@ -184,9 +186,9 @@ export function sumMoney(domain: ReadonlyArray<MoneyValue>, currency?: string): 
       if (value.currency !== currency) {
         throw new ValueError("currency-mismatch", "sumMoney amounts must match the explicit currency");
       }
-      total = addMoney(total, value);
+      total += value.minor;
     }
-    return total;
+    return makeMoney(int64(total), currency);
   }
   if (items.length === 0) {
     throw new ValueError("invalid-construction", "sumMoney of an empty domain needs an explicit currency");
@@ -198,7 +200,7 @@ export function sumMoney(domain: ReadonlyArray<MoneyValue>, currency?: string): 
   // The loop below proves every element shares the head currency, so one
   // table lookup validates every amount (DESIGN L213).
   currencyScale(head.currency);
-  let total = makeMoney(0n, head.currency);
+  let total = 0n;
   for (const value of items) {
     if (!isMoney(value)) {
       throw new ValueError("invalid-construction", "sumMoney needs money elements");
@@ -206,9 +208,9 @@ export function sumMoney(domain: ReadonlyArray<MoneyValue>, currency?: string): 
     if (value.currency !== head.currency) {
       throw new ValueError("currency-mismatch", "sumMoney amounts must share one currency");
     }
-    total = addMoney(total, value);
+    total += value.minor;
   }
-  return total;
+  return makeMoney(int64(total), head.currency);
 }
 
 type OrderedComparator = (a: unknown, b: unknown) => number;

@@ -25,9 +25,17 @@
  * Boundaries recorded here:
  * - UNIQUENESS IS OUT OF SCOPE: `unique` needs stored state and lives in
  *   lane-03; a `unique` key in a field descriptor is rejected as unknown.
- * - `trim` and `server=` initialization are not in this descriptor set
- *   (unknown keys); normalization of locale/timezone/currency values is
- *   owned by the wire codec.
+ * - `server=` initialization is not in this descriptor set (unknown key).
+ *   `trim` IS supported, on text/string-like leaf (non-array) fields only:
+ *   it is normalization (DESIGN L131), so the trimmed value is what bounds
+ *   check — including explicit defaults, which trim before their bound
+ *   check. Trim runs after wire validation, so it is ~no-op on email
+ *   (padded addresses already fail `format`) and mostly redundant on url
+ *   (WHATWG validation pre-trims); its force is on text. Normalization
+ *   of locale/timezone/currency values is owned by the wire codec.
+ * - Omitted array fields on create yield `[]` ONLY when bounds allow it: a
+ *   `min` length bound rejects the implicit `[]` (fail-closed, matching an
+ *   explicit `[]`). Update-mode omission still yields UPDATE_OMITTED.
  * - Reuse drops defaults: descriptors carry no inherited initializers —
  *   each field's default comes only from its own descriptor, and
  *   qualified field-reuse paths (`Model.field`) are NOT resolved here
@@ -75,7 +83,7 @@ import { compareDecimal, isDecimal } from "./decimal.js";
 import { SchemaError, ValueError } from "./errors.js";
 import { isDateValue, isDatetime, isMoney, isRecordRef, makeUnionValue } from "./kinds.js";
 import { compareDate, compareInstant } from "./temporal.js";
-import { scalarLength } from "./text.js";
+import { scalarLength, trim as trimText } from "./text.js";
 import { parseTypeId, printTypeBase, printTypeId, type NormalizedType } from "./types.js";
 import { decodeValue, encodeValue } from "./wire.js";
 
@@ -106,6 +114,8 @@ export interface FieldDescriptor {
   readonly min?: unknown;
   readonly max?: unknown;
   readonly default?: unknown;
+  /** Normalization (DESIGN L131): trim before bounds; text/string-like leaves only. */
+  readonly trim?: boolean;
 }
 
 export interface ContractDescriptor {
@@ -141,6 +151,7 @@ export interface NormalizedField {
   readonly valueMin?: CanValue;
   readonly valueMax?: CanValue;
   readonly default?: CanValue;
+  readonly trim?: boolean;
 }
 
 export interface NormalizedContract {
@@ -265,6 +276,7 @@ interface FieldView {
   readonly lengthMax?: number;
   readonly valueMin?: CanValue;
   readonly valueMax?: CanValue;
+  readonly trim?: boolean;
 }
 
 interface SchemaView {
@@ -472,6 +484,22 @@ function hasBounds(field: FieldView): boolean {
   );
 }
 
+/**
+ * Normalization for leaf string values (DESIGN L131: constraints run after
+ * normalization). Applies only when the field opts in with `trim: true`
+ * and the decoded value is a string; null and non-strings pass through.
+ * Callers run this before `checkBounds`, including pass-2 defaults.
+ */
+function applyTrim(
+  field: FieldView,
+  decoded: CanValue | UpdateContract | typeof UPDATE_OMITTED,
+): CanValue | UpdateContract | typeof UPDATE_OMITTED {
+  if (field.trim === true && typeof decoded === "string") {
+    return trimText(decoded);
+  }
+  return decoded;
+}
+
 function validateEnumValue(
   name: string,
   cases: readonly string[],
@@ -563,7 +591,14 @@ function omittedField(field: FieldView, path: Path, ctx: Collector, options: Nod
   if (field.type.nullable) {
     return null;
   }
+  // Update mode returned the sentinel above, so only create/explicit reach
+  // here: the implicit `[]` must satisfy length bounds like an explicit one.
   const empty: CanValue[] = [];
+  const before = ctx.violations.length;
+  checkBounds(field, empty, path, ctx);
+  if (ctx.violations.length !== before) {
+    return FAIL;
+  }
   return Object.freeze(empty) as CanValue[];
 }
 
@@ -615,11 +650,14 @@ function validateContractValue(
       ok = false;
       continue;
     }
-    out[fieldName] = decoded;
+    // Normalization runs before constraints (DESIGN L131); trim fields are
+    // leaves, so a trimmed value is always a plain string, never a partial.
+    const stored = applyTrim(field, decoded);
+    out[fieldName] = stored;
     // Bounded fields are scalar/text/array-typed, so a clean bounded value
     // is always a CanValue (never the sentinel or a partial).
-    if (hasBounds(field) && ctx.violations.length === before && decoded !== UPDATE_OMITTED && decoded !== null) {
-      checkBounds(field, decoded as CanValue, fieldPath, ctx);
+    if (hasBounds(field) && ctx.violations.length === before && stored !== UPDATE_OMITTED && stored !== null) {
+      checkBounds(field, stored as CanValue, fieldPath, ctx);
       if (ctx.violations.length !== before) {
         ok = false;
       }
@@ -856,14 +894,14 @@ function normalizeField(
   }
   let ok = true;
   for (const key of Object.keys(desc)) {
-    if (key !== "type" && key !== "min" && key !== "max" && key !== "default") {
+    if (key !== "type" && key !== "min" && key !== "max" && key !== "default" && key !== "trim") {
       ok = false;
       pushViolation(
         ctx,
         [...path, key],
         "unknown-field",
         `unknown field-descriptor key ${JSON.stringify(key)}`,
-        "one of: type, min, max, default",
+        "one of: type, min, max, default, trim",
         actualWire(desc[key]),
       );
     }
@@ -924,6 +962,38 @@ function normalizeField(
       "a required-array-input field cannot have a default",
       "no default alongside []!",
     );
+  }
+  const trimRaw = Object.hasOwn(desc, "trim") ? desc["trim"] : undefined;
+  let trim: boolean | undefined;
+  if (!isAbsent(trimRaw)) {
+    if (typeof trimRaw !== "boolean") {
+      ok = false;
+      pushViolation(
+        ctx,
+        [...path, "trim"],
+        "type",
+        "trim must be a boolean",
+        "a boolean",
+        actualWire(trimRaw),
+      );
+    } else if (ast !== null) {
+      const base = ast.base;
+      const trimmable =
+        !ast.array && ((base.kind === "scalar" && base.name === "text") || base.kind === "stringlike");
+      if (!trimmable) {
+        ok = false;
+        pushViolation(
+          ctx,
+          [...path, "trim"],
+          "type",
+          `trim is only supported on text fields, not ${printTypeId(ast)}`,
+          "a text or validated-string leaf field",
+          actualWire(trimRaw),
+        );
+      } else {
+        trim = trimRaw;
+      }
+    }
   }
   const hasMin = Object.hasOwn(desc, "min") && !isAbsent(desc["min"]);
   const hasMax = Object.hasOwn(desc, "max") && !isAbsent(desc["max"]);
@@ -1036,6 +1106,7 @@ function normalizeField(
     ...(lengthMax !== undefined ? { lengthMax } : {}),
     ...(valueMin !== undefined ? { valueMin } : {}),
     ...(valueMax !== undefined ? { valueMax } : {}),
+    ...(trim !== undefined ? { trim } : {}),
   };
 }
 
@@ -1143,6 +1214,7 @@ function freezeField(field: PendingField, fallback: CanValue | undefined): Norma
     ...(field.valueMin !== undefined ? { valueMin: field.valueMin } : {}),
     ...(field.valueMax !== undefined ? { valueMax: field.valueMax } : {}),
     ...(field.hasDefault && fallback !== undefined ? { default: fallback } : {}),
+    ...(field.trim !== undefined ? { trim: field.trim } : {}),
   };
   return Object.freeze(out);
 }
@@ -1505,7 +1577,7 @@ export function normalizeSchema(descriptor: unknown): NormalizedSchema {
   }
   for (const { field, path } of pendingDefaults) {
     const before = ctx.violations.length;
-    const decoded = validateNode(
+    const raw = validateNode(
       view,
       field.type,
       field.rawDefault,
@@ -1513,12 +1585,14 @@ export function normalizeSchema(descriptor: unknown): NormalizedSchema {
       ctx,
       { nesting: "explicit", requireVersion: false },
     );
-    if (decoded === FAIL || decoded === UPDATE_OMITTED) {
+    if (raw === FAIL || raw === UPDATE_OMITTED) {
       continue;
     }
     if (ctx.violations.length !== before) {
       continue;
     }
+    // Explicit defaults normalize before their bound check, like inputs.
+    const decoded = applyTrim(field, raw);
     if (decoded !== null && hasBounds(field)) {
       checkBounds(field, decoded as CanValue, path, ctx);
       if (ctx.violations.length !== before) {
@@ -1678,9 +1752,10 @@ export function validateOperationInput(
       ok = false;
       continue;
     }
-    out[name] = decoded as CanValue;
-    if (hasBounds(field) && ctx.violations.length === before && decoded !== null) {
-      checkBounds(field, decoded as CanValue, [name], ctx);
+    const stored = applyTrim(field, decoded);
+    out[name] = stored as CanValue;
+    if (hasBounds(field) && ctx.violations.length === before && stored !== null) {
+      checkBounds(field, stored as CanValue, [name], ctx);
       if (ctx.violations.length !== before) {
         ok = false;
       }

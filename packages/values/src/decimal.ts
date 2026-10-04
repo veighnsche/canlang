@@ -1,5 +1,6 @@
 import type { DecimalValue, MoneyValue } from "../../contracts/src/values.js";
 import { ValueError } from "./errors.js";
+import { int64 } from "./int.js";
 
 /** Maximum fractional digits of a Can decimal (DESIGN L107). */
 export const DECIMAL_MAX_SCALE = 18;
@@ -242,14 +243,15 @@ export function divideDecimal(a: Decimal | bigint | MoneyValue, b: Decimal | big
 
 /**
  * Duration/duration division (DESIGN matrix: duration, duration / decimal).
- * Integer-millisecond bigints in, exact decimal out. Durations are integer
- * milliseconds without a stated int64 bound, so inputs are unchecked bigints.
+ * Integer-millisecond bigints in, exact decimal out. Durations are int64 ms
+ * by representation, so both inputs are int64-narrowed at entry like every
+ * other duration op; out-of-range inputs are `overflow`.
  */
 export function divideDurationMs(aMs: bigint, bMs: bigint): Decimal {
   if (typeof aMs !== "bigint" || typeof bMs !== "bigint") {
     throw new ValueError("invalid-construction", "divideDurationMs needs bigint millisecond inputs");
   }
-  return divideIntegers(aMs, bMs);
+  return divideIntegers(int64(aMs), int64(bMs));
 }
 
 /** Decimal unary negation. Exact; scale preserved. */

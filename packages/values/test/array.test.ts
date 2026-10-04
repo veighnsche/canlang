@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import type { MoneyValue } from "../../contracts/src/values.js";
 import {
   all,
   any,
@@ -175,13 +176,13 @@ describe("sums (DESIGN L261 empty forms)", () => {
   });
 
   it("validates the inferred currency against the currency table (DESIGN L213)", () => {
-    assertValueError(() => sumMoney([makeMoney(100n, "XXX")]), "unknown-currency");
+    // Direct literals: makeMoney validates ISO membership at construction,
+    // so only a literal reaches sumMoney's own unknown-currency validation.
+    const xxx: MoneyValue = { kind: "money", minor: 100n, currency: "XXX" };
+    assertValueError(() => sumMoney([xxx]), "unknown-currency");
+    assertValueError(() => sumMoney([xxx, makeMoney(100n, "EUR")]), "unknown-currency");
     assertValueError(
-      () => sumMoney([makeMoney(100n, "XXX"), makeMoney(100n, "EUR")]),
-      "unknown-currency",
-    );
-    assertValueError(
-      () => sumMoney([makeMoney(100n, "EUR"), makeMoney(100n, "XXX")]),
+      () => sumMoney([makeMoney(100n, "EUR"), xxx]),
       "currency-mismatch",
     );
   });
@@ -191,6 +192,28 @@ describe("sums (DESIGN L261 empty forms)", () => {
     assert.equal(sumDuration([INT64_MAX, 1n, -INT64_MAX]), 1n);
     assertValueError(() => sumInt([INT64_MAX, INT64_MAX]), "overflow");
     assertValueError(() => sumDuration([INT64_MAX, INT64_MAX]), "overflow");
+  });
+
+  it("checks money totals once, so sums are order-independent (decision reversal)", () => {
+    // Coordinator-directed reversal: sumMoney used to fold addMoney per row,
+    // making overflow order-dependent; it now accumulates unbounded minor
+    // units like sumInt and int64-checks the total once.
+    const max = makeMoney(INT64_MAX, "EUR");
+    const one = makeMoney(1n, "EUR");
+    const negMax = makeMoney(-INT64_MAX, "EUR");
+    // Intermediate-only overflow no longer throws, on either currency path.
+    assert.deepEqual(sumMoney([max, one, negMax]), makeMoney(1n, "EUR"));
+    assert.deepEqual(sumMoney([one, negMax, max]), makeMoney(1n, "EUR"));
+    assert.deepEqual(sumMoney([max, one, negMax], "EUR"), makeMoney(1n, "EUR"));
+    assert.deepEqual(sumMoney([one, negMax, max], "EUR"), makeMoney(1n, "EUR"));
+    assert.deepEqual(sumMoney([max, max, negMax]), max);
+    assert.deepEqual(sumMoney([max, negMax, max]), max);
+    const total = sumMoney([max, one, negMax]);
+    assert.ok(Object.isFrozen(total));
+    // True-overflow totals still throw on either path.
+    assertValueError(() => sumMoney([max, max]), "overflow");
+    assertValueError(() => sumMoney([max, one], "EUR"), "overflow");
+    assertValueError(() => sumMoney([max, max, negMax, max]), "overflow");
   });
 
   it("sums decimals exactly at max input scale with one 38-digit check", () => {
