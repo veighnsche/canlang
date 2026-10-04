@@ -2,7 +2,12 @@
 name = "canlang-compiler"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.99"
 publish = false
+
+[lib]
+name = "canlang_compiler"
+path = "src/lib.rs"
 
 [[bin]]
 name = "can"
