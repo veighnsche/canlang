@@ -115,6 +115,8 @@ export interface IdentityStore {
   }): Promise<Membership>;
   findMembership(team_id: TeamId, user_id: UserId): Promise<Membership | null>;
   findMembershipById(membership_id: MembershipId): Promise<Membership | null>;
+  /** All memberships (any status) for one user; backs the team switcher. */
+  listUserMemberships(user_id: UserId): Promise<readonly Membership[]>;
   /** Active owners only; backs the last-owner removal/demotion guard. */
   listActiveOwners(team_id: TeamId): Promise<readonly Membership[]>;
   setMembershipRoles(

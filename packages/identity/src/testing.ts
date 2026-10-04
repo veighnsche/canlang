@@ -134,6 +134,9 @@ export function createMemoryIdentityStore(opts?: {
     async findMembershipById(membership_id) {
       return memberships.get(membership_id) ?? null;
     },
+    async listUserMemberships(user_id) {
+      return [...memberships.values()].filter((row) => row.user_id === user_id);
+    },
     async listActiveOwners(team_id) {
       return [...memberships.values()].filter(
         (row) => row.team_id === team_id && row.status === 'active' && row.is_owner,
