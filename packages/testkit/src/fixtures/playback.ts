@@ -103,7 +103,13 @@ export interface PlaybackHandler {
   readonly mediaPrompts: () => readonly string[];
 }
 
-/** Same request-body cap as every harness (`MAX_HARNESS_BODY`). */
+/**
+ * Same request-body cap as every harness (`MAX_HARNESS_BODY`), counted
+ * in UTF-16 chars after the full read where the harnesses count bytes
+ * during streaming. Diverges only for bodies over 4MB bytes yet under
+ * 4M chars; adapters cap accepted bodies at 1MB, so no catalog table
+ * or adapter-visible flow can tell the difference. (PR22 review N1.)
+ */
 const MAX_BODY_CHARS = 4_000_000;
 
 async function readCappedBody(req: Request): Promise<string> {
@@ -292,7 +298,18 @@ function decodePlaybackBase64File(
       `media filesBase64[${JSON.stringify(filename)}] must be base64.`,
     );
   }
-  const binary = atob(value);
+  let binary: string;
+  try {
+    binary = atob(value);
+  } catch {
+    // Pattern-passing but undecodable input (e.g. misplaced `=`):
+    // map to the local error like L4 maps everything to
+    // `ScenarioTableError`. Unreachable from the real catalog.
+    // (PR22 review N2.)
+    throw new PlaybackScriptError(
+      `media filesBase64[${JSON.stringify(filename)}] must be base64.`,
+    );
+  }
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) {
     bytes[index] = binary.charCodeAt(index) & 0xff;
@@ -590,10 +607,23 @@ const SEED_PROVIDERS: ReadonlySet<string> = new Set([
 
 const SEED_SCENARIO = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
+const PLAYBACK_TABLE_KEYS: ReadonlySet<string> = new Set([
+  "provider",
+  "scenario",
+  "script",
+]);
+
 function checkSeedTable(table: PlaybackScenarioTable): {
   key: string;
   state: SeedState;
 } {
+  // Top-level allowlist mirrors L4's `TABLE_KEYS`: extra table keys
+  // are rejected, never ignored. (PR22 review N3.)
+  playbackKeys(
+    table as unknown as Record<string, unknown>,
+    "scenario table",
+    PLAYBACK_TABLE_KEYS,
+  );
   const provider: string = table.provider;
   const scenario: string = table.scenario;
   if (!SEED_PROVIDERS.has(provider)) {
