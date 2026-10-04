@@ -1,0 +1,47 @@
+# Lane 04: durable work, provider services and files.
+# Owned paths only. Runs each owned package standalone (own manifest, lock
+# and tsconfig) until lane 7 assembles the root Node workspace.
+name: lane-04
+
+on:
+  push:
+    branches:
+      - 'muse/lane-04-work-services-files/**'
+    paths:
+      - 'packages/work/**'
+      - 'packages/services/**'
+      - 'packages/files/**'
+      - 'packages/contracts/src/work.ts'
+      - 'packages/contracts/src/services.ts'
+      - 'packages/contracts/src/files.ts'
+      - '.github/workflows/lane-04.yml'
+  pull_request:
+    paths:
+      - 'packages/work/**'
+      - 'packages/services/**'
+      - 'packages/files/**'
+      - 'packages/contracts/src/work.ts'
+      - 'packages/contracts/src/services.ts'
+      - 'packages/contracts/src/files.ts'
+      - '.github/workflows/lane-04.yml'
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [work, services, files]
+    defaults:
+      run:
+        working-directory: packages/${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: packages/${{ matrix.package }}/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
