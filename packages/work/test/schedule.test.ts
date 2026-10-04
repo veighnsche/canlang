@@ -75,6 +75,29 @@ describe('schedule: keyed put', () => {
     assert.throws(() => putSchedule(deps, pendingEntry({ key: '' })), RangeError);
     assert.throws(() => putSchedule(deps, pendingEntry({ event: '' })), RangeError);
   });
+
+  it('freezes record payloads and rejects non-records the fence cannot carry', () => {
+    const deps = setup();
+    const payload = { noticeId: 'n_1', nested: { tags: ['x'] } };
+    const result = putSchedule(deps, pendingEntry({ payload }));
+    payload.noticeId = 'mutated';
+    payload.nested.tags.push('y');
+    assert.deepEqual(result.admitted.payload, {
+      noticeId: 'n_1',
+      nested: { tags: ['x'] },
+    });
+    assert.ok(Object.isFrozen(result.admitted.payload));
+    for (const bad of [[], 'text', 7, null, undefined, true]) {
+      assert.throws(
+        () =>
+          putSchedule(
+            deps,
+            pendingEntry({ payload: bad as unknown as Record<string, unknown> }),
+          ),
+        TypeError,
+      );
+    }
+  });
 });
 
 describe('schedule: replace supersedes pending occurrences', () => {

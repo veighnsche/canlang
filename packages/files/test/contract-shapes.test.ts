@@ -30,7 +30,7 @@ describe('files contracts', () => {
       upload_id: 'upl_1',
       operation: 'expense.Expense.create',
       field: '/receipt',
-      arguments: { amount: { minorUnits: '2500', currency: 'EUR' } },
+      arguments: { amount: { minor: '2500', currency: 'EUR' } },
       name: 'receipt.pdf',
       type: 'application/pdf',
       size: '1048576',
@@ -48,7 +48,8 @@ describe('files contracts', () => {
 
   it('bridge shapes converge with the lane-6 wire route contract', () => {
     // Re-exported names are the wire declarations (same symbol); if
-    // either side re-declares locally, these pins fail to compile.
+    // either side re-declares with a divergent shape, these pins fail
+    // to compile.
     type Equal<A, B> =
       (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
         ? true
