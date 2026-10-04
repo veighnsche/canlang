@@ -1,0 +1,8 @@
+# Local macOS debris and Python bytecode caches
+.DS_Store
+__pycache__/
+*.pyc
+
+# Generated Rust build output and packaged editor extensions
+/compiler/target/
+/output/editor/*.vsix
