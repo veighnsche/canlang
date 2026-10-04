@@ -18,7 +18,7 @@ package events
   role check_in label="Admission staff"@{nl="Toegangsmedewerker"}
   Program { name:text unique } label="Event program"@{nl="Evenementprogramma"}
   Event in Program { location:Location, name:text, description:text, timezone:timezone, from:datetime label="From"@{nl="Vanaf"}, until:datetime label="Until"@{nl="Tot"}, capacity:int min=1 label="Capacity"@{nl="Capaciteit"}, price:money, sales_until:datetime label="Sales close at"@{nl="Verkoop sluit op"}, refund_before:datetime label="Refund cutoff"@{nl="Terugbetalingsgrens"}, terms:text label="Terms"@{nl="Voorwaarden"}, venue:Change? label="Selected venue reservation"@{nl="Gekozen locatiereservering"}, venue_name:text? label="Venue"@{nl="Evenementlocatie"}, pending_change:Change? label="Pending material change"@{nl="Materiële wijziging in behandeling"}, revision:int=1 min=1, organizer:user server=actor label="Created by"@{nl="Aangemaakt door"}, cancellation_reason:text? label="Event cancellation reason"@{nl="Reden evenementannulering"}, published:bool=false label="Published"@{nl="Gepubliceerd"}, cancelled:bool=false label=label_Event_cancelled } label="Event"@{nl="Evenement"}
-  Registration in Event { settlement_revision:int=0 min=0, event_revision:int=0 min=0 label="Last event update applied"@{nl="Laatst toegepaste evenementwijziging"}, account:user label="Account"@{nl="Account"}, location:Location label="Original billing location"@{nl="Oorspronkelijke facturatielocatie"}, name:text, email:email, source:text unique label="Source reference"@{nl="Bronreferentie"}, price:money, terms:text label="Frozen ticket terms"@{nl="Vastgelegde toegangsbewijsvoorwaarden"}, refund_before:datetime label="Frozen refund cutoff"@{nl="Vastgelegde terugbetalingsgrens"}, refund_required:bool=false label="Return unfulfilled funds"@{nl="Niet uitgevoerde bedragen terugbetalen"}, refund_reason:text? label="Refund reason"@{nl="Terugbetalingsreden"}, refund_state:enum(none,pending,unknown,refunded,review)=none label={text="Refund outcome"@{nl="Terugbetalingsresultaat"},values={none="No refund requested"@{nl="Geen terugbetaling aangevraagd"},pending="Refund requested"@{nl="Terugbetaling aangevraagd"},unknown="Refund uncertain"@{nl="Terugbetaling onzeker"},refunded="Funds resolved"@{nl="Bedragen afgehandeld"},review="Finance review"@{nl="Financiële beoordeling"}}}, collected:money label="Collected funds"@{nl="Geïnde bedragen"}, refunded:money label="Returned funds"@{nl="Terugbetaalde bedragen"}, collection_pending:bool=false label="Collection unresolved"@{nl="Inning onopgelost"}, refund_pending:bool=false label="Refund unresolved"@{nl="Terugbetaling onopgelost"}, cancel_reason:text? label="Frozen collection cancellation reason"@{nl="Vastgelegde reden annulering inning"}, cancel_delivery:text? label="Collection cancellation request"@{nl="Aanvraag annulering inning"}, cancel_status:DeliveryResult.status? label="Cancellation delivery state"@{nl="Status annuleringsverzending"}, fenced:bool=false label="Collection source fenced"@{nl="Inningsbron afgeschermd"}, fence_revision:int=0 label="Cancellation ledger fence"@{nl="Afwikkelingsgrens annulering"}, absent:bool=false label="Invoice authoritatively absent"@{nl="Factuur aantoonbaar afwezig"}, invoice_state:Settlement.state? label="Invoice state"@{nl="Factuurstatus"}, refund_delivery:text? label="Refund request"@{nl="Terugbetalingsaanvraag"}, refund_target:money? label="Requested cumulative return"@{nl="Aangevraagde cumulatieve terugbetaling"}, refund_status:DeliveryResult.status? label="Refund delivery state"@{nl="Status terugbetalingsverzending"}, reconcile_delivery:text? label="Settlement refresh request"@{nl="Aanvraag afwikkelingsverversing"}, reconcile_status:DeliveryResult.status? label="Settlement refresh state"@{nl="Status afwikkelingsverversing"}, expires:datetime label="Expires at"@{nl="Verloopt op"}, state:enum(held,pending,confirmed,expired,cancelled,review)=held label={text="State"@{nl="Status"},values={cancelled=label_Event_cancelled,held="Held"@{nl="Gereserveerd"},pending=label_Registration_state_pending,confirmed="Confirmed"@{nl="Bevestigd"},expired="Expired"@{nl="Verlopen"},review="Needs resolution"@{nl="Vereist beoordeling"}}}, payment:enum(free,unpaid,pending,paid,refunded,unknown)=unpaid label={text="Payment state"@{nl="Betaalstatus"},values={pending=label_Registration_state_pending,free="Free"@{nl="Gratis"},unpaid="Unpaid"@{nl="Onbetaald"},paid="Paid"@{nl="Betaald"},refunded="Refunded"@{nl="Terugbetaald"},unknown="Unknown"@{nl="Onbekend"}}}, ticket:text unique label="Ticket"@{nl="Toegangsbewijs"}, checked_in:datetime? label="Admission time"@{nl="Toegelaten op"}, checked_by:user? label="Admitted by"@{nl="Toegelaten door"}, invoice:text? label="Invoice reference"@{nl="Factuurreferentie"}, delivery:text? label="Delivery reference"@{nl="Afleverreferentie"} } label="Event registration"@{nl="Evenementregistratie"}
+  Registration in Event { settlement_revision:int=0 min=0, event_revision:int=0 min=0 label="Last event update applied"@{nl="Laatst toegepaste evenementwijziging"}, account:user label="Account"@{nl="Account"}, location:Location label="Original billing location"@{nl="Oorspronkelijke facturatielocatie"}, name:text, email:email, source:text unique label="Source reference"@{nl="Bronreferentie"}, price:money, terms:text label="Frozen ticket terms"@{nl="Vastgelegde toegangsbewijsvoorwaarden"}, refund_before:datetime label="Frozen refund cutoff"@{nl="Vastgelegde terugbetalingsgrens"}, refund_required:bool=false label="Return unfulfilled funds"@{nl="Niet uitgevoerde bedragen terugbetalen"}, refund_reason:text? label="Refund reason"@{nl="Terugbetalingsreden"}, refund_state:enum(none,pending,unknown,refunded,review)=none label={text="Refund outcome"@{nl="Terugbetalingsresultaat"},values={none="No refund requested"@{nl="Geen terugbetaling aangevraagd"},pending="Refund requested"@{nl="Terugbetaling aangevraagd"},unknown="Refund uncertain"@{nl="Terugbetaling onzeker"},refunded="Funds resolved"@{nl="Bedragen afgehandeld"},review="Finance review"@{nl="Financiële beoordeling"}}}, collected:money label="Collected funds"@{nl="Geïnde bedragen"}, refunded:money label="Returned funds"@{nl="Terugbetaalde bedragen"}, collection_pending:bool=false label="Collection unresolved"@{nl="Inning onopgelost"}, refund_pending:bool=false label="Refund unresolved"@{nl="Terugbetaling onopgelost"}, cancel_reason:text? label="Frozen collection cancellation reason"@{nl="Vastgelegde reden annulering inning"}, cancel_delivery:text? label="Collection cancellation request"@{nl="Aanvraag annulering inning"}, cancel_status:DeliveryResult.status? label="Cancellation delivery state"@{nl="Status annuleringsverzending"}, fenced:bool=false label="Collection source fenced"@{nl="Inningsbron afgeschermd"}, fence_revision:int=0 label="Cancellation ledger fence"@{nl="Afwikkelingsgrens annulering"}, absent:bool=false label="Invoice authoritatively absent"@{nl="Factuur aantoonbaar afwezig"}, invoice_state:Settlement.state? label="Invoice state"@{nl="Factuurstatus"}, refund_delivery:text? label="Refund request"@{nl="Terugbetalingsaanvraag"}, refund_target:money? label="Requested cumulative return"@{nl="Aangevraagde cumulatieve terugbetaling"}, refund_status:DeliveryResult.status? label="Refund delivery state"@{nl="Status terugbetalingsverzending"}, reconcile_delivery:text? label="Settlement refresh request"@{nl="Aanvraag afwikkelingsverversing"}, reconcile_status:DeliveryResult.status? label="Settlement refresh state"@{nl="Status afwikkelingsverversing"}, expires:datetime label="Expires at"@{nl="Verloopt op"}, state:enum(held,pending,confirmed,expired,cancelled,review)=held label={text="State"@{nl="Status"},values={cancelled=label_Event_cancelled,held="Held"@{nl="Gereserveerd"},pending=label_Registration_state_pending,confirmed="Confirmed"@{nl="Bevestigd"},expired="Expired"@{nl="Verlopen"},review="Needs resolution"@{nl="Vereist beoordeling"}}}, payment:enum(free,unpaid,pending,paid,refunded,unknown)=unpaid label={text="Payment state"@{nl="Betaalstatus"},values={pending=label_Registration_state_pending,free="Free"@{nl="Gratis"},unpaid="Unpaid"@{nl="Onbetaald"},paid="Paid"@{nl="Betaald"},refunded="Refunded"@{nl="Terugbetaald"},unknown="Unknown"@{nl="Onbekend"}}}, ticket:text unique label="Ticket"@{nl="Toegangsbewijs"}, checked_in:datetime? label="Admission time"@{nl="Toegelaten op"}, checked_by:user? label="Admitted by"@{nl="Toegelaten door"}, invoice:text? label="Invoice reference"@{nl="Factuurreferentie"}, delivery:delivery(Billing.charge)? label="Delivery reference"@{nl="Afleverreferentie"} } label="Event registration"@{nl="Evenementregistratie"}
   # Capture a proposed material change without mutating the selected event or its original venue. @{nl="Leg een voorgestelde materiële wijziging vast zonder het gekozen evenement of zijn oorspronkelijke locatie te wijzigen."}
   Change in Event { source:text unique label="Venue request identity"@{nl="Identiteit locatieaanvraag"}, base_revision:int label="Selected event revision"@{nl="Gekozen evenementrevisie"}, location:Event.location, timezone:Event.timezone, from:Event.from, until:Event.until, capacity:Event.capacity, sales_until:datetime label="Proposed sales cutoff"@{nl="Voorgestelde verkoopgrens"}, reason:text, author:user server=actor label="Change proposed by"@{nl="Wijziging voorgesteld door"}, resource:Resource? label="Rentable venue"@{nl="Verhuurbare locatie"}, customer:Customer? label="Venue customer"@{nl="Locatieklant"}, account:user label="Venue allocation account"@{nl="Account locatietoewijzing"}, previous:Change? label="Retained original venue"@{nl="Behouden oorspronkelijke locatie"}, state:enum(holding,confirming,adopted,releasing,released,failed,review)=holding label={text="Change state"@{nl="Wijzigingsstatus"},values={holding="Candidate held or requested"@{nl="Kandidaat gereserveerd of aangevraagd"},confirming="Confirmation pending"@{nl="Bevestiging in behandeling"},adopted="Selected change"@{nl="Gekozen wijziging"},releasing="Cleanup pending"@{nl="Opruiming in behandeling"},released="Cleanup confirmed"@{nl="Opruiming bevestigd"},failed="Request failed"@{nl="Aanvraag mislukt"},review="Change needs review"@{nl="Wijziging vereist beoordeling"}}}, venue_state:OperationOutcome.state=pending label="Authoritative venue state"@{nl="Gezaghebbende locatiestatus"}, venue_revision:int=0 label="Venue owner revision"@{nl="Revisie locatie-eigenaar"}, reference:text? label="Venue reservation reference"@{nl="Referentie locatiereservering"}, hold_delivery:text? label="Candidate hold request"@{nl="Aanvraag kandidaatlocatie"}, confirm_delivery:text? label="Venue confirmation request"@{nl="Aanvraag locatiebevestiging"}, release_reason:text? label="Frozen venue release reason"@{nl="Vastgelegde reden locatievrijgave"}, release_delivery:text? label="Venue release request"@{nl="Aanvraag locatievrijgave"}, hold_status:DeliveryResult.status? label="Candidate hold delivery state"@{nl="Verzendstatus kandidaatlocatie"}, confirm_status:DeliveryResult.status? label="Confirmation delivery state"@{nl="Verzendstatus bevestiging"}, release_status:DeliveryResult.status? label="Release delivery state"@{nl="Verzendstatus vrijgave"} } label="Event schedule and venue change"@{nl="Wijziging evenementplanning en locatie"}
   Notice in Registration { kind:enum(confirmation,change,cancellation) label={text="Notice kind"@{nl="Berichtsoort"},values={confirmation="Ticket confirmation"@{nl="Bevestiging toegangsbewijs"},change="Material event change"@{nl="Materiële evenementwijziging"},cancellation="Admission cancellation"@{nl="Annulering toegang"}}}, revision:int label="Event revision at notice"@{nl="Evenementrevisie bij bericht"}, subject:text label="Notice subject"@{nl="Onderwerp bericht"}, body:text label="Notice text"@{nl="Berichttekst"}, delivery:text unique label="Mail delivery identity"@{nl="Identiteit berichtverzending"}, reference:text? label="Mail acceptance reference"@{nl="Referentie berichtacceptatie"}, state:DeliveryResult.status=pending } label="Attendee notice outcome"@{nl="Resultaat deelnemersbericht"}
@@ -31,16 +31,17 @@ package events
   event AttendeeUpdate { event:Event, revision:int, kind:Notice.kind, reason:text }
   event VenueCleanup { event:Event, revision:int, reason:text }
   derive Event.available:int = row.capacity-count(row.Registration as registration where registration.state==confirmed or (registration.state in [held,pending] and now<registration.expires))
+  derive Registration.charge_status:DeliveryResult.status? = row.delivery?.status label={text="Invoice request delivery state"@{nl="Verzendstatus factuuraanvraag"},values={pending="Request pending"@{nl="Aanvraag in behandeling"},succeeded="Request completed"@{nl="Aanvraag voltooid"},failed="Delivery failed"@{nl="Verzending mislukt"},unknown="Delivery uncertain"@{nl="Verzending onzeker"},skipped="Request skipped"@{nl="Aanvraag overgeslagen"}}}
   policy Program read=organizer
   policy Event read=public where=row.published and not row.cancelled fields=location,name,description,timezone,from,until,capacity,price,sales_until,refund_before,terms,venue_name,published,cancelled
   policy Event read=authenticated where=any(row.Registration as registration,registration.account==actor) fields=location,name,description,timezone,from,until,venue_name,published,cancelled,revision,cancellation_reason
   policy Event read=organizer or check_in or finance where=can_work(actor,row.location)
-  policy Registration read=organizer or finance where=can_work(actor,row.parent.location)
+  policy Registration read=organizer or finance where=can_work(actor,row.parent.location) fields=parent,settlement_revision,event_revision,account,location,name,email,source,price,terms,refund_before,refund_required,refund_reason,refund_state,collected,refunded,collection_pending,refund_pending,cancel_reason,cancel_delivery,cancel_status,fenced,fence_revision,absent,invoice_state,refund_delivery,refund_target,refund_status,reconcile_delivery,reconcile_status,expires,state,payment,ticket,checked_in,checked_by,invoice,delivery.id,delivery.status,charge_status,id,version,created,updated,created_by,updated_by,archived_at
   policy Registration read=check_in where=can_work(actor,row.parent.location) fields=name,email,state,payment,ticket,checked_in,checked_by
   policy Change read=organizer where=can_work(actor,row.parent.location)
   policy Notice read=organizer where=can_work(actor,row.parent.parent.location)
   policy Notice read=authenticated where=row.parent.account==actor
-  policy Registration read=authenticated where=row.account==actor
+  policy Registration read=authenticated where=row.account==actor fields=parent,settlement_revision,event_revision,account,location,name,email,source,price,terms,refund_before,refund_required,refund_reason,refund_state,collected,refunded,collection_pending,refund_pending,cancel_reason,cancel_delivery,cancel_status,fenced,fence_revision,absent,invoice_state,refund_delivery,refund_target,refund_status,reconcile_delivery,reconcile_status,expires,state,payment,ticket,checked_in,checked_by,invoice,delivery.id,delivery.status,charge_status,id,version,created,updated,created_by,updated_by,archived_at
   invariant Event: row.from<row.until and row.sales_until<=row.from and row.price.minor>=0 and row.price.currency==row.location.currency and row.available>=0
   invariant Change: row.from<row.until and row.sales_until<=row.from and (row.resource==null or row.resource.location==row.location)
   lock Change fields=source,base_revision,location,timezone,from,until,capacity,sales_until,reason,author,resource,customer,account,previous
@@ -50,6 +51,9 @@ package events
   fixture workshop=Event {parent=program,location=test_site,name="Workshop",description="Networking",timezone="Europe/Brussels",from=datetime("2099-01-02T09:00:00Z"),until=datetime("2099-01-02T10:00:00Z"),capacity=1,price=money(0,"EUR"),sales_until=datetime("2099-01-02T08:00:00Z"),refund_before=datetime("2099-01-01T09:00:00Z"),terms="Free",published=true}
   fixture free_ticket=Registration {parent=workshop,account=other,location=test_site,name="Guest",email="guest@example.test",source="free",price=money(0,"EUR"),terms="Free",refund_before=datetime("2099-01-01T09:00:00Z"),collected=money(0,"EUR"),refunded=money(0,"EUR"),expires=datetime("2099-01-02T08:00:00Z"),state=confirmed,payment=free,ticket="ticket"}
   fixture competing_ticket=Registration {parent=workshop,account=self,location=test_site,name="Second attendee",email="second@example.test",source="second",price=money(0,"EUR"),terms="Free",refund_before=datetime("2099-01-01T09:00:00Z"),collected=money(0,"EUR"),refunded=money(0,"EUR"),expires=datetime("2099-01-02T08:00:00Z"),state=confirmed,payment=free,ticket="second-ticket"}
+  ## Paid charge recipes freeze the complete Billing.charge request before row overrides.
+  fixture charge_attempt=Billing.charge {request={value={source="free",customer=test_company.id,location=test_site.id,description=workshop.name,amount=money(10,"EUR"),due=local_date(now,workshop.timezone),issuer=null,terms="Free",items=null,consent=null}}}
+  fixture other_charge_attempt=Billing.charge {request={value={source="free",customer=test_company.id,location=test_site.id,description=workshop.name,amount=money(10,"EUR"),due=local_date(now,workshop.timezone),issuer=null,terms="Free",items=null,consent=null}}}
   fixture event_room=Resource {location=test_site,name="Event hall",kind=event_space,party_limit=20,timezone="Europe/Brussels",currency="EUR",hourly=money(100,"EUR"),terms="Venue allocation",refund_notice=1d,accessibility="Step-free"}
   fixture incumbent=Change {parent=workshop,source="original-venue",base_revision=1,location=test_site,timezone="Europe/Brussels",from=datetime("2099-01-02T09:00:00Z"),until=datetime("2099-01-02T10:00:00Z"),capacity=1,sales_until=datetime("2099-01-02T08:00:00Z"),reason="Original confirmed venue",resource=event_room,customer=test_company,account=self,previous=null,state=adopted,venue_state=confirmed,venue_revision=2,reference="original-reservation"}
   fixture proposed=Change {parent=workshop,source="candidate",base_revision=1,location=test_site,timezone="Europe/Brussels",from=datetime("2099-01-03T09:00:00Z"),until=datetime("2099-01-03T10:00:00Z"),capacity=1,sales_until=datetime("2099-01-03T08:00:00Z"),reason="New schedule",resource=null,customer=null,account=self,previous=null}
@@ -73,24 +77,24 @@ package events
    require (account!=null and account!=actor and email!=null) or ((account==null or account==actor) and actor.email_verified and (email==null or email==actor.email))
    require event.price.minor==0 or (customer!=null and customer.active and event.location in customer.locations and (owns(account ?? actor,customer) or has_location_role(account ?? actor,customer,booker,event.location) or has_location_role(account ?? actor,customer,administrator,event.location)))
    do
-    create Registration {parent=event,account=account ?? actor,name,email=email ?? actor.email,source=operation.id,price=event.price,event_revision=event.revision,terms=event.terms,refund_before=event.refund_before,collected=money(0,event.price.currency),refunded=money(0,event.price.currency),expires=now+15m,ticket=operation.id} as registration
+    create Registration {parent=event,account=account ?? actor,location=event.location,name,email=email ?? actor.email,source=operation.id,price=event.price,event_revision=event.revision,terms=event.terms,refund_before=event.refund_before,collected=money(0,event.price.currency),refunded=money(0,event.price.currency),expires=now+15m,ticket=operation.id} as registration
     if event.price.minor==0
      set registration {state=confirmed,payment=free}
      emit AttendeeNotice {registration,kind=confirmation,revision=event.revision,body=registration.ticket}
     else
      require customer!=null
      send Billing.charge {value={source=registration.source,customer=customer.id,location=registration.location.id,description=event.name,amount=registration.price,terms=registration.terms,due=local_date(now,event.timezone)}} as delivery
-     set registration {state=pending,payment=pending,delivery=delivery.id}
+     set registration {state=pending,payment=pending,delivery=delivery}
      schedule registration.id at=registration.expires event=HoldDue {registration}
     return registration
    examples seed=[test_worker,test_company,test_booker] event=workshop name="Attendee" email="guest@example.test" customer=test_company account=other
-    as,event.price -> result.account,result.payment,result.state
-    organizer,money(0,"EUR") -> other,free,confirmed
-    organizer,money(10,"EUR") -> other,pending,pending
+    as,event.price -> result.account,result.location,result.payment,result.state,result.charge_status
+    organizer,money(0,"EUR") -> other,test_site,free,confirmed,null
+    organizer,money(10,"EUR") -> other,test_site,pending,pending,pending
     check_in,money(0,"EUR") -> error(rule_failed)
    examples event=workshop name="Own attendee"
-    as,event.price -> result.account,result.payment,result.state
-    members,money(0,"EUR") -> self,free,confirmed
+    as,event.price -> result.account,result.location,result.payment,result.state,result.charge_status
+    members,money(0,"EUR") -> self,test_site,free,confirmed,null
     members,money(10,"EUR") -> error(rule_failed)
    examples seed=[free_ticket] event=workshop name="Attendee" email="guest@example.test" customer=null
     as -> count(workshop.Registration)
@@ -292,6 +296,35 @@ package events
    do
     send Billing.reconcile {source=registration.source} as delivery
     set registration {reconcile_delivery=delivery.id,reconcile_status=pending}
+  # Track invoice-request delivery without treating issuance or transport acceptance as a fulfilled ticket. @{nl="Volg de verzending van de factuuraanvraag zonder uitgifte of transportacceptatie als voldaan toegangsbewijs te behandelen."}
+  scenario charged_money on=Billing.charge.completed
+   do
+    for registration in Registration as row where row.delivery?.id==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      require event.result.source==registration.source
+      if registration.invoice==null and event.result.reference!=null
+       set registration {invoice=event.result.reference}
+     if event.status in [failed,unknown,skipped] and registration.payment in [unpaid,pending,unknown]
+      set registration {payment=unknown}
+     send Billing.reconcile {source=registration.source} as delivery
+     set registration {reconcile_delivery=delivery.id,reconcile_status=pending}
+   examples seed=[charge_attempt] event={delivery_id=charge_attempt.id,status=succeeded,result=OperationOutcome {source="free",revision=1,state=confirmed,reference="invoice",detail=null},error=null}
+    free_ticket.price,free_ticket.state,free_ticket.payment,free_ticket.collected,free_ticket.delivery,charge_attempt.status,charge_attempt.result -> free_ticket.state,free_ticket.payment,free_ticket.charge_status,free_ticket.invoice,free_ticket.reconcile_status
+    money(10,"EUR"),pending,pending,money(0,"EUR"),charge_attempt,succeeded,OperationOutcome {source="free",revision=1,state=confirmed,reference="invoice",detail=null} -> pending,pending,succeeded,"invoice",pending
+    money(10,"EUR"),confirmed,paid,money(10,"EUR"),charge_attempt,succeeded,OperationOutcome {source="free",revision=1,state=confirmed,reference="invoice",detail=null} -> confirmed,paid,succeeded,"invoice",pending
+   examples seed=[charge_attempt] event={delivery_id=charge_attempt.id,status=unknown,result=null,error=null}
+    free_ticket.price,free_ticket.state,free_ticket.payment,free_ticket.collected,free_ticket.delivery,charge_attempt.status -> free_ticket.state,free_ticket.payment,free_ticket.charge_status,free_ticket.reconcile_status
+    money(10,"EUR"),pending,pending,money(0,"EUR"),charge_attempt,unknown -> pending,unknown,unknown,pending
+    money(10,"EUR"),confirmed,paid,money(10,"EUR"),charge_attempt,unknown -> confirmed,paid,unknown,pending
+    money(10,"EUR"),pending,pending,money(0,"EUR"),other_charge_attempt,unknown -> pending,pending,pending,null
+   examples seed=[charge_attempt] event={delivery_id=charge_attempt.id,status=failed,result=null,error={code="provider",message="Invoice request rejected"}}
+    free_ticket.price,free_ticket.state,free_ticket.payment,free_ticket.collected,free_ticket.delivery,event.status,event.error,charge_attempt.status,charge_attempt.error -> free_ticket.state,free_ticket.payment,free_ticket.charge_status,free_ticket.reconcile_status
+    money(10,"EUR"),pending,pending,money(0,"EUR"),charge_attempt,failed,{code="provider",message="Invoice request rejected"},failed,{code="provider",message="Invoice request rejected"} -> pending,unknown,failed,pending
+    money(10,"EUR"),confirmed,paid,money(10,"EUR"),charge_attempt,failed,{code="provider",message="Invoice request rejected"},failed,{code="provider",message="Invoice request rejected"} -> confirmed,paid,failed,pending
+    money(10,"EUR"),pending,pending,money(0,"EUR"),charge_attempt,skipped,null,skipped,null -> pending,unknown,skipped,pending
+   examples seed=[charge_attempt] event={delivery_id=charge_attempt.id,status=succeeded,result=OperationOutcome {source="wrong-source",revision=1,state=confirmed,reference="invoice",detail=null},error=null}
+    free_ticket.price,free_ticket.state,free_ticket.payment,free_ticket.delivery,charge_attempt.status,charge_attempt.result -> free_ticket.charge_status
+    money(10,"EUR"),pending,pending,charge_attempt,succeeded,OperationOutcome {source="wrong-source",revision=1,state=confirmed,reference="invoice",detail=null} -> error(rule_failed)
   # Keep cancellation acknowledgement and ledger fence independent of returned money. @{nl="Bewaar annuleringsbevestiging en afwikkelingsgrens afzonderlijk van terugbetaalde bedragen."}
   scenario cancelled_money on=Billing.cancel.completed
    do
@@ -311,14 +344,21 @@ package events
    do
     for registration in Registration as row where row.refund_delivery==event.delivery_id limit=1
      set registration {refund_status=event.status}
-     if event.status in [failed,unknown,skipped]
+     if event.status in [failed,unknown]
       set registration {refund_state=unknown}
+     if event.status==skipped
+      set registration {refund_state=review}
+      emit RefundCheck {registration}
      if event.status==succeeded and event.result!=null
       require event.result.source==registration.source
       if event.result.state in [failed,unavailable]
        set registration {refund_status=failed,refund_state=review}
       send Billing.reconcile {source=registration.source} as delivery
       set registration {reconcile_delivery=delivery.id,reconcile_status=pending}
+   examples event={delivery_id="refund-delivery",status=skipped,result=null,error=null}
+    free_ticket.price,free_ticket.state,free_ticket.collected,free_ticket.refund_required,free_ticket.refund_delivery,free_ticket.refund_state -> free_ticket.refund_status,free_ticket.refund_state
+    money(10,"EUR"),cancelled,money(10,"EUR"),true,"refund-delivery",pending -> skipped,review
+    money(10,"EUR"),cancelled,money(10,"EUR"),true,"another-delivery",pending -> null,pending
   # Match settlement refresh delivery and feed nonnull evidence into canonical reconciliation. @{nl="Koppel afwikkelingsverversing en stuur niet-lege bewijsgegevens naar canonieke reconciliatie."}
   scenario reconciled_money on=Billing.reconcile.completed
    do
@@ -390,17 +430,30 @@ package events
   scenario refund_check on=RefundCheck
    do
     let registration=event.registration
-    if registration.refund_required and registration.fenced and registration.settlement_revision>=registration.fence_revision and registration.settlement_revision>0 and not registration.collection_pending and not registration.refund_pending and registration.collected>registration.refunded and registration.refund_state!=refunded and (registration.refund_delivery==null or registration.refund_status==failed or (registration.refund_target!=null and registration.refunded>=registration.refund_target))
+    if registration.refund_required and registration.fenced and registration.settlement_revision>=registration.fence_revision and registration.settlement_revision>0 and not registration.collection_pending and not registration.refund_pending and registration.collected>registration.refunded and registration.refund_state!=refunded and (registration.refund_delivery==null or registration.refund_status in [failed,skipped] or (registration.refund_target!=null and registration.refunded>=registration.refund_target))
      send Billing.refund {source=registration.source,amount=registration.collected-registration.refunded,reason=registration.refund_reason ?? "Ticket refund"} as delivery
      set registration {refund_delivery=delivery.id,refund_target=registration.collected,refund_status=pending,refund_state=pending}
     if registration.refund_required and registration.fenced and (registration.absent or (registration.settlement_revision>=registration.fence_revision and not registration.collection_pending and not registration.refund_pending and registration.collected==registration.refunded and (registration.collected.minor>0 or registration.invoice_state==void)))
      set registration {refund_state=refunded}
+     if registration.collected.minor>0
+      set registration {payment=refunded}
+     else
+      set registration {payment=unpaid}
    examples event={registration=free_ticket}
     free_ticket.price,free_ticket.state,free_ticket.refund_required,free_ticket.fenced,free_ticket.settlement_revision,free_ticket.fence_revision,free_ticket.collected,free_ticket.collection_pending -> free_ticket.refund_state,free_ticket.refund_target
     money(10,"EUR"),cancelled,true,true,2,2,money(10,"EUR"),false -> pending,money(10,"EUR")
     money(10,"EUR"),cancelled,true,true,1,2,money(10,"EUR"),false -> none,null
     money(10,"EUR"),cancelled,true,true,2,2,money(10,"EUR"),true -> none,null
     money(10,"EUR"),cancelled,true,false,2,2,money(10,"EUR"),false -> none,null
+   examples event={registration=free_ticket}
+    free_ticket.price,free_ticket.state,free_ticket.refund_required,free_ticket.fenced,free_ticket.settlement_revision,free_ticket.fence_revision,free_ticket.collected,free_ticket.refund_delivery,free_ticket.refund_status,free_ticket.refund_target -> free_ticket.refund_state,free_ticket.refund_status,free_ticket.refund_target
+    money(10,"EUR"),cancelled,true,true,2,2,money(10,"EUR"),"skipped-refund",skipped,money(10,"EUR") -> pending,pending,money(10,"EUR")
+    money(10,"EUR"),cancelled,true,true,2,2,money(10,"EUR"),"uncertain-refund",unknown,money(10,"EUR") -> none,unknown,money(10,"EUR")
+   examples event={registration=free_ticket}
+    free_ticket.price,free_ticket.state,free_ticket.refund_required,free_ticket.fenced,free_ticket.settlement_revision,free_ticket.fence_revision,free_ticket.collected,free_ticket.refunded,free_ticket.invoice_state,free_ticket.payment,free_ticket.refund_pending -> free_ticket.refund_state,free_ticket.payment
+    money(10,"EUR"),cancelled,true,true,2,2,money(5,"EUR"),money(5,"EUR"),issued,unknown,false -> refunded,refunded
+    money(10,"EUR"),cancelled,true,true,2,2,money(0,"EUR"),money(0,"EUR"),void,unknown,false -> refunded,unpaid
+    money(10,"EUR"),cancelled,true,true,2,2,money(5,"EUR"),money(5,"EUR"),issued,unknown,true -> none,unknown
   # Cancel all ticket sales and candidates without converting money or mail delivery into success. @{nl="Annuleer alle toegangsbewijsverkoop en kandidaten zonder geld of berichtverzending als succes te beschouwen."}
   scenario cancel_event(event:Event,reason:text) by=organizer label="Cancel event"@{nl="Evenement annuleren"}
    require can_work(actor,event.location) and not event.cancelled and trim(reason)!=""
@@ -479,7 +532,7 @@ package events
    card "Own tickets and admission"@{nl="Eigen toegangsbewijzen en toelating"}
     require authenticated
     list (Registration as ticket where ticket.account==actor) filter=state defaults={state=preferences.ticket_state} display=split
-     text row.ticket,row.state,row.payment,row.expires,row.checked_in,row.refund_state,row.terms,row.refund_before,row.parent.name,row.parent.location,row.parent.from,row.parent.until,row.parent.timezone,row.parent.cancelled,row.parent.cancellation_reason
+     text row.ticket,row.state,row.payment,row.charge_status,row.expires,row.checked_in,row.refund_state,row.terms,row.refund_before,row.parent.name,row.parent.location,row.parent.from,row.parent.until,row.parent.timezone,row.parent.cancelled,row.parent.cancellation_reason
      table row.Notice columns=kind,revision,state,reference
      actions cancel,reconcile
   # Author events and perform scoped reception admission. @{nl="Beheer evenementen en voer beperkte receptietoelating uit."}
@@ -503,7 +556,7 @@ package events
      action admit
      details "Ticket finance and history"@{nl="Financiën en historie toegangsbewijs"}
       require organizer or finance
-      text row.expires,row.price,row.checked_by,row.terms,row.refund_before,row.invoice,row.delivery,row.refund_state,row.collected,row.refunded,row.cancel_status,row.refund_status,row.reconcile_status
+      text row.expires,row.price,row.checked_by,row.terms,row.refund_before,row.invoice,row.delivery?.id,row.charge_status,row.refund_state,row.collected,row.refunded,row.cancel_status,row.refund_status,row.reconcile_status
       actions cancel,refund,reconcile
       table row.Notice columns=kind,revision,state,reference
        action resend_notice
