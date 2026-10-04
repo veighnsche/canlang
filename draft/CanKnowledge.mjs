@@ -1,10 +1,13 @@
 import { active_member, any, corpusStatus, count, create, delivery, first, groundedAvailable, hasRole, int64, local_date, records, require as check, same, send, set, trim } from "@canlang/stdlib";
-import { actions, content, details, edit, form, history, list, message, renderPage, table, text } from "@canlang/ui";
+import { actions, alert, badge, breadcrumbs, button, checkbox, collapse, content, edit, fieldset, form, history, input, list, message, modal, pagination, progress, renderPage, select, slot, status, table, text, textarea } from "@canlang/ui";
 
 /* Handwritten desired target. DESIGN §13 and the accepted knowledge corpus contract
  * own admission, current grants, immutable revisions/files, grounded provenance,
  * index maintenance, observed runs, exact scalars and bounded canonical UI/MCP.
  * There is no app chunk/ACL cache, raw generated-text store or second result schema.
+ * Catalog factories added by the frontend replan (breadcrumbs, pagination, badge,
+ * status, collapse, alert, fieldset, input, select, checkbox, textarea, button,
+ * modal, slot, progress) are desired contracts.
  * These imports, renderer, corpus controller and BDD runner are unimplemented. */
 const knowledgeDescriptor = { owner: "knowledge", path: "/knowledge", title: message("Company knowledge", {nl:"Bedrijfskennis"}), poll: 5000n, admit: async c => { check(hasRole(c,"members"),"forbidden"); return {}; }, render: knowledgePage };
 const editorDescriptor = { owner: "knowledge", path: "/knowledge/editor", title: message("Procedure editing", {nl:"Procedures bewerken"}), admit: async c => { check(hasRole(c,"knowledge.knowledge_author") || hasRole(c,"knowledge.knowledge_reviewer") ,"forbidden"); return {}; }, render: editorPage };
@@ -142,37 +145,86 @@ export function canApp(){
 }
 
 export async function knowledgePage(c,bindings){return renderPage(c,knowledgeDescriptor,()=>[
- table({context:c,model:"knowledge.Topic",columns:["name","expert"],filter:["active"],defaults:{active:true},display:"split",renderRow:(topic,view)=>[
-  text({context:view,values:[topic.active,topic.daily_limit,topic.input_tokens,topic.output_tokens]}),form({context:view,operation:"knowledge.ask",arguments:{topic}}),
-  table({context:view,model:"knowledge.Document",parent:topic,columns:["name","current"],display:"split",renderRow:async(document,docView)=>[
-   ...(document.current!==null&&(editorial(docView,docView.actor,document)||await readership(docView,docView.actor,topic))?[details({context:docView,caption:message("Current publication",{nl:"Actuele publicatie"}),children:[text({context:docView,values:[document.current.title,document.current.index]}),content({context:docView,value:document.current.body}),text({context:docView,values:[document.current.attachments]})]})]:[]),
+ /* desired-unimplemented: breadcrumbs, pagination, badge, status, collapse, alert, checkbox, select, textarea. */
+ breadcrumbs({context:c}),
+ table({context:c,model:"knowledge.Topic",columns:["name","expert"],filter:["active"],defaults:{active:true},display:"split",empty:message("No topics available",{nl:"Geen onderwerpen beschikbaar"}),renderRow:(topic,view)=>[
+  pagination({context:view}),
+  text({context:view,values:[topic.active,topic.daily_limit,topic.input_tokens,topic.output_tokens]}),
+  form({context:view,operation:"knowledge.ask",arguments:{topic},children:[textarea({context:view,field:"question"})]}),
+  table({context:view,model:"knowledge.Document",parent:topic,columns:["name","current"],display:"split",empty:message("No procedures in this topic",{nl:"Geen procedures in dit onderwerp"}),renderRow:async(document,docView)=>[
+   pagination({context:docView}),
+   ...(document.current!==null&&(editorial(docView,docView.actor,document)||await readership(docView,docView.actor,topic))?[collapse({context:docView,caption:message("Current publication",{nl:"Actuele publicatie"}),children:[badge({context:docView,value:document.current.index.state}),text({context:docView,values:[document.current.title]}),content({context:docView,value:document.current.body}),text({context:docView,values:[document.current.index.checked,document.current.index.detail]}),text({context:docView,values:[document.current.attachments]})]})]:[]),
   ]}),
-  table({context:view,model:"knowledge.Question",parent:topic,where:q=>same(q.account,view.actor),columns:["request_value.question","state","coverage","transport","unfinished"],display:"split",renderRow:async(question,qView)=>same(question.account,qView.actor)?[
-   text({context:qView,values:[question.used,question.stop_requested,(await delivery(qView,{record:question,field:"request"},["error"]))?.error??null,(await delivery(qView,{record:question,field:"request"},["progress.detail"]))?.progress?.detail??null]}),content({context:qView,value:question.answer}),
-   text({context:qView,values:[message("Historical answers keep their original scope. Ask again for current guidance; changed or revoked used sources hide the answer.",{nl:"Historische antwoorden behouden hun oorspronkelijke bronselectie. Stel opnieuw een vraag voor actuele uitleg; gewijzigde of ingetrokken gebruikte bronnen verbergen het antwoord."})]}),
-   actions({context:qView,operations:["knowledge.stop","knowledge.reconcile","knowledge.release_skipped"],boundArgs:{question}}),form({context:qView,operation:"knowledge.escalate",arguments:{question}}),
-   list({context:qView,model:"knowledge.Escalation",parent:question,renderRow:async(issue,issueView)=>[
-    text({context:issueView,values:[issue.reason,issue.state,issue.resolved_by,issue.resolved_at]}),
-    ...(issue.state==="dismissed"?[details({context:issueView,caption:message("Closure explanation",{nl:"Uitleg bij afsluiting"}),children:[text({context:issueView,values:[issue.note]})]})]:[]),
-    list({context:issueView,model:"knowledge.Revision",where:async guidance=>same(guidance,issue.resolution)&&await live(issueView,guidance)&&await readership(issueView,issueView.actor,topic),renderRow:(guidance,guidanceView)=>[details({context:guidanceView,caption:message("Published resolution",{nl:"Gepubliceerde oplossing"}),children:[text({context:guidanceView,values:[issue.note,guidance.title]}),content({context:guidanceView,value:guidance.body}),text({context:guidanceView,values:[guidance.attachments]})]})]}),
+  table({context:view,model:"knowledge.Question",parent:topic,where:q=>same(q.account,view.actor),columns:["request_value.question","state","coverage","transport","unfinished"],display:"split",empty:message("No questions yet",{nl:"Nog geen vragen"}),renderRow:async(question,qView)=>same(question.account,qView.actor)?[
+   pagination({context:qView}),
+   badge({context:qView,value:question.state}),status({context:qView,value:question.transport}),
+   text({context:qView,values:[question.coverage,question.unfinished,question.used,question.stop_requested,(await delivery(qView,{record:question,field:"request"},["error"]))?.error??null,(await delivery(qView,{record:question,field:"request"},["progress.detail"]))?.progress?.detail??null]}),
+   content({context:qView,value:question.answer}),
+   alert({context:qView,value:message("Historical answers keep their original scope. Ask again for current guidance; changed or revoked used sources hide the answer.",{nl:"Historische antwoorden behouden hun oorspronkelijke bronselectie. Stel opnieuw een vraag voor actuele uitleg; gewijzigde of ingetrokken gebruikte bronnen verbergen het antwoord."})}),
+   actions({context:qView,operations:["knowledge.stop","knowledge.reconcile","knowledge.release_skipped"],boundArgs:{question}}),
+   form({context:qView,operation:"knowledge.escalate",arguments:{question},children:[textarea({context:qView,field:"reason"}),checkbox({context:qView,field:"share"})]}),
+   list({context:qView,model:"knowledge.Escalation",parent:question,empty:message("No expert requests",{nl:"Geen expertverzoeken"}),renderRow:async(issue,issueView)=>[
+    pagination({context:issueView}),
+    badge({context:issueView,value:issue.state}),
+    text({context:issueView,values:[issue.reason,issue.resolved_by,issue.resolved_at]}),
+    ...(issue.state==="dismissed"?[collapse({context:issueView,caption:message("Closure explanation",{nl:"Uitleg bij afsluiting"}),children:[text({context:issueView,values:[issue.note]})]})]:[]),
+    list({context:issueView,model:"knowledge.Revision",where:async guidance=>same(guidance,issue.resolution)&&await live(issueView,guidance)&&await readership(issueView,issueView.actor,topic),empty:message("No published resolution available",{nl:"Geen gepubliceerde oplossing beschikbaar"}),renderRow:(guidance,guidanceView)=>[
+     pagination({context:guidanceView}),
+     collapse({context:guidanceView,caption:message("Published resolution",{nl:"Gepubliceerde oplossing"}),children:[text({context:guidanceView,values:[issue.note,guidance.title]}),content({context:guidanceView,value:guidance.body}),text({context:guidanceView,values:[guidance.attachments]})]})]}),
    ]}),
   ]:[]}),
  ]}),
 ]);}
 export async function editorPage(c,bindings){return renderPage(c,editorDescriptor,()=>[
- form({context:c,operation:"knowledge.create_document"}),
- table({context:c,model:"knowledge.Document",where:document=>editorial(c,c.actor,document),columns:["name","parent","owner","active","current"],display:"split",renderRow:(document,view)=>[
-  form({context:view,operation:"knowledge.revise",arguments:{document}}),actions({context:view,operations:["knowledge.assign_author","knowledge.document_status"],boundArgs:{document}}),
-  table({context:view,model:"knowledge.Revision",parent:document,columns:["number","title","author","authored","index"],display:"split",renderRow:(revision,revView)=>[content({context:revView,value:revision.body}),text({context:revView,values:[revision.attachments]}),form({context:revView,operation:"knowledge.publish",arguments:{revision}}),form({context:revView,operation:"knowledge.reindex",arguments:{revision}})]}),
-  table({context:view,model:"knowledge.Publication",parent:document,columns:["revision","reviewer","reviewed","active"],display:"split",renderRow:(publication,pubView)=>[text({context:pubView,values:[publication.reason,publication.withdrawal,publication.withdrawn_by,publication.withdrawn_at]}),form({context:pubView,operation:"knowledge.withdraw",arguments:{publication}}),history({context:pubView,record:publication})]}),
+ /* desired-unimplemented: breadcrumbs, pagination, badge, button, modal, slot, select, input, textarea, checkbox. */
+ breadcrumbs({context:c}),
+ form({context:c,operation:"knowledge.create_document",children:[select({context:c,field:"topic"}),input({context:c,field:"name"})]}),
+ table({context:c,model:"knowledge.Document",where:document=>editorial(c,c.actor,document),columns:["name","parent","owner","active","current"],display:"split",empty:message("No procedures to edit",{nl:"Geen procedures om te bewerken"}),renderRow:(document,view)=>[
+  pagination({context:view}),
+  text({context:view,values:[document.name,document.parent,document.owner,document.active,document.current]}),
+  form({context:view,operation:"knowledge.revise",arguments:{document},children:[input({context:view,field:"title"}),textarea({context:view,field:"body"})]}),
+  button({context:view,opens:"assign_author_detail"}),
+  modal({context:view,caption:message("Assign author",{nl:"Auteur aanwijzen"}),id:"assign_author_detail",children:[slot({context:view,name:"content",children:[form({context:view,operation:"knowledge.assign_author",arguments:{document},display:"inline"})]})]}),
+  button({context:view,opens:"document_status_detail"}),
+  modal({context:view,caption:message("Set procedure availability",{nl:"Beschikbaarheid procedure instellen"}),id:"document_status_detail",children:[slot({context:view,name:"content",children:[form({context:view,operation:"knowledge.document_status",arguments:{document},display:"inline",children:[checkbox({context:view,field:"active"})]})]})]}),
+  table({context:view,model:"knowledge.Revision",parent:document,columns:["number","title","author","authored","index"],display:"split",empty:message("No revisions yet",{nl:"Nog geen revisies"}),renderRow:(revision,revView)=>[
+   pagination({context:revView}),
+   badge({context:revView,value:revision.index.state}),
+   content({context:revView,value:revision.body}),text({context:revView,values:[revision.attachments]}),
+   form({context:revView,operation:"knowledge.publish",arguments:{revision},children:[textarea({context:revView,field:"reason"})]}),
+   form({context:revView,operation:"knowledge.reindex",arguments:{revision}})]}),
+  table({context:view,model:"knowledge.Publication",parent:document,columns:["revision","reviewer","reviewed","active"],display:"split",empty:message("No publication decisions",{nl:"Geen publicatiebesluiten"}),renderRow:(publication,pubView)=>[
+   pagination({context:pubView}),
+   text({context:pubView,values:[publication.reason,publication.withdrawal,publication.withdrawn_by,publication.withdrawn_at]}),
+   form({context:pubView,operation:"knowledge.withdraw",arguments:{publication},children:[textarea({context:pubView,field:"reason"})]}),
+   history({context:pubView,record:publication})]}),
  ]}),
 ]);}
 export async function expertPage(c,bindings){return renderPage(c,expertDescriptor,()=>[
- table({context:c,model:"knowledge.Escalation",where:issue=>same(issue.parent.parent.expert,c.actor),columns:["parent","state","created"],filter:["state"],display:"split",renderRow:(issue,view)=>[text({context:view,values:[issue.parent.request_value.question,issue.parent.account,issue.reason]}),form({context:view,operation:"knowledge.resolve",arguments:{issue}}),text({context:view,values:[issue.state,issue.resolution,issue.note,issue.resolved_by,issue.resolved_at]})]}),
+ /* desired-unimplemented: breadcrumbs, pagination, badge, select, textarea. */
+ breadcrumbs({context:c}),
+ table({context:c,model:"knowledge.Escalation",where:issue=>same(issue.parent.parent.expert,c.actor),columns:["parent","state","created"],filter:["state"],display:"split",empty:message("No questions for you",{nl:"Geen vragen voor jou"}),renderRow:(issue,view)=>[
+  pagination({context:view}),
+  badge({context:view,value:issue.state}),
+  text({context:view,values:[issue.parent.request_value.question,issue.parent.account,issue.reason]}),
+  form({context:view,operation:"knowledge.resolve",arguments:{issue},children:[select({context:view,field:"revision"}),textarea({context:view,field:"note"})]}),
+  text({context:view,values:[issue.resolution,issue.note,issue.resolved_by,issue.resolved_at]})]}),
 ]);}
 export async function settingsPage(c,bindings){return renderPage(c,settingsDescriptor,()=>[
- form({context:c,operation:"knowledge.Topic.create"}),
- table({context:c,model:"knowledge.Topic",columns:["name","expert","profile","active","daily_limit"],display:"split",renderRow:(topic,view)=>[edit({context:view,operation:"knowledge.Topic.update",record:topic}),form({context:view,operation:"knowledge.Audience.create",arguments:{parent:topic}}),table({context:view,model:"knowledge.Audience",parent:topic,columns:["account","active"],renderRow:(audience,aView)=>[edit({context:aView,operation:"knowledge.Audience.update",record:audience})]}),table({context:view,model:"knowledge.Document",parent:topic,columns:["name","owner","active"],renderRow:(document,docView)=>[form({context:docView,operation:"knowledge.assign_author",arguments:{document}})]}),table({context:view,model:"knowledge.DailyUsage",parent:topic,columns:["account","day","requests"],order:["-day"]})]}),
+ /* desired-unimplemented: breadcrumbs, pagination, fieldset, input, checkbox, progress. */
+ breadcrumbs({context:c}),
+ form({context:c,operation:"knowledge.Topic.create",children:[
+  fieldset({context:c,caption:message("Topic",{nl:"Onderwerp"}),children:[input({context:c,field:"name"}),checkbox({context:c,field:"active"})]}),
+  fieldset({context:c,caption:message("Model profile",{nl:"Modelprofiel"}),children:[input({context:c,field:"profile"}),input({context:c,field:"policy_revision"}),input({context:c,field:"input_tokens"}),input({context:c,field:"output_tokens"}),input({context:c,field:"duration"})]}),
+  fieldset({context:c,caption:message("Budget",{nl:"Budget"}),children:[input({context:c,field:"daily_limit"})]})]}),
+ table({context:c,model:"knowledge.Topic",columns:["name","expert","profile","active","daily_limit"],display:"split",empty:message("No topics configured",{nl:"Geen onderwerpen ingesteld"}),renderRow:(topic,view)=>[
+  pagination({context:view}),
+  text({context:view,values:[topic.name,topic.expert,topic.profile,topic.active,topic.daily_limit]}),
+  edit({context:view,operation:"knowledge.Topic.update",record:topic}),
+  form({context:view,operation:"knowledge.Audience.create",arguments:{parent:topic},children:[checkbox({context:view,field:"active"})]}),
+  table({context:view,model:"knowledge.Audience",parent:topic,columns:["account","active"],empty:message("No readers yet",{nl:"Nog geen lezers"}),renderRow:(audience,aView)=>[pagination({context:aView}),text({context:aView,values:[audience.account,audience.active]}),edit({context:aView,operation:"knowledge.Audience.update",record:audience})]}),
+  table({context:view,model:"knowledge.Document",parent:topic,columns:["name","owner","active"],empty:message("No procedures in this topic",{nl:"Geen procedures in dit onderwerp"}),renderRow:(document,docView)=>[pagination({context:docView}),form({context:docView,operation:"knowledge.assign_author",arguments:{document}})]}),
+  table({context:view,model:"knowledge.DailyUsage",parent:topic,columns:["account","day","requests"],order:["-day"],empty:message("No usage recorded",{nl:"Geen verbruik geregistreerd"}),renderRow:(usage,usageView)=>[pagination({context:usageView}),progress({context:usageView,value:usage.requests,max:topic.daily_limit})]})]}),
 ]);}
 
 export const exampleImports=[];
