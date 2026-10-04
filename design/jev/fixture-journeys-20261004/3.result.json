@@ -1,0 +1,53 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": "Facts supplied for this design choice: Can tables sit on operations and perform a single real invocation for each isolated fixture state. Its production call shares context and transaction, so it cannot implement a story with different callers. The new user fixture recipe already represents distinct active teammates and their role assignments. Declared by authority precedes input record/version checks and source-ordered business guards; effects and invariants finish before commit. Error assertions only count after valid setup. Existing server=actor submitted_by reference fixtures contain an explicit other account, although production clients cannot set server-owned fields; omission uses self during seeding. Runtime-only identity/version/audit values are generated. No example execution engine has been implemented. The target is an actual submit, review and reimbursement progression with separate claimant, reviewer and finance users. All alternatives that support sequences must obey the same constraints: each step is a fresh ordinary admission/transaction under its named actor, binds only real typed operation results, uses current versions for fixture references and deterministic operation identities, and independently checks stored observations. A matching rejection rolls back only its own attempted writes, retaining successful earlier calls. No live integrations, state/role editing, or copied step handlers are available. Keep one-call tables for local cases, and reject malformed names/types/seeds outside operation-error matching.",
+    "questions": {
+      "journey": {
+        "type": "choice",
+        "instructions": "Choose the best limited addition, considering concise authorship, discoverability and semantic clarity on equal terms.",
+        "criteria": {
+          "attached_do": "Extend the existing attached examples block with a do-body alternative to its table. Reuse let and call syntax, adding a required step actor as in call submit {expense=claim} by=claimant and optional as binding for a declared result. Reuse observation arrows, e.g. claim.status -> submitted; place -> error(rule_failed) on a call expecting rejection. The enclosing operation must appear among explicit calls and some observation/error must be asserted. No implicit action is inserted. This avoids a second test declaration surface, though tables and sequential bodies need separate validation and per-call caller meaning.",
+          "package_journey": "Add journey NAME at package level, using seed=[...] and do with the same calls, actor selection, bindings, observation assertions and error handling. The story can be found independently of any one operation and existing examples remain structurally uniform. It costs an additional declaration and naming scheme for tests that already share fixture infrastructure.",
+          "defer": "Do not extend the present table format. Continue checking isolated calls from authored initial state and explicitly report that linked workflows cannot be demonstrated. This avoids new grammar at the price of leaving the requested evidence gap unresolved."
+        }
+      },
+      "server_fixture": {
+        "type": "choice",
+        "instructions": "Select the appropriate boundary between stored fixture snapshots and production server-initialized fields.",
+        "criteria": {
+          "stored_snapshot": "Allow a model fixture to state a server-owned domain value as stored data, subject to types, relationship validity, invariants and file attachment checks. Generate reserved metadata internally; evaluate omitted initialization expressions as self. Do not infer execution of earlier operations from the resulting snapshot and do not change client input allowlists. This maintains existing explicit historical values while requiring a precise explanation of test setup authority.",
+          "creation_inputs": "Disallow explicit values for every server= field in model fixtures, evaluating it under setup creator authority instead. Creating historical foreign-authored rows then requires a creator attribute or an actual user creation call. This aligns seed construction with normal input restrictions, but increases authoring/migration work and changes the validity of existing reference states."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "journey": {
+        "type": "choice",
+        "choice": "package_journey",
+        "confidence": 0.25,
+        "probabilities": {
+          "defer": 0.05,
+          "attached_do": 0.45,
+          "package_journey": 0.5
+        }
+      },
+      "server_fixture": {
+        "type": "choice",
+        "choice": "stored_snapshot",
+        "confidence": 0.75,
+        "probabilities": {
+          "stored_snapshot": 0.88,
+          "creation_inputs": 0.12
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1034,
+      "output_tokens": 79
+    }
+  }
+}

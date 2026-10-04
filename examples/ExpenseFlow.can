@@ -48,6 +48,27 @@ package expenses
     as -> expense.status,expense.decided_by,reviewer(reviewer_one),reviewer(reviewer_two)
     reviewer_one -> approved,reviewer_one,true,true
     reviewer_two -> approved,reviewer_two,true,true
+   ## Proposed shared-state syntax; the initial parser/runner does not implement it.
+   ## Each call uses real authorization and a separate committed transaction.
+   examples seed=[reviewer_one,reviewer_two]
+    do
+     call Expense.create {purpose="Travel",amount=money(25,"EUR")} by=other
+     let draft_claim=first(Expense as claim where claim.submitted_by==other)
+     draft_claim!=null -> true
+     let original_version=draft_claim.version
+     call submit {expense=draft_claim} by=other
+     let submitted_claim=first(Expense as claim where claim.id==draft_claim.id)
+     submitted_claim!=null -> true
+     submitted_claim.status -> submitted
+     call approve {expense=submitted_claim} by=other -> error(forbidden)
+     submitted_claim.status -> submitted
+     call approve {expense=submitted_claim} by=reviewer_one request={expense={version=original_version}} -> error(conflict)
+     call approve {expense=submitted_claim} by=reviewer_one
+     let approved_claim=first(Expense as claim where claim.id==draft_claim.id)
+     approved_claim!=null -> true
+     approved_claim.status,approved_claim.decided_by -> approved,reviewer_one
+     call approve {expense=approved_claim} by=reviewer_two -> error(rule_failed)
+     approved_claim.status,approved_claim.decided_by -> approved,reviewer_one
   # Reject a submitted expense from another teammate and explain the decision. @{nl="Wijs een ingediende onkost van een andere teamgenoot af en leg de beslissing uit."}
   scenario reject(expense:Expense,note:text label=label_Expense_decision_note) by=reviewer label="Reject expense"@{nl="Onkost afwijzen"}
    require expense.status==submitted and expense.submitted_by!=actor and trim(note)!=""
