@@ -11,11 +11,11 @@
  * - `OperationId` (state branded vs wire plain): state; narrows to string.
  * - `DeliveryStatus` (services vs wire, identical text): services; L4 owns
  *   the outcome vocabulary.
- * - `FileTransferMeta` (files mutable vs wire readonly+documented): wire.
- * - `UploadIntentRequest` (files intent vs wire envelope, divergent):
- *   files; the wire shape may need a rename, not a merge.
  *
  * Resolved: `DeliveryError` (L2 PR2 deduplicated; services owns it now).
+ * Resolved: `FileTransferMeta` + `UploadIntentRequest` (L4 S8 re-exports
+ * both from wire; same symbol, no ambiguity — pinned as identities in
+ * `assembly.test.ts` instead of interim picks).
  */
 export const CONTRACTS_VERSION = 1;
 
@@ -33,5 +33,3 @@ export * from "./wire.js";
 export * from "./work.js";
 export type { OperationId } from "./state.js";
 export type { DeliveryStatus } from "./services.js";
-export type { FileTransferMeta } from "./wire.js";
-export type { UploadIntentRequest } from "./files.js";
