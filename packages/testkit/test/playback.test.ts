@@ -729,6 +729,16 @@ describe("playback fail-loud", () => {
         mustTable("mail", "send-ok"),
       ]),
     ).toThrow(PlaybackScriptError);
+    expect(() =>
+      createPlaybackHandler([
+        {
+          provider: "mail",
+          scenario: "extra-key",
+          script: { kind: "accept" },
+          extra: true,
+        } as unknown as ScenarioTable,
+      ]),
+    ).toThrow(PlaybackScriptError);
   });
 });
 
