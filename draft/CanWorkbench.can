@@ -169,12 +169,31 @@ package workbench label="AI workbench"@{nl="AI-werkbank"}
   # Review exact suggestions and resume durable sessions without repeating provider work. @{nl="Beoordeel exacte suggesties en hervat duurzame sessies zonder providerwerk te herhalen."}
   page /workbench title="AI workbench"@{nl="AI-werkbank"} poll=2s
    require members
+   ## Breadcrumbs show current declared ancestry; the shared right-sidebar shell supplies navigation, no per-app menu.
+   breadcrumbs
    form start
-   table Run columns=purpose,goal,steps,stopped,expires
+    radio purpose
+    textarea goal
+    select location
+    ## targets:Task[] stays generated: no catalog array control.
+   table Run columns=purpose,goal,steps,stopped,expires empty="No sessions yet"@{nl="Nog geen sessies"}
+    pagination
+    badge row.purpose
+    text row.goal,row.steps,row.stopped,row.expires
     action stop
-    table row.Step columns=ordinal,state,delivery_state,approved_by,approved_at
+    table row.targets columns=title,priority,done empty="No selected tasks"@{nl="Geen geselecteerde taken"}
+     pagination
+    table row.Step as step columns=ordinal,state,delivery_state,approved_by,approved_at empty="No steps yet"@{nl="Nog geen stappen"}
+     pagination
+     badge row.state
+     status row.delivery_state
+     text row.ordinal,row.approved_by,row.approved_at
     card "Authorized context and suggestions"@{nl="Bevoegde context en suggesties"}
      action next
-     table row.Step columns=ordinal,state,input,proposal
+     table row.Step as step columns=ordinal,state,input,proposal empty="No proposals yet"@{nl="Nog geen voorstellen"}
+      pagination
+      badge row.state
+      content row.proposal?.summary
+      text row.ordinal,row.input,row.proposal?.call
       actions approve,reject
       history

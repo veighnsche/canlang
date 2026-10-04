@@ -28,9 +28,9 @@ The company's intended delta consists only of fields differing between the froze
 
 ## Pages and Interactions
 
-The inherited shell supplies navigation, account menu, localization and personal settings. The CRM synchronization page polls every five seconds to reread stored evidence only; polling does not contact Salesforce. It has a link form, active/paused account table, interval edit, refresh/pause/resume actions and a shared drawer for each account.
+The inherited shell supplies navigation, account menu, localization and personal settings. The CRM synchronization page polls every five seconds to reread stored evidence only; polling does not contact Salesforce. It has breadcrumbs, a link form, an active/paused view selector, an active/paused account table with explicit empty state and pagination, interval edit, refresh/pause/resume actions and a shared drawer for each account.
 
-The drawer displays the observed values and time, typed correction form, frozen before/desired values, submitting and approving identities, decision, confirmed outcome and observed-match reference. Attempt tables expose request status, safe result/error and immutable baselines. Read history distinguishes stale retained data from the current read's failure. Invalid, missing, pending and unknown states remain inspectable; no empty placeholder is presented as a successful synchronization. Forms derive permissions/typed inputs from their owning operations. All rendering uses shared daisyUI/HTMX components, with no app HTML or client business state.
+The drawer displays the observed values and time, typed correction form, a before/desired comparison, baseline revision, submitting and approving identities, decision and outcome badges, and observed-match reference. Closing a correction opens a catalog modal with a typed reason control. Attempt tables expose request status, safe result/error and immutable baselines. Read history distinguishes stale retained data from the current read's failure. Invalid, missing, pending and unknown states remain inspectable; no empty placeholder is presented as a successful synchronization. Forms derive permissions/typed inputs from their owning operations. All rendering uses shared daisyUI/HTMX components, with no app HTML or client business state.
 
 ## Personal Configuration
 
