@@ -116,6 +116,14 @@ function doProxy(): StoragePort {
     scheduleGet: (key) => call('scheduleGet', key),
     schedulesDue: (now, limit) => call('schedulesDue', now, limit),
     historyFor: (model, recordId) => call('historyFor', model, recordId),
+    readInstalledSnapshot: (owner) => call('readInstalledSnapshot', owner),
+    readMigrationProgress: (migrationId) => call('readMigrationProgress', migrationId),
+    readStagedRows: (migrationId, cursor, limit) =>
+      call('readStagedRows', migrationId, cursor, limit),
+    stageMigrationRows: (input) => call('stageMigrationRows', input),
+    publishMigrationChunk: (input) => call('publishMigrationChunk', input),
+    flipInstalledSnapshot: (input) => call('flipInstalledSnapshot', input),
+    readMigrationOutcomes: (migrationId) => call('readMigrationOutcomes', migrationId),
   };
 }
 
