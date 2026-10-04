@@ -1,0 +1,26 @@
+{
+  "state": {
+    "context": "The project defines Can for agents generating company applications from typed records and business operations. Its user reports that agents hold back because only a small UI vocabulary is offered, and requests source words covering all daisyUI widgets. The official release page shows version 5.7.47 and 68 catalog entries. Today page/form/action, record collections, card/details, tabs and metrics are the explicit constructs; generated standard controls fill some other roles. Unrecognized UI introducers and options fail the written grammar. The prototype parser does not cover all newer written syntax, the compiler command is only a scaffold, and the UI lane has no implementation evidence. We are choosing notation for a proposed language surface, not asserting shipped rendering.",
+    "constraints": "Every candidate must let authors reach all verified component entries. Forms continue to obtain their inputs from the owner operation, and mutations still go through that operation with its grants, ordered guards and optimistic versions. Rendering remains escaped and restricted to readable data. Settings, cursor state, route discovery and the standard shell keep their existing shared owners. Apps must not author raw markup/styles/scripts, import UI libraries, copy schemas or install another mutation protocol. Revising the former limited inventory is permitted. CSS coverage is separate from interaction guarantees: a date picker needs an adapter rather than the current agenda meaning, OTP styling creates no identity service, and theme/paging controls consume the shared setting/query paths. Parsing, semantic checks and accessible behavior remain work under every choice.",
+    "evaluation": "Use equal criteria: likelihood of adoption, component discoverability for AI, authoring tokens, unambiguous parent-sensitive syntax, clarity of diagnostics, single-owner binding semantics and maintenance effort. No deployed backward-compatibility promise constrains this draft; moving existing drafts and keeping them understandable still have a cost. Compact notation and JEV agreement are not evidence of execution.",
+    "sources": [
+      "https://daisyui.com/components/",
+      "REQUIREMENTS.md",
+      "DESIGN.md \u00a79",
+      "GRAMMAR.md Presentation and routes",
+      "implementation/status/lane-05.md"
+    ],
+    "technical_evidence": "form_header = \"form\" expr attributes ;\ncollection_head = \"list\" | \"table\" | \"board\" | \"calendar\" | \"gallery\" ;"
+  },
+  "questions": {
+    "surface": {
+      "type": "choice",
+      "instructions": "For that full-coverage requirement, which authoring surface offers the strongest combined trade-off?",
+      "criteria": {
+        "direct": "Make component names contextual introducers, including badge, tooltip, rating and modal; retain the current semantic declarations. Specify each entry through checked values, allowed children and enclosing-context rules so fields, actions, shared settings and route descriptors remain authoritative. Familiar names and fewer repeated tokens aid discovery; the larger parsing/checking surface and calendar-name overloading need explicit resolution.",
+        "generic": "Provide the single header component NAME backed by an exhaustive typed inventory, keeping existing semantic declarations. Per-entry values, children and context rules preserve the identical ownership constraints. Central dispatch can simplify catalog changes, at the price of a common prefix on each use and less specific feedback if validation degenerates into a free-form property object.",
+        "mixed": "Express selectable widgets on existing semantic owners with display=NAME, and use present NAME when a widget has no such owner. An exhaustive typed inventory still controls values, composition and authority. Existing bindings remain prominent and fewer specialized productions may be needed, while agents must learn two selection patterns and complex layouts can require additional nesting/tokens."
+      }
+    }
+  }
+}
