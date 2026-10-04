@@ -139,41 +139,102 @@ package onboard label=page_people_onboarding_title
   # Follow your assigned readiness work and private attachments. @{nl="Volg je toegewezen inwerkstappen en private bijlagen."}
   page /people/my-readiness title="My readiness"@{nl="Mijn inwerkstappen"}
    require authenticated
+   breadcrumbs
    card "Assigned readiness steps"@{nl="Toegewezen inwerkstappen"}
     tabs preferences.view
-    list Step as step where step.assignee==actor and (preferences.view==all or (preferences.view==unfinished and not step.done) or (preferences.view==overdue and not step.done and step.due<local_date(now,team.timezone))) order=step.due
-     badge row.done
-     text row.title,row.due,row.blocked_reason,row.document,row.done,row.completed_by,row.completed_at
+    list Step as step where step.assignee==actor and (preferences.view==all or (preferences.view==unfinished and not step.done) or (preferences.view==overdue and not step.done and step.due<local_date(now,team.timezone))) order=step.due empty="No assigned steps"@{nl="Geen toegewezen stappen"}
+     badge row.category
+     text row.title,row.due,row.done
+     alert
+      require row.blocked_reason!=null
+      text row.blocked_reason
+     card "Attachment"@{nl="Bijlage"}
+      require row.document!=null
+      link target=row.document caption="Open attachment"@{nl="Bijlage openen"}
+     text row.completed_by,row.completed_at
      action complete
+     pagination
 
   # Prepare work identities and role/location checklists under HR document grants. @{nl="Bereid werkidentiteiten en rol- en locatiechecklists voor binnen HR-documentrechten."}
   page /people/onboarding title=page_people_onboarding_title
    require hr
+   breadcrumbs
    card "Employee onboarding"@{nl="Medewerkers inwerken"}
     form Employee.create
+     ## user stays generated: no user-picker vocabulary.
+     input name
+     select home
+     ## locations keep their generated control (array input has no catalog control).
+     calendar start
+     ## manager stays generated: no user-picker vocabulary.
+     input role
+     ## skills keep their generated control (array input has no catalog control).
    card "Dated checklist steps"@{nl="Gedateerde checkliststappen"}
     tabs preferences.view
-    list Employee order=start filter=home,active,role search=role defaults={home=preferences.home} display=split
+    list Employee order=start filter=home,active,role search=role defaults={home=preferences.home} display=split empty="No employees found"@{nl="Geen medewerkers gevonden"}
      edit
-     form start
-     action deactivate
-     list row.Checklist
-      metrics row.completed_steps,row.total_steps,row.progress
+     button opens=start_checklist
+     modal "Start onboarding checklist"@{nl="Inwerkchecklist starten"} id=start_checklist
+      slot content
+       form start arguments={employee=row} display=inline
+        select template
+     button opens=end_employment
+     modal "End active employment"@{nl="Actief dienstverband beëindigen"} id=end_employment
+      slot content
+       form deactivate arguments={employee=row} display=inline
+        calendar ended
+     list row.Checklist empty="No checklists yet"@{nl="Nog geen checklists"}
+      text row.template,row.template_version,row.started
+      stat row.completed_steps,row.total_steps
+      progress row.progress max=100
       form Step.create
-      list row.Step as step where preferences.view==all or (preferences.view==unfinished and not step.done) or (preferences.view==overdue and not step.done and step.due<local_date(now,team.timezone)) order=due
-       badge row.done
-       text row.title,row.due,row.assignee,row.category,row.blocked_reason,row.document,row.done,row.completed_by,row.completed_at
+       input title
+       calendar due
+       ## assignee:user stays generated: no user-picker vocabulary.
+       radio category
+       file_input document
+       textarea blocked_reason
+      timeline row.Step as step where step.done
+       slot item
+        text row.title,row.completed_by,row.completed_at
+      list row.Step as step where preferences.view==all or (preferences.view==unfinished and not step.done) or (preferences.view==overdue and not step.done and step.due<local_date(now,team.timezone)) order=due empty="No steps yet"@{nl="Nog geen stappen"}
+       badge row.category
+       text row.title,row.due,row.assignee,row.done
+       alert
+        require row.blocked_reason!=null
+        text row.blocked_reason
+       card "Attachment"@{nl="Bijlage"}
+        require row.document!=null
+        link target=row.document caption="Open attachment"@{nl="Bijlage openen"}
+       text row.completed_by,row.completed_at
        edit
-       actions complete,reopen
+       action complete
+       button opens=reopen_step
+       modal "Reopen step"@{nl="Stap heropenen"} id=reopen_step
+        slot content
+         form reopen arguments={step=row} display=inline
+          textarea reason
        delete
        history
+       pagination
+      pagination
+     pagination
    card "Reusable templates"@{nl="Herbruikbare templates"}
     form Template.create
-    list Template display=split
-     badge row.active
-     text row.revision,row.active
+     input name
+     input role
+     select location
+    list Template display=split empty="No templates yet"@{nl="Nog geen templates"}
+     text row.name,row.role,row.location,row.revision,row.active
      edit
      form TemplateStep.create
-     list row.TemplateStep
+      input title
+      input offset_days
+      radio category
+     list row.TemplateStep empty="No template steps yet"@{nl="Nog geen templatestappen"}
+      badge row.category
+      text row.title,row.offset_days
       edit
       delete
+      pagination
+     pagination
