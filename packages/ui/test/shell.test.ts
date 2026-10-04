@@ -161,7 +161,7 @@ describe("drawer and navigation", () => {
     );
     assert.match(
       html,
-      /<label for="can-drawer" tabindex="0" class="btn btn-square btn-ghost">/,
+      /<label for="can-drawer" class="btn btn-square btn-ghost">/,
     );
     assert.match(html, /<span class="sr-only">Open menu<\/span>/);
     assert.match(html, /<svg aria-hidden="true"/);
@@ -383,7 +383,7 @@ describe("settings frame", () => {
     assert.match(html, /<h2 id="can-settings-title">Settings<\/h2>/);
     assert.match(
       html,
-      /<label for="can-settings" tabindex="0" class="btn btn-sm btn-circle absolute right-2 top-2" aria-label="Close">✕<\/label>/,
+      /<label for="can-settings" class="btn btn-sm btn-circle absolute right-2 top-2" aria-label="Close">✕<\/label>/,
     );
     assert.match(
       html,
@@ -832,7 +832,7 @@ describe("settings dialog accessibility", () => {
       const close = page.document.querySelector("label[for='can-settings'][aria-label]");
       assert.ok(close !== null);
       assert.equal(close?.getAttribute("aria-label"), "Close");
-      assert.equal(close?.getAttribute("tabindex"), "0");
+      assert.equal(close?.hasAttribute("tabindex"), false);
       const panel = page.document.querySelector("section.can-settings-panel");
       assert.ok(panel !== null);
       assert.equal(panel?.getAttribute("role"), "region");
@@ -841,7 +841,7 @@ describe("settings dialog accessibility", () => {
     }
   });
 
-  it("renders an unnamed region when no section is active", async () => {
+  it("falls back to the dialog title when no section is active", async () => {
     const shell = makeShell();
     const html = await renderPage(makeContext(), makeDescriptor(), [], {
       ...shell,
@@ -850,7 +850,7 @@ describe("settings dialog accessibility", () => {
         panelHtml: "<p>panel</p>",
       },
     });
-    assert.match(html, /<section class="can-settings-panel" role="region"><p>panel<\/p><\/section>/);
+    assert.match(html, /<section class="can-settings-panel" role="region" aria-label="Settings"><p>panel<\/p><\/section>/);
     assert.ok(!html.includes("data-settings-section=\"profile\" aria-current"));
   });
 });
@@ -927,6 +927,14 @@ describe("renderLogin", () => {
       ["/\\evil", "/"],
       ["todos", "/"],
       ["", "/"],
+      ["/todos?page=2", "/todos?page=2"],
+      ["/a b", "/"],
+      ["/a\tb", "/"],
+      ["/a\nb", "/"],
+      ["/foo%0d%0aSet-Cookie:x", "/"],
+      ["/%2f%2fevil", "/"],
+      ["/%2F%2Fevil", "/"],
+      ["/%5cbin", "/"],
       [undefined, "/"],
     ];
     for (const [next, expected] of cases) {
@@ -941,9 +949,26 @@ describe("renderLogin", () => {
             }
           : { ...base, next };
       const html = await renderLogin(props);
-      assert.match(
-        html,
-        new RegExp(`<input type="hidden" name="next" value="${expected}">`),
+      assert.ok(
+        html.includes(`<input type="hidden" name="next" value="${expected}">`),
+        `${String(next)} should sanitize to ${expected}`,
+      );
+    }
+  });
+
+  it("pins the login POST to same-app relative paths", async () => {
+    for (const action of [
+      "https://evil.example/sign-in",
+      "http://evil.example/",
+      "mailto:a@b.c",
+      "//evil.example/sign-in",
+      "/auth/login",
+    ]) {
+      const html = await renderLogin(makeLogin({ action }));
+      const expected = action === "/auth/login" ? "/auth/login" : "#";
+      assert.ok(
+        html.includes(`<form method="POST" action="${expected}">`),
+        `${action} should post to ${expected}`,
       );
     }
   });

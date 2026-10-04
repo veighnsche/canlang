@@ -164,14 +164,17 @@ function renderSettings(shell: ShellData, context: PresentationContext): string 
   const activeSection = shell.settings.sections.find(
     (section) => section.active,
   );
-  const panelLabel =
-    activeSection === undefined
-      ? ""
-      : ` aria-label="${escapeAttr(resolveText(activeSection.caption, context))}"`;
+  const panelCaption =
+    activeSection === undefined ? CHROME.settings : activeSection.caption;
+  const panelLabel = ` aria-label="${escapeAttr(resolveText(panelCaption, context))}"`;
   return (
     `<input id="can-settings" type="checkbox" class="modal-toggle">` +
     `<div class="modal"><div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="can-settings-title">` +
-    `<label for="can-settings" tabindex="0" class="btn btn-sm btn-circle absolute right-2 top-2" aria-label="${closeLabel}">✕</label>` +
+    // Plain upstream checkbox-toggle label: no tabindex/role. A focusable
+    // label without key handling would add a dead tab stop (and role=button
+    // would assert operability this JS-free renderer cannot provide).
+    // Keyboard users toggle the native checkbox itself.
+    `<label for="can-settings" class="btn btn-sm btn-circle absolute right-2 top-2" aria-label="${closeLabel}">✕</label>` +
     `<h2 id="can-settings-title">${title}</h2>` +
     `<section class="can-settings-sidebar"><ul class="menu">${sections}</ul></section>` +
     `<section class="can-settings-panel" role="region"${panelLabel}>${panel}</section>` +
@@ -240,7 +243,7 @@ export const renderPage: RenderPageFn = async (
     `<input id="can-drawer" type="checkbox" class="drawer-toggle">` +
     `<div class="drawer-content">` +
     `<div class="navbar lg:hidden">` +
-    `<label for="can-drawer" tabindex="0" class="btn btn-square btn-ghost">` +
+    `<label for="can-drawer" class="btn btn-square btn-ghost">` +
     `<span class="sr-only">${openMenu}</span>` +
     `<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>` +
     `</label></div>` +
@@ -262,20 +265,33 @@ export const renderPage: RenderPageFn = async (
 };
 
 /**
- * Sanitize a post-sign-in redirect: allow only same-app relative paths
- * starting with exactly one "/". Anything else fails closed to the app root.
+ * Same-app relative-path guard for login POST targets and redirects: exactly
+ * one leading "/", no backslash, no whitespace/control characters (header
+ * splitting if L6 reflects the value), no encoded separators (proxies may
+ * collapse %2f/%5c into "//"), no single-encoded C0/DEL. Anything else fails
+ * closed to `fallback`. Double-encoding and decode-then-reflect stay L6's
+ * duty at the redirect site.
  */
-function sanitizeNext(next: string | undefined): string {
-  if (typeof next !== "string") {
-    return "/";
+function sanitizeAppPath(value: string | undefined, fallback: string): string {
+  if (typeof value !== "string") {
+    return fallback;
   }
-  if (!next.startsWith("/") || next.startsWith("//")) {
-    return "/";
+  if (!value.startsWith("/") || value.startsWith("//")) {
+    return fallback;
   }
-  if (next.includes("\\")) {
-    return "/";
+  if (value.includes("\\")) {
+    return fallback;
   }
-  return next;
+  if (/[\s\u0000-\u001f\u007f]/.test(value)) {
+    return fallback;
+  }
+  if (/%2f|%5c/i.test(value)) {
+    return fallback;
+  }
+  if (/%(?:0[0-9a-f]|1[0-9a-f]|7f)/i.test(value)) {
+    return fallback;
+  }
+  return value;
 }
 
 /**
@@ -289,10 +305,10 @@ export async function renderLogin(props: LoginProps): Promise<string> {
   const direction = pageDirection(locale);
   const brand = resolveText(props.brand, context);
   const theme = `can-${context.theme.mode}-${context.theme.accent}`;
-  const action = escapeAttr(safeHref(props.action));
+  const action = escapeAttr(sanitizeAppPath(props.action, "#"));
   const csrfField = escapeAttr(CSRF_FIELD);
   const csrfToken = escapeAttr(context.csrfToken);
-  const next = escapeAttr(sanitizeNext(props.next));
+  const next = escapeAttr(sanitizeAppPath(props.next, "/"));
   const usernameId = escapeAttr(`${props.idPrefix}-username`);
   const passwordId = escapeAttr(`${props.idPrefix}-password`);
   const usernameLabel = escapeHtml(
