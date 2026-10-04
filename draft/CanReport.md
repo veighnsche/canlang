@@ -39,7 +39,7 @@ Inherit [shared shell and personal configuration](../REQUIREMENTS.md#standard-sh
 
 ## Interfaces and Integrations
 
-Compose inside an operator app using canonical model reads where records are co-deployed, or configure scoped source read/export capabilities for CanRent, CanMember, CanInvoice, and CanMaintain/CanField. Each returns source checkpoint, timestamps, revisions, and completeness, not just anonymous totals. CanStats owns website traffic/observed goals and must not supply confirmed payment or booking evidence.
+Compose inside an operator app using canonical model reads where records are co-deployed, or configure scoped source read/export capabilities for CanRent, CanMember, CanInvoice, and CanMaintain/CanField. Each returns source checkpoint, timestamps, revisions, and completeness, not just anonymous totals. `complete=true` certifies coverage of the requested locations/time range and the configured sources needed by the selected measure, including applied corrections/reversals; omitted, unsupported or inaccessible required evidence cannot satisfy it. An explicit empty `rows=[]` is valid: with fresh, complete coverage it means no included contributions, while the same empty array with incomplete coverage supplies no exact measure. CanStats owns website traffic/observed goals and must not supply confirmed payment or booking evidence.
 
 Developers maintain report definitions, source connections and refresh configuration directly outside the product UI. Viewers receive scoped reads/exports, not a report-definition or permission-administration editor.
 
@@ -49,7 +49,7 @@ Refresh bounded report projections at a configured interval or on source changes
 
 ## Error Handling
 
-Never display unavailable/partial sources as an exact zero or silently include an unauthorized location. Reject inconsistent currency/time boundaries and expose stale checkpoints or incomplete reversal processing. Drill-down authorization is rechecked even when a cached aggregate was previously readable.
+Never display unavailable/partial sources as an exact zero or silently include an unauthorized location. Reject inconsistent currency/time boundaries and expose stale checkpoints or incomplete reversal processing. Drill-down authorization is rechecked even when a cached aggregate was previously readable. A fresh checkpoint with `complete=false` is admitted as a partial run while retaining the original source checkpoint. Exact quantities, utilization numerators/denominators/ratios and money sums require a present checkpoint, fresh source and run states, complete coverage and a finished refresh. Lagging runs retain their generation time and coverage flag but return null measures; pending runs expose pending status without replacing an earlier run. Missing checkpoints return unavailable rather than trusting a stored fresh label.
 
 ## Scope and Completion
 
@@ -63,3 +63,9 @@ Frontend acceptance journeys:
 ## Composition and Ownership
 
 Shared reporting package, initially surfaced in the workspace and finance interfaces. A separate cross-app dashboard deployment is optional. CanRent may retain a basic local availability/occupancy view; it must use the same definitions when presenting portfolio measures.
+
+## Draft correspondence and verification
+
+The companion source implements the bounded completeness admission and read guards above. `Measure` exposes coverage, pending status and generation time through the canonical read response and its report form. Inline examples specify fresh-but-incomplete completion, partial/lagging/unavailable completion, failed/uncertain delivery, missing checkpoint, pending reads, incomplete nonempty evidence, complete nonempty backlog, complete empty backlog (`quantity=0`) and complete empty utilization (`numerator=denominator=0`, ratio not-applicable). They retain manager/location checks and forbidden non-manager reads; no report role grants access to source records.
+
+Focused verification parses `CanReport.can` with the syntax prototype and checks the diff for whitespace errors. The inline outcomes are authored specifications, not executed business tests: semantic checking, fixture provisioning and the example runner remain unimplemented. There is no existing CanReport JavaScript target. The configured Reports adapter must substantiate its checkpoint/coverage claim and scoped source permissions; this correction does not implement ingestion/reversal reconciliation, automatic aging of freshness, authorized source drill-down/CSV export or the remaining report business calculations.
