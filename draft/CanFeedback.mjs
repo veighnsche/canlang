@@ -17,6 +17,7 @@ import {
   actions,
   card,
   content,
+  delete as remove,
   details,
   edit,
   form,
@@ -26,6 +27,7 @@ import {
   renderPage,
   table,
   text,
+  title,
 } from "@canlang/ui";
 import { can_work } from "./employee.mjs";
 import { Location } from "./rent_catalog.mjs";
@@ -191,6 +193,7 @@ export const appDefinition = {
       fields: {
         suggestion: { type: "feedback.Suggestion", label: suggestionCaption },
         title: { type: "text" },
+        category: { type: "feedback.Suggestion.category" },
         status: { type: "feedback.Suggestion.status" },
         response: { type: "text", nullable: true, label: responseCaption },
         duplicate: { type: "feedback.Suggestion", nullable: true, label: duplicateCaption },
@@ -212,6 +215,7 @@ export const appDefinition = {
   preferences: {
     feedback: {
       fields: {
+        product: { type: "feedback.Product", nullable: true, default: null, label: message("Product", { nl: "Product" }) },
         location: { type: Location, nullable: true, default: null },
         category: { type: "feedback.Suggestion.category", nullable: true, default: null },
         status: { type: "feedback.Suggestion.status", nullable: true, default: null },
@@ -487,6 +491,7 @@ export function canApp() {
         items.push({
           suggestion,
           title: suggestion.title,
+          category: suggestion.category,
           status: suggestion.status,
           response: suggestion.response,
           duplicate: await first(
@@ -513,11 +518,12 @@ export async function feedbackPage(c, bindings) {
       list({
         context: c,
         model: "feedback.Product",
+        where: (product) => c.preferences.feedback.product === null || same(product, c.preferences.feedback.product),
         filter: ["location"],
         defaults: { location: c.preferences.feedback.location },
         search: ["name"],
         renderRow: (product, view) => [
-          text({ context: view, values: [product.name] }),
+          text({ context: view, values: [product.name, product.location] }),
           card({
             context: view,
             title: message("Urgent private issue", { nl: "Dringend privéprobleem" }),
@@ -562,13 +568,53 @@ export async function feedbackPage(c, bindings) {
                     context: resultView,
                     rows: result.items,
                     contract: "feedback.Card",
-                    columns: ["title", "status", "response", "duplicate", "votes"],
+                    columns: ["title", "category", "status", "response", "duplicate", "votes"],
+                    filter: ["category", "status"],
+                    defaults: {
+                      category: c.preferences.feedback.category,
+                      status: c.preferences.feedback.status,
+                    },
                     order: ["-votes"],
                   }),
                 ],
               }),
             ],
           }),
+          ...(hasRole(view, "authenticated")
+            ? [
+                details({
+                  context: view,
+                  caption: message("Your submissions and review state", {
+                    nl: "Je bijdragen en beoordelingsstatus",
+                  }),
+                  children: [
+                    list({
+                      context: view,
+                      model: "feedback.Suggestion",
+                      parent: product,
+                      where: (suggestion) => same(suggestion.author, view.actor),
+                      filter: ["category", "status"],
+                      defaults: {
+                        category: c.preferences.feedback.category,
+                        status: c.preferences.feedback.status,
+                      },
+                      renderRow: (suggestion, rowView) => [
+                        title({ context: rowView, value: suggestion.title }),
+                        content({ context: rowView, value: suggestion.description }),
+                        text({
+                          context: rowView,
+                          values: [suggestion.category, suggestion.status, suggestion.response,
+                            suggestion.hidden, suggestion.moderation_reason, suggestion.duplicate],
+                        }),
+                        edit({ context: rowView, operation: "feedback.Suggestion.update", record: suggestion }),
+                        remove({ context: rowView, operation: "feedback.Suggestion.delete", record: suggestion }),
+                        history({ context: rowView, record: suggestion }),
+                      ],
+                    }),
+                  ],
+                }),
+              ]
+            : []),
           details({
             context: view,
             caption: message("Suggestions and your votes", {
@@ -585,10 +631,11 @@ export async function feedbackPage(c, bindings) {
                   status: c.preferences.feedback.status,
                 },
                 renderRow: (suggestion, rowView) => [
+                  title({ context: rowView, value: suggestion.title }),
                   content({ context: rowView, value: suggestion.description }),
                   text({
                     context: rowView,
-                    values: [suggestion.status, suggestion.response],
+                    values: [suggestion.category, suggestion.status, suggestion.response],
                   }),
                   edit({
                     context: rowView,
@@ -646,11 +693,13 @@ export async function moderationPage(c, bindings) {
       list({
         context: c,
         model: "feedback.Product",
-        where: (product) => same(product.owner, c.actor),
+        where: (product) => same(product.owner, c.actor) &&
+          (c.preferences.feedback.product === null || same(product, c.preferences.feedback.product)),
         filter: ["location"],
         defaults: { location: c.preferences.feedback.location },
         search: ["name"],
         renderRow: (product, view) => [
+          text({ context: view, values: [product.name, product.location] }),
           edit({ context: view, operation: "feedback.Product.update", record: product }),
           list({
             context: view,
@@ -666,10 +715,13 @@ export async function moderationPage(c, bindings) {
                   nl: "Suggestie en roadmapuitkomst",
                 }),
                 children: [
+                  title({ context: rowView, value: suggestion.title }),
                   content({ context: rowView, value: suggestion.description }),
                   text({
                     context: rowView,
                     values: [
+                      suggestion.category,
+                      suggestion.author,
                       suggestion.status,
                       suggestion.response,
                       suggestion.hidden,
@@ -795,6 +847,15 @@ export function exampleFixtures({ self, other, imported }) {
       category: "Amenity",
     }),
   };
+  const moderator = {
+    dependencies: [],
+    user: async (c, s) => ({ roles: ["feedback.product_owner"] }),
+  };
+  const journey_product = {
+    model: "feedback.Product",
+    dependencies: [moderator],
+    value: async (c, s) => ({ name: "Facilities", owner: s.moderator }),
+  };
   return {
     product,
     suggestion,
@@ -806,7 +867,65 @@ export function exampleFixtures({ self, other, imported }) {
     recent3,
     recent4,
     recent5,
+    moderator,
+    journey_product,
     examples: [
+      {
+        operation: "feedback.vote",
+        dependencies: [journey_product],
+        sequence: [
+          { operation: "feedback.Suggestion.create", by: async (c, s, b) => s.self,
+            inputs: async (c, s, b) => ({ parent: s.journey_product, title: "Phone booths", description: "Add private call spaces", category: "Amenity" }) },
+          { let: "submitted", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => same(item.author, s.self) })) },
+          { observations: async (c, s, b) => [b.submitted !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { observations: async (c, s, b) => [b.submitted.hidden, b.submitted.author, b.submitted.status], expected: async (c, s, b) => [true, s.self, "proposed"], types: ["bool", "user", "feedback.Suggestion.status"] },
+          { operation: "feedback.published", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ product: s.journey_product }), bind: "pending_roadmap" },
+          { observations: async (c, s, b) => [await count(b.pending_roadmap.items)], expected: async (c, s, b) => [0n], types: ["int"] },
+          { operation: "feedback.moderate", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ suggestion: b.submitted, hidden: false, reason: "Reviewed for public roadmap" }) },
+          { let: "reviewed", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.reviewed !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.roadmap", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ suggestion: b.reviewed, status: "planned", response: "Two booths this quarter", duplicate: null }) },
+          { let: "visible", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.visible !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.published", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ product: s.journey_product }), bind: "visible_roadmap" },
+          { observations: async (c, s, b) => [await count(b.visible_roadmap.items), (await first(b.visible_roadmap.items))?.category ?? null, (await first(b.visible_roadmap.items))?.status ?? null, (await first(b.visible_roadmap.items))?.response ?? null],
+            expected: async (c, s, b) => [1n, "Amenity", "planned", "Two booths this quarter"], types: ["int", "text?", "feedback.Suggestion.status?", "text?"] },
+          { operation: "feedback.vote", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ suggestion: b.visible }), bind: "cast_vote" },
+          { operation: "feedback.unvote", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ vote: b.cast_vote }) },
+          { let: "withdrawn", value: async (c, s, b) => await first(records(c, "feedback.Vote", { parent: b.visible, where: (item) => same(item.account, s.self) })) },
+          { observations: async (c, s, b) => [b.withdrawn !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { observations: async (c, s, b) => [same(b.withdrawn, b.cast_vote), b.withdrawn.active, await count(records(c, "feedback.Vote", { parent: b.visible })), await count(records(c, "feedback.Vote", { parent: b.visible, where: (item) => item.active }))],
+            expected: async (c, s, b) => [true, false, 1n, 0n], types: ["bool", "bool", "int", "int"] },
+          { operation: "feedback.unvote", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ vote: b.withdrawn }) },
+          { operation: "feedback.vote", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ suggestion: b.visible }), error: "rule_failed" },
+          { observations: async (c, s, b) => [await count(records(c, "feedback.Vote", { parent: b.visible })), await count(records(c, "feedback.Vote", { parent: b.visible, where: (item) => item.active }))], expected: async (c, s, b) => [1n, 0n], types: ["int", "int"] },
+          { operation: "feedback.Suggestion.update", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ record: b.visible, changes: { title: "More phone booths" } }) },
+          { let: "edited", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.edited !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { observations: async (c, s, b) => [b.edited.title, b.edited.hidden, b.edited.moderation_reason, b.edited.author], expected: async (c, s, b) => ["More phone booths", true, null, s.self], types: ["text", "bool", "text?", "user"] },
+          { operation: "feedback.published", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ product: s.journey_product }), bind: "review_roadmap" },
+          { observations: async (c, s, b) => [await count(b.review_roadmap.items)], expected: async (c, s, b) => [0n], types: ["int"] },
+          { operation: "feedback.moderate", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ suggestion: b.edited, hidden: true, reason: "Private contact details" }) },
+          { let: "blocked", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.blocked !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.Suggestion.update", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ record: b.blocked, changes: { title: "Try again" } }), error: "rule_failed" },
+          { observations: async (c, s, b) => [b.blocked.title, b.blocked.author, b.blocked.moderation_reason], expected: async (c, s, b) => ["More phone booths", s.self, "Private contact details"], types: ["text", "user", "text?"] },
+          { operation: "feedback.moderate", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ suggestion: b.blocked, hidden: false, reason: "Reviewed correction" }) },
+          { let: "corrected", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.corrected !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.roadmap", by: async (c, s, b) => s.moderator, inputs: async (c, s, b) => ({ suggestion: b.corrected, status: "shipped", response: "Two booths installed", duplicate: null }) },
+          { let: "approved", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { parent: s.journey_product, where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.approved !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { operation: "feedback.published", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ product: s.journey_product }), bind: "shipped_roadmap" },
+          { observations: async (c, s, b) => [(await first(b.shipped_roadmap.items))?.status ?? null, (await first(b.shipped_roadmap.items))?.response ?? null, (await first(b.shipped_roadmap.items))?.votes ?? null], expected: async (c, s, b) => ["shipped", "Two booths installed", 0n], types: ["feedback.Suggestion.status?", "text?", "int?"] },
+          { operation: "feedback.Suggestion.delete", by: async (c, s, b) => s.self, inputs: async (c, s, b) => ({ record: b.approved }) },
+          { let: "archived", value: async (c, s, b) => await first(records(c, "feedback.Suggestion", { archived: "include", where: (item) => item.id === b.submitted.id })) },
+          { observations: async (c, s, b) => [b.archived !== null], expected: async (c, s, b) => [true], types: ["bool"] },
+          { observations: async (c, s, b) => [b.archived.archived_at !== null, b.archived.author], expected: async (c, s, b) => [true, s.self], types: ["bool", "user"] },
+          { operation: "feedback.published", by: async (c, s, b) => "public", inputs: async (c, s, b) => ({ product: s.journey_product }), bind: "archived_roadmap" },
+          { observations: async (c, s, b) => [await count(b.archived_roadmap.items)], expected: async (c, s, b) => [0n], types: ["int"] },
+        ],
+      },
       {
         operation: "feedback.Suggestion.create",
         dependencies: [product],
