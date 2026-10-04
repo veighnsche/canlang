@@ -145,6 +145,10 @@ Active reservations: none (coordinator holds all owned files until first delegat
 - Deterministic-build probe (PR8, local): two clean `tsc -b` rebuilds of contracts/cloudflare/testkit produce byte-identical dist (sha256 `d3c49db2…` both runs, `.js/.d.ts/.map` only). Promoted to an `integration.yml` gate (rebuild + `cmp`); B5 reproducibility evidence. Fresh-clone proof on PR8 head `cf12283`: clean clone + `npm ci` + build + typecheck + 59/59 tests, no credentials.
 - Producer-request sweep (PR8, base `3b75c61`): no open PRs; every L7 request in sibling status files is stale/satisfied (L2 assembly + dedup done, L4 `.gitignore` shipped in PR1 — verified zero tracked build artifacts, L3 check-invite optional, L1 IR-03 answered). No action owed.
 
+- PR #25 (branch `muse/lane-07-platform/b2-readiness`, reviewed head `627e96d`, base `3b75c61`, squash-merged as `8766be9`): deterministic-build CI gate + CLI test NITs + evidence. Checks: integration.yml green on PR (workspace 34s incl. new gate, tools 7s); typecheck clean; vitest 59/59 (14 files); fresh clean-clone on PR head green; independent review MERGEABLE (2 NITs: gate `set -u`/empty-guard folded into PR9, `-h` stderr/`--env` trailing-flag cases optional).
+- Lane 03 S3 merged as PR #23 (`21dd47f`): canonical invocation/admission/replay/role checks. No contracts or manifest changes (no assembly/lock action). State suite green (125/125, +65 invocation cases). Engine behavior is real but unexported from the package index; registry interim pending L1 op descriptors. B1 recall updated; no lane-07 code join yet.
+- Open-producer survey (PR9): L6 S4 PR #22 (`createHttpHandler` for the L7 worker fetch seam — B1 browser-leg shape, join on merge); L4 S5+S6 PR #24 (file lifecycle + bridge — B2 surface, no B1 impact). L1 still quiet (no emission PR); B1.1/B1.2/B1.5 remain L1-blocked.
+
 ## Remaining work and cleanup
 
 Full authorized scope remains except B0 planning. Owned resources: one worktree (above), no background processes, no cloud credentials used. Cleanup on completion: release subagents, remove worktree after merges settle, record final revisions.

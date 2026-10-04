@@ -29,10 +29,16 @@ jobs:
         run: npm test
       - name: Verify deterministic library build (B5 reproducibility)
         run: |
+          set -u
           hash_dist() {
-            find packages/contracts/dist packages/cloudflare/dist packages/testkit/dist \
-              -type f \( -name '*.js' -o -name '*.d.ts' -o -name '*.map' \) \
-              | sort | xargs sha256sum | sha256sum
+            local files
+            files=$(find packages/contracts/dist packages/cloudflare/dist packages/testkit/dist \
+              -type f \( -name '*.js' -o -name '*.d.ts' -o -name '*.map' \) | sort)
+            if [ -z "$files" ]; then
+              echo "determinism gate: no dist files found" >&2
+              return 1
+            fi
+            echo "$files" | xargs sha256sum | sha256sum
           }
           hash_dist | tee /tmp/build-first.sha
           rm -rf packages/contracts/dist packages/cloudflare/dist packages/testkit/dist \
