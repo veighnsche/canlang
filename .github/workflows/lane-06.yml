@@ -1,0 +1,48 @@
+# Lane 06 CI: build + test owned workspace packages. Install runs at the root
+# workspace; the committed root lockfile stays lane-07-owned (join J1 routes
+# the exact member manifests there), so CI syncs it ephemerally.
+name: lane-06
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - 'muse/lane-06-identity-interfaces/**'
+    paths:
+      - 'packages/identity/**'
+      - 'packages/interfaces/**'
+      - 'packages/contracts/src/identity.ts'
+      - 'packages/contracts/src/wire.ts'
+      - '.github/workflows/lane-06.yml'
+  pull_request:
+    paths:
+      - 'packages/identity/**'
+      - 'packages/interfaces/**'
+      - 'packages/contracts/src/identity.ts'
+      - 'packages/contracts/src/wire.ts'
+      - '.github/workflows/lane-06.yml'
+
+jobs:
+  contracts-conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Guard owned-contract imports
+        run: |
+          # Lane-06 tests may import only lane-06-owned contract files until
+          # L7 join J1 exports identity/wire from @canlang/contracts.
+          imports=$(grep -rho "contracts/src/[a-z0-9_]*\.js" packages/identity/test packages/interfaces/test | sort -u)
+          echo "$imports"
+          echo "$imports" | grep -v -E 'contracts/src/(identity|wire)\.js' && exit 1 || exit 0
+      - name: Install workspace
+        run: npm install --no-audit --no-fund
+      - name: Test owned packages
+        run: npm test --workspace @canlang/identity --workspace @canlang/interfaces
