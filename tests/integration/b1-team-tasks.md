@@ -30,8 +30,14 @@ no row passes until it executes against real components.
 - L1: `can compile` emission + `ArtifactTestModule` loader shape (§13
   `exampleFixtures` runtime contract). IR-03 answered by L7 (`can-platform`
   CLI, PR7): thin entries can wire now; execution still needs emission.
-- L3: invocation/commit engine behind the `state.ts` ports. S2 delivered
-  storage ports + memory/D1/DO backends only (`stateCatalog().entries`
-  still empty at `5a271a6`); no invocable surface yet.
+- L3: invocation/commit engine behind the `state.ts` ports. S3 (`21dd47f`)
+  delivered real `invocation/` (admit/invoke/fence-retry/replay) +
+  `policy/roles` (125/125 suite incl. 65 invocation cases), but the package
+  index still exports only catalog/errors/types and the operation registry
+  is interim (L1 has no op descriptors yet). B1.3/B1.4 now need: exported
+  invocable surface + L1 op descriptors + L1 emission.
+- L6 S4 (PR #22 open): `createHttpHandler(deps, sub)` WHATWG handler aimed
+  at the L7 worker fetch seam — the B1 browser-leg consumer shape. Join
+  when merged: serve it via `startLocalDev` behind the worker entry.
 - L6: authenticated context for two local test users.
 - L5: page descriptor runtime for the browser leg.
