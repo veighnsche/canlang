@@ -113,8 +113,35 @@ cadence (default 2), no polling.
 
 - [ ] S1 contract+scaffold: presentation.ts, ui package.json/tsconfig/README/index/escape/messages,
       test escape+messages+fixtures seed, lane-05.yml. Owner: coordinator. Branch: muse/lane-05-ui/s1-contract.
-- [ ] S2 shell+navigation: navigation.ts, shell.ts (+settings dialog frame), discovery tests, renderPage tests.
-      Branch: muse/lane-05-ui/s2-shell.
+- [ ] S2 shell+navigation (branch muse/lane-05-ui/s2-shell, in progress):
+      (a) Adopt L7 root workspace (precedent: lane 06 S1): ui tsconfig extends base
+      (composite false, rootDir ..), member lock dropped, CI root-install +
+      workspace test + owned-import guard; request L7 join presentation.ts into
+      contracts index + packages/ui into tsconfig.check.json. Coordinator files:
+      packages/ui/{package.json,tsconfig.json}, .github/workflows/lane-05.yml,
+      packages/ui/README.md, this status file. (b) Contract amendment (coordinator):
+      CSRF_FIELD, NavigationResult/NavGroup/NavEntry, ShellData/AccountMenu/
+      SettingsSections/Routes, RenderPageFn in presentation.ts. (c) W-A:
+      packages/ui/src/navigation.ts + packages/ui/test/navigation.test.ts +
+      test/fixtures/descriptors.ts extension (full descriptors with stub
+      admit/render). (d) W-B: packages/ui/src/shell.ts + packages/ui/test/shell.test.ts.
+      S2 pins: data-theme="can-{mode}-{accent}" token names + density class emitted;
+      themes.css + daisyUI version pin deferred to S3 class-audit slice; sidebar
+      collapse is CSS checkbox in S2, device-local persistence in S5; settings modal
+      frame + section sidebar in S2, base panels in S6.
+      Worker runs: first W-A/W-B pair cancelled by turn boundary before starting
+      (no files written); respawned as lane05-s2-nav2/shell2 with full
+      self-contained briefs. origin/main advanced (lane 04 S2 #5, disjoint files);
+      rebase at S2 PR time.
+      Correction (S2 review B3): the "CSS checkbox collapse in S2" pin was wrong —
+      S2 ships mobile overlay (checkbox) + always-open desktop; desktop collapse
+      control + device-local persistence are explicitly deferred to S5 (owned
+      script). Follow-ups recorded: aria-modal/focus containment/return + Escape
+      for drawers/dialogs (S5/S6); panelHtml trust boundary becomes an S6
+      escaping requirement; caption datetimes render in UTC until a
+      PresentationContext timezone field lands (L6 join). License field removal
+      in ui package.json is intentional (matches @canlang/identity precedent,
+      private:true).
 - [ ] S3 core components: components.ts (card/title/text/content/list/table + shared states), catalog.ts seed.
       Branch: muse/lane-05-ui/s3-components.
 - [ ] S4 forms: forms.ts (form/edit/delete/action/actions, bindings, errors, conflict/pending), version hidden
@@ -203,6 +230,33 @@ PR #7 (muse/lane-05-ui/s1-contract -> main). Self-review: full diff inspected, a
 Independent read-only subagent review: approve-with-follow-ups; findings F1 (canonical
 dotted enum ids), F2 (datetime rollover), F3 (quoted #), F4 (locale grouping/digits)
 and nits N1-N4 all fixed in-branch with regression tests before merge.
+Merge: squash-merged as 3d2181b (PR #7); reviewed head 5995ee2 unchanged, lane-05
+check x2 green, CodeRabbit pass, mergeState CLEAN. Follow-up: none (all review
+findings fixed in-branch).
+
+### S2 workspace adoption + shell/navigation (branch muse/lane-05-ui/s2-shell)
+
+Files: presentation.ts amendment (v0.2.0: CSRF_FIELD, TEAM_FIELD, navigation +
+shell boundary types, RenderPageFn); ui tsconfig/package.json adoption (extends
+base, rootDir .., no member lock), lane-05.yml (root install + workspace test +
+owned-import guard), README wiring note; new src/navigation.ts +
+test/navigation.test.ts, src/shell.ts + test/shell.test.ts, fixtures extension,
+index.ts export wiring.
+Workers: W-A navigation (selectDiscoveryCandidates/buildNavigation, 14 tests),
+W-B shell (renderPage/pageLocale/pageDirection, 29 tests); coordinator fix:
+settings dialog close control + aria-labelledby.
+Checks (local, node v24.21.0): workspace `npm test --workspace @canlang/ui`
+101/101 pass (48 S1 + 17 navigation + 36 shell, incl. navigation→shell join).
+L7 joins requested: presentation.ts into contracts index; packages/ui into
+tsconfig.check.json. L6 ack requested: CSRF_FIELD/TEAM_FIELD + ShellRoutes.
+PR #10 (muse/lane-05-ui/s2-shell -> main). Self-review: full diff inspected,
+worker implementations read end to end; fixed dialog close/aria-labelledby.
+Independent read-only review verdict needs-changes: B1 (invalid appDefault
+crash), B2 (raw ICU in parameterized captions), B3 (collapse deferral), all
+fixed in-branch with regression tests + gap tests (dedup negative,
+unavailable-first fallback, non-admitted highlight, unselected teams, empty
+sections, meta description, join); nits (entry description doc, highlightPath
+doc, CI guard empty-import case) fixed.
 Merge: (to be filled) reviewed head sha, checks, squash merge result.
 
 ## Remaining work and cleanup
