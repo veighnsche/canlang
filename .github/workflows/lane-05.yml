@@ -1,25 +1,44 @@
-name: lane-05-ui
+# Lane 05 CI: build + test the owned @canlang/ui workspace package. Install runs
+# at the root workspace; the committed root lockfile stays lane-07-owned, so CI
+# syncs it ephemerally (same as the lane 06 precedent).
+name: lane-05
+
+permissions:
+  contents: read
 
 on:
   push:
+    branches:
+      - 'muse/lane-05-ui/**'
     paths:
-      - "packages/ui/**"
-      - "packages/contracts/src/presentation.ts"
-      - ".github/workflows/lane-05.yml"
+      - 'packages/ui/**'
+      - 'packages/contracts/src/presentation.ts'
+      - '.github/workflows/lane-05.yml'
   pull_request:
     paths:
-      - "packages/ui/**"
-      - "packages/contracts/src/presentation.ts"
-      - ".github/workflows/lane-05.yml"
+      - 'packages/ui/**'
+      - 'packages/contracts/src/presentation.ts'
+      - '.github/workflows/lane-05.yml'
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm ci --prefix packages/ui
-      - run: npm --prefix packages/ui run typecheck
-      - run: npm --prefix packages/ui test
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Guard owned-contract imports
+        run: |
+          # Lane-05 sources may import only the lane-05-owned contract file until
+          # L7 joins presentation.ts into @canlang/contracts.
+          imports=$(grep -rho "contracts/src/[a-z0-9_]*\\.js" packages/ui/src packages/ui/test | sort -u)
+          echo "$imports"
+          echo "$imports" | grep -v -E 'contracts/src/presentation\.js' && exit 1 || exit 0
+      - name: Install workspace
+        run: npm install --no-audit --no-fund
+      - name: Test owned package
+        run: npm test --workspace @canlang/ui

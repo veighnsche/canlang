@@ -10,12 +10,13 @@ emission (lane 1) and route dispatch (lane 6) consume that contract.
 
 ## B0 wiring (temporary)
 
-`packages/contracts` assembly (`package.json`, `index.ts`) is lane 7 owned
-and does not exist yet. Until it lands, this package compiles
-`../contracts/src/presentation.ts` into its own program and imports it via an
-explicit relative path. No duplicate definitions: the contract file is the
-single source of truth. This wiring retires at L7 assembly (interface request
-in `implementation/status/lane-05.md`).
+This package extends the lane 7 root `tsconfig.base.json` and builds inside
+the root npm workspace (no member lockfile; the root lock stays lane-07-owned
+and CI syncs it ephemerally). `presentation.ts` is not yet joined into
+`@canlang/contracts`, so sources import it via an explicit relative path —
+the same temporary wiring as the lane 06 precedent. No duplicate definitions:
+the contract file is the single source of truth. This wiring retires at the L7
+join (interface request in `implementation/status/lane-05.md`).
 
 ## Layout
 

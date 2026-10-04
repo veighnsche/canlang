@@ -1,22 +1,15 @@
 {
-  // Owned strict config, self-contained until lane 7 assembles tsconfig.base.json.
-  // B0 wiring: packages/contracts/src/presentation.ts is compiled into this program
-  // (see README). The relative import is temporary and retires at L7 assembly.
+  // Extends-compatible with tsconfig.base.json (lane 07). Root-check inclusion
+  // (tsconfig.check.json) requested via the S2 PR. Relative contract import
+  // stays until L7 joins presentation.ts into @canlang/contracts (same as the
+  // lane 06 precedent for identity/wire).
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "lib": ["ES2022"],
-    "strict": true,
-    "exactOptionalPropertyTypes": true,
-    "noUncheckedIndexedAccess": true,
-    "noFallthroughCasesInSwitch": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
+    "composite": false,
     "outDir": "dist",
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "rootDir": "..",
+    "noEmitOnError": true
   },
-  "include": ["src", "test", "../contracts/src/presentation.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

@@ -12,7 +12,21 @@
  * definitions: this file is the single source of truth for the shapes below.
  */
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.1.0";
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.2.0";
+
+/**
+ * Name of the hidden CSRF field in every canonical POST form. Rendered by
+ * lane 05, read by the lane 6 dispatcher (ack requested); never a business
+ * input and never logged.
+ */
+export const CSRF_FIELD = "_csrf";
+
+/**
+ * Name of the team-select field in the account switcher form. Rendered by
+ * lane 05, read by the lane 6 dispatcher at ShellRoutes.switchTeam (ack
+ * requested); carries an opaque team id, never a grant.
+ */
+export const TEAM_FIELD = "team";
 
 /** BCP 47 language tag in canonical form (see `normalizeTag` in @canlang/ui). */
 export type Bcp47Tag = string;
@@ -189,3 +203,89 @@ export interface RecordIdentity {
  * handles; protected record bindings stay hidden/read-only.
  */
 export type BoundArguments = Record<string, unknown>;
+
+/**
+ * Admission outcome per discovery candidate, mapped by the lane 6 dispatcher
+ * from admit(): denied yields no link, unavailable yields a generic
+ * incomplete-navigation state without destination disclosure.
+ */
+export type AdmissionOutcome = "admitted" | "denied" | "unavailable";
+
+export interface NavigationEntry {
+  readonly owner: string;
+  readonly path: string;
+  readonly title: MessageValue;
+  readonly description?: MessageValue;
+  readonly active: boolean;
+}
+
+export interface NavigationGroup {
+  readonly owner: string;
+  readonly caption: MessageValue;
+  readonly entries: readonly NavigationEntry[];
+}
+
+export interface NavigationResult {
+  readonly groups: readonly NavigationGroup[];
+  /** True when any candidate was unavailable: show the generic incomplete state. */
+  readonly incomplete: boolean;
+}
+
+/** Owner labels from package metadata, keyed by canonical owner. */
+export type OwnerLabels = ReadonlyMap<string, MessageValue>;
+
+export interface ShellRoutes {
+  /** Lane 6 canonical endpoints; lane 05 never invents URLs. */
+  readonly signIn: string;
+  readonly signOut: string;
+  readonly switchTeam: string;
+}
+
+export interface TeamOption {
+  readonly id: string;
+  /** L6-supplied safe display text; escaped on render. */
+  readonly label: string;
+}
+
+export interface AccountMenuData {
+  readonly authenticated: boolean;
+  /** L6-supplied safe user label (opaque identity, escaped on render). */
+  readonly userLabel?: string;
+  readonly teams: readonly TeamOption[];
+  readonly currentTeamId?: string;
+}
+
+export interface SettingsSection {
+  readonly id: string;
+  readonly caption: MessageValue;
+  readonly active: boolean;
+}
+
+export interface SettingsFrameData {
+  readonly sections: readonly SettingsSection[];
+  /** Pre-rendered active panel HTML (settings.ts in S6); absent renders frame only. */
+  readonly panelHtml?: string;
+}
+
+export interface ShellData {
+  readonly navigation: NavigationResult;
+  /** App wordmark/logo fallback caption. */
+  readonly brand: MessageValue;
+  readonly routes: ShellRoutes;
+  readonly account: AccountMenuData;
+  readonly settings: SettingsFrameData;
+  /** Highlight override for contextual details (parent destination stays lit). */
+  readonly highlightPath?: string;
+}
+
+/**
+ * renderPage, implemented by @canlang/ui and called by generated page render
+ * functions. Full pages require `shell` (the dispatcher supplies discovery
+ * results); partials ignore it. Never dispatches routes or invokes admit.
+ */
+export type RenderPageFn = (
+  context: PresentationContext,
+  descriptor: PageDescriptor,
+  children: PageChildren,
+  shell?: ShellData,
+) => Promise<string>;
