@@ -6,11 +6,13 @@ The extension contributes the `can` language, `source.can` TextMate scopes and o
 
 Highlighting approximates contextual syntax. It provides no language server, diagnostics, compiler integration, commands, snippets or runtime dependencies. It does not validate a program or consistency between drafts. Documented page polling/refresh, CSV form import and preference ordering are highlighted independently of prototype-parser coverage. Single/triple/raw strings, `//` and `/* */` comments, and old `fn` declarations have no special support.
 
-The local artifact is `../../output/editor/canlang-draft-highlighting-0.1.7.vsix`. Install with the IDE's `--install-extension` CLI option. Remove `can-lang.can-lang` first, then reload existing IDE windows to unload the obsolete language server and load the new grammar. The separate `.ail` extension is unrelated.
+The local artifact is `../../output/editor/canlang-draft-highlighting-0.1.8.vsix`. Install with the IDE's `--install-extension` CLI option. Remove `can-lang.can-lang` first, then reload existing IDE windows to unload the obsolete language server and load the new grammar. The separate `.ail` extension is unrelated.
 
 The installed VSIX contains `package.json`, `syntaxes/can.tmLanguage.json` and this README, plus packaging metadata. It has no executable entry point. `GRAMMAR-AUDIT.md`, `check-highlighting.cjs` and `token-colors.json` are local review/verification assets and are excluded from the installed extension.
 
 The grammar separates Given declarations, When execution, Then/page composition and example tables. Joined expressions, types, selectors and operation targets retain their contextual roles across physical lines. [AUDIT-RESOLUTION.md](AUDIT-RESOLUTION.md) records each independent audit finding, its correction and verification limits; the original audit remains preserved separately.
+
+Sequence-example `do` headers use the same bold white structural scope as operation `do`; table values and bindings named `do` keep their ordinary identifier scope.
 
 `token-colors.json` records the deliberate Canlang-only palette applied to both IDE user settings. Its selectors require `source.can`; they do not replace the editor theme or affect other languages. Given/When/Then are bold italic white; app/package/scenario/do/require/examples/page introducers remain bold white; other declaration/control keywords use purple, types teal, functions and operation uses pale yellow, bindings/identities and fields/keys share light blue, and literals use muted green. Frontend component introducers use `entity.name.tag.component.can` with conventional tag blue; page suites supply their presentation context, while guards remain keywords. Translation punctuation stays neutral in prose and quoted-string suffixes; bare and quoted locale keys share the key color. Scope-based coloring does not resolve an ambiguous imported/bare name.
 

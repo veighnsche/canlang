@@ -50,6 +50,14 @@ const onig = require(base + 'vscode-oniguruma');
  // Grammar families absent or sparse in the current corpus: focused in-memory fragments.
  const tokenLines=lines=>{let stack=tm.INITIAL;return lines.map(line=>{const out=grammar.tokenizeLine(line,stack);stack=out.ruleStack;return out.tokens.map(t=>({text:line.slice(t.startIndex,t.endIndex),start:t.startIndex,end:t.endIndex,scopes:t.scopes}));});};
  const hasIn=(lines,index,word,scope)=>{const i=lines[index].indexOf(word);assert(i>=0);const t=tokenLines(lines)[index].find(t=>t.start<=i&&t.end>i);assert(t.scopes.includes(scope),JSON.stringify({line:lines[index],word,scope,actual:t.scopes}));};
+ const sequenceExamples=['When',' scenario inspect() by=members','  do return true','  examples seed=[sample]','   do','    let do=true','    do -> true','  examples','   do -> true',' scenario next() by=members','  do return true'];
+ hasIn(sequenceExamples,4,'do','keyword.control.structure.can');
+ hasIn(sequenceExamples,5,'do','variable.other.property.key.can');
+ for(const index of [6,8]) {
+  hasIn(sequenceExamples,index,'do','variable.other.readwrite.can');
+  assert(!tokenLines(sequenceExamples)[index].find(t=>t.text==='do').scopes.includes('keyword.control.structure.can'));
+ }
+ hasIn(sequenceExamples,10,'do','keyword.control.structure.can');
  has(' use syntax {not,true,null,event as false,as}', 'not', 'variable.other.readwrite.import.can');
  has(' use syntax {not,true,null,event as false,as}', 'true', 'variable.other.readwrite.import.can');
  has(' use syntax {not,true,null,event as false,as}', 'false', 'variable.other.readwrite.import.can');
@@ -195,6 +203,12 @@ const onig = require(base + 'vscode-oniguruma');
   for(const section of ['Given','When','Then']) {assert.equal(foreground(' '+section,section),'#FFFFFF',editor+' '+section);assert.equal(fontStyle(' '+section,section),3,editor+' bold italic '+section);}
   for(const [line,word] of [[' use Sales {Invoice}','use'],[' role member','role'],[' event Paid {amount:int}','event'],[' export contract Result {value:text}','export'],[' policy Invoice read=members','policy'],[' do return value','return']]) assert.equal(foreground(line,word),'#C586C0',editor+' keyword '+word);
   for(const [line,word] of [['app Shop','app'],['package Sales','package'],['scenario run() by=members','scenario'],[' do return value','do'],[' require members','require'],[' examples create','examples'],[' page /items title="Items"','page']]) {assert.equal(foreground(line,word),'#FFFFFF',editor+' white structural keyword '+word);assert.equal(fontStyle(line,word),2,editor+' bold-only structural keyword '+word);}
+  let sequenceState=tm.INITIAL;
+  for(const [index,line] of sequenceExamples.entries()) {
+   if(index===4) {assert.equal(foreground(line,'do',sequenceState),'#FFFFFF',editor+' sequence example do');assert.equal(fontStyle(line,'do',sequenceState),2,editor+' bold sequence example do');}
+   if(index===6||index===8) assert.equal(foreground(line,'do',sequenceState),'#9CDCFE',editor+' example identifier do');
+   sequenceState=grammar.tokenizeLine(line,sequenceState).ruleStack;
+  }
   const givenState=grammar.tokenizeLine('Given',tm.INITIAL).ruleStack;
   assert.equal(foreground(' invariant Item: row.valid','invariant',givenState),'#C586C0',editor+' regular invariant keyword');
   assert.equal(fontStyle(' invariant Item: row.valid','invariant',givenState),0,editor+' plain invariant keyword');
@@ -222,6 +236,6 @@ const onig = require(base + 'vscode-oniguruma');
  const collect=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(x=>x.isDirectory()?collect(dir+'/'+x.name):x.name.endsWith('.can')?[dir+'/'+x.name]:[]);
  const files=['draft','examples'].flatMap(collect);
  let lines=0;
- for(const file of files){let stack=tm.INITIAL;for(const line of fs.readFileSync(file,'utf8').split(/\r?\n/)){const result=grammar.tokenizeLine(line,stack);assert(!result.stoppedEarly,file+' tokenizer stopped early');stack=result.ruleStack;lines++;}stack=grammar.tokenizeLine('app __HighlightingBoundary',stack).ruleStack;assert.equal(stack.depth,1,file+' leaked a multiline scope after section boundary');}
+ for(const file of files){let stack=tm.INITIAL;for(const line of fs.readFileSync(file,'utf8').split(/\r?\n/)){const result=grammar.tokenizeLine(line,stack);assert(!result.stoppedEarly,file+' tokenizer stopped early');if(/^ *do(?: *$| +(?!->)\S)/.test(line)){const pos=line.indexOf('do');assert(result.tokens.find(t=>t.startIndex<=pos&&t.endIndex>pos).scopes.includes('keyword.control.structure.can'),file+':'+(lines+1)+' do must be structural');}stack=result.ruleStack;lines++;}stack=grammar.tokenizeLine('app __HighlightingBoundary',stack).ruleStack;assert.equal(stack.depth,1,file+' leaked a multiline scope after section boundary');}
  console.log(`Focused token checks passed; tokenized ${files.length} current draft/example files (${lines} lines).`);
 })().catch(e=>{console.error(e);process.exit(1)});
