@@ -196,24 +196,46 @@ all evidence is local miniflare + node suites recorded below with commands/versi
 ## Progress and file reservations
 
 - 2026-10-04: worktree created from origin/main b06d873; goal active; plan written.
-  Reserved (coordinator, S1): implementation/status/lane-03.md,
-  packages/contracts/src/state.ts, packages/state/**, .github/workflows/lane-03.yml.
+  S1 merged (fb8cf1f). S2 branch `muse/lane-03-state/storage-fence` from fb8cf1f.
+  S2 implemented (delegated impl+tests, disjoint files) + independent review
+  NEEDS-CHANGES (F1 future-revision fence hole, F2/F3 memory conformance,
+  F4–F9/N1–N4) + coordinator fixes, all verified 60/60 x3 locally.
+  Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
+  Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
+  (single SQL source embedded for workerd; avoids dual-source drift).
 
 ## Interface requests and handoffs
 
-- To L7 (blocking workspace integration, not implementation): adopt
-  `packages/state/package.json` + `packages/stdlib/package.json` into the root Node
-  workspace/lock when it exists; author `packages/contracts/{package.json,src/index.ts}`
-  assembling owned `src/state.ts`. L3 consumes via relative source import until then.
-- To L1: minimal appDefinition model/operation descriptor types (B1 need).
-- To L2: exact value equality + canonical JSON codec (B1 need).
+- To L7 (partially landed): root workspace (`packages/*`, #4) and
+  `contracts/{package.json,src/index.ts}` assembly exist; `packages/state` is a
+  member by glob. Still needed: root-lock adoption of state's devDeps
+  (miniflare/@cloudflare/workers-types exact pins are in the nested manifest;
+  nested lock follows current lane convention); state package joins the root
+  `tsconfig.check.json` when L7 invites (needs extends-compatible tsconfig —
+  current interim ESNext/Bundler + relative contracts import predates the
+  assembly; migrate to `@canlang/contracts` import at that join).
+  KNOWN CONFLICT (from contracts/index.ts, L7 handoff): `OperationId` state
+  branded vs wire plain — interim pick is state's; L3 proposes keeping the
+  branded state definition (narrows to string, wire-compatible) and will
+  confirm with L6.
+- To L1: minimal appDefinition model/operation descriptor types (B1 need;
+  artifact/diagnostic contracts landed in #2 — evaluate for S3+ use).
+- To L2: exact value equality + canonical JSON codec (B1 need; scaffold #8 has
+  kinds/errors/catalog only — still interim in S3).
 - From L3 (when S6 lands): transaction/read/system-command ports + outbox/schedule
   staging shapes for L4/L6/L7.
+- From L6 (landed #6/#12, evaluate in S3): identity core + wire envelope for
+  admission consumption.
 
 ## PR and verification evidence
 
-No PRs yet. Per-slice entries will record: branch, reviewed head SHA, checks run
-(commands + versions + results), merged PR URL, residual limits.
+- PR1 S1 scaffold: branch `muse/lane-03-state/plan`, reviewed head
+  `76e7b569ef58dab44eebd686d567f74ad802ea8e`, merged as `fb8cf1f`
+  (https://github.com/veighnsche/canlang/pull/3, squash, --match-head-commit).
+  Checks: local `npm run typecheck` + `npm test` (2/2 pass; node v24.21.0,
+  typescript 5.9.3, @types/node 26.6.4); CI `state` job pass x2. Self-reviewed
+  full diff; no independent subagent review (scaffold + types only, no behavior).
+  Residual: engine modules in S2–S8; interim ESNext/Bundler tsconfig to L7 join.
 
 ## Remaining work and cleanup
 
