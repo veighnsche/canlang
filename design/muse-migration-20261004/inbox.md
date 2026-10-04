@@ -167,3 +167,9 @@ Return Git/checkout ownership only after the commit containing H029 is published
 ## H030 — RELEASE-REQUEST — 20:41 UTC scheduled synchronization
 
 H029 was published in verified main f8771d5. Clean main is behind origin. Codex requests Git index/commit/checkout ownership for normal synchronization. Confirm zero active writers/reservations, record `RELEASED H030: git-index, commit and checkout integration ownership`, and hold mutations until H031 publication. No new work, workers, sessions or role changes; preserve other worktrees and pending C01/C02 acceptance.
+
+## H031 — CONDITIONAL GIT-RETURN — 20:41 UTC sync publication
+
+H030 release was verified. Normal merge completed without conflicts; all 3 local coordination and 41 incoming changed paths match their owning histories exactly. All 41 draft JavaScript syntax checks pass. No manual resolution, implementation or other-worktree mutation was needed; C01/C02 acceptance remains pending. Compiler behavior was not validated by these syntax/preservation checks.
+
+Return Git/checkout ownership only after the commit containing H031 is published on origin/main with no merge/rebase in progress. Verify publication before acknowledgment; hold all mutations until then. Preserve the completed handoff and attached viewer; no new work, sessions or role changes are authorized. Codex ends integration mutations after verified publication.
