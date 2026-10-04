@@ -613,7 +613,19 @@ test('B1 reject: revoked session is forbidden over HTTP', async () => {
 // nonexistent team 404), while MCP — which has no team override — binds the
 // grant team: a grant for another team cannot touch a team-scoped op.
 test('B1 reject: unknown team override forbidden over HTTP; MCP binds the grant team', async () => {
-  const t = await setup();
+  // Single assembly: the predicate closes over the assembly's own team id
+  // (assigned post-setup, evaluated at call time), so the deny/allow pair
+  // below genuinely proves grant-team binding rather than comparing across
+  // independent stores.
+  let teamId = 'unset-before-setup';
+  const t = await setup({
+    permissions: {
+      canDiscover: () => true,
+      canCall: (identity, operation) =>
+        operation !== MUT_OP || identity.team?.team_id === teamId,
+    },
+  });
+  teamId = t.teamId;
   const foreign = await t.http(
     testRequest('/auth/select-team', {
       method: 'POST',
@@ -634,23 +646,28 @@ test('B1 reject: unknown team override forbidden over HTTP; MCP binds the grant 
   assert.equal(missing.status, 404);
 
   // MCP has no override: team scoping is the grant binding + canCall.
-  const scoped = await setup({
-    permissions: {
-      canDiscover: () => true,
-      canCall: (identity, operation) =>
-        operation !== MUT_OP || identity.team?.team_id === t.teamId,
-    },
-  });
+  // Other-team grant denied without reaching the invoker ...
   const { body } = await mcpCall(
-    scoped.mcp,
+    t.mcp,
     'tools/call',
     { name: MUT_OP, arguments: { operation_id: freshOperationId(), qty: 1 } },
-    { grant: scoped.ownerT2Grant },
+    { grant: t.ownerT2Grant },
   );
   const result = toolResult(body);
   assert.equal(result.isError, true);
   assert.equal(result.structuredContent?.['code'], 'forbidden');
-  assert.equal(scoped.invoker.mutations.length, 0);
+  assert.equal(t.invoker.mutations.length, 0);
+  // ... while the same-team grant is allowed and the invoker identity
+  // carries the grant team (positive binding proof).
+  const allowed = await mcpCall(
+    t.mcp,
+    'tools/call',
+    { name: MUT_OP, arguments: { operation_id: freshOperationId(), qty: 1 } },
+    { grant: t.owner.grant },
+  );
+  assert.equal(toolResult(allowed.body).isError, undefined);
+  assert.equal(t.invoker.mutations.length, 1);
+  assert.equal(t.invoker.mutations[0]?.identity.team?.team_id, t.teamId);
 });
 
 // B1 evidence: unknown arguments fail validation on both transports.
