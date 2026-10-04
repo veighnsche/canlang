@@ -18,12 +18,14 @@ import type {
   SealedActionHandle,
 } from "./wire.js";
 import type { DeliveryStatus } from "./services.js";
+import type { HistoryEntry } from "./state.js";
 
 /** Reused producer types, re-exported so lane-05 members import one contract file. */
 export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
 export type { DeliveryStatus } from "./services.js";
+export type { HistoryEntry } from "./state.js";
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.13.0";
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.14.0";
 
 /**
  * Name of the hidden CSRF field in every canonical POST form. Rendered by
@@ -1548,5 +1550,137 @@ export interface ReviewPolicyView {
 export interface ReviewProps {
   readonly context: PresentationContext;
   readonly policy: ReviewPolicyView;
+  readonly caption?: MessageValue;
+}
+
+// ---------------------------------------------------------------------------
+// C8 settings + panels (panels.ts, settings.ts, leaves.ts): tabs, history,
+// copy, settings, mockup_browser, mockup_phone, mockup_window.
+// ---------------------------------------------------------------------------
+
+/** One tab: a stable value, its caption and its trusted panel children. */
+export interface TabItem {
+  readonly value: string;
+  readonly caption: MessageValue;
+  readonly children: PageChildren;
+  readonly open?: boolean;
+}
+
+/** One owned-enum-preference option doubling as a tab value. */
+export interface TabsOption {
+  readonly value: string;
+  readonly label: MessageValue;
+}
+
+/** Owned-enum-preference binding: the tabset doubles as its selector. */
+export interface TabsBinding {
+  /** Preference field name carried by the radios. */
+  readonly name: string;
+  readonly options: readonly TabsOption[];
+  readonly current?: string;
+  /** Caller-owned persistence path; the form POSTs name=<value> + CSRF. */
+  readonly postTo: string;
+}
+
+/**
+ * `tabs` radio-driven tabset. Transient selection by default; a binding
+ * names the radios after the owned preference and wraps them in a form
+ * POSTing to the caller path. Either a nonempty tab-child suite or a
+ * selector binding is required. No `variant` prop: only solid is admitted
+ * upstream (a no-op base); sizes land on the container only. Panel/tab
+ * element ids namespace under `id` when given, else under the radio group
+ * name: pages rendering more than one tabset — or more than one set bound
+ * to one preference — must pass distinct ids (the megamenu rule).
+ */
+export interface TabsProps {
+  readonly context: PresentationContext;
+  readonly items?: readonly TabItem[];
+  readonly binding?: TabsBinding;
+  readonly caption?: MessageValue;
+  readonly id?: string;
+  readonly size?: AppearanceSize;
+}
+
+/**
+ * `history` authorized audit trail. `entries` are declared HistoryEntry
+ * values rendered as collapse groups; an empty list throws.
+ */
+export interface HistoryProps {
+  readonly context: PresentationContext;
+  readonly entries: ReadonlyArray<HistoryEntry>;
+  readonly caption?: MessageValue;
+  readonly id?: string;
+}
+
+/**
+ * `copy` selectable value display: a readonly input holding the value plus
+ * its label. There is deliberately no copy button: clipboard write needs
+ * JS, and a button that cannot act would be dishonest.
+ */
+export interface CopyProps {
+  readonly context: PresentationContext;
+  readonly value: string;
+  readonly label: MessageValue;
+  readonly id?: string;
+}
+
+/** Base (shared appearance) panel controls over one caller POST target. */
+export interface SettingsBaseControls {
+  readonly caption: MessageValue;
+  /** Caller-owned persistence path for theme + density. */
+  readonly postTo: string;
+  readonly themeLabel: MessageValue;
+  readonly themes: readonly ThemeOption[];
+  readonly currentTheme?: string;
+  readonly densityLabel?: MessageValue;
+  readonly currentDensity?: ThemeDensity;
+}
+
+/** One caller-declared preference section with its self-only POST paths. */
+export interface PreferenceSection {
+  /** Matches the SettingsSection id listed by the S2 frame. */
+  readonly id: string;
+  readonly caption: MessageValue;
+  /** Caller-owned save path; controls POST here with CSRF + version. */
+  readonly saveTo: string;
+  readonly resetTo?: string;
+  readonly version?: string;
+  readonly controls?: PageChildren;
+}
+
+/**
+ * `settings` active-section panel for the S2 frame (its panelHtml). The
+ * base id (default "base") selects the shared theme/density panel; any
+ * other id must match a caller-declared preference section.
+ */
+export interface SettingsPanelProps {
+  readonly context: PresentationContext;
+  /** Active section id as listed by the S2 frame. */
+  readonly sectionId: string;
+  /** Section id that selects the base panel (default "base"). */
+  readonly baseId?: string;
+  readonly base?: SettingsBaseControls;
+  readonly preferences?: readonly PreferenceSection[];
+}
+
+/** `mockup_browser` presentation wrapper with a URL bar text prop. */
+export interface MockupBrowserProps {
+  readonly context: PresentationContext;
+  readonly children: PageChildren;
+  readonly url?: MessageValue;
+  readonly caption?: MessageValue;
+}
+
+/** `mockup_phone` presentation wrapper; no device behavior. */
+export interface MockupPhoneProps {
+  readonly context: PresentationContext;
+  readonly children: PageChildren;
+  readonly caption?: MessageValue;
+}
+
+/** `mockup_window` presentation wrapper; no window behavior. */
+export interface MockupWindowProps {
+  readonly context: PresentationContext;
+  readonly children: PageChildren;
   readonly caption?: MessageValue;
 }
