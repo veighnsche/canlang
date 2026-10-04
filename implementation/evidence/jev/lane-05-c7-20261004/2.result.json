@@ -1,0 +1,36 @@
+{
+  "request": {
+    "questions": {
+      "grid": {
+        "criteria": {
+          "A": "Follow Pikaday: emit .pika-single/.pika-table markup where prev/next navigate months and .pika-button days select dates, each as a working link or button.",
+          "B": "Follow vanilla-calendar: emit .vc grid markup with data-vc controls and date buttons, each navigation and selection wired to a working request.",
+          "C": "Ship no grid: the native input controls and the agenda list are the whole calendar; do not emit adapter-shaped markup at all."
+        },
+        "instructions": "A scriptless server library must choose the DOM contract for an optional visual month grid, or decline the grid. Rank by: works with zero client script, keeps navigation and selection operable and announced, reuses pinned stylesheet rules, and minimizes markup the library must guarantee. Which option wins?",
+        "type": "choice"
+      }
+    },
+    "state": "@canlang/ui (CanLang lane 05) emits HTML on the server and ships no client script: every control must function through links, forms, or native inputs. The pinned daisyUI 5.7.47 calendar stylesheet provides no base component; it only themes external picker widgets (verified): cally custom elements (unusable without their defining script), React Day Picker trees, Pikaday tables, and vanilla-calendar grids. Lane 05 already serves calendar needs without any grid: native date/datetime-local inputs for fields and a day-grouped section list for agendas. C7 considers adding a month grid for date picking and agenda months. Candidate contracts are the Pikaday table shape, the vanilla-calendar grid shape, or declining the grid entirely. React Day Picker markup is React-coupled (dropdowns and nav controls assume React handlers) and is not offered. The decision binds what L1 may emit and what the library must keep styled and operable.",
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "grid": {
+        "type": "choice",
+        "choice": "C",
+        "confidence": 0.61,
+        "probabilities": {
+          "A": 0.14,
+          "B": 0.12,
+          "C": 0.74
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 666,
+      "output_tokens": 38
+    }
+  }
+}

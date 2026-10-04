@@ -7,9 +7,11 @@ import type {
   PresentationContext,
 } from "../../contracts/src/presentation.js";
 import { loadHtml } from "./harness.js";
+import { message } from "../src/messages.js";
 import {
   calendar,
   checkbox,
+  fileControl,
   fileInput,
   filter,
   input,
@@ -722,5 +724,238 @@ describe("DOM interaction", () => {
     } finally {
       await page.close();
     }
+  });
+});
+
+describe("fileControl", () => {
+  it("renders a fieldset with legend, named links and announced status", async () => {
+    const html = await fileControl({
+      context: makeContext(),
+      field: field("doc", { type: "file" }),
+      idPrefix: "u1",
+      mode: "create",
+      files: [
+        { href: "https://files.example/r1", name: "report.pdf", status: "succeeded" },
+        { href: "/files/r2", name: "photo.png" },
+      ],
+    });
+    assert.ok(html.startsWith("<fieldset>"), "fieldset group");
+    assert.ok(
+      html.includes(`<legend class="fieldset-legend">Label doc</legend>`),
+      "field label as legend",
+    );
+    assert.ok(html.includes(`<a class="link" href="https://files.example/r1">report.pdf</a>`), "named link");
+    assert.ok(html.includes(`<a class="link" href="/files/r2">photo.png</a>`), "relative link");
+    assert.ok(html.includes(`<span role="status">succeeded</span>`), "status announced");
+    assert.ok(!html.includes(`<input type="file"`), "no upload widget");
+    assert.ok(!html.includes("<form"), "no form or endpoint");
+  });
+
+  it("prefers caption over name over href and labelCaption over label", async () => {
+    const html = await fileControl({
+      context: makeContext(),
+      field: field("doc", { type: "file", label: "Base", labelCaption: "Override" }),
+      idPrefix: "u1",
+      mode: "create",
+      files: [
+        { href: "https://files.example/a", name: "a.pdf", caption: "Explicit" },
+        { href: "https://files.example/b", name: "b.pdf" },
+        { href: "https://files.example/c" },
+      ],
+    });
+    assert.ok(html.includes(">Override</legend>"), "labelCaption wins");
+    assert.ok(!html.includes(">Base</legend>"), "base label replaced");
+    assert.ok(html.includes(">Explicit</a>"), "link caption wins");
+    assert.ok(html.includes(">b.pdf</a>"), "name next");
+    assert.ok(html.includes(">https://files.example/c</a>"), "href last");
+  });
+
+  it("resolves captions through the viewer locale", async () => {
+    const props = {
+      field: field("doc", { type: "file" }),
+      idPrefix: "u1",
+      mode: "create" as const,
+      files: [{ href: "/f", caption: message("Download", { nl: "Downloaden" }) }],
+    };
+    const en = await fileControl({ ...props, context: makeContext() });
+    assert.ok(en.includes(">Download</a>"), "source text by default");
+    const nl = await fileControl({ ...props, context: makeContext({ preferredLocales: ["nl"] }) });
+    assert.ok(nl.includes(">Downloaden</a>"), "nl variant resolved");
+    const emptyNl = await fileControl({
+      context: makeContext({ preferredLocales: ["nl"] }),
+      field: field("doc", { type: "file" }),
+      idPrefix: "u1",
+      mode: "create",
+      files: [],
+    });
+    assert.ok(emptyNl.includes("Bestand niet beschikbaar"), "nl unavailable presentation");
+  });
+
+  it("fails hostile and missing URLs closed to the fallback href", async () => {
+    const html = await fileControl({
+      context: makeContext(),
+      field: field("doc", { type: "file" }),
+      idPrefix: "u1",
+      mode: "create",
+      files: [
+        { href: "javascript:alert(1)", name: "evil" },
+        { href: "  JaVaScRiPt:alert(1)", name: "smuggled" },
+        { href: "", name: "empty" },
+      ],
+    });
+    assert.equal((html.match(/href="#"/g) ?? []).length, 3, "all three fall back");
+    assert.ok(!html.includes("javascript:"), "no hostile scheme in markup");
+    assert.ok(!html.includes("JaVaScRiPt"), "no smuggled scheme in markup");
+    assert.ok(html.includes(">evil</a>"), "link stays named");
+  });
+
+  it("escapes every text sink", async () => {
+    const html = await fileControl({
+      context: makeContext(),
+      field: field("doc", { type: "file", label: `L"><script>alert(1)</script>` }),
+      idPrefix: "u1",
+      mode: "create",
+      files: [
+        {
+          href: `https://files.example/x" onmouseover="alert(1)`,
+          name: `n<img src=x>`,
+          caption: `C<script>alert(1)</script>`,
+          status: "pending",
+        },
+      ],
+      errors: [fieldError("/doc", `E<img src=x>`)],
+    });
+    assert.ok(!html.includes("<script>"), "label/caption escaped");
+    assert.ok(!html.includes("<img"), "name/error escaped");
+    assert.ok(!html.includes(`onmouseover="alert(1)"`), "no attribute break-out");
+    assert.ok(html.includes(`E&lt;img src=x&gt;`), "own error shown");
+    assert.ok(html.includes(`id="u1-doc-error"`), "error outlet id");
+  });
+
+  it("renders explicit unavailable presentation for an empty list", async () => {
+    const html = await fileControl({
+      context: makeContext(),
+      field: field("doc", { type: "file" }),
+      idPrefix: "u1",
+      mode: "create",
+      files: [],
+    });
+    assert.ok(html.includes("File unavailable"), "unavailable text");
+    assert.ok(!html.includes("<a "), "no link without files");
+  });
+
+  it("shows only its own errors", async () => {
+    const html = await fileControl({
+      context: makeContext(),
+      field: field("doc", { type: "file" }),
+      idPrefix: "u1",
+      mode: "create",
+      files: [{ href: "/f", name: "f" }],
+      errors: [fieldError("/doc", "too big"), fieldError("/other", "unrelated")],
+    });
+    assert.ok(html.includes("too big"), "own error shown");
+    assert.ok(!html.includes("unrelated"), "other field error filtered out");
+  });
+
+  it("rejects every appearance token under the file catalog id", async () => {
+    const base = {
+      context: makeContext(),
+      field: field("doc", { type: "file" }),
+      idPrefix: "f",
+      mode: "create" as const,
+      files: [{ href: "/f" }],
+    };
+    for (const extra of [
+      { tone: "primary" },
+      { size: "sm" },
+      { variant: "ghost" },
+      { orientation: "vertical" },
+    ]) {
+      await assert.rejects(
+        fileControl({ ...base, ...extra } as unknown as Parameters<typeof fileControl>[0]),
+        /appearance|tone|size|variant|orientation/,
+      );
+    }
+  });
+
+  it("throws invalid input naming the field", async () => {
+    const ctx = makeContext();
+    await assert.rejects(
+      fileControl({
+        context: ctx,
+        field: field("t", { value: "x" }),
+        idPrefix: "f",
+        mode: "create",
+        files: [{ href: "/f" }],
+      }),
+      /field "t"/,
+      "non-file type",
+    );
+    await assert.rejects(
+      fileControl({
+        context: ctx,
+        field: field("doc", { type: "file" }),
+        idPrefix: "f",
+        mode: "create",
+        files: "nope" as unknown as [],
+      }),
+      /field "doc"/,
+      "non-array files",
+    );
+    await assert.rejects(
+      fileControl({
+        context: ctx,
+        field: field("doc", { type: "file" }),
+        idPrefix: "f",
+        mode: "create",
+        files: [null as unknown as { href: string }],
+      }),
+      /field "doc"/,
+      "non-object entry",
+    );
+    await assert.rejects(
+      fileControl({
+        context: ctx,
+        field: field("doc", { type: "file" }),
+        idPrefix: "f",
+        mode: "create",
+        files: [{ href: 42 as unknown as string }],
+      }),
+      /field "doc"/,
+      "non-string href",
+    );
+    await assert.rejects(
+      fileControl({
+        context: ctx,
+        field: field("doc", { type: "file" }),
+        idPrefix: "f",
+        mode: "create",
+        files: [{ href: "/f", caption: 42 as unknown as string }],
+      }),
+      /field "doc": file caption must be a message value/,
+      "non-message caption",
+    );
+    await assert.rejects(
+      fileControl({
+        context: ctx,
+        field: field("doc", { type: "file" }),
+        idPrefix: "f",
+        mode: "create",
+        files: [{ href: "/f", status: "<script>" as unknown as "pending" }],
+      }),
+      /field "doc"/,
+      "undeclared status",
+    );
+    await assert.rejects(
+      fileControl({
+        context: ctx,
+        field: field("../evil", { type: "file" }),
+        idPrefix: "f",
+        mode: "create",
+        files: [{ href: "/f" }],
+      }),
+      /invalid field path/,
+      "hostile field path",
+    );
   });
 });

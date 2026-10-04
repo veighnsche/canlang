@@ -21,8 +21,11 @@ import type {
   AppearanceVariant,
   CalendarProps,
   CheckboxProps,
+  DeliveryStatus,
   FieldControlProps,
   FileInputProps,
+  FileLinkView,
+  FileProps,
   FilterProps,
   FormFieldDef,
   InputProps,
@@ -42,7 +45,7 @@ import type {
 import type { FieldError } from "../../contracts/src/presentation.js";
 import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
 import { renderState } from "./components.js";
-import { escapeAttr, escapeHtml } from "./escape.js";
+import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 import {
   assertFieldPath,
   fieldErrorOutletId,
@@ -61,6 +64,10 @@ import {
 
 const RANGE_INVALID = message("Value is outside the allowed range.", {
   nl: "Waarde valt buiten het toegestane bereik.",
+});
+
+const FILE_UNAVAILABLE = message("File unavailable", {
+  nl: "Bestand niet beschikbaar",
 });
 
 /** String-valued scalar input types (mirrors forms.ts). */
@@ -975,4 +982,77 @@ export async function calendar(props: CalendarProps): Promise<string> {
     return calendarAgenda(props);
   }
   return calendarField(props);
+}
+
+// ---------------------------------------------------------------------------
+// File display (C7)
+// ---------------------------------------------------------------------------
+
+/** Declared DeliveryStatus values (services.ts); the membership check below. */
+const DELIVERY_STATUSES: ReadonlySet<string> = new Set([
+  "pending",
+  "succeeded",
+  "failed",
+  "unknown",
+  "skipped",
+]);
+
+function fileItem(fieldPath: string, file: FileLinkView, context: PresentationContext): string {
+  if (file === null || typeof file !== "object" || Array.isArray(file)) {
+    throw new TypeError(`field "${fieldPath}": file entries must be objects`);
+  }
+  if (typeof file.href !== "string") {
+    throw new TypeError(`field "${fieldPath}": file href must be a string`);
+  }
+  if (file.name !== undefined && typeof file.name !== "string") {
+    throw new TypeError(`field "${fieldPath}": file name must be a string`);
+  }
+  if (file.status !== undefined && !DELIVERY_STATUSES.has(file.status)) {
+    throw new Error(
+      `field "${fieldPath}": file status must be a declared DeliveryStatus, got ${JSON.stringify(file.status)}`,
+    );
+  }
+  let text: string;
+  if (file.caption !== undefined) {
+    try {
+      text = resolveCaption(file.caption, context);
+    } catch {
+      throw new TypeError(`field "${fieldPath}": file caption must be a message value`);
+    }
+  } else {
+    text = file.name ?? file.href;
+  }
+  const status =
+    file.status === undefined ? "" : ` <span role="status">${escapeHtml(file.status)}</span>`;
+  return `<li><a class="link" href="${escapeAttr(safeHref(file.href))}">${escapeHtml(text)}</a>${status}</li>`;
+}
+
+/**
+ * Read-only display of authorized finalized file/media links: a `<fieldset>`
+ * with the field label as legend, one named link per file, the declared
+ * delivery status where carried (announced via role=status), and this
+ * field's filtered error outlet. Upload stays with fileInput: this renders
+ * no input, no form and no endpoint. Only file types fit; anything else
+ * throws, naming the field.
+ */
+export async function fileControl(props: FileProps): Promise<string> {
+  // "file" admits no appearance: base classes only; any runtime token throws.
+  appearanceClasses("file", "link", pickAppearance(props));
+  const field = props.field;
+  assertFieldType(field);
+  if (!(field.type === "file" || field.type.startsWith("file."))) {
+    throw new Error(
+      `field "${field.path}": file needs a file type, got ${JSON.stringify(field.type)}`,
+    );
+  }
+  if (!Array.isArray(props.files)) {
+    throw new TypeError(`field "${field.path}": file needs a files array`);
+  }
+  const unitCtx = unitContext(props);
+  const legend = `<legend class="fieldset-legend">${escapeHtml(labelText(field, props.context))}</legend>`;
+  const body =
+    props.files.length === 0
+      ? `<p>${escapeHtml(resolveCaption(FILE_UNAVAILABLE, props.context))}</p>`
+      : `<ul>${props.files.map((file) => fileItem(field.path, file, props.context)).join("")}</ul>`;
+  return `<fieldset>${legend}${body}${unitErrors(props, unitCtx)}</fieldset>`;
 }

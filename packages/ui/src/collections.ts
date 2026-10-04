@@ -8,8 +8,15 @@
  */
 
 import type {
+  AppearanceOrientation,
+  AppearanceSize,
+  AppearanceTone,
+  AppearanceVariant,
+  BoardProps,
   CollectionControls,
   ColumnMeta,
+  CsvImportProps,
+  CsvImportReview,
   FilterCondition,
   ListProps,
   ListQueryArgs,
@@ -20,8 +27,17 @@ import type {
   RowView,
   TableProps,
 } from "../../contracts/src/presentation.js";
+import { CSRF_FIELD } from "../../contracts/src/presentation.js";
+import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
 import { renderState, rowHeading } from "./components.js";
-import { escapeAttr, escapeHtml, isolate, isSafeUrl, safeHref } from "./escape.js";
+import {
+  csvFormulaProtect,
+  escapeAttr,
+  escapeHtml,
+  isolate,
+  isSafeUrl,
+  safeHref,
+} from "./escape.js";
 import { assertRegionId, fragmentRegion, hxAttrs } from "./htmx.js";
 import {
   canonicalDefaultTag,
@@ -784,5 +800,237 @@ async function wrapWithControls(
     content: [toolbar, bodyHtml, pagination, share],
     label,
   });
+}
+
+// ---------------------------------------------------------------------------
+// C7 collection factories: board, csvImport.
+//
+// Pure async string builders (no h(), hydration or client state). Props live
+// in the presentation contract. Both route appearance through
+// appearanceClasses() under their exact catalog id; neither word admits an
+// appearance matrix, so any token throws.
+// ---------------------------------------------------------------------------
+
+/**
+ * Collect every appearance key present at runtime (including undeclared
+ * extras from JS callers) so appearanceClasses() judges them against the
+ * word's admitted matrix: unadmitted tokens throw, never silently drop.
+ */
+function pickAppearance(props: object): AppearanceOpts {
+  const record = props as Record<string, unknown>;
+  const opts: {
+    tone?: AppearanceTone;
+    size?: AppearanceSize;
+    variant?: AppearanceVariant;
+    orientation?: AppearanceOrientation;
+  } = {};
+  if (record["tone"] !== undefined) {
+    opts.tone = record["tone"] as AppearanceTone;
+  }
+  if (record["size"] !== undefined) {
+    opts.size = record["size"] as AppearanceSize;
+  }
+  if (record["variant"] !== undefined) {
+    opts.variant = record["variant"] as AppearanceVariant;
+  }
+  if (record["orientation"] !== undefined) {
+    opts.orientation = record["orientation"] as AppearanceOrientation;
+  }
+  return opts;
+}
+
+/**
+ * Enum-grouped board: one section per group (stable order), one card per
+ * row. Cards reuse the shared rowHeading label rule and the table cell
+ * contract (renderCell), so formatting matches tables exactly. Group order
+ * follows the `by` column's valueLabels declaration order when present
+ * (cases without rows still render an empty group); otherwise groups appear
+ * in first-seen row order. Missing/non-string group values and values
+ * outside a declared valueLabels universe throw. No drag/drop affordances.
+ */
+export async function board(props: BoardProps): Promise<string> {
+  // board admits no appearance matrix: any runtime appearance key throws.
+  appearanceClasses("board", "board", pickAppearance(props));
+  if (typeof props.by !== "string" || props.by === "") {
+    throw new Error("board: by must be a nonempty field name");
+  }
+  if (props.controls !== undefined) {
+    assertControls(props.controls, "board");
+    assertConsistentContext(props.context, props.controls.context, "board");
+  }
+  const result = await props.context.query(
+    props.context.invocation,
+    props.model,
+    queryArgs(props, "board"),
+  );
+  const byField = new Map<string, ColumnMeta>();
+  for (const column of result.columns) {
+    byField.set(column.field, column);
+  }
+  const byMeta = byField.get(props.by);
+  if (byMeta === undefined) {
+    throw new Error(`board "${props.model}": missing group field: ${props.by}`);
+  }
+  if (!isEnumTypeId(byMeta.type)) {
+    throw new Error(
+      `board "${props.model}": group field "${props.by}" needs an enum type, got ${JSON.stringify(byMeta.type)}`,
+    );
+  }
+  const missing = props.columns.filter((field) => !byField.has(field));
+  if (missing.length > 0) {
+    throw new Error(`board "${props.model}": missing columns: ${missing.join(", ")}`);
+  }
+  if (result.rows.length === 0) {
+    if (props.controls === undefined) {
+      return renderState({ context: props.context, kind: "empty", message: props.empty });
+    }
+    return wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
+  }
+  const metas: ColumnMeta[] = [];
+  for (const field of props.columns) {
+    const meta = byField.get(field);
+    if (meta === undefined) {
+      // Unreachable: missing fields threw above.
+      throw new Error(`board "${props.model}": missing columns: ${field}`);
+    }
+    metas.push(meta);
+  }
+  const labels = byMeta.valueLabels;
+  const groups = new Map<string, RowView[]>();
+  if (labels !== undefined) {
+    for (const key of Object.keys(labels)) {
+      groups.set(key, []);
+    }
+  }
+  for (const row of result.rows) {
+    const value = row.fields[props.by];
+    if (typeof value !== "string" || value === "") {
+      throw new Error(
+        `board "${props.model}": row "${row.id}" needs a group value for "${props.by}"`,
+      );
+    }
+    if (labels !== undefined && labels[value] === undefined) {
+      throw new Error(
+        `board "${props.model}": row "${row.id}" has unknown group ${JSON.stringify(value)} for "${props.by}"`,
+      );
+    }
+    const bucket = groups.get(value);
+    if (bucket === undefined) {
+      groups.set(value, [row]);
+    } else {
+      bucket.push(row);
+    }
+  }
+  const sections = [...groups.entries()]
+    .map(([key, rows]) => {
+      const labeled = labels?.[key];
+      const heading = escapeHtml(
+        labeled === undefined ? key : resolveCaption(labeled, props.context),
+      );
+      const cards = rows.map((row) => boardCard(row, metas, props)).join("");
+      return `<section data-group="${escapeAttr(key)}"><h2>${heading}</h2><ul>${cards}</ul></section>`;
+    })
+    .join("");
+  const boardHtml = `<div class="flex gap-4">${sections}</div>`;
+  if (props.controls === undefined) {
+    return `${boardHtml}${moreNote(props.context, result.nextCursor)}`;
+  }
+  return wrapWithControls(props.controls, boardHtml, props);
+}
+
+/** One board card: rowHeading title plus one labeled paragraph per column. */
+function boardCard(
+  row: RowView,
+  metas: readonly ColumnMeta[],
+  props: BoardProps,
+): string {
+  const heading = isolate(rowHeading(row, props.model, props.context));
+  const lines = metas
+    .map((meta) => {
+      const label = escapeHtml(resolveCaption(meta.label, props.context));
+      return `<p><span>${label}</span> ${renderCell(meta, row.fields[meta.field], props.context)}</p>`;
+    })
+    .join("");
+  return (
+    `<li data-row="${escapeAttr(row.id)}">` +
+    `<section class="card bg-base-100 shadow"><div class="card-body">` +
+    `<h3 class="card-title">${heading}</h3>${lines}</div></section></li>`
+  );
+}
+
+/** csvImport chrome (ui.csvImport.*): en source + nl variant. */
+const CSV_FILE_LABEL = message("CSV file", { nl: "CSV-bestand" });
+const CSV_UPLOAD_LABEL = message("Upload", { nl: "Uploaden" });
+const CSV_REVIEW_LABEL = message("Preview", { nl: "Preview" });
+
+/**
+ * Multipart CSV upload panel POSTing to the caller-supplied postTo path
+ * (the themeController honesty rule: a missing path throws, a hostile one
+ * falls back to "#" via safeHref, nothing is ever invented). The optional
+ * review section renders parsed preview rows with csvFormulaProtect
+ * applied; a present-but-empty preview throws rather than rendering an
+ * empty table.
+ */
+export async function csvImport(props: CsvImportProps): Promise<string> {
+  // csv-import admits no appearance matrix: any runtime token throws.
+  appearanceClasses("csv-import", "csv-import", pickAppearance(props));
+  if (typeof props.postTo !== "string" || props.postTo.trim() === "") {
+    throw new Error("csvImport needs a non-empty postTo");
+  }
+  const label = resolveCaption(props.label, props.context);
+  if (label === "") {
+    throw new Error("csvImport label must not be empty");
+  }
+  const review = props.review === undefined ? "" : renderCsvReview(props);
+  return (
+    `<section><h2>${escapeHtml(label)}</h2>` +
+    `<form action="${escapeAttr(safeHref(props.postTo))}" method="post" enctype="multipart/form-data">` +
+    `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
+    `<label>${escapeHtml(resolveCaption(CSV_FILE_LABEL, props.context))}` +
+    `<input type="file" name="file" accept=".csv,text/csv" class="file-input"></label>` +
+    `<button type="submit" class="btn btn-primary">${escapeHtml(resolveCaption(CSV_UPLOAD_LABEL, props.context))}</button>` +
+    `</form>${review}</section>`
+  );
+}
+
+/** Preview table over caller-parsed rows; every cell is armored + escaped. */
+function renderCsvReview(props: CsvImportProps): string {
+  const review = props.review as CsvImportReview;
+  if (review === null || typeof review !== "object" || Array.isArray(review)) {
+    throw new Error("csvImport review must be an object");
+  }
+  if (!Array.isArray(review.columns) || review.columns.length === 0) {
+    throw new Error("csvImport review needs nonempty columns");
+  }
+  if (!Array.isArray(review.rows) || review.rows.length === 0) {
+    throw new Error("csvImport review needs a nonempty preview");
+  }
+  const width = review.columns.length;
+  const head = review.columns
+    .map((column) => `<th scope="col">${escapeHtml(resolveCaption(column, props.context))}</th>`)
+    .join("");
+  const body = review.rows
+    .map((cells, index) => {
+      if (!Array.isArray(cells) || cells.length !== width) {
+        throw new Error(
+          `csvImport review row ${String(index)} needs exactly ${String(width)} cells`,
+        );
+      }
+      const rendered = cells
+        .map((cell) => {
+          if (typeof cell !== "string") {
+            throw new Error(`csvImport review row ${String(index)} cells must be strings`);
+          }
+          return `<td>${isolate(escapeHtml(csvFormulaProtect(cell)))}</td>`;
+        })
+        .join("");
+      return `<tr>${rendered}</tr>`;
+    })
+    .join("");
+  const heading = escapeHtml(resolveCaption(CSV_REVIEW_LABEL, props.context));
+  return (
+    `<section><h3>${heading}</h3>` +
+    `<table class="table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></section>`
+  );
 }
 

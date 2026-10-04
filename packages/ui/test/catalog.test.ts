@@ -118,6 +118,10 @@ describe("component catalog", () => {
       navbar: 1,
       pagination: 1,
       themeController: 1,
+      board: 1,
+      csvImport: 1,
+      fileControl: 1,
+      review: 1,
     };
     const record = ui as unknown as Record<string, unknown>;
     for (const entry of UI_CATALOG.entries) {

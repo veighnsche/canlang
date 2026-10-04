@@ -12,12 +12,14 @@ import type {
   RowView,
 } from "../../contracts/src/presentation.js";
 import {
+  board,
   collectionExportLink,
   collectionPagination,
   collectionPrintLink,
   collectionShareControls,
   collectionToolbar,
   controlHref,
+  csvImport,
   list,
   table,
 } from "../src/collections.js";
@@ -1524,5 +1526,679 @@ describe("collection controls XSS sweep", () => {
         ),
       "not a known filter operator",
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// C7 board (additive; all suites above stay untouched).
+// ---------------------------------------------------------------------------
+
+describe("board", () => {
+  const titleCol: ColumnMeta = { field: "title", label: "Title", type: "text" };
+  const stateCol: ColumnMeta = {
+    field: "state",
+    label: "State",
+    type: "enum",
+    valueLabels: {
+      open: message("Open", { nl: "Open-nl" }),
+      closed: message("Closed", { nl: "Gesloten" }),
+    },
+  };
+
+  function boardContext(
+    seen: SeenCall[],
+    result: ListQueryResult,
+    overrides: Partial<PresentationContext> = {},
+  ): PresentationContext {
+    return makeContext({ query: stubRunner(seen, result), ...overrides });
+  }
+
+  it("groups rows into one section per enum case with one card per row", async () => {
+    const seen: SeenCall[] = [];
+    const context = boardContext(seen, {
+      rows: [
+        row("a", { title: "First", state: "open" }),
+        row("b", { title: "Second", state: "closed" }),
+        row("c", { title: "Third", state: "open" }),
+      ],
+      columns: [titleCol, stateCol],
+    });
+    const page = await loadHtml(
+      await board({ context, model: "TeamTasks.Todo", by: "state", columns: ["title"], empty: "No todos" }),
+    );
+    try {
+      const groups = page.document.querySelectorAll("section[data-group]");
+      assert.equal(groups.length, 2);
+      assert.equal(groups.item(0)?.getAttribute("data-group"), "open");
+      assert.ok((groups.item(0)?.querySelector("h2")?.textContent ?? "").includes("Open"));
+      assert.equal(groups.item(0)?.querySelectorAll("ul > li").length, 2);
+      assert.equal(groups.item(1)?.querySelectorAll("ul > li").length, 1);
+      const cards = page.document.querySelectorAll("li > section.card");
+      assert.equal(cards.length, 3);
+      assert.ok((cards.item(0)?.querySelector("h3.card-title")?.textContent ?? "").includes("First"));
+      assert.ok((cards.item(0)?.textContent ?? "").includes("Title"));
+      assert.equal(page.document.querySelector("li[data-row='a']"), cards.item(0)?.parentElement);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("falls back to the model caption plus id without title/name", async () => {
+    const seen: SeenCall[] = [];
+    const context = boardContext(seen, {
+      rows: [row("a", { state: "open" })],
+      columns: [titleCol, stateCol],
+    });
+    const html = await board({
+      context,
+      model: "TeamTasks.Todo",
+      by: "state",
+      columns: ["title"],
+      empty: "No todos",
+    });
+    assert.ok(html.includes(`\u2068TeamTasks.Todo a\u2069`));
+  });
+
+  it("orders groups by valueLabels declaration order, not row order", async () => {
+    const seen: SeenCall[] = [];
+    const flipped: ColumnMeta = {
+      field: "state",
+      label: "State",
+      type: "enum",
+      valueLabels: { closed: "Closed", open: "Open" },
+    };
+    const context = boardContext(seen, {
+      rows: [row("a", { title: "x", state: "open" }), row("b", { title: "y", state: "closed" })],
+      columns: [titleCol, flipped],
+    });
+    const html = await board({
+      context,
+      model: "TeamTasks.Todo",
+      by: "state",
+      columns: ["title"],
+      empty: "No todos",
+    });
+    assert.ok(html.indexOf('data-group="closed"') < html.indexOf('data-group="open"'));
+  });
+
+  it("uses first-seen row order without valueLabels", async () => {
+    const seen: SeenCall[] = [];
+    const bare: ColumnMeta = { field: "state", label: "State", type: "enum" };
+    const context = boardContext(seen, {
+      rows: [
+        row("a", { title: "x", state: "zebra" }),
+        row("b", { title: "y", state: "apple" }),
+        row("c", { title: "z", state: "zebra" }),
+      ],
+      columns: [titleCol, bare],
+    });
+    const html = await board({
+      context,
+      model: "TeamTasks.Todo",
+      by: "state",
+      columns: ["title"],
+      empty: "No todos",
+    });
+    assert.ok(html.indexOf('data-group="zebra"') < html.indexOf('data-group="apple"'));
+    assert.ok(html.includes("<h2>zebra</h2>"));
+  });
+
+  it("renders declared-but-empty groups with an empty list", async () => {
+    const seen: SeenCall[] = [];
+    const context = boardContext(seen, {
+      rows: [row("a", { title: "x", state: "open" })],
+      columns: [titleCol, stateCol],
+    });
+    const page = await loadHtml(
+      await board({ context, model: "TeamTasks.Todo", by: "state", columns: ["title"], empty: "No todos" }),
+    );
+    try {
+      assert.equal(page.document.querySelectorAll("section[data-group]").length, 2);
+      const closed = page.document.querySelector('section[data-group="closed"]');
+      assert.ok(closed !== null);
+      assert.ok((closed.querySelector("h2")?.textContent ?? "").includes("Closed"));
+      assert.equal(closed.querySelectorAll("li").length, 0);
+      assert.ok(closed.querySelector("ul") !== null);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("resolves group labels per viewer locale", async () => {
+    const seen: SeenCall[] = [];
+    const result: ListQueryResult = {
+      rows: [row("a", { title: "x", state: "closed" })],
+      columns: [titleCol, stateCol],
+    };
+    const en = await board({
+      context: boardContext(seen, result),
+      model: "TeamTasks.Todo",
+      by: "state",
+      columns: ["title"],
+      empty: "No todos",
+    });
+    assert.ok(en.includes("<h2>Closed</h2>"));
+    const nl = await board({
+      context: boardContext(seen, result, { preferredLocales: ["nl"] }),
+      model: "TeamTasks.Todo",
+      by: "state",
+      columns: ["title"],
+      empty: "No todos",
+    });
+    assert.ok(nl.includes("<h2>Gesloten</h2>"));
+  });
+
+  it("escapes hostile titles, cells, ids and group keys", async () => {
+    const hostile = `<script>alert("x")</script>`;
+    const seen: SeenCall[] = [];
+    const bare: ColumnMeta = { field: "state", label: "State", type: "enum" };
+    const html = await board({
+      context: boardContext(seen, {
+        rows: [row(`"><b>${hostile}`, { title: hostile, state: hostile })],
+        columns: [titleCol, bare],
+      }),
+      model: "TeamTasks.Todo",
+      by: "state",
+      columns: ["title"],
+      empty: "No todos",
+    });
+    assert.ok(!html.includes(hostile));
+    const page = await loadHtml(html);
+    try {
+      assert.equal(page.document.querySelector("script"), null);
+      assert.equal(page.document.querySelector("b"), null);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("emits no drag/drop affordances", async () => {
+    const seen: SeenCall[] = [];
+    const context = boardContext(seen, {
+      rows: [row("a", { title: "x", state: "open" })],
+      columns: [titleCol, stateCol],
+    });
+    const html = await board({
+      context,
+      model: "TeamTasks.Todo",
+      by: "state",
+      columns: ["title"],
+      empty: "No todos",
+    });
+    assert.ok(!html.includes("draggable"));
+    assert.ok(!html.includes("ondrag"));
+    assert.ok(!html.includes("ondrop"));
+  });
+
+  it("renders the empty state when rows are empty", async () => {
+    const seen: SeenCall[] = [];
+    const empty = message("Nothing here", { nl: "Niets hier" });
+    const context = boardContext(seen, { rows: [], columns: [titleCol, stateCol] });
+    const html = await board({
+      context,
+      model: "TeamTasks.Todo",
+      by: "state",
+      columns: ["title"],
+      empty,
+    });
+    assert.equal(html, await renderState({ context, kind: "empty", message: empty }));
+  });
+
+  it("wraps rows in the region with toolbar when controlled", async () => {
+    const seen: SeenCall[] = [];
+    const context = boardContext(seen, {
+      rows: [row("a", { title: "x", state: "open" })],
+      columns: [titleCol, stateCol],
+    });
+    const controls = makeControls({ context });
+    const page = await loadHtml(
+      await board({
+        context,
+        model: "TeamTasks.Todo",
+        by: "state",
+        columns: ["title"],
+        empty: "No todos",
+        controls,
+      }),
+    );
+    try {
+      assert.ok(page.document.querySelector("section#todo-rows") !== null);
+      assert.ok(page.document.querySelector("[data-toolbar]") !== null);
+      assert.ok(page.document.querySelector("section[data-group]") !== null);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("renders no-match under controls with an active query and zero rows", async () => {
+    const seen: SeenCall[] = [];
+    const context = boardContext(seen, { rows: [], columns: [titleCol, stateCol] });
+    const controls = makeControls({ context, search: { query: "milk" } });
+    const html = await board({
+      context,
+      model: "TeamTasks.Todo",
+      by: "state",
+      columns: ["title"],
+      empty: "No todos",
+      controls,
+    });
+    assert.ok(html.includes("data-no-match"));
+  });
+
+  it("appends a more-note after the board when nextCursor is present", async () => {
+    const seen: SeenCall[] = [];
+    const context = boardContext(seen, {
+      rows: [row("a", { title: "x", state: "open" })],
+      columns: [titleCol, stateCol],
+      nextCursor: "b-1",
+    });
+    const html = await board({
+      context,
+      model: "TeamTasks.Todo",
+      by: "state",
+      columns: ["title"],
+      empty: "No todos",
+    });
+    assert.ok(html.includes("<p class=\"can-more\" data-cursor=\"b-1\">More rows available.</p>"));
+  });
+
+  it("passes query args, invocation and model through", async () => {
+    const seen: SeenCall[] = [];
+    const invocation = { request: "req-b" };
+    const where = { state: "open" };
+    const context = makeContext({
+      invocation,
+      query: stubRunner(seen, { rows: [], columns: [titleCol, stateCol] }),
+    });
+    await board({
+      context,
+      model: "TeamTasks.Todo",
+      by: "state",
+      parent: { id: "p-3" },
+      where,
+      limit: 5,
+      cursor: "c-3",
+      columns: ["title"],
+      empty: "No todos",
+    });
+    assert.strictEqual(seen[0]?.invocation, invocation);
+    assert.equal(seen[0]?.model, "TeamTasks.Todo");
+    assert.deepEqual(seen[0]?.args, { parent: { id: "p-3" }, where, limit: 5, cursor: "c-3" });
+  });
+
+  it("propagates query failures untouched", async () => {
+    const seen: SeenCall[] = [];
+    const failure = new Error("records() down");
+    const context = makeContext({ query: stubRunner(seen, failure) });
+    try {
+      await board({
+        context,
+        model: "TeamTasks.Todo",
+        by: "state",
+        columns: ["title"],
+        empty: "No todos",
+      });
+    } catch (error) {
+      assert.strictEqual(error, failure);
+      return;
+    }
+    assert.fail("expected the query failure to propagate");
+  });
+
+  it("rejects invalid input without grouping", async () => {
+    const seen: SeenCall[] = [];
+    const context = boardContext(seen, {
+      rows: [row("a", { title: "x", state: "open" })],
+      columns: [titleCol, stateCol],
+    });
+    const base = {
+      context,
+      model: "TeamTasks.Todo",
+      by: "state",
+      columns: ["title"] as readonly string[],
+      empty: "No todos" as const,
+    };
+    await rejectsWith(() => board({ ...base, by: "" }), "board: by must be a nonempty field name");
+    await rejectsWith(
+      () => board({ ...base, by: "missing" }),
+      "TeamTasks.Todo",
+      "missing group field",
+    );
+    const textCtx = boardContext(seen, {
+      rows: [row("a", { title: "x", state: "open" })],
+      columns: [titleCol, { field: "state", label: "State", type: "text" }],
+    });
+    await rejectsWith(
+      () => board({ ...base, context: textCtx }),
+      "needs an enum type",
+      '"text"',
+    );
+    await rejectsWith(
+      () => board({ ...base, columns: ["gone"] }),
+      "TeamTasks.Todo",
+      "missing columns",
+      "gone",
+    );
+    await rejectsWith(() => board({ ...base, limit: 0 }), "board: limit must be an integer 1..100");
+    // by:"" and limit:0 throw before querying; the other three query first.
+    assert.equal(seen.length, 3);
+  });
+
+  it("throws on missing group-field metadata even when rows are empty", async () => {
+    const seen: SeenCall[] = [];
+    const context = boardContext(seen, { rows: [], columns: [titleCol] });
+    await rejectsWith(
+      () =>
+        board({ context, model: "TeamTasks.Todo", by: "state", columns: ["title"], empty: "No todos" }),
+      "TeamTasks.Todo",
+      "missing group field",
+    );
+  });
+
+  it("throws on missing and unknown group values", async () => {
+    const seen: SeenCall[] = [];
+    const missingCtx = boardContext(seen, {
+      rows: [row("a", { title: "x" })],
+      columns: [titleCol, stateCol],
+    });
+    await rejectsWith(
+      () =>
+        board({
+          context: missingCtx,
+          model: "TeamTasks.Todo",
+          by: "state",
+          columns: ["title"],
+          empty: "No todos",
+        }),
+      "TeamTasks.Todo",
+      'row "a"',
+      'needs a group value for "state"',
+    );
+    const nullCtx = boardContext(seen, {
+      rows: [row("b", { title: "x", state: null })],
+      columns: [titleCol, stateCol],
+    });
+    await rejectsWith(
+      () =>
+        board({
+          context: nullCtx,
+          model: "TeamTasks.Todo",
+          by: "state",
+          columns: ["title"],
+          empty: "No todos",
+        }),
+      'row "b"',
+      "needs a group value",
+    );
+    const unknownCtx = boardContext(seen, {
+      rows: [row("c", { title: "x", state: "archived" })],
+      columns: [titleCol, stateCol],
+    });
+    await rejectsWith(
+      () =>
+        board({
+          context: unknownCtx,
+          model: "TeamTasks.Todo",
+          by: "state",
+          columns: ["title"],
+          empty: "No todos",
+        }),
+      'row "c"',
+      "unknown group",
+      '"archived"',
+    );
+  });
+
+  it("rejects every appearance token", async () => {
+    const seen: SeenCall[] = [];
+    const context = boardContext(seen, { rows: [], columns: [titleCol, stateCol] });
+    const base = {
+      context,
+      model: "TeamTasks.Todo",
+      by: "state",
+      columns: ["title"] as readonly string[],
+      empty: "No todos" as const,
+    };
+    for (const extra of [
+      { tone: "primary" },
+      { size: "lg" },
+      { variant: "soft" },
+      { orientation: "vertical" },
+    ]) {
+      await rejectsWith(
+        () => board({ ...base, ...extra } as unknown as Parameters<typeof board>[0]),
+        "admits no appearance",
+      );
+    }
+    assert.equal(seen.length, 0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// C7 csvImport (additive; all suites above stay untouched).
+// ---------------------------------------------------------------------------
+
+describe("csvImport", () => {
+  it("renders a multipart upload panel posting to the caller path", async () => {
+    const context = makeContext();
+    const page = await loadHtml(
+      await csvImport({ context, postTo: "/todos/import", label: "Import todos" }),
+    );
+    try {
+      const heading = page.document.querySelector("section > h2");
+      assert.ok((heading?.textContent ?? "").includes("Import todos"));
+      const form = page.document.querySelector("form");
+      assert.ok(form !== null);
+      assert.equal(form.getAttribute("action"), "/todos/import");
+      assert.equal(form.getAttribute("method"), "post");
+      assert.equal(form.getAttribute("enctype"), "multipart/form-data");
+      const csrf = form.querySelector('input[type="hidden"][name="_csrf"]') as unknown as {
+        value: string;
+      } | null;
+      assert.equal(csrf?.value, "csrf-123");
+      const file = form.querySelector('input[type="file"][name="file"]');
+      assert.ok(file !== null);
+      assert.ok((file.getAttribute("accept") ?? "").includes(".csv"));
+      const submit = form.querySelector('button[type="submit"]');
+      assert.ok((submit?.textContent ?? "").includes("Upload"));
+      assert.equal(page.document.querySelector("table"), null);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("never invents an endpoint: hostile postTo falls back to #", async () => {
+    const context = makeContext();
+    const page = await loadHtml(
+      await csvImport({ context, postTo: "javascript:steal()", label: "Import" }),
+    );
+    try {
+      assert.equal(page.document.querySelector("form")?.getAttribute("action"), "#");
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("renders the review table with formula-armored cells", async () => {
+    const context = makeContext();
+    const page = await loadHtml(
+      await csvImport({
+        context,
+        postTo: "/todos/import",
+        label: "Import todos",
+        review: {
+          columns: ["Name", "Note"],
+          rows: [
+            ["=SUM(A1:A2)", "plain"],
+            ["+5", "-3"],
+            ["@mention", " leading space"],
+          ],
+        },
+      }),
+    );
+    try {
+      const section = page.document.querySelectorAll("section").item(1);
+      assert.ok(section !== null);
+      assert.ok((section.querySelector("h3")?.textContent ?? "").includes("Preview"));
+      const heads = section.querySelectorAll("thead th");
+      assert.equal(heads.length, 2);
+      assert.equal(heads.item(0)?.getAttribute("scope"), "col");
+      const cells = section.querySelectorAll("tbody td");
+      assert.equal(cells.length, 6);
+      assert.equal(cells.item(0)?.textContent, `\u2068'=SUM(A1:A2)\u2069`);
+      assert.equal(cells.item(1)?.textContent, `\u2068plain\u2069`);
+      assert.equal(cells.item(2)?.textContent, `\u2068'+5\u2069`);
+      assert.equal(cells.item(3)?.textContent, `\u2068'-3\u2069`);
+      assert.equal(cells.item(4)?.textContent, `\u2068'@mention\u2069`);
+      assert.equal(cells.item(5)?.textContent, `\u2068' leading space\u2069`);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("escapes hostile labels, headers and armored cells", async () => {
+    const hostile = `<img src=x onerror=alert(1)>`;
+    const context = makeContext();
+    const html = await csvImport({
+      context,
+      postTo: "/todos/import",
+      label: hostile,
+      review: { columns: [hostile], rows: [[`=${hostile}`]] },
+    });
+    assert.ok(!html.includes(hostile));
+    assert.ok(html.includes(`\u2068&#39;=&lt;img`));
+    const page = await loadHtml(html);
+    try {
+      assert.equal(page.document.querySelector("img"), null);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("localizes chrome and captions in order", async () => {
+    const context = makeContext({ preferredLocales: ["nl"] });
+    const html = await csvImport({
+      context,
+      postTo: "/todos/import",
+      label: message("Import todos", { nl: "Todo's importeren" }),
+      review: { columns: [message("Name", { nl: "Naam" })], rows: [["x"]] },
+    });
+    assert.ok(html.includes("Todo&#39;s importeren"));
+    assert.ok(html.includes("CSV-bestand"));
+    assert.ok(html.includes(">Uploaden</button>"));
+    assert.ok(html.includes("<th scope=\"col\">Naam</th>"));
+    const en = await csvImport({
+      context: makeContext(),
+      postTo: "/todos/import",
+      label: message("Import todos", { nl: "Todo's importeren" }),
+    });
+    assert.ok(en.includes("CSV file"));
+    assert.ok(en.includes(">Upload</button>"));
+  });
+
+  it("rejects a missing postTo", async () => {
+    const context = makeContext();
+    for (const postTo of ["", "   ", 7, null, undefined]) {
+      await rejectsWith(
+        () => csvImport({ context, postTo: postTo as unknown as string, label: "Import" }),
+        "csvImport needs a non-empty postTo",
+      );
+    }
+  });
+
+  it("rejects an empty label", async () => {
+    const context = makeContext();
+    await rejectsWith(
+      () => csvImport({ context, postTo: "/todos/import", label: "" }),
+      "csvImport label must not be empty",
+    );
+    await rejectsWith(
+      () =>
+        csvImport({
+          context,
+          postTo: "/todos/import",
+          label: message("", { nl: "" }),
+        }),
+      "csvImport label must not be empty",
+    );
+  });
+
+  it("fails closed on an empty preview", async () => {
+    const context = makeContext();
+    await rejectsWith(
+      () =>
+        csvImport({
+          context,
+          postTo: "/todos/import",
+          label: "Import",
+          review: { columns: ["Name"], rows: [] },
+        }),
+      "csvImport review needs a nonempty preview",
+    );
+    await rejectsWith(
+      () =>
+        csvImport({
+          context,
+          postTo: "/todos/import",
+          label: "Import",
+          review: { columns: [], rows: [["x"]] },
+        }),
+      "csvImport review needs nonempty columns",
+    );
+  });
+
+  it("rejects ragged and non-string preview rows", async () => {
+    const context = makeContext();
+    await rejectsWith(
+      () =>
+        csvImport({
+          context,
+          postTo: "/todos/import",
+          label: "Import",
+          review: { columns: ["A", "B"], rows: [["only-one"]] },
+        }),
+      "csvImport review row 0 needs exactly 2 cells",
+    );
+    await rejectsWith(
+      () =>
+        csvImport({
+          context,
+          postTo: "/todos/import",
+          label: "Import",
+          review: { columns: ["A"], rows: [[42] as unknown as string[]] },
+        }),
+      "csvImport review row 0 cells must be strings",
+    );
+    await rejectsWith(
+      () =>
+        csvImport({
+          context,
+          postTo: "/todos/import",
+          label: "Import",
+          review: 7 as unknown as never,
+        }),
+      "csvImport review must be an object",
+    );
+  });
+
+  it("rejects every appearance token", async () => {
+    const context = makeContext();
+    for (const extra of [
+      { tone: "primary" },
+      { size: "lg" },
+      { variant: "soft" },
+      { orientation: "horizontal" },
+    ]) {
+      await rejectsWith(
+        () =>
+          csvImport({
+            context,
+            postTo: "/x",
+            label: "Import",
+            ...extra,
+          } as unknown as Parameters<typeof csvImport>[0]),
+        "admits no appearance",
+      );
+    }
   });
 });
