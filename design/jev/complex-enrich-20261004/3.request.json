@@ -1,0 +1,13 @@
+{
+  "state": "A proposed SaaS DSL must express a complete reviewed legal-company enrichment journey. Each company is identified by a UK registry number; three supplemental facts come from a primary registry or a configured secondary source. Source URL/time and lookup evidence are retained. Company policy reuses successes for seven days, caps logical daily requests at four, requires initial consent for automatic fallback on a definite incomplete response, and requires renewed consent after an unknown response. Each accepted fact preserves an explanation, reviewer and expected prior decision; canonical customer name and billing address remain untouched. Available language mechanisms include typed provider sends and receipts, owner records/queries, transactional rules, immutable snapshots and permissions. We may alter the draft language; runtime implementation status is irrelevant. Consider an ordinary typed Fact plus app-authored records and workflow versus a first-class enrichment construct absorbing cache/fallback/provenance/acceptance with the same configured policies. The ordinary version avoids a new broad abstraction but may burden future authors with repeated coordination. The new construct can compress reuse but must specify a larger combination of policies and failure semantics. Neither is assumed superior.",
+  "questions": {
+    "boundary": {
+      "type": "choice",
+      "instructions": "Where should this initial enrichment workflow be expressed to balance repetition reduction with explicit company decisions and manageable semantics?",
+      "criteria": {
+        "ordinary": "Use existing typed values, receipts and records; retain enrichment policy in the app.",
+        "enrichment": "Add a reusable enrichment declaration for cache, provider sequence, provenance and reviewed fact acceptance."
+      }
+    }
+  }
+}

@@ -1,0 +1,183 @@
+# Enrich known companies with reviewed registry facts and retained source evidence. @{nl="Verrijk bekende bedrijven met beoordeelde registergegevens en bewaard bronbewijs."}
+app CanEnrich uses=[enrich]
+
+package enrich label="Company enrichment"@{nl="Bedrijfsverrijking"}
+ use customer {Customer,test_company}
+ use enrich {SourcesV1 as Sources} from=deployment.company_sources
+ Given
+  role researcher label="Company researcher"@{nl="Bedrijfsonderzoeker"}
+  role reviewer label="Fact reviewer"@{nl="Gegevensbeoordelaar"}
+  export contract Fact {value:text trim min=1 max=2000,source:url,observed:datetime?,detail:text? max=2000}
+  contract Report {number:text min=8 max=8,provider:enum(registry,aggregator),complete:bool,legal_name:Fact?,registered_office:Fact?,registry_status:Fact?,detail:text? max=2000}
+  export capability SourcesV1 version=1
+   lookup(number:Report.number,provider:Report.provider) -> Report
+  export Company {customer:Customer,number:Report.number,enabled:bool=true,current:Run?} label="Linked legal company"@{nl="Gekoppelde rechtspersoon"}
+  Lookup in Company {provider:Report.provider,request:delivery(Sources.lookup)?} label="Provider evidence"@{nl="Extern bronbewijs"}
+  Run in Company {requested_by:user server=actor,primary:Lookup?,fallback:Lookup?,allow_fallback:bool,stopped:bool=false} label="Enrichment review"@{nl="Verrijkingsbeoordeling"}
+  export AcceptedFact in Company {field:enum(legal_name,registered_office,registry_status),ordinal:int min=1,lookup:Lookup,value:Fact,prior:AcceptedFact?,reason:text trim min=1 max=2000,reviewer:user server=actor} label="Accepted company fact"@{nl="Geaccepteerd bedrijfsgegeven"}
+  event Assess {run:Run}
+  policy Company read=researcher or reviewer
+  policy Lookup read=researcher or reviewer
+  policy Run read=researcher or reviewer
+  policy AcceptedFact read=researcher or reviewer
+  invariant Company: row.current==null or row.current.parent==row
+  invariant Run: row.primary!=null and row.primary.parent==row.parent and (row.fallback==null or row.fallback.parent==row.parent)
+  invariant AcceptedFact: row.lookup.parent==row.parent and (row.prior==null or (row.prior.parent==row.parent and row.prior.field==row.field))
+  unique Company fields=customer,number
+  lock Company fields=customer,number
+  lock Lookup fields=provider,request
+  lock Run fields=requested_by,primary,allow_fallback
+  lock Run fields=fallback when=row.fallback!=null
+  unique AcceptedFact fields=field,ordinal
+  lock AcceptedFact fields=field,ordinal,lookup,value,prior,reason,reviewer
+  derive report(lookup:Lookup):Report? = lookup.request?.result
+  derive reusable(company:Company,provider:Report.provider):Lookup? = first(company.Lookup as lookup where lookup.provider==provider and lookup.created>=now-7d and lookup.request?.status==succeeded order=-lookup.created)
+  derive capacity(company:Company):bool = count(company.Lookup as lookup where local_date(lookup.created,"UTC")==local_date(now,"UTC"))<4
+  derive live(run:Run):bool = run.parent.enabled and run.parent.current==run and not run.stopped and researcher(run.requested_by) and run.parent.customer.active
+  derive incomplete(value:Report):bool = value.legal_name==null or value.registered_office==null or value.registry_status==null
+  derive selected(value:Report,field:AcceptedFact.field):Fact? = choose(field==legal_name,value.legal_name,choose(field==registered_office,value.registered_office,value.registry_status))
+  export derive current(company:Company,field:AcceptedFact.field):AcceptedFact? = first(company.AcceptedFact as fact where fact.field==field order=-fact.ordinal)
+  preferences {enabled:bool=true}
+  fixture analyst=user {roles=[researcher]}
+  fixture editor=user {roles=[reviewer]}
+  fixture linked_company=Company {customer=test_company,number="01234567"}
+  fixture complete_receipt=Sources.lookup {request={number="01234567",provider=registry},status=succeeded,result={number="01234567",provider=registry,complete=true,legal_name={value="Example Limited",source="https://example.test/registry/01234567",observed=null,detail=null},registered_office=null,registry_status=null,detail="Address unavailable"}}
+  fixture primary=Lookup {parent=linked_company,provider=registry,request=complete_receipt}
+  fixture secondary_receipt=Sources.lookup {request={number="01234567",provider=aggregator},status=succeeded,result={number="01234567",provider=aggregator,complete=true,legal_name={value="Example Ltd",source="https://example.test/aggregator/01234567",observed=null,detail=null},registered_office=null,registry_status=null,detail=null}}
+  fixture secondary=Lookup {parent=linked_company,provider=aggregator,request=secondary_receipt}
+  fixture review_run=Run {parent=linked_company,requested_by=analyst,primary=primary,fallback=secondary,allow_fallback=true}
+  fixture unknown_receipt=Sources.lookup {request={number="01234567",provider=registry},status=unknown}
+  fixture unknown_lookup=Lookup {parent=linked_company,provider=registry,request=unknown_receipt}
+  fixture consented_run=Run {parent=linked_company,requested_by=analyst,primary=primary,allow_fallback=true}
+  fixture accepted=AcceptedFact {parent=linked_company,field=legal_name,ordinal=1,lookup=primary,value={value="Example Limited",source="https://example.test/registry/01234567",observed=null,detail=null},reason="Checked registry",reviewer=editor}
+ When
+  crud Company by=researcher fields=enabled create_fields=customer,number when=row.customer.active and row.customer.kind==company and (not row.enabled or not any(Company as link,link.id!=row.id and link.customer==row.customer and link.enabled)) delete=none
+  # Reuse a successful result or explicitly authorize a fresh paid lookup. @{nl="Hergebruik een geslaagd resultaat of machtig expliciet een nieuwe betaalde raadpleging."}
+  scenario start(company:Company,refresh:bool=false,fallback:bool=true) -> Run by=researcher label="Research company"@{nl="Bedrijf onderzoeken"}
+   require company.enabled and company.customer.active
+   do
+    create Run {parent=company,allow_fallback=fallback} as run
+    set company {current=run}
+    let cached=reusable(company,registry)
+    if not refresh and cached!=null
+     set run {primary=cached}
+     emit Assess {run}
+    else
+     require capacity(company)
+     create Lookup {parent=company,provider=registry} as lookup
+     send Sources.lookup {number=company.number,provider=registry} when=live(run) as request
+     set lookup {request}; set run {primary=lookup}
+    return run
+   examples company=linked_company seed=[primary] refresh=false fallback=true
+    as,company.enabled -> count(company.Lookup),company.current.primary==primary
+    analyst,true -> 1,true
+    analyst,false -> error(rule_failed)
+    members,true -> error(forbidden)
+   examples company=linked_company seed=[primary] refresh=true fallback=false
+    as -> count(company.Lookup),company.current.primary==primary
+    analyst -> 2,false
+   examples seed=[linked_company]
+    do
+     call start {company=linked_company,refresh=true,fallback=false} by=analyst
+     call start {company=linked_company,refresh=true,fallback=false} by=analyst
+     call start {company=linked_company,refresh=true,fallback=false} by=analyst
+     call start {company=linked_company,refresh=true,fallback=false} by=analyst
+     count(linked_company.Lookup) -> 4
+     call start {company=linked_company,refresh=true,fallback=false} by=analyst -> error(rule_failed)
+  # Only a selected live review may use the completion to continue its consented waterfall. @{nl="Alleen een geselecteerde actieve beoordeling mag na voltooiing verdergaan met de toegestane bronnenreeks."}
+  scenario looked_up on=Sources.lookup.completed
+   do
+    let lookup=first(Lookup as item where item.request?.id==event.delivery_id)
+    if lookup!=null and lookup.parent.current!=null and lookup.parent.current.primary==lookup
+     emit Assess {run=lookup.parent.current}
+  # Automatic secondary cost requires a definitive incomplete primary; uncertainty remains a human decision. @{nl="Automatische vervolgkosten vereisen een definitief onvolledig primair resultaat; onzekerheid blijft een menselijke beslissing."}
+  scenario assess on=Assess
+   do
+    let run=event.run
+    if live(run) and run.allow_fallback and run.fallback==null and run.primary!=null and run.primary.request?.status==succeeded
+     let value=report(run.primary)
+     if value!=null and value.complete and incomplete(value)
+      let cached=reusable(run.parent,aggregator)
+      if cached!=null
+       set run {fallback=cached}
+      else
+       if capacity(run.parent)
+        create Lookup {parent=run.parent,provider=aggregator} as lookup
+        send Sources.lookup {number=run.parent.number,provider=aggregator} when=live(run) as request
+        set lookup {request}; set run {fallback=lookup}
+   examples event={run=consented_run}
+    event.run.parent.current,event.run.primary,event.run.allow_fallback,event.run.stopped -> count(event.run.parent.Lookup),event.run.fallback!=null
+    consented_run,primary,true,false -> 2,true
+    consented_run,primary,false,false -> 1,false
+    consented_run,primary,true,true -> 1,false
+    consented_run,unknown_lookup,true,false -> 2,false
+   examples event={run=consented_run} seed=[secondary]
+    event.run.parent.current -> event.run.fallback==secondary,count(event.run.parent.Lookup)
+    consented_run -> true,2
+  # Explicitly consent to the secondary lookup after uncertainty or partial evidence. @{nl="Geef expliciet toestemming voor de tweede bron na onzeker of gedeeltelijk bewijs."}
+  scenario fallback(run:Run,refresh:bool=false) by=researcher label="Consult secondary source"@{nl="Tweede bron raadplegen"}
+   require live(run) and run.fallback==null and run.primary!=null and run.primary.request?.status in [succeeded,failed,unknown,skipped]
+   do
+    let cached=reusable(run.parent,aggregator)
+    if not refresh and cached!=null
+     set run {fallback=cached}
+    else
+     require capacity(run.parent)
+     create Lookup {parent=run.parent,provider=aggregator} as lookup
+     send Sources.lookup {number=run.parent.number,provider=aggregator} when=live(run) as request
+     set lookup {request}; set run {fallback=lookup}
+   examples run=consented_run refresh=false
+    as,run.parent.current,run.primary -> count(run.parent.Lookup),run.fallback!=null
+    analyst,consented_run,unknown_lookup -> 3,true
+    analyst,consented_run,primary -> 2,true
+    members,consented_run,primary -> error(forbidden)
+  # Accept one exact sourced fact against its previous decision; disagreeing providers never win silently. @{nl="Accepteer één exact brongegeven tegenover de vorige beslissing; tegenstrijdige bronnen winnen nooit stilzwijgend."}
+  scenario accept(run:Run,lookup:Lookup,field:AcceptedFact.field,prior:AcceptedFact?,reason:AcceptedFact.reason) by=reviewer label="Accept sourced fact"@{nl="Brongegeven accepteren"}
+   require live(run) and lookup in [run.primary,run.fallback] and lookup.request?.status==succeeded and current(run.parent,field)==prior
+   do
+    let value=report(lookup)
+    require value!=null and value.number==run.parent.number and value.provider==lookup.provider
+    let fact=selected(value,field)
+    require fact!=null and (prior==null or prior.value!=fact)
+    create AcceptedFact {parent=run.parent,field,ordinal=(prior?.ordinal??0)+1,lookup,value=fact,prior,reason} as accepted
+   examples run=review_run lookup=primary field=legal_name prior=null reason="Checked source"
+    as,run.parent.current,run.stopped -> count(run.parent.AcceptedFact)
+    editor,review_run,false -> 1
+    editor,review_run,true -> error(rule_failed)
+    editor,null,false -> error(rule_failed)
+    members,review_run,false -> error(forbidden)
+   examples run=review_run lookup=secondary field=legal_name reason="Reviewed disagreement" seed=[accepted]
+    as,run.parent.current,prior -> count(run.parent.AcceptedFact)
+    editor,review_run,accepted -> 2
+    editor,review_run,null -> error(rule_failed)
+   examples run=review_run lookup=primary field=registered_office prior=null reason="Missing is not a fact"
+    as,run.parent.current -> count(run.parent.AcceptedFact)
+    editor,review_run -> error(rule_failed)
+  # Stop this review without pretending that a charged provider request was cancelled. @{nl="Stop deze beoordeling zonder te doen alsof een betaalde externe aanvraag is geannuleerd."}
+  scenario stop(run:Run) by=researcher label="Stop review"@{nl="Beoordeling stoppen"}
+   do set run {stopped=true}
+   examples seed=[primary]
+    do
+     call start {company=linked_company,refresh=false,fallback=false} by=analyst as started
+     call stop {run=started} by=analyst
+     let stopped=first(Run as run where run.id==started.id)
+     stopped!=null -> true
+     stopped.stopped,linked_company.current==stopped -> true,true
+     call accept {run=stopped,lookup=primary,field=legal_name,prior=null,reason="Late result"} by=editor -> error(rule_failed)
+ Then
+  # Compare evidence, usage and prior decisions before accepting individual facts. @{nl="Vergelijk bewijs, gebruik en eerdere beslissingen voordat u afzonderlijke gegevens accepteert."}
+  page /enrichment title="Company enrichment"@{nl="Bedrijfsverrijking"} poll=5s
+   require researcher or reviewer
+   form Company.create
+   table Company as company where company.enabled==preferences.enabled columns=customer,number,enabled
+    edit fields=enabled
+    form start arguments={company}
+    details "Research and accepted facts"@{nl="Onderzoek en geaccepteerde gegevens"} display=drawer
+     text count(company.Lookup as lookup where local_date(lookup.created,"UTC")==local_date(now,"UTC"))
+     table company.Run as run columns=created,requested_by,primary.request.status,fallback.request.status,allow_fallback,stopped
+      actions fallback,stop
+      text run.primary?.request?.result,run.fallback?.request?.result
+      form accept arguments={run}
+     table company.AcceptedFact columns=field,ordinal,value,lookup.provider,prior,reviewer,reason,created
+     table company.Lookup columns=provider,created,request.status,request.result,request.error
+     history

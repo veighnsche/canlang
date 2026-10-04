@@ -1,0 +1,54 @@
+{
+  "scope": "Syntax and static descriptor checks only. Projection excludes unsupported constructs and is not a semantic or BDD test.",
+  "checks": [
+    {
+      "command": [
+        "node",
+        "--check",
+        "draft/CanEnrich.mjs"
+      ],
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "python3",
+        "tools/can_parser.py",
+        "draft/CanEnrich.can"
+      ],
+      "exit": 1,
+      "output": "draft/CanEnrich.can:15:63: syntax: type permits one array suffix followed by one nullable suffix"
+    },
+    {
+      "command": [
+        "python3",
+        "tools/can_parser.py",
+        "/tmp/CanEnrich-final-review-projection.can"
+      ],
+      "exit": 0,
+      "output": "Parsed 1 .can files (syntax only)."
+    }
+  ],
+  "inventory": {
+    "app": "CanEnrich",
+    "models": 4,
+    "userOperations": 4,
+    "trustedHandlers": 2,
+    "fixtures": 12,
+    "tables": 8,
+    "rows": 19,
+    "sequences": 2,
+    "resolvedReferences": 27
+  },
+  "projection_exclusions": [
+    "line 15: delivery type projected to text",
+    "lines 79-86: omit unsupported sequence",
+    "lines 159-166: omit unsupported sequence",
+    "line 169: omit unsupported page poll"
+  ],
+  "sha256": {
+    "draft/CanEnrich.can": "c06106fd11c787808249270aa88b71d9fd6af6b914c77b19fac9c92a86961176",
+    "draft/CanEnrich.mjs": "0a81a1cfdac1851c198d133958e1fb8358f1e0c17b4a90c368243a2665b183bc",
+    "draft/CanEnrich.md": "afcb11af6dd8e76e230d297b3e4db147d37ee452a631b43ffafc04664faad871"
+  }
+}

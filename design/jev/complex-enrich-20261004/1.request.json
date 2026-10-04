@@ -1,0 +1,13 @@
+{
+  "state": "A departmental enrichment app links a known UK company number to an existing customer. It obtains legal name, registered office and registry status from two configured typed providers. It retains source URL, source time and lookup identity; reuses successful results for seven days; allows at most four logical requests per company per UTC day; consults the second source automatically only after a definitive incomplete primary result and prior user consent. Unknown work requires explicit further cost consent. A person accepts each fact with a reason and expected prior accepted version. It never rewrites billing address or customer display name. Can already has typed contracts, records, protected asynchronous receipts, queries, current authorization, immutable evidence and transactions. Its new complex apps are intended to expose genuine primitive gaps, and syntax is still changeable. Compare two complete designs at draft stage, not available implementation. A uses those existing constructs with one Fact contract and a small app-owned enrichment policy. B introduces one reusable enrichment declaration covering cache, provider waterfall, provenance and fact acceptance, with the same explicit business settings. A is transparent and uses existing rules but may repeat orchestration across apps. B can reduce authoring but requires a broader lifecycle and rules for different policy combinations.",
+  "questions": {
+    "boundary": {
+      "type": "choice",
+      "instructions": "Which representation is the better initial language boundary for this concrete complete journey, balancing concise authoring, reusable mechanics, inspectable company policy and semantic scope?",
+      "criteria": {
+        "ordinary": "Use existing typed values, receipts and records; retain enrichment policy in the app.",
+        "enrichment": "Add a reusable enrichment declaration for cache, provider sequence, provenance and reviewed fact acceptance."
+      }
+    }
+  }
+}
