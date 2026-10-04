@@ -152,12 +152,12 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: Compact declaration/callback inventory with exact mismatch fixes or no-change evidence. New semantic questions are returned to Astra. No needless repeat of unrelated policy/body reviews.
   - Evidence: writer 01a10700-4a34-7c63-aad6-6bad3e9bfea1 released. NO-CHANGE: 2 crud declarations (Item/Threshold, delete=none), 4 enabled entries + 8 disabled identities (closed-world Movement/Projection) reconcile exactly; entry spot-check matches. Coordinator spot-verified; no files modified, .md untouched. Recorded at H004 catch-up (staging was held).
 
-- [ ] **A01 — Feedback selector and safe public decision history**
+- [x] **A01 — Feedback selector and safe public decision history**
   - Prerequisites: BLOCKED DESIGN: READY inbox message linking feedback-design.md; all overlapping writers released
   - Owner / files / interfaces: Muse implementation agent; draft/CanFeedback.can, draft/CanFeedback.md, draft/CanFeedback.mjs
   - Changes / traceability: Q1–Q3; apply the complete accepted design witness and its explicitly listed cases. The document filename is a destination, not a claim a design exists.
   - Acceptance: Agreed behavior, permissions and exact source/JS expectations match; focused checks; no unstated policy or invented dependency.
-  - Evidence: pending.
+  - Evidence: writer 01a10715-f84a-75c0-839e-02675ad1d0e3 released (H006 READY). Complete C4 witness applied verbatim: Decision/current_decision/contracts/owner-only policy/invariant/3 locks/derive, roadmap+moderate bodies, withdraw_decision + decision_history, both page roots, journey observations + withdrawal table + full 34-step sequence with JS descriptor, .md gap replacement. Coordinator verified every witness section, node --check OK, non-sequence parse exit 0, no public Decision grant, 2 private history sites only. Unexecuted behavior disclosed. No DESIGN/GRAMMAR change; C1/Rent-history/C3/C5 untouched.
 
 - [ ] **A02 — Shift complete population progress**
   - Prerequisites: BLOCKED DESIGN: READY inbox message linking progress-design.md; all overlapping writers released
@@ -310,6 +310,7 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - RESERVED M01: draft/MIGRATION.md current-status-only subsection — coordinator, no writer. No other party editing it (tree clean at reservation).
 - DONE M01: integration evidenced (§8.1/§13 census, 4/4 node-OK, example preservation, A/N distinguished blocked). RELEASED M01 MIGRATION.md.
 - DONE M02: BLOCKED-BRANCH handoff recorded. Zero active writers, zero reservations. A01-A06/N01-N10 deferred to READY; REVIEW/CLOSED untouched for Codex. Runtime-correctness unknown disclosed. Goal stays active for inbox wakes.
+- DONE A01: writer 01a10715-f84a-75c0-839e-02675ad1d0e3 RELEASED draft/CanFeedback.can, draft/CanFeedback.md, draft/CanFeedback.mjs. Inbox re-read: H001-H006, no newer IDs. Staged per H006 list only (trio + tasks + unmodified design/evidence/review/inbox/monitor).
 - ACK H005 NOTE watcher repaired: accepted. contextlib.closing fix noted; H002 command reusable when ready work next exhausts (not now — A01 active). No TUI-push claim.
 - ACK H006 READY A01 accepted: complete C4 feedback-design.md (457 lines) + review.md limits read in full. Scope: Decision/current_decision/contracts/policy/invariant/locks/derive, roadmap/moderate bodies, withdraw_decision/decision_history, both page roots, full target mirror, journey observations + withdrawal table + decision_history sequence, 15-row required-cases table. No DESIGN/GRAMMAR/runtime work. C1/Rent-history/C3/C5 remain unadopted.
 - RESERVED A01: draft/CanFeedback.can, draft/CanFeedback.md, draft/CanFeedback.mjs — writer 01a10715-f84a-75c0-839e-02675ad1d0e3 (A01 Feedback/17) active. J01 released; no pending Feedback edits at handoff (verified clean).
