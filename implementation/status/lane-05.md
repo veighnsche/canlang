@@ -2,6 +2,17 @@
 
 Status: active coordinator. Worktree/branch/goal recorded below; B0 plan committed here; implementation in slices.
 
+## Scope steering (2026-10-04, user-approved)
+
+implementation/briefs/05-ui.md + design/UI-COMPONENTS.md supersede the small-subset completion criteria: lane 05
+must deliver the entire approved 68-component typed catalog and UI library (daisyUI 5.7.47 pinned), the shared
+static RIGHT-sidebar shell (page menu, bottom-right user menu, common user configuration dialog, canonical login
+screen), and L1 discovery/emission coordination. The old S1–S8 small-inventory checklist below is preserved as
+history; completion is now defined by the correction slices C1–C9 and the 68-component coverage ledger. S1–S5
+merged work stands (shell/forms/htmx/collections/i18n foundations); C1 corrects the shell, C2 ships the full
+catalog contract, C3–C8 implement component families, C9 completes B1/B2/B3 + discovery evidence. Lane 08 owns
+draft/.can migration; lane 05 never edits draft/, examples/ or product .can files.
+
 Owner prompt: [lane 05](../prompts/05-ui.md).
 Worktree: /Users/vince/Projects/canlang-worktrees/lane-05-ui (owned; cleanup after all writers/viewers release).
 Branch prefix: muse/lane-05-ui/. Planning branch: muse/lane-05-ui/plan (from origin/main b06d873).
@@ -338,8 +349,116 @@ is closed. tsconfig.check.json inclusion for packages/ui still pending.
 
 ## Remaining work and cleanup
 
-Full lane scope per subtasks S1-S8. Owned resources: this worktree only; no build caches beyond packages/ui/
-node_modules (owned, disposable). No producer/docsandbox writes. Cleanup of worktree after final merge +
-writer/viewer release; never delete shared caches or unrelated processes. Known risks: L7 assembly timing
-(temp import seam), L1 emission-shape drift (mitigated by L5-authored contract + fixtures), DOM-harness
-selection (slice 5 evaluation), daisyUI version pin (class audit in components slice).
+Full lane scope per correction slices C1–C9 below (supersedes S1–S8 as completion criteria; S1–S5 merged stand).
+Owned resources: this worktree only; no build caches beyond packages/ui/node_modules (owned, disposable).
+No producer/docsandbox writes. Cleanup of worktree after final merge + writer/viewer release; never delete
+shared caches or unrelated processes. Known risks: L1 catalog-consumption timing (C2 ships contract + witness;
+L1 checking/emission is producer-owned), calendar date-picker adapter selection (C7, needs JEV), L7 workerd
+runner for B1/B2/B3, daisyUI pin drift (class audit per slice).
+
+## Correction slices C1–C9 (steering plan)
+
+- [x] C1 shell correction (branch muse/lane-05-ui/c1-shell, PR pending): drawer-end right sidebar,
+      bottom-right user menu (dropdown-top dropdown-end), user config dialog audit (panel region label,
+      focusable toggles), canonical login screen (LoginProps v0.6.0, next sanitization, CSRF). Worker:
+      shell.ts + shell.test.ts (53 shell tests). Suite 355/355 green.
+- [ ] C2 full catalog contract: all 68 Can words as catalog entries with binding profiles (leaf/group/
+      collection/field/bound/shared), typed props per family, appearance-token matrix substantiated against
+      pinned daisyUI 5.7.47 docs, L1 consumer witness (discovery/emission fixture). Coordinator + 1 worker.
+- [ ] C3 readable leaves + mockups: avatar, badge, status, kbd, mockup_code, countdown, progress,
+      radial_progress, divider, loading, skeleton, link, breadcrumbs, text_rotate. Two workers by file split.
+- [ ] C4 field controls + form integration: input, textarea, checkbox, toggle, radio, select, range, rating,
+      file_input, otp, label, validator, filter, calendar(field dispatch), explicit-control placement +
+      remainder/duplication rules in forms.ts. Two workers (controls + forms integration).
+- [ ] C5 groups + slots: accordion, collapse(=details), hero, footer, fieldset, join, stack, aura, mask,
+      hover_3d, tooltip, alert, toast, diff, indicator, chat_bubble, dropdown, modal, drawer, swap, fab,
+      stat suite, carousel, hover_gallery, steps, timeline. Two workers by file split.
+- [ ] C6 navigation + shared state: menu, navbar, dock, megamenu, theme_controller, pagination-in-collection,
+      button exclusive bindings (action/submit/target/opens). One worker + coordinator.
+- [ ] C7 collections + agenda + files + review: calendar (agenda dispatch), board, gallery (semantic),
+      file/media controls, CSV import panel, company review.ts, date-picker adapter (JEV selection). Two workers.
+- [ ] C8 settings + panels: preferences sections/panels, tabs, details/drawer completion, history, copy
+      (old S6 scope reconciled with new profiles). One worker + coordinator.
+- [ ] C9 catalog completion + B1/B2/B3 + discovery evidence: availability truthfulness audit, L1/L6/L7 joins,
+      real-route authority tests, agent-facing discovery proof. Coordinator-led.
+
+## 68-component coverage ledger (2026-10-04; renderer = @canlang/ui factory)
+
+Legend: factory/impl = implemented; (plan) = catalog-planned only; — = absent (C-slice assigned).
+Semantic helpers and CSS used inside other renderers do NOT count as selectable components.
+
+| # | Can word | daisyUI | Catalog | Renderer | Props | Slice |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | accordion | Accordion | — | — | — | C5 |
+| 2 | alert | Alert | — | — | — | C5 |
+| 3 | aura | Aura | — | — | — | C5 |
+| 4 | avatar | Avatar | — | — | — | C3 |
+| 5 | badge | Badge | — (badge CSS in forms/tables only) | — | — | C3 |
+| 6 | breadcrumbs | Breadcrumbs | — | — | — | C3/C6 |
+| 7 | button | Button | — (btn CSS everywhere; no Button factory) | — | — | C6 |
+| 8 | calendar | Calendar | plan (agenda-shaped) | — | — | C4/C7 |
+| 9 | card | Card | impl | card | CardProps | — (done S3) |
+| 10 | carousel | Carousel | — | — | — | C5 |
+| 11 | chat_bubble | Chat bubble | — | — | — | C5 |
+| 12 | checkbox | Checkbox | — (input CSS in forms only) | — | — | C4 |
+| 13 | collapse | Collapse | plan via details | — | — | C5 |
+| 14 | countdown | Countdown | — | — | — | C3 |
+| 15 | diff | Diff | — | — | — | C5 |
+| 16 | divider | Divider | — | — | — | C3 |
+| 17 | dock | Dock | — | — | — | C6 |
+| 18 | drawer | Drawer | — (shell-internal only) | — | — | C5 |
+| 19 | dropdown | Dropdown | — (shell-internal only) | — | — | C5 |
+| 20 | fab | FAB/Speed Dial | — | — | — | C5 |
+| 21 | fieldset | Fieldset | — (form-internal only) | — | — | C5 |
+| 22 | file_input | File Input | — | — | — | C4 |
+| 23 | filter | Filter | — | — | — | C4 |
+| 24 | footer | Footer | — | — | — | C5 |
+| 25 | hero | Hero | — | — | — | C5 |
+| 26 | hover_3d | Hover 3D Card | — | — | — | C5 |
+| 27 | hover_gallery | Hover Gallery | — | — | — | C5 |
+| 28 | indicator | Indicator | — | — | — | C5 |
+| 29 | input | Text Input | — (form-internal only) | — | — | C4 |
+| 30 | join | Join | — (toolbar-internal only) | — | — | C5 |
+| 31 | kbd | Kbd | — | — | — | C3 |
+| 32 | label | Label | — (form-internal only) | — | — | C4 |
+| 33 | link | Link | — | — | — | C3 |
+| 34 | list | List | impl | list | ListProps | — (done S3/S5) |
+| 35 | loading | Loading | impl via renderState | renderState | SharedStateProps | — (done S3) |
+| 36 | mask | Mask | — | — | — | C5 |
+| 37 | megamenu | Megamenu | — | — | — | C6 |
+| 38 | menu | Menu | — (shell-internal only) | — | — | C6 |
+| 39 | mockup_browser | Browser mockup | — | — | — | C3 |
+| 40 | mockup_code | Code mockup | — | — | — | C3 |
+| 41 | mockup_phone | Phone mockup | — | — | — | C3 |
+| 42 | mockup_window | Window mockup | — | — | — | C3 |
+| 43 | modal | Modal | — (shell-internal only) | — | — | C5 |
+| 44 | navbar | Navbar | — (shell-internal only) | — | — | C6 |
+| 45 | otp | OTP | — | — | — | C4 |
+| 46 | pagination | Pagination | — (collection-internal only) | — | — | C6 |
+| 47 | progress | Progress | — | — | — | C3 |
+| 48 | radial_progress | Radial progress | — | — | — | C3 |
+| 49 | radio | Radio | — (form-internal only) | — | — | C4 |
+| 50 | range | Range slider | — (form-internal only) | — | — | C4 |
+| 51 | rating | Rating | — (form-internal only) | — | — | C4 |
+| 52 | select | Select | — (form-internal only) | — | — | C4 |
+| 53 | skeleton | Skeleton | impl via renderState | renderState | SharedStateProps | — (done S3) |
+| 54 | stack | Stack | — | — | — | C5 |
+| 55 | stat | Stat | — | — | — | C5 |
+| 56 | status | Status | — | — | — | C3 |
+| 57 | steps | Steps | — | — | — | C5 |
+| 58 | swap | Swap | — | — | — | C5 |
+| 59 | tabs | Tabs | plan | — | — | C8 |
+| 60 | table | Table | impl | table | TableProps | — (done S3/S5) |
+| 61 | text_rotate | Text Rotate | — | — | — | C3 |
+| 62 | textarea | Textarea | — (form-internal only) | — | — | C4 |
+| 63 | theme_controller | Theme Controller | — | — | — | C6 |
+| 64 | timeline | Timeline | — | — | — | C5 |
+| 65 | toast | Toast | — | — | — | C5 |
+| 66 | toggle | Toggle | — (form-internal only) | — | — | C4 |
+| 67 | tooltip | Tooltip | — | — | — | C5 |
+| 68 | validator | Validator | — | — | — | C4 |
+
+Non-catalog semantic constructs (kept, owned behavior): page (renderPage, done S2; C1 corrects),
+form/edit/delete/action/actions (done S4), title/text/content (done S3), navigation (done S2),
+copy/history/board/gallery (planned; C7/C8), export/print links (done S5), settings panels (C8),
+review/csv-import (C7), htmx/collections controls (done S5).

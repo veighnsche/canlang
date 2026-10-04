@@ -6,15 +6,18 @@ import {
 } from "../../contracts/src/presentation.js";
 import type {
   AdmissionOutcome,
+  LoginProps,
   MessageValue,
   NavigationResult,
   PageDescriptor,
   PresentationContext,
   ShellData,
 } from "../../contracts/src/presentation.js";
+import type { Element } from "happy-dom";
 import { message } from "../src/messages.js";
 import { buildNavigation, selectDiscoveryCandidates } from "../src/navigation.js";
-import { pageDirection, pageLocale, renderPage } from "../src/shell.js";
+import { pageDirection, pageLocale, renderLogin, renderPage } from "../src/shell.js";
+import { loadHtml } from "./harness.js";
 import { EXPENSE_FULL_PAGES, TEAMTASKS_FULL_PAGES } from "./fixtures/descriptors.js";
 
 function makeContext(
@@ -151,14 +154,14 @@ describe("drawer and navigation", () => {
       [],
       makeShell(),
     );
-    assert.match(html, /<div class="drawer lg:drawer-open">/);
+    assert.match(html, /<div class="drawer drawer-end lg:drawer-open">/);
     assert.match(
       html,
       /<input id="can-drawer" type="checkbox" class="drawer-toggle">/,
     );
     assert.match(
       html,
-      /<label for="can-drawer" class="btn btn-square btn-ghost">/,
+      /<label for="can-drawer" tabindex="0" class="btn btn-square btn-ghost">/,
     );
     assert.match(html, /<span class="sr-only">Open menu<\/span>/);
     assert.match(html, /<svg aria-hidden="true"/);
@@ -251,7 +254,7 @@ describe("authenticated account menu", () => {
         },
       }),
     );
-    assert.match(html, /dropdown dropdown-top/);
+    assert.match(html, /dropdown dropdown-top dropdown-end/);
     assert.match(
       html,
       /<div tabindex="0" role="button" class="btn btn-block">&lt;img src=x onerror=alert\(1\)&gt;<\/div>/,
@@ -380,7 +383,7 @@ describe("settings frame", () => {
     assert.match(html, /<h2 id="can-settings-title">Settings<\/h2>/);
     assert.match(
       html,
-      /<label for="can-settings" class="btn btn-sm btn-circle absolute right-2 top-2" aria-label="Close">✕<\/label>/,
+      /<label for="can-settings" tabindex="0" class="btn btn-sm btn-circle absolute right-2 top-2" aria-label="Close">✕<\/label>/,
     );
     assert.match(
       html,
@@ -390,7 +393,7 @@ describe("settings frame", () => {
       html,
       /<li><button type="button" data-settings-section="theme">Theme<\/button><\/li>/,
     );
-    assert.match(html, /<section class="can-settings-panel"><p>panel<\/p><\/section>/);
+    assert.match(html, /<section class="can-settings-panel" role="region" aria-label="Profile"><p>panel<\/p><\/section>/);
   });
 
   it("renders an empty panel when panelHtml is absent", async () => {
@@ -399,7 +402,7 @@ describe("settings frame", () => {
       ...shell,
       settings: { sections: shell.settings.sections },
     });
-    assert.match(html, /<section class="can-settings-panel"><\/section>/);
+    assert.match(html, /<section class="can-settings-panel" role="region" aria-label="Profile"><\/section>/);
   });
 });
 
@@ -671,5 +674,412 @@ describe("navigation join", () => {
     assert.ok(!html.includes("/expenses/review"));
     assert.match(html, /<p role="status">Navigation is temporarily incomplete\.<\/p>/);
     assert.match(html, /<main id="can-main"><p>body<\/p><\/main>/);
+  });
+});
+
+function makeLogin(overrides: Partial<LoginProps> = {}): LoginProps {
+  return {
+    context: makeContext(),
+    action: "/sign-in",
+    brand: message("CanApp", { nl: "KanApp" }),
+    next: "/todos",
+    idPrefix: "can-login",
+    ...overrides,
+  };
+}
+
+describe("right sidebar DOM structure", () => {
+  it("places the sidebar aside inside .drawer-side with brand, nav and account", async () => {
+    const html = await renderPage(
+      makeContext(),
+      makeDescriptor(),
+      [],
+      makeShell(),
+    );
+    const page = await loadHtml(html);
+    try {
+      const drawer = page.document.querySelector("div.drawer");
+      assert.ok(drawer !== null);
+      assert.ok(drawer.classList.contains("drawer-end"));
+      const aside = page.document.querySelector(".drawer-side > aside");
+      assert.ok(aside !== null);
+      assert.ok(aside.querySelector(".can-brand") !== null);
+      const nav = aside.querySelector("nav");
+      assert.ok(nav !== null);
+      assert.equal(nav.getAttribute("hx-boost"), "true");
+      assert.ok(aside.querySelector(".can-account") !== null);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("keeps the mobile navbar toggle targeting the collapse checkbox", async () => {
+    const html = await renderPage(
+      makeContext(),
+      makeDescriptor(),
+      [],
+      makeShell(),
+    );
+    const page = await loadHtml(html);
+    try {
+      const toggle = page.document.querySelector(".navbar label[for='can-drawer']");
+      assert.ok(toggle !== null);
+      const checkbox = page.document.querySelector("input#can-drawer.drawer-toggle");
+      assert.ok(checkbox !== null);
+      assert.equal(checkbox?.getAttribute("type"), "checkbox");
+    } finally {
+      await page.close();
+    }
+  });
+});
+
+describe("bottom-right account menu DOM", () => {
+  it("opens upward aligned to the right edge", async () => {
+    const html = await renderPage(
+      makeContext(),
+      makeDescriptor(),
+      [],
+      makeShell(),
+    );
+    const page = await loadHtml(html);
+    try {
+      const menu = page.document.querySelector(".can-account.dropdown");
+      assert.ok(menu !== null);
+      assert.ok(menu.classList.contains("dropdown-top"));
+      assert.ok(menu.classList.contains("dropdown-end"));
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("posts team and sign-out forms to ShellRoutes URLs with CSRF hiddens", async () => {
+    const html = await renderPage(
+      makeContext(),
+      makeDescriptor(),
+      [],
+      makeShell(),
+    );
+    const page = await loadHtml(html);
+    try {
+      const forms = [...page.document.querySelectorAll(".can-account form")];
+      assert.ok(forms.length >= 2);
+      for (const form of forms) {
+        assert.equal(form.getAttribute("method"), "POST");
+        const action = form.getAttribute("action");
+        assert.ok(action === "/team" || action === "/sign-out");
+        const csrf = form.querySelector(`input[type='hidden'][name='${CSRF_FIELD}']`);
+        assert.ok(csrf !== null);
+        assert.equal(csrf?.getAttribute("value"), "csrf-123");
+      }
+      const teamForm = forms.find((form) => form.getAttribute("action") === "/team");
+      assert.ok(teamForm !== undefined);
+      assert.ok(teamForm.querySelector(`input[type='hidden'][name='${TEAM_FIELD}']`) !== null);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("neutralizes hostile switchTeam and signOut route URLs", async () => {
+    const html = await renderPage(
+      makeContext(),
+      makeDescriptor(),
+      [],
+      makeShell({
+        routes: {
+          signIn: "/sign-in",
+          signOut: "javascript:alert(1)",
+          switchTeam: "javascript:alert(1)",
+        },
+      }),
+    );
+    assert.ok(!html.includes("javascript:"));
+    const page = await loadHtml(html);
+    try {
+      const forms = [...page.document.querySelectorAll(".can-account form")];
+      assert.ok(forms.length >= 1);
+      for (const form of forms) {
+        assert.equal(form.getAttribute("action"), "#");
+      }
+    } finally {
+      await page.close();
+    }
+  });
+});
+
+describe("settings dialog accessibility", () => {
+  it("exposes a labelled modal dialog with current section and close control", async () => {
+    const html = await renderPage(
+      makeContext(),
+      makeDescriptor(),
+      [],
+      makeShell(),
+    );
+    const page = await loadHtml(html);
+    try {
+      const dialog = page.document.querySelector("[role='dialog']");
+      assert.ok(dialog !== null);
+      assert.equal(dialog.getAttribute("aria-modal"), "true");
+      const labelledby = dialog.getAttribute("aria-labelledby");
+      assert.ok(labelledby !== null && labelledby !== "");
+      const title = labelledby === null ? null : page.document.querySelector(`#${labelledby}`);
+      assert.ok(title !== null);
+      assert.equal(title?.textContent, "Settings");
+      const current = page.document.querySelector(
+        ".can-settings-sidebar button[aria-current]",
+      );
+      assert.ok(current !== null);
+      assert.equal(current?.textContent, "Profile");
+      const close = page.document.querySelector("label[for='can-settings'][aria-label]");
+      assert.ok(close !== null);
+      assert.equal(close?.getAttribute("aria-label"), "Close");
+      assert.equal(close?.getAttribute("tabindex"), "0");
+      const panel = page.document.querySelector("section.can-settings-panel");
+      assert.ok(panel !== null);
+      assert.equal(panel?.getAttribute("role"), "region");
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("renders an unnamed region when no section is active", async () => {
+    const shell = makeShell();
+    const html = await renderPage(makeContext(), makeDescriptor(), [], {
+      ...shell,
+      settings: {
+        sections: shell.settings.sections.map((section) => ({ ...section, active: false })),
+        panelHtml: "<p>panel</p>",
+      },
+    });
+    assert.match(html, /<section class="can-settings-panel" role="region"><p>panel<\/p><\/section>/);
+    assert.ok(!html.includes("data-settings-section=\"profile\" aria-current"));
+  });
+});
+
+describe("renderLogin", () => {
+  it("renders a full document with a centered brand card", async () => {
+    const html = await renderLogin(makeLogin());
+    assert.match(html, /^<!DOCTYPE html>/);
+    assert.match(html, /<html lang="en" dir="ltr" data-theme="can-system-blue">/);
+    assert.match(html, /<meta charset="utf-8">/);
+    assert.match(html, /<title>CanApp<\/title>/);
+    assert.match(html, /<body class="density-comfortable">/);
+    assert.match(html, /<main class="hero"><div class="hero-content">/);
+    assert.match(
+      html,
+      /<section class="card bg-base-100 shadow"><div class="card-body">/,
+    );
+    assert.match(html, /<h1 class="card-title">CanApp<\/h1>/);
+    assert.ok(!html.includes("<script"));
+  });
+
+  it("posts to the dispatcher action with CSRF and labelled inputs", async () => {
+    const html = await renderLogin(makeLogin());
+    const page = await loadHtml(html);
+    try {
+      const form = page.document.querySelector("form");
+      assert.ok(form !== null);
+      assert.equal(form?.getAttribute("method"), "POST");
+      assert.equal(form?.getAttribute("action"), "/sign-in");
+      const csrf = form?.querySelector(`input[type='hidden'][name='${CSRF_FIELD}']`);
+      assert.equal(csrf?.getAttribute("value"), "csrf-123");
+      const username = form?.querySelector("input[name='username']");
+      assert.ok(username !== null);
+      assert.equal(username?.getAttribute("id"), "can-login-username");
+      assert.equal(username?.getAttribute("type"), "text");
+      assert.equal(username?.getAttribute("autocomplete"), "username");
+      const password = form?.querySelector("input[name='password']");
+      assert.ok(password !== null);
+      assert.equal(password?.getAttribute("id"), "can-login-password");
+      assert.equal(password?.getAttribute("type"), "password");
+      assert.equal(password?.getAttribute("autocomplete"), "current-password");
+      for (const input of [username, password]) {
+        const id = input?.getAttribute("id") ?? "";
+        const label: Element | null | undefined = form?.querySelector(
+          `label[for='${id}']`,
+        );
+        assert.ok(label !== null && label !== undefined);
+        assert.ok((label?.textContent ?? "").length > 0);
+      }
+      assert.match(html, /<button type="submit" class="btn btn-primary">Sign in<\/button>/);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("shows the error alert only when an error is supplied", async () => {
+    const withError = await renderLogin(
+      makeLogin({ error: message("Bad credentials", { nl: "Onjuiste gegevens" }) }),
+    );
+    assert.match(withError, /<div role="alert" class="alert alert-error">/);
+    assert.match(withError, /<p>Sign-in failed<\/p><p>Bad credentials<\/p>/);
+    const withoutError = await renderLogin(makeLogin());
+    assert.ok(!withoutError.includes('role="alert"'));
+  });
+
+  it("sanitizes the next redirect to same-app paths", async () => {
+    const cases: Array<[string | undefined, string]> = [
+      ["/todos", "/todos"],
+      ["/", "/"],
+      ["//evil", "/"],
+      ["https://x", "/"],
+      ["javascript:alert(1)", "/"],
+      ["\\evil", "/"],
+      ["/\\evil", "/"],
+      ["todos", "/"],
+      ["", "/"],
+      [undefined, "/"],
+    ];
+    for (const [next, expected] of cases) {
+      const base = makeLogin();
+      const props: LoginProps =
+        next === undefined
+          ? {
+              context: base.context,
+              action: base.action,
+              brand: base.brand,
+              idPrefix: base.idPrefix,
+            }
+          : { ...base, next };
+      const html = await renderLogin(props);
+      assert.match(
+        html,
+        new RegExp(`<input type="hidden" name="next" value="${expected}">`),
+      );
+    }
+  });
+
+  it("escapes hostile brand, action, error and idPrefix", async () => {
+    const html = await renderLogin(
+      makeLogin({
+        action: "javascript:alert(1)",
+        brand: `"><script>alert(1)</script>`,
+        error: `"><script>alert(1)</script>`,
+        idPrefix: `x"><script>alert(1)</script>`,
+        next: `/x"><script>alert(1)</script>`,
+      }),
+    );
+    assert.ok(!html.includes("<script>alert(1)</script>"));
+    assert.ok(!html.includes("javascript:alert(1)"));
+    assert.match(html, /<form method="POST" action="#">/);
+    assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+    assert.match(html, /id="x&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;-username"/);
+    assert.match(html, /for="x&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;-username"/);
+    assert.match(html, /name="next" value="\/x&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;"/);
+  });
+
+  it("localizes login chrome in Dutch", async () => {
+    const html = await renderLogin(
+      makeLogin({
+        context: makeContext({ preferredLocales: ["nl"] }),
+        error: message("Bad credentials", { nl: "Onjuiste gegevens" }),
+      }),
+    );
+    assert.match(html, /<html lang="nl"/);
+    assert.match(html, /<h1 class="card-title">KanApp<\/h1>/);
+    assert.match(html, />Gebruikersnaam<\/label>/);
+    assert.match(html, />Wachtwoord<\/label>/);
+    assert.match(html, /<button type="submit" class="btn btn-primary">Aanmelden<\/button>/);
+    assert.match(html, /<p>Aanmelden mislukt<\/p><p>Onjuiste gegevens<\/p>/);
+  });
+});
+
+describe("focus behavior", () => {
+  it("focuses the login username input", async () => {
+    const html = await renderLogin(makeLogin());
+    const page = await loadHtml(html);
+    try {
+      const username = page.document.querySelector(
+        "input#can-login-username",
+      ) as unknown as {
+        focus(): void;
+      } | null;
+      assert.ok(username !== null);
+      username.focus();
+      const activeId = (page.document.activeElement as { id: string } | null)?.id;
+      assert.equal(activeId, "can-login-username");
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("focuses the sidebar toggle", async () => {
+    const html = await renderPage(
+      makeContext(),
+      makeDescriptor(),
+      [],
+      makeShell(),
+    );
+    const page = await loadHtml(html);
+    try {
+      const toggle = page.document.querySelector(
+        ".navbar label[for='can-drawer']",
+      ) as unknown as {
+        focus(): void;
+      } | null;
+      assert.ok(toggle !== null);
+      toggle.focus();
+      assert.equal(page.document.activeElement, toggle as unknown);
+    } finally {
+      await page.close();
+    }
+  });
+});
+
+describe("chrome XSS gaps", () => {
+  it("never renders entry descriptions", async () => {
+    const evil = `"><script>alert(1)</script>`;
+    const html = await renderPage(
+      makeContext(),
+      makeDescriptor(),
+      [],
+      makeShell({
+        navigation: {
+          groups: [
+            {
+              owner: "o",
+              caption: "G",
+              entries: [
+                { owner: "o", path: "/x", title: "Evil", description: evil, active: false },
+              ],
+            },
+          ],
+          incomplete: false,
+        },
+      }),
+    );
+    assert.ok(!html.includes(evil));
+    assert.ok(!html.includes("<script>alert(1)</script>"));
+  });
+
+  it("keeps accessible names escaped after the shell edits", async () => {
+    const html = await renderPage(
+      makeContext({ preferredLocales: ["nl"] }),
+      makeDescriptor(),
+      [],
+      makeShell(),
+    );
+    const page = await loadHtml(html);
+    try {
+      const overlay = page.document.querySelector("label.drawer-overlay");
+      assert.equal(overlay?.getAttribute("aria-label"), "Menu sluiten");
+      const close = page.document.querySelector("label[for='can-settings'][aria-label]");
+      assert.equal(close?.getAttribute("aria-label"), "Sluiten");
+      const panel = page.document.querySelector("section.can-settings-panel");
+      assert.equal(panel?.getAttribute("aria-label"), "Profiel");
+    } finally {
+      await page.close();
+    }
+    const hostile = await renderPage(
+      makeContext(),
+      makeDescriptor(),
+      [],
+      makeShell({
+        settings: {
+          sections: [{ id: "s", caption: `"><script>alert(1)</script>`, active: true }],
+        },
+      }),
+    );
+    assert.ok(!hostile.includes(`"><script>alert(1)</script>`));
+    assert.match(hostile, /aria-label="&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;"/);
   });
 });

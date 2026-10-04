@@ -12,6 +12,7 @@ import {
   TEAM_FIELD,
 } from "../../contracts/src/presentation.js";
 import type {
+  LoginProps,
   MessageValue,
   NavigationEntry,
   PageChildren,
@@ -44,6 +45,10 @@ const CHROME = {
   signOut: message("Sign out", { nl: "Afmelden" }),
   signIn: message("Sign in", { nl: "Aanmelden" }),
   close: message("Close", { nl: "Sluiten" }),
+  loginUsername: message("Username", { nl: "Gebruikersnaam" }),
+  loginPassword: message("Password", { nl: "Wachtwoord" }),
+  loginSubmit: message("Sign in", { nl: "Aanmelden" }),
+  loginErrorHeading: message("Sign-in failed", { nl: "Aanmelden mislukt" }),
 } as const;
 
 /**
@@ -129,7 +134,7 @@ function renderAccount(shell: ShellData, context: PresentationContext): string {
     .join("");
 
   return (
-    `<div class="can-account dropdown dropdown-top p-4">` +
+    `<div class="can-account dropdown dropdown-top dropdown-end p-4">` +
     `<div tabindex="0" role="button" class="btn btn-block">${toggle}</div>` +
     `<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box w-64 p-2 shadow">` +
     `<li><label for="can-settings">${settingsLabel}</label></li>` +
@@ -156,13 +161,20 @@ function renderSettings(shell: ShellData, context: PresentationContext): string 
   // passed through verbatim and must never carry raw request data.
   const panel = shell.settings.panelHtml ?? "";
   const closeLabel = escapeAttr(resolveText(CHROME.close, context));
+  const activeSection = shell.settings.sections.find(
+    (section) => section.active,
+  );
+  const panelLabel =
+    activeSection === undefined
+      ? ""
+      : ` aria-label="${escapeAttr(resolveText(activeSection.caption, context))}"`;
   return (
     `<input id="can-settings" type="checkbox" class="modal-toggle">` +
     `<div class="modal"><div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="can-settings-title">` +
-    `<label for="can-settings" class="btn btn-sm btn-circle absolute right-2 top-2" aria-label="${closeLabel}">✕</label>` +
+    `<label for="can-settings" tabindex="0" class="btn btn-sm btn-circle absolute right-2 top-2" aria-label="${closeLabel}">✕</label>` +
     `<h2 id="can-settings-title">${title}</h2>` +
     `<section class="can-settings-sidebar"><ul class="menu">${sections}</ul></section>` +
-    `<section class="can-settings-panel">${panel}</section>` +
+    `<section class="can-settings-panel" role="region"${panelLabel}>${panel}</section>` +
     `</div></div>`
   );
 }
@@ -224,11 +236,11 @@ export const renderPage: RenderPageFn = async (
     metaDescription +
     `<title>${headTitle}</title></head>` +
     `<body class="density-${escapeAttr(context.theme.density)}">` +
-    `<div class="drawer lg:drawer-open">` +
+    `<div class="drawer drawer-end lg:drawer-open">` +
     `<input id="can-drawer" type="checkbox" class="drawer-toggle">` +
     `<div class="drawer-content">` +
     `<div class="navbar lg:hidden">` +
-    `<label for="can-drawer" class="btn btn-square btn-ghost">` +
+    `<label for="can-drawer" tabindex="0" class="btn btn-square btn-ghost">` +
     `<span class="sr-only">${openMenu}</span>` +
     `<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>` +
     `</label></div>` +
@@ -248,3 +260,77 @@ export const renderPage: RenderPageFn = async (
     `</body></html>`
   );
 };
+
+/**
+ * Sanitize a post-sign-in redirect: allow only same-app relative paths
+ * starting with exactly one "/". Anything else fails closed to the app root.
+ */
+function sanitizeNext(next: string | undefined): string {
+  if (typeof next !== "string") {
+    return "/";
+  }
+  if (!next.startsWith("/") || next.startsWith("//")) {
+    return "/";
+  }
+  if (next.includes("\\")) {
+    return "/";
+  }
+  return next;
+}
+
+/**
+ * Canonical login screen: full document with a centered sign-in card. The
+ * form POSTs to the dispatcher-supplied signIn route with CSRF; lane 05
+ * renders only and never implements an account flow.
+ */
+export async function renderLogin(props: LoginProps): Promise<string> {
+  const context = props.context;
+  const locale = pageLocale(context);
+  const direction = pageDirection(locale);
+  const brand = resolveText(props.brand, context);
+  const theme = `can-${context.theme.mode}-${context.theme.accent}`;
+  const action = escapeAttr(safeHref(props.action));
+  const csrfField = escapeAttr(CSRF_FIELD);
+  const csrfToken = escapeAttr(context.csrfToken);
+  const next = escapeAttr(sanitizeNext(props.next));
+  const usernameId = escapeAttr(`${props.idPrefix}-username`);
+  const passwordId = escapeAttr(`${props.idPrefix}-password`);
+  const usernameLabel = escapeHtml(
+    resolveText(CHROME.loginUsername, context),
+  );
+  const passwordLabel = escapeHtml(
+    resolveText(CHROME.loginPassword, context),
+  );
+  const submitLabel = escapeHtml(resolveText(CHROME.loginSubmit, context));
+  const error =
+    props.error === undefined
+      ? ""
+      : `<div role="alert" class="alert alert-error">` +
+        `<p>${escapeHtml(resolveText(CHROME.loginErrorHeading, context))}</p>` +
+        `<p>${escapeHtml(resolveText(props.error, context))}</p>` +
+        `</div>`;
+
+  return (
+    `<!DOCTYPE html>` +
+    `<html lang="${escapeAttr(locale)}" dir="${escapeAttr(direction)}" data-theme="${escapeAttr(theme)}">` +
+    `<head><meta charset="utf-8">` +
+    `<meta name="viewport" content="width=device-width, initial-scale=1">` +
+    `<title>${escapeHtml(brand)}</title></head>` +
+    `<body class="density-${escapeAttr(context.theme.density)}">` +
+    `<main class="hero"><div class="hero-content">` +
+    `<section class="card bg-base-100 shadow"><div class="card-body">` +
+    `<h1 class="card-title">${escapeHtml(brand)}</h1>` +
+    error +
+    `<form method="POST" action="${action}">` +
+    `<input type="hidden" name="${csrfField}" value="${csrfToken}">` +
+    `<fieldset><label for="${usernameId}" class="label">${usernameLabel}</label>` +
+    `<input id="${usernameId}" name="username" type="text" autocomplete="username" required class="input"></fieldset>` +
+    `<fieldset><label for="${passwordId}" class="label">${passwordLabel}</label>` +
+    `<input id="${passwordId}" name="password" type="password" autocomplete="current-password" required class="input"></fieldset>` +
+    `<input type="hidden" name="next" value="${next}">` +
+    `<button type="submit" class="btn btn-primary">${submitLabel}</button>` +
+    `</form>` +
+    `</div></section></div></main>` +
+    `</body></html>`
+  );
+}
