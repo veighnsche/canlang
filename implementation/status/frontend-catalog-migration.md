@@ -82,6 +82,33 @@ New-syntax adoption rule: approved catalog bindings only; record execution gaps 
 - PR #43 slice 2 batch A: reviewed head 7853b06 (substance 4acba2f approve-with-nits; delta was the 1 requested status nit; rebased onto 742c618 L2 PR5, disjoint), tools+workspace green, squash-merged as cc67da7. URL: https://github.com/veighnsche/canlang/pull/43. Golden-corpus impact live on main: 26 E1200 (2 examples + 24 batch A), L1 track.
 - PR #46 slice 4 docs sync: reviewed head ece84f5 (substance cc6fe88 approve-with-nits; delta was the 6 requested one-word nits; base 3819b23 L6 #44, disjoint), tools+workspace green, squash-merged as ef02fdc. URL: https://github.com/veighnsche/canlang/pull/46. Draft-first direction now on main.
 
+## Slice 16: full replans Board/Do/Trade/Table/Report (branch muse/frontend-catalog-migration/slice-16-lane-l, in progress)
+
+Paths: draft/Can{Board,Do,Trade,Table,Report} (.can+.md+.mjs; Do/Report/
+Trade .mjs new) + this status file. Source: lane-L drafter output under
+/tmp/draftL, applied + corrected by coordinator. Coordinator corrections:
+chunks re-indented +2 (drafter wrote col-0); breadcrumbs moved after
+require (8 pages); Board timeline slot-item pagination removed (pagination
+only in collection suites; timeline is not a collection per GRAMMAR);
+Board paper button gated (nullable file); Agenda.create += title/position/
+discussion; Action.create += owner ## note; Do/Report state text deduped
+(badge suffices, base had both); Task.create += location/description/due;
+Template.create += location; Post.create += location/category/amount/
+contact; Cafe.create += location; Table.create += seats; Booking.create +=
+contact/party/notes/priority (interval/table stay flow-owned). All mirrored
+in witnesses (ternary-gate convention for the paper button). .md wording
+aligned. Given/When byte-identical (splice-verified). node --check clean.
+Census: 27 collections w/ empty+pagination; 9 pages w/ breadcrumbs; 9
+modals w/ button/inline (Do/Report modal-free: reads + row-only ops).
+Drift: +166 E1200 (base 30), no E1204. Ok on main. Prototype stops at
+first breadcrumbs per file (new catalog); base stops at pre-existing
+badge/identifier gaps. Catalog rulings recorded: tabs preferences.view
+legal (UI-COMPONENTS Tabs row); gallery IS a collection (GRAMMAR L419 ->
+pagination required; N1-Creative fix queued); timeline is not.
+Handoff: (a) array control; (b) user-picker vocabulary (owner/account/
+assignee generated); (c) modal/timeline/hero/metrics/fab/chat-bubble/
+board renderers.
+
 ## Slice 15: full replan Rent (branch muse/frontend-catalog-migration/slice-15-rent, in progress)
 
 Paths: draft/CanRent (.can+.md+.mjs) + this status file. Source: lane-K
