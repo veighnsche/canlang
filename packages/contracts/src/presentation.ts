@@ -1059,10 +1059,15 @@ export interface AccordionItem {
   readonly open?: boolean;
 }
 
-/** `accordion` single-open disclosure group (pinned upstream radio-input pattern). */
+/**
+ * `accordion` single-open disclosure group (pinned upstream radio-input pattern).
+ * The optional caption names the radio group for assistive technology
+ * (role=group/aria-label); authors should supply it.
+ */
 export interface AccordionProps {
   readonly context: PresentationContext;
   readonly items: ReadonlyArray<AccordionItem>;
+  readonly caption?: MessageValue;
   readonly id?: string;
 }
 
@@ -1105,7 +1110,10 @@ export interface HeroSlots {
   readonly end?: PageChild;
 }
 
-/** `hero` prominent group: either children or slots, never both and never neither. */
+/**
+ * `hero` prominent group: either children or slots, never both and never neither.
+ * The caption renders as the page h1; pages should carry a single hero.
+ */
 export interface HeroProps {
   readonly context: PresentationContext;
   readonly caption?: MessageValue;
@@ -1252,6 +1260,7 @@ export interface ModalProps {
   readonly caption: MessageValue;
   readonly id?: string;
   readonly content: PageChildren;
+  /** Custom opener; must be an `a[href="#id"]` link — a bare button is inert without JS. */
   readonly trigger?: PageChildren;
   readonly actions?: PageChildren;
   readonly variant?: AppearanceVariant;
@@ -1263,6 +1272,7 @@ export interface DrawerProps {
   readonly caption: MessageValue;
   readonly id: string;
   readonly content: PageChildren;
+  /** Custom opener; must be a `label[for="id"]` — a bare button cannot toggle without JS. */
   readonly trigger?: PageChildren;
   readonly actions?: PageChildren;
   readonly variant?: AppearanceVariant;

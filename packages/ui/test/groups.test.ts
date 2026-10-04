@@ -110,6 +110,29 @@ describe("accordion", () => {
       accordion({ context: makeContext(), id: "has space", items: [{ caption: "a", children: ["x"] }] }),
     );
   });
+
+  it("names the radio group when captioned and stays bare otherwise", async () => {
+    const html = await accordion({
+      context: makeContext(),
+      caption: "FAQ",
+      items: [{ caption: "a", children: ["x"] }],
+    });
+    assert.ok(html.includes(`role="group" aria-label="FAQ"`), html);
+    const bare = await accordion({
+      context: makeContext(),
+      items: [{ caption: "a", children: ["x"] }],
+    });
+    assert.ok(!bare.includes("role="), bare);
+    const xss = await accordion({
+      context: makeContext(),
+      caption: XSS,
+      items: [{ caption: "a", children: ["x"] }],
+    });
+    assert.ok(!xss.includes("<script>"), xss);
+    await assert.rejects(() =>
+      accordion({ context: makeContext(), caption: "", items: [{ caption: "a", children: ["x"] }] }),
+    );
+  });
 });
 
 describe("collapse", () => {
@@ -385,6 +408,13 @@ describe("stat", () => {
     await assert.rejects(() => stat({ context: makeContext(), value: null }));
     await assert.rejects(() => stat({ context: makeContext(), value: undefined }));
   });
+
+  it("renders the icon slot inside stat-figure", async () => {
+    const html = await stat({ context: makeContext(), value: 7, icon: "<span>I</span>" });
+    assert.ok(html.includes(`<div class="stat-figure"><span>I</span></div>`), html);
+    const bare = await stat({ context: makeContext(), value: 7 });
+    assert.ok(!bare.includes("stat-figure"), bare);
+  });
 });
 
 describe("steps", () => {
@@ -511,7 +541,8 @@ describe("carousel", () => {
 describe("diff", () => {
   it("renders before/after slots with a resizer and localized names", async () => {
     const html = await diff({ context: makeContext(), before: "<p>old</p>", after: "<p>new</p>" });
-    assert.ok(html.includes(`<figure class="diff" tabindex="0">`), html);
+    assert.ok(html.includes(`<figure class="diff">`), html);
+    assert.equal(html.match(/tabindex="0"/g)?.length ?? 0, 2);
     assert.ok(html.includes(`<div class="diff-item-1" role="img" tabindex="0" aria-label="Before">`), html);
     assert.ok(html.includes(`<div class="diff-item-2" role="img" tabindex="0" aria-label="After">`), html);
     assert.ok(html.includes(`<div class="diff-resizer"></div>`), html);

@@ -154,7 +154,8 @@ function requireValue(factory: string, field: string, value: TextValue): TextVal
  * Single-open disclosure group: one or more collapse items sharing a radio
  * name (the pinned upstream accordion pattern). More than one `open` item
  * fails closed. The radio name derives from `id` when given, so repeated
- * accordions on one page stay independent.
+ * accordions on one page stay independent. An optional caption names the
+ * radio group for assistive technology (role=group/aria-label).
  */
 export async function accordion(props: AccordionProps): Promise<string> {
   appearanceClasses("accordion", "accordion", pickAppearance(props));
@@ -163,6 +164,14 @@ export async function accordion(props: AccordionProps): Promise<string> {
   }
   if (props.items.filter((item) => item.open === true).length > 1) {
     throw new Error("accordion admits at most one open item");
+  }
+  let group = "";
+  if (props.caption !== undefined) {
+    const name = captionOf(props.context, props.caption);
+    if (name === "") {
+      throw new Error("accordion caption must not be empty");
+    }
+    group = ` role="group" aria-label="${escapeAttr(name)}"`;
   }
   const name = escapeAttr(
     props.id === undefined ? DEFAULT_ACCORDION_NAME : `accordion-${props.id}`,
@@ -185,7 +194,7 @@ export async function accordion(props: AccordionProps): Promise<string> {
       );
     }),
   );
-  return `<div class="join join-vertical w-full"${idAttr("accordion", props.id)}>${rendered.join("")}</div>`;
+  return `<div class="join join-vertical w-full"${idAttr("accordion", props.id)}${group}>${rendered.join("")}</div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -256,7 +265,8 @@ export async function stack(props: StackProps): Promise<string> {
 
 /**
  * Prominent scoped content group: either a compact children suite or the
- * closed start/content/end slot schema, never both and never neither.
+ * closed start/content/end slot schema, never both and never neither. The
+ * caption renders as the page h1; pages should carry a single hero.
  */
 export async function hero(props: HeroProps): Promise<string> {
   const modifiers = appearanceClasses("hero", "hero", pickAppearance(props));
@@ -471,7 +481,7 @@ export async function diff(props: DiffProps): Promise<string> {
   const beforeLabel = escapeAttr(captionOf(props.context, DIFF_BEFORE));
   const afterLabel = escapeAttr(captionOf(props.context, DIFF_AFTER));
   return (
-    `<figure class="diff" tabindex="0"${idAttr("diff", props.id)}>` +
+    `<figure class="diff"${idAttr("diff", props.id)}>` +
     `<div class="diff-item-1" role="img" tabindex="0" aria-label="${beforeLabel}">${before}</div>` +
     `<div class="diff-item-2" role="img" tabindex="0" aria-label="${afterLabel}">${after}</div>` +
     `<div class="diff-resizer"></div></figure>`

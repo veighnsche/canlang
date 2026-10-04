@@ -414,14 +414,25 @@ describe("modal", () => {
     assert.ok(html.startsWith(`<a class="btn" href="#review_details">Score review</a>`), html);
   });
 
-  it("renders a provided trigger and labels the dialog without an id", async () => {
+  it("renders a provided anchor trigger against the dialog id", async () => {
     const html = await modal({
       context: makeContext(),
       caption: "Notice",
-      trigger: [`<button class="btn">Show</button>`],
+      id: "notice",
+      trigger: [`<a class="btn" href="#notice">Show</a>`],
       content: ["<p>Body</p>"],
     });
-    assert.ok(html.includes(`<button class="btn">Show</button>`), html);
+    assert.ok(html.includes(`<a class="btn" href="#notice">Show</a>`), html);
+    assert.ok(html.includes(`aria-labelledby="notice-title"`), html);
+  });
+
+  it("labels the dialog without an id", async () => {
+    const html = await modal({
+      context: makeContext(),
+      caption: "Notice",
+      trigger: [`<a class="btn" href="#notice">Show</a>`],
+      content: ["<p>Body</p>"],
+    });
     assert.ok(html.includes(`<dialog class="modal" aria-label="Notice">`), html);
   });
 
@@ -537,15 +548,15 @@ describe("drawer", () => {
     }
   });
 
-  it("renders a provided trigger instead of the opener", async () => {
+  it("renders a provided label trigger instead of the opener", async () => {
     const html = await drawer({
       context: makeContext(),
       caption: "F",
       id: "panel",
-      trigger: [`<button class="btn">Custom</button>`],
+      trigger: [`<label for="panel" class="btn">Custom</label>`],
       content: ["<p>Body</p>"],
     });
-    assert.ok(html.includes(`<button class="btn">Custom</button>`), html);
+    assert.ok(html.includes(`<label for="panel" class="btn">Custom</label>`), html);
     assert.ok(!html.includes("drawer-button"), html);
   });
 
@@ -572,6 +583,12 @@ describe("drawer", () => {
   it("fails closed on missing or invalid id, caption and content", async () => {
     await assert.rejects(
       drawer({ context: makeContext(), caption: "F", id: "", content: ["x"] }),
+      /must match/,
+    );
+    await assert.rejects(
+      drawer(
+        withExtra({ context: makeContext(), caption: "F", id: "p", content: ["x"] }, { id: undefined }),
+      ),
       /must match/,
     );
     await assert.rejects(
@@ -614,6 +631,13 @@ describe("swap", () => {
     assert.ok(!html.includes("<script>"), html);
   });
 
+  it("rejects an empty label instead of emitting an empty name", async () => {
+    await assert.rejects(
+      swap({ context: makeContext(), on: ["a"], off: ["b"], label: "" }),
+      /caption must not be empty/,
+    );
+  });
+
   it("admits no appearance matrix", async () => {
     await assert.rejects(
       swap(withExtra({ context: makeContext(), on: ["a"], off: ["b"] }, { tone: "info" })),
@@ -635,10 +659,8 @@ describe("fab", () => {
       actions: [`<button class="btn">One</button>`, `<button class="btn">Two</button>`],
     });
     assert.ok(html.startsWith(`<div class="fab" role="group" aria-label="Quick actions">`), html);
-    assert.ok(
-      html.includes(`<div tabindex="0" role="button" aria-label="Quick actions">+</div>`),
-      html,
-    );
+    assert.ok(html.includes(`<div tabindex="0" role="button">+</div>`), html);
+    assert.equal(html.match(/aria-label=/g)?.length ?? 0, 1);
     assert.ok(html.includes(`<button class="btn">One</button><button class="btn">Two</button>`), html);
   });
 
@@ -740,7 +762,21 @@ describe("hover3d", () => {
   });
 
   it("rejects interactive descendants", async () => {
-    for (const tag of ["button", "a href=/x", "input", "select", "textarea", "label", "details"]) {
+    for (const tag of [
+      "button",
+      "a href=/x",
+      "input",
+      "select",
+      "textarea",
+      "label",
+      "details",
+      "dialog",
+      "video",
+      "audio",
+      "iframe src=/x",
+      "embed",
+      "object",
+    ]) {
       await assert.rejects(
         hover3d({ context: makeContext(), content: [`<${tag}>x</${tag.split(" ")[0]}>`] }),
         /forbids interactive descendants/,

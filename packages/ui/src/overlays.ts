@@ -73,7 +73,7 @@ const CHROME = {
 const ACTIVATION_ID_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
 
 /** Interactive descendants forbidden inside hover_3d (upstream restriction). */
-const INTERACTIVE_TAG_RE = /<(a|button|input|select|textarea|label|details|dialog|video|audio)[\s>/]/i;
+const INTERACTIVE_TAG_RE = /<(a|button|input|select|textarea|label|details|dialog|video|audio|iframe|embed|object)[\s>/]/i;
 
 /** Pinned upstream hover_gallery image bounds; excess is an error, never cut. */
 const HOVER_GALLERY_MIN_IMAGES = 1;
@@ -162,7 +162,9 @@ function regionAttrs(regionId: string | undefined): string {
 }
 
 function assertActivationId(word: string, id: string): void {
-  if (!ACTIVATION_ID_RE.test(id)) {
+  // Explicit string check first: RE.test(undefined) coerces to "undefined",
+  // which matches, so a missing id would slip past the pattern alone.
+  if (typeof id !== "string" || !ACTIVATION_ID_RE.test(id)) {
     throw new Error(
       `${word} id ${JSON.stringify(id)} must match /^[A-Za-z][A-Za-z0-9_-]*$/`,
     );
@@ -282,7 +284,9 @@ export async function dropdown(props: DropdownProps): Promise<string> {
  * `modal`: native dialog with captioned box and optional action slot. The
  * dialog opens through the upstream :target pattern: the generated opener
  * links to #id (hence trigger-or-id is required) and the close control
- * links back to #. A provided trigger carries its own activation binding.
+ * links back to #. A provided trigger carries its own activation binding:
+ * without JS only an `a[href="#id"]` opener reaches the dialog, so authors
+ * must pass that shape (a bare `<button>` trigger is inert).
  */
 export async function modal(props: ModalProps): Promise<string> {
   const modifiers = appearanceClasses("modal", "modal", pickAppearance(props));
@@ -322,7 +326,9 @@ export async function modal(props: ModalProps): Promise<string> {
 /**
  * `drawer`: checkbox-toggled side panel holding the scoped content, with the
  * trigger (or a generated drawer-button opener) in the content area. The id
- * is required: the JS-free toggle/label contract cannot work without it.
+ * is required: the JS-free toggle/label contract cannot work without it. A
+ * provided trigger carries its own binding: without JS only a
+ * `label[for="id"]` toggles the panel, so authors must pass that shape.
  */
 export async function drawer(props: DrawerProps): Promise<string> {
   const modifiers = appearanceClasses("drawer", "drawer", pickAppearance(props));
@@ -365,7 +371,7 @@ export async function swap(props: SwapProps): Promise<string> {
   const label =
     props.label === undefined
       ? ""
-      : ` aria-label="${escapeAttr(resolveCaption(props.label, props.context))}"`;
+      : ` aria-label="${escapeAttr(requireCaption("swap", props.label, props.context))}"`;
   return (
     `<label class="swap"><input type="checkbox"${checked}${label}>` +
     `<div class="swap-on">${on}</div><div class="swap-off">${off}</div></label>`
@@ -387,7 +393,7 @@ export async function fab(props: FabProps): Promise<string> {
   const actions = await requireChildren("fab actions", props.actions);
   return (
     `<div class="fab" role="group" aria-label="${escapeAttr(label)}">` +
-    `<div tabindex="0" role="button" aria-label="${escapeAttr(label)}">${main}</div>` +
+    `<div tabindex="0" role="button">${main}</div>` +
     `${actions}</div>`
   );
 }
