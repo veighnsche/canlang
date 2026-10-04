@@ -8,10 +8,13 @@
 //! yields one diagnostic per defect without cascades.
 //!
 //! This parser implements the complete normative grammar, including the
-//! prototype gaps recorded in GRAMMAR.md: `delivery(path)` types,
-//! sequence-form examples, preference ordering, CSV form import
-//! attributes, page `refresh`, structured derived-field labels and CRUD
-//! `expose`. Diagnostics use codes E1200–E1216 (see `syntax::mod` catalog).
+//! prototype gaps recorded in GRAMMAR.md: `delivery(path)` and
+//! `invocation(paths)` types, sequence-form examples, preference
+//! ordering, CSV form import attributes, page `refresh`, structured
+//! derived-field labels and CRUD `expose`, plus `corpus`/`judgment`
+//! declarations, `gallery` collections, `slot` items, `preferences`
+//! panels, `edit` suites and generic catalog component items.
+//! Diagnostics use codes E1200–E1216 (see `syntax::mod` catalog).
 
 use crate::diagnostic::Diagnostic;
 use crate::source::{SourceId, Span};
@@ -311,6 +314,7 @@ fn is_compound_head(text: &str, piece: &[Token]) -> bool {
             | "Then"
             | "scenario"
             | "capability"
+            | "judgment"
             | "page"
             | "examples"
             | "backfill"
@@ -355,6 +359,12 @@ fn piece_has_error(piece: &[Token]) -> bool {
 /// attribute, not a token. A stray `uses` (app name, caption value) or
 /// a nested `uses=` inside delimiters must not select composed.
 fn app_has_uses_attr(text: &str, toks: &[Token]) -> bool {
+    header_has_attr(text, toks, "uses")
+}
+
+/// Whether header tokens carry a depth-zero `name=` attribute. Nested
+/// `name=` inside delimiters never counts.
+fn header_has_attr(text: &str, toks: &[Token], name: &str) -> bool {
     let mut depth = 0u32;
     for (index, token) in toks.iter().enumerate() {
         if let TokenKind::Punct(punct) = token.kind {
@@ -366,7 +376,7 @@ fn app_has_uses_attr(text: &str, toks: &[Token]) -> bool {
             continue;
         }
         if depth == 0
-            && token.is_name(text, "uses")
+            && token.is_name(text, name)
             && toks
                 .get(index + 1)
                 .is_some_and(|next| next.is_punct(Punct::Eq))
@@ -2134,6 +2144,23 @@ impl<'a> Parser<'a> {
         Ok(SyntaxNode::enclosing(SyntaxKind::Selectors, kids))
     }
 
+    /// Parse one singular `selector` (a plain path): no sign prefix, no
+    /// comma continuation. Wrapped as [`SyntaxKind::Selectors`] so selector
+    /// attributes share one node shape.
+    fn parse_selector(&mut self, cursor: &mut Cursor<'a>) -> Result<SyntaxNode, Fail> {
+        let mut kids = Vec::new();
+        let (path, _) = self.parse_path_node(cursor)?;
+        self.builder.push_inner(&mut kids, path);
+        if cursor.at_p(Punct::Comma) {
+            return Err(Fail::new(
+                "E1200",
+                "this attribute takes one selector".to_string(),
+                cursor.span_here(),
+            ));
+        }
+        Ok(SyntaxNode::enclosing(SyntaxKind::Selectors, kids))
+    }
+
     /// Parse comma-separated observation expressions into `kids`,
     /// interleaving values and separators in document order. Returns the
     /// value nodes (cloned) for arity and shape checks.
@@ -2156,10 +2183,12 @@ impl<'a> Parser<'a> {
         Ok(values)
     }
 
-    /// Parse a type: named/union/enum/action/delivery with flat suffixes.
+    /// Parse a type: named/union/enum/action/delivery/invocation with flat suffixes.
     fn parse_type(&mut self, cursor: &mut Cursor<'a>) -> Result<SyntaxNode, Fail> {
-        let mut node = if matches!(cursor.word(), Some("enum" | "action" | "delivery"))
-            && cursor.peek2().is_some_and(|t| t.is_punct(Punct::LParen))
+        let mut node = if matches!(
+            cursor.word(),
+            Some("enum" | "action" | "delivery" | "invocation")
+        ) && cursor.peek2().is_some_and(|t| t.is_punct(Punct::LParen))
         {
             let head = cursor.next().expect("peeked type head");
             let word = head.text(cursor.text).to_string();
@@ -2173,13 +2202,14 @@ impl<'a> Parser<'a> {
             } else if word == "enum" {
                 self.parse_enum_items(cursor, &mut kids)?;
             } else {
-                self.parse_action_items(cursor, &mut kids)?;
+                self.parse_path_items(cursor, &mut kids, word.as_str())?;
             }
             let close = cursor.expect_p(Punct::RParen)?;
             self.builder.leaf(&mut kids, &close);
             let kind = match word.as_str() {
                 "enum" => SyntaxKind::EnumType,
                 "action" => SyntaxKind::ActionType,
+                "invocation" => SyntaxKind::InvocationType,
                 _ => SyntaxKind::DeliveryType,
             };
             SyntaxNode::enclosing(kind, kids)
@@ -2255,13 +2285,16 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_action_items(
+    /// Parse a nonempty comma-separated path list for `action(...)` and
+    /// `invocation(...)` (distinctness is a semantic check).
+    fn parse_path_items(
         &mut self,
         cursor: &mut Cursor<'a>,
         kids: &mut Vec<SyntaxNode>,
+        what: &str,
     ) -> Result<(), Fail> {
         if cursor.at_p(Punct::RParen) {
-            return cursor.err("E1213", "action requires at least one entry");
+            return cursor.err("E1213", format!("{what} requires at least one entry"));
         }
         loop {
             let (path, _) = self.parse_path_node(cursor)?;
@@ -2553,6 +2586,8 @@ enum HeaderKind {
     Lock,
     Retain,
     Capability,
+    Corpus,
+    Judgment,
     Crud,
     GuardRequire,
     Page,
@@ -2562,6 +2597,7 @@ enum HeaderKind {
     Table,
     Board,
     Calendar,
+    Gallery,
     Form,
     Edit,
     Migration,
@@ -2578,6 +2614,7 @@ enum HeaderKind {
 enum AttrKind {
     Expr,
     Selectors,
+    Selector,
     UiOrder,
     Type,
     Path,
@@ -2610,6 +2647,10 @@ fn attr_kind(header: HeaderKind, name: &str) -> Option<AttrKind> {
         (HeaderKind::Lock, "when") => AttrKind::Expr,
         (HeaderKind::Retain, "until") => AttrKind::Expr,
         (HeaderKind::Capability, "version") => AttrKind::Expr,
+        (HeaderKind::Corpus, "model" | "scope" | "title" | "from") => AttrKind::Path,
+        (HeaderKind::Corpus, "content") => AttrKind::Selectors,
+        (HeaderKind::Corpus, "where") => AttrKind::Expr,
+        (HeaderKind::Judgment, "version") => AttrKind::Expr,
         (HeaderKind::Crud, "by") => AttrKind::Expr,
         (HeaderKind::Crud, "fields") => AttrKind::Selectors,
         (HeaderKind::Crud, "create_fields") => AttrKind::Selectors,
@@ -2642,6 +2683,12 @@ fn attr_kind(header: HeaderKind, name: &str) -> Option<AttrKind> {
         (HeaderKind::Calendar, "search" | "filter") => AttrKind::Selectors,
         (HeaderKind::Calendar, "empty") => AttrKind::Expr,
         (HeaderKind::Calendar, "defaults") => AttrKind::Object,
+        (HeaderKind::Gallery, "image") => AttrKind::Selector,
+        (HeaderKind::Gallery, "columns") => AttrKind::Selectors,
+        (HeaderKind::Gallery, "order") => AttrKind::UiOrder,
+        (HeaderKind::Gallery, "search" | "filter") => AttrKind::Selectors,
+        (HeaderKind::Gallery, "empty") => AttrKind::Expr,
+        (HeaderKind::Gallery, "defaults") => AttrKind::Object,
         (HeaderKind::Form, "arguments") => AttrKind::Object,
         (HeaderKind::Form, "fields") => AttrKind::Selectors,
         (HeaderKind::Form, "submit") => AttrKind::Expr,
@@ -2666,11 +2713,14 @@ fn required_attrs(header: HeaderKind) -> &'static [&'static str] {
         HeaderKind::Unique | HeaderKind::Lock => &["fields"],
         HeaderKind::Retain => &["until"],
         HeaderKind::Capability => &["version"],
+        HeaderKind::Corpus => &["model", "scope", "title", "content", "where", "from"],
+        HeaderKind::Judgment => &["version"],
         HeaderKind::Crud => &["by", "fields"],
         HeaderKind::Page => &["title"],
         HeaderKind::Table => &["columns"],
         HeaderKind::Board => &["by"],
         HeaderKind::Calendar => &["start", "end"],
+        HeaderKind::Gallery => &["image"],
         HeaderKind::Migration => &["from"],
         HeaderKind::Binding => &["key"],
         HeaderKind::Queue => &["type"],
@@ -2715,6 +2765,10 @@ impl<'a> Parser<'a> {
                 }
                 AttrKind::Selectors => {
                     let value = self.parse_selectors(cursor)?;
+                    self.builder.push_inner(&mut attr, value);
+                }
+                AttrKind::Selector => {
+                    let value = self.parse_selector(cursor)?;
                     self.builder.push_inner(&mut attr, value);
                 }
                 AttrKind::UiOrder => {
@@ -3261,6 +3315,14 @@ impl<'a> Parser<'a> {
                     self.parse_capability(cursor, kids, children, prelude)?;
                     return Ok(None);
                 }
+                Some("corpus") => {
+                    self.parse_corpus(cursor, kids, children, prelude)?;
+                    return Ok(None);
+                }
+                Some("judgment") => {
+                    self.parse_judgment(cursor, kids, children, prelude)?;
+                    return Ok(None);
+                }
                 Some("derive") => {
                     self.parse_derive(cursor, kids, children, prelude)?;
                     return Ok(None);
@@ -3725,6 +3787,280 @@ impl<'a> Parser<'a> {
         cursor.end()?;
         let node = SyntaxNode::enclosing(SyntaxKind::CapabilityOp, inner);
         self.builder.push_inner(kids, node);
+        Ok(())
+    }
+
+    /// Parse `corpus NAME` with its six required attributes. Corpora are
+    /// unexported Given leaves.
+    fn parse_corpus(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+        children: &'a [LogicalLine],
+        prelude: Vec<Token>,
+    ) -> Result<(), Fail> {
+        if !prelude.is_empty() {
+            return Err(Fail::new(
+                "E1212",
+                "corpora cannot be exported".to_string(),
+                prelude[0].span,
+            ));
+        }
+        let mut inner = Vec::new();
+        let head = cursor.expect_name_is("corpus")?;
+        self.builder.leaf(&mut inner, &head);
+        let name = cursor.expect_name()?;
+        self.builder.leaf(&mut inner, &name);
+        self.parse_attributes(cursor, &mut inner, HeaderKind::Corpus)?;
+        cursor.end()?;
+        let node = SyntaxNode::enclosing(SyntaxKind::Corpus, inner);
+        self.builder.push_inner(kids, node);
+        let span = cursor.eof;
+        self.swallow_children(kids, children, "corpus", span);
+        Ok(())
+    }
+
+    fn parse_judgment(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+        children: &'a [LogicalLine],
+        prelude: Vec<Token>,
+    ) -> Result<(), Fail> {
+        let mut inner = Vec::new();
+        for token in &prelude {
+            self.builder.leaf(&mut inner, token);
+        }
+        let head = cursor.expect_name_is("judgment")?;
+        self.builder.leaf(&mut inner, &head);
+        let name = cursor.expect_name()?;
+        self.builder.leaf(&mut inner, &name);
+        self.parse_attributes(cursor, &mut inner, HeaderKind::Judgment)?;
+        cursor.end()?;
+        if children.is_empty() {
+            return Err(Fail::new(
+                "E1204",
+                "judgment requires at least one question".to_string(),
+                head.span,
+            ));
+        }
+        for child in children {
+            if child.tokens.is_empty() {
+                self.push_dangling(&mut inner, child);
+                continue;
+            }
+            let (pieces, seps) = match split_pieces(&child.tokens, self.file) {
+                Ok(split) => split,
+                Err(fail) => {
+                    self.diags.push(fail.diag());
+                    self.error_for_line(&mut inner, child);
+                    continue;
+                }
+            };
+            if pieces.len() > 1 {
+                if !child.children.is_empty() {
+                    self.diags.push(
+                        Fail::new(
+                            "E1205",
+                            "semicolon sequences cannot own an indented suite".to_string(),
+                            child.tokens[0].span,
+                        )
+                        .diag(),
+                    );
+                    self.error_for_line(&mut inner, child);
+                    continue;
+                }
+                if let Err(fail) = check_semi_heads(self.text, &pieces) {
+                    self.diags.push(fail.diag());
+                    self.error_for_line(&mut inner, child);
+                    continue;
+                }
+            }
+            self.push_description(&mut inner, child);
+            for (index, piece) in pieces.iter().enumerate() {
+                if piece_has_error(piece) {
+                    self.error_for_tokens(&mut inner, piece);
+                } else {
+                    let eof = piece_eof(piece, self.file, Span::new(self.file, 0, 0));
+                    let mut item_cursor = self.cursor(piece, eof);
+                    let result = self.attempt(&mut inner, |parser, scratch| {
+                        parser.parse_judgment_item(&mut item_cursor, scratch)
+                    });
+                    if let Err(fail) = result {
+                        self.diags.push(fail.diag());
+                        self.error_for_tokens(&mut inner, piece);
+                    }
+                    let span = piece.first().map(|t| t.span).unwrap_or(eof);
+                    self.swallow_children(&mut inner, &child.children, "judgment item", span);
+                }
+                if index < seps.len() {
+                    self.builder.leaf(&mut inner, &seps[index]);
+                }
+            }
+        }
+        let node = SyntaxNode::enclosing(SyntaxKind::Judgment, inner);
+        self.builder.push_inner(kids, node);
+        Ok(())
+    }
+
+    /// Parse one judgment question: `NAME noul|choice|score ...`.
+    fn parse_judgment_item(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+    ) -> Result<(), Fail> {
+        let mut inner = Vec::new();
+        let name = cursor.expect_name()?;
+        self.builder.leaf(&mut inner, &name);
+        let kind_token = cursor.expect_name()?;
+        let kind_word = kind_token.text(cursor.text).to_string();
+        self.builder.leaf(&mut inner, &kind_token);
+        match kind_word.as_str() {
+            "noul" => {
+                let caption = self.parse_caption(cursor)?;
+                self.builder.push_inner(&mut inner, caption);
+                if cursor.at_name("yes") {
+                    let yes = cursor.next().expect("peeked yes");
+                    self.builder.leaf(&mut inner, &yes);
+                    let eq = cursor.expect_p(Punct::Eq)?;
+                    self.builder.leaf(&mut inner, &eq);
+                    let yes_caption = self.parse_caption(cursor)?;
+                    self.builder.push_inner(&mut inner, yes_caption);
+                    if !cursor.at_name("no") {
+                        return Err(Fail::new(
+                            "E1204",
+                            "noul requires both yes and no criteria".to_string(),
+                            cursor.eof,
+                        ));
+                    }
+                    let no = cursor.next().expect("peeked no");
+                    self.builder.leaf(&mut inner, &no);
+                    let eq = cursor.expect_p(Punct::Eq)?;
+                    self.builder.leaf(&mut inner, &eq);
+                    let no_caption = self.parse_caption(cursor)?;
+                    self.builder.push_inner(&mut inner, no_caption);
+                }
+            }
+            "choice" => {
+                let caption = self.parse_caption(cursor)?;
+                self.builder.push_inner(&mut inner, caption);
+                if cursor.at_name("options") {
+                    let options = cursor.next().expect("peeked options");
+                    self.builder.leaf(&mut inner, &options);
+                    let eq = cursor.expect_p(Punct::Eq)?;
+                    self.builder.leaf(&mut inner, &eq);
+                    let runtime = cursor.expect_name()?;
+                    if runtime.text(cursor.text) != "runtime" {
+                        return Err(Fail::new(
+                            "E1200",
+                            "choice options marker must be options=runtime".to_string(),
+                            runtime.span,
+                        ));
+                    }
+                    self.builder.leaf(&mut inner, &runtime);
+                    if cursor.at_p(Punct::LBrace) {
+                        self.parse_judgment_options(cursor, &mut inner, true)?;
+                    }
+                } else if cursor.at_p(Punct::LBrace) {
+                    self.parse_judgment_options(cursor, &mut inner, true)?;
+                } else {
+                    return Err(Fail::new(
+                        "E1204",
+                        "choice requires static options or options=runtime".to_string(),
+                        cursor.eof,
+                    ));
+                }
+            }
+            "score" => {
+                let caption = self.parse_caption(cursor)?;
+                self.builder.push_inner(&mut inner, caption);
+                if !cursor.at_p(Punct::LBracket) {
+                    return Err(Fail::new(
+                        "E1204",
+                        "score requires a level list".to_string(),
+                        cursor.eof,
+                    ));
+                }
+                self.parse_judgment_options(cursor, &mut inner, false)?;
+            }
+            _ => {
+                return Err(Fail::new(
+                    "E1200",
+                    format!("judgment item requires noul, choice or score, not `{kind_word}`"),
+                    kind_token.span,
+                ));
+            }
+        }
+        cursor.end()?;
+        let node = SyntaxNode::enclosing(SyntaxKind::JudgmentItem, inner);
+        self.builder.push_inner(kids, node);
+        Ok(())
+    }
+
+    /// Parse a nonempty `{NAME=caption, ...}` (braces) or `[NAME=caption,
+    /// ...]` (brackets) option map with unique names.
+    fn parse_judgment_options(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+        braces: bool,
+    ) -> Result<(), Fail> {
+        let open = if braces {
+            cursor.expect_p(Punct::LBrace)?
+        } else {
+            cursor.expect_p(Punct::LBracket)?
+        };
+        self.builder.leaf(kids, &open);
+        let mut seen: Vec<String> = Vec::new();
+        while !(if braces {
+            cursor.at_p(Punct::RBrace)
+        } else {
+            cursor.at_p(Punct::RBracket)
+        }) {
+            if cursor.done() {
+                let closer = if braces { "`}`" } else { "`]`" };
+                return cursor.err(
+                    "E1200",
+                    format!("expected {closer} to close the option map"),
+                );
+            }
+            let key = cursor.expect_name()?;
+            let word = key.text(cursor.text).to_string();
+            if seen.contains(&word) {
+                return Err(Fail::new(
+                    "E1202",
+                    format!("duplicate judgment option `{word}`"),
+                    key.span,
+                ));
+            }
+            seen.push(word);
+            let mut option = Vec::new();
+            self.builder.leaf(&mut option, &key);
+            let eq = cursor.expect_p(Punct::Eq)?;
+            self.builder.leaf(&mut option, &eq);
+            let caption = self.parse_caption(cursor)?;
+            self.builder.push_inner(&mut option, caption);
+            let option = SyntaxNode::enclosing(SyntaxKind::JudgmentOption, option);
+            self.builder.push_inner(kids, option);
+            if !cursor.at_p(Punct::Comma) {
+                break;
+            }
+            let comma = cursor.next().expect("peeked comma");
+            self.builder.leaf(kids, &comma);
+        }
+        let close = if braces {
+            cursor.expect_p(Punct::RBrace)?
+        } else {
+            cursor.expect_p(Punct::RBracket)?
+        };
+        self.builder.leaf(kids, &close);
+        if seen.is_empty() {
+            return Err(Fail::new(
+                "E1204",
+                "judgment options must contain at least one entry".to_string(),
+                open.span,
+            ));
+        }
         Ok(())
     }
 }
@@ -4218,17 +4554,9 @@ impl<'a> Parser<'a> {
                 self.parse_statements(&mut kids, &line.children, mapper);
             }
         } else {
-            if !line.children.is_empty() {
-                self.diags.push(
-                    Fail::new(
-                        "E1200",
-                        "inline do cannot own an indented suite".to_string(),
-                        head.span,
-                    )
-                    .diag(),
-                );
-                self.error_for_children(&mut kids, &line.children);
-            }
+            // Document order first: the header's trailing tokens precede
+            // the suite's lines, so they are parsed before the unexpected
+            // suite is wrapped (reversing this panics the builder).
             let rest = &line.tokens[cursor.pos..];
             match split_pieces(rest, self.file) {
                 Ok((pieces, seps)) => {
@@ -4266,6 +4594,17 @@ impl<'a> Parser<'a> {
                     self.diags.push(fail.diag());
                     self.error_for_tokens(&mut kids, rest);
                 }
+            }
+            if !line.children.is_empty() {
+                self.diags.push(
+                    Fail::new(
+                        "E1200",
+                        "inline do cannot own an indented suite".to_string(),
+                        head.span,
+                    )
+                    .diag(),
+                );
+                self.error_for_children(&mut kids, &line.children);
             }
         }
         let node = SyntaxNode::enclosing(SyntaxKind::DoBlock, kids);
@@ -5300,26 +5639,27 @@ impl<'a> Parser<'a> {
                 self.builder.push_inner(kids, node);
                 Ok(())
             }
-            "list" | "table" | "board" | "calendar" => {
+            "list" | "table" | "board" | "gallery" => {
                 let header = match word.as_str() {
                     "list" => HeaderKind::List,
                     "table" => HeaderKind::Table,
                     "board" => HeaderKind::Board,
-                    _ => HeaderKind::Calendar,
+                    _ => HeaderKind::Gallery,
                 };
-                let mut inner = Vec::new();
-                self.builder.leaf(&mut inner, &head);
-                let stop: Stop = &|w| attr_kind(header, w).is_some();
-                let query = self.parse_expr(cursor, stop, true, true)?;
-                self.builder.push_inner(&mut inner, query);
-                self.parse_attributes(cursor, &mut inner, header)?;
-                cursor.end()?;
-                for child in children {
-                    self.parse_ui_child(&mut inner, child);
+                self.parse_collection(head, cursor, kids, children, header)
+            }
+            "calendar" => {
+                // Written-shape dispatch: both endpoints select the agenda
+                // collection; a selector without endpoints is the catalog's
+                // field-placement date control. A partial endpoint header
+                // takes the agenda path and fails its required attribute.
+                let has_start = header_has_attr(cursor.text, cursor.toks, "start");
+                let has_end = header_has_attr(cursor.text, cursor.toks, "end");
+                if has_start || has_end {
+                    self.parse_collection(head, cursor, kids, children, HeaderKind::Calendar)
+                } else {
+                    self.parse_catalog_item(head, cursor, kids, children)
                 }
-                let node = SyntaxNode::enclosing(SyntaxKind::Collection, inner);
-                self.builder.push_inner(kids, node);
-                Ok(())
             }
             "form" => {
                 let mut inner = Vec::new();
@@ -5341,10 +5681,53 @@ impl<'a> Parser<'a> {
                 self.builder.leaf(&mut inner, &head);
                 self.parse_attributes(cursor, &mut inner, HeaderKind::Edit)?;
                 cursor.end()?;
+                // The leaf control stays valid; the optional presentation
+                // suite shares the owning update schema.
+                for child in children {
+                    self.parse_ui_child(&mut inner, child);
+                }
                 let node = SyntaxNode::enclosing(SyntaxKind::Edit, inner);
                 self.builder.push_inner(kids, node);
-                let span = cursor.eof;
-                self.swallow_children(kids, children, "edit", span);
+                Ok(())
+            }
+            "slot" => {
+                let mut inner = Vec::new();
+                self.builder.leaf(&mut inner, &head);
+                let name = cursor.expect_name()?;
+                self.builder.leaf(&mut inner, &name);
+                self.parse_no_attributes(cursor)?;
+                cursor.end()?;
+                if children.is_empty() {
+                    return Err(Fail::new(
+                        "E1204",
+                        "slot requires presentation children".to_string(),
+                        head.span,
+                    ));
+                }
+                for child in children {
+                    self.parse_ui_child(&mut inner, child);
+                }
+                let node = SyntaxNode::enclosing(SyntaxKind::Slot, inner);
+                self.builder.push_inner(kids, node);
+                Ok(())
+            }
+            "preferences" => {
+                let mut inner = Vec::new();
+                self.builder.leaf(&mut inner, &head);
+                self.parse_no_attributes(cursor)?;
+                cursor.end()?;
+                if children.is_empty() {
+                    return Err(Fail::new(
+                        "E1204",
+                        "preferences panel requires presentation children".to_string(),
+                        head.span,
+                    ));
+                }
+                for child in children {
+                    self.parse_ui_child(&mut inner, child);
+                }
+                let node = SyntaxNode::enclosing(SyntaxKind::PreferencePanel, inner);
+                self.builder.push_inner(kids, node);
                 Ok(())
             }
             "delete" | "history" => {
@@ -5395,9 +5778,16 @@ impl<'a> Parser<'a> {
                 };
                 let mut inner = Vec::new();
                 self.builder.leaf(&mut inner, &head);
-                let stop: Stop = &|w| attr_kind(header, w).is_some();
-                let heading = self.parse_expr(cursor, stop, true, true)?;
-                self.builder.push_inner(&mut inner, heading);
+                // The approved catalog profile permits a card with no
+                // heading: nothing follows, or an attribute does (no valid
+                // heading starts with `NAME =`).
+                let heading_omitted = word == "card"
+                    && (cursor.done() || (cursor.at_any_name() && cursor.peek_is_eq()));
+                if !heading_omitted {
+                    let stop: Stop = &|w| attr_kind(header, w).is_some();
+                    let heading = self.parse_expr(cursor, stop, true, true)?;
+                    self.builder.push_inner(&mut inner, heading);
+                }
                 self.parse_attributes(cursor, &mut inner, header)?;
                 if word == "details"
                     && self.has_attribute(&inner, "display")
@@ -5441,12 +5831,92 @@ impl<'a> Parser<'a> {
                 self.swallow_children(kids, children, "require", span);
                 Ok(())
             }
-            _ => Err(Fail::new(
-                "E1200",
-                format!("unsupported presentation primitive `{word}`"),
-                head.span,
-            )),
+            _ => self.parse_catalog_item(head, cursor, kids, children),
         }
+    }
+
+    /// Parse one `list`/`table`/`board`/`calendar`/`gallery` collection.
+    fn parse_collection(
+        &mut self,
+        head: Token,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+        children: &'a [LogicalLine],
+        header: HeaderKind,
+    ) -> Result<(), Fail> {
+        let mut inner = Vec::new();
+        self.builder.leaf(&mut inner, &head);
+        let stop: Stop = &|w| attr_kind(header, w).is_some();
+        let query = self.parse_expr(cursor, stop, true, true)?;
+        self.builder.push_inner(&mut inner, query);
+        self.parse_attributes(cursor, &mut inner, header)?;
+        cursor.end()?;
+        for child in children {
+            self.parse_ui_child(&mut inner, child);
+        }
+        let node = SyntaxNode::enclosing(SyntaxKind::Collection, inner);
+        self.builder.push_inner(kids, node);
+        Ok(())
+    }
+
+    /// Parse one catalog component item: any contextual UI word with the
+    /// generic header/body profiles (optional observations, generic
+    /// `NAME=expr` options, optional suite). The producer-owned catalog
+    /// lives in analysis, which validates word/option/parent-shape
+    /// membership; the parser only establishes shape.
+    fn parse_catalog_item(
+        &mut self,
+        head: Token,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+        children: &'a [LogicalLine],
+    ) -> Result<(), Fail> {
+        let mut inner = Vec::new();
+        self.builder.leaf(&mut inner, &head);
+        // Positional observations, unless an attribute follows (no valid
+        // observation starts with `NAME =`). As in collection headers,
+        // attribute recognition wins over a query clause with the same
+        // `NAME=` spelling, so `order=`/`archived=` end the observations.
+        let catalog_stop: Stop = &|w| matches!(w, "order" | "archived");
+        if !cursor.done() && !(cursor.at_any_name() && cursor.peek_is_eq()) {
+            loop {
+                let value = self.parse_expr(cursor, catalog_stop, true, true)?;
+                self.builder.push_inner(&mut inner, value);
+                if !cursor.at_p(Punct::Comma) {
+                    break;
+                }
+                let comma = cursor.next().expect("peeked comma");
+                self.builder.leaf(&mut inner, &comma);
+            }
+        }
+        let mut seen: Vec<String> = Vec::new();
+        while !cursor.done() {
+            let key = cursor.expect_name()?;
+            let word = key.text(cursor.text).to_string();
+            if seen.contains(&word) {
+                return Err(Fail::new(
+                    "E1202",
+                    format!("duplicate attribute `{word}`"),
+                    key.span,
+                ));
+            }
+            seen.push(word);
+            let mut attr = Vec::new();
+            self.builder.leaf(&mut attr, &key);
+            let eq = cursor.expect_p(Punct::Eq)?;
+            self.builder.leaf(&mut attr, &eq);
+            let value = self.parse_expr(cursor, catalog_stop, true, true)?;
+            self.builder.push_inner(&mut attr, value);
+            let attr = SyntaxNode::enclosing(SyntaxKind::Attribute, attr);
+            self.builder.push_inner(&mut inner, attr);
+        }
+        cursor.end()?;
+        for child in children {
+            self.parse_ui_child(&mut inner, child);
+        }
+        let node = SyntaxNode::enclosing(SyntaxKind::CatalogItem, inner);
+        self.builder.push_inner(kids, node);
+        Ok(())
     }
 
     /// Parse one nested UI line (never top-level).
