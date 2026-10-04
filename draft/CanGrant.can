@@ -5,6 +5,7 @@ app CanGrant uses=[grant]
 package grant
  use rent_catalog {Location,test_site}
  use employee {Employee,can_work,test_worker,hr,deactivate}
+ use std {DeliveryResult}
  use std {EmailV1 as Mail} from=deployment.mail
  Given
   message heading_program_budget = "Program budget"@{nl="Programmabudget"}
@@ -20,10 +21,11 @@ package grant
   contract AwardBatch { items:AwardItem[]! }
   derive complete_answers(questions:Question[],answers:Answer[]):bool = count(questions)==count(answers) and all(questions as question,count(answers as answer where answer.question==question.key)==1)
   Grant { location:Location, name:text, terms:text label="Terms"@{nl="Voorwaarden"}, questions:Question[]! label="Questions"@{nl="Vragen"}, criteria:text label="Selection criteria"@{nl="Selectiecriteria"}, budget:money label="Budget"@{nl="Budget"}, closes:datetime label="Closing deadline"@{nl="Sluitingsdatum"}, timezone:timezone, published:bool=false label="Published"@{nl="Gepubliceerd"} } label="Funded program"@{nl="Financieringsprogramma"}
-  Application in Grant { account:user label="Account"@{nl="Account"}, email:email, title:text trim min=1, description:text trim min=1, terms:text label="Frozen terms"@{nl="Vastgelegde voorwaarden"}, criteria:text label="Frozen criteria"@{nl="Vastgelegde criteria"}, questions:Question[]! label="Frozen questions"@{nl="Vastgelegde vragen"}, correction:Application? label="Corrects application"@{nl="Corrigeert aanvraag"}, answers:Answer[] label="Answers"@{nl="Antwoorden"}, amount:money, reviewer:user label=label_reviewer, received:datetime? label=label_Application_received, receipt_evidence:text? label="Receipt evidence"@{nl="Ontvangstbewijs"}, override_reason:text? label=label_Application_override_reason, state:enum(draft,submitted,approved,rejected,withdrawn,superseded)=draft label={text="State"@{nl="Status"},values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved="Approved"@{nl="Goedgekeurd"},rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"},superseded="Superseded"@{nl="Vervangen"}}}, decision:text? label="Decision"@{nl="Besluit"}, decided_by:user? label="Decided by"@{nl="Besloten door"}, decided_at:datetime? label="Decided at"@{nl="Besloten op"}, notice_delivery:text?, notice_state:enum(none,pending,succeeded,failed,unknown,skipped)=none label="Decision notice delivery"@{nl="Bezorging besluitbericht"} } label="Application"@{nl="Aanvraag"}
+  Application in Grant { account:user label="Account"@{nl="Account"}, email:email, title:text trim min=1, description:text trim min=1, terms:text label="Frozen terms"@{nl="Vastgelegde voorwaarden"}, criteria:text label="Frozen criteria"@{nl="Vastgelegde criteria"}, questions:Question[]! label="Frozen questions"@{nl="Vastgelegde vragen"}, correction:Application? label="Corrects application"@{nl="Corrigeert aanvraag"}, answers:Answer[] label="Answers"@{nl="Antwoorden"}, amount:money, reviewer:user label=label_reviewer, received:datetime? label=label_Application_received, receipt_evidence:text? label="Receipt evidence"@{nl="Ontvangstbewijs"}, override_reason:text? label=label_Application_override_reason, state:enum(draft,submitted,approved,rejected,withdrawn,superseded)=draft label={text="State"@{nl="Status"},values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved="Approved"@{nl="Goedgekeurd"},rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"},superseded="Superseded"@{nl="Vervangen"}}}, decision:text? label="Decision"@{nl="Besluit"}, decided_by:user? label="Decided by"@{nl="Besloten door"}, decided_at:datetime? label="Decided at"@{nl="Besloten op"}, notice:delivery(Mail.send)? } label="Application"@{nl="Aanvraag"}
   Comment in Application { body:text trim min=1, author:user server=actor, recorded:datetime server=now } label="Private reviewer comment"@{nl="Privéopmerking beoordelaar"}
   Withdrawal in Application { reason:text trim min=1, author:user server=actor, recorded:datetime server=now } label="Award withdrawal"@{nl="Intrekking toezegging"}
   Recovery in Application { previous:user label="Previous reviewer"@{nl="Vorige beoordelaar"}, reviewer:user label=label_reviewer, reason:text trim min=1, author:user server=actor, recorded:datetime server=now } label="Reviewer recovery"@{nl="Herstel beoordelaar"}
+  derive Application.notice_state:DeliveryResult.status? = row.notice?.status label="Decision notice delivery"@{nl="Bezorging besluitbericht"}
   derive Grant.requested:money = sum(row.Application as application where application.state in [submitted,approved,rejected,withdrawn] select application.amount,row.budget.currency) label="Requested amount"@{nl="Aangevraagd bedrag"}
   derive Grant.withdrawn:money = sum(row.Application as application where application.state==withdrawn select application.amount,row.budget.currency) label="Withdrawn amount"@{nl="Ingetrokken bedrag"}
   derive Grant.committed:money = sum(row.Application as application where application.state==approved select application.amount,row.budget.currency) label="Committed amount"@{nl="Vastgelegd bedrag"}
@@ -44,12 +46,18 @@ package grant
   invariant Application: row.amount.currency==row.parent.budget.currency and row.amount.minor>0 and (row.correction==null or (row.correction.parent==row.parent and row.correction.account==row.account))
   lock Application fields=account,terms,criteria,questions,correction
   lock Application fields=decision,decided_by,decided_at when=row.decided_at!=null
-  lock Application fields=notice_delivery when=row.notice_delivery!=null
+  lock Application fields=notice when=row.notice!=null
   lock Comment fields=body,author,recorded
   lock Withdrawal fields=reason,author,recorded
   lock Recovery fields=previous,reviewer,reason,author,recorded
   lock Application fields=email,title,description,answers,amount,received,receipt_evidence,override_reason when=row.state!=draft
   lock Application fields=reviewer when=row.state!=draft and (row.state!=submitted or (reviewer(row.reviewer) and can_work(row.reviewer,row.parent.location)))
+  ## Typed isolated receipt snapshots include a valid frozen request; no provider send is performed.
+  fixture pending_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=pending,result=null,error=null}
+  fixture accepted_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=succeeded,result={reference="accepted-mail"},error=null}
+  fixture unknown_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=unknown,result=null,error=null}
+  fixture failed_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=failed,result=null,error={code="provider",message="Delivery rejected"}}
+  fixture skipped_notice=Mail.send {request={to="recipient@example.test",subject="Notice",body="Recorded decision"},status=skipped,result=null,error=null}
   fixture reviewer_user=user {roles=[reviewer]}
   fixture replacement_user=user {roles=[reviewer]}
   fixture coordinator_user=user {roles=[coordinator]}
@@ -274,7 +282,7 @@ package grant
     else
      set application {state=rejected,decision=reason,decided_by=actor,decided_at=now}
     send Mail.send {to=application.email,subject=format("Award decision"@{nl="Besluit over aanvraag"},locale=null),body=reason} as notice
-    set application {notice_delivery=notice.id,notice_state=pending}
+    set application {notice}
    examples seed=[test_worker,colleague] application=submitted approve=true reason="Meets criteria"
     as,application.reviewer,application.account,application.amount,request.application.version -> application.state,program.remaining,application.notice_state
     reviewer,self,other,money(60,"EUR"),1 -> approved,money(40,"EUR"),pending
@@ -301,21 +309,6 @@ package grant
     ordinary_user,submitted,reviewer_user,false,replacement_user,"Review unavailable",1 -> error(forbidden)
     coordinator_user,submitted,reviewer_user,false,replacement_user," ",1 -> error(rule_failed)
     coordinator_user,submitted,reviewer_user,false,replacement_user,"Review unavailable",2 -> error(conflict)
-  scenario notice_result on=Mail.send.completed
-   do
-    for application in Application as row where row.notice_delivery==event.delivery_id limit=1
-     set application {notice_state=event.status}
-   examples seed=[submitted] event={delivery_id="delivery",status=unknown,result=null,error=null}
-    submitted.notice_delivery,submitted.notice_state,event.delivery_id,event.status,event.result -> submitted.notice_state,submitted.state
-    "delivery",pending,"delivery",succeeded,{reference="accepted-mail"} -> succeeded,submitted
-    "delivery",pending,"delivery",unknown,null -> unknown,submitted
-    "delivery",pending,"delivery",skipped,null -> skipped,submitted
-    "delivery",pending,"different",succeeded,{reference="accepted-mail"} -> pending,submitted
-   ## Failed completion uses the closed safe DeliveryError shape; failure cannot undo an approved award or authorize a retry.
-   examples seed=[submitted] event={delivery_id="delivery",status=failed,result=null,error={code="provider",message="Delivery rejected"}}
-    submitted.notice_delivery,submitted.notice_state,submitted.state,submitted.decision,submitted.decided_by,submitted.decided_at,event.delivery_id,event.error -> submitted.notice_state,submitted.state,submitted.decision,submitted.decided_by,submitted.decided_at,submitted.amount
-    "delivery",pending,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),"delivery",{code="provider",message="Delivery rejected"} -> failed,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR")
-    "delivery",pending,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),"different",{code="provider",message="Delivery rejected"} -> pending,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR")
   # Withdraw an approved commitment by a reasoned coordinator decision; this is not a disbursement. @{nl="Trek een goedgekeurde toezegging in met een gemotiveerd coördinatorbesluit; dit is geen uitbetaling."}
   scenario withdraw(application:Application,reason:text) by=coordinator label="Withdraw"@{nl="Intrekken"}
    require can_work(actor,application.parent.location) and application.state==approved and trim(reason)!=""
@@ -334,6 +327,19 @@ package grant
     as -> count(result.items)
     coordinator_user -> 0
     ordinary_user -> error(forbidden)
+   ## Status-only receipt snapshots do not alter committed awards. A detached failed attempt cannot replace the current pending association.
+   examples seed=[coordinator_worker,submitted,failed_notice,accepted_notice] grant=program
+    as,submitted.state,submitted.decision,submitted.decided_by,submitted.decided_at,submitted.notice -> submitted.notice_state,submitted.state,submitted.decision,submitted.decided_by,submitted.decided_at,submitted.amount,count(result.items),program.remaining
+    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),accepted_notice -> succeeded,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
+    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),unknown_notice -> unknown,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
+    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),skipped_notice -> skipped,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
+    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),failed_notice -> failed,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
+    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),pending_notice -> pending,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
+    coordinator_user,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),null -> null,approved,"Meets criteria",reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60,"EUR"),1,money(40,"EUR")
+    coordinator_user,submitted,null,null,null,accepted_notice -> succeeded,submitted,null,null,null,money(60,"EUR"),0,money(100,"EUR")
+    coordinator_user,submitted,null,null,null,unknown_notice -> unknown,submitted,null,null,null,money(60,"EUR"),0,money(100,"EUR")
+    coordinator_user,submitted,null,null,null,skipped_notice -> skipped,submitted,null,null,null,money(60,"EUR"),0,money(100,"EUR")
+    coordinator_user,submitted,null,null,null,pending_notice -> pending,submitted,null,null,null,money(60,"EUR"),0,money(100,"EUR")
  Then
   # Discover the published cash-award terms and use private applicant intake. @{nl="Bekijk de gepubliceerde subsidievoorwaarden en gebruik de private aanvraagprocedure."}
   page /awards title="Funded programs"@{nl="Financieringsprogramma's"}

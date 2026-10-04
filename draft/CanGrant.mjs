@@ -1,4 +1,5 @@
 import {
+  delivery,
   require as check,
   all,
   any,
@@ -281,9 +282,9 @@ export const appDefinition = {
           nullable: true,
           label: message("Decided at", { nl: "Besloten op" }),
         },
-        notice_delivery: {type: "text", nullable: true},
-        notice_state: {type: "enum", cases: ["none", "pending", "succeeded", "failed", "unknown", "skipped"], default: "none", label: message("Decision notice delivery", {nl: "Bezorging besluitbericht"})},
+        notice: {type: "delivery", operation: "grant.Mail.send", nullable: true},
       },
+      derived: { notice_state: {type:"std.DeliveryResult.status",nullable:true,handler:"Application.notice_state",label:message("Decision notice delivery",{nl:"Bezorging besluitbericht"})} },
     },
     "grant.Comment": {
       parent: "grant.Application",
@@ -513,7 +514,6 @@ export const appDefinition = {
     },
   },
   handlers: {
-    "grant.notice_result": { handler: "notice_result", on: { capability: "grant.Mail", operation: "send", event: "completed" } },
   },
   pages: [awardsPageDescriptor, reviewPageDescriptor],
   disabled: [
@@ -588,6 +588,7 @@ export function canApp() {
         hasRole(c, "grant.coordinator") && (await can_work(c, c.actor, row.parent.location)),
     },
     derives: {
+      "Application.notice_state": async(c,row) => (await delivery(c,{record:row,field:"notice"},["status"]))?.status ?? null,
       "Grant.requested": async (c, row) =>
         await sum(
           records(c, "grant.Application", {
@@ -651,7 +652,7 @@ export function canApp() {
         when: (c, row) => row.state !== "draft",
       },
       "Application.lock.4": {fields: ["reviewer"], when: async (c, row) => row.state !== "draft" && (row.state !== "submitted" || (hasRole(c, "grant.reviewer", row.reviewer) && await can_work(c, row.reviewer, row.parent.location)))},
-      "Application.lock.5": {fields: ["notice_delivery"], when: (c, row) => row.notice_delivery !== null},
+      "Application.lock.5": {fields: ["notice"], when: (c, row) => row.notice !== null},
       "Recovery.lock.1": {fields: ["previous", "reviewer", "reason", "author", "recorded"]},
       "Comment.lock.1": { fields: ["body", "author", "recorded"] },
       "Withdrawal.lock.1": { fields: ["reason", "author", "recorded"] },
@@ -855,7 +856,7 @@ export function canApp() {
         }),
         body: reason,
       });
-      await set(c, application, {notice_delivery: notice.id, notice_state: "pending"});
+      await set(c, application, {notice});
     },
     async recover(c, {application, assignee, reason}) {
       check(hasRole(c, "grant.coordinator"), "forbidden");
@@ -864,11 +865,6 @@ export function canApp() {
       check(!same(assignee, application.account) && hasRole(c, "grant.reviewer", assignee) && await can_work(c, assignee, application.parent.location));
       await create(c, "grant.Recovery", {parent: application, previous: application.reviewer, reviewer: assignee, reason});
       await set(c, application, {reviewer: assignee});
-    },
-    async notice_result(c, {event}) {
-      for await (const application of records(c, "grant.Application", {where: row => row.notice_delivery === event.delivery_id, limit: 1n})) {
-        await set(c, application, {notice_state: event.status});
-      }
     },
     async withdraw(c, { application, reason }) {
       check(hasRole(c, "grant.coordinator"), "forbidden");
@@ -1174,7 +1170,13 @@ export function exampleFixtures({ self, other, imported }) {
       reviewer: s.reviewer_user,
     }),
   };
+  const pending_notice = {dependencies:[],delivery:"grant.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "pending", "result": null, "error": null})};
+  const accepted_notice = {dependencies:[],delivery:"grant.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "succeeded", "result": {"reference": "accepted-mail"}, "error": null})};
+  const unknown_notice = {dependencies:[],delivery:"grant.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "unknown", "result": null, "error": null})};
+  const failed_notice = {dependencies:[],delivery:"grant.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "failed", "result": null, "error": {"code": "provider", "message": "Delivery rejected"}})};
+  const skipped_notice = {dependencies:[],delivery:"grant.Mail.send",values:async(c,s)=>({"request": {"to": "recipient@example.test", "subject": "Notice", "body": "Recorded decision"}, "status": "skipped", "result": null, "error": null})};
   return {
+    pending_notice, accepted_notice, unknown_notice, failed_notice, skipped_notice,
     colleague,
     program,
     submitted,
@@ -1690,9 +1692,9 @@ export function exampleFixtures({ self, other, imported }) {
           error:"rule_failed",
         },
         {
-          observations:async(c,s,b)=>[b.recovered_approved.state, b.recovered_approved.reviewer, b.recovered_approved.decided_by, b.recovered_approved.decision, b.recovered_approved.received, b.recovered_approved.notice_state, await count(b.recovered_awards.items), s.program.committed, s.program.remaining],
+          observations:async(c,s,b)=>[b.recovered_approved.state, b.recovered_approved.reviewer, b.recovered_approved.decided_by, b.recovered_approved.decision, b.recovered_approved.received, ((await delivery(c,{record:b.recovered_approved,field:"notice"},["status"]))?.status ?? null), await count(b.recovered_awards.items), s.program.committed, s.program.remaining],
           expected:async(c,s,b)=>["approved", s.replacement_user, s.replacement_user, "Recovery reviewed", b.original_received, "pending", 1n, money(60n,"EUR"), money(40n,"EUR")],
-          types:["grant.Application.state", "user", "user?", "text?", "datetime?", "grant.Application.notice_state", "int", "money", "money"],
+          types:["grant.Application.state", "user", "user?", "text?", "datetime?", "std.DeliveryResult.status?", "int", "money", "money"],
         },
       ]},
       {operation:"grant.intake",dependencies:[program, colleague, coordinator_worker, ordinary_user],sequence:[
@@ -1855,7 +1857,7 @@ export function exampleFixtures({ self, other, imported }) {
         dependencies:[submitted, test_worker, colleague],
         inputs:async(c,s)=>({application:s.submitted,approve:true,reason:"Meets criteria"}),
         selectors:["as", "application.reviewer", "application.account", "application.amount", "request.application.version"],
-        observations:[async(c,s)=>s.application.state, async(c,s)=>s.program.remaining, async(c,s)=>s.application.notice_state],
+        observations:[async(c,s)=>s.application.state, async(c,s)=>s.program.remaining, async(c,s)=>((await delivery(c,{record:s.application,field:"notice"},["status"]))?.status ?? null)],
         rows:[
           {dependencies:[],values:async(c,s)=>["grant.reviewer", s.self, s.other, money(60n,"EUR"), 1n],expected:async(c,s)=>["approved", money(40n,"EUR"), "pending"]},
           {dependencies:[],values:async(c,s)=>["grant.reviewer", s.self, s.self, money(60n,"EUR"), 1n],error:"rule_failed"},
@@ -1884,32 +1886,6 @@ export function exampleFixtures({ self, other, imported }) {
         ],
       },
       {
-        operation:"grant.notice_result",
-        seed:[submitted],
-        dependencies:[submitted],
-        inputs:async(c,s)=>({event:{delivery_id:"delivery",status:"unknown",result:null,error:null}}),
-        selectors:["submitted.notice_delivery", "submitted.notice_state", "event.delivery_id", "event.status", "event.result"],
-        observations:[async(c,s)=>s.submitted.notice_state, async(c,s)=>s.submitted.state],
-        rows:[
-          {dependencies:[],values:async(c,s)=>["delivery", "pending", "delivery", "succeeded", {reference:"accepted-mail"}],expected:async(c,s)=>["succeeded", "submitted"]},
-          {dependencies:[],values:async(c,s)=>["delivery", "pending", "delivery", "unknown", null],expected:async(c,s)=>["unknown", "submitted"]},
-          {dependencies:[],values:async(c,s)=>["delivery", "pending", "delivery", "skipped", null],expected:async(c,s)=>["skipped", "submitted"]},
-          {dependencies:[],values:async(c,s)=>["delivery", "pending", "different", "succeeded", {reference:"accepted-mail"}],expected:async(c,s)=>["pending", "submitted"]},
-        ],
-      },
-      {
-        operation:"grant.notice_result",
-        seed:[submitted],
-        dependencies:[submitted, reviewer_user],
-        inputs:async(c,s)=>({event:{delivery_id:"delivery",status:"failed",result:null,error:{code:"provider",message:"Delivery rejected"}}}),
-        selectors:["submitted.notice_delivery", "submitted.notice_state", "submitted.state", "submitted.decision", "submitted.decided_by", "submitted.decided_at", "event.delivery_id", "event.error"],
-        observations:[async(c,s)=>s.submitted.notice_state, async(c,s)=>s.submitted.state, async(c,s)=>s.submitted.decision, async(c,s)=>s.submitted.decided_by, async(c,s)=>s.submitted.decided_at, async(c,s)=>s.submitted.amount],
-        rows:[
-          {dependencies:[reviewer_user],values:async(c,s)=>["delivery", "pending", "approved", "Meets criteria", s.reviewer_user, datetime("2026-10-01T09:00:00Z"), "delivery", {code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["failed", "approved", "Meets criteria", s.reviewer_user, datetime("2026-10-01T09:00:00Z"), money(60n,"EUR")]},
-          {dependencies:[reviewer_user],values:async(c,s)=>["delivery", "pending", "approved", "Meets criteria", s.reviewer_user, datetime("2026-10-01T09:00:00Z"), "different", {code:"provider",message:"Delivery rejected"}],expected:async(c,s)=>["pending", "approved", "Meets criteria", s.reviewer_user, datetime("2026-10-01T09:00:00Z"), money(60n,"EUR")]},
-        ],
-      },
-      {
         operation:"grant.withdraw",
         seed:[test_worker],
         dependencies:[submitted, test_worker],
@@ -1933,6 +1909,9 @@ export function exampleFixtures({ self, other, imported }) {
           {dependencies:[ordinary_user],values:async(c,s)=>[s.ordinary_user],error:"forbidden"},
         ],
       },
+      {operation:"grant.award_export",seed:[coordinator_worker,submitted,failed_notice,accepted_notice],dependencies:[coordinator_worker,submitted,failed_notice,accepted_notice,reviewer_user,coordinator_user,program],
+        inputs:async(c,s)=>({grant:s.program}),
+        selectors:["as","submitted.state","submitted.decision","submitted.decided_by","submitted.decided_at","submitted.notice"],observations:[async(c,s)=>(await delivery(c,{record:s.submitted,field:"notice"},["status"]))?.status ?? null,async(c,s)=>s.submitted.state,async(c,s)=>s.submitted.decision,async(c,s)=>s.submitted.decided_by,async(c,s)=>s.submitted.decided_at,async(c,s)=>s.submitted.amount,async(c,s)=>await count(s.result.items),async(c,s)=>s.program.remaining],rows:[{dependencies:[accepted_notice],values:async(c,s)=>[s.coordinator_user,"approved","Meets criteria",s.reviewer_user,datetime("2026-10-01T09:00:00Z"),s.accepted_notice],expected:async(c,s)=>["succeeded","approved","Meets criteria",s.reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60n,"EUR"),1n,money(40n,"EUR")]},{dependencies:[unknown_notice],values:async(c,s)=>[s.coordinator_user,"approved","Meets criteria",s.reviewer_user,datetime("2026-10-01T09:00:00Z"),s.unknown_notice],expected:async(c,s)=>["unknown","approved","Meets criteria",s.reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60n,"EUR"),1n,money(40n,"EUR")]},{dependencies:[skipped_notice],values:async(c,s)=>[s.coordinator_user,"approved","Meets criteria",s.reviewer_user,datetime("2026-10-01T09:00:00Z"),s.skipped_notice],expected:async(c,s)=>["skipped","approved","Meets criteria",s.reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60n,"EUR"),1n,money(40n,"EUR")]},{dependencies:[failed_notice],values:async(c,s)=>[s.coordinator_user,"approved","Meets criteria",s.reviewer_user,datetime("2026-10-01T09:00:00Z"),s.failed_notice],expected:async(c,s)=>["failed","approved","Meets criteria",s.reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60n,"EUR"),1n,money(40n,"EUR")]},{dependencies:[pending_notice],values:async(c,s)=>[s.coordinator_user,"approved","Meets criteria",s.reviewer_user,datetime("2026-10-01T09:00:00Z"),s.pending_notice],expected:async(c,s)=>["pending","approved","Meets criteria",s.reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60n,"EUR"),1n,money(40n,"EUR")]},{dependencies:[],values:async(c,s)=>[s.coordinator_user,"approved","Meets criteria",s.reviewer_user,datetime("2026-10-01T09:00:00Z"),null],expected:async(c,s)=>[null,"approved","Meets criteria",s.reviewer_user,datetime("2026-10-01T09:00:00Z"),money(60n,"EUR"),1n,money(40n,"EUR")]},{dependencies:[accepted_notice],values:async(c,s)=>[s.coordinator_user,"submitted",null,null,null,s.accepted_notice],expected:async(c,s)=>["succeeded","submitted",null,null,null,money(60n,"EUR"),0n,money(100n,"EUR")]},{dependencies:[unknown_notice],values:async(c,s)=>[s.coordinator_user,"submitted",null,null,null,s.unknown_notice],expected:async(c,s)=>["unknown","submitted",null,null,null,money(60n,"EUR"),0n,money(100n,"EUR")]},{dependencies:[skipped_notice],values:async(c,s)=>[s.coordinator_user,"submitted",null,null,null,s.skipped_notice],expected:async(c,s)=>["skipped","submitted",null,null,null,money(60n,"EUR"),0n,money(100n,"EUR")]},{dependencies:[pending_notice],values:async(c,s)=>[s.coordinator_user,"submitted",null,null,null,s.pending_notice],expected:async(c,s)=>["pending","submitted",null,null,null,money(60n,"EUR"),0n,money(100n,"EUR")]}]},
     ],
   };
 }
