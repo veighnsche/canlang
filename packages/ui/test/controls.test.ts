@@ -293,6 +293,47 @@ describe("range and rating", () => {
     );
   });
 
+  it("range emits schema bounds and preserves out-of-bounds drafts losslessly", async () => {
+    const bounded = await range({
+      context: makeContext(),
+      field: { ...field("level", { type: "int", value: 7 }), min: 1, max: 10 },
+      idPrefix: "u1",
+      mode: "create",
+    });
+    assert.ok(bounded.includes(`min="1" max="10"`), "bounds emitted");
+    assert.ok(!bounded.includes("disabled"), "in-bounds slider writable");
+    const outside = await range({
+      context: makeContext(),
+      field: { ...field("level", { type: "int", value: 5000 }), min: 1, max: 10 },
+      idPrefix: "u1",
+      mode: "create",
+    });
+    assert.ok(outside.includes("disabled"), "out-of-bounds slider disabled");
+    assert.ok(outside.includes(`role="alert"`), "invalid note");
+    assert.ok(
+      outside.includes(`<input type="hidden" name="inputs[level]" value="5000">`),
+      "raw draft preserved",
+    );
+    await assert.rejects(
+      range({
+        context: makeContext(),
+        field: { ...field("level", { type: "int", value: 7 }), min: 10, max: 1 },
+        idPrefix: "f",
+        mode: "create",
+      }),
+      /min <= max/,
+    );
+    await assert.rejects(
+      range({
+        context: makeContext(),
+        field: { ...field("level", { type: "int", value: 7 }), min: 1 },
+        idPrefix: "f",
+        mode: "create",
+      }),
+      /min <= max/,
+    );
+  });
+
   it("rating renders five stars with the matching one checked", async () => {
     const html = await rating({
       context: makeContext(),
@@ -321,6 +362,30 @@ describe("range and rating", () => {
       rating({ context: makeContext(), field: field("t", { value: "x" }), idPrefix: "f", mode: "create" }),
       /field "t"/,
     );
+  });
+
+  it("rating matches stars string-exactly, never via float rounding", async () => {
+    const near = await rating({
+      context: makeContext(),
+      field: field("score", { type: "decimal", value: "3.0000000000000004" }),
+      idPrefix: "u1",
+      mode: "create",
+    });
+    assert.ok(!near.includes("checked"), "near-integer decimal checks nothing");
+    const huge = await rating({
+      context: makeContext(),
+      field: field("score", { type: "int", value: "9007199254740993" }),
+      idPrefix: "u1",
+      mode: "create",
+    });
+    assert.ok(!huge.includes("checked"), "huge int checks nothing");
+    const padded = await rating({
+      context: makeContext(),
+      field: field("score", { type: "int", value: "03" }),
+      idPrefix: "u1",
+      mode: "create",
+    });
+    assert.ok(padded.includes(`value="3" aria-label="3 stars" class="mask mask-star" checked`), "padded int matches");
   });
 });
 
@@ -397,7 +462,7 @@ describe("filter", () => {
     { value: "v", label: "Vue" },
   ];
 
-  it("renders radio buttons in a filter container with reset", async () => {
+  it("renders radio buttons in a filter container without form reset", async () => {
     const html = await filter({
       context: makeContext(),
       field: field("fw", { type: "enum", value: "v", options }),
@@ -409,7 +474,7 @@ describe("filter", () => {
     assert.ok(html.includes(`<input class="btn" type="radio"`), "radio styled as button");
     assert.ok(html.includes(`aria-label="Vue"`), "option caption as aria-label");
     assert.ok(html.includes(`value="v" aria-label="Vue" checked`), "current option checked");
-    assert.ok(html.includes(`class="btn filter-reset" type="reset"`), "upstream reset control");
+    assert.ok(!html.includes(`type="reset"`), "no form-wide reset (would discard drafts)");
   });
 
   it("rejects a field without options", async () => {
@@ -498,6 +563,19 @@ describe("calendar agenda", () => {
     });
     assert.equal((html.match(/<section>/g) ?? []).length, 1, "single UTC day group");
     assert.ok(html.includes("2026"), "day heading carries the UTC year");
+  });
+
+  it("names the field and zone when datetime formatting fails", async () => {
+    await assert.rejects(
+      input({
+        context: makeContext(),
+        field: field("t", { type: "datetime", value: "2026-01-01T00:30:00Z" }),
+        idPrefix: "f",
+        mode: "create",
+        timeZone: "Mars/Olympus",
+      }),
+      /field "t".*Mars\/Olympus/,
+    );
   });
 
   it("groups datetime starts by the zoned day when timeZone is set", async () => {

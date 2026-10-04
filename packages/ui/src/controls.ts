@@ -55,8 +55,13 @@ import {
   canonicalDefaultTag,
   canonicalPreferredTags,
   formatScalar,
+  message,
   resolveCaption,
 } from "./messages.js";
+
+const RANGE_INVALID = message("Value is outside the allowed range.", {
+  nl: "Waarde valt buiten het toegestane bereik.",
+});
 
 /** String-valued scalar input types (mirrors forms.ts). */
 const TEXT_TYPES = new Set(["text", "email", "url", "timezone", "locale", "currency"]);
@@ -282,7 +287,8 @@ function datetimeFieldValue(field: FormFieldDef, timeZone: string): string {
   try {
     return formatDatetimeLocal(value, timeZone);
   } catch (error) {
-    throw new Error(`field "${field.path}": ${error instanceof Error ? error.message : String(error)}`);
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`field "${field.path}": cannot format datetime in ${JSON.stringify(timeZone)}: ${reason}`);
   }
 }
 
@@ -500,6 +506,7 @@ export async function toggle(props: ToggleProps): Promise<string> {
 export async function radio(props: RadioProps): Promise<string> {
   const modifiers = appearanceClasses("radio", "radio", pickAppearance(props));
   const field = props.field;
+  assertFieldType(field);
   const options = requireOptions(field, "radio");
   const unitCtx = unitContext(props);
   const cls = escapeAttr(joinClasses("radio", modifiers));
@@ -527,6 +534,7 @@ export async function radio(props: RadioProps): Promise<string> {
 export async function select(props: SelectProps): Promise<string> {
   const modifiers = appearanceClasses("select", "select", pickAppearance(props));
   const field = props.field;
+  assertFieldType(field);
   const options = requireOptions(field, "select");
   const unitCtx = unitContext(props);
   const cls = escapeAttr(joinClasses("select", modifiers));
@@ -547,13 +555,16 @@ export async function select(props: SelectProps): Promise<string> {
 
 /**
  * Finite-choice input with Filter presentation: radio inputs styled as
- * buttons in a `.filter` container plus an upstream `filter-reset` reset
- * input (pinned against node_modules/daisyui/components/filter.css).
- * The field needs a non-empty option list; otherwise this throws.
+ * buttons in a `.filter` container (pinned against
+ * node_modules/daisyui/components/filter.css). The upstream `filter-reset`
+ * input is deliberately omitted: type=reset restores the whole enclosing
+ * form and would discard unrelated drafts. The field needs a non-empty
+ * option list; otherwise this throws.
  */
 export async function filter(props: FilterProps): Promise<string> {
   appearanceClasses("filter", "filter", pickAppearance(props));
   const field = props.field;
+  assertFieldType(field);
   const options = requireOptions(field, "filter");
   const unitCtx = unitContext(props);
   const current = stringFieldValue(field);
@@ -569,8 +580,7 @@ export async function filter(props: FilterProps): Promise<string> {
       );
     })
     .join("");
-  const reset = `<input class="btn filter-reset" type="reset" value="×" aria-label="Clear">`;
-  return unit(props, unitCtx, `<div class="filter">${items}${reset}</div>`, current ?? "");
+  return unit(props, unitCtx, `<div class="filter">${items}</div>`, current ?? "");
 }
 
 // ---------------------------------------------------------------------------
@@ -591,15 +601,76 @@ export async function range(props: RangeProps): Promise<string> {
       `field "${field.path}": range needs a numeric type, got ${JSON.stringify(field.type)}`,
     );
   }
+  const bounds = rangeBounds(field);
   const unitCtx = unitContext(props);
   const cls = escapeAttr(joinClasses("range", modifiers));
   const value = numericFieldValue(field);
+  const outOfBounds =
+    value !== "" && bounds !== null && !rangeContains(bounds, field, value);
+  if (outOfBounds && bounds !== null) {
+    const note = escapeHtml(resolveCaption(RANGE_INVALID, props.context));
+    // Disabled sliders submit nothing; the hidden duplicate preserves the raw
+    // draft (unit() already adds one for readonly fields, so skip it there).
+    const preserve = field.readonly === true ? "" : hidden(unitCtx.name, value);
+    return unit(
+      props,
+      unitCtx,
+      `<input type="range" name="${escapeAttr(unitCtx.name)}" id="${escapeAttr(unitCtx.id)}" ` +
+        `value="${escapeAttr(value)}" min="${escapeAttr(bounds.minText)}" max="${escapeAttr(bounds.maxText)}" ` +
+        `class="${cls}"${unitCtx.common} disabled>` +
+        `<p role="alert" class="alert alert-error">${note}</p>${preserve}`,
+      value,
+    );
+  }
+  const minMax =
+    bounds === null
+      ? ""
+      : ` min="${escapeAttr(bounds.minText)}" max="${escapeAttr(bounds.maxText)}"`;
   return unit(
     props,
     unitCtx,
-    `<input type="range" name="${escapeAttr(unitCtx.name)}" id="${escapeAttr(unitCtx.id)}" value="${escapeAttr(value)}" class="${cls}"${unitCtx.common}>`,
+    `<input type="range" name="${escapeAttr(unitCtx.name)}" id="${escapeAttr(unitCtx.id)}" value="${escapeAttr(value)}" class="${cls}"${minMax}${unitCtx.common}>`,
     value,
   );
+}
+
+interface RangeBounds {
+  readonly minText: string;
+  readonly maxText: string;
+  readonly min: number;
+  readonly max: number;
+}
+
+/**
+ * Schema bounds for a range slider. Both min and max must be present finite
+ * numbers with min <= max; anything else throws (a half-bounded slider would
+ * silently clamp display). Absent bounds render the browser default.
+ */
+function rangeBounds(field: FormFieldDef): RangeBounds | null {
+  if (field.min === undefined && field.max === undefined) {
+    return null;
+  }
+  if (
+    typeof field.min !== "number" ||
+    typeof field.max !== "number" ||
+    !Number.isFinite(field.min) ||
+    !Number.isFinite(field.max) ||
+    field.min > field.max
+  ) {
+    throw new Error(
+      `field "${field.path}": range needs finite min <= max bounds, got ${String(field.min)}/${String(field.max)}`,
+    );
+  }
+  return { minText: String(field.min), maxText: String(field.max), min: field.min, max: field.max };
+}
+
+/** Bounds containment on canonical numeric text (non-finite never displays). */
+function rangeContains(bounds: RangeBounds, field: FormFieldDef, value: string): boolean {
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    throw new Error(`field "${field.path}": range value is not displayable`);
+  }
+  return n >= bounds.min && n <= bounds.max;
 }
 
 /**
@@ -620,12 +691,16 @@ export async function rating(props: RatingProps): Promise<string> {
   const unitCtx = unitContext(props);
   const cls = escapeAttr(joinClasses("rating", modifiers));
   const value = numericFieldValue(field);
-  const current = value === "" ? 0 : Number(value);
+  // String-exact star match: Number() would misread huge/near-integer text.
+  const current =
+    value === "" || !INT_RE.test(value)
+      ? ""
+      : value.replace(/^\+/, "").replace(/^(-?)0+(?=\d)/, "$1");
   const nameAttr = escapeAttr(unitCtx.name);
   const stars: string[] = [];
   for (let star = 1; star <= RATING_STARS; star += 1) {
     const starId = star === 1 ? unitCtx.id : `${unitCtx.id}-${String(star)}`;
-    const checked = Number.isInteger(current) && current === star ? " checked" : "";
+    const checked = current === String(star) ? " checked" : "";
     stars.push(
       `<input type="radio" name="${nameAttr}" id="${escapeAttr(starId)}" value="${String(star)}" ` +
         `aria-label="${String(star)} star${star === 1 ? "" : "s"}" class="mask mask-star"${checked}${unitCtx.common}>`,
@@ -758,12 +833,19 @@ function agendaDayKey(
     return value;
   }
   if (typeof value === "string" && DATETIME_RE.test(value) && Number.isFinite(Date.parse(value))) {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(value));
+    try {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date(value));
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `calendar agenda: row "${rowId}" cannot group by day in ${JSON.stringify(timeZone)}: ${reason}`,
+      );
+    }
   }
   throw new Error(
     `calendar agenda: row "${rowId}" start field "${startField}" needs a date or datetime value`,
@@ -863,7 +945,15 @@ async function calendarAgenda(props: CalendarProps & { readonly kind: "agenda" }
   }
   const days = [...groups.keys()].sort();
   const sections = days.map((day) => {
-    const heading = escapeHtml(formatScalar({ type: "date", value: day }, { locale, timeZone: zone }));
+    let heading: string;
+    try {
+      heading = escapeHtml(formatScalar({ type: "date", value: day }, { locale, timeZone: zone }));
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `calendar agenda: model "${props.model}" cannot render headings in ${JSON.stringify(zone)}: ${reason}`,
+      );
+    }
     const rows = (groups.get(day) ?? [])
       .map((row) => {
         const start = escapeHtml(agendaCellText(row.fields[props.startField], props.context, locale, zone));

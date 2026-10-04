@@ -568,7 +568,7 @@ function renderField(field: FormFieldDef, ctx: FieldRenderContext): string {
     ctx.context,
     ctx.timeZone,
   );
-  const label = escapeHtml(resolveCaption(field.label, ctx.context));
+  const label = escapeHtml(resolveCaption(field.labelCaption ?? field.label, ctx.context));
   const mark = field.required ? ` <span aria-hidden="true">*</span>` : "";
   const errorHtml =
     fieldErrors.length === 0

@@ -589,6 +589,9 @@ export interface FormFieldDef {
   readonly value?: unknown;
   /** Caller-supplied opaque options for enum/reference selects. */
   readonly options?: ReadonlyArray<FormFieldOption>;
+  /** Inclusive numeric bounds from the source schema (range/slider display). */
+  readonly min?: number;
+  readonly max?: number;
   /**
    * Explicit control selection (C4): which factory renders this field.
    * Absent selects the default factory from `type` (established S4 rules).
