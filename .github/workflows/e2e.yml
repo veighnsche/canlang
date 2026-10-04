@@ -1,0 +1,55 @@
+# Lane 07 e2e gate: Playwright specs over the local workerd runner.
+# L5 authors tests/e2e/** + playwright.config.ts (granted); this lane owns
+# this workflow, the Playwright dependency and the runner it drives.
+# Until L5 Phase 1 lands specs, the job reports pending (green) instead
+# of failing on an empty suite — it self-activates when specs arrive.
+name: e2e
+
+on:
+  pull_request:
+    paths:
+      - "tests/e2e/**"
+      - "playwright.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/e2e.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - "tests/e2e/**"
+      - "playwright.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/e2e.yml"
+  workflow_dispatch:
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install from lock
+        run: npm ci --no-audit --no-fund
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run e2e (or report pending)
+        run: |
+          set -u
+          if [ ! -f playwright.config.ts ]; then
+            echo "e2e pending: playwright.config.ts not yet authored (L5 Phase 1)."
+            exit 0
+          fi
+          if [ -z "$(find tests/e2e -name '*.spec.ts' -print -quit 2>/dev/null)" ]; then
+            echo "e2e pending: no tests/e2e specs yet (L5 Phase 1)."
+            exit 0
+          fi
+          npm run test:e2e

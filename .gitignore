@@ -9,6 +9,12 @@ __pycache__/
 
 # Node workspace output (lane 07)
 node_modules/
+# Stray tsc emits next to sources (no package emits outside dist/;
+# PR22 pollution guard — test/ keeps one tracked .js worker, untouched)
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.js.map
+packages/*/src/**/*.d.ts.map
 packages/*/dist/
 packages/*/coverage/
 coverage/
