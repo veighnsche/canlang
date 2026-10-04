@@ -28,6 +28,8 @@ function makeContext(
     isPartial: false,
     csrfToken: "csrf-123",
     principal: null,
+    invocation: null,
+    query: async () => ({ rows: [], columns: [] }),
     ...overrides,
   };
 }
@@ -184,7 +186,7 @@ describe("drawer and navigation", () => {
     assert.match(html, /<div class="menu-title">Work<\/div>/);
     assert.match(
       html,
-      /<li><a href="\/" class="active" aria-current="page">Team tasks<\/a><\/li>/,
+      /<li><a href="\/" class="menu-active" aria-current="page">Team tasks<\/a><\/li>/,
     );
     assert.match(html, /<li><a href="\/notes">Team notes<\/a><\/li>/);
   });
@@ -665,7 +667,7 @@ describe("navigation join", () => {
     const notes = candidates.find((candidate) => candidate.path === "/notes");
     assert.ok(notes !== undefined);
     const html = await renderPage(makeContext({ path: "/notes" }), notes, ["<p>body</p>"], shell);
-    assert.match(html, /<a href="\/notes" class="active" aria-current="page">/);
+    assert.match(html, /<a href="\/notes" class="menu-active" aria-current="page">/);
     assert.ok(!html.includes("/expenses/review"));
     assert.match(html, /<p role="status">Navigation is temporarily incomplete\.<\/p>/);
     assert.match(html, /<main id="can-main"><p>body<\/p><\/main>/);

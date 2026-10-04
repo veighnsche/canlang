@@ -142,8 +142,25 @@ cadence (default 2), no polling.
       PresentationContext timezone field lands (L6 join). License field removal
       in ui package.json is intentional (matches @canlang/identity precedent,
       private:true).
-- [ ] S3 core components: components.ts (card/title/text/content/list/table + shared states), catalog.ts seed.
-      Branch: muse/lane-05-ui/s3-components.
+- [ ] S3 core components (branch muse/lane-05-ui/s3-components, in progress):
+      Tree refinement: list/table renderers seed collections.ts (S5 adds
+      controls there); components.ts holds card/title/text/content/states/values.
+      Query-seam decision (needs L1/L3/L6 ack): factories keep the DESIGN §13
+      call shape `table({context, model, columns})` where context is the
+      dispatcher-built PresentationContext carrying `invocation` (canonical ctx,
+      opaque) + `query` (RowQueryRunner bound to authorized records()). UI never
+      queries except through the runner; no second engine. ListQueryResult
+      carries rows + nextCursor + column metadata (labels/types/valueLabels from
+      loaded appDefinition via the runner). TextValue = string|boolean|bigint|
+      number(safe-int only)|MessageDescriptor|MessageParamValue|null|undefined;
+      raw non-integer numbers rejected (decimals need {type,value}).
+      Coordinator: presentation.ts v0.3.0, messages.ts (resolveCaption,
+      formatScalar), shell.ts resolveText refactor, themes.css + daisyUI audit,
+      catalog.ts + tests, index wiring, README, status. W-A: src/components.ts
+      + test/components.test.ts. W-B: src/collections.ts + test/collections.test.ts.
+      Shared worker specs: renderTextValue(value, context)->escaped HTML and
+      rowHeading(row, modelCaption, context)->escaped text exported from
+      components.ts; resolveCaption/formatScalar from messages.ts.
 - [ ] S4 forms: forms.ts (form/edit/delete/action/actions, bindings, errors, conflict/pending), version hidden
       fields, datetime-zone controls. Branch: muse/lane-05-ui/s4-forms.
 - [ ] S5 interaction: htmx.ts (fragments, swap/error config, poll/refresh), collections.ts (search/filter/order/
@@ -257,7 +274,27 @@ fixed in-branch with regression tests + gap tests (dedup negative,
 unavailable-first fallback, non-admitted highlight, unselected teams, empty
 sections, meta description, join); nits (entry description doc, highlightPath
 doc, CI guard empty-import case) fixed.
-Merge: (to be filled) reviewed head sha, checks, squash merge result.
+Merge: squash-merged as 28f022c (PR #10); reviewed head b89f163 unchanged,
+lane-05 check x2 green, CodeRabbit pass, mergeState CLEAN. B1/B2/B3 + nits
+fixed in-branch with regression tests (101/101).
+
+### S3 core components + themes + catalog (branch muse/lane-05-ui/s3-components)
+
+Files: presentation.ts v0.3.0 (query seam on PresentationContext, RowView,
+ColumnMeta, ListQueryArgs/Result, TextValue, component props, component
+catalog types); messages.ts (resolveCaption, formatScalar, canonical tag
+helpers); shell.ts (resolveCaption refactor, menu-active fix); new
+components.ts + tests (W-A), collections.ts + tests (W-B), catalog.ts +
+tests, themes.css + audit tests, index wiring, daisyui 5.7.47 devDep pin.
+Workers: W-A core components (29 tests), W-B list/table (35 tests).
+Coordinator fixes: shell `active`→`menu-active` (audit-caught, daisyUI v5
+renamed it), badge routing by value shape for dotted model-ref columns.
+Checks (local, node v24.21.0): 172/172 pass (101 carried + 29 components +
+35 collections + 2 catalog + 5 themes).
+L1/L3/L6 ack requested: query-seam decision (factories keep §13 call shape;
+dispatcher supplies invocation+query on context; result carries column
+metadata). L7: presentation/index + check.json joins still pending.
+PR: (to be filled) number, reviewed head, review notes, merge result.
 
 ## Remaining work and cleanup
 

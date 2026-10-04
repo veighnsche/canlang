@@ -22,6 +22,7 @@ import {
   type MessageFactory,
   type MessageParams,
   type MessageParamValue,
+  type MessageValue,
   type MessageVariantMap,
   type ResolvedMessage,
   type ThemeTokens,
@@ -964,6 +965,15 @@ function renderArgument(node: Extract<PatternNode, { kind: "arg" }>, state: Form
 }
 
 function renderPlain(operand: ScalarOperand, state: FormatState): string {
+  return renderPlainOperand(operand, state.locale, state.timeZone, state.scales);
+}
+
+function renderPlainOperand(
+  operand: ScalarOperand,
+  locale: string,
+  timeZone: string,
+  scales: Record<string, number> | undefined,
+): string {
   switch (operand.kind) {
     case "string":
     case "enum":
@@ -971,28 +981,96 @@ function renderPlain(operand: ScalarOperand, state: FormatState): string {
     case "bool":
       return operand.value ? "true" : "false";
     case "int":
-      return formatIntExact(operand.value, state.locale);
+      return formatIntExact(operand.value, locale);
     case "decimal":
-      return formatDecimalExact(operand.text, state.locale);
+      return formatDecimalExact(operand.text, locale);
     case "money": {
-      const scale = state.scales?.[operand.currency];
+      const scale = scales?.[operand.currency];
       if (scale === undefined) {
         throw new Error(
           `money formatting needs currencyScales[${operand.currency}] from the pinned lane 2 table`,
         );
       }
-      return formatMoneyExact({ minor: operand.minor, currency: operand.currency, scale, locale: state.locale });
+      return formatMoneyExact({ minor: operand.minor, currency: operand.currency, scale, locale });
     }
     case "date":
-      return new Intl.DateTimeFormat(state.locale, {
+      return new Intl.DateTimeFormat(locale, {
         dateStyle: "medium",
         timeZone: "UTC",
       }).format(new Date(`${operand.iso}T00:00:00Z`));
     case "datetime":
-      return new Intl.DateTimeFormat(state.locale, {
+      return new Intl.DateTimeFormat(locale, {
         dateStyle: "medium",
         timeStyle: "medium",
-        timeZone: state.timeZone,
+        timeZone,
       }).format(new Date(operand.iso));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Caption and cell formatting for renderers
+// ---------------------------------------------------------------------------
+
+/** Canonical preferred locales, skipping invalid tags. */
+export function canonicalPreferredTags(tags: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const tag of tags) {
+    try {
+      out.push(normalizeTag(tag));
+    } catch {
+      // Skip invalid viewer preferences; resolution falls through.
+    }
+  }
+  return out;
+}
+
+/** App default locale, falling back to "en" when invalid (dispatcher bug). */
+export function canonicalDefaultTag(tag: string): string {
+  try {
+    return normalizeTag(tag);
+  } catch {
+    return "en";
+  }
+}
+
+export interface CaptionContext {
+  readonly preferredLocales: readonly string[];
+  readonly appDefaultLocale: string;
+}
+
+/**
+ * Resolve a caption slot: plain strings stay verbatim (literal braces are
+ * text, not patterns); descriptors render through the formatter with bound
+ * params. Caption datetimes use UTC: team-timezone rendering awaits a
+ * PresentationContext timezone field (L6 join).
+ */
+export function resolveCaption(value: MessageValue, context: CaptionContext): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  return formatMessage(value, {
+    preferredLocales: canonicalPreferredTags(context.preferredLocales),
+    appDefaultLocale: canonicalDefaultTag(context.appDefaultLocale),
+    timeZone: "UTC",
+  });
+}
+
+export interface ScalarFormatOptions {
+  readonly locale: string;
+  readonly timeZone?: string;
+  readonly currencyScales?: Record<string, number>;
+}
+
+/** Format one typed scalar (table cells, metrics) outside message patterns. */
+export function formatScalar(param: MessageParamValue, options: ScalarFormatOptions): string {
+  if (param === null || typeof param !== "object") {
+    throw new TypeError("scalar param must be {type, value}");
+  }
+  const operand = toOperand("value", param);
+  return renderPlainOperand(
+    operand,
+    normalizeTag(options.locale),
+    options.timeZone ?? "UTC",
+    options.currencyScales,
+  );
 }

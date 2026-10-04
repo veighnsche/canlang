@@ -12,7 +12,7 @@
  * definitions: this file is the single source of truth for the shapes below.
  */
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.2.0";
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.3.0";
 
 /**
  * Name of the hidden CSRF field in every canonical POST form. Rendered by
@@ -150,6 +150,22 @@ export interface PresentationContext {
   readonly csrfToken: string;
   /** Canonical principal; opaque to presentation, never inspected here. */
   readonly principal: unknown;
+  /**
+   * Canonical invocation context for authorized in-render reads; opaque to
+   * presentation, passed only to `query`. Supplied by the dispatcher.
+   */
+  readonly invocation: unknown;
+  /**
+   * Authorized row-query runner bound by the dispatcher to canonical
+   * records(). The sole path by which UI factories obtain rows; UI never
+   * queries around it and never re-implements policy.
+   */
+  readonly query: RowQueryRunner;
+  /**
+   * Pinned minor-unit currency scales (lane 2 table) for money display;
+   * absent scales fail money rendering loudly rather than guessing.
+   */
+  readonly currencyScales?: Record<string, number>;
 }
 
 /**
@@ -293,3 +309,146 @@ export type RenderPageFn = (
   children: PageChildren,
   shell?: ShellData,
 ) => Promise<string>;
+
+/**
+ * One projected row for list/table rendering. Fields hold the authorized
+ * projection only: forbidden fields never reach props, so they can never
+ * enter HTML. The label rule reads supplied fields alone.
+ */
+export interface RowView {
+  readonly id: string;
+  readonly version?: string;
+  readonly fields: Record<string, unknown>;
+}
+
+/** Column metadata supplied by the query runner from loaded appDefinition. */
+export interface ColumnMeta {
+  readonly field: string;
+  readonly label: MessageValue;
+  /** Canonical type id (lane 2 CanTypeId vocabulary). */
+  readonly type: string;
+  /** Bool/enum case captions keyed by stable value ("true"/case name). */
+  readonly valueLabels?: Record<string, MessageValue>;
+}
+
+/**
+ * Row-query arguments. Predicates are opaque generated code passed through
+ * to the runner; UI never inspects them. Order/filter/search extend this
+ * shape additively in the collections-controls slice.
+ */
+export interface ListQueryArgs {
+  readonly parent?: { readonly id: string };
+  readonly where?: unknown;
+  readonly limit?: number;
+  readonly cursor?: string;
+}
+
+export interface ListQueryResult {
+  readonly rows: readonly RowView[];
+  readonly nextCursor?: string;
+  readonly columns: readonly ColumnMeta[];
+}
+
+/**
+ * Authorized row query: invocation is the opaque canonical context, model
+ * the qualified model name. Enforces viewer grants, limits and projection
+ * before returning; UI renders exactly what it receives.
+ */
+export type RowQueryRunner = (
+  invocation: unknown,
+  model: string,
+  args: ListQueryArgs,
+) => Promise<ListQueryResult>;
+
+/**
+ * One `text` value. Raw strings are verbatim text; raw numbers must be safe
+ * integers (non-integers throw: decimals need {type,value}); bigint/bool are
+ * exact; descriptors render through the formatter with bound params;
+ * {type,value} pairs carry numerics/temporals with explicit types; null and
+ * undefined render as empty.
+ */
+export type TextValue =
+  | string
+  | number
+  | bigint
+  | boolean
+  | MessageDescriptor
+  | MessageParamValue
+  | null
+  | undefined;
+
+export interface CardProps {
+  readonly context: PresentationContext;
+  readonly title: MessageValue;
+  readonly layout?: "stack" | "columns";
+  readonly children: PageChildren;
+}
+
+export interface TitleProps {
+  readonly context: PresentationContext;
+  readonly text: MessageValue;
+  readonly level?: 1 | 2 | 3;
+}
+
+export interface TextProps {
+  readonly context: PresentationContext;
+  readonly values: readonly TextValue[];
+}
+
+export interface ContentProps {
+  readonly context: PresentationContext;
+  readonly value: string | MessageDescriptor;
+}
+
+export interface SharedStateProps {
+  readonly context: PresentationContext;
+  readonly kind: "loading" | "empty" | "error";
+  readonly message: MessageValue;
+  readonly detail?: MessageValue;
+}
+
+export interface ListProps {
+  readonly context: PresentationContext;
+  readonly model: string;
+  readonly parent?: { readonly id: string };
+  readonly where?: unknown;
+  readonly limit?: number;
+  readonly cursor?: string;
+  readonly empty: MessageValue;
+  readonly renderRow: (row: RowView, view: PresentationContext) => PageChildren;
+}
+
+export interface TableProps {
+  readonly context: PresentationContext;
+  readonly model: string;
+  readonly parent?: { readonly id: string };
+  readonly where?: unknown;
+  readonly limit?: number;
+  readonly cursor?: string;
+  readonly columns: readonly string[];
+  readonly empty: MessageValue;
+}
+
+/**
+ * One component catalog entry, mirroring the L1/L2 catalog envelope shape
+ * for presentation capabilities (unification with the shared envelope is a
+ * later L1/L7 join; L1 acknowledgment pending).
+ */
+export interface ComponentCatalogEntry {
+  /** Can primitive name, e.g. "card", "table", "form". */
+  readonly id: string;
+  /** JS factory name as exported from @canlang/ui. */
+  readonly js: string;
+  readonly owner: "lane-05";
+  readonly kind: "component";
+  /** Props shape as stated in this contract. */
+  readonly signature: string;
+  readonly availability: "planned" | "implemented";
+  readonly notes?: string;
+}
+
+export interface ComponentCatalog {
+  readonly catalog_version: string;
+  readonly language_version: string | null;
+  readonly entries: ReadonlyArray<ComponentCatalogEntry>;
+}
