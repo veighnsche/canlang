@@ -28,7 +28,10 @@ no row passes until it executes against real components.
 ## Blocked-on recalls (unmet contracts)
 
 - L1: `can compile` emission + `ArtifactTestModule` loader shape (§13
-  `exampleFixtures` runtime contract).
-- L3: invocation/commit engine behind the `state.ts` ports.
+  `exampleFixtures` runtime contract). IR-03 answered by L7 (`can-platform`
+  CLI, PR7): thin entries can wire now; execution still needs emission.
+- L3: invocation/commit engine behind the `state.ts` ports. S2 delivered
+  storage ports + memory/D1/DO backends only (`stateCatalog().entries`
+  still empty at `5a271a6`); no invocable surface yet.
 - L6: authenticated context for two local test users.
 - L5: page descriptor runtime for the browser leg.
