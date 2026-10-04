@@ -6,5 +6,9 @@
 export type * from "../../contracts/src/values.js";
 export { VALUES_CONTRACT_VERSION } from "../../contracts/src/values.js";
 export * from "./catalog.js";
+export * from "./currency-data.js";
+export * from "./decimal.js";
 export * from "./errors.js";
+export * from "./int.js";
 export * from "./kinds.js";
+export * from "./money.js";
