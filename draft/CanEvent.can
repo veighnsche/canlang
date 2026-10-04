@@ -526,39 +526,99 @@ package events
  Then
   # Discover published events and retrieve only your own tickets. @{nl="Ontdek gepubliceerde evenementen en haal uitsluitend je eigen toegangsbewijzen op."}
   page /events title="Events"@{nl="Evenementen"}
-   card "Published event discovery"@{nl="Gepubliceerde evenementen ontdekken"}
-    list (Event as offering where offering.published and not offering.cancelled) columns=name,location,from,until,price filter=location defaults={location=preferences.location} search=name order=from display=split
+   breadcrumbs
+   hero "Published event discovery"@{nl="Gepubliceerde evenementen ontdekken"}
+    list (Event as offering where offering.published and not offering.cancelled) columns=name,location,from,until,price,available filter=location defaults={location=preferences.location} search=name order=from display=split
+     pagination
+     ## terms stay in the browse row (visitors review terms before registering)
+     ## and repeat once inside the register dialog at decision time.
      text row.description,row.timezone,row.from,row.until,row.price,row.sales_until,row.refund_before,row.terms,row.venue_name
-     form register
+     ## Seats progress: readable numerics with compatible count units and a finite
+     ## positive maximum (UI-COMPONENTS Navigation-and-shared-state; profile table).
+     ## Owner gap: available is not in the public Event fields and counts rows a
+     ## public caller cannot read; the seats display assumes an owner grant ruling.
+     progress row.available max=row.capacity
+     button opens=register_dialog
+     modal "Register for event"@{nl="Registreren voor evenement"} id=register_dialog
+      slot content
+       alert
+        content row.terms
+       form register arguments={event=row} display=inline
+        input name
+        input email
    card "Own tickets and admission"@{nl="Eigen toegangsbewijzen en toelating"}
     require authenticated
     list (Registration as ticket where ticket.account==actor) filter=state defaults={state=preferences.ticket_state} display=split
-     text row.ticket,row.state,row.payment,row.charge_status,row.expires,row.checked_in,row.refund_state,row.terms,row.refund_before,row.parent.name,row.parent.location,row.parent.from,row.parent.until,row.parent.timezone,row.parent.cancelled,row.parent.cancellation_reason
+     pagination
+     badge row.state
+     badge row.payment
+     badge row.charge_status
+     badge row.refund_state
+     status row.parent.cancelled
+     text row.ticket,row.expires,row.checked_in,row.terms,row.refund_before,row.parent.name,row.parent.location,row.parent.from,row.parent.until,row.parent.timezone,row.parent.cancellation_reason
+     copy row.ticket
      table row.Notice columns=kind,revision,state
-     actions cancel,reconcile
+      pagination
+     form cancel arguments={registration=row}
+      textarea reason
+     button action=reconcile arguments={registration=row}
   # Author events and perform scoped reception admission. @{nl="Beheer evenementen en voer beperkte receptietoelating uit."}
   page /events/work title="Event operations"@{nl="Evenementuitvoering"}
+   breadcrumbs
    require organizer or check_in or finance
    card "Event intake"@{nl="Evenement aanmaken"}
     require organizer
     form Program.create
+     input name
     list Program columns=name
+     pagination
+     ## from/until/sales_until/refund_before are datetimes: no date-only
+     ## calendar control applies; they keep generated controls.
      form Event.create
+      input name
+      textarea description
+      textarea terms
    list Event columns=name,location,from filter=location defaults={location=preferences.location} display=split
+    pagination
     card "Event and venue outcome"@{nl="Evenement en locatie-uitkomst"}
+     status row.published
+     status row.cancelled
      text row.timezone,row.capacity,row.sales_until,row.refund_before,row.terms
      edit
-     actions publish,change,cancel_event
-     form register
+      input name
+      textarea description
+      textarea terms
+     button action=publish arguments={event=row}
+     form change
+      textarea reason
+     form cancel_event
+      textarea reason
+     form register arguments={event=row}
+      input name
+      input email
     table row.Change columns=location,from,until,state,venue_state,venue_revision,hold_status,confirm_status,release_status
-     actions abandon,retry_release
+     pagination
+     badge row.state
+     ## abandon keeps its generated reason form (reason is required).
+     action abandon
+     button action=retry_release arguments={change=row}
      history
     table row.Registration columns=name,email,state,payment,ticket,checked_in filter=state,payment search=name display=split
-     action admit
-     details "Ticket finance and history"@{nl="Financiën en historie toegangsbewijs"}
+     pagination
+     badge row.state
+     badge row.payment
+     button action=admit arguments={registration=row}
+     collapse "Ticket finance and history"@{nl="Financiën en historie toegangsbewijs"}
       require organizer or finance
-      text row.expires,row.price,row.checked_by,row.terms,row.refund_before,row.invoice,row.delivery?.id,row.charge_status,row.refund_state,row.collected,row.refunded,row.cancel_status,row.refund_status,row.reconcile_status
-      actions cancel,refund,reconcile
+      badge row.refund_state
+      badge row.charge_status
+      text row.expires,row.price,row.checked_by,row.terms,row.refund_before,row.invoice,row.delivery?.id,row.collected,row.refunded,row.cancel_status,row.refund_status,row.reconcile_status
+      form cancel arguments={registration=row}
+       textarea reason
+      form refund arguments={registration=row}
+       textarea reason
+      button action=reconcile arguments={registration=row}
       table row.Notice columns=kind,revision,state
-       action resend_notice
+       pagination
+       button action=resend_notice arguments={notice=row}
       history
