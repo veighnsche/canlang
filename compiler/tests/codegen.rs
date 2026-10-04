@@ -2030,7 +2030,9 @@ fn construct_pages_admit_render() {
     emitter.lower_page(&mine, &mut out);
     let module = out.finish("test.mjs".to_string());
     assert!(
-        module.js.contains("const reviewPageDescriptor={owner:\"expense\",path:\"/expenses/review\",title:message(\"Expense review\",{nl:\"Onkostenbeoordeling\"}),admit:async(c,routeBindings={})=>{check(hasRole(c,\"expense.reviewer\"),\"forbidden\");return {};},render:reviewPage};"),
+        // Descriptors are exported: artifact.pages[].export names an
+        // importable binding (B1 loadability).
+        module.js.contains("export const reviewPageDescriptor={owner:\"expense\",path:\"/expenses/review\",title:message(\"Expense review\",{nl:\"Onkostenbeoordeling\"}),admit:async(c,routeBindings={})=>{check(hasRole(c,\"expense.reviewer\"),\"forbidden\");return {};},render:reviewPage};"),
         "review descriptor:\n{}",
         module.js
     );
