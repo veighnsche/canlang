@@ -33,11 +33,18 @@ jobs:
       - name: Build and test
         working-directory: packages/state
         run: npm test
-      - name: Install stdlib assembly
-        if: hashFiles('packages/stdlib/package.json') != ''
-        working-directory: packages/stdlib
-        run: npm install --no-audit --no-fund
+  stdlib:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install workspace
+        run: npm ci --no-audit --no-fund
+      - name: Build @canlang/values
+        run: npm run build -w @canlang/values
       - name: Typecheck stdlib
-        if: hashFiles('packages/stdlib/package.json') != ''
-        working-directory: packages/stdlib
-        run: npm run typecheck
+        run: npm run typecheck -w @canlang/stdlib
+      - name: Build and test stdlib
+        run: npm test -w @canlang/stdlib

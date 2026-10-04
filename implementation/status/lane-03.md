@@ -341,8 +341,41 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   unique-swap conflict pin. Legs: 499->505/505, D1 47->48/48, DO
   45->46/46; typechecks clean.
   PR7 merged (a782dae, PR #76, CI state x2/tools/workspace green).
-  S8 branch `muse/lane-03-state/stdlib` from a782dae: thin
-  @canlang/stdlib assembly + B1-B4 joins next.
+  S8 branch `muse/lane-03-state/stdlib` from a782dae.
+  S8 SCOPE RULING (coordinator, evidence below): stdlib v0 assembles
+  exactly the one filed producer request — lane-02's FACADE REQUEST
+  (139 runtime names verbatim + the barrel's 66 types, zero drift
+  verified against the current barrel incl. PR6 + audit #72). No engine
+  re-exports (platform consumers import producers directly; the façade
+  serves generated app code, not internal machinery). No builtin
+  implementations (`records`/`create`/`set`/…): no producer implements
+  them and L1 has not pinned call shapes — implementing against witness
+  guesses would be a mock API (same precedent as L7's no-testkit-wiring
+  rule). L2's 10 post-request barrel additions (`choose`,
+  `invocation`, …) stay out until requested.
+  S8 L2 HANDOFF RESPONSE: fulfilled (a)–(d) verbatim; "corresponding TS
+  types" read as the full 66-type barrel surface (explicit list, pinned;
+  L2 trims on follow-up). DECLINED-with-reason until L1 T4 pins builtin
+  call shapes: L3-implements `active_member`/`random_secret`/
+  query-aggregates/`action()`-registry (ownership accepted, contract
+  pending). L2 extras + witness `compareValue`/`bounded` noted for L2.
+  B1–B4 L3 MAPPING: B1 L1-blocked (emission slice 4 + op descriptors;
+  L3 engine side ready, 505/505 + D1 48/48 + DO 46/46); B2 L4-journey
+  pending (L3 fence/evidence parts done: S2 + S7 flip fence-loss on real
+  miniflare); B3 engine-side DONE (S7 explicit evolution + invalidate +
+  resume + evidence/inventory gates); B4 witness-name map below (L3
+  contribution; 45/69 in v0).
+  S8 WITNESS GAP TABLE (draft/*.mjs `@canlang/stdlib` imports, 69 names;
+  45 in v0; 24 missing, none implemented by any producer — verified by
+  export grep): proposed-L3 `records create set deleteRecord require
+  call collect hasRole active_member` (engine-backed; `hasRole` internal
+  helper exists with engine shape, unwrapped); proposed-L4 `send
+  schedule cancel delivery emit judgmentSpecification EmailV1
+  corpusStatus groundedAvailable` (`OperationOutcome` type exists in
+  contracts/services.ts); proposed-L2 `choose invocation compareValue
+  bounded` (`choose`/`invocation` in barrel, unrequested); proposed-L6
+  `secretEqual`; `DeliveryError` per L2 lives in L4 services.ts. All
+  proposals await owner confirmation + L1 call shapes; no invention.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
