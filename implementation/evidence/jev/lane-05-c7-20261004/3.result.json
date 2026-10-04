@@ -1,0 +1,36 @@
+{
+  "request": {
+    "questions": {
+      "scope": {
+        "criteria": {
+          "A": "Pikaday-shaped static grid: month table, link/button navigation, link/button day selection.",
+          "B": "Vanilla-calendar-shaped static grid: data-vc grid, link/button navigation, link/button day selection.",
+          "C": "No grid in lane 05: native inputs and agenda sections only; month picking stays outside the library."
+        },
+        "instructions": "Decide the C7 calendar scope. The winner must be fully usable with stylesheets alone (no picker script ever runs), must not present inoperable controls, should reuse the already-pinned daisyUI calendar rules where a grid is chosen, and must keep the owned markup contract as small as honesty allows. Which scope?",
+        "type": "choice"
+      }
+    },
+    "state": "Lane 05 owns @canlang/ui, a server-side daisyUI library: string builders, zero JavaScript, stylesheets plus links and forms only. Inspection of the pinned daisyUI 5.7.47 calendar.css shows adapter rules and no own component: .cally shadow-part rules (need the cally element script to show anything), .react-day-picker rules (need React), .pika-single table rules (style plain table markup), and .vc data-attribute grid rules (style plain div markup). Working calendar coverage already exists from C4: native date and datetime-local field inputs, and an agenda collection that groups query rows under day headings. C7 weighs three scopes: a Pikaday-shaped static month grid, a vanilla-calendar-shaped static month grid (both with every day and nav control as a genuine link or submit button), or no month grid at all. Cally and React Day Picker shapes are excluded as unrunnable without their scripts. The choice fixes the L1 emission contract and the library test surface.",
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "scope": {
+        "type": "choice",
+        "choice": "C",
+        "confidence": 0.2,
+        "probabilities": {
+          "A": 0.33,
+          "C": 0.45999999999999996,
+          "B": 0.21
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 659,
+      "output_tokens": 38
+    }
+  }
+}

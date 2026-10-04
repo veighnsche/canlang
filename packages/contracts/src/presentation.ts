@@ -23,7 +23,7 @@ import type { DeliveryStatus } from "./services.js";
 export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
 export type { DeliveryStatus } from "./services.js";
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.12.0";
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.13.0";
 
 /**
  * Name of the hidden CSRF field in every canonical POST form. Rendered by
@@ -1463,4 +1463,90 @@ export interface ThemeControllerProps {
   readonly postTo: string;
   readonly themes: readonly ThemeOption[];
   readonly current?: string;
+}
+
+// ---------------------------------------------------------------------------
+// C7 collections + files + review (collections.ts, controls.ts, review.ts):
+// board, csv-import, file, review.
+// ---------------------------------------------------------------------------
+
+/**
+ * `board` enum-grouped card columns over an authorized query. `by` names the
+ * enum field whose case names partition rows; group order follows the
+ * column's valueLabels declaration order when present, else first-seen row
+ * order. No appearance props: the word admits no matrix (runtime extras
+ * throw), so callers cannot name a failing token.
+ */
+export interface BoardProps {
+  readonly context: PresentationContext;
+  readonly model: string;
+  /** Enum field whose case names partition rows into groups. */
+  readonly by: string;
+  readonly columns: readonly string[];
+  readonly parent?: { readonly id: string };
+  readonly where?: unknown;
+  readonly limit?: number;
+  readonly cursor?: string;
+  readonly empty: MessageValue;
+  readonly controls?: CollectionControls;
+}
+
+/** Parsed CSV preview: header captions plus armored string cells. */
+export interface CsvImportReview {
+  readonly columns: readonly MessageValue[];
+  readonly rows: ReadonlyArray<ReadonlyArray<string>>;
+}
+
+/**
+ * `csvImport` caller-targeted upload panel with optional review. `postTo`
+ * is the caller-supplied upload path, never invented. No appearance props:
+ * the word admits no matrix (runtime extras throw).
+ */
+export interface CsvImportProps {
+  readonly context: PresentationContext;
+  /** Upload target path supplied by the caller; never invented here. */
+  readonly postTo: string;
+  readonly label: MessageValue;
+  readonly review?: CsvImportReview;
+}
+
+/**
+ * One authorized finalized file/media link. `href` is a dispatcher-supplied
+ * authorized URL (same trust as LinkProps.target); hostile or empty values
+ * fall back to "#" via safeHref, never render raw. `status` is the declared
+ * DeliveryStatus where the source shape carries one.
+ */
+export interface FileLinkView {
+  readonly href: string;
+  readonly name?: string;
+  readonly caption?: MessageValue;
+  readonly status?: DeliveryStatus;
+}
+
+/** `file` display props: field wiring plus the authorized file links. */
+export interface FileProps extends FieldControlProps {
+  readonly files: ReadonlyArray<FileLinkView>;
+}
+
+/**
+ * Declared policy content for one review. Every slot is an already-resolved
+ * display value from the caller (text/decision/rationale/actor/time); null
+ * and undefined both mean absent and render the unavailable presentation.
+ */
+export interface ReviewPolicyView {
+  readonly text?: MessageValue | null;
+  readonly decision?: MessageValue | null;
+  readonly rationale?: MessageValue | null;
+  readonly actor?: MessageValue | null;
+  readonly time?: MessageValue | null;
+}
+
+/**
+ * `review` leaf props: required policy content plus an optional caption.
+ * A present-but-empty caption throws rather than emitting an empty name.
+ */
+export interface ReviewProps {
+  readonly context: PresentationContext;
+  readonly policy: ReviewPolicyView;
+  readonly caption?: MessageValue;
 }
