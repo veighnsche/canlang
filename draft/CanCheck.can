@@ -167,6 +167,7 @@ package check
    require operations
    table Check columns=name,application,location,owner,state,enabled,last_ping,due,period,grace order=name search=name filter=application,location,state defaults={application=preferences.application,location=preferences.location} display=split
     card "Current recorded health"@{nl="Huidige vastgelegde gezondheid"}
+     badge row.state
      text row.purpose,row.state,row.enabled,row.last_ping,row.due,row.armed,row.revision
      card "No heartbeat received yet"@{nl="Nog geen heartbeat ontvangen"}
       require row.last_ping==null

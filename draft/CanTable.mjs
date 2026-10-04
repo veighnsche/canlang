@@ -624,6 +624,7 @@ export async function cafePage(c, bindings) {
                 filter: ["state"],
                 display: "split",
                 renderRow: (booking, rowView) => [
+                  // Desired: badge row.state — no verified @canlang/ui badge factory yet; awaits the L5 producer contract.
                   edit({ context: rowView, operation: "cafe.Booking.update", record: booking }),
                   actions({
                     context: rowView,
