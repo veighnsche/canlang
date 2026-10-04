@@ -123,8 +123,13 @@ Active reservations: none (coordinator holds all owned files until first delegat
 - Lane 06 S2 merged as PR #12 (`f092bbb`): identity core; `identity.ts` +3 lines, no new barrel exports, no manifest/lock changes. No lane-07 join action; identity suite green (33/33).
 - Fresh-clone verification (PR4, commit `173e4b6`): clean `git clone` + branch checkout, then `npm ci`, `npm run build`, `npm run typecheck`, `npm test` (44/44), `test_jev.py` (3/3), `cargo build --locked` — all green, no credentials, no extra steps. `docs/dev-setup.md` follows this script verbatim.
 - Release verification (PR5): dispatched `release.yml` on main `53f6f29` (run 37208041505) — all 3 jobs green. Artifacts confirmed: 5 tarballs, `can` binary (193KB), editor zip (11KB). No publishing (by design).
-- L3 S2 survey (PR #15 open): revision-fenced storage with real-D1/DO conformance via miniflare v4; prompted the v4 alignment above (handoff: none needed from L3 — lane 07 moved to their pin). Assembly + lock absorption happen when #15 merges.
-- No lock/manifest integration requests pending beyond the L2/L3/L4/L5 nested-lock follow-ups above. No requests sent yet.
+- Lane 03 S2 merged as PR #15 (`5a271a6`): revision-fenced storage + real-D1/DO conformance via miniflare v4 + `@cloudflare/workers-types`; `state.ts` +82 (no barrel collisions). PR6 absorbs the v4 subtree into the root lock (hoisted, zero nested entries) and keeps the v4 flat-options alignment. State suite green (60/60). Their nested lock remains a follow-up pending L3 ack.
+- Lane 02 PR2 merged as PR #17 (`c949174`): `DeliveryError` dedup (services now owns it) + runner-safe demo suite. `DeliveryError` interim pick CLOSED in PR6 (explicit line + pin removed; `export *` carries services' shape). Handoff: L2's relative `../contracts/src` imports → `@canlang/contracts` switch still pending their ack.
+- Lane 04 S3+S4 merged as PR #13 (`b7f0ebc`): workflow admission credentials + end-to-end integration; `@canlang/interfaces` +1077 lines with `@canlang/contracts` declared dep. PR6 absorbs the new dep edge into the root lock. Interfaces suite green (60/60, was 7).
+- Lane 06 S3 merged as PR #19 (`f5a1db6`): auth resolution + delegation chaining, unsigned/fixture guards in local contexts; `@canlang/identity` declares `@canlang/contracts` dep. PR6 absorbs the dep edge. Identity suite green (33/33). Fixture-vs-real separation aligns with the testkit isolation contract.
+- Lane 02 PR3 merged as PR #20 (`2f2585e`): `values.ts` extended (no new collisions), JEV merge-evidence handoff to L5. No lock changes; no lane-07 join action beyond the collision re-scan.
+- Lane 05 S3 merged as PR #16 (`f5f2b5e`): themes + `@canlang/ui` daisyui devDep; `presentation.ts` +104 (no new barrel collisions). PR6 absorbs daisyui into the root lock. Ui suite green (183/183, was 101/101 at S2).
+- No lock/manifest integration requests pending beyond the L2/L3/L4 nested-lock + package-import follow-ups above (L5 closed). No requests sent yet.
 
 ## PR and verification evidence
 
