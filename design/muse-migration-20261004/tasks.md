@@ -187,12 +187,12 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: Agreed behavior, permissions and exact source/JS expectations match; focused checks; no unstated policy or invented dependency.
   - Evidence: writer 01a107b6-0d0d-79e2-9f1d-44d65bf8c06a released (READY-BY-OVERRIDE). W1 grouped bound import (2→1 lines) + W2 JS counterpart exact; W3 Customer source byte-identical; W4 .md sections added to both files. Coordinator verified: no new-contract spelling in .can (bounds-grep hit was the required witness sentence in .md prose), node --check OK, direct parse fails identically pre/post (pre-existing 27:895 diagnostic, line-shifted only) → no regression. Unexecuted behavior disclosed.
 
-- [ ] **A06 — Mail notice retry/reconciliation**
+- [x] **A06 — Mail notice retry/reconciliation**
   - Prerequisites: SATISFIED BY USER-OVERRIDE 2026-10-04 (was: READY linking mail-recovery-design.md): coordinator-completed acknowledged_resend witness appended to mail-recovery-design.md; all overlapping writers released
   - Owner / files / interfaces: Muse implementation agent; draft/CanMail.can, draft/CanMail.md, draft/CanMail.mjs
   - Changes / traceability: Q1–Q3; apply the complete accepted design witness and its explicitly listed cases. The document filename is a destination, not a claim a design exists.
   - Acceptance: Agreed behavior, permissions and exact source/JS expectations match; focused checks; no unstated policy or invented dependency.
-  - Evidence: pending.
+  - Evidence: writer 01a107b9-396d-74d0-ba3d-d7b0cdb4d028 released (READY-BY-OVERRIDE). Notice model + Item.notice pointer + 3 frozen-capture conversions + send_another_notice (all 5 requires incl both frozen comparisons) + apply_notice_success applied; JS metadata/handlers match; .md covers all 12 BDD behaviors. Coordinator verified: A05 import preserved, no EmailV1/retry_fee/deployment/available(/reconcile touches, recipient grant byte-identical, node --check OK, direct parse identical pre/post (pre-existing 27:895). Unexecuted behavior disclosed.
 
 - [x] **N01 — Complete Chat draft from its design handoff**
   - Prerequisites: BLOCKED DESIGN: READY inbox message with complete Chat requirements/contract/source-JS witness
@@ -335,6 +335,7 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - DONE A03: writer 01a107b2-7b51-78d3-a418-680db88c10ee RELEASED draft/CanVolunteer.can, draft/CanVolunteer.md, draft/CanVolunteer.mjs. Task ticked complete (see A03 evidence).
 - DISPATCH batch 6 (slot freed x1): N10 implementation writer (Purchase + Expense triplets). A04/A06 running. Queue empty; final integration + handoff after releases.
 - DONE A04: writer 01a107b2-7c80-7ca3-9066-bda29e24855b RELEASED draft/CanRent.can, draft/CanRent.md, draft/CanRent.mjs. Task ticked complete (see A04 evidence). 5/6 gated tasks done; A06 + N10 running.
+- DONE A06: writer 01a107b9-396d-74d0-ba3d-d7b0cdb4d028 RELEASED draft/CanMail.can, draft/CanMail.md, draft/CanMail.mjs. Task ticked complete (see A06 evidence). All A-tasks done; N10 running (last writer).
 - ACK H005 NOTE watcher repaired: accepted. contextlib.closing fix noted; H002 command reusable when ready work next exhausts (not now — A01 active). No TUI-push claim.
 - ACK H006 READY A01 accepted: complete C4 feedback-design.md (457 lines) + review.md limits read in full. Scope: Decision/current_decision/contracts/policy/invariant/locks/derive, roadmap/moderate bodies, withdraw_decision/decision_history, both page roots, full target mirror, journey observations + withdrawal table + decision_history sequence, 15-row required-cases table. No DESIGN/GRAMMAR/runtime work. C1/Rent-history/C3/C5 remain unadopted.
 - RESERVED A01: draft/CanFeedback.can, draft/CanFeedback.md, draft/CanFeedback.mjs — writer 01a10715-f84a-75c0-839e-02675ad1d0e3 (A01 Feedback/17) active. J01 released; no pending Feedback edits at handoff (verified clean).

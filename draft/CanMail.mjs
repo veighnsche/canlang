@@ -272,6 +272,7 @@ export const appDefinition = {
           nullable: true,
           label: message("Notification reference", { nl: "Meldingsreferentie" }),
         },
+        notice: { type: "mailroom.Notice", nullable: true },
         completed: {
           type: "datetime",
           nullable: true,
@@ -403,6 +404,34 @@ export const appDefinition = {
         reconcile_delivery: { type: "text", nullable: true },
         invoice: { type: "text", nullable: true },
         revision: { type: "int", default: 1n },
+      },
+    },
+    "mailroom.Notice": {
+      parent: "mailroom.Item",
+      label: message("Notice attempt"),
+      readGrants: [{ rule: "Notice.read.1" }],
+      locks: ["Notice.lock.1"],
+      fields: {
+        account: { type: "user", label: message("Frozen account") },
+        address: { type: "text", label: message("Frozen address") },
+        subject: { type: "text" },
+        body: { type: "text" },
+        receipt: {
+          type: "delivery",
+          operation: "mailroom.Mail.send",
+          nullable: true,
+          label: message("Notice receipt"),
+        },
+        kind: { type: "enum", cases: ["initial", "reminder", "additional"] },
+        number: { type: "int" },
+        predecessor: { type: "mailroom.Notice", nullable: true },
+        reason: { type: "text", nullable: true },
+        acknowledged: {
+          type: "bool",
+          default: false,
+          label: message("Possible duplicate accepted"),
+        },
+        author: { type: "user", server: "actor", label: message("Author") },
       },
     },
   },
@@ -685,6 +714,36 @@ export const appDefinition = {
       }),
       inputs: { item: { type: "mailroom.Item" }, reason: { type: "text" } },
     },
+    "mailroom.send_another_notice": {
+      handler: "sendAnotherNotice",
+      by: "mailroom.mail_staff",
+      read: false,
+      label: message("Send another notice", { nl: "Nog een melding verzenden" }),
+      description: message(
+        "Send one additional frozen notice after a failed, uncertain or skipped attempt, keeping the old outcome.",
+        {
+          nl: "Verzend één extra bevroren melding na een mislukte, onzekere of overgeslagen poging, met behoud van de oude uitkomst.",
+        },
+      ),
+      inputs: {
+        item: { type: "mailroom.Item" },
+        reason: { type: "text" },
+        acknowledged: { type: "bool", default: false },
+      },
+    },
+    "mailroom.apply_notice_success": {
+      handler: "apply_notice_success",
+      by: "mailroom.mail_staff",
+      read: false,
+      label: message("Apply accepted notice", { nl: "Geaccepteerde melding toepassen" }),
+      description: message(
+        "Reapply the current accepted notice outcome when its callback was missed.",
+        {
+          nl: "Pas de huidige geaccepteerde meldingsuitkomst opnieuw toe als de callback is gemist.",
+        },
+      ),
+      inputs: { item: { type: "mailroom.Item" } },
+    },
   },
   handlers: {
     "mailroom.fee_result": {
@@ -719,6 +778,9 @@ export const appDefinition = {
     "mailroom.Dispatch.create",
     "mailroom.Dispatch.update",
     "mailroom.Dispatch.delete",
+    "mailroom.Notice.create",
+    "mailroom.Notice.update",
+    "mailroom.Notice.delete",
   ],
 };
 
@@ -836,6 +898,8 @@ export function canApp() {
         (await recipient(c, c.actor, row.parent.service)),
       "Dispatch.read.1": async (c, row) =>
         hasRole(c, "mailroom.mail_staff") && (await can_work(c, c.actor, row.parent.location)),
+      "Notice.read.1": async (c, row) =>
+        hasRole(c, "mailroom.mail_staff") && (await can_work(c, c.actor, row.parent.location)),
     },
     invariants: {
       "Service.require.1": (c, row) =>
@@ -879,6 +943,21 @@ export function canApp() {
           "fee",
           "source",
           "dispatch",
+          "author",
+        ],
+      },
+      "Notice.lock.1": {
+        fields: [
+          "account",
+          "address",
+          "subject",
+          "body",
+          "receipt",
+          "kind",
+          "number",
+          "predecessor",
+          "reason",
+          "acknowledged",
           "author",
         ],
       },
@@ -978,29 +1057,37 @@ export function canApp() {
       const item = await create(c, "mailroom.Item", { location, source, kind, storage, photo });
       if (service !== null) {
         await set(c, item, { service, recipient: service.recipient, state: "received" });
-        const notice = await send(
+        const subject = format(c, message("Mail received", { nl: "Post ontvangen" }), {
+          locale: null,
+        });
+        const body = format(
+          c,
+          message("An item is available for authorized collection.", {
+            nl: "Er ligt een item klaar dat door een bevoegde persoon kan worden afgehaald.",
+          }),
+          { locale: null },
+        );
+        const delivery = await send(
           c,
           "mailroom.Mail.send",
-          {
-            to: service.recipient.email,
-            subject: format(c, message("Mail received", { nl: "Post ontvangen" }), {
-              locale: null,
-            }),
-            body: format(
-              c,
-              message("An item is available for authorized collection.", {
-                nl: "Er ligt een item klaar dat door een bevoegde persoon kan worden afgehaald.",
-              }),
-              { locale: null },
-            ),
-          },
+          { to: service.recipient.email, subject, body },
           {
             when: async (current) =>
               ["received", "notified", "collection_ready"].includes(item.state) &&
               (await recipient(current, service.recipient.account, service)),
           },
         );
-        await set(c, item, { notification: notice });
+        const frozen = await create(c, "mailroom.Notice", {
+          parent: item,
+          account: service.recipient.account,
+          address: service.recipient.email,
+          subject,
+          body,
+          receipt: delivery,
+          kind: "initial",
+          number: 0n,
+        });
+        await set(c, item, { notification: delivery, notice: frozen });
         await schedule(
           c,
           format(c, "mail-reminder-{item}", { item: item.id }),
@@ -1019,27 +1106,35 @@ export function canApp() {
           (await live(c, service)),
       );
       await set(c, item, { service, recipient: service.recipient, state: "received" });
-      const notice = await send(
+      const subject = format(c, message("Mail received", { nl: "Post ontvangen" }), { locale: null });
+      const body = format(
+        c,
+        message("An item is available for authorized collection.", {
+          nl: "Er ligt een item klaar dat door een bevoegde persoon kan worden afgehaald.",
+        }),
+        { locale: null },
+      );
+      const delivery = await send(
         c,
         "mailroom.Mail.send",
-        {
-          to: service.recipient.email,
-          subject: format(c, message("Mail received", { nl: "Post ontvangen" }), { locale: null }),
-          body: format(
-            c,
-            message("An item is available for authorized collection.", {
-              nl: "Er ligt een item klaar dat door een bevoegde persoon kan worden afgehaald.",
-            }),
-            { locale: null },
-          ),
-        },
+        { to: service.recipient.email, subject, body },
         {
           when: async (current) =>
             ["received", "notified", "collection_ready"].includes(item.state) &&
             (await recipient(current, service.recipient.account, service)),
         },
       );
-      await set(c, item, { notification: notice });
+      const frozen = await create(c, "mailroom.Notice", {
+        parent: item,
+        account: service.recipient.account,
+        address: service.recipient.email,
+        subject,
+        body,
+        receipt: delivery,
+        kind: "initial",
+        number: 0n,
+      });
+      await set(c, item, { notification: delivery, notice: frozen });
       await schedule(
         c,
         format(c, "mail-reminder-{item}", { item: item.id }),
@@ -1268,32 +1363,41 @@ export function canApp() {
         event.number <= item.reminder_limit &&
         (await recipient(c, item.service.recipient.account, item.service))
       ) {
-        const notice = await send(
+        const subject = format(
+          c,
+          message("Mail awaiting collection", { nl: "Post wacht op afhaling" }),
+          { locale: null },
+        );
+        const body = format(
+          c,
+          message("Please arrange authorized collection of your item.", {
+            nl: "Regel bevoegde afhaling van je poststuk.",
+          }),
+          { locale: null },
+        );
+        const delivery = await send(
           c,
           "mailroom.Mail.send",
-          {
-            to: item.service.recipient.email,
-            subject: format(
-              c,
-              message("Mail awaiting collection", { nl: "Post wacht op afhaling" }),
-              { locale: null },
-            ),
-            body: format(
-              c,
-              message("Please arrange authorized collection of your item.", {
-                nl: "Regel bevoegde afhaling van je poststuk.",
-              }),
-              { locale: null },
-            ),
-          },
+          { to: item.service.recipient.email, subject, body },
           {
             when: async (current) =>
               ["received", "notified", "collection_ready"].includes(item.state) &&
               (await recipient(current, item.service.recipient.account, item.service)),
           },
         );
+        const frozen = await create(c, "mailroom.Notice", {
+          parent: item,
+          account: item.service.recipient.account,
+          address: item.service.recipient.email,
+          subject,
+          body,
+          receipt: delivery,
+          kind: "reminder",
+          number: event.number,
+        });
         await set(c, item, {
-          notification: notice,
+          notification: delivery,
+          notice: frozen,
           reminders: event.number,
         });
         if (item.reminders < item.reminder_limit)
@@ -1305,6 +1409,61 @@ export function canApp() {
             { item, number: int64(item.reminders + 1n) },
           );
       }
+    },
+    async sendAnotherNotice(c, { item, reason, acknowledged = false }) {
+      check(hasRole(c, "mailroom.mail_staff"), "forbidden");
+      check(
+        (await can_work(c, c.actor, item.location)) &&
+          item.service !== null &&
+          ["received", "notified", "collection_ready"].includes(item.state) &&
+          item.notice !== null &&
+          reason.trim() !== "",
+      );
+      const current = item.notice; // staff-only current Notice pointer
+      check(
+        current.receipt !== null &&
+          ["failed", "unknown", "skipped"].includes(current.receipt.status),
+      );
+      check(current.receipt.status === "skipped" || acknowledged === true);
+      const contact = item.service.recipient; // exact current verified contact
+      check(await recipient(c, contact.account, item.service));
+      check(same(current.account, contact.account) && current.address === contact.email);
+      const delivery = await send(
+        c,
+        "mailroom.Mail.send",
+        { to: current.address, subject: current.subject, body: current.body },
+        {
+          when: async (admission) =>
+            ["received", "notified", "collection_ready"].includes(item.state) &&
+            (await recipient(admission, item.service.recipient.account, item.service)),
+        },
+      );
+      const next = await create(c, "mailroom.Notice", {
+        parent: item,
+        account: current.account,
+        address: current.address,
+        subject: current.subject,
+        body: current.body,
+        receipt: delivery,
+        kind: "additional",
+        number: current.number,
+        predecessor: current,
+        reason,
+        acknowledged,
+      });
+      await set(c, item, { notification: delivery, notice: next });
+    },
+    async apply_notice_success(c, { item }) {
+      check(hasRole(c, "mailroom.mail_staff"), "forbidden");
+      check(
+        (await can_work(c, c.actor, item.location)) &&
+          item.state === "received" &&
+          item.notice !== null &&
+          item.notice.receipt !== null &&
+          item.notice.receipt.status === "succeeded" &&
+          item.notice.receipt.result !== null,
+      );
+      await set(c, item, { state: "notified" });
     },
     async notice_result(c, { event }) {
       for (const item of await records(c, "mailroom.Item", {
