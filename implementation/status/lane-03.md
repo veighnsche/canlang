@@ -285,6 +285,8 @@ all evidence is local miniflare + node suites recorded below with commands/versi
   operationId, absent result->null); reader deep-copy isolation x3;
   bound-deps-win smuggling pin + dead-branch collapse; collation tiebreak
   contract note; historyFor ORDER BY version,seq on all 3. Suite 328/328.
+  S6 merged (160db71, PR #53, head 0d49425, CI state/tools/workspace green).
+  S7 branch `muse/lane-03-state/migrations` from 160db71.
   Reserved (coordinator): implementation/status/lane-03.md, PR/review/merge.
   Tree deviation: `src/storage/schema.sql` folded into `src/storage/schema.ts`
   (single SQL source embedded for workerd; avoids dual-source drift).
