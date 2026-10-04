@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Verified task boundaries: this is a language-design draft, not a running migration service. The professional-services case brings two thousand old expense entries and the same number of receipts; the workspace case brings twenty thousand bookings and five thousand invoices whose customer and invoice-to-booking references matter. Identity, banking and accounting are not replaced by this intake. Canonical CSV intake is bounded at one thousand rows/ten MiB, has explicit review and reference resolution, creates independent row transactions and retains operation IDs across retries. File-valued inputs need validated uploaded bytes and finalized same-context references; arbitrary filenames, links and IDs are not attachments. Actual Expense draft creation, current reviewer approval stamped with actor/now, and finance reimbursement guards cannot reproduce unknown earlier actors or historical approvals. Evidence fields are locked and runtime attribution metadata is reserved. Installed-version backfill is a separate maintenance operation, not a way to load vendor history. Existing ordinary policies/models/scenarios can represent immutable source claims and finalized documents with explicit current-steward attribution and optional supported current-person links. No source requires fake accounts, transferred roles, unrestricted writes or a new archive primitive. Any solution must account for duplicates, lost accounts, invalid files, partial success, unknown delivery/retry state and present-day disclosure; old approval/payment assertions must not become new live actions. Work to map/review documents and references, retain source access and support reconciliation has company costs. There are no execution or comparative cost measurements.",
+    "questions": {
+      "intake": {
+        "type": "choice",
+        "instructions": "Which complete path is the most appropriate fit for the verified intake constraints?",
+        "criteria": {
+          "domain_intake": "Author narrow historical-state entry points in each existing business package. A currently authorized steward supplies supported historical facts and proven account/reference mappings, and imported-origin attributes distinguish them from new actions. Native reports can then include admitted history. Every package must specify which states/effects are valid; unresolved identities or evidence are excluded and may require continued external retention and operator review.",
+          "evidence_records": "Declare locked historical records using the existing language inside the relevant owner, retaining original identifiers, evidence files and claimed actor/date/status independently of Can business state. Optional verified mappings provide current reader and relationship links; unsupported identities stay historical text. Normal operations own future actions. Adoption still requires document validation, mapping, storage, explicit incomplete rows and correctly separated reporting or retained unsupported originals.",
+          "retained_source": "Leave past entries in an authorized legacy service or preserved external archive, with Can offering controlled references and using its usual workflows for ongoing records. It avoids reconstructing historical permissions and attachments locally. Continued access control, archive availability, export quality, split reporting and any ongoing subscription/storage/support obligations remain part of the replacement decision."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "intake": {
+        "type": "choice",
+        "choice": "evidence_records",
+        "confidence": 0.29,
+        "probabilities": {
+          "retained_source": 0.02,
+          "domain_intake": 0.46,
+          "evidence_records": 0.52
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 836,
+      "output_tokens": 49
+    }
+  }
+}

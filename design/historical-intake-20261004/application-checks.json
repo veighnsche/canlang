@@ -1,0 +1,28 @@
+{
+  "stage": "draft-only; no semantic checker/runtime/workflow execution",
+  "date": "2026-10-04",
+  "checks": {
+    "node_check_CanExpense_mjs": "pass",
+    "source_projection_parse": "pass; excluded five existing/new sequence bodies and CSV import/review attributes",
+    "original_source_scenario_bodies_preserved": 6,
+    "original_fixture_declarations_preserved": 16,
+    "original_policy_declarations_preserved": 5,
+    "original_lock_declarations_preserved": 4,
+    "original_invariant_declarations_preserved": 2,
+    "original_page_renderers_preserved": [
+      "minePage",
+      "reviewPage"
+    ],
+    "original_target_examples": "exact prefix retained",
+    "new_inline_table_rows": 14,
+    "new_connected_sequence_calls": 14,
+    "scoped_diff_check": "pass",
+    "root_correspondence_correction": "Removed unsupported authored operation_id replay and narrowed nullable lookups; one shared typed claim value preserves independent expectations."
+  },
+  "limits": [
+    "No real dataset import",
+    "No executed receipt replay or viewer grant/download serialization",
+    "No actual team-role removal; actual employee.deactivate covers workplace eligibility revocation",
+    "No source key/provider/identity evidence inferred beyond explicit inputs"
+  ]
+}
