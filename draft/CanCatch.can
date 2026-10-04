@@ -25,7 +25,8 @@ package catch
   export contract ErrorWork { project:Project label="Project"@{nl="Project"}, event_id:text label=label_Occurrence_event_id, fingerprint:text label=label_Issue_fingerprint, grouping_version:int min=1 label=label_Project_grouping_version, occurred:datetime, message:text max=4096 label=label_Alert_message, stack:text? max=32000 label=label_Occurrence_stack, environment:text? label=label_Issue_environment, release:text? label=label_Issue_release, payload:file? label=label_RawPayload_payload } label="Queued error work"@{nl="Foutverwerking in wachtrij"}
   export contract IntakeHealth { project:Project, revision:int min=1, observed:datetime, accepted:int min=0, rejected:int min=0, dropped:int min=0, processing_failed:int min=0 }
   Health in Project { revision:int, observed:datetime, accepted:int, rejected:int, dropped:int, processing_failed:int } label="Capture health"@{nl="Gezondheid foutregistratie"}
-  Notice in Issue { kind:enum(new,regression) label={text="Alert kind"@{nl="Meldingstype"},values={new="New issue"@{nl="Nieuw probleem"},regression="Regression"@{nl="Terugkeer"}}}, destination:url, delivery:text?, outcome:DeliveryResult.status=pending label="Alert outcome"@{nl="Meldingsresultaat"}, detail:text?, occurred:datetime server=now }
+  Notice in Issue { kind:enum(new,regression) label={text="Alert kind"@{nl="Meldingstype"},values={new="New issue"@{nl="Nieuw probleem"},regression="Regression"@{nl="Terugkeer"}}}, destination:url, delivery:delivery(Alerts.notify)?, detail:text? label="Retained safe diagnostic"@{nl="Bewaarde veilige diagnose"}, occurred:datetime server=now }
+  derive Notice.outcome:DeliveryResult.status? = row.delivery?.status label="Alert outcome"@{nl="Meldingsresultaat"}
   export capability IntakeV1 version=1
    event accepted { value:ErrorWork }
    event health { value:IntakeHealth }
@@ -36,7 +37,7 @@ package catch
   policy RawPayload read=developer and staff(actor) where=actor in row.parent.parent.parent.viewers
   policy Note read=developer and staff(actor) where=actor in row.parent.parent.viewers
   policy Health read=developer and staff(actor) where=actor in row.parent.viewers
-  policy Notice read=developer and staff(actor) where=actor in row.parent.parent.viewers fields=kind,outcome,detail,occurred
+  policy Notice read=developer and staff(actor) where=actor in row.parent.parent.viewers fields=kind,delivery.id,delivery.status,outcome,detail,occurred
   unique Health fields=parent
   unique Issue fields=fingerprint,fingerprint_version,environment
   invariant Project: row.raw_days<=row.issue_days
@@ -51,7 +52,9 @@ package catch
   fixture seen=Occurrence {parent=open_issue,event_id="seen",occurred=now-1m,message="Error"}
   fixture raw=file {}
   fixture health=Health {parent=project,revision=1,observed=now-2m,accepted=10,rejected=0,dropped=0,processing_failed=0}
-  fixture alert_notice=Notice {parent=open_issue,kind=new,destination="https://alerts.example.invalid/hook",delivery="alert-1"}
+  fixture alert_notice=Notice {parent=open_issue,kind=new,destination="https://alerts.example.invalid/hook"}
+  fixture alert_attempt=Alerts.notify {request={value={source=alert_notice.id,destination="https://alerts.example.invalid/hook",message="New application error"}}}
+  fixture other_attempt=Alerts.notify {request={value={source=alert_notice.id,destination="https://alerts.example.invalid/hook",message="New application error"}},status=failed,error={code="provider",message="Delivery rejected"}}
   preferences { environment:text? label=label_Issue_environment, evidence_open:bool=false label="Expand retained occurrence evidence"@{nl="Bewaarde foutgegevens uitklappen"} }
   message retained_raw_evidence_caption = "Retained raw evidence"@{nl="Bewaarde ruwe gegevens"}
   message label_Alert_message = "Message"@{nl="Bericht"}
@@ -145,21 +148,25 @@ package catch
    do
     for notice in Notice as row where row.id==event.id and row.delivery==null limit=1
      if notice.kind==new
-      send Alerts.notify {value={source=notice.id,destination=notice.destination,message=format("New application error"@{nl="Nieuwe applicatiefout"},locale=null)}} when=notice.parent.parent.active as delivery
-      set notice {delivery=delivery.id}
+      send Alerts.notify {value={source=notice.id,destination=notice.destination,message=format("New application error"@{nl="Nieuwe applicatiefout"},locale=null)}} when=notice.parent.parent.active as attempt
+      set notice {delivery=attempt}
      else
-      send Alerts.notify {value={source=notice.id,destination=notice.destination,message=format("Application error regression"@{nl="Applicatiefout teruggekeerd"},locale=null)}} when=notice.parent.parent.active as delivery
-      set notice {delivery=delivery.id}
+      send Alerts.notify {value={source=notice.id,destination=notice.destination,message=format("Application error regression"@{nl="Applicatiefout teruggekeerd"},locale=null)}} when=notice.parent.parent.active as attempt
+      set notice {delivery=attempt}
+  ## Status belongs to the receipt. The latest safe diagnostic retains its
+  ## independent Notice lifetime; completion without an error clears it.
   scenario notification_result on=Alerts.notify.completed
    do
-    let notice=first(Notice as notice where notice.delivery==event.delivery_id order=notice.id)
+    let notice=first(Notice as notice where notice.delivery?.id==event.delivery_id order=notice.id)
     if notice!=null
-     set notice {outcome=event.status,detail=event.error?.message}
-   examples seed=[alert_notice] event={delivery_id="alert-1",status=unknown,result=null,error=null}
-    event.status,event.result,event.error -> alert_notice.outcome,open_issue.state,open_issue.count
-    succeeded,{reference="accepted"},null -> succeeded,open,1
-    failed,null,{code="unavailable",message="Alert destination unavailable"} -> failed,open,1
-    unknown,null,null -> unknown,open,1
+     set notice {detail=event.error?.message}
+   examples seed=[alert_notice,alert_attempt] event={delivery_id=alert_attempt.id,status=unknown,result=null,error=null}
+    event.delivery_id,event.status,event.result,event.error,alert_notice.delivery,alert_notice.detail,alert_attempt.status,alert_attempt.result,alert_attempt.error -> alert_notice.outcome,alert_notice.detail,open_issue.state,open_issue.count
+    alert_attempt.id,succeeded,{reference="accepted"},null,alert_attempt,null,succeeded,{reference="accepted"},null -> succeeded,null,open,1
+    alert_attempt.id,failed,null,{code="unavailable",message="Alert destination unavailable"},alert_attempt,null,failed,null,{code="unavailable",message="Alert destination unavailable"} -> failed,"Alert destination unavailable",open,1
+    alert_attempt.id,unknown,null,null,alert_attempt,null,unknown,null,null -> unknown,null,open,1
+    alert_attempt.id,succeeded,{reference="accepted"},null,alert_attempt,"Alert destination unavailable",succeeded,{reference="accepted"},null -> succeeded,null,open,1
+    other_attempt.id,failed,null,{code="unavailable",message="Alert destination unavailable"},alert_attempt,"Kept diagnostic",pending,null,null -> pending,"Kept diagnostic",open,1
  Then
   # Triage configured projects without SDK-key, quota or retention settings tools. @{nl="Beoordeel geconfigureerde projecten zonder instellingen voor SDK-sleutels, quota of bewaartermijnen."}
   page /errors title="Application errors"@{nl="Applicatiefouten"}
