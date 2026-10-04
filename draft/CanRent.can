@@ -41,7 +41,7 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
  use propose {QuoteOffer,AcceptedOffer,QuoteDocument,quote_intervals_valid}
  use sales_attribution {Capture,latest_capture}
  use report {ReportBatch,Checkpoint,Contribution}
- use std {OperationOutcome}
+ use std {OperationOutcome,DeliveryResult}
  use std {EmailV1 as Mail} from=deployment.mail
  Given
   preferences { location:Location? }
@@ -123,7 +123,9 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
   Desk in Resource { name:text trim min=1 unique, active:bool=true } label="Pool desk"@{nl="Poolbureau"}
   Assignment in Booking { desk:Desk, from:datetime, until:datetime } label="Dated desk assignment"@{nl="Gedateerde bureautoewijzing"}
   Adjustment in Booking { source:text unique, amount:money, reason:text, delivery:text?, state:enum(pending,paid,expired,review,refunded)=pending label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In behandeling"},paid="Paid"@{nl="Betaald"},expired="Expired"@{nl="Verlopen"},review="Review required"@{nl="Beoordeling nodig"},refunded="Refunded"@{nl="Terugbetaald"}}}, original_until:datetime?, original_reserved_until:datetime?, new_until:datetime?, expires:datetime?, refund_delivery:text?, invoice:text?, movement:Movement?, settlement_revision:int=0, collected:money?, refunded:money? } label="Separate booking adjustment"@{nl="Afzonderlijke reserveringscorrectie"}
-  export Notice in Booking { kind:enum(confirmation,reminder,cancellation) label={text="Kind"@{nl="Soort"},values={confirmation="Confirmation"@{nl="Bevestiging"},reminder="Reminder"@{nl="Herinnering"},cancellation="Cancellation"@{nl="Annulering"}}}, revision:int, subject:text, body:text, delivery:text unique, state:enum(pending,succeeded,failed,unknown,skipped)=pending label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In behandeling"},succeeded="Succeeded"@{nl="Geslaagd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}} } label="Booking correspondence"@{nl="Reserveringscorrespondentie"}
+  export Notice in Booking { kind:enum(confirmation,reminder,cancellation) label={text="Kind"@{nl="Soort"},values={confirmation="Confirmation"@{nl="Bevestiging"},reminder="Reminder"@{nl="Herinnering"},cancellation="Cancellation"@{nl="Annulering"}}}, revision:int, subject:text, body:text, delivery:delivery(Mail.send) } label="Booking correspondence"@{nl="Reserveringscorrespondentie"}
+  ## Notice state observes the Mail receipt instead of a stored transport copy.
+  derive Notice.state:DeliveryResult.status = row.delivery.status label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In behandeling"},succeeded="Succeeded"@{nl="Geslaagd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}
   MovementCredit in Movement { charge_source:text, amount:money, baseline:money, delivery:text unique, state:enum(pending,paid,failed,unknown,review)=pending label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In behandeling"},paid="Paid"@{nl="Betaald"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},review="Review required"@{nl="Beoordeling nodig"}}}, reason:text } label="Movement credit"@{nl="Verplaatsingstegoed"}
   export Movement in Booking { source:text unique, intervals:BenefitInterval[]!, expires:datetime, state:enum(holding,waiting_money,committing,adopted,cancelling,cancelled,review)=holding label={text="State"@{nl="Status"},values={holding="Holding candidate"@{nl="Kandidaat gereserveerd"},waiting_money="Awaiting balance"@{nl="Wacht op saldo"},committing="Committing replacement"@{nl="Vervanging vastleggen"},adopted="Replacement adopted"@{nl="Vervanging overgenomen"},cancelling="Cleanup pending"@{nl="Opruimen in behandeling"},cancelled="Cancelled"@{nl="Geannuleerd"},review="Review required"@{nl="Beoordeling nodig"}}}, extra_due:money?, extra_paid:bool=false, extra_delivery:text?, extra_revision:int=0, credit_due:money?, release_restore:bool=false, reserve_delivery:text?, commit_delivery:text?, release_delivery:text?, reconcile_delivery:text?, outcome:AllowanceOutcome? } label="Replacement workspace hold"@{nl="Vervangende werkplekreservering"}
   CommercialSale in Booking { phase:SaleMilestone.milestone?, revision:int=0 min=0 }
@@ -159,8 +161,8 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
   derive charge_request(booking:Booking,base:money,discount:money,tax:money):Charge = Charge {source=booking.source,customer=booking.customer.id,location=booking.parent.location.id,description=booking.parent.name,amount=base-discount+tax,due=local_date(booking.from,booking.parent.timezone),terms=booking.terms,items=[DocumentLine {title=booking.parent.name,quantity=1,price=base,tax,discount,unit="reservation",from=booking.from,until=booking.until,location=booking.parent.location.name,reference=booking.source}]}
   policy MovementCredit read=billing and can_work(actor,row.parent.parent.parent.location)
   policy MovementCredit read=authenticated where=row.parent.parent.account==actor
-  policy Notice read=authenticated where=row.parent.account==actor
-  policy Notice read=reception and can_work(actor,row.parent.parent.location)
+  policy Notice read=authenticated where=row.parent.account==actor fields=parent,kind,revision,subject,body,delivery.id,delivery.status,state,created_by,created,updated_by,updated,archived_at
+  policy Notice read=reception and can_work(actor,row.parent.parent.location) fields=parent,kind,revision,subject,body,delivery.id,delivery.status,state,created_by,created,updated_by,updated,archived_at
   policy Movement read=authenticated where=row.parent.account==actor
   policy Movement read=reservation_manager and can_work(actor,row.parent.parent.location)
   policy Movement read=billing and can_work(actor,row.parent.parent.location)
@@ -1075,31 +1077,27 @@ package rent_reservations label="Workspace reservations"@{nl="Werkplekreserverin
      let subject=format("Workspace confirmed"@{nl="Werkplek bevestigd"},locale=null)
      let body=format("{location}; {resource}; {from,date} {from,time} – {until,date} {until,time}; {arrival}; {terms}; /workspace/my-bookings"@{nl="{location}; {resource}; {from,date} {from,time} – {until,date} {until,time}; {arrival}; {terms}; /workspace/my-bookings"}(location=event.booking.parent.location.name,resource=event.booking.parent.name,from=event.booking.from,until=event.booking.until,arrival=event.booking.parent.location.arrival,terms=event.booking.terms),locale=null)
      send Mail.send {to=event.booking.email,subject,body} when=event.booking.status==confirmed and event.booking.version==event.revision as delivery
-     create Notice {parent=event.booking,kind=confirmation,revision=event.revision,subject,body,delivery=delivery.id} as notice
+     create Notice {parent=event.booking,kind=confirmation,revision=event.revision,subject,body,delivery} as notice
      if event.booking.from>now+1h
       schedule event.booking.source at=event.booking.from-1h event=Reminder {booking=event.booking,revision=event.revision}
     if event.booking.status in [cancelled,expired,no_show]
      let subject=format("Workspace booking changed"@{nl="Werkplekreservering gewijzigd"},locale=null)
      let body=event.booking.terms
      send Mail.send {to=event.booking.email,subject,body} when=event.booking.version==event.revision as delivery
-     create Notice {parent=event.booking,kind=cancellation,revision=event.revision,subject,body,delivery=delivery.id} as notice
+     create Notice {parent=event.booking,kind=cancellation,revision=event.revision,subject,body,delivery} as notice
   scenario remind on=Reminder
    require event.booking.status==confirmed and event.booking.version==event.revision
    do
     let subject=format("Workspace arrival reminder"@{nl="Herinnering werkplekaankomst"},locale=null)
     let body=event.booking.parent.location.arrival
     send Mail.send {to=event.booking.email,subject,body} when=event.booking.status==confirmed and event.booking.version==event.revision as delivery
-    create Notice {parent=event.booking,kind=reminder,revision=event.revision,subject,body,delivery=delivery.id} as notice
-  scenario notice_result on=Mail.send.completed
-   do
-    for notice in Notice as row where row.delivery==event.delivery_id limit=1
-     set notice {state=event.status}
+    create Notice {parent=event.booking,kind=reminder,revision=event.revision,subject,body,delivery} as notice
   export scenario resend_notice(notice:Notice) by=authenticated or reception label="Retry booking notice"@{nl="Reserveringsbericht opnieuw proberen"}
    require notice.parent.account==actor or (reception and can_work(actor,notice.parent.parent.location))
    require notice.state in [failed,unknown] and notice.parent.version==notice.revision
    do
     send Mail.send {to=notice.parent.email,subject=notice.subject,body=notice.body} as delivery
-    set notice {delivery=delivery.id,state=pending}
+    set notice {delivery}
   scenario allowance_result on=Membership.reserve.completed
    do
     for booking in Booking as b where b.allowance_delivery==event.delivery_id limit=1

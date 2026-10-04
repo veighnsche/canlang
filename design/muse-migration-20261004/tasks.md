@@ -96,12 +96,12 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: No redundant pure receipt-status mirror remains for the selected notice. Source/existing target, authorized projection/UI and examples agree; focused checks and compact diff evidence. If the mapping needs a new rule, report the exact design question and work on another ready task.
   - Evidence: writer 01a106f4-105e-79b1-a7d5-325dfb6472d1 released. notice_delivery text?→delivery(Mail.send)? + use std {DeliveryResult}, stored notice_state→derived status? (Delivered=succeeded; skipped now distinct, was merged into failed), host/guest policy +notice_delivery.status leaf only, 3 producers store handle (resend supersedes), pure notice_result removed. Eligibility/device IDs untouched. No examples pre-existed for notice; none stale. Coordinator verified no stale refs, projection parse exit 0 (only pre-existing sequence projected out); no design question.
 
-- [ ] **D09 — Rent notification delivery association**
+- [x] **D09 — Rent notification delivery association**
   - Prerequisites: M00; exclusive ownership of this pair
   - Owner / files / interfaces: Muse implementation agent; draft/CanRent.can, draft/CanRent.md, draft/CanRent.mjs; DESIGN §8.1 (read-only)
   - Changes / traceability: Q1/Q2; apply the settled association to the inspected notification/notice callback only. Preserve business guards, immutable inputs, diagnostics, audience-safe id/status/result/error leaves and meaningful examples. Do not wholesale-convert all raw IDs.
   - Acceptance: No redundant pure receipt-status mirror remains for the selected notice. Source/existing target, authorized projection/UI and examples agree; focused checks and compact diff evidence. If the mapping needs a new rule, report the exact design question and work on another ready task.
-  - Evidence: pending.
+  - Evidence: writer 01a106f7-5074-75b0-b216-779ca7635ae9 released. Notice.delivery text unique→delivery(Mail.send), stored state→derived status (all 5 captions kept), policies +delivery.id/.status, 3 producers store handle, pure notice_result removed, resend replaces association on same row. Money/history/charge/venue untouched. Target: delivery schema (rent_reservations.Mail.send), readGrant fields, derived + derives, removal mirrored. Coordinator Q2 repair: normalized 2 nullable-form helper reads to the required-association non-null form (Maintain convention), node re-verified. Projection parse fails only at pre-existing CSV spelling; no stale refs; no design question. J05 now unblocked.
 
 - [x] **D10 — Success notification delivery association**
   - Prerequisites: M00; exclusive ownership of this pair
@@ -117,19 +117,19 @@ Muse must call its native create_goal BEFORE delegating: complete every Muse-own
   - Acceptance: Compact declaration/callback inventory with exact mismatch fixes or no-change evidence. New semantic questions are returned to Astra. No needless repeat of unrelated policy/body reviews.
   - Evidence: writer 01a106f9-b70a-7153-ac7c-6f61e341c3e5 released. NO-CHANGE: 3 crud declarations (Product/Suggestion/Vote), 5 enabled entries + 4 disabled identities reconcile exactly (Product.create/update, Suggestion.create/update/delete; Product.delete + Vote×3 disabled). Coordinator spot-verified declarations, entry counts, disabled list, Suggestion.create fields/by/when and no-hook state; no files modified, .md untouched. No design question.
 
-- [ ] **J02 — Loyalty CRUD/hook source-target correspondence**
+- [x] **J02 — Loyalty CRUD/hook source-target correspondence**
   - Prerequisites: M00; source pair writer released; D06
   - Owner / files / interfaces: Muse implementation agent; draft/CanLoyalty.can, draft/CanLoyalty.mjs; companion .md only for actual requirement correction
   - Changes / traceability: Q2; finish the unreviewed CRUD/hook slice using settled rules. Compare canonical enabled/disabled entries, fields, guards, qualified roles, hook versions/order and actual bodies. Correct only unambiguous divergence.
   - Acceptance: Compact declaration/callback inventory with exact mismatch fixes or no-change evidence. New semantic questions are returned to Astra. No needless repeat of unrelated policy/body reviews.
-  - Evidence: pending.
+  - Evidence: writer 01a106fb-c7b6-7ab1-a6e6-a7a4467f9aed released. NO-CHANGE on post-D06 state: 4 crud declarations (Program/Tier/Reward/Account), 7 enabled entries + 5 disabled identities reconcile exactly. Coordinator spot-verified declarations, entries, disabled list, Reward fields/by/when and crudWhen guard; byte-verified Reward fields list after a misread suspicion (file correct, no typo); no files modified, .md untouched. No design question.
 
-- [ ] **J03 — Purchase CRUD/hook source-target correspondence**
+- [x] **J03 — Purchase CRUD/hook source-target correspondence**
   - Prerequisites: M00; source pair writer released
   - Owner / files / interfaces: Muse implementation agent; draft/CanPurchase.can, draft/CanPurchase.mjs; companion .md only for actual requirement correction
   - Changes / traceability: Q2; finish the unreviewed CRUD/hook slice using settled rules. Compare canonical enabled/disabled entries, fields, guards, qualified roles, hook versions/order and actual bodies. Correct only unambiguous divergence.
   - Acceptance: Compact declaration/callback inventory with exact mismatch fixes or no-change evidence. New semantic questions are returned to Astra. No needless repeat of unrelated policy/body reviews.
-  - Evidence: pending.
+  - Evidence: writer 01a106fb-c8d9-75e2-9d72-f4b2258101f9 released. NO-CHANGE: 3 crud declarations (Budget/Request/Line, all delete=none), 6 enabled entries; disabled list = 3 explicit deletes + 21 fully-disabled non-crud-model ops (closed-world convention, verified complete). Coordinator spot-verified declarations, entries, full disabled list and model coverage; no files modified, .md untouched. No design question.
 
 - [ ] **J04 — Refer CRUD/hook source-target correspondence**
   - Prerequisites: M00; source pair writer released
@@ -301,11 +301,18 @@ Coordinator-only progress during execution. Record task ID, assigned writer, res
 - RESERVED D01: draft/CanBook.can, draft/CanBook.md — writer 01a106e9-5e60-7ab0-baaa-f3a392f581ac (D01 CanBook/1) batch 1 active, no .mjs in scope.
 - RESERVED D02: draft/CanCatch.can, draft/CanCatch.md — writer 01a106e9-5fa5-7173-b4db-affb9fe22fe7 (D02 CanCatch/2) batch 1 active, no .mjs in scope.
 - RESERVED D03: draft/CanDesk.can, draft/CanDesk.md — writer 01a106e9-60b0-7df1-8514-c73fee43624e (D03 CanDesk/3) batch 1 active, no .mjs in scope.
-- QUEUED ready disjoint: J04/J06. J05 waits D09 release.
+- QUEUED ready: J06. All J04/J05 dispatched; J06 next on first free slot.
+- DONE D09: writer 01a106f7-5074-75b0-b216-779ca7635ae9 RELEASED draft/CanRent.can, draft/CanRent.md, draft/CanRent.mjs (incl coordinator Q2 repair). Inbox re-read: H001+H002+H003.
+- DONE J02: writer 01a106fb-c7b6-7ab1-a6e6-a7a4467f9aed RELEASED draft/CanLoyalty.can, draft/CanLoyalty.mjs (no changes). No new inbox IDs at verification.
+- DONE J03: writer 01a106fb-c8d9-75e2-9d72-f4b2258101f9 RELEASED draft/CanPurchase.can, draft/CanPurchase.mjs (no changes).
+- ACK H003 RELEASE-REQUEST git-index/commit handoff: accepted. Scope is index/commit ownership ONLY; app-file ownership retained; no new coordinator; production prompts under implementation/ are not Muse tasks and remain untouched. No agent stages/commits (standing rule). Affected tasks: none (all writers already released at handoff point).
+- RELEASED H003: git-index and commit ownership. Coordinator staging/commits HELD until H004. Checklist frozen clean at release commit; implementation continues via reserved agents.
+- RESERVED J04: draft/CanRefer.can, draft/CanRefer.mjs (+ .md only for actual requirement correction) — writer 01a106ff-5911-7a62-a97f-57f5887f716b (J04 Refer/14) batch 8 active.
+- RESERVED J05: draft/CanRent.can, draft/CanRent.mjs (+ .md only for actual requirement correction) — writer 01a106ff-5a10-7b61-912f-5c5cda3b8173 (J05 Rent/15) batch 8 active. Reviews post-D09 state.
 - DONE J01: writer 01a106f9-b70a-7153-ac7c-6f61e341c3e5 RELEASED draft/CanFeedback.can, draft/CanFeedback.mjs (no changes; no files modified). Inbox re-read: H001+H002 only.
 - DONE D07: writer 01a106f4-0f69-72b2-8ce3-c7987750d3ff RELEASED draft/CanMaintain.can, draft/CanMaintain.md, draft/CanMaintain.mjs. No new inbox IDs.
-- RESERVED J02: draft/CanLoyalty.can, draft/CanLoyalty.mjs (+ .md only for actual requirement correction) — writer pending spawn batch 7. Reviews post-D06 state.
-- RESERVED J03: draft/CanPurchase.can, draft/CanPurchase.mjs (+ .md only for actual requirement correction) — writer pending spawn batch 7.
+- RESERVED J02: draft/CanLoyalty.can, draft/CanLoyalty.mjs (+ .md only for actual requirement correction) — writer 01a106fb-c7b6-7ab1-a6e6-a7a4467f9aed (J02 Loyalty/12) batch 7 active. Reviews post-D06 state.
+- RESERVED J03: draft/CanPurchase.can, draft/CanPurchase.mjs (+ .md only for actual requirement correction) — writer 01a106fb-c8d9-75e2-9d72-f4b2258101f9 (J03 Purchase/13) batch 7 active.
 - DONE D10: writer 01a106f7-51a4-7062-8c42-f6deb119d806 RELEASED draft/CanSuccess.can, draft/CanSuccess.md. Inbox re-read: H001+H002 only.
 - RESERVED J01: draft/CanFeedback.can, draft/CanFeedback.mjs (+ .md only for actual requirement correction) — writer 01a106f9-b70a-7153-ac7c-6f61e341c3e5 (J01 Feedback/11) batch 6 active. Note: correspondence only; selector/history design is A01-blocked, do not touch.
 - DONE D08: writer 01a106f4-105e-79b1-a7d5-325dfb6472d1 RELEASED draft/CanReception.can, draft/CanReception.md. Inbox re-read: H001+H002 only.

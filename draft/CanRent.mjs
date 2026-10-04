@@ -21,6 +21,7 @@ import {
   dates,
   date,
   datetime,
+  delivery,
   divideDecimal,
   durationBetween,
   emit,
@@ -1099,7 +1100,44 @@ export const appDefinition = {
       exported: true,
       parent: "rent_reservations.Booking",
       label: message("Booking correspondence", { nl: "Reserveringscorrespondentie" }),
-      readGrants: [{ rule: "Notice.read.1" }, { rule: "Notice.read.2" }],
+      readGrants: [
+        {
+          rule: "Notice.read.1",
+          fields: [
+            "parent",
+            "kind",
+            "revision",
+            "subject",
+            "body",
+            "delivery.id",
+            "delivery.status",
+            "state",
+            "created_by",
+            "created",
+            "updated_by",
+            "updated",
+            "archived_at",
+          ],
+        },
+        {
+          rule: "Notice.read.2",
+          fields: [
+            "parent",
+            "kind",
+            "revision",
+            "subject",
+            "body",
+            "delivery.id",
+            "delivery.status",
+            "state",
+            "created_by",
+            "created",
+            "updated_by",
+            "updated",
+            "archived_at",
+          ],
+        },
+      ],
       fields: {
         kind: {
           type: "enum",
@@ -1116,11 +1154,12 @@ export const appDefinition = {
         revision: { type: "int" },
         subject: { type: "text" },
         body: { type: "text" },
-        delivery: { type: "text", unique: true },
+        delivery: { type: "delivery", operation: "rent_reservations.Mail.send" },
+      },
+      derived: {
         state: {
-          type: "enum",
-          cases: ["pending", "succeeded", "failed", "unknown", "skipped"],
-          default: "pending",
+          type: "std.DeliveryResult.status",
+          handler: "Notice.state",
           label: {
             text: message("State", { nl: "Status" }),
             values: {
@@ -3114,10 +3153,6 @@ export const appDefinition = {
       handler: "movement_credit_result",
       on: { capability: "rent_reservations.Billing", operation: "refund", event: "completed" },
     },
-    "rent_reservations.notice_result": {
-      handler: "notice_result",
-      on: { capability: "rent_reservations.Mail", operation: "send", event: "completed" },
-    },
     "rent_reservations.movement_reserved": {
       handler: "movement_reserved",
       on: { capability: "rent_reservations.Membership", operation: "reserve", event: "completed" },
@@ -3547,6 +3582,10 @@ export function canApp() {
           "quote",
         ],
       },
+    },
+    derives: {
+      "Notice.state": async (c, row) =>
+        (await delivery(c, { record: row, field: "delivery" }, ["status"])).status,
     },
     busy,
     covers,
@@ -6874,7 +6913,7 @@ export function canApp() {
           revision,
           subject,
           body,
-          delivery: delivery.id,
+          delivery,
         });
         if (compareInstant(booking.from, addDuration(c.now, 3600000n)) > 0)
           await schedule(
@@ -6904,7 +6943,7 @@ export function canApp() {
           revision,
           subject,
           body,
-          delivery: delivery.id,
+          delivery,
         });
       }
     },
@@ -6929,15 +6968,8 @@ export function canApp() {
         revision,
         subject,
         body,
-        delivery: delivery.id,
+        delivery,
       });
-    },
-    async notice_result(c, { event }) {
-      for await (const notice of records(c, "rent_reservations.Notice", {
-        where: (row) => row.delivery === event.delivery_id,
-        limit: 1n,
-      }))
-        await set(c, notice, { state: event.status });
     },
     async resend_notice(c, { notice }) {
       check(hasRole(c, "authenticated") || hasRole(c, "rent_reservations.reception"), "forbidden");
@@ -6947,14 +6979,16 @@ export function canApp() {
             (await can_work(c, c.actor, notice.parent.parent.location))),
       );
       check(
-        ["failed", "unknown"].includes(notice.state) && notice.parent.version === notice.revision,
+        ["failed", "unknown"].includes(
+          (await delivery(c, { record: notice, field: "delivery" }, ["status"])).status,
+        ) && notice.parent.version === notice.revision,
       );
-      const delivery = await send(c, "rent_reservations.Mail.send", {
+      const attempt = await send(c, "rent_reservations.Mail.send", {
         to: notice.parent.email,
         subject: notice.subject,
         body: notice.body,
       });
-      await set(c, notice, { delivery: delivery.id, state: "pending" });
+      await set(c, notice, { delivery: attempt });
     },
     async allowance_result(c, { event }) {
       for await (const booking of records(c, "rent_reservations.Booking", {
