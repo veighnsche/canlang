@@ -521,6 +521,11 @@ export interface MigrationProgress {
  * S7: one staged target row: desired model + id, target version (source
  * version for name-only, source + 1 for conversions), desired data, and the
  * retained parent link. Staged output never becomes another row's input.
+ * The engine copies `created`/`createdBy`/`archivedAt` from the live
+ * before-row so publish preserves creation metadata and archive state
+ * through renames (DESIGN §11: protected identity/creation metadata
+ * unchanged); when absent, publish falls back to live carry-over, then
+ * history attribution, then 0/''/null.
  */
 export interface StagedRow {
   readonly targetModel: ModelName;
@@ -529,6 +534,9 @@ export interface StagedRow {
   readonly data: Readonly<Record<string, unknown>>;
   readonly parent: RecordParent | null;
   readonly converted: boolean;
+  readonly created?: number;
+  readonly createdBy?: string;
+  readonly archivedAt?: number | null;
 }
 
 /** S7: one fenced staging chunk (see `stageMigrationRows`). */
@@ -547,7 +555,11 @@ export interface MigrationDrop {
   readonly history: HistoryEntry;
 }
 
-/** S7: one fenced publish chunk (see `publishMigrationChunk`). */
+/**
+ * S7: one fenced publish chunk (see `publishMigrationChunk`). Claim moves
+ * ride the same batch so a model rename moves rows and their uniqueness
+ * atomically; both default to [] when the chunk renames no claimed keys.
+ */
 export interface PublishMigrationChunk {
   readonly expectedRevision: Revision;
   readonly migrationId: string;
@@ -555,6 +567,8 @@ export interface PublishMigrationChunk {
   readonly history: ReadonlyArray<HistoryEntry>;
   readonly drops: ReadonlyArray<MigrationDrop>;
   readonly progress: MigrationProgress;
+  readonly uniqueClaims?: ReadonlyArray<UniqueClaim>;
+  readonly uniqueReleases?: ReadonlyArray<UniqueRelease>;
 }
 
 /** S7: recorded skip of one invalidated intent (DESIGN §11.3 outcome). */
@@ -565,7 +579,12 @@ export interface MigrationOutcome {
   readonly handlerContract: string;
 }
 
-/** S7: the final flip (see `flipInstalledSnapshot`). */
+/**
+ * S7: the final flip (see `flipInstalledSnapshot`). The engine cannot know
+ * the flip's commit revision before it commits, so adapters OVERWRITE
+ * `snapshot.installedRevision` with the actual flip revision; `installedAt`
+ * is honored from the input (engine clock).
+ */
 export interface FlipInstalledSnapshot {
   readonly expectedRevision: Revision;
   readonly migrationId: string;

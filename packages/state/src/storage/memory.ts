@@ -15,11 +15,17 @@
 import type {
   CommitBatch,
   CommitResult,
+  FlipInstalledSnapshot,
+  FlipResult,
   HistoryEntry,
+  InstalledSnapshot,
+  MigrationOutcome,
+  MigrationProgress,
   ModelName,
   OperationName,
   OrderTerm,
   OutboxIntent,
+  PublishMigrationChunk,
   QueryPredicate,
   QuerySpec,
   Receipt,
@@ -27,6 +33,9 @@ import type {
   RecordId,
   Revision,
   ScheduleEntry,
+  StageMigrationChunk,
+  StagedRow,
+  StagedRowCursor,
   StoredRow,
 } from '../../../contracts/src/state.js';
 import { FenceConflictError, StorageConstraintError } from './port.js';
@@ -54,8 +63,11 @@ function claimKey(model: string, keyName: string, keyValue: string): string {
   return `${model}\0${keyName}\0${keyValue}`;
 }
 
-/** S6: dispatch status of a staged outbox intent. Only these two values exist. */
-type OutboxStatus = 'pending' | 'dispatched';
+/**
+ * S6: dispatch status of a staged outbox intent. S7 adds `skipped` for
+ * migration-invalidated intents; `outboxPending` still reads pending only.
+ */
+type OutboxStatus = 'pending' | 'dispatched' | 'skipped';
 
 /** Stored record: S5 rows persist `parent` inline (round-tripped as-is). */
 interface MemoryRecord {
@@ -78,6 +90,12 @@ interface MemoryState {
   schedules: Map<string, { readonly at: number; readonly event: string; readonly payload: unknown }>;
   uniqueClaims: Map<string, string>;
   historySeq: number;
+  // S7: installed owner snapshots, shadow-staged migration rows (never read
+  // by load/query), resumable progress, and recorded skip outcomes.
+  snapshots: Map<string, InstalledSnapshot>;
+  staging: Map<string, Map<string, StagedRow>>;
+  progress: Map<string, MigrationProgress>;
+  outcomes: Map<string, MigrationOutcome[]>;
 }
 
 function freshState(): MemoryState {
@@ -91,6 +109,10 @@ function freshState(): MemoryState {
     schedules: new Map(),
     uniqueClaims: new Map(),
     historySeq: 0,
+    snapshots: new Map(),
+    staging: new Map(),
+    progress: new Map(),
+    outcomes: new Map(),
   };
 }
 
@@ -350,6 +372,80 @@ function checkLimit(limit: number): void {
 function checkSchedulesLimit(limit: number): void {
   if (!Number.isInteger(limit) || limit < 1) {
     throw new Error(`Invalid schedules limit: ${JSON.stringify(limit)}`);
+  }
+}
+
+/**
+ * S7: `readStagedRows` limit must be an integer >= 1. Plain Error
+ * (programmer bug), mirroring `checkSchedulesLimit` style exactly.
+ */
+function checkStagedRowsLimit(limit: number): void {
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new Error(`Invalid staged rows limit: ${JSON.stringify(limit)}`);
+  }
+}
+
+/** S7: (model, record id) order, matching the SQL `ORDER BY` scan. */
+function compareStagedRows(left: StagedRow, right: StagedRow): number {
+  const leftModel = left.targetModel as string;
+  const rightModel = right.targetModel as string;
+  if (leftModel !== rightModel) {
+    return leftModel < rightModel ? -1 : 1;
+  }
+  const leftId = left.recordId as string;
+  const rightId = right.recordId as string;
+  return leftId < rightId ? -1 : leftId > rightId ? 1 : 0;
+}
+
+/** S7: true when the staged row sorts strictly after the cursor. */
+function isAfterCursor(row: StagedRow, cursor: StagedRowCursor): boolean {
+  const model = row.targetModel as string;
+  if (model !== cursor.model) {
+    return model > cursor.model;
+  }
+  return (row.recordId as string) > cursor.recordId;
+}
+
+/**
+ * S7: merge one staged row onto its live target. Version/data/parent always
+ * come from the staged row; staged creation metadata (copied by the engine
+ * from the live before-row) wins so renames preserve it, then the existing
+ * live row carries over. The matching history entry (same model + record id,
+ * first in chunk order) supplies updated/updatedBy — and, for rows with no
+ * other source, created/createdBy as well; with no source at all the
+ * metadata falls back to 0/''/null. Publish never unarchives.
+ */
+function mergePublishedRow(
+  staged: StagedRow,
+  existing: StoredRow | null,
+  history: ReadonlyArray<HistoryEntry>,
+): StoredRow {
+  const match = history.find(
+    (entry) =>
+      (entry.model as string) === (staged.targetModel as string) &&
+      (entry.recordId as string) === (staged.recordId as string),
+  );
+  return {
+    id: staged.recordId,
+    version: staged.version,
+    created: staged.created ?? existing?.created ?? match?.at ?? 0,
+    updated: match?.at ?? existing?.updated ?? 0,
+    createdBy: staged.createdBy ?? existing?.createdBy ?? match?.actor ?? '',
+    updatedBy: match?.actor ?? existing?.updatedBy ?? '',
+    archivedAt: staged.archivedAt ?? existing?.archivedAt ?? null,
+    parent: staged.parent,
+    data: staged.data,
+  };
+}
+
+/** S7: validate a fenced migration write's expected revision, like commit. */
+function checkFencedExpected(expectedRevision: Revision, current: number): void {
+  const expected = expectedRevision as number;
+  if (!Number.isInteger(expected) || expected < 0) {
+    throw new Error(`Invalid expectedRevision: ${JSON.stringify(expectedRevision)}`);
+  }
+  if (expected !== current) {
+    throw new FenceConflictError(expectedRevision, current as Revision);
   }
 }
 
@@ -643,6 +739,177 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
             ((b.entry as HistoryEntry).version as number) || a.seq - b.seq,
       );
       return matched.map((row) => jsonCopy(row.entry as HistoryEntry));
+    },
+
+    async readInstalledSnapshot(owner: string): Promise<InstalledSnapshot | null> {
+      // S7: null when the owner was never installed (fresh installs take a
+      // separate path and never apply transitions). Deep copy, like all reads.
+      const found = state.snapshots.get(owner) ?? null;
+      return found === null ? null : jsonCopy(found);
+    },
+
+    async readMigrationProgress(migrationId: string): Promise<MigrationProgress | null> {
+      // S7: null when the migration never staged anything.
+      const found = state.progress.get(migrationId) ?? null;
+      return found === null ? null : jsonCopy(found);
+    },
+
+    async readStagedRows(
+      migrationId: string,
+      cursor: StagedRowCursor | null,
+      limit: number,
+    ): Promise<ReadonlyArray<StagedRow>> {
+      // S7: (model, record id) order after the cursor, capped at limit.
+      checkStagedRowsLimit(limit);
+      const staged = state.staging.get(migrationId);
+      if (staged === undefined) {
+        return [];
+      }
+      const rows = [...staged.values()].sort(compareStagedRows);
+      const after = cursor === null ? rows : rows.filter((row) => isAfterCursor(row, cursor));
+      return after.slice(0, limit).map((row) => jsonCopy(row));
+    },
+
+    async stageMigrationRows(input: StageMigrationChunk): Promise<CommitResult> {
+      // S7: ONE fenced write: upsert staged rows (idempotent restage by
+      // migration/model/id key) plus the progress row, atomically. Validate
+      // everything before mutating anything, like commit.
+      checkFencedExpected(input.expectedRevision, state.revision);
+      const rows = input.rows.map((row) => jsonCopy(row));
+      const progress = jsonCopy(input.progress);
+      const next = state.revision + 1;
+      let staged = state.staging.get(input.migrationId);
+      if (staged === undefined) {
+        staged = new Map();
+        state.staging.set(input.migrationId, staged);
+      }
+      for (const row of rows) {
+        staged.set(
+          recordKey(row.targetModel as string, row.recordId as string),
+          row,
+        );
+      }
+      state.progress.set(input.migrationId, progress);
+      state.revision = next;
+      state.fenceLog.set(next, { at: Date.now(), operation: `migration:stage:${input.migrationId}` });
+      return { revision: next as Revision };
+    },
+
+    async publishMigrationChunk(input: PublishMigrationChunk): Promise<CommitResult> {
+      // S7: ONE fenced write: upsert live records from staged rows at their
+      // target versions, insert history, dispose drops (remove + drop
+      // history), and upsert progress — atomically. Validate (fence plus
+      // JSON-serializability) before mutating anything.
+      checkFencedExpected(input.expectedRevision, state.revision);
+      const rows = input.rows.map((row) => jsonCopy(row));
+      const history = input.history.map((entry) => jsonCopy(entry));
+      const drops = input.drops.map((drop) => jsonCopy(drop));
+      const progress = jsonCopy(input.progress);
+      const next = state.revision + 1;
+      const records = new Map(state.records);
+      for (const row of rows) {
+        const key = recordKey(row.targetModel as string, row.recordId as string);
+        const existing = records.get(key) ?? null;
+        const merged = mergePublishedRow(
+          row,
+          existing === null ? null : existing.row,
+          history,
+        );
+        records.set(key, { model: row.targetModel as string, row: merged });
+      }
+      for (const drop of drops) {
+        records.delete(recordKey(drop.model as string, drop.recordId as string));
+      }
+      // Claim moves ride the same write: releases before claims, mirroring
+      // commit, so a model rename moves keys between models atomically.
+      const claims = new Map(state.uniqueClaims);
+      for (const release of input.uniqueReleases ?? []) {
+        claims.delete(claimKey(release.model as string, release.keyName, release.keyValue));
+      }
+      for (const claim of input.uniqueClaims ?? []) {
+        const key = claimKey(claim.model as string, claim.keyName, claim.keyValue);
+        if (claims.has(key)) {
+          throw new StorageConstraintError(
+            'unique',
+            `unique_claims ${claim.model as string}/${claim.keyName}=${claim.keyValue} already claimed`,
+          );
+        }
+        claims.set(key, claim.recordId as string);
+      }
+      state.records = records;
+      state.uniqueClaims = claims;
+      for (const entry of history) {
+        state.historySeq += 1;
+        state.history.push({ seq: state.historySeq, entry });
+      }
+      for (const drop of drops) {
+        state.historySeq += 1;
+        state.history.push({ seq: state.historySeq, entry: drop.history });
+      }
+      state.progress.set(input.migrationId, progress);
+      state.revision = next;
+      state.fenceLog.set(next, {
+        at: Date.now(),
+        operation: `migration:publish:${input.migrationId}`,
+      });
+      return { revision: next as Revision };
+    },
+
+    async flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult> {
+      // S7: idempotent activation. When the installed pointer already equals
+      // the target, return the current revision with flipped:false and commit
+      // nothing (no fence check: activation retries must succeed). Otherwise
+      // ONE fenced write: install the pointer, remove the renamed-away owner
+      // pointer, mark invalidated intents skipped, record outcomes, and mark
+      // progress active — atomically.
+      const installed = state.snapshots.get(input.snapshot.owner) ?? null;
+      if (
+        installed !== null &&
+        installed.snapshotId === input.snapshot.snapshotId &&
+        installed.digest === input.snapshot.digest
+      ) {
+        return { revision: state.revision as Revision, flipped: false };
+      }
+      checkFencedExpected(input.expectedRevision, state.revision);
+      const snapshot = jsonCopy(input.snapshot);
+      const outcomes = input.outcomes.map((outcome) => jsonCopy(outcome));
+      const next = state.revision + 1;
+      // The engine cannot know the flip revision pre-commit: record actual.
+      state.snapshots.set(input.snapshot.owner, {
+        ...snapshot,
+        installedRevision: next as Revision,
+      });
+      if (input.renameFromOwner !== null) {
+        state.snapshots.delete(input.renameFromOwner);
+      }
+      for (const intentId of input.invalidatedIntentIds) {
+        const staged = state.outbox.get(intentId);
+        // Pending-only: unknown or already-dispatched ids are a no-op, and a
+        // dispatched intent is never rewritten to skipped.
+        if (staged !== undefined && staged.status === 'pending') {
+          state.outbox.set(intentId, { ...staged, status: 'skipped' });
+        }
+      }
+      const recorded = state.outcomes.get(input.migrationId) ?? [];
+      recorded.push(...outcomes);
+      state.outcomes.set(input.migrationId, recorded);
+      const previous = state.progress.get(input.migrationId);
+      state.progress.set(input.migrationId, {
+        migrationId: input.migrationId,
+        phase: 'active',
+        stagedCursor: previous?.stagedCursor ?? null,
+        publishCursor: previous?.publishCursor ?? null,
+        updatedRevision: next as Revision,
+      });
+      state.revision = next;
+      state.fenceLog.set(next, { at: Date.now(), operation: `migration:flip:${input.migrationId}` });
+      return { revision: next as Revision, flipped: true };
+    },
+
+    async readMigrationOutcomes(migrationId: string): Promise<ReadonlyArray<MigrationOutcome>> {
+      // S7: recorded skips in record (insertion) order. Deep copies.
+      const recorded = state.outcomes.get(migrationId) ?? [];
+      return recorded.map((outcome) => jsonCopy(outcome));
     },
   };
 }

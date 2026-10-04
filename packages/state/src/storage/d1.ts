@@ -19,20 +19,30 @@ import type { D1Database } from '@cloudflare/workers-types';
 import type {
   CommitBatch,
   CommitResult,
+  FlipInstalledSnapshot,
+  FlipResult,
   HistoryEntry,
+  InstalledSnapshot,
+  MigrationOutcome,
+  MigrationProgress,
   ModelName,
   OperationId,
   OperationName,
   OrderTerm,
   OutboxIntent,
+  PublishMigrationChunk,
   QueryPredicate,
   QuerySpec,
   Receipt,
   ReceiptIdentity,
   RecordId,
+  RecordParent,
   RecordVersion,
   Revision,
   ScheduleEntry,
+  StageMigrationChunk,
+  StagedRow,
+  StagedRowCursor,
   StoredRow,
 } from '../../../contracts/src/state.js';
 import { FenceConflictError, StorageConstraintError } from './port.js';
@@ -218,6 +228,37 @@ function checkSchedulesLimit(limit: number): void {
 }
 
 /**
+ * S7: `readStagedRows` limit must be an integer >= 1. Plain Error (programmer
+ * bug), mirroring `checkSchedulesLimit` style exactly.
+ */
+function checkStagedRowsLimit(limit: number): void {
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new Error(`Invalid staged rows limit: ${JSON.stringify(limit)}`);
+  }
+}
+
+/**
+ * S7: validate a fenced migration write's expected revision the way commit
+ * does: malformed values are a programmer bug (plain Error), future values
+ * break revision density (FenceConflictError up front — the fence INSERT
+ * below cannot see a skip ahead). Returns the current revision.
+ */
+async function checkMigrationExpected(
+  db: D1Database,
+  expectedRevision: Revision,
+): Promise<Revision> {
+  const expected = expectedRevision as number;
+  if (!Number.isInteger(expected) || expected < 0) {
+    throw new Error(`Invalid expectedRevision: ${JSON.stringify(expectedRevision)}`);
+  }
+  const current = await readRevisionInner(db);
+  if (expected > (current as number)) {
+    throw new FenceConflictError(expectedRevision, current);
+  }
+  return current;
+}
+
+/**
  * Enforce per-row `expectedVersion` for updates/removes before building the
  * batch. These reads run outside the batch (D1 has no interactive
  * transaction), but a concurrent commit between check and batch bumps the
@@ -396,6 +437,133 @@ function toHistoryEntry(row: HistoryRow): HistoryEntry {
     change: row.change as HistoryEntry['change'],
     before: row.before === null ? null : (JSON.parse(row.before) as Record<string, unknown>),
     after: row.after === null ? null : (JSON.parse(row.after) as Record<string, unknown>),
+  };
+}
+
+/** S7: raw `snapshots` row as D1 returns it (snake_case columns). */
+interface SnapshotRow {
+  readonly owner: string;
+  readonly snapshot_id: string;
+  readonly digest: string;
+  readonly installed_revision: number;
+  readonly installed_at: number;
+}
+
+const SNAPSHOT_COLUMNS = 'owner, snapshot_id, digest, installed_revision, installed_at';
+
+function toInstalledSnapshot(row: SnapshotRow): InstalledSnapshot {
+  return {
+    owner: row.owner,
+    snapshotId: row.snapshot_id,
+    digest: row.digest,
+    installedRevision: row.installed_revision as Revision,
+    installedAt: row.installed_at,
+  };
+}
+
+/** S7: raw `migration_staging` row as D1 returns it. */
+interface StagingRow {
+  readonly target_model: string;
+  readonly record_id: string;
+  readonly version: number;
+  readonly data: string;
+  readonly parent: string | null;
+  readonly converted: number;
+  readonly created: number | null;
+  readonly created_by: string | null;
+  readonly archived_at: number | null;
+}
+
+const STAGING_COLUMNS =
+  'target_model, record_id, version, data, parent, converted, created, created_by, archived_at';
+
+function toStagedRow(row: StagingRow): StagedRow {
+  return {
+    targetModel: row.target_model as ModelName,
+    recordId: row.record_id as RecordId,
+    version: row.version as RecordVersion,
+    data: JSON.parse(row.data) as Record<string, unknown>,
+    parent: row.parent === null ? null : (JSON.parse(row.parent) as RecordParent),
+    converted: row.converted === 1,
+    // NULL stays absent (never explicit undefined: exactOptionalPropertyTypes).
+    ...(row.created === null ? {} : { created: row.created }),
+    ...(row.created_by === null ? {} : { createdBy: row.created_by }),
+    ...(row.archived_at === null ? {} : { archivedAt: row.archived_at }),
+  };
+}
+
+/** S7: raw `migration_progress` row as D1 returns it. */
+interface ProgressRow {
+  readonly migration_id: string;
+  readonly phase: string;
+  readonly staged_cursor: string | null;
+  readonly publish_cursor: string | null;
+  readonly updated_revision: number;
+}
+
+const PROGRESS_COLUMNS = 'migration_id, phase, staged_cursor, publish_cursor, updated_revision';
+
+function toMigrationProgress(row: ProgressRow): MigrationProgress {
+  return {
+    migrationId: row.migration_id,
+    phase: row.phase as MigrationProgress['phase'],
+    stagedCursor:
+      row.staged_cursor === null ? null : (JSON.parse(row.staged_cursor) as StagedRowCursor),
+    publishCursor:
+      row.publish_cursor === null ? null : (JSON.parse(row.publish_cursor) as StagedRowCursor),
+    updatedRevision: row.updated_revision as Revision,
+  };
+}
+
+/** S7: raw `migration_outcomes` row as D1 returns it. */
+interface OutcomeRow {
+  readonly migration_id: string;
+  readonly kind: string;
+  readonly intent_id: string;
+  readonly handler_contract: string;
+}
+
+const OUTCOME_COLUMNS = 'migration_id, kind, intent_id, handler_contract';
+
+function toMigrationOutcome(row: OutcomeRow): MigrationOutcome {
+  return {
+    migrationId: row.migration_id,
+    kind: row.kind as MigrationOutcome['kind'],
+    intentId: row.intent_id,
+    handlerContract: row.handler_contract,
+  };
+}
+
+/**
+ * S7: merge one staged row onto its live target, mirroring the memory
+ * adapter exactly. Version/data/parent come from the staged row; creation
+ * metadata carries over from the existing live row when present; the
+ * matching history entry (same model + record id, first in chunk order)
+ * supplies updated/updatedBy — and created/createdBy for rows with no live
+ * predecessor. Fallback is 0/''; archivedAt carries over (never unarchives).
+ */
+function mergePublishedColumns(
+  staged: StagedRow,
+  existing: RecordRow | null,
+  history: ReadonlyArray<HistoryEntry>,
+): {
+  readonly created: number;
+  readonly updated: number;
+  readonly createdBy: string;
+  readonly updatedBy: string;
+  readonly archivedAt: number | null;
+} {
+  const match = history.find(
+    (entry) =>
+      (entry.model as string) === (staged.targetModel as string) &&
+      (entry.recordId as string) === (staged.recordId as string),
+  );
+  return {
+    created: staged.created ?? existing?.created ?? match?.at ?? 0,
+    updated: match?.at ?? existing?.updated ?? 0,
+    createdBy: staged.createdBy ?? existing?.created_by ?? match?.actor ?? '',
+    updatedBy: match?.actor ?? existing?.updated_by ?? '',
+    archivedAt: staged.archivedAt ?? existing?.archived_at ?? null,
   };
 }
 
@@ -715,6 +883,354 @@ export function createD1Storage(db: D1Database): StoragePort {
         .bind(model as string, recordId as string)
         .all<HistoryRow>();
       return result.results.map(toHistoryEntry);
+    },
+
+    async readInstalledSnapshot(owner: string): Promise<InstalledSnapshot | null> {
+      // S7: null when the owner was never installed (fresh installs take a
+      // separate path and never apply transitions).
+      const row = await db
+        .prepare(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots WHERE owner = ?`)
+        .bind(owner)
+        .first<SnapshotRow>();
+      return row === null ? null : toInstalledSnapshot(row);
+    },
+
+    async readMigrationProgress(migrationId: string): Promise<MigrationProgress | null> {
+      // S7: null when the migration never staged anything.
+      const row = await db
+        .prepare(`SELECT ${PROGRESS_COLUMNS} FROM migration_progress WHERE migration_id = ?`)
+        .bind(migrationId)
+        .first<ProgressRow>();
+      return row === null ? null : toMigrationProgress(row);
+    },
+
+    async readStagedRows(
+      migrationId: string,
+      cursor: StagedRowCursor | null,
+      limit: number,
+    ): Promise<ReadonlyArray<StagedRow>> {
+      // S7: (model, record id) order after the cursor, capped at limit.
+      checkStagedRowsLimit(limit);
+      const bindings: unknown[] = [migrationId];
+      let sql = `SELECT ${STAGING_COLUMNS} FROM migration_staging WHERE migration_id = ?`;
+      if (cursor !== null) {
+        sql += ' AND (target_model > ? OR (target_model = ? AND record_id > ?))';
+        bindings.push(cursor.model, cursor.model, cursor.recordId);
+      }
+      sql += ' ORDER BY target_model, record_id LIMIT ?';
+      bindings.push(limit);
+      const result = await db.prepare(sql).bind(...bindings).all<StagingRow>();
+      return result.results.map(toStagedRow);
+    },
+
+    async stageMigrationRows(input: StageMigrationChunk): Promise<CommitResult> {
+      // S7: ONE fenced batch: upsert staged rows (idempotent restage by
+      // migration/model/id key) plus the progress row, atomically. The fence
+      // INSERT is the same serialization point as commit's.
+      await checkMigrationExpected(db, input.expectedRevision);
+      const next = (input.expectedRevision as number) + 1;
+      const at = Date.now();
+      const statements = [
+        db
+          .prepare('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)')
+          .bind(next, at, `migration:stage:${input.migrationId}`),
+        db.prepare('UPDATE fence SET revision = ? WHERE id = ?').bind(next, FENCE_ROW_ID),
+      ];
+      for (const row of input.rows) {
+        statements.push(
+          db
+            .prepare(
+              'INSERT OR REPLACE INTO migration_staging(migration_id, target_model, ' +
+                'record_id, version, data, parent, converted, created, created_by, ' +
+                'archived_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            )
+            .bind(
+              input.migrationId,
+              row.targetModel as string,
+              row.recordId as string,
+              row.version as number,
+              JSON.stringify(row.data),
+              row.parent === null ? null : JSON.stringify(row.parent),
+              row.converted ? 1 : 0,
+              row.created ?? null,
+              row.createdBy ?? null,
+              row.archivedAt ?? null,
+            ),
+        );
+      }
+      statements.push(
+        db
+          .prepare(
+            'INSERT OR REPLACE INTO migration_progress(migration_id, phase, staged_cursor, ' +
+              'publish_cursor, updated_revision) VALUES (?, ?, ?, ?, ?)',
+          )
+          .bind(
+            input.migrationId,
+            input.progress.phase,
+            input.progress.stagedCursor === null
+              ? null
+              : JSON.stringify(input.progress.stagedCursor),
+            input.progress.publishCursor === null
+              ? null
+              : JSON.stringify(input.progress.publishCursor),
+            input.progress.updatedRevision as number,
+          ),
+      );
+      try {
+        await db.batch(statements);
+      } catch (error) {
+        throw await toCommitError(db, input.expectedRevision, error);
+      }
+      return { revision: next as Revision };
+    },
+
+    async publishMigrationChunk(input: PublishMigrationChunk): Promise<CommitResult> {
+      // S7: ONE fenced batch: upsert live records from staged rows at their
+      // target versions, insert history, dispose drops (remove + drop
+      // history), and upsert progress — atomically. Existing live rows are
+      // pre-read for metadata carry-over (same fence-serialized safety as
+      // checkWriteVersions: a concurrent commit aborts our fence INSERT).
+      await checkMigrationExpected(db, input.expectedRevision);
+      const next = (input.expectedRevision as number) + 1;
+      const at = Date.now();
+      const existing = new Map<string, RecordRow | null>();
+      for (const row of input.rows) {
+        const found = await db
+          .prepare(`SELECT ${RECORD_COLUMNS} FROM records WHERE model = ? AND id = ?`)
+          .bind(row.targetModel as string, row.recordId as string)
+          .first<RecordRow>();
+        existing.set(`${row.targetModel as string}\0${row.recordId as string}`, found);
+      }
+      const statements = [
+        db
+          .prepare('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)')
+          .bind(next, at, `migration:publish:${input.migrationId}`),
+        db.prepare('UPDATE fence SET revision = ? WHERE id = ?').bind(next, FENCE_ROW_ID),
+      ];
+      for (const row of input.rows) {
+        const key = `${row.targetModel as string}\0${row.recordId as string}`;
+        const merged = mergePublishedColumns(row, existing.get(key) ?? null, input.history);
+        statements.push(
+          db
+            .prepare(
+              'INSERT OR REPLACE INTO records(model, id, version, created, updated, created_by, ' +
+                'updated_by, archived_at, owner, parent_model, parent_id, data) ' +
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            )
+            .bind(
+              row.targetModel as string,
+              row.recordId as string,
+              row.version as number,
+              merged.created,
+              merged.updated,
+              merged.createdBy,
+              merged.updatedBy,
+              merged.archivedAt,
+              '',
+              (row.parent?.model as string | undefined) ?? null,
+              (row.parent?.id as string | undefined) ?? null,
+              JSON.stringify(row.data),
+            ),
+        );
+      }
+      for (const entry of input.history) {
+        statements.push(
+          db
+            .prepare(
+              'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
+                'actor, at, change, "before", "after") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            )
+            .bind(
+              entry.model as string,
+              entry.recordId as string,
+              entry.version as number,
+              entry.operation as string,
+              entry.operationId as string,
+              entry.actor,
+              entry.at,
+              entry.change,
+              entry.before === null ? null : JSON.stringify(entry.before),
+              entry.after === null ? null : JSON.stringify(entry.after),
+            ),
+        );
+      }
+      for (const drop of input.drops) {
+        statements.push(
+          db
+            .prepare('DELETE FROM records WHERE model = ? AND id = ?')
+            .bind(drop.model as string, drop.recordId as string),
+        );
+        statements.push(
+          db
+            .prepare(
+              'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
+                'actor, at, change, "before", "after") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            )
+            .bind(
+              drop.history.model as string,
+              drop.history.recordId as string,
+              drop.history.version as number,
+              drop.history.operation as string,
+              drop.history.operationId as string,
+              drop.history.actor,
+              drop.history.at,
+              drop.history.change,
+              drop.history.before === null ? null : JSON.stringify(drop.history.before),
+              drop.history.after === null ? null : JSON.stringify(drop.history.after),
+            ),
+        );
+      }
+      // Claim moves ride the same batch: releases before claims, mirroring
+      // commit, so a model rename moves keys between models atomically.
+      for (const release of input.uniqueReleases ?? []) {
+        statements.push(
+          db
+            .prepare('DELETE FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?')
+            .bind(
+              release.model as string,
+              release.keyName,
+              release.keyValue,
+            ),
+        );
+      }
+      for (const claim of input.uniqueClaims ?? []) {
+        statements.push(
+          db
+            .prepare(
+              'INSERT INTO unique_claims(model, key_name, key_value, record_id) ' +
+                'VALUES (?, ?, ?, ?)',
+            )
+            .bind(
+              claim.model as string,
+              claim.keyName,
+              claim.keyValue,
+              claim.recordId as string,
+            ),
+        );
+      }
+      statements.push(
+        db
+          .prepare(
+            'INSERT OR REPLACE INTO migration_progress(migration_id, phase, staged_cursor, ' +
+              'publish_cursor, updated_revision) VALUES (?, ?, ?, ?, ?)',
+          )
+          .bind(
+            input.migrationId,
+            input.progress.phase,
+            input.progress.stagedCursor === null
+              ? null
+              : JSON.stringify(input.progress.stagedCursor),
+            input.progress.publishCursor === null
+              ? null
+              : JSON.stringify(input.progress.publishCursor),
+            input.progress.updatedRevision as number,
+          ),
+      );
+      try {
+        await db.batch(statements);
+      } catch (error) {
+        throw await toCommitError(db, input.expectedRevision, error);
+      }
+      return { revision: next as Revision };
+    },
+
+    async flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult> {
+      // S7: idempotent activation. When the installed pointer already equals
+      // the target, return the current revision with flipped:false and commit
+      // nothing (no fence check: activation retries must succeed). Otherwise
+      // ONE fenced batch: install the pointer, remove the renamed-away owner
+      // pointer, mark invalidated intents skipped, record outcomes, and mark
+      // progress active — atomically.
+      const installed = await db
+        .prepare(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots WHERE owner = ?`)
+        .bind(input.snapshot.owner)
+        .first<SnapshotRow>();
+      if (
+        installed !== null &&
+        installed.snapshot_id === input.snapshot.snapshotId &&
+        installed.digest === input.snapshot.digest
+      ) {
+        return { revision: await readRevisionInner(db), flipped: false };
+      }
+      await checkMigrationExpected(db, input.expectedRevision);
+      const next = (input.expectedRevision as number) + 1;
+      const at = Date.now();
+      const statements = [
+        db
+          .prepare('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)')
+          .bind(next, at, `migration:flip:${input.migrationId}`),
+        db.prepare('UPDATE fence SET revision = ? WHERE id = ?').bind(next, FENCE_ROW_ID),
+        db
+          .prepare(
+            'INSERT OR REPLACE INTO snapshots(owner, snapshot_id, digest, installed_revision, ' +
+              'installed_at) VALUES (?, ?, ?, ?, ?)',
+          )
+          .bind(
+            input.snapshot.owner,
+            input.snapshot.snapshotId,
+            input.snapshot.digest,
+            // The engine cannot know the flip revision pre-commit: record actual.
+            next,
+            input.snapshot.installedAt,
+          ),
+      ];
+      if (input.renameFromOwner !== null) {
+        statements.push(
+          db.prepare('DELETE FROM snapshots WHERE owner = ?').bind(input.renameFromOwner),
+        );
+      }
+      for (const intentId of input.invalidatedIntentIds) {
+        // Pending-only: unknown or already-dispatched ids match zero rows
+        // (idempotent no-op), and a dispatched intent is never rewritten.
+        statements.push(
+          db
+            .prepare("UPDATE outbox SET status = 'skipped' WHERE intent_id = ? AND status = 'pending'")
+            .bind(intentId),
+        );
+      }
+      for (const outcome of input.outcomes) {
+        statements.push(
+          db
+            .prepare(
+              'INSERT INTO migration_outcomes(migration_id, kind, intent_id, handler_contract) ' +
+                'VALUES (?, ?, ?, ?)',
+            )
+            .bind(
+              input.migrationId,
+              outcome.kind,
+              outcome.intentId,
+              outcome.handlerContract,
+            ),
+        );
+      }
+      // Upsert that preserves cursors: only phase + updated_revision advance.
+      // Missing progress (a rowless migration) is created active.
+      statements.push(
+        db
+          .prepare(
+            'INSERT INTO migration_progress(migration_id, phase, staged_cursor, publish_cursor, ' +
+              'updated_revision) VALUES (?, ?, NULL, NULL, ?) ' +
+              'ON CONFLICT(migration_id) DO UPDATE SET phase = ?, updated_revision = ?',
+          )
+          .bind(input.migrationId, 'active', next, 'active', next),
+      );
+      try {
+        await db.batch(statements);
+      } catch (error) {
+        throw await toCommitError(db, input.expectedRevision, error);
+      }
+      return { revision: next as Revision, flipped: true };
+    },
+
+    async readMigrationOutcomes(migrationId: string): Promise<ReadonlyArray<MigrationOutcome>> {
+      // S7: recorded skips in record (seq) order.
+      const result = await db
+        .prepare(
+          `SELECT ${OUTCOME_COLUMNS} FROM migration_outcomes WHERE migration_id = ? ORDER BY seq`,
+        )
+        .bind(migrationId)
+        .all<OutcomeRow>();
+      return result.results.map(toMigrationOutcome);
     },
   };
 }

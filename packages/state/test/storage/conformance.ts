@@ -17,6 +17,11 @@ import type {
   CommitBatch,
   DomainWrite,
   HistoryEntry,
+  InstalledSnapshot,
+  MigrationDrop,
+  MigrationOutcome,
+  MigrationPhase,
+  MigrationProgress,
   ModelName,
   OperationId,
   OperationName,
@@ -25,9 +30,12 @@ import type {
   Receipt,
   ReceiptIdentity,
   RecordId,
+  RecordParent,
   RecordVersion,
   Revision,
   ScheduleOp,
+  StagedRow,
+  StagedRowCursor,
   StoragePort,
   StoredRow,
   UniqueClaim,
@@ -206,6 +214,87 @@ export function uniqueClaim(
 
 export function uniqueRelease(model: string, keyName: string, keyValue: string): UniqueRelease {
   return { model: asModel(model), keyName, keyValue };
+}
+
+/* S7 migration fixture builders. */
+
+export interface StagedRowOpts {
+  readonly model?: string;
+  readonly recordId?: string;
+  readonly version?: number;
+  readonly data?: Record<string, unknown>;
+  readonly parent?: RecordParent | null;
+  readonly converted?: boolean;
+  readonly created?: number;
+  readonly createdBy?: string;
+  readonly archivedAt?: number | null;
+}
+
+export function makeStagedRow(opts: StagedRowOpts = {}): StagedRow {
+  return {
+    targetModel: asModel(opts.model ?? 'shop.Order'),
+    recordId: asId(opts.recordId ?? freshId('staged')),
+    version: asVersion(opts.version ?? 1),
+    data: opts.data ?? { total: 50 },
+    parent: opts.parent ?? null,
+    converted: opts.converted ?? false,
+    ...(opts.created === undefined ? {} : { created: opts.created }),
+    ...(opts.createdBy === undefined ? {} : { createdBy: opts.createdBy }),
+    ...(opts.archivedAt === undefined ? {} : { archivedAt: opts.archivedAt }),
+  };
+}
+
+export interface ProgressOpts {
+  readonly phase?: MigrationPhase;
+  readonly stagedCursor?: StagedRowCursor | null;
+  readonly publishCursor?: StagedRowCursor | null;
+  readonly updatedRevision?: number;
+}
+
+export function makeProgress(migrationId: string, opts: ProgressOpts = {}): MigrationProgress {
+  return {
+    migrationId,
+    phase: opts.phase ?? 'staging',
+    stagedCursor: opts.stagedCursor ?? null,
+    publishCursor: opts.publishCursor ?? null,
+    updatedRevision: asRevision(opts.updatedRevision ?? 1),
+  };
+}
+
+export interface SnapshotOpts {
+  readonly snapshotId?: string;
+  readonly digest?: string;
+  readonly installedRevision?: number;
+  readonly installedAt?: number;
+}
+
+export function makeSnapshot(owner: string, opts: SnapshotOpts = {}): InstalledSnapshot {
+  return {
+    owner,
+    snapshotId: opts.snapshotId ?? 'snap-2',
+    digest: opts.digest ?? 'digest-2',
+    installedRevision: asRevision(opts.installedRevision ?? 1),
+    installedAt: opts.installedAt ?? 1_700_000_000_500,
+  };
+}
+
+export function makeOutcome(
+  migrationId: string,
+  intentId: string,
+  handlerContract = 'shop.oldHandler',
+): MigrationOutcome {
+  return { migrationId, kind: 'invalidated', intentId, handlerContract };
+}
+
+export function makeDrop(model: string, recordId: string, history?: HistoryEntry): MigrationDrop {
+  const dropHistory =
+    history ?? makeHistory({ model, recordId, change: 'remove', before: { n: 1 }, after: null });
+  return {
+    model: asModel(model),
+    recordId: asId(recordId),
+    version: dropHistory.version,
+    history: dropHistory,
+  };
 }
 
 /**
@@ -1725,6 +1814,679 @@ export function storageConformance(
       });
       await store.commit(makeBatch(0, { history: [first, second] }));
       assert.deepEqual(await store.historyFor(asModel('t.Doc'), asId('dv-r')), [first, second]);
+    });
+
+    it('S7: fresh owner reads null snapshot/progress and empty staged rows/outcomes', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      // Fresh migration ids/owners per test: the D1/DO harnesses reset only
+      // the S2-S6 tables plus the fence, so S7 rows must not collide across
+      // tests. (Memory gets a fresh store per test regardless.)
+      const migrationId = freshId('mig-fresh');
+      const owner = freshId('owner-fresh');
+      assert.equal(await store.readInstalledSnapshot(owner), null);
+      assert.equal(await store.readMigrationProgress(migrationId), null);
+      assert.deepEqual(await store.readStagedRows(migrationId, null, 10), []);
+      assert.deepEqual(await store.readMigrationOutcomes(migrationId), []);
+    });
+
+    it('S7: stage chunk persists rows + progress atomically; fence loss stages nothing', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const migrationId = freshId('mig-stage');
+      const rows = [
+        makeStagedRow({ model: 'shop.Order', recordId: 'ord-1', version: 1 }),
+        makeStagedRow({
+          model: 'shop.Order',
+          recordId: 'ord-2',
+          version: 2,
+          data: { total: 60 },
+          converted: true,
+          parent: { model: asModel('shop.Customer'), id: asId('cust-1') },
+        }),
+      ];
+      const progress = makeProgress(migrationId, {
+        phase: 'staging',
+        stagedCursor: { model: 'shop.Order', recordId: 'ord-2' },
+        updatedRevision: 1,
+      });
+      const staged = await store.stageMigrationRows({ expectedRevision: asRevision(0), migrationId, rows, progress });
+      assert.equal(staged.revision, 1);
+      assert.deepEqual(await store.readStagedRows(migrationId, null, 10), rows);
+      assert.deepEqual(await store.readMigrationProgress(migrationId), progress);
+      // Fence loss stages nothing: no rows, no progress, revision unchanged.
+      const failedId = freshId('mig-stage-fail');
+      const failed = await captureFailure(
+        store.stageMigrationRows({
+          expectedRevision: asRevision(0),
+          migrationId: failedId,
+          rows: [makeStagedRow({ recordId: 'lost-1' })],
+          progress: makeProgress(failedId),
+        }),
+      );
+      expectFenceConflict(failed, 0, 1);
+      assert.deepEqual(await store.readStagedRows(failedId, null, 10), []);
+      assert.equal(await store.readMigrationProgress(failedId), null);
+      assert.equal(await store.readRevision(), 1);
+      // Staged reads are deep copies isolated from stored state.
+      const reread = await store.readStagedRows(migrationId, null, 10);
+      (reread[0]?.data as Record<string, unknown>)['total'] = 999;
+      const progressRead = await store.readMigrationProgress(migrationId);
+      assert.ok(progressRead !== null);
+      (progressRead as unknown as { phase: string }).phase = 'active';
+      assert.deepEqual(await store.readStagedRows(migrationId, null, 10), rows);
+      assert.deepEqual(await store.readMigrationProgress(migrationId), progress);
+    });
+
+    it('S7: restaging the same rows is idempotent and overwrites data', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const migrationId = freshId('mig-restage');
+      const row = makeStagedRow({ model: 'shop.Order', recordId: 'ord-r', data: { n: 1 } });
+      await store.stageMigrationRows({
+        expectedRevision: asRevision(0),
+        migrationId,
+        rows: [row],
+        progress: makeProgress(migrationId, { updatedRevision: 1 }),
+      });
+      // Exact restage: same content, new revision.
+      await store.stageMigrationRows({
+        expectedRevision: asRevision(1),
+        migrationId,
+        rows: [row],
+        progress: makeProgress(migrationId, { updatedRevision: 2 }),
+      });
+      assert.deepEqual(await store.readStagedRows(migrationId, null, 10), [row]);
+      // Restage with new content overwrites by (migration, model, id) key.
+      const updated = makeStagedRow({
+        model: 'shop.Order',
+        recordId: 'ord-r',
+        version: 2,
+        data: { n: 2 },
+        converted: true,
+      });
+      await store.stageMigrationRows({
+        expectedRevision: asRevision(2),
+        migrationId,
+        rows: [updated],
+        progress: makeProgress(migrationId, { phase: 'staged', updatedRevision: 3 }),
+      });
+      assert.deepEqual(await store.readStagedRows(migrationId, null, 10), [updated]);
+      assert.equal(await store.readRevision(), 3);
+    });
+
+    it('S7: readStagedRows pages by cursor in (model, id) order with limit', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const migrationId = freshId('mig-page');
+      // Staged out of order: the reader sorts, never assumes insert order.
+      const staged = [
+        makeStagedRow({ model: 'b.Model', recordId: 'r-2' }),
+        makeStagedRow({ model: 'a.Model', recordId: 'r-9' }),
+        makeStagedRow({ model: 'a.Model', recordId: 'r-1' }),
+      ];
+      await store.stageMigrationRows({
+        expectedRevision: asRevision(0),
+        migrationId,
+        rows: staged,
+        progress: makeProgress(migrationId),
+      });
+      const ordered = [staged[2], staged[1], staged[0]] as StagedRow[];
+      assert.deepEqual(await store.readStagedRows(migrationId, null, 10), ordered);
+      assert.deepEqual(await store.readStagedRows(migrationId, null, 2), ordered.slice(0, 2));
+      assert.deepEqual(
+        await store.readStagedRows(migrationId, { model: 'a.Model', recordId: 'r-1' }, 10),
+        ordered.slice(1),
+      );
+      assert.deepEqual(
+        await store.readStagedRows(migrationId, { model: 'a.Model', recordId: 'r-9' }, 10),
+        ordered.slice(2),
+      );
+      // Cursor past the end reads empty; other migrations are isolated.
+      assert.deepEqual(
+        await store.readStagedRows(migrationId, { model: 'b.Model', recordId: 'r-2' }, 10),
+        [],
+      );
+      assert.deepEqual(await store.readStagedRows(freshId('mig-other'), null, 10), []);
+    });
+
+    it('S7: readStagedRows rejects a bad limit with a plain Error', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const migrationId = freshId('mig-badlimit');
+      for (const limit of [0, -1, 1.5, Number.NaN]) {
+        const failed = await captureFailure(store.readStagedRows(migrationId, null, limit));
+        if (!(failed instanceof Error)) {
+          assert.fail(`expected Error for limit ${String(limit)}, got ${String(failed)}`);
+        }
+        assert.match(failed.message, /Invalid staged rows limit/);
+        assert.equal(failed.constructor, Error);
+      }
+      assert.equal(await store.readRevision(), 0);
+    });
+
+    it('S7: publish applies records + history + drops + progress atomically', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const migrationId = freshId('mig-publish');
+      await store.commit(
+        makeBatch(0, {
+          writes: [
+            {
+              kind: 'insert',
+              model: asModel('shop.Order'),
+              row: makeRow({
+                id: 'keep-1',
+                version: 1,
+                created: 1_000,
+                updated: 1_000,
+                createdBy: 'alice',
+                updatedBy: 'alice',
+                data: { n: 1 },
+              }),
+            },
+            {
+              kind: 'insert',
+              model: asModel('shop.Order'),
+              row: makeRow({ id: 'drop-1', version: 1, data: { n: 1 } }),
+            },
+            {
+              kind: 'insert',
+              model: asModel('shop.Order'),
+              row: makeRow({
+                id: 'arch-1',
+                version: 1,
+                createdBy: 'bob',
+                updatedBy: 'bob',
+                archivedAt: 1_500,
+                data: { n: 1 },
+              }),
+            },
+          ],
+        }),
+      );
+      const keepHist = makeHistory({
+        model: 'shop.Order',
+        recordId: 'keep-1',
+        version: 2,
+        operationId: 'op-mig-1',
+        actor: 'migration:snap-2',
+        at: 2_000,
+        change: 'update',
+        before: { n: 1 },
+        after: { n: 2 },
+      });
+      const newHist = makeHistory({
+        model: 'shop.Order',
+        recordId: 'new-1',
+        version: 1,
+        operationId: 'op-mig-1',
+        actor: 'migration:snap-2',
+        at: 3_000,
+        change: 'create',
+        before: null,
+        after: { fresh: true },
+      });
+      const dropHist = makeHistory({
+        model: 'shop.Order',
+        recordId: 'drop-1',
+        version: 1,
+        operationId: 'op-mig-1',
+        actor: 'migration:snap-2',
+        at: 2_000,
+        change: 'remove',
+        before: { n: 1 },
+        after: null,
+      });
+      const progress = makeProgress(migrationId, {
+        phase: 'publishing',
+        stagedCursor: { model: 'shop.Order', recordId: 'keep-1' },
+        updatedRevision: 2,
+      });
+      const published = await store.publishMigrationChunk({
+        expectedRevision: asRevision(1),
+        migrationId,
+        rows: [
+          makeStagedRow({
+            model: 'shop.Order',
+            recordId: 'keep-1',
+            version: 2,
+            data: { n: 2 },
+            converted: true,
+          }),
+          makeStagedRow({ model: 'shop.Order', recordId: 'new-1', data: { fresh: true } }),
+          // Name-only over an archived row, with no history entry.
+          makeStagedRow({ model: 'shop.Order', recordId: 'arch-1', data: { n: 9 } }),
+          // No live predecessor and no history: metadata falls back to 0/''.
+          makeStagedRow({ model: 'shop.Order', recordId: 'orphan-1', data: { x: 1 } }),
+        ],
+        history: [keepHist, newHist],
+        drops: [makeDrop('shop.Order', 'drop-1', dropHist)],
+        progress,
+      });
+      assert.equal(published.revision, 2);
+      // Converted row: version/data from staging, updated/* from history,
+      // created/* carried over from the live predecessor.
+      const keep = await store.load(asModel('shop.Order'), asId('keep-1'));
+      assert.ok(keep !== null);
+      assert.equal(keep.version, 2);
+      assert.deepEqual(keep.data, { n: 2 });
+      assert.equal(keep.created, 1_000);
+      assert.equal(keep.createdBy, 'alice');
+      assert.equal(keep.updated, 2_000);
+      assert.equal(keep.updatedBy, 'migration:snap-2');
+      assert.equal(keep.archivedAt, null);
+      // New row: history supplies created/* when no live row exists.
+      const fresh = await store.load(asModel('shop.Order'), asId('new-1'));
+      assert.ok(fresh !== null);
+      assert.equal(fresh.version, 1);
+      assert.deepEqual(fresh.data, { fresh: true });
+      assert.equal(fresh.created, 3_000);
+      assert.equal(fresh.updated, 3_000);
+      assert.equal(fresh.createdBy, 'migration:snap-2');
+      assert.equal(fresh.updatedBy, 'migration:snap-2');
+      // Archived row keeps its archivedAt: publish never unarchives.
+      const arch = await store.load(asModel('shop.Order'), asId('arch-1'));
+      assert.ok(arch !== null);
+      assert.deepEqual(arch.data, { n: 9 });
+      assert.equal(arch.archivedAt, 1_500);
+      assert.equal(arch.createdBy, 'bob');
+      // Fallback row pins the 0/'' metadata contract gap (the chunk carries
+      // no clock/actor of its own).
+      const orphan = await store.load(asModel('shop.Order'), asId('orphan-1'));
+      assert.ok(orphan !== null);
+      assert.equal(orphan.created, 0);
+      assert.equal(orphan.updated, 0);
+      assert.equal(orphan.createdBy, '');
+      assert.equal(orphan.updatedBy, '');
+      assert.equal(orphan.archivedAt, null);
+      // Drop disposed the live row and recorded its history.
+      assert.equal(await store.load(asModel('shop.Order'), asId('drop-1')), null);
+      assert.deepEqual(await store.historyFor(asModel('shop.Order'), asId('keep-1')), [keepHist]);
+      assert.deepEqual(await store.historyFor(asModel('shop.Order'), asId('new-1')), [newHist]);
+      assert.deepEqual(await store.historyFor(asModel('shop.Order'), asId('drop-1')), [dropHist]);
+      assert.deepEqual(await store.historyFor(asModel('shop.Order'), asId('orphan-1')), []);
+      assert.deepEqual(await store.readMigrationProgress(migrationId), progress);
+    });
+
+    it('S7: publish moves unique claims and preserves staged creation metadata', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const migrationId = freshId('mig-claims');
+      await store.commit(
+        makeBatch(0, {
+          writes: [
+            {
+              kind: 'insert',
+              model: asModel('shop.Legacy'),
+              row: makeRow({ id: 'ren-1', version: 1, data: { sku: 'ABC' } }),
+            },
+          ],
+          uniqueClaims: [uniqueClaim('shop.Legacy', 'ren-1', 'sku', 'ABC')],
+        }),
+      );
+      // The engine copies creation metadata from the live before-row into
+      // staging so the rename target preserves it.
+      const before = await store.load(asModel('shop.Legacy'), asId('ren-1'));
+      assert.ok(before !== null);
+      await store.stageMigrationRows({
+        expectedRevision: asRevision(1),
+        migrationId,
+        rows: [
+          makeStagedRow({
+            model: 'shop.Item',
+            recordId: 'ren-1',
+            version: 2,
+            data: { sku: 'ABC' },
+            converted: true,
+            created: before.created,
+            createdBy: before.createdBy,
+            archivedAt: before.archivedAt,
+          }),
+        ],
+        progress: makeProgress(migrationId, { phase: 'staging', updatedRevision: 2 }),
+      });
+      // Staged metadata round-trips through storage, not just the engine.
+      const staged = await store.readStagedRows(migrationId, null, 10);
+      assert.equal(staged.length, 1);
+      assert.equal(staged[0]?.created, before.created);
+      assert.equal(staged[0]?.createdBy, before.createdBy);
+      const renHist = makeHistory({
+        model: 'shop.Item',
+        recordId: 'ren-1',
+        version: 2,
+        operationId: 'op-mig-claims',
+        change: 'update',
+        before: { sku: 'ABC' },
+        after: { sku: 'ABC' },
+      });
+      await store.publishMigrationChunk({
+        expectedRevision: asRevision(2),
+        migrationId,
+        rows: [...staged],
+        history: [renHist],
+        drops: [
+          makeDrop(
+            'shop.Legacy',
+            'ren-1',
+            makeHistory({
+              model: 'shop.Legacy',
+              recordId: 'ren-1',
+              version: 1,
+              operationId: 'op-mig-claims',
+              change: 'remove',
+              before: { sku: 'ABC' },
+              after: null,
+            }),
+          ),
+        ],
+        uniqueReleases: [{ model: asModel('shop.Legacy'), keyName: 'sku', keyValue: 'ABC' }],
+        uniqueClaims: [uniqueClaim('shop.Item', 'ren-1', 'sku', 'ABC')],
+        progress: makeProgress(migrationId, { phase: 'publishing', updatedRevision: 3 }),
+      });
+      const live = await store.load(asModel('shop.Item'), asId('ren-1'));
+      assert.ok(live !== null);
+      assert.equal(live.created, before.created);
+      assert.equal(live.createdBy, before.createdBy);
+      assert.equal(live.archivedAt, before.archivedAt);
+      assert.equal(await store.load(asModel('shop.Legacy'), asId('ren-1')), null);
+      // The key moved models atomically: the new model holds it, the old
+      // model is free. Claims are observable only through commit behavior.
+      const held = await captureFailure(
+        store.commit(
+          makeBatch(3, {
+            writes: [
+              {
+                kind: 'insert',
+                model: asModel('shop.Item'),
+                row: makeRow({ id: 'ren-2', data: { sku: 'ABC' } }),
+              },
+            ],
+            uniqueClaims: [uniqueClaim('shop.Item', 'ren-2', 'sku', 'ABC')],
+          }),
+        ),
+      );
+      assert.ok(
+        held instanceof StorageConstraintError && held.kind === 'unique',
+        `expected unique conflict on the moved key, got ${String(held)}`,
+      );
+      await store.commit(
+        makeBatch(3, {
+          writes: [
+            {
+              kind: 'insert',
+              model: asModel('shop.Legacy'),
+              row: makeRow({ id: 'ren-3', data: { sku: 'ABC' } }),
+            },
+          ],
+          uniqueClaims: [uniqueClaim('shop.Legacy', 'ren-3', 'sku', 'ABC')],
+        }),
+      );
+      assert.equal(await store.readRevision(), 4);
+    });
+
+    it('S7: publish fence loss applies nothing', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const migrationId = freshId('mig-pubfail');
+      const live = makeRow({ id: 'live-1', data: { n: 1 } });
+      await store.commit(
+        makeBatch(0, {
+          writes: [{ kind: 'insert', model: asModel('shop.Order'), row: live }],
+        }),
+      );
+      const failed = await captureFailure(
+        store.publishMigrationChunk({
+          expectedRevision: asRevision(0),
+          migrationId,
+          rows: [makeStagedRow({ model: 'shop.Order', recordId: 'live-1', version: 2 })],
+          history: [makeHistory({ model: 'shop.Order', recordId: 'live-1', version: 2 })],
+          drops: [],
+          progress: makeProgress(migrationId, { phase: 'publishing' }),
+        }),
+      );
+      expectFenceConflict(failed, 0, 1);
+      const reread = await store.load(asModel('shop.Order'), asId('live-1'));
+      assert.ok(reread !== null);
+      assert.equal(reread.version, 1);
+      assert.deepEqual(reread.data, { n: 1 });
+      assert.deepEqual(await store.historyFor(asModel('shop.Order'), asId('live-1')), []);
+      assert.equal(await store.readMigrationProgress(migrationId), null);
+      assert.equal(await store.readRevision(), 1);
+    });
+
+    it('S7: flip installs pointer, skips intents, records outcomes, marks active', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const migrationId = freshId('mig-flip');
+      const owner = freshId('owner-flip');
+      const skip1 = `skip-1-${migrationId}`;
+      const skip2 = `skip-2-${migrationId}`;
+      const keep = `keep-1-${migrationId}`;
+      await store.commit(
+        makeBatch(0, {
+          outbox: [
+            makeIntent({ intentId: skip1 }),
+            makeIntent({ intentId: skip2 }),
+            makeIntent({ intentId: keep }),
+          ],
+        }),
+      );
+      await store.commit({ ...makeBatch(1), outboxAck: [keep] });
+      // Empty-rows stage is valid: progress-only advance.
+      await store.stageMigrationRows({
+        expectedRevision: asRevision(2),
+        migrationId,
+        rows: [],
+        progress: makeProgress(migrationId, {
+          phase: 'staged',
+          stagedCursor: { model: 'shop.Order', recordId: 'ord-9' },
+          updatedRevision: 3,
+        }),
+      });
+      const snapshot = makeSnapshot(owner);
+      const outcomes = [makeOutcome(migrationId, skip1), makeOutcome(migrationId, skip2)];
+      const flipped = await store.flipInstalledSnapshot({
+        expectedRevision: asRevision(3),
+        migrationId,
+        snapshot,
+        renameFromOwner: null,
+        invalidatedIntentIds: [skip1, skip2, `unknown-${migrationId}`],
+        outcomes,
+      });
+      assert.deepEqual(flipped, { revision: 4, flipped: true });
+      // The flip records its ACTUAL commit revision, not the input guess —
+      // the engine cannot know it pre-commit.
+      assert.deepEqual(await store.readInstalledSnapshot(owner), {
+        ...snapshot,
+        installedRevision: flipped.revision,
+      });
+      // Skipped + dispatched intents all leave the pending set; the unknown
+      // id was a no-op (the flip still committed).
+      assert.deepEqual(await store.outboxPending(), []);
+      assert.deepEqual(await store.readMigrationOutcomes(migrationId), outcomes);
+      assert.deepEqual(await store.readMigrationProgress(migrationId), {
+        migrationId,
+        phase: 'active',
+        stagedCursor: { model: 'shop.Order', recordId: 'ord-9' },
+        publishCursor: null,
+        updatedRevision: 4,
+      });
+      // Snapshot/outcome reads are deep copies isolated from stored state.
+      const snapshotRead = await store.readInstalledSnapshot(owner);
+      assert.ok(snapshotRead !== null);
+      (snapshotRead as unknown as { digest: string }).digest = 'mutated';
+      const outcomesRead = await store.readMigrationOutcomes(migrationId);
+      (outcomesRead[0] as unknown as { intentId: string }).intentId = 'mutated';
+      assert.deepEqual(await store.readInstalledSnapshot(owner), {
+        ...snapshot,
+        installedRevision: flipped.revision,
+      });
+      assert.deepEqual(await store.readMigrationOutcomes(migrationId), outcomes);
+    });
+
+    it('S7: flip is idempotent: a second flip commits nothing', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const migrationId = freshId('mig-idem');
+      const owner = freshId('owner-idem');
+      const snapshot = makeSnapshot(owner);
+      const first = await store.flipInstalledSnapshot({
+        expectedRevision: asRevision(0),
+        migrationId,
+        snapshot,
+        renameFromOwner: null,
+        invalidatedIntentIds: [],
+        outcomes: [makeOutcome(migrationId, 'intent-a')],
+      });
+      assert.deepEqual(first, { revision: 1, flipped: true });
+      // Same target, even with a STALE expected revision and different
+      // outcomes: activation retries must succeed without committing.
+      const second = await store.flipInstalledSnapshot({
+        expectedRevision: asRevision(0),
+        migrationId,
+        snapshot,
+        renameFromOwner: null,
+        invalidatedIntentIds: [`skip-x-${migrationId}`],
+        outcomes: [makeOutcome(migrationId, 'intent-b')],
+      });
+      assert.deepEqual(second, { revision: 1, flipped: false });
+      assert.equal(await store.readRevision(), 1);
+      assert.deepEqual(await store.readInstalledSnapshot(owner), {
+        ...snapshot,
+        installedRevision: first.revision,
+      });
+      assert.deepEqual(await store.readMigrationOutcomes(migrationId), [
+        makeOutcome(migrationId, 'intent-a'),
+      ]);
+      assert.deepEqual(await store.readMigrationProgress(migrationId), {
+        migrationId,
+        phase: 'active',
+        stagedCursor: null,
+        publishCursor: null,
+        updatedRevision: 1,
+      });
+    });
+
+    it('S7: flip with renameFromOwner removes the old pointer; rowless flip creates active progress', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const oldOwner = freshId('owner-old');
+      const newOwner = freshId('owner-new');
+      const firstId = freshId('mig-rename-1');
+      const secondId = freshId('mig-rename-2');
+      await store.flipInstalledSnapshot({
+        expectedRevision: asRevision(0),
+        migrationId: firstId,
+        snapshot: makeSnapshot(oldOwner, { snapshotId: 'snap-1', digest: 'digest-1' }),
+        renameFromOwner: null,
+        invalidatedIntentIds: [],
+        outcomes: [],
+      });
+      assert.ok((await store.readInstalledSnapshot(oldOwner)) !== null);
+      const renamed = makeSnapshot(newOwner);
+      const result = await store.flipInstalledSnapshot({
+        expectedRevision: asRevision(1),
+        migrationId: secondId,
+        snapshot: renamed,
+        renameFromOwner: oldOwner,
+        invalidatedIntentIds: [],
+        outcomes: [],
+      });
+      assert.deepEqual(result, { revision: 2, flipped: true });
+      assert.equal(await store.readInstalledSnapshot(oldOwner), null);
+      assert.deepEqual(await store.readInstalledSnapshot(newOwner), {
+        ...renamed,
+        installedRevision: result.revision,
+      });
+      // Rowless migration (never staged): flip creates active progress.
+      assert.deepEqual(await store.readMigrationProgress(secondId), {
+        migrationId: secondId,
+        phase: 'active',
+        stagedCursor: null,
+        publishCursor: null,
+        updatedRevision: 2,
+      });
+    });
+
+    it('S7: staged rows stay invisible to live reads until publish', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const migrationId = freshId('mig-isolation');
+      const owner = freshId('owner-isolation');
+      await store.commit(
+        makeBatch(0, {
+          writes: [
+            {
+              kind: 'insert',
+              model: asModel('shop.Order'),
+              row: makeRow({ id: 'iso-1', data: { n: 1 } }),
+            },
+          ],
+        }),
+      );
+      const stagedRow = makeStagedRow({
+        model: 'shop.Order',
+        recordId: 'iso-1',
+        version: 2,
+        data: { n: 2 },
+        converted: true,
+      });
+      await store.stageMigrationRows({
+        expectedRevision: asRevision(1),
+        migrationId,
+        rows: [stagedRow],
+        progress: makeProgress(migrationId, { updatedRevision: 2 }),
+      });
+      // Preparation failure leaves the installed data selected: live reads
+      // still see the old row even though staging holds the new one.
+      const before = await store.load(asModel('shop.Order'), asId('iso-1'));
+      assert.ok(before !== null);
+      assert.equal(before.version, 1);
+      assert.deepEqual(before.data, { n: 1 });
+      const queried = await store.query({ model: asModel('shop.Order'), authority: 'viewer' });
+      assert.deepEqual(
+        queried.map((row) => row.data),
+        [{ n: 1 }],
+      );
+      const hist = makeHistory({
+        model: 'shop.Order',
+        recordId: 'iso-1',
+        version: 2,
+        actor: 'migration:snap-2',
+        at: 2_000,
+        change: 'update',
+        before: { n: 1 },
+        after: { n: 2 },
+      });
+      await store.publishMigrationChunk({
+        expectedRevision: asRevision(2),
+        migrationId,
+        rows: [stagedRow],
+        history: [hist],
+        drops: [],
+        progress: makeProgress(migrationId, { phase: 'publishing', updatedRevision: 3 }),
+      });
+      const after = await store.load(asModel('shop.Order'), asId('iso-1'));
+      assert.ok(after !== null);
+      assert.equal(after.version, 2);
+      assert.deepEqual(after.data, { n: 2 });
+      // Publish does not clear staging: the staged rows remain readable.
+      assert.deepEqual(await store.readStagedRows(migrationId, null, 10), [stagedRow]);
+      const snapshot = makeSnapshot(owner);
+      const flipped = await store.flipInstalledSnapshot({
+        expectedRevision: asRevision(3),
+        migrationId,
+        snapshot,
+        renameFromOwner: null,
+        invalidatedIntentIds: [],
+        outcomes: [],
+      });
+      assert.deepEqual(flipped, { revision: 4, flipped: true });
+      assert.deepEqual(await store.readInstalledSnapshot(owner), {
+        ...snapshot,
+        installedRevision: flipped.revision,
+      });
     });
   });
 }

@@ -17,20 +17,30 @@ import type { DurableObjectStorage } from '@cloudflare/workers-types';
 import type {
   CommitBatch,
   CommitResult,
+  FlipInstalledSnapshot,
+  FlipResult,
   HistoryEntry,
+  InstalledSnapshot,
+  MigrationOutcome,
+  MigrationProgress,
   ModelName,
   OperationId,
   OperationName,
   OrderTerm,
   OutboxIntent,
+  PublishMigrationChunk,
   QueryPredicate,
   QuerySpec,
   Receipt,
   ReceiptIdentity,
   RecordId,
+  RecordParent,
   RecordVersion,
   Revision,
   ScheduleEntry,
+  StageMigrationChunk,
+  StagedRow,
+  StagedRowCursor,
   StoredRow,
 } from '../../../contracts/src/state.js';
 import { FenceConflictError, StorageConstraintError } from './port.js';
@@ -228,6 +238,37 @@ function checkSchedulesLimit(limit: number): void {
 }
 
 /**
+ * S7: `readStagedRows` limit must be an integer >= 1. Plain Error (programmer
+ * bug), mirroring `checkSchedulesLimit` style exactly.
+ */
+function checkStagedRowsLimit(limit: number): void {
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new Error(`Invalid staged rows limit: ${JSON.stringify(limit)}`);
+  }
+}
+
+/**
+ * S7: validate a fenced migration write's expected revision the way commit
+ * does: malformed values are a programmer bug (plain Error), future values
+ * break revision density (FenceConflictError up front — the fence INSERT
+ * below cannot see a skip ahead). Runs synchronously with zero awaits, so
+ * there is no check-to-transaction interleaving window.
+ */
+function checkMigrationExpected(
+  storage: DurableObjectStorage,
+  expectedRevision: Revision,
+): void {
+  const expected = expectedRevision as number;
+  if (!Number.isInteger(expected) || expected < 0) {
+    throw new Error(`Invalid expectedRevision: ${JSON.stringify(expectedRevision)}`);
+  }
+  const current = readRevisionInner(storage);
+  if (expected > (current as number)) {
+    throw new FenceConflictError(expectedRevision, current);
+  }
+}
+
+/**
  * Enforce per-row `expectedVersion` for updates/removes before opening the
  * transaction. Stale or missing rows fail with kind 'version'. There is no
  * check-to-transaction interleaving window: this runs fully synchronously
@@ -413,6 +454,129 @@ function toHistoryEntry(row: HistoryRow): HistoryEntry {
   };
 }
 
+/** S7: raw `snapshots` row as `sql.exec` returns it (snake_case columns). */
+type SnapshotRow = {
+  readonly owner: string;
+  readonly snapshot_id: string;
+  readonly digest: string;
+  readonly installed_revision: number;
+  readonly installed_at: number;
+}
+
+const SNAPSHOT_COLUMNS = 'owner, snapshot_id, digest, installed_revision, installed_at';
+
+function toInstalledSnapshot(row: SnapshotRow): InstalledSnapshot {
+  return {
+    owner: row.owner,
+    snapshotId: row.snapshot_id,
+    digest: row.digest,
+    installedRevision: row.installed_revision as Revision,
+    installedAt: row.installed_at,
+  };
+}
+
+/** S7: raw `migration_staging` row as `sql.exec` returns it. */
+type StagingRow = {
+  readonly target_model: string;
+  readonly record_id: string;
+  readonly version: number;
+  readonly data: string;
+  readonly parent: string | null;
+  readonly converted: number;
+  readonly created: number | null;
+  readonly created_by: string | null;
+  readonly archived_at: number | null;
+}
+
+const STAGING_COLUMNS =
+  'target_model, record_id, version, data, parent, converted, created, created_by, archived_at';
+
+function toStagedRow(row: StagingRow): StagedRow {
+  return {
+    targetModel: row.target_model as ModelName,
+    recordId: row.record_id as RecordId,
+    version: row.version as RecordVersion,
+    data: JSON.parse(row.data) as Record<string, unknown>,
+    parent: row.parent === null ? null : (JSON.parse(row.parent) as RecordParent),
+    converted: row.converted === 1,
+    // NULL stays absent (never explicit undefined: exactOptionalPropertyTypes).
+    ...(row.created === null ? {} : { created: row.created }),
+    ...(row.created_by === null ? {} : { createdBy: row.created_by }),
+    ...(row.archived_at === null ? {} : { archivedAt: row.archived_at }),
+  };
+}
+
+/** S7: raw `migration_progress` row as `sql.exec` returns it. */
+type ProgressRow = {
+  readonly migration_id: string;
+  readonly phase: string;
+  readonly staged_cursor: string | null;
+  readonly publish_cursor: string | null;
+  readonly updated_revision: number;
+}
+
+const PROGRESS_COLUMNS = 'migration_id, phase, staged_cursor, publish_cursor, updated_revision';
+
+function toMigrationProgress(row: ProgressRow): MigrationProgress {
+  return {
+    migrationId: row.migration_id,
+    phase: row.phase as MigrationProgress['phase'],
+    stagedCursor:
+      row.staged_cursor === null ? null : (JSON.parse(row.staged_cursor) as StagedRowCursor),
+    publishCursor:
+      row.publish_cursor === null ? null : (JSON.parse(row.publish_cursor) as StagedRowCursor),
+    updatedRevision: row.updated_revision as Revision,
+  };
+}
+
+/** S7: raw `migration_outcomes` row as `sql.exec` returns it. */
+type OutcomeRow = {
+  readonly migration_id: string;
+  readonly kind: string;
+  readonly intent_id: string;
+  readonly handler_contract: string;
+}
+
+const OUTCOME_COLUMNS = 'migration_id, kind, intent_id, handler_contract';
+
+function toMigrationOutcome(row: OutcomeRow): MigrationOutcome {
+  return {
+    migrationId: row.migration_id,
+    kind: row.kind as MigrationOutcome['kind'],
+    intentId: row.intent_id,
+    handlerContract: row.handler_contract,
+  };
+}
+
+/**
+ * S7: merge one staged row onto its live target, mirroring the memory/D1
+ * adapters exactly (see d1.ts for the rule).
+ */
+function mergePublishedColumns(
+  staged: StagedRow,
+  existing: RecordRow | null,
+  history: ReadonlyArray<HistoryEntry>,
+): {
+  readonly created: number;
+  readonly updated: number;
+  readonly createdBy: string;
+  readonly updatedBy: string;
+  readonly archivedAt: number | null;
+} {
+  const match = history.find(
+    (entry) =>
+      (entry.model as string) === (staged.targetModel as string) &&
+      (entry.recordId as string) === (staged.recordId as string),
+  );
+  return {
+    created: staged.created ?? existing?.created ?? match?.at ?? 0,
+    updated: match?.at ?? existing?.updated ?? 0,
+    createdBy: staged.createdBy ?? existing?.created_by ?? match?.actor ?? '',
+    updatedBy: match?.actor ?? existing?.updated_by ?? '',
+    archivedAt: staged.archivedAt ?? existing?.archived_at ?? null,
+  };
+}
+
 /** One parameterized statement inside a commit transaction. */
 interface PlannedStatement {
   readonly sql: string;
@@ -594,6 +758,240 @@ function planCommit(batch: CommitBatch, next: number, at: number, operation: str
 }
 
 /**
+ * S7: plan one fenced staging write: fence + revision + staged-row upserts
+ * (idempotent restage) + progress upsert, all in one transaction.
+ */
+function planStage(input: StageMigrationChunk, next: number, at: number): PlannedStatement[] {
+  const statements: PlannedStatement[] = [
+    {
+      sql: 'INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)',
+      bindings: [next, at, `migration:stage:${input.migrationId}`],
+    },
+    {
+      sql: 'UPDATE fence SET revision = ? WHERE id = ?',
+      bindings: [next, FENCE_ROW_ID],
+    },
+  ];
+  for (const row of input.rows) {
+    statements.push({
+      sql:
+        'INSERT OR REPLACE INTO migration_staging(migration_id, target_model, ' +
+        'record_id, version, data, parent, converted, created, created_by, ' +
+        'archived_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      bindings: [
+        input.migrationId,
+        row.targetModel as string,
+        row.recordId as string,
+        row.version as number,
+        JSON.stringify(row.data),
+        row.parent === null ? null : JSON.stringify(row.parent),
+        row.converted ? 1 : 0,
+        row.created ?? null,
+        row.createdBy ?? null,
+        row.archivedAt ?? null,
+      ],
+    });
+  }
+  statements.push({
+    sql:
+      'INSERT OR REPLACE INTO migration_progress(migration_id, phase, staged_cursor, ' +
+      'publish_cursor, updated_revision) VALUES (?, ?, ?, ?, ?)',
+    bindings: [
+      input.migrationId,
+      input.progress.phase,
+      input.progress.stagedCursor === null ? null : JSON.stringify(input.progress.stagedCursor),
+      input.progress.publishCursor === null ? null : JSON.stringify(input.progress.publishCursor),
+      input.progress.updatedRevision as number,
+    ],
+  });
+  return statements;
+}
+
+/**
+ * S7: plan one fenced publish write. `existing` carries the pre-read live
+ * rows for metadata carry-over (read synchronously before the transaction;
+ * the fence INSERT aborts on any revision the reads did not see).
+ */
+function planPublish(
+  input: PublishMigrationChunk,
+  next: number,
+  at: number,
+  existing: ReadonlyMap<string, RecordRow | null>,
+): PlannedStatement[] {
+  const statements: PlannedStatement[] = [
+    {
+      sql: 'INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)',
+      bindings: [next, at, `migration:publish:${input.migrationId}`],
+    },
+    {
+      sql: 'UPDATE fence SET revision = ? WHERE id = ?',
+      bindings: [next, FENCE_ROW_ID],
+    },
+  ];
+  for (const row of input.rows) {
+    const key = `${row.targetModel as string}\0${row.recordId as string}`;
+    const merged = mergePublishedColumns(row, existing.get(key) ?? null, input.history);
+    statements.push({
+      sql:
+        'INSERT OR REPLACE INTO records(model, id, version, created, updated, created_by, ' +
+        'updated_by, archived_at, owner, parent_model, parent_id, data) ' +
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      bindings: [
+        row.targetModel as string,
+        row.recordId as string,
+        row.version as number,
+        merged.created,
+        merged.updated,
+        merged.createdBy,
+        merged.updatedBy,
+        merged.archivedAt,
+        '',
+        (row.parent?.model as string | undefined) ?? null,
+        (row.parent?.id as string | undefined) ?? null,
+        JSON.stringify(row.data),
+      ],
+    });
+  }
+  for (const entry of input.history) {
+    statements.push({
+      sql:
+        'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
+        'actor, at, change, "before", "after") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      bindings: [
+        entry.model as string,
+        entry.recordId as string,
+        entry.version as number,
+        entry.operation as string,
+        entry.operationId as string,
+        entry.actor,
+        entry.at,
+        entry.change,
+        entry.before === null ? null : JSON.stringify(entry.before),
+        entry.after === null ? null : JSON.stringify(entry.after),
+      ],
+    });
+  }
+  for (const drop of input.drops) {
+    statements.push({
+      sql: 'DELETE FROM records WHERE model = ? AND id = ?',
+      bindings: [drop.model as string, drop.recordId as string],
+    });
+    statements.push({
+      sql:
+        'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
+        'actor, at, change, "before", "after") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      bindings: [
+        drop.history.model as string,
+        drop.history.recordId as string,
+        drop.history.version as number,
+        drop.history.operation as string,
+        drop.history.operationId as string,
+        drop.history.actor,
+        drop.history.at,
+        drop.history.change,
+        drop.history.before === null ? null : JSON.stringify(drop.history.before),
+        drop.history.after === null ? null : JSON.stringify(drop.history.after),
+      ],
+    });
+  }
+  // Claim moves ride the same transaction: releases before claims, mirroring
+  // commit, so a model rename moves keys between models atomically.
+  for (const release of input.uniqueReleases ?? []) {
+    statements.push({
+      sql: 'DELETE FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?',
+      bindings: [release.model as string, release.keyName, release.keyValue],
+    });
+  }
+  for (const claim of input.uniqueClaims ?? []) {
+    statements.push({
+      sql:
+        'INSERT INTO unique_claims(model, key_name, key_value, record_id) ' +
+        'VALUES (?, ?, ?, ?)',
+      bindings: [
+        claim.model as string,
+        claim.keyName,
+        claim.keyValue,
+        claim.recordId as string,
+      ],
+    });
+  }
+  statements.push({
+    sql:
+      'INSERT OR REPLACE INTO migration_progress(migration_id, phase, staged_cursor, ' +
+      'publish_cursor, updated_revision) VALUES (?, ?, ?, ?, ?)',
+    bindings: [
+      input.migrationId,
+      input.progress.phase,
+      input.progress.stagedCursor === null ? null : JSON.stringify(input.progress.stagedCursor),
+      input.progress.publishCursor === null ? null : JSON.stringify(input.progress.publishCursor),
+      input.progress.updatedRevision as number,
+    ],
+  });
+  return statements;
+}
+
+/**
+ * S7: plan the final fenced flip: pointer install (+ rename-source removal),
+ * pending-only skip updates, outcome inserts, and the cursor-preserving
+ * progress-to-active upsert (missing progress is created active).
+ */
+function planFlip(input: FlipInstalledSnapshot, next: number, at: number): PlannedStatement[] {
+  const statements: PlannedStatement[] = [
+    {
+      sql: 'INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)',
+      bindings: [next, at, `migration:flip:${input.migrationId}`],
+    },
+    {
+      sql: 'UPDATE fence SET revision = ? WHERE id = ?',
+      bindings: [next, FENCE_ROW_ID],
+    },
+    {
+      sql:
+        'INSERT OR REPLACE INTO snapshots(owner, snapshot_id, digest, installed_revision, ' +
+        'installed_at) VALUES (?, ?, ?, ?, ?)',
+      bindings: [
+        input.snapshot.owner,
+        input.snapshot.snapshotId,
+        input.snapshot.digest,
+        // The engine cannot know the flip revision pre-commit: record actual.
+        next,
+        input.snapshot.installedAt,
+      ],
+    },
+  ];
+  if (input.renameFromOwner !== null) {
+    statements.push({
+      sql: 'DELETE FROM snapshots WHERE owner = ?',
+      bindings: [input.renameFromOwner],
+    });
+  }
+  for (const intentId of input.invalidatedIntentIds) {
+    // Pending-only: unknown or already-dispatched ids match zero rows
+    // (idempotent no-op), and a dispatched intent is never rewritten.
+    statements.push({
+      sql: "UPDATE outbox SET status = 'skipped' WHERE intent_id = ? AND status = 'pending'",
+      bindings: [intentId],
+    });
+  }
+  for (const outcome of input.outcomes) {
+    statements.push({
+      sql:
+        'INSERT INTO migration_outcomes(migration_id, kind, intent_id, handler_contract) ' +
+        'VALUES (?, ?, ?, ?)',
+      bindings: [input.migrationId, outcome.kind, outcome.intentId, outcome.handlerContract],
+    });
+  }
+  statements.push({
+    sql:
+      'INSERT INTO migration_progress(migration_id, phase, staged_cursor, publish_cursor, ' +
+      'updated_revision) VALUES (?, ?, NULL, NULL, ?) ' +
+      'ON CONFLICT(migration_id) DO UPDATE SET phase = ?, updated_revision = ?',
+    bindings: [input.migrationId, 'active', next, 'active', next],
+  });
+  return statements;
+}
+
+/**
  * Durable Object SQLite-backed `StoragePort`. Call `ensureSchema(storage)`
  * once before first use.
  */
@@ -735,6 +1133,144 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
         )
         .toArray();
       return rows.map(toHistoryEntry);
+    },
+
+    async readInstalledSnapshot(owner: string): Promise<InstalledSnapshot | null> {
+      // S7: null when the owner was never installed (fresh installs take a
+      // separate path and never apply transitions).
+      const rows = storage.sql
+        .exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots WHERE owner = ?`, owner)
+        .toArray();
+      const row = rows[0] ?? null;
+      return row === null ? null : toInstalledSnapshot(row);
+    },
+
+    async readMigrationProgress(migrationId: string): Promise<MigrationProgress | null> {
+      // S7: null when the migration never staged anything.
+      const rows = storage.sql
+        .exec<ProgressRow>(
+          `SELECT ${PROGRESS_COLUMNS} FROM migration_progress WHERE migration_id = ?`,
+          migrationId,
+        )
+        .toArray();
+      const row = rows[0] ?? null;
+      return row === null ? null : toMigrationProgress(row);
+    },
+
+    async readStagedRows(
+      migrationId: string,
+      cursor: StagedRowCursor | null,
+      limit: number,
+    ): Promise<ReadonlyArray<StagedRow>> {
+      // S7: (model, record id) order after the cursor, capped at limit.
+      checkStagedRowsLimit(limit);
+      const bindings: unknown[] = [migrationId];
+      let sql = `SELECT ${STAGING_COLUMNS} FROM migration_staging WHERE migration_id = ?`;
+      if (cursor !== null) {
+        sql += ' AND (target_model > ? OR (target_model = ? AND record_id > ?))';
+        bindings.push(cursor.model, cursor.model, cursor.recordId);
+      }
+      sql += ' ORDER BY target_model, record_id LIMIT ?';
+      bindings.push(limit);
+      const rows = storage.sql.exec<StagingRow>(sql, ...bindings).toArray();
+      return rows.map(toStagedRow);
+    },
+
+    async stageMigrationRows(input: StageMigrationChunk): Promise<CommitResult> {
+      // S7: ONE fenced transaction: upsert staged rows (idempotent restage)
+      // plus the progress row, atomically.
+      checkMigrationExpected(storage, input.expectedRevision);
+      const next = (input.expectedRevision as number) + 1;
+      const at = Date.now();
+      const statements = planStage(input, next, at);
+      try {
+        transact(storage, () => {
+          for (const statement of statements) {
+            storage.sql.exec(statement.sql, ...statement.bindings);
+          }
+        });
+      } catch (error) {
+        throw toCommitError(storage, input.expectedRevision, error);
+      }
+      return { revision: next as Revision };
+    },
+
+    async publishMigrationChunk(input: PublishMigrationChunk): Promise<CommitResult> {
+      // S7: ONE fenced transaction: upsert live records, insert history,
+      // dispose drops, upsert progress — atomically. Live rows are pre-read
+      // for metadata carry-over, synchronously with zero awaits.
+      checkMigrationExpected(storage, input.expectedRevision);
+      const next = (input.expectedRevision as number) + 1;
+      const at = Date.now();
+      const existing = new Map<string, RecordRow | null>();
+      for (const row of input.rows) {
+        const found =
+          storage.sql
+            .exec<RecordRow>(
+              `SELECT ${RECORD_COLUMNS} FROM records WHERE model = ? AND id = ?`,
+              row.targetModel as string,
+              row.recordId as string,
+            )
+            .toArray()[0] ?? null;
+        existing.set(`${row.targetModel as string}\0${row.recordId as string}`, found);
+      }
+      const statements = planPublish(input, next, at, existing);
+      try {
+        transact(storage, () => {
+          for (const statement of statements) {
+            storage.sql.exec(statement.sql, ...statement.bindings);
+          }
+        });
+      } catch (error) {
+        throw toCommitError(storage, input.expectedRevision, error);
+      }
+      return { revision: next as Revision };
+    },
+
+    async flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult> {
+      // S7: idempotent activation. When the installed pointer already equals
+      // the target, return the current revision with flipped:false and commit
+      // nothing (no fence check: activation retries must succeed). Otherwise
+      // ONE fenced transaction, as planned by planFlip.
+      const installed =
+        storage.sql
+          .exec<SnapshotRow>(
+            `SELECT ${SNAPSHOT_COLUMNS} FROM snapshots WHERE owner = ?`,
+            input.snapshot.owner,
+          )
+          .toArray()[0] ?? null;
+      if (
+        installed !== null &&
+        installed.snapshot_id === input.snapshot.snapshotId &&
+        installed.digest === input.snapshot.digest
+      ) {
+        return { revision: readRevisionInner(storage), flipped: false };
+      }
+      checkMigrationExpected(storage, input.expectedRevision);
+      const next = (input.expectedRevision as number) + 1;
+      const at = Date.now();
+      const statements = planFlip(input, next, at);
+      try {
+        transact(storage, () => {
+          for (const statement of statements) {
+            storage.sql.exec(statement.sql, ...statement.bindings);
+          }
+        });
+      } catch (error) {
+        throw toCommitError(storage, input.expectedRevision, error);
+      }
+      return { revision: next as Revision, flipped: true };
+    },
+
+    async readMigrationOutcomes(migrationId: string): Promise<ReadonlyArray<MigrationOutcome>> {
+      // S7: recorded skips in record (seq) order.
+      const rows = storage.sql
+        .exec<OutcomeRow>(
+          `SELECT ${OUTCOME_COLUMNS} FROM migration_outcomes WHERE migration_id = ? ORDER BY seq`,
+          migrationId,
+        )
+        .toArray();
+      return rows.map(toMigrationOutcome);
     },
   };
 }
