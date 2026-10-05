@@ -7,7 +7,7 @@
 //! | # | Witness | Construct | Status |
 //! |---|---------|-----------|--------|
 //! | 1 | CanInbox | Given `judgment` | TESTED elsewhere (`b4_resolve`, `analysis`, `format`, `syntax`) |
-//! | 2 | CanChat/CanCreative | `delivery().progress`, `Target.progressed` | GAP: no checker support; pinned by `progress_*_gap` (flip when fixed). DESIGN L678-682 + `design/complex-apps/chat-media.md#associated-progress-contract` are unimplemented and producerless — archived, not normative-working. |
+//! | 2 | CanChat/CanCreative | `delivery().progress`, `Target.progressed` | GAP: no checker support; pinned by `progress_*_gap` (flip when fixed). DESIGN L678-682 + `design/complex-apps/chat-media.md#associated-progress-contract` are unimplemented and producerless — archived, not normative-working. (`Cap.op.completed` IS validated today; only `progressed` and `.progress` lack support.) |
 //! | 3 | CanWorkbench | `invocation(Op,...)` values | TESTED elsewhere (`b4_parse`, `format`, `@canlang/values`) |
 //! | 4 | CanKnowledge | Given `corpus` | PARTIAL: declaration accepted (pinned); query members (`answer`/`cancel`/`reconcile`) unvalidated, pinned by `corpus_query_members_unvalidated_gap`. DESIGN §8.3 beyond declaration unimplemented — archived. |
 //! | 5 | CanCreative/CanGallery | `gallery Query image=field` | PARTIAL: `image=` requiredness enforced (pinned); target unvalidated, pinned by `gallery_image_target_unvalidated_gap`. GRAMMAR:109 + DESIGN:1104 semantic checks unimplemented — archived. |
@@ -108,24 +108,29 @@ fn corpus_declaration_checks_clean() {
 
 // --- Gap: delivery progress ------------------------------------------------
 
-/// `.progress` on a bound delivery behaves EXACTLY like `.status` and
-/// `.bogus` (all opaque): the checker has no progress support. Flip when
-/// DESIGN L678-682 lands (nullable typed `.progress` on observable
-/// originals); until then the normative claim is archived.
+/// `.progress` on a bound-typed delivery is E2013, exactly like `.bogus`;
+/// `.status` resolves (E3001 is the derive's type mismatch, proving the
+/// member itself checked). The bound self-import idiom (`use p {Mail as
+/// Box} from=deployment.mail` over an in-package `export capability`)
+/// reaches the `Delivery{op}` member arm, so this flips exactly when the
+/// specified `progress` arm lands per DESIGN L678-682 (nullable typed
+/// `.progress` on observable originals); until then that claim is archived.
 #[test]
 fn progress_member_unimplemented_gap() {
     fn derive(member: &str) -> Vec<Diagnostic> {
         check(&format!(
-            "app T uses=[p]\npackage p\n use zzz {{Mail}} from=deployment.mail\n Given\n  M {{ t:text, request:delivery(Mail.send)? }}\n  policy M read=members\n  derive M.st:text? = row.request?.{member}\n When\n  scenario s(m:M) by=members\n   do\n    let x = 1\n Then\n"
+            "package p\n use p {{Mail as Box}} from=deployment.mail\n Given\n  export capability Mail version=1\n   send(to:text) -> Ack\n  contract Ack {{ ok:bool }}\n  M {{ t:text, request:delivery(Box.send)? }}\n  policy M read=members\n  derive M.st:text? = row.request?.{member}\n When\n  scenario s(m:M) by=members\n   do\n    let x = 1\n Then\n"
         ))
     }
     let status = derive("status");
     let progress = derive("progress");
     let bogus = derive("bogus");
-    assert_eq!(
-        codes(&progress),
-        codes(&status),
-        "progress must behave like status while unimplemented: {progress:?} vs {status:?}"
+    assert_eq!(codes(&status), vec!["E3001"], "{status:?}");
+    assert_eq!(codes(&progress), vec!["E2013"], "{progress:?}");
+    assert!(
+        progress[0].message.contains("unknown member 'progress'"),
+        "unexpected E2013: {:?}",
+        progress[0].message
     );
     assert_eq!(
         codes(&progress),
@@ -134,24 +139,22 @@ fn progress_member_unimplemented_gap() {
     );
 }
 
-/// `on=` capability-event names are unvalidated: `completed`,
-/// `progressed` and `bogus` all yield the identical shape diagnostic.
-/// Flip when the finite event registry (GRAMMAR:365) validates names.
+/// `on=Mail.notify.completed` checks clean (the event IS validated), while
+/// `progressed` is E3010 exactly like `bogus`. Trusted (`on=`) scenarios
+/// take no authored parameters, so the snippet drops `()`. Flip when the
+/// finite event registry (GRAMMAR:365) accepts `progressed`.
 #[test]
 fn progressed_event_unvalidated_gap() {
     fn trigger(event: &str) -> Vec<Diagnostic> {
         check(&format!(
-            "app T\nGiven\n contract Ack {{ ok:bool }}\n capability Mail version=1\n  notify(to:text) -> Ack\nWhen\n scenario s() on=Mail.notify.{event}\n  do\n   let x = 1\nThen\n"
+            "app T\nGiven\n contract Ack {{ ok:bool }}\n capability Mail version=1\n  notify(to:text) -> Ack\nWhen\n scenario s on=Mail.notify.{event}\n  do\n   let x = 1\nThen\n"
         ))
     }
     let completed = trigger("completed");
     let progressed = trigger("progressed");
     let bogus = trigger("bogus");
-    assert_eq!(
-        codes(&completed),
-        codes(&progressed),
-        "{completed:?} vs {progressed:?}"
-    );
+    assert!(completed.is_empty(), "{completed:?}");
+    assert_eq!(codes(&progressed), vec!["E3010"], "{progressed:?}");
     assert_eq!(
         codes(&progressed),
         codes(&bogus),
