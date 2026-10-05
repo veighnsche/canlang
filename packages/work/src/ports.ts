@@ -313,6 +313,9 @@ export class TestOnlyScriptedRandom implements RandomPort {
 
   nextUnit(): number {
     const value = this.values[Math.min(this.index, this.values.length - 1)];
+    // Unreachable: the constructor rejects an empty script, so the clamped
+    // index always lands in bounds. The guard satisfies noUncheckedIndexedAccess.
+    if (value === undefined) throw new RangeError('TestOnlyScriptedRandom: script index out of range');
     this.index += 1;
     return value;
   }
