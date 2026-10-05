@@ -24,6 +24,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "postbuild": "chmod +x dist/cli/platform.js",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
