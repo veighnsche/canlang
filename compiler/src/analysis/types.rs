@@ -36,7 +36,8 @@
 //! invalid-delivery, `E3011` invalid-default, `E3012` bad-modifier,
 //! `E3013` invalid-label-values, `E3014` invalid-message, `E3015`
 //! bad-fixture, `E3016` invalid-label-message, `E3017`
-//! invalid-lifetime, `E3018` invalid-is. `E6001` (planned-builtin call)
+//! invalid-lifetime, `E3018` invalid-is, `E3019`
+//! opaque-capability-receipt. `E6001` (planned-builtin call)
 //! is emitted here; `E6002`–`E6004` come from the catalog loader.
 
 use std::collections::{HashMap, HashSet};
@@ -2059,7 +2060,26 @@ impl<'a> Typer<'a> {
                         .insert(NodeKey::of(node), ResolvedType::Delivery { op: id });
                 }
             }
-            ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
+            ResolvedType::Opaque(_) => {
+                // A deployment-bound (external) target has no signature
+                // to check the bindings against: the receipt is silently
+                // opaque without this diagnostic.
+                if let Some(name) = self.external_target_name(cx, target) {
+                    self.diags.push(Diagnostic::error(
+                        "E3019",
+                        format!(
+                            "cannot verify send to '{name}': deployment-bound capability signatures are opaque; the delivery receipt is unchecked"
+                        ),
+                        tight_span(cx.text, target),
+                    ));
+                }
+                if let Some(object) = object {
+                    self.walk_object_values(cx, object);
+                }
+                self.sends
+                    .insert(NodeKey::of(node), ResolvedType::Opaque("unresolved send"));
+            }
+            ResolvedType::Error | ResolvedType::Unknown => {
                 if let Some(object) = object {
                     self.walk_object_values(cx, object);
                 }
@@ -2084,6 +2104,31 @@ impl<'a> Typer<'a> {
             let ty = self.expr(cx, when, None);
             self.expect_bool(cx, tight_span(cx.text, when), &ty, "`when`");
             self.check_when_pure(cx, when);
+        }
+    }
+
+    /// Dotted name of a `send` target rooted at a deployment-bound
+    /// (external) import, if it is one.
+    fn external_target_name(&self, cx: &Ctx<'_, '_>, target: &SyntaxNode) -> Option<String> {
+        match target.kind {
+            SyntaxKind::NameRef => match self.tables.node_binding.get(&NodeKey::of(target)) {
+                Some(Binding::External { .. }) => nameref_word(target, cx.text).map(str::to_string),
+                _ => None,
+            },
+            SyntaxKind::Member => {
+                let parts = kids(target);
+                if parts.len() < 3 {
+                    return None;
+                }
+                let head = self.external_target_name(cx, parts[0])?;
+                let name = name_text(parts[2], cx.text)?;
+                Some(format!("{head}.{name}"))
+            }
+            SyntaxKind::Group => kids(target)
+                .iter()
+                .find(|n| is_expression(n.kind))
+                .and_then(|n| self.external_target_name(cx, n)),
+            _ => None,
         }
     }
 
@@ -2456,8 +2501,16 @@ impl<'a> Typer<'a> {
     }
 
     /// Whether a field is a required `create` input: no default, no
-    /// server initializer, and a non-nullable declared type.
+    /// server initializer, and a non-nullable declared type. Derived
+    /// fields are computed, never inputs (mirroring `field_is_required`
+    /// for constructs).
     fn field_is_required_input(&self, field: SymbolId) -> bool {
+        if matches!(
+            self.tables.symbols[field.0 as usize].kind,
+            SymbolKind::DeriveField { .. }
+        ) {
+            return false;
+        }
         let (has_default, has_server, _) = self
             .shapes
             .get(&field)
@@ -2497,6 +2550,37 @@ impl<'a> Typer<'a> {
         }
         // Leading guards narrow the `do` body.
         let mut env = NarrowEnv::default();
+        // A validated declared event types the handler payload:
+        // `event` carries the event's record instead of `{opaque}`.
+        if let Some(on) = attribute_value(node, "on", text)
+            && let Some(event) = self.on_event_payload(module, text, on)
+        {
+            env.insert(
+                NarrowKey {
+                    root: "event".to_string(),
+                    path: Vec::new(),
+                },
+                ResolvedType::Record {
+                    symbol: event,
+                    stored: false,
+                },
+            );
+        }
+        // `by=` authorization narrows `actor` for guards and the body
+        // (DESIGN §3); the resolver already narrowed
+        // members/owner/authenticated, so this only adds role
+        // spellings (and their boolean combinations).
+        if let Some(by) = attribute_value(node, "by", text)
+            && self.auth_proves_actor(by, text)
+        {
+            env.insert(
+                NarrowKey {
+                    root: "actor".to_string(),
+                    path: Vec::new(),
+                },
+                ResolvedType::Scalar(Scalar::User),
+            );
+        }
         for child in kids(node) {
             if child.kind == SyntaxKind::Require && !has_error(child) {
                 let guard_cx = Ctx {
@@ -2558,6 +2642,112 @@ impl<'a> Typer<'a> {
             if child.kind == SyntaxKind::Examples && !has_error(child) {
                 self.check_example_headers(file, text, module, child);
             }
+        }
+    }
+
+    /// Event symbol behind a handler's `on=`, when it names a
+    /// validated declared event: single-segment local events and
+    /// `Cap.event` capability events. Queues, timers, model hooks,
+    /// change events, completions and unknown sources yield `None`
+    /// (their payloads stay opaque).
+    fn on_event_payload(&self, module: ModuleId, text: &str, on: &SyntaxNode) -> Option<SymbolId> {
+        if on.kind != SyntaxKind::Path {
+            return None;
+        }
+        let segments = path_segments(on, text);
+        match segments.len() {
+            1 => self.prod_or_imported(module, segments[0]).filter(|id| {
+                matches!(
+                    self.tables.symbols[id.0 as usize].kind,
+                    SymbolKind::Event { .. }
+                )
+            }),
+            2 => {
+                let head = self.prod_or_imported(module, segments[0])?;
+                match &self.tables.symbols[head.0 as usize].kind {
+                    SymbolKind::Capability { events, .. } => events
+                        .iter()
+                        .copied()
+                        .find(|e| self.tables.symbols[e.0 as usize].name == segments[1]),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Whether a `by=`/`read=` authorization expression proves an
+    /// authenticated actor (DESIGN §3: authenticated/member/role
+    /// authorization narrows `actor` to non-null). Mirrors the
+    /// resolver's `proves_auth` boolean structure (`and` needs one
+    /// side, `or` needs both, `not` inverts) and additionally
+    /// accepts bare role references, which the resolver leaves
+    /// nullable.
+    fn auth_proves_actor(&self, node: &SyntaxNode, text: &str) -> bool {
+        match node.kind {
+            SyntaxKind::NameRef => {
+                let word = kids(node)
+                    .iter()
+                    .find_map(|n| name_text(n, text))
+                    .unwrap_or("");
+                if matches!(word, "members" | "owner" | "authenticated") {
+                    return true;
+                }
+                matches!(
+                    self.tables.node_binding.get(&NodeKey::of(node)),
+                    Some(Binding::Symbol(id))
+                        if matches!(
+                            self.tables.symbols[id.0 as usize].kind,
+                            SymbolKind::Role
+                        )
+                )
+            }
+            SyntaxKind::Member | SyntaxKind::Call => {
+                let parts = kids(node);
+                let head = parts.first().and_then(|n| {
+                    if n.kind == SyntaxKind::NameRef {
+                        kids(n).iter().find_map(|m| name_text(m, text))
+                    } else {
+                        None
+                    }
+                });
+                match head {
+                    Some("members" | "owner" | "authenticated" | "public") => false,
+                    Some(_) => node.kind == SyntaxKind::Call,
+                    None => false,
+                }
+            }
+            SyntaxKind::Group => kids(node)
+                .iter()
+                .filter(|c| c.kind != SyntaxKind::Punct)
+                .any(|c| self.auth_proves_actor(c, text)),
+            SyntaxKind::Binary => {
+                let parts = kids(node);
+                if parts.len() != 3 {
+                    return false;
+                }
+                let op = op_text(node, text).unwrap_or("");
+                match op {
+                    "and" => {
+                        self.auth_proves_actor(parts[0], text)
+                            || self.auth_proves_actor(parts[2], text)
+                    }
+                    "or" => {
+                        self.auth_proves_actor(parts[0], text)
+                            && self.auth_proves_actor(parts[2], text)
+                    }
+                    _ => false,
+                }
+            }
+            SyntaxKind::Unary => {
+                let parts = kids(node);
+                let is_not = parts.first().is_some_and(|n| is_name(n, text, "not"));
+                parts
+                    .iter()
+                    .find(|n| is_expression(n.kind))
+                    .is_some_and(|operand| is_not && !self.auth_proves_actor(operand, text))
+            }
+            _ => false,
         }
     }
 
@@ -3849,11 +4039,35 @@ impl<'a> Typer<'a> {
                 }
             }
             SyntaxKind::Policy => {
-                for word in ["read", "where"] {
-                    if let Some(value) = attribute_value(node, word, text) {
-                        let ty = self.expr(&cx, value, None);
-                        self.expect_bool(&cx, tight_span(text, value), &ty, &format!("`{word}=`"));
+                if let Some(read) = attribute_value(node, "read", text) {
+                    let ty = self.expr(&cx, read, None);
+                    self.expect_bool(&cx, tight_span(text, read), &ty, "`read=`");
+                }
+                if let Some(where_) = attribute_value(node, "where", text) {
+                    // `read=` authorization narrows `actor` in `where=`
+                    // (DESIGN §3), exactly as scenario `by=` does.
+                    let mut narrowed = NarrowEnv::default();
+                    if attribute_value(node, "read", text)
+                        .is_some_and(|read| self.auth_proves_actor(read, text))
+                    {
+                        narrowed.insert(
+                            NarrowKey {
+                                root: "actor".to_string(),
+                                path: Vec::new(),
+                            },
+                            ResolvedType::Scalar(Scalar::User),
+                        );
                     }
+                    let where_cx = Ctx {
+                        module,
+                        file,
+                        text,
+                        narrow: &narrowed,
+                        strict: true,
+                        server_default: false,
+                    };
+                    let ty = self.expr(&where_cx, where_, None);
+                    self.expect_bool(&where_cx, tight_span(text, where_), &ty, "`where=`");
                 }
                 if let Some(model) = target_model
                     && let Some(fields) = attribute_value(node, "fields", text)
@@ -4017,11 +4231,62 @@ impl<'a> Typer<'a> {
                 }
                 continue;
             }
+            // Policy `fields=` and UI `columns=` additionally accept
+            // delivery-observation leaves (DESIGN §7.1); every other
+            // selector keeps the contract-only rule below.
+            if segments.len() > 1
+                && (node.kind == SyntaxKind::Policy || what == "columns")
+                && self.selector_delivery_leaf(model, &segments)
+            {
+                selected.push(segments.join("."));
+                continue;
+            }
             if self.navigate_selector(cx, node, model, path, &segments) {
                 selected.push(segments.join("."));
             }
         }
         selected
+    }
+
+    /// Whether a selector path ends at a delivery-observation leaf
+    /// (`id`/`status`/`error`/`result` on a delivery value) with an
+    /// expression-resolvable prefix (DESIGN §7.1 delivery-observation
+    /// leaves, e.g. `notification.status`, `request.error`,
+    /// `current.request.status`). Leaves are terminal: no descent
+    /// past them. Silent (no diagnostics): the legacy navigation
+    /// below reports failures.
+    fn selector_delivery_leaf(&self, model: SymbolId, segments: &[&str]) -> bool {
+        let Some(first) = self.model_field_named(model, segments[0]) else {
+            return false;
+        };
+        let mut current = self.decl_type(first);
+        let rest = &segments[1..];
+        for (i, segment) in rest.iter().enumerate() {
+            let last = i == rest.len() - 1;
+            current = match &current {
+                ResolvedType::Nullable(inner) => inner.as_ref().clone(),
+                other => other.clone(),
+            };
+            match &current {
+                ResolvedType::Record { symbol, .. } => {
+                    let Some(next) = self.record_field_named(*symbol, segment) else {
+                        return false;
+                    };
+                    current = self.decl_type(next);
+                }
+                ResolvedType::Delivery { .. } | ResolvedType::Opaque(_) => {
+                    // Delivery-typed fields and deployment-bound
+                    // (opaque) delivery targets alike: the same member
+                    // chains resolve in expression position.
+                    if !last || !matches!(segment, &"id" | &"status" | &"error" | &"result") {
+                        return false;
+                    }
+                    return true;
+                }
+                _ => return false,
+            }
+        }
+        false
     }
 
     /// Navigate one selector path from `model`: fields, then singular
@@ -4983,6 +5248,7 @@ impl<'a> Typer<'a> {
     /// directly inside `tabs`).
     fn walk_ui_page(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, parent: SyntaxKind) {
         let domain = kids(node).iter().find(|n| is_expression(n.kind)).copied();
+        let mut row_seed: Option<NarrowEnv> = None;
         match node.kind {
             SyntaxKind::Require => {
                 if let Some(pred) = domain {
@@ -5207,9 +5473,67 @@ impl<'a> Typer<'a> {
                         let _ = self.expr(cx, child, None);
                     }
                 }
+                // `timeline` binds `row` to its domain element for the
+                // `slot item` subtree (GRAMMAR: collections bind row):
+                // seed a narrowing so `row` is the timeline model
+                // rather than an enclosing collection's row.
+                // Bare-model domains are catalog vocabulary the
+                // resolver never walks (as with collections above),
+                // so resolve those from the namespace.
+                let head = kids(node).iter().find_map(|n| name_text(n, cx.text));
+                if head == Some("timeline")
+                    && let Some(d) = domain
+                {
+                    let mut model = self
+                        .types
+                        .node_types
+                        .get(&NodeKey::of(d))
+                        .as_ref()
+                        .and_then(|ty| self.model_of_type(ty));
+                    if model.is_none() && d.kind == SyntaxKind::NameRef {
+                        model = nameref_word(d, cx.text)
+                            .and_then(|w| self.prod_or_imported(cx.module, w))
+                            .filter(|id| {
+                                matches!(
+                                    self.tables.symbols[id.0 as usize].kind,
+                                    SymbolKind::Model { .. }
+                                )
+                            });
+                    }
+                    if let Some(model) = model {
+                        let mut env = cx.narrow.clone();
+                        env.insert(
+                            NarrowKey {
+                                root: "row".to_string(),
+                                path: Vec::new(),
+                            },
+                            ResolvedType::Record {
+                                symbol: model,
+                                stored: true,
+                            },
+                        );
+                        row_seed = Some(env);
+                    }
+                }
             }
             _ => {}
         }
+        // A `timeline` row seed (above) applies to nested widgets only;
+        // sibling subtrees keep the incoming context.
+        let timeline_cx;
+        let inner: &Ctx<'_, '_> = if let Some(ref env) = row_seed {
+            timeline_cx = Ctx {
+                module: cx.module,
+                file: cx.file,
+                text: cx.text,
+                narrow: env,
+                strict: cx.strict,
+                server_default: cx.server_default,
+            };
+            &timeline_cx
+        } else {
+            cx
+        };
         for child in kids(node) {
             if matches!(child.kind, SyntaxKind::Route | SyntaxKind::Attribute) {
                 continue;
@@ -5220,7 +5544,7 @@ impl<'a> Typer<'a> {
             if child.kind == SyntaxKind::Name || child.kind == SyntaxKind::Punct {
                 continue;
             }
-            self.walk_ui_page(cx, child, node.kind);
+            self.walk_ui_page(inner, child, node.kind);
         }
     }
 
@@ -5321,6 +5645,21 @@ impl<'a> Typer<'a> {
         };
         match target {
             FixtureTarget::Unknown => {
+                // A deployment-bound (external) head resolves to no
+                // symbol and draws no `E2001`: the recipe is silently
+                // opaque without this diagnostic. Genuinely unbound
+                // heads stay silent here (their `E2001` covers them).
+                if let Some(h) = head {
+                    let segments = path_segments(h, text);
+                    if let Some(first) = segments.first()
+                        && let Some(ScopedName::External { .. }) = self.tables.module_scopes
+                            [module.0 as usize]
+                            .prod
+                            .get(*first)
+                    {
+                        self.emit_opaque_recipe(text, h);
+                    }
+                }
                 self.walk_object_values(&cx, object);
             }
             FixtureTarget::Model(model) => {
@@ -5336,10 +5675,32 @@ impl<'a> Typer<'a> {
                 let op = head.and_then(|h| self.tables.node_symbol.get(&NodeKey::of(h)).copied());
                 match op {
                     Some(op) => self.check_fixture_operation(&cx, node, op, object),
-                    None => self.walk_object_values(&cx, object),
+                    None => {
+                        // A deployment-bound (external) operation has no
+                        // signature to check the recipe against: the
+                        // receipt is silently opaque without this
+                        // diagnostic.
+                        if let Some(h) = head {
+                            self.emit_opaque_recipe(text, h);
+                        }
+                        self.walk_object_values(&cx, object);
+                    }
                 }
             }
         }
+    }
+
+    /// Report an unverifiable delivery recipe (`E3019`): the head
+    /// names a deployment-bound capability whose signature is opaque.
+    fn emit_opaque_recipe(&mut self, text: &str, head: &SyntaxNode) {
+        self.diags.push(Diagnostic::error(
+            "E3019",
+            format!(
+                "cannot verify delivery recipe for '{}': deployment-bound capability signatures are opaque; request/status/result/error are unchecked",
+                path_segments(head, text).join(".")
+            ),
+            tight_span(text, head),
+        ));
     }
 
     /// Check a model fixture recipe: ordinary inputs with required
@@ -6201,6 +6562,27 @@ fn message_slots(template: &str) -> Vec<String> {
         i = j;
     }
     slots
+}
+
+/// Whether `node` is an inline message descriptor (`"… "@{…}`),
+/// through groups. Per DESIGN §9.1 a suffixed string is a message
+/// descriptor, not ordinary text — even though `expr` types it
+/// `text` (inline descriptors declare no `Message` symbol).
+fn is_message_descriptor(node: &SyntaxNode) -> bool {
+    let mut current = node;
+    loop {
+        match current.kind {
+            SyntaxKind::MessageValue => return true,
+            SyntaxKind::Group => {
+                let parts = kids(current);
+                let Some(inner) = parts.iter().find(|n| is_expression(n.kind)) else {
+                    return false;
+                };
+                current = inner;
+            }
+            _ => return false,
+        }
+    }
 }
 
 /// Entries of an `Object` node: (key text, key node, value node).
@@ -8505,6 +8887,22 @@ impl<'a> Typer<'a> {
         symbol: SymbolId,
         stored: bool,
     ) -> Option<ResolvedType> {
+        self.record_member_at_span(cx, node, name_node.span, name, symbol, stored)
+    }
+
+    /// [`Typer::record_member`] with an explicit member span, shared by
+    /// expression `Member` lookup and `set`/`delete` path targets so
+    /// both positions resolve identically (declared fields, reserved
+    /// members, contained-model `parent`, child collections).
+    fn record_member_at_span(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        span: Span,
+        name: &str,
+        symbol: SymbolId,
+        stored: bool,
+    ) -> Option<ResolvedType> {
         let record = &self.tables.symbols[symbol.0 as usize];
         if let Some(field) = record
             .fields_of()
@@ -8568,10 +8966,10 @@ impl<'a> Typer<'a> {
             SymbolKind::Preferences { .. } => "preferences",
             _ => "record",
         };
-        self.unknown_member(
+        self.unknown_member_at_span(
             cx,
             node,
-            name_node,
+            span,
             name,
             &format!("{kind} {}", record_name(self.tables, cx.module, symbol)),
         );
@@ -8643,8 +9041,20 @@ impl<'a> Typer<'a> {
         name: &str,
         base: &str,
     ) {
+        self.unknown_member_at_span(cx, node, name_node.span, name, base);
+    }
+
+    /// [`Typer::unknown_member`] with an explicit member span (for paths).
+    fn unknown_member_at_span(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        span: Span,
+        name: &str,
+        base: &str,
+    ) {
         if cx.strict {
-            self.member_fail(node, name_node.span, base.to_string(), name.to_string());
+            self.member_fail(node, span, base.to_string(), name.to_string());
         }
     }
 
@@ -8829,41 +9239,16 @@ impl<'a> Typer<'a> {
         name: &str,
         base: &ResolvedType,
     ) -> Option<ResolvedType> {
-        // Reuse the record/object/union/scalar dispatch by faking the
-        // name node span through a tiny shim: lookups only use the
-        // span for diagnostics.
         match base {
             ResolvedType::Error | ResolvedType::Opaque(_) | ResolvedType::Unknown => {
                 Some(base.clone())
             }
+            // Shared with expression `Member` lookup: `set x.parent`
+            // resolves exactly where `x.parent` reads (GRAMMAR:358
+            // `mutation_target=path`); phantom members still `E2013`.
             ResolvedType::Record { symbol, stored } => {
                 let (symbol, stored) = (*symbol, *stored);
-                let record = &self.tables.symbols[symbol.0 as usize];
-                if let Some(field) = record
-                    .fields_of()
-                    .iter()
-                    .find(|f| self.tables.symbols[f.0 as usize].name == name)
-                    .copied()
-                {
-                    return Some(self.decl_type(field));
-                }
-                let kind = match record.kind {
-                    SymbolKind::Model { .. } => "model",
-                    SymbolKind::Contract { .. } => "contract",
-                    SymbolKind::Event { .. } => "event",
-                    SymbolKind::Preferences { .. } => "preferences",
-                    _ => "record",
-                };
-                if cx.strict {
-                    self.member_fail(
-                        node,
-                        span,
-                        format!("{kind} {}", record_name(self.tables, cx.module, symbol)),
-                        name.to_string(),
-                    );
-                }
-                let _ = stored;
-                None
+                self.record_member_at_span(cx, node, span, name, symbol, stored)
             }
             _ => {
                 let base_name = self.show(cx.module, base);
@@ -10077,8 +10462,19 @@ impl<'a> Typer<'a> {
             _ => None,
         };
         if elements.is_empty() {
+            // An empty literal unifies against an explicit expected
+            // array type (nullable-unwrapped): `file[]=[]` is an empty
+            // file array, not array-of-`{unknown}`.
+            let expected_element = match expect {
+                Some(ResolvedType::Array { element, .. }) => Some((**element).clone()),
+                Some(ResolvedType::Nullable(inner)) => match inner.as_ref() {
+                    ResolvedType::Array { element, .. } => Some((**element).clone()),
+                    _ => None,
+                },
+                _ => None,
+            };
             return ResolvedType::Array {
-                element: Box::new(ResolvedType::Unknown),
+                element: Box::new(expected_element.unwrap_or(ResolvedType::Unknown)),
                 ordered: true,
                 nonempty: false,
             };
@@ -11139,8 +11535,13 @@ impl<'a> Typer<'a> {
         if !cx.strict || args.len() != 2 {
             return;
         }
-        // Message overload: first argument is a message descriptor.
-        if matches!(typed.first(), Some(ResolvedType::Message(_))) {
+        // Message overload: first argument is a message (a declared
+        // message value or an inline `"…"@{…}` descriptor, which
+        // `expr` types `text`).
+        let first_is_message = matches!(typed.first(), Some(ResolvedType::Message(_)))
+            || (matches!(typed.first(), Some(ResolvedType::Scalar(Scalar::Text)))
+                && is_message_descriptor(args[0].value));
+        if first_is_message {
             return;
         }
         let ResolvedType::Object(fields) = &typed[1] else {
@@ -11692,7 +12093,8 @@ impl<'a> Typer<'a> {
                 matches!(
                     actual,
                     ResolvedType::Message(_) | ResolvedType::Unknown | ResolvedType::Opaque(_)
-                )
+                ) || (matches!(actual, ResolvedType::Scalar(Scalar::Text))
+                    && is_message_descriptor(arg.value))
             }
             SigType::ActionTarget => self.match_action_target(cx, arg, actual, trial),
             SigType::ActionBindings => self.match_action_bindings(cx, arg, actual, trial),
