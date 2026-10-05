@@ -1716,3 +1716,252 @@ fn d02b_record_query_stays_parse_only() {
     assert!(codes(&diags).contains(&"E1214"), "{diags:?}");
     assert!(!codes(&diags).contains(&"E3016"), "{diags:?}");
 }
+
+/// (T11) Integral bounds inhabit a uniquely-decimal field
+/// (CanAffiliate:23 `rate:decimal min=0 max=1`).
+#[test]
+fn t11_decimal_bounds_accept_integral() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { rate:decimal min=0 max=1 }\n policy M read=members\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "integral decimal bounds: {diags:?}");
+}
+
+/// (T11) An integral default inhabits a decimal field
+/// (CanInvoice:104 `quantity:decimal=1 min=0`).
+#[test]
+fn t11_decimal_default_accepts_integral() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { quantity:decimal=1 min=0 }\n policy M read=members\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "integral decimal default: {diags:?}");
+}
+
+/// (T11) An integral spelling inhabits a nullable decimal field.
+#[test]
+fn t11_nullable_decimal_accepts_integral() {
+    let catalog = fixture();
+    let src =
+        "app T\nGiven\n M { d:decimal? }\n policy M read=members\n fixture f=M {d=1}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "nullable decimal fixture: {diags:?}");
+}
+
+/// (T11) `create` field values accept integral spellings for decimal
+/// fields.
+#[test]
+fn t11_create_accepts_integral() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { d:decimal }\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   create M {d=1} as m\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "integral create value: {diags:?}");
+}
+
+/// (T11) Fixture recipes accept integral spellings for decimal fields
+/// (CanMember:216 `granted=10`).
+#[test]
+fn t11_fixture_accepts_integral() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { granted:decimal }\n policy M read=members\n fixture f=M {granted=10}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "integral fixture value: {diags:?}");
+}
+
+/// (T11) Nested structural literals accept integral spellings for
+/// decimal leaves (CanRent:296 `quantity=1`).
+#[test]
+fn t11_structural_literal_accepts_integral() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Line { title:text, quantity:decimal }\n Holder { lines:Line[] }\n policy Holder read=members\n fixture h=Holder {lines=[{title=\"Room\",quantity=1}]}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "nested integral literal: {diags:?}");
+}
+
+/// (T11) A negative integral spelling inhabits decimal exactly like a
+/// positive one.
+#[test]
+fn t11_negative_integral_accepted() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { d:decimal=-1 min=-2 }\n policy M read=members\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "negative integral decimal: {diags:?}");
+}
+
+/// (T11) No int64 narrowing in decimal positions: a 23-digit integral
+/// spelling is a valid decimal (values `decimalFromInteger`).
+#[test]
+fn t11_big_integral_beyond_i64_accepted() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { d:decimal=12345678901234567890123 }\n policy M read=members\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "beyond-i64 integral decimal: {diags:?}");
+}
+
+/// (T11) Derived-function arguments accept integral spellings for
+/// decimal parameters.
+#[test]
+fn t11_derive_arg_accepts_integral() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\n derive f(d:decimal):decimal = d\nWhen\n scenario s() by=members\n  do\n   let y = f(1)\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "integral derive argument: {diags:?}");
+}
+
+/// (T11) Operation `call` inputs accept integral spellings for decimal
+/// parameters.
+#[test]
+fn t11_call_input_accepts_integral() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario calc(d:decimal) by=members\n  do\n   let x = 1\n scenario caller() by=members\n  do\n   call calc {d=1}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "integral call input: {diags:?}");
+}
+
+/// (T11) An int-typed variable never coerces to decimal (the core R16
+/// negative).
+#[test]
+fn t11_int_variable_stays_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { d:decimal }\n policy M read=members\nWhen\n scenario s(n:int) by=members\n  do\n   create M {d=n} as m\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("expected decimal, found int"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T11) An int-typed member access never coerces to decimal
+/// (CanMember:371 `requested_units=value.quantity` stays).
+#[test]
+fn t11_member_access_stays_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { n:int }\n N { d:decimal }\n policy M read=members\n policy N read=members\nWhen\n scenario s(m:M) by=members\n  do\n   create N {d=m.n} as x\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("expected decimal, found int"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T11) An int-typed call result never coerces to decimal
+/// (CanMember:377 `held=max(...)` stays).
+#[test]
+fn t11_call_result_stays_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { d:decimal }\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   create M {d=count([1])} as m\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("expected decimal, found int"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// Catalog with int/decimal overload twins (transcribed twin shape
+/// from the real producer catalog: `abs`).
+const ABS_JSON: &str = r#"{
+  "language_version": "1.0",
+  "catalog_version": "test-only-b4-abs",
+  "entries": [
+    {"id": "abs", "js": "abs", "owner": "test", "kind": "builtin", "signature": "abs(value:int)->int; abs(value:decimal)->decimal", "effects": "pure", "availability": "implemented"}
+  ]
+}"#;
+
+/// (T11) Overload twins are untouched: an integral literal still takes
+/// the exact int overload (no ambiguity error, no silent flip to
+/// decimal).
+#[test]
+fn t11_overload_exact_int_wins() {
+    let catalog = fixture_with(ABS_JSON);
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\n derive g(n:int):int = n\nWhen\n scenario s() by=members\n  do\n   let y = g(abs(5))\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "exact int overload wins: {diags:?}");
+}
+
+/// (T11) An overload result never inhabits decimal: `abs(5)` is int,
+/// so a decimal slot still rejects it even though a decimal twin
+/// exists.
+#[test]
+fn t11_overload_result_never_inhabits() {
+    let catalog = fixture_with(ABS_JSON);
+    let src = "app T\nGiven\n M { d:decimal }\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   create M {d=abs(5)} as m\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("expected decimal, found int"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T11) Precision/range control: a 39-digit integral spelling in a
+/// decimal position is `E3001`, never silently rounded.
+#[test]
+fn t11_out_of_range_integral_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { d:decimal=123456789012345678901234567890123456789 }\n policy M read=members\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("has 39 significant digits (max 38)"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T11) Sibling inference is not adopted: a mixed int/decimal array
+/// with no unique expectation stays heterogeneous
+/// (CanMember:164/376/377 stay).
+#[test]
+fn t11_mixed_array_stays_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   let a = [0,1.5]\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("must have the same type"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T11) Bound order still checks on integral decimal bounds.
+#[test]
+fn t11_min_exceeds_max_still_checked() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { d:decimal min=1 max=0 }\n policy M read=members\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3012"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("min= (1) exceeds max= (0)"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T11) The rule is decimal-only: a money bound still rejects an
+/// integral spelling.
+#[test]
+fn t11_money_bound_rejects_integral() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { m:money min=0 }\n policy M read=members\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3012"], "{diags:?}");
+}
+
+/// (T11) No reverse inhabitation: an int bound still rejects a decimal
+/// spelling.
+#[test]
+fn t11_int_bound_rejects_decimal() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { n:int min=0.5 }\n policy M read=members\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3012"], "{diags:?}");
+}
