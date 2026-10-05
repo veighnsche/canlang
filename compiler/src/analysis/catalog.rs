@@ -123,8 +123,8 @@
 //! [`T13A_NOMINAL_LEAVES`] and [`T13B_NOMINAL_LEAVES`] transcribe every
 //! accepted T13a/T13b nominal interface's fields verbatim from the frozen
 //! `packages/contracts/src/services.ts` producers, keyed by nominal name
-//! for the T14d join. No checker consumes these tables yet (`types.rs`
-//! makes no calls here). The B8 Handbook interface stays absent: its
+//! for the T14d join (landed: `types.rs` calls [`nominal_schema`]).
+//! The B8 Handbook interface stays absent: its
 //! lookups return `None` and `E3019` is preserved.
 
 use crate::diagnostic::Diagnostic;
