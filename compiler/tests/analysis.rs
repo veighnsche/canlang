@@ -854,6 +854,25 @@ fn draft_outcome_table() {
     // boundaries pinned by t35r23_ tests (b4_check + b4_resolve).
     // Differential isolated without Git: /tmp dumps retained
     // (t35r23-base-corpus.json, t35r23-new-corpus.json).
+    // T35/R25 re-pin 2026-10-06 (ICU select-branch literals are not
+    // placeholders: `message_slots` parses complex-typed arguments
+    // branch-aware under the accepted profile, so branch selectors
+    // and literal body words no longer bind as slots): 1 file
+    // net-decrease (CanEvent), 51 unchanged, zero net-increase;
+    // table total -5 (5046 -> 5041). Whole-corpus (all-52)
+    // differential 2066 -> 2061 (-5): removed E3016 x5, the only
+    // E3016s corpus-wide (the family is now zero) = CanEvent:63
+    // `notice_title` source `{Event}` + `nl` variant
+    // `{Toegangsbewijs}`/`{Planning}`/`{Toegang}`/`{Wijziging}`.
+    // Added 0: every other family is bit-identical (E5007 stays 0
+    // corpus-wide; the structural stage is untouched). Per-file nets
+    // equal whole-corpus nets per file (no harness gap). Unknown
+    // placeholders (top-level, nested-in-branch, selector-arg,
+    // variant) and malformed heads keep failing, pinned by
+    // t35r25_ tests in b4_check. Differential isolated without
+    // Git: /tmp dumps retained (t35r25-base-corpus.json,
+    // t35r25-new-corpus.json); the base verifies byte-identical to
+    // the R23 new dump.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 48),
         ("draft/CanApprove.can", 47),
@@ -871,7 +890,7 @@ fn draft_outcome_table() {
         ("draft/CanDiscover.can", 85),
         ("draft/CanDo.can", 45),
         ("draft/CanEnrich.can", 19),
-        ("draft/CanEvent.can", 316),
+        ("draft/CanEvent.can", 311),
         ("draft/CanExpense.can", 95),
         ("draft/CanFeedback.can", 13),
         ("draft/CanField.can", 115),
