@@ -61,7 +61,7 @@ jobs:
       - name: Print dist versions
         run: node -e "for (const p of ['contracts','cloudflare','testkit']) { const m = require('./packages/' + p + '/package.json'); console.log('@canlang/' + p, m.version); }"
       - name: Pack dists
-        run: tar -czf /tmp/b2-dists.tgz packages/contracts/dist packages/cloudflare/dist packages/testkit/dist packages/values/dist
+        run: tar -czf /tmp/b2-dists.tgz packages/contracts/dist packages/cloudflare/dist packages/testkit/dist packages/values/dist packages/identity/dist packages/ui/dist packages/interfaces/dist
       - name: Upload dists
         uses: actions/upload-artifact@v4
         with:
