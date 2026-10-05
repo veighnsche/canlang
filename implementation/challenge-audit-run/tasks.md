@@ -131,12 +131,12 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Acceptance: Contextual integral decimal literals remain exact across bounds/defaults/inputs/wire; variable coercion, ambiguity and range controls remain; no binary Number shortcut.
   - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
 
-- [ ] **T12 — Inventory standard and bound declarations**
+- [x] **T12 — Inventory standard and bound declarations**
   - Prerequisites: M00.
   - Owner / files / interfaces: L4; implementation/challenge-audit-run/evidence/interface-inventory.md, packages/services/src/catalog.ts, packages/work/src/catalog.ts, packages/files/src/catalog.ts, packages/stdlib/src/index.ts. Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ01/RQ03; canonical design/task: Accountable lead: L4. Contributors and owning boundaries: L4 with L1/L2/L3. Map all imports to accepted owner contracts, versions and availability. Done when each unresolved interface has a producer or explicit decision question.
   - Acceptance: Every imported standard/bound declaration has its actual producer, version, accepted scope and availability or a precise decision blocker; preserve completed producers.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: writer 01a10cc6-5696-79a0-a764-5a88d8e5e84d released. 84 distinct declarations mapped (26 std + 58 bound non-std, all resolving); 12 precise blockers B1-B12, none silent; checker cross-checks exact (24 E2005 = unbound-std lines; 86 E3019 = 65 sends + 21 recipes). Zero catalog/index code changes with recorded rationale (no new provider semantics). Coordinator reproduced 49 use-std lines + 45 delivery forms via rg. All read-only; no heavy commands.
 
 - [ ] **T13 — Export and consume versioned interface schemas**
   - Prerequisites: T12.
@@ -412,3 +412,5 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - RESERVED batch 1 (3/3 slots, base c681d86): (1) L1 T01+T03 writer — evidence/root-causes.md + evidence/continuation-contract.md (new; may create evidence/); release on evidenced ledger + contract. (2) L3 T04a writer — packages/contracts/src/state.ts + evidence/execution-contract.md; artifact.ts/examples.ts explicitly excluded (later owners); release on agreed T04a slice. (3) L4 T12 writer — evidence/interface-inventory.md + services/work/files catalog.ts + stdlib/src/index.ts; release on mapped inventory. DESIGN/GRAMMAR/DECISIONS read-only for all (no reservation granted). Heavy-command lock: implementation/challenge-audit-run/.heavy-lock (mkdir-held, ONE heavy at a time).
 - DONE slice T04a: writer 01a10cc6-5556-7ba2-88fc-ff8223bff371 RELEASED evidence/execution-contract.md (new, 9 sections: pinned v1 x7, agreement inputs, descriptor/invocation/example rules, supported types, compatibility, excluded-owner expectations, T04b remainder) + state.ts (+149/-0 appended version constants + descriptor types). Coordinator verified: excluded files untouched, tsc contracts exit 0. Parent T04 stays OPEN (T04b pending). T04a FROZEN for T09/T15a consumers.
 - DISPATCH batch 2 (slot freed x1): L7 T02 inventory PREP writer (evidence/app-intent.md; dispositions pending T01, parent open). L1 T01+T03 and L4 T12 still running.
+- DONE T12: writer 01a10cc6-5696-79a0-a764-5a88d8e5e84d RELEASED evidence/interface-inventory.md (new file only; catalogs/index untouched with rationale). Task ticked complete (see T12 evidence).
+- DISPATCH batch 3 (slot freed x1): L4 T13a producer-slice writer (contracts services/work/files.ts + 3 catalogs restrained; catalog.rs EXCLUDED for L1 follow-up). L1 T01+T03 and L7 T02-prep still running. Queued: T08/T30 (L1 Rust, after T01/T03 release), T13a-L1-consume, T14a.
