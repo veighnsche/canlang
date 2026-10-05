@@ -379,6 +379,7 @@ where authority is required.
 5. T06 admission-fact input: the R26-layer-1 rule (which admitted
    expressions carry non-null actor facts into which calls) so the
    gate judges fence rules, not missing narrowing.
+   [COMPLETE — admission-fact writer: see "T06 admission-fact input (gate evidence)" below.]
 6. T28/T29 ownership input where reads cross package boundaries
    (policies reading `row.parent.*` on imported parents) — a fence
    scoped to one owner must say what an imported-parent read enrolls.
@@ -981,6 +982,181 @@ tools/jev.py untouched):
 Checklist item 3 is COMPLETE per the gate-needs text; items 4-8
 untouched (coordinator-owned). Prep status preserved: adopts
 NOTHING; no code, no normative-doc, no tasks/monitor/inbox edits.
+
+Release: implementation/challenge-audit-run/evidence/read-decision.md
+is RELEASED to the coordinator for JEV-gate scheduling.
+
+## T06 admission-fact input (gate evidence)
+
+Writer: L3 T32a-item5. Status: **PREP — adopts NOTHING.**
+Method: read-only reads of the landed T06 checker code
+(`compiler/src/analysis/types.rs` actor-fact paths,
+`compiler/src/analysis/resolve.rs` scope paths,
+`compiler/tests/b4_check.rs` T06 tests) + `tasks.md` T06 evidence +
+`root-causes.md` R26. Checklist item 5 only; all other checklist
+text, alternatives A–D, fairness record, and prior appends
+UNCHANGED. No JEV run; tools/jev.py untouched; no code, no
+normative-doc, no tasks/monitor/inbox edits.
+
+Verdict: **COMPLETE — R26-layer-1 actor rule CONFIRMED as landed
+(T06 ticked COMPLETE in tasks.md).** No narrowing semantics
+invented: every clause below cites landed code lines or tasks.md.
+Absences carry exact grep evidence.
+
+### §1 — the landed R26-layer-1 rule (which admitted expressions carry non-null actor facts into which calls)
+
+T06 is COMPLETE per tasks.md: writer released types.rs + resolve.rs
+(two-polarity admission, role_call_on_caller no-leak,
+collect_narrow hook, by→when) + 19 b4 tests + table; coordinator
+stash-differential 0 added / 219 removed, ALL actor-shaped (E3001
+-213, E3003 -6, rest bit-identical); suite 27 green. (19-test
+count re-confirmed: `grep -c "fn t06_" compiler/tests/b4_check.rs`
+→ 19.)
+
+What counts as an ADMITTED expression (true polarity —
+`auth_proves_actor`, types.rs:2939-2994; resolver mirror
+`proves_auth`, resolve.rs:4192-4229):
+
+- Bare `members` / `owner` / `authenticated` (both layers).
+- Bare declared Role references (checker only, types.rs:2949-2956;
+  the resolver leaves these nullable — comment types.rs:2819-2821).
+- Call form `r(actor)` where `r` resolves to a `Role` symbol and the
+  single UNNAMED subject resolves to the `actor` contextual fact
+  (`role_call_on_caller`, types.rs:3049-3085;
+  resolve.rs:4281-4317).
+- Groups transparent; `and` needs ONE admitting side,
+  `or` needs BOTH (types.rs:2971-2978); `not X` admits iff X
+  admits-when-false (types.rs:2982-2991).
+- False polarity (`auth_proves_actor_when_false`,
+  types.rs:3003-3041; `proves_auth_when_false`,
+  resolve.rs:4235-4273): ONLY a failing `public` test admits (a
+  non-public request is authenticated); `and`-false needs both
+  sides, `or`-false needs either; `not` flips to true polarity.
+
+What NEVER admits (no-leak, all landed + tested): member paths
+(`SyntaxKind::Member => false`, types.rs:2959,
+resolve.rs:4202); role tests on another subject (`r(owner)`,
+non-caller args); derive/builtin/non-role calls; `public` in true
+polarity, including `by=public or r` (or-needs-both);
+preauthorization parameter defaults; trusted-handler scopes
+(`ActorKind::Null`, resolve.rs:3799). Tests: t06_no_leak_*,
+t06_public_guard_use_rejected, t06_or_with_public_rejected,
+t06_crud_public_when_rejected, t06_preauthorization_default_rejected,
+t06_trusted_actor_stays_null.
+
+Where the non-null actor fact is CARRIED (exactly four
+`DeclKey::CtxActor` insert sites in types.rs — grep evidence:
+`grep -n "DeclKey::CtxActor"` returns ONLY 2827 / 4515 / 5423 /
+11150 plus keying line 7418):
+
+1. Scenario `by=` → guards (require chain) + body
+   (types.rs:2818-2832); resolver sets the scenario scope
+   `ActorKind::NonNull` for the same predicate
+   (resolve.rs:3823-3832).
+2. Policy `read=` → `where=` (types.rs:4507-4520).
+3. CRUD `by=` → `when=` (types.rs:5416-5428; the T06 by→when edge).
+4. Boolean continuations via the `collect_narrow` hook
+   (types.rs:11134-11155): within-expression `and`-right
+   (left-true facts) / `or`-right (left-false facts) during expr
+   checking (types.rs:10281-10323); `if` then/else branches
+   (types.rs:2555-2557); do-block/scenario `require` chains — a
+   successful require carries forward (types.rs:793,
+   types.rs:2854 via walk_seq/walk_guard). Keyed
+   `DeclKey::CtxActor`, invalidated like any continuation fact
+   (T03 §§6-8); a TYPING fact only — grants no permission and no
+   currency (T03 §9; comment types.rs:11137-11140).
+
+NOT carried by any dedicated edge (ABSENT — follows from the
+closed 4-site grep above): derive bodies, send `when=`, page
+gates, invariants, lock guards receive admission facts ONLY via
+ambient continuation flow (e.g. send `when=` is checked in the
+un-narrowed scenario cx, types.rs:2310-2314 — it sees the
+enclosing body's facts, with no per-guard admission insert of
+its own). R26-layer-1's original Chat:15 shape (`person!=null
+and active_member(person,…)` reaching the call) is the §4
+within-expression mechanism: left-conjunct facts (T05 null
+facts AND T06 admission facts alike) reach right-operand calls.
+
+### §2 — alternatives impact (proof obligations changed vs still needing fence rules)
+
+Global upshot for ALL alternatives: T06 changes NO fence proof
+obligation — it is a typing fact (grants no permission, no
+freshness; T03 §9; R04 boundary: check-time facts never become
+staleness promises). What changes is the gate's BURDEN OF
+PROOF: remaining E3010 purity rejections at §1's pure-position
+sites are NOT missing narrowing — actor-nullability at authority
+calls is settled (219 removed / 0 added, all actor-shaped). The
+fairness-record cross-cutting risk ("AND-fact delivery to
+`active_member(person,…)` calls (T06) must land regardless") is
+DISCHARGED for actor facts — keep as landed premise, drop from
+gate-open questions. Any still-rejected admitted-actor site is
+either layer-2 purity (needs the adopted fence contract) or a
+genuine negative. The gate's starting line is pinned by test
+t06_bounded_read_stays_gated (b4_check.rs:958-965): a
+state-reading call in a pure position STILL yields E3010 until
+T32 adopts.
+
+- A (single-checkpoint fenced reads): obligations UNCHANGED.
+  T06 feeds A: admitted-actor typing already reaches every guard
+  predicate A evaluates at the checkpoint (policy `where=`,
+  CRUD `when=`, require chains, AND-right calls). A must still
+  define checkpoint enrollment, commit-time revalidation, and
+  the L291 in-flight question. Proof burden reduced in one
+  respect only: T32b tests need no "admit the actor first"
+  scaffolding beyond landed narrowing — failures at admitted
+  sites are fence failures, not narrowing gaps.
+- B (read-at-effect): obligations UNCHANGED. T06 gives B no
+  carried VALUES: admission facts type `actor` only; they are
+  not value pins, and `let`-bound guard rows are T05/T07 facts
+  (T07 filtered-row facts still OPEN per tasks.md). B's
+  `let`-as-value JEV-PENDING question is therefore untouched —
+  T06 neither resolves nor worsens it.
+- C (version-pinned snapshots): obligations UNCHANGED. Pins are
+  a runtime freshness mechanism; T06's typing facts pin
+  nothing. The authorizing/eventual static separation still
+  needs its own rule — and the gate must NOT conflate T06's
+  admit/never-admit classification (caller authentication)
+  with C's authorizing/eventual split (read freshness). They
+  are different questions answered by different machinery.
+- D (bounded authority grants): obligations UNCHANGED. No
+  grant minting, consumption, expiry, or revocation-list
+  concept exists anywhere in the T06 paths (ABSENT — the
+  admitting predicates above are pure boolean tests; nothing
+  mints portable evidence). D's "machinery without a
+  customer" stance is unaffected.
+
+Preserved negatives the gate must not regress: public /
+other-subject / preauthorization actor stays nullable; trusted
+payload users never become callers; revocation denies new
+access/spending (layer-2 fence work, not narrowing).
+
+### §3 — commands run + release
+
+Read-only inspection only (no builds, no Git, no JEV —
+tools/jev.py untouched):
+
+1. Full read of the T32a section + fence alternatives in
+   CHALLENGE-AUDIT-PLAN.md; full read of read-decision.md
+   (alternatives + fairness record + §§1-3 + revocation
+   appends); tasks.md T06 evidence section; root-causes.md
+   R26 (L499-522).
+2. Landed-code reads (READ ONLY): types.rs:2818-2832,
+   2928-3085, 4500-4529, 5415-5439, 10270-10324, 11126-11200;
+   resolve.rs:3815-3832, 4184-4331; b4_check.rs T06 tests
+   (L776-965).
+3. `grep -n "DeclKey::CtxActor"
+   compiler/src/analysis/types.rs` → 2827/4515/5423/11150 +
+   keying 7418 (closed insert set; exit 0).
+4. `grep -c "fn t06_" compiler/tests/b4_check.rs` → 19
+   (exit 0, corroborates tasks.md).
+5. `grep -n "proves_auth\|collect_narrow\|auth_proves"`
+   across types.rs/resolve.rs → caller map (§1 item 4;
+   exit 0).
+
+Checklist item 5 is COMPLETE per the gate-needs text; items
+4, 6-8 untouched (coordinator-owned). Prep status preserved:
+adopts NOTHING; no code, no normative-doc, no tasks/monitor/
+inbox edits.
 
 Release: implementation/challenge-audit-run/evidence/read-decision.md
 is RELEASED to the coordinator for JEV-gate scheduling.
