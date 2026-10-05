@@ -18,6 +18,7 @@ import type {
   MembershipId,
   OAuthClient,
   OAuthClientId,
+  PreSessionToken,
   Session,
   SessionId,
   Team,
@@ -166,6 +167,14 @@ export interface IdentityStore {
   setSessionTeam(session_id: SessionId, team_id: TeamId | null): Promise<void>;
   revokeSession(session_id: SessionId): Promise<void>;
   revokeUserSessions(user_id: UserId): Promise<void>;
+
+  // -- pre-session tokens (anonymous login-CSRF guard; hard-deleted on use) --
+  createPreSessionToken(input: {
+    token_sha256: string;
+    expires_at: InstantString;
+  }): Promise<{ token_id: string }>;
+  findPreSessionTokenByHash(token_sha256: string): Promise<PreSessionToken | null>;
+  deletePreSessionToken(token_id: string): Promise<void>;
 
   // -- email tokens --
   createEmailToken(input: {

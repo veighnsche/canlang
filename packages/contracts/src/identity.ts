@@ -154,6 +154,21 @@ export interface EmailToken {
 }
 
 /**
+ * Anonymous pre-session token backing the login-CSRF guard. Minted by
+ * `GET /auth/login`, presented once by the login POST, then hard-deleted
+ * (no `consumed_at`: deletion itself is the single-use enforcement, and it
+ * keeps the table small). Only the hash is stored; the raw value travels
+ * only inside the same-origin descriptor response, which a cross-site
+ * forgery cannot read.
+ */
+export interface PreSessionToken {
+  readonly token_id: string;
+  readonly token_sha256: string;
+  readonly created_at: InstantString;
+  readonly expires_at: InstantString;
+}
+
+/**
  * MCP authorization grant. OAuth consent binds a connection to one app user
  * and one team, or app-only context for a non-team app. Tokens carry the
  * correct audience and cannot impersonate a source; browser sessions and MCP
