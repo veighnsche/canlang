@@ -4,6 +4,12 @@
   "description": "Syntax highlighting plus a minimal LSP client for the current canlang draft grammar. Spawns `can lsp` for diagnostics.",
   "version": "0.1.9",
   "publisher": "canlang",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/veighnsche/canlang.git"
+  },
+  "icon": "images/icon.png",
   "main": "./out/extension",
   "engines": {
     "vscode": "^1.91.0"
@@ -12,11 +18,13 @@
     "Programming Languages"
   ],
   "activationEvents": [
-    "onLanguage:can"
+    "onLanguage:can",
+    "onCommand:can.restartServer"
   ],
   "scripts": {
-    "compile": "tsc --strict --target es2022 --module commonjs --lib es2022 --outDir out --rootDir src src/extension.ts src/client.ts",
-    "vscode:prepublish": "bun run compile"
+    "compile": "tsc --strict --target es2022 --module commonjs --lib es2022 --typeRoots ./.empty-typeroot --outDir out --rootDir src src/extension.ts src/client.ts",
+    "vscode:prepublish": "bun run compile",
+    "test:lsp": "node test/lsp-capabilities.cjs"
   },
   "contributes": {
     "languages": [
@@ -36,6 +44,13 @@
         "language": "can",
         "scopeName": "source.can",
         "path": "./syntaxes/can.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "can.restartServer",
+        "title": "Can: Restart Language Server",
+        "category": "Can"
       }
     ],
     "configurationDefaults": {

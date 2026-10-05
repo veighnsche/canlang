@@ -3,6 +3,8 @@ src/**
 audit-astra/**
 .vscode/**
 check-highlighting.cjs
+test/**
+.empty-typeroot/**
 token-colors.json
 GRAMMAR-AUDIT.md
 AUDIT-RESOLUTION.md

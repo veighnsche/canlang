@@ -97,7 +97,7 @@ pub fn entry_to_text(info: &CodeInfo) -> String {
     out
 }
 
-const CATALOG: [CodeInfo; 111] = [
+const CATALOG: [CodeInfo; 112] = [
     CodeInfo {
         code: "E1001",
         title: "bare-carriage-return",
@@ -913,6 +913,14 @@ const CATALOG: [CodeInfo; 111] = [
         explanation: "`can run|test|build|deploy` are thin lane-7 entries that exec the `can-platform` CLI with argument passthrough. It was not found on PATH and `CAN_PLATFORM_BIN` is unset. Install the lane-7 producer or set `CAN_PLATFORM_BIN`. `can` never embeds a second platform engine.",
         example_valid: "CAN_PLATFORM_BIN=/usr/local/bin/can-platform can run",
         example_invalid: "can run   # without can-platform installed",
+    },
+    CodeInfo {
+        code: "E7005",
+        title: "internal-error",
+        severity: Severity::Error,
+        explanation: "`can` hit an internal error (a bug: a failed invariant, a broken output write, or a backend fault). Exit status is 2 and no partial output is trusted. Re-run on a smaller input; if it reproduces, report the failing input together with the `can --version` string.",
+        example_valid: "can check main.can",
+        example_invalid: "can check main.can   # internal invariant failed (please report)",
     },
     CodeInfo {
         code: "E7006",

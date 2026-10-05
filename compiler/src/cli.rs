@@ -1,6 +1,6 @@
 //! Single dispatch for the `can` binary.
 //!
-//! `can compile|check|lint|fmt|explain|lsp|run|test|build|deploy`,
+//! `can compile|check|lint|fmt|explain|lsp|policy|run|test|build|deploy|activate|completions|help`,
 //! plus `--help`/`--version` and a global `--format=json|text`. Exit codes
 //! come from [`crate::exit`]: 0 clean, 10 errors reported, 2 tool failure
 //! (warnings alone exit 0; they never block). JSON goes to stdout,
@@ -253,6 +253,13 @@ pub fn dispatch(argv: &[String]) -> DispatchResult {
 /// flag is inert here (production [`dispatch`] threads it into its own
 /// [`CatalogAnalyzer`]).
 pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult {
+    // Test-only hook for the panic path (`tests/exe.rs` drives the real
+    // binary with this set): no user input panics, so the E7005/exit-2
+    // mapping needs a forced fault. Production `main` catches this into
+    // `error[E7005]`; in-process callers see the panic itself.
+    if std::env::var("CAN_INTERNAL_TEST_PANIC").as_deref() == Ok("1") {
+        panic!("forced internal error (CAN_INTERNAL_TEST_PANIC=1)");
+    }
     let args: &[String] = if argv.is_empty() { &[] } else { &argv[1..] };
     let parsed = match parse_args(args) {
         Ok(parsed) => parsed,
@@ -275,7 +282,7 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
         }
     }
     if parsed.version {
-        return DispatchResult::ok_stdout(format!("can {}\n", tool_version()));
+        return DispatchResult::ok_stdout(version_text());
     }
     let Some(cmd) = &parsed.subcommand else {
         return DispatchResult::ok_stdout(global_help());
@@ -309,6 +316,24 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
             run_explain(&parsed.operands, parsed.format)
         }
         "policy" => run_policy(&parsed.operands, parsed.format, analyzer),
+        "completions" => {
+            if parsed.format_set || parsed.catalog_set {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "can completions takes no --format or --catalog flag".to_string(),
+                );
+            }
+            run_completions(&parsed.operands)
+        }
+        "help" => {
+            if parsed.format_set || parsed.catalog_set {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "can help takes no --format or --catalog flag".to_string(),
+                );
+            }
+            run_help(&parsed.operands)
+        }
         "lsp" => {
             if parsed.format_set {
                 return DispatchResult::tool_error(
@@ -370,6 +395,8 @@ fn is_known_command(cmd: &str) -> bool {
             | "build"
             | "deploy"
             | "activate"
+            | "completions"
+            | "help"
     )
 }
 
@@ -492,6 +519,24 @@ fn tool_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+/// Short git HEAD captured by `build.rs`, or `"unknown"` for tarball
+/// builds without git metadata.
+fn build_commit() -> &'static str {
+    option_env!("CAN_BUILD_COMMIT").unwrap_or("unknown")
+}
+
+/// `can --version`: tool version plus the commit it was built from and
+/// the language/diagnostic-schema versions it implements.
+fn version_text() -> String {
+    format!(
+        "can {} (commit {}; language {}; schema {})\n",
+        tool_version(),
+        build_commit(),
+        crate::LANGUAGE_VERSION,
+        crate::SCHEMA_VERSION
+    )
+}
+
 fn global_help() -> String {
     format!(
         "can {} — CanLang compiler and authoring tools
@@ -513,6 +558,8 @@ Commands:
   build     Thin lane-7 entry: exec can-platform build (passthrough)
   deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)
   activate  Thin lane-7 entry: exec can-platform activate (passthrough)
+  completions  Print a shell completion script: can completions bash|zsh|fish
+  help      Show help (global or `can help <COMMAND>`)
 
 Options:
   --format=json|text   Machine or human output (check, compile, lint, explain, policy)
@@ -520,6 +567,10 @@ Options:
                        ./can-catalog.json, ./packages/values/dist/catalog.json)
   -h, --help           Show help (global or `can <COMMAND> --help`)
   -V, --version        Show version
+
+Environment:
+  CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)
+  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate)
 
 Exit codes: 0 clean, 10 errors reported, 2 tool failure.
 ",
@@ -538,12 +589,14 @@ fn command_help(cmd: &str) -> String {
         "compile" => "can compile — analyze sources and emit the compile artifact\n\nUsage: can compile [--format=json|text] [--catalog=PATH] FILE.can...\n\nText lists one emitted module path per line; json prints the artifact envelope. Analysis or emission errors (E6006/E6007/E6008) report diagnostics instead of an artifact.\n\nExit codes: 0 emitted, 10 errors reported, 2 tool failure.\n".to_string(),
         "explain" => "can explain — print a diagnostic catalog entry\n\nUsage: can explain [--format=json|text] CODE\n\nExit codes: 0 printed, 2 unknown code (E7003) or bad usage.\n".to_string(),
         "fmt" => "can fmt — format sources canonically\n\nUsage: can fmt [--check] [FILE.can...|-]\n\nFormats each file in place, writing only files that change. With no operands, or `-`, reads stdin and writes the formatted text to stdout. `--check` writes nothing and lists the files that differ instead. Parse failures print the machine-JSON diagnostic envelope on stdout and write nothing. Exit codes: 0 clean, 10 errors or differences reported, 2 tool failure.\n".to_string(),
-        "lsp" => "can lsp — run the language server over stdio\n\nUsage: can lsp\n\nSpeaks Content-Length JSON-RPC; see the transport module docs.\n".to_string(),
+        "lsp" => "can lsp — run the language server over stdio\n\nUsage: can lsp\n\nSpeaks Content-Length JSON-RPC; see the transport module docs.\nStdin EOF shuts the server down with the lifecycle exit code; a\nshutdown request followed by the exit notification exits 0, exit\nwithout shutdown exits 1.\n\nExit codes: 0 clean shutdown (shutdown+exit, or stdin EOF), 1 exit without shutdown, 2 tool failure.\n".to_string(),
+        "completions" => "can completions — print a shell completion script\n\nUsage: can completions bash|zsh|fish\n\nPrints the completion script for every `can` command, flag and\noperand to stdout; eval it or install it (see docs/install.md).\n\nExit codes: 0 printed, 2 unknown shell or bad usage.\n".to_string(),
+        "help" => "can help — show help\n\nUsage: can help [COMMAND]\n\nWith no command, prints the global help (`can --help`). With a\ncommand, prints that command's help (same as `can <COMMAND> --help`,\nexcept run|test|build|deploy|activate pass a trailing `--help`\nthrough to can-platform, so `can help <COMMAND>` — like\n`can --help <COMMAND>` — is the way to see their `can`-side help).\n\nExit codes: 0 printed, 2 unknown command.\n".to_string(),
         "policy" => format!(
             "can {cmd} — dump the declared policy surface (roles, model policies/invariants, operation gates)\n\nUsage: can {cmd} [--format=json|text] [--catalog=PATH] FILE.can...\n\nReads the checked program and prints the policy surface in source order.\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n"
         ),
         "run" | "test" | "build" | "deploy" | "activate" => format!(
-            "can {cmd} — thin lane-7 entry (passthrough to can-platform)\n\nUsage: can {cmd} [ARGS...]\n\nExecs `can-platform {cmd}` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can {cmd} --help` asks the platform tool; use\n`can --help {cmd}` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n"
+            "can {cmd} — thin lane-7 entry (passthrough to can-platform)\n\nUsage: can {cmd} [ARGS...]\n\nExecs `can-platform {cmd}` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can {cmd} --help` asks the platform tool; use\n`can help {cmd}` or `can --help {cmd}` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n"
         ),
         unknown => format!("unknown command '{unknown}'; use can --help\n"),
     }
@@ -768,6 +821,49 @@ fn emit_diagnostics(
     }
 }
 
+/// `can completions bash|zsh|fish`: print the completion script.
+/// The scripts ship as `compiler/can-completions.<shell>` and are
+/// embedded here so the binary never depends on its install layout;
+/// `tests/exe.rs` snapshots the output against the shipped files.
+fn run_completions(operands: &[String]) -> DispatchResult {
+    let [shell] = operands else {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can completions expects exactly one SHELL operand (bash|zsh|fish)".to_string(),
+        );
+    };
+    let script = match shell.as_str() {
+        "bash" => include_str!("../can-completions.bash"),
+        "zsh" => include_str!("../can-completions.zsh"),
+        "fish" => include_str!("../can-completions.fish"),
+        unknown => {
+            return DispatchResult::tool_error(
+                "E7001",
+                format!("unknown shell '{unknown}'; want bash|zsh|fish"),
+            );
+        }
+    };
+    DispatchResult::ok_stdout(script.to_string())
+}
+
+/// `can help [COMMAND]`: the alias form of `--help`. With no operand it
+/// prints the global help; unknown commands stay E7001/exit 2, matching
+/// the `--help` flag path.
+fn run_help(operands: &[String]) -> DispatchResult {
+    match operands {
+        [] => DispatchResult::ok_stdout(global_help()),
+        [cmd] if is_known_command(cmd) => DispatchResult::ok_stdout(command_help(cmd)),
+        [unknown] => DispatchResult::tool_error(
+            "E7001",
+            format!("unknown command '{unknown}'; use can --help"),
+        ),
+        _ => DispatchResult::tool_error(
+            "E7001",
+            "can help expects at most one COMMAND operand".to_string(),
+        ),
+    }
+}
+
 fn run_explain(operands: &[String], format: OutputFormat) -> DispatchResult {
     let [code] = operands else {
         return DispatchResult::tool_error(
@@ -900,15 +996,17 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
             run_lsp: false,
         };
     }
-    // Sequential writes: a failure aborts with E7007, leaving earlier
-    // files already rewritten (atomic rename hardening is future work).
+    // Each file writes atomically (temp file in the same directory,
+    // then rename): a failure aborts with E7007 and the failed file keeps
+    // its old bytes. Earlier files in the same invocation may already be
+    // rewritten; operands are still processed in order.
     let mut stdout = String::new();
     for (input, output) in inputs.iter().zip(outputs.iter()) {
         match &input.dest {
             None => stdout.push_str(output),
             Some(path) => {
                 if *output != input.text
-                    && let Err(err) = std::fs::write(path, output)
+                    && let Err(err) = write_file_atomic(path, output)
                 {
                     return DispatchResult::tool_error(
                         "E7007",
@@ -919,6 +1017,34 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
         }
     }
     DispatchResult::ok_stdout(stdout)
+}
+
+/// Write `bytes` to `path` atomically: a same-directory temp file holds
+/// the new bytes until `rename` swaps them in, so a crash or full disk
+/// leaves the old file (or nothing new) rather than a torn write.
+fn write_file_atomic(path: &Path, bytes: &str) -> std::io::Result<()> {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static TMP_SEQ: AtomicU32 = AtomicU32::new(0);
+    let file_name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "fmt".to_string());
+    let seq = TMP_SEQ.fetch_add(1, Ordering::SeqCst);
+    let tmp_name = format!(".{file_name}.tmp-{}-{seq}", std::process::id());
+    let tmp = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .map(|parent| parent.join(&tmp_name))
+        .unwrap_or_else(|| PathBuf::from(&tmp_name));
+    if let Err(err) = std::fs::write(&tmp, bytes) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(err);
+    }
+    if let Err(err) = std::fs::rename(&tmp, path) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(err);
+    }
+    Ok(())
 }
 
 /// `can lint`: full analysis, then the lint driver over the checked

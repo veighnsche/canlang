@@ -4,13 +4,17 @@ A declarative VS Code-compatible extension for the current `.can` drafts in this
 
 The extension contributes the `can` language, `source.can` TextMate scopes and one-space indentation defaults. It distinguishes full-line `##` comments, `#` description metadata, `#=` message references, JSON strings and `@{...}` localization. Declarations, Given/When/Then, type positions, effects, examples, routes, presentation and maintenance forms receive syntactic scopes. Field, parameter, attribute and member names remain names even when they match syntax words; builtin names are not globally reserved. Variable uses, properties and syntactic calls use standard `variable.other.readwrite`, `variable.other.property` and `entity.name.function.call` scopes so themes can distinguish them.
 
-Highlighting approximates contextual syntax. It provides no diagnostics, compiler integration, commands, snippets or runtime dependencies by itself; diagnostics come from the minimal LSP client below. It does not validate a program or consistency between drafts. Documented page polling/refresh, CSV form import and preference ordering are highlighted independently of prototype-parser coverage. Single/triple/raw strings, `//` and `/* */` comments, and old `fn` declarations have no special support.
+Highlighting approximates contextual syntax. It provides no diagnostics, compiler integration, commands, snippets or runtime dependencies by itself; diagnostics come from the LSP client below. It does not validate a program or consistency between drafts. Documented page polling/refresh, CSV form import and preference ordering are highlighted independently of prototype-parser coverage. Single/triple/raw strings, `//` and `/* */` comments, and old `fn` declarations have no special support.
 
-## Minimal LSP client (slice 2a)
+## LSP client (real server, all 7 capabilities)
 
-`src/extension.ts` activates on the `can` language and `src/client.ts` spawns `can lsp` over stdio (Content-Length JSON-RPC), forwarding open/change/close for `.can` documents and rendering `publishDiagnostics` in the editor. There are no npm dependencies: both files carry temporary ambient declarations for the minimal `vscode`/`child_process` surface they use. Adopting `vscode-languageclient` (plus `@types/vscode`/`@types/node`) is deferred to slice 2b, which will delete those declarations.
+`src/extension.ts` activates on the `can` language and `src/client.ts` spawns `can lsp` over stdio (Content-Length JSON-RPC), forwarding open/change/save/close for `.can` documents and rendering `publishDiagnostics` in the editor. The server is the real analyzer — hover, completion, definition, references, rename, semantic tokens and code actions are all implemented server-side (`compiler/src/lsp/server.rs` advertises them in `capabilities()`), and the client registers a provider for each:
 
-Settings: `can.serverPath` (default `can` on PATH) selects the server binary; `can.traceServer` logs LSP traffic to the Can output channel.
+- hover (markdown), completion (with LSP kinds), go-to-definition, find-all-references, rename (workspace edit), full-document semantic tokens, and quickfix code actions (e.g. the `I1002` redundant-`?.` rewrite).
+
+There are no npm dependencies: both files carry ambient declarations for the minimal `vscode`/`child_process` surface they use. Adopting `vscode-languageclient` was considered and rejected — it would break the zero-dependency `tsc --strict` gate (lane-01 pins empty typeRoots); extending the hand-rolled client was smaller and keeps the build hermetic.
+
+Settings: `can.serverPath` (default `can` on PATH) selects the server binary; `can.traceServer` logs LSP traffic to the Can output channel. Changing either setting restarts the server automatically. The contributed `Can: Restart Language Server` command (`can.restartServer`) restarts it on demand; when the server crashes, the client reports the exit code and offers restart-on-reopen as well as the command. The client `initialize` handshake advertises real support for every capability above, including the semantic-token legend (which must match `TOKEN_TYPES`/`TOKEN_MODIFIERS` in `compiler/src/ide/tokens.rs`; the round-trip test below fails loudly on drift).
 
 Build from this directory (TypeScript via bunx, no install step):
 
@@ -24,11 +28,22 @@ or `bun run compile` once TypeScript is available. Type-shape check without emit
 bunx -p typescript@5.6.3 tsc --noEmit --strict --target es2022 --lib es2022 src/extension.ts src/client.ts
 ```
 
-Run: build first, then launch the extension host from this directory (or install the packaged VSIX) with a `can` binary on PATH, and open any `.can` file. Server stderr and (with `can.traceServer`) framed traffic appear in the Can output channel. Hover, completion, rename and code actions are stubbed server-side until later slices; the diagnostics pipeline flows end to end but the slice-2a server stub always returns empty arrays, so no findings exist yet.
+Run: build first, then launch the extension host from this directory (or install the packaged VSIX) with a `can` binary on PATH, and open any `.can` file. Server stderr and (with `can.traceServer`) framed traffic appear in the Can output channel. All seven providers flow end to end against the real server: hover a symbol, trigger completion, jump to a definition, list references, rename a binding, observe semantic coloring beyond the TextMate grammar, and accept a quickfix on an `I1002` redundant `?.`.
+
+Round-trip verification (no IDE needed): `node test/lsp-capabilities.cjs` (or `bun run test:lsp`) spawns the real `can` binary over stdio and asserts every capability against the `test/*.can` fixtures — `initialize` advertisement plus hover, completion, definition, references, rename, `semanticTokens/full` and code actions. Binary resolution: `$CAN_BIN`, then `compiler/target/debug/can`, then `can` on PATH.
 
 The local artifact is `../../output/editor/canlang-draft-highlighting-0.1.9.vsix`. Install with the IDE's `--install-extension` CLI option. Remove `can-lang.can-lang` first, then reload existing IDE windows to unload the obsolete language server and load the new grammar. The separate `.ail` extension is unrelated.
 
-The installed VSIX contains `package.json`, the compiled entry point `out/extension.js` (plus `out/client.js`), `syntaxes/can.tmLanguage.json` and this README, plus packaging metadata. `out/` is generated by the build step above (also run automatically by the `vscode:prepublish` hook on pack) and activates on the `can` language (`activationEvents: onLanguage:can`). `src/`, `audit-astra/`, `GRAMMAR-AUDIT.md`, `AUDIT-RESOLUTION.md`, `PALETTE.md`, `check-highlighting.cjs`, `token-colors.json` and `*-evidence.json` are local review/verification assets excluded from the VSIX via `.vscodeignore`.
+Cursor install (same VSIX, VSCode-compatible manifest): from this directory, after building (`bun run compile` is automatic on pack via `vscode:prepublish`),
+
+```sh
+npx -y @vscode/vsce package --out ../../output/editor/canlang-draft-highlighting-0.1.9.vsix
+cursor --install-extension ../../output/editor/canlang-draft-highlighting-0.1.9.vsix
+```
+
+then reload the Cursor window with a `can` binary on PATH and open any `.can` file. The `can.restartServer` command is available from the command palette as `Can: Restart Language Server`. No registry publish: the manifest carries `repository`/`license`/`icon` metadata but nothing publishes to any marketplace. `images/icon.png` is a placeholder tile; replace it with final art before any publish.
+
+The installed VSIX contains `package.json`, the compiled entry point `out/extension.js` (plus `out/client.js`), `syntaxes/can.tmLanguage.json`, `images/icon.png` and this README, plus packaging metadata. `out/` is generated by the build step above (also run automatically by the `vscode:prepublish` hook on pack) and activates on the `can` language (`activationEvents: onLanguage:can`) and the restart command. `src/`, `test/`, `audit-astra/`, `GRAMMAR-AUDIT.md`, `AUDIT-RESOLUTION.md`, `PALETTE.md`, `check-highlighting.cjs`, `token-colors.json` and `*-evidence.json` are local review/verification assets excluded from the VSIX via `.vscodeignore`.
 
 The grammar separates Given declarations, When execution, Then/page composition and example tables. Joined expressions, types, selectors and operation targets retain their contextual roles across physical lines. `AUDIT-RESOLUTION.md` records each independent audit finding, its correction and verification limits; the original audit remains preserved separately.
 
@@ -44,4 +59,4 @@ Version 0.1.6 follows the user-authorized Given spelling `invariant path: expr`.
 
 Version 0.1.9 highlights the entire approved 68-component vocabulary from `design/UI-COMPONENTS.md`, plus contextual `slot`, inline `preferences` and `gallery` headers. Component words remain ordinary field, member and value names outside presentation headers. Bare component leaves can precede a semicolon. The checker derives its coverage inventory from the approved catalog and verifies every component's scope and blue foreground, nested headers and name-role boundaries.
 
-The local Cursor installation uses `../../output/editor/canlang-draft-highlighting-0.1.9-syntax.vsix`, a syntax-only package with the same extension identity and version. Its manifest omits the LSP entry point, activation events, build scripts and server configuration; it packages the grammar and documentation without requiring a `can` binary. The normal source manifest and full package retain the minimal LSP client described above. Reload the existing Cursor window after installing an updated VSIX. Highlighting does not certify parser/checker or runtime implementation of the components.
+The local Cursor installation uses `../../output/editor/canlang-draft-highlighting-0.1.9-syntax.vsix`, a syntax-only package with the same extension identity and version. Its manifest omits the LSP entry point, activation events, build scripts and server configuration; it packages the grammar and documentation without requiring a `can` binary. The normal source manifest and full package retain the full LSP client described above. Reload the existing Cursor window after installing an updated VSIX. Highlighting does not certify parser/checker or runtime implementation of the components.
