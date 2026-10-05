@@ -13,7 +13,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "bun run build:joins && tsc -b packages/contracts packages/cloudflare packages/testkit packages/state packages/stdlib && bun run --filter @canlang/identity --filter @canlang/ui build && bun run --filter @canlang/interfaces build",
+    "build": "bun run build:joins && tsc -b packages/contracts packages/cloudflare packages/testkit packages/state packages/stdlib && chmod +x packages/cloudflare/dist/cli/platform.js && bun run --filter @canlang/identity --filter @canlang/ui build && bun run --filter @canlang/interfaces build",
     "build:joins": "bun run --filter @canlang/values build",
     "release:stamp": "node ./packages/cloudflare/dist/release/stamp.js",
     "release:manifest": "node ./packages/cloudflare/dist/release/manifest.js",
