@@ -214,7 +214,7 @@ function djb2a32(text: string): number {
 /**
  * 16-hex-char content digest of one canonical identity. Case-, punctuation-
  * and Unicode-sensitive: any two distinct JS strings hash differently with
- * overwhelming probability, and the group assigner extends the suffix (then
+ * overwhelming probability, and the global assigner extends the suffix (then
  * falls back to a lossless encoding) so distinct identities never share a
  * final anchor.
  */
@@ -266,43 +266,37 @@ function exampleKey(kind: string, scope: string, label: string): string {
 }
 
 /**
- * Assigns final anchors to the distinct canonical identities sharing one
- * readable base. A lone identity keeps the bare base (human-readable, no
- * suffix); a colliding group gets `base-<content-hash>` with the shortest
- * non-colliding digest prefix, extended only within the group. Processing
- * order is canonical-sorted, so the result depends ONLY on identity content
- * and never on model/source order. Suffix input is the exact canonical
- * spelling, so case/punctuation/Unicode variants disambiguate.
+ * Assigns one globally-unique suffixed anchor for a canonical identity that
+ * cannot keep its bare base. Tries the shortest non-colliding digest prefix
+ * (`base-<hex>`, 8 to 16 hex chars) against the GLOBAL used set, then a
+ * lossless `base-<digest>-<hex>` fallback, then a `-2`, `-3`, ... counter
+ * for the theoretical cross-base collision of even the lossless form (an
+ * author spelling that slugs to another identity's full suffixed anchor).
+ * Deterministic: inputs are content-derived and callers iterate sorted.
  */
-function assignAnchorGroup(base: string, canonicals: readonly string[]): Map<string, string> {
-  const assigned = new Map<string, string>();
-  if (canonicals.length <= 1) {
-    if (canonicals.length === 1) {
-      assigned.set(canonicals[0] as string, base);
+function suffixedAnchor(
+  base: string,
+  canonical: string,
+  used: ReadonlySet<string>,
+): string {
+  const digest = identityDigest(canonical);
+  for (let length = 8; length <= digest.length; length += 2) {
+    const candidate = `${base}-${digest.slice(0, length)}`;
+    if (!used.has(candidate)) {
+      return candidate;
     }
-    return assigned;
   }
-  const used = new Set<string>();
-  const digests = new Map<string, string>();
-  for (const canonical of canonicals) {
-    digests.set(canonical, identityDigest(canonical));
+  const lossless = `${base}-${digest}-${losslessHex(canonical)}`;
+  if (!used.has(lossless)) {
+    return lossless;
   }
-  for (const canonical of [...canonicals].sort()) {
-    const digest = digests.get(canonical) as string;
-    let length = 8;
-    let candidate = `${base}-${digest.slice(0, length)}`;
-    while (used.has(candidate) && length < digest.length) {
-      length += 2;
-      candidate = `${base}-${digest.slice(0, length)}`;
-    }
-    if (used.has(candidate)) {
-      // Theoretical full-digest collision: lossless suffix is strictly injective.
-      candidate = `${base}-${digest}-${losslessHex(canonical)}`;
-    }
-    used.add(candidate);
-    assigned.set(canonical, candidate);
+  let counter = 2;
+  let candidate = `${lossless}-${counter}`;
+  while (used.has(candidate)) {
+    counter += 1;
+    candidate = `${lossless}-${counter}`;
   }
-  return assigned;
+  return candidate;
 }
 
 /** Precomputed collision-free anchors for every identity in one model. */
@@ -331,20 +325,35 @@ function pushDistinctIdentity(
   }
 }
 
-function assignGroups(groups: Map<string, string[]>): Map<string, string> {
-  const assigned = new Map<string, string>();
-  for (const [base, canonicals] of groups) {
-    for (const [canonical, anchor] of assignAnchorGroup(base, canonicals)) {
-      assigned.set(canonical, anchor);
-    }
-  }
-  return assigned;
+type AnchorKind = "owner" | "declaration" | "operation" | "example";
+
+interface PendingIdentity {
+  readonly kind: AnchorKind;
+  readonly base: string;
+  readonly canonical: string;
+}
+
+interface CollidingGroup {
+  readonly kind: AnchorKind;
+  readonly base: string;
+  readonly canonicals: readonly string[];
 }
 
 /**
  * Builds the single anchor mapping for one render. Every TOC link and every
  * section anchor resolves through this resolver, so links can never dangle:
  * identical canonical identities always map to identical anchors.
+ *
+ * Global uniqueness (R-D07-02): final anchors are reserved in ONE global
+ * namespace covering all base groups and all component kinds
+ * (owners/declarations/operations/examples share the same HTML `id` space).
+ * Lone identities keep their bare readable base when globally free
+ * (processed first, in `(base, kind, canonical)` order); every other
+ * identity gets a content-derived suffix avoiding ALL reserved names
+ * (colliding groups in `(kind, base)` order, members in canonical order).
+ * All ordering is content-sorted, so the same model in any input order
+ * yields the same anchors (permutation-stable). Adding identities MAY
+ * change existing anchors; model-addition stability is NOT guaranteed.
  */
 function createAnchorResolver(model: ReferenceModel): AnchorResolver {
   const ownerGroups = new Map<string, string[]>();
@@ -393,10 +402,81 @@ function createAnchorResolver(model: ReferenceModel): AnchorResolver {
     }
   }
 
-  const owners = assignGroups(ownerGroups);
-  const declarations = assignGroups(declarationGroups);
-  const operations = assignGroups(operationGroups);
-  const examples = assignGroups(exampleGroups);
+  const lone: PendingIdentity[] = [];
+  const colliding: CollidingGroup[] = [];
+  const split = (kind: AnchorKind, groups: Map<string, string[]>): void => {
+    for (const [base, canonicals] of groups) {
+      if (canonicals.length <= 1) {
+        const only = canonicals[0];
+        if (only !== undefined) {
+          lone.push({ kind, base, canonical: only });
+        }
+      } else {
+        colliding.push({ kind, base, canonicals: [...canonicals] });
+      }
+    }
+  };
+  split("owner", ownerGroups);
+  split("declaration", declarationGroups);
+  split("operation", operationGroups);
+  split("example", exampleGroups);
+
+  lone.sort((a, b) =>
+    a.base < b.base
+      ? -1
+      : a.base > b.base
+        ? 1
+        : a.kind < b.kind
+          ? -1
+          : a.kind > b.kind
+            ? 1
+            : a.canonical < b.canonical
+              ? -1
+              : a.canonical > b.canonical
+                ? 1
+                : 0,
+  );
+  colliding.sort((a, b) =>
+    a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : a.base < b.base ? -1 : a.base > b.base ? 1 : 0,
+  );
+
+  const used = new Set<string>();
+  const owners = new Map<string, string>();
+  const declarations = new Map<string, string>();
+  const operations = new Map<string, string>();
+  const examples = new Map<string, string>();
+  const targetFor = (kind: AnchorKind): Map<string, string> => {
+    switch (kind) {
+      case "owner":
+        return owners;
+      case "declaration":
+        return declarations;
+      case "operation":
+        return operations;
+      case "example":
+        return examples;
+    }
+  };
+
+  for (const identity of lone) {
+    const target = targetFor(identity.kind);
+    if (!used.has(identity.base)) {
+      target.set(identity.canonical, identity.base);
+      used.add(identity.base);
+    } else {
+      const anchor = suffixedAnchor(identity.base, identity.canonical, used);
+      target.set(identity.canonical, anchor);
+      used.add(anchor);
+    }
+  }
+  for (const group of colliding) {
+    const target = targetFor(group.kind);
+    for (const canonical of [...group.canonicals].sort()) {
+      const anchor = suffixedAnchor(group.base, canonical, used);
+      target.set(canonical, anchor);
+      used.add(anchor);
+    }
+  }
 
   return {
     ownerAnchor: (owner) => owners.get(owner) ?? baseOwnerAnchor(owner),
