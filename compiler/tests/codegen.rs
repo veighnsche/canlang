@@ -3765,3 +3765,1191 @@ fn d03_empty_desc_stays_present() {
         nick.to_json()
     );
 }
+
+// --- T15a: canonical model/operation descriptors -------------------------------
+// TEST-ONLY artifacts: see module docs. Descriptors never diagnose; these
+// tests pin the T04a §3 vocabulary (closed input kinds, array markers,
+// defaults, delete modes, unique keys) plus additive ownership, and the
+// fail-closed omission rules for out-of-scope shapes.
+
+/// T15a model descriptor by canonical name.
+fn t15a_model<'a>(artifact: &'a CompileArtifact, name: &str) -> &'a js::JsModel {
+    artifact
+        .models
+        .iter()
+        .find(|model| model.name == name)
+        .unwrap_or_else(|| {
+            panic!(
+                "model {name} missing: {:?}",
+                artifact
+                    .models
+                    .iter()
+                    .map(|model| &model.name)
+                    .collect::<Vec<_>>()
+            )
+        })
+}
+
+/// T15a model field descriptor by field name.
+fn t15a_field<'a>(model: &'a js::JsModel, name: &str) -> &'a js::JsModelField {
+    model
+        .fields
+        .iter()
+        .find(|field| field.name == name)
+        .unwrap_or_else(|| {
+            panic!(
+                "field {name} missing in {}: {:?}",
+                model.name,
+                model.fields.iter().map(|f| &f.name).collect::<Vec<_>>()
+            )
+        })
+}
+
+/// (T15a) Literal defaults encode as wire-compatible JSON: ints, decimals
+/// (authored spelling verbatim, scale preserved) and durations are
+/// canonical decimal strings; money is `{minor, currency}`; structural
+/// arrays/objects recurse; unary minus and the `money`/`date`/`datetime`
+/// construct calls are recognized; non-literals map to `None`.
+#[test]
+fn t15a_literal_json_exactness() {
+    let int_ty = ResolvedType::Scalar(Scalar::Int);
+    let decimal_ty = ResolvedType::Scalar(Scalar::Decimal);
+    let text_ty = ResolvedType::Scalar(Scalar::Text);
+    let money_ty = ResolvedType::Scalar(Scalar::Money);
+    let duration_ty = ResolvedType::Scalar(Scalar::Duration);
+    let date_ty = ResolvedType::Scalar(Scalar::Date);
+    let datetime_ty = ResolvedType::Scalar(Scalar::Datetime);
+    let bool_ty = ResolvedType::Scalar(Scalar::Bool);
+
+    assert_eq!(js::literal_json(&int_lit(0)).as_deref(), Some("\"0\""));
+    assert_eq!(
+        js::literal_json(&int_lit(1_000_000_000_000_000_000)).as_deref(),
+        Some("\"1000000000000000000\"")
+    );
+    let neg = typed(
+        IrExpr::Unary {
+            op: IrUnOp::Neg,
+            operand: Box::new(int_lit(3)),
+        },
+        int_ty.clone(),
+    );
+    assert_eq!(js::literal_json(&neg).as_deref(), Some("\"-3\""));
+    // Decimal scale survives verbatim (T11 exactness, never a Number).
+    let dec = typed(
+        IrExpr::Decimal("1.50".to_string()),
+        decimal_ty.clone(),
+    );
+    assert_eq!(js::literal_json(&dec).as_deref(), Some("\"1.50\""));
+    let neg_dec = typed(
+        IrExpr::Unary {
+            op: IrUnOp::Neg,
+            operand: Box::new(typed(
+                IrExpr::Decimal("0.5".to_string()),
+                decimal_ty.clone(),
+            )),
+        },
+        decimal_ty.clone(),
+    );
+    assert_eq!(js::literal_json(&neg_dec).as_deref(), Some("\"-0.5\""));
+    assert_eq!(
+        js::literal_json(&text_lit("a")).as_deref(),
+        Some("\"a\"")
+    );
+    assert_eq!(
+        js::literal_json(&typed(IrExpr::Bool(true), bool_ty.clone())).as_deref(),
+        Some("true")
+    );
+    assert_eq!(
+        js::literal_json(&typed(IrExpr::Null, ResolvedType::Null)).as_deref(),
+        Some("null")
+    );
+    let money = typed(
+        IrExpr::Money {
+            minor: 100,
+            currency: "EUR".to_string(),
+        },
+        money_ty.clone(),
+    );
+    assert_eq!(
+        js::literal_json(&money).as_deref(),
+        Some("{\"minor\":\"100\",\"currency\":\"EUR\"}")
+    );
+    let duration = typed(IrExpr::DurationMs(30_000), duration_ty.clone());
+    assert_eq!(js::literal_json(&duration).as_deref(), Some("\"30000\""));
+    let date = typed(IrExpr::Date("2026-10-01".to_string()), date_ty.clone());
+    assert_eq!(
+        js::literal_json(&date).as_deref(),
+        Some("\"2026-10-01\"")
+    );
+    let datetime = typed(
+        IrExpr::Datetime("2026-10-01T00:00:00.000Z".to_string()),
+        datetime_ty.clone(),
+    );
+    assert_eq!(
+        js::literal_json(&datetime).as_deref(),
+        Some("\"2026-10-01T00:00:00.000Z\"")
+    );
+    // Structural literals recurse (T10 slice).
+    let array = typed(
+        IrExpr::Array(vec![int_lit(1), text_lit("b")]),
+        ResolvedType::Array {
+            element: Box::new(ResolvedType::Unknown),
+            ordered: true,
+            nonempty: true,
+        },
+    );
+    assert_eq!(
+        js::literal_json(&array).as_deref(),
+        Some("[\"1\",\"b\"]")
+    );
+    let object = typed(
+        IrExpr::Object(vec![
+            ("a".to_string(), int_lit(1)),
+            (
+                "nested".to_string(),
+                typed(
+                    IrExpr::Object(vec![("b".to_string(), text_lit("x"))]),
+                    ResolvedType::Object(vec![]),
+                ),
+            ),
+        ]),
+        ResolvedType::Object(vec![]),
+    );
+    assert_eq!(
+        js::literal_json(&object).as_deref(),
+        Some("{\"a\":\"1\",\"nested\":{\"b\":\"x\"}}")
+    );
+    // Construct calls with all-literal arguments are literals.
+    let money_call = typed(
+        IrExpr::Call {
+            target: IrCallTarget::Builtin {
+                id: "money".to_string(),
+                awaited: false,
+            },
+            args: vec![int_lit(25), text_lit("EUR")],
+        },
+        money_ty.clone(),
+    );
+    assert_eq!(
+        js::literal_json(&money_call).as_deref(),
+        Some("{\"minor\":\"25\",\"currency\":\"EUR\"}")
+    );
+    let date_call = typed(
+        IrExpr::Call {
+            target: IrCallTarget::Builtin {
+                id: "date".to_string(),
+                awaited: false,
+            },
+            args: vec![text_lit("2026-10-01")],
+        },
+        date_ty.clone(),
+    );
+    assert_eq!(
+        js::literal_json(&date_call).as_deref(),
+        Some("\"2026-10-01\"")
+    );
+    // Non-literals map to None (never a skewed literal).
+    let name = typed(IrExpr::Name("pending".to_string()), text_ty.clone());
+    assert_eq!(js::literal_json(&name), None);
+    let member = typed(
+        IrExpr::Member {
+            base: Box::new(typed(
+                IrExpr::Name("parent".to_string()),
+                ResolvedType::Unknown,
+            )),
+            field: "owner".to_string(),
+        },
+        text_ty.clone(),
+    );
+    assert_eq!(js::literal_json(&member), None);
+    let trim_call = typed(
+        IrExpr::Call {
+            target: IrCallTarget::Builtin {
+                id: "trim".to_string(),
+                awaited: false,
+            },
+            args: vec![text_lit(" a ")],
+        },
+        text_ty.clone(),
+    );
+    assert_eq!(js::literal_json(&trim_call), None);
+    let partial = typed(
+        IrExpr::Array(vec![int_lit(1), name.clone()]),
+        ResolvedType::Array {
+            element: Box::new(ResolvedType::Unknown),
+            ordered: true,
+            nonempty: true,
+        },
+    );
+    assert_eq!(js::literal_json(&partial), None);
+}
+
+/// (T15a) Parent defaults extract the dot path off the loaded parent row
+/// (leading `parent.` stripped); bare `parent` and non-parent roots map
+/// to `None`.
+#[test]
+fn t15a_parent_path_extraction() {
+    let text_ty = ResolvedType::Scalar(Scalar::Text);
+    let parent = || {
+        typed(
+            IrExpr::Name("parent".to_string()),
+            ResolvedType::Unknown,
+        )
+    };
+    let member = |base: TypedExpr, field: &str| {
+        typed(
+            IrExpr::Member {
+                base: Box::new(base),
+                field: field.to_string(),
+            },
+            text_ty.clone(),
+        )
+    };
+    assert_eq!(
+        js::parent_path(&member(parent(), "owner")).as_deref(),
+        Some("owner")
+    );
+    assert_eq!(
+        js::parent_path(&member(member(parent(), "parent"), "user")).as_deref(),
+        Some("parent.user")
+    );
+    assert_eq!(js::parent_path(&parent()), None);
+    assert_eq!(
+        js::parent_path(&typed(
+            IrExpr::Name("c".to_string()),
+            ResolvedType::Unknown
+        )),
+        None
+    );
+    let actor = typed(
+        IrExpr::Member {
+            base: Box::new(typed(
+                IrExpr::Name("c".to_string()),
+                ResolvedType::Unknown,
+            )),
+            field: "actor".to_string(),
+        },
+        text_ty.clone(),
+    );
+    assert_eq!(js::parent_path(&actor), None);
+}
+
+/// (T15a) Default mapping: literals encode, parent paths map, `server=`
+/// (any spelling) wins as `server`, and computed non-parent defaults map
+/// to `None` (execution stays in the emitted callable; T04b vocabulary).
+#[test]
+fn t15a_field_default_mapping() {
+    let text_ty = ResolvedType::Scalar(Scalar::Text);
+    assert!(js::js_field_default(None, None).is_none());
+    let literal = js::js_field_default(
+        Some(&IrDefault::Literal(int_lit(7))),
+        None,
+    )
+    .expect("literal maps");
+    assert_eq!(literal.to_json(), "{\"kind\":\"literal\",\"value\":\"7\"}");
+    let parent_expr = typed(
+        IrExpr::Member {
+            base: Box::new(typed(
+                IrExpr::Name("parent".to_string()),
+                ResolvedType::Unknown,
+            )),
+            field: "owner".to_string(),
+        },
+        text_ty.clone(),
+    );
+    let parent = js::js_field_default(
+        Some(&IrDefault::Computed {
+            expr: parent_expr,
+            has_parent: true,
+        }),
+        None,
+    )
+    .expect("parent path maps");
+    assert_eq!(parent.to_json(), "{\"kind\":\"parent\",\"path\":\"owner\"}");
+    let computed = typed(
+        IrExpr::Name("something".to_string()),
+        text_ty.clone(),
+    );
+    assert!(
+        js::js_field_default(
+            Some(&IrDefault::Computed {
+                expr: computed,
+                has_parent: false,
+            }),
+            None,
+        )
+        .is_none(),
+        "computed non-parent has no T04a vocabulary"
+    );
+    let server = js::js_field_default(None, Some(&IrServer::Actor)).expect("server maps");
+    assert_eq!(server.to_json(), "{\"kind\":\"server\"}");
+    // Server wins over any default (spellings are mutually exclusive in
+    // grammar; the descriptor stays total either way).
+    let both = js::js_field_default(
+        Some(&IrDefault::Literal(int_lit(1))),
+        Some(&IrServer::Now),
+    )
+    .expect("server wins");
+    assert_eq!(both.to_json(), "{\"kind\":\"server\"}");
+}
+
+/// Build one synthetic model field item for tag tests.
+fn t15a_field_item(id: u32, name: &str, ty: IrType) -> IrItem {
+    IrItem {
+        id: SymbolId(id),
+        canonical: format!("demo.M.{name}"),
+        name: name.to_string(),
+        module: ModuleId(0),
+        span: sp(0, 1),
+        exported: false,
+        kind: IrItemKind::Field {
+            owner: SymbolId(0),
+            ty,
+            required_array: false,
+            default: None,
+            server: None,
+            modifiers: IrModifiers::default(),
+            label: None,
+            description: None,
+        },
+    }
+}
+
+/// (T15a) Model field tags over a synthetic IR: pilot scalars use the
+/// T04a spellings, text-like specializations collapse to `string`,
+/// models map to `ref` by canonical name, and everything else is
+/// source-exact T04b-preview or the honest `other` fallback — total,
+/// diagnostic-free, never omitted.
+#[test]
+fn t15a_model_field_tags() {
+    let span = sp(0, 1);
+    let scalar = |s: Scalar| IrType::Known(ResolvedType::Scalar(s));
+    let array_of = |element: ResolvedType| {
+        IrType::Known(ResolvedType::Array {
+            element: Box::new(element),
+            ordered: true,
+            nonempty: false,
+        })
+    };
+    let mut items = vec![
+        IrItem {
+            id: SymbolId(0),
+            canonical: "demo.M".to_string(),
+            name: "M".to_string(),
+            module: ModuleId(0),
+            span,
+            exported: true,
+            kind: IrItemKind::Model {
+                // Symbol ids are item indices (index parity): the four
+                // header items occupy 0..4, fields follow from 4.
+                fields: (4..34).map(SymbolId).collect(),
+                owner: IrOwner::Team,
+                crud: None,
+                label: None,
+                grants: Vec::new(),
+                invariants: Vec::new(),
+                locks: Vec::new(),
+                uniques: Vec::new(),
+                retain: None,
+            },
+        },
+        IrItem {
+            id: SymbolId(1),
+            canonical: "demo.N".to_string(),
+            name: "N".to_string(),
+            module: ModuleId(0),
+            span,
+            exported: true,
+            kind: IrItemKind::Model {
+                fields: Vec::new(),
+                owner: IrOwner::Team,
+                crud: None,
+                label: None,
+                grants: Vec::new(),
+                invariants: Vec::new(),
+                locks: Vec::new(),
+                uniques: Vec::new(),
+                retain: None,
+            },
+        },
+        IrItem {
+            id: SymbolId(2),
+            canonical: "demo.C".to_string(),
+            name: "C".to_string(),
+            module: ModuleId(0),
+            span,
+            exported: false,
+            kind: IrItemKind::Contract {
+                fields: vec![],
+                label: None,
+            },
+        },
+        IrItem {
+            id: SymbolId(3),
+            canonical: "demo.Svc.ping".to_string(),
+            name: "ping".to_string(),
+            module: ModuleId(0),
+            span,
+            exported: false,
+            kind: IrItemKind::CapabilityOp {
+                params: vec![],
+                result: IrType::Known(ResolvedType::Scalar(Scalar::Bool)),
+            },
+        },
+    ];
+    let record_n = ResolvedType::Record {
+        symbol: SymbolId(1),
+        stored: true,
+    };
+    let record_c = ResolvedType::Record {
+        symbol: SymbolId(2),
+        stored: false,
+    };
+    let enum_ba = ResolvedType::Enum {
+        cases: vec!["b".to_string(), "a".to_string()],
+        owner: None,
+    };
+    let field_types: Vec<(&str, IrType)> = vec![
+        ("f_text", scalar(Scalar::Text)),
+        ("f_email", scalar(Scalar::Email)),
+        ("f_int", scalar(Scalar::Int)),
+        ("f_dec", scalar(Scalar::Decimal)),
+        ("f_money", scalar(Scalar::Money)),
+        ("f_dt", scalar(Scalar::Datetime)),
+        ("f_bool", scalar(Scalar::Bool)),
+        ("f_file", scalar(Scalar::File)),
+        ("f_enum", IrType::Known(enum_ba.clone())),
+        ("f_ref", IrType::Known(record_n.clone())),
+        ("f_contract", IrType::Known(record_c.clone())),
+        ("f_date", scalar(Scalar::Date)),
+        ("f_duration", scalar(Scalar::Duration)),
+        ("f_secret", scalar(Scalar::Secret)),
+        ("f_user", scalar(Scalar::User)),
+        ("f_member", scalar(Scalar::Member)),
+        ("f_json", scalar(Scalar::Json)),
+        ("f_bytes", scalar(Scalar::Bytes)),
+        ("f_arr", array_of(ResolvedType::Scalar(Scalar::Text))),
+        ("f_arrenum", array_of(enum_ba.clone())),
+        ("f_arrref", array_of(record_n.clone())),
+        (
+            "f_nullable",
+            IrType::Known(ResolvedType::Nullable(Box::new(ResolvedType::Scalar(
+                Scalar::Int,
+            )))),
+        ),
+        (
+            "f_nularr",
+            IrType::Known(ResolvedType::Nullable(Box::new(ResolvedType::Array {
+                element: Box::new(ResolvedType::Scalar(Scalar::Text)),
+                ordered: true,
+                nonempty: false,
+            }))),
+        ),
+        (
+            "f_elnull",
+            array_of(ResolvedType::Nullable(Box::new(ResolvedType::Scalar(
+                Scalar::Text,
+            )))),
+        ),
+        (
+            "f_nested",
+            array_of(ResolvedType::Array {
+                element: Box::new(ResolvedType::Scalar(Scalar::Text)),
+                ordered: true,
+                nonempty: false,
+            }),
+        ),
+        (
+            "f_delivery",
+            IrType::Known(ResolvedType::Delivery {
+                op: SymbolId(3),
+            }),
+        ),
+        (
+            "f_action",
+            IrType::Known(ResolvedType::Action {
+                targets: Vec::new(),
+                bound: None,
+            }),
+        ),
+        (
+            "f_union",
+            IrType::Known(ResolvedType::Union(vec![SymbolId(1)])),
+        ),
+        (
+            "f_object",
+            IrType::Known(ResolvedType::Object(vec![(
+                "a".to_string(),
+                ResolvedType::Scalar(Scalar::Int),
+            )])),
+        ),
+        (
+            "f_opaque",
+            IrType::Known(ResolvedType::Opaque("test-deferral")),
+        ),
+    ];
+    for (index, (name, ty)) in field_types.into_iter().enumerate() {
+        items.push(t15a_field_item(4 + index as u32, name, ty));
+    }
+    let ir = IrProgram {
+        modules: vec![IrModule {
+            id: ModuleId(0),
+            name: "demo".to_string(),
+            kind: ModuleKind::Package,
+            file: SourceId(0),
+            span,
+            imports: Vec::new(),
+            uses: Vec::new(),
+            uses_resolved: Vec::new(),
+            pages: Vec::new(),
+            description: None,
+        }],
+        items,
+        catalog_version: String::new(),
+        referenced_builtins: Vec::new(),
+        read_rules: Vec::new(),
+        invariants: Vec::new(),
+        locks: Vec::new(),
+        retention: Vec::new(),
+        crud_when: Vec::new(),
+        preferences_valid: Vec::new(),
+        suites: Vec::new(),
+        migrations: Vec::new(),
+    };
+    let models = Emitter::new(&ir).collect_models();
+    assert_eq!(models.len(), 2, "both models emit");
+    let model = models.iter().find(|m| m.name == "demo.M").unwrap();
+    assert_eq!(model.delete_mode, "none", "no crud means none");
+    let tag = |name: &str| t15a_field(model, name).field.clone();
+    assert!(matches!(tag("f_text"), js::JsModelFieldType::String));
+    assert!(matches!(tag("f_email"), js::JsModelFieldType::String));
+    assert!(matches!(tag("f_int"), js::JsModelFieldType::Integer));
+    assert!(matches!(tag("f_dec"), js::JsModelFieldType::Decimal));
+    assert!(matches!(tag("f_money"), js::JsModelFieldType::Money));
+    assert!(matches!(tag("f_dt"), js::JsModelFieldType::Datetime));
+    assert!(matches!(tag("f_bool"), js::JsModelFieldType::Boolean));
+    assert!(matches!(tag("f_file"), js::JsModelFieldType::File));
+    match tag("f_enum") {
+        js::JsModelFieldType::Enum { values } => {
+            assert_eq!(values, vec!["b".to_string(), "a".to_string()]);
+        }
+        other => panic!("enum tag: {other:?}"),
+    }
+    match tag("f_ref") {
+        js::JsModelFieldType::Ref { model } => assert_eq!(model, "demo.N"),
+        other => panic!("ref tag: {other:?}"),
+    }
+    match tag("f_contract") {
+        js::JsModelFieldType::Other { type_id } => assert_eq!(type_id, "demo.C"),
+        other => panic!("contract tag: {other:?}"),
+    }
+    assert!(matches!(tag("f_date"), js::JsModelFieldType::Date));
+    assert!(matches!(tag("f_duration"), js::JsModelFieldType::Duration));
+    assert!(matches!(tag("f_secret"), js::JsModelFieldType::Secret));
+    assert!(matches!(tag("f_user"), js::JsModelFieldType::User));
+    assert!(matches!(tag("f_member"), js::JsModelFieldType::Member));
+    assert!(matches!(tag("f_json"), js::JsModelFieldType::Json));
+    assert!(matches!(tag("f_bytes"), js::JsModelFieldType::Bytes));
+    // Arrays tag the element plus the marker.
+    let arr = t15a_field(model, "f_arr");
+    assert!(matches!(arr.field, js::JsModelFieldType::String));
+    assert_eq!(arr.array_required, Some(false));
+    assert!(!arr.required, "ordinary array omits to empty");
+    let arrenum = t15a_field(model, "f_arrenum");
+    assert!(matches!(
+        arrenum.field,
+        js::JsModelFieldType::Enum { .. }
+    ));
+    assert_eq!(arrenum.array_required, Some(false));
+    let arrref = t15a_field(model, "f_arrref");
+    assert!(matches!(arrref.field, js::JsModelFieldType::Ref { .. }));
+    assert_eq!(arrref.array_required, Some(false));
+    // Nullability unwraps for the tag and clears required.
+    let nullable = t15a_field(model, "f_nullable");
+    assert!(matches!(
+        nullable.field,
+        js::JsModelFieldType::Integer
+    ));
+    assert!(nullable.nullable && !nullable.required);
+    let nularr = t15a_field(model, "f_nularr");
+    assert!(matches!(nularr.field, js::JsModelFieldType::String));
+    assert!(nularr.nullable && !nularr.required);
+    assert_eq!(nularr.array_required, Some(false));
+    let elnull = t15a_field(model, "f_elnull");
+    assert!(matches!(elnull.field, js::JsModelFieldType::String));
+    assert_eq!(elnull.array_required, Some(false));
+    // Nested arrays keep the marker with an honest element tag.
+    let nested = t15a_field(model, "f_nested");
+    assert!(matches!(
+        nested.field,
+        js::JsModelFieldType::Other { .. }
+    ));
+    assert_eq!(nested.array_required, Some(false));
+    // Exotic shapes stay honest `other` (T15b refines deliveries).
+    match tag("f_delivery") {
+        js::JsModelFieldType::Other { type_id } => {
+            assert_eq!(type_id, "delivery:demo.Svc.ping")
+        }
+        other => panic!("delivery tag: {other:?}"),
+    }
+    match tag("f_action") {
+        js::JsModelFieldType::Other { type_id } => assert_eq!(type_id, "action"),
+        other => panic!("action tag: {other:?}"),
+    }
+    match tag("f_union") {
+        js::JsModelFieldType::Other { type_id } => assert_eq!(type_id, "union"),
+        other => panic!("union tag: {other:?}"),
+    }
+    match tag("f_object") {
+        js::JsModelFieldType::Other { type_id } => assert_eq!(type_id, "object"),
+        other => panic!("object tag: {other:?}"),
+    }
+    match tag("f_opaque") {
+        js::JsModelFieldType::Other { type_id } => assert_eq!(type_id, "test-deferral"),
+        other => panic!("opaque tag: {other:?}"),
+    }
+    // Collection is diagnostic-free even for exotic shapes.
+    let emitter = Emitter::new(&ir);
+    let _ = emitter.collect_models();
+    let (diags, _, _, _) = emitter.finish();
+    assert!(diags.is_empty(), "no descriptor diagnostics: {diags:?}");
+}
+
+/// (T15a) Model descriptors end to end: every pilot field kind emits with
+/// its T09 requiredness/omission/server distinctions, T11 exact decimal
+/// defaults (including integral 0/1 in decimal positions), field-level
+/// and composite unique keys, and the default archive delete mode.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15a_models_shape_end_to_end() {
+    let src = "app Shop\nGiven\n Gadget { title:text, stock:int=0, price:decimal=1.50, ratio:decimal=0, qty:decimal=1, active:bool=true, state:enum(draft,submitted)=draft, owner:Gadget?, tags:text[], ids:text[]!, nick:text[]?, by:user server=actor, code:text unique }\n policy Gadget read=members\n unique Gadget fields=title,stock\nWhen\n crud Gadget by=members fields=title,stock,price,ratio,qty,active,state,owner,tags,ids,nick,code\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006"),
+        "no analysis gaps: {diags:?}"
+    );
+    let model = t15a_model(&artifact, "Shop.Gadget");
+    assert_eq!(model.delete_mode, "archive");
+    assert_eq!(model.unique_keys, vec!["code".to_string(), "title,stock".to_string()]);
+    assert!(model.parent.is_none() && !model.scope_app, "team scope default");
+    let title = t15a_field(model, "title");
+    assert!(title.required && !title.server_only && !title.nullable);
+    assert!(title.array_required.is_none() && title.default.is_none());
+    let stock = t15a_field(model, "stock");
+    assert!(!stock.required, "defaulted input fills its default");
+    assert_eq!(
+        stock.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"literal\",\"value\":\"0\"}")
+    );
+    // T11: decimal defaults stay exact (scale preserved, never Number).
+    let price = t15a_field(model, "price");
+    assert_eq!(
+        price.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"literal\",\"value\":\"1.50\"}")
+    );
+    let ratio = t15a_field(model, "ratio");
+    assert_eq!(
+        ratio.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"literal\",\"value\":\"0\"}")
+    );
+    let qty = t15a_field(model, "qty");
+    assert_eq!(
+        qty.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"literal\",\"value\":\"1\"}")
+    );
+    let state = t15a_field(model, "state");
+    assert_eq!(
+        state.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"literal\",\"value\":\"draft\"}")
+    );
+    // T09: ordinary arrays omit to empty, required arrays reject omission,
+    // nullable arrays yield null; all keep their marker.
+    let tags = t15a_field(model, "tags");
+    assert_eq!(tags.array_required, Some(false));
+    assert!(!tags.required && !tags.nullable);
+    let ids = t15a_field(model, "ids");
+    assert_eq!(ids.array_required, Some(true));
+    assert!(ids.required);
+    let nick = t15a_field(model, "nick");
+    assert_eq!(nick.array_required, Some(false));
+    assert!(nick.nullable && !nick.required);
+    // Self-reference resolves by canonical name (recursion without
+    // expansion).
+    match &t15a_field(model, "owner").field {
+        js::JsModelFieldType::Ref { model } => assert_eq!(model, "Shop.Gadget"),
+        other => panic!("self-ref tag: {other:?}"),
+    }
+    // Server-owned fields reject caller values and leave the inputs.
+    let by = t15a_field(model, "by");
+    assert!(by.server_only && !by.required);
+    assert_eq!(
+        by.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"server\"}")
+    );
+    let create = d03_operation(&artifact, "Shop.Gadget.create");
+    assert!(
+        create.inputs.iter().all(|input| input.name != "by"),
+        "server fields never caller-provided: {:?}",
+        create.inputs.iter().map(|i| &i.name).collect::<Vec<_>>()
+    );
+    // The envelope carries the models key per artifact.ts.
+    let json = artifact::to_json(&artifact);
+    assert!(json.contains("\"models\":[{"), "models key: {json}");
+    assert!(json.contains("\"deleteMode\":\"archive\""), "mode: {json}");
+    assert!(
+        json.contains("\"uniqueKeys\":[\"code\",\"title,stock\"]"),
+        "keys: {json}"
+    );
+}
+
+/// (T15a) Operation inputs end to end: array parameters map (ordinary,
+/// omission fills empty) instead of omitting the operation, literal
+/// parameter defaults carry, and nullable inputs flag — while CRUD
+/// create keeps required-`!` arrays required and update stays partial
+/// and default-less.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15a_operation_inputs_carry_arrays_defaults_nullable() {
+    let src = "app Shop\nGiven\n Gadget { title:text, tags:text[], ids:text[]!, stock:int=0 }\n policy Gadget read=members\nWhen\n scenario review(notes:text[], limit:int=10, nick:text?) by=members\n  do\n   let x = 1\n crud Gadget by=members fields=title,tags,ids,stock\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006"),
+        "no analysis gaps: {diags:?}"
+    );
+    // The array-parameter scenario is present (T09: no omitted behavior).
+    let review = d03_operation(&artifact, "Shop.review");
+    let notes = d03_input(review, "notes");
+    assert!(matches!(notes.field, js::JsMcpField::String));
+    assert_eq!(notes.array_required, Some(false));
+    assert!(!notes.required && !notes.nullable);
+    let limit = d03_input(review, "limit");
+    assert!(!limit.required && !limit.nullable);
+    assert_eq!(
+        limit.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"literal\",\"value\":\"10\"}")
+    );
+    let nick = d03_input(review, "nick");
+    assert!(nick.nullable && !nick.required);
+    assert!(nick.default.is_none() && nick.array_required.is_none());
+    // CRUD create: required `!` arrays stay required, ordinary arrays and
+    // defaulted fields do not; field defaults carry.
+    let create = d03_operation(&artifact, "Shop.Gadget.create");
+    let ids = d03_input(create, "ids");
+    assert_eq!(ids.array_required, Some(true));
+    assert!(ids.required);
+    let tags = d03_input(create, "tags");
+    assert_eq!(tags.array_required, Some(false));
+    assert!(!tags.required);
+    let stock = d03_input(create, "stock");
+    assert!(!stock.required);
+    assert_eq!(
+        stock.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"literal\",\"value\":\"0\"}")
+    );
+    // CRUD update: partial (all optional, defaults never apply) beside
+    // the versioned record; markers describe the value shape.
+    let update = d03_operation(&artifact, "Shop.Gadget.update");
+    let record = d03_input(update, "record");
+    assert!(record.required);
+    assert!(matches!(
+        record.field,
+        js::JsMcpField::Ref {
+            require_version: true,
+            ..
+        }
+    ));
+    for input in update.inputs.iter().filter(|i| i.name != "record") {
+        assert!(!input.required, "partial change: {}", input.name);
+        assert!(input.default.is_none(), "no defaults on update: {}", input.name);
+    }
+    let update_ids = d03_input(update, "ids");
+    assert_eq!(update_ids.array_required, Some(true));
+}
+
+/// (T15a) Ownership and recursion end to end: child models carry their
+/// canonical parent, app-scoped models carry `scope: app`, team scope is
+/// the default, and self/mutual references resolve by name.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15a_ownership_and_recursion() {
+    let src = "app Shop\nGiven\n Org { name:text }\n Team in Org { name:text }\n Member in Team { name:text, lead:Member? }\n Log in app { msg:text }\n Left { other:Right? }\n Right { other:Left? }\n policy Org read=members\n policy Team read=members\n policy Member read=members\n policy Log read=members\n policy Left read=members\n policy Right read=members\nWhen\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006"),
+        "no analysis gaps: {diags:?}"
+    );
+    let org = t15a_model(&artifact, "Shop.Org");
+    assert!(org.parent.is_none() && !org.scope_app);
+    let team = t15a_model(&artifact, "Shop.Team");
+    assert_eq!(team.parent.as_deref(), Some("Shop.Org"));
+    assert!(!team.scope_app);
+    let member = t15a_model(&artifact, "Shop.Member");
+    assert_eq!(member.parent.as_deref(), Some("Shop.Team"));
+    match &t15a_field(member, "lead").field {
+        js::JsModelFieldType::Ref { model } => assert_eq!(model, "Shop.Member"),
+        other => panic!("self-ref tag: {other:?}"),
+    }
+    let log = t15a_model(&artifact, "Shop.Log");
+    assert!(log.parent.is_none() && log.scope_app);
+    // Mutual recursion resolves by name on both sides.
+    match &t15a_field(t15a_model(&artifact, "Shop.Left"), "other").field {
+        js::JsModelFieldType::Ref { model } => assert_eq!(model, "Shop.Right"),
+        other => panic!("mutual-ref tag: {other:?}"),
+    }
+    match &t15a_field(t15a_model(&artifact, "Shop.Right"), "other").field {
+        js::JsModelFieldType::Ref { model } => assert_eq!(model, "Shop.Left"),
+        other => panic!("mutual-ref tag: {other:?}"),
+    }
+    let json = artifact::to_json(&artifact);
+    assert!(json.contains("\"parent\":\"Shop.Org\""), "parent: {json}");
+    assert!(json.contains("\"scope\":\"app\""), "scope: {json}");
+}
+
+/// (T15a) Parent defaults, delete modes and derived fields end to end:
+/// `=parent.path` records the dot path, `delete=remove`/`delete=none`
+/// map (none disables the delete operation), and derived fields render
+/// with the `derived` marker while staying out of operation inputs.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15a_parent_defaults_delete_modes_derived() {
+    let src = "app Shop\nGiven\n Team { name:text, owner:user }\n Member in Team { name:text, buddy:user=parent.owner }\n Doc { title:text }\n Archive { title:text }\n policy Team read=members\n policy Member read=members\n policy Doc read=members\n policy Archive read=members\n derive Member.shout:text = row.name\nWhen\n crud Member by=members fields=name,buddy\n crud Doc by=members fields=title delete=remove\n crud Archive by=members fields=title delete=none\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006"),
+        "no analysis gaps: {diags:?}"
+    );
+    let member = t15a_model(&artifact, "Shop.Member");
+    let buddy = t15a_field(member, "buddy");
+    assert!(!buddy.required, "parent default fills omission");
+    assert_eq!(
+        buddy.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"parent\",\"path\":\"owner\"}")
+    );
+    let create = d03_operation(&artifact, "Shop.Member.create");
+    let create_buddy = d03_input(create, "buddy");
+    assert!(!create_buddy.required);
+    assert_eq!(
+        create_buddy.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"parent\",\"path\":\"owner\"}")
+    );
+    // Derived fields: present in the model, absent from inputs.
+    let shout = t15a_field(member, "shout");
+    assert!(shout.server_only && !shout.required);
+    assert_eq!(
+        shout.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"derived\"}")
+    );
+    assert!(
+        create.inputs.iter().all(|input| input.name != "shout"),
+        "derived never an input: {:?}",
+        create.inputs.iter().map(|i| &i.name).collect::<Vec<_>>()
+    );
+    // Delete modes map; delete=none disables the delete operation.
+    assert_eq!(t15a_model(&artifact, "Shop.Member").delete_mode, "archive");
+    assert_eq!(t15a_model(&artifact, "Shop.Doc").delete_mode, "remove");
+    assert_eq!(t15a_model(&artifact, "Shop.Archive").delete_mode, "none");
+    assert!(
+        artifact.operations.iter().any(|op| op.name == "Shop.Doc.delete"),
+        "remove keeps delete: {:?}",
+        artifact.operations.iter().map(|op| &op.name).collect::<Vec<_>>()
+    );
+    assert!(
+        artifact
+            .operations
+            .iter()
+            .all(|op| op.name != "Shop.Archive.delete"),
+        "none disables delete: {:?}",
+        artifact.operations.iter().map(|op| &op.name).collect::<Vec<_>>()
+    );
+    assert!(
+        artifact
+            .operations
+            .iter()
+            .any(|op| op.name == "Shop.Archive.create"),
+        "none keeps create/update"
+    );
+}
+
+/// (T15a) Callable identity: every scenario and generated CRUD operation
+/// descriptor links to exactly one callable registry entry with a valid
+/// member path; policy-read descriptors (denied-not-unknown metadata)
+/// intentionally have none.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15a_callable_identity() {
+    let src = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\n scenario approve(note:text) by=members\n  do\n   let x = 1\n crud Gadget by=members fields=title\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006"),
+        "no analysis gaps: {diags:?}"
+    );
+    for name in [
+        "Shop.approve",
+        "Shop.Gadget.create",
+        "Shop.Gadget.update",
+        "Shop.Gadget.delete",
+    ] {
+        assert!(
+            artifact.operations.iter().any(|op| op.name == name),
+            "operation {name} present"
+        );
+        let linked: Vec<_> = artifact
+            .callables
+            .iter()
+            .filter(|callable| callable.id == name)
+            .collect();
+        assert_eq!(linked.len(), 1, "one callable for {name}");
+        let callable = linked[0];
+        assert!(!callable.member.is_empty(), "{name} member path");
+        assert!(
+            callable.member.iter().all(|segment| !segment.is_empty()),
+            "{name} segments: {:?}",
+            callable.member
+        );
+        assert!(!callable.module.is_empty() && !callable.export.is_empty());
+    }
+    // Policy reads publish descriptors without callables (no handler).
+    assert!(
+        artifact
+            .operations
+            .iter()
+            .any(|op| op.name == "Shop.Gadget.read"),
+        "read descriptor present"
+    );
+    assert!(
+        artifact
+            .callables
+            .iter()
+            .all(|callable| callable.id != "Shop.Gadget.read"),
+        "read descriptors link no callable"
+    );
+}
+
+/// (T15a) Example separation: test artifacts live under `tests/` with
+/// non-empty scopes, production modules never import them, and every
+/// module (production and test) imports only allowlisted sources.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15a_example_separation() {
+    let (db, id) = load_example("TeamTasks.can");
+    let (catalog, path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    let (artifact, _diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(!artifact.tests.is_empty(), "suites emit test artifacts");
+    for test in &artifact.tests {
+        assert!(!test.scope.is_empty(), "scope pins the operation");
+        assert!(
+            test.module.path.starts_with("tests/"),
+            "test-only path: {}",
+            test.module.path
+        );
+        assert_imports_allowlisted(&test.module.js, &test.module.path);
+    }
+    for (index, module) in artifact.modules.iter().enumerate() {
+        assert!(
+            !module.js.contains("exampleFixtures"),
+            "production module {index} never references test factories"
+        );
+        assert!(
+            !module.js.contains("tests/"),
+            "production module {index} never imports tests"
+        );
+        assert_imports_allowlisted(&module.js, &module.path);
+        assert_sourcemap_valid(&artifact, index, &db, &module.path);
+    }
+    // Scopes resolve to emitted operations or fixture identities (never
+    // dangling anonymous scopes).
+    for test in &artifact.tests {
+        let known_operation = artifact.operations.iter().any(|op| op.name == test.scope);
+        let known_fixture = test.fixtures.iter().any(|f| f == &test.scope);
+        assert!(
+            known_operation || known_fixture,
+            "scope resolves: {} (fixtures: {:?})",
+            test.scope,
+            test.fixtures
+        );
+    }
+}
+
+/// (T15a) Fail-closed omission is surgical: a `duration`-typed scenario
+/// input (T04b scope) omits only that operation — siblings, models (the
+/// duration field keeps its source-exact tag) and duration-free CRUD
+/// operations stay — while a CRUD allowlist naming the duration field
+/// omits that operation (no partial closed schema).
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15a_negative_exotic_omits_operation_only() {
+    let src = "app Shop\nGiven\n Gadget { title:text, window:duration }\n Timer { window:duration }\n policy Gadget read=members\n policy Timer read=members\nWhen\n scenario slow(wait:duration) by=members\n  do\n   let x = 1\n scenario fast(note:text) by=members\n  do\n   let x = 1\n crud Gadget by=members fields=title\n crud Timer by=members fields=window\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006"),
+        "no analysis gaps: {diags:?}"
+    );
+    let names: Vec<_> = artifact.operations.iter().map(|op| &op.name).collect();
+    assert!(!names.iter().any(|n| n.as_str() == "Shop.slow"), "exotic omitted: {names:?}");
+    assert!(names.iter().any(|n| n.as_str() == "Shop.fast"), "sibling kept: {names:?}");
+    assert!(
+        names.iter().any(|n| n.as_str() == "Shop.Gadget.create"),
+        "duration-free crud kept: {names:?}"
+    );
+    assert!(
+        !names.iter().any(|n| n.as_str() == "Shop.Timer.create"),
+        "exotic allowlist omits (no partial schema): {names:?}"
+    );
+    // Models stay complete: the duration field keeps its source-exact tag.
+    let window = t15a_field(t15a_model(&artifact, "Shop.Gadget"), "window");
+    assert!(matches!(window.field, js::JsModelFieldType::Duration));
+}
+
+/// (T15a) A model field literally named `record` collides with the
+/// synthesized update ref: update omits (no ambiguous schema) while
+/// create (flat inputs, no synthesis) and delete (bare ref) stay.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15a_negative_duplicate_record_name() {
+    let src = "app Shop\nGiven\n Gadget { title:text, record:text }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title,record\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006"),
+        "no analysis gaps: {diags:?}"
+    );
+    let names: Vec<_> = artifact
+        .operations
+        .iter()
+        .map(|op| op.name.as_str())
+        .collect();
+    assert!(names.contains(&"Shop.Gadget.create"), "create kept: {names:?}");
+    assert!(!names.contains(&"Shop.Gadget.update"), "update omits: {names:?}");
+    assert!(names.contains(&"Shop.Gadget.delete"), "delete kept: {names:?}");
+}
+
+/// (T15a) The emitted envelope uses only closed descriptor kinds: every
+/// operation input kind is one of the 9 L3-mirrored kinds, every model
+/// field kind is one of the 17 `ArtifactModelFieldType` members, every
+/// delete mode is `archive`/`remove`/`none`, and no unknown kind string
+/// appears anywhere in the envelope.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15a_negative_kinds_closed() {
+    let src = "app Shop\nGiven\n Team { name:text, owner:user }\n Member in Team { name:text, buddy:user=parent.owner, tags:text[] }\n Gadget { title:text, stock:int=0, state:enum(draft,submitted)=draft }\n policy Team read=members\n policy Member read=members\n policy Gadget read=members\n derive Member.shout:text = row.name\nWhen\n scenario review(notes:text[]) by=members\n  do\n   let x = 1\n crud Member by=members fields=name,buddy,tags\n crud Gadget by=members fields=title,stock,state delete=remove\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006"),
+        "no analysis gaps: {diags:?}"
+    );
+    let json = artifact::to_json(&artifact);
+    let parsed = canlang_compiler::json::parse(&json).expect("envelope parses");
+    let closed_inputs = [
+        "ref",
+        "string",
+        "integer",
+        "decimal",
+        "money",
+        "datetime",
+        "boolean",
+        "file",
+        "enum",
+    ];
+    let closed_model_kinds = [
+        "ref",
+        "string",
+        "integer",
+        "decimal",
+        "money",
+        "datetime",
+        "boolean",
+        "file",
+        "enum",
+        "date",
+        "duration",
+        "secret",
+        "user",
+        "member",
+        "json",
+        "bytes",
+        "other",
+    ];
+    let operations = parsed.get("operations").and_then(|v| v.as_arr()).expect("operations");
+    assert!(!operations.is_empty(), "operations present");
+    for op in operations {
+        let kind = op.get("kind").and_then(|v| v.as_str()).expect("op kind");
+        assert!(
+            ["read", "create", "update", "delete", "scenario"].contains(&kind),
+            "operation kind closed: {kind}"
+        );
+        let fields = op
+            .get("inputs")
+            .and_then(|v| v.get("fields"))
+            .and_then(|v| v.as_arr())
+            .expect("input fields");
+        for input in fields {
+            let field_kind = input
+                .get("field")
+                .and_then(|v| v.get("kind"))
+                .and_then(|v| v.as_str())
+                .expect("input kind");
+            assert!(
+                closed_inputs.contains(&field_kind),
+                "input kind closed: {field_kind}"
+            );
+            assert!(
+                input.get("required").and_then(|v| v.as_bool()).is_some(),
+                "required always renders"
+            );
+        }
+    }
+    let models = parsed.get("models").and_then(|v| v.as_arr()).expect("models");
+    assert_eq!(models.len(), 3, "every model emits");
+    for model in models {
+        let mode = model.get("deleteMode").and_then(|v| v.as_str()).expect("mode");
+        assert!(["archive", "remove", "none"].contains(&mode), "mode closed: {mode}");
+        let fields = model.get("fields").and_then(|v| v.as_arr()).expect("fields");
+        assert!(!fields.is_empty(), "model has fields");
+        for field in fields {
+            let field_kind = field
+                .get("field")
+                .and_then(|v| v.get("kind"))
+                .and_then(|v| v.as_str())
+                .expect("field kind");
+            assert!(
+                closed_model_kinds.contains(&field_kind),
+                "model kind closed: {field_kind}"
+            );
+        }
+    }
+    // No unknown-kind leakage anywhere in the envelope.
+    for marker in ["\"kind\":\"unknown\"", "\"kind\":\"delivery\"", "\"kind\":\"action\""] {
+        assert!(!json.contains(marker), "no {marker} in envelope");
+    }
+}
+
+/// (T15a) Structural literal defaults encode recursively: an array
+/// literal default renders its exact elements (T10 slice through the
+/// descriptor chain).
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15a_structural_literal_default() {
+    let src = "app Shop\nGiven\n Gadget { title:text, tags:text[]=[\"a\",\"b\"] }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title,tags\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006"),
+        "no analysis gaps: {diags:?}"
+    );
+    let tags = t15a_field(t15a_model(&artifact, "Shop.Gadget"), "tags");
+    assert_eq!(tags.array_required, Some(false));
+    assert!(
+        !tags.required,
+        "defaulted array fills its default, marker kept"
+    );
+    assert_eq!(
+        tags.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"literal\",\"value\":[\"a\",\"b\"]}")
+    );
+    let create = d03_operation(&artifact, "Shop.Gadget.create");
+    let input = d03_input(create, "tags");
+    assert_eq!(
+        input.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"literal\",\"value\":[\"a\",\"b\"]}")
+    );
+}

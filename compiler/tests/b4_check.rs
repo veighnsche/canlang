@@ -1973,8 +1973,10 @@ fn t11_int_bound_rejects_decimal() {
 // against the consumed owner schemas: unknown inputs, value
 // mismatches and missing required inputs fail with the same codes as
 // local operations. Unknown operations of known capabilities are
-// wrong associations (verified wrong, never opaque). T13b/unknown
-// targets keep their opaque treatment (the T14b remainder).
+// wrong associations (verified wrong, never opaque). Unknown members
+// keep their opaque treatment; T13b targets validate per the T14b
+// section below (T14b lifted the scope gate, superseding the two
+// T14a remainder pins).
 
 /// (T14a) A complete `Mail.send` checks clean with `attachments`
 /// omitted (B9: default-empty per DESIGN §8 `=[]`; CanApprove:268
@@ -2241,26 +2243,6 @@ fn t14a_std_delivery_wrong_op() {
     );
 }
 
-/// (T14a) T13b scope is untouched: an `LLM.generate` send stays
-/// `E3019` (the T14b remainder).
-#[test]
-fn t14a_t13b_send_stays_e3019() {
-    let catalog = fixture();
-    let src = "app T uses=[p]\npackage p\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send LLM.generate {value=\"hi\"} as attempt\n Then\n";
-    let diags = check(src, Some(&catalog));
-    assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
-}
-
-/// (T14a) T13b scope is untouched: an `LLM.generate` recipe stays
-/// `E3019` (the T14b remainder).
-#[test]
-fn t14a_t13b_recipe_stays_e3019() {
-    let catalog = fixture();
-    let src = "app T uses=[p]\npackage p\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  fixture r=LLM.generate {request={value=\"hi\"}}\n When\n Then\n";
-    let diags = check(src, Some(&catalog));
-    assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
-}
-
 /// (T14a) Unknown `std` members stay opaque: no schema is guessed.
 #[test]
 fn t14a_std_unknown_member_stays_e3019() {
@@ -2268,4 +2250,377 @@ fn t14a_std_unknown_member_stays_e3019() {
     let src = "app T uses=[p]\npackage p\n use std {Bogus} from=deployment.bogus\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Bogus.op {value=\"hi\"} as attempt\n Then\n";
     let diags = check(src, Some(&catalog));
     assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
+}
+
+// --- T14b richer bound-send/recipe validation against T13b owner schemas ---
+//
+// The T14a scope gate is lifted to the full consumed T13 tables:
+// TextGenerationV1/LLM, ImagesV1 and MailboxV1/Post sends and recipes
+// validate against their owner schemas with the same codes as local
+// operations (`E3010`/`E3001` sends, `E3015` recipes); unknown
+// operations of known capabilities are wrong associations, verified
+// wrong. `std` is compiler-known (B1): unbound known members bind as
+// externals so nominal type positions resolve, unknown members are
+// `E2004`. Bound nominals normalize to the same binding (B11).
+// Remainder: the scoped-out Handbook interface stays `E3019`;
+// nominal leaf/field shapes stay unchecked (no T13 leaf tables — a
+// T13c-style transcription need, never invented here); cross-target
+// delivery-value association needs a `ResolvedType` extension (std
+// receipts stay opaque); `on=` handlers bear no `E3019` and are out
+// of scope.
+
+/// (T14b) Supersedes the T14a `E3019` remainder pin: an
+/// `LLM.generate` send validates, with its nominal `value` passed
+/// through presence-checked (consumed schema is nominal-only there).
+#[test]
+fn t14b_std_send_llm_generate_clean() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send LLM.generate {value=\"hi\"} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "LLM.generate bindings: {diags:?}");
+}
+
+/// (T14b) Supersedes the T14a `E3019` remainder pin: an
+/// `LLM.generate` recipe validates its nominal `request=` value.
+#[test]
+fn t14b_std_recipe_llm_generate_clean() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  fixture r=LLM.generate {request={value=\"hi\"}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "LLM.generate recipe: {diags:?}");
+}
+
+/// (T14b) `LLM.cancel` validates its text/int addressing inputs
+/// (CanChat:120 shape).
+#[test]
+fn t14b_std_send_llm_cancel_clean() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  M { s:text, n:int }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send LLM.cancel {source=m.s,revision=m.n} as cancellation\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "cancel bindings: {diags:?}");
+}
+
+/// (T14b) `Images.inspect` accepts a file-typed graph
+/// (CanCreative:68 shape).
+#[test]
+fn t14b_std_send_images_inspect_clean() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  M { graph:file }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Images.inspect {graph=m.graph} as inspection\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "inspect bindings: {diags:?}");
+}
+
+/// (T14b) `Images.submit` passes its nominal request value through
+/// (CanCreative:103 shape, simplified).
+#[test]
+fn t14b_std_send_images_submit_clean() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Images.submit {value=\"req\"} as request\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "submit bindings: {diags:?}");
+}
+
+/// (T14b) `Post.reply` passes its nominal reply value through
+/// (CanInbox:212 shape, simplified).
+#[test]
+fn t14b_std_send_post_reply_clean() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {MailboxV1 as Post} from=deployment.inbox\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Post.reply {value=\"req\"} as delivery\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "reply bindings: {diags:?}");
+}
+
+/// (T14b) `Post.reconcile` is source-addressed only (CanInbox:227
+/// shape): no revision input exists.
+#[test]
+fn t14b_std_send_post_reconcile_clean() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {MailboxV1 as Post} from=deployment.inbox\n Given\n  M { s:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Post.reconcile {source=m.s} as reconciliation\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "reconcile bindings: {diags:?}");
+}
+
+/// (T14b) A `Post.reconcile` recipe validates its source-only
+/// `request=` with an unknown envelope (CanInbox:83 shape).
+#[test]
+fn t14b_std_recipe_post_reconcile_clean() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {MailboxV1 as Post} from=deployment.inbox\n Given\n  fixture check_receipt=Post.reconcile {request={source=\"reply-2\"},status=unknown}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "reconcile recipe: {diags:?}");
+}
+
+/// (T14b) An `Images.validate` recipe validates its nominal
+/// `request=` value (CanCreative:47 shape, simplified).
+#[test]
+fn t14b_std_recipe_images_validate_clean() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  fixture checked=Images.validate {request={value=\"def\"}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "validate recipe: {diags:?}");
+}
+
+/// (T14b) `delivery()` over a known T13b operation keeps its silent
+/// opaque treatment (cross-target association needs a
+/// `ResolvedType` extension, out of scope).
+#[test]
+fn t14b_std_delivery_t13b_known_silent() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  M { delivery:delivery(LLM.generate)? }\n  policy M read=members fields=delivery.status\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "known T13b delivery(): {diags:?}");
+}
+
+/// (T14b/B1) An unbound `std` nominal import resolves: the field
+/// type position is reachable with no `E2005` and no `E2001`.
+#[test]
+fn t14b_b1_unbound_nominal_type_position() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextRequest}\n Given\n  M { request:TextRequest }\n  policy M read=members\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "unbound nominal type: {diags:?}");
+}
+
+/// (T14b/B1) Nominal values construct without leaf validation
+/// and flow into nominal send inputs silently (no T13 leaf tables
+/// exist to check entries against; the entries stay unchecked,
+/// never invented).
+#[test]
+fn t14b_b1_unbound_nominal_construct() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextRequest}\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send LLM.generate {value=TextRequest {source=\"s\"}} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "nominal construct: {diags:?}");
+}
+
+/// (T14b/B1) A nominal-typed model-fixture flow surfaces `E3015`
+/// per the established opaque-mismatch rule (`types_compatible`
+/// never unifies `Opaque`; cf. the baseline `derived field:
+/// expected {opaque}, found {opaque}` siblings): the checker
+/// honestly cannot verify the flow without T13 leaf tables, so it
+/// reports instead of blindly accepting. Verification is owed to a
+/// T13c-style leaf-table transcription, out of T14b scope.
+#[test]
+fn t14b_b1_nominal_fixture_flow_surfaces_e3015() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextRequest}\n Given\n  M { request:TextRequest }\n  policy M read=members\n  fixture r=M {request=TextRequest {source=\"s\"}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'request': expected {opaque}, found {opaque}"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14b/B11) A bound nominal import normalizes to the same binding
+/// as the unbound form: `from=` on a value type carries no binding
+/// meaning (CanApprove:8 shape).
+#[test]
+fn t14b_b11_bound_nominal_type_position() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail,DeliveryResult} from=deployment.mail\n Given\n  M { outcome:DeliveryResult }\n  policy M read=members\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "bound nominal type: {diags:?}");
+}
+
+/// (T14b/B1) The compiler-known rule is uniform: an unbound known
+/// capability binds external exactly like the bound form (the
+/// `External` binding carries no bound flag; std dispatch binding
+/// is a T24 concern, not a T14b gate).
+#[test]
+fn t14b_b1_unbound_capability_resolves() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail}\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"Review\",body=\"Plan\"} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "unbound capability send: {diags:?}");
+}
+
+/// (T14b) Missing addressing inputs fail `E3010` per input.
+#[test]
+fn t14b_std_send_llm_cancel_missing_revision() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  M { s:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send LLM.cancel {source=m.s} as cancellation\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("missing required input 'revision'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14b) Protected-handle fabrication fails: `graph` must be
+/// file-typed, never raw text.
+#[test]
+fn t14b_std_send_images_inspect_graph_text() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Images.inspect {graph=\"x\"} as inspection\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'graph': expected file, found text"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14b) Mistyped addressing inputs fail `E3001`.
+#[test]
+fn t14b_std_send_llm_cancel_revision_text() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  M { s:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send LLM.cancel {source=m.s,revision=\"x\"} as cancellation\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'revision': expected int, found text"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14b) `Post.reconcile` takes no revision: source-only
+/// addressing rejects the extra input with `E3010`.
+#[test]
+fn t14b_std_send_post_reconcile_with_revision() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {MailboxV1 as Post} from=deployment.inbox\n Given\n  M { s:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Post.reconcile {source=m.s,revision=1} as reconciliation\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'Post.reconcile' has no input 'revision'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14b) A `send` to an operation outside the T13b owner schema is
+/// a wrong association (`E3010`): no `E3019` follows.
+#[test]
+fn t14b_std_send_images_wrong_op() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Images.bogus {value=\"x\"} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'std.ImagesV1' has no sendable operation 'bogus'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14b) Unknown recipe request inputs fail `E3015` like local
+/// operation recipes.
+#[test]
+fn t14b_std_recipe_post_reply_unknown_input() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {MailboxV1 as Post} from=deployment.inbox\n Given\n  fixture r=Post.reply {request={value=\"x\",bogus=1}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("unknown request input 'bogus' for Post.reply"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14b) A recipe over an operation outside the T13b owner schema
+/// is a wrong association (`E3015`): no `E3019` follows.
+#[test]
+fn t14b_std_recipe_images_wrong_op() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  fixture r=Images.bogus {request={value=\"x\"}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'std.ImagesV1' has no sendable operation 'bogus'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14b) A `delivery()` over an operation outside the T13b owner
+/// schema is a wrong association (`E3010`).
+#[test]
+fn t14b_std_delivery_llm_wrong_op() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  M { delivery:delivery(LLM.bogus)? }\n  policy M read=members\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'std.TextGenerationV1' has no sendable operation 'bogus'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14b/B1) An unknown member of the known `std` provider is
+/// `E2004` (the member is not declared; the provider is).
+#[test]
+fn t14b_b1_unbound_unknown_member() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {Bogus}\n Given\n  M { t:text }\n  policy M read=members\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2004"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("import member 'Bogus' is not declared in 'std'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14b/B1) Membership is per member: a mixed line binds the known
+/// nominal and rejects only the unknown member.
+#[test]
+fn t14b_b1_mixed_line_binds_known_rejects_unknown() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextRequest,Bogus}\n Given\n  M { request:TextRequest }\n  policy M read=members\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2004"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("import member 'Bogus' is not declared in 'std'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14b/B1) B1 is `std`-only: other unknown providers still fail
+/// `E2005` when unbound.
+#[test]
+fn t14b_b1_nonstd_unbound_provider_stays_e2005() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use bogus {X}\n Given\n  M { t:text }\n  policy M read=members\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2005"], "{diags:?}");
+}
+
+/// (T14b) The B8 scoped-out Handbook interface keeps `E3019`: no
+/// executable schemas exist, so no validation is guessed.
+#[test]
+fn t14b_handbook_send_stays_e3019() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {Handbook} from=deployment.knowledge\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Handbook.answer {value=\"hi\"} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("cannot verify send to 'Handbook.answer'"),
+        "{}",
+        diags[0].message
+    );
 }
