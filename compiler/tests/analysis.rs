@@ -833,6 +833,27 @@ fn draft_outcome_table() {
     // resolves single-file (same-file owner). Differential
     // isolated without Git: /tmp dumps retained
     // (t35r24-base-corpus.json, t35r24-new-corpus.json).
+    // T35/R23 re-pin 2026-10-05 (imported CRUD sequences resolve to
+    // the canonical owner's exported operations: resolve registers
+    // `{Importer}.{Model}.{op}` aliases gated on the owner's own
+    // enabled-op registration): 52 files unchanged, zero table
+    // movement; table total holds at 5046. Single-file the R23
+    // owners are unresolvable externals (no `customer`/`todo`
+    // provider in the file), so no alias registers and the table
+    // reproduces 52/52 on both binaries. Whole-corpus (all-52)
+    // differential 2072 -> 2066 (-6): removed E5006 x6, the only
+    // E5006s corpus-wide (the family is now zero) = Mail:143
+    // `Contact.update` + :152 `Contact.delete` (owner `customer`,
+    // CanCustomer.can:74 full crud, model exported :18) +
+    // Workbench:128 `Task.update` (owner `todo`, CanDo.can:55 full
+    // crud, model exported :24) + same-class siblings Member:648
+    // and Reception:148 `Contact.update` (plain `customer`
+    // imports, CanMember.can:72 / CanReception.can:7) and
+    // Workbench:162 `Task.update`. Added 0: every other family is
+    // bit-identical. Disabled/absent/private/bound/ambiguous
+    // boundaries pinned by t35r23_ tests (b4_check + b4_resolve).
+    // Differential isolated without Git: /tmp dumps retained
+    // (t35r23-base-corpus.json, t35r23-new-corpus.json).
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 48),
         ("draft/CanApprove.can", 47),
