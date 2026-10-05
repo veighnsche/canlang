@@ -743,6 +743,12 @@ export type CanonicalFieldDefault =
  * `kind === 'enum'`, in declaration order. `default` records the
  * source-declared default; admission still rejects unknown members and
  * missing required inputs (closed shape).
+ *
+ * T04b-p adds the `delivery` member (additive): a T14c typed `std`
+ * receipt input carrying the ratified
+ * {@link CanonicalDeliveryDescriptor} shared with model field tags
+ * (one shape, no drift). Unknown kinds still reject the whole
+ * descriptor set; loader consumption is a later T16 join.
  */
 export type CanonicalInputDef =
   | {
@@ -758,6 +764,13 @@ export type CanonicalInputDef =
       readonly kind: CanonicalScalarKind;
       readonly required: boolean;
       readonly enumValues?: ReadonlyArray<string>;
+      readonly default?: CanonicalFieldDefault;
+    }
+  | {
+      readonly name: string;
+      readonly kind: 'delivery';
+      readonly delivery: CanonicalDeliveryDescriptor;
+      readonly required: boolean;
       readonly default?: CanonicalFieldDefault;
     };
 
@@ -777,12 +790,18 @@ export interface CanonicalOperationDescriptor {
  * T04a canonical model field. `serverOnly` fields reject caller-supplied
  * values; `array` records ordinary (omit-to-empty) versus required (omission
  * rejects) arrays per T09. Absent `array` means a singular field.
+ *
+ * T04b-p adds the optional `delivery` member (additive): present exactly
+ * when the stored field is a T14c typed `std` receipt, carrying the
+ * ratified {@link CanonicalDeliveryDescriptor} shared with operation
+ * inputs (one shape, no drift). T04a-era consumers ignore it.
  */
 export interface CanonicalFieldDef {
   readonly required: boolean;
   readonly serverOnly: boolean;
   readonly array?: { readonly required: boolean };
   readonly default?: CanonicalFieldDefault;
+  readonly delivery?: CanonicalDeliveryDescriptor;
 }
 
 /**
@@ -822,3 +841,80 @@ export interface ExampleStateObservation {
   readonly query: QuerySpec;
   readonly revision: Revision;
 }
+
+/* -- T04b-p: provider-descriptor ratification (L3-led contract join). -- */
+
+/**
+ * T04b-p intake rule (DEFINED here; loader CONSUMPTION is a later T16
+ * join, never this slice): the ratified input-kind set is `ref`, the
+ * eight T04a scalars, and `delivery`. Unknown kinds reject the whole
+ * descriptor set (T04a §3/§7, unchanged). The per-capability `version`
+ * inside a delivery descriptor must equal the frozen capability
+ * contract version exactly (T04a §7 fencing, never negotiated at
+ * runtime); mismatch is an incompatible artifact with a precise error,
+ * never a silent fallback. `EXECUTION_CONTRACT_VERSION` stays 1: old
+ * consumers precisely reject the unknown `delivery` kind, so this
+ * growth is additive-only. Ratification record:
+ * `implementation/challenge-audit-run/evidence/execution-contract.md`
+ * §10.
+ */
+
+/**
+ * T04b-p verbatim provider-result leaf. Mirrors L1 `ArtifactNominalLeaf`
+ * (`artifact.ts`); the two JSON shapes must stay identical.
+ *
+ * `type` keeps the T13c transcribed kind spelling (`text?`, `file[]`,
+ * `enum(a,b)`, nominal refs) verbatim — never a re-interpretation.
+ * Ratification decision (evidence §10): no structured tag vocabulary
+ * is grounded in any owner contract, so the intake carries the
+ * verbatim string; any future structured vocabulary derives from
+ * these leaves without loss.
+ */
+export interface CanonicalNominalLeaf {
+  readonly name: string;
+  readonly type: string;
+}
+
+/**
+ * T04b-p provider-result nominal. Mirrors L1 `ArtifactNominalResult`
+ * (`artifact.ts`); the two JSON shapes must stay identical. `name` is
+ * the source nominal spelling (e.g. `ImageRun`, never a TS wire
+ * alias); `fields` are the T13c leaves in producer order.
+ */
+export interface CanonicalNominalResult {
+  readonly name: string;
+  readonly fields: ReadonlyArray<CanonicalNominalLeaf>;
+}
+
+/**
+ * T04b-p canonical provider delivery descriptor. Mirrors L1
+ * `ArtifactDeliveryDescriptor` (emitted by T15b `delivery_descriptor`
+ * for T14c typed `std` receipts); the two JSON shapes must stay
+ * identical — one shape shared by operation inputs
+ * (`CanonicalInputDef`) and model field tags (`CanonicalFieldDef`),
+ * no drift.
+ *
+ * `capability` + `operation` is the T13 send-target identity (the
+ * `std.EmailV1.send` vocabulary); `version` is the frozen capability
+ * contract version fenced per T04a §7; `result` is the declared
+ * provider result with its T13c leaves. Bound-local deliveries have
+ * no T13 contract identity and never take this shape.
+ */
+export interface CanonicalDeliveryDescriptor {
+  readonly kind: 'delivery';
+  readonly capability: string;
+  readonly operation: string;
+  readonly version: number;
+  readonly result: CanonicalNominalResult;
+}
+
+/**
+ * T04b-p ratified delivery recipe key: `delivery:<qualified-send-target>`
+ * (e.g. `delivery:std.EmailV1.send`). The target is the T13 vocabulary
+ * (`work.ts` observables, `catalog.rs` `delivery_observable`); the
+ * `delivery:` head is the T14c/T15b recipe tag. Bound-local
+ * deliveries never take this form. The module-named-`std` collision
+ * rule lives in evidence §10 (declared module shadows the
+ * compiler-known provider, grounded in `resolve.rs` import order).
+ */
+export type DeliveryRecipeKey = string & { readonly __brand: 'DeliveryRecipeKey' };
