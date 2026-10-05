@@ -2548,6 +2548,9 @@ impl<'a> Typer<'a> {
         if let Some(label) = attribute_value(node, "label", text) {
             self.check_scalar_caption(&cx, label, "label");
         }
+        if let Some(expose) = attribute_value(node, "expose", text) {
+            self.check_scenario_expose(text, expose);
+        }
         // Leading guards narrow the `do` body.
         let mut env = NarrowEnv::default();
         // A validated declared event types the handler payload:
@@ -4932,6 +4935,12 @@ impl<'a> Typer<'a> {
         }
         let mut seen: Vec<String> = Vec::new();
         for child in kids(expose) {
+            // Comma separators carry no word (mirrors
+            // `check_selectors`; without this multi-value
+            // allowlists spuriously fail on the comma).
+            if child.kind == SyntaxKind::Punct {
+                continue;
+            }
             let word = match child.kind {
                 SyntaxKind::Path => {
                     let segments = path_segments(child, text);
@@ -4989,6 +4998,71 @@ impl<'a> Typer<'a> {
                     tight_span(text, expose),
                 ));
             }
+        }
+    }
+
+    /// Check scenario `expose=`: sole `none` (closed set), mirroring
+    /// the CRUD publication allowlist (`E3009`). Omission exposes the
+    /// operation (current behavior); `none` excludes it from
+    /// publication. Unknown selectors, duplicates and non-word shapes
+    /// fail checking with a precise diagnostic.
+    ///
+    /// EXTENSION POINT: future publication surfaces (e.g. `http`,
+    /// `mcp`) widen this closed set. Each new surface needs its
+    /// emission rule beside the `expose=none` skip in
+    /// `collect_operations` (`codegen/js.rs`).
+    fn check_scenario_expose(&mut self, text: &str, expose: &SyntaxNode) {
+        if expose.kind != SyntaxKind::Selectors {
+            return;
+        }
+        let mut seen: Vec<String> = Vec::new();
+        for child in kids(expose) {
+            // Comma separators carry no word (mirrors
+            // `check_selectors`).
+            if child.kind == SyntaxKind::Punct {
+                continue;
+            }
+            let word = match child.kind {
+                SyntaxKind::Path => {
+                    let segments = path_segments(child, text);
+                    if segments.len() != 1 {
+                        self.diags.push(Diagnostic::error(
+                            "E3009",
+                            "expose= accepts only sole none".to_string(),
+                            tight_span(text, child),
+                        ));
+                        continue;
+                    }
+                    segments[0].to_string()
+                }
+                _ => {
+                    self.diags.push(Diagnostic::error(
+                        "E3009",
+                        "expose= accepts only sole none".to_string(),
+                        tight_span(text, child),
+                    ));
+                    continue;
+                }
+            };
+            if word != "none" {
+                self.diags.push(Diagnostic::error(
+                    "E3009",
+                    format!(
+                        "unknown exposed surface '{word}' (scenario expose= accepts only none)"
+                    ),
+                    tight_span(text, child),
+                ));
+                continue;
+            }
+            if seen.contains(&word) {
+                self.diags.push(Diagnostic::error(
+                    "E3009",
+                    format!("duplicate exposed surface '{word}'"),
+                    tight_span(text, child),
+                ));
+                continue;
+            }
+            seen.push(word);
         }
     }
 

@@ -83,6 +83,61 @@ export interface ArtifactCallable {
 }
 
 /**
+ * One closed typed input field of an operation descriptor (MCP P1).
+ *
+ * JSON shape of `McpSchemaField` (`@canlang/interfaces` ports.ts),
+ * redeclared here so this lane-01 boundary stays dependency-free. The
+ * two shapes must stay JSON-identical: `ref` carries the canonical
+ * model plus the version requirement; `enum` carries case spellings in
+ * declaration order; every other kind is a bare tag.
+ */
+export type ArtifactOperationField =
+  | { kind: 'ref'; model: string; requireVersion: boolean }
+  | { kind: 'string' }
+  | { kind: 'integer' }
+  | { kind: 'decimal' }
+  | { kind: 'money' }
+  | { kind: 'datetime' }
+  | { kind: 'boolean' }
+  | { kind: 'file' }
+  | { kind: 'enum'; values: string[] };
+
+/** One named operation input (JSON shape of `McpNamedField`). */
+export interface ArtifactOperationInput {
+  /** Input name (parameter or flattened model field). */
+  name: string;
+  field: ArtifactOperationField;
+  /** Whether the caller must supply the member. */
+  required: boolean;
+  /**
+   * Authored `@{desc="..."}` text, verbatim (MCP P4). Absent when the
+   * input carries no annotation — loaders must treat absence as
+   * "no description", never as an error.
+   */
+  description?: string;
+}
+
+/** MCP operation kinds with a `.can` source (`list`/`team` excluded). */
+export type ArtifactOperationKind = 'read' | 'create' | 'update' | 'delete' | 'scenario';
+
+/**
+ * One user-invocable operation descriptor (MCP P1; JSON shape of
+ * `OperationDescriptor`). `description` is the verbatim `#` source text
+ * (`""` when the operation carries none — generated CRUD operations
+ * never inherit captions). `inputs` is the closed typed input schema
+ * derived from the operation signature.
+ */
+export interface ArtifactOperation {
+  /** Canonical operation identity, e.g. `expenses.approve`. */
+  name: string;
+  kind: ArtifactOperationKind;
+  description: string;
+  inputs: {
+    fields: ArtifactOperationInput[];
+  };
+}
+
+/**
  * Separately emitted test artifact for inline behavior examples.
  * Production modules never import from test artifacts; the test runner
  * provisions fixtures and invokes compiled operations through production
@@ -107,6 +162,14 @@ export interface CompileArtifact {
   modules: ArtifactModule[];
   /** Callable registry references (handlers/rules only, no metadata spread). */
   callables: ArtifactCallable[];
+  /**
+   * User-invocable operation descriptors in source order (MCP P1).
+   * Optional for backward compatibility: artifacts compiled before P1
+   * have no `operations` key. Every P1 compiler emits it (possibly
+   * empty); loaders must treat absence as "no descriptors", never as
+   * an error.
+   */
+  operations?: ArtifactOperation[];
   /** Page descriptors in source order. */
   pages: ArtifactPage[];
   /** Linked library/runtime requirements checked at build/activation. */

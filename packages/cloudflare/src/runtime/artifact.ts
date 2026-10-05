@@ -23,6 +23,26 @@ const CALLABLE_KINDS: ReadonlySet<string> = new Set([
   "handler",
   "migration",
 ]);
+// Compiler-emitted operation kinds only (`ArtifactOperationKind`):
+// `list`/`team` have no `.can` source and never appear here.
+const OPERATION_KINDS: ReadonlySet<string> = new Set([
+  "read",
+  "create",
+  "update",
+  "delete",
+  "scenario",
+]);
+const OPERATION_FIELD_KINDS: ReadonlySet<string> = new Set([
+  "ref",
+  "string",
+  "integer",
+  "decimal",
+  "money",
+  "datetime",
+  "boolean",
+  "file",
+  "enum",
+]);
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -128,6 +148,88 @@ export function loadArtifactFile(path: string): LoadedArtifact {
           `array of non-empty strings (registry path into canApp()); ` +
           "recompile with the fixed `can compile`",
       );
+    }
+  }
+
+  // MCP P1 descriptors are additive: artifacts compiled before P1
+  // carry no `operations` key and must still load. A present key
+  // validates strictly; unknown kinds are rejected loudly.
+  if (parsed.operations !== undefined) {
+    if (!Array.isArray(parsed.operations)) fail(path, "operations must be an array");
+    const seenOperations = new Set<string>();
+    for (const [index, operation] of parsed.operations.entries()) {
+      const where = `operations[${index}]`;
+      if (!isRecord(operation)) fail(path, `${where} must be an object`);
+      if (!isNonEmptyString(operation.name)) {
+        fail(path, `${where}.name must be a non-empty string`);
+      }
+      if (seenOperations.has(operation.name)) {
+        fail(path, `operations repeats operation ${JSON.stringify(operation.name)}`);
+      }
+      seenOperations.add(operation.name);
+      if (typeof operation.kind !== "string" || !OPERATION_KINDS.has(operation.kind)) {
+        fail(
+          path,
+          `${where}.kind must be one of read|create|update|delete|scenario ` +
+            `(got ${JSON.stringify(operation.kind)})`,
+        );
+      }
+      if (typeof operation.description !== "string") {
+        fail(path, `${where}.description must be a string`);
+      }
+      const inputs: unknown = operation.inputs;
+      if (!isRecord(inputs)) fail(path, `${where}.inputs must be an object`);
+      const fields: unknown = inputs.fields;
+      if (!Array.isArray(fields)) fail(path, `${where}.inputs.fields must be an array`);
+      const seenFields = new Set<string>();
+      for (const [fieldIndex, field] of fields.entries()) {
+        const fieldWhere = `${where}.inputs.fields[${fieldIndex}]`;
+        if (!isRecord(field)) fail(path, `${fieldWhere} must be an object`);
+        if (!isNonEmptyString(field.name)) {
+          fail(path, `${fieldWhere}.name must be a non-empty string`);
+        }
+        if (seenFields.has(field.name)) {
+          fail(path, `${where} repeats input ${JSON.stringify(field.name)}`);
+        }
+        seenFields.add(field.name);
+        if (typeof field.required !== "boolean") {
+          fail(path, `${fieldWhere}.required must be a boolean`);
+        }
+        // MCP P4 input descriptions are additive: old artifacts carry
+        // no `description` key and must still load. A present key
+        // must be the verbatim authored string.
+        if (field.description !== undefined && typeof field.description !== "string") {
+          fail(path, `${fieldWhere}.description must be a string`);
+        }
+        const schema: unknown = field.field;
+        if (!isRecord(schema)) fail(path, `${fieldWhere}.field must be an object`);
+        if (typeof schema.kind !== "string" || !OPERATION_FIELD_KINDS.has(schema.kind)) {
+          fail(
+            path,
+            `${fieldWhere}.field.kind must be one of ` +
+              `ref|string|integer|decimal|money|datetime|boolean|file|enum ` +
+              `(got ${JSON.stringify(schema.kind)})`,
+          );
+        }
+        if (schema.kind === "ref") {
+          if (!isNonEmptyString(schema.model)) {
+            fail(path, `${fieldWhere}.field.model must be a non-empty string`);
+          }
+          if (typeof schema.requireVersion !== "boolean") {
+            fail(path, `${fieldWhere}.field.requireVersion must be a boolean`);
+          }
+        }
+        if (schema.kind === "enum") {
+          const values: unknown = schema.values;
+          if (
+            !Array.isArray(values) ||
+            values.length === 0 ||
+            !values.every((value) => typeof value === "string")
+          ) {
+            fail(path, `${fieldWhere}.field.values must be a non-empty array of strings`);
+          }
+        }
+      }
     }
   }
 

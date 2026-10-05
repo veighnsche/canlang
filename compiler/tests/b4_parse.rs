@@ -175,12 +175,10 @@ package probe
 /// `expose=` on crud parses; a valid operation passes, an unknown one
 /// fails semantically (E3009) rather than syntactically.
 ///
-/// NOTE (out of B4-F1 parser scope): multi-value `expose=create,update`
-/// parses fine but the types validator reports E3009 on the comma
-/// separator (`check_expose` in analysis/types.rs has no `_ => continue`
-/// arm for separator leaves, unlike `check_selectors`). Single-value
-/// `expose=` is pinned here; the multi-value validator bug belongs to
-/// the types lane.
+/// NOTE (fixed by the MCP P4 lane): multi-value `expose=create,update`
+/// used to report E3009 on the comma separator (`check_crud_expose` in
+/// analysis/types.rs had no skip arm for separator leaves, unlike
+/// `check_selectors`). Both arities are pinned here now.
 #[test]
 fn crud_expose_parses() {
     let head = "app Probe uses=[probe]
@@ -206,6 +204,19 @@ package probe
         "no syntax errors, got {full:?}"
     );
     assert!(!has_code(&full, "E3009"), "valid expose, got {full:?}");
+
+    let multi = format!("{head}  crud Job by=organizer fields=title expose=create,update\n{tail}");
+    let (multi_tree, multi_diags) = syntax::parse_source(file(), &multi);
+    assert!(
+        multi_diags.is_empty(),
+        "expected clean parse, got {multi_diags:?}"
+    );
+    assert!(multi_tree.verify_coverage(multi.len() as u32).is_ok());
+    let multi_full = check_all(&multi);
+    assert!(
+        !has_code(&multi_full, "E3009"),
+        "multi-value allowlist passes, got {multi_full:?}"
+    );
 
     let bad = format!("{head}  crud Job by=organizer fields=title expose=bogus\n{tail}");
     let (_, bad_diags) = syntax::parse_source(file(), &bad);
