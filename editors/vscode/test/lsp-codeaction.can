@@ -1,0 +1,8 @@
+app T
+Given
+ M { n:int }
+When
+ scenario s(m:M) by=members
+  do
+   let x=m?.n
+Then
