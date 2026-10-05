@@ -361,11 +361,13 @@ where authority is required.
    across all 52 sources needs per-site classification (derive guard
    / `when=` guard / policy predicate / page gate / review input)
    with per-site fence context.
+   [COMPLETE — enumeration writer: see "Gate evidence enumeration §1" below.]
 2. Spend-effect inventory: every effect that moves money, consumes a
    capped allowance, or dispatches to a provider (Chat spend+send,
    payment `collect`, image/LLM sends, delivery claims) with its
    current guard→effect read path — the gate must see each path its
    rule has to fence.
+   [COMPLETE — enumeration writer: see "Gate evidence enumeration §2" below.]
 3. Grant L93 role-revocation note: "Static user grants are not a
    live role-revocation event" is ledger-silent with no T01 root.
    Adjudicate what revocation timeliness the Grant workflow intends
@@ -400,3 +402,442 @@ where authority is required.
   untouched (T32b is post-gate); tasks.md/monitor.md/inbox untouched
   (coordinator-owned); no JEV run; no Git.
 - Release: this file is RELEASED to the coordinator for gate scheduling.
+
+## Gate evidence enumeration §1 — purity-gate read-site census (checklist item 1)
+
+Writer: L3 T32a-enumeration. Status: **PREP — adopts NOTHING.**
+Method: read-only syntactic census over all 52 `draft/**/*.can` sources
+(49 apps + 3 shared; every statement is single-line — zero `\` continuations
+verified). Predicate tiers: **T1** direct authority reads
+(`active_member`, call-form membership/role tests: `can_work reviewer staff
+leave_reviewer knowledge_reviewer is_staff has_role has_location_role owns
+operator technician legal sales property_manager finance recipient
+inbox_admin mail_staff researcher organizer`); **T2** gate derives wrapping
+T1 (`can_use can_read can_view can_review readership editorial eligible
+customer_staff queue_access queue_route queue_reply allowed host_eligible
+current_access delegate_eligible permitted_collector editable
+allocation_eligible request_requires_review may_move can_read_booking_details
+coverage_met plan_eligible can_complete eligible_term eligible_account
+location_account permitted_hours revoke_needed inspection_pending
+venue_covers manage`); **T3** adjacent business-state reads in pure positions
+(`available settled live is_open may_reserve`). Bare role atoms (`finance`,
+`hr`, `members`, …) in `by=`/`read=` are admission atoms, not calls —
+excluded. Quantifiers/aggregates (`any all count`), `first`, `now`,
+constructors (`money date`), `input` (pure local prompt-builder derive) are
+assumed pure builtins — the gate must confirm. Self-name matches on
+`derive`/`scenario` definition lines and `##` comments excluded.
+Caveat: no build was run (enumeration brief); classes below are
+syntactic-position candidates for the R26-layer-2 E3010 purity shape. The
+exact compiler rejection set needs a coordinator-owned checker run; every
+line below is independently re-grepable (commands in §3).
+
+Counts (pure-position lines with ≥1 T1/T2/T3 call; call occurrences:
+T1 844 + T2 236 + T3 49):
+
+| Class | Lines | Fence context (per-site: same-owner checkpoint unless noted) |
+| --- | --- | --- |
+| policy predicate | 273 | read-admission eval; 126 read-part-only / 142 where-part-only / 5 both |
+| derive guard (definition) | 46 | callee fence = caller's checkpoint; imported derives cross owner (T28 input) |
+| crud `when=` guard | 81 of 93 (12 data-only) | CRUD admission at operation checkpoint |
+| send `when=` guard | 31 of 68 (37 data-only) | dispatch-claim guard, atomic with supersession (settled L524) |
+| lock `when=` guard | 1 of 48 (47 data-only) | field-lock predicate at update commit |
+| invariant (Given) | 10 | per-row stored invariant; no checklist class — reported separately |
+| page gate (`list/table/gallery where`) | 8 | page-discovery checkpoint (DECISIONS L739 reuse rule) |
+| corpus `where=` | 1 | retrieval-scope predicate (Knowledge:25 `live(row)`) |
+| review input: example observation | 20 | T23 observation rows (`->`) asserting predicate outcomes |
+| review input: `form review=` binding | 7 | CSV-import review reads (targets below; bodies are pure field compares) |
+| ui-display (`text`) | 2 | display-only T3 (Affiliate:248/290 `available(row,"EUR")`) |
+| **Pure total** | **473 lines (+7 bindings) across 50/52 files** | zero-pure files: CanBoard, CanStats (bare roles only, verified) |
+| Excluded effectful (no E3010 expected) | require 384, `if` 38, do-block 12 = 434 | admission/effect-time reads inside the fence |
+
+Cross-owner reads: `use employee {can_work,…}` in 40 files; `use customer
+{owns,has_role,…}` in 20 files — most policy/crud sites read an imported
+owner's predicate (checklist item 6 input).
+
+### §1a — `active_member` 20/20 (every direct occurrence in `.can`)
+
+| # | Site | Class | Fence context |
+| --- | --- | --- | --- |
+| 1 | Chat:15 `derive can_use` | derive | callee of policy/require/send-guard callers (Chat:26-28/67/81) |
+| 2 | Chat:145 `if not active_member(event.user,team)` | if (effectful, NOT rejected) | member_removed handler; refutes purity-only reading |
+| 3 | Creative:18 `derive can_view` | derive | imported by Gallery (`use creative {can_view,…}`) |
+| 4 | Creative:103 send `when=` | send-when | Images.submit claim guard (R26 sampled site) |
+| 5 | Creative:152 `if not active_member(event.user,team)` | if (effectful) | member_removed handler |
+| 6 | Decide:22 `derive can_read` | derive | callee of Decide:30-32 policies |
+| 7 | Do:39 `invariant Task` | invariant | per-row assignee invariant + `staff()` |
+| 8 | Do:91 `if active_member(view.account,team)` | if (effectful) | observation handler gate |
+| 9 | Gallery:15 `derive can_read` | derive | callee of Gallery:20-21 policies, :94 page gate |
+| 10 | Gallery:38 crud `when=` | crud-when | Access activation requires live membership |
+| 11 | Hire:163 `require` | require (effectful) | hiring gate, pre-`set` admission |
+| 12 | Knowledge:20 `derive readership` | derive | callee of 4 policies + ask require + Handbook send guard |
+| 13 | Knowledge:86 crud `when=` | crud-when | Topic expert must be live member |
+| 14 | Knowledge:87 crud `when=` | crud-when | Audience activation requires live membership |
+| 15 | Knowledge:245 `require` | require (effectful) | escalate gate on another subject's expert |
+| 16 | Onboard:37 crud `when=` | crud-when | Step assignee must be live member |
+| 17 | Onboard:54 `require` | require (effectful) | assignment gate |
+| 18 | Shift:251 send `when=` | send-when | Mail.send claim guard + `eligible()` |
+| 19 | shared/Employees:8 `derive staff` | derive | root: imported by 40 files via `use employee` |
+| 20 | shared/Employees:9 `derive can_work` | derive | root: 193 policy call occurrences corpus-wide |
+
+Pure-position direct sites: 13 (7 derive + 4 crud-when + 2 send-when);
+effectful (require/if): 7. R26 sampled 2 of 13 pure (Chat:15, Creative:103).
+
+### §1b — derive guards 46/46 (definition site : called predicates, self-name excluded)
+
+Book:25(is_open) Chat:15(active_member) Contract:26(can_work,legal,sales,
+property_manager,finance) Creative:18(active_member,can_use) Customer:28
+(can_work) Decide:22(active_member,reviewer) Discover:64(can_work,researcher)
+Enrich:36(researcher) Gallery:15(active_member) Gallery:16(reviewer,can_read)
+Inbox:29/30/31(inbox_admin,mail_staff ×3) Knowledge:20(active_member)
+Knowledge:21(knowledge_reviewer) Learn:26(can_work,is_staff,eligible_term)
+Mail:36(has_role,recipient) Mail:37(eligible_term) Mail:40(recipient,
+delegate_eligible) Maintain:38(can_work,technician) Member:152
+(has_location_role×2,owns,eligible_account) Member:153(eligible_term,
+location_account,permitted_hours) Member:154(allocation_eligible) Member:155
+(has_role×2,owns) Member:156(eligible_account) Member:157(eligible_term)
+Member:167(eligible_term,location_account,permitted_hours,is_open) Onboard:17
+(staff) Reception:71(has_location_role×2,owns) Reception:72(current_access)
+Reception:73(host_eligible,is_open) Rent:188(venue_covers) Rent:189(is_open)
+Rent:190(has_location_role×2,owns) Rent:191(can_work,may_reserve) Rent:256
+(can_work×2) Shift:73(coverage_met) Shift:75(can_work) Shift:76(eligible)
+Stock:42(available) Sync:35(reviewer,operator) Trade:17(eligible_term)
+Volunteer:25(venue_covers) Workbench:27(can_work,staff) shared/Employees:8-9
+(active_member ×2). Exported (cross-package callees): Chat:15, Creative:18,
+Rent:256, Employees:8-9, Customer:25(has_role, body pure), Customer:28.
+
+### §1c — policy predicates 273/273 (`file: line(calls), …`)
+
+Affiliate: 35,37,39,41(can_work). Approve: 18(can_work×2),22,23,25,26
+(can_work). Book: 32,34,37(can_work). CRM: 20,24,27,28(can_work). Catch:
+34-40(staff). Chat: 26,27,28(can_use). Check: 20,21,22(can_work). Contract:
+28-32(allowed). Creative: 29,31(can_view). Customer: 29,30,33,34,37,39,40,
+41,42,43,45,46(customer_staff; :46 ×2), 31(has_role×3,owns), 35,36,38
+(has_role), 44(has_role,owns). Decide: 30,31,32(can_read). Desk: 27,29
+(can_work). Discover: 38-45(can_work). Do: 30-34(can_work,staff). Event:
+40-44(can_work). Expense: 20,24,25,27,29,30(can_work), 26(can_work×2).
+Field: 33,35,36(can_work). Gallery: 20(can_review), 21(can_read). Grant:
+34,35,37-43(can_work). Hire: 36,38,40,41,42(can_work). Inbox: 36
+(queue_access×3), 38-43(queue_access). Invoice: 64,65,83,85,110,134,136,
+138,140,142,144,146,152(can_work), 84,86,135,137,139,141,143,145,147,153
+(has_role,owns). Knowledge: 34(readership,editorial), 36(readership,
+editorial,live), 37(editorial), 38(readership), 45(readership,live). Learn:
+28,29,30,32,34,36(can_work), 33(eligible). Leave: 39,41,44(can_work).
+Loyalty: 38,41,43,45,47,49(can_work). Mail: 32,41,46,48,50(can_work), 42,43
+(manage), 47,49(recipient). Maintain: 45-50,52-55(can_work). Member: 171,
+174,176,179,180,182,184,186(can_work), 169(has_role,owns), 172(has_role×2),
+175,177,178,183,185(has_role), 181(eligible_term). Onboard: 21,22(can_work).
+Propose: 46,47,49(can_work). Purchase: 48,49,51-61(can_work). Reception:
+46,48,50,51,52(can_work). Refer: 38,40,42,44,46,48(can_work), 241(has_role
+×2,owns). Rent: 142,198,201,203,204,218,232-235,252,253,258-263,265,266,
+269,270,272,274(can_work), 143(has_location_role,owns), 257
+(can_read_booking_details). Report: 34(can_work). Shift: 60,62,64,67
+(can_work). Stock: 37,47,48(can_work). Success: 28,35,36,37(can_work).
+Table: 18,19,20(can_work). Time: 26,28,30,32(can_work). Trade: 24
+(eligible), 25(eligible×2). Volunteer: 31,32,34(can_work). Workbench: 31,
+33(eligible). shared/Employees: 11(staff). shared/Suppliers: 9,10(can_work).
+
+### §1d — crud `when=` 81/81, send `when=` 31/31, lock `when=` 1/1, invariant 10/10
+
+crud-when — Affiliate:70 Approve:86 Book:61-65 CRM:47(×2),52 Catch:93(staff)
+Contract:54(can_work,allowed),55,56,57(allowed) Customer:73,74,75
+(customer_staff) Desk:56(can_work×2,staff) Discover:79 Do:55-58(can_work,
+staff) Event:69 Expense:70 Feedback:56 Gallery:38(active_member) Grant:73,
+74(can_work; :54 is lock, see below) Hire:54 Inbox:92(inbox_admin,
+mail_staff) Invoice:273,279 Knowledge:86,87(active_member) Learn:58,59
+Loyalty:76-79 Mail:86(has_role,owns,delegate_eligible) Maintain:79,91
+(can_work),80(can_work×2,technician) Member:23,24,25,226,227 Onboard:37
+(active_member) Propose:69,70 Purchase:103,104,105 Reception:81,82 Refer:63
+Rent:335,336,337,1157 Shift:104 Stock:62 Success:45(×2),46,47(×2) Table:39,
+40,58 Time:51 Trade:36(eligible),43(eligible×2) Volunteer:43,44
+shared/Locations:29-32 shared/Suppliers:12 (all can_work except as noted).
+send-when (guard calls only; payloads carry zero authority calls, verified
+31/31) — Approve:268(can_work,reviewer→Mail.send) Chat:81(can_use→
+LLM.generate) Creative:103(active_member,can_use→Images.submit) Decide:107
+(reviewer→Judge.evaluate) Discover:161,244,251(eligible) Enrich:68,106,127
+(live) Hire:283(can_work→Mail.send) Inbox:212,241(queue_reply) Knowledge:159
+(readership→Handbook.answer) Mail:120,177,305,324(recipient) Maintain:355
+(plan_eligible,inspection_pending→Mail.send) Reception:103,253,328,358,363
+(current_access) Shift:251(active_member,eligible→Mail.send) Success:109,
+118(can_work→Mail.send) Sync:75(operator),105,124(editable→Remote.*)
+Workbench:72(eligible→Planner.next).
+lock-when — Grant:54(can_work,reviewer) is the ONLY authority call among 48
+lock guards (field-lock on reviewer reassignment).
+invariant — Purchase:24 Do:44 Field:23 Stock:12 Contract:46 Check:34 CRM:43
+(can_work preferences ×7) + Do:39(active_member,staff Task) + Stock:51,
+Table:24(available T3).
+
+### §1e — page gates 8/8, corpus 1/1, review inputs 20+7, ui-display 2/2
+
+Page gates: Gallery:94(list,can_read) Gallery:125(gallery,can_review)
+Knowledge:305(list,readership,live) Knowledge:317(table,editorial) Expense:
+365(list,can_work) Creative:199(list,can_view) Hire:426(list,can_work)
+Invoice:888(list,owns,has_role). Corpus: Knowledge:25(where=live(row)).
+Example observations (`->` asserting predicate outcomes): Affiliate:79,113,
+118,197(available) Stock:68,146,151(available) Approve:187 Expense:159
+Grant:184(can_work,reviewer) Expense:91(reviewer) Inbox:184(queue_access×2)
+Mail:142,155(delegate_eligible) Mail:159(recipient,live) Mail:169
+(recipient×2) Maintain:82,288(inspection_pending) Maintain:303
+(plan_eligible,inspection_pending) Member:659(has_location_role).
+`form review=` bindings (read=true review scenarios; bodies are pure
+field-compare queries gated by by=): Expense:485→:337(by=authenticated)
+Rent:1444→:313 Invoice:827→:220 Customer:233→:82 Customer:252→:89
+(by=customer_manager) CRM:172/180→imported customer duplicates (cross-package
+review read via `use customer`). No authority CALLS in review bodies —
+the fence question is caller-visibility (examples assert finance→1 /
+members→0 / public→forbidden), not purity.
+ui-display: Affiliate:248/290(text available(row,"EUR")).
+
+### §1f — alternatives discrimination (which sites separate A–D)
+
+- A-vs-B (checkpoint-carry vs re-read-at-effect): decided by multi-use
+guard rows — Chat:72-83 (allowance bound once, used across guard+set+send),
+Creative:97-103 (budget bound, guarded, held, sent), Knowledge:148-159
+(readership evaluated in require AND re-evaluated in send guard), all 273
+policy rows consumed far from their eval point. Under B each needs a
+fresh-read ruling; under A/C/D they enroll once.
+- A-vs-C (database-wide vs pinned assertion): decided by hot-row coupling
+— 193 can_work policy occurrences all enroll the membership/Employee tables;
+under A any membership write voids any in-flight guarded op. Contended
+witnesses: Chat:26-28, Knowledge:34-45, Member:169-186.
+- C-vs-A (eventual-read label): only candidates for declared-eventual are
+T3 display/lookup reads — Affiliate:248/290, Stock:51, Table:24,
+Knowledge:25/305; every T1/T2 site above authorizes (no T1/T2 site is
+display-only). If C requires labels, exactly the T3 set needs them.
+- D-vs-A/C (grants): no site mints portable evidence today; D's customer
+would have to be cross-package reads (40 `use employee` files, Gallery←
+Creative can_view, CRM←Customer duplicates) — the only reads whose
+authority crosses an owner boundary.
+- B-fatal shape if present: `let`-bound guard rows used by later effects
+(Chat:72-83, Creative:97-103, Knowledge:151-159, Inbox:112-117/137-142) —
+B must rule `let` re-reads or force rewrites; A/C/D preserve verbatim.
+
+## Gate evidence enumeration §2 — spend-effect inventory (checklist item 2)
+
+Status: **PREP — adopts NOTHING.** Every effect that moves money, consumes
+a capped allowance, or dispatches to a provider, with its current
+guard→effect read path (`scn=name@line gate=by=…|on=… req=[…]`).
+Legend: `[auth]` send guard holds T1/T2 calls (§1d) · `[data]` guard is
+data-only · `[nowhen]` no guard (scenario require/by only).
+
+Counts: **236 send lines** (231 line-initial + 5 `do send`; zero lines hold
+2+ sends) across **39/52 files** (zero-send: Board CRM Expense Feedback
+Gallery Learn Onboard Stock Table Trade + 3 shared) to **69 targets**: 68
+with `when=` (31 authority + 37 data-only), **168 unguarded**.
+Money-record creates **22**; capped-allowance sets **27** + bucket creates
+**3**. Out of scope (noted, not inventoried): `emit` (internal events),
+`schedule` (timers), `call` (internal scenario calls), delivery-attempt
+counters (Purchase:163/188/307/315/319/326/330 `attempts=`, retry state not
+a capped allowance), Mail `collect` scenario (physical-item custody, not
+money). Total inventory: **288 records**.
+
+Targets (69): Accounting.record 1, Alerts.notify 5, Analysis.extract 2,
+Billing.cancel 17, Billing.charge 13, Billing.reconcile 10, Billing.refund
+8, Catch.report 1, Commissions.account 1, Commissions.onboard 1,
+Commissions.reconcile 2, Commissions.settle 1, Devices.apply 5,
+Devices.reconcile 1, Dimensions.read 1, Documents.invoice 1, Documents.quote
+1, Documents.receipt 1, ErrorJobs.publish 1, Handbook.answer 1,
+Handbook.cancel 1, Handbook.reconcile 1, Handbook.refresh 1, Images.cancel
+3, Images.inspect 1, Images.reconcile 1, Images.submit 1, Images.validate 1,
+Judge.evaluate 3, LLM.cancel 3, LLM.generate 1, LLM.reconcile 1, Mail.send
+39, Membership.commit 1, Membership.consume 3, Membership.eligibility 4,
+Membership.reconcile 2, Membership.release 13, Membership.reserve 4,
+Payments.cancel 3, Payments.collect 2, Payments.reconcile 2, Payments.refund
+2, Planner.next 1, Post.reconcile 1, Post.reply 2, Remote.read 2,
+Remote.replace 2, Reports.reports 1, Rooms.accept_offer 1, Rooms.affected 1,
+Rooms.confirm 4, Rooms.downtime 2, Rooms.hold 2, Rooms.hold_offer 1,
+Rooms.release 5, Rooms.release_offer 1, Rooms.restore 2, Rooms.stage 2,
+Sources.lookup 3, Sources.page 1, StaffSchedule.release 18,
+StaffSchedule.reserve 5, StaffSchedule.stage 3, Stock.post 4,
+WebDimensions.write 1, WebJobs.publish 1, WorkSources.work 1, Writer.draft 1.
+
+### §2a — money-movement records 22/22 (create + guard path)
+
+Affiliate:104(create Sale amount/commission ← qualification req 86,87,92,
+94,98,102) :109(create Adjustment reversal ← req +106). Chat:78(create Run
+reserved ← ask/members req 67-70,73,75). Expense:215(create Decision amount
+← decide/reviewer req 213) :272(create Reimbursement ← finance req 270).
+Invoice:366(Attempt ← collect req 361,362) :421(refund Attempt ← finance req
+417-419) :620(auto-collection Attempt, on=CollectionDue, NO require — timer
+path) :799/:806(source_refund ← on=BillingRequests.refund req 792,795,796).
+Loyalty:84(create Redemption ← redeem/authenticated req 82) :176/:181
+(Earning ← on=Sales.qualification req 164,166,172). Member:278(term/price ←
+on=RenewalDue req 259,268,273,275) :371(reserve ← req 345-370 ×13).
+Refer:83(Settlement ← settle/finance req 70,74,76) :119/:125(qualify ←
+on=Sales.qualification req 99-123) :153(reject_source ← program_manager req
+148). Rent:584(Adjustment overage ← on=MovementObserved req 566,571) :1093
+(extend Adjustment ← authenticated/reception/billing req 1086-1092).
+Time:151(Correction amount/collected ← project_manager req 146,149).
+Money-moving sends without local create (claim-only): Payments.collect
+Invoice:367/:621, Payments.refund Invoice:422/:807 + Member:536 + Rent:636/
+641/777/1136/1149 + Time:222 + Event:436, Billing.refund×8 / charge×13 /
+cancel×17 / reconcile×10 (paths in §2c), Commissions.settle Affiliate:75.
+
+### §2b — capped-allowance consumption 27+3 (set/create + guard path)
+
+Chat:80(held/running+ ← ask req 73,75) :132-133(release held/running, used=0
+← release_skipped req 130) :161-164(spent+=used, running- ←
+reply_progressed req 158,159). Creative:102(held/running+ ← generate req 98,
+100) :140-141(release ← req 138) :165-168(spent+= ← image_progressed req
+162,163). Knowledge:154(create DailyUsage ← ask req 148,152) :156
+(requests+1). Inbox:115/140(create DailyUsage) :117/:142(requests+1 ←
+received req 105,108 / classify req 133,134,138; cap check :113/:138).
+Discover:163(requests+1 ← fetch_page on=PageDue, NO require — capped at
+:223 max_pages on a LATER scenario). Member:377-378(reserve held ← req
+345-370) :420-421(consume ← req 415,417). Rent:1270/1272/1290(allowance
+snapshot/consume ← on=AllowanceObserved req 1251,1252,1266) :597
+(reserved window ← on=MovementObserved) :1093-adjacent. Propose:195/285
+(hold_state ← provider-completed, NO require). Table:71(state=reserved ←
+host req 70). Guard pattern: `let x=first(Allowance…)` + require
+ active/unsaturated + set — the EXACT shape §1f flags for B.
+
+### §2c — provider-dispatch sends 236/236 (full table; `DO-SEND` = `do`-prefixed)
+
+Affiliate(5): 75:Commissions.settle[nowhen] settle@72 by=finance req73.
+125:onboard[nowhen] req123. 137:Commissions.account[nowhen] req134,135.
+205/211:Commissions.reconcile[nowhen] (211 on=SettlementCheck, NO req).
+Approve(1): 268:Mail.send[auth] notify@264 on=Notice.created, NO req.
+Book(11): 75:StaffSchedule.reserve + 79:Rooms.hold [nowhen] book@67
+req68-71. 99:stage + 102:Rooms.stage [nowhen] reschedule@90 req91-94,97.
+202/217/275:Rooms.confirm[nowhen] (on=completed/changed +1 req each).
+313/369:Mail.send[data] (on=AttemptProgress/Reminder). 338:release +
+342:Rooms.release [nowhen] cleanup@333.
+Catch(3): 96:ErrorJobs.publish[nowhen] DO-SEND accepted@94
+on=ErrorIntake.accepted req95. 151/154:Alerts.notify[data] notify@147.
+Chat(5): 81:LLM.generate[auth] ask@66 by=members req67-70,73,75. 120/126/
+141/148:cancel/reconcile/cancel/cancel[nowhen] (148 on=member_removed).
+Check(3): 76/120/130:Alerts.notify[data] (on=Pings/Check.update/Deadline).
+Contract(2): 130/144:Mail.send[data] (on=Notice/ObligationDue, NO req).
+Creative(7): 68:inspect + 76:validate [nowhen] by=creative_manager. 103:
+Images.submit[auth] generate@93 req94,95,98,100. 128/134/148/155:
+cancel/reconcile/cancel/cancel[nowhen] (148/155 on=revoked/removed).
+Customer(1): 129:Mail.send[nowhen] invite@123 req124,125. Decide(2): 60:
+Writer.draft[data] generate@53 req54,55. 107:Judge.evaluate[auth]
+evaluate@101 by=reviewer req102-104. Desk(1): 96:Mail.send[nowhen] reply@91
+req92. Discover(3): 161:Sources.page[auth] on=PageDue NO req. 244/251:
+Analysis.extract[auth] (244 by=researcher req241,242; 251 on=Evidence.
+create). Do(2): 85:WorkSources.work[nowhen] refresh@79 req80,81. 115:
+Catch.report[nowhen] DO-SEND report_error on=instrumentation.error.
+Enrich(3): 68/106/127:Sources.lookup[auth] (106 on=Assess NO req). Event
+(21): 88:Billing.charge[nowhen] register@75 req76-80,87. 129:Rooms.stage +
+132:hold [nowhen] change@115. 146/158:release[nowhen]. 223:Rooms.confirm
+[data]. 253:release[nowhen]. 274:Billing.cancel[nowhen] cancel@266. 284/
+299/311/341/358:reconcile[nowhen]. 292/400/415/484:cancel[nowhen]. 436:
+Billing.refund[nowhen] on=RefundCheck. 512/524:Mail.send[data].
+Field(9): 48:reserve[nowhen] dispatch@44 req45. 75/85/102:release/stage/
+reserve[nowhen]. 77:Mail.send[data]. 172/175/179:release[nowhen]
+on=every(1m). Grant(1): 283:Mail.send[nowhen] decide@275 by=reviewer
+req276,279. Hire(13): 90:reserve 98:stage 111/116/127/150/181:release
+[nowhen] by=recruiter/authenticated. 206/219/236/251/257:release[nowhen]
+(on=completed/changed/accepted). 283:Mail.send[auth] on=Reminder req281.
+Inbox(5): 120/145:Judge.evaluate[data]. 212/241:Post.reply[auth]
+submit/resubmit by=mail_staff|inbox_admin. 227:Post.reconcile[nowhen].
+Invoice(15): 296:Mail.send[data] issue@287. 302:Documents.invoice[nowhen].
+328:Documents.receipt[nowhen]. 367:Payments.collect[data] collect@360
+req361,362. 404/456:Payments.cancel[nowhen] by=finance. 422:Payments.
+refund[nowhen] refund@416 req417-419. 496/753:Mail.send[data]. 571/605:
+Payments.reconcile[nowhen]. 621:Payments.collect[data] on=CollectionDue NO
+req. 635:Mail.send[data] DO-SEND on=Overdue req634. 770:cancel[nowhen].
+807:refund[nowhen] on=BillingRequests.refund req792,795,796. Knowledge(4):
+145:Handbook.refresh[nowhen] DO-SEND reindex req144. 159:Handbook.answer
+[auth] ask@147 req148,152. 213:cancel + 223:reconcile [nowhen].
+Leave(3): 131:reserve[data] decide@124 req125,129. 154/181:release[data]
+cancel/retry_release by=hr|leave_reviewer. Loyalty(1): 85:Mail.send
+[nowhen] redeem@81 req82. Mail(7): 120/177/305/324:Mail.send[auth] (305
+on=Reminder NO req). 211/293:Billing.charge[nowhen]. 264:Billing.reconcile
+[nowhen]. Maintain(8): 181/187/355:Mail.send[data/data/auth] (355 on=
+Reminder). 202/216/363/367:downtime/restore[nowhen]. 404:affected[nowhen].
+Member(4): 279:Billing.charge[data] on=RenewalDue req259,268,273,275.
+536:Billing.refund[nowhen] refund_term@526 req527. 558:charge[data]. 583:
+reconcile[nowhen] on=PaymentCheck. Propose(5): 94:Mail.send + 100:
+Documents.quote + 181:hold_offer + 221:accept_offer [nowhen] by=
+salesperson/authenticated. 348:release_offer[nowhen] on=HoldProgress.
+Purchase(5): 162/187/325/329:Stock.post[nowhen] (325/329 on=every(5m)).
+306:Accounting.record[nowhen] by=budget_manager req304. Reception(13):
+91/167/186/203:Membership.eligibility[nowhen]. 103/358/363:Mail.send[auth].
+253/263/279/321/328/342:Devices.apply×4/reconcile/apply[auth on 253,328].
+Refer(1): 126:Mail.send[nowhen] qualify@95 on=Sales.qualification req99-
+123.
+
+Rent(51, ZERO authority guards — all Mail sends data-only): 525/538:
+reserve[nowhen] move_membership@516/528. 548/558/590/661/669/682/687/767/
+772/1229/1262/1425:release[nowhen]. 550/560/592/663/671/769/774/1132/1231/
+1434:Billing.cancel[nowhen]. 579:commit + 585:charge[nowhen]
+movement_result@565 on=MovementObserved req566,571. 636/641:refund[nowhen]
+refund_movement_credit@629 req630,631,635(+640). 692/1238/1315/1431:
+reconcile[nowhen]. 720:reserve + 725:charge[nowhen] prepare@716.
+777/1136/1149:refund[nowhen]. 942/1035/1050/1082/1095/1275:charge/consume/
+charge[nowhen]. 1045:reserve + 1050/1281/1345:consume[nowhen]. 1198/1205/
+1212:Mail.send[data] on=ReservationChanged/Reminder. 1218:Mail.send[nowhen].
+Report(1): 45:Reports.reports[nowhen] refresh@42 req43. Shift(1): 251:
+Mail.send[auth] duty_notice@249 on=DutyNotice NO req. Stats(3): 50:
+WebJobs.publish[nowhen] DO-SEND intake on=Tracker.accepted req48,49. 63:
+WebDimensions.write[nowhen] on=WebJobs req59. 128:Dimensions.read[nowhen]
+by=analyst req121,127. Success(2): 109/118:Mail.send[auth] on=FollowUpDue/
+RenewalDue. Sync(4): 67:Remote.read[data] by=operator|reviewer req64. 75:
+Remote.replace[auth] on=RefreshDue NO req. 105/124:Remote.replace[auth]
+approve/rebase by=reviewer. Time(5): 157:cancel 198:charge 210:cancel 216:
+reconcile 222:refund [all nowhen] by=project_manager. Volunteer(4): 150/
+170/184/191:Mail.send[data]. Workbench(1): 72:Planner.next[auth] next@63
+by=members req64,65.
+
+### §2d — guard→effect path patterns + alternatives discrimination
+
+- Dominant path (168/236 = 71%): NO send guard — authorization lives
+entirely in scenario `by=` + `require` evaluated before the `do` block.
+Under B every such send needs its own effect-time re-read ruling (168
+rulings); under A/C/D the scenario checkpoint + commit fence covers them.
+Highest-exposure unguarded money sends: Payments.collect Invoice:621
+(timer, NO require at all), Billing.charge ×13, Billing.refund ×8.
+- Guarded money path: Payments.collect Invoice:367 has a DATA-only guard —
+no authority revalidation at claim time in source today. Under A the commit
+fence must add it; under B the effect re-reads; C pins + fresh dispatch
+read; D mints the spend grant inside the claim. This site + Chat:81 +
+Creative:103 + Knowledge:159 are the four load-bearing spend guards.
+- Stale-read→spend gaps visible in source: Chat:72-83 (allowance read at
+:72, guard :73/75, hold :80, send :81 — revocation between :72 and commit
+is exactly the T32 question); Knowledge:151-159 (usage read :151, cap :152,
+consume :156, send :159); Discover:163 (counter bump with NO require in
+scenario; cap enforced only at :223 in a later scenario — cross-operation
+fence gap under every alternative).
+- A-vs-C on spend: 51 Rent sends + 21 Event sends share Billing/Membership
+provider rows — under A one fence covers the batch; C must pin per-record
+versions across the provider boundary (implementability question for the
+gate). D: each of the 236 sends would need a grant presentation rule —
+no source site has one (D's annotation burden is total).
+- Event-handler sends (on=…, ~90 of 236) carry NO caller admission —
+their only authority input is the event payload + require rows; the fence
+for handler-triggered transitive effects (bar item 6) must be the scenario
+checkpoint (A/C) or per-effect reads (B), never inherited caller authority.
+
+## Gate evidence enumeration §3 — commands run + release
+
+All read-only (`rg`/`grep`/line census scripts in /tmp; no builds, no Git,
+no JEV — tools/jev.py untouched):
+
+1. `ls draft/*.can draft/**/*.can` — 52 sources (49 + 3 shared).
+2. `grep -rn active_member` — 20 lines, 10 files (§1a).
+3. Role-predicate line counts per name (can_work 586-line raw incl.
+effectful; reviewer/staff/eligible/… per-name counts).
+4. Python census `/tmp/t32a_census.py` (boundary-aware `name(` matching,
+def-name self-exclusion, comment exclusion, send guard/payload split,
+policy read/where split) → 907 matching lines: 473 pure + 434 effectful;
+tiers T1 844 / T2 236 / T3 49; full per-site JSON `/tmp/t32a_rows.json`.
+5. Corroboration: independent `grep -c` recounts (policy can_work 191
+lines / 193 occurrences; require 369 + 17 overlap-lines = 384 ✓);
+`send`-target recount 236 (231 line-initial + 5 `do send`); `when=` 209 =
+93 crud + 68 send + 48 lock ✓; zero-pure Board/Stats verified bare-role
+only; zero-send 13 files verified.
+6. Python spend inventory `/tmp/t32a_spend.py` + manual `do send`/`review=`
+/DailyUsage follow-ups → `/tmp/t32a_spend.json`, `/tmp/t32a_sendtable.txt`
+(236 rows); money/allowance record verification by targeted `sed` reads.
+7. `form review=` ×7 + target-scenario reads (Expense:337 Rent:313
+Invoice:220 Customer:82/89; CRM imports customer's).
+
+Checklist items 1–2 are COMPLETE per the gate-needs text; items 3–8
+untouched (coordinator-owned). Alternatives A–D, fairness record, and all
+other checklist text UNCHANGED (two pointer lines added only).
+Prep status preserved: adopts NOTHING; no code, no normative-doc, no
+tasks/monitor/inbox edits.
+
+Release: implementation/challenge-audit-run/evidence/read-decision.md is
+RELEASED to the coordinator for JEV-gate scheduling.
