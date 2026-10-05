@@ -15,7 +15,12 @@
  *   decode and normalized; `-0` decodes to 0).
  * - decimal: R2a normalized text via `decimalToString`; decode keeps the
  *   authored scale (like `parseDecimal`), so `decode(encode(x))` is
- *   value-equal and re-encoding is stable.
+ *   value-equal and re-encoding is stable. R16/T11 agreement: integral
+ *   spellings (`"0"`, `"1"`, `"123"`) decode to exact scale-0 decimals and
+ *   re-encode without a point; JS numbers (even integral ones) and bigint
+ *   values in decimal positions stay rejected (no Number routing, no
+ *   variable coercion). Checker-side contextual typing is a later slice;
+ *   this module only agrees on the exact wire contract.
  * - money: `{minor, currency}` with exact keys; minor is a canonical int64
  *   string, currency a pinned ISO 4217 member.
  * - duration: canonical integer-millisecond decimal string, int64 range;
