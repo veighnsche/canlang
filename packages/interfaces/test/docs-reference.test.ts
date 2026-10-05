@@ -679,3 +679,98 @@ test('every link resolves to a unique defined anchor under collisions', () => {
     assert.ok(defined.has(target), `dangling link target: ${target}`);
   }
 });
+
+// --- operation examples + example anchors (R-D07-04) ---------------------------
+
+function opWithRows(): ReferenceModel {
+  return modelWithOwners([
+    {
+      name: 'Probe',
+      declarations: [
+        {
+          ...bareDeclaration('Probe', 'Task'),
+          examples: [{ label: 'one', source: 'fixture one=Task { title="a" }' }],
+        },
+      ],
+      operations: [
+        {
+          ...bareOperation('Probe.close'),
+          examples: [
+            { label: 'row-1', source: 'members,open', expected: 'done' },
+            { label: 'row-2', source: 'members,done', expected: 'error(rule_failed)' },
+          ],
+        },
+      ],
+    },
+  ]);
+}
+
+test('renders operation examples labeled authored with source plus expected', () => {
+  const out = renderReferenceMarkdown(opWithRows(), { locale: 'en' });
+  assert.match(out, /\*\*authored example\*\* `row-1`/);
+  assert.match(out, /\*\*authored example\*\* `row-2`/);
+  assert.match(out, /members,open/);
+  assert.match(out, /members,done/);
+  assert.match(out, /\ndone\n/);
+  assert.match(out, /error\(rule_failed\)/);
+  // Word boundaries: the authored `rule_failed` spelling legitimately
+  // contains `failed`, but no invented status word may appear.
+  assert.doesNotMatch(out, /\b(passed|failed)\b/i);
+});
+
+test('anchors every example through the resolver without dangling links', () => {
+  const out = renderReferenceMarkdown(opWithRows(), { locale: 'en' });
+  assert.match(out, /<a id="ex-probe-task-one"><\/a>/);
+  assert.match(out, /<a id="ex-probe-close-row-1"><\/a>/);
+  assert.match(out, /<a id="ex-probe-close-row-2"><\/a>/);
+  const ids = anchorIds(out);
+  assert.equal(new Set(ids).size, ids.length, 'anchors are unique');
+  const defined = new Set(ids);
+  for (const target of linkTargets(out)) {
+    assert.ok(defined.has(target), `dangling link target: ${target}`);
+  }
+});
+
+test('renders legacy operations without an examples key', () => {
+  // bareOperation omits `examples`: the pre-R4 payload shape.
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      {
+        name: 'Probe',
+        declarations: [bareDeclaration('Probe', 'Task')],
+        operations: [bareOperation('Probe.close')],
+      },
+    ]),
+    { locale: 'en' },
+  );
+  assert.match(out, /`Probe\.close`/);
+  assert.doesNotMatch(out, /\*\*Examples\*\*/);
+});
+
+test('disambiguates colliding example labels', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      {
+        name: 'Acme',
+        declarations: [
+          {
+            ...bareDeclaration('Acme', 'Widget'),
+            examples: [
+              { label: 'a_b', source: 'x' },
+              { label: 'a__b', source: 'y' },
+            ],
+          },
+        ],
+        operations: [],
+      },
+    ]),
+    { locale: 'en' },
+  );
+  const found = [...out.matchAll(/<a id="(ex-acme-widget-a-b-[0-9a-f]+)"><\/a>/g)].map(
+    (m) => m[1] as string,
+  );
+  assert.equal(found.length, 2);
+  assert.notEqual(found[0], found[1]);
+  assertDefinedOnce(out, found[0] as string);
+  assertDefinedOnce(out, found[1] as string);
+});

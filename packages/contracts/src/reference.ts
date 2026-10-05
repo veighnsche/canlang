@@ -8,9 +8,9 @@
  * The model carries checked description values (source text, owning source
  * language, ordered locale variants, source location) plus declaration
  * facts already located by analysis: owners, models/contracts with fields,
- * user operations with inputs/results, authored examples with canonical
- * labels, source links, resolved constraints and explicit implementation
- * availability.
+ * user operations with inputs/results/row examples, authored examples
+ * with canonical labels, source links, resolved constraints and explicit
+ * implementation availability.
  *
  * Absence is distinct from empty text throughout: an absent description is
  * an omitted property, while an empty source or variant string is authored
@@ -101,6 +101,15 @@ export interface ReferenceOperation {
   readonly description?: ReferenceDescriptionValue;
   readonly inputs: readonly ReferenceOperationInput[];
   readonly result: ReferenceOperationResult;
+  /**
+   * Operation-owned authored examples: one entry per data row of every
+   * table-form `examples` block attached to this operation, in source
+   * order (`source` = authored input cells, `expected` = authored
+   * expectation). Rendered labeled as authored examples; v1 carries NO
+   * execution status. Optional for forward compatibility: payloads
+   * extracted before the R4 join omit this key and render as before.
+   */
+  readonly examples?: readonly ReferenceExample[];
   readonly location: ReferenceSourceLocation;
 }
 

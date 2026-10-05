@@ -17,6 +17,7 @@ import type {
   ReferenceAvailability,
   ReferenceDeclaration,
   ReferenceDescriptionValue,
+  ReferenceExample,
   ReferenceModel,
   ReferenceOperation,
   ReferenceOwner,
@@ -245,9 +246,23 @@ function baseOperationAnchor(id: string): string {
   return `op-${slug(id)}`;
 }
 
+function baseExampleAnchor(scope: string, label: string): string {
+  return `ex-${slug(scope)}-${slug(label)}`;
+}
+
 /** Unambiguous hash input for one declaration identity (owner + name). */
 function declarationKey(owner: string, name: string): string {
   return JSON.stringify([owner, name]);
+}
+
+/**
+ * Unambiguous hash input for one example identity. The kind tag keeps a
+ * declaration example and an operation example with equal scope/label
+ * spellings distinct; the scope is `owner.name` for declarations and the
+ * operation id for operations.
+ */
+function exampleKey(kind: string, scope: string, label: string): string {
+  return JSON.stringify([kind, scope, label]);
 }
 
 /**
@@ -295,6 +310,7 @@ interface AnchorResolver {
   ownerAnchor(owner: string): string;
   declarationAnchor(owner: string, name: string): string;
   operationAnchor(id: string): string;
+  exampleAnchor(kind: string, scope: string, label: string): string;
 }
 
 function pushDistinctIdentity(
@@ -334,9 +350,11 @@ function createAnchorResolver(model: ReferenceModel): AnchorResolver {
   const ownerGroups = new Map<string, string[]>();
   const declarationGroups = new Map<string, string[]>();
   const operationGroups = new Map<string, string[]>();
+  const exampleGroups = new Map<string, string[]>();
   const seenOwners = new Set<string>();
   const seenDeclarations = new Set<string>();
   const seenOperations = new Set<string>();
+  const seenExamples = new Set<string>();
 
   for (const owner of model.owners) {
     pushDistinctIdentity(ownerGroups, seenOwners, baseOwnerAnchor(owner.name), owner.name);
@@ -347,6 +365,15 @@ function createAnchorResolver(model: ReferenceModel): AnchorResolver {
         baseDeclarationAnchor(declaration.owner, declaration.name),
         declarationKey(declaration.owner, declaration.name),
       );
+      const scope = `${declaration.owner}.${declaration.name}`;
+      for (const example of declaration.examples) {
+        pushDistinctIdentity(
+          exampleGroups,
+          seenExamples,
+          baseExampleAnchor(scope, example.label),
+          exampleKey("decl", scope, example.label),
+        );
+      }
     }
     for (const operation of owner.operations) {
       pushDistinctIdentity(
@@ -355,18 +382,29 @@ function createAnchorResolver(model: ReferenceModel): AnchorResolver {
         baseOperationAnchor(operation.id),
         operation.id,
       );
+      for (const example of operation.examples ?? []) {
+        pushDistinctIdentity(
+          exampleGroups,
+          seenExamples,
+          baseExampleAnchor(operation.id, example.label),
+          exampleKey("op", operation.id, example.label),
+        );
+      }
     }
   }
 
   const owners = assignGroups(ownerGroups);
   const declarations = assignGroups(declarationGroups);
   const operations = assignGroups(operationGroups);
+  const examples = assignGroups(exampleGroups);
 
   return {
     ownerAnchor: (owner) => owners.get(owner) ?? baseOwnerAnchor(owner),
     declarationAnchor: (owner, name) =>
       declarations.get(declarationKey(owner, name)) ?? baseDeclarationAnchor(owner, name),
     operationAnchor: (id) => operations.get(id) ?? baseOperationAnchor(id),
+    exampleAnchor: (kind, scope, label) =>
+      examples.get(exampleKey(kind, scope, label)) ?? baseExampleAnchor(scope, label),
   };
 }
 
@@ -479,16 +517,37 @@ function renderDeclaration(
     lines.push("");
   }
 
-  if (declaration.examples.length > 0) {
-    const examplesLabel = heading("examples", context.requested, context.appDefault);
-    const authoredLabel = heading("authoredExample", context.requested, context.appDefault);
-    lines.push(`**${examplesLabel}**`, "");
-    for (const example of declaration.examples) {
-      lines.push(`- **${authoredLabel}** ${codeSpan(example.label)}`, "");
-      lines.push(codeBlock(example.source), "");
-      if (example.expected !== undefined) {
-        lines.push(codeBlock(example.expected), "");
-      }
+  renderExamples(declaration.examples, "decl", `${declaration.owner}.${declaration.name}`, context, lines, anchors);
+}
+
+/**
+ * Renders one authored-examples section (declaration fixtures or operation
+ * table rows): every entry labeled as authored with its source plus the
+ * stated expectation. No execution status is rendered — the model carries
+ * none. Each entry gets a stable resolver anchor for deep links; the TOC
+ * keeps owner/declaration/operation granularity, so no new TOC links mean
+ * no new dangling targets.
+ */
+function renderExamples(
+  examples: readonly ReferenceExample[],
+  kind: string,
+  scope: string,
+  context: RenderContext,
+  lines: string[],
+  anchors: AnchorResolver,
+): void {
+  if (examples.length === 0) {
+    return;
+  }
+  const examplesLabel = heading("examples", context.requested, context.appDefault);
+  const authoredLabel = heading("authoredExample", context.requested, context.appDefault);
+  lines.push(`**${examplesLabel}**`, "");
+  for (const example of examples) {
+    lines.push(`<a id="${anchors.exampleAnchor(kind, scope, example.label)}"></a>`, "");
+    lines.push(`- **${authoredLabel}** ${codeSpan(example.label)}`, "");
+    lines.push(codeBlock(example.source), "");
+    if (example.expected !== undefined) {
+      lines.push(codeBlock(example.expected), "");
     }
   }
 }
@@ -536,6 +595,8 @@ function renderOperation(
     "",
   );
   lines.push(describeText(operation.result.description, context), "");
+  // `?? []`: pre-R4 payloads omit the key and render as before.
+  renderExamples(operation.examples ?? [], "op", operation.id, context, lines, anchors);
 }
 
 function renderOwner(

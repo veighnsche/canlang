@@ -18,7 +18,9 @@
 //!   [`TypeTable`](crate::analysis::types::TypeTable); defaults, bounds
 //!   and type spellings as trimmed source slices.
 //! - Labeled declaration examples from fixture recipes targeting the
-//!   declaration; catalog identity from `CheckedProgram::catalog_version`.
+//!   declaration; operation row examples from table-form `examples` blocks
+//!   attached to user scenarios (row text sliced from the CST); catalog
+//!   identity from `CheckedProgram::catalog_version`.
 //!
 //! The extractor performs no new semantic inference pass: it slices,
 //! looks up, sorts and maps facts analysis already located. Rows that
@@ -34,20 +36,30 @@
 //!   are excluded: handlers are not user-callable, and CRUD/capability
 //!   inputs would need synthesizing rather than locating.
 //! - Declaration examples are fixtures targeting the declaration (the only
-//!   labeled, declaration-attached example-surface facts). Operation-
-//!   attached `examples` blocks are unlabeled in source and v1 carries no
-//!   operation-examples slot, so they are not extracted.
+//!   labeled, declaration-attached example-surface facts); operation table
+//!   rows never leak into them. Operation-owned examples are one entry per
+//!   data row of every table-form `examples` block attached to the
+//!   operation, in source order (positional `row-N` labels: tables are
+//!   unlabeled in source). Row text is sliced from the existing parser's
+//!   CST (a read-only re-parse: the same parser, not a second one), split
+//!   at the authored `->` into input cells plus expectation. Sequence-form
+//!   `examples`/`do` blocks have no row/expected shape and stay
+//!   unextracted rather than inventing one.
 //! - Availability is always `unknown`: analysis publishes no verified
 //!   owner/catalog fact for reference-level availability, and v1 never
 //!   invents one. The `available` shape exists for contract conformance.
-//! - Declaration `#= message` references resolve to same-module messages
-//!   only (`CheckedProgram` carries no scope tables for imports).
-//!   Unresolvable references leave the declaration undescribed rather than
-//!   carrying wrong wording.
-//! - `app_default_locale` is the first analyzed module's `source=` tag
-//!   (`"en"` when nothing was analyzed): the best located approximation of
-//!   the default reading locale. Per-description source languages still
-//!   travel on each description value.
+//! - Declaration `#= name` references resolve to same-module messages plus
+//!   bare names imported through the authoring module's established `use`
+//!   scope (consumer-side alias to provider-local symbol, mirroring the
+//!   checker's production scope). Dotted references stay unresolved (the
+//!   checker rejects them; no new syntax). Unresolvable references leave
+//!   the declaration undescribed rather than carrying wrong wording.
+//! - `app_default_locale` is the single app module's `source=` tag when
+//!   exactly one analyzed module declares an app; otherwise (package-only
+//!   or multi-app inputs) it falls back to the first analyzed module's
+//!   tag, `"en"` when nothing was analyzed. No locale-default machinery:
+//!   pure module-kind selection over located facts. Per-description source
+//!   languages still travel on each description value.
 //! - `source_revision` is a content hash (lowercase hex SHA-256 over
 //!   path-sorted `(portable_path, text)` pairs), never a wall-clock
 //!   timestamp. Paths are portable identities so absolute/relative
@@ -64,12 +76,13 @@
 //! analysis (source) order.
 
 use crate::analysis::effects::{CheckedDescription, FieldData, ModifierData, ParamData};
-use crate::analysis::resolve::{FixtureTarget, ModuleId, Symbol, SymbolId, SymbolKind};
+use crate::analysis::resolve::{FixtureTarget, ModuleId, ModuleKind, Symbol, SymbolId, SymbolKind};
 use crate::analysis::types::ResolvedType;
 use crate::analysis::{CheckedProgram, NodeKey};
 use crate::json::{self, Json};
 use crate::source::{SourceDb, SourceId, Span, sha256_hex};
-use std::collections::BTreeMap;
+use crate::syntax::{SyntaxKind, SyntaxNode};
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
 /// Frozen reference-model version. Matches `REFERENCE_MODEL_VERSION` in
@@ -192,6 +205,10 @@ pub struct ReferenceOperation {
     pub inputs: Vec<ReferenceOperationInput>,
     /// Declared result.
     pub result: ReferenceOperationResult,
+    /// Operation-owned authored examples: one entry per data row of every
+    /// attached table-form `examples` block, in source order. Always
+    /// emitted (empty when the operation has no tables).
+    pub examples: Vec<ReferenceExample>,
     /// Operation declaration location.
     pub location: ReferenceSourceLocation,
 }
@@ -306,6 +323,14 @@ pub fn extract_reference(
     files: &[SourceId],
     program: &CheckedProgram,
 ) -> ReferenceModel {
+    // Read-only re-parse of the analyzed sources (the existing parser, for
+    // operation row slicing only); diagnostics are analysis's business and
+    // already reported, so only the trees are kept.
+    let trees: HashMap<SourceId, SyntaxNode> = files
+        .iter()
+        .map(|file| (*file, crate::syntax::parse(db, *file).0))
+        .collect();
+    let op_examples = operation_example_map(db, program, &trees);
     // Per-owner accumulation keyed by module name (BTreeMap: sorted owners).
     let mut owners: BTreeMap<String, (Vec<ReferenceDeclaration>, Vec<ReferenceOperation>)> =
         BTreeMap::new();
@@ -360,7 +385,7 @@ pub fn extract_reference(
     for scenario in program.effects.scenarios.values() {
         let (Some(owner), Some(operation)) = (
             module_name(program, scenario.module),
-            reference_operation(db, program, scenario),
+            reference_operation(db, program, scenario, &op_examples),
         ) else {
             continue;
         };
@@ -530,12 +555,14 @@ fn reference_input(
 }
 
 /// One user scenario: canonical id, inputs in signature order, declared
-/// result and attached description. Trusted handlers are not user
-/// operations and yield `None`; no caller permission is inferred.
+/// result, attached description and owned row examples. Trusted handlers
+/// are not user operations and yield `None`; no caller permission is
+/// inferred.
 fn reference_operation(
     db: &SourceDb,
     program: &CheckedProgram,
     scenario: &crate::analysis::effects::ScenarioData,
+    op_examples: &HashMap<SymbolId, Vec<ReferenceExample>>,
 ) -> Option<ReferenceOperation> {
     let symbol = symbol(program, scenario.scenario)?;
     if !matches!(symbol.kind, SymbolKind::Scenario { trusted: false, .. }) {
@@ -566,6 +593,10 @@ fn reference_operation(
             nullable,
             description: None,
         },
+        examples: op_examples
+            .get(&scenario.scenario)
+            .cloned()
+            .unwrap_or_default(),
         location: location(db, &scenario.node),
     })
 }
@@ -620,6 +651,87 @@ fn declaration_examples(
     examples
 }
 
+/// Operation-owned authored examples keyed by scenario symbol: one entry
+/// per data row of every table-form `examples` block attached to the
+/// operation. Tables arrive in source order and rows keep block order, so
+/// per-operation `row-N` labels are positional, unique and deterministic.
+/// Blocks detached from any operation (CRUD-attached tables have no
+/// reference home: generated CRUD operations are excluded from v1) and
+/// rows that fail to slice are omitted, never panicked on.
+fn operation_example_map(
+    db: &SourceDb,
+    program: &CheckedProgram,
+    trees: &HashMap<SourceId, SyntaxNode>,
+) -> HashMap<SymbolId, Vec<ReferenceExample>> {
+    let mut counters: HashMap<SymbolId, usize> = HashMap::new();
+    let mut map: HashMap<SymbolId, Vec<ReferenceExample>> = HashMap::new();
+    for table in &program.examples.tables {
+        let Some(operation) = table.operation else {
+            continue;
+        };
+        let (Some(tree), Some(text)) = (
+            trees.get(&table.node.file),
+            db.get(table.node.file).map(|s| s.text.as_str()),
+        ) else {
+            continue;
+        };
+        let Some(block) = tree.descendants().find(|n| NodeKey::of(n) == table.node) else {
+            continue;
+        };
+        let rows: Vec<&SyntaxNode> = block
+            .children
+            .iter()
+            .filter(|n| n.kind == SyntaxKind::ExampleRow)
+            .collect();
+        for row in rows.into_iter().skip(1) {
+            let (Some(source), expected) = split_example_row(text, row) else {
+                continue;
+            };
+            let count = counters.entry(operation).or_insert(0);
+            *count += 1;
+            map.entry(operation).or_default().push(ReferenceExample {
+                label: format!("row-{}", *count),
+                source,
+                expected,
+            });
+        }
+    }
+    map
+}
+
+/// Authored input cells plus expectation of one table data row: the
+/// trimmed source slice left of the row's `->` arrow, with the trimmed
+/// slice right of it as the expectation (`None` when the row carries no
+/// arrow). Slicing is purely positional over authored text: expected-error
+/// rows keep their `error(code)` spelling as the expectation, and no
+/// execution status is invented. `None` source (unsliceable/empty) omits
+/// the row.
+fn split_example_row(text: &str, row: &SyntaxNode) -> (Option<String>, Option<String>) {
+    let arrow = crate::analysis::kids(row)
+        .into_iter()
+        .find(|n| n.kind == SyntaxKind::Punct && n.token().is_some_and(|t| t.text(text) == "->"));
+    let Some(arrow) = arrow else {
+        return (
+            text.get(row.span.start as usize..row.span.end as usize)
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string),
+            None,
+        );
+    };
+    let source = text
+        .get(row.span.start as usize..arrow.span.start as usize)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+    let expected = text
+        .get(arrow.span.end as usize..row.span.end as usize)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+    (source, expected)
+}
+
 /// Declaration/operation description from the recorded `#` set whose owner
 /// is `node` (first in source order), with lone `#= message` references
 /// resolved to recorded message wording. `None` is undescribed (distinct
@@ -658,10 +770,10 @@ fn declaration_description(
 }
 
 /// Wording of a lone `#= name` declaration reference: a static zero-parameter
-/// message declared in the authoring module (local lookup over program
-/// symbols plus recorded message wording). Imported messages are out of
-/// reach — `CheckedProgram` carries no scope tables — so only same-module
-/// messages resolve.
+/// message resolved through the authoring module's established scope —
+/// same-module declarations first, then bare names imported via `use`
+/// (see [`imported_message_symbol`]). Dotted references stay unresolved
+/// (the checker rejects them; no new syntax).
 fn local_message_wording(
     program: &CheckedProgram,
     module: ModuleId,
@@ -670,10 +782,13 @@ fn local_message_wording(
     if reference.is_empty() || reference.contains('.') {
         return None;
     }
-    let symbol = program
+    let id = program
         .symbols
         .iter()
-        .find(|s| s.module == module && s.name == reference)?;
+        .find(|s| s.module == module && s.name == reference)
+        .map(|s| s.id)
+        .or_else(|| imported_message_symbol(program, module, reference))?;
+    let symbol = symbol(program, id)?;
     if !matches!(symbol.kind, SymbolKind::Message { ref params } if params.is_empty()) {
         return None;
     }
@@ -689,6 +804,37 @@ fn local_message_wording(
             })
             .collect(),
     ))
+}
+
+/// Provider-local symbol for a bare name imported into `module` through
+/// its established `use` scope: the consumer-side alias resolves to the
+/// provider-side member name in the named provider module. This mirrors
+/// the checker's production scope (`Local | Imported` resolve): the
+/// checker only binds imports to provider-local symbols (transitive
+/// imports are `E2004`), so only provider-local symbols are followed, and
+/// unresolvable providers (external bindings) yield `None`.
+fn imported_message_symbol(
+    program: &CheckedProgram,
+    module: ModuleId,
+    reference: &str,
+) -> Option<SymbolId> {
+    let importing = program.modules.iter().find(|m| m.id == module)?;
+    for import in &importing.imports {
+        let Some(member) = import.members.iter().find(|m| m.alias == reference) else {
+            continue;
+        };
+        let Some(provider) = program.modules.iter().find(|m| m.name == import.provider) else {
+            continue;
+        };
+        if let Some(symbol) = program
+            .symbols
+            .iter()
+            .find(|s| s.module == provider.id && s.name == member.name)
+        {
+            return Some(symbol.id);
+        }
+    }
+    None
 }
 
 /// Frozen-seam mapping: one checked field/parameter description.
@@ -711,12 +857,21 @@ fn checked_description_value(
     }
 }
 
-/// First analyzed module's `source=` tag, or `"en"` when nothing was
-/// analyzed (the documented default).
+/// Default reading locale: the single app module's `source=` tag when
+/// exactly one analyzed module declares an app (implicit or composed),
+/// else the first analyzed module's tag (package-only/multi-app fallback),
+/// or `"en"` when nothing was analyzed. Pure module-kind selection over
+/// located facts — no invented locale policy.
 fn app_default_locale(program: &CheckedProgram) -> String {
-    program
+    let mut apps = program
         .modules
-        .first()
+        .iter()
+        .filter(|m| m.kind != ModuleKind::Package);
+    let selected = match (apps.next(), apps.next()) {
+        (Some(only), None) => Some(only),
+        _ => program.modules.first(),
+    };
+    selected
         .and_then(|m| program.effects.modules.get(&m.id))
         .map(|d| d.source_lang.clone())
         .unwrap_or_else(|| "en".to_string())
@@ -1015,7 +1170,9 @@ impl ReferenceOperationResult {
 
 impl ReferenceOperation {
     /// Operation as JSON: callable surface only (`id`, `description`,
-    /// `inputs`, `result`, `location`) — no authorization material.
+    /// `inputs`, `result`, `examples`, `location`) — no authorization
+    /// material. `examples` is always present (possibly empty), mirroring
+    /// declarations; pre-R4 payloads omit the key and still render.
     pub fn to_json(&self) -> Json {
         let mut members = vec![("id".to_string(), Json::Str(self.id.clone()))];
         if let Some(description) = &self.description {
@@ -1031,6 +1188,15 @@ impl ReferenceOperation {
             ),
         ));
         members.push(("result".to_string(), self.result.to_json()));
+        members.push((
+            "examples".to_string(),
+            Json::Arr(
+                self.examples
+                    .iter()
+                    .map(ReferenceExample::to_json)
+                    .collect(),
+            ),
+        ));
         members.push(("location".to_string(), self.location.to_json()));
         Json::Obj(members)
     }
