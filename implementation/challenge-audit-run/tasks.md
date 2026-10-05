@@ -258,12 +258,12 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Acceptance: Static imported containment and canonical storage/permission behavior follow accepted T28; imported aliases cannot confer accidental storage or access authority.
   - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
 
-- [ ] **T30 — Replace spelling based event mutation checks**
+- [x] **T30 — Replace spelling based event mutation checks**
   - Prerequisites: M00; resolved provenance available.
   - Owner / files / interfaces: L1 with L3/L4 review; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs. Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ02; canonical design/task: Accountable lead: L1. Contributors and owning boundaries: L1 with L3/L4 review. Distinguish parameter/event/reference/snapshot/pending provenance. Done when renaming event changes no validity and immutable snapshot controls remain.
   - Acceptance: Parameter name event can be renamed without validity change; immutable event/reference/snapshot/pending distinctions come from resolution/provenance; invalid mutation controls remain.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: writer 01a10d37-ce26 released types.rs (spelling arm removed, resolution dispatch, path-head/context rules) + 16 b4 tests (rename-invariance, verified-ref, snapshot/pending/hook controls) + table (16↓/0↑). Coordinator stash-differential: 192 removed (E3009 -42, E3001 -137, E2001 -13), 11 added ALL genuine leaf findings in newly-reached `set event.*` targets (enum/datetime/opaque/secret negatives); residual E3009 x2 are legitimate immutable controls; suite 27 green. T30 COMPLETE.
 
 - [ ] **T31 — Implement permitted secondary hook writes**
   - Prerequisites: T31a accepted secondary-hook decision via JEV; then T30 and canonical runtime; T28 alone insufficient.
@@ -458,3 +458,5 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - DISPATCH batch 19 (1 used, 2 idle): L1 T30 writer (provenance-based event mutation checks per R15; types/resolve/tests-b4_check + table with attribution; rename-event invariance + immutable-snapshot controls). Queued serially: T14a→T14b.
 - QUEUED SUPPLEMENT (no start): user-authorized description-reference scope (inline desc= + internal dev reference, alt B) saved at implementation/DESCRIPTION-REFERENCE-PLAN.md with JEV evidence under design/jev/description-reference-20261005/. Acknowledged for this same session AFTER current H01 + Codex R01 review/repairs + explicit start handoff; then inspect goal + create matching supplemental goal + separate checklist (D01-D08) without touching original completion accounting. No reservations/goal/normative changes now; T30 continues undisturbed.
 - SUPERSEDED TO START: latest user instruction revoked the blanket wait — supplement STARTED in same session/goal/checkout. Separate checklist at implementation/description-reference-run/tasks.md (D acceptance tracked there, never in original %). D02a + D04a/D05a dispatched disjoint from T30 (3/3 total). D02b preempts T14a at T30 release. Original plan intact; T30 ownership untouched.
+- DONE T30: writer 01a10d37-ce26-75a2-b0b5-da5da400eb76 RELEASED checker + tests + table (11 unmasked proven genuine). T30 ticked COMPLETE (see T30 evidence).
+- DISPATCH batch 20: D02b preempts (checker resolve/types/effects + tests + table; see D checklist). T14a queued behind D02b; then T14b, T04b/T15a.
