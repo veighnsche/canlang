@@ -25,7 +25,7 @@ export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from 
 export type { DeliveryStatus } from "./services.js";
 export type { HistoryEntry } from "./state.js";
 
-export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.14.0";
+export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.15.0";
 
 /**
  * Name of the hidden CSRF field in every canonical POST form. Rendered by
@@ -33,6 +33,15 @@ export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.14.0";
  * input and never logged.
  */
 export const CSRF_FIELD = "_csrf";
+
+/**
+ * Name of the pre-session token field in the login form. Rendered by lane
+ * 05 from the `GET /auth/login` descriptor value, read by the lane 6
+ * dispatcher before credentials are checked; never a business input and
+ * never logged. Single-use: every credential-checked login POST consumes
+ * the token, so a failed attempt refetches the descriptor.
+ */
+export const PRESESSION_FIELD = "_presession";
 
 /**
  * Name of the team-select field in the account switcher form. Rendered by
@@ -339,6 +348,11 @@ export interface LoginProps {
   readonly next?: string;
   /** Caller-unique prefix for input ids (deterministic for tests). */
   readonly idPrefix: string;
+  /**
+   * Single-use pre-session token from the login descriptor; rendered as a
+   * hidden `_presession` field. Absent renders no field (static previews).
+   */
+  readonly preSessionToken?: string;
 }
 
 /**

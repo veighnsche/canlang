@@ -4,7 +4,8 @@
  * Interim page contract (pending L5 screens): the GET routes return JSON
  * form descriptors `{form, fields, postTo, csrfField}` describing the form
  * the future page will render — they are NOT the pages, and they never
- * consume tokens or mutate state.
+ * consume tokens. Only the login GET mutates state (one throttled
+ * pre-session row per call); every other GET is side-effect-free.
  *
  * Method/path matrix: only the documented method+subpath pairs dispatch;
  * every other combination (unknown `/auth/*` subpath, wrong method) is
@@ -12,22 +13,29 @@
  *
  * CSRF: the session-authed POSTs (logout, select-team, select-team/clear)
  * require the session-bound token via the `x-csrf-token` header or the
- * `_csrf` field. Login/register/recover/verify are unauthenticated by nature
- * and carry no CSRF — they are rate-limited instead (stricter mail policy
- * for the recovery routes).
+ * `_csrf` field. Login has no session yet, so it carries a single-use
+ * anonymous pre-session token instead: `GET /auth/login` mints it into
+ * the descriptor (`preSessionToken`), the POST presents it back as
+ * `_presession`, and every credential-checked login POST consumes it — a
+ * failed attempt refetches the descriptor (429s and malformed bodies
+ * return before the consume). Register/recover/verify stay tokenless and
+ * rate-limited: those routes plant no session, so there is nothing for a
+ * login-CSRF forgery to fixate (stricter mail policy for recovery).
  *
  * Registration conflict passes through as `conflict` (409): registration
  * MUST tell the caller the address is taken, else legitimate users cannot
  * proceed — unlike sign-in and recovery, which stay oracle-free.
  */
-import { CSRF_FIELD, TEAM_FIELD } from '@canlang/contracts';
+import { CSRF_FIELD, PRESESSION_FIELD, TEAM_FIELD } from '@canlang/contracts';
 import type { BusinessError } from '@canlang/contracts';
 import {
   IdentityError,
   buildSessionClearCookie,
   buildSessionCookie,
   clearTeamSelection,
+  consumePreSessionToken,
   loginWithPassword,
+  mintPreSessionToken,
   recoverAccount,
   registerWithEmail,
   requestRecovery,
@@ -65,7 +73,20 @@ export interface AuthFormDescriptor {
   readonly fields: readonly AuthFormField[];
   readonly postTo: string;
   readonly csrfField: string;
+  /**
+   * Single-use login token, present on the login descriptor only. The form
+   * posts it back as `_presession`; every credential-checked login POST
+   * consumes it.
+   */
+  readonly preSessionToken?: string;
 }
+
+/**
+ * Throttle label for descriptor mints. Distinct from `/auth/login` so page
+ * loads don't eat the login-attempt budget (and vice versa); the limiter
+ * keys on `${route}:${clientKey}`.
+ */
+const LOGIN_DESCRIPTOR_THROTTLE = '/auth/login/descriptor';
 
 function descriptor(form: string, fields: readonly AuthFormField[], postTo: string): AuthFormDescriptor {
   return { form, fields, postTo, csrfField: CSRF_FIELD };
@@ -153,10 +174,23 @@ async function handleVerifyPost(deps: HttpDeps, request: Request): Promise<Respo
   return jsonOk({ ok: true });
 }
 
+async function handleLoginDescriptor(deps: HttpDeps, request: Request): Promise<Response> {
+  const limited = await withRateLimit(deps, LOGIN_DESCRIPTOR_THROTTLE, request);
+  if (limited !== null) return limited;
+  const { token } = await mintPreSessionToken(deps.identity.store, { clock: deps.identity.clock });
+  return jsonOk({ ...LOGIN_DESCRIPTOR(), preSessionToken: token }, { 'cache-control': 'no-store' });
+}
+
 async function handleLogin(deps: HttpDeps, request: Request): Promise<Response> {
   const limited = await withRateLimit(deps, '/auth/login', request);
   if (limited !== null) return limited;
   const body = await readAuthBody(request);
+  const consumed = await consumePreSessionToken(deps.identity.store, body[PRESESSION_FIELD], {
+    clock: deps.identity.clock,
+  });
+  if (!consumed) {
+    throw new IdentityError('forbidden', 'Invalid or expired login token.');
+  }
   const { token } = await loginWithPassword(
     deps.identity.store,
     { email: requiredString(body, 'email'), password: requiredString(body, 'password') },
@@ -291,14 +325,15 @@ const SELECT_TEAM_DESCRIPTOR = (): AuthFormDescriptor =>
 
 /**
  * Dispatch one `/auth/*` request. GETs return interim form descriptors
- * (side-effect-free); POSTs run the identity flows above. Anything
+ * (the login GET mints a throttled pre-session token; the rest are
+ * side-effect-free); POSTs run the identity flows above. Anything
  * unmapped is `not_found` JSON.
  */
 export async function handleAuthRequest(deps: HttpDeps, request: Request): Promise<Response> {
   const pathname = new URL(request.url).pathname;
   const method = request.method;
   try {
-    if (method === 'GET' && pathname === '/auth/login') return jsonOk(LOGIN_DESCRIPTOR());
+    if (method === 'GET' && pathname === '/auth/login') return await handleLoginDescriptor(deps, request);
     if (method === 'GET' && pathname === '/auth/register') return jsonOk(REGISTER_DESCRIPTOR());
     // Side-effect-free: the token query only pre-selects the form; the POST consumes it.
     if (method === 'GET' && pathname === '/auth/verify') return jsonOk(VERIFY_DESCRIPTOR());

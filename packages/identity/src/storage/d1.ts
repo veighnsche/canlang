@@ -38,6 +38,7 @@ import type {
   MembershipId,
   OAuthClient,
   OAuthClientId,
+  PreSessionToken,
   Session,
   SessionId,
   Team,
@@ -108,6 +109,9 @@ const IDENTITY_SESSIONS_DDL =
 const IDENTITY_EMAIL_TOKENS_DDL =
   'CREATE TABLE IF NOT EXISTS identity_email_tokens (token_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, purpose TEXT NOT NULL, token_sha256 TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, consumed_at TEXT NULL)';
 
+const IDENTITY_PRESESSION_TOKENS_DDL =
+  'CREATE TABLE IF NOT EXISTS identity_presession_tokens (token_id TEXT PRIMARY KEY, token_sha256 TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, expires_at TEXT NOT NULL)';
+
 const IDENTITY_MCP_GRANTS_DDL =
   'CREATE TABLE IF NOT EXISTS identity_mcp_grants (grant_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, team_id TEXT NULL, client_id TEXT NOT NULL, token_sha256 TEXT NOT NULL UNIQUE, issued_at TEXT NOT NULL, expires_at TEXT NOT NULL, revoked_at TEXT NULL)';
 
@@ -133,6 +137,7 @@ export const IDENTITY_DDL: readonly string[] = [
   IDENTITY_MEMBERSHIPS_DDL,
   IDENTITY_INVITATIONS_DDL,
   IDENTITY_SESSIONS_DDL,
+  IDENTITY_PRESESSION_TOKENS_DDL,
   IDENTITY_EMAIL_TOKENS_DDL,
   IDENTITY_MCP_GRANTS_DDL,
   IDENTITY_OAUTH_CLIENTS_DDL,
@@ -287,6 +292,24 @@ function toSession(row: SessionRow): Session {
     expires_at: row.expires_at,
     revoked_at: row.revoked_at,
     last_team_id: row.last_team_id === null ? null : (row.last_team_id as TeamId),
+  };
+}
+
+interface PreSessionTokenRow {
+  readonly token_id: string;
+  readonly token_sha256: string;
+  readonly created_at: string;
+  readonly expires_at: string;
+}
+
+const PRESESSION_TOKEN_COLUMNS = 'token_id, token_sha256, created_at, expires_at';
+
+function toPreSessionToken(row: PreSessionTokenRow): PreSessionToken {
+  return {
+    token_id: row.token_id,
+    token_sha256: row.token_sha256,
+    created_at: row.created_at,
+    expires_at: row.expires_at,
   };
 }
 
@@ -687,6 +710,30 @@ export function createD1IdentityStore(
       await db
         .prepare('UPDATE identity_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL')
         .bind(now(), user_id)
+        .run();
+    },
+
+    async createPreSessionToken(input) {
+      const token_id = random.randomUUID();
+      await db
+        .prepare(
+          'INSERT INTO identity_presession_tokens (token_id, token_sha256, created_at, expires_at) VALUES (?, ?, ?, ?)',
+        )
+        .bind(token_id, input.token_sha256, now(), input.expires_at)
+        .run();
+      return { token_id };
+    },
+    async findPreSessionTokenByHash(token_sha256) {
+      const row = await db
+        .prepare(`SELECT ${PRESESSION_TOKEN_COLUMNS} FROM identity_presession_tokens WHERE token_sha256 = ?`)
+        .bind(token_sha256)
+        .first<PreSessionTokenRow>();
+      return row === null ? null : toPreSessionToken(row);
+    },
+    async deletePreSessionToken(token_id) {
+      await db
+        .prepare('DELETE FROM identity_presession_tokens WHERE token_id = ?')
+        .bind(token_id)
         .run();
     },
 

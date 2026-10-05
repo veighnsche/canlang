@@ -113,6 +113,7 @@ test('ensureIdentitySchema is idempotent and creates every table', async () => {
     'identity_mcp_grants',
     'identity_memberships',
     'identity_oauth_clients',
+    'identity_presession_tokens',
     'identity_sessions',
     'identity_teams',
     'identity_users',
@@ -310,6 +311,20 @@ test('sessions: create, lookup, team switch, revocation', async () => {
   await store.revokeSession(session.session_id);
   assert.equal((await store.findSessionByTokenHash('session-hash-1'))?.revoked_at, firstRevoked);
   assert.ok(other.session_id.length > 0);
+});
+
+test('pre-session tokens: create, lookup by hash, hard delete', async () => {
+  const { store } = await setup();
+  const { token_id } = await store.createPreSessionToken({
+    token_sha256: 'presession-hash-1',
+    expires_at: '2026-10-04T15:10:00.000Z',
+  });
+  assert.equal((await store.findPreSessionTokenByHash('presession-hash-1'))?.token_id, token_id);
+  assert.equal(await store.findPreSessionTokenByHash('missing-hash'), null);
+  await store.deletePreSessionToken(token_id);
+  assert.equal(await store.findPreSessionTokenByHash('presession-hash-1'), null);
+  // Deleting twice is a no-op, never an error.
+  await store.deletePreSessionToken(token_id);
 });
 
 test('email tokens: create, lookup, idempotent consume, purpose-scoped revocation', async () => {
