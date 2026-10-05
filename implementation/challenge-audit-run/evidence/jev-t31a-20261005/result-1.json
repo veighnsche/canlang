@@ -1,0 +1,38 @@
+{
+  "request": {
+    "questions": {
+      "hook_rule": {
+        "criteria": {
+          "bounded_cascade": "Stage same-transaction secondaries as the flat rule does, except a staged write to another model re-runs that model's own create/update hooks inside the same owner transaction, with hook cycles rejected statically and a runtime depth bound capping chains static analysis misses; reentry into the triggering CRUD path stays forbidden. On today's drafts this behaves exactly like flat staging (CanCheck's Transition/Notice targets carry no hooks), while future composed hooks would compose automatically. Price: the widest semantic surface — cascade order, the bound value, cross-model hook interaction, multi-model failure attribution, cascade/conflict test interleavings, and an atomicity proof spanning the whole cascade must all be specified and kept inside the bounded-work budget; a single staged create can recruit other packages' hooks into the user's transaction, each able to reject it, while no sampled workflow demonstrates any need for cascading.",
+          "committed_handlers": "Let create/update hooks keep only the settled core: adjust the pending record through set event.after or reject the operation. Every secondary effect — parented children, timers, cross-row writes — moves into committed-event handlers that run as later transactions and can never retroactively reject their source. Price: each of the 36 hook bodies with secondary effects pays remodeling (CanCheck L113/L119/L100/L115/L117 relocate with per-site re-proof), trigger-plus-children atomicity is surrendered so a committed parent can strand childless when its handler fails, workflow completeness leans on handler retry/recovery whose dispatch evidence does not exist yet, and one workflow must be read in two places; the drafts' plainly staged intent, guarded by the same conditions as the pending adjustment, is set aside for checker narrowness.",
+          "declared_allowlist": "Stage same-transaction secondaries as the flat rule does, but only to targets named in the hook's own contract: child rows parented to event.after and timer operations bound to the pending record. Cross-row writes, unparented creates and any delete are check-time errors in hook bodies and must use committed handlers instead. CanCheck's parented children and pending-bound timers fit with zero draft edits; anything outside the declaration pays handler-style remodeling later. Price: a fresh declaration surface (syntax, visibility, versioning) plus permanent boundary litigation over whether a write is parented enough; two secondary-write mechanisms to teach, diagnose and keep apart; the parented/cross-row line proxies blast radius syntactically rather than semantically, so authors can re-parent writes to fit and the allowlist may accrete toward the flat rule anyway.",
+          "staged_flat": "Let a create/update hook adjust the pending record through set event.after and also stage secondary writes — creates and writes on other owner rows, timer schedule/cancel — that commit atomically with the triggering operation in one owner transaction. Staged writes re-run invariants and locks, reserve their own versions, enroll their targets' read revisions in the existing fence, and never re-invoke CRUD hooks. All five accepted workflows hold verbatim with zero draft edits, including CanCheck's parented Transition/Notice children and Deadline timer. Price: the owner transaction grows to cover trigger plus staged set plus rechecks within the bounded-work budget; one over-broad or contended staged write fails the user's trigger with a conflict or invariant error far from its cause; staged failures must attribute to the staging hook line; the engine must still prove single-owner atomicity for the staged set."
+        },
+        "instructions": "For the secondary-hook-write gate, which rule best preserves the five accepted workflows (pending adjustment with version fencing, staged children/timers or an adopted replacement, revision invalidation, atomic rollback, hook negatives), keeps genuinely unsafe hook behavior failing, and minimizes migration churn and semantic risk? Judge every option under the same workflow-preservation and minimal-intervention constraints.",
+        "type": "choice"
+      }
+    },
+    "state": "CanLang business declarations live in .can sources across 52 draft files. Accepted workflows come first: CanCheck's initial/configured hooks adjust the pending record (armed/state/due/revision with before.version=v and after.version=v+1), create Transition and Notice children parented to the pending record, and schedule/cancel a Deadline timer; hook-observed state must invalidate on concurrent change with a version conflict rather than a silent commit; trigger plus staged effects commit or roll back together; recursive triggering CRUD, pending-source deletion, delete-hook adjustment and snapshot mutation all fail. The corpus holds 44 CRUD hooks in 16 files (20 create, 23 update, 1 delete); 36 carry secondary effects (17 parented children, 10 timers, 8 cross-row, 7 other, zero delete attempts) and 8 are settled-core-only. DESIGN fixes the settled core: pre-commit hooks adjust or reject, add no client parameters, never call back into the triggering CRUD, run at most one per model and operation, and treat cycles as errors; created rows stay version 1 in their creating transaction, accepted writes reserve v+1, and a child write never advances an unwritten parent. Landed context: T30 provenance typing (spelling separated from semantics); T28 Alternative A adopted for plain-import containment while T29 imported atomicity and any split diagnostic stay owed; T16 complete with T17a state-side landed and T17b outstanding, and durable-transaction evidence still plan-not-proof with restarts unclaimed. Open edges: R27 server-owned enforcement differs between the ordinary-update path (rejected) and the hook path (accepted) with no adopted T18 rule; the T23/R29 example contract offers one discriminating staged-observation input and one control across 26 corpus example blocks, none attached to hook scenarios; secrets-touching hooks inherit an R17 fencing residual. This is a design choice, not a measured implementation result.",
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "hook_rule": {
+        "type": "choice",
+        "choice": "staged_flat",
+        "confidence": 0.96,
+        "probabilities": {
+          "bounded_cascade": 0.0,
+          "committed_handlers": 0.0,
+          "declared_allowlist": 0.02,
+          "staged_flat": 0.98
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1571,
+      "output_tokens": 59
+    }
+  }
+}
