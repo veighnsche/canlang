@@ -11,6 +11,7 @@
  */
 
 import type {
+  AdmissionKind,
   CanonicalInputDef,
   CanonicalOperationKind,
   InvocationContext,
@@ -26,7 +27,7 @@ import type {
 import type { ClosedInputs, FieldError } from '../../../contracts/src/wire.js';
 import type { GeneratedOperationDef, InterimOperationDef } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
-import type { MembershipReader } from '../policy/roles.js';
+import type { ByPredicate, MembershipReader } from '../policy/roles.js';
 import { evaluateBy } from '../policy/roles.js';
 import { assertOperationIdAge } from './context.js';
 import { hashInputs } from './replay.js';
@@ -47,6 +48,14 @@ export interface AdmittedCall {
   inputHash: string;
   revision: Revision;
   replay: Receipt | null;
+  /**
+   * T32b checkpoint enrollment: the owner checkpoint this call's
+   * state-dependent reads enrolled in (membership, record refs, parent
+   * linkage). Optional so older constructed calls keep compiling; the
+   * fenced commit re-asserts `revision` unconditionally and runs
+   * `revalidateCommitForFence` when a checkpoint is present.
+   */
+  checkpoint?: FenceCheckpoint;
 }
 
 /** Derive the receipt identity for a context (single home for the mapping). */
@@ -283,6 +292,10 @@ export async function admit(input: {
   // state-dependent reads (receipt, membership, rows), so the commit-time
   // fence assertion covers everything admission observed.
   const revision = await store.readRevision();
+  // T32b: the owner checkpoint every state-dependent read of this
+  // operation enrolls in (the settled revision fence, not a second
+  // fence). Owner is the team when scoped, else the deployment app.
+  const scope = openFenceScope(revision, context.team?.teamId ?? context.app);
   const inputHash = await hashInputs(inputs);
 
   const existing = await store.readReceipt(receiptIdentityFor(context));
@@ -298,6 +311,7 @@ export async function admit(input: {
       inputHash,
       revision: existing.committedRevision,
       replay: existing,
+      checkpoint: scope.snapshot(),
     };
   }
 
@@ -312,6 +326,9 @@ export async function admit(input: {
       actorUserId !== null && teamId !== null
         ? await memberships.findMembership(teamId, actorUserId)
         : null;
+    if (actorUserId !== null && teamId !== null) {
+      scope.enroll({ kind: 'membership', teamId, userId: actorUserId });
+    }
     const allowed = await evaluateBy(def.by, { actorUserId, teamId, membership, memberships });
     if (!allowed) {
       throw new StateError('forbidden', 'This operation is not permitted for the caller.');
@@ -347,8 +364,266 @@ export async function admit(input: {
     if (row.archivedAt !== null) {
       throw new StateError('validation', 'Archived records cannot be used here.');
     }
+    scope.enroll({ kind: 'record', model: ref.model, id: ref.id, version: row.version });
+    if (row.parent !== undefined && row.parent !== null) {
+      enrollImportedParentRead(scope, { model: row.parent.model, id: row.parent.id });
+    }
     recordRefs.push({ ...ref, row });
   }
 
-  return { context, def, inputs: admittedInputs, recordRefs, inputHash, revision, replay: null };
+  return {
+    context,
+    def,
+    inputs: admittedInputs,
+    recordRefs,
+    inputHash,
+    revision,
+    replay: null,
+    checkpoint: scope.snapshot(),
+  };
+}
+
+/* -- T32b checkpoint fence (adopted Alternative A). -- */
+
+/**
+ * One state-dependent read enrolled in an operation's owner checkpoint.
+ * The database-wide revision assertion is the security property (any
+ * intervening write moves the revision and voids the commit); the enrolled
+ * dependency list exists for invalidating-read attribution and for the
+ * still-open narrower-fence question (see the T32b report).
+ */
+export type CheckpointDependency =
+  /** Live membership/role read backing a `by` or policy predicate. */
+  | { readonly kind: 'membership'; readonly teamId: string; readonly userId: string }
+  /** Record row observed at a version (admission ref loads). */
+  | {
+      readonly kind: 'record';
+      readonly model: ModelName;
+      readonly id: RecordId;
+      readonly version: RecordVersion;
+    }
+  /** Authorized query served at the checkpoint (engine enrollment). */
+  | { readonly kind: 'query'; readonly model: ModelName; readonly authority: 'viewer' | 'owner' }
+  /**
+   * Imported-parent linkage observed at the checkpoint. Per adopted T28-A,
+   * plain-import parents share the caller's owner, store, and atomic
+   * commit, so the read enrolls in the SAME owner checkpoint — never a
+   * cross-owner fence. (Bound `from=` parents stay rejected and have no
+   * enrollment; a future bound read is a cross-owner reference read, not
+   * a same-fence containment read.)
+   */
+  | { readonly kind: 'imported-parent'; readonly model: ModelName; readonly id: RecordId };
+
+/** Frozen owner checkpoint: one revision plus its enrolled read dependencies. */
+export interface FenceCheckpoint {
+  readonly revision: Revision;
+  readonly owner: string;
+  readonly dependencies: ReadonlyArray<CheckpointDependency>;
+}
+
+/**
+ * Mutable single-operation enrollment scope over one owner checkpoint.
+ * Guards, `when=`, derives, policy predicates, membership checks, and
+ * record loads enroll here; `snapshot()` freezes the checkpoint the
+ * fenced commit re-asserts. One scope per operation; transitive effects
+ * open their own via `openTransitiveScope`, never by inheriting this one.
+ */
+export interface FenceScope {
+  readonly revision: Revision;
+  readonly owner: string;
+  readonly dependencies: ReadonlyArray<CheckpointDependency>;
+  enroll(dependency: CheckpointDependency): void;
+  snapshot(): FenceCheckpoint;
+}
+
+function dependencyKey(dependency: CheckpointDependency): string {
+  switch (dependency.kind) {
+    case 'membership':
+      return `membership\0${dependency.teamId}\0${dependency.userId}`;
+    case 'record':
+      return `record\0${dependency.model}\0${dependency.id}\0${dependency.version}`;
+    case 'query':
+      return `query\0${dependency.model}\0${dependency.authority}`;
+    case 'imported-parent':
+      return `imported-parent\0${dependency.model}\0${dependency.id}`;
+  }
+}
+
+/** Open one operation's enrollment scope at an already-read owner checkpoint. */
+export function openFenceScope(revision: Revision, owner: string): FenceScope {
+  const seen = new Set<string>();
+  const enrolled: CheckpointDependency[] = [];
+  return {
+    revision,
+    owner,
+    get dependencies(): ReadonlyArray<CheckpointDependency> {
+      return enrolled;
+    },
+    enroll(dependency: CheckpointDependency): void {
+      const key = dependencyKey(dependency);
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      enrolled.push(dependency);
+    },
+    snapshot(): FenceCheckpoint {
+      return { revision, owner, dependencies: [...enrolled] };
+    },
+  };
+}
+
+/**
+ * Enroll an imported-parent read in the CALLER's scope (adopted T28-A:
+ * same owner, same checkpoint, same revision fence). The read takes no
+ * new scope and no cross-owner boundary.
+ */
+export function enrollImportedParentRead(
+  scope: FenceScope,
+  parent: { readonly model: ModelName; readonly id: RecordId },
+): void {
+  scope.enroll({ kind: 'imported-parent', model: parent.model, id: parent.id });
+}
+
+/**
+ * Open a transitive effect's fence scope: hook bodies and committed
+ * handlers re-read CURRENT authority state at their own checkpoint rather
+ * than inheriting the triggering read's snapshot. The scope starts with
+ * zero enrolled dependencies by construction — inheritance is
+ * unrepresentable. The caller owns the trigger revision for diagnostics;
+ * it is never consulted here.
+ */
+export async function openTransitiveScope(
+  store: Pick<StoragePort, 'readRevision'>,
+  owner: string,
+): Promise<FenceScope> {
+  return openFenceScope(await store.readRevision(), owner);
+}
+
+/**
+ * Structural eventual-read marker test. Eventual (display-only,
+ * stale-tolerant) reads enroll nothing and carry `eventual: true` on
+ * their result wrapper (see `query/engine.ts`); they can NEVER feed an
+ * authorization decision or a spend. Structural (not nominal) so the
+ * marker survives the engine/admission boundary without an import cycle.
+ */
+export function isEventualRead(reading: unknown): boolean {
+  return (
+    typeof reading === 'object' &&
+    reading !== null &&
+    (reading as { readonly eventual?: unknown }).eventual === true
+  );
+}
+
+/**
+ * Refuse an eventual read at an authorization boundary. The fenced commit
+ * runs this over every reading the operation offers as authorization
+ * evidence; display-only eventual reads keep their reread/stale-marking
+ * contract and are statically shaped apart (the `EventualRecordsResult`
+ * wrapper), with this runtime bar where shapes meet.
+ */
+export function requireAuthorizingRead(reading: unknown, what: string): void {
+  if (isEventualRead(reading)) {
+    throw new StateError(
+      'validation',
+      `${what} cannot authorize from a display-only eventual read; re-read at the fence.`,
+    );
+  }
+}
+
+/** One guard/`when=` predicate the fenced commit re-evaluates live. */
+export interface GuardRevalidation {
+  /** Stable predicate name for invalidating-read attribution. */
+  readonly name: string;
+  /** Re-run against CURRENT state; false voids the commit. */
+  readonly evaluate: () => boolean | Promise<boolean>;
+}
+
+/** Commit-time revalidation input: checkpoint plus live authority readers. */
+export interface CommitRevalidationInput {
+  readonly checkpoint: FenceCheckpoint;
+  /** The operation's `by`, re-evaluated against live membership state. */
+  readonly by: ByPredicate;
+  /** Guard/`when=` predicates, re-evaluated live (attribution by name). */
+  readonly guards: ReadonlyArray<GuardRevalidation>;
+  readonly actorUserId: string | null;
+  readonly teamId: string | null;
+  readonly kind: AdmissionKind;
+  readonly store: Pick<StoragePort, 'readRevision'>;
+  readonly memberships: MembershipReader;
+  /**
+   * Readings offered as authorization evidence; any eventual-marked
+   * reading voids the commit (eventual reads never authorize).
+   */
+  readonly readings?: ReadonlyArray<unknown>;
+}
+
+/**
+ * T32b commit-time revalidation (adopted Alternative A): the fenced commit
+ * re-asserts the checkpoint revision AND re-evaluates permission +
+ * revocation against CURRENT authority state.
+ *
+ * Order: (1) eventual bar over offered readings; (2) revision assertion —
+ * any intervening change to a read dependency fails with `conflict`
+ * (stale revision); (3) live authority revalidation — a revoked
+ * permission fails with `forbidden`, never a silent commit. Trusted-kind
+ * calls skip step 3 exactly like admission (verified source authority),
+ * but the revision assertion still applies unconditionally.
+ *
+ * Revocation scope (L291 NARROWER reading): authority revoked between
+ * admission and commit VOIDS the in-flight commit — the already-admitted
+ * operation does NOT finish when its authority is gone (matches the
+ * proven Grant deactivate-then-deny immediacy). Still open: revocation
+ * racing an already-fenced commit batch (storage-atomicity question for
+ * the durable fence proof, not decided here).
+ *
+ * Membership/role facts always come from the live reader, never from
+ * trusted claims or checkpoint snapshots: the checkpoint names WHICH
+ * memberships were read, and step 3 re-reads them.
+ */
+export async function revalidateCommitForFence(input: CommitRevalidationInput): Promise<void> {
+  for (const reading of input.readings ?? []) {
+    requireAuthorizingRead(reading, 'The fenced commit');
+  }
+  const current = await input.store.readRevision();
+  if (current !== input.checkpoint.revision) {
+    throw new StateError(
+      'conflict',
+      `Checkpoint moved during the operation (enrolled at revision ${input.checkpoint.revision}, ` +
+        `now at ${current}); ${input.checkpoint.dependencies.length} enrolled read(s) must re-fence.`,
+    );
+  }
+  if (input.kind === 'trusted') {
+    return;
+  }
+  const live =
+    input.actorUserId !== null && input.teamId !== null
+      ? await input.memberships.findMembership(input.teamId, input.actorUserId)
+      : null;
+  if (input.actorUserId !== null && input.teamId !== null && (live === null || live.status !== 'active')) {
+    throw new StateError(
+      'forbidden',
+      'Authority revoked during the operation; the commit is void.',
+    );
+  }
+  const allowed = await evaluateBy(input.by, {
+    actorUserId: input.actorUserId,
+    teamId: input.teamId,
+    membership: live,
+    memberships: input.memberships,
+  });
+  if (!allowed) {
+    throw new StateError(
+      'forbidden',
+      'Permission no longer holds at commit; the commit is void.',
+    );
+  }
+  for (const guard of input.guards) {
+    if ((await guard.evaluate()) !== true) {
+      throw new StateError(
+        'forbidden',
+        `Guard ${JSON.stringify(guard.name)} no longer holds at commit; the commit is void.`,
+      );
+    }
+  }
 }
