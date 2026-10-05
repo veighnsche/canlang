@@ -711,6 +711,12 @@ pub struct ModuleData {
     pub module: ModuleId,
     /// Source language tag (module `source=`, default `"en"`).
     pub source_lang: String,
+    /// Checked deployment default locale (`context` / `locale default=`);
+    /// `None` when the module declares no explicit default (the pinned
+    /// `"en"` then applies downstream). Tag validity is the checker's
+    /// (`types.rs` BCP 47 validation); this publishes the located value,
+    /// mirroring `source_lang`.
+    pub locale_default: Option<String>,
     /// Pages in source order.
     pub pages: Vec<PageData>,
     /// Policies declared in this module, in source order.
@@ -1061,6 +1067,7 @@ impl<'a> Cx<'a> {
             .or_insert_with(|| ModuleData {
                 module,
                 source_lang,
+                locale_default: None,
                 pages: Vec::new(),
                 policies: Vec::new(),
                 invariants: Vec::new(),
@@ -1089,7 +1096,11 @@ impl<'a> Cx<'a> {
         }
     }
 
-    /// Collect context-declared queue/analytics names for `send` targets.
+    /// Collect context-declared queue/analytics names for `send` targets
+    /// and publish the checked `locale default=` tag (if any) on this
+    /// module's [`ModuleData`]. Duplicate `locale` declarations are the
+    /// checker's (`E2002`); the last located value wins here, mirroring
+    /// the single-writer contract of the other context collectors.
     fn walk_context(&mut self, module: ModuleId, text: &str, node: &SyntaxNode) {
         for decl in significant_children(node) {
             if decl.kind != SyntaxKind::ContextDecl || has_error(decl) {
@@ -1107,6 +1118,16 @@ impl<'a> Cx<'a> {
                     self.analytics.entry(module).or_default(),
                     (*name).to_string(),
                 ),
+                ["locale", ..] => {
+                    let Some(tag) = attribute_value(decl, "default", text)
+                        .and_then(|v| literal_string(text, v))
+                    else {
+                        continue;
+                    };
+                    if let Some(data) = self.out.modules.get_mut(&module) {
+                        data.locale_default = Some(tag);
+                    }
+                }
                 _ => {}
             }
         }
