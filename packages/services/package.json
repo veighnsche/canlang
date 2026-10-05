@@ -1,6 +1,7 @@
 {
   "name": "@canlang/services",
   "version": "0.0.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "description": "Lane 04: provider-owned capability adapters, verified ingress and completion envelopes (internal; public surface assembles in @canlang/stdlib).",

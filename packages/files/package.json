@@ -1,6 +1,7 @@
 {
   "name": "@canlang/files",
   "version": "0.0.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "description": "Lane 04: file upload intake, finalization, provenance, retention and host bridge (internal; public surface assembles in @canlang/stdlib).",

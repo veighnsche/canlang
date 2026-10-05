@@ -1,6 +1,7 @@
 {
   "name": "@canlang/interfaces",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "description": "CanLang HTTP/MCP/upload interfaces (lane 06). B0: contract conformance only; implementation lands in S3+.",
