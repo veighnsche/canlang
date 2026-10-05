@@ -11,6 +11,7 @@ export * from './accounts/recovery.js';
 export * from './sessions/tokens.js';
 export * from './sessions/cookies.js';
 export * from './sessions/csrf.js';
+export * from './sessions/presession.js';
 export * from './teams/invitations.js';
 export * from './teams/membership.js';
 export * from './teams/roles.js';

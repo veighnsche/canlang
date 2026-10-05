@@ -17,6 +17,7 @@ import type {
   MembershipId,
   OAuthClient,
   OAuthClientId,
+  PreSessionToken,
   Session,
   SessionId,
   Team,
@@ -49,6 +50,8 @@ export function createMemoryIdentityStore(opts?: {
   const sessionsByHash = new Map<string, SessionId>();
   const emailTokens = new Map<string, EmailToken>();
   const emailTokensByHash = new Map<string, string>();
+  const preSessions = new Map<string, PreSessionToken>();
+  const preSessionsByHash = new Map<string, string>();
   const grants = new Map<McpGrantId, McpGrant>();
   const grantsByHash = new Map<string, McpGrantId>();
   const oauthClients = new Map<OAuthClientId, OAuthClient>();
@@ -258,6 +261,31 @@ export function createMemoryIdentityStore(opts?: {
         if (row.user_id === user_id && row.revoked_at === null) {
           sessions.set(id, { ...row, revoked_at: at });
         }
+      }
+    },
+
+    async createPreSessionToken(input) {
+      step();
+      const token_id = random.randomUUID();
+      const row: PreSessionToken = {
+        token_id,
+        token_sha256: input.token_sha256,
+        created_at: now(),
+        expires_at: input.expires_at,
+      };
+      preSessions.set(token_id, row);
+      preSessionsByHash.set(input.token_sha256, token_id);
+      return { token_id };
+    },
+    async findPreSessionTokenByHash(token_sha256) {
+      return preSessions.get(preSessionsByHash.get(token_sha256) ?? '') ?? null;
+    },
+    async deletePreSessionToken(token_id) {
+      step();
+      const row = preSessions.get(token_id);
+      if (row) {
+        preSessions.delete(token_id);
+        preSessionsByHash.delete(row.token_sha256);
       }
     },
 

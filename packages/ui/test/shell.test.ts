@@ -906,6 +906,20 @@ describe("renderLogin", () => {
     }
   });
 
+  it("renders the pre-session token as a hidden field only when supplied", async () => {
+    const withToken = await renderLogin(makeLogin({ preSessionToken: "pre-abc-123" }));
+    const page = await loadHtml(withToken);
+    try {
+      const form = page.document.querySelector("form");
+      const hidden = form?.querySelector("input[type='hidden'][name='_presession']");
+      assert.equal(hidden?.getAttribute("value"), "pre-abc-123");
+    } finally {
+      await page.close();
+    }
+    const withoutToken = await renderLogin(makeLogin());
+    assert.ok(!withoutToken.includes("_presession"));
+  });
+
   it("shows the error alert only when an error is supplied", async () => {
     const withError = await renderLogin(
       makeLogin({ error: message("Bad credentials", { nl: "Onjuiste gegevens" }) }),
