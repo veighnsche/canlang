@@ -1,14 +1,19 @@
 /**
  * Artifact loader: the ONE place e2e turns a `CompileArtifact` into
- * `startLocalDev` modules. Two sources, one assembly path:
+ * runnable assemblies. Two sources, one canonical validation core:
  *
  * - `handbuilt`: the honestly-labeled fixture worker in
- *   `./handbuilt/` (used until L1 PR6 emission lands). The assembly label
- *   starts with `fixture/handbuilt/`; specs assert the label so a fixture
- *   run can never masquerade as a compiled run.
- * - `compiled`: a real `can compile` artifact file. Until L1 PR6 emission
- *   lands this fails LOUD naming the unmet producer contract; afterwards it
- *   reads + validates the file and the same specs run unmodified.
+ *   `./handbuilt/`. The assembly label starts with
+ *   `fixture/handbuilt/`; specs assert the label so a fixture run can
+ *   never masquerade as a compiled run.
+ * - `compiled` (T21): a REAL `can compile` run over a fixture `.can`
+ *   source — the loader invokes the toolchain, validates stdout with the
+ *   canonical runtime validator, asserts compiled identity (source path +
+ *   content-hash binding against the toolchain stamps), and stages the
+ *   emitted modules with the canonical assembler. The assembly label is
+ *   `compiled/<sha256>`; specs assert it. No hand-built substitution
+ *   exists on this path: any toolchain/validation/identity failure throws
+ *   loud.
  *
  * Validation enforces artifact.ts v1 compatibility exactly: additive-only,
  * `artifact_version` 1, unknown callable kinds, malformed `member` paths,
@@ -31,14 +36,27 @@
  * every load (no checked-in blob, no stub). A missing dist, unresolvable
  * SDK, missing `bun`, or build failure throws naming the exact fix.
  */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { join, relative, sep } from "node:path";
 import type { LocalD1 } from "@canlang/cloudflare";
-import type { CompileArtifact } from "@canlang/contracts";
+import type { CompileArtifact, StoragePort } from "@canlang/contracts";
+import {
+  assertCompiledIdentity,
+  parseArtifactText,
+} from "../../../packages/cloudflare/src/runtime/artifact.js";
+import {
+  assembleModules,
+  type AssembledModules,
+} from "../../../packages/cloudflare/src/runtime/modules.js";
+import type {
+  buildInvoker as BuildInvokerFn,
+  CanonicalInvokerOpts,
+  OperationInvoker,
+} from "../../../packages/cloudflare/dist/worker/assembly.js";
 import {
   TEAMTASKS_D1_BINDING,
   TEAMTASKS_OPERATIONS,
@@ -60,7 +78,9 @@ export const E2E_COMPATIBILITY_DATE = "2026-07-15";
 
 export type ArtifactSpec =
   | { readonly kind: "handbuilt"; readonly app: "teamtasks" }
-  | { readonly kind: "compiled"; readonly path: string };
+  | { readonly kind: "compiled"; readonly source: string };
+
+export type CompiledArtifactSpec = Extract<ArtifactSpec, { kind: "compiled" }>;
 
 export interface WorkerAssembly {
   readonly artifact: CompileArtifact;
@@ -69,7 +89,7 @@ export interface WorkerAssembly {
   readonly d1Databases: readonly LocalD1[];
   readonly workerName: string;
   readonly compatibilityDate: string;
-  /** `fixture/handbuilt/<app>` or `compiled/<sha256>` — asserted by specs. */
+  /** Always `fixture/handbuilt/<app>` — asserted by specs. */
   readonly label: string;
 }
 
@@ -279,9 +299,208 @@ function loadHandbuiltTeamTasks(root: string): WorkerAssembly {
 export function loadArtifact(spec: ArtifactSpec): WorkerAssembly {
   if (spec.kind === "compiled") {
     throw new Error(
-      "missing-producer: e2e compiled-artifact loading needs L1 `can compile` emission " +
-        `(PR6) for ${spec.path}; contract: CompileArtifact v1 + exampleFixtures loader`,
+      "e2e loader: compiled artifacts load asynchronously (the loader runs the real " +
+        "`can compile` toolchain); use `loadCompiledArtifact({ kind: \"compiled\", " +
+        `source: ${JSON.stringify(spec.source)} }) instead of \`loadArtifact\``,
     );
   }
   return loadHandbuiltTeamTasks(repoRoot());
+}
+
+/* ------------------------------------------------------------------ */
+/* T21 compiled path: real toolchain -> canonical validation/identity  */
+/* -> canonical staging -> canonical invoker. No fixture substitution. */
+/* ------------------------------------------------------------------ */
+
+/** Label prefix for genuine compiled assemblies (`compiled/<sha256>`). */
+export const COMPILED_LABEL_PREFIX = "compiled/";
+
+/** Repo-relative `can` binary (built from HEAD; never vendored). */
+export const COMPILED_CAN_BINARY = "compiler/target/debug/can";
+export const COMPILED_CAN_BUILD_COMMAND = "cargo build --bin can --manifest-path compiler/Cargo.toml";
+const CLOUDFLARE_DIST_BUILD_COMMAND = "bun run --filter @canlang/cloudflare build";
+
+export interface CompiledAssembly {
+  readonly artifact: CompileArtifact;
+  /** Repo-relative `.can` path exactly as handed to the toolchain. */
+  readonly sourcePath: string;
+  /** SHA-256 of the exact bytes handed to the toolchain. */
+  readonly sourceSha256: string;
+  /** Toolchain stamps the artifact was verified against. */
+  readonly toolVersion: string;
+  readonly languageVersion: string;
+  /** Raw `can --version` line (toolchain evidence). */
+  readonly toolchain: string;
+  /** Canonically staged emitted modules (temp dir; see `dispose`). */
+  readonly asm: AssembledModules;
+  readonly workDir: string;
+  /** `compiled/<sourceSha256>` — asserted by specs. */
+  readonly label: string;
+}
+
+function canBinary(root: string): string {
+  const bin = join(root, COMPILED_CAN_BINARY);
+  try {
+    if (!statSync(bin).isFile()) throw new Error("not a file");
+  } catch {
+    throw new Error(
+      `e2e loader: ${COMPILED_CAN_BINARY} not built; run \`${COMPILED_CAN_BUILD_COMMAND}\` first`,
+    );
+  }
+  return bin;
+}
+
+function toolchainVersions(root: string): { toolVersion: string; languageVersion: string; line: string } {
+  const bin = canBinary(root);
+  const result = spawnSync(bin, ["--version"], { cwd: root, encoding: "utf8" });
+  const line = typeof result.stdout === "string" ? result.stdout.trim().split("\n")[0] ?? "" : "";
+  const match = /^can (\S+) \(commit ([^;]+); language (\S+); schema (\S+)\)$/.exec(line);
+  if (result.status !== 0 || match === null) {
+    throw new Error(
+      `e2e loader: cannot read the toolchain identity (\`${COMPILED_CAN_BINARY} --version\` ` +
+        `exited ${String(result.status)} with ${JSON.stringify(line)}); rebuild with ` +
+        `\`${COMPILED_CAN_BUILD_COMMAND}\``,
+    );
+  }
+  const [, toolVersion, , languageVersion] = match;
+  if (toolVersion === undefined || languageVersion === undefined) {
+    throw new Error(`e2e loader: unparseable toolchain identity ${JSON.stringify(line)}`);
+  }
+  return { toolVersion, languageVersion, line };
+}
+
+function summarizeDiagnostics(stdout: string): string {
+  try {
+    const parsed: unknown = JSON.parse(stdout);
+    if (typeof parsed !== "object" || parsed === null || !("diagnostics" in parsed)) return "";
+    const diagnostics = (parsed as { diagnostics: unknown }).diagnostics;
+    if (!Array.isArray(diagnostics)) return "";
+    return diagnostics
+      .slice(0, 5)
+      .map((diagnostic) => {
+        if (typeof diagnostic !== "object" || diagnostic === null) return "unknown diagnostic";
+        const row = diagnostic as Record<string, unknown>;
+        return `${String(row["code"] ?? "?")}: ${String(row["message"] ?? "?")}`;
+      })
+      .join("; ");
+  } catch {
+    return "";
+  }
+}
+
+function compileSource(
+  root: string,
+  source: string,
+): { stdout: string; sourceSha256: string; toolVersion: string; languageVersion: string; line: string } {
+  let bytes: Buffer;
+  try {
+    bytes = readFileSync(join(root, source));
+  } catch {
+    throw new Error(`e2e loader: compiled source not readable: ${source}`);
+  }
+  const sourceSha256 = createHash("sha256").update(bytes).digest("hex");
+  const { toolVersion, languageVersion, line } = toolchainVersions(root);
+  const bin = canBinary(root);
+  const result = spawnSync(bin, ["compile", "--format=json", source], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  const stdout = typeof result.stdout === "string" ? result.stdout : "";
+  const stderr = typeof result.stderr === "string" ? result.stderr : "";
+  if (result.status !== 0) {
+    const diagnostics = summarizeDiagnostics(stdout);
+    throw new Error(
+      `e2e loader: \`can compile\` failed for ${source} (exit ${String(result.status)}): ` +
+        (diagnostics !== "" ? diagnostics : stderr.trim().split("\n")[0] ?? "no output"),
+    );
+  }
+  return { stdout, sourceSha256, toolVersion, languageVersion, line };
+}
+
+async function distBuildInvoker(): Promise<typeof BuildInvokerFn> {
+  try {
+    const mod = await import("../../../packages/cloudflare/dist/worker/assembly.js");
+    return mod.buildInvoker as typeof BuildInvokerFn;
+  } catch {
+    throw new Error(
+      `e2e loader: packages/cloudflare/dist/worker/assembly.js not built; ` +
+        `run \`${CLOUDFLARE_DIST_BUILD_COMMAND}\` first`,
+    );
+  }
+}
+
+/**
+ * Compile `spec.source` with the REAL `can compile` toolchain and load it
+ * through the canonical chain: `parseArtifactText` (the exact
+ * `loadArtifactFile` rules), `assertCompiledIdentity` (source path +
+ * content-hash binding against the toolchain stamps), `assembleModules`
+ * (canonical staging with the dist stdlib seam). No hand-built artifact
+ * substitution exists anywhere on this path — every failure throws loud.
+ */
+export async function loadCompiledArtifact(spec: CompiledArtifactSpec): Promise<CompiledAssembly> {
+  const root = repoRoot();
+  const source = spec.source;
+  const { stdout, sourceSha256, toolVersion, languageVersion, line } = compileSource(root, source);
+  let artifact: CompileArtifact;
+  try {
+    artifact = parseArtifactText(stdout, `compiled:${source}`).artifact;
+  } catch (error) {
+    const diagnostics = summarizeDiagnostics(stdout);
+    throw new Error(
+      `e2e loader: \`can compile\` output for ${source} is not a valid artifact` +
+        (diagnostics !== "" ? ` (diagnostics: ${diagnostics})` : "") +
+        `: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  assertCompiledIdentity(artifact, {
+    sourcePath: source,
+    sourceSha256,
+    toolVersion,
+    languageVersion,
+  });
+  assertFileBuilt(
+    root,
+    "packages/cloudflare/dist/runtime/stdlib.js",
+    CLOUDFLARE_DIST_BUILD_COMMAND,
+  );
+  const workDir = mkdtempSync(join(tmpdir(), "can-e2e-compiled-"));
+  const asm = await assembleModules(
+    { artifact, sourcePath: `compiled:${source}` },
+    {
+      distRoot: join(root, "packages"),
+      workDir,
+      stdlibUrl: pathToFileURL(join(root, "packages/cloudflare/dist/runtime/stdlib.js")).href,
+    },
+  );
+  return {
+    artifact,
+    sourcePath: source,
+    sourceSha256,
+    toolVersion,
+    languageVersion,
+    toolchain: line,
+    asm,
+    workDir,
+    label: `${COMPILED_LABEL_PREFIX}${sourceSha256}`,
+  };
+}
+
+/** Remove the staged temp dir for a compiled assembly (best-effort). */
+export function disposeCompiledAssembly(compiled: CompiledAssembly): void {
+  rmSync(compiled.workDir, { recursive: true, force: true });
+}
+
+/**
+ * Build the canonical `OperationInvoker` for a compiled assembly — the
+ * REAL T16/T17 descriptor path (verified-context admission through the
+ * real registry, canonical transaction/history/replay/projection). Thin
+ * delegation to the built worker assembly; the dist seam fails loud.
+ */
+export async function createCompiledInvoker(
+  compiled: CompiledAssembly,
+  store: StoragePort,
+  opts: CanonicalInvokerOpts = {},
+): Promise<OperationInvoker> {
+  const build = await distBuildInvoker();
+  return build(compiled.artifact, compiled.asm, store, opts);
 }
