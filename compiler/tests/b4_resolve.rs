@@ -9,8 +9,10 @@
 
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::check_program;
+use canlang_compiler::analysis::resolve::{self, ResolveTables};
 use canlang_compiler::diagnostic::Diagnostic;
 use canlang_compiler::source::{SourceDb, Span};
+use canlang_compiler::syntax;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -267,4 +269,196 @@ Then
     // G1 fixed in the types pass: `set t.parent` resolves exactly where
     // the expression read resolves, so no E2013 remains on either line.
     assert_findings(src, &diags, &[]);
+}
+
+// --- T35/R23: imported CRUD aliases target the canonical owner's
+// operation symbols ---------------------------------------------------
+// Table-level pins for the resolve pass: the importer's
+// `{Importer}.{Model}.{op}` keys alias the owner's operation symbols
+// (identity preserved), gated per-op on the owner's `crud`
+// declaration. Ambiguous same-named models and self-imports never
+// disturb canonicals.
+
+/// Resolve one source through the resolve pass only.
+fn resolve_src(src: &str) -> (ResolveTables, Vec<Diagnostic>) {
+    let mut db = SourceDb::new();
+    let id = db.add("test.can".to_string(), src.to_string());
+    let (tree, mut diags) = syntax::parse(&db, id);
+    assert!(
+        diags.iter().all(|d| !d.code.starts_with("E1")),
+        "case must parse, got {diags:?}\nsource:\n{src}"
+    );
+    let trees = vec![(id, tree)];
+    let tables = resolve::resolve_program(&db, &trees, None, &mut diags);
+    (tables, diags)
+}
+
+/// The importer alias points at the owner's operation symbol, whose
+/// canonical identity stays owner-qualified (alias, not relocation).
+#[test]
+fn t35r23_alias_targets_owner_operation() {
+    let src = r#"package stock
+ Given
+  export Widget { title:text }
+  policy Widget read=members
+ When
+  crud Widget by=members fields=title
+ Then
+package shop
+ use stock {Widget}
+ Given
+ When
+  scenario go(w:Widget) by=members
+   do
+    let x = 1
+ Then
+"#;
+    let (tables, diags) = resolve_src(src);
+    assert!(diags.is_empty(), "resolve clean: {diags:?}");
+    let owner = tables.by_canonical.get("stock.Widget.update").copied();
+    let alias = tables.by_canonical.get("shop.Widget.update").copied();
+    assert!(owner.is_some(), "owner op registered");
+    assert_eq!(alias, owner, "importer alias targets owner op");
+    let id = owner.unwrap();
+    assert_eq!(
+        tables.symbols[id.0 as usize].canonical,
+        "stock.Widget.update"
+    );
+    assert_eq!(
+        tables.symbols[id.0 as usize].module,
+        tables.module_by_name["stock"]
+    );
+    assert_eq!(
+        tables.by_canonical.get("shop.Widget.create").copied(),
+        tables.by_canonical.get("stock.Widget.create").copied()
+    );
+    assert_eq!(
+        tables.by_canonical.get("shop.Widget.delete").copied(),
+        tables.by_canonical.get("stock.Widget.delete").copied()
+    );
+}
+
+/// Per-op granularity: a disabled operation gets no alias while its
+/// enabled siblings do.
+#[test]
+fn t35r23_disabled_operation_has_no_alias() {
+    let src = r#"package stock
+ Given
+  export Gadget { title:text }
+  policy Gadget read=members
+ When
+  crud Gadget by=members fields=title update=none
+ Then
+package shop
+ use stock {Gadget}
+ Given
+ When
+  scenario go(g:Gadget) by=members
+   do
+    let x = 1
+ Then
+"#;
+    let (tables, diags) = resolve_src(src);
+    assert!(diags.is_empty(), "resolve clean: {diags:?}");
+    assert!(
+        !tables.by_canonical.contains_key("stock.Gadget.update"),
+        "owner registers no disabled op"
+    );
+    assert!(
+        !tables.by_canonical.contains_key("shop.Gadget.update"),
+        "disabled op gets no importer alias"
+    );
+    assert_eq!(
+        tables.by_canonical.get("shop.Gadget.delete").copied(),
+        tables.by_canonical.get("stock.Gadget.delete").copied()
+    );
+    assert!(
+        tables.by_canonical.contains_key("shop.Gadget.delete"),
+        "enabled sibling still aliases"
+    );
+}
+
+/// Ambiguity stays conservative: one importer, same model name from
+/// two owners — no alias either way, so both sequence calls keep
+/// `E5006` (the call-site key cannot express which owner a call
+/// means).
+#[test]
+fn t35r23_ambiguous_model_names_have_no_alias() {
+    let src = r#"package stock
+ Given
+  export Widget { title:text }
+  policy Widget read=members
+  export fixture w=Widget {title="a"}
+ When
+  crud Widget by=members fields=title
+ Then
+package depot
+ Given
+  export Widget { title:text }
+  policy Widget read=members
+ When
+  crud Widget by=members fields=title
+ Then
+package shop
+ use stock {Widget,w}
+ use depot {Widget as DepotWidget}
+ Given
+ When
+  scenario go() by=members
+   do
+    let x = 1
+   examples seed=[w]
+    do
+     call go {} by=self
+     call Widget.update {record=w,changes={title="b"}} by=self
+     call DepotWidget.update {record=w,changes={title="b"}} by=self
+     w.title -> "b"
+ Then
+"#;
+    let (tables, _) = resolve_src(src);
+    assert!(
+        !tables.by_canonical.contains_key("shop.Widget.update"),
+        "ambiguous name gets no alias"
+    );
+    assert!(
+        !tables.by_canonical.contains_key("shop.Widget.create")
+            && !tables.by_canonical.contains_key("shop.Widget.delete"),
+        "ambiguity skips every op"
+    );
+    let diags = check(src, None);
+    assert_findings(
+        src,
+        &diags,
+        &[
+            ("E5006", "Widget.update", 1),
+            ("E5006", "DepotWidget.update", 1),
+        ],
+    );
+}
+
+/// Self-imports never disturb canonicals: the local key keeps the
+/// local operation, and no alias appears under the import alias.
+#[test]
+fn t35r23_self_import_leaves_canonical_untouched() {
+    let src = r#"package shop
+ use shop {Widget as Local}
+ Given
+  export Widget { title:text }
+  policy Widget read=members
+ When
+  crud Widget by=members fields=title
+ Then
+"#;
+    let (tables, diags) = resolve_src(src);
+    assert!(diags.is_empty(), "resolve clean: {diags:?}");
+    let local = tables.by_canonical.get("shop.Widget.update").copied();
+    assert!(local.is_some(), "local op registered");
+    assert_eq!(
+        tables.symbols[local.unwrap().0 as usize].module,
+        tables.module_by_name["shop"]
+    );
+    assert!(
+        !tables.by_canonical.contains_key("shop.Local.update"),
+        "no alias under the import alias"
+    );
 }

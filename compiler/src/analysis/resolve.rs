@@ -1833,6 +1833,73 @@ impl<'a> Resolver<'a> {
             }
         }
         self.resolve_composition(diags);
+        self.resolve_imported_crud_aliases();
+    }
+
+    /// Alias enabled CRUD operations of plain-imported models into the
+    /// importer's namespace (T35/R23: plain imports resolve to the
+    /// canonical owner's exported operations). The examples pass looks
+    /// generated CRUD operations up by call-site-qualified canonical
+    /// (`{Caller}.{Model}.{op}`); for a model imported from its owner
+    /// that key misses the owner's `{Owner}.{Model}.{op}`
+    /// registration, so enabled imported operations wrongly report
+    /// `E5006`. Register `{Importer}.{Model}.{op}` aliases pointing at
+    /// the owner's operation symbols — presence-gated on the owner's
+    /// own registration, so disabled operations (never registered)
+    /// stay unavailable. Bound (`from=`) imports are remote and get no
+    /// alias; ambiguous names (one importer, same model name from two
+    /// owners) keep today's `E5006`, since the call-site key cannot
+    /// express which owner a call means. Existing keys are never
+    /// overwritten.
+    fn resolve_imported_crud_aliases(&mut self) {
+        for module_id in 0..self.tables.modules.len() {
+            let importer = self.tables.modules[module_id].name.clone();
+            // Distinct imported models by owner-side model name; the
+            // call-site lookup spells the resolved symbol's name, so
+            // import aliases do not affect the key.
+            let mut by_name: HashMap<String, SymbolId> = HashMap::new();
+            let mut ambiguous: HashSet<String> = HashSet::new();
+            for binding in self.tables.module_scopes[module_id].prod.values() {
+                let (target, bound) = match binding {
+                    ScopedName::Imported { target, bound } => (*target, *bound),
+                    _ => continue,
+                };
+                if bound {
+                    continue;
+                }
+                let symbol = &self.tables.symbols[target.0 as usize];
+                if !matches!(symbol.kind, SymbolKind::Model { .. }) || !symbol.exported {
+                    continue;
+                }
+                let name = symbol.name.clone();
+                match by_name.get(&name) {
+                    None => {
+                        by_name.insert(name, target);
+                    }
+                    Some(seen) if *seen != target => {
+                        ambiguous.insert(name);
+                    }
+                    _ => {}
+                }
+            }
+            for (name, target) in &by_name {
+                if ambiguous.contains(name) {
+                    continue;
+                }
+                let owner = self.tables.modules
+                    [self.tables.symbols[target.0 as usize].module.0 as usize]
+                    .name
+                    .clone();
+                for op in [CrudOp::Create, CrudOp::Update, CrudOp::Delete] {
+                    let owner_key = format!("{owner}.{name}.{}", op.as_str());
+                    let Some(&op_id) = self.tables.by_canonical.get(&owner_key) else {
+                        continue;
+                    };
+                    let alias_key = format!("{importer}.{name}.{}", op.as_str());
+                    self.tables.by_canonical.entry(alias_key).or_insert(op_id);
+                }
+            }
+        }
     }
 
     fn resolve_import(&mut self, module: &Module, import: &Import, diags: &mut Vec<Diagnostic>) {
