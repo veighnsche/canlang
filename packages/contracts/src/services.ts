@@ -13,7 +13,7 @@
  */
 
 import type { FinalizedFileRef } from './files.js';
-import type { DatetimeValue, WireMoney } from './values.js';
+import type { CanDuration, DatetimeValue, WireMoney } from './values.js';
 
 /**
  * This contract's version. Added by T13a (the T12 inventory noted
@@ -613,6 +613,577 @@ export const STD_PAYMENTS_V1_CONTRACT: CapabilityContract = {
         status: 'enum(pending,unknown,succeeded,failed)',
         checkout_url: 'url?',
         failure: 'enum(transient,action_required,permanent,cancelled)?',
+      },
+    },
+  ],
+};
+
+/* -- T13b canonical rich-relation schemas (L4 producer slice). -- */
+
+/**
+ * T13b scope: `std` generation / image / mailbox relations plus the
+ * judgment and knowledge `std` value shapes. Layout note: the T13a
+ * sections above are frozen byte-meaning, so every T13b declaration
+ * is appended here (values and contracts together) rather than
+ * interleaved; nothing above this line changed except the
+ * `CanDuration` import.
+ *
+ * Per-blocker decisions (evidence interface-inventory.md sections B
+ * and E; B1/B11/B12 preserved for T13-consume/T28, untouched here):
+ *
+ * - B2 NEW-CONTRACT: corpus `TextGenerationV1` + `TextMessage` /
+ *   `TextRequest` / `TextRun` is NOT `ai.ChatV1` renamed. The draft
+ *   shapes are app-level correlation / progress / accounting
+ *   (`source`, `revision`, profile/policy keys, token budgets,
+ *   `used_tokens`, `detail`; CanChat.can:49-50 fixtures), while
+ *   `ModelChatInput` / `ModelChatReply` / `ModelRunSnapshot` are
+ *   provider wire (model allowlist, NDJSON streaming, finish
+ *   reasons, thinking separation; ollama.ts). Renaming would force
+ *   apps to speak provider wire and corrupt CanChat accounting.
+ *   `std.TextGenerationV1` is therefore a new canonical contract;
+ *   `ai.ChatV1` wire stays untouched and the T24 runtime join maps
+ *   `TextRequest` onto `ModelChatInput`.
+ * - B3 RECONCILE: the canonical source form for stop/recovery sends
+ *   is the draft-evidenced `{source, revision}` durable send
+ *   (CanChat.can:120-127, CanCreative.can:128-135); the port forms
+ *   (`MediaPort.cancel(job)` / `reconcile(job)`, `reconcile
+ *   (deliveryId)`, the chat stream-handle `cancel()`) stay as the
+ *   runtime mapping targets owned by the T24 join, which resolves
+ *   `(source, revision)` through the delivery association. No port
+ *   is renamed. Mailbox reconcile is source-addressed only
+ *   (`{source}`, CanInbox.can:227) and stays so.
+ * - B4 NEW-CONTRACT (contract-only): `Images.inspect` / `Images.
+ *   validate` have no producer — `substituteAndValidate` is
+ *   explicitly "not a side-effect-free publish validator for
+ *   arbitrary graphs" (mapping.ts). The shapes are fully evidenced
+ *   (`inspect {graph}` -> inspection `.fields` of
+ *   `{node,key,kind,label}`, CanCreative.can:68/270-272; `validate
+ *   {value}` -> `WorkflowValidation {valid,digest,detail}`,
+ *   CanCreative.can:76-77/82/47), so they land as contract-only ops
+ *   (B10 precedent) for T13b/T14b checking; runtime joins later.
+ *   Scoping out would block the whole CanCreative template /
+ *   validation flow.
+ * - B5 NEW-CONTRACT: `WorkflowInput` / `WorkflowDefinition` /
+ *   `WorkflowInspection` / `WorkflowValidation` / `ImageRequest`
+ *   are new canonical value schemas from draft evidence. `ImageRun`
+ *   / `GeneratedImage` need two layers: the existing provider-owned
+ *   interfaces stay as the `ai.ImagesV1` wire (job reference,
+ *   downloaded bytes; renaming would break the media adapter and
+ *   its scenario tables, out of T13b write scope), while the
+ *   draft-evidenced std delivery-progress relation (`{source,
+ *   revision, sequence, state, outputs, charged_jobs, detail}` with
+ *   file outputs, CanCreative.can:52-56 and CanGallery.can:49-52 in
+ *   two apps) lands as `ImageRunProgress` / `ImageFileOutput`.
+ *   Contract result names below use the SOURCE names (`ImageRun`)
+ *   so L1 binds draft usage; the TS mapping is documented per op.
+ *   The T27 join maps provider bytes onto finalized files.
+ * - B6 NEW-CONTRACT (contract-only): `std.MailboxV1` +
+ *   `IncomingEmail` / `MailReply` / `MailReplyOutcome` + the
+ *   `received` verified-ingress event, all from CanInbox evidence
+ *   (fixtures CanInbox.can:79-84, `sent`/`reconciled` handlers
+ *   :248-301, `received` handler :102-121). No producer of any
+ *   kind exists, but the evidence is complete and precise; the B10
+ *   precedent (contract-only checking, runtime via fixtures)
+ *   applies, and scoping out would block the entire CanInbox
+ *   `Post.*` flow.
+ * - B7 RECONCILE (two joined layers, no new std capability):
+ *   drafts never import a std judgment capability — `Judge`
+ *   binds in-corpus (`inbox.Triage`, `decide.ChangeReview`;
+ *   section-C / B12 ownership, preserved for T28). `std`
+ *   contributes only the shared `JudgmentSpec` value (`{revision}`,
+ *   the sole leaf ever read, CanInbox.can:160,
+ *   CanDecide.can:104/121) plus the documented wire mapping:
+ *   noul answers match exactly; choice probabilities are an ARRAY
+ *   of `{option, probability}` in drafts (CanInbox.can:87) vs a
+ *   MAP in `ChoiceAnswer`; score levels carry a level NAME in
+ *   drafts vs `ScoreLevel {index, description, probability}`; the
+ *   result envelope carries `specification_revision` + per-question
+ *   leaves vs `JudgmentBatchResult.answers[]`. Normalization is
+ *   owned by the T24 runtime join; `ai.SystemOneV1` wire stays
+ *   untouched.
+ * - B8 SPLIT: `KnowledgeRequest` / `IndexState` are NEW-CONTRACT
+ *   std value schemas from CanKnowledge evidence (fixtures
+ *   :80-82, `ask` :157, index reads :281-284/336). The `corpus
+ *   Handbook` executable/member interface (`answer` / `cancel` /
+ *   `reconcile` / `refresh` / `status` / `available`, `Run` /
+ *   `Answer` members) is SCOPED OUT: unlike deployment-bound std
+ *   capabilities, the corpus decl kind derives members from
+ *   model/scope/where clauses with retrieval-authorization and
+ *   index machinery spanning L3/T28 — inventing it here would be
+ *   new provider/runtime semantics under the T12 restraint.
+ *   Blocked until a corpus-interface decision: CanKnowledge `ask`,
+ *   `stop`, `reconcile`, `release_skipped`, `progressed`,
+ *   `read_answer`, `reindex` and the Question `coverage` / `answer`
+ *   / `state` derives.
+ *
+ * Every contract below is one durable send effect per op (`send
+ * Target.op {…}` persists work; `delivery(Target.op)` observes per
+ * `work.ts` `T13B_DELIVERY_OBSERVABLES`; completions arrive as
+ * typed `Target.completed` envelopes). `.completed` / `.progressed`
+ * are generic delivery-lifecycle events owned by work machinery,
+ * not per-contract events, so no contract below declares them;
+ * only the `MailboxV1.received` verified-ingress event is
+ * capability-specific (Payments `changed` precedent). No entry is
+ * added to `SERVICES_CATALOG`: the std contracts are contract-only
+ * until the T24 runtime join maps them onto the adapter-backed
+ * `ai.*` capabilities (T12 section-F restraint, T13a precedent).
+ */
+
+/** `std.TextGenerationV1` contract version. */
+export const STD_TEXT_GENERATION_V1_VERSION = 1;
+
+/** `std.ImagesV1` contract version. */
+export const STD_IMAGES_V1_VERSION = 1;
+
+/** `std.MailboxV1` contract version. */
+export const STD_MAILBOX_V1_VERSION = 1;
+
+/**
+ * `std` text message role. Exactly the three draft-evidenced roles
+ * (`system` seeds the frozen history, CanChat.can:76; `user` /
+ * `assistant` carry the transcript). No `tool` role: nothing in
+ * corpus uses tool calls, and adding one would be new semantics.
+ */
+export type TextMessageRole = 'system' | 'user' | 'assistant';
+
+/**
+ * `std` text message (CanChat.can:5,13,76). Attachments are
+ * finalized file refs treated as untrusted information, never as
+ * instructions (CanChat.can:9 system prompt).
+ */
+export interface TextMessage {
+  role: TextMessageRole;
+  content: string;
+  attachments: FinalizedFileRef[];
+}
+
+/**
+ * `std` text generation request value (CanChat.can:49-50 fixtures,
+ * :77 construction). Correlation-first: `source` (usually the
+ * originating operation id) + `revision` address the run for later
+ * `cancel` / `reconcile`; profile/policy keys select deployment
+ * configuration; budgets bound the run. The T24 join maps this onto
+ * `ModelChatInput` (messages + model + output budget).
+ */
+export interface TextRequest {
+  source: string;
+  revision: number;
+  profile: string;
+  policy_revision: string;
+  messages: TextMessage[];
+  max_input_tokens: number;
+  max_output_tokens: number;
+  /** Lane-2 duration value (integer ms); wire encoding via L2 codecs. */
+  max_duration: CanDuration;
+}
+
+/**
+ * Shared rich-run progress state for `std` text and image delivery
+ * progress relations (CanChat `reply_progressed`, CanCreative
+ * `image_progressed`, CanKnowledge `Question.state`). Observed
+ * subsets: chat shows running/succeeded/failed/unknown/cancelled
+ * (CanChat.can:170-174), images show queued/succeeded/failed/
+ * unknown/cancelled (CanCreative.can:175-179); the union matches
+ * the provider `ModelRunState` / `ImageRunState` unions so the T24
+ * join maps states 1:1.
+ */
+export type RunProgressState =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'unknown'
+  | 'cancelled';
+
+/**
+ * `std` text run progress relation: the typed result/progress of a
+ * `delivery(LLM.generate)` association (CanChat.can:49 fixture,
+ * :17-19 derives). `sequence` orders snapshots within one run;
+ * `used_tokens` is null until the provider measures usage and is
+ * then charged once against the frozen reservation (CanChat
+ * .can:158-162); `detail` is safe diagnostic text or null.
+ */
+export interface TextRun {
+  source: string;
+  revision: number;
+  sequence: number;
+  state: RunProgressState;
+  content: string;
+  used_tokens: number | null;
+  detail: string | null;
+}
+
+/**
+ * `std` workflow input destination: one business field bound to a
+ * graph node/key (CanCreative.can:17,48). Authored mapping, not
+ * provider discovery.
+ */
+export interface WorkflowInput {
+  node: string;
+  key: string;
+}
+
+/**
+ * `std` immutable workflow definition snapshot: the draft graph
+ * file plus the four bound business fields (CanCreative.can:17-18,
+ * :48). Frozen per revision; later draft edits cannot change it.
+ */
+export interface WorkflowDefinition {
+  graph: FinalizedFileRef;
+  prompt: WorkflowInput;
+  negative: WorkflowInput;
+  width: WorkflowInput;
+  height: WorkflowInput;
+}
+
+/**
+ * One inspected graph input field (CanCreative.can:270-272 page
+ * reads: `row.node,row.key,row.kind,row.label`). `kind` / `label`
+ * vocabs are unobserved in corpus and stay open text; a closed
+ * vocab needs provider evidence, not invention here.
+ */
+export interface WorkflowField {
+  node: string;
+  key: string;
+  kind: string;
+  label: string;
+}
+
+/**
+ * `std` workflow inspection result: the allowed input destinations
+ * of one graph, without starting a generation
+ * (CanCreative.can:65-69).
+ */
+export interface WorkflowInspection {
+  fields: WorkflowField[];
+}
+
+/**
+ * `std` workflow validation result (CanCreative.can:47 fixture,
+ * :82 publish gate). `digest` is present exactly when `valid` (the
+ * publish gate requires both); `detail` carries safe rejection
+ * text or null.
+ */
+export interface WorkflowValidation {
+  valid: boolean;
+  digest: string | null;
+  detail: string | null;
+}
+
+/**
+ * `std` image generation request value (CanCreative.can:52-56
+ * fixtures, :103 construction). `workflow` is the frozen published
+ * definition, `validation` its published digest; the run is
+ * bounded by `max_outputs` / `max_duration`. Width/height
+ * multiple-of-64 is app invariant (CanCreative.can:35/95), not a
+ * contract rule.
+ */
+export interface ImageRequest {
+  source: string;
+  revision: number;
+  workflow: WorkflowDefinition;
+  validation: string;
+  prompt: string;
+  negative: string;
+  width: number;
+  height: number;
+  max_outputs: number;
+  /** Lane-2 duration value (integer ms); wire encoding via L2 codecs. */
+  max_duration: CanDuration;
+}
+
+/**
+ * One finalized image output (source name `GeneratedImage`,
+ * CanCreative.can:52, CanGallery.can:49). The `image` is a
+ * receiving-app finalized file produced by the T27 join — never
+ * provider bytes (those are the wire `GeneratedImage.bytes`) and
+ * never a provider URL.
+ */
+export interface ImageFileOutput {
+  position: number;
+  image: FinalizedFileRef;
+}
+
+/**
+ * `std` image run progress relation (source name `ImageRun`): the
+ * typed result/progress of a `delivery(Images.submit)` association
+ * (CanCreative.can:52-56 fixtures, :19-20 derives, :157-172
+ * handler; CanGallery.can:48-52 witness the same shape in a second
+ * app). `charged_jobs` is null until measured, then charged once
+ * (CanCreative.can:164-166); a failed run still carries partial
+ * outputs as data (CanCreative.can:179). Distinct from the
+ * provider-owned wire `ImageRun` (`{job, state, outputs, detail}`
+ * with byte outputs), which stays as the `ai.ImagesV1`
+ * observation the T27 join finalizes from.
+ */
+export interface ImageRunProgress {
+  source: string;
+  revision: number;
+  sequence: number;
+  state: RunProgressState;
+  outputs: ImageFileOutput[];
+  charged_jobs: number | null;
+  detail: string | null;
+}
+
+/**
+ * `std` incoming email value (CanInbox.can:79 fixture). `reply_to`
+ * is nullable (null-checked, CanInbox.can:190); every other leaf
+ * is required as fixture-evidenced. `attachments` holds finalized
+ * refs up to `attachment_count`; `attachments_complete` tells
+ * whether the set is whole (CanInbox.can:49 invariant).
+ * Attachment bytes are evidence, never instructions (CanInbox
+ * .can:13).
+ */
+export interface IncomingEmail {
+  mailbox: string;
+  source: string;
+  thread: string;
+  sender: string;
+  reply_to: string | null;
+  subject: string;
+  body: string;
+  body_complete: boolean;
+  attachments: FinalizedFileRef[];
+  attachment_count: number;
+  attachments_complete: boolean;
+  /** Lane-2 datetime value; wire encoding via L2 codecs. */
+  received: DatetimeValue;
+}
+
+/**
+ * `std` reviewed reply value (CanInbox.can:81 fixture, :209
+ * construction). Frozen at submit; the send carries it by value
+ * (`Post.reply {value=request}`, CanInbox.can:212) and the
+ * invariant binds every leaf back to the frozen reply
+ * (CanInbox.can:53).
+ */
+export interface MailReply {
+  source: string;
+  mailbox: string;
+  message: string;
+  to: string;
+  subject: string;
+  body: string;
+  attachments: FinalizedFileRef[];
+}
+
+/**
+ * `std` mail reply outcome state. `accepted` and `not_sent` are
+ * fixture-observed (CanInbox.can:273-274); `unknown` covers the
+ * `sent`/`reconciled` else arm (CanInbox.can:261/293), which maps
+ * any other provider state to uncertain — unknown is never
+ * non-send proof.
+ */
+export type MailReplyState = 'accepted' | 'not_sent' | 'unknown';
+
+/**
+ * `std` mail reply outcome: the typed result of `Post.reply` and
+ * `Post.reconcile` completions (CanInbox.can:253-261/285-293
+ * handlers read `source`/`state`/`reference`/`detail`).
+ * `reference` is present exactly for `accepted` sends (CanInbox
+ * .can:54 invariant).
+ */
+export interface MailReplyOutcome {
+  source: string;
+  state: MailReplyState;
+  reference: string | null;
+  detail: string | null;
+}
+
+/**
+ * `std` frozen judgment specification value. Evidence-capped at
+ * `{revision}`: both consuming apps read only `.revision`
+ * (CanInbox.can:160, CanDecide.can:104/121) to bind a result to
+ * the exact evaluated spec (`result.specification_revision ==
+ * specification.revision`). The question text and runtime options
+ * live in the owning in-corpus `export judgment` decl (plus its
+ * `specification()` member: nullary `Triage.specification`,
+ * parameterized `ChangeReview.specification({pick})`), not in
+ * this value. A richer snapshot would be invention.
+ */
+export interface JudgmentSpec {
+  revision: number;
+}
+
+/**
+ * `std` grounded-question request value (CanKnowledge.can:80-83
+ * fixtures, :157 construction). Same budget envelope as
+ * `TextRequest` with the transcript replaced by one `question`;
+ * retrieval scope travels beside it (`Handbook.answer
+ * {scope=topic,value}`, CanKnowledge.can:82/159 — corpus member,
+ * scoped out of T13b with the Handbook interface, see B8).
+ */
+export interface KnowledgeRequest {
+  source: string;
+  revision: number;
+  question: string;
+  profile: string;
+  policy_revision: string;
+  max_input_tokens: number;
+  max_output_tokens: number;
+  /** Lane-2 duration value (integer ms); wire encoding via L2 codecs. */
+  max_duration: CanDuration;
+}
+
+/**
+ * `std` source-index readiness (CanKnowledge.can:26 derive,
+ * :281-284/336 reads of `.state` / `.checked` / `.detail`).
+ * `state` stays open text — no state value is observed in corpus
+ * and a closed vocab would be invention. `checked` is the last
+ * index-check timestamp (single-read inference from the
+ * "Index readiness" label + text rendering; T14b may widen with
+ * evidence). `detail` follows the sibling nullable-text detail
+ * convention (`TextRun.detail`, `ImageRunProgress.detail`).
+ */
+export interface IndexState {
+  state: string;
+  /** Lane-2 datetime value; wire encoding via L2 codecs. */
+  checked: DatetimeValue | null;
+  detail: string | null;
+}
+
+/**
+ * Canonical `std.TextGenerationV1` contract (B2 new-contract; binds
+ * `deployment.llm`, CanChat.can:6). `generate` carries the frozen
+ * request by value; `cancel` / `reconcile` address the run by its
+ * frozen `(source, revision)` identity (B3). The chat port has no
+ * `cancel` op (stream-handle only) — the contract still declares
+ * the durable intent and T24 resolves it through the delivery
+ * association; no port is renamed. Cancel/reconcile results are
+ * symmetric-inference `TextRun` observations (no corpus result
+ * reads exist for them; cf. `MediaPort.cancel` -> `ImageRun` at
+ * the wire layer). Contract-only: do NOT add to
+ * `SERVICES_CATALOG` (T12 section-F restraint). No declared
+ * events (`.progressed` is generic delivery lifecycle).
+ */
+export const STD_TEXT_GENERATION_V1_CONTRACT: CapabilityContract = {
+  name: 'std.TextGenerationV1',
+  version: STD_TEXT_GENERATION_V1_VERSION,
+  operations: [
+    {
+      name: 'generate',
+      inputs: {
+        value: 'TextRequest',
+      },
+      result: 'TextRun',
+    },
+    {
+      name: 'cancel',
+      inputs: {
+        source: 'text',
+        revision: 'int',
+      },
+      result: 'TextRun',
+    },
+    {
+      name: 'reconcile',
+      inputs: {
+        source: 'text',
+        revision: 'int',
+      },
+      result: 'TextRun',
+    },
+  ],
+  events: [],
+};
+
+/**
+ * Canonical `std.ImagesV1` contract (B4/B5 new-contract; binds
+ * `deployment.images`, CanCreative.can:9). `inspect` reads allowed
+ * input destinations without generating; `validate` freezes a
+ * definition snapshot for publish gating; `submit` / `cancel` /
+ * `reconcile` follow the generation lifecycle with
+ * `(source, revision)` addressing (B3). Result name `ImageRun` is
+ * the SOURCE name and denotes the std delivery-progress relation
+ * (TS `ImageRunProgress`), NOT the provider-owned wire `ImageRun`
+ * (job + byte outputs); nested file outputs are TS
+ * `ImageFileOutput` (source `GeneratedImage`). Cancel/reconcile
+ * results are symmetric-inference observations (no corpus result
+ * reads; wire precedent `MediaPort.cancel/reconcile` ->
+ * `ImageRun`). Contract-only: do NOT add to `SERVICES_CATALOG`.
+ * No declared events.
+ */
+export const STD_IMAGES_V1_CONTRACT: CapabilityContract = {
+  name: 'std.ImagesV1',
+  version: STD_IMAGES_V1_VERSION,
+  operations: [
+    {
+      name: 'inspect',
+      inputs: {
+        graph: 'file',
+      },
+      result: 'WorkflowInspection',
+    },
+    {
+      name: 'validate',
+      inputs: {
+        value: 'WorkflowDefinition',
+      },
+      result: 'WorkflowValidation',
+    },
+    {
+      name: 'submit',
+      inputs: {
+        value: 'ImageRequest',
+      },
+      result: 'ImageRun',
+    },
+    {
+      name: 'cancel',
+      inputs: {
+        source: 'text',
+        revision: 'int',
+      },
+      result: 'ImageRun',
+    },
+    {
+      name: 'reconcile',
+      inputs: {
+        source: 'text',
+        revision: 'int',
+      },
+      result: 'ImageRun',
+    },
+  ],
+  events: [],
+};
+
+/**
+ * Canonical `std.MailboxV1` contract (B6 new-contract, contract-only;
+ * binds `deployment.inbox`, CanInbox.can:9). `reply` sends the
+ * frozen reviewed reply by value; `reconcile` re-checks the
+ * original provider identity by `{source}` only (CanInbox.can:227)
+ * and carries the same outcome result. The `received` event is a
+ * verified-ingress event (Payments `changed` precedent): its
+ * single `value` field carries the whole `IncomingEmail`
+ * (CanInbox.can:104-110 reads `event.value` as the envelope).
+ * Contract-only: do NOT add to `SERVICES_CATALOG`.
+ */
+export const STD_MAILBOX_V1_CONTRACT: CapabilityContract = {
+  name: 'std.MailboxV1',
+  version: STD_MAILBOX_V1_VERSION,
+  operations: [
+    {
+      name: 'reply',
+      inputs: {
+        value: 'MailReply',
+      },
+      result: 'MailReplyOutcome',
+    },
+    {
+      name: 'reconcile',
+      inputs: {
+        source: 'text',
+      },
+      result: 'MailReplyOutcome',
+    },
+  ],
+  events: [
+    {
+      name: 'received',
+      fields: {
+        value: 'IncomingEmail',
       },
     },
   ],
