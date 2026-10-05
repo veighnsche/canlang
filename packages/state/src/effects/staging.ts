@@ -187,6 +187,102 @@ export function stageScheduleOps(ops: ReadonlyArray<ScheduleOp>): ScheduleOp[] {
 }
 
 /**
+ * T24a: which operation/effect produced one staged intent, read back off
+ * the validated shape. The five fields restate the origin the fence
+ * carries (operation identity, declaring target, deterministic
+ * occurrence index, dispatch-guard reference); lane 4 joins its claim
+ * lifecycle rows onto `intentId` plus this origin.
+ */
+export interface StagedIntentOrigin {
+  readonly intentId: string;
+  readonly operation: OperationName;
+  readonly operationId: OperationId;
+  readonly target: string;
+  readonly occurrenceIndex: number;
+  readonly dispatchGuard: string | null;
+}
+
+/**
+ * T24a: validate one intent-shaped value EXACTLY like batch staging and
+ * return its origin. Used by join assertions and T24b producers to name
+ * the producer identically; duplicates are a batch-level concern and
+ * are NOT checked here (see `stageDispatchJoin`).
+ */
+export function describeIntentOrigin(intent: OutboxIntent, ctx: StagingContext): StagedIntentOrigin {
+  const staged = stageOutboxIntents([intent], ctx);
+  const first = staged[0];
+  if (first === undefined) {
+    throw new StateError('validation', 'Staged outbox must be an array.');
+  }
+  return {
+    intentId: first.intentId,
+    operation: first.operation,
+    operationId: first.operationId,
+    target: first.target,
+    occurrenceIndex: first.occurrenceIndex,
+    dispatchGuard: first.dispatchGuard ?? null,
+  };
+}
+
+/** T24a: one intent carrying a `when` guard for stage-time evaluation. */
+export interface JoinGuardRef {
+  readonly intentId: string;
+  readonly guard: string;
+}
+
+/**
+ * T24a: the staged dispatch join — validated intents plus their origins
+ * and guard refs, all owned by ONE triggering operation.
+ *
+ * SINGLE-OWNER SCOPE ONLY: every intent's `operationId` equals the one
+ * invoking operation (enforced by `stageOutboxIntents`), and the join
+ * commits in that owner's fence revision. Cross-store atomicity is NOT
+ * claimed and MUST NOT be inferred: each owner store commits its own
+ * fence; there is no two-phase commit across owners.
+ */
+export interface StagedDispatchJoin {
+  readonly intents: OutboxIntent[];
+  readonly origins: StagedIntentOrigin[];
+  /**
+   * Intents carrying a `when` guard. Stage-time verdicts are evaluated
+   * lane-04-side against the producer snapshot and pinned on the
+   * dispatch row in the same batch; the claim-time re-check stays the
+   * dispatch fence.
+   */
+  readonly guards: JoinGuardRef[];
+  /** The single owning operation of the whole join batch. */
+  readonly operationId: string;
+}
+
+/**
+ * T24a: validate one batch of dispatch-join intents (delegating to
+ * `stageOutboxIntents` — identical rules, no behavior change) and
+ * derive the origins plus guard refs the join carries. Empty batches
+ * pass trivially (ordinary trigger batches stage no dispatch work).
+ */
+export function stageDispatchJoin(
+  intents: ReadonlyArray<OutboxIntent>,
+  ctx: StagingContext,
+): StagedDispatchJoin {
+  const staged = stageOutboxIntents(intents, ctx);
+  const origins: StagedIntentOrigin[] = staged.map((intent) => ({
+    intentId: intent.intentId,
+    operation: intent.operation,
+    operationId: intent.operationId,
+    target: intent.target,
+    occurrenceIndex: intent.occurrenceIndex,
+    dispatchGuard: intent.dispatchGuard ?? null,
+  }));
+  const guards: JoinGuardRef[] = [];
+  for (const intent of staged) {
+    if (intent.dispatchGuard !== undefined) {
+      guards.push({ intentId: intent.intentId, guard: intent.dispatchGuard });
+    }
+  }
+  return { intents: staged, origins, guards, operationId: ctx.operationId };
+}
+
+/**
  * Validate ExecutionEffects-shaped staging (`{ outbox, schedules }`).
  * `crudExecute`'s empty arrays pass trivially.
  */

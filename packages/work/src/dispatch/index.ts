@@ -19,6 +19,7 @@
  * non-supersession and the guard verdict (see ports.ts).
  */
 import type {
+  ClaimId,
   DispatchClaim,
   DispatchGuardRef,
   GuardVerdict,
@@ -105,4 +106,34 @@ export function attemptDispatch(deps: DispatchDeps, attempt: DispatchAttempt): D
       claimedAt: deps.clock.nowMs(),
     },
   };
+}
+
+/* -- T24a claim identity: exactly-once claim per intent. -- */
+
+/**
+ * Exactly-once claim rule. One claim generation admits exactly one
+ * winning claim id per intent: concurrent claimants serialize on the
+ * fenced `pending` -> `claimed` conditional update and losers observe
+ * the winner's claim (the fenced claim refusal carries the held
+ * claim id). A redelivered worker presenting the WINNING claim id
+ * replays its own claim (idempotent); any other presented id is held
+ * elsewhere and refused. Claim ids are opaque mints (`ClaimIdPort`);
+ * callers never compare them for ordering, only equality here.
+ */
+export type ClaimIdentityVerdict =
+  /** No claim recorded: the intent is claimable (subject to the fence). */
+  | 'unclaimed'
+  /** The presented id is the recorded winner: idempotent replay. */
+  | 'held-by-caller'
+  /** A different claim id holds the intent: refuse. */
+  | 'held-elsewhere';
+
+export function matchClaimIdentity(
+  held: DispatchClaim | null,
+  presentedClaimId: ClaimId,
+): ClaimIdentityVerdict {
+  if (held === null) {
+    return 'unclaimed';
+  }
+  return held.claimId === presentedClaimId ? 'held-by-caller' : 'held-elsewhere';
 }

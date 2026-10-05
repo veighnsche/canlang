@@ -27,7 +27,9 @@
 import type {
   DomainWrite,
   ModelName,
+  OperationId,
   OperationName,
+  OutboxIntent,
   RecordId,
   ScheduleOp,
   StoredRow,
@@ -52,7 +54,9 @@ import {
   WORK_SCHEDULE_MODEL,
   WORK_SUPERSESSION_MODEL,
   dispatchByOriginQuery,
+  dispatchByStateQuery,
   everySlotRowId,
+  newDispatchRow,
   newEverySlotRow,
   newOccurrenceRow,
   newScheduleRow,
@@ -64,6 +68,7 @@ import {
   scheduleByKeyQuery,
   withRowData,
 } from './tables.ts';
+import type { FanoutLineage } from '../intent/index.ts';
 import type {
   DispatchRowData,
   EverySlotRowData,
@@ -1002,4 +1007,334 @@ export const WORK_SYSTEM_COMMANDS: readonly SystemCommandDef[] = [
   workSchedulePutCommand,
   workScheduleCancelCommand,
   workEveryAdvanceSlotCommand,
+];
+
+/* -- T24a staging join: atomic dispatch staging + batch recovery. -- */
+
+/** L3 staging bound (`STAGING_MAX_ID_LENGTH`); length is UTF-16 units. */
+const STAGE_INTENT_ID_MAX_LENGTH = 128;
+
+interface ParsedStageIntent {
+  intentId: string;
+  operation: string;
+  originOperationId: string;
+  source: string;
+  occurrenceIndex: number;
+  request: Record<string, unknown>;
+  originOccurrence: OccurrenceId | null;
+  guard: string | null;
+  guardVerdict: boolean | null;
+  fanout: FanoutLineage | null;
+}
+
+function argOccurrenceIndex(
+  record: Readonly<Record<string, unknown>>,
+  field: string,
+  what: string,
+): number {
+  const value = record[field];
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new KernelTableError(`${what}: ${field} must be an integer >= 0.`);
+  }
+  return value;
+}
+
+function argGuard(
+  record: Readonly<Record<string, unknown>>,
+  what: string,
+): { guard: string | null; verdict: boolean | null } {
+  const guard = record['guard'];
+  const verdict = record['guardVerdict'];
+  if (guard === null || guard === undefined) {
+    if (verdict !== null && verdict !== undefined) {
+      throw new KernelTableError(
+        `${what}: guardVerdict without a guard is incoherent (unconditional intents carry none).`,
+      );
+    }
+    return { guard: null, verdict: null };
+  }
+  if (typeof guard !== 'string' || guard === '') {
+    throw new KernelTableError(`${what}: guard must be a non-empty string or null.`);
+  }
+  if (typeof verdict !== 'boolean') {
+    throw new KernelTableError(
+      `${what}: guardVerdict must be a boolean when a guard is present (stage-time verdict).`,
+    );
+  }
+  return { guard, verdict };
+}
+
+function argFanout(
+  record: Readonly<Record<string, unknown>>,
+  what: string,
+): FanoutLineage | null {
+  const fanout = record['fanout'];
+  if (fanout === null || fanout === undefined) return null;
+  // T33-carried lineage: shape-validated and echoed, never interpreted.
+  const lineage = argRecord(record, 'fanout', what);
+  const cohortId = argString(lineage, 'cohortId', `${what}.fanout`);
+  const parentOccurrence = argString(lineage, 'parentOccurrence', `${what}.fanout`);
+  const childIndex = argOccurrenceIndex(lineage, 'childIndex', `${what}.fanout`);
+  const checkpointId = argNullableString(lineage, 'checkpointId', `${what}.fanout`);
+  if (checkpointId !== null && checkpointId === '') {
+    throw new KernelTableError(`${what}.fanout: checkpointId must be non-empty or null.`);
+  }
+  return { cohortId, parentOccurrence, childIndex, checkpointId };
+}
+
+function parseStageIntent(
+  candidate: unknown,
+  index: number,
+  what: string,
+): ParsedStageIntent {
+  if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
+    throw new KernelTableError(`${what}: intents[${index}] must be an object.`);
+  }
+  const record = candidate as Readonly<Record<string, unknown>>;
+  const item = `${what}: intents[${index}]`;
+  const intentId = argString(record, 'intentId', item);
+  if (intentId.length > STAGE_INTENT_ID_MAX_LENGTH) {
+    throw new KernelTableError(
+      `${item}: intentId exceeds ${STAGE_INTENT_ID_MAX_LENGTH} characters.`,
+    );
+  }
+  const { guard, verdict } = argGuard(record, item);
+  return {
+    intentId,
+    operation: argString(record, 'operation', item),
+    originOperationId: argString(record, 'originOperationId', item),
+    source: argString(record, 'source', item),
+    occurrenceIndex: argOccurrenceIndex(record, 'occurrenceIndex', item),
+    request: argRecord(record, 'request', item),
+    originOccurrence: argNullableString(record, 'originOccurrence', item) as OccurrenceId | null,
+    guard,
+    guardVerdict: verdict,
+    fanout: argFanout(record, item),
+  };
+}
+
+/**
+ * `work.dispatch.stage {operationId, intents[]}`: the atomic staging join
+ * for the operator path. Stages each intent's L4 `work.dispatch` row
+ * (with its stage-time guard verdict pinned) AND its L3 `OutboxIntent`
+ * in ONE fenced batch — the registry commits `writes` + `outbox`
+ * together, so a trigger rollback voids both and one fence revision
+ * carries the join.
+ *
+ * Wiring contract (T24b): `operationId` MUST equal the run's
+ * operationId — the stage has no access to it, so the assembly passes
+ * the same key in both places and the registry rejects mismatches
+ * fail-closed. The TRUE trigger origin rides each intent's
+ * `originOperationId` onto the dispatch row; the L3 intent's
+ * operationId is the run key (staging forbids cross-operation intents).
+ *
+ * Guard-false intents stage a pinned-`false` dispatch row (the durable
+ * skip record — claims refuse `guard-false`) and NO L3 outbox intent
+ * (nothing dispatchable), plus an explicit skip entry in the result.
+ * Skips are never silent: every input intent appears in exactly one of
+ * `staged`, `skipped` or `replayed`.
+ *
+ * Exactly-once staging under retried runs: an intent whose dispatch row
+ * already exists replays without writes when origin + verdict match
+ * (a prior run committed both halves together), and throws on mismatch
+ * instead of silently adopting a foreign row.
+ */
+export const workDispatchStageCommand: SystemCommandDef = {
+  name: 'work.dispatch.stage',
+  stage: async (args, ctx) => {
+    const what = 'work.dispatch.stage';
+    checkArgs(args, what);
+    const operationId = argString(args, 'operationId', what);
+    const rawIntents = args['intents'];
+    if (!Array.isArray(rawIntents) || rawIntents.length === 0) {
+      throw new KernelTableError(`${what}: intents must be a non-empty array.`);
+    }
+    const intents = rawIntents.map((candidate, index) => parseStageIntent(candidate, index, what));
+    const seen = new Set<string>();
+    for (const intent of intents) {
+      if (seen.has(intent.intentId)) {
+        throw new KernelTableError(
+          `${what}: duplicate intent id ${JSON.stringify(intent.intentId)}.`,
+        );
+      }
+      seen.add(intent.intentId);
+    }
+    const writes: DomainWrite[] = [];
+    const outbox: OutboxIntent[] = [];
+    const staged: unknown[] = [];
+    const skipped: unknown[] = [];
+    const replayed: string[] = [];
+    for (const intent of intents) {
+      const existing = await ctx.load(WORK_DISPATCH_MODEL, intent.intentId as RecordId);
+      if (existing !== null) {
+        const data = readDispatchRow(existing);
+        if (
+          data.intentId !== intent.intentId ||
+          data.operationId !== intent.originOperationId ||
+          data.source !== intent.source ||
+          data.occurrenceIndex !== intent.occurrenceIndex ||
+          data.originOccurrence !== intent.originOccurrence ||
+          data.guardVerdict !== intent.guardVerdict
+        ) {
+          throw new KernelTableError(
+            `${what}: intent ${JSON.stringify(intent.intentId)} already staged ` +
+              'with a different origin or verdict.',
+          );
+        }
+        replayed.push(intent.intentId);
+        continue;
+      }
+      const fresh = newDispatchRow(
+        {
+          intentId: intent.intentId as OutboxId,
+          operationId: intent.originOperationId,
+          source: intent.source,
+          occurrenceIndex: intent.occurrenceIndex,
+          originOccurrence: intent.originOccurrence,
+        },
+        { nowMs: ctx.now, actor: ctx.actor },
+      );
+      writes.push({
+        kind: 'insert',
+        model: WORK_DISPATCH_MODEL,
+        row: { ...fresh, data: { ...readDispatchRow(fresh), guardVerdict: intent.guardVerdict } },
+      });
+      const origin = {
+        operationId: intent.originOperationId,
+        source: intent.source,
+        occurrenceIndex: intent.occurrenceIndex,
+        originOccurrence: intent.originOccurrence,
+      };
+      if (intent.guardVerdict === false) {
+        skipped.push({
+          intentId: intent.intentId,
+          guard: intent.guard,
+          verdict: false,
+          reason: 'guard-false',
+          fanout: intent.fanout,
+        });
+        continue;
+      }
+      outbox.push({
+        intentId: intent.intentId,
+        operation: intent.operation as OperationName,
+        operationId: operationId as OperationId,
+        target: intent.source,
+        arguments: intent.request,
+        occurrenceIndex: intent.occurrenceIndex,
+        ...(intent.guard !== null ? { dispatchGuard: intent.guard } : {}),
+      });
+      staged.push({ intentId: intent.intentId, origin, guard: intent.guard, fanout: intent.fanout });
+    }
+    return { writes, outbox, result: { staged, skipped, replayed } };
+  },
+};
+
+/**
+ * `work.dispatch.recover {maxClaimAgeMs, limit, resumeAfter?}`: bounded
+ * batch recovery resuming interrupted claims. Releases every stale
+ * claimed row (exact `isClaimStale` boundary; rows without a recorded
+ * claim stay claimed) back to `pending` in ONE fenced batch, in stable
+ * intent-id order after the `resumeAfter` cursor. `done: false` with a
+ * fresh `resumeAfter` means unvisited rows remain: resume instead of
+ * silently truncating. Uncertain rows are OBSERVED (read-only ids for
+ * the T24b reconciling sweeper), never touched: unknown stays unknown
+ * until provider evidence arrives. Failed-row retry stays per-intent
+ * `requeue` (it needs the caller's retry policy); the pure
+ * `planRecoveryScan` decision table drives that half.
+ */
+export const workDispatchRecoverCommand: SystemCommandDef = {
+  name: 'work.dispatch.recover',
+  stage: async (args, ctx) => {
+    const what = 'work.dispatch.recover';
+    checkArgs(args, what);
+    const maxClaimAgeMs = argInstant(args, 'maxClaimAgeMs', what);
+    const limitValue = args['limit'];
+    if (typeof limitValue !== 'number' || !Number.isInteger(limitValue) || limitValue < 1) {
+      throw new KernelTableError(`${what}: limit must be an integer >= 1.`);
+    }
+    const resumeAfter = argNullableString(args, 'resumeAfter', what);
+    const claimed = await ctx.query(dispatchByStateQuery('claimed'));
+    const candidates: Array<{ row: StoredRow; intentId: string }> = [];
+    const seen = new Set<string>();
+    for (const row of claimed) {
+      // Exact re-filter: claimed state, first sighting, after the cursor.
+      const data = readDispatchRow(row);
+      if (data.state !== 'claimed') continue;
+      if (seen.has(data.intentId)) continue;
+      seen.add(data.intentId);
+      if (resumeAfter !== null && data.intentId <= resumeAfter) continue;
+      candidates.push({ row, intentId: data.intentId });
+    }
+    candidates.sort((a, b) => compareIds(a.intentId, b.intentId));
+    const writes: DomainWrite[] = [];
+    const released: OutboxId[] = [];
+    let visited = 0;
+    for (const candidate of candidates) {
+      if (released.length >= limitValue) break;
+      visited += 1;
+      const data = readDispatchRow(candidate.row);
+      if (
+        data.claimId !== null &&
+        data.claimedAtMs !== null &&
+        isClaimStale(
+          {
+            outboxId: candidate.intentId as OutboxId,
+            claimId: data.claimId,
+            claimedAt: data.claimedAtMs,
+          },
+          ctx.now,
+          maxClaimAgeMs,
+        )
+      ) {
+        writes.push(
+          updateWrite(
+            candidate.row,
+            { ...data, state: 'pending', claimId: null, claimedAtMs: null },
+            ctx,
+            WORK_DISPATCH_MODEL,
+            what,
+          ),
+        );
+        released.push(candidate.intentId as OutboxId);
+      }
+    }
+    const done = visited >= candidates.length;
+    const next = candidates[visited - 1]?.intentId ?? null;
+    const uncertainRows = await ctx.query(dispatchByStateQuery('uncertain'));
+    const uncertain: string[] = [];
+    const uncertainSeen = new Set<string>();
+    for (const row of uncertainRows) {
+      const data = readDispatchRow(row);
+      if (data.state !== 'uncertain') continue;
+      if (uncertainSeen.has(data.intentId)) continue;
+      uncertainSeen.add(data.intentId);
+      uncertain.push(data.intentId);
+    }
+    uncertain.sort(compareIds);
+    const uncertainTruncated = uncertain.length > limitValue;
+    return {
+      writes,
+      result: {
+        released,
+        resumeAfter: done ? null : next,
+        done,
+        uncertain: uncertain.slice(0, limitValue),
+        uncertainTruncated,
+      },
+    };
+  },
+};
+
+/**
+ * T24a staging-join commands for assembly composition. T24b wires these
+ * alongside `WORK_SYSTEM_COMMANDS`
+ * (`[...l3Commands, ...WORK_SYSTEM_COMMANDS, ...WORK_DISPATCH_STAGE_COMMANDS]`)
+ * and bumps the registry-shape count pin in `kernel-commands.test.ts`
+ * from 9 to 11; until then this array stays the T24a composition unit
+ * (verified composed-with-L3 in `t24a-staging-join.test.ts`).
+ */
+export const WORK_DISPATCH_STAGE_COMMANDS: readonly SystemCommandDef[] = [
+  workDispatchStageCommand,
+  workDispatchRecoverCommand,
 ];
