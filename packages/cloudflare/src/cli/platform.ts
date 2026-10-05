@@ -34,13 +34,25 @@
  * the CLI passes no inventory/gates and the verdict carries
  * `activation-incomplete` for gate 4. The full four-gate pass (real
  * producer functions) is proven in `test/activate.test.ts`.
+ *
+ * B5-J3: `--artifact` is optional everywhere — absent means zero-config
+ * discovery (`./dist/*.artifact.json`, exactly one or loud). `test`
+ * boots the local harness via `@canlang/testkit` (dynamic import: the
+ * testkit depends on this package, so no static edge) and reports zero
+ * executed rows until the lane-01 test-module loader lands. `build`
+ * validates the artifact + asserts release lockstep. `deploy` runs the
+ * compat gate, renders the plan, and writes `<stem>.deploy-plan.json` +
+ * `<stem>.wrangler.toml` only under `--yes`;
+ * `--preview` prints and writes nothing. Nothing here spawns wrangler.
  */
-import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
 import { access, mkdtemp } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CONTRACTS_VERSION } from "@canlang/contracts";
 import type {
   CompatibilityDescriptor,
   EnvironmentSelection,
@@ -52,6 +64,20 @@ import { loadArtifactFile, type LoadedArtifact } from "../runtime/artifact.js";
 import { assembleModules } from "../runtime/modules.js";
 import { activate } from "../deploy/activate.js";
 import { probeInstalledRuntime } from "../deploy/installed.js";
+import {
+  checkCompatibility,
+  checkCompilerVersionMatch,
+  installedFromTree,
+} from "../deploy/compat.js";
+import { buildDeployPlan } from "../deploy/plan.js";
+import { renderDeployPlan } from "../deploy/render.js";
+import { diffPlans, formatPreview, loadPreviousPlan, requireYes } from "../deploy/review.js";
+import {
+  PINNED_COMPATIBILITY_DATE,
+  assertDistReady,
+  resolveLocalDefaults,
+} from "../dev/zero-config.js";
+import { RELEASE_VERSION, assertLockstep, readLockstepInputs } from "../release/stamp.js";
 
 export const PLATFORM_CLI_NAME = "can-platform";
 export const PLATFORM_CLI_VERSION = "0.1.0";
@@ -86,7 +112,7 @@ function fail(
 }
 
 const USAGE_TEXT =
-  `Usage: ${PLATFORM_CLI_NAME} <${COMMANDS.join("|")}> --artifact <path> [--env <name>]`;
+  `Usage: ${PLATFORM_CLI_NAME} <${COMMANDS.join("|")}> [--artifact <path>] [--env <name>] [--preview|--yes]`;
 
 function usage(detail: string): never {
   process.stderr.write(`${USAGE_TEXT}\n`);
@@ -95,8 +121,11 @@ function usage(detail: string): never {
 
 interface ParsedArgs {
   command: PlatformCommand;
-  artifact: string;
+  /** Null means zero-config discovery at dispatch time. */
+  artifact: string | null;
   env: string | null;
+  preview: boolean;
+  yes: boolean;
 }
 
 function parse(argv: string[]): ParsedArgs {
@@ -120,6 +149,8 @@ function parse(argv: string[]): ParsedArgs {
   }
   let artifact: string | null = null;
   let env: string | null = null;
+  let preview = false;
+  let yes = false;
   for (let i = 0; i < rest.length; i += 1) {
     const flag = rest[i];
     if (flag === "--help" || flag === "-h") {
@@ -128,6 +159,16 @@ function parse(argv: string[]): ParsedArgs {
       process.stderr.write(`${USAGE_TEXT}\nDelegation target for thin 'can' entries.\n`);
       emit({ ok: true, name: PLATFORM_CLI_NAME, version: PLATFORM_CLI_VERSION, usage: USAGE_TEXT });
       process.exit(0);
+    }
+    if (flag === "--preview" || flag === "--yes") {
+      if (flag === "--preview") {
+        if (preview) usage("duplicate --preview");
+        preview = true;
+      } else {
+        if (yes) usage("duplicate --yes");
+        yes = true;
+      }
+      continue;
     }
     if (flag === "--artifact" || flag === "--env") {
       if (i + 1 >= rest.length) usage(`missing value for ${flag}`);
@@ -144,8 +185,10 @@ function parse(argv: string[]): ParsedArgs {
       usage(`unexpected argument ${JSON.stringify(flag)}`);
     }
   }
-  if (artifact === null) usage("missing required --artifact <path>");
-  return { command: command as PlatformCommand, artifact, env };
+  if ((preview || yes) && command !== "deploy") {
+    usage("--preview/--yes are deploy-only");
+  }
+  return { command: command as PlatformCommand, artifact, env, preview, yes };
 }
 
 async function artifactExists(path: string): Promise<boolean> {
@@ -408,37 +451,299 @@ async function runActivate(artifactPath: string, env: string | null): Promise<vo
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* B5-J3: test/build/deploy local paths.                             */
+/* ------------------------------------------------------------------ */
+
+/** Entry script path stamped into deploy plans (repo convention). */
+const DEPLOY_MAIN = "./dist/worker/entry.js";
+
+function distRootDir(): string {
+  return resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+}
+
+function missingEmission(command: PlatformCommand, verb: "execute" | "package" | "deploy"): never {
+  const contract =
+    verb === "execute"
+      ? "can compile emission + ArtifactTestModule loader (§13 exampleFixtures)"
+      : "can compile emission (CompileArtifact)";
+  fail(command, "missing-producer", `no L1 CompileArtifact emission to ${verb} yet`, {
+    producer: "lane-01",
+    contract,
+  });
+}
+
+/**
+ * `test`: boot the local harness via `@canlang/testkit` (dynamic import
+ * — the testkit statically depends on this package, so a static edge
+ * would cycle) and report. Zero rows execute until the lane-01
+ * test-module loader lands; the harness boot itself is the verified
+ * local path.
+ */
+async function runTest(artifactPath: string): Promise<void> {
+  let loaded: LoadedArtifact;
+  try {
+    loaded = loadArtifactFile(artifactPath);
+  } catch {
+    missingEmission("test", "execute");
+  }
+  const defaults = resolveLocalDefaults({ artifactPath });
+  const distRoot = distRootDir();
+  try {
+    await assertDistReady(distRoot);
+  } catch (error) {
+    fail("test", "missing-dist", error instanceof Error ? error.message : String(error));
+  }
+  const workDir = await mkdtemp(join(tmpdir(), "can-platform-test-"));
+  const stdlibUrl = new URL("../runtime/stdlib.js", import.meta.url).href;
+  const asm = await assembleModules(loaded, { distRoot, workDir, stdlibUrl });
+  const entry = loaded.artifact.modules[0];
+  if (entry === undefined) {
+    fail("test", "invalid-artifact", `artifact ${artifactPath} has no modules`);
+  }
+  // Non-literal specifier on purpose: a literal `import("@canlang/testkit")`
+  // would pull the testkit's .d.ts (which re-exports this package's own
+  // dist types) into this program's inputs and break `tsc -b` (TS5055).
+  // The structural seam below is the whole contract this CLI needs.
+  const testkitSpecifier: string = "@canlang/testkit";
+  let testkit: {
+    createLocalRowScope: (
+      d1Id: string,
+      options: {
+        workerName: string;
+        compatibilityDate: string;
+        mainModule: string;
+        modules: Readonly<Record<string, string>>;
+        d1Binding: string;
+      },
+    ) => Promise<{ snapshot: () => Promise<unknown>; dispose: () => Promise<void> }>;
+  };
+  try {
+    testkit = (await import(testkitSpecifier)) as typeof testkit;
+  } catch {
+    fail("test", "missing-producer", "no testkit harness: @canlang/testkit is not importable", {
+      producer: "lane-07",
+      contract: "@canlang/testkit dist (run the testkit build first)",
+    });
+  }
+  const modules: Record<string, string> = {};
+  for (const [name, url] of Object.entries(asm.moduleUrls)) {
+    modules[name] = readFileSync(new URL(url), "utf8");
+  }
+  const scope = await testkit.createLocalRowScope(randomUUID(), {
+    workerName: defaults.workerName,
+    compatibilityDate: defaults.compatibilityDate,
+    mainModule: entry.path,
+    modules,
+    d1Binding: "DB",
+  });
+  try {
+    await scope.snapshot();
+  } finally {
+    await scope.dispose();
+  }
+  const artifact = loaded.artifact;
+  process.stderr.write(
+    `test harness: worker ${defaults.workerName} booted, ` +
+      `${artifact.tests.length} test module(s), 0 rows executed\n`,
+  );
+  emit({
+    ok: true,
+    command: "test",
+    workerName: defaults.workerName,
+    modules: artifact.modules.length,
+    testModules: artifact.tests.length,
+    executed: 0,
+    note:
+      "harness boot verified via @canlang/testkit local scope; row execution needs the " +
+      "lane-01 ArtifactTestModule loader (contract: can compile emission + " +
+      "ArtifactTestModule loader (§13 exampleFixtures))",
+  });
+}
+
+/** `build`: validate the artifact + assert release lockstep over the tree. */
+async function runBuild(artifactPath: string): Promise<void> {
+  let loaded: LoadedArtifact;
+  try {
+    loaded = loadArtifactFile(artifactPath);
+  } catch {
+    missingEmission("build", "package");
+  }
+  const repoRoot = dirname(distRootDir());
+  try {
+    const tree = readLockstepInputs(repoRoot);
+    assertLockstep({
+      rootVersion: tree.rootVersion,
+      platformVersion: PLATFORM_CLI_VERSION,
+      compilerVersion: tree.compilerVersion,
+      contractsVersion: CONTRACTS_VERSION,
+      packageVersions: tree.packageVersions,
+    });
+  } catch (error) {
+    fail("build", "release-drift", error instanceof Error ? error.message : String(error));
+  }
+  const artifact = loaded.artifact;
+  process.stderr.write(
+    `build: ${artifact.modules.length} modules, ${artifact.callables.length} callables, ` +
+      `${artifact.pages.length} pages (release ${RELEASE_VERSION})\n`,
+  );
+  emit({
+    ok: true,
+    command: "build",
+    release: RELEASE_VERSION,
+    modules: artifact.modules.length,
+    callables: artifact.callables.map((callable) => callable.id),
+    pages: artifact.pages.map((page) => page.path),
+  });
+}
+
+/**
+ * `deploy`: compat gate first (fail closed), then render + review. Bare
+ * deploy and `--preview` write nothing; `--yes` writes the plan files.
+ * A compiler/runtime release mismatch refuses `--yes`. Nothing here
+ * spawns wrangler (live apply is a follow-up).
+ */
+async function runDeploy(
+  artifactPath: string,
+  env: string | null,
+  preview: boolean,
+  yes: boolean,
+): Promise<void> {
+  let loaded: LoadedArtifact;
+  try {
+    loaded = loadArtifactFile(artifactPath);
+  } catch {
+    missingEmission("deploy", "deploy");
+  }
+  if (env === null) {
+    usage("deploy requires --env <name>");
+  }
+  const { dir, stem } = bundleStem(artifactPath);
+  let descriptor: CompatibilityDescriptor;
+  let environment: EnvironmentSelection;
+  let target: ReturnType<typeof loadTarget>;
+  try {
+    descriptor = loadDescriptor(join(dir, `${stem}.descriptor.json`));
+    environment = loadEnvironment(join(dir, `${stem}.${env}.environment.json`), env);
+    target = loadTarget(join(dir, `${stem}.target.json`));
+  } catch (error) {
+    fail("deploy", "invalid-deploy-bundle", error instanceof Error ? error.message : String(error));
+  }
+  let installed;
+  try {
+    installed = installedFromTree({}, target);
+  } catch (error) {
+    fail("deploy", "invalid-deploy-bundle", error instanceof Error ? error.message : String(error));
+  }
+  const compat = checkCompatibility(descriptor, environment, installed);
+  if (!compat.compatible) {
+    fail(
+      "deploy",
+      "incompatible",
+      compat.reasons.map((reason) => `${reason.code}: ${reason.detail}`).join("; "),
+    );
+  }
+  const compiler = checkCompilerVersionMatch(descriptor, installed);
+  const defaults = resolveLocalDefaults({ artifactPath });
+  void loaded.artifact;
+  let plan;
+  try {
+    plan = buildDeployPlan(descriptor, environment, {
+      workerName: defaults.workerName,
+      main: DEPLOY_MAIN,
+      compatibilityDate: PINNED_COMPATIBILITY_DATE,
+    });
+  } catch (error) {
+    fail("deploy", "unresolved-binding", error instanceof Error ? error.message : String(error));
+  }
+  const planPath = join(dir, `${stem}.deploy-plan.json`);
+  const tomlPath = join(dir, `${stem}.wrangler.toml`);
+  let previous;
+  try {
+    previous = loadPreviousPlan(planPath);
+  } catch (error) {
+    fail("deploy", "invalid-deploy-bundle", error instanceof Error ? error.message : String(error));
+  }
+  const diff = diffPlans(previous, plan);
+  const rendered = renderDeployPlan(plan);
+  if (preview) {
+    process.stderr.write(formatPreview(plan, diff));
+    if (!compiler.match) {
+      process.stderr.write(`warning: ${compiler.detail} (--yes will refuse)\n`);
+    }
+    emit({
+      ok: true,
+      command: "deploy",
+      preview: true,
+      wrote: false,
+      changed: diff.changed,
+      diff: diff.lines,
+      plan,
+      compilerMatch: compiler.match,
+      compilerDetail: compiler.match ? null : compiler.detail,
+    });
+    return;
+  }
+  try {
+    requireYes(yes, "deploy");
+  } catch (error) {
+    fail("deploy", "confirm-required", error instanceof Error ? error.message : String(error));
+  }
+  if (!compiler.match) {
+    fail(
+      "deploy",
+      "compiler-mismatch",
+      `${compiler.detail} (release lockstep: rebuild with the pinned toolchain)`,
+    );
+  }
+  writeFileSync(planPath, rendered.json, "utf8");
+  writeFileSync(tomlPath, rendered.toml, "utf8");
+  process.stderr.write(`${formatPreview(plan, diff)}wrote ${planPath}\nwrote ${tomlPath}\n`);
+  emit({
+    ok: true,
+    command: "deploy",
+    preview: false,
+    wrote: true,
+    changed: diff.changed,
+    diff: diff.lines,
+    files: [planPath, tomlPath],
+    plan,
+  });
+}
+
 async function main(): Promise<void> {
   const args = parse(process.argv.slice(2));
-  if (!(await artifactExists(args.artifact))) {
-    fail(args.command, "missing-artifact", `artifact not readable: ${args.artifact}`);
+  let artifactPath = args.artifact;
+  if (artifactPath === null) {
+    // B5-J3 zero-config: absent --artifact discovers ./dist/*.artifact.json.
+    // Discovery failures are usage errors (same envelope as the old
+    // missing --artifact path, now with the pattern + the fix).
+    try {
+      artifactPath = resolveLocalDefaults({ cwd: process.cwd() }).artifactPath;
+    } catch (error) {
+      usage(error instanceof Error ? error.message : String(error));
+    }
   }
-  // run executes via loadArtifactFile + assembleModules; test/build/deploy
-  // keep their stubs (test still names lane-01).
+  if (!(await artifactExists(artifactPath))) {
+    fail(args.command, "missing-artifact", `artifact not readable: ${artifactPath}`);
+  }
   if (args.command === "run") {
-    await runArtifact(args.artifact);
+    await runArtifact(artifactPath);
     return;
   }
   if (args.command === "activate") {
-    await runActivate(args.artifact, args.env);
+    await runActivate(artifactPath, args.env);
     return;
   }
   if (args.command === "test") {
-    fail(args.command, "missing-producer", "no L1 CompileArtifact emission to execute yet", {
-      producer: "lane-01",
-      contract: "can compile emission + ArtifactTestModule loader (§13 exampleFixtures)",
-    });
+    await runTest(artifactPath);
+    return;
   }
   if (args.command === "build") {
-    fail(args.command, "missing-producer", "no L1 CompileArtifact emission to package yet", {
-      producer: "lane-01",
-      contract: "can compile emission (CompileArtifact)",
-    });
+    await runBuild(artifactPath);
+    return;
   }
-  fail(args.command, "missing-producer", "no L1 CompileArtifact emission to deploy yet", {
-    producer: "lane-01",
-    contract: "can compile emission (CompileArtifact)",
-  });
+  await runDeploy(artifactPath, args.env, args.preview, args.yes);
 }
 
 main().catch((error: unknown) => {

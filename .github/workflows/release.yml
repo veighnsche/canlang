@@ -11,7 +11,14 @@ on:
 
 jobs:
   rust-binary:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            name: can-linux-x86_64
+          - runner: macos-latest
+            name: can-macos-aarch64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       # Pinned 2026-10-01 (was @stable, as in lane-01.yml); release jobs pin.
@@ -21,10 +28,23 @@ jobs:
       - name: Build can (release, locked)
         run: cargo build --release --locked
         working-directory: compiler
+      - name: Size report
+        run: |
+          ls -l target/release/can
+          printf 'bytes=%s\n' "$(wc -c < target/release/can | tr -d ' ')"
+        working-directory: compiler
+      - name: Checksums (sha256)
+        run: |
+          cd compiler/target/release
+          shasum -a 256 can > "SHA256SUMS-${{ matrix.name }}.txt"
+          cat "SHA256SUMS-${{ matrix.name }}.txt"
+          shasum -a 256 -c "SHA256SUMS-${{ matrix.name }}.txt"
       - uses: actions/upload-artifact@v4
         with:
-          name: can-ubuntu-x86_64
-          path: compiler/target/release/can
+          name: ${{ matrix.name }}
+          path: |
+            compiler/target/release/can
+            compiler/target/release/SHA256SUMS-${{ matrix.name }}.txt
 
   node-libraries:
     runs-on: ubuntu-latest
@@ -85,7 +105,15 @@ jobs:
           mkdir -p release-artifacts
           cd editors/vscode
           zip -r ../../release-artifacts/canlang-vscode.zip package.json README.md token-colors.json syntaxes out src
+      - name: Package VS Code extension (vsix)
+        # After the pinned-tsc emit above (deterministic out/ first).
+        # No marketplace publish: artifact only (see header).
+        run: |
+          cd editors/vscode
+          npx -y @vscode/vsce package --out ../../release-artifacts/canlang-vscode.vsix
       - uses: actions/upload-artifact@v4
         with:
           name: editor-bundle
-          path: release-artifacts/canlang-vscode.zip
+          path: |
+            release-artifacts/canlang-vscode.zip
+            release-artifacts/canlang-vscode.vsix
