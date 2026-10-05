@@ -1122,6 +1122,266 @@ fn imported_bare_message_wording_resolves() {
     );
 }
 
+// --- Single root-aware path route (R-D07-03 remaining) ---------------------------
+
+/// (R3b) Every spelling of one input normalizes against the same root:
+/// `x`, `./x`, redundant components and the absolute spelling yield
+/// byte-identical sourceIds plus an identical revision contribution.
+#[test]
+fn all_spellings_of_one_input_are_identical() {
+    let cwd = std::env::current_dir().expect("cwd");
+    let absolute = cwd.join("shop.can").to_string_lossy().into_owned();
+    assert!(
+        std::path::Path::new(&absolute).is_absolute(),
+        "absolute spelling: {absolute:?}"
+    );
+    let spellings = [
+        "shop.can".to_string(),
+        "./shop.can".to_string(),
+        "sub/../shop.can".to_string(),
+        "./sub/../shop.can".to_string(),
+        "sub/./../shop.can".to_string(),
+        absolute.clone(),
+    ];
+    let (first_json, first_model) = extract(&spellings[0], SHOP_SRC);
+    for spelling in &spellings[1..] {
+        let (json, model) = extract(spelling, SHOP_SRC);
+        assert_eq!(json, first_json, "same output bytes for {spelling:?}");
+        assert_eq!(model, first_model, "same model for {spelling:?}");
+        assert_eq!(
+            model.source_revision, first_model.source_revision,
+            "same revision for {spelling:?}"
+        );
+    }
+    assert_eq!(
+        first_model.owners[0].declarations[0].location.source_id,
+        "shop.can"
+    );
+    for spelling in &spellings {
+        assert_eq!(
+            portable_source_id(spelling, &cwd),
+            "shop.can",
+            "same portable identity for {spelling:?}"
+        );
+    }
+    assert!(
+        !first_json.contains(&absolute),
+        "no checkout prefix leaks into portable output"
+    );
+}
+
+/// (R3b) Relative symlinks resolve through the same root: the link and its
+/// target agree (relative and absolute spellings) on one identity.
+#[test]
+#[cfg(unix)]
+fn relative_symlink_spellings_match_their_target() {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    let root =
+        std::env::temp_dir().join(format!("can-docs-r3b-link-{}-{nanos}", std::process::id()));
+    std::fs::create_dir_all(&root).unwrap();
+    let _guard = TempfileGuard { dir: root.clone() };
+    std::fs::write(root.join("real.can"), SHOP_SRC).unwrap();
+    std::os::unix::fs::symlink("real.can", root.join("link.can")).unwrap();
+    let via_link = portable_source_id("link.can", &root);
+    let via_target = portable_source_id("real.can", &root);
+    assert_eq!(via_link, via_target, "link agrees with its target");
+    assert_eq!(via_target, "real.can");
+    let abs_link = root.join("link.can").to_string_lossy().into_owned();
+    assert_eq!(
+        portable_source_id(&abs_link, &root),
+        "real.can",
+        "absolute link spelling agrees"
+    );
+}
+
+/// (R3b) The same external file shares one identity and one external
+/// classification through relative and absolute spellings — for a real
+/// file (filesystem route) and an unresolvable path (lexical route).
+#[test]
+fn same_external_file_agrees_through_relative_and_absolute() {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    let base =
+        std::env::temp_dir().join(format!("can-docs-r3b-ext-{}-{nanos}", std::process::id()));
+    let proj = base.join("proj");
+    let ext = base.join("ext");
+    std::fs::create_dir_all(&proj).unwrap();
+    std::fs::create_dir_all(&ext).unwrap();
+    let _guard = TempfileGuard { dir: base.clone() };
+    std::fs::write(ext.join("shop.can"), SHOP_SRC).unwrap();
+    // Real file: `../ext/shop.can` from the project root vs absolute.
+    let relative = "../ext/shop.can";
+    let absolute = ext.join("shop.can").to_string_lossy().into_owned();
+    assert!(std::path::Path::new(&absolute).is_absolute());
+    let via_relative = portable_source_id(relative, &proj);
+    let via_absolute = portable_source_id(&absolute, &proj);
+    assert_eq!(via_relative, via_absolute, "identical identity");
+    assert!(
+        via_relative.starts_with("external:"),
+        "identical external classification: {via_relative:?}"
+    );
+    assert!(via_relative.contains("shop.can"));
+    // Unresolvable: nothing on disk at either spelling, same agreement.
+    let missing_rel = "../ext-missing-4d2a/shop.can";
+    let missing_abs = base
+        .join("ext-missing-4d2a/shop.can")
+        .to_string_lossy()
+        .into_owned();
+    assert!(!base.join("ext-missing-4d2a/shop.can").exists());
+    let lex_rel = portable_source_id(missing_rel, &proj);
+    let lex_abs = portable_source_id(&missing_abs, &proj);
+    assert_eq!(lex_rel, lex_abs, "lexical agreement");
+    assert!(
+        lex_rel.starts_with("external:"),
+        "lexical external classification: {lex_rel:?}"
+    );
+}
+
+/// (R3b) Moved-checkout identity covers every spelling: two scratch
+/// checkouts with the same relative layout normalize each spelling —
+/// plain, `./`-prefixed, redundant and absolute — to the same identity.
+#[test]
+fn moved_checkout_identity_covers_every_spelling() {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    let base = std::env::temp_dir().join(format!("can-docs-r3b-mv-{}-{nanos}", std::process::id()));
+    let dir_a = base.join("checkout-a");
+    let dir_b = base.join("checkout-b");
+    std::fs::create_dir_all(&dir_a).unwrap();
+    std::fs::create_dir_all(&dir_b).unwrap();
+    let _guard = TempfileGuard { dir: base };
+    std::fs::write(dir_a.join("shop.can"), SHOP_SRC).unwrap();
+    std::fs::write(dir_b.join("shop.can"), SHOP_SRC).unwrap();
+    for spelling in ["shop.can", "./shop.can", "sub/../shop.can"] {
+        let id_a = portable_source_id(spelling, &dir_a);
+        let id_b = portable_source_id(spelling, &dir_b);
+        assert_eq!(id_a, "shop.can", "checkout A: {spelling:?}");
+        assert_eq!(id_b, "shop.can", "checkout B: {spelling:?}");
+    }
+    let abs_a = dir_a.join("shop.can").to_string_lossy().into_owned();
+    let abs_b = dir_b.join("shop.can").to_string_lossy().into_owned();
+    assert_ne!(abs_a, abs_b, "different absolute prefixes");
+    assert_eq!(portable_source_id(&abs_a, &dir_a), "shop.can");
+    assert_eq!(portable_source_id(&abs_b, &dir_b), "shop.can");
+}
+
+// --- Authored sequence examples (R-D07-04 remaining) ----------------------------
+
+/// Sequence-form `examples`/`do` attached to a user scenario: a `let`
+/// binding, an expected-error call, a plain call and an observation
+/// assertion (established syntax from the `E5xxx` sequence suites).
+const SEQUENCE_SRC: &str = concat!(
+    "app Probe\n",
+    "Given\n",
+    " Expense { amount:int }\n",
+    " policy Expense read=members\n",
+    " fixture pending=Expense {amount=1}\n",
+    "When\n",
+    " scenario approve(expense:Expense) by=members\n",
+    "  do\n",
+    "   let x = 1\n",
+    "  examples\n",
+    "   do\n",
+    "    let v = 1\n",
+    "    call approve {expense=pending} by=self request={expense={version=v}} -> error(conflict)\n",
+    "    call approve {expense=pending} by=self\n",
+    "    expense.amount -> 1\n",
+    "Then\n",
+);
+
+/// (R4b) The sequence fixture checks FULLY clean: every diagnostic family
+/// is empty — parser/example-analysis admission alone is insufficient.
+/// The block is scenario-owned with two calls (one expecting an error)
+/// and observation assertions.
+#[test]
+fn sequence_fixture_checks_fully_clean() {
+    let mut db = SourceDb::new();
+    let id = db.add("probe.can".to_string(), SEQUENCE_SRC.to_string());
+    let (program, diags) = check_program(&db, &[id], None);
+    assert!(diags.is_empty(), "every family empty: {diags:?}");
+    assert_eq!(program.examples.sequences.len(), 1);
+    assert!(program.examples.tables.is_empty());
+    let sequence = &program.examples.sequences[0];
+    assert!(sequence.operation.is_some(), "scenario-owned sequence");
+    assert_eq!(sequence.calls.len(), 2);
+    assert!(
+        sequence.calls.iter().any(|c| c.expects_error),
+        "an expected-error call: {:?}",
+        sequence.calls
+    );
+    assert_eq!(sequence.assertions, 2, "observation + expected-error");
+}
+
+/// (R4b) The scenario-owned sequence is preserved under its operation as
+/// one authored `seq-1` entry: the COMPLETE source block verbatim (calls,
+/// assertions, the `error(conflict)` spelling) with no invented single
+/// expectation and no execution status. Declaration fixtures stay with
+/// their declaration; table `row-N` labels are unchanged.
+#[test]
+fn operation_sequences_become_authored_source_examples() {
+    let (json, model) = extract("probe.can", SEQUENCE_SRC);
+    let approve = model.owners[0]
+        .operations
+        .iter()
+        .find(|o| o.id == "Probe.approve")
+        .expect("approve operation extracted");
+    assert_eq!(approve.examples.len(), 1);
+    let sequence = &approve.examples[0];
+    assert_eq!(sequence.label, "seq-1");
+    let want_block = "examples\n   do\n    let v = 1\n    call approve {expense=pending} by=self request={expense={version=v}} -> error(conflict)\n    call approve {expense=pending} by=self\n    expense.amount -> 1";
+    assert_eq!(sequence.source, want_block, "complete block verbatim");
+    assert_eq!(sequence.expected, None, "no invented single expectation");
+    // The owning declaration keeps only its fixture: no sequence leak.
+    let expense = &model.owners[0].declarations[0];
+    assert_eq!(expense.name, "Expense");
+    let labels: Vec<&str> = expense.examples.iter().map(|e| e.label.as_str()).collect();
+    assert_eq!(labels, vec!["pending"]);
+    // Authored expectations travel; execution status never does.
+    assert!(json.contains("error(conflict)"), "authored spelling kept");
+    for forbidden in ["passed", "\"failed\"", "executed", "execution"] {
+        assert!(
+            !json.contains(forbidden),
+            "no {forbidden:?} in reference JSON"
+        );
+    }
+    // JSON shape: `examples` on the op with label/source keys, `expected`
+    // omitted (no single expectation), matching the existing row path.
+    let value = json::parse(&json).expect("reference JSON parses");
+    let owners = value.get("owners").and_then(Json::as_arr).unwrap();
+    let ops = owners[0].get("operations").and_then(Json::as_arr).unwrap();
+    assert_eq!(ops.len(), 1);
+    let op_examples = ops[0].get("examples").and_then(Json::as_arr).unwrap();
+    assert_eq!(op_examples.len(), 1);
+    assert_eq!(
+        op_examples[0].get("label").and_then(Json::as_str),
+        Some("seq-1")
+    );
+    assert_eq!(
+        op_examples[0].get("source").and_then(Json::as_str),
+        Some(want_block)
+    );
+    assert!(
+        op_examples[0].get("expected").is_none(),
+        "no expected: omitted"
+    );
+    // Table labels are unchanged when sequences exist elsewhere.
+    let (_table_json, table_model) = extract("probe.can", TABLE_SRC);
+    let close = table_model.owners[0]
+        .operations
+        .iter()
+        .find(|o| o.id == "Probe.close")
+        .expect("close operation extracted");
+    let row_labels: Vec<&str> = close.examples.iter().map(|e| e.label.as_str()).collect();
+    assert_eq!(row_labels, vec!["row-1", "row-2"]);
+}
+
 /// (R4 P-B) Dotted `#= shop.blurb` stays unresolved: the checker rejects it
 /// (E2013 — no new syntax), so docs never renders dotted wording. Even
 /// extracting past the failure carries no wording for the reference.
