@@ -16,8 +16,11 @@
  * sub-handlers) is not a dependency of this package, so page GETs run
  * through a minimal interim dispatcher below (anonymous identity, the real
  * descriptor `admit`/`render`, no shell, exact paths only). The interfaces
- * join replaces it. Mutations/auth/uploads/ingress are 501 until that join.
- * Nothing here may be mistaken for the production dispatcher.
+ * join replaces it. Mutations/auth are 501 until that join. `/files/*`
+ * routes match explicitly (a documented mirror of the uploads routes):
+ * unknown paths/methods are `not_found`, and known routes are 501 naming
+ * the exact unmet seam (files binding vs identity join) — never fake
+ * bytes. Nothing here may be mistaken for the production dispatcher.
  */
 
 import type {
@@ -26,6 +29,9 @@ import type {
   BusinessError,
   BusinessErrorCode,
   CompileArtifact,
+  ContentCheck,
+  FinalizeResult,
+  FinalizedFile,
   MutationEnvelope,
   MutationResult,
   PageDescriptor,
@@ -36,6 +42,8 @@ import type {
   RowQueryRunner,
   StoragePort,
   ThemeTokens,
+  UploadIntentGrant,
+  UploadIntentRequest,
 } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
 import type { CallerInfo, HandlerContext } from "../runtime/context.js";
@@ -83,6 +91,90 @@ export type ReadOutcome = { result: ReadResult } | { error: BusinessError };
 export interface OperationInvoker {
   invokeMutation(envelope: MutationEnvelope, identity: ResolvedIdentity): Promise<MutationOutcome>;
   invokeRead(envelope: ReadEnvelope, identity: ResolvedIdentity): Promise<ReadOutcome>;
+}
+
+/**
+ * Mirror of `UploadReceiver` (`packages/interfaces/src/ports.ts:259`).
+ * Replaced by the real import at the interfaces join.
+ */
+export interface InterimUploadReceiver {
+  readonly app: string;
+  readonly team: string;
+  readonly owner: string;
+  readonly principal: string;
+}
+
+/**
+ * Mirror of `UploadBinding` (`packages/interfaces/src/ports.ts:272`).
+ * Replaced by the real import at the interfaces join.
+ */
+export interface InterimUploadBinding {
+  readonly adapter: string;
+  readonly deliveryId: string;
+  readonly resultPath: string;
+}
+
+/** Mirror of `KernelCreateOutcome` (`packages/interfaces/src/ports.ts:279`). */
+export type InterimKernelCreateOutcome =
+  | { readonly status: "granted"; readonly grant: UploadIntentGrant; readonly intentId: string }
+  | { readonly status: "duplicate"; readonly grant: UploadIntentGrant; readonly intentId: string }
+  | { readonly status: "rejected"; readonly reason: "invalid-request" | "conflict" | "oversized" | "unauthorized" };
+
+/** Mirror of `KernelAppendOutcome` (`packages/interfaces/src/ports.ts:285`). */
+export type InterimKernelAppendOutcome =
+  | { readonly status: "appended"; readonly receivedBytes: number }
+  | { readonly status: "failed"; readonly reason: "foreign" | "closed" | "expired" | "oversized" };
+
+/** Mirror of `KernelCompleteOutcome` (`packages/interfaces/src/ports.ts:289`). */
+export type InterimKernelCompleteOutcome =
+  | { readonly status: "completed"; readonly check: ContentCheck }
+  | { readonly status: "failed"; readonly reason: "foreign" | "closed" | "expired" | "partial" | "oversized" }
+  | { readonly status: "failed"; readonly reason: "malformed" | "rejected"; readonly check: ContentCheck };
+
+/** Mirror of `KernelFinalizeOutcome` (`packages/interfaces/src/ports.ts:296`). */
+export type InterimKernelFinalizeOutcome =
+  | { readonly status: "finalized"; readonly result: FinalizeResult; readonly file: FinalizedFile }
+  | { readonly status: "repeated"; readonly result: FinalizeResult; readonly file: FinalizedFile }
+  | { readonly status: "failed"; readonly reason: "foreign" | "partial" | "conflict" | "expired" };
+
+/**
+ * Mirror of `FileKernel` (`packages/interfaces/src/ports.ts:302`): the L4
+ * file-kernel entry points behind the lane-06 principal binding.
+ * Replaced by the real import at the interfaces join.
+ */
+export interface InterimFileKernel {
+  maxBytes(): number | Promise<number>;
+  createIntent(input: {
+    request: UploadIntentRequest;
+    receiver: InterimUploadReceiver;
+    binding: InterimUploadBinding;
+  }): Promise<InterimKernelCreateOutcome>;
+  append(
+    intentId: string,
+    caller: InterimUploadReceiver,
+    chunk: Uint8Array,
+  ): Promise<InterimKernelAppendOutcome>;
+  complete(
+    intentId: string,
+    caller: InterimUploadReceiver,
+  ): Promise<InterimKernelCompleteOutcome>;
+  finalize(input: {
+    intentId: string;
+    retryId: string;
+    bytesDigest: string;
+    caller: InterimUploadReceiver;
+  }): Promise<InterimKernelFinalizeOutcome>;
+}
+
+/**
+ * Interim files binding: `usesFiles` mirrors `FileUseInfo`
+ * (`packages/interfaces/src/ports.ts:211`); `kernel` is the interim file
+ * kernel above. The interfaces join replaces both with the real
+ * `HttpDeps.uploads` bindings. Absent until the files join lands.
+ */
+export interface InterimFilesBinding {
+  readonly usesFiles: boolean;
+  readonly kernel: InterimFileKernel;
 }
 
 /**
@@ -143,6 +235,12 @@ export interface AssemblyDeps {
   store: StoragePort;
   identityStore: unknown;
   now?: () => number;
+  /**
+   * Interim files binding for `/files/*` dispatch. Absent until the
+   * files join lands; while absent, known file routes answer an
+   * explicit interim 501 naming the join (never fake bytes).
+   */
+  files?: InterimFilesBinding;
 }
 
 /** Assembled worker: serving fetch plus registry counts. */
@@ -498,7 +596,7 @@ export function buildInvoker(
 }
 
 /* ------------------------------------------------------------------ */
-/* INTERIM page dispatch (replaced by the interfaces join).             */
+/* INTERIM page + files dispatch (replaced by the interfaces join).     */
 /*                                                                     */
 /* Serves GET/HEAD page routes through the REAL descriptor admit/render */
 /* under an anonymous identity. Fail-closed by construction: admission */
@@ -506,6 +604,12 @@ export function buildInvoker(
 /* deny; only public-admitting pages render. No shell, no discovery,   */
 /* no session/CSRF, no in-render reads, exact paths only (dynamic      */
 /* `{Token}` patterns 404 until the join).                             */
+/*                                                                     */
+/* `/files/*` routes match explicitly (a mirror of the uploads `match`), */
+/* but nothing is servable yet: unknown paths/methods are `not_found`, */
+/* `usesFiles: false` is `not_found`, and known routes are 501 naming  */
+/* the exact unmet seam (files binding vs identity join). The kernel   */
+/* is never touched and no bytes are ever fabricated.                  */
 /* ------------------------------------------------------------------ */
 
 /** Structural `DEFAULT_THEME` value (`contracts/src/presentation.ts:107`). */
@@ -527,6 +631,90 @@ function notFoundResponse(): Response {
 /** Interim 501: explicitly NOT a BusinessError; names the unmet join. */
 function interimUnavailable(message: string): Response {
   return jsonResponse({ code: "assembly-interim", message }, 501);
+}
+
+/** Interim mirror of `isPartialRequest` (`interfaces/src/http/fragments.ts`); the join deletes it. */
+function isInterimPartialRequest(req: Request): boolean {
+  return req.headers.has("HX-Request");
+}
+
+const INTERIM_INTENTS_PATH = "/files/intents";
+const INTERIM_CONTENT_PREFIX = "/files/content/";
+const INTERIM_FINALIZE_PREFIX = "/files/finalize/";
+
+type InterimFilesRoute =
+  | { readonly kind: "intents" }
+  | { readonly kind: "content"; readonly intentId: string }
+  | { readonly kind: "finalize"; readonly intentId: string };
+
+/**
+ * Interim mirror of `matchUploadRoute`
+ * (`interfaces/src/uploads/routes.ts`): the path id is a single
+ * non-empty segment; undecodable or empty ids, extra segments, unknown
+ * paths, and method mismatches all return null (`not_found`, never a
+ * 405 oracle). The join deletes it.
+ */
+function matchInterimFilesRoute(pathname: string, method: string): InterimFilesRoute | null {
+  if (pathname === INTERIM_INTENTS_PATH) {
+    return method === "POST" ? { kind: "intents" } : null;
+  }
+  let rest: string | null = null;
+  let kind: "content" | "finalize" | null = null;
+  if (pathname.startsWith(INTERIM_CONTENT_PREFIX)) {
+    rest = pathname.slice(INTERIM_CONTENT_PREFIX.length);
+    kind = "content";
+  } else if (pathname.startsWith(INTERIM_FINALIZE_PREFIX)) {
+    rest = pathname.slice(INTERIM_FINALIZE_PREFIX.length);
+    kind = "finalize";
+  }
+  if (rest === null || kind === null) return null;
+  if (rest === "" || rest.includes("/")) return null;
+  let intentId: string;
+  try {
+    intentId = decodeURIComponent(rest);
+  } catch {
+    return null;
+  }
+  if (intentId === "") return null;
+  if (kind === "content" && method !== "PUT") return null;
+  if (kind === "finalize" && method !== "POST") return null;
+  return { kind, intentId };
+}
+
+/**
+ * Interim `/files/*` dispatch. Mirrors the uploads order (match ->
+ * `usesFiles` gate -> auth), but every known route still ends loud:
+ * without the files binding the kernel seam is named; with it, the
+ * identity seam is named (the interim dispatcher runs anonymous and
+ * uploads never admit public, so no receiver can be derived). The
+ * kernel is never called here.
+ */
+function interimFilesResponse(
+  pathname: string,
+  method: string,
+  files: InterimFilesBinding | undefined,
+): Response {
+  const route = matchInterimFilesRoute(pathname, method);
+  if (route === null) return notFoundResponse();
+  if (
+    files === undefined ||
+    typeof files.usesFiles !== "boolean" ||
+    files.kernel === null ||
+    files.kernel === undefined
+  ) {
+    return interimUnavailable(
+      "file upload needs the files join (AssemblyDeps.files: usesFiles + the bound FileKernel); " +
+        "no intent, byte, or finalize step can run until it lands",
+    );
+  }
+  if (!files.usesFiles) {
+    const error: BusinessError = { code: "not_found", message: "Uploads unavailable.", retryable: false };
+    return jsonResponse(error, INTERIM_STATUS_FOR_CODE["not_found"]);
+  }
+  return interimUnavailable(
+    `file upload needs the identity join (an authenticated receiver for ${route.kind}); ` +
+      "the interim dispatcher runs anonymous and uploads never admit public",
+  );
 }
 
 /** Tiny Accept-Language parse, mirroring pages.ts (split, strip params). */
@@ -572,6 +760,7 @@ function buildInterimFetch(
   descriptors: readonly PageDescriptor[],
   app: AppInfo,
   now: () => number,
+  files: InterimFilesBinding | undefined,
 ): (req: Request) => Promise<Response> {
   return async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
@@ -585,6 +774,9 @@ function buildInterimFetch(
     }
     if (pathname.startsWith("/auth/")) {
       return interimUnavailable("auth routes need the interfaces join (handleAuthRequest)");
+    }
+    if (pathname.startsWith("/files/")) {
+      return interimFilesResponse(pathname, method, files);
     }
     if (method !== "GET" && method !== "HEAD") return notFoundResponse();
     if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -616,12 +808,19 @@ function buildInterimFetch(
       );
     }
 
+    // Interim mirror of `buildPresentationContext`
+    // (`interfaces/src/http/presentation.ts`): same field semantics —
+    // locales from Accept-Language, app default locale, default theme,
+    // exact path, partial from the HX-Request header (as pages.ts
+    // derives it via `isPartialRequest`), empty CSRF while anonymous,
+    // identity as principal+invocation, throwing query runner (the join
+    // binds the real RowQueryRunner). The join deletes it.
     const context: PresentationContext = {
       preferredLocales: parseAcceptLanguage(req.headers.get("accept-language")),
       appDefaultLocale: app.appDefaultLocale,
       theme: INTERIM_THEME,
       path: pathname,
-      isPartial: false,
+      isPartial: isInterimPartialRequest(req),
       csrfToken: "",
       principal: identity,
       invocation: identity,
@@ -687,7 +886,7 @@ export async function assembleWorker(
   const { descriptors } = await loadPageRegistry(artifact, asm);
 
   const now = deps.now ?? Date.now;
-  const innerFetch = buildInterimFetch(descriptors, interimAppInfo(artifact), now);
+  const innerFetch = buildInterimFetch(descriptors, interimAppInfo(artifact), now, deps.files);
 
   // Real entry wiring (mirrors entry.ts; not a fork): dynamic import keeps
   // the worker boundary (static `import type` only).

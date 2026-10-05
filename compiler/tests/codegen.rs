@@ -26,8 +26,8 @@ use canlang_compiler::codegen::bdd::{self, BddSuite, IrExampleImport};
 use canlang_compiler::codegen::ir::{
     IrBinOp, IrCallTarget, IrDefault, IrDeleteMode, IrExpr, IrFixture, IrFixtureKind, IrGuard,
     IrItem, IrItemKind, IrMessage, IrMessageParam, IrModifiers, IrModule, IrOrder, IrOwner, IrPage,
-    IrProgram, IrQuery, IrSequence, IrServer, IrStep, IrStmt, IrTable, IrTableRow, IrType, IrUi,
-    IrUnOp, TypedExpr,
+    IrProgram, IrQuery, IrQueryDomain, IrSequence, IrServer, IrStep, IrStmt, IrTable, IrTableRow,
+    IrType, IrUi, IrUnOp, TypedExpr,
 };
 use canlang_compiler::codegen::js::{self, Emitter};
 use canlang_compiler::codegen::sourcemap;
@@ -378,9 +378,9 @@ fn golden_teamtasks_structure() {
     // - G8 derives: none declared.
     // - G9 modules: page descriptors/functions, app/package/page
     //   descriptions; `disabled` computed (empty: full CRUD everywhere).
-    //   Catalog UI factories (`breadcrumbs`/`input`/`tooltip`/
-    //   `pagination`/`textarea`/`delete`/`collapse`) have no §13
-    //   lowering (10 E6008, each pinned below).
+    //   Catalog UI factories `breadcrumbs`/`input`/`textarea`/
+    //   `pagination` lower; `tooltip`/`delete`/`collapse` have no §13
+    //   lowering (3 E6008, each pinned below).
     // - G10 examples: the update table (fixture recipe, common inputs,
     //   selectors, observations, rows with errors) lowered.
     // - G12 awaited: `count` is catalog state-read, so calls await.
@@ -462,17 +462,25 @@ fn golden_teamtasks_structure() {
         entry.contains("form({context:c,operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\""),
         "form operation"
     );
-    // Slice 23 nests `input`/`textarea` inside the forms: children lower
-    // as loud throwing factories (E6008), counted above. No-recurse rule:
-    // children of an *unlowered* factory are swallowed by its placeholder
-    // (one E6008 for the factory, none for the absorbed children).
+    // Field-placement controls lower to `field` selector strings;
+    // breadcrumbs and pagination lower bare (ancestry/collection state
+    // comes from the render context). No-recurse rule: children of an
+    // *unlowered* factory are swallowed by its placeholder (one E6008
+    // for the factory, none for the absorbed children).
+    assert!(entry.contains("breadcrumbs({context:c})"), "breadcrumbs");
     assert!(
-        entry.contains("children:[(() => { throw new Error(\"unknown UI factory input\"); })()]"),
+        entry.contains("children:[input({context:c,field:\"title\"})]"),
         "form children"
     );
     assert!(
-        entry.contains("(() => { throw new Error(\"unknown UI factory textarea\"); })()"),
+        entry.contains(
+            "children:[input({context:c,field:\"title\"}),textarea({context:c,field:\"content\"})]"
+        ),
         "textarea child"
+    );
+    assert!(
+        entry.contains("pagination({context:rowView})"),
+        "collection pagination"
     );
     assert!(
         entry.contains("where:(task)=>(preferences.view === \"all\")"),
@@ -641,10 +649,9 @@ fn golden_teamtasks_structure() {
     }
     // Codegen diagnostics: zero E6006 (every emission-needed position
     // is checked and bridged), zero E6007 (the golden catalog verifies
-    // every referenced builtin), and ten E6008 for catalog UI factories
-    // with no §13 lowering (slice-23 example drift: `badge` left the
-    // example; `breadcrumbs`/`input`/`tooltip`/`pagination`/`textarea`/
-    // `delete`/`collapse` arrived).
+    // every referenced builtin), and three E6008 for catalog UI
+    // factories with no §13 lowering (`tooltip`/`delete`/`collapse`;
+    // `breadcrumbs`/`input`/`textarea`/`pagination` lower now).
     for diag in &diags {
         assert!(
             diag.code == "E6006" || diag.code == "E6007" || diag.code == "E6008",
@@ -670,18 +677,10 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        10,
+        3,
         "unsupported count"
     );
-    for (word, n) in [
-        ("breadcrumbs", 2),
-        ("input", 2),
-        ("tooltip", 1),
-        ("pagination", 2),
-        ("textarea", 1),
-        ("delete", 1),
-        ("collapse", 1),
-    ] {
+    for (word, n) in [("tooltip", 1), ("delete", 1), ("collapse", 1)] {
         assert_eq!(
             diags
                 .iter()
@@ -824,11 +823,15 @@ fn golden_expenseflow_structure() {
     // - G7 messages: decision-note descriptor inlined at label sites.
     // - G8 derives: none declared.
     // - G9 modules: pages, descriptions; `disabled` names the missing
-    //   delete. `badge` has no §13 lowering (E6008).
-    // - G10 examples: three tables lowered; the approve sequence omits
-    //   atomically (E6006: let-bound step values have no table anchors).
-    // - G12 awaited: `count`/`sum` await (state-read); `money`/`trim`
-    //   stay sync (pure).
+    //   delete. Catalog UI factories lower: `breadcrumbs`, `input`,
+    //   `textarea`, `badge`, `alert` (gated), `divider`, `join`,
+    //   `button`, `modal`/`slot`, `pagination`, `stat`.
+    // - G10 examples: three table suites lowered; the approve suite also
+    //   carries the causal sequence (`call`/`let`/assertion steps with
+    //   §13 type ids). Value-domain queries lower through array
+    //   combinators (`.filter`/`.map`); `select` appends one `.map`.
+    // - G12 awaited: `count`/`sum`/`first` await (state-read);
+    //   `money`/`trim` stay sync (pure).
     //
     // G5 roles carry canonical ids plus labels.
     assert!(
@@ -963,22 +966,19 @@ fn golden_expenseflow_structure() {
         entry.contains("const selected = await records(c,\"expenses.Expense\",{where:(row)=>(row.amount.currency === currency) && (row.status === status)});"),
         "summarize query"
     );
-    // G12: `count`/`sum` await; the value-domain query has no
-    // `records()` lowering (E6008 throwing placeholder).
+    // G12: `count`/`sum` await; the value-domain query lowers
+    // through `.map` with its alias-scoped projection.
     assert!(
-        entry.contains("return {count:await count(selected),total:await sum("),
+        entry.contains("return {count:await count(selected),total:await sum(selected.map((expense)=>expense.amount),currency)};"),
         "summarize return"
-    );
-    assert!(
-        entry.contains("query over a value has no lowering"),
-        "value query placeholder"
     );
     assert!(entry.contains("async createExpense(c,input){"), "crud body");
     assert!(
         entry.contains("await create(c,\"expenses.Expense\",input,{when:crudWhen.Expense});"),
         "create admission"
     );
-    // G9 pages: collections, actions, history, metrics, arguments.
+    // G9 pages: collections, actions, history, catalog factories,
+    // arguments. Every catalog word on the pages lowers; nothing throws.
     assert!(
         entry
             .contains("action({context:rowView,operations:[\"expenses.submit\"],boundArgs:{row}})"),
@@ -989,8 +989,50 @@ fn golden_expenseflow_structure() {
         "row history"
     );
     assert!(
-        entry.contains("throw new Error(\"unknown UI factory stat\")"),
-        "stat has no lowering (slice 23 replaced metrics)"
+        entry.contains("breadcrumbs({context:c})"),
+        "page breadcrumbs"
+    );
+    assert!(
+        entry.contains(
+            "children:[input({context:c,field:\"purpose\"}),input({context:c,field:\"amount\"})]"
+        ),
+        "create-form field controls"
+    );
+    assert!(
+        entry.contains("badge({context:rowView,value:row.status})"),
+        "row badge"
+    );
+    assert!(
+        entry.contains("row.status === \"rejected\" ? alert({context:rowView,children:[text({context:rowView,values:[row.decision_note]})]}) : null"),
+        "gated alert"
+    );
+    assert!(
+        entry.contains("divider({context:rowView,caption:message(\"Review decision\",{nl:\"Beoordelingsbesluit\"})})"),
+        "divider caption"
+    );
+    assert!(
+        entry.contains("join({context:rowView,children:[button({context:rowView,opens:\"approve_expense\"}),button({context:rowView,opens:\"reject_expense\"})]})"),
+        "join with opener buttons"
+    );
+    assert!(
+        entry.contains("modal({context:rowView,caption:message(\"Approve expense\",{nl:\"Onkost goedkeuren\"}),id:\"approve_expense\",children:[slot({context:rowView,name:\"content\",children:[form({context:rowView,operation:\"expenses.approve\",arguments:{expense:row},display:\"inline\",fields:[\"expense\",\"note\"],children:[textarea({context:rowView,field:\"note\"})]})]})]})"),
+        "approve modal with content slot"
+    );
+    assert!(
+        entry.contains("modal({context:rowView,caption:message(\"Reject expense\""),
+        "reject modal"
+    );
+    assert!(
+        entry.contains("pagination({context:rowView})"),
+        "collection pagination"
+    );
+    assert!(
+        entry.contains("stat({context:c,values:[result.count,result.total]})"),
+        "stat metric values"
+    );
+    assert!(
+        !entry.contains("unknown UI factory"),
+        "every factory lowered"
     );
     assert!(
         entry.contains("arguments:{status:preferences.status}"),
@@ -1091,7 +1133,39 @@ fn golden_expenseflow_structure() {
         approve.contains("operation:\"expenses.approve\""),
         "approve table"
     );
-    assert!(!approve.contains("sequence:"), "approve sequence omitted");
+    // The causal sequence lowers beside the tables: call steps with
+    // caller/inputs/request/error, `let` bindings through `b`, and
+    // assertions with §13 type ids.
+    assert!(
+        approve.contains("{operation:\"expenses.Expense.create\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({purpose:\"Travel\",amount:money(25n,\"EUR\")})}"),
+        "sequence create call"
+    );
+    assert!(
+        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>(await first(await records(c,\"expenses.Expense\",{where:(row)=>same(row.submitted_by,other)})))}"),
+        "sequence binding"
+    );
+    assert!(
+        approve.contains("{operation:\"expenses.submit\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({expense:b.draft_claim})}"),
+        "sequence submit call"
+    );
+    assert!(
+        approve.contains(
+            "request:async(c,s,b)=>({expense:{version:b.original_version}}),error:\"conflict\""
+        ),
+        "sequence request override with exact error"
+    );
+    assert!(
+        approve.contains("{observations:async(c,s,b)=>([b.submitted_claim?.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"expenses.Expense.status\"]}"),
+        "sequence enum assertion"
+    );
+    assert!(
+        approve.contains("types:[\"expenses.Expense.status\",\"user?\"]"),
+        "sequence tuple assertion types"
+    );
+    assert!(
+        approve.contains("dependencies:[reviewer_one,reviewer_two],sequence:["),
+        "sequence dependencies"
+    );
     let summarize = &artifact.tests[2].module.js;
     assert!(
         summarize.contains("operation:\"reporting.summarize\""),
@@ -1134,12 +1208,13 @@ fn golden_expenseflow_structure() {
         );
         assert_eq!(diag.severity, Severity::Error);
     }
-    // One E6006 (the approve sequence: let-bound step values have no
-    // table anchors), zero E6007, fourteen E6008 (slice-23 example
-    // drift: catalog factories plus the value query).
+    // Zero E6006 (tables and the approve sequence all bridge), zero
+    // E6007 (the golden catalog verifies every referenced builtin),
+    // zero E6008 (every catalog factory, gate, slot and the value
+    // query lower).
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6006").count(),
-        1,
+        0,
         "gap count: {:?}",
         diags
             .iter()
@@ -1153,36 +1228,8 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        14,
-        "unsupported count"
-    );
-    assert!(diags.iter().any(|d| d.code == "E6006"
-        && d.message.contains("sequence for expenses.approve")
-        && d.message.contains("no table anchors")));
-    for (word, n) in [
-        ("breadcrumbs", 2),
-        ("input", 3),
-        ("badge", 1),
-        ("alert", 1),
-        ("divider", 1),
-        ("join", 1),
-        ("modal", 2),
-        ("pagination", 1),
-        ("stat", 1),
-    ] {
-        assert_eq!(
-            diags
-                .iter()
-                .filter(|d| d.code == "E6008" && d.message.contains(word))
-                .count(),
-            n,
-            "{word} factory"
-        );
-    }
-    assert!(
-        diags
-            .iter()
-            .any(|d| d.code == "E6008" && d.message.contains("query over a value"))
+        0,
+        "unsupported count: {diags:?}"
     );
     if let Some(node) = find_node() {
         for module in &artifact.modules {
@@ -1682,7 +1729,7 @@ fn construct_scalars_per_op() {
     // Queries lower to records() with viewer grants applied first.
     let query = typed(
         IrExpr::Query(IrQuery {
-            model: "demo.Widget".to_string(),
+            domain: IrQueryDomain::Model("demo.Widget".to_string()),
             parent: None,
             where_pred: Some(Box::new(binary(
                 IrBinOp::Eq,
@@ -1703,6 +1750,8 @@ fn construct_scalars_per_op() {
             }],
             limit: Some(Box::new(int_lit(10))),
             archived: None,
+            select: None,
+            select_param: None,
         }),
         ResolvedType::Array {
             element: Box::new(widget.clone()),
@@ -2275,6 +2324,7 @@ fn construct_ui_factories() {
         ],
         children: vec![],
         row_scope: None,
+        gate: None,
         span: sp(0, 1),
     };
     assert_eq!(
@@ -2286,6 +2336,7 @@ fn construct_ui_factories() {
         props: vec![("title".to_string(), text_lit("Work"))],
         children: vec![table],
         row_scope: None,
+        gate: None,
         span: sp(0, 1),
     };
     assert_eq!(
@@ -2298,6 +2349,7 @@ fn construct_ui_factories() {
         props: vec![],
         children: vec![],
         row_scope: None,
+        gate: None,
         span: sp(0, 1),
     };
     let lowered = emitter.lower_ui(&bad);
@@ -2336,6 +2388,7 @@ fn construct_pages_admit_render() {
             props: vec![("model".to_string(), text_lit("expense.Expense"))],
             children: vec![],
             row_scope: None,
+            gate: None,
             span: sp(0, 1),
         }],
         fn_name: "reviewPage".to_string(),
@@ -2391,6 +2444,137 @@ fn construct_pages_admit_render() {
     assert_eq!(pages.len(), 2);
     assert_eq!(pages[0].path, "/expenses/review");
     assert_eq!(pages[1].path, "/expenses/mine");
+}
+
+/// Preferences preamble: a page reading `preferences` binds the per-app
+/// record from admit() `bindings`, never from the presentation context
+/// (which has no `preferences` field). Oracle: F2.
+#[test]
+fn construct_page_preferences_preamble_reads_bindings() {
+    let ir = fixture_ir();
+    let mut emitter = Emitter::new(&ir);
+    let mut out = canlang_compiler::codegen::js::JsWriter::new();
+    let text_ty = ResolvedType::Scalar(Scalar::Text);
+    let page = IrPage {
+        owner: "expense".to_string(),
+        path: "/expenses/prefs".to_string(),
+        title: IrMessage {
+            source: "Prefs".to_string(),
+            variants: vec![],
+            params: vec![],
+        },
+        description: None,
+        order: None,
+        group: None,
+        nav_none: false,
+        admit: vec![],
+        render: vec![IrUi {
+            factory: "text".to_string(),
+            props: vec![(
+                "value".to_string(),
+                typed(
+                    IrExpr::Member {
+                        base: Box::new(typed(
+                            IrExpr::Name("preferences".to_string()),
+                            text_ty.clone(),
+                        )),
+                        field: "view".to_string(),
+                    },
+                    text_ty.clone(),
+                ),
+            )],
+            children: vec![],
+            row_scope: None,
+            gate: None,
+            span: sp(0, 1),
+        }],
+        fn_name: "prefsPage".to_string(),
+        descriptor_name: "prefsPageDescriptor".to_string(),
+        span: sp(0, 1),
+    };
+    emitter.lower_page(&page, &mut out);
+    let module = out.finish("test.mjs".to_string());
+    assert!(
+        module.js.contains("export async function prefsPage(c,bindings){const preferences=bindings.preferences.expense;return renderPage(c,prefsPageDescriptor,()=>[text({context:c,value:preferences.view})]);}"),
+        "preamble reads bindings:\n{}",
+        module.js
+    );
+    assert!(
+        !module.js.contains("c.preferences"),
+        "no pctx preferences read:\n{}",
+        module.js
+    );
+    let (diags, _, _, _) = emitter.finish();
+    assert!(diags.is_empty());
+}
+
+/// Admit write side: admit() returns authoring preference defaults inside
+/// bindings, matching the preamble read (`bindings.preferences.<App>`).
+/// A write-side regression crashes prefs pages at runtime. Oracle: F2.
+#[test]
+fn construct_page_admit_returns_preference_defaults() {
+    let mut ir = fixture_ir();
+    let span = sp(0, 1);
+    let next = ir.items.len() as u32;
+    ir.items.push(IrItem {
+        id: SymbolId(next),
+        canonical: "demo.Preferences".to_string(),
+        name: "Preferences".to_string(),
+        module: ModuleId(0),
+        span,
+        exported: false,
+        kind: IrItemKind::Preferences {
+            fields: vec![SymbolId(next + 1)],
+            validate: None,
+        },
+    });
+    ir.items.push(IrItem {
+        id: SymbolId(next + 1),
+        canonical: "demo.Preferences.view".to_string(),
+        name: "view".to_string(),
+        module: ModuleId(0),
+        span,
+        exported: false,
+        kind: IrItemKind::Field {
+            owner: SymbolId(next),
+            ty: IrType::Known(ResolvedType::Scalar(Scalar::Text)),
+            default: Some(IrDefault::Literal(text_lit("all"))),
+            server: None,
+            modifiers: IrModifiers::default(),
+            label: None,
+        },
+    });
+    let mut emitter = Emitter::new(&ir);
+    let mut out = canlang_compiler::codegen::js::JsWriter::new();
+    let page = IrPage {
+        owner: "demo".to_string(),
+        path: "/prefs".to_string(),
+        title: IrMessage {
+            source: "Prefs".to_string(),
+            variants: vec![],
+            params: vec![],
+        },
+        description: None,
+        order: None,
+        group: None,
+        nav_none: false,
+        admit: vec![],
+        render: vec![],
+        fn_name: "prefsPage".to_string(),
+        descriptor_name: "prefsPageDescriptor".to_string(),
+        span,
+    };
+    emitter.lower_page(&page, &mut out);
+    let module = out.finish("test.mjs".to_string());
+    assert!(
+        module.js.contains(
+            "admit:async(c,routeBindings={})=>{return {preferences:{demo:{view:\"all\"}},};}"
+        ),
+        "admit returns prefs:\\n{}",
+        module.js
+    );
+    let (diags, _, _, _) = emitter.finish();
+    assert!(diags.is_empty());
 }
 
 /// Fixtures/recipes: model, user, file and delivery recipe shapes.
@@ -2967,4 +3151,285 @@ fn form_fields_unknown_op_stays_loud() {
         entry.contains("form({context:c,display:\"inline\"})"),
         "loud form without fields:\n{entry}"
     );
+}
+
+// --- B2a: catalog factories, gates, slots, value queries, sequences ------
+// Oracle correspondence: `stat`/`input`/`breadcrumbs`/`pagination`/
+// `badge`/`button`/`modal`+`slot`/`divider` shapes follow the handwritten
+// `draft/*.mjs` targets; the gated `cond ? node : null` follows the
+// `CanBoard.mjs` alert precedent. Where the drafts disagree with the
+// implemented stdlib (projection-lambda `sum`), the test follows the
+// stdlib: `select` lowers to `.map` on the lowered domain.
+
+/// Catalog factories lower from source: selectors stay selector strings,
+/// captions stay messages, slots stay named suites, gates become
+/// ternaries.
+#[test]
+fn catalog_factories_lower_from_source() {
+    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name delete=none\n Then\n  page / title=\"Shop\"@{nl=\"Winkel\"}\n   breadcrumbs\n   card \"Sell\"@{nl=\"Verkopen\"}\n    form Item.create\n     input name\n    list Item\n     badge row.name\n     alert\n      require row.name != \"\"\n      text row.name\n     divider \"More\"@{nl=\"Meer\"}\n     join\n      button opens=dlg\n     modal \"Dialog\"@{nl=\"Dialoog\"} id=dlg\n      slot content\n       text row.name\n     pagination\n    stat 1,2\n";
+    let mut db = SourceDb::new();
+    let id = db.add("probe-ui.can".to_string(), src.to_string());
+    let (catalog, catalog_path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&catalog_path);
+    assert!(diags.is_empty(), "clean lowerings: {diags:?}");
+    let entry = &artifact.modules[0].js;
+    for marker in [
+        "breadcrumbs({context:c})",
+        "input({context:c,field:\"name\"})",
+        "badge({context:rowView,value:row.name})",
+        "row.name !== \"\" ? alert({context:rowView,children:[text({context:rowView,values:[row.name]})]}) : null",
+        "divider({context:rowView,caption:message(\"More\",{nl:\"Meer\"})})",
+        "join({context:rowView,children:[button({context:rowView,opens:\"dlg\"})]})",
+        "modal({context:rowView,caption:message(\"Dialog\",{nl:\"Dialoog\"}),id:\"dlg\",children:[slot({context:rowView,name:\"content\",children:[text({context:rowView,values:[row.name]})]})]})",
+        "pagination({context:rowView})",
+        "stat({context:c,values:[1n,2n]})",
+    ] {
+        assert!(entry.contains(marker), "missing {marker}:\n{entry}");
+    }
+    assert!(
+        !entry.contains("throw new Error"),
+        "nothing throws:\n{entry}"
+    );
+}
+
+/// Catalog profile violations stay loud `E6008`, one precise diagnostic
+/// per violated position (never a silent drop or an invented default).
+#[test]
+fn catalog_profile_violations_stay_loud() {
+    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name delete=none\n Then\n  page / title=\"Shop\"@{nl=\"Winkel\"}\n   pagination\n   card \"Sell\"@{nl=\"Verkopen\"}\n    button\n    modal \"No slots\"@{nl=\"Geen\"}\n    badge \"x\"\n     text \"y\"\n    input\n    stat\n    divider 42\n";
+    let mut db = SourceDb::new();
+    let id = db.add("probe-bad-ui.can".to_string(), src.to_string());
+    let (catalog, catalog_path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    let (_artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&catalog_path);
+    let messages: Vec<&str> = diags.iter().map(|d| d.message.as_str()).collect();
+    for marker in [
+        "cannot lower pagination: pagination is valid only inside a collection",
+        "cannot lower button: bound controls need one binding",
+        "cannot lower modal: activated panels need a content slot",
+        "cannot lower badge: badges take no content suite",
+        "cannot lower input: field controls need an owning form",
+        "cannot lower input: field controls take an input selector",
+        "cannot lower stat: stat needs observations or a value slot",
+        "cannot lower divider: dividers take a text caption",
+    ] {
+        assert!(
+            messages.iter().any(|m| m.contains(marker)),
+            "missing {marker}: {messages:?}"
+        );
+    }
+    assert!(
+        diags.iter().all(|d| d.code == "E6008"),
+        "only E6008: {diags:?}"
+    );
+}
+
+/// Value-domain queries lower through array combinators; `select`
+/// appends one alias-scoped `.map` on either domain. The model `where`
+/// keeps the `row` rewrite while the projection binds the alias.
+#[test]
+fn value_queries_lower_from_source() {
+    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text, stock:int label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name,stock delete=none\n  scenario restock(ids:int[]) by=members\n   do\n    let picked=ids as n where n > 1\n    let names=Item as item where item.stock > 0 select item.name\n Then\n  page / title=\"Shop\"@{nl=\"Winkel\"}\n   card \"Go\"@{nl=\"Gaan\"}\n    text \"hi\"\n";
+    let mut db = SourceDb::new();
+    let id = db.add("probe-query.can".to_string(), src.to_string());
+    let (catalog, catalog_path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&catalog_path);
+    assert!(diags.is_empty(), "clean lowerings: {diags:?}");
+    let entry = &artifact.modules[0].js;
+    assert!(
+        entry.contains("const picked = ids.filter((n)=>n > 1n);"),
+        "value where filters:\n{entry}"
+    );
+    assert!(
+        entry.contains("const names = (await records(c,\"shop.Item\",{where:(row)=>row.stock > 0n})).map((item)=>item.name);"),
+        "model select maps:\n{entry}"
+    );
+}
+
+/// Sequence `as` bindings publish the call's declared result type, so
+/// later member chains resolve (here `Receipt.n` to `int`).
+#[test]
+fn sequence_as_binding_decodes() {
+    let src = "app Probe uses=[shop]\npackage shop\n Given\n  contract Receipt { n:int } label=\"Receipt\"@{nl=\"Bon\"}\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  fixture one=Item {name=\"a\"}\n  policy Item read=members\n When\n  crud Item by=members fields=name delete=none\n  scenario pick(name:text) read=true -> Receipt by=members\n   do\n    return Receipt {n=1}\n   examples seed=[one]\n    do\n     call pick {name=\"a\"} by=other as r\n     r.n -> 1\n Then\n  page / title=\"Shop\"@{nl=\"Winkel\"}\n   card \"Go\"@{nl=\"Gaan\"}\n    text \"hi\"\n";
+    let mut db = SourceDb::new();
+    let id = db.add("probe-as.can".to_string(), src.to_string());
+    let (catalog, catalog_path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&catalog_path);
+    assert!(diags.is_empty(), "clean lowerings: {diags:?}");
+    assert_eq!(artifact.tests.len(), 1);
+    let suite = &artifact.tests[0].module.js;
+    assert!(
+        suite.contains("inputs:async(c,s,b)=>({name:\"a\"}),bind:\"r\""),
+        "as binding:\n{suite}"
+    );
+    assert!(
+        suite.contains(
+            "{observations:async(c,s,b)=>([b.r.n]),expected:async(c,s,b)=>([1n]),types:[\"int\"]}"
+        ),
+        "bound member assertion:\n{suite}"
+    );
+}
+
+/// Gated UI nodes lower as `cond ? node : null`; an async gate makes
+/// the enclosing row scope async.
+#[test]
+fn construct_ui_gate_ternary() {
+    let ir = fixture_ir();
+    let mut emitter = Emitter::new(&ir);
+    let bool_ty = ResolvedType::Scalar(Scalar::Bool);
+    let gate = typed(
+        IrExpr::Binary {
+            op: IrBinOp::Ne,
+            left: Box::new(typed(
+                IrExpr::Member {
+                    base: Box::new(typed(
+                        IrExpr::Name("row".to_string()),
+                        ResolvedType::Scalar(Scalar::Text),
+                    )),
+                    field: "status".to_string(),
+                },
+                ResolvedType::Scalar(Scalar::Text),
+            )),
+            right: Box::new(text_lit("draft")),
+        },
+        bool_ty,
+    );
+    let alert = IrUi {
+        factory: "alert".to_string(),
+        props: vec![],
+        children: vec![],
+        row_scope: None,
+        gate: Some(gate),
+        span: sp(0, 1),
+    };
+    assert_eq!(
+        emitter.lower_ui(&alert),
+        "row.status !== \"draft\" ? alert({context:c}) : null"
+    );
+    // An async gate forces the row lambda async, like an async child.
+    let async_gate = typed(
+        IrExpr::Call {
+            target: IrCallTarget::Builtin {
+                id: "count".to_string(),
+                awaited: true,
+            },
+            args: vec![],
+        },
+        ResolvedType::Scalar(Scalar::Int),
+    );
+    let gated = IrUi {
+        factory: "text".to_string(),
+        props: vec![],
+        children: vec![],
+        row_scope: None,
+        gate: Some(async_gate),
+        span: sp(0, 1),
+    };
+    let list = IrUi {
+        factory: "list".to_string(),
+        props: vec![("model".to_string(), text_lit("demo.Widget"))],
+        children: vec![gated],
+        row_scope: Some(("row".to_string(), "rowView".to_string())),
+        gate: None,
+        span: sp(0, 1),
+    };
+    assert!(
+        emitter
+            .lower_ui(&list)
+            .contains("renderRow:async(row,rowView)=>["),
+        "async gate propagates"
+    );
+    let (diags, _, _, _) = emitter.finish();
+    assert!(diags.is_empty(), "clean: {diags:?}");
+}
+
+/// Value queries lower to filter/map chains; awaited bases parenthesize
+/// so the combinator binds the awaited array, not the call.
+#[test]
+fn construct_value_query() {
+    let ir = fixture_ir();
+    let int_ty = ResolvedType::Scalar(Scalar::Int);
+    let bool_ty = ResolvedType::Scalar(Scalar::Bool);
+    let name = |name: &str, ty: ResolvedType| typed(IrExpr::Name(name.to_string()), ty);
+    // `selected as expense select expense.amount`: a bare-name base needs
+    // no parens.
+    let query = typed(
+        IrExpr::Query(IrQuery {
+            domain: IrQueryDomain::Value {
+                base: Box::new(name(
+                    "selected",
+                    ResolvedType::Array {
+                        element: Box::new(int_ty.clone()),
+                        ordered: true,
+                        nonempty: false,
+                    },
+                )),
+                alias: "expense".to_string(),
+            },
+            parent: None,
+            where_pred: None,
+            where_async: false,
+            order: vec![],
+            limit: None,
+            archived: None,
+            select: Some(Box::new(name("expense", int_ty.clone()))),
+            select_param: Some("expense".to_string()),
+        }),
+        int_ty.clone(),
+    );
+    let (text, _, diags) = lower(&ir, &query);
+    assert_eq!(text, "selected.map((expense)=>expense)");
+    assert!(diags.is_empty(), "clean: {diags:?}");
+    // Awaiting bases parenthesize: `(await records(...)).map(...)`.
+    let fetched = typed(
+        IrExpr::Query(IrQuery {
+            domain: IrQueryDomain::Model("demo.Widget".to_string()),
+            parent: None,
+            where_pred: None,
+            where_async: false,
+            order: vec![],
+            limit: None,
+            archived: None,
+            select: None,
+            select_param: None,
+        }),
+        int_ty.clone(),
+    );
+    let query = typed(
+        IrExpr::Query(IrQuery {
+            domain: IrQueryDomain::Value {
+                base: Box::new(fetched),
+                alias: "row".to_string(),
+            },
+            parent: None,
+            where_pred: Some(Box::new(typed(
+                IrExpr::Binary {
+                    op: IrBinOp::Gt,
+                    left: Box::new(name("row", int_ty.clone())),
+                    right: Box::new(int_lit(1)),
+                },
+                bool_ty,
+            ))),
+            where_async: false,
+            order: vec![],
+            limit: None,
+            archived: None,
+            select: None,
+            select_param: None,
+        }),
+        int_ty.clone(),
+    );
+    let (text, _, diags) = lower(&ir, &query);
+    assert_eq!(
+        text,
+        "(await records(c,\"demo.Widget\",{})).filter((row)=>row > 1n)"
+    );
+    assert!(diags.is_empty(), "clean: {diags:?}");
 }

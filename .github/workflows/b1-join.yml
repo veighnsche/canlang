@@ -65,17 +65,18 @@ jobs:
         with:
           name: values-catalog
           path: packages/values/dist/
-      - name: B1 join test (must PASS, not skip)
+      - name: B1 join test (must PASS STRICT, not skip)
         run: |
           set -o pipefail
-          cargo test --test b1_join 2>&1 | tee /tmp/b1_join.log
-          grep -q "1 passed" /tmp/b1_join.log || { echo "FAIL: b1_join did not pass (skipped or failed)"; exit 1; }
-          echo "proves: b1_join passed against the real catalog (not skipped)"
+          cargo test --test b1_join -- --nocapture 2>&1 | tee /tmp/b1_join.log
+          grep -q "2 passed" /tmp/b1_join.log || { echo "FAIL: b1_join did not pass both joins"; exit 1; }
+          grep -q "SKIP b1_teamtasks_artifact\|SKIP b2_expenseflow_artifact" /tmp/b1_join.log && { echo "FAIL: b1_join SKIPPED (catalog missing?) — strict proof required"; exit 1; }
+          echo "proves: b1_join passed STRICT against the real catalog (both joins, zero SKIP)"
         working-directory: compiler
       - name: Build can
         run: cargo build
         working-directory: compiler
-      - name: Honest-gap pin (exit 10, 10xE6008, zero other codes)
+      - name: Honest-gap pin (exit 10, 3xE6008, zero other codes)
         run: |
           set +e
           ./target/debug/can compile ../examples/TeamTasks.can --catalog ../packages/values/dist/catalog.json > /tmp/team_tasks.log 2>&1
@@ -83,8 +84,8 @@ jobs:
           cat /tmp/team_tasks.log
           [ "$code" -eq 10 ] || { echo "FAIL: expected exit 10, got $code"; exit 1; }
           e6008=$(grep -c "E6008" /tmp/team_tasks.log)
-          [ "$e6008" -eq 10 ] || { echo "FAIL: expected exactly 10 E6008 lines, got $e6008"; exit 1; }
+          [ "$e6008" -eq 3 ] || { echo "FAIL: expected exactly 3 E6008 lines, got $e6008"; exit 1; }
           other=$(grep -oE "E[0-9]{4}" /tmp/team_tasks.log | grep -v "E6008" | wc -l)
           [ "$other" -eq 0 ] || { echo "FAIL: $other non-E6008 error codes present"; exit 1; }
-          echo "proves: TeamTasks.can exits 10 with exactly 10 E6008 and zero other codes"
+          echo "proves: TeamTasks.can exits 10 with exactly 3 E6008 (tooltip/delete/collapse) and zero other codes"
         working-directory: compiler

@@ -23,6 +23,7 @@ import type {
   FileTransferMeta,
   UploadIntentRequest,
 } from '../../contracts/src/wire.js';
+import type { UploadIntentId } from '../../contracts/src/files.js';
 import type { PrincipalResolverPort } from './ports.ts';
 import type {
   ReceivingContext,
@@ -34,10 +35,16 @@ import type {
 } from './finalize/index.ts';
 import { finalizeUpload } from './finalize/index.ts';
 import type {
+  AppendOutcome,
+  CompleteOutcome,
   CreateIntentOutcome,
   UploadDeps,
 } from './upload/index.ts';
-import { createUploadIntent } from './upload/index.ts';
+import {
+  appendUploadContent,
+  completeUploadContent,
+  createUploadIntent,
+} from './upload/index.ts';
 
 /**
  * MCP `_meta` key for the file-transfer advertisement (DESIGN §8).
@@ -170,6 +177,43 @@ export function handleCreateIntent(
     { ...files, urlBase: bridge.origin.baseUrl },
     { request, receiver, binding },
   );
+}
+
+/**
+ * Bridge v1 step 2a handler: resolve the caller, then append under the
+ * same-principal/team check. Unauthenticated callers share the `foreign`
+ * outcome (no existence oracle).
+ */
+export function handleAppend(
+  bridge: BridgeDeps,
+  files: UploadDeps,
+  caller: unknown,
+  intentId: UploadIntentId,
+  chunk: Uint8Array,
+): AppendOutcome {
+  const receiver: ReceivingContext | null = bridge.principals.resolve(caller);
+  if (receiver === null) {
+    return { status: 'failed', reason: 'foreign' };
+  }
+  return appendUploadContent(files, intentId, receiver, chunk);
+}
+
+/**
+ * Bridge v1 step 2b handler: resolve the caller, then complete under the
+ * same-principal/team check. Unauthenticated callers share the `foreign`
+ * outcome (no existence oracle).
+ */
+export function handleComplete(
+  bridge: BridgeDeps,
+  files: UploadDeps,
+  caller: unknown,
+  intentId: UploadIntentId,
+): CompleteOutcome {
+  const receiver: ReceivingContext | null = bridge.principals.resolve(caller);
+  if (receiver === null) {
+    return { status: 'failed', reason: 'foreign' };
+  }
+  return completeUploadContent(files, intentId, receiver);
 }
 
 /**

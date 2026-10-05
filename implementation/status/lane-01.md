@@ -138,4 +138,8 @@ Agent rules (all): one owned worktree, disjoint exact files above, no git/stage/
 
 ## Remaining work and cleanup
 
-Lane scope complete; closeout in progress. Worktree `/Users/vince/Projects/canlang-worktrees/lane-01-language` removed after the closeout PR merges. Remaining risks are cross-lane: B1 runtime consumption (lane-7 implement/defer call), B1-in-CI (catalog build job), gap-helper name join (L1+L2). L2 catalog live (59 entries, real signatures); L7 contracts index live.
+- PR https://github.com/veighnsche/canlang/pull/122 merged 2026-10-05 as `e8d6283`: B1 runtime consumption (8 closeout packets — loader, assembler, ctx+stdlib, invoke + `run` rewire, testkit loader, worker assembly, b1-join.yml CI, gap-helper join). Coordinator integration: import-source fix, stdout-envelope fix, sibling-path fix, min_version>=0 for real 0.x producers, require/hasRole/count interim semantics, preferences ctx. Review request-changes → fixed (subject-guard throw, invoker args+identity, real HandlerContext, loader id+cross-refs). Proven: compile exit 0 → run exit 0 → canApp() guard + fenced batch, anon forbidden. 321 cargo / 201 vitest at merge.
+- PR https://github.com/veighnsche/canlang/pull/123 merged 2026-10-05 as `8249342`: B1 follow-ups #1+#3 (ArtifactCallable.member linkage + canApp-walk invoke; await records; form-fields default). Proven: invokeCallable → ok:true + exact batch. 323 cargo / 213 vitest. Review approved; e2e member-check noted as lane-07 follow-up.
+- B1 follow-up #2 is lane-6-owned (PresentationContext constructor in packages/interfaces; F2 design + CSRF call filed for Vince). Lane-07 owns the e2e min_version divergence + e2e member check.
+
+Lane scope complete. Remaining risks are cross-lane routing (F2 → lane 6, e2e notes → lane 7) and the B2 sprint (scoped in /tmp/b2-scope.md: ExpenseFlow authority/evidence/durable work; PR #122 unblocked most of it).
