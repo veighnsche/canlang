@@ -148,6 +148,54 @@ describe("resolveVariant fallback chains", () => {
     assert.deepEqual(resolveVariant(descriptor, "de", "fr", "nl"), { tag: "nl", text: "Tasks" });
   });
 
+  it("selects requested source wording over a translated app default", () => {
+    const descriptor = makeMessageDescriptor("Shared source.", { nl: "Gedeelde tekst." });
+    assert.deepEqual(resolveVariant(descriptor, "en", "nl", "en"), {
+      tag: "en",
+      text: "Shared source.",
+    });
+  });
+
+  it("truncates a regional request onto the source tag", () => {
+    const descriptor = makeMessageDescriptor("Shared source.", { nl: "Gedeelde tekst." });
+    assert.deepEqual(resolveVariant(descriptor, "en-US", "nl", "en"), {
+      tag: "en",
+      text: "Shared source.",
+    });
+  });
+
+  it("prefix-admits a regional source tag from a short request", () => {
+    const descriptor = makeMessageDescriptor("Color!", { nl: "Kleur!" });
+    assert.deepEqual(resolveVariant(descriptor, "en", "nl", "en-US"), {
+      tag: "en-US",
+      text: "Color!",
+    });
+  });
+
+  it("matches source participation on canonical tag spellings", () => {
+    const descriptor = makeMessageDescriptor("Shared source.", { nl: "Gedeelde tekst." });
+    assert.deepEqual(resolveVariant(descriptor, "EN", "nl", "en"), {
+      tag: "en",
+      text: "Shared source.",
+    });
+    assert.deepEqual(resolveVariant(descriptor, "en", "nl", "EN"), {
+      tag: "en",
+      text: "Shared source.",
+    });
+    assert.deepEqual(resolveVariant(descriptor, "en-us", "nl", "EN-us"), {
+      tag: "en-US",
+      text: "Shared source.",
+    });
+  });
+
+  it("keeps an explicit source-tagged variant ahead of the source wording", () => {
+    const descriptor = makeMessageDescriptor("Tasks", { nl: "Taken", en: "Tasks!" });
+    assert.deepEqual(resolveVariant(descriptor, "en", "nl", "en"), {
+      tag: "en",
+      text: "Tasks!",
+    });
+  });
+
   it("rejects duplicate canonical tags defensively", () => {
     const descriptor = makeMessageDescriptor("x", { nl: "a" });
     const tampered = { ...descriptor, variants: { nl: "a", NL: "b" } };

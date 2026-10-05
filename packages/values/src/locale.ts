@@ -56,13 +56,17 @@ interface Candidate {
 }
 
 /**
- * Resolves one complete message: RFC 4647 lookup over the requested tag,
- * then lookup over the app default, then the source variant — skipping null
- * variants throughout. Each lookup range admits a variant on an exact tag or
- * a subtag-boundary prefix (`en` admits `en-US`, never `eng`). Variants
- * admitted by one range prefer an exact tag, then a matching app-default
- * tag, then canonical-tag lexical order. A source-tagged variant is an
- * ordinary variant, so an exact source-tag match wins its range.
+ * Resolves one complete message: RFC 4647 lookup over the requested tag
+ * (the owning source wording participates under its canonical source tag,
+ * since .can authors cannot author a variant repeating it), then lookup
+ * over the app default across explicit variants only, then the source
+ * variant — skipping null variants throughout. Each lookup range admits a
+ * variant on an exact tag or a subtag-boundary prefix (`en` admits `en-US`,
+ * never `eng`). Variants admitted by one range prefer an exact tag, then a
+ * matching app-default tag, then canonical-tag lexical order. A
+ * source-tagged variant is an ordinary variant, so an exact source-tag
+ * match wins its range; an explicit source-tagged variant keeps that seat
+ * and the implicit source wording is not duplicated.
  */
 export function resolveVariant(
   descriptor: MessageDescriptor,
@@ -98,11 +102,14 @@ export function resolveVariant(
     if (a[1] !== b[1]) return a[1] < b[1];
     return a[2] < b[2];
   };
-  const search = (chain: ReadonlyArray<string>): Candidate | null => {
+  const search = (
+    chain: ReadonlyArray<string>,
+    candidates: ReadonlyArray<Candidate>,
+  ): Candidate | null => {
     for (const range of chain) {
       let best: Candidate | null = null;
       let bestRank: readonly [number, number, string] | null = null;
-      for (const candidate of available) {
+      for (const candidate of candidates) {
         if (candidate.tag !== range && !candidate.tag.startsWith(`${range}-`)) continue;
         const current = rank(candidate.tag);
         if (best === null || bestRank === null || better(current, bestRank)) {
@@ -114,11 +121,18 @@ export function resolveVariant(
     }
     return null;
   };
-  const requestedMatch = search(lookupChain(want));
+  // The owning source wording joins requested lookup only, under its
+  // canonical source tag; an explicit variant already holding that tag wins.
+  const requestedCandidates: ReadonlyArray<Candidate> = available.some(
+    (candidate) => candidate.tag === source,
+  )
+    ? available
+    : [...available, { tag: source, text: descriptor.source }];
+  const requestedMatch = search(lookupChain(want), requestedCandidates);
   if (requestedMatch !== null) {
     return Object.freeze({ tag: requestedMatch.tag, text: requestedMatch.text });
   }
-  const defaultMatch = search(lookupChain(fallback));
+  const defaultMatch = search(lookupChain(fallback), available);
   if (defaultMatch !== null) {
     return Object.freeze({ tag: defaultMatch.tag, text: defaultMatch.text });
   }
