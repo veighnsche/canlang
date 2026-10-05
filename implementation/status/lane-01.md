@@ -177,3 +177,12 @@ Lane scope complete. Remaining risks are cross-lane routing (F2 → lane 6, e2e 
 - P4 (user-directed): scenario expose=none (closed-set E3009, omission = exposed) with emission filtering; @{desc=} on params/fields → MCP property descriptions; follow-ups: CRUD descriptions inherit label= captions ("Add" for TeamTasks create), read op emitted per policy read=, crud expose= allowlist honored. Proven via real binary (7→6 ops, verbatim desc, E3009).
 - Coordinator: fixed 2 P4-adjacent typecheck errors in new test files (delete-cast, in-cast); updated fixture skew header (both skews closed).
 - Gates: 26/26 cargo, fmt + strict clippy, TeamTasks pin holds, typecheck, vitest 355/355, state 530/0, interfaces 285/0, ui 802/0, e2e 15/15.
+
+## MCP production deploy join (2026-10-05, branch muse/closeout/mcp-deploy)
+- Gap: assembleWorker had zero production callers; deploy main was a binding-check shell with no fetch; production /mcp = interim 501.
+- P-A entry: worker/main.ts default fetch (binding gate DB → grants route → assembleWorker dispatch); 501 only when joins genuinely absent; worker-boundary green.
+- P-B bundling: deploy/bundle.ts portable module map (worker + pinned runtime + artifact + vendor + bun-built MCP handler with marker check), bundle-as-main in plan/render, wrangler apply backend (--yes only, dry-run default); deterministic sha.
+- P-C deps: D1 IdentityStore (identity package) + env-assembly buildProductionDeps (D1 store + identity + idempotent ensures incl INTERIM DDL) + grant-route handleMcpGrant (session cookie → real issueMcpGrant) + production McpPermissions (members admit, outsiders deny); non-empty discovery pinned.
+- Coordinator integration: fixed worker-main 501-premise test (grant join now lands → explicit-absence injection); closed the P-C/P-B specifier skew (checkout-only producer paths → vendor keys at bundle time: +state/+values trees, runtime+vendor rewrites); added assertLinksResolve (refuses dangling/bare imports; O(1)-per-match design after a regex anchor measured 6s); committed with-DB boot tests (active → /mcp+/grants 401; inactive → 500 activation-refused with reasons).
+- Proven: deploy-emitted bundle boots in startLocalDev with real D1; /mcp serves the real handler. Remaining for fully-live production /mcp: store-backed deploy gates 3-4 (producer join) + user provisioning routes (unowned).
+- Gates: 418 vitest, identity 58/0, state 530/0, interfaces 285/0, ui 802/0, e2e 15/15, typecheck, 26/26 cargo, fmt + strict clippy, TeamTasks pin holds.
