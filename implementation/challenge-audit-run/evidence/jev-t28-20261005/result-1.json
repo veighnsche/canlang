@@ -1,0 +1,38 @@
+{
+  "request": {
+    "questions": {
+      "containment_rule": {
+        "criteria": {
+          "local_only_remodel": "Keep the checker rejection and remodel every one of the 20 sites to spelled-out reference fields plus hand-written team/policy/uniqueness rules. `in` stays strictly local; no cross-package lifecycle is promised. Price: the largest authoring and review burden, every parent chain rewritten by hand with re-proven parity, and the drafts' plainly stated relational intent is set aside to keep a checker limitation rather than to satisfy a demonstrated semantic need.",
+          "owner_consent_facet": "Permit imported containment only where the owning package exports an explicit containment marker for the parent, with full local semantics wherever the marker exists and a retained rejection naming the marker everywhere else. Price: a brand-new declaration form with visibility and versioning rules, three owner packages that must each ship an edit, consumers stalled on owner release timing, and unresolved marker expressiveness (depth caps, cascade choice, listed reverse collections) — while every parent here lives in the same project, so the marker gates no genuine trust boundary and still cannot assure atomicity for truly remote parents.",
+          "plain_import_containment": "Give `Child in ImportedParent` the complete local-containment meaning (team and storage inheritance, immutable parent link, atomic subtree archive and delete, parent-scoped uniqueness, typed reverse collections, whole-app cycle detection) whenever the parent comes through a plain import, and keep rejecting bound remote parents as containment targets. Price: cycle detection and subtree operations must span the package index with cross-boundary error attribution, and the storage engine must still prove atomic cross-package subtree commits; a later deployment split could silently void the atomicity promise, and no split-time diagnostic exists today.",
+          "reference_scoping": "Read `Child in ImportedParent` as a required immutable parent reference with team and storage inheritance but deliberately no delete or archive cascade, with uniqueness still scoped by the parent and reverse collections answered as derived queries. Price: one spelling gains two deletion meanings split by import provenance, an outcome the audit treats as suspect elsewhere and one that authors will misread as local cascade; a new orphan rule (refuse parent archive versus leave detached children) must be invented with zero draft examples choosing between them, and any future need for cascade must be hand-built per application."
+        },
+        "instructions": "For the imported-containment gate, which rule best preserves the six accepted workflows, keeps wrong-parent, cross-team, missing-parent and cycle negatives failing, and minimizes migration churn and semantic risk? Judge every option under the same workflow-preservation and minimal-intervention constraints.",
+        "type": "choice"
+      }
+    },
+    "state": "CanLang business declarations live in .can sources across 52 draft files. Twenty declarations place a child model inside an imported parent (Expense and Leave/Onboard under Employee, Invoice/Propose under Customer, Reception under Location, plus Mail/Service and further sites); every one of the 20 arrives through a plain import, and a 76-line census of bound from= imports finds zero bound parents used as containment targets, so the remote side of the question has no draft evidence at all. Six owning workflows carry ACCEPTED intent, with multi-level chains (Step in Checklist in Employee, Item in Revision in Proposal in Customer) that read through parent.parent defaults and row.parent.* policies. No draft example anywhere in the 20 sites pins what parent delete or archive must do to imported children (four near-misses examined, none dispositive). The storage design puts an included plain import on the owner's store with one atomic owner commit, but no engine code expands a delete across a package boundary today, generated operations still commit through an interim path, and nothing reports a diagnostic when deployments split. No owner-consent marker exists in the language, and no owner has been asked for one. Containment cycles must remain errors, an import must confer no parent-mutation authority, and each alternative's strongest objection (coupling and split fragility; silent two-meaning deletion drift; maximum migration cost for a checker limitation; consent overhead with no atomicity gain) must be weighed rather than assumed away. This is a design choice, not a measured implementation result.",
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "containment_rule": {
+        "type": "choice",
+        "choice": "plain_import_containment",
+        "confidence": 0.32,
+        "probabilities": {
+          "plain_import_containment": 0.49,
+          "local_only_remodel": 0.03,
+          "owner_consent_facet": 0.06,
+          "reference_scoping": 0.42
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1162,
+      "output_tokens": 65
+    }
+  }
+}

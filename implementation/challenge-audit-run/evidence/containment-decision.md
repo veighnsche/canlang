@@ -237,9 +237,10 @@ with a diagnostic pointing at the facet; bound parents rejected regardless.
 5. [QUALIFIED — see "Storage atomicity (gate evidence)" below]
    Storage-engine input: can cross-package subtree archive be atomic in the
    included-store case (A/D), and what fails if deployments split?
-6. Coordinator-run JEV protocol: three fresh equivalent independently worded
-   formulations, saved responses + uncertainty, disagreement investigated.
-   **No JEV was run for this prep file; tools/jev.py untouched.**
+6. [COMPLETE — see "JEV outcome (gate result)" below] Coordinator-run JEV
+   protocol: three fresh equivalent independently worded formulations, saved
+   responses + uncertainty, disagreement investigated (unanimous A; stable
+   winner, unstable margins — see outcome section).
 
 ## Handoff
 
@@ -1085,3 +1086,32 @@ time. Item 5 therefore cannot become COMPLETE without engine proof
   JEV run; no Git; no other files touched.
 - Release: `implementation/challenge-audit-run/evidence/containment-decision.md`
   is RELEASED to the coordinator for JEV-gate scheduling.
+
+## JEV outcome (gate result)
+
+Coordinator-run, 2026-10-05. Requests + saved responses + uncertainty:
+[jev-t28-20261005/](jev-t28-20261005/) (request-1/2/3.json,
+result-1/2/3.json, README.md with advice/disagreement analysis).
+Three fresh independently worded equivalent choice consultations via
+`tools/jev.py`, one attempt each, all exit 0, model jev-1.13.0, total
+3505 input / 195 output tokens. No retries, no workarounds; credential
+from environment, never printed or saved.
+
+Results: 3/3 `plain_import_containment` — R1 conf .32 (A .49 / B .42 /
+D .06 / C .03), R2 conf .36 (A .52 / B .41 / D .02 / C .05), R3 conf
+.65 (A .74 / D .17 / B .08 / C .01). Stable winner (A), unstable
+runner-up and margins (B .42→.08 across framings); C rejected
+everywhere (≤.05). No rationale is returned, so the swing has no
+demonstrated cause; see README for the salience hypothesis (recorded
+as hypothesis, not finding).
+
+**Gate outcome: ADOPT Alternative A (plain_import_containment).**
+Declaring identity stays with the child package; plain import = same
+deployment with owner transaction rules; bound (`from=`) parents stay
+rejected as containment targets. Standing obligations (not waived):
+T29/T16/T17 must prove same-store atomic cross-package subtree
+commits; a deployment-split diagnostic is owed; B's coupling objection
+is the retained opposing case for T29 review. Normative recording
+(DECISIONS entry) left for Codex review; no normative doc edited here.
+Checklist item 6 marked COMPLETE above; all six gate items now
+COMPLETE (1/2/3) or QUALIFIED-with-design-choice-carried (4/5).
