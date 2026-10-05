@@ -2,7 +2,7 @@
   "name": "canlang-draft-highlighting",
   "displayName": "Canlang Draft Syntax",
   "description": "Syntax highlighting plus a minimal LSP client for the current canlang draft grammar. Spawns `can lsp` for diagnostics.",
-  "version": "0.1.9",
+  "version": "0.1.11",
   "publisher": "canlang",
   "license": "MIT",
   "repository": {
@@ -22,8 +22,9 @@
     "onCommand:can.restartServer"
   ],
   "scripts": {
+    "generate:icons": "node generate-file-icons.cjs",
     "compile": "tsc --strict --target es2022 --module commonjs --lib es2022 --typeRoots ./.empty-typeroot --outDir out --rootDir src src/extension.ts src/client.ts",
-    "vscode:prepublish": "bun run compile",
+    "vscode:prepublish": "bun run generate:icons && bun run compile",
     "test:lsp": "node test/lsp-capabilities.cjs"
   },
   "contributes": {
@@ -36,7 +37,11 @@
         ],
         "extensions": [
           ".can"
-        ]
+        ],
+        "icon": {
+          "dark": "./images/file-icon-dark.svg",
+          "light": "./images/file-icon-light.svg"
+        }
       }
     ],
     "grammars": [

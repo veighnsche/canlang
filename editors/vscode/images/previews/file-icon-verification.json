@@ -1,0 +1,185 @@
+{
+  "version": "0.1.11",
+  "commands": [
+    "vsce ls",
+    "vsce package --out ../../output/editor/canlang-draft-highlighting-0.1.11.vsix",
+    "vsce package --out output/editor/canlang-draft-highlighting-0.1.11-syntax.vsix (temporary syntax staging)"
+  ],
+  "tool_note": "Existing cached CLI; full prepublish icon generation and compilation passed.",
+  "checks": {
+    "logo.svg_unchanged": true,
+    "icon.png_unchanged": true,
+    "dark_paths_unchanged": true,
+    "dark_exact_shared_translation": true,
+    "dark_fixed_colors": true,
+    "dark_true_holes_and_transparent_background": true,
+    "dark_no_clipping": true,
+    "light_paths_unchanged": true,
+    "light_exact_shared_translation": true,
+    "light_fixed_colors": true,
+    "light_true_holes_and_transparent_background": true,
+    "light_no_clipping": true,
+    "full_zip_integrity": true,
+    "full_previews_excluded": true,
+    "full_current_icon_bytes": true,
+    "full_version": true,
+    "full_native_icon_paths_shipped": true,
+    "syntax_zip_integrity": true,
+    "syntax_previews_excluded": true,
+    "syntax_current_icon_bytes": true,
+    "syntax_version": true,
+    "syntax_native_icon_paths_shipped": true,
+    "syntax_no_server_or_build": true
+  },
+  "variants": {
+    "dark": {
+      "nominal_size": 16,
+      "translation_viewbox_units": [
+        128,
+        0
+      ],
+      "shift_at_16px": [
+        2,
+        0
+      ],
+      "shift_at_32px": [
+        4,
+        0
+      ],
+      "shifted_bounds_viewbox": [
+        300.3,
+        115.139,
+        979.7,
+        908.045
+      ]
+    },
+    "light": {
+      "nominal_size": 16,
+      "translation_viewbox_units": [
+        128,
+        0
+      ],
+      "shift_at_16px": [
+        2,
+        0
+      ],
+      "shift_at_32px": [
+        4,
+        0
+      ],
+      "shifted_bounds_viewbox": [
+        300.3,
+        115.139,
+        979.7,
+        908.045
+      ]
+    }
+  },
+  "sha256": {
+    "file-icon-dark.svg": "9ff022324473888c0c111c0ee4aeba846ec537de4ab55e19fdffd4f753517992",
+    "file-icon-light.svg": "6a31fccf8520becdb3d705e6d3823be530f8682b1a1bf247bfd69ab19ce82cfe"
+  },
+  "packages": {
+    "full": {
+      "path": "output/editor/canlang-draft-highlighting-0.1.11.vsix",
+      "version": "0.1.11",
+      "zip_contents": [
+        "extension.vsixmanifest",
+        "[Content_Types].xml",
+        "extension/readme.md",
+        "extension/package.json",
+        "extension/out/client.js",
+        "extension/out/extension.js",
+        "extension/images/file-icon-dark.svg",
+        "extension/images/file-icon-light.svg",
+        "extension/images/icon-dark.png",
+        "extension/images/icon.png",
+        "extension/images/logo.svg",
+        "extension/syntaxes/can.tmLanguage.json"
+      ]
+    },
+    "syntax": {
+      "path": "output/editor/canlang-draft-highlighting-0.1.11-syntax.vsix",
+      "version": "0.1.11",
+      "zip_contents": [
+        "extension.vsixmanifest",
+        "[Content_Types].xml",
+        "extension/readme.md",
+        "extension/package.json",
+        "extension/images/file-icon-dark.svg",
+        "extension/images/file-icon-light.svg",
+        "extension/images/icon-dark.png",
+        "extension/images/icon.png",
+        "extension/images/logo.svg",
+        "extension/syntaxes/can.tmLanguage.json"
+      ]
+    }
+  },
+  "historical_installation_record": {
+    "installed_before": {
+      "Cursor": {
+        "version": "0.1.9",
+        "flavor": "syntax-only"
+      },
+      "Antigravity IDE": {
+        "version": "0.1.8",
+        "flavor": "syntax-only"
+      }
+    },
+    "ide_installation_performed": false,
+    "installed_ides": [
+      {
+        "ide": "Cursor",
+        "version": "0.1.10",
+        "flavor": "syntax-only",
+        "icon_registration_verified": true,
+        "installed_svgs_match_repository": true
+      },
+      {
+        "ide": "Antigravity IDE",
+        "version": "0.1.10",
+        "flavor": "syntax-only",
+        "icon_registration_verified": true,
+        "installed_svgs_match_repository": true
+      }
+    ],
+    "live_ui": {
+      "cursor": "Existing CanLang window still showed its cached generic icon during inspection; window reload remains necessary.",
+      "visual_icon_display_verified": false,
+      "inspection_limit": "Concurrent user interaction invalidated UI targets during reload attempts; no live display pass claimed."
+    }
+  },
+  "current_packages_installed_by_this_verification": false,
+  "warnings": [
+    "LICENSE, LICENSE.md, or LICENSE.txt not found"
+  ],
+  "installed_ides": [
+    {
+      "ide": "Cursor",
+      "version": "0.1.11",
+      "flavor": "syntax-only",
+      "installed_svgs_match_repository": true
+    },
+    {
+      "ide": "Antigravity IDE",
+      "version": "0.1.11",
+      "flavor": "syntax-only",
+      "installed_svgs_match_repository": true
+    }
+  ],
+  "live_ui": {
+    "visual_icon_display_verified": false,
+    "reload_required": true
+  },
+  "raster_offset_check": {
+    "baseline_package": "0.1.10-syntax",
+    "themes": [
+      "dark",
+      "light"
+    ],
+    "pixel_exact_shift_at_16px": 2,
+    "pixel_exact_shift_at_32px": 4,
+    "no_clipped_pixels": true,
+    "preview": "file-icon-offset.png"
+  }
+}

@@ -6,6 +6,7 @@ Vectorization reviewed on 2026-10-05. These renders and verification records acc
 | --- | --- |
 | [../icon-dark.png](../icon-dark.png) | Unchanged, founder-approved 1254×1254 RGBA raster source. |
 | [../logo.svg](../logo.svg) | Transparent adaptive master, `viewBox="0 0 1024 1024"`. Constant red `#EB0115`; inner mark `#F5F5F5`, switching to `#141414` under `prefers-color-scheme: light`. |
+| [../file-icon-dark.svg](../file-icon-dark.svg), [../file-icon-light.svg](../file-icon-light.svg) | Generated, transparent language icons selected by the IDE color theme, nudged 2px right at the nominal 16px size. Regenerate with `bun run generate:icons` from `editors/vscode/`. |
 | [../icon.png](../icon.png) | Opaque 512×512 RGB extension icon on `#111111`, using the dark-theme mark. |
 
 The vector preserves the raster proportions, following the founder's choice over globally equal ring widths. It removes the triangle fringe and transparent cracks and centers the bottom apex. Both paths have an evenodd triangle knockout. The lower red aperture has a small hidden outward offset to prevent red antialias bleed through the inner mark's edge.
@@ -15,6 +16,7 @@ The vector preserves the raster proportions, following the founder's choice over
 - [Dark 512px](dark-dark-512.png) and [light 512px](light-white-512.png).
 - [Both themes on both backgrounds](themes-512.png).
 - [48px and 16px contact sheet](small-sizes.png), including enlarged 16px pixels for inspection.
+- [IDE file-icon placement](file-icon-offset.png): before/after the 2px right nudge at the nominal 16px size.
 - [Same-scale raster/vector comparison](side-by-side-1254.png): approved raster left, vector right, each rendered at 1254px before composition.
 
 ![Raster/vector comparison](side-by-side-1254.png)
