@@ -2739,6 +2739,23 @@ fn t14c_std_unknown_receipt_stays_opaque() {
     assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
 }
 
+/// (T14d fixture) The shared `format`/`count` fixture plus the
+/// real `first` overload (transcribed from the analysis fixture),
+/// for element reads on nominal leaf arrays.
+const T14D_JSON: &str = r#"{
+  "language_version": "1.0",
+  "catalog_version": "test-only-b4-t14d",
+  "entries": [
+    {"id": "count", "js": "count", "owner": "test", "kind": "builtin", "signature": "count(domain:C<T>)->int", "effects": "pure", "availability": "implemented"},
+    {"id": "format", "js": "format", "owner": "test", "kind": "builtin", "signature": "format(template:text,values:closed object of Display)->text; format(descriptor:message,locale:locale?)->text", "effects": "pure", "availability": "implemented"},
+    {"id": "first", "js": "first", "owner": "test", "kind": "builtin", "signature": "first(domain:ordered C<T>)->T?", "effects": "pure", "availability": "implemented"}
+  ]
+}"#;
+
+fn t14d_fixture() -> Catalog {
+    fixture_with(T14D_JSON)
+}
+
 /// (T14c) `std` delivery fields obey the same nullable rule as
 /// bound-local ones (`E3008`).
 #[test]
@@ -2751,6 +2768,202 @@ fn t14c_std_delivery_field_must_be_nullable() {
         diags[0]
             .message
             .contains("delivery fields must be nullable"),
+        "{}",
+        diags[0].message
+    );
+}
+
+// --- T14d nominal-leaf checker join ---
+//
+// `attempt.result` on a typed `std` receipt resolves through the
+// committed T13c transcription (`nominal_schema`, DESIGN §8.1
+// `result:R?`): the 8 result nominals expose their closed field
+// objects, transcribed refinements (`money`, `url?`) and named-ref
+// nesting (`GeneratedImage[]`) included. Non-transcribed refs
+// (lane-2 `CanDuration`/`DatetimeValue`, nested `WorkflowField`),
+// unknown/absent nominals and the scoped-out Handbook interface
+// stay silently opaque. Wrong result-leaves are `E2013`; leaves
+// never leak across nominals.
+
+/// (T14d) `EmailAccepted.reference` resolves to `text`: safe access
+/// feeds a `text?` field, a narrowed read feeds a `text` field.
+#[test]
+fn t14d_email_accepted_reference() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text, ref:text? }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\"} as attempt\n    set m {ref=attempt.result?.reference}\n    require attempt.result != null\n    set m {t=attempt.result.reference}\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "EmailAccepted leaves: {diags:?}");
+}
+
+/// (T14d) `ErrorAccepted.reference` resolves to `text`.
+#[test]
+fn t14d_error_accepted_reference() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {ErrorsV1 as Catch} from=deployment.errors\n Given\n  M { ref:text? }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Catch.report {event=\"boom\"} as attempt\n    set m {ref=attempt.result?.reference}\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "ErrorAccepted leaves: {diags:?}");
+}
+
+/// (T14d) `PaymentState` leaves arrive exactly as transcribed: the
+/// `money`/`url?` refinements and nullable scalars feed their
+/// precisely-typed fields (any other leaf type would be `E3001`).
+#[test]
+fn t14d_payment_state_refinement() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {PaymentsV1 as Payments} from=deployment.payments\n Given\n  M { total:money, ref:text, amount:money?, link:url?, provider:text?, revision:int? }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Payments.collect {customer=\"c\",amount=m.total,reference=m.ref,consent=null} as attempt\n    set m {amount=attempt.result?.amount,link=attempt.result?.checkout_url,provider=attempt.result?.provider_reference,revision=attempt.result?.revision}\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "PaymentState leaves: {diags:?}");
+}
+
+/// (T14d) Transcribed enum leaves claim their bare cases in
+/// comparisons, exactly like local enum reads.
+#[test]
+fn t14d_payment_state_enum_leaf() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {PaymentsV1 as Payments} from=deployment.payments\n Given\n  M { total:money, ref:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Payments.collect {customer=\"c\",amount=m.total,reference=m.ref,consent=null} as attempt\n    require attempt.result?.status == succeeded\n    let pending = attempt.result?.status == null\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "PaymentState enum leaf: {diags:?}");
+}
+
+/// (T14d) `TextRun` scalar/enum leaves resolve (`content`,
+/// `used_tokens`, `state`).
+#[test]
+fn t14d_text_run_leaves() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  M { content:text?, used:int? }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send LLM.generate {value=\"hi\"} as attempt\n    set m {content=attempt.result?.content,used=attempt.result?.used_tokens}\n    require attempt.result?.state == running\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "TextRun leaves: {diags:?}");
+}
+
+/// (T14d) `WorkflowInspection.fields` is a named-ref array over the
+/// NON-transcribed nested `WorkflowField`: the array shape resolves
+/// but its elements stay silently opaque (no `E2013` on any member).
+#[test]
+fn t14d_workflow_inspection_fields_opaque() {
+    let catalog = t14d_fixture();
+    let src = "app T uses=[p]\npackage p\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  M { graph:file, n:int }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Images.inspect {graph=m.graph} as attempt\n    require attempt.result != null\n    set m {n=count(attempt.result.fields)}\n    let x = first(attempt.result.fields)?.anything\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "WorkflowInspection fields: {diags:?}");
+}
+
+/// (T14d) `WorkflowValidation` scalar leaves resolve (`valid`,
+/// `digest`).
+#[test]
+fn t14d_workflow_validation_leaves() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  M { valid:bool?, digest:text? }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Images.validate {value=\"def\"} as attempt\n    set m {valid=attempt.result?.valid,digest=attempt.result?.digest}\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "WorkflowValidation leaves: {diags:?}");
+}
+
+/// (T14d) `ImageRun.outputs` nests the transcribed `GeneratedImage`
+/// nominal: element leaves resolve with their declared shapes.
+#[test]
+fn t14d_image_run_named_ref_nesting() {
+    let catalog = t14d_fixture();
+    let src = "app T uses=[p]\npackage p\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  M { position:int?, image:file?, charged:int? }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Images.submit {value=\"req\"} as attempt\n    require attempt.result != null\n    set m {position=first(attempt.result.outputs)?.position,image=first(attempt.result.outputs)?.image,charged=attempt.result.charged_jobs}\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "ImageRun nesting: {diags:?}");
+}
+
+/// (T14d) `MailReplyOutcome` leaves resolve (`reference`, `state`).
+#[test]
+fn t14d_mail_reply_outcome_leaves() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {MailboxV1 as Post} from=deployment.inbox\n Given\n  M { ref:text? }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Post.reply {value=\"req\"} as attempt\n    set m {ref=attempt.result?.reference}\n    require attempt.result?.state == accepted\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "MailReplyOutcome leaves: {diags:?}");
+}
+
+/// (T14d) A leaf outside the transcribed nominal is a wrong
+/// association (`E2013`), in the established T14c message style.
+#[test]
+fn t14d_wrong_result_leaf_rejects() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\"} as attempt\n    let x = attempt.result?.bogus\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("unknown member 'bogus' on object"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14d) The wrong-leaf rejection also fires on narrowed
+/// plain-dot reads (no silent path around the closed set).
+#[test]
+fn t14d_wrong_leaf_narrowed_rejects() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\"} as attempt\n    require attempt.result != null\n    let x = attempt.result.bogus\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("unknown member 'bogus' on object"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14d) Transcribed leaves do not leak across nominals: a
+/// `PaymentState` leaf on `EmailAccepted` and an `ImageRun` leaf
+/// on `MailReplyOutcome` both fail.
+#[test]
+fn t14d_leaves_do_not_leak_across_nominals() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n use std {MailboxV1 as Post} from=deployment.inbox\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\"} as mail\n    send Post.reply {value=\"req\"} as post\n    let x = mail.result?.amount\n    let y = post.result?.outputs\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013", "E2013"], "{diags:?}");
+}
+
+/// (T14d) The scoped-out Handbook interface stays opaque through
+/// the join: safe-access result reads stay silent (only the send
+/// `E3019` fires).
+#[test]
+fn t14d_handbook_result_stays_opaque() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {Handbook} from=deployment.knowledge\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Handbook.answer {value=\"hi\"} as attempt\n    let x = attempt.result?.anything.deeper\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
+}
+
+/// (T14d) The transcription never leaks into non-result nominal
+/// positions: an external-typed nominal value reads any member
+/// silently, exactly as before the join.
+#[test]
+fn t14d_nominal_value_position_stays_opaque() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextRequest}\n Given\n  M { request:TextRequest }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    let x = m.request.source.deeper\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "nominal value position: {diags:?}");
+}
+
+/// (T14d) Same-target leaves share the existing compat: two
+/// `Mail.send` receipt references compare as `text`.
+#[test]
+fn t14d_same_target_leaf_compares() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\"} as first\n    send Mail.send {to=\"c@d.test\",subject=\"t\",body=\"u\"} as second\n    require first.result != null and second.result != null\n    let same = first.result.reference == second.result.reference\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "same-target leaf compare: {diags:?}");
+}
+
+/// (T14d) No new coercions: a nullable nominal leaf into a required
+/// send input fails under the established rule.
+#[test]
+fn t14d_nullable_leaf_into_required_input_rejects() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\"} as first\n    send Mail.send {to=first.result?.reference,subject=\"t\",body=\"u\"} as second\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'to': expected email, found text?"),
         "{}",
         diags[0].message
     );

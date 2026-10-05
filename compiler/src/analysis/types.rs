@@ -47,7 +47,8 @@ use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{Punct, SyntaxKind, SyntaxNode, TokenKind};
 
 use super::catalog::{
-    Availability, Catalog, Effects, SigOverload, SigType, StdOperation, std_capability,
+    Availability, Catalog, Effects, SigOverload, SigType, StdNominal, StdOperation, nominal_schema,
+    std_capability,
 };
 use super::resolve::{
     ActorKind, Binding, ContextVar, CrudOp, FixtureTarget, ModelOwner, ModuleId, ResolveTables,
@@ -488,6 +489,47 @@ fn std_schema_type(declared: &str) -> Option<ResolvedType> {
         return Some(ResolvedType::Enum { cases, owner: None });
     }
     scalar_named(declared).map(ResolvedType::Scalar)
+}
+
+/// Closed field object for one transcribed T13c nominal (T14d): each
+/// field maps through [`std_nominal_leaf_type`] in producer order.
+fn std_nominal_object(schema: &StdNominal) -> ResolvedType {
+    ResolvedType::Object(
+        schema
+            .fields
+            .iter()
+            .map(|(name, kind)| (name.to_string(), std_nominal_leaf_type(kind)))
+            .collect(),
+    )
+}
+
+/// Map one T13c nominal leaf kind to its checkable type (T14d).
+/// Scalar/enum/array spellings reuse [`std_schema_type`]
+/// (transcribed refinements such as `amount: money` arrive
+/// already refined); transcribed nominal refs nest their closed
+/// object (the frozen tables are acyclic: requests nest messages,
+/// runs nest outputs, nothing nests back); lane-2 named refs
+/// (`CanDuration`, `DatetimeValue`), nested non-nominals
+/// (`WorkflowField`) and anything else stay opaque — transcribed,
+/// never reinterpreted, never guessed.
+fn std_nominal_leaf_type(declared: &str) -> ResolvedType {
+    if let Some(ty) = std_schema_type(declared) {
+        return ty;
+    }
+    if let Some(inner) = declared.strip_suffix('?') {
+        return ResolvedType::Nullable(Box::new(std_nominal_leaf_type(inner)));
+    }
+    if let Some(element) = declared.strip_suffix("[]") {
+        return ResolvedType::Array {
+            element: Box::new(std_nominal_leaf_type(element)),
+            ordered: true,
+            nonempty: false,
+        };
+    }
+    if let Some(schema) = nominal_schema(declared) {
+        return std_nominal_object(schema);
+    }
+    ResolvedType::Opaque("std nominal leaf")
 }
 
 impl<'a> Typer<'a> {
@@ -10162,14 +10204,21 @@ impl<'a> Typer<'a> {
                     "id" => Some(ResolvedType::Scalar(Scalar::Text)),
                     "status" => Some(ResolvedType::Opaque("delivery status")),
                     "error" => Some(ResolvedType::Opaque("delivery error")),
-                    // T14c: `attempt.result` types against the
-                    // consumed owner result shape when the consume
-                    // layer carries one. Every T13 result name is
-                    // nominal-only today, so this stays opaque (a
-                    // T13c transcription need) rather than guessed.
+                    // T14d: `attempt.result` types against the
+                    // consumed owner result shape (DESIGN §8.1:
+                    // `result:R?` is the only nominal-typed leaf).
+                    // Scalar/enum results reuse the existing
+                    // vocabulary; transcribed T13c nominals resolve
+                    // to their closed field object; unknown/absent
+                    // nominals stay opaque, never guessed.
                     "result" => Some(match std_schema_type(op.result) {
                         Some(ty) => ResolvedType::Nullable(Box::new(ty)),
-                        None => ResolvedType::Opaque("std delivery result"),
+                        None => match nominal_schema(op.result) {
+                            Some(schema) => {
+                                ResolvedType::Nullable(Box::new(std_nominal_object(schema)))
+                            }
+                            None => ResolvedType::Opaque("std delivery result"),
+                        },
                     }),
                     _ => {
                         self.unknown_member(
