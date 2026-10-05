@@ -9,6 +9,7 @@
  */
 
 import type {
+  CanonicalModelDescriptor,
   DeleteMode,
   ModelName,
   QueryPredicate,
@@ -52,11 +53,17 @@ export function isParentPathDefault(value: unknown): value is InterimParentPathD
  * not resolve — the default reads as missing and the required check decides,
  * so optional parent-bound fields never block parentless creates. A supplied
  * parent must exist and be unarchived.
+ *
+ * T16a: `array` records the T09 array marker for array fields (absent means
+ * singular): ordinary arrays (`required: false`) omit to empty on create,
+ * required arrays (`required: true`) reject omission. Absent on hand-built
+ * interim defs, which keep their exact prior behavior.
  */
 export interface InterimFieldDef {
   readonly required: boolean;
   readonly serverOnly: boolean;
   readonly default?: unknown;
+  readonly array?: { readonly required: boolean };
 }
 
 /**
@@ -164,12 +171,12 @@ function deepFreeze<T>(value: T, seen: Set<unknown> = new Set()): T {
  * Validate and freeze interim model defs into a lookup table.
  *
  * Throws plain `Error` on programmer bugs: empty/duplicate model names,
- * malformed field names, non-boolean `required`/`serverOnly`, unserializable
- * or malformed defaults, malformed ref paths or empty ref models, duplicate
- * ref paths, unknown or duplicate unique-key fields, unknown delete modes,
- * malformed hooks/invariants/locks (empty names, dupes, bad ops, non-function
- * `run`/`check`, malformed lock `when` shapes), or non-serializable
- * descriptor data.
+ * malformed field names, non-boolean `required`/`serverOnly`, malformed
+ * array markers, unserializable or malformed defaults, malformed ref paths
+ * or empty ref models, duplicate ref paths, unknown or duplicate unique-key
+ * fields, unknown delete modes, malformed hooks/invariants/locks (empty
+ * names, dupes, bad ops, non-function `run`/`check`, malformed lock `when`
+ * shapes), or non-serializable descriptor data.
  */
 export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTable {
   const table = new Map<ModelName, InterimModelDef>();
@@ -202,6 +209,20 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
           `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ` +
             'required and serverOnly must be booleans.',
         );
+      }
+      if (field.array !== undefined) {
+        const marker = field.array;
+        if (
+          typeof marker !== 'object' ||
+          marker === null ||
+          Array.isArray(marker) ||
+          typeof marker.required !== 'boolean'
+        ) {
+          throw new Error(
+            `Invalid array marker for field ${JSON.stringify(name)} on model ` +
+              `${JSON.stringify(model)}: array markers carry a boolean required.`,
+          );
+        }
       }
       if (field.default !== undefined) {
         if (isParentPathDefault(field.default)) {
@@ -405,4 +426,89 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
     );
   }
   return table;
+}
+
+/** Engine-local attachments for canonical-derived model tables (T04b owns the rest). */
+export interface CanonicalModelTableOptions {
+  /**
+   * Reference paths per model, derived by the descriptor loader from the
+   * artifact's singular top-level `ref` field tags. Models without an entry
+   * carry no refs. Hooks, invariants, and locks stay engine-local empty in
+   * the T16a core scope (T04b extends the contract).
+   */
+  readonly refs?: ReadonlyMap<ModelName, ReadonlyArray<InterimRefDef>>;
+}
+
+/**
+ * T16a: build a validated, frozen model table from canonical model
+ * descriptors (the loaded intake's `models`), delegating to `buildModelTable`
+ * so enforcement stays in exactly one place.
+ *
+ * Conversion: `required`/`serverOnly`/array markers map directly; `literal`
+ * defaults map to JSON literals, `parent` defaults to `{ parentPath }`
+ * lookups; `server`/`derived` defaults map to NO pipeline default (their
+ * values are engine-resolved by T18 — emission marks them non-required, so
+ * they never block creates — and `serverOnly` still rejects caller values).
+ * Composite unique keys (comma-joined) throw plain `Error` naming T04b:
+ * silently dropping a uniqueness constraint would admit duplicates, so the
+ * loader rejects such sets first and this guard is unreachable via it.
+ */
+export function buildModelTableFromCanonical(
+  models: ReadonlyArray<CanonicalModelDescriptor>,
+  opts: CanonicalModelTableOptions = {},
+): ModelTable {
+  const defs: InterimModelDef[] = [];
+  for (const model of models) {
+    const fields: Record<string, InterimFieldDef> = {};
+    for (const [name, field] of Object.entries(model.fields)) {
+      let fallback: unknown;
+      let hasFallback = false;
+      const canonicalDefault = field.default;
+      if (canonicalDefault !== undefined) {
+        if (canonicalDefault.kind === 'literal') {
+          try {
+            fallback = structuredClone(canonicalDefault.value);
+          } catch {
+            throw new Error(
+              `Invalid literal default for field ${JSON.stringify(name)} on model ` +
+                `${JSON.stringify(model.name as string)}: defaults must be serializable data.`,
+            );
+          }
+          hasFallback = true;
+        } else if (canonicalDefault.kind === 'parent') {
+          fallback = { parentPath: canonicalDefault.path };
+          hasFallback = true;
+        }
+        // `server`/`derived`: no pipeline default (T18 execution); the
+        // descriptor's `serverOnly` still rejects caller-supplied values.
+      }
+      fields[name] = {
+        required: field.required,
+        serverOnly: field.serverOnly,
+        ...(hasFallback ? { default: fallback } : {}),
+        ...(field.array !== undefined ? { array: { required: field.array.required } } : {}),
+      };
+    }
+    const uniqueKeys = model.uniqueKeys ?? [];
+    for (const key of uniqueKeys) {
+      if (key.includes(',')) {
+        throw new Error(
+          `Model ${JSON.stringify(model.name as string)} declares composite unique ` +
+            `${JSON.stringify(key)}; composite uniques need T04b and cannot load in the ` +
+            'T16a core scope.',
+        );
+      }
+    }
+    defs.push({
+      model: model.name,
+      fields,
+      refs: [...(opts.refs?.get(model.name) ?? [])],
+      uniqueKeys: [...uniqueKeys],
+      deleteMode: model.deleteMode,
+      hooks: [],
+      invariants: [],
+      locks: [],
+    });
+  }
+  return buildModelTable(defs);
 }

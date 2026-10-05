@@ -9,6 +9,7 @@
  */
 
 import type {
+  CanonicalInputDef,
   ModelName,
   OperationName,
   QueryPredicate,
@@ -17,7 +18,8 @@ import type {
 import type { StoragePort } from '../storage/port.js';
 import type { AdmittedCall } from '../invocation/admission.js';
 import type { ExecutionEffects } from '../invocation/invoke.js';
-import type { InterimOperationDef } from '../invocation/registry.js';
+import type { GeneratedOperationDef, InterimOperationDef } from '../invocation/registry.js';
+import { isGeneratedOperationDef } from '../invocation/registry.js';
 import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
 import { validatePredicateShape } from '../policy/grants.js';
 import { StateError } from '../errors.js';
@@ -164,6 +166,12 @@ export function crudExecute(
   const { table, model, store } = input;
   return async (call: AdmittedCall): Promise<ExecutionEffects> => {
     const def = call.def;
+    if (isGeneratedOperationDef(def)) {
+      // Wiring bug: generated defs run through generatedCrudExecute, which
+      // speaks the flat generated envelopes (this executor speaks interim
+      // `{id,data}`/`{ref,patch}` shapes).
+      throw new Error('crudExecute handles interim CRUD defs only.');
+    }
     if (!(def.name as string).startsWith(`${model as string}.`)) {
       // Wiring bug: this executor only serves its own model's CRUD defs.
       throw new Error(
@@ -318,5 +326,179 @@ export function crudExecute(
       resolvedDefaults: effects.resolvedDefaults,
       result: first.kind === 'remove' ? null : first.row,
     };
+  };
+}
+
+/** `generatedCrudExecute` wiring: model table and target store (multi-model). */
+export interface GeneratedCrudExecuteInput {
+  readonly table: ModelTable;
+  readonly store: StoragePort;
+}
+
+/**
+ * Resolve the created model from the `<Model>.create` emission convention.
+ * The loader already proved the model sits in the descriptor set; a table
+ * miss here means the caller mixed a registry with a foreign table, which
+ * is a wiring bug (mirroring the pipeline's unknown-model error).
+ */
+function generatedCreateModel(def: GeneratedOperationDef, table: ModelTable): ModelName {
+  const name = def.descriptor.name as string;
+  const model = name.slice(0, -'.create'.length) as ModelName;
+  if (!table.has(model)) {
+    throw new Error(
+      `generatedCrudExecute for operation ${JSON.stringify(name)} got a table without model ` +
+        `${JSON.stringify(model as string)}.`,
+    );
+  }
+  return model;
+}
+
+/**
+ * Resolve the synthesized versioned `record` ref of a generated
+ * update/delete descriptor. The loader guarantees it; anything else is a
+ * wiring bug (a hand-built def that never passed the loader). Ref FIELD
+ * inputs beside it are ordinary values, never the target.
+ */
+function generatedRecordInput(def: GeneratedOperationDef): Extract<
+  CanonicalInputDef,
+  { kind: 'ref' }
+> {
+  const record = def.descriptor.inputs.find(
+    (input): input is Extract<CanonicalInputDef, { kind: 'ref' }> =>
+      input.kind === 'ref' && input.name === 'record',
+  );
+  if (record === undefined || !record.versioned) {
+    throw new Error(
+      `generatedCrudExecute for operation ${JSON.stringify(def.descriptor.name as string)} ` +
+        'needs a versioned "record" ref.',
+    );
+  }
+  return record;
+}
+
+/**
+ * T16a generated-CRUD executor: an `ExecuteHandler` serving every generated
+ * create/update/delete in one registry through the canonical pipeline.
+ *
+ * Generated envelope conventions (L1 emission, distinct from the interim
+ * `{id,data}`/`{ref,patch}` shapes): creates take flat model fields with NO
+ * id input — the record id IS the admitted operation identity
+ * (`context.operationId`, frozen across fence retries, so exactly-once per
+ * operation: an identical envelope replays instead of duplicating); updates
+ * take the versioned record ref beside flat partial changes (omission means
+ * unchanged, never default-filled); deletes take the versioned record ref
+ * alone. The update/delete target id comes from the admission-loaded ref;
+ * the target model comes from the ref input's descriptor model (no name
+ * parsing). The def's engine-local `when`, when present, threads into
+ * update/delete exactly like interim CRUD (creates never carry one).
+ *
+ * Core-scope limits: generated creates set no parent linkage (descriptors
+ * carry no parent input — parent-defaulted fields read as missing on
+ * parentless creates per the pipeline rule); read/scenario kinds are
+ * executor mismatches (reads serve through the query port in T17,
+ * scenarios through emitted handlers).
+ */
+export function generatedCrudExecute(
+  input: GeneratedCrudExecuteInput,
+): (call: AdmittedCall) => Promise<ExecutionEffects> {
+  const { table, store } = input;
+  return async (call: AdmittedCall): Promise<ExecutionEffects> => {
+    const def = call.def;
+    if (!isGeneratedOperationDef(def)) {
+      throw new Error('generatedCrudExecute handles generated operation defs only.');
+    }
+    const kind = def.descriptor.kind;
+    const when = def.when;
+
+    if (kind === 'create') {
+      const model = generatedCreateModel(def, table);
+      const data: Record<string, unknown> = { ...call.inputs };
+      const effects = await runMutationWrites({
+        table,
+        writes: [
+          {
+            op: 'create',
+            model,
+            id: call.context.operationId as unknown as RecordId,
+            data,
+          },
+        ],
+        context: call.context,
+        store,
+      });
+      const first = effects.writes[0];
+      if (first === undefined) {
+        throw new Error('Mutation pipeline returned no write for a create.');
+      }
+      return {
+        writes: effects.writes,
+        history: effects.history,
+        outbox: [],
+        schedules: [],
+        uniqueClaims: effects.uniqueClaims,
+        uniqueReleases: effects.uniqueReleases,
+        resolvedDefaults: effects.resolvedDefaults,
+        result: first.kind === 'remove' ? null : first.row,
+      };
+    }
+
+    if (kind === 'update' || kind === 'delete') {
+      const recordInput = generatedRecordInput(def);
+      // Admission-loaded refs are looked up by param (a flat ref FIELD
+      // input may add further refs after the record one).
+      const ref = call.recordRefs.find((entry) => entry.param === recordInput.name);
+      if (ref === undefined) {
+        throw new Error(
+          `generatedCrudExecute ${kind} got an admitted call with no loaded record ref.`,
+        );
+      }
+      if (!table.has(recordInput.model)) {
+        throw new Error(
+          `generatedCrudExecute for operation ${JSON.stringify(def.descriptor.name as string)} ` +
+            `got a table without model ${JSON.stringify(recordInput.model as string)}.`,
+        );
+      }
+      const patch: Record<string, unknown> = { ...call.inputs };
+      delete patch[recordInput.name];
+      const effects = await runMutationWrites({
+        table,
+        writes: [
+          kind === 'update'
+            ? {
+                op: 'update',
+                model: recordInput.model,
+                id: ref.id,
+                data: patch,
+                ...(when !== undefined ? { when } : {}),
+              }
+            : {
+                op: 'remove',
+                model: recordInput.model,
+                id: ref.id,
+                ...(when !== undefined ? { when } : {}),
+              },
+        ],
+        context: call.context,
+        store,
+      });
+      const first = effects.writes[0];
+      if (first === undefined) {
+        throw new Error(`Mutation pipeline returned no write for a ${kind}.`);
+      }
+      return {
+        writes: effects.writes,
+        history: effects.history,
+        outbox: [],
+        schedules: [],
+        uniqueClaims: effects.uniqueClaims,
+        uniqueReleases: effects.uniqueReleases,
+        resolvedDefaults: effects.resolvedDefaults,
+        result: first.kind === 'remove' ? null : first.row,
+      };
+    }
+
+    throw new Error(
+      `generatedCrudExecute handles CRUD defs only, got kind ${JSON.stringify(kind)}.`,
+    );
   };
 }

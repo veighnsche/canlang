@@ -32,6 +32,7 @@ import type {
 } from '../../../contracts/src/wire.js';
 import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
 import type { OperationRegistry } from './registry.js';
+import { isGeneratedOperationDef } from './registry.js';
 import type { MembershipReader } from '../policy/roles.js';
 import { admit, receiptIdentityFor, type AdmittedCall } from './admission.js';
 import { buildContext, type ClockPort } from './context.js';
@@ -77,7 +78,10 @@ function recordVersionsOf(writes: ReadonlyArray<DomainWrite>): Array<{
 
 /**
  * Invoke one canonical mutation envelope. Unknown operations are `validation`
- * failures; exhausted fence contention is a retryable `busy`.
+ * failures; exhausted fence contention is a retryable `busy`. Generated
+ * `read` operations are `validation` failures here — reads execute through
+ * the query port (their registry presence exists so denied reads answer
+ * denied-not-unknown at admission); generated read execution lands in T17.
  */
 export async function invoke(input: {
   registry: OperationRegistry;
@@ -96,6 +100,13 @@ export async function invoke(input: {
   const def = input.registry.get(input.envelope.operation);
   if (def === undefined) {
     throw new StateError('validation', `Unknown operation "${input.envelope.operation}".`);
+  }
+  if (isGeneratedOperationDef(def) && def.descriptor.kind === 'read') {
+    throw new StateError(
+      'validation',
+      `Read operation "${input.envelope.operation}" cannot run through invoke; ` +
+        'reads execute through the query port.',
+    );
   }
   const now = input.clock.nowMs();
   const context = buildContext({

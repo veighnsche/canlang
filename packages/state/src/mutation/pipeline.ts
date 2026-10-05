@@ -511,6 +511,19 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         }
         const fallback = fieldDef.default;
         if (fallback === undefined) {
+          // T16a: no default — the T09 array marker decides. Ordinary
+          // arrays omit to `[]` (recorded like any resolved omission-fill);
+          // required arrays reject omission outright. Explicit defaults
+          // (handled below) always win over omit-to-empty.
+          const marker = fieldDef.array;
+          if (marker === undefined) {
+            continue;
+          }
+          if (marker.required) {
+            throw new StateError('validation', `Missing required field ${JSON.stringify(field)}.`);
+          }
+          safeSet(candidate, field, []);
+          safeSet(resolvedDefaults, field, []);
           continue;
         }
         if (isParentPathDefault(fallback)) {
