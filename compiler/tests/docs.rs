@@ -12,6 +12,7 @@ use canlang_compiler::analysis::{CheckedProgram, check_program};
 use canlang_compiler::diagnostic::Diagnostic;
 use canlang_compiler::docs::{
     REFERENCE_MODEL_VERSION, ReferenceAvailability, ReferenceModel, extract_reference,
+    portable_source_id,
 };
 use canlang_compiler::json::{self, Json};
 use canlang_compiler::source::{SourceDb, SourceId, Span};
@@ -713,5 +714,125 @@ fn v1_json_conforms_to_reference_ts() {
     assert_eq!(
         location.get("sourceId").and_then(Json::as_str),
         Some("shop.can")
+    );
+}
+
+// --- Portability (R-D07-03) ----------------------------------------------------
+
+/// (R3) Relative and absolute spellings of the same input yield identical
+/// portable output bytes: the absolute path under the project root (the
+/// process working directory) normalizes to the same project-relative
+/// sourceId and the same sourceRevision, leaking no checkout prefix.
+#[test]
+fn relative_vs_absolute_spellings_are_identical() {
+    let (relative_json, relative_model) = extract("shop.can", SHOP_SRC);
+    let cwd = std::env::current_dir().expect("cwd");
+    let absolute = cwd.join("shop.can").to_string_lossy().into_owned();
+    assert!(
+        std::path::Path::new(&absolute).is_absolute(),
+        "absolute spelling: {absolute:?}"
+    );
+    let (absolute_json, absolute_model) = extract(&absolute, SHOP_SRC);
+    assert_eq!(absolute_json, relative_json, "same output bytes");
+    assert_eq!(absolute_model, relative_model);
+    assert_eq!(
+        absolute_model.source_revision, relative_model.source_revision,
+        "same revision"
+    );
+    for owner in &absolute_model.owners {
+        for declaration in &owner.declarations {
+            assert_eq!(declaration.location.source_id, "shop.can");
+        }
+        for operation in &owner.operations {
+            assert_eq!(operation.location.source_id, "shop.can");
+        }
+    }
+    assert!(
+        !absolute_json.contains(&absolute),
+        "no absolute checkout path leaks into portable output"
+    );
+}
+
+/// (R3) Moved-checkout equivalence: the same project content at a different
+/// absolute prefix yields identical portable identities. Two scratch
+/// checkouts with the same relative layout normalize — each against its
+/// own checkout root, as `can docs` would when run inside that checkout —
+/// to the same project-relative sourceId, and extraction over those
+/// identities is byte-identical with the same sourceRevision.
+#[test]
+fn moved_checkout_equivalence() {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    let base = std::env::temp_dir().join(format!("can-docs-r3-{}-{nanos}", std::process::id()));
+    let dir_a = base.join("checkout-a");
+    let dir_b = base.join("checkout-b");
+    std::fs::create_dir_all(&dir_a).unwrap();
+    std::fs::create_dir_all(&dir_b).unwrap();
+    let _guard = TempfileGuard { dir: base };
+    std::fs::write(dir_a.join("shop.can"), SHOP_SRC).unwrap();
+    std::fs::write(dir_b.join("shop.can"), SHOP_SRC).unwrap();
+    let abs_a = dir_a.join("shop.can");
+    let abs_b = dir_b.join("shop.can");
+    assert_ne!(abs_a, abs_b, "different absolute prefixes");
+    let rel_a = portable_source_id(&abs_a.to_string_lossy(), &dir_a);
+    let rel_b = portable_source_id(&abs_b.to_string_lossy(), &dir_b);
+    assert_eq!(rel_a, "shop.can", "checkout A relativizes");
+    assert_eq!(rel_b, "shop.can", "checkout B relativizes");
+    let (json_a, model_a) = extract(&rel_a, SHOP_SRC);
+    let (json_b, model_b) = extract(&rel_b, SHOP_SRC);
+    assert_eq!(json_a, json_b, "same output bytes across checkouts");
+    assert_eq!(model_a, model_b);
+    assert_eq!(model_a.source_revision, model_b.source_revision);
+}
+
+/// (R3) External inputs stay truthful: an absolute path outside the project
+/// root is marked `external:...` (never silently relabeled as
+/// project-relative) and the marking is stable across extractions.
+#[test]
+fn external_inputs_are_marked_and_stable() {
+    // Unresolvable absolute outside any realistic checkout root: the
+    // lexical fallback marks it external deterministically (no file needed).
+    let outside = "/r3-external-probe-9f2c31/shop.can";
+    assert!(std::path::Path::new(outside).is_absolute());
+    let (json_a, model_a) = extract(outside, SHOP_SRC);
+    let (json_b, model_b) = extract(outside, SHOP_SRC);
+    assert_eq!(json_a, json_b, "stable bytes");
+    assert_eq!(model_a, model_b);
+    assert_eq!(model_a.source_revision, model_b.source_revision);
+    let source_id = model_a.owners[0].declarations[0].location.source_id.clone();
+    assert!(
+        source_id.starts_with("external:"),
+        "marked external: {source_id:?}"
+    );
+    assert!(
+        source_id.contains("r3-external-probe-9f2c31"),
+        "truthful absolute preserved: {source_id:?}"
+    );
+    for owner in &model_a.owners {
+        for declaration in &owner.declarations {
+            assert_eq!(declaration.location.source_id, source_id);
+        }
+        for operation in &owner.operations {
+            assert_eq!(operation.location.source_id, source_id);
+        }
+    }
+    // A real temp file outside the checkout agrees through the canonical path.
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    let dir = std::env::temp_dir().join(format!("can-docs-r3-ext-{}-{nanos}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let _guard = TempfileGuard { dir: dir.clone() };
+    let file = dir.join("shop.can");
+    std::fs::write(&file, SHOP_SRC).unwrap();
+    let real_abs = file.to_string_lossy().into_owned();
+    let (_real_json, real_model) = extract(&real_abs, SHOP_SRC);
+    let real_id = &real_model.owners[0].declarations[0].location.source_id;
+    assert!(
+        real_id.starts_with("external:"),
+        "real outside file marked external: {real_id:?}"
     );
 }
