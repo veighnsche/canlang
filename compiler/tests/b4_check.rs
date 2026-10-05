@@ -390,6 +390,295 @@ fn t08_selector_grants_no_fact() {
     assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
 }
 
+/// (T05) Affiliate if/else (R01): the `else` of `p==null` proves
+/// `p` non-null for member reads and the `set` target; the
+/// then-branch create does not disturb the join.
+#[test]
+fn t05_affiliate_if_else() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { b:B?, box:text? }\n policy B read=members\n policy M read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   let p = m\n   if p==null\n    create M {box=\"e\"} as e\n   else\n    let t = p.box\n    set p {box=\"f\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "affiliate if/else: {diags:?}");
+}
+
+/// (T05) Approve AND-continuation (R02): the right conjunct and the
+/// body receive left-true facts; the `send ... when=` OR re-reads
+/// the guarded row pre-dispatch; the trailing `set` keeps the root
+/// fact across the send.
+#[test]
+fn t05_approve_and_send_when() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { b:B?, box:text? }\n policy B read=members\n policy M read=members\n contract Ack { ok:bool }\n capability Mail version=1\n  notify(who:text) -> Ack\nWhen\n scenario s(m:M?) by=members\n  do\n   let notice = m\n   if notice!=null and notice.box==null\n    send Mail.notify {who=\"x\"} when=notice.b==null or notice.b.label==\"y\" as attempt\n    set notice {box=\"z\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "approve and/send/when: {diags:?}");
+}
+
+/// (T05) Catch OR-chain in a leading require (R05): each disjunct
+/// receives the accumulated left-false facts, twice in one chain.
+#[test]
+fn t05_catch_or_chain_require() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { b:B? }\n policy B read=members\n policy M read=members\nWhen\n scenario s(m:M?) by=members\n  require m==null or m.b==null or m.b.label==\"ok\"\n  do\n   let x = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "catch or-chain: {diags:?}");
+}
+
+/// (T05) Chat require-chain (R03): AND facts flow from the `require`
+/// into counter reads; member-path facts hold until the `create`;
+/// the root fact survives `create`/`set` into the `send ... when=`.
+#[test]
+fn t05_chat_require_chain() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { b:B?, box:text? }\n policy B read=members\n policy M read=members\n contract Ack { ok:bool }\n capability Log version=1\n  ping(who:text) -> Ack\nWhen\n scenario s(m:M?) by=members\n  do\n   let a = m\n   require a!=null and a.b!=null\n   let label = a.b.label\n   create M {box=\"c\"} as c\n   set a {box=\"b\"}\n   send Log.ping {who=\"x\"} when=a.box==\"z\" as r\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "chat require-chain: {diags:?}");
+}
+
+/// (T05) Check require-continuation (R04): reads, `parent=` creation
+/// and `set` all consume the `require` root fact.
+#[test]
+fn t05_check_require_lookup() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n Child in M { note:text? }\n policy M read=members\n policy Child read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   let c = m\n   require c!=null\n   let t = c.box\n   create Child {parent=c,note=\"n\"} as ch\n   set c {box=\"d\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "check require-lookup: {diags:?}");
+}
+
+/// (T05) Contract invariant continuation (R06): OR-right facts apply
+/// in invariant position.
+#[test]
+fn t05_contract_invariant_or() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { b:B? }\n policy B read=members\n policy M read=members\n invariant M: row.b==null or row.b.label==\"ok\"\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "contract invariant or: {diags:?}");
+}
+
+/// (T05) Supporting shapes: reversed operands, parentheses, `not`
+/// and double negation all key on the resolved tested path.
+#[test]
+fn t05_reversed_parens_not() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   let a = m\n   require null != a\n   let t = a.box\n   let b = m\n   require (b != null)\n   let u = b.box\n   let c = m\n   require not (c == null)\n   let w = c.box\n   let d = m\n   require not (not (d != null))\n   let v = d.box\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "reversed/parens/not: {diags:?}");
+}
+
+/// (T05) Nested distribution: `a and (b or c)` threads the outer
+/// AND-left facts into the disjunction, whose right arm additionally
+/// receives the inner OR-left facts.
+#[test]
+fn t05_nested_and_or() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { b:B? }\n policy B read=members\n policy M read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   let a = m\n   require a!=null and (a.b==null or a.b.label==\"y\")\n   let t = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "nested and/or: {diags:?}");
+}
+
+/// (T05 §6) Shorthand entries read their binding, so they consume
+/// continuation facts exactly like explicit reads (Chat:78
+/// `allowance` / Check:81 `check` shapes).
+#[test]
+fn t05_shorthand_reads_fact() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n N { buddy:M }\n policy M read=members\n policy N read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   let buddy = m\n   require buddy!=null\n   create N {buddy} as n\n   let o = {buddy}\n   create N {buddy=o.buddy} as n2\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "shorthand reads fact: {diags:?}");
+}
+
+/// (T05 IC1) Unguarded member access still fails.
+#[test]
+fn t05_ic1_unguarded_member() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   let t = m.box\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC1) Unguarded nullable argument still fails (C4 cascade).
+#[test]
+fn t05_ic1_nullable_arg() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n N { req:text }\n policy M read=members\n policy N read=members\nWhen\n scenario s(m:M) by=members\n  do\n   create N {req=m.box} as n\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+}
+
+/// (T05 IC2) A use textually before its guard still fails.
+#[test]
+fn t05_ic2_read_before_guard() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   let t = m.box\n   require m!=null\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC2) A use in an earlier conjunct still fails.
+#[test]
+fn t05_ic2_earlier_conjunct() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   require m.box==\"x\" and m!=null\n   let t = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC3) An OR arm whose incoming fact is `p==null` still fails.
+#[test]
+fn t05_ic3_or_null_arm() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   require m!=null or m.box==\"x\"\n   let t = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC3) A null admitted by another OR arm grants nothing to
+/// sibling arms.
+#[test]
+fn t05_ic3_or_sibling_no_leak() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?, ok:bool) by=members\n  do\n   require (m!=null and ok) or m.box==\"y\"\n   let t = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC4) A member-path fact drops after a `set` through the same
+/// root (proven-or-possible alias write).
+#[test]
+fn t05_ic4_set_invalidates_path() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { b:B?, box:text? }\n policy B read=members\n policy M read=members\nWhen\n scenario s(m:M) by=members\n  do\n   require m.b!=null\n   set m {box=\"s\"}\n   let l = m.b.label\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC4) A member-path fact drops after a mutation-capable
+/// `send`, while root facts survive it.
+#[test]
+fn t05_ic4_send_invalidates_path() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { b:B?, box:text? }\n policy B read=members\n policy M read=members\n contract Ack { ok:bool }\n capability Mail version=1\n  notify(who:text) -> Ack\nWhen\n scenario s(m:M) by=members\n  do\n   require m.b!=null\n   send Mail.notify {who=\"x\"} as attempt\n   let l = m.b.label\n   let t = m.box\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC5) Contradictory branches: the arm without the fact still
+/// fails.
+#[test]
+fn t05_ic5_contradictory_branches() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?, flag:bool) by=members\n  do\n   if flag\n    require m!=null\n    let t = m.box\n   else\n    let u = m.box\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC5) Post-join uses fail unless every arm established the fact.
+#[test]
+fn t05_ic5_post_join_no_fact() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?, flag:bool) by=members\n  do\n   if flag\n    require m!=null\n    let t = m.box\n   else\n    let u = 1\n   let w = m.box\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC6) Facts established inside a `for` body are unavailable
+/// after the loop (the in-body use passes).
+#[test]
+fn t05_ic6_body_fact_no_escape() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { b:B? }\n policy B read=members\n policy M read=members\nWhen\n scenario s(m:M) by=members\n  do\n   for x in M limit=10\n    require m.b!=null\n    let l = m.b.label\n   let w = m.b.label\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC6) A nullable `for` domain stays nullable without a guard
+/// (R28 shape for loops; the query shape moves CanInvoice:742).
+#[test]
+fn t05_ic6_nullable_domain() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { items:B[]? }\n policy B read=members\n policy M read=members\nWhen\n scenario s(m:M) by=members\n  do\n   for x in m.items limit=10\n    let y = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+}
+
+/// (T05 IC7) A `?.`-chain null test grants no fact about its receiver.
+#[test]
+fn t05_ic7_safe_access_null_test() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   require m?.box!=null\n   let t = m.box\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC7) A `?.`-chain `==null` test grants nothing either.
+#[test]
+fn t05_ic7_safe_access_eq_null() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   require m?.box==null\n   let t = m.box\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC7) A `?.`-chain comparison against a nullable value
+/// grants nothing (the retained L171 rule only fires against
+/// proven-nonnull values).
+#[test]
+fn t05_ic7_safe_access_eq_value() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?, o:M) by=members\n  do\n   require m?.box==o.box\n   let t = m.box\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 IC8) Facts never cross evaluations: a guard in one scenario
+/// grants nothing to another (revision/currency fencing stays T32).
+#[test]
+fn t05_ic8_cross_scenario_no_leak() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario a(m:M?) by=members\n  require m!=null\n  do\n   let t = m.box\n scenario b(m:M?) by=members\n  do\n   let u = m.box\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 §9) A fact on one path grants nothing to a sibling path.
+#[test]
+fn t05_presence_sibling_no_leak() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { b:B?, c:B? }\n policy B read=members\n policy M read=members\nWhen\n scenario s(m:M) by=members\n  do\n   require m.b!=null\n   let l = m.c.label\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 §9) A null test on another subject never narrows the caller
+/// (actor admission stays T06).
+#[test]
+fn t05_presence_other_subject_no_actor() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?) by=public\n  require m!=null\n  do\n   let t = m.box\n   require actor.email_verified\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 §6) Facts key on declarations: two `let` aliases of one
+/// source never share.
+#[test]
+fn t05_decl_alias_separation() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   let a = m\n   let b = m\n   require a!=null\n   let t = b.box\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T05 §6) Shadowing never shares: an inner `let` reusing the outer
+/// spelling reads its own declaration, and the outer fact still
+/// holds after the loop.
+#[test]
+fn t05_decl_shadow_separation() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { box:text? }\n policy M read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   let a = m\n   require a!=null\n   for x in M limit=10\n    let a = m\n    let t = a.box\n   let u = a.box\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
 /// (T08) Typed delivery leaves keep their B4 scope: `delivery.status`
 /// reads in policy `fields=` but not in UI `filter=`.
 #[test]
