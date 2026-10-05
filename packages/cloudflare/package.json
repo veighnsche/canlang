@@ -1,6 +1,7 @@
 {
   "name": "@canlang/cloudflare",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "CanLang Cloudflare delivery: local dev, deploy plans, compatibility checks, upgrade orchestration (lane 07). Node-side tooling only; Worker entry is a separate export.",
   "type": "module",
   "main": "./dist/index.js",

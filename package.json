@@ -1,6 +1,7 @@
 {
   "name": "canlang",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": "CanLang: AI-native SaaS DSL on workerd. Root bun workspace (lane 07 integrates).",
   "type": "module",

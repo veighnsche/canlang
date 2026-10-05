@@ -4,7 +4,7 @@
   "description": "Syntax highlighting plus a minimal LSP client for the current canlang draft grammar. Spawns `can lsp` for diagnostics.",
   "version": "0.1.9",
   "publisher": "canlang",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/veighnsche/canlang.git"
