@@ -148,3 +148,136 @@ invariant / lock descriptor joins, generated-policy mapping for
 authorization predicates, richer scalar/struct kinds, file/progress/receipt
 observation extensions, and full compatibility matrix beyond the §1 pins.
 T16/T17 runtime joins are explicitly out of scope for T04a.
+
+## 10. T04b-p provider-descriptor ratification (L3-led contract join)
+
+Ratifies T15b's emitted provider shapes (committed 65a1ffd) into the
+execution contract. Ratification defines; loader/emitter consumption
+joins later (never this slice). `EXECUTION_CONTRACT_VERSION` stays 1;
+all §1-§8 rules unchanged.
+
+### 10.1 Decision 1 — `delivery` kind member set in the Canonical intake
+
+Ratified: `CanonicalInputDef` gains a `delivery` member carrying
+`CanonicalDeliveryDescriptor { kind, capability, operation, version,
+result }` (`state.ts`), nested as one shared shape with
+`CanonicalFieldDef.delivery?` (present exactly for T14c typed `std`
+receipt fields). The ratified input-kind set is `ref`, the eight T04a
+scalars, and `delivery`.
+
+- Rationale: nesting preserves T15b's one-shape-no-drift design
+  (`artifact.ts` `ArtifactDeliveryDescriptor` doc: "shared by
+  operation inputs and model field tags"; `js.rs` renders one
+  `JsDeliveryDescriptor` for both `JsMcpField::Delivery` and
+  `JsModelFieldType::Delivery`). Flattening would be ungrounded
+  reshaping.
+- Version fencing (T04a §7): the descriptor `version` is the frozen
+  capability contract version (`STD_*_VERSION` from `std_capability`,
+  `js.rs` `delivery_descriptor`), exact-match fenced per capability,
+  never negotiated at runtime; mismatch is an incompatible artifact
+  with a precise error, never a silent fallback.
+- Unknown provider kinds reject the whole descriptor set (T04a §3/§7
+  rule, unchanged — stated here, implemented by the later loader
+  join). Current posture: T16a `KNOWN_INPUT_KINDS`
+  (`registry.ts`) has no `delivery` entry, so delivery inputs are
+  refused today; this slice defines the intake rule they will join
+  under.
+- T15b-shape cites: `JsDeliveryDescriptor` + `delivery_descriptor`
+  (`js.rs`); `ArtifactDeliveryDescriptor` / `ArtifactNominalResult` /
+  `ArtifactNominalLeaf` (`artifact.ts`); emission tests `t15b_*`
+  (`codegen.rs`); DESIGN §8 `std.EmailV1`/`std.PaymentsV1`/
+  `std.ErrorsV1` rows ground the capability/operation/result
+  vocabulary.
+
+### 10.2 Decision 2 — verbatim result leaves (no structured tags)
+
+Ratified: KEEP T15b's verbatim `type: string` leaves. No structured
+tag vocabulary is grounded in any owner contract: L2 `values.ts`
+owns exact-value semantics but no nominal-leaf tag vocabulary, T14d
+consumed nominals with verbatim leaves (no tags), and DESIGN §8
+gives per-nominal closed schemas but no machine tag enum. Inventing
+tags here would be ungrounded reshaping.
+
+- Consequence: `artifact.ts` EXAMINED-UNCHANGED — the emitter-side
+  shape needs no change, so none was made. Verbatim leaves derive
+  any future structured vocabulary without loss (`js.rs`
+  `JsNominalLeaf` doc; `artifact.ts` `ArtifactNominalLeaf` doc).
+- Cites: T13c transcription (`catalog.rs` `nominal_schema`,
+  producer order); `js.rs` fail-closed `None` joins
+  (`delivery_descriptor`, `mcp_field_for_resolved` /
+  `model_field_tag` StdDelivery arms); bound-local `Delivery`
+  stays `other`/omit (no T13 contract identity to join).
+
+### 10.3 Decision 3 — recipe key + module-named-`std` collision rule
+
+Ratified recipe key: `delivery:<qualified-send-target>` (e.g.
+`delivery:std.EmailV1.send`), typed as `DeliveryRecipeKey`
+(`state.ts`). The target is the T13 send-target vocabulary
+(`work.ts` `T13A/B_DELIVERY_OBSERVABLES`, `catalog.rs`
+`delivery_observable`); the `delivery:` head is the T14c/T15b
+recipe tag (`js.rs` `delivery:{capability}.{op}` fallback;
+`ir.rs` `decode_delivery_recipe` shared ctor joining the
+`Operation` and recovered-`std` `Unknown` arms under the
+qualified target; `t15b_recipe_join_std` /
+`t15b_recipe_join_negatives_stay_shelled`).
+
+Ratified collision rule (exact precedence, grounded in
+`resolve.rs`): a declared module (app/package) named `std`
+SHADOWS the compiler-known `std` provider. Module registration
+rejects only duplicate identities (E2002) — no rule reserves
+`std` — and `resolve_import` consults `module_by_name` FIRST,
+reaching the T14b/B1 compiler-known-`std` arm only when no
+module matches. So `use std {M}` binds against the declared
+module's scope when one exists (ordinary E2003/E2004 member
+rules); the `External{provider:"std"}` binding fires only
+otherwise. With a module named `std` in the program, no
+`StdDelivery` arises from that import spelling and no
+`delivery:std.*` keys reference the standard capabilities —
+fail-closed, no silent provider switch. Bound
+`from=deployment.*` imports of unknown providers stay opaque
+externals regardless (unchanged).
+
+### 10.4 Decision 4 — L3 mirrors land; L6 McpSchemaField is remainder
+
+Landed (this slice): `CanonicalInputDef` delivery member +
+`CanonicalFieldDef.delivery?` + `CanonicalDeliveryDescriptor` /
+`CanonicalNominalResult` / `CanonicalNominalLeaf` /
+`DeliveryRecipeKey` (`state.ts`).
+
+Recorded remainder (NOT decided): the L6 `McpSchemaField` mirror
+(`ports.ts` has no `delivery` member; `fieldSchema`'s switch is
+exhaustive over the nine existing kinds). Delivery inputs are
+MCP-unsuppliable until T16/T19 decide admit vs precise-reject.
+The `artifact.ts` JSON-identical doc invariant therefore holds
+for the non-delivery members only until L6 decides. No MCP
+admission decision was made here.
+
+### 10.5 Additive-only argument (T04a §6-7)
+
+- `EXECUTION_CONTRACT_VERSION` = 1 and all §1 pins unchanged.
+- `CanonicalInputDef` gains one union member: old consumers either
+  ignore it (non-exhaustive handling) or precisely reject the
+  unknown `delivery` kind per §3/§7 (the T16a loader's
+  `unknown_input_kind` whole-set rejection is exactly that
+  posture). No existing member changed shape.
+- `CanonicalFieldDef.delivery?` is optional: T04a-era literals
+  still satisfy the type; loaders ignoring extra members are
+  unaffected.
+- New interfaces/type are purely additive exports; no name
+  collisions with existing contract modules.
+- `artifact.ts` untouched; no loader/emitter runtime behavior
+  changed.
+
+### 10.6 Exact T04b remainder
+
+- T16 loader consumption join: admit `delivery` inputs/fields
+  (extend `KNOWN_INPUT_KINDS`, per-capability version fencing,
+  closed-shape validation) — defined here, implemented there.
+- L6/T19 McpSchemaField mirror: admit vs precise-reject for
+  delivery inputs (§10.4).
+- Hooks/invariants/locks in descriptors (need T31a/L2 facts).
+- Date/duration/unions/nested-contracts/rich structural literals
+  (need T31a/L2 facts).
+- Generated-policy mapping for authorization predicates;
+  file/progress/receipt observation extensions; full
+  compatibility matrix beyond the §1 pins.

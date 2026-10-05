@@ -141,7 +141,9 @@ export interface ArtifactDeliveryDescriptor {
  * two shapes must stay JSON-identical: `ref` carries the canonical
  * model plus the version requirement; `enum` carries case spellings in
  * declaration order; `delivery` carries the T15b provider descriptor;
- * every other kind is a bare tag.
+ * every other kind is a bare tag. (T04b-p: identity holds for the
+ * non-delivery members until T16/T19 mirror `delivery` in
+ * `McpSchemaField` — delivery inputs are MCP-unsuppliable till then.)
  */
 export type ArtifactOperationField =
   | { kind: 'ref'; model: string; requireVersion: boolean }
