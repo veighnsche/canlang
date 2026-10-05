@@ -36,10 +36,23 @@ install -m 755 target/release/can ~/.local/bin/can
 
 Or eval per shell: `eval "$(can completions bash)"`.
 
+## Internal reference (`can docs`)
+
+```
+can docs app.can --locale=nl --out generated/reference.nl.md
+```
+
+Without `--out`, Markdown goes to stdout; without `--locale`, the
+renderer uses the app default locale plus source fallback
+(`can docs --help` lists the full contract). Like the other thin
+lane-7 entries, `can docs` needs the `can-platform` runtime on `PATH`
+(or `CAN_PLATFORM_BIN`); a missing runtime is a truthful `E7004` tool
+error, never silent output.
+
 ## Environment
 
 - `CAN_CATALOG`: producer catalog path for
   `check`/`compile`/`lint`/`policy` (below `--catalog`, above
   `./can-catalog.json`).
 - `CAN_PLATFORM_BIN`: override path to the `can-platform` binary for the
-  thin lane-7 entries (`run`/`test`/`build`/`deploy`/`activate`).
+  thin lane-7 entries (`run`/`test`/`build`/`deploy`/`activate`/`docs`).
