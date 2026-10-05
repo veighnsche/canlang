@@ -554,3 +554,603 @@ mid-flight insert/move/remove, or re-trigger), and it is NOT adopted.
   complete; remaining gate needs per checklist: items 1–3 (T24/T28/T32
   inputs), 6–8 (size record, Shift anchoring, syntax ordering), 9 (JEV),
   10 (T34 proof plan).
+
+## T28-ownership input (gate evidence)
+
+Writer: T33 gate-inputs (T28 slice). Status: **PREP — adopts NOTHING.**
+APPEND-ONLY: all prior sections byte-identical; checklist items 1-3 text
+untouched (verdicts recorded here, not in the checklist). Read-only
+transcription + mapping; no builds, no JEV, no Git.
+
+Checklist item fed: item 2 (fanout-decision.md:323-327) — T28 ownership
+input for `swap.parent.parent` (Shift:245), the `event.opportunity.Signup`
+reverse collection (Volunteer:178), and any imported-containment facets the
+cohort language may traverse; "gate needs at least the ownership rule for
+locally contained cohort parents."
+
+Verdict: **COMPLETE.** T28 is ticked COMPLETE with Alternative A adopted
+(tasks.md:247-252). The adopted rule is transcribed verbatim in §1 with
+standing obligations in §2. All four fanout cohort parents are
+package-local (§3 census), so the governing rule for the four sites is the
+pre-existing local-containment semantics (DESIGN, read-only), confirmed as
+T28-A's reference; T28-A adds the plain-import extension plus bound
+rejection, which no current fanout site exercises.
+
+### §1 — Adopted T28-A rule, verbatim
+
+tasks.md:252 (T28 evidence, verbatim excerpt): "T28 COMPLETE with
+Alternative A adopted; standing obligations: T29/T16/T17 atomicity proof +
+split diagnostic; DECISIONS recording left for Codex review." JEV record:
+unanimous ADOPT A 3/3 — R1 .49 / R2 .52 / R3 .74; B runner-up .42/.41/.08;
+C at most .05; stable winner, unstable margins (tasks.md:252;
+evidence/jev-t28-20261005/README.md:45-49; model jev-1.13.0, 3505/195
+tokens, all exit 0 — README.md:42-43).
+
+containment-decision.md:65-72 (Alternative A rule, verbatim):
+
+> Rule: `Child in ImportedParent` has exactly the local-containment semantics
+> (team/storage inheritance, immutable `parent` binding, atomic subtree
+> archive/delete, parent-scoped uniqueness, `parentRecord.Child` typed
+> collection) whenever the parent arrives via a plain import whose owning
+> package is included in the selected app. Bound (`from=`) parents are rejected
+> as containment targets with a diagnostic.
+
+Supporting facets (containment-decision.md:74-84): declaring identity stays
+with the child package (only the parent type is imported); plain import =
+same deployment with owner transaction rules, bound import = remote with
+containment forbidden (reference field instead); storage owner = the
+parent's owner (already the same included store); child CRUD owned by the
+declaring package; parent package policy governs parent rows; consumer
+cannot mutate parent or extend its policy; reverse relationships resolve as
+typed `parentRecord.Child` collections through the whole-app index, readable
+only where child read policies grant.
+
+Gate outcome (containment-decision.md:1108-1115, verbatim): "**Gate outcome:
+ADOPT Alternative A (plain_import_containment).** Declaring identity stays
+with the child package; plain import = same deployment with owner
+transaction rules; bound (`from=`) parents stay rejected as containment
+targets. Standing obligations (not waived): T29/T16/T17 must prove
+same-store atomic cross-package subtree commits; a deployment-split
+diagnostic is owed; B's coupling objection is the retained opposing case for
+T29 review. Normative recording (DECISIONS entry) left for Codex review; no
+normative doc edited here."
+
+JEV README gate outcome (evidence/jev-t28-20261005/README.md:69-76,
+verbatim in substance): ADOPT Alternative A (plain_import_containment),
+unanimous across three independently worded equivalent requests, C rejected
+everywhere, D at noise level in two of three; standing obligations carried
+forward, not waived (same-store atomic proof + split diagnostic); T29 needs
+matching T15/T16/T17 facts still pending; normative recording left for Codex
+review.
+
+Local-containment reference semantics (DESIGN, read-only via
+containment-decision.md:30-36, verbatim): "`Model in Parent` creates an
+implicit required immutable `parent:Parent`; the child inherits the parent's
+team and storage owner; `parentRecord.Child` is a typed collection; changing
+containment is not an ordinary update; delete archives the subtree
+atomically; a child write does not advance the parent version; uniqueness
+scopes within the containing parent; `parent` is a protected contextual
+binding; creation defaults may read `parent`."
+
+### §2 — Standing obligations and qualified boundaries (owed, not waived)
+
+- Storage item 5 QUALIFIED (containment-decision.md:829-858; tasks.md:252):
+  spec YES (one owner, one store, one atomic commit — DESIGN.md:532/362/338
+  via containment-decision.md:862-869; contract restates the unit and the
+  no-cross-store-transaction boundary — contracts/state.ts:276-279/359-362
+  via containment-decision.md:870-876), engine UNPROVEN (no cascade code —
+  `cascad` grep over state engine + contracts zero hits; delete archives one
+  row — crud.ts:153-155, pipeline.ts:691-705; generated path still B1 interim
+  — stdlib.ts:1-14, invoke.ts:1-11; all via containment-decision.md:949-974),
+  split diagnostic ABSENT (no check keys on deployment topology; E2008/E4040/
+  E4051 do not cover it — containment-decision.md:1007-1015). Engine proof
+  owned by T29/T16/T17.
+- T29 NOT started (tasks.md:254-259, Evidence: pending). E2008 still rejects
+  imported parents at 20/20 sites (read-decision.md:1466-1467). T29 needs
+  matching T15/T16/T17 (tasks.md:257); current status T15 OPEN (tasks.md:156),
+  T16 COMPLETE (tasks.md:163-168), T17 partial with T17b remainder
+  (tasks.md:170-175: stdlib routing, commit-guard lift, INTERIM_DDL
+  retirement still owed).
+- Normative recording: DECISIONS entry left for Codex review; no normative
+  doc edited by the gate (containment-decision.md:1114-1115).
+- Retained opposing case: B's coupling objection — consumer-triggered
+  cascades touching owner-adjacent rows; atomicity promise rests on owed
+  engine work plus a split scenario with no diagnostic
+  (evidence/jev-t28-20261005/README.md:62-65; containment-decision.md:95-102
+  full case).
+
+### §3 — Fanout-site ownership census (all four sites local)
+
+- Shift: `package shift` (CanShift.can:8); `Roster` (:40);
+  `Availability in Roster` (:41); `Commitment in Roster` (:42);
+  `Duty in Commitment` (:45); `Swap in Duty` (:47). Site 1 `each=Commitment`
+  (:237); site 2 `each=Swap` (:243); `let commitment=swap.parent.parent`
+  (:245) traverses Swap to Duty to Commitment — all package-local links.
+- Volunteer: `package volunteer` (CanVolunteer.can:5); `Community` (:18);
+  `Opportunity in Community` (:19); `Signup in Opportunity` (:20);
+  `Task in Signup` (:21). Site 3 `each=Signup` (:47, filter
+  `signup.parent.id==event.id` at :49); site 4
+  `each=event.opportunity.Signup` (:178) traverses the local
+  `Opportunity.Signup` typed collection.
+- Disjointness from T28's 20 E2008 sites: the 20-site table
+  (containment-decision.md:283-304) names children Expense,
+  CommercialHistory, CommercialSale, Invoice, Calendar, Allowance, Service,
+  Membership, BenefitRequest, BenefitFence, AccessWatch, Checklist, Proposal,
+  Visit, GuestPolicy, HostPresence, Capture, Account, Entry, PeriodReview —
+  none is Commitment, Swap, Signup, Opportunity, Roster, Duty, or Community.
+  Zero overlap (table census).
+- Bound parents: zero corpus-wide (containment-decision.md:312-328: all 76
+  `from=` lines bind capability interfaces or value types only; Employee,
+  Customer, Location never bound). Shift/Volunteer `from=` lines bind only
+  ScheduleRequests/Mail (CanShift.can:11,13; CanVolunteer.can:9), never cohort
+  parents. T28-A's bound-rejection clause is inapplicable to all four sites,
+  and untested by draft evidence in both directions per its own record
+  (containment-decision.md:330-336).
+- Imported-containment facets traversed by current cohort language: NONE.
+  Conditional only: if the adopted cohort language later traverses an
+  imported parent, T28-A governs (plain allowed with full local semantics;
+  bound rejected with diagnostic).
+- Parent-selector legibility: R07 parent selectors accepted via T08
+  (containment-decision.md:42-43; tasks.md T08 ticked COMPLETE) — path SHAPE
+  only, distinct from containment-target acceptance
+  (read-decision.md:1471-1473). No conflation claimed here.
+
+### §4 — Mapping to fanout alternatives A-D (kills nothing)
+
+- Alternative A — durable checkpointed fanout, both cohort spellings
+  (fanout-decision.md:94-150). SUPPORTS the reverse-collection half's
+  legibility: `event.opportunity.Signup` traverses a `parentRecord.Child`
+  typed collection confirmed for local containment
+  (containment-decision.md:30-36) and extended to plain imports by T28-A
+  (containment-decision.md:67-72); confirmatory for site 4 (local), not new.
+  CONSTRAINS A's proof: checkpoint-advance-in-same-owner-batch
+  (fanout-decision.md:110-112) relies on same-store atomic batch — spec YES,
+  engine proof owed via T16/T17 (T29's cross-package part unneeded for these
+  same-package sites; T17b remainder per tasks.md:175 still owed). NEUTRAL on
+  A's bare-model half: T28-A supplies no whole-model enumeration coverage
+  (storage survey: corpus exercises only default-D1 team-scoped topology —
+  containment-decision.md:919-926), so A's 499/500/501/1000 completeness proof
+  stands exactly as stated. Bound clause inapplicable (§3).
+- Alternative B — single-transaction bounded fanout
+  (fanout-decision.md:152-201). NEUTRAL. B's single-owner-transaction premise
+  is consistent with T28-A's same-deployment owner-transaction rule
+  (containment-decision.md:76-78) but needs nothing from it — all four sites
+  are same-package local, same-owner by construction. Cap, all-or-nothing
+  atomicity, conflict retry, and whole-sweep semantics untouched by
+  containment. Shared note, not B-specific: B's trigger batch touching parent
+  plus children in one commit relies on the same T16/T17 atomic-batch proof as
+  A, minus any T29 cross-package part.
+- Alternative C — no fanout primitive; remodeling
+  (fanout-decision.md:203-250). SUPPORTS remodeling vocabulary: explicit
+  queries over `parentRecord.Child` plus `parent` navigation remain legal
+  under confirmed local semantics; plain-imported traversal available if a
+  remodel crosses packages (T28-A extension). Does NOT satisfy C's R19 flip
+  burden — fanout-decision.md:244-249 demands a continuation design with EQUAL
+  completeness/recovery; containment settles relations, not enumeration
+  completeness. C's keep-E1203 stance untouched (different diagnostic,
+  different gate; T28-A governs E2008 targets, not `each=`).
+- Alternative D — parent-anchored cohorts only
+  (fanout-decision.md:251-296). SUPPORTS anchored-cohort legibility most
+  directly: D's cohort language (parent-anchored collections) traverses
+  exactly the `parentRecord.Child` shape T28-A confirms (local for site 4 —
+  CanVolunteer.can:19-20; plain-imported extension available). CONSTRAINS D's
+  proof identically to A within adopted cohorts (same machinery —
+  fanout-decision.md:263-266; T16/T17 batch proof owed, T29 cross-package part
+  unneeded locally). CONSISTENT with D's bare-model remainder: T28-A makes no
+  whole-model directory promise, so bare-model staying blocked until a
+  coverage contract exists contradicts nothing in T28-A.
+
+### §5 — Genuinely indeterminate (never forced)
+
+- **JEV-PENDING** (T28 to A/D parent-archive-mid-flight): T28-A specifies
+  atomic subtree archive at spec level, but the cascade is unimplemented and
+  the generated path interim (containment-decision.md:949-974), while draft
+  cascade/orphan intent is 20/20 absent (containment-decision.md:468-475). No
+  evidence pins what a frozen A/D cohort does when the cohort parent is
+  archived mid-flight (children skipped, failed, or cohort voided). The gate
+  must rule without draft or engine grounding.
+- **JEV-PENDING** (T28 to A/D checkpointed-child-of-archived-parent): compounds
+  the existing skip-vs-fail marker (fanout-decision.md:117, which covers a
+  concurrently DELETED child) — the archived-PARENT-of-live-child outcome
+  (skip vs fail vs inherit-archive) has no draft anchor (same 20/20 absence)
+  and no engine behavior. Distinct question, same absence.
+
+## T24-dispatch input (gate evidence)
+
+Writer: T33 gate-inputs (T24 slice). Status: **PREP — adopts NOTHING.**
+APPEND-ONLY (same reservation as the T28 section above). Read-only
+transcription + absence record; no builds, no JEV, no Git.
+
+Checklist item fed: item 1 (fanout-decision.md:320-322) — "T24 dispatch
+evidence: atomic trigger-commit/outbox-staging shape and recovery-scan
+behavior that A/D fanout intents would ride on (T24 pending — applicable
+slices must land before the gate can accept A/D)."
+
+Verdict: **ABSENT — exact absence record; nothing to qualify.** T24 has no
+writer, no slice, no commit, no evidence file. Task text transcribed verbatim
+in §1 (tasks.md:219-224). Prerequisites: T16 COMPLETE (tasks.md:163-168),
+T17 partial with T17b remainder (tasks.md:170-175), T13 COMPLETE
+(tasks.md:142), T14 COMPLETE (tasks.md:149) — bound-send contract slices
+satisfied; T24 itself not started.
+
+### §1 — T24 task text, verbatim (tasks.md:219-224)
+
+> - [ ] **T24 — Join generated effects to durable dispatch**
+>   - Prerequisites: T16/T17 and matching effect contracts; bound sends
+>     matching T13/T14.
+>   - Owner / files / interfaces: L4 with L3/L7 join;
+>     packages/work/src/dispatch/index.ts, packages/work/src/intent/index.ts,
+>     packages/work/src/kernel/commands.ts, packages/work/src/recovery/index.ts;
+>     packages/state/src/effects/staging.ts, packages/state/src/ports/
+>     transact.ts (L3 writes); packages/cloudflare/src/runtime/invoke.ts,
+>     packages/cloudflare/src/runtime/stdlib.ts, packages/cloudflare/src/runtime/
+>     context.ts, packages/cloudflare/src/runtime/env-assembly.ts,
+>     packages/cloudflare/src/runtime/mcp-registry.ts, packages/cloudflare/src/
+>     worker/assembly.ts (L7 writes). Serialize overlapping producer-owned
+>     writes.
+>   - Changes / traceability: RQ03/RQ05; canonical design/task: Accountable
+>     lead: L4 with L3/L7. Depends on T16/T17 and the relevant effect/operation
+>     contracts; bound sends additionally require matching T13/T14 slices. Stage
+>     domain/history/replay/outbox/dispatch atomically. Done when the full
+>     promised rollback, guards, skipped outcomes, retry and recovery satisfy
+>     their contracts.
+>   - Acceptance: Atomic domain/history/replay/outbox staging connects actual
+>     generated effects to dispatch; origins/guards/skips/rollback/retry/
+>     recovery proved; never infer cross-store atomicity.
+>   - Evidence: pending; record revision, commands/results, positive/negative/
+>     runtime level and released handoff.
+
+T33 brief dependency (tasks.md:282-287): T33 prerequisites cite "matching
+T28/T24 evidence"; acceptance "requires applicable T28 ownership and T24
+dispatch evidence plus the design consultation protocol"; coordinator status
+"remaining: T24/T28/T32 inputs + JEV." T34 (tasks.md:289-294) requires
+adopted T33 plus T24 plus applicable T28/T29/T32.
+
+### §2 — Absence record: what exists (substrate, NOT T24 evidence)
+
+- `@canlang/work 0.0.0` (14 kernel entries: intent/outbox/event/schedule/
+  dispatch-guard/receipt/recovery) backs receipt observation and durable
+  dispatch behind DeliveryResult; no draft imports it directly
+  (interface-inventory.md:85). Existence only.
+- `packages/state/src` carries effects staging/outbox/intent ports the T24
+  join will use; no T12 claim beyond existence (interface-inventory.md:89).
+- `CommitBatch` atomic batch shape including outbox
+  (contracts/state.ts:281-298 via read-decision.md:1181-1183;
+  `CommitBatch.outbox`/`outboxAck` via read-decision.md:1281-1282).
+- Single-shot fenced commit port, no retry; fence conflicts surface as
+  retryable `busy` (ports/transact.ts:1-48 via read-decision.md:1177-1180).
+- T16 COMPLETE: canonical verified-context admission plus ports, no parallel
+  engine (tasks.md:168). T17a done: canonical-validator redirect,
+  invokeRead/createReadInvoker, durable 8/8 on miniflare D1 plus workerd DO
+  with restarts explicitly unclaimed (tasks.md:175).
+
+### §3 — Absence record: what is missing (exact)
+
+- The T24 join itself: atomic domain/history/replay/outbox staging connecting
+  ACTUAL GENERATED effects to dispatch (tasks.md:223) — no implementation,
+  no proof.
+- Origins/guards/skips/rollback/retry/recovery proofs (tasks.md:223).
+- T17b remainder upstream: stdlib create/set/deleteRecord routing to the
+  canonical engine, records() to createReadInvoker/invokeRead, commit-guard
+  lift, stdlib direct paths plus router interim path plus INTERIM_DDL
+  retirement (tasks.md:175) — generated operations still partially interim.
+- Fanout-specific substrate (A/D): fanout-intent staging atomically with the
+  trigger commit plus durable checkpoint table plus recovery scan
+  (fanout-decision.md:137-141) — design text only, no implementation.
+- Recovery-scan behavior for duplicate-trigger replay and crash resume
+  (needed by fanout-decision.md:320-322; provided nowhere).
+- Census: `rg "T24"` over implementation/challenge-audit-run/evidence returns
+  only checklist/plan mentions (fanout-decision.md:138,190,320-321,554;
+  hook/read-decision substrate-plan mentions; interface-inventory B3/B10 scope
+  tags) — zero T24 completion claims. No `evidence/*t24*` or
+  `evidence/*dispatch*` decision file exists (evidence dir listing: app-intent,
+  containment-decision, continuation-contract, execution-contract,
+  fanout-decision, hook-decision, interface-inventory, jev-t28-20261005,
+  read-decision, root-causes).
+
+### §4 — Mapping to fanout alternatives A-D (absence bars acceptance, kills nothing)
+
+- Alternative A (fanout-decision.md:94-150). BLOCKED on T24: needs BOTH basic
+  staging (trigger transaction's domain/history/replay/outbox) AND
+  fanout-specific substrate (intent staging atomically with trigger commit —
+  fanout-decision.md:138-139; checkpoint table; recovery scan —
+  fanout-decision.md:137-141). Per checklist item 1's own text, applicable
+  slices must land before the gate can accept A (fanout-decision.md:320-322).
+  Absence kills nothing (no evidence against A's design); it bars ACCEPTANCE,
+  not consideration. A's T34 proof burden (crash resume, duplicate-trigger
+  replay, retry horizons — fanout-decision.md:139-141) presupposes T24
+  recovery machinery.
+- Alternative D (fanout-decision.md:251-296). Identical to A, scoped to
+  anchored cohorts (same machinery — fanout-decision.md:284-288). Same
+  verdict: acceptance blocked until applicable T24 slices land; design
+  unrefuted.
+- Alternative B (fanout-decision.md:152-201). Needs T24-BASIC only: "T24 join
+  is the ordinary already-planned outbox staging" (fanout-decision.md:190-191);
+  no new intent type, checkpoint table, or recovery scan
+  (fanout-decision.md:189-192). Still unexecutable without T24-basic:
+  Volunteer children send Mail, schedule, and cancel (CanVolunteer.can:52,
+  150,170,184,191), which require atomic outbox staging. As a DECISION, B's
+  rule (single-transaction bounded iteration — fanout-decision.md:154-157)
+  carries a lighter T24 bar than A/D — but whether the gate may accept B's
+  rule before T24-basic lands (T34 proving after) vs must wait is unpinned
+  (checklist item 1 names A/D only). See §5.
+- Alternative C (fanout-decision.md:203-250). As a LANGUAGE decision (keep
+  `each=` rejected — fanout-decision.md:205-209), needs NO T24 evidence: the
+  gate could scope fanout without dispatch. C's REMODELED WORKFLOWS still need
+  T24-basic to execute (same sends/schedules as B), and C's site-by-site
+  equivalence witnesses (fanout-decision.md:227-232) need T23 example
+  execution (T23 OPEN — tasks.md:212) plus T24 dispatch. Decision unblocked;
+  execution plus proof blocked. Both halves recorded; neither is a kill.
+
+### §5 — Genuinely indeterminate (never forced)
+
+- **JEV-PENDING** (T24 to B acceptance ordering): checklist item 1 orders A/D
+  acceptance after applicable T24 slices (fanout-decision.md:320-322) but is
+  silent on B. May the gate accept B's single-transaction rule with T24-basic
+  as a T34 prerequisite, or must T24-basic land first? No evidence pins the
+  ordering. (For A/D the ordering is SETTLED by the checklist — no marker. For
+  C-as-scoping no dispatch evidence is applicable — no marker.)
+
+## T32a-read-rule input (gate evidence)
+
+Writer: T33 gate-inputs (T32a slice). Status: **PREP — adopts NOTHING.**
+APPEND-ONLY (same reservation). Read-only transcription of settled fence
+fragments plus qualified boundaries; no builds, no JEV, no Git.
+
+Checklist item fed: item 3 (fanout-decision.md:328-331) — "T32 read-fence
+input: child bodies re-read current state (version guards, `eligible()`,
+`can_work()`); per-child staleness/revocation boundaries come from the
+accepted T32a rule (T32a prep done, gate pending)."
+
+Scoping note (exact): the tasks.md T33 brief (tasks.md:283-285) names T28/T24
+evidence, NOT T32. T32 input is required by prep checklist item 3 plus
+coordinator status "remaining: T24/T28/T32 inputs + JEV" (tasks.md:287), not
+by the task brief. Recorded exactly as scoped; whether T32a absence blocks
+acceptance is carried as pending (§4), never inferred.
+
+Verdict: **QUALIFIED — settled fence fragments (F1-F8) transcribed below with
+boundaries; NO ADOPTED READ RULE.** T32a JEV not run (read-decision.md:397-400
+checklist item 8; no `evidence/jev-t32*` directory — dir-listing census; `rg`
+for a T32a JEV-outcome section returns zero hits). Checklist: items 1,2
+COMPLETE; item 3 COMPLETE; item 5 COMPLETE; item 7 COMPLETE; item 6 QUALIFIED;
+item 4 (R29/T23) OPEN; item 8 (JEV) OPEN (read-decision.md:356-400;
+tasks.md:275-280). All four T32a alternatives still carry pending markers;
+none ranked or adopted (read-decision.md:354: "No alternative is ranked or
+adopted here. Ranking is the JEV gate's job.").
+
+### §1 — Settled fragments, verbatim with refs
+
+F1. DESIGN revocation boundary (read-only settled context —
+read-decision.md:44-50, verbatim): "a completed membership removal prevents
+new admissions; an already admitted operation may finish; on D1 the fenced
+commit also detects intervening membership changes (L291). Role predicates use
+current admission authorization state and the same commit fence as
+caller-role checks, and must not become stored historical invariants that
+invalidate old records on later revocation (L295)."
+
+F2. DESIGN fence (read-decision.md:51-62, verbatim): "admission-time
+authentication, role, and active-membership facts are a **trusted context
+snapshot** with the revocation boundary in §4; business eligibility requiring
+atomic revocation must live at the same owner as the decision (L549). V1 D1
+uses a database-wide optimistic revision fence: read the primary revision
+before all state-dependent reads, evaluate bounded pure DSL, assert the same
+revision in one batch, retry at most three times; submitted stale record
+versions still produce `conflict` (L551-558). Pure read operations validate
+the revision again after dependent reads; changed revisions retry rather than
+return a mixed authorization snapshot. A successful mutation rechecks current
+read permission before serializing its result (L558)."
+
+F3. DESIGN settled no-preflight rules (read-decision.md:63-72, verbatim): "no
+separate preflight authorization query is required for payment, since its
+answer cannot authorize a later payment (L650); an unavailable/stale source
+cannot expose an executable old action (L632); a send's optional `when` is a
+pure dispatch guard over current owner state, checked atomically with
+supersession before claiming the provider work (L524); mutable receipt
+status/result/error reads enroll the observation revision in the read fence
+(L668, L1077); completed replay returns the saved outcome projected against
+current access, even though its submitted versions are now stale (L562)."
+
+F4. DECISIONS settled plus open (read-decision.md:73-82, verbatim in
+substance): #95 reject stale conflicting edits rather than silently
+overwrite; #124 re-check guards at the authoritative storage location; #126
+one authoritative coordinator per reservation resource; #129 persist
+recoverable work only after authoritative acceptance; #143 transaction-time
+snapshots for monetary values whose configuration can later change; #138 OPEN
+— consistency guarantees for D1 mutations, replicas, and read sessions remain
+unspecified; page-discovery admission reuses guard-needed bindings at the same
+checkpoint (L739); payment dispatch validation adopted over a preflight read
+(L703).
+
+F5. Revocation-timeliness adjudication, item 3 COMPLETE
+(read-decision.md:858-861, verbatim verdict): "**NOT silent — immediate
+live-membership revocation; static role grants explicitly excluded as a
+revocation channel.** Partially silent on exactly one point: no in-flight
+(admit-then-revoke-before-commit) timing evidence exists." Evidence:
+Grant:183 `deactivate` succeeds, then Grant:184
+`colleague.active,reviewer(reviewer_user),can_work(reviewer_user,test_site)
+-> false,true,false` (static grant SURVIVES, live flips), then Grant:185
+`decide` by the deactivated reviewer errors; zero intervening operations
+(read-decision.md:898-906). Fence-scope constraint on ALL T32a alternatives
+(read-decision.md:944-952, verbatim in substance): the revocation fence must
+enroll LIVE membership state (`Employee.active` / `can_work` /
+`active_member`), never static role atoms alone — Grant:184 proves a
+role-grant-keyed fence would wrongly allow Grant:185. Partial silence
+(read-decision.md:927-933): no in-flight timing; asserted stale-version
+conflicts (Grant:192,231,291,310) are version fencing, not revocation; DESIGN
+L291 "already admitted may finish" UNANSWERED by Grant — genuine gate question
+under every alternative.
+
+F6. T06 admission-fact input, item 5 COMPLETE (read-decision.md:1003-1006,
+verbatim verdict): "**COMPLETE — R26-layer-1 actor rule CONFIRMED as landed
+(T06 ticked COMPLETE in tasks.md).**" Substance: admitted expressions carry
+non-null actor facts via exactly four `DeclKey::CtxActor` insert sites
+(scenario `by=` to guards+body; policy `read=` to `where=`; CRUD `by=` to
+`when=`; boolean continuations via `collect_narrow`) — read-decision.md:
+1049-1069; a TYPING fact only — grants no permission and no currency (T03 §9;
+R04 boundary: check-time facts never become staleness promises) —
+read-decision.md:1084-1087. Remaining E3010 purity rejections at pure-position
+sites are NOT missing narrowing — actor-nullability settled (219 removed / 0
+added, all actor-shaped); still-rejected admitted-actor sites are layer-2
+purity (need the adopted fence) or genuine negatives —
+read-decision.md:1087-1096. Pin: `t06_bounded_read_stays_gated` — a
+state-reading call in a pure position STILL yields E3010 until T32 adopts
+(read-decision.md:1096-1099).
+
+F7. Durable-fence evidence plan, item 7 COMPLETE — PLAN, not proof
+(read-decision.md:1168-1173, verbatim status): "**PREP — adopts NOTHING.**
+Checklist item 7 evidence only; a PLAN, not proof." Substance:
+per-alternative proof maps all require D1/DO execution (revision assertion,
+interleaving, crash recovery, cross-owner fencing, revocation timeliness) —
+read-decision.md:1222-1302; memory-store tests MAY claim deterministic unit
+semantics only and MAY NOT claim durability, atomicity-under-crash,
+fencing-under-concurrency, interleaving, cross-owner-fencing, or
+revocation-timeliness — read-decision.md:1304-1319; DECISIONS #138 stays OPEN
+until D1/DO-backed execution evidence for the adopted alternative exists —
+read-decision.md:1321-1328; spend/dispatch paths proven on the T24 substrate
+once it exists — "Until T24 lands, spend-fence claims are UNPROVEN — not
+memory-proven" (read-decision.md:1275-1285). STALENESS NOTE: the plan's
+runtime-status sentence ("T16, T17, T24 all OPEN with Evidence: pending" —
+read-decision.md:1214-1220) predates T16 COMPLETE plus T17a; current status is
+tasks.md:168 (T16 COMPLETE) plus tasks.md:175 (T17a done / T17b remainder).
+Substrate mapping stands; status sentence superseded.
+
+F8. T28-ownership input, item 6 QUALIFIED (read-decision.md:1356-1360,
+verbatim verdict): "**QUALIFIED — T28 half CONFIRMED (adopted rule + JEV +
+enumeration), T29 half ABSENT-with-reason (implementation not started; needs
+matching T15/T16/T17).**" Substance: imported-parent reads enroll in the SAME
+owner checkpoint / revision fence as a local read — no cross-owner fence
+(read-decision.md:1384-1400); DESIGN same-owner rule satisfied by construction
+(read-decision.md:1401-1408); grant decision stays with the owning policy;
+revocation fence enrolls LIVE membership rows (read-decision.md:1409-1421);
+bound rejected, no bound-parent read exists to fence
+(read-decision.md:1422-1436); retained split-hazard caveat — same-fence holds
+ONLY while the deployment stays shared, no split-time diagnostic
+(read-decision.md:1437-1454). Net: enrollment RULED but UNPROVEN — no checker
+acceptance (E2008 still rejects 20/20), no descriptors, no D1/DO fence
+execution across the import boundary (read-decision.md:1495-1502).
+
+OPEN (not transcribed — nothing settled): item 4 R29/T23 input-vs-observation
+(read-decision.md:376-378, no writer, no marker); item 8 coordinator-run JEV
+(read-decision.md:397-400). Enumeration items 1-2 (473 pure-position lines;
+288-record spend inventory of 236 sends / 69 targets / 22 money-creates / 27
+allowance-sets — read-decision.md:410-815; tasks.md:280) are COMPLETE
+inventories cited here only as scope (236/69 corroborated against independent
+T12 counts — tasks.md:280); per-site rows not transcribed.
+
+### §2 — Qualified boundaries (what the fragments do NOT supply)
+
+- No composed read/snapshot/revalidation contract: permission/revision/
+  revocation fence combination, stale-read kinds, read-to-effect gap rule, and
+  transitive-effect fencing differ across the unadopted alternatives A-D
+  (read-decision.md:115-331, pending markers preserved there). F1-F8 constrain
+  every alternative identically except where the mapping notes otherwise.
+- No snapshot-semantics ruling: database-wide revision assertion (F2/L551) vs
+  narrowed/pinned assertion is the T32a A-vs-C question
+  (read-decision.md:232-238, marked pending there) — fanout B's "snapshot
+  isolation" premise inherits this exact gap (see §3).
+- No in-flight revocation ruling: DESIGN L291 "already admitted may finish" vs
+  mid-flight revocation voids commit — open under every T32a alternative
+  (read-decision.md:136-139, marked pending there; F5 partial silence).
+  Fanout A/D per-child admission plus B whole-occurrence commit inherit it.
+- No T23/R29 observation rule (item 4 open): fanout T34 proof observations
+  (per-child outcomes, checkpoint state) inherit this blocker under EVERY
+  alternative's proof tests, not just C's.
+- Spend-fence claims UNPROVEN until T24 lands (F7) — fanout children that
+  send/schedule (Volunteer sites — CanVolunteer.can:52,150,170,184,191)
+  inherit the T24 absence recorded in the T24 input above.
+
+### §3 — Mapping to fanout alternatives A-D (constrains all, kills none)
+
+- Alternative A — per-child occurrences, frozen cutoff, version-guarded
+  admission (fanout-decision.md:94-150). Fragments CONSTRAIN each per-child
+  admission: `can_work` / `active_member` reads in child bodies (Shift
+  review_swap invalidation predicate — CanShift.can:247; `eligible()` derives
+  — CanShift.can:75-76; Volunteer `signup.version` / `parent.version` guards
+  — CanVolunteer.can:150,184,191) must enroll LIVE membership state per F5,
+  never static atoms; T06 typing (F6) reaches the guards but grants no
+  freshness — admission must still fence. F7 REQUIRES D1/DO proof for A's
+  checkpoint-advance-in-same-owner-batch, concurrent insert/move/remove
+  interleavings, crash resume, and duplicate-trigger replay; memory may show
+  shapes only. F8 settles same-fence enrollment for imported-parent reads in
+  child bodies (rule) with proof owed (T29/T16/T17). NOTHING kills A; NOTHING
+  completes A. A's skip-vs-fail (fanout-decision.md:117) and
+  supersession-spelling (fanout-decision.md:130) questions are untouched by
+  F1-F8 (F5 covers membership revocation, not record deletion or re-trigger) —
+  still pending as stated. Acceptance ordering (fragments now + composed rule
+  as T34 prerequisite, vs adopted T32a first) unpinned — see §4.
+- Alternative B — whole-occurrence transaction, snapshot isolation, conflict
+  retry (fanout-decision.md:152-201). Fragments CONSTRAIN the whole-commit
+  fence identically (live-membership enrollment per F5; typing-is-not-freshness
+  per F6; D1/DO proof per F7). SUPPORTS one B premise: B's "concurrent write
+  fails the whole fanout for retry" (fanout-decision.md:167-169) aligns with
+  settled DECISIONS #95 (reject stale conflicting edits — F4). WEAKENS BY
+  ABSENCE another: B's "no insert/move/remove policy beyond snapshot
+  isolation" (fanout-decision.md:167-169) presupposes a snapshot semantics T32a
+  has NOT adopted (database-wide vs pinned — §2 above); B's snapshot premise
+  is UNGROUNDED until T32a JEV — see §4. A grounding gap is not evidence
+  against the design: kills nothing.
+- Alternative C — remodeling under "ordinary read-fence rules (T32-gated)"
+  (fanout-decision.md:211-213). MOST EXPOSED by C's own text: without an
+  adopted T32a, C's "ordinary read-fence rules" do not exist. Remodeling
+  queries inherit F1-F8 as fragments (live-membership enrollment, no-preflight
+  F3, version-conflict F2/F4), but the composed rule is missing. C's
+  site-by-site equivalence witnesses (fanout-decision.md:227-232) additionally
+  need item-4 R29/T23 (open) plus T24-basic (absent). Prerequisite stack, not a
+  kill: recorded as cost consistent with C's own costs section ("maximum
+  per-site migration and review cost" — fanout-decision.md:238-240). As a
+  LANGUAGE decision (keep `each=` rejected — fanout-decision.md:205-209), C
+  needs no T32a evidence — same decision-vs-execution split as the T24 input;
+  C's EXECUTION plus PROOF need the deepest stack (adopted T32a rule + T23 +
+  T24).
+- Alternative D — as A within adopted cohorts (fanout-decision.md:263-266).
+  Inherits A's mapping EXACTLY within each adopted cohort (per-child receipts,
+  frozen cutoff, version-guarded admission, per-child retry — same F5/F6/F7/F8
+  constraints and proofs). Anchored-collection reads enroll the same-owner
+  fence per F8 (settled rule, owed proof). D's bare-model remainder interacts
+  with T32a not at all (blocked cohorts need no fence) — no constraint, no
+  support. Same acceptance-ordering question as A (see §4).
+
+### §4 — Genuinely indeterminate (never forced)
+
+- **JEV-PENDING** (T32a to A/D acceptance ordering): checklist item 3 states
+  per-child boundaries "come from the accepted T32a rule"
+  (fanout-decision.md:328-331) without item-1-style blocking language, and the
+  T33 task brief does not name T32 (tasks.md:283-285). May the gate accept A/D
+  with F1-F8 fragments plus the composed fence rule as a T34 prerequisite, or
+  must adopted T32a precede acceptance? No evidence pins the ordering.
+- **JEV-PENDING** (T32a to B snapshot grounding): B's snapshot-isolation premise
+  (fanout-decision.md:167-169) awaits T32a's database-wide-vs-pinned ruling
+  (read-decision.md:232-238, marked pending there). May B be accepted with the
+  snapshot kind as a T34 proof obligation, or does the gate need the adopted
+  snapshot rule first? No evidence pins it. (C's T32-gating is self-declared in
+  its own rule text — fanout-decision.md:211-213 — no marker; the gate reads
+  C's text as written.)
+
+## Gate-inputs handoff (T28/T24/T32a)
+
+- Writer: T33 gate-inputs evidence writer. APPENDED three sections above plus
+  this handoff to `implementation/challenge-audit-run/evidence/fanout-decision.md`
+  ONLY; all prior sections byte-identical (no checklist-marker edits — items
+  1-3 verdicts live in the appended sections); all drafts, normative docs,
+  tasks/monitor/inbox, code, and `tools/jev.py` untouched; no JEV run; no Git;
+  no builds (rg/reads only).
+- Verdicts: T28-ownership COMPLETE (adopted A transcribed with obligations);
+  T24-dispatch ABSENT (exact absence record — no writer, slice, commit, or
+  file); T32a-read-rule QUALIFIED (F1-F8 fragments transcribed; items 4/8
+  open; no adopted rule).
+- Pending markers added: 5 (T28-to-A/D x2; T24-to-B x1; T32a-to-A/D x1;
+  T32a-to-B x1). File total now 18 (13 prep + 5 here, verified by rg census).
+  Zero adoption language: no fanout alternative recommended, ranked, or
+  killed; T32a alternatives unranked.
+- Gate fully fed? NO. Remaining: T24 applicable slices (blocking A/D
+  acceptance per item 1); adopted T32a rule (item 3 qualified; ordering
+  questions pending as marked); item 6 size record; item 7 Shift anchoring;
+  item 8 syntax-ordering procedure; item 9 coordinator-run JEV; item 10 T34
+  proof plan.
+- Commands run (read-only): `rg -c/-n` censuses (pending markers, T24
+  mentions, checkbox states, JEV-outcome absence); `ls` of evidence dirs;
+  full reads of fanout-decision.md, containment-decision.md (Alternative A,
+  storage, JEV outcome), jev-t28 README, read-decision.md appends (revocation,
+  T06, fence-plan, ownership), tasks.md T13/T14/T15/T16/T17/T23/T24/T28/T29/
+  T32/T33 lines, draft CanShift.can/CanVolunteer.can fanout neighborhoods.
+- Release: this file is RELEASED to the coordinator for gate scheduling.
