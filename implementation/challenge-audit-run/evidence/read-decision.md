@@ -1591,3 +1591,395 @@ code, no normative-doc, no tasks/monitor/inbox edits.
 
 Release: implementation/challenge-audit-run/evidence/read-decision.md
 is RELEASED to the coordinator for JEV-gate scheduling.
+
+## R29/T23 example-contract input (gate evidence — checklist item 4)
+
+Writer: L3 T32a-item4. Status: **PREP — adopts NOTHING.**
+Checklist item 4 only (read-decision.md:376-378); all alternatives stay
+unranked and every **JEV-PENDING** above is preserved. Read-only survey
+of the R29 contract text, the T31a-established example inputs reused
+for reads, and read-specific example inputs the T31a census did not
+cover; no builds, no JEV, no Git. T23, T22, T21 are OPEN with
+"Evidence: pending" (tasks.md:198-217) — draft-source inputs below are
+usable proof-test candidates, not executed proofs.
+
+### Verdict for item 4
+
+**QUALIFIED gap with usable inputs**: (a) T23-executed inputs are
+ABSENT — no compiled example has ever executed, so no observation
+below was ever observed passing/failing; (b) concrete draft-source
+inputs EXIST — 0 pairwise-discriminating read outcomes, 9
+revocation/re-read sequence blocks + a 31-row stale-conflict corpus +
+20 predicate-observation lines as proof-test candidates, 2 control
+groups, 5 input-alias-shaped contract blocks, all with file:line refs
+and per-alternative maps below; (c) the R29 flip is OPEN, with one
+settled DESIGN sentence (DESIGN.md:405, "freshly reloaded") the JEV
+must reconcile against input-alias-shaped drafts. The gate may use
+the draft inputs as T32b proof-test candidates, but every map is
+derived from draft text + contract text, not execution. (Checklist
+marker above left for the coordinator: this writer's reservation is
+append-only.)
+
+### Absence record (T23-executed inputs — what exists, what is missing)
+
+- EXISTS (plan/task text, no execution):
+  `implementation/challenge-audit-run/tasks.md:212-217` — T23 OPEN,
+  "Prerequisites: matching T22a/b/c and T04 emitted-example
+  contract", "Done only when the full promised calls/callers/prior
+  commits/independent observations/rejection/no-change assertions
+  execute and deliberately broken expectations fail", "Evidence:
+  pending". T22 (`tasks.md:205-210`) and T21 (`tasks.md:198-203`)
+  likewise OPEN with "Evidence: pending".
+- EXISTS (agreed contract slice): T04a FROZEN (`tasks.md:414`),
+  including §5 emitted-example rules
+  (`evidence/execution-contract.md:92-110`, quoted below).
+- MISSING: T04b remainder — "generated-policy mapping for
+  authorization predicates" plus "file/progress/receipt observation
+  extensions" (execution-contract.md:144-149). The contract half a
+  read-fence proof test needs (how authorization-predicate
+  observations are emitted) is explicitly remaindered.
+- MISSING: any executed compiled table/sequence anywhere (T23a
+  follows T22a, which needs T15a/T16/T17). Consequence: all maps
+  below are draft-text derivations. Any T32 proof test built from
+  these inputs is T23a-scope work.
+
+### Contract half (a): R29 + T04a §5 verbatim
+
+R29 (`evidence/root-causes.md:562-579`):
+
+> ### R29 — example input-vs-observation attribution (E5002)
+> - Site: `CanLeave.can:136` examples header for `decide`:
+>   `as,request.parent.parent.user,... -> request.state,...` —
+>   `unknown field 'parent' on Calendar` and `'request' is an input,
+>   not an observation`.
+> - Intent: assert the decided request's new state and the allowance
+>   remainder.
+> - Root: unclear attribution between input bindings and post-call
+>   observations (is observing through the input binding allowed, or
+>   must observations reload stored state?), plus a possible
+>   Calendar `parent` selector gap (T08-adjacent).
+> - Bucket: **c/b** unresolved — recorded as **c** pending T23
+>   semantics. Owner: L7 T23 with draft owner T36.
+> - Opposing: observations must read reloaded isolated stored state;
+>   input aliases may be stale or ambiguous, so rejecting them could
+>   be correct (bucket a reading).
+> - Confidence low. Flip: the adopted emitted-example contract
+>   explicitly allows or forbids input-alias observations.
+
+T04a §5 (`evidence/execution-contract.md:92-110`, frozen):
+
+> - Examples execute through production admission against compiled
+>   artifacts only; `ExampleReport.artifact` pins digest + source
+>   revision.
+> - Each row/sequence step runs in an isolated fixture scope with
+>   its own caller (`ResolvedCaller`); setup failures report
+>   `setup-failed` and can never satisfy an expected business
+>   rejection.
+> - Expected values are independently authored ... and compare with
+>   L2 exact-value semantics via wire encoding ...
+> - State observations (`ExampleStateObservation`) read committed
+>   state only, through authorized viewer-projection queries at the
+>   committed fence revision. Owner/authority reads never serve an
+>   example observation.
+> - Rejection rows expect an exact error code plus a no-change proof
+>   ...; later sequence steps keep earlier commits and add no new
+>   effects on rejection.
+> - Falsifiability: altering an expected value, removing a call, or
+>   suppressing a write must fail the relevant test.
+
+DESIGN observation sentences (settled text, unexecuted —
+`DESIGN.md:409` "the example runner remain[s] implementation work"):
+
+- `DESIGN.md:405`: "Right-hand header expressions are read-only
+  observations over freshly reloaded fixture records and `result`,
+  the normal operation response." (Not quoted in the T31a item-5
+  section, which quotes DESIGN:403 only —
+  hook-decision.md:1123-1128.)
+- `DESIGN.md:403`: "the runner ... invokes the registered operation
+  exactly once through its normal authorization/validation/commit
+  path"; "`request` selectors can override declared wire-envelope
+  fields, such as `request.expense.version` ... to submit a stale
+  version while preserving the real fixture version."
+- `DESIGN.md:399`: "Input expressions are evaluated against the
+  isolated initial state."
+
+Settled vs open: SETTLED — observations read committed state via
+viewer-projection queries at the committed fence revision
+(T04a §5); observation expressions range over freshly reloaded
+records + `result` (DESIGN:405, text-settled, execution-pending);
+setup failures never satisfy rejections; falsifiability. OPEN
+(**JEV-PENDING**) — (i) the R29 flip itself: neither §5 nor
+DESIGN:405 names input bindings, so whether `request.state`-style
+input-alias observations are allowed is undecided, and DESIGN:405's
+"freshly reloaded" must be reconciled against input-alias-shaped
+drafts (inputs R1-R5 below); (ii) whether a `do`-sequence
+observation step between two committed calls sees exactly the
+committed state §5 names (no sequence-observation sentence exists
+in §5 — §5 speaks of rows/steps only for scope and no-change).
+
+### Reused T31a inputs (b, part 1): read-usable, with refs
+
+R1. `draft/CanMaintain.can:81-90` (T31a "discriminating" block —
+hook-decision.md:1141-1181). For the READ gate this block is
+CONTRACT, not discriminating: header L82
+`as,changes.name -> recurring.revision,check.cancelled,check.result,inspection_pending(check),count(equipment.Cancellation)`
+observes a predicate outcome (`inspection_pending(check)`) and
+stored fields THROUGH the input binding `check` (row L83
+`... -> 2,false,pending,false,1`). Single-op committed
+observations are identical under all four read alternatives; the
+block's read value is its input-alias observation shape, governed
+by the R29 flip. (Seed-closure `count`-starts-at-0 reading is
+**UNVERIFIED** by execution — hook-decision.md:1160-1165.)
+
+R2. `draft/CanFeedback.can:58-72` (T31a control —
+hook-decision.md:1183-1200). CONTROL for reads too: headers L59/L64
+(`count(...)` aggregates), L67
+(`as,changes.title,record.author -> suggestion.title,suggestion.hidden`),
+L71 observe stored fields/aggregates only — zero predicate calls
+in any observation position (verified by direct read). Regression
+control any adopted read rule must keep passing, not a
+discriminator.
+
+R3. `draft/CanCheck.can:60-64` (T31a contract input 3 —
+hook-decision.md:1204-1212). CONTRACT: header L61 observes the
+server-owned field `check.armed` through input binding `check`
+(row L62 `... -> true,new,now,now+5m,2`), instantiating the R29
+question on a revision-carrying observation (`check.revision`).
+Caveat retained: executability **UNVERIFIED** (R27
+ordinary-path rejection site — hook-decision.md:1210-1212).
+
+R4. `draft/CanLeave.can:135-138` (the R29 site itself; T31a
+contract input 4 — hook-decision.md:1213-1217). CONTRACT: header
+L136 `... -> request.state,allowance_2099.remaining,request.sync`
+with input-alias observations `request.state`, `request.sync`
+(row L137 `... -> approved,0,pending`).
+
+R5. `draft/CanDiscover.can:277-280` (T31a contract input 5 —
+hook-decision.md:1218-1221). CONTRACT plus read-relevant conflict
+row: header L278 observes through the `request` input alias, and
+row L280 `reviewer,true,2 -> error(conflict)` submits
+`request.evidence.version=2` against fixture version 1 — a
+table-shaped stale-read rejection via the DESIGN:403 `request.*`
+stale-version mechanism.
+
+R6. Corpus census (T31a — hook-decision.md:1235-1246): 26
+`examples create|update|delete` blocks corpus-wide (CanTrade:37,
+CanTable:41/46/51/54/59/63, CanApprove:87, CanCRM:48, CanBoard:41/46/52,
+CanMail:87/95, CanMaintain:81/85, CanOnboard:38/41, CanDesk:57,
+CanGrant:76, CanShift:97/100, CanFeedback:58/63/66/70,
+CanInvoice:274/280); only CanMaintain/CanFeedback attach to
+hook-carrying models. For reads the operative census is instead
+this file's §1e: 20 example-observation (`->`) lines asserting
+predicate outcomes (read-decision.md:579-584) plus 7 `form
+review=` bindings (read-decision.md:585-591).
+
+### Read-specific inputs (b, part 2): beyond the T31a census
+
+**Revocation-then-observe sequences (9 blocks, 6 files).** Each
+commits a deactivation/removal/withdrawal call, then observes
+predicate outcomes or re-reads through viewer paths. All are
+inter-operation (between committed calls), identical in outcome
+under A-D as drafted — proof-test candidates, not pairwise
+discriminators:
+
+S1. `draft/CanGrant.can:169-195`: `call deactivate ...` L183, then
+L184 `colleague.active,reviewer(reviewer_user),can_work(reviewer_user,test_site)
+-> false,true,false` — authority predicates observed
+post-revocation; denied follow-up calls L185-188 (`rule_failed`
+×2, `forbidden`, `rule_failed`); stale-version re-submit L192
+`request={application={version=submitted_version}} ->
+error(conflict)` (the `submitted_version` was `let`-captured at
+L180 before the intervening commit).
+S2. `draft/CanApprove.can:171-195` (block opener L171-172):
+`call deactivate ...` L184, then L187
+`reviewer_worker.active,reviewer(reviewer_user),can_work(reviewer_user,test_site)
+-> false,true,false` — same post-revocation predicate shape as
+S1; denied `decide` L188; stale `assign` L192
+`request={submission={version=review_version}} -> error(conflict)`.
+S3. `draft/CanExpense.can:85-91` (block opener L85-86): `call
+reviewer_choices ...` L87, `call deactivate ...` L89, then L91
+`count(after),reviewer(reviewer_user),reviewer_worker.active ->
+0,true,false` — a read (`reviewer_choices`) re-executed after
+revocation returns the narrowed set.
+S4. `draft/CanMember.can:653-659` (block opener L653-654): `call
+remove_company_role ...` L656, then L659
+`entitled(other,...),has_location_role(other,...) -> false,false`
+— cross-package authority predicates observed post-removal.
+S5. `draft/CanMail.can:130-169` (block opener L130-131):
+`call Contact.update ...` L143 clears verification (observed
+L144 `-> false,null`); denied `collect` L145
+(`rule_failed`, no-change L148); history observation L155 with
+`delegate_eligible(history) -> false`; service expiry L156 then
+L159 `expired_route.active,live(expired_route),recipient(self,expired_route)
+-> false,false,true`; final recipient split L169
+(`recipient(self,...) -> true`, `recipient(nominee,...) ->
+false`).
+S6. `draft/CanKnowledge.can:178-207` — four read-after-change
+sequences on `read_answer` (a `read=true` scenario, L171):
+revoked readership L178-184 (`hidden==null -> true` L184),
+withdrawn source L185-191 (`hidden==null -> true` L191),
+superseded source L192-198 (`hidden==null,procedure.current ->
+true,next_revision` L198), unrelated publish L199-207
+(`historical!=null -> true` L207 — the negative control: an
+unrelated commit must NOT hide the answer).
+
+**Stale-version conflict corpus (rg census, 31 rows, 13 files).**
+`error(conflict)` observation rows: Purchase:284, Table:113,
+Trade:41, Discover:280, Approve:111/156/165/192/214/236,
+Expense:104/163/231/247/260/286/317/355, Loyalty:104, Rent:333,
+Invoice:210/239/271, Maintain:305, Grant:192/231/291/310,
+Book:299, Propose:115/328 (pattern `error\(conflict\)`,
+mode regex, paths draft/). Two stale-submit mechanisms: table
+`request.*.version` selectors (DESIGN:403; e.g. Discover:278-280)
+and sequence `request={...version...}` call envelopes (e.g.
+Approve:156/165/192, Expense:163/317, Maintain:305, Grant:192,
+Invoice:210). All observe the write-write fence, not the
+read→effect gap — usable as conflict-proof candidates, silent on
+which read rule produced the fenced read.
+
+**Predicate-outcome table observations (§1e, 20 lines —
+read-decision.md:579-584).** Sampled shapes: `available(...)`
+T3 display reads (Affiliate:79 `as,amount ->
+available(broker,"EUR"),count(...)`, row L80; Stock:68
+`as,quantity -> available(goods,test_site)`, row L69);
+post-commit predicate re-reads in sequences (Inbox:184
+`queue_access(operator...),queue_access(seller...) ->
+...,false,true,...` after a queue move L183; Maintain:288
+`inspection_pending(future) -> ...false...` and Maintain:303
+`plan_eligible(renewed),inspection_pending(future) ->
+true,...,false` after re-reads via `first(...)` L286/290/294/298/301).
+Every `do` sequence re-queries with `first(...)` after each
+committed call before observing (Grant:172/175/178/190,
+Maintain:286/290/294/298/301, Mail:133/136/140/146/149/153,
+Approve:174/177/180, Member:661) — the drafts' own inter-op
+re-read idiom, consistent with all four alternatives.
+
+**Spend-workflow observations (Chat).** `draft/CanChat.can:84-90`:
+`as,tokens.cap,tokens.running -> count(branch.Run),tokens.held`
+(rows L86-89) — input-alias-shaped observations (`tokens.held`)
+over the bar-item-1 spend workflow; sequence L92-95 observes
+`run.state,...,tokens.held,...` L94 after one `ask` call. The
+`let`-bound guard row (`allowance`, L72-83) itself is never
+observed mid-operation in any example (see absence A3 below).
+
+### Absence record (draft-source gaps — exact)
+
+- A1. ZERO example observations name `active_member`: rg pattern
+  `->.*active_member|active_member.*->`, mode regex, paths draft/
+  returns zero hits. The R26-layer-2 predicate itself is never
+  directly asserted by any example; all predicate observations go
+  through T2 gate derives or role tests.
+- A2. ZERO examples observe an intra-operation read→effect gap:
+  no example observes a guard/`when=`/`let` read and its later
+  effect separately within one operation. Sequences observe only
+  between committed calls (S1-S6); tables observe only post-commit
+  (§5 shape). The fence behavior each alternative differently
+  specifies (checkpoint-carry vs re-read vs pins vs grants) has no
+  draft execution witness.
+- A3. ZERO examples observe a `let`-bound guard row mid-flight
+  (Chat:72-83 `allowance` idiom): the B `let`-re-read question
+  (read-decision.md:202-205, 216-219) has no example input either
+  way.
+- A4. ZERO eventual-labeled reads: no draft marks any read
+  stale-tolerant (consistent with §1f, read-decision.md:606-609:
+  only T3 display reads are label candidates).
+- A5. ZERO grant-shaped evidence: no example mints, presents, or
+  observes a portable authorization (consistent with §1f,
+  read-decision.md:610-613).
+
+### Per-alternative proof-input map (c) (fair; no ranking)
+
+- A: S1-S6 sequences are A-consistent as written (committed
+  inter-op observations; fence revalidation is intra-op and
+  unobserved). A's T32b proof additionally needs an intra-op
+  fence witness — ABSENT per A2; must be T23a-authored, not
+  draft-derived. The R29 flip decides whether R1/R3/R4/R5 and
+  Chat:84-90 keep their input-alias shape in that proof.
+- B: the drafts' `first(...)` re-query idiom matches B's
+  inter-op shape, but proves nothing about intra-op `let`
+  (A3) — B's proof needs the `let`-re-read ruling
+  (**JEV-PENDING**, read-decision.md:202-205) plus a T23a-authored
+  multi-effect witness (Chat:72-83 / Check read-then-create have
+  example observations only at operation granularity: Chat:84-95,
+  Check:60-64). S1-S6 hold under B as inter-op observations.
+- C: only the T3 display observations (Affiliate:79, Stock:68,
+  plus §1f candidates Table:24, Knowledge:25/305 —
+  read-decision.md:606-609) could take an eventual label; every
+  T1/T2 observation above (S1-S6, §1e T1/T2 lines) authorizes and
+  would pin under C. No draft input shows the label syntax
+  (A4 — **JEV-PENDING**, read-decision.md:246-247). Stale-conflict
+  rows are C-consistent (pins conflict on version move) but do
+  not witness pin-narrowing vs database-wide assertion.
+- D: zero draft inputs mint or consume grants (A5); D's proof
+  inputs must be authored. Nearest candidate customers remain the
+  cross-package reads (§1f, read-decision.md:610-613), of which
+  S4 (Member:659) and the CRM←Customer review reads
+  (read-decision.md:588-589) are the only example-observed
+  instances — observed as plain predicate outcomes, not grants.
+- All: the R29 flip (R1-R5 + Chat:84-90 observation style)
+  governs what observation style ANY alternative's T32b proof
+  tests may use; DESIGN:405's "freshly reloaded" sentence is a
+  settled-text input the JEV must reconcile with those drafts.
+  No input recommends an alternative.
+
+### JEV-PENDING markers added by this section
+
+- (i) R29 flip: input-alias observations allowed or forbidden
+  (root-causes.md:575-576).
+- (ii) DESIGN:405 reconciliation: whether "freshly reloaded
+  fixture records" forbids the R1/R3/R4/R5/Chat input-alias
+  shapes, or aliases over reloaded rows satisfy it.
+- (iii) Sequence-observation scope: whether a `do` observation
+  step between committed calls is a §5 committed-state
+  observation (S1-S6 assume it; §5 never names sequences).
+- (iv) Every discrimination map is draft-text derivation, not
+  observed execution (T23a-scope work; T21/T22/T23 OPEN).
+- (v) S1 `submitted_version` / S2 `review_version` staleness
+  readings and the R1 seed-closure reading are **UNVERIFIED** by
+  execution (derived from `let` + row text, no build).
+
+### Counts
+
+- Discriminating (pairwise A-D outcome separation by draft
+  execution): **0** — no draft example executes an intra-op
+  read→effect gap (A2).
+- Proof-test candidates (read-specific, draft-source): 9
+  sequence blocks (S1-S6) + 31 stale-conflict rows (13 files) +
+  20 §1e predicate-observation lines + Chat spend observations
+  (CanChat.can:84-95).
+- Controls: R2 (CanFeedback.can:58-72, zero predicate
+  observations) + R6 crud-census remainder on hook-free/read-free
+  models + S6-fourth-sequence (Knowledge:199-207) as the
+  unrelated-commit negative.
+- Contract: R29 + T04a §5 + DESIGN:399/403/405 + T04b remainder
+  + 5 input-alias-shaped blocks (R1/R3/R4/R5 + Chat:84-90).
+
+### Commands run (read-only)
+
+1. Direct reads: root-causes.md:562-579 (R29),
+   execution-contract.md:92-110 (§5) + :144-149 (T04b),
+   DESIGN.md:399/403/405/409, tasks.md:198-217 (T21/T22/T23)
+   + :414 (T04a frozen), hook-decision.md:1039-1334 (T31a item-5
+   section, reuse basis).
+2. Direct draft reads: CanMaintain:78-90 + :282-311,
+   CanFeedback:55-72, CanCheck:56-64, CanLeave:132-138,
+   CanDiscover:272-280, CanGrant:168-195, CanApprove:148-195,
+   CanExpense:78-91, CanMember:642-662, CanMail:130-169,
+   CanKnowledge:150-207 + :289-293, CanChat:68-95,
+   CanAffiliate:77-82, CanInbox:182-187, CanStock:66-71.
+3. rg censuses (paths draft/, mode regex): `error\(conflict\)`
+   (31 rows / 13 files); `->.*revision|revision.*->` (30-hit
+   sample); `active_member` in observation position (0 hits);
+   `examples[^:]*$` (block-opener sample).
+4. Read this file's alternatives A-D (L115-331), fairness
+   record (L332-354), checklist (L356-400), §1a-§1f
+   (L410-616), and prior-appends tail for reservation
+   boundaries.
+
+Checklist items 1-3, 5-7 markers untouched (coordinator-owned);
+item 8 (coordinator-run JEV) untouched. Prep status preserved:
+adopts NOTHING; no code, no normative-doc, no
+tasks/monitor/inbox edits.
+
+Release: implementation/challenge-audit-run/evidence/read-decision.md
+is RELEASED to the coordinator for JEV-gate scheduling.
