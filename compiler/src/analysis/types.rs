@@ -381,6 +381,9 @@ pub fn check_types(
     // Read flags first: phase-1 declared types (`action(...)` /
     // `invocation(...)` targets) already need the set.
     typer.collect_read_scenarios(trees);
+    // Source languages first: message/descriptor variant checks
+    // (`E3016` source-repeat) compare against the owning module tag.
+    typer.collect_module_sources(trees);
     typer.phase1(trees);
     typer.phase2(trees);
     typer.check_cycles();
@@ -727,6 +730,7 @@ impl<'a> Typer<'a> {
         if let Some(label) = init.label {
             self.check_field_label(&cx, field, &name, &expected, label);
         }
+        self.check_description_slot(&cx, field);
     }
 
     // --- Phase 2: statements -------------------------------------------
@@ -3225,6 +3229,9 @@ impl<'a> Typer<'a> {
                     self.check_scalar_caption(&cx, caption, "label");
                 }
             }
+            let narrow = NarrowEnv::default();
+            let cx = Self::body_cx(module, file, text, &narrow);
+            self.check_description_slot(&cx, param_node);
         }
     }
 
@@ -3700,6 +3707,80 @@ impl<'a> Typer<'a> {
                     ),
                     tight_span(cx.text, node),
                 ));
+            }
+        }
+    }
+
+    /// Check one field/parameter description slot (`desc=` or the
+    /// legacy `@{desc}` annotation): static text, an inline descriptor
+    /// with locale variants, or a static zero-parameter message path
+    /// (`E3016`). Duplicates, dynamic values, call arguments and
+    /// record-query tails are the parser's (`E12xx`); this pass still
+    /// enforces static-only, so any non-static value that reaches it
+    /// fails here with a located diagnostic. Error subtrees were
+    /// already diagnosed. Attached `#` sets are not re-validated here.
+    fn check_description_slot(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
+        if has_error(node) {
+            return;
+        }
+        for child in kids(node) {
+            match child.kind {
+                SyntaxKind::DescriptionValue => {
+                    let value = kids(child).into_iter().last();
+                    match value.map(|n| n.kind) {
+                        Some(SyntaxKind::Literal) => {
+                            let literal = value.expect("matched literal");
+                            if string_literal_value(literal, cx.text).is_none() {
+                                self.diags.push(Diagnostic::error(
+                                    "E3016",
+                                    "description must be text or a static message reference"
+                                        .to_string(),
+                                    tight_span(cx.text, literal),
+                                ));
+                            }
+                        }
+                        Some(SyntaxKind::MessageValue) => {
+                            self.check_message_value(
+                                cx,
+                                value.expect("matched descriptor"),
+                                "description",
+                                &[],
+                            );
+                        }
+                        Some(SyntaxKind::Path) => {
+                            self.check_message_path(
+                                cx,
+                                value.expect("matched path"),
+                                "description",
+                            );
+                        }
+                        _ => {
+                            self.diags.push(Diagnostic::error(
+                                "E3016",
+                                "description must be text or a static message reference"
+                                    .to_string(),
+                                tight_span(cx.text, child),
+                            ));
+                        }
+                    }
+                }
+                SyntaxKind::Annotation => {
+                    let literal = kids(child)
+                        .into_iter()
+                        .find(|n| n.kind == SyntaxKind::Literal);
+                    match literal {
+                        Some(found) if string_literal_value(found, cx.text).is_some() => {}
+                        _ => {
+                            self.diags.push(Diagnostic::error(
+                                "E3016",
+                                "description must be text or a static message reference"
+                                    .to_string(),
+                                tight_span(cx.text, child),
+                            ));
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -4230,6 +4311,30 @@ impl<'a> Typer<'a> {
     }
 
     // --- Phase 2: call graph -------------------------------------------
+
+    /// Record each module's `source=` language tag (default `"en"`
+    /// when absent, via [`Typer::module_source_tag`]). Tag validity is
+    /// phase 2's (`E3001`); the raw tag is recorded regardless so
+    /// variant checks compare against the authored owner tag.
+    fn collect_module_sources(&mut self, trees: &[(SourceId, SyntaxNode)]) {
+        for (file, tree) in trees {
+            let text = self.text(*file).to_string();
+            for child in kids(tree) {
+                if !matches!(child.kind, SyntaxKind::App | SyntaxKind::Package) || has_error(child)
+                {
+                    continue;
+                }
+                let Some(module) = module_of_node(self.tables, &text, child) else {
+                    continue;
+                };
+                if let Some(source) = attribute_value(child, "source", &text)
+                    && let Some(tag) = string_literal_value(source, &text)
+                {
+                    self.module_source.insert(module, tag);
+                }
+            }
+        }
+    }
 
     /// Collect `read=true` scenarios before phase 1 (declared
     /// types and callers may precede callees in source).

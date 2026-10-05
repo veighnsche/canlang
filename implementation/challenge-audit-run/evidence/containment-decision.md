@@ -224,9 +224,11 @@ with a diagnostic pointing at the facet; bound parents rejected regardless.
 2. [COMPLETE — see "Site enumeration (gate evidence)" below] Confirmation
    that zero R14 sites use bound (`from=`) parents — currently
    true for named sites only.
-3. Cascade/orphan intent: any draft example or policy pinning what parent
-   delete/archive must do to imported children (none found yet; absence must
-   be confirmed, not assumed).
+3. [COMPLETE — see "Cascade/orphan intent (gate evidence)" below]
+   Cascade/orphan intent: any draft example or policy pinning what parent
+   delete/archive must do to imported children (absence CONFIRMED: 20/20
+   sites NO across 11 owning workflows + 3 owner packages; zero pinning
+   examples, 4 documented near-misses).
 4. Owner-package stance for D: whether employee/customer/rent_catalog owners
    would export a facet, and what bounds they would want.
 5. Storage-engine input: can cross-package subtree archive be atomic in the
@@ -435,5 +437,193 @@ site (or group) adds beyond that.
 - Writer: L3 T28-enumeration slice. Appended this section and marked
   checklist items 1-2 complete above; no other text altered. No JEV run;
   no Git; no other files touched.
+- Release: `implementation/challenge-audit-run/evidence/containment-decision.md`
+  is RELEASED to the coordinator for JEV-gate scheduling.
+
+## Cascade/orphan intent (gate evidence)
+
+Status: **PREP evidence — adopts NOTHING.** Closes checklist item 3
+only. Alternatives A–D, fairness record, and remaining checklist items
+4–6 are unchanged; JEV still not run.
+
+Method: for each of the 20 sites' owning workflows (11 consumer `.can`
+files), full-file keyword sweeps (`cascade|orphan|detach`, `delete`,
+`archiv`, `deactivate|offboard|terminat`, `expir`, `retain`,
+`revoke|retire|suspend|disable`, `remove`, `void|cancelled|withdrawn`)
+plus targeted reads of every lifecycle hit; owner packages
+(`draft/CanCustomer.can`, `draft/shared/Employees.can`,
+`draft/shared/Locations.can`) swept the same way; the 11 `.md`
+companions + `CanCustomer.md` swept for cascade/orphan/parent-delete
+language. Read-only; no builds, no edits outside this file. Question
+asked of each site: does any draft example, policy, or scenario pin
+what parent delete/archive must do to the imported children (cascade
+vs orphan vs forbid)? A YES requires an exact file:line quote; a NO
+records the read ranges that establish absence.
+
+Result: **20/20 sites NO — zero pinning examples.** Four near-misses
+documented below; each fails to pin for a stated reason. Corroborating
+corpus facts: the words cascade/orphan/detach appear nowhere in the 11
+files; no `.can` file anywhere calls `Customer.delete`,
+`Employee.delete`, or `Location.delete` (the sole `Customer.delete`
+reference corpus-wide is `draft/CanCRM.mjs:806`, desired generated
+output — out of scope for draft intent); every observed delete in the
+corpus is archive-style, never physical removal.
+
+### Per-site verdicts (grouped by owning workflow)
+
+- Site 1 (Expense:11, `Expense in Employee`): **NO.** The three
+  `deactivate` journeys deactivate non-parent employees only
+  (reviewer at CanExpense.can:89-91 and :158-159, finance worker at
+  :329-335); the claim's own parent is never deactivated, deleted, or
+  archived. `archived=include` at :292 and :347 are readability
+  queries, not lifecycle rules. `delete=none` at :70 governs the
+  child CRUD, not the parent. Read: full sweep lines 1-503; targeted
+  reads :70-199, :280-356.
+- Sites 2-4 (Invoice:58,60,103): **NO.** `delete=none` on Invoice
+  (:273) and `delete=remove` on local Line (:279) govern child CRUD
+  only. The page comment "Keep own issued invoices ... reachable
+  after membership expiry" (:883) concerns the invoiced membership
+  *product* (see :1 domain list), not Customer-row deletion, and no
+  example exercises it. CommercialHistory scenarios (:641-680) never
+  delete or archive the customer. Read: full sweep 1-1045; targeted
+  reads :641-680, :878-947.
+- Sites 5-6 (Leave:22,25): **NO.** No `deactivate` import, no
+  `archived`, no parent delete anywhere; withdraw/cancel
+  (:142-159) are child-request state transitions. Read: full sweep
+  1-341.
+- Site 7 (Mail:25, `Service in Customer`): **NO** (near-miss NM-1,
+  see below). No Customer delete/archive scenario; `retain ... until`
+  (:57) and expiry journeys (:156-169) are child-side retention.
+  Read: full sweep 1-423; targeted read :95-204.
+- Sites 8-11 (Member:126,130,132,144): **NO.** `remove_company_role`
+  (:656) revokes a role grant, not the parent; the "retain paid term"
+  journey (:663-666) deactivates a *local* Seat row. `archived=include`
+  reverse reads (:674, :704) enumerate archived *children* without
+  pinning the parent-to-child direction. Read: full sweep 1-912;
+  targeted read :620-711.
+- Site 12 (Onboard:15, `Checklist in Employee`): **NO** (near-miss
+  NM-2). The parent row itself is deactivated mid-journey (see
+  below), but the owner code proves that transition is not
+  delete/archive. Read: full sweep 1-240; targeted read :53-137.
+- Site 13 (Propose:40): **NO.** No Customer archive/delete/deactivate
+  anywhere; only local Item `delete=remove` (:70) plus UI delete
+  (:420). Read: full sweep 1-483.
+- Sites 14-16 (Reception:37,40,42): **NO.** `archived_at==null` gates
+  (:71, :85) gate creation/eligibility on parent state; no
+  Location/Customer delete scenario exists. `visitor_days` /
+  `credential_days` (:40) are child-side retention config. Read:
+  full sweep 1-502.
+- Site 17 (Refer:238): **NO.** No Customer lifecycle operations at
+  all. Read: full sweep 1-268.
+- Site 18 (Success:22): **NO.** `archived_at` appears only inside a
+  policy field list (:28). Read: full sweep 1-223.
+- Sites 19-20 (Time:19,20): **NO.** No Employee lifecycle operations
+  at all. Read: full sweep 1-338.
+- `.md` companions: **NO.** Zero cascade/orphan/parent-delete hits
+  across all 11 companions plus CanCustomer.md.
+
+### Owner packages (supplement — parent-side lifecycle surface)
+
+- `draft/shared/Employees.can` (26 lines, fully covered): `crud
+  Employee ... delete=none` (:16) — the Employee parent has no CRUD
+  delete path at all; `deactivate` (:18-21) only sets
+  `active=false,end=ended` (status flip, not archive/delete) and
+  mentions no children. Employee-parented sites (1, 5-6, 12, 19-20)
+  therefore have no parent delete/archive transition to pin.
+- `draft/shared/Locations.can` (65 lines, swept): `crud Location ...
+  delete=none` (:29); only create/update snapshot scenarios
+  (:33-57), no delete/archive hooks. Location-parented site 15 has
+  no parent delete/archive transition to pin.
+- `draft/CanCustomer.can` (324 lines, swept + targeted read
+  :150-225): `crud Customer` (:73) carries **no** `delete=` clause
+  (default behavior, unpinned); `customer_deleted_access
+  on=Customer.deleted` (:194-197) only emits `CompanyAccessChanged`
+  and touches no children (local or imported); it has **no**
+  examples block. Customer-parented sites (2-4, 7-11, 13-14, 16-18)
+  have a delete event with zero observed child effects.
+
+### Near-misses (each quoted; none pins)
+
+- NM-1 — Mail:152-155 (reference survival, not containment):
+  `call Contact.delete {record=delegate_contact}` then
+  `history!=null -> true` with `history.contact.archived_at!=null`.
+  Pins delete-means-archive plus referencing-row survival — but
+  Contact is a *reference-field* target, not the containment parent
+  (Customer). Says nothing about `Service in Customer` lifecycle.
+- NM-2 — Onboard:111-112 (parent status flip, not delete/archive):
+  `call deactivate {employee=test_worker,...}` — test_worker IS the
+  Checklist's parent — then `call reopen {step=recovered,...} ->
+  error(rule_failed)` via the `step.parent.parent.active` guard
+  (:124). Children stay addressable after a parent lifecycle
+  transition — but per Employees.can:18-21 that transition is a
+  status flip, not delete/archive, and no child archived-flag is
+  ever observed. Does not pin cascade vs orphan.
+- NM-3 — Expense:159 (`claim.status -> ...submitted` after reviewer
+  deactivation) and Member:663-666 ("retain paid term" after role
+  removal): child rows survive *non-parent* lifecycle transitions.
+  Discriminates nothing about the actual parent.
+- NM-4 — Invoice:883 ("reachable after membership expiry") and
+  Member:674,704 (`archived=include` child enumerations): readability
+  of children across state changes, with no parent delete/archive in
+  the causal path.
+
+### Per-finding alternatives discrimination
+
+- The uniform 20/20 absence **confirms** (no longer assumes) the
+  Alternative B hedge that "no draft example currently pins
+  cascade-vs-orphan for imported children." The cascade-vs-orphan
+  choice between A (atomic subtree archive), B (orphan with an
+  explicit rule), and D (faceted A) must therefore be carried
+  entirely by JEV — no alternative gains draft support on this axis,
+  and C's 20-site migration bill is unchanged.
+- B's orphan-rule sub-variant "reject parent archive while imported
+  children exist" has **zero draft support**: no draft anywhere
+  shows a parent lifecycle transition rejected due to existing
+  children, and NM-2 shows a parent transition succeeding with
+  children present (conditional weight only — it is a status flip,
+  not an archive).
+- Hard cascade-delete (physical removal of children) has zero
+  support corpus-wide: every observed delete is archive-style
+  (NM-1; `Customer.deleted` read back via `archived=include` at
+  CanCustomer.can:196). This forecloses only a reading none of A-D
+  proposes.
+- Owner CRUD silence is symmetric: Employee/Location `delete=none`
+  plus Customer's missing `delete=` clause give D's facet-bounds
+  question (item 4) no draft anchor — owner stance must come from
+  the owners, not the corpus.
+
+### Commands run (read-only)
+
+1. `ls draft/` + `wc -l` on the 11 owning-workflow files (sizes
+   recorded above; total 5278 lines).
+2. `grep -rniE 'delete|archive|cascade|orphan|retain|destroy|purge|
+   detach|remove|offboard|deactivat|terminat|until|expir'` over the
+   11 files — hit census driving all targeted reads.
+3. `grep -rniE 'cascade|orphan|detach'` over the 11 files — exit 1,
+   zero hits.
+4. `grep -rn 'delete'` over the 11 files — child-CRUD clauses plus
+   Contact.delete / Step.delete / TemplateStep.delete-hook only.
+5. `grep -rnE 'archiv|deactivate|offboard|terminat|expir|cancelled|
+   withdrawn|void'` (two batches) — child-state enums plus the
+   Expense/Onboard deactivate journeys and Reception/Mail gates.
+6. Targeted `read_file` ranges listed per verdict above
+   (Expense :70-199 + :280-356; Invoice :641-680 + :878-947; Mail
+   :95-204; Member :620-711; Onboard :53-137; CanCustomer :150-225).
+7. `grep -rnE '\.delete|archive'` over the 11 files minus
+   `archived_at==null|archived=include` gates — residual 4 lines
+   (Mail:152,155; Onboard:50,93; Success:28), all classified.
+8. Owner sweeps: `grep -nE 'scenario|delete|archive|...'`
+   on CanCustomer.can, shared/Employees.can, shared/Locations.can.
+9. `grep -rnE '(Customer|Employee|Location)\.delete' draft/` —
+   only CanCustomer.can:194 (hook, no examples) and CanCRM.mjs:806
+   (desired output, out of scope).
+10. `grep -rnE 'revoke|retire|suspend|disable'` over the 11 files —
+    child-side/access-grant only.
+11. `grep -rniE 'cascade|orphan|detach|parent.{0,20}(delet|archiv)|
+    ...'` over the 12 `.md` companions — exit 1, zero hits.
+
+- Writer: L3 T28-cascade-orphan slice. Appended this section and
+  marked checklist item 3 complete above; no other text altered. No
+  JEV run; no Git; no other files touched.
 - Release: `implementation/challenge-audit-run/evidence/containment-decision.md`
   is RELEASED to the coordinator for JEV-gate scheduling.

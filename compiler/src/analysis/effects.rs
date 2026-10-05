@@ -108,6 +108,10 @@ pub struct EffectTables {
     /// rule predicates, guards, bodies, defaults, page expressions and
     /// migration backfills.
     pub referenced_builtins: Vec<String>,
+    /// Checked field/parameter descriptions by owner declaration node
+    /// (D02b seam): one logical slot per declaration; absent entry
+    /// means undescribed. See [`CheckedDescription`].
+    pub checked_descriptions: HashMap<NodeKey, CheckedDescription>,
 }
 
 /// Scenario body: guards plus effects with labels and parameters (G1).
@@ -733,6 +737,54 @@ pub struct DescriptionEntry {
     pub reference: Option<String>,
 }
 
+/// Checked description value: the D02b checked-description seam.
+///
+/// One logical slot per field/parameter declaration, however spelled:
+/// inline `desc=` (a literal, a descriptor with variants, or a static
+/// message path), the legacy `@{desc="..."}` annotation, or an attached
+/// `#` set. The parser rejects every spelling combination (`E1202`), so
+/// at most one is ever present; this value is the resolved form of
+/// whichever one. Declaration-level `#` sets stay in
+/// [`ModuleData::descriptions`]; this map covers only field/parameter
+/// slots, where the new spellings live.
+///
+/// Frozen representation (`implementation/DESCRIPTION-REFERENCE-PLAN.md`):
+/// `source` prose plus the owning `source_lang`, ordered `variants`,
+/// and the authored-value `location` (`node` span; the file is the
+/// span's source id). Absence — no entry in
+/// [`EffectTables::checked_descriptions`] — is distinct from
+/// authored-empty text (`source == ""`, kept, never collapsed to
+/// absent); a `None` variant value is a `null` (absent) translation,
+/// never empty text. Descriptions carry no parameters: static message
+/// references resolve to wording (under the referenced message's
+/// owning source language) while this value is built, and literal
+/// braces in prose are never placeholder syntax.
+///
+/// Consumers: D03 lowers `source` into the existing MCP source-string
+/// path and keeps `variants`; D04b extracts `ReferenceDescriptionValue`
+/// (`source`, `sourceLang`, ordered `variants`, `location`); D06 hovers
+/// the `source` wording in the source language.
+#[derive(Debug, Clone)]
+pub struct CheckedDescription {
+    /// Owning field/parameter declaration node (the map key).
+    pub owner: NodeKey,
+    /// Authored description value node: the `DescriptionValue`, the
+    /// legacy `Annotation`, or the attached `#` leaf. Its span is the
+    /// checked value's `location`.
+    pub node: NodeKey,
+    /// Decoded source-language prose; `""` is authored-empty text.
+    pub source: String,
+    /// Owning source language tag: the authoring module's `source=`
+    /// (default `"en"`), or the referenced message's owning module tag
+    /// for message references.
+    pub source_lang: String,
+    /// `@{...}` variants in written order.
+    pub variants: Vec<MessageVariant>,
+    /// Referenced message symbol, for `desc= path` / `#= path`
+    /// spellings (`None` for literal/descriptor spellings).
+    pub message: Option<SymbolId>,
+}
+
 /// Migration with its owner, predecessor and directives (G9).
 #[derive(Debug, Clone)]
 pub struct MigrationData {
@@ -815,6 +867,7 @@ pub fn check_effects(
     diags: &mut Vec<Diagnostic>,
 ) -> EffectTables {
     let mut cx = Cx::new(db, tables, types, catalog, diags);
+    cx.walk_message_prepass(trees);
     for (file, tree) in trees {
         cx.walk_file(*file, tree);
     }
@@ -938,16 +991,49 @@ impl<'a> Cx<'a> {
         }
     }
 
-    fn walk_module(&mut self, file: SourceId, text: &str, node: &SyntaxNode) {
-        if has_error(node) {
-            return;
+    /// Pre-walk every module's messages so field/parameter description
+    /// references resolve to wording regardless of declaration order:
+    /// message wording must be complete before any record/signature walk
+    /// builds the checked-description seam. Reuses [`Cx::walk_message`],
+    /// which is idempotent via [`Cx::take_record`], so the main walk
+    /// skips pre-recorded messages without behavior change.
+    fn walk_message_prepass(&mut self, trees: &[(SourceId, SyntaxNode)]) {
+        for (file, tree) in trees {
+            let text = self.text(*file).to_string();
+            for child in significant_children(tree) {
+                if !matches!(child.kind, SyntaxKind::App | SyntaxKind::Package) || has_error(child)
+                {
+                    continue;
+                }
+                let Some(module) = self.ensure_module(&text, child) else {
+                    continue;
+                };
+                for section in significant_children(child) {
+                    if section.kind != SyntaxKind::Section {
+                        continue;
+                    }
+                    let marker = significant_children(section)
+                        .iter()
+                        .find_map(|n| name_text(n, &text))
+                        .unwrap_or("");
+                    if marker != "Given" {
+                        continue;
+                    }
+                    for item in significant_children(section) {
+                        if item.kind == SyntaxKind::Message && !has_error(item) {
+                            self.walk_message(*file, module, &text, item);
+                        }
+                    }
+                }
+            }
         }
-        let Some(name) = decl_name(text, node, &["app", "package", "export", "migration"]) else {
-            return;
-        };
-        let Some(module) = self.tables.module_by_name.get(name).copied() else {
-            return;
-        };
+    }
+
+    /// Insert this module's [`ModuleData`] (with its `source=` tag)
+    /// unless already present; returns the module id.
+    fn ensure_module(&mut self, text: &str, node: &SyntaxNode) -> Option<ModuleId> {
+        let name = decl_name(text, node, &["app", "package", "export", "migration"])?;
+        let module = self.tables.module_by_name.get(name).copied()?;
         let source_lang = module_source_lang(text, node);
         self.out
             .modules
@@ -964,6 +1050,16 @@ impl<'a> Cx<'a> {
                 migrations: Vec::new(),
                 descriptions: Vec::new(),
             });
+        Some(module)
+    }
+
+    fn walk_module(&mut self, file: SourceId, text: &str, node: &SyntaxNode) {
+        if has_error(node) {
+            return;
+        }
+        let Some(module) = self.ensure_module(text, node) else {
+            return;
+        };
         for child in significant_children(node) {
             match child.kind {
                 SyntaxKind::Context => self.walk_context(module, text, child),
@@ -1217,6 +1313,20 @@ impl<'a> Cx<'a> {
                 _ => NodeKey::of(child),
             };
             let shape = field_shape(text, child);
+            let owner_module = self.tables.symbols[owner.0 as usize].module;
+            if let Some(checked) = checked_description(
+                self.tables,
+                &self.out.messages,
+                &self.out.modules,
+                owner_module,
+                text,
+                node,
+                child,
+            ) {
+                self.out
+                    .checked_descriptions
+                    .insert(NodeKey::of(child), checked);
+            }
             fields.push(FieldData {
                 field,
                 node: NodeKey::of(child),
@@ -1234,7 +1344,7 @@ impl<'a> Cx<'a> {
 
     /// Parameters of one signature in source order.
     fn signature_params(
-        &self,
+        &mut self,
         text: &str,
         owner: SymbolId,
         params: &[SymbolId],
@@ -1272,6 +1382,20 @@ impl<'a> Cx<'a> {
                 _ => NodeKey::of(child),
             };
             let shape = param_shape(text, child);
+            let owner_module = self.tables.symbols[owner.0 as usize].module;
+            if let Some(checked) = checked_description(
+                self.tables,
+                &self.out.messages,
+                &self.out.modules,
+                owner_module,
+                text,
+                node,
+                child,
+            ) {
+                self.out
+                    .checked_descriptions
+                    .insert(NodeKey::of(child), checked);
+            }
             out.push(ParamData {
                 param,
                 node: NodeKey::of(child),
@@ -1428,13 +1552,14 @@ impl<'a> Cx<'a> {
             .get(&module)
             .map(|m| m.source_lang.clone())
             .unwrap_or_else(|| "en".to_string());
+        let signature = self.signature_params(text, id, &params, node);
         self.out.messages.insert(
             id,
             MessageData {
                 message: id,
                 module,
                 node: NodeKey::of(node),
-                params: self.signature_params(text, id, &params, node),
+                params: signature,
                 source,
                 source_lang,
                 variants,
@@ -1492,6 +1617,7 @@ impl<'a> Cx<'a> {
         }
         let expr = parts.iter().find(|n| is_expression(n.kind)).copied();
         let result = parts.iter().find(|n| is_type_node(n.kind)).copied();
+        let signature = self.signature_params(text, id, &params, node);
         self.out.derives.insert(
             id,
             DeriveData {
@@ -1499,7 +1625,7 @@ impl<'a> Cx<'a> {
                 module,
                 node: NodeKey::of(node),
                 model,
-                params: self.signature_params(text, id, &params, node),
+                params: signature,
                 result: result.map(NodeKey::of),
                 expr: expr.map(NodeKey::of),
                 label: bare_slot_value(node, "label", text).map(NodeKey::of),
@@ -2006,6 +2132,7 @@ impl<'a> Cx<'a> {
         collect_subtree_models(self.tables, self.types, text, node, &mut models);
         self.scenario_models.insert(id, models);
         let (expose_words, _) = selector_words(text, node, "expose");
+        let signature = self.signature_params(text, id, &params, node);
         self.out.scenarios.insert(
             id,
             ScenarioData {
@@ -2019,7 +2146,7 @@ impl<'a> Cx<'a> {
                 scope_authority: attribute_value(node, "scope", text).is_some(),
                 expose_none: matches!(expose_words.as_slice(), [word] if word.as_str() == "none"),
                 label: attribute_value(node, "label", text).map(NodeKey::of),
-                params: self.signature_params(text, id, &params, node),
+                params: signature,
                 result: result_annotation(text, node).map(NodeKey::of),
                 guards,
                 effects,
@@ -3537,6 +3664,200 @@ fn rule_noun(kind: SyntaxKind) -> &'static str {
     }
 }
 
+/// Checked description for one field/parameter declaration, if any
+/// spelling is authored: inline `desc=` (a literal, a descriptor with
+/// variants, or a static message path), the legacy `@{desc}`
+/// annotation, or the attached `#` set preceding the declaration.
+/// Message references resolve to wording here; anything earlier passes
+/// rejected (unresolved, non-message, or parameterized) yields no entry
+/// — best-effort, since diagnostics already fired. `owner_module` is
+/// the authoring module (source-language owner); `parent` holds the
+/// declaration's preceding sibling for attached sets. The search order
+/// below is not precedence: the parser rejects every spelling
+/// combination (`E1202`), so at most one is ever present.
+#[allow(clippy::too_many_arguments)]
+fn checked_description(
+    tables: &ResolveTables,
+    messages: &HashMap<SymbolId, MessageData>,
+    modules: &HashMap<ModuleId, ModuleData>,
+    owner_module: ModuleId,
+    text: &str,
+    parent: &SyntaxNode,
+    node: &SyntaxNode,
+) -> Option<CheckedDescription> {
+    let owner = NodeKey::of(node);
+    let author_lang = modules
+        .get(&owner_module)
+        .map(|m| m.source_lang.clone())
+        .unwrap_or_else(|| "en".to_string());
+    if let Some(desc) = node
+        .children
+        .iter()
+        .find(|c| c.kind == SyntaxKind::DescriptionValue)
+    {
+        let value = significant_children(desc).into_iter().find(|n| {
+            matches!(
+                n.kind,
+                SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+            )
+        })?;
+        match value.kind {
+            SyntaxKind::Literal => {
+                return Some(CheckedDescription {
+                    owner,
+                    node: NodeKey::of(desc),
+                    source: literal_string(text, value).unwrap_or_default(),
+                    source_lang: author_lang,
+                    variants: Vec::new(),
+                    message: None,
+                });
+            }
+            SyntaxKind::MessageValue => {
+                let (source, variants) = message_text(text, value);
+                return Some(CheckedDescription {
+                    owner,
+                    node: NodeKey::of(desc),
+                    source,
+                    source_lang: author_lang,
+                    variants,
+                    message: None,
+                });
+            }
+            SyntaxKind::Path => {
+                let (id, source, source_lang, variants) =
+                    description_message_wording(tables, messages, value)?;
+                return Some(CheckedDescription {
+                    owner,
+                    node: NodeKey::of(desc),
+                    source,
+                    source_lang,
+                    variants,
+                    message: Some(id),
+                });
+            }
+            _ => return None,
+        }
+    }
+    if let Some(annotation) = node
+        .children
+        .iter()
+        .find(|c| c.kind == SyntaxKind::Annotation)
+    {
+        let source = significant_children(annotation)
+            .iter()
+            .find(|n| n.kind == SyntaxKind::Literal)
+            .copied()
+            .and_then(|literal| literal_string(text, literal))
+            .unwrap_or_default();
+        return Some(CheckedDescription {
+            owner,
+            node: NodeKey::of(annotation),
+            source,
+            source_lang: author_lang,
+            variants: Vec::new(),
+            message: None,
+        });
+    }
+    let leaf = preceding_description(parent, node)?;
+    let entry = description_entry(text, leaf, node);
+    if let Some(reference) = entry.reference {
+        let (id, source, source_lang, variants) =
+            attached_message_wording(tables, messages, owner_module, &reference)?;
+        return Some(CheckedDescription {
+            owner,
+            node: NodeKey::of(leaf),
+            source,
+            source_lang,
+            variants,
+            message: Some(id),
+        });
+    }
+    Some(CheckedDescription {
+        owner,
+        node: NodeKey::of(leaf),
+        source: entry.text,
+        source_lang: author_lang,
+        variants: entry.variants,
+        message: None,
+    })
+}
+
+/// Wording of a `desc= path` reference: the recorded symbol must be a
+/// static zero-parameter message with decoded wording. Anything else
+/// (unresolved, non-message, parameterized) was already diagnosed and
+/// yields no wording.
+fn description_message_wording(
+    tables: &ResolveTables,
+    messages: &HashMap<SymbolId, MessageData>,
+    path: &SyntaxNode,
+) -> Option<(SymbolId, String, String, Vec<MessageVariant>)> {
+    let id = tables.node_symbol.get(&NodeKey::of(path)).copied()?;
+    let SymbolKind::Message { params } = &tables.symbols[id.0 as usize].kind else {
+        return None;
+    };
+    if !params.is_empty() {
+        return None;
+    }
+    let data = messages.get(&id)?;
+    Some((
+        id,
+        data.source.clone(),
+        data.source_lang.clone(),
+        data.variants.clone(),
+    ))
+}
+
+/// Wording of an attached `#= name` reference: the lone segment names a
+/// static zero-parameter message reachable in the authoring module.
+/// Anything else (unresolved, qualified, non-message, parameterized)
+/// was already diagnosed and yields no wording.
+fn attached_message_wording(
+    tables: &ResolveTables,
+    messages: &HashMap<SymbolId, MessageData>,
+    module: ModuleId,
+    reference: &str,
+) -> Option<(SymbolId, String, String, Vec<MessageVariant>)> {
+    if reference.is_empty() || reference.contains('.') {
+        return None;
+    }
+    let id = match tables
+        .module_scopes
+        .get(module.0 as usize)?
+        .prod
+        .get(reference)?
+    {
+        ScopedName::Local(id) | ScopedName::Imported { target: id, .. } => *id,
+        ScopedName::External { .. } => return None,
+    };
+    let SymbolKind::Message { params } = &tables.symbols[id.0 as usize].kind else {
+        return None;
+    };
+    if !params.is_empty() {
+        return None;
+    }
+    let data = messages.get(&id)?;
+    Some((
+        id,
+        data.source.clone(),
+        data.source_lang.clone(),
+        data.variants.clone(),
+    ))
+}
+
+/// Attached `#` set immediately preceding `node` among `parent`'s
+/// significant children, if any.
+fn preceding_description<'n>(parent: &'n SyntaxNode, node: &SyntaxNode) -> Option<&'n SyntaxNode> {
+    let kids = significant_children(parent);
+    for (i, kid) in kids.iter().enumerate() {
+        if std::ptr::eq(*kid, node) {
+            return (i > 0)
+                .then(|| kids[i - 1])
+                .filter(|n| n.kind == SyntaxKind::Description);
+        }
+    }
+    None
+}
+
 /// Verbatim text of a trailing `@{desc="..."}` annotation on a field
 /// or parameter, when one is authored. The parser pins the closed
 /// `desc` key and literal-only values (`E1214`); this just decodes
@@ -4054,6 +4375,16 @@ fn field_shape(text: &str, field: &SyntaxNode) -> FieldShape {
         i += 3;
     }
     while let Some(part) = parts.get(i) {
+        // Description spellings sit between modifiers and `label=`
+        // (`desc=` first, the legacy annotation trailing); neither is a
+        // modifier, so both are skipped, never decoded here.
+        if matches!(
+            part.kind,
+            SyntaxKind::DescriptionValue | SyntaxKind::Annotation
+        ) {
+            i += 1;
+            continue;
+        }
         let Some(word) = name_text(part, text) else {
             break;
         };
@@ -4114,6 +4445,14 @@ fn param_shape(text: &str, param: &SyntaxNode) -> ParamShape {
             .copied()
             .map(NodeKey::of);
         i += 2;
+    }
+    // A `desc=` spelling sits between the default and `label=`
+    // (the legacy annotation trails); skip it so `label=` still decodes.
+    if parts
+        .get(i)
+        .is_some_and(|n| n.kind == SyntaxKind::DescriptionValue)
+    {
+        i += 1;
     }
     if parts.get(i).is_some_and(|n| is_name(n, text, "label")) {
         shape.label = parts.get(i + 2).copied().map(NodeKey::of);

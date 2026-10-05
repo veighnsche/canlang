@@ -8,11 +8,15 @@
 //! catalog carries only the `format` overloads (transcribed from the
 //! real producer catalog).
 
+use canlang_compiler::analysis::CheckedProgram;
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::check_program;
+use canlang_compiler::analysis::effects::CheckedDescription;
+use canlang_compiler::analysis::resolve::SymbolKind;
 use canlang_compiler::diagnostic::Diagnostic;
 use canlang_compiler::explain;
 use canlang_compiler::source::{SourceDb, Span};
+use canlang_compiler::syntax::SyntaxKind;
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -1311,4 +1315,404 @@ fn t30_set_param_event_drops_param_facts() {
     let src = "app T\nGiven\n P { t:text }\n M { ref:P?, u:int=0 }\n policy P read=members\n policy M read=members\nWhen\n scenario s(event:M) by=members\n  require event.ref!=null\n  do\n   set event {u=1}\n   let v = event.ref.t\nThen\n";
     let diags = check(src, Some(&catalog));
     assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+// --- D02b: semantic join for inline descriptions ---------------------------
+//
+// Static `desc=` values (literals, descriptors with variants, message
+// paths), the legacy `@{desc}` spelling and attached `#` sets resolve
+// into one checked-description slot per field/parameter declaration
+// (`EffectTables::checked_descriptions`). Non-static or non-message
+// values fail at check level with located diagnostics; the parser's
+// dynamic/call/query rejections keep no check-level cascade.
+
+/// Byte span of the 1-based `occurrence`-th appearance of `needle`.
+fn span_of(src: &str, needle: &str, occurrence: usize) -> (u32, u32) {
+    assert!(occurrence >= 1, "occurrences are 1-based");
+    let mut idx = 0;
+    let mut found = 0;
+    while found < occurrence {
+        match src[idx..].find(needle) {
+            Some(at) => {
+                idx += at;
+                found += 1;
+                if found < occurrence {
+                    idx += needle.len();
+                }
+            }
+            None => panic!("needle {needle:?} has fewer than {occurrence} occurrences"),
+        }
+    }
+    (idx as u32, (idx + needle.len()) as u32)
+}
+
+/// Check one source through the full pipeline without a catalog
+/// (description tests use no builtins), returning the checked program
+/// plus sorted diagnostics.
+fn check_full(src: &str) -> (CheckedProgram, Vec<Diagnostic>) {
+    let mut db = SourceDb::new();
+    let id = db.add("test.can".to_string(), src.to_string());
+    let (program, mut diags) = check_program(&db, &[id], None);
+    diags.sort_by(|a, b| {
+        (a.primary.start, a.primary.end, &a.code).cmp(&(b.primary.start, b.primary.end, &b.code))
+    });
+    (program, diags)
+}
+
+/// Checked description for the field/parameter declaration containing
+/// the `occurrence`-th `needle`, if the slot is present. Owner spans
+/// include leading trivia (lossless builder), so matching is by
+/// containment, not exact start.
+fn seam_for<'p>(
+    program: &'p CheckedProgram,
+    src: &str,
+    needle: &str,
+    occurrence: usize,
+) -> Option<&'p CheckedDescription> {
+    let (start, _) = span_of(src, needle, occurrence);
+    program.effects.checked_descriptions.values().find(|d| {
+        (d.owner.kind == SyntaxKind::Field as u8 || d.owner.kind == SyntaxKind::Parameter as u8)
+            && d.owner.start <= start
+            && start < d.owner.end
+    })
+}
+
+/// Assert a description location covers exactly the `occurrence`-th
+/// `needle` plus leading trivia (the lossless builder keeps the gap
+/// inside the value node).
+#[track_caller]
+fn assert_location(
+    src: &str,
+    node: &canlang_compiler::analysis::NodeKey,
+    needle: &str,
+    occurrence: usize,
+) {
+    let (start, end) = span_of(src, needle, occurrence);
+    assert_eq!(node.end, end, "location end");
+    assert!(node.start <= start, "location start");
+    assert!(
+        src[node.start as usize..start as usize].trim().is_empty(),
+        "only trivia precedes the value"
+    );
+}
+
+/// Minimal clean source with one model field under test.
+fn d02b_field_src(field: &str) -> String {
+    format!("app Shop\nGiven\n Gadget {{ {field} }}\n policy Gadget read=members\nWhen\nThen\n")
+}
+
+/// Minimal clean source with scenario parameters under test.
+fn d02b_param_src(params: &str) -> String {
+    format!(
+        "app Shop\nGiven\n Gadget {{ title:text }}\n policy Gadget read=members\nWhen\n scenario approve({params}) by=members\n  do\n   let x = 1\nThen\n"
+    )
+}
+
+/// (D02b) Plain-string `desc=` checks clean on a field and on a
+/// parameter; the seam holds the source text with no variants, the
+/// authoring source language and the `desc=` location, while an
+/// undescribed sibling has no entry (absence).
+#[test]
+fn d02b_inline_plain_on_field_and_param() {
+    let src = d02b_field_src("title:text desc=\"Display title.\", stock:int");
+    let (program, diags) = check_full(&src);
+    assert!(diags.is_empty(), "plain desc: {diags:?}");
+    let entry = seam_for(&program, &src, "title:text", 1).expect("described field has an entry");
+    assert_eq!(entry.source, "Display title.");
+    assert!(entry.variants.is_empty());
+    assert_eq!(entry.source_lang, "en");
+    assert!(entry.message.is_none());
+    assert_location(&src, &entry.node, "desc=\"Display title.\"", 1);
+    assert!(
+        seam_for(&program, &src, "stock:int", 1).is_none(),
+        "undescribed field has no entry"
+    );
+
+    let src = d02b_param_src("note:text desc=\"Optional note.\"");
+    let (program, diags) = check_full(&src);
+    assert!(diags.is_empty(), "plain param desc: {diags:?}");
+    let entry = seam_for(&program, &src, "note:text", 1).expect("described param has an entry");
+    assert_eq!(entry.source, "Optional note.");
+    assert!(entry.variants.is_empty());
+    assert_eq!(entry.source_lang, "en");
+    assert_location(&src, &entry.node, "desc=\"Optional note.\"", 1);
+}
+
+/// (D02b) Inline `desc=` variants resolve in written order, with `null`
+/// kept as an absent translation (distinct from empty text).
+#[test]
+fn d02b_inline_variants_ordered() {
+    let src = d02b_field_src(
+        "name:text desc=\"The name shown to customers.\"@{nl=\"De naam die klanten zien.\", fr=null}",
+    );
+    let (program, diags) = check_full(&src);
+    assert!(diags.is_empty(), "desc variants: {diags:?}");
+    let entry = seam_for(&program, &src, "name:text", 1).expect("described field has an entry");
+    assert_eq!(entry.source, "The name shown to customers.");
+    let variants: Vec<(&str, Option<&str>)> = entry
+        .variants
+        .iter()
+        .map(|v| (v.locale.as_str(), v.value.as_deref()))
+        .collect();
+    assert_eq!(
+        variants,
+        vec![("nl", Some("De naam die klanten zien.")), ("fr", None),]
+    );
+    assert_location(
+        &src,
+        &entry.node,
+        "desc=\"The name shown to customers.\"@{nl=\"De naam die klanten zien.\", fr=null}",
+        1,
+    );
+}
+
+/// (D02b) An authored-empty `desc=""` checks clean and keeps a present
+/// slot with empty source text (absence-vs-empty distinct).
+#[test]
+fn d02b_inline_empty_is_present() {
+    let src = d02b_field_src("nick:text desc=\"\"");
+    let (program, diags) = check_full(&src);
+    assert!(diags.is_empty(), "empty desc: {diags:?}");
+    let entry = seam_for(&program, &src, "nick:text", 1).expect("empty desc keeps a present slot");
+    assert_eq!(entry.source, "");
+    assert!(entry.variants.is_empty());
+}
+
+/// (D02b) A `desc=` message path resolves to the message's wording
+/// (source plus variants) even when the message is declared later in
+/// the module (forward reference).
+#[test]
+fn d02b_message_reference_resolves_wording() {
+    let src = "app Shop\nGiven\n Gadget { title:text desc=title_msg }\n policy Gadget read=members\n message title_msg = \"Display title.\"@{nl=\"Titel.\"}\nWhen\nThen\n";
+    let (program, diags) = check_full(src);
+    assert!(diags.is_empty(), "message desc ref: {diags:?}");
+    let entry = seam_for(&program, src, "title:text", 1).expect("described field has an entry");
+    assert_eq!(entry.source, "Display title.");
+    let variants: Vec<(&str, Option<&str>)> = entry
+        .variants
+        .iter()
+        .map(|v| (v.locale.as_str(), v.value.as_deref()))
+        .collect();
+    assert_eq!(variants, vec![("nl", Some("Titel."))]);
+    assert_eq!(entry.source_lang, "en");
+    let message = entry.message.expect("reference records its message");
+    assert_eq!(program.symbols[message.0 as usize].name, "title_msg");
+    assert_location(src, &entry.node, "desc=title_msg", 1);
+}
+
+/// (D02b) A cross-package `desc=` message path resolves under the
+/// referenced message's owning source language, not the author's.
+#[test]
+fn d02b_message_reference_cross_module_lang() {
+    let src = "app T uses=[p,q]\npackage p source=\"nl\"\n Given\n  export message title_msg = \"Titel.\"@{en=\"Title.\"}\n When\n Then\npackage q\n use p {title_msg}\n Given\n  Gadget { title:text desc=p.title_msg }\n  policy Gadget read=members\n When\n Then\n";
+    let (program, diags) = check_full(src);
+    assert!(diags.is_empty(), "cross-package desc ref: {diags:?}");
+    let entry = seam_for(&program, src, "title:text", 1).expect("described field has an entry");
+    assert_eq!(entry.source, "Titel.");
+    let variants: Vec<(&str, Option<&str>)> = entry
+        .variants
+        .iter()
+        .map(|v| (v.locale.as_str(), v.value.as_deref()))
+        .collect();
+    assert_eq!(variants, vec![("en", Some("Title."))]);
+    assert_eq!(entry.source_lang, "nl");
+}
+
+/// (D02b) The legacy `@{desc="..."}` spelling adapts as source text
+/// with no variants under the authoring language.
+#[test]
+fn d02b_legacy_annotation_adapts() {
+    let src = d02b_field_src("title:text @{desc=\"Display title.\"}");
+    let (program, diags) = check_full(&src);
+    assert!(diags.is_empty(), "legacy desc: {diags:?}");
+    let entry = seam_for(&program, &src, "title:text", 1).expect("described field has an entry");
+    assert_eq!(entry.source, "Display title.");
+    assert!(entry.variants.is_empty());
+    assert_eq!(entry.source_lang, "en");
+    assert!(entry.message.is_none());
+    assert_location(&src, &entry.node, "@{desc=\"Display title.\"}", 1);
+}
+
+/// (D02b) An attached `#` set on a field feeds the same slot: prose
+/// plus suffix variants, located at the `#` line.
+#[test]
+fn d02b_attached_hash_feeds_slot() {
+    let src = "app Shop\nGiven\n Gadget {\n  # Display title. @{nl=\"Titel.\"}\n  title:text\n }\n policy Gadget read=members\nWhen\nThen\n";
+    let (program, diags) = check_full(src);
+    assert!(diags.is_empty(), "attached desc: {diags:?}");
+    let entry = seam_for(&program, src, "title:text", 1).expect("described field has an entry");
+    assert_eq!(entry.source, "Display title.");
+    let variants: Vec<(&str, Option<&str>)> = entry
+        .variants
+        .iter()
+        .map(|v| (v.locale.as_str(), v.value.as_deref()))
+        .collect();
+    assert_eq!(variants, vec![("nl", Some("Titel."))]);
+    assert_location(src, &entry.node, "# Display title. @{nl=\"Titel.\"}", 1);
+}
+
+/// (D02b) An attached `#= path` set on a field resolves to the
+/// message's wording like an inline path.
+#[test]
+fn d02b_attached_reference_resolves() {
+    let src = "app Shop\nGiven\n message title_msg = \"Display title.\"@{nl=\"Titel.\"}\n Gadget {\n  #= title_msg\n  title:text\n }\n policy Gadget read=members\nWhen\nThen\n";
+    let (program, diags) = check_full(src);
+    assert!(diags.is_empty(), "attached desc ref: {diags:?}");
+    let entry = seam_for(&program, src, "title:text", 1).expect("described field has an entry");
+    assert_eq!(entry.source, "Display title.");
+    assert_eq!(entry.source_lang, "en");
+    let message = entry.message.expect("reference records its message");
+    assert_eq!(program.symbols[message.0 as usize].name, "title_msg");
+}
+
+/// (D02b) `label=` after `desc=` still decodes: the seam holds the
+/// description while the effects label slot stays populated.
+#[test]
+fn d02b_label_after_desc_still_decodes() {
+    let src = d02b_field_src("title:text desc=\"Display title.\" label=\"Title\"");
+    let (program, diags) = check_full(&src);
+    assert!(diags.is_empty(), "desc plus label: {diags:?}");
+    let entry = seam_for(&program, &src, "title:text", 1).expect("described field has an entry");
+    assert_eq!(entry.source, "Display title.");
+    let model = program
+        .symbols
+        .iter()
+        .find(|s| matches!(s.kind, SymbolKind::Model { .. }))
+        .expect("model symbol");
+    let data = program
+        .effects
+        .models
+        .get(&model.id)
+        .expect("model effects row");
+    assert!(
+        data.fields.iter().any(|f| f.label.is_some()),
+        "label survives desc="
+    );
+}
+
+/// (D02b) A `desc=` path naming a non-message is `E3016`, located at
+/// the path.
+#[test]
+fn d02b_non_message_reference_rejected() {
+    let src = d02b_field_src("title:text desc=Gadget");
+    let diags = check(&src, None);
+    assert_eq!(codes(&diags), vec!["E3016"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("must reference a message"),
+        "{}",
+        diags[0].message
+    );
+    assert_eq!(
+        (diags[0].primary.start, diags[0].primary.end),
+        span_of(&src, "Gadget", 2)
+    );
+}
+
+/// (D02b) A `desc=` path naming a parameterized message is `E3016`.
+#[test]
+fn d02b_parameterized_message_rejected() {
+    let src = "app Shop\nGiven\n message greet(name:text) = \"Hi {name}\"@{}\n Gadget { title:text desc=greet }\n policy Gadget read=members\nWhen\nThen\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E3016"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("parameterized messages need call syntax"),
+        "{}",
+        diags[0].message
+    );
+    assert_eq!(
+        (diags[0].primary.start, diags[0].primary.end),
+        span_of(src, "greet", 2)
+    );
+}
+
+/// (D02b) A `desc=` path naming nothing is `E2001` with no `E3016`
+/// follow-on.
+#[test]
+fn d02b_unresolved_reference_rejected() {
+    let src = d02b_field_src("title:text desc=nosuch");
+    let diags = check(&src, None);
+    assert_eq!(codes(&diags), vec!["E2001"], "{diags:?}");
+    assert_eq!(
+        (diags[0].primary.start, diags[0].primary.end),
+        span_of(&src, "nosuch", 1)
+    );
+}
+
+/// (D02b) An invalid locale tag in a `desc=` suffix is `E3016`,
+/// located at the tag.
+#[test]
+fn d02b_bad_locale_rejected() {
+    let src = d02b_field_src("title:text desc=\"Display title.\"@{a=\"Titel.\"}");
+    let diags = check(&src, None);
+    assert_eq!(codes(&diags), vec!["E3016"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("not a valid language tag"),
+        "{}",
+        diags[0].message
+    );
+    let (start, _) = span_of(&src, "a=\"Titel.\"", 1);
+    assert_eq!(
+        (diags[0].primary.start, diags[0].primary.end),
+        (start, start + 1)
+    );
+}
+
+/// (D02b) A `desc=` variant repeating the module source language is
+/// `E3016`, located at the tag.
+#[test]
+fn d02b_source_repeat_rejected() {
+    let src = "app Shop source=\"nl\"\nGiven\n Gadget { title:text desc=\"Titel.\"@{nl=\"Titel.\"} }\n policy Gadget read=members\nWhen\nThen\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E3016"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("repeats the source language"),
+        "{}",
+        diags[0].message
+    );
+    let (start, _) = span_of(src, "nl=", 1);
+    assert_eq!(
+        (diags[0].primary.start, diags[0].primary.end),
+        (start, start + 2)
+    );
+}
+
+/// (D02b) Navigation past a message in a `desc=` path is `E2013`
+/// (messages have no members).
+#[test]
+fn d02b_member_past_message_rejected() {
+    let src = "app Shop\nGiven\n message title_msg = \"Display title.\"@{}\n Gadget { title:text desc=title_msg.foo }\n policy Gadget read=members\nWhen\nThen\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+}
+
+/// (D02b) A dynamic `desc=` value stays a parse-level rejection: the
+/// checker adds no `E3016` cascade.
+#[test]
+fn d02b_dynamic_stays_parse_only() {
+    let src = d02b_field_src("title:text desc=42");
+    let diags = check(&src, None);
+    assert!(codes(&diags).contains(&"E1214"), "{diags:?}");
+    assert!(!codes(&diags).contains(&"E3016"), "{diags:?}");
+}
+
+/// (D02b) A parameterized `desc=` call stays a parse-level rejection:
+/// the checker adds no `E3016` cascade.
+#[test]
+fn d02b_parameterized_call_stays_parse_only() {
+    let src = d02b_field_src("title:text desc=title_msg(x)");
+    let diags = check(&src, None);
+    assert!(codes(&diags).contains(&"E1214"), "{diags:?}");
+    assert!(!codes(&diags).contains(&"E3016"), "{diags:?}");
+}
+
+/// (D02b) A record-query `desc=` value stays a parse-level rejection:
+/// the checker adds no `E3016` cascade.
+#[test]
+fn d02b_record_query_stays_parse_only() {
+    let src = d02b_field_src("title:text desc=Gadget where active");
+    let diags = check(&src, None);
+    assert!(codes(&diags).contains(&"E1214"), "{diags:?}");
+    assert!(!codes(&diags).contains(&"E3016"), "{diags:?}");
 }
