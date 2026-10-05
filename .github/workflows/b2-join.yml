@@ -94,6 +94,6 @@ jobs:
         run: |
           set -o pipefail
           bunx vitest run tests/integration/b2-delivery.test.ts tests/integration/b2-d1-fence.test.ts tests/integration/b2-do-local.test.ts tests/integration/b2-revocation.test.ts 2>&1 | tee /tmp/b2_join.log
-          grep -q "Test Files  *4 passed" /tmp/b2_join.log || { echo "FAIL: B2 specs did not pass (skipped or failed)"; exit 1; }
-          grep -q "Tests  *4 passed" /tmp/b2_join.log || { echo "FAIL: B2 spec count drifted (expected 4 tests passing)"; exit 1; }
+          grep -q "Test Files.*4 passed" /tmp/b2_join.log || { echo "FAIL: B2 specs did not pass (skipped or failed)"; exit 1; }
+          grep -q "Tests.*4 passed" /tmp/b2_join.log || { echo "FAIL: B2 spec count drifted (expected 4 tests passing)"; exit 1; }
           echo "proves: 4 B2 journey specs passed against the real producers (not skipped)"
