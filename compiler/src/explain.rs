@@ -910,7 +910,7 @@ const CATALOG: [CodeInfo; 112] = [
         code: "E7004",
         title: "missing-producer",
         severity: Severity::Error,
-        explanation: "`can run|test|build|deploy` are thin lane-7 entries that exec the `can-platform` CLI with argument passthrough. It was not found on PATH and `CAN_PLATFORM_BIN` is unset. Install the lane-7 producer or set `CAN_PLATFORM_BIN`. `can` never embeds a second platform engine.",
+        explanation: "`can docs` pipes the reference model through the `can-platform docs` renderer, and `can run|test|build|deploy` are thin lane-7 entries that exec the `can-platform` CLI with argument passthrough. The `can-platform` producer was not found on PATH and `CAN_PLATFORM_BIN` is unset. Install the lane-7 producer or set `CAN_PLATFORM_BIN`. `can` never embeds a second platform engine.",
         example_valid: "CAN_PLATFORM_BIN=/usr/local/bin/can-platform can run",
         example_invalid: "can run   # without can-platform installed",
     },

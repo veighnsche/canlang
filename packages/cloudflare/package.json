@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@canlang/contracts": "0.1.0",
+    "@canlang/interfaces": "0.1.0",
     "miniflare": "4.20260730.0"
   },
   "devDependencies": {

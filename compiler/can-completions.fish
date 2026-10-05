@@ -3,7 +3,7 @@
 # (or eval it: `can completions fish | source`).
 # Embedded in the binary too: `can completions fish` prints this file.
 
-set -l commands activate build check compile completions deploy explain fmt help lint lsp policy run test
+set -l commands activate build check compile completions deploy docs explain fmt help lint lsp policy run test
 
 complete -c can -f -n __fish_use_subcommand -a activate -d 'Thin lane-7 entry: exec can-platform activate (passthrough)'
 complete -c can -f -n __fish_use_subcommand -a build -d 'Thin lane-7 entry: exec can-platform build (passthrough)'
@@ -11,6 +11,7 @@ complete -c can -f -n __fish_use_subcommand -a check -d 'Analyze sources and rep
 complete -c can -f -n __fish_use_subcommand -a compile -d 'Analyze sources and emit the compile artifact'
 complete -c can -f -n __fish_use_subcommand -a completions -d 'Print a shell completion script'
 complete -c can -f -n __fish_use_subcommand -a deploy -d 'Thin lane-7 entry: exec can-platform deploy (passthrough)'
+complete -c can -f -n __fish_use_subcommand -a docs -d 'Generate the localized internal declaration reference'
 complete -c can -f -n __fish_use_subcommand -a explain -d 'Print a diagnostic catalog entry'
 complete -c can -f -n __fish_use_subcommand -a fmt -d 'Format sources in place (or check with --check)'
 complete -c can -f -n __fish_use_subcommand -a help -d 'Show help (global or per command)'
@@ -28,6 +29,13 @@ for cmd in check compile lint policy
     complete -c can -f -n "__fish_seen_subcommand_from $cmd" -l catalog -r -d 'Producer catalog path'
     complete -c can -f -n "__fish_seen_subcommand_from $cmd" -s h -l help -d 'Show help'
 end
+
+# docs: locale, out, format, catalog, .can operands.
+complete -c can -f -n '__fish_seen_subcommand_from docs' -l locale -x -d 'Reference locale'
+complete -c can -f -n '__fish_seen_subcommand_from docs' -l out -r -d 'Write the reference to PATH instead of stdout'
+complete -c can -f -n '__fish_seen_subcommand_from docs' -l format -x -a 'json text' -d 'Machine or human output'
+complete -c can -f -n '__fish_seen_subcommand_from docs' -l catalog -r -d 'Producer catalog path'
+complete -c can -f -n '__fish_seen_subcommand_from docs' -s h -l help -d 'Show help'
 
 # fmt: --check plus .can operands.
 complete -c can -f -n '__fish_seen_subcommand_from fmt' -l check -d 'Write nothing; list files that differ'

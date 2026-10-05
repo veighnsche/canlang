@@ -13,6 +13,7 @@ _can() {
         'compile:Analyze sources and emit the compile artifact'
         'completions:Print a shell completion script'
         'deploy:Thin lane-7 entry: exec can-platform deploy (passthrough)'
+        'docs:Generate the localized internal declaration reference'
         'explain:Print a diagnostic catalog entry'
         'fmt:Format sources in place (or check with --check)'
         'help:Show help (global or per command)'
@@ -40,6 +41,15 @@ _can() {
         fmt)
             _arguments \
                 '--check[write nothing; list files that differ]' \
+                '(-h --help)'{-h,--help}'[show help]' \
+                '*:source file:_files -g "*.can"'
+            ;;
+        docs)
+            _arguments \
+                '--locale=[reference locale]:tag:' \
+                '--out=[reference output file]:file:_files' \
+                '--format=[output format]:format:(json text)' \
+                '--catalog=[producer catalog]:file:_files' \
                 '(-h --help)'{-h,--help}'[show help]' \
                 '*:source file:_files -g "*.can"'
             ;;
