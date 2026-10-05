@@ -1,0 +1,490 @@
+/**
+ * Deploy worker main (`@canlang/cloudflare/worker/main`). Runs inside
+ * workerd; P-B bundles the compiled `dist/worker/main.js` as the deploy
+ * main.
+ *
+ * The default-export `fetch` is the REAL `createWorkerApp` binding gate
+ * (`./entry.js`, loaded via dynamic import) in front of the REAL
+ * `assembleWorker` dispatch (`./assembly.js`, loaded via dynamic import
+ * exactly like P2's `loadSiblingFn` pattern):
+ *
+ * - `POST /mcp/grants` routes to P-C's pinned `handleMcpGrant(req,
+ *   { identityStore })` (`../runtime/grant-route.js`, dynamic import).
+ * - Every other path delegates to the assembled worker (pages, `/mcp`,
+ *   `/files/*`, `/api/*`, `/auth/*` — assembly owns their semantics).
+ *
+ * Worker-boundary compliant: static `import type` only (this package's
+ * `@canlang/contracts` dependency plus sibling types); every runtime
+ * module loads via dynamic `import()`, enforced by
+ * `test/worker-boundary.test.ts`.
+ *
+ * Sibling-join map (specifiers resolve relative to this module's compiled
+ * location, `dist/worker/main.js`; P-B keeps them runtime-resolvable):
+ *
+ * | specifier                    | export(s)                              | packet |
+ * |------------------------------|----------------------------------------|--------|
+ * | `./entry.js`                 | `createWorkerApp`                      | P-A    |
+ * | `./assembly.js`              | `assembleWorker`                       | P-A    |
+ * | `./artifact.js`              | `artifact`, `modules`, `verdict`       | P-B    |
+ * | `./mcp-handler.js`           | `createHandler` (default accepted)     | P-B    |
+ * | `../runtime/env-assembly.js` | `buildProductionDeps`                  | P-C    |
+ * | `../runtime/grant-route.js`  | `handleMcpGrant`                       | P-C    |
+ *
+ * Absent optional joins degrade to the documented 501s: no
+ * `./mcp-handler.js` means main passes no `createHandler`, so `/mcp`
+ * answers assembly's own interim 501 naming the join, exactly as today;
+ * no `../runtime/grant-route.js` means `POST /mcp/grants` answers
+ * `deploy-join-pending`. Absent REQUIRED joins (`./entry.js`,
+ * `./assembly.js`, `./artifact.js`, `../runtime/env-assembly.js`) fail
+ * loud as 500 `deploy-join-missing` naming the specifier — never an
+ * empty worker. A present-but-wrong export (import succeeds, no
+ * function) is always loud 500: that is a bundler bug, not an absent
+ * join. A sibling whose import rejects is indistinguishable from a
+ * missing file (no filesystem in workerd), so import rejections on the
+ * OPTIONAL siblings read as absent; deploy-time checks own that gap.
+ *
+ * `AssemblyDeps.mcp.permissions` stays unset (assembly's deny-closed
+ * interim): no pinned P-C export supplies L3 permissions yet. When P-C
+ * pins one, main adopts it here.
+ */
+
+import type { ActivationVerdict, CompileArtifact, StoragePort } from "@canlang/contracts";
+import type { AssembledModules } from "../runtime/modules.js";
+import type { AssembledWorker, AssemblyDeps, McpHandlerFactory } from "./assembly.js";
+import type { WorkerApp, WorkerAppOptions } from "./entry.js";
+
+/* ------------------------------------------------------------------ */
+/* Pinned join contracts. Structural mirrors of the sibling packets'  */
+/* exports (P-B `./artifact.js` + `./mcp-handler.js`, P-C             */
+/* `buildProductionDeps` + `handleMcpGrant`); each cites its owner.   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Bindings that must be present on the production `env`, enforced by the
+ * REAL `createWorkerApp` gate before any route runs.
+ *
+ * - `DB` (D1 database): consumed by P-C's `buildProductionDeps(env)`
+ *   (`runtime/env-assembly.ts`) via `createD1Storage(db)`
+ *   (`packages/state/src/storage/d1.ts`). The store, the D1-backed
+ *   identity store, and the INTERIM_DDL migrate step all hang off it.
+ *
+ * No other binding is needed today: P-C's `handleMcpGrant` takes the
+ * already-built `identityStore`, not `env`. If P-C's deps constructor
+ * grows further `env` reads, this list grows with it (join note in
+ * `implementation/evidence/mcpd-a.md`).
+ */
+export const REQUIRED_BINDINGS: readonly string[] = ["DB"];
+
+/**
+ * P-B staged deployment (`./artifact.js` next to the bundled main):
+ * the compiled artifact, its PORTABLE module map (workerd-loadable
+ * URLs — never node file-URLs), and the deploy-time activation verdict
+ * (computed by `activate` at deploy; `active: false` keeps serving the
+ * refusal worker through the same main).
+ */
+export interface StagedDeployment {
+  readonly artifact: CompileArtifact;
+  readonly modules: AssembledModules;
+  readonly verdict: ActivationVerdict;
+}
+
+/** P-C `buildProductionDeps(env)` result: `{ store, identityStore }`. */
+export interface ProductionDeps {
+  readonly store: StoragePort;
+  readonly identityStore: unknown;
+}
+
+/**
+ * P-C `buildProductionDeps` (`runtime/env-assembly.ts`): `env` (with
+ * `DB`) -> production `{ store, identityStore }`, applying the
+ * INTERIM_DDL migrate step.
+ */
+export type BuildProductionDepsFn = (env: Record<string, unknown>) => Promise<ProductionDeps>;
+
+/** P-C `handleMcpGrant` context: `{ identityStore }`. */
+export interface GrantContext {
+  readonly identityStore: unknown;
+}
+
+/**
+ * P-C `handleMcpGrant` (`runtime/grant-route.ts`): production
+ * grant-issuance route behind `POST /mcp/grants`.
+ */
+export type HandleMcpGrantFn = (req: Request, ctx: GrantContext) => Response | Promise<Response>;
+
+/** `assembleWorker` (`worker/assembly.ts:1150`). */
+export type AssembleWorkerFn = (
+  artifact: CompileArtifact,
+  asm: AssembledModules,
+  deps: AssemblyDeps,
+  verdict: ActivationVerdict,
+) => Promise<AssembledWorker>;
+
+/** `createWorkerApp` (`worker/entry.ts:20`). */
+export type CreateWorkerAppFn = (options: WorkerAppOptions) => WorkerApp;
+
+/** Serving fetch: workerd `(request, env)` shape. */
+export type WorkerFetch = (request: Request, env: Record<string, unknown>) => Promise<Response>;
+
+/**
+ * Join loaders. Every field defaults to the production dynamic import;
+ * tests inject the joins that have not landed (staged deployment, MCP
+ * bundle, production deps, grant route) while keeping the REAL
+ * entry/assembly siblings.
+ */
+export interface MainLoaders {
+  readonly loadEntry?: () => Promise<CreateWorkerAppFn>;
+  readonly loadAssembleWorker?: () => Promise<AssembleWorkerFn>;
+  readonly loadStagedDeployment?: () => Promise<StagedDeployment>;
+  readonly loadProductionDeps?: (env: Record<string, unknown>) => Promise<ProductionDeps>;
+  /** Resolves `undefined` when `./mcp-handler.js` is absent (-> assembly 501). */
+  readonly loadMcpHandlerFactory?: () => Promise<McpHandlerFactory | undefined>;
+  /** Resolves `undefined` when `../runtime/grant-route.js` is absent (-> 501). */
+  readonly loadGrantHandler?: () => Promise<HandleMcpGrantFn | undefined>;
+}
+
+/* ------------------------------------------------------------------ */
+/* Small shared helpers (mirrors of the assembly.ts originals).       */
+/* ------------------------------------------------------------------ */
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function jsonResponse(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+/** A required join stage failed to load — 500 naming the specifier. */
+function joinMissingResponse(err: unknown): Response {
+  return jsonResponse({ code: "deploy-join-missing", message: messageOf(err) }, 500);
+}
+
+/** The staged deployment loaded but assembly threw — 500 naming the cause. */
+function assemblyFailedResponse(message: string): Response {
+  return jsonResponse({ code: "worker-assembly-failed", message }, 500);
+}
+
+/** `POST /mcp/grants` before the P-C grant join lands — 501 naming it. */
+function grantPendingResponse(): Response {
+  return jsonResponse(
+    {
+      code: "deploy-join-pending",
+      route: GRANTS_PATH,
+      message:
+        "grant issuance needs the production grant join (runtime/grant-route.ts handleMcpGrant); " +
+        "POST /mcp/grants is not servable until it lands",
+    },
+    501,
+  );
+}
+
+/** Marks staged-validation and `assembleWorker` failures for the 500 above. */
+class AssemblyFailedError extends Error {}
+
+/* ------------------------------------------------------------------ */
+/* Default loaders: the production dynamic imports.                   */
+/* ------------------------------------------------------------------ */
+
+const GRANTS_PATH = "/mcp/grants";
+
+/**
+ * Sibling specifiers as constants (never inline literals): `tsc` resolves
+ * literal `import()` specifiers at check time and the P-B/P-C siblings
+ * do not exist yet, while bundlers must ALSO leave these as runtime
+ * imports (P-B emits the siblings next to the bundle). Importing via a
+ * `string` keeps both honest.
+ */
+const ENTRY_SPECIFIER: string = "./entry.js";
+const ASSEMBLY_SPECIFIER: string = "./assembly.js";
+const STAGED_SPECIFIER: string = "./artifact.js";
+const MCP_HANDLER_SPECIFIER: string = "./mcp-handler.js";
+const ENV_ASSEMBLY_SPECIFIER: string = "../runtime/env-assembly.js";
+const GRANT_ROUTE_SPECIFIER: string = "../runtime/grant-route.js";
+
+/**
+ * Mirror of `loadSiblingFn` (`worker/assembly.ts:634`): static
+ * `import type` only, so runtime siblings load lazily via dynamic
+ * import. Fails loud naming the missing sibling and its packet.
+ */
+async function loadSiblingFn<T>(specifier: string, file: string, binding: string): Promise<T> {
+  let mod: unknown;
+  try {
+    mod = await import(specifier);
+  } catch {
+    throw new Error(
+      `deploy main: worker sibling ${specifier} (${file}, ${binding}) is not deployed yet; the worker cannot serve until that packet lands`,
+    );
+  }
+  if (!isRecord(mod) || typeof mod[binding] !== "function") {
+    throw new Error(
+      `deploy main: worker sibling ${specifier} (${file}) has no function export "${binding}"`,
+    );
+  }
+  return mod[binding] as T;
+}
+
+async function defaultLoadEntry(): Promise<CreateWorkerAppFn> {
+  return loadSiblingFn<CreateWorkerAppFn>(ENTRY_SPECIFIER, "worker/entry.ts", "createWorkerApp");
+}
+
+async function defaultLoadAssembleWorker(): Promise<AssembleWorkerFn> {
+  return loadSiblingFn<AssembleWorkerFn>(ASSEMBLY_SPECIFIER, "worker/assembly.ts", "assembleWorker");
+}
+
+async function defaultLoadStagedDeployment(): Promise<StagedDeployment> {
+  let mod: unknown;
+  try {
+    mod = await import(STAGED_SPECIFIER);
+  } catch {
+    throw new Error(
+      "deploy main: worker sibling ./artifact.js (P-B staged deployment: artifact, modules, verdict) " +
+        "is not deployed yet; the worker cannot serve until the deploy bundler stages it",
+    );
+  }
+  if (!isRecord(mod)) {
+    throw new Error("deploy main: worker sibling ./artifact.js imported a non-module namespace");
+  }
+  return {
+    artifact: mod["artifact"] as CompileArtifact,
+    modules: mod["modules"] as AssembledModules,
+    verdict: mod["verdict"] as ActivationVerdict,
+  };
+}
+
+async function defaultLoadProductionDeps(env: Record<string, unknown>): Promise<ProductionDeps> {
+  const build = await loadSiblingFn<BuildProductionDepsFn>(
+    ENV_ASSEMBLY_SPECIFIER,
+    "runtime/env-assembly.ts",
+    "buildProductionDeps",
+  );
+  return build(env);
+}
+
+async function defaultLoadMcpHandlerFactory(): Promise<McpHandlerFactory | undefined> {
+  let mod: unknown;
+  try {
+    mod = await import(MCP_HANDLER_SPECIFIER);
+  } catch {
+    // Absent bundle: main passes no factory and /mcp answers assembly's
+    // own interim 501 naming the join, exactly as today.
+    return undefined;
+  }
+  if (!isRecord(mod)) {
+    throw new Error("deploy main: worker sibling ./mcp-handler.js imported a non-module namespace");
+  }
+  const factory: unknown = mod["createHandler"] ?? mod["default"];
+  if (typeof factory !== "function") {
+    throw new Error(
+      'deploy main: worker sibling ./mcp-handler.js (P-B MCP bundle) has no function export "createHandler" (or default)',
+    );
+  }
+  return factory as McpHandlerFactory;
+}
+
+async function defaultLoadGrantHandler(): Promise<HandleMcpGrantFn | undefined> {
+  let mod: unknown;
+  try {
+    mod = await import(GRANT_ROUTE_SPECIFIER);
+  } catch {
+    // Absent join (P-C in flight): POST /mcp/grants answers 501 naming it.
+    return undefined;
+  }
+  if (!isRecord(mod)) {
+    throw new Error(
+      "deploy main: worker sibling ../runtime/grant-route.js imported a non-module namespace",
+    );
+  }
+  const handler: unknown = mod["handleMcpGrant"];
+  if (typeof handler !== "function") {
+    throw new Error(
+      'deploy main: worker sibling ../runtime/grant-route.js has no function export "handleMcpGrant"',
+    );
+  }
+  return handler as HandleMcpGrantFn;
+}
+
+/**
+ * Fail-fast shape check on the staged deployment (production `./artifact.js`
+ * or an injected loader — garbage fails loud either way, naming the bad
+ * export). `assembleWorker` still owns the deep compat check.
+ */
+function validateStagedDeployment(staged: StagedDeployment): void {
+  if (!isRecord(staged)) {
+    throw new AssemblyFailedError("deploy main: staged deployment (./artifact.js) is not an object");
+  }
+  const artifact: unknown = staged.artifact;
+  if (!isRecord(artifact) || !Array.isArray(artifact["pages"]) || !Array.isArray(artifact["callables"])) {
+    throw new AssemblyFailedError(
+      'deploy main: staged deployment (./artifact.js) export "artifact" is not a CompileArtifact (needs pages[] and callables[])',
+    );
+  }
+  const modules: unknown = staged.modules;
+  if (!isRecord(modules) || !isRecord(modules["moduleUrls"])) {
+    throw new AssemblyFailedError(
+      'deploy main: staged deployment (./artifact.js) export "modules" is not an AssembledModules map (needs moduleUrls)',
+    );
+  }
+  const verdict: unknown = staged.verdict;
+  if (!isRecord(verdict) || typeof verdict["active"] !== "boolean") {
+    throw new AssemblyFailedError(
+      'deploy main: staged deployment (./artifact.js) export "verdict" is not an ActivationVerdict (needs boolean "active")',
+    );
+  }
+}
+
+/**
+ * Memoize a loader promise, evicting rejections so the next request
+ * retries instead of pinning a failure for the isolate's lifetime.
+ */
+function memoize<T>(run: () => Promise<T>): () => Promise<T> {
+  let current: Promise<T> | null = null;
+  return () => {
+    if (current === null) {
+      const tracked: Promise<T> = run().then(
+        (value) => value,
+        (err: unknown) => {
+          if (current === tracked) current = null;
+          throw err;
+        },
+      );
+      current = tracked;
+    }
+    return current;
+  };
+}
+
+/**
+ * Build the serving fetch: binding gate outermost, `POST /mcp/grants`
+ * routed to the grant join, everything else delegated to the assembled
+ * worker. Assembly is cached per `env` object (the production isolate
+ * reuses one `env`, so it assembles once); loader failures evict so a
+ * later request retries.
+ */
+export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
+  const loadEntry = loaders.loadEntry ?? defaultLoadEntry;
+  const loadAssemble = loaders.loadAssembleWorker ?? defaultLoadAssembleWorker;
+  const loadStaged = loaders.loadStagedDeployment ?? defaultLoadStagedDeployment;
+  const loadProdDeps = loaders.loadProductionDeps ?? defaultLoadProductionDeps;
+  const loadMcp = loaders.loadMcpHandlerFactory ?? defaultLoadMcpHandlerFactory;
+  const loadGrant = loaders.loadGrantHandler ?? defaultLoadGrantHandler;
+
+  const prodDepsByEnv = new WeakMap<object, Promise<ProductionDeps>>();
+  const workerByEnv = new WeakMap<object, Promise<AssembledWorker>>();
+
+  const getApp = memoize(async (): Promise<WorkerApp> => {
+    const createWorkerApp = await loadEntry();
+    return createWorkerApp({ requiredBindings: REQUIRED_BINDINGS, fetch: innerFetch });
+  });
+  const getStaged = memoize(() => loadStaged());
+  const getMcpFactory = memoize(() => loadMcp());
+  const getGrantHandler = memoize(() => loadGrant());
+  const getAssemble = memoize(() => loadAssemble());
+
+  function prodDepsFor(env: Record<string, unknown>): Promise<ProductionDeps> {
+    const cached = prodDepsByEnv.get(env);
+    if (cached !== undefined) return cached;
+    const tracked: Promise<ProductionDeps> = loadProdDeps(env).then(
+      (value) => value,
+      (err: unknown) => {
+        if (prodDepsByEnv.get(env) === tracked) prodDepsByEnv.delete(env);
+        throw err;
+      },
+    );
+    prodDepsByEnv.set(env, tracked);
+    return tracked;
+  }
+
+  async function buildWorker(env: Record<string, unknown>): Promise<AssembledWorker> {
+    // Staged deployment first: no store is constructed (no DDL migrate)
+    // for a deploy whose payload never staged.
+    const staged = await getStaged();
+    validateStagedDeployment(staged);
+    const deps = await prodDepsFor(env);
+    const factory = await getMcpFactory();
+    const assembleWorker = await getAssemble();
+    const assemblyDeps: AssemblyDeps =
+      factory === undefined
+        ? { store: deps.store, identityStore: deps.identityStore }
+        : { store: deps.store, identityStore: deps.identityStore, mcp: { createHandler: factory } };
+    try {
+      return await assembleWorker(staged.artifact, staged.modules, assemblyDeps, staged.verdict);
+    } catch (err) {
+      throw new AssemblyFailedError(`deploy main: assembleWorker threw (${messageOf(err)})`);
+    }
+  }
+
+  function workerFor(env: Record<string, unknown>): Promise<AssembledWorker> {
+    const cached = workerByEnv.get(env);
+    if (cached !== undefined) return cached;
+    const tracked: Promise<AssembledWorker> = buildWorker(env).then(
+      (value) => value,
+      (err: unknown) => {
+        if (workerByEnv.get(env) === tracked) workerByEnv.delete(env);
+        throw err;
+      },
+    );
+    workerByEnv.set(env, tracked);
+    return tracked;
+  }
+
+  async function grantsResponse(req: Request, env: Record<string, unknown>): Promise<Response> {
+    let deps: ProductionDeps;
+    try {
+      deps = await prodDepsFor(env);
+    } catch (err) {
+      return joinMissingResponse(err);
+    }
+    let grant: HandleMcpGrantFn | undefined;
+    try {
+      grant = await getGrantHandler();
+    } catch (err) {
+      return joinMissingResponse(err);
+    }
+    if (grant === undefined) return grantPendingResponse();
+    return grant(req, { identityStore: deps.identityStore });
+  }
+
+  async function assemblyResponse(req: Request, env: Record<string, unknown>): Promise<Response> {
+    let worker: AssembledWorker;
+    try {
+      worker = await workerFor(env);
+    } catch (err) {
+      return err instanceof AssemblyFailedError
+        ? assemblyFailedResponse(messageOf(err))
+        : joinMissingResponse(err);
+    }
+    return worker.fetch(req);
+  }
+
+  async function innerFetch(request: Request, env: Record<string, unknown>): Promise<Response> {
+    const url = new URL(request.url);
+    if (request.method.toUpperCase() === "POST" && url.pathname === GRANTS_PATH) {
+      return grantsResponse(request, env);
+    }
+    return assemblyResponse(request, env);
+  }
+
+  return async (request: Request, env: Record<string, unknown>): Promise<Response> => {
+    const safeEnv: Record<string, unknown> = isRecord(env) ? env : {};
+    let app: WorkerApp;
+    try {
+      app = await getApp();
+    } catch (err) {
+      return joinMissingResponse(err);
+    }
+    return app.fetch(request, safeEnv);
+  };
+}
+
+/** Deploy main: the default-export fetch P-B bundles. */
+const workerMain: { fetch: WorkerFetch } = { fetch: createMainFetch() };
+
+export default workerMain;
