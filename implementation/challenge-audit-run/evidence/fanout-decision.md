@@ -332,11 +332,15 @@ contract exists. This is partial adoption with an explicit deferred remainder.
 4. Cohort-cutoff intent: no draft example pins snapshot-vs-live membership
    or concurrent insert/move/remove handling for any of the four sites;
    absence must be confirmed by re-reading the surrounding scenarios, not
-   assumed.
+   assumed. **[GATE-COMPLETE 2026-10-05: absence CONFIRMED by re-read —
+   see "Intent absence confirmation (gate evidence)" §A; adjacent
+   per-child intent reported exactly in §C, adopts nothing.]**
 5. Supersession intent: no draft example pins re-trigger-during-flight for
    any fanout scenario; confirm absence; if absent, the gate picks the
    default (L524 undispatched-only vs whole-occurrence) without draft
-   grounding.
+   grounding. **[GATE-COMPLETE 2026-10-05: absence CONFIRMED by re-read —
+   see "Intent absence confirmation (gate evidence)" §B; gate picks the
+   default without draft grounding.]**
 6. Size evidence: no draft cohort approaches 499+ records; the
    499/500/501/1000 completeness sizes are proof obligations from the
    audit plan, not observed needs — record that explicitly so the gate
@@ -363,3 +367,190 @@ contract exists. This is partial adoption with an explicit deferred remainder.
   (read-only); tasks.md/monitor.md/inbox untouched (coordinator-owned);
   no JEV run; no Git.
 - Release: this file is RELEASED to the coordinator for gate scheduling.
+
+## Intent absence confirmation (gate evidence)
+
+Writer: L4 T33-absence-confirm (append-only slice; prep alternatives,
+fairness record, and checklist text above untouched except the items 4–5
+markers). Status: **PREP — adopts NOTHING.** Read-only inspection only;
+no builds, no JEV, no Git.
+
+Census re-verified: exactly four `each=` sites exist in `draft/`
+(`rg -n "each=" draft/` returns only the four lines below, nothing else).
+
+### Per-site verdicts
+
+**Q1 = snapshot-vs-live membership pinned? Q2 = concurrent
+insert/move/remove handling pinned? Q3 = re-trigger-during-flight pinned?**
+
+**Site 1 — Shift `review_commitment`
+([CanShift.can](/Users/vince/Projects/canlang/draft/CanShift.can:237),
+body L237–242): Q1 NO, Q2 NO, Q3 NO.**
+Read range establishing absence: `draft/CanShift.can:211-252`
+(`recover_commitment` with its examples at L221–225, all five
+EligibilityReview emitters at L226–236, both `each=` scenarios at
+L237–248, `duty_notice` at L249–252) plus the event declaration at
+`draft/CanShift.can:49`
+(`event EligibilityReview { employee:Employee?, location:text?,
+account:user?, roster:Roster? }`). The scenario body filters by
+nullable event keys, marks `conflict=true`, and emits
+`ReservationOutcome{unavailable}`; it contains no membership-timing,
+concurrency, or re-trigger text. No `examples` block is attached to
+this scenario (next `examples` after L237 belongs to
+`reserve_connected` at L278). Keyword census over both draft files for
+`snapshot|concurrent|supersed|re-trigger|retrigger|cutoff|frozen`
+returns zero hits in these two files.
+
+**Site 2 — Shift `review_swap`
+([CanShift.can](/Users/vince/Projects/canlang/draft/CanShift.can:243),
+body L243–248): Q1 NO, Q2 NO, Q3 NO.**
+Same read range as site 1 (`draft/CanShift.can:211-252` + `:49`). The
+body reads `commitment.version!=swap.revision` (L247) — a per-child
+staleness check evaluated inside one child's invalidation predicate,
+not a cohort-membership or mid-flight insert/move/remove policy. No
+`examples` block is attached (nothing between L243 and `duty_notice`
+at L249). Note: `Swap.state` enum labels `obsolete` as "Superseded"
+(`draft/CanShift.can:47`) — a display caption for a per-record state
+value, not a re-trigger-during-flight rule.
+
+**Site 3 — Volunteer `refresh_reminders`
+([CanVolunteer.can](/Users/vince/Projects/canlang/draft/CanVolunteer.can:47),
+body L47–52): Q1 NO, Q2 NO, Q3 NO.**
+Read range establishing absence: `draft/CanVolunteer.can:41-80`
+(`venue_on_create`, the scenario, `publish`, `signup`, `confirm`,
+`withdraw` with its examples at L76–80). The body filters
+`signup.parent.id==event.id`, cancels the schedule key, and re-arms a
+`Reminder` carrying `revision=signup.version` (L52) — schedule-key
+pairing, not a membership policy. No `examples` block is attached
+(L53 is the next scenario's comment). Companion absence statement, see
+§C.
+
+**Site 4 — Volunteer `cancel_signup`
+([CanVolunteer.can](/Users/vince/Projects/canlang/draft/CanVolunteer.can:178),
+body L178–185): Q1 NO, Q2 NO, Q3 NO.**
+Read range establishing absence: `draft/CanVolunteer.can:157-197`
+(`venue_changed`, `cancel` emitting `OpportunityCancelled` at L173–177,
+the scenario, `remind` with its examples at L193–197). The body's
+`when=signup.version==signup_revision and ...` send guard (L184) is
+per-child dispatch fencing, not a membership or re-trigger policy. No
+`examples` block is attached (L186 starts `remind`). Companion absence
+statement, see §C.
+
+### §A — Item 4 (cohort-cutoff): absence confirmed
+
+No `.can` scenario body, attached example, or surrounding scenario in
+the read ranges above pins snapshot-vs-live membership or concurrent
+insert/move/remove handling for any of the four sites. The desired
+targets corroborate structurally: all four `.mjs` handlers are
+per-child functions receiving an already-selected child
+(`refresh_reminders(c, { event, signup })` at
+`draft/CanVolunteer.mjs:704`; `cancel_signup(c, { event, signup })` at
+`draft/CanVolunteer.mjs:1057`; `review_commitment(c, { event,
+commitment })` at `draft/CanShift.mjs:1315`; `review_swap(c, { event,
+swap })` at `draft/CanShift.mjs:1333`), and the `each:` declarations
+carry routing metadata only (model + bind, plus a parent resolver for
+site 4 at `draft/CanVolunteer.mjs:629-636`) — no dispatcher loop, no
+membership-timing or concurrency semantics exist anywhere in either
+`.mjs` file (`rg` for `each|fanout|cohort|for (` returns only the four
+`each:` declaration lines). Per RQ04 the `.mjs` is desired output, not
+proof; it is cited here only as absence corroboration, and it pins
+nothing either way.
+
+### §B — Item 5 (supersession): absence confirmed
+
+No draft text at or around any of the four sites addresses a second
+trigger arriving while a fanout is in flight (second EligibilityReview
+during a Shift sweep; second Opportunity.updated/OpportunityCancelled
+during a Volunteer sweep). The only "supersed*" occurrences touching
+these workflows are the `Swap.state.obsolete` "Superseded" display
+caption (site 2, per-record state, quoted above) and the CanMaintain /
+CanTime / CanGrant usages, which belong to unrelated apps. Per the
+checklist, the gate therefore picks the re-trigger default (L524
+undispatched-only vs whole-occurrence) without draft grounding.
+
+### §C — Adjacent intent evidence (reported exactly; pins NEITHER item 4 nor 5)
+
+The requirements companions pin per-child semantics around the fanout
+sites. This evidence is reported exactly because the brief requires it;
+it does NOT answer Q1–Q3 (no sentence addresses late-join membership,
+mid-flight insert/move/remove, or re-trigger), and it is NOT adopted.
+
+- `draft/CanShift.md:81` (sites 1–2): "Two review handlers then
+  enumerate the finite admitted cohort — every Commitment identity for
+  review_commitment, every Swap identity for review_swap — and recheck
+  each record against current state when its child executes" … "Cohort
+  size is not a capacity rule: 499, 500, 501 and 1,000 admitted
+  identities all belong to the same complete contract, and the old
+  rejecting 500-row transaction bounds are gone." … "a failed child
+  does not stop other children, and a fully scanned run with failed
+  children reports attention, never successful completion." …
+  "commitment and swap children are correct in either order" …
+  "previously committed conflict or obsolete decisions remain sticky
+  and are not automatically cleared." … "Historical commitments stay
+  outside effective flagging scans."
+- `draft/CanShift.md:87` (sites 1–2): "per-child review cases await
+  specified handler-fixture binding, so no invented each example
+  selectors are authored." (Explicit statement that per-child examples
+  are absent.)
+- `draft/CanVolunteer.md:73` (site 4): "Cancelling sets parent truth
+  immediately and emits OpportunityCancelled with the captured reason;
+  each signup child then stores cancelled and one guarded notice
+  intent." … "Parent cancellation success means the activity is
+  cancelled and its durable trigger committed, not that every child
+  already ran; operator progress must expose remaining/failed children,
+  and a failed child never makes the parent usable again."
+- `draft/CanVolunteer.md:75` (site 3): "the committed refresh pass
+  replaces each keyed pending reminder from current parent and signup
+  versions and current eligibility, and can never re-arm a cancelled
+  parent or overwrite a signup state."
+- `draft/CanVolunteer.md:77` (sites 3–4): "No per-child example cases
+  are authored for cancel_signup or refresh_reminders: individual child
+  business cases await specified handler-fixture binding, and cohort
+  sizes, crashes, fresh reads, interleavings and dispatcher fairness
+  need shared-runtime fixtures, so no invented each selectors are
+  authored." (Explicit statement deferring exactly the item-4/item-5
+  subject matter — fresh reads, interleavings — to shared-runtime
+  fixtures.)
+
+### Alternatives discrimination
+
+- The §C evidence discriminates against Alternative B (single
+  atomic transaction + hard cap): Shift.md:81's no-cap rule
+  ("499, 500, 501 and 1,000 … the old rejecting 500-row transaction
+  bounds are gone") contradicts B's cap; its per-child failure
+  isolation ("a failed child does not stop other children … reports
+  attention, never successful completion") contradicts B's
+  all-or-nothing atomicity; Volunteer.md:73's durable-trigger-committed
+  with children running after ("not that every child already ran" +
+  "operator progress must expose remaining/failed children")
+  contradicts B's "success means all children committed." This input
+  favors A/D-shaped per-child execution over B — recorded for the
+  gate, adopted by nothing here.
+- The confirmed absences (§A/§B) discriminate among NO alternatives:
+  with no draft grounding for snapshot-vs-live, concurrent-change, or
+  re-trigger policy, the gate must pick each default on engineering
+  grounds (A/D frozen-cutoff vs B live-transaction vs C per-query
+  timing; skip-vs-fail for deleted children; L524 undispatched-only vs
+  whole-occurrence supersession).
+- Alternative C (remodeling) and Alternative D's Shift-anchoring
+  question (checklist item 7) are unaffected by these findings.
+
+### Commands run
+
+1. `rg -n "EligibilityReview|each=|snapshot|concurrent|supersed|re-trigger|retrigger|cutoff|frozen" draft/CanShift.can draft/CanVolunteer.can` — four `each=` lines + six EligibilityReview lines; zero snapshot/concurrency/retrigger hits.
+2. `rg -n "each=" draft/` — census: exactly the four known sites, nothing else.
+3. `rg -cn "examples" draft/CanShift.can draft/CanVolunteer.can` + full reads of the fanout neighborhoods — no `examples` block attached to any `each=` scenario.
+4. `rg -n "review_commitment|review_swap|refresh_reminders|cancel_signup|Superseded|supersed" draft/` — surfaced §C companion texts + confirmed no other re-trigger policy text.
+5. `rg -n "each|fanout|cohort|for \(|for\(" draft/CanShift.mjs draft/CanVolunteer.mjs` + reads of the four `.mjs` handlers — per-child functions + routing metadata only.
+
+### Handoff
+
+- Writer: L4 T33-absence-confirm. WRITE ONLY
+  `implementation/challenge-audit-run/evidence/fanout-decision.md`
+  (appended this section + items 4–5 markers); all drafts, normative
+  docs, tasks/monitor/inbox, code, and `tools/jev.py` untouched; no
+  JEV run; no Git; no builds.
+- Release: this file is RELEASED to the coordinator. Gate-needs #4+#5
+  complete; remaining gate needs per checklist: items 1–3 (T24/T28/T32
+  inputs), 6–8 (size record, Shift anchoring, syntax ordering), 9 (JEV),
+  10 (T34 proof plan).
