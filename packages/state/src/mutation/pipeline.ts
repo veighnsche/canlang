@@ -3,10 +3,12 @@
  *
  * `runMutationWrites` evaluates an ordered batch of create/update/remove
  * writes against a provisional map layered over the store, returning the
- * fenced-commit inputs (domain writes, history, unique claims/releases) plus
- * receipt `resolvedDefaults`. It commits nothing itself; callers commit the
- * result with the admission fence. All decisions below are the S5 spec,
- * documented inline.
+ * fenced-commit inputs (domain writes, history, unique claims/releases,
+ * hook-staged schedules) plus receipt `resolvedDefaults`. It commits
+ * nothing itself; callers commit the result with the admission fence. All
+ * decisions below are the S5 spec, documented inline; T31 adds Rule A flat
+ * hook staging (create/update hooks stage secondary writes + timers into
+ * the same batch, same-model barred, no hook reentry).
  */
 
 import type {
@@ -14,19 +16,29 @@ import type {
   HistoryEntry,
   InvocationContext,
   ModelName,
+  OperationName,
   QueryPredicate,
   RecordId,
   RecordParent,
   RecordVersion,
+  ScheduleOp,
   StoredRow,
   UniqueClaim,
   UniqueRelease,
 } from '../../../contracts/src/state.js';
 import type { StoragePort } from '../storage/port.js';
 import { StateError } from '../errors.js';
-import { jsonClone } from '../internal/json.js';
+import { STAGING_MAX_ID_LENGTH } from '../effects/staging.js';
+import { checkJsonSafe as checkJsonEncoding, jsonClone } from '../internal/json.js';
 import { evalPredicateForRow, resolveRowPath } from '../policy/grants.js';
-import { isParentPathDefault, type InterimModelDef, type ModelTable } from './models.js';
+import {
+  isParentPathDefault,
+  type InterimHookContext,
+  type InterimHookSchedule,
+  type InterimHookStagedWrite,
+  type InterimModelDef,
+  type ModelTable,
+} from './models.js';
 
 /**
  * One caller write. `data` is create data or an update patch (`undefined`
@@ -65,12 +77,44 @@ export interface MutationWritesResult {
   readonly uniqueClaims: UniqueClaim[];
   readonly uniqueReleases: UniqueRelease[];
   readonly resolvedDefaults: Record<string, unknown>;
+  /**
+   * T31 (Rule A): hook-staged timer ops in staging order, for the same
+   * fenced batch. Empty when no hook staged timers.
+   */
+  readonly schedules: ScheduleOp[];
 }
 
 /** Provisional entry: a staged row, or a removal masking the store. */
 type ProvisionalEntry =
   | { readonly status: 'row'; readonly row: StoredRow }
   | { readonly status: 'removed' };
+
+/**
+ * T31 (Rule A): one hook-staged secondary write plus its staging hook's
+ * name for failure attribution. Runs through the identical per-write path
+ * as caller writes, minus CRUD hooks (flat, no cascade).
+ */
+interface StagedWriteEntry {
+  readonly write: MutationWrite;
+  readonly hook: string;
+}
+
+/**
+ * T31 (Rule A): work-queue entry. Caller writes carry `stagedBy: null` and
+ * run hooks; staged writes carry their staging hook's name and skip hooks
+ * while sharing every other check (defaults, required, when/locks/refs,
+ * uniques, provisionalize, history).
+ */
+interface MutationQueueEntry {
+  readonly write: MutationWrite;
+  readonly stagedBy: string | null;
+}
+
+/** T31 (Rule A): per-trigger-write sink for hook-staged writes + timers. */
+interface StagingSink {
+  readonly writes: StagedWriteEntry[];
+  readonly schedules: ScheduleOp[];
+}
 
 function keyOf(model: ModelName, id: RecordId): string {
   return `${model as string}\0${id as string}`;
@@ -158,10 +202,25 @@ function refValuesEqual(oldValue: unknown, newValue: unknown): boolean {
  * order then def order (a model touched twice runs its invariants twice),
  * each seeing the final provisional state.
  *
+ * T31 (Rule A): create/update hooks may stage secondary writes
+ * (create/set on other models, same-model barred) plus schedule/cancel
+ * timer ops. Staged writes join the work queue immediately after their
+ * trigger in staging order and run the identical per-write path minus CRUD
+ * hooks (flat, no cascade); hooks evaluate once, in written order, against
+ * the proposed state. Staged writes observe the trigger's provisional row
+ * (pending parents resolve) plus earlier staged rows, reserve their own
+ * versions, enroll in the same fence via the single batch commit, and
+ * record history under the triggering operation's identity. Any staged
+ * failure voids the whole batch before commit (atomic rollback).
+ *
  * INTERIM LIMITATION: same-batch self-canceling writes (create+remove one
  * id) emit both a claim and a release for one key, but stores apply releases
  * first — direct multi-write callers must not emit both. Unreachable via
  * crudExecute (single write per call); scenarios will stage net uniques.
+ * (Same-batch double-touch of one row — e.g. a staged update to a staged
+ * create — likewise fails at commit: adapters pre-check every
+ * expectedVersion against stored state, so chained provisional versions
+ * conflict. Staged writes inherit exactly the caller multi-write rule.)
  */
 export async function runMutationWrites(input: MutationWritesInput): Promise<MutationWritesResult> {
   const { table, writes, context, store } = input;
@@ -173,6 +232,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
   const outClaims: UniqueClaim[] = [];
   const outReleases: UniqueRelease[] = [];
   const resolvedDefaults: Record<string, unknown> = {};
+  const outSchedules: ScheduleOp[] = [];
   const touchedDefs: InterimModelDef[] = [];
 
   /** Provisional-aware load: staged rows win, removals mask, else the store. */
@@ -297,32 +357,254 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     }
   };
 
-  /** Run matching hooks in written order; each gets a clone, returns next. */
+  /**
+   * T31 (Rule A) stage-time validation for one hook-staged write: shape,
+   * create/set-only (staged deletes barred), known model (programmer bug
+   * otherwise, mirroring the pipeline's unknown-model rule), and the
+   * same-model bar — triggering-path recursion, same-model-via-different-op,
+   * and pending-source deletion all name the trigger model, so one bar
+   * covers all three. Returns an engine-owned queue entry. State-dependent
+   * checks (refs, locks, uniques, versions) run later on the shared
+   * per-write path, attributed to the staging hook via the queue entry.
+   */
+  const checkStagedWrite = (
+    def: InterimModelDef,
+    hookName: string,
+    staged: InterimHookStagedWrite,
+  ): StagedWriteEntry => {
+    const hookTag =
+      `Hook ${JSON.stringify(hookName)} on model ${JSON.stringify(def.model as string)}`;
+    if (typeof staged !== 'object' || staged === null || Array.isArray(staged)) {
+      throw new StateError('validation', `${hookTag} staged a write that must be an object.`);
+    }
+    const stagedOp: unknown = (staged as { readonly op?: unknown }).op;
+    if (stagedOp !== 'create' && stagedOp !== 'update') {
+      throw new StateError(
+        'validation',
+        `${hookTag} cannot stage ${JSON.stringify(stagedOp)} writes; hooks stage create/set only.`,
+      );
+    }
+    // Validated above: only create/set stage.
+    const op = stagedOp as 'create' | 'update';
+    const stagedModel: unknown = (staged as { readonly model?: unknown }).model;
+    if (typeof stagedModel !== 'string' || stagedModel === '') {
+      throw new StateError('validation', `${hookTag} staged a write with no model.`);
+    }
+    if (!table.has(stagedModel as ModelName)) {
+      throw new Error(`${hookTag} staged a write to unknown model ${JSON.stringify(stagedModel)}.`);
+    }
+    if (stagedModel === (def.model as string)) {
+      throw new StateError(
+        'validation',
+        `${hookTag} cannot stage same-model writes; got ${JSON.stringify(op)} on ` +
+          `${JSON.stringify(stagedModel)} (triggering-path recursion and pending-source ` +
+          'deletion are barred).',
+      );
+    }
+    const stagedId: unknown = (staged as { readonly id?: unknown }).id;
+    if (typeof stagedId !== 'string' || stagedId === '') {
+      throw new StateError(
+        'validation',
+        `${hookTag} staged a write needing a non-empty string record id.`,
+      );
+    }
+    const stagedData: unknown = (staged as { readonly data?: unknown }).data;
+    if (
+      stagedData !== undefined &&
+      (typeof stagedData !== 'object' || stagedData === null || Array.isArray(stagedData))
+    ) {
+      throw new StateError(
+        'validation',
+        `${hookTag} staged a write whose data must be an object.`,
+      );
+    }
+    const stagedParent: unknown = (staged as { readonly parent?: unknown }).parent;
+    let parent: RecordParent | undefined;
+    if (stagedParent !== undefined) {
+      if (op !== 'create') {
+        throw new StateError(
+          'validation',
+          `${hookTag} staged an update carrying a parent; parent linkage is immutable.`,
+        );
+      }
+      if (
+        typeof stagedParent !== 'object' ||
+        stagedParent === null ||
+        Array.isArray(stagedParent)
+      ) {
+        throw new StateError(
+          'validation',
+          `${hookTag} staged a write with an invalid parent reference.`,
+        );
+      }
+      const parentRecord = stagedParent as Record<string, unknown>;
+      const parentModel: unknown = parentRecord['model'];
+      const parentId: unknown = parentRecord['id'];
+      if (
+        typeof parentModel !== 'string' ||
+        parentModel === '' ||
+        typeof parentId !== 'string' ||
+        parentId === ''
+      ) {
+        throw new StateError(
+          'validation',
+          `${hookTag} staged a write with an invalid parent reference.`,
+        );
+      }
+      parent = { model: parentModel as ModelName, id: parentId as RecordId };
+    }
+    return {
+      hook: hookName,
+      write: {
+        op,
+        model: stagedModel as ModelName,
+        id: stagedId as RecordId,
+        ...(parent !== undefined ? { parent } : {}),
+        ...(stagedData !== undefined
+          ? { data: jsonClone(stagedData as Record<string, unknown>, `${hookTag} staged data`) }
+          : {}),
+      },
+    };
+  };
+
+  /**
+   * T31 (Rule A) stage-time validation for one hook-staged timer replace:
+   * the S6 schedule shape (bounded non-empty key, finite `at` >= 0,
+   * non-empty event, JSON-safe payload object), attributed to the staging
+   * hook. The invoke boundary re-validates before commit (defense in depth).
+   */
+  const checkStagedSchedule = (
+    def: InterimModelDef,
+    hookName: string,
+    replacement: InterimHookSchedule,
+  ): ScheduleOp => {
+    const hookTag =
+      `Hook ${JSON.stringify(hookName)} on model ${JSON.stringify(def.model as string)}`;
+    if (
+      typeof replacement !== 'object' ||
+      replacement === null ||
+      Array.isArray(replacement)
+    ) {
+      throw new StateError('validation', `${hookTag} staged a schedule that must be an object.`);
+    }
+    const raw = replacement as unknown as Record<string, unknown>;
+    const key: unknown = raw['key'];
+    if (typeof key !== 'string' || key === '') {
+      throw new StateError('validation', `${hookTag} staged a schedule with no key.`);
+    }
+    if (key.length > STAGING_MAX_ID_LENGTH) {
+      throw new StateError(
+        'validation',
+        `${hookTag} staged a schedule key exceeding ${STAGING_MAX_ID_LENGTH} characters.`,
+      );
+    }
+    const at: unknown = raw['at'];
+    if (typeof at !== 'number' || !Number.isFinite(at) || at < 0) {
+      throw new StateError(
+        'validation',
+        `${hookTag} staged a schedule with an invalid time; want a finite number >= 0.`,
+      );
+    }
+    const event: unknown = raw['event'];
+    if (typeof event !== 'string' || event === '') {
+      throw new StateError('validation', `${hookTag} staged a schedule with no event.`);
+    }
+    const payload: unknown = raw['payload'];
+    if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+      throw new StateError(
+        'validation',
+        `${hookTag} staged a schedule whose payload must be an object.`,
+      );
+    }
+    const cloned = jsonClone(
+      payload as Record<string, unknown>,
+      `${hookTag} staged schedule payload`,
+    );
+    checkJsonEncoding(cloned, `${hookTag} staged schedule payload`);
+    return { op: 'replace', key, at, event: event as OperationName, payload: cloned };
+  };
+
+  /** T31 (Rule A) stage-time validation for one hook-staged timer cancel. */
+  const checkStagedCancel = (
+    def: InterimModelDef,
+    hookName: string,
+    key: string,
+  ): ScheduleOp => {
+    const hookTag =
+      `Hook ${JSON.stringify(hookName)} on model ${JSON.stringify(def.model as string)}`;
+    if (typeof key !== 'string' || key === '') {
+      throw new StateError('validation', `${hookTag} staged a cancel with no key.`);
+    }
+    if (key.length > STAGING_MAX_ID_LENGTH) {
+      throw new StateError(
+        'validation',
+        `${hookTag} staged a cancel key exceeding ${STAGING_MAX_ID_LENGTH} characters.`,
+      );
+    }
+    return { op: 'cancel', key };
+  };
+
+  /**
+   * Run matching hooks in written order; each gets a clone, returns next.
+   * T31 (Rule A): each hook also gets a staging context — `before` is a
+   * deep-frozen snapshot (mutation attempts throw), and `stage`/`schedule`/
+   * `cancel` collect into `sink` (all three reject on remove-op hooks:
+   * delete hooks reject by throwing, never stage). Hook bodies evaluate
+   * once, in written order, against the proposed state.
+   */
   const runHooks = async (
     def: InterimModelDef,
     op: 'create' | 'update' | 'remove',
     candidate: Record<string, unknown>,
     before: StoredRow | null,
+    triggerId: RecordId,
+    sink: StagingSink,
   ): Promise<Record<string, unknown>> => {
     let current = candidate;
+    // Frozen once per op and shared across hooks in written order: no hook
+    // can mutate the snapshot a later hook (or the pipeline's own
+    // lock/ref/unique/history reads) observes.
+    const frozenBefore = before === null ? null : deepFreeze(jsonClone(before, 'Hook before'));
     for (const hook of def.hooks) {
       if (!hook.ops.includes(op)) {
         continue;
       }
-      // Each hook gets a clone and its return is re-cloned: hooks can neither
-      // mutate the pipeline candidate nor smuggle uncloneable values forward
-      // (or retain an alias and mutate it after returning).
-      const next = await hook.run(jsonClone(current, 'Hook candidate'), {
-        before,
+      const hookTag =
+        `Hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(def.model as string)}`;
+      const forbidStagingOnRemove = (what: string): void => {
+        if (op === 'remove') {
+          throw new StateError(
+            'validation',
+            `${hookTag} runs on a delete and cannot stage ${what}; only create/update hooks stage.`,
+          );
+        }
+      };
+      const ctx: InterimHookContext = {
+        before: frozenBefore,
         op,
         actor,
         now,
-      });
+        triggerModel: def.model,
+        triggerId,
+        stage: (staged) => {
+          forbidStagingOnRemove('secondary writes');
+          sink.writes.push(checkStagedWrite(def, hook.name, staged));
+        },
+        schedule: (replacement) => {
+          forbidStagingOnRemove('timers');
+          sink.schedules.push(checkStagedSchedule(def, hook.name, replacement));
+        },
+        cancel: (key) => {
+          forbidStagingOnRemove('timers');
+          sink.schedules.push(checkStagedCancel(def, hook.name, key));
+        },
+      };
+      // Each hook gets a clone and its return is re-cloned: hooks can neither
+      // mutate the pipeline candidate nor smuggle uncloneable values forward
+      // (or retain an alias and mutate it after returning).
+      const next = await hook.run(jsonClone(current, 'Hook candidate'), ctx);
       if (typeof next !== 'object' || next === null || Array.isArray(next)) {
-        throw new Error(
-          `Hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(def.model as string)} ` +
-            'must return a candidate object.',
-        );
+        throw new Error(`${hookTag} must return a candidate object.`);
       }
       current = jsonClone(next as Record<string, unknown>, 'Hook result');
     }
@@ -457,7 +739,36 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     });
   };
 
-  for (const write of writes) {
+  // T31 (Rule A): the work queue starts as the caller writes; each
+  // trigger write's staged secondaries splice in immediately after it, in
+  // staging order, so staged writes observe the trigger's provisional row
+  // (pending parents resolve) plus earlier staged rows. Staged entries skip
+  // hooks (flat, no cascade) and stage nothing further.
+  const queue: MutationQueueEntry[] = writes.map((write) => ({ write, stagedBy: null }));
+  for (let index = 0; index < queue.length; index += 1) {
+    const entry = queue[index];
+    if (entry === undefined) {
+      throw new Error('Mutation queue misaligned.');
+    }
+    const write = entry.write;
+    // Null for caller writes (hooks run into `sink`); the staging hook's
+    // name for staged writes (hooks skipped, sink stays empty).
+    const stagedBy = entry.stagedBy;
+    const sink: StagingSink = { writes: [], schedules: [] };
+    /** Drain this write's staged secondaries into the queue + schedules. */
+    const drainSink = (): void => {
+      if (sink.writes.length === 0 && sink.schedules.length === 0) {
+        return;
+      }
+      queue.splice(
+        index + 1,
+        0,
+        ...sink.writes.map(
+          (staged): MutationQueueEntry => ({ write: staged.write, stagedBy: staged.hook }),
+        ),
+      );
+      outSchedules.push(...sink.schedules);
+    };
     const def = table.get(write.model);
     if (def === undefined) {
       // Unknown models are programmer bugs: models come from program defs,
@@ -547,7 +858,12 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         }
       }
       checkRequired(candidate, def);
-      const hooked = await runHooks(def, 'create', candidate, null);
+      // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
+      // check below plus locks and end-of-batch invariants still runs.
+      const hooked =
+        stagedBy !== null
+          ? candidate
+          : await runHooks(def, 'create', candidate, null, id, sink);
       // Hooks are trusted otherwise (they may set server-only fields), but
       // the contract checks re-run: no undeclared fields, required present,
       // JSON-safe values.
@@ -595,6 +911,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         before: null,
         after: hooked,
       });
+      drainSink();
       continue;
     }
 
@@ -616,7 +933,12 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       // Updates apply NO defaults: only the patch lands on before.data.
       applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def);
       checkRequired(candidate, def);
-      const hooked = await runHooks(def, 'update', candidate, before);
+      // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
+      // check below plus locks and end-of-batch invariants still runs.
+      const hooked =
+        stagedBy !== null
+          ? candidate
+          : await runHooks(def, 'update', candidate, before, id, sink);
       checkKnownFields(hooked, def);
       checkRequired(hooked, def);
       checkJsonSafe(hooked, def);
@@ -678,6 +1000,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         before,
         after: hooked,
       });
+      drainSink();
       continue;
     }
 
@@ -700,7 +1023,19 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     // Archive AND hard remove both run hooks filtered to op 'remove' (caller
     // intent); the hard-remove candidate is discarded, but hook rejections
     // still block the delete.
-    const hooked = await runHooks(def, 'remove', jsonClone(before.data, 'Remove hook input'), before);
+    // T31 (Rule A): staged writes skip hooks (flat, no cascade); staged
+    // removes are unreachable (stage-time barred) but the guard is total.
+    const hooked =
+      stagedBy !== null
+        ? jsonClone(before.data, 'Remove hook input')
+        : await runHooks(
+            def,
+            'remove',
+            jsonClone(before.data, 'Remove hook input'),
+            before,
+            id,
+            sink,
+          );
     if (mode === 'archive') {
       checkKnownFields(hooked, def);
       checkRequired(hooked, def);
@@ -775,6 +1110,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         before,
         after: hooked,
       });
+      drainSink();
     } else {
       await checkDisposal(write.model, id);
       for (const key of def.uniqueKeys) {
@@ -794,6 +1130,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         before,
         after: null,
       });
+      drainSink();
     }
   }
 
@@ -827,5 +1164,6 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     uniqueClaims: outClaims,
     uniqueReleases: outReleases,
     resolvedDefaults,
+    schedules: outSchedules,
   };
 }
