@@ -768,6 +768,26 @@ fn draft_outcome_table() {
     // file (no harness gap). Differential isolated without Git: a
     // constructors-only toggle reproduces the pinned baseline
     // 52/52 plus all-52 2205 exactly.
+    // T14d re-pin 2026-10-05 (nominal-leaf checker join: `std`
+    // receipt `result` resolves through the committed T13c
+    // transcription): 52 files unchanged, zero net movement; table
+    // total holds at 5074. Whole-corpus (all-52) differential 2104
+    // -> 2104 (net 0): removed E3001 x1 (CanCreative:84 `digest`
+    // fed by the now-typed `WorkflowValidation.digest: text?`,
+    // the opaque-mismatch class resolving per transcription) +
+    // added E3004 x1 (CanCreative:270 `fields ?? []`: the
+    // established no-coercion `??` rule firing on the now-visible
+    // `WorkflowField[]?`, byte-identical in shape to the local
+    // `file[]? ?? []` probe on the baseline binary; the only
+    // `?? []` site corpus-wide). Every other family is
+    // bit-identical in both modes (message-inclusive diff shows
+    // exactly one remove/add pair); E3019 unchanged in both modes
+    // (0 all-52, 130 single-file). Differential isolated without
+    // Git: a temporary T14c-restoration toggle reproduces the
+    // pinned baseline 52/52 plus all-52 2104 exactly, and the
+    // reverted final tree reproduces the measured new output byte
+    // for byte (per-file counts, both family histograms, full
+    // all-52 JSON).
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 48),
         ("draft/CanApprove.can", 47),
