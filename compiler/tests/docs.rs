@@ -340,9 +340,13 @@ fn extracts_user_operations_without_authorization() {
             panic!("operation must be an object");
         };
         let keys: Vec<&str> = members.iter().map(|(k, _)| k.as_str()).collect();
+        // R4 rationale: `examples` joins the callable surface (owned table
+        // rows); still no gate, role or permission material.
         assert!(
-            keys.iter()
-                .all(|k| matches!(*k, "id" | "description" | "inputs" | "result" | "location")),
+            keys.iter().all(|k| matches!(
+                *k,
+                "id" | "description" | "inputs" | "result" | "examples" | "location"
+            )),
             "operation keys are the callable surface only: {keys:?}"
         );
     }
@@ -485,8 +489,8 @@ fn required_array_spelling_is_preserved() {
 
 /// (D04b) Fixtures targeting a declaration become its labeled authored
 /// examples (source label, recipe slice, no expected result, no execution
-/// status). Operation-attached `examples` blocks are unlabeled in source and
-/// v1 carries no operation-examples slot, so tables never leak in.
+/// status). Operation-attached `examples` tables belong to their operation
+/// (R4 row examples), so tables never leak into declaration examples.
 #[test]
 fn fixtures_become_labeled_declaration_examples() {
     let (json, model) = extract("shop.can", SHOP_SRC);
@@ -835,4 +839,307 @@ fn external_inputs_are_marked_and_stable() {
         real_id.starts_with("external:"),
         "real outside file marked external: {real_id:?}"
     );
+}
+
+// --- Operation row examples (R-D07-04) -----------------------------------------
+
+/// (R4) Table-form `examples` attached to a user operation become its owned
+/// row examples: one positional entry per data row (header skipped), with
+/// authored input cells plus the authored expectation — including
+/// `error(code)` spellings. No execution status is invented, and the
+/// owning declaration keeps only its fixture (op rows are never absorbed).
+#[test]
+fn operation_tables_become_labeled_row_examples() {
+    let (json, model) = extract("probe.can", TABLE_SRC);
+    let close = model.owners[0]
+        .operations
+        .iter()
+        .find(|o| o.id == "Probe.close")
+        .expect("close operation extracted");
+    let rows: Vec<(&str, &str, Option<&str>)> = close
+        .examples
+        .iter()
+        .map(|e| (e.label.as_str(), e.source.as_str(), e.expected.as_deref()))
+        .collect();
+    assert_eq!(
+        rows,
+        vec![
+            ("row-1", "members,open", Some("done")),
+            ("row-2", "members,done", Some("error(rule_failed)")),
+        ]
+    );
+    // The owning declaration keeps only its fixture: op rows stay out.
+    let task = &model.owners[0].declarations[0];
+    assert_eq!(task.name, "Task");
+    let labels: Vec<&str> = task.examples.iter().map(|e| e.label.as_str()).collect();
+    assert_eq!(labels, vec!["one"]);
+    // Authored expectations travel; execution status never does. (`failed`
+    // is only forbidden as a quoted status value: the authored
+    // `error(rule_failed)` spelling legitimately contains it.)
+    assert!(
+        json.contains("error(rule_failed)"),
+        "authored expectation kept"
+    );
+    for forbidden in ["passed", "\"failed\"", "executed", "execution"] {
+        assert!(
+            !json.contains(forbidden),
+            "no {forbidden:?} in reference JSON"
+        );
+    }
+    // JSON shape: `examples` on the op with label/source/expected keys.
+    let value = json::parse(&json).expect("reference JSON parses");
+    let owners = value.get("owners").and_then(Json::as_arr).unwrap();
+    let ops = owners[0].get("operations").and_then(Json::as_arr).unwrap();
+    assert_eq!(ops.len(), 1);
+    let op_examples = ops[0].get("examples").and_then(Json::as_arr).unwrap();
+    assert_eq!(op_examples.len(), 2);
+    assert_eq!(
+        op_examples[0].get("label").and_then(Json::as_str),
+        Some("row-1")
+    );
+    assert_eq!(
+        op_examples[0].get("source").and_then(Json::as_str),
+        Some("members,open")
+    );
+    assert_eq!(
+        op_examples[0].get("expected").and_then(Json::as_str),
+        Some("done")
+    );
+    assert_eq!(
+        op_examples[1].get("expected").and_then(Json::as_str),
+        Some("error(rule_failed)")
+    );
+    // Table-less operations carry an empty array (SHOP_SRC restock/ping).
+    let (_shop_json, shop) = extract("shop.can", SHOP_SRC);
+    for op in &shop.owners[0].operations {
+        assert!(op.examples.is_empty(), "no tables, no examples: {}", op.id);
+    }
+}
+
+// --- App-default locale (P-A) ----------------------------------------------------
+
+/// Composed app selecting the shop package; its own `source=` is the
+/// default even though it carries no body (the single-app case).
+const PA_APP_SRC: &str = "app Shop uses=[shop] source=\"nl\"\n";
+
+/// English package selected by the composed app (package bodies take
+/// indented Given/When/Then sections).
+const PA_PKG_SRC: &str = concat!(
+    "package shop source=\"en\"\n",
+    " Given\n",
+    "  # Gadget prose. @{nl=\"Gadgettekst.\"}\n",
+    "  Gadget { title:text }\n",
+    "  policy Gadget read=members\n",
+    " When\n",
+    " Then\n",
+);
+
+/// Check several inline sources together without a catalog (mixed-module
+/// inputs), asserting clean diagnostics.
+fn check_clean_multi(sources: &[(&str, &str)]) -> (SourceDb, Vec<SourceId>, CheckedProgram) {
+    let mut db = SourceDb::new();
+    let ids: Vec<SourceId> = sources
+        .iter()
+        .map(|(path, src)| db.add(path.to_string(), src.to_string()))
+        .collect();
+    let (program, diags) = check_program(&db, &ids, None);
+    assert!(diags.is_empty(), "fixture must check clean: {diags:?}");
+    (db, ids, program)
+}
+
+/// (R4 P-A) The app default locale comes from the single app module — the
+/// composed `Shop` app's `source="nl"` — regardless of input order. The
+/// package-first order previously selected the package's `source="en"`.
+#[test]
+fn app_default_locale_follows_the_single_app_module() {
+    for (first, second) in [
+        (("shop-app.can", PA_APP_SRC), ("shop-pkg.can", PA_PKG_SRC)),
+        (("shop-pkg.can", PA_PKG_SRC), ("shop-app.can", PA_APP_SRC)),
+    ] {
+        let (db, ids, program) = check_clean_multi(&[first, second]);
+        let model = extract_reference(&db, &ids, &program);
+        assert_eq!(
+            model.app_default_locale, "nl",
+            "single-app default from the app module ({} first)",
+            first.0
+        );
+        // Per-description owner language stays independent of the default.
+        let gadget = model
+            .owners
+            .iter()
+            .flat_map(|o| &o.declarations)
+            .find(|d| d.name == "Gadget")
+            .expect("gadget extracted");
+        let description = gadget.description.as_ref().expect("gadget described");
+        assert_eq!(description.source, "Gadget prose.");
+        assert_eq!(description.source_lang, "en");
+    }
+}
+
+/// Two packages with mixed `source=` tags (package-only fallback input).
+const FALLBACK_PKG_A_SRC: &str = concat!(
+    "package Alpha source=\"nl\"\n",
+    " Given\n",
+    "  Gadget { title:text }\n",
+    "  policy Gadget read=members\n",
+    " When\n",
+    " Then\n",
+);
+
+/// Second package with the other tag.
+const FALLBACK_PKG_B_SRC: &str = concat!(
+    "package Beta source=\"en\"\n",
+    " Given\n",
+    "  Gadget { title:text }\n",
+    "  policy Gadget read=members\n",
+    " When\n",
+    " Then\n",
+);
+
+/// Two implicit apps with mixed tags (multi-app fallback input).
+const FALLBACK_APP_A_SRC: &str = concat!(
+    "app Alpha source=\"nl\"\n",
+    "Given\n",
+    " Gadget { title:text }\n",
+    " policy Gadget read=members\n",
+    "When\n",
+    "Then\n",
+);
+
+/// Second implicit app with the other tag.
+const FALLBACK_APP_B_SRC: &str = concat!(
+    "app Beta source=\"en\"\n",
+    "Given\n",
+    " Gadget { title:text }\n",
+    " policy Gadget read=members\n",
+    "When\n",
+    "Then\n",
+);
+
+/// (R4 P-A) Package-only and multi-app inputs keep the first-module
+/// fallback: the first analyzed module's tag wins in both orders. No
+/// invented policy beyond this documented order rule.
+#[test]
+fn app_default_locale_falls_back_to_first_module() {
+    for (name, sources) in [
+        (
+            "package-only",
+            [
+                ("alpha.can", FALLBACK_PKG_A_SRC),
+                ("beta.can", FALLBACK_PKG_B_SRC),
+            ],
+        ),
+        (
+            "multi-app",
+            [
+                ("alpha.can", FALLBACK_APP_A_SRC),
+                ("beta.can", FALLBACK_APP_B_SRC),
+            ],
+        ),
+    ] {
+        for (first, second, want) in [
+            (sources[0], sources[1], "nl"),
+            (sources[1], sources[0], "en"),
+        ] {
+            let (db, ids, program) = check_clean_multi(&[first, second]);
+            let model = extract_reference(&db, &ids, &program);
+            assert_eq!(
+                model.app_default_locale, want,
+                "{name} fallback: first module wins ({} first)",
+                first.0
+            );
+        }
+    }
+}
+
+// --- Imported message wording (P-B) ----------------------------------------------
+
+/// Imported bare `#= blurb`: package site imports blurb from shop and
+/// describes its Gadget with it (checks clean; wording must resolve).
+const IMPORTED_BARE_SRC: &str = concat!(
+    "app Shop uses=[shop,site]\n",
+    "package shop\n",
+    " Given\n",
+    "  export message blurb = \"Shared wording.\"@{nl=\"Gedeelde tekst.\"}\n",
+    " When\n",
+    " Then\n",
+    "package site\n",
+    " use shop {blurb}\n",
+    " Given\n",
+    "  #= blurb\n",
+    "  Gadget { title:text }\n",
+    "  policy Gadget read=members\n",
+    " When\n",
+    " Then\n",
+);
+
+/// Dotted `#= shop.blurb`: rejected by the checker (E2013), never rendered.
+const DOTTED_REF_SRC: &str = concat!(
+    "app Shop uses=[shop,site]\n",
+    "package shop\n",
+    " Given\n",
+    "  export message blurb = \"Shared wording.\"@{nl=\"Gedeelde tekst.\"}\n",
+    " When\n",
+    " Then\n",
+    "package site\n",
+    " Given\n",
+    "  #= shop.blurb\n",
+    "  Widget { title:text }\n",
+    "  policy Widget read=members\n",
+    " When\n",
+    " Then\n",
+);
+
+/// (R4 P-B) A bare `#= blurb` imported through the authoring module's `use`
+/// scope resolves to the provider message's wording under its owning
+/// source language.
+#[test]
+fn imported_bare_message_wording_resolves() {
+    let (_json, model) = extract("site.can", IMPORTED_BARE_SRC);
+    let site = model
+        .owners
+        .iter()
+        .find(|o| o.name == "site")
+        .expect("site owner extracted");
+    let gadget = site
+        .declarations
+        .iter()
+        .find(|d| d.name == "Gadget")
+        .expect("gadget extracted");
+    let description = gadget
+        .description
+        .as_ref()
+        .expect("imported wording resolves");
+    assert_eq!(description.source, "Shared wording.");
+    assert_eq!(description.source_lang, "en");
+    assert_eq!(
+        description
+            .variants
+            .iter()
+            .map(|v| (v.tag.as_str(), v.text.as_deref()))
+            .collect::<Vec<_>>(),
+        vec![("nl", Some("Gedeelde tekst."))]
+    );
+}
+
+/// (R4 P-B) Dotted `#= shop.blurb` stays unresolved: the checker rejects it
+/// (E2013 — no new syntax), so docs never renders dotted wording. Even
+/// extracting past the failure carries no wording for the reference.
+#[test]
+fn dotted_message_references_stay_unresolved() {
+    let mut db = SourceDb::new();
+    let id = db.add("site.can".to_string(), DOTTED_REF_SRC.to_string());
+    let (program, diags) = check_program(&db, &[id], None);
+    assert!(
+        diags.iter().any(|d| d.code == "E2013"),
+        "checker rejects dotted refs: {diags:?}"
+    );
+    let model = extract_reference(&db, &[id], &program);
+    for declaration in model.owners.iter().flat_map(|o| &o.declarations) {
+        assert_eq!(
+            declaration.description, None,
+            "no dotted wording carried for {}",
+            declaration.name
+        );
+    }
 }
