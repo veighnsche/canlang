@@ -392,6 +392,7 @@ where authority is required.
    memory-store tests; the gate must say which alternative's proof
    runs where. DECISIONS #138 (consistency guarantees unspecified)
    stays open until that evidence exists.
+   [COMPLETE — durable-fence writer: see "Durable-fence evidence plan (gate evidence)" below.]
 8. Coordinator-run JEV protocol: three fresh equivalent independently
    worded formulations, saved responses + uncertainty, disagreement
    investigated. **No JEV was run for this prep file; tools/jev.py
@@ -1160,3 +1161,179 @@ inbox edits.
 
 Release: implementation/challenge-audit-run/evidence/read-decision.md
 is RELEASED to the coordinator for JEV-gate scheduling.
+
+## Durable-fence evidence plan (gate evidence)
+
+Writer: L3 T32a-item7. Status: **PREP — adopts NOTHING.**
+Checklist item 7 evidence only; a PLAN, not proof. All
+alternatives stay unranked and every **JEV-PENDING** above is
+preserved. Grounded in a read-only survey of the state engine
+plus T16/T17/T24 runtime status in tasks.md; no builds, no JEV,
+no Git.
+
+### Surveyed substrate inventory (read-only)
+
+- Fenced single-shot commit: `createTransactionPort` commits one
+  batch over one store, NO retry; fence conflicts surface as
+  retryable `busy` via `storageToStateError`
+  (`packages/state/src/ports/transact.ts:1-48`).
+- One atomic batch shape: `CommitBatch { expectedRevision,
+  writes, history, receipt, outbox, schedules, uniqueClaims, ...
+  }` (`packages/contracts/src/state.ts:281-298`).
+- D1 adapter: every commit is ONE `db.batch()` led by a
+  `fence_log` INSERT (`expected+1`); a stale `expectedRevision`
+  fails atomically with nothing applied; record UPDATEs/DELETEs
+  stay unconditional on version inside the batch; stale or
+  missing rows fail up front with kind `version`, never as
+  silent overwrites (`packages/state/src/storage/d1.ts` header).
+- DO adapter: same fence semantics through synchronous
+  `storage.sql` inside `storage.transactionSync`, which rolls
+  back on throw
+  (`packages/state/src/storage/durable-object.ts` header).
+- Memory adapter: header-marked TEST-ONLY, never a production
+  backend; mirrors fence/constraint/query semantics for unit
+  tests, including multi-touch batch order and three-valued
+  predicates (`packages/state/src/storage/memory.ts` header).
+- Admission order is load-bearing: read the revision first,
+  then receipt/age/authorization/shape/version/business
+  (`packages/state/src/invocation/admission.ts` header). A
+  matching receipt replays its saved outcome even though its
+  submitted versions are now stale.
+- Bound read port: viewer-projected vs owner-full authority;
+  `authority: 'owner'` performs NO membership check —
+  caller-supplied capability, admitted paths only
+  (`packages/state/src/ports/read.ts:48-55`).
+- Identity revocation entries (session/MCP-grant revocation,
+  sign-out-everywhere:
+  `packages/identity/src/authentication/revocation.ts`) cover
+  session/grant revocation only. The T32 revocation fence
+  concerns LIVE membership state (`Employee.active` /
+  `can_work` / `active_member`, per the Grant adjudication
+  above) — a distinct layer no identity entry point fences.
+- Runtime status in tasks.md: T16, T17, T24 all OPEN with
+  "Evidence: pending" (tasks.md:163-168, 170-175, 219-224) —
+  no generated-invocation join, no canonical data-plane
+  migration, no durable dispatch exists yet. This plan is
+  therefore conditional on T16/T17 landing, which T32b already
+  requires; it says where each alternative's proof must run,
+  not that the substrate is ready.
+
+### Per-alternative proof map (which proof runs where)
+
+- Alternative A (single-checkpoint fenced reads + commit
+  revalidation): checkpoint-enrollment + revision-assertion
+  proof on D1 (`db.batch` led by the `fence_log` INSERT) AND
+  DO (`transactionSync`) — read revision, evaluate guards,
+  commit batch re-asserts the checkpoint AND re-evaluates
+  `by` + every guard predicate against current authority
+  state; an intervening membership write voids the commit
+  (`conflict`/`forbidden`), never a silent commit. The
+  A-vs-C coupling question (database-wide assertion voiding
+  unrelated ops) must be DEMONSTRATED on D1/DO — a
+  membership-table write racing an unrelated guarded op —
+  not argued. The L291 in-flight question stays
+  JEV-PENDING; whichever ruling wins, its timing proof runs
+  on D1/DO.
+- Alternative B (read-at-effect): per-effect fresh-read proof
+  on D1/DO — guard-phase reads provably unused by effects:
+  a revocation landing between guard and effect is caught
+  because each effect re-reads at claim time inside the same
+  owner transaction. Interleaving proof: revoke-then-effect
+  AND effect-then-revoke orderings on D1/DO with the exact
+  commit outcome asserted per ordering. The `let`-as-value
+  ruling (JEV-PENDING) splits: the ruling itself is proven
+  by checker tests (substrate-independent), but carried-vs-
+  reread VALUES at commit are proven by D1/DO execution —
+  memory may show the shape, never the fence outcome.
+- Alternative C (version-pinned snapshots): pin-assertion
+  proof on D1/DO — pinned record versions + authority pins
+  rechecked atomically with the commit; an intervening write
+  to any pinned row (membership/authority rows included)
+  aborts with `conflict`. The narrowed-assertion
+  implementability question (JEV-PENDING) is itself a D1/DO
+  substrate question: if the D1 batch contract can only
+  check the database-wide revision, C's narrowing proof
+  FAILS on D1 and C collapses into A — that verdict must
+  come from D1/DO execution, never from memory. The
+  authorizing/eventual static separation is proven by
+  checker tests; any default-safety claim for an unlabeled
+  read is proven by D1/DO fence execution, not by the label
+  rule alone.
+- Alternative D (bounded authority grants): grant-validation
+  proof on D1/DO — the commit validates each grant
+  (versions unchanged, checkpoint fence holds, unexpired,
+  authority not on the revocation list); a revocation-list
+  append racing a grant-bearing commit rejects with
+  `forbidden` on D1/DO. Expiry semantics (wall-clock vs
+  revision-distance, JEV-PENDING) proven on D1/DO, using
+  the fixed test clock wherever wall-clock is claimed. The
+  revocation list's own storage + retention proven on D1/DO
+  (it is itself a hot table under the fence). Inferred-vs-
+  declared grants (JEV-PENDING): inference soundness proven
+  statically, enforcement proven on D1/DO.
+- Spend/dispatch paths (ALL alternatives): Chat:81,
+  Creative:103, Knowledge:159, Invoice:367 guards plus the
+  168 unguarded sends (§2) — dispatch-claim atomicity
+  (`when=` guard + supersession, settled L524; payment
+  mandate validation, settled L650) proven on the T24
+  dispatch substrate once it exists (outbox intents,
+  receipts, redelivery identity: `CommitBatch.outbox` /
+  `outboxAck`). Single-owner batch atomicity never implies
+  the spend claim; T24 acceptance already forbids inferring
+  cross-store atomicity. Until T24 lands, spend-fence
+  claims are UNPROVEN — not memory-proven.
+- Concurrent-transaction interleaving (ALL alternatives):
+  two live committers racing one row on the D1/DO adapters;
+  exactly one fence INSERT wins. The memory store is
+  single-threaded and proves no interleaving.
+- Crash-recovery (ALL alternatives' atomicity claims):
+  kill/restart mid-commit against local D1
+  (workerd/miniflare) and DO SQLite; `fence_log` must show
+  no partial batch, and pure-read retries after a revision
+  change must not return a mixed authorization snapshot. No
+  crash claim may rest on the memory store.
+- Cross-owner reads (checklist item 6 input: 40
+  `use employee` files, Gallery<-Creative `can_view`,
+  CRM<-Customer duplicates): whichever alternative wins
+  must say what an imported-parent read enrolls, and that
+  enrollment proof runs on D1/DO across the owner boundary
+  — a same-owner fence proof never covers a cross-owner
+  read.
+
+### What memory-store tests may and may not claim
+
+- MAY claim: deterministic unit semantics — batch shape,
+  checkpoint/pin/grant bookkeeping logic, fence/conflict
+  error mapping, guard-evaluation logic, admission
+  revision-first ordering, replay-shape and receipt
+  identity, static negatives (eventual-read misuse,
+  grantless authorization, carried-value bans).
+- MAY NOT claim: durability, atomicity under crash, fencing
+  under real concurrency, interleaving outcomes, cross-owner
+  fencing, revocation timeliness, or anything the item-7
+  checklist text names as a D1/DO property (batch/commit
+  boundary, revision assertion, concurrent-transaction
+  interleaving, crash-recovery path). Any T32b proof citing
+  memory-store results for those properties is
+  miscategorized evidence, not a pass.
+
+### DECISIONS #138 stays open
+
+- #138 (consistency guarantees for D1 mutations, replicas,
+  and read sessions unspecified) stays OPEN — cited here,
+  DECISIONS.md untouched. It closes only when D1/DO-backed
+  execution evidence for the adopted alternative's fence
+  exists. Memory-store tests cannot close it under any
+  alternative.
+
+### Handoff
+
+- Writer: L3 T32a-item7. Single file appended
+  (`implementation/challenge-audit-run/evidence/read-decision.md`
+  only); existing alternatives/fairness/enumeration/checklist
+  text untouched except the item-7 marker above; DESIGN.md/
+  GRAMMAR.md/DECISIONS.md, drafts, code, tools/jev.py,
+  tasks.md/monitor.md/inbox untouched (read or
+  coordinator-owned); no JEV run; no Git.
+- Release: this file is RELEASED to the coordinator for gate
+  scheduling.

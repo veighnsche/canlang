@@ -13,6 +13,13 @@
  * Missing-producer failures use `code: "missing-producer"` and name the
  * exact unmet contract — never a second engine, never a silent pass.
  *
+ * `docs` (D05b) is the `can docs` renderer bridge: it reads the frozen
+ * reference model v1 as JSON on stdin and writes localized Markdown to
+ * stdout (exit 0). Success stdout is raw Markdown by design, not an
+ * envelope; failures keep the envelope on stdout (exit 2) plus a human
+ * line on stderr. `missing-renderer` names the exact unmet renderer
+ * contract — never a second engine, never a silent pass.
+ *
  * `activate` (B3-I6) runs the activation serve-gate over an activation
  * bundle and reports the typed verdict. Bundle convention, resolved
  * next to `--artifact` (`<stem>` is the artifact basename minus
@@ -91,11 +98,12 @@ import {
   resolveLocalDefaults,
 } from "../dev/zero-config.js";
 import { RELEASE_VERSION, assertLockstep, readLockstepInputs } from "../release/stamp.js";
+import { runDocs } from "./docs.js";
 
 export const PLATFORM_CLI_NAME = "can-platform";
 export const PLATFORM_CLI_VERSION = "0.1.0";
 
-const COMMANDS = ["run", "test", "build", "deploy", "activate"] as const;
+const COMMANDS = ["run", "test", "build", "deploy", "activate", "docs"] as const;
 type PlatformCommand = (typeof COMMANDS)[number];
 
 interface FailureEnvelope {
@@ -125,7 +133,7 @@ function fail(
 }
 
 const USAGE_TEXT =
-  `Usage: ${PLATFORM_CLI_NAME} <${COMMANDS.join("|")}> [--artifact <path>] [--env <name>] [--preview|--yes]`;
+  `Usage: ${PLATFORM_CLI_NAME} <${COMMANDS.join("|")}> [--artifact <path>] [--env <name>] [--preview|--yes] [--locale <tag>]`;
 
 function usage(detail: string): never {
   process.stderr.write(`${USAGE_TEXT}\n`);
@@ -139,6 +147,8 @@ interface ParsedArgs {
   env: string | null;
   preview: boolean;
   yes: boolean;
+  /** Requested reference locale (docs only; null means the app default). */
+  locale: string | null;
 }
 
 function parse(argv: string[]): ParsedArgs {
@@ -164,6 +174,7 @@ function parse(argv: string[]): ParsedArgs {
   let env: string | null = null;
   let preview = false;
   let yes = false;
+  let locale: string | null = null;
   for (let i = 0; i < rest.length; i += 1) {
     const flag = rest[i];
     if (flag === "--help" || flag === "-h") {
@@ -181,6 +192,18 @@ function parse(argv: string[]): ParsedArgs {
         if (yes) usage("duplicate --yes");
         yes = true;
       }
+      continue;
+    }
+    if (flag !== undefined && (flag === "--locale" || flag.startsWith("--locale="))) {
+      if (locale !== null) usage("duplicate --locale");
+      if (flag.startsWith("--locale=")) {
+        locale = flag.slice("--locale=".length);
+      } else {
+        if (i + 1 >= rest.length) usage("missing value for --locale");
+        locale = rest[i + 1] as string;
+        i += 1;
+      }
+      if (locale.length === 0) usage("--locale needs a non-empty tag");
       continue;
     }
     if (flag === "--artifact" || flag === "--env") {
@@ -201,7 +224,13 @@ function parse(argv: string[]): ParsedArgs {
   if ((preview || yes) && command !== "deploy") {
     usage("--preview/--yes are deploy-only");
   }
-  return { command: command as PlatformCommand, artifact, env, preview, yes };
+  if (locale !== null && command !== "docs") {
+    usage("--locale is docs-only");
+  }
+  if (command === "docs" && (artifact !== null || env !== null || preview || yes)) {
+    usage("docs takes only --locale; it renders the reference model piped on stdin");
+  }
+  return { command: command as PlatformCommand, artifact, env, preview, yes, locale };
 }
 
 async function artifactExists(path: string): Promise<boolean> {
@@ -825,6 +854,11 @@ function tailText(text: string, max: number): string {
 
 async function main(): Promise<void> {
   const args = parse(process.argv.slice(2));
+  if (args.command === "docs") {
+    // Renderer pipe: no artifact discovery (stdin carries the model).
+    await runDocs(args.locale);
+    return;
+  }
   let artifactPath = args.artifact;
   if (artifactPath === null) {
     // B5-J3 zero-config: absent --artifact discovers ./dist/*.artifact.json.
