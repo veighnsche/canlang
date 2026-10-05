@@ -263,7 +263,7 @@ describe("deploy worker main", () => {
   });
 
   it("missing staged deployment fails loud naming ./artifact.js (default export)", async () => {
-    // P-B has not staged ./artifact.js yet: the default export must fail
+    // No ./artifact.js staged in this boot: the default export must fail
     // loud naming the file, never serve an empty worker.
     const res = await workerMain.fetch(new Request("http://localhost/"), fullEnv());
     expect(res.status).toBe(500);

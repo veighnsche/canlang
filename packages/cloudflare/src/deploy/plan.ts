@@ -10,7 +10,7 @@ import type {
  * (`src/deploy/bundle.ts`). When present, the bundle IS the deploy `main`.
  */
 export interface DeployBundleRef {
-  /** Bundle main, e.g. "./teamtasks.deploy/main.js" (relative to the toml). */
+  /** Bundle main, e.g. "./teamtasks.deploy/worker/main.js" (relative to the toml). */
   main: string;
   moduleCount: number;
   sha256: string;

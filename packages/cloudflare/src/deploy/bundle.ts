@@ -47,7 +47,11 @@
  *   (`@canlang/values` in stdlib today) and pinned-runtime files
  *   (`@canlang/identity`, the state-D1 checkout path) are rewritten to
  *   module-relative `vendor/` keys; `assertLinksResolve` then refuses
- *   any dangling or bare import.
+ *   any dangling or bare import. Acknowledged gap: dynamic imports
+ *   through variables (the rewritten `*_SPECIFIER` consts) are
+ *   statically invisible to the check — they are covered behaviorally
+ *   by the with-DB boot tests, which execute the real dynamic imports
+ *   in workerd.
  *
  * `instanceof IdentityError` invariant (mirrors the fixture header in
  * `tests/e2e/fixtures/handbuilt/mcp-bundle-entry.js`): bundling duplicates
@@ -96,6 +100,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "mcp-registry.js",
   "env-assembly.js",
   "grant-route.js",
+  "mcp-permissions.js",
 ];
 /** Deploy dir suffix: `<stem>.deploy/` next to the artifact. */
 export const DEPLOY_DIR_SUFFIX = ".deploy";
@@ -765,9 +770,12 @@ function collectLinkSpecifiers(js: string): string[] {
       // dynamic import() appears mid-expression and keeps the loose form.
       if (re === SIDE_EFFECT_IMPORT_RE && !isStatementStart(js, match.index)) continue;
       if (re === FROM_SPECIFIER_RE) {
+        // Stop only at statement boundaries: brace imports (`import {..}
+        // from`, minified `import{x}from`) and every re-export form
+        // (`export {..} from`, `export * from`) carry braces by construction.
         let i = match.index - 1;
-        while (i >= 0 && js[i] !== "\n" && js[i] !== ";" && js[i] !== "{" && js[i] !== "}") i--;
-        if (!/\bimport\b/.test(js.slice(i + 1, match.index))) continue;
+        while (i >= 0 && js[i] !== "\n" && js[i] !== ";") i--;
+        if (!/\b(import|export)\b/.test(js.slice(i + 1, match.index))) continue;
       }
       // All three patterns capture the spec in group 2.
       const spec = match[2];

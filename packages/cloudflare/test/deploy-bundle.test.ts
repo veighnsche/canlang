@@ -407,6 +407,31 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     ).not.toThrow();
   });
 
+  it("assertLinksResolve sees brace imports and re-exports (no blind forms)", () => {
+    // Each of these slipped through the first back-scan (it stopped at
+    // braces): brace import, minified brace, bare re-export, dangling
+    // star re-export. Controls (namespace, default-only, side-effect,
+    // dynamic-literal) stay covered by the suite around this test.
+    expect(() =>
+      assertLinksResolve({ "a.js": `import { x } from "@canlang/identity";\n` }),
+    ).toThrow(/bare import/);
+    expect(() =>
+      assertLinksResolve({ "a.js": `import{x}from"@canlang/identity";\n` }),
+    ).toThrow(/bare import/);
+    expect(() =>
+      assertLinksResolve({ "a.js": `export { x } from "@canlang/identity";\n` }),
+    ).toThrow(/bare import/);
+    expect(() =>
+      assertLinksResolve({ "a.js": `export * from "./missing.js";\n` }),
+    ).toThrow(/no such staged module/);
+    expect(() =>
+      assertLinksResolve({
+        "a.js": `import { x } from "./b.js";\nexport * from "./b.js";\n`,
+        "b.js": `export const x = 1;\n`,
+      }),
+    ).not.toThrow();
+  });
+
   it("boots the bundle with a DB: active verdict serves /mcp auth seam (401), inactive refuses honestly", async () => {
     // testArtifact's descriptor ({renderPage, ok, util}) is enough for
     // staging assertions but not full assembly, which requires
@@ -461,6 +486,86 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       });
     } finally {
       await refused.dispose();
+    }
+  }, 180000);
+
+  it("staged main discovers operations for a granted member (member permissions adopted)", async () => {
+    // Full chain through the staged production main: real D1 deps,
+    // real grant mint, real member permissions (NOT the deny-closed
+    // interim — empty discovery would fail this test).
+    const artifact = testArtifact();
+    const bootMain = artifact.modules[0];
+    if (bootMain !== undefined) {
+      // Same assemblable module as the boot test above: real vendor
+      // exports + owner/path/admit/render (actually imported in workerd).
+      bootMain.js = [
+        `import { renderPage } from "@canlang/ui";`,
+        `import { abs } from "@canlang/stdlib";`,
+        `import { util } from "./util.js";`,
+        `export const descriptor = { owner: "test", path: "/main", admit: async () => ({ ok: true }), render: async () => ({ status: 200 }), renderPage, abs, util };`,
+        "",
+      ].join("\n");
+    }
+    artifact.operations = [
+      {
+        name: "test.Todo.create",
+        kind: "create",
+        description: "Create a todo.",
+        inputs: {
+          fields: [{ name: "title", field: { kind: "string" }, required: true }],
+        },
+      },
+    ];
+    const bundle = buildDeployBundle(artifact, { repoRoot, verdict: ACTIVE_VERDICT });
+    expect(bundle.modules["runtime/mcp-permissions.js"]).toContain("createMemberMcpPermissions");
+    const dev = await startLocalDev({
+      workerName: "deploy-join-grant",
+      compatibilityDate: "2026-07-15",
+      mainModule: bundle.mainModule,
+      modules: bundle.modules,
+      d1Databases: [{ binding: "DB", id: "deploy-join-grant" }],
+    });
+    try {
+      // Trigger worker-side DDL ensures (auth fails first: no grant yet).
+      const unauth = await dev.dispatch("/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+      });
+      expect(unauth.status).toBe(401);
+      // Seed identity + mint a grant against the SAME D1.
+      const { createD1IdentityStore } = await import("@canlang/identity");
+      const { issueMcpGrant } = await import("@canlang/identity");
+      const db = await dev.getD1Database("DB");
+      const store = createD1IdentityStore(db);
+      const user = await store.createUser({
+        email: "member@test.example",
+        password_hash: "test-hash-opaque",
+        email_verified: true,
+      });
+      const team = await store.createTeam({});
+      await store.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+      const issued = await issueMcpGrant(store, {
+        user_id: user.user_id,
+        team_id: team.team_id,
+        client_id: "boot-test",
+      });
+      const listed = await dev.dispatch("/mcp", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+          authorization: `Bearer ${issued.token}`,
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
+      });
+      expect(listed.status).toBe(200);
+      const body = (await listed.json()) as {
+        result: { tools: Array<{ name: string }> };
+      };
+      expect(body.result.tools.map((t) => t.name)).toContain("test.Todo.create");
+    } finally {
+      await dev.dispose();
     }
   }, 180000);
 });

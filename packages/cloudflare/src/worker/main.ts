@@ -43,14 +43,21 @@
  * missing file (no filesystem in workerd), so import rejections on the
  * OPTIONAL siblings read as absent; deploy-time checks own that gap.
  *
- * `AssemblyDeps.mcp.permissions` stays unset (assembly's deny-closed
- * interim): no pinned P-C export supplies L3 permissions yet. When P-C
- * pins one, main adopts it here.
+ * `AssemblyDeps.mcp.permissions` comes from P-C's
+ * `createMemberMcpPermissions` (`runtime/mcp-permissions.ts`), built over
+ * the staged artifact. Absent module -> `undefined` -> assembly's
+ * deny-closed interim (safe, serves empty discovery); present-but-wrong
+ * export -> loud 500.
  */
 
 import type { ActivationVerdict, CompileArtifact, StoragePort } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
-import type { AssembledWorker, AssemblyDeps, McpHandlerFactory } from "./assembly.js";
+import type {
+  AssembledWorker,
+  AssemblyDeps,
+  McpHandlerFactory,
+  McpPermissions,
+} from "./assembly.js";
 import type { WorkerApp, WorkerAppOptions } from "./entry.js";
 
 /* ------------------------------------------------------------------ */
@@ -112,6 +119,13 @@ export interface GrantContext {
  */
 export type HandleMcpGrantFn = (req: Request, ctx: GrantContext) => Response | Promise<Response>;
 
+/**
+ * P-C `createMemberMcpPermissions` (`runtime/mcp-permissions.ts`):
+ * artifact -> member permissions (active team members admitted on known
+ * operations, everything else denied).
+ */
+export type CreateMemberMcpPermissionsFn = (artifact: CompileArtifact) => McpPermissions;
+
 /** `assembleWorker` (`worker/assembly.ts:1150`). */
 export type AssembleWorkerFn = (
   artifact: CompileArtifact,
@@ -141,6 +155,8 @@ export interface MainLoaders {
   readonly loadMcpHandlerFactory?: () => Promise<McpHandlerFactory | undefined>;
   /** Resolves `undefined` when `../runtime/grant-route.js` is absent (-> 501). */
   readonly loadGrantHandler?: () => Promise<HandleMcpGrantFn | undefined>;
+  /** Resolves `undefined` when `../runtime/mcp-permissions.js` is absent (-> deny-closed). */
+  readonly loadMcpPermissions?: () => Promise<CreateMemberMcpPermissionsFn | undefined>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -208,6 +224,7 @@ const STAGED_SPECIFIER: string = "./artifact.js";
 const MCP_HANDLER_SPECIFIER: string = "./mcp-handler.js";
 const ENV_ASSEMBLY_SPECIFIER: string = "../runtime/env-assembly.js";
 const GRANT_ROUTE_SPECIFIER: string = "../runtime/grant-route.js";
+const MCP_PERMISSIONS_SPECIFIER: string = "../runtime/mcp-permissions.js";
 
 /**
  * Mirror of `loadSiblingFn` (`worker/assembly.ts:634`): static
@@ -311,6 +328,29 @@ async function defaultLoadGrantHandler(): Promise<HandleMcpGrantFn | undefined> 
   return handler as HandleMcpGrantFn;
 }
 
+async function defaultLoadMcpPermissions(): Promise<CreateMemberMcpPermissionsFn | undefined> {
+  let mod: unknown;
+  try {
+    mod = await import(MCP_PERMISSIONS_SPECIFIER);
+  } catch {
+    // Absent join: assembly falls back to the deny-closed interim
+    // (safe empty discovery; the with-DB boot test pins the staged file).
+    return undefined;
+  }
+  if (!isRecord(mod)) {
+    throw new Error(
+      "deploy main: worker sibling ../runtime/mcp-permissions.js imported a non-module namespace",
+    );
+  }
+  const factory: unknown = mod["createMemberMcpPermissions"];
+  if (typeof factory !== "function") {
+    throw new Error(
+      'deploy main: worker sibling ../runtime/mcp-permissions.js has no function export "createMemberMcpPermissions"',
+    );
+  }
+  return factory as CreateMemberMcpPermissionsFn;
+}
+
 /**
  * Fail-fast shape check on the staged deployment (production `./artifact.js`
  * or an injected loader — garbage fails loud either way, naming the bad
@@ -375,6 +415,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const loadProdDeps = loaders.loadProductionDeps ?? defaultLoadProductionDeps;
   const loadMcp = loaders.loadMcpHandlerFactory ?? defaultLoadMcpHandlerFactory;
   const loadGrant = loaders.loadGrantHandler ?? defaultLoadGrantHandler;
+  const loadPerms = loaders.loadMcpPermissions ?? defaultLoadMcpPermissions;
 
   const prodDepsByEnv = new WeakMap<object, Promise<ProductionDeps>>();
   const workerByEnv = new WeakMap<object, Promise<AssembledWorker>>();
@@ -386,6 +427,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const getStaged = memoize(() => loadStaged());
   const getMcpFactory = memoize(() => loadMcp());
   const getGrantHandler = memoize(() => loadGrant());
+  const getPermsFactory = memoize(() => loadPerms());
   const getAssemble = memoize(() => loadAssemble());
 
   function prodDepsFor(env: Record<string, unknown>): Promise<ProductionDeps> {
@@ -409,11 +451,21 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
     validateStagedDeployment(staged);
     const deps = await prodDepsFor(env);
     const factory = await getMcpFactory();
+    const permFactory = factory === undefined ? undefined : await getPermsFactory();
     const assembleWorker = await getAssemble();
     const assemblyDeps: AssemblyDeps =
       factory === undefined
         ? { store: deps.store, identityStore: deps.identityStore }
-        : { store: deps.store, identityStore: deps.identityStore, mcp: { createHandler: factory } };
+        : {
+            store: deps.store,
+            identityStore: deps.identityStore,
+            mcp: {
+              createHandler: factory,
+              ...(permFactory === undefined
+                ? null
+                : { permissions: permFactory(staged.artifact) }),
+            },
+          };
     try {
       return await assembleWorker(staged.artifact, staged.modules, assemblyDeps, staged.verdict);
     } catch (err) {
