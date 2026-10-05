@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "The requested deliverable is an internal CanLang developer/integrator reference generated from .can declarations. The user also asks whether description translations should be deleted unless a concrete audience uses them. Attached # descriptions currently contribute source prose to IDE hover. Scenario translations survive in scenario metadata but are reduced to source text when published as MCP operation descriptions. The existing field-description annotation is @{desc=\"literal\"}, with no locale keys. Browser page-description metadata is already locale-aware. A message parser, message IR and fallback formatter can be reused; the examined command inventory contains no reference-documentation generator. The alternative authored spelling desc=\"English\"@{nl=\"Dutch\"} is proposed, including its end-to-end field localization. The user confirmed that first-version readers are internal developers and integrators. Exact declared facts, little repeated authoring, intact business value/access behavior and truthful capability status are required. Generated docs may describe authored guards, but cannot establish current authorization, invent side effects, or treat displayed examples as successful runs. Multilingual reference demand remains unknown. UI translations remain in every alternative even if declaration-description translations are removed. This consultation concerns design tradeoffs rather than a claim that the future generator is already implemented.",
+    "questions": {
+      "description_policy": {
+        "type": "choice",
+        "instructions": "Which approach offers the strongest balance of faithful internal documentation, justified localization, small authoring burden and reasonable implementation scope? Consider both benefits and costs of each equally.",
+        "criteria": {
+          "source_only": "Produce a deterministic declaration reference with original-language explanatory prose. Eliminate translation variants specifically for declaration descriptions, keeping localized UI text and page metadata. It has the least locale maintenance for reference prose, but lacks localized explanations for readers using another language.",
+          "optional_shared": "Produce a deterministic declaration reference with an optional localized description value reused across #, inline desc=, and metadata consumers. Choose documentation locale explicitly and apply common fallback; MCP resolves the same authored value for its own output. Supporting translations imposes no mandatory translation work. The cost is descriptor transport and integration testing, justified when multilingual readers actually consume it.",
+          "ai_first": "Have an AI documentation writer create an internal reference from verified declaration data and located descriptions, with reviewed citations and optional reviewed translation drafts. Preserve existing UI localization. Richer explanations are possible, but reliable use requires factual review, model expense and handling nondeterminism; outputs grant no permissions or test success."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "description_policy": {
+        "type": "choice",
+        "choice": "optional_shared",
+        "confidence": 0.82,
+        "probabilities": {
+          "ai_first": 0.0,
+          "optional_shared": 0.88,
+          "source_only": 0.12
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 775,
+      "output_tokens": 43
+    }
+  }
+}
