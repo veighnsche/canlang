@@ -2466,6 +2466,33 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// Resolve an inline `desc=` value on a field or parameter: a
+    /// static message path resolves like a caption path (head via
+    /// module scope, `E2001`/`E2013` on failure, final symbol recorded
+    /// for the types pass); string literals and inline descriptors need
+    /// no resolution. The message-ness and zero-parameter checks are the
+    /// types pass (`E3016`). Error subtrees were already diagnosed.
+    fn resolve_description_value(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        if has_error(node) {
+            return;
+        }
+        let value = kids(node).into_iter().find(|n| {
+            matches!(
+                n.kind,
+                SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+            )
+        });
+        if let Some(SyntaxKind::Path) = value.map(|n| n.kind) {
+            self.resolve_caption(text, module, value.expect("matched path"), diags);
+        }
+    }
+
     /// Navigate a label/`#=` path: head via module scope, then field
     /// navigation; records the final symbol for the types pass.
     fn resolve_label_segments(
@@ -2814,6 +2841,8 @@ impl<'a> Resolver<'a> {
                 if let Some(caption) = parts.get(i + 2) {
                     self.resolve_caption(text, module, caption, diags);
                 }
+            } else if part.kind == SyntaxKind::DescriptionValue {
+                self.resolve_description_value(text, module, part, diags);
             } else if is_expression(part.kind)
                 && !is_name(
                     parts.get(i.saturating_sub(1)).copied().unwrap_or(part),
@@ -2967,6 +2996,8 @@ impl<'a> Resolver<'a> {
                 }
                 if seen_eq && is_expression(part.kind) {
                     self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                } else if part.kind == SyntaxKind::DescriptionValue {
+                    self.resolve_description_value(text, module, part, diags);
                 } else if is_name(part, text, "label") {
                     break;
                 }
