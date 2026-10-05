@@ -192,6 +192,7 @@ fn fixture_ir() -> IrProgram {
                 kind: IrItemKind::Field {
                     owner: SymbolId(0),
                     ty: IrType::Known(ResolvedType::Scalar(Scalar::Text)),
+                    required_array: false,
                     default: None,
                     server: None,
                     modifiers: IrModifiers::default(),
@@ -209,6 +210,7 @@ fn fixture_ir() -> IrProgram {
                 kind: IrItemKind::Field {
                     owner: SymbolId(0),
                     ty: IrType::Known(ResolvedType::Scalar(Scalar::Int)),
+                    required_array: false,
                     default: None,
                     server: None,
                     modifiers: IrModifiers::default(),
@@ -1276,13 +1278,22 @@ fn construct_models_and_grants() {
             },
             "{type:\"demo.Widget\"}",
         ),
+        // T09 REPAIR (was `{type:"text",array:true,requiredArray:true}`):
+        // the old pin agreed with the wrong side of R09 — every non-null
+        // array emitted `requiredArray:true`, contradicting the declared
+        // `T[]` omits-to-`[]` default. Independent values conformance
+        // (frozen `applyArrayOmission`: ordinary yields the canonical
+        // empty array, only `T[]!` rejects omission) agrees the marker
+        // comes from the `!` spelling alone, so the unmarked entry point
+        // emits a bare `array:true`. DESIGN L1023 pins this same shape
+        // for `result:{type:"text",array:true}`.
         (
             ResolvedType::Array {
                 element: Box::new(ResolvedType::Scalar(Scalar::Text)),
                 ordered: true,
                 nonempty: false,
             },
-            "{type:\"text\",array:true,requiredArray:true}",
+            "{type:\"text\",array:true}",
         ),
         (
             ResolvedType::Nullable(Box::new(ResolvedType::Array {
@@ -1304,6 +1315,27 @@ fn construct_models_and_grants() {
     for (ty, want) in cases {
         assert_eq!(emitter.field_schema(&ty, sp(0, 1)), want);
     }
+    // T09 marked entry point: `requiredArray:true` exactly for the `!`
+    // marker; nullability wins over a marker (GRAMMAR L192 forbids the
+    // combination, so this pins the fail-closed stay-null choice).
+    let text_array = ResolvedType::Array {
+        element: Box::new(ResolvedType::Scalar(Scalar::Text)),
+        ordered: true,
+        nonempty: false,
+    };
+    assert_eq!(
+        emitter.field_schema_marked(&text_array, true, sp(0, 1)),
+        "{type:\"text\",array:true,requiredArray:true}"
+    );
+    assert_eq!(
+        emitter.field_schema_marked(&text_array, false, sp(0, 1)),
+        "{type:\"text\",array:true}"
+    );
+    let nullable_array = ResolvedType::Nullable(Box::new(text_array));
+    assert_eq!(
+        emitter.field_schema_marked(&nullable_array, true, sp(0, 1)),
+        "{type:\"text\",array:true,nullable:true}"
+    );
     let (diags, _, _, _) = emitter.finish();
     assert!(diags.is_empty(), "schemas lower cleanly: {diags:?}");
 
@@ -1340,6 +1372,7 @@ fn construct_defaults() {
     assert_eq!(
         emitter.lower_field_full(
             &int_ty,
+            false,
             Some(&IrDefault::Literal(int_lit(0))),
             None,
             sp(0, 1)
@@ -1349,6 +1382,7 @@ fn construct_defaults() {
     assert_eq!(
         emitter.lower_field_full(
             &enum_ty,
+            false,
             Some(&IrDefault::Literal(text_lit("draft"))),
             None,
             sp(0, 1)
@@ -1382,6 +1416,7 @@ fn construct_defaults() {
     assert_eq!(
         emitter.lower_field_full(
             &user_ty,
+            false,
             Some(&IrDefault::Computed {
                 expr: parent_user,
                 has_parent: true
@@ -1393,16 +1428,69 @@ fn construct_defaults() {
     );
     // Fixed server initializers are unchanged metadata.
     assert_eq!(
-        emitter.lower_field_full(&user_ty, None, Some(&IrServer::Actor), sp(0, 1)),
+        emitter.lower_field_full(&user_ty, false, None, Some(&IrServer::Actor), sp(0, 1)),
         "{type:\"user\",server:\"actor\"}"
     );
     let datetime_ty = ResolvedType::Scalar(Scalar::Datetime);
     assert_eq!(
-        emitter.lower_field_full(&datetime_ty, None, Some(&IrServer::Now), sp(0, 1)),
+        emitter.lower_field_full(&datetime_ty, false, None, Some(&IrServer::Now), sp(0, 1)),
         "{type:\"datetime\",server:\"now\"}"
+    );
+    // T09 omission through the full field lowering: ordinary arrays omit
+    // the marker (omission evaluates to an equal-empty array); required
+    // (`!`) arrays carry it (omission rejects). Agrees with the frozen
+    // values `applyArrayOmission` oracle (ordinary→EMPTY_ARRAY,
+    // required→throw).
+    let tags_ty = ResolvedType::Array {
+        element: Box::new(ResolvedType::Scalar(Scalar::Text)),
+        ordered: true,
+        nonempty: false,
+    };
+    assert_eq!(
+        emitter.lower_field_full(&tags_ty, false, None, None, sp(0, 1)),
+        "{type:\"text\",array:true}"
+    );
+    assert_eq!(
+        emitter.lower_field_full(&tags_ty, true, None, None, sp(0, 1)),
+        "{type:\"text\",array:true,requiredArray:true}"
     );
     let (diags, _, _, _) = emitter.finish();
     assert!(diags.is_empty(), "defaults lower cleanly: {diags:?}");
+}
+
+/// T09 omission end to end: the `!` spelling (never nullability) flows
+/// from effects through IR into the model field descriptors. Ordinary
+/// `text[]` omits the marker (omission evaluates to an equal-empty
+/// array, per the frozen values `applyArrayOmission` oracle); `text[]!`
+/// carries `requiredArray:true` (omission rejects); `text[]?` stays
+/// nullable without the marker (nullability wins).
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn omission_marker_flows_from_spelling_to_descriptor() {
+    let src = "app T\nGiven\n M { tags:text[], ids:text[]!, nick:text[]? }\n policy M read=members\nWhen\nThen\n";
+    let mut db = SourceDb::new();
+    let id = db.add("t09-omission.can".to_string(), src.to_string());
+    let (catalog, path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "omission fields lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("tags:{type:\"text\",array:true}"),
+        "ordinary array omits the marker:\n{js}"
+    );
+    assert!(
+        js.contains("ids:{type:\"text\",array:true,requiredArray:true}"),
+        "required (!) array carries the marker:\n{js}"
+    );
+    assert!(
+        js.contains("nick:{type:\"text\",array:true,nullable:true}"),
+        "nullable array stays null-wins without the marker:\n{js}"
+    );
 }
 
 /// Scalars, one import name per operation. Oracles: `CanTime.mjs` and
@@ -2541,6 +2629,7 @@ fn construct_page_admit_returns_preference_defaults() {
         kind: IrItemKind::Field {
             owner: SymbolId(next),
             ty: IrType::Known(ResolvedType::Scalar(Scalar::Text)),
+            required_array: false,
             default: Some(IrDefault::Literal(text_lit("all"))),
             server: None,
             modifiers: IrModifiers::default(),
