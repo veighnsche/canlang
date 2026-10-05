@@ -4,6 +4,7 @@ import type {
   CompatibilityVerdict,
   EnvironmentSelection,
 } from "@canlang/contracts";
+import { probeInstalledRuntime } from "./installed.js";
 
 /**
  * What the deployment target actually runs. Capability-gated: versions select
@@ -88,4 +89,54 @@ export function checkCompatibility(
   }
 
   return reasons.length === 0 ? { compatible: true } : { compatible: false, reasons };
+}
+
+/**
+ * B5-J3: the deployment's target declaration as found in the tree
+ * (`<stem>.target.json` next to the artifact). Same shape the installed
+ * probe takes — this constructor adds no new vocabulary.
+ */
+export interface TreeTargetDeclaration {
+  contractsVersion: number;
+  runtimeVersion: string;
+  knownLanguageVersions: readonly string[];
+  capabilities: readonly string[];
+  supportsSchedules: boolean;
+}
+
+/**
+ * B5-J3: build the `InstalledRuntime` the gates check against from the
+ * installed tree's target declaration. Thin additive wrapper over the
+ * `installed.ts` probe (which validates unknown capability ids loud);
+ * `env` is the real target env, threaded for the probe's future
+ * binding cross-check join.
+ */
+export function installedFromTree(
+  env: Record<string, unknown>,
+  declaration: TreeTargetDeclaration,
+): InstalledRuntime {
+  return probeInstalledRuntime(env, declaration);
+}
+
+/** B5-J3: compiler-vs-runtime release comparison. No new failure codes. */
+export type CompilerVersionCheck = { match: true } | { match: false; detail: string };
+
+/**
+ * B5-J3: compare the artifact's compiler release against the installed
+ * runtime release. Under release lockstep both equal `RELEASE_VERSION`;
+ * a mismatch means the artifact was built by a different release than
+ * the target runs, and deploy refuses `--yes` (fail closed). Pure.
+ */
+export function checkCompilerVersionMatch(
+  descriptor: CompatibilityDescriptor,
+  installed: InstalledRuntime,
+): CompilerVersionCheck {
+  const want = descriptor.identity.compilerVersion;
+  if (want === installed.runtimeVersion) return { match: true };
+  return {
+    match: false,
+    detail:
+      `artifact compiled by ${JSON.stringify(want)} but the target runs ` +
+      `runtime ${JSON.stringify(installed.runtimeVersion)}`,
+  };
 }

@@ -1,33 +1,363 @@
 /**
- * Minimal `can` language extension entry point (slice 2a).
+ * `can` language extension entry point.
  *
  * Activates on the `can` language (see `activationEvents` in package.json),
- * spawns `can lsp` over stdio via {@link CanLanguageClient}, and forwards
- * open/change/close for `.can` documents. The server binary path is the
- * `can.serverPath` setting (default `can` on PATH).
+ * spawns `can lsp` over stdio via {@link CanLanguageClient}, forwards
+ * open/change/save/close for `.can` documents, and registers providers for
+ * every server capability: hover, completion, definition, references,
+ * rename, semantic tokens (full), and code actions. The server binary path
+ * is the `can.serverPath` setting (default `can` on PATH).
  *
- * When the server dies the client reports through `onExit` and is dropped;
- * reopening a `.can` file starts a fresh instance (restart-on-reopen).
- * The restart is user-paced (one spawn per manual reopen), so a
- * persistently crashing server cannot respawn-loop on its own.
+ * Providers are registered once and always talk to the live client, so a
+ * server restart needs no re-registration. Restart paths: the contributed
+ * `can.restartServer` command, any `can.serverPath`/`can.traceServer`
+ * configuration change, and reopening a `.can` file after a crash
+ * (restart-on-reopen). Restarts are user-paced, so a persistently crashing
+ * server cannot respawn-loop on its own.
  *
- * The global `vscode` namespace is ambiently declared in `./client` (zero
- * npm dependencies); slice 2b replaces it with real imports.
+ * The global `vscode` namespace is ambiently declared in `./client`
+ * (zero npm dependencies; see the note there).
  */
 
-import { CanLanguageClient } from './client';
+import {
+  CAN_SEMANTIC_TOKEN_MODIFIERS,
+  CAN_SEMANTIC_TOKEN_TYPES,
+  CanLanguageClient,
+  isRecord,
+} from './client';
+import type { Json } from './client';
 
 const vscodeApi = require('vscode');
 
 let client: CanLanguageClient | null = null;
 
+interface LspPosition {
+  line: number;
+  character: number;
+}
+
+interface LspRange {
+  start: LspPosition;
+  end: LspPosition;
+}
+
+/** True for a wire `Position` the `vscode` constructors accept. */
+function isLspPosition(value: unknown): value is LspPosition {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const record = value as { line?: unknown; character?: unknown };
+  return (
+    Number.isSafeInteger(record.line) &&
+    (record.line as number) >= 0 &&
+    Number.isSafeInteger(record.character) &&
+    (record.character as number) >= 0
+  );
+}
+
+function isLspRange(value: unknown): value is LspRange {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const record = value as { start?: unknown; end?: unknown };
+  return isLspPosition(record.start) && isLspPosition(record.end);
+}
+
+/** Convert a wire range, or null when malformed (caller drops the item). */
+function toRange(value: unknown): vscode.Range | null {
+  if (!isLspRange(value)) {
+    return null;
+  }
+  return new vscodeApi.Range(
+    new vscodeApi.Position(value.start.line, value.start.character),
+    new vscodeApi.Position(value.end.line, value.end.character),
+  );
+}
+
+function toPosition(position: vscode.Position): Json {
+  return { line: position.line, character: position.character };
+}
+
+/**
+ * Send a data request to the live client, or resolve undefined when there
+ * is none (server dead or starting) or the request fails. Providers use
+ * this so a missing server degrades to "no result" instead of an error.
+ */
+function request(method: string, params: Json): Promise<Json | undefined> {
+  const live = client;
+  if (!live) {
+    return Promise.resolve(undefined);
+  }
+  return live.request(method, params).then(
+    (result) => result,
+    () => undefined,
+  );
+}
+
+/** Convert one wire `{ range, newText }` edit, or null when malformed. */
+function toTextEdit(value: Json): vscode.TextEdit | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const range = toRange(value['range'] as unknown);
+  const newText = value['newText'];
+  if (!range || typeof newText !== 'string') {
+    return null;
+  }
+  return new vscodeApi.TextEdit(range, newText);
+}
+
+/**
+ * Fold a wire `WorkspaceEdit` into a `vscode.WorkspaceEdit`. The server
+ * answers renames and code actions with `documentChanges`; the legacy
+ * `changes` map is accepted too (ignored when both are absent).
+ */
+function toWorkspaceEdit(result: Json): vscode.WorkspaceEdit | null {
+  if (!isRecord(result)) {
+    return null;
+  }
+  const edit = new vscodeApi.WorkspaceEdit();
+  let applied = false;
+  const documentChanges = result['documentChanges'];
+  if (Array.isArray(documentChanges)) {
+    for (const change of documentChanges) {
+      if (!isRecord(change)) {
+        continue;
+      }
+      const doc = change['textDocument'];
+      const edits = change['edits'];
+      if (!isRecord(doc) || typeof doc['uri'] !== 'string' || !Array.isArray(edits)) {
+        continue;
+      }
+      const converted: vscode.TextEdit[] = [];
+      for (const item of edits) {
+        const textEdit = toTextEdit(item);
+        if (textEdit) {
+          converted.push(textEdit);
+        }
+      }
+      edit.set(vscodeApi.Uri.parse(doc['uri']), converted);
+      applied = true;
+    }
+  }
+  const changes = result['changes'];
+  if (isRecord(changes)) {
+    for (const uri of Object.keys(changes)) {
+      const edits = changes[uri];
+      if (!Array.isArray(edits)) {
+        continue;
+      }
+      const converted: vscode.TextEdit[] = [];
+      for (const item of edits) {
+        const textEdit = toTextEdit(item);
+        if (textEdit) {
+          converted.push(textEdit);
+        }
+      }
+      edit.set(vscodeApi.Uri.parse(uri), converted);
+      applied = true;
+    }
+  }
+  return applied ? edit : null;
+}
+
+function hoverProvider(): vscode.HoverProvider {
+  return {
+    provideHover(document, position) {
+      return request('textDocument/hover', {
+        textDocument: { uri: document.uri.toString() },
+        position: toPosition(position),
+      }).then((result) => {
+        if (result === undefined || !isRecord(result)) {
+          return undefined;
+        }
+        const contents = result['contents'];
+        if (typeof contents === 'string') {
+          return new vscodeApi.Hover(new vscodeApi.MarkdownString(contents));
+        }
+        if (isRecord(contents) && typeof contents['value'] === 'string') {
+          return new vscodeApi.Hover(new vscodeApi.MarkdownString(contents['value']));
+        }
+        return undefined;
+      });
+    },
+  };
+}
+
+function completionProvider(): vscode.CompletionItemProvider {
+  return {
+    provideCompletionItems(document, position) {
+      return request('textDocument/completion', {
+        textDocument: { uri: document.uri.toString() },
+        position: toPosition(position),
+      }).then((result) => {
+        if (result === undefined || !Array.isArray(result)) {
+          return undefined;
+        }
+        const items: vscode.CompletionItem[] = [];
+        for (const entry of result) {
+          if (!isRecord(entry) || typeof entry['label'] !== 'string') {
+            continue;
+          }
+          const item = new vscodeApi.CompletionItem(entry['label']);
+          const kind = entry['kind'];
+          // Server kinds are LSP CompletionItemKind numbers (1..25), which
+          // match vscode.CompletionItemKind; anything else is dropped.
+          if (
+            typeof kind === 'number' &&
+            Number.isSafeInteger(kind) &&
+            kind >= 1 &&
+            kind <= 25
+          ) {
+            item.kind = kind as vscode.CompletionItemKind;
+          }
+          items.push(item);
+        }
+        return items;
+      });
+    },
+  };
+}
+
+/** Convert a wire `{ uri, range }` location, or null when malformed. */
+function toLocation(value: Json): vscode.Location | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const uri = value['uri'];
+  const range = toRange(value['range'] as unknown);
+  if (typeof uri !== 'string' || !range) {
+    return null;
+  }
+  return new vscodeApi.Location(vscodeApi.Uri.parse(uri), range);
+}
+
+function toLocations(result: Json | undefined): vscode.Location[] | undefined {
+  if (result === undefined || !Array.isArray(result)) {
+    return undefined;
+  }
+  const locations: vscode.Location[] = [];
+  for (const entry of result) {
+    const location = toLocation(entry);
+    if (location) {
+      locations.push(location);
+    }
+  }
+  return locations;
+}
+
+function definitionProvider(): vscode.DefinitionProvider {
+  return {
+    provideDefinition(document, position) {
+      return request('textDocument/definition', {
+        textDocument: { uri: document.uri.toString() },
+        position: toPosition(position),
+      }).then(toLocations);
+    },
+  };
+}
+
+function referenceProvider(): vscode.ReferenceProvider {
+  return {
+    provideReferences(document, position, context) {
+      return request('textDocument/references', {
+        textDocument: { uri: document.uri.toString() },
+        position: toPosition(position),
+        context: { includeDeclaration: context.includeDeclaration },
+      }).then(toLocations);
+    },
+  };
+}
+
+function renameProvider(): vscode.RenameProvider {
+  return {
+    provideRenameEdits(document, position, newName) {
+      return request('textDocument/rename', {
+        textDocument: { uri: document.uri.toString() },
+        position: toPosition(position),
+        newName,
+      }).then((result) => {
+        if (result === undefined) {
+          return undefined;
+        }
+        return toWorkspaceEdit(result) ?? undefined;
+      });
+    },
+  };
+}
+
+function semanticTokensProvider(): vscode.DocumentSemanticTokensProvider {
+  return {
+    provideDocumentSemanticTokens(document) {
+      return request('textDocument/semanticTokens/full', {
+        textDocument: { uri: document.uri.toString() },
+      }).then((result) => {
+        if (result === undefined || !isRecord(result)) {
+          return undefined;
+        }
+        const data = result['data'];
+        if (!Array.isArray(data)) {
+          return undefined;
+        }
+        const numbers: number[] = [];
+        for (const entry of data) {
+          if (typeof entry !== 'number' || !Number.isSafeInteger(entry) || entry < 0) {
+            return undefined;
+          }
+          numbers.push(entry);
+        }
+        // Server data is already LSP delta-encoded quintuples.
+        return new vscodeApi.SemanticTokens(new Uint32Array(numbers));
+      });
+    },
+  };
+}
+
+function codeActionProvider(): vscode.CodeActionProvider {
+  return {
+    provideCodeActions(document, range) {
+      return request('textDocument/codeAction', {
+        textDocument: { uri: document.uri.toString() },
+        range: {
+          start: toPosition(range.start),
+          end: toPosition(range.end),
+        },
+        context: { diagnostics: [] },
+      }).then((result) => {
+        if (result === undefined || !Array.isArray(result)) {
+          return undefined;
+        }
+        const actions: vscode.CodeAction[] = [];
+        for (const entry of result) {
+          if (!isRecord(entry) || typeof entry['title'] !== 'string') {
+            continue;
+          }
+          const action = new vscodeApi.CodeAction(
+            entry['title'],
+            entry['kind'] === 'quickfix' ? vscodeApi.CodeActionKind.QuickFix : undefined,
+          );
+          // Server code-action edits nest under `edit.documentChanges`.
+          if (isRecord(entry['edit'])) {
+            const edit = toWorkspaceEdit(entry['edit']);
+            if (edit) {
+              action.edit = edit;
+            }
+          }
+          actions.push(action);
+        }
+        return actions;
+      });
+    },
+  };
+}
+
 export function activate(context: vscode.ExtensionContext): void {
-  const config = vscodeApi.workspace.getConfiguration('can');
-  const serverPath = config.get<string>('serverPath', 'can');
-  const trace = config.get<boolean>('traceServer', false);
   const channel = vscodeApi.window.createOutputChannel('Can');
 
   const startClient = (): void => {
+    const config = vscodeApi.workspace.getConfiguration('can');
+    const serverPath = config.get<string>('serverPath', 'can');
+    const trace = config.get<boolean>('traceServer', false);
     const canClient = new CanLanguageClient(serverPath, channel, trace);
     client = canClient;
 
@@ -37,7 +367,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       vscodeApi.window.showErrorMessage(
         `Can language server exited (code ${code === null ? 'unknown' : code}). ` +
-          'Check the Can output channel; reopen a .can file to retry.',
+          'Check the Can output channel; reopen a .can file or run `Can: Restart Language Server` to retry.',
       );
     };
 
@@ -66,9 +396,40 @@ export function activate(context: vscode.ExtensionContext): void {
     );
   };
 
+  const restartServer = (): Promise<void> => {
+    const stopping = client;
+    client = null;
+    const stopped = stopping ? stopping.stop() : Promise.resolve();
+    return stopped.then(() => {
+      startClient();
+    });
+  };
+
   startClient();
 
+  const selector: vscode.DocumentSelector = { language: 'can' };
+  const legend = new vscodeApi.SemanticTokensLegend(
+    [...CAN_SEMANTIC_TOKEN_TYPES],
+    [...CAN_SEMANTIC_TOKEN_MODIFIERS],
+  );
+
   context.subscriptions.push(
+    vscodeApi.languages.registerHoverProvider(selector, hoverProvider()),
+    vscodeApi.languages.registerCompletionItemProvider(selector, completionProvider()),
+    vscodeApi.languages.registerDefinitionProvider(selector, definitionProvider()),
+    vscodeApi.languages.registerReferenceProvider(selector, referenceProvider()),
+    vscodeApi.languages.registerRenameProvider(selector, renameProvider()),
+    vscodeApi.languages.registerDocumentSemanticTokensProvider(
+      selector,
+      semanticTokensProvider(),
+      legend,
+    ),
+    vscodeApi.languages.registerCodeActionProvider(selector, codeActionProvider(), {
+      providedCodeActionKinds: [vscodeApi.CodeActionKind.QuickFix],
+    }),
+    vscodeApi.commands.registerCommand('can.restartServer', () => {
+      void restartServer();
+    }),
     vscodeApi.workspace.onDidOpenTextDocument((doc: vscode.TextDocument) => {
       if (doc.languageId !== 'can') {
         return;
@@ -87,9 +448,22 @@ export function activate(context: vscode.ExtensionContext): void {
         client.didChange(event.document);
       }
     }),
+    vscodeApi.workspace.onDidSaveTextDocument((doc: vscode.TextDocument) => {
+      if (doc.languageId === 'can' && client) {
+        client.didSave(doc);
+      }
+    }),
     vscodeApi.workspace.onDidCloseTextDocument((doc: vscode.TextDocument) => {
       if (doc.languageId === 'can' && client) {
         client.didClose(doc);
+      }
+    }),
+    vscodeApi.workspace.onDidChangeConfiguration((event: vscode.ConfigurationChangeEvent) => {
+      if (
+        event.affectsConfiguration('can.serverPath') ||
+        event.affectsConfiguration('can.traceServer')
+      ) {
+        void restartServer();
       }
     }),
     channel,

@@ -27,3 +27,6 @@ editors/vscode/out/
 test-results/
 playwright-report/
 playwright/.cache/
+
+# B5 release verification artifact (regenerate: bun run release)
+dist-manifest.json
