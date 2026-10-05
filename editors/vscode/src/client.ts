@@ -1,23 +1,27 @@
 /**
- * Minimal LSP stdio client for the `can` language server (slice 2a).
+ * LSP stdio client for the `can` language server.
  *
  * Spawns `can lsp`, speaks Content-Length JSON-RPC over its stdio, forwards
- * open/change/close for `.can` documents and renders `publishDiagnostics`
- * into a VS Code diagnostic collection. Deliberately thin: no completion,
- * hover or code-action UI yet.
+ * open/change/save/close for `.can` documents, renders `publishDiagnostics`
+ * into a VS Code diagnostic collection, and serves data requests
+ * (hover, completion, definition, references, rename, semantic tokens,
+ * code actions) for the providers registered in `extension.ts`.
  *
  * Lifecycle: one client instance serves one server process. When the child
  * dies unexpectedly the instance records `finished`, settles pending
  * requests, disposes the diagnostic collection (clearing stale entries)
  * and fires `onExit` exactly once; further `did*` calls are dropped and
- * writes are refused. Recovery is restart-on-reopen: the extension creates
- * a fresh instance (see `extension.ts`).
+ * writes are refused. Recovery is restart-on-reopen plus the
+ * `can.restartServer` command: the extension creates a fresh instance
+ * (see `extension.ts`).
  *
- * TEMPORARY AMBIENT DECLARATIONS: the `declare global` block below declares
- * the minimal `vscode`/`child_process`/timer surface used here so
- * `tsc --noEmit --strict` passes with zero npm dependencies. Slice 2b
- * adopts `vscode-languageclient` (plus `@types/vscode`/`@types/node`) and
- * deletes these declarations in favor of real imports.
+ * AMBIENT DECLARATIONS: the `declare global` block below declares the
+ * minimal `vscode`/`child_process`/timer surface used here so
+ * `tsc --strict` passes with zero npm dependencies (the lane-01 gate pins
+ * empty typeRoots, so `@types/vscode`/`@types/node` cannot be used). Each
+ * declaration mirrors the real VS Code API subset this client calls; if a
+ * wider surface is ever needed, prefer extending this block over adopting
+ * `vscode-languageclient`, which would break the zero-dependency gate.
  */
 
 declare global {
@@ -55,9 +59,150 @@ declare global {
     }
     export class Position {
       constructor(line: number, character: number);
+      readonly line: number;
+      readonly character: number;
     }
     export class Range {
       constructor(start: Position, end: Position);
+      readonly start: Position;
+      readonly end: Position;
+    }
+    export interface CancellationToken {
+      readonly isCancellationRequested: boolean;
+      onCancellationRequested: Event<void>;
+    }
+    export type ProviderResult<T> = T | undefined | null | Promise<T | undefined | null>;
+    export interface DocumentFilter {
+      language?: string;
+      scheme?: string;
+      pattern?: string;
+    }
+    export type DocumentSelector = string | DocumentFilter | Array<string | DocumentFilter>;
+    export class MarkdownString {
+      constructor(value?: string);
+      value: string;
+    }
+    export class Hover {
+      constructor(contents: MarkdownString | string);
+      contents: MarkdownString | string;
+    }
+    export enum CompletionItemKind {
+      Text = 1,
+      Method = 2,
+      Function = 3,
+      Constructor = 4,
+      Field = 5,
+      Variable = 6,
+      Class = 7,
+      Interface = 8,
+      Module = 9,
+      Property = 10,
+      Unit = 11,
+      Value = 12,
+      Enum = 13,
+      Keyword = 14,
+      Snippet = 15,
+      Color = 16,
+      File = 17,
+      Reference = 18,
+      Folder = 19,
+      EnumMember = 20,
+      Constant = 21,
+      Struct = 22,
+      Event = 23,
+      Operator = 24,
+      TypeParameter = 25,
+    }
+    export class CompletionItem {
+      constructor(label: string);
+      label: string;
+      kind?: CompletionItemKind;
+    }
+    export class Location {
+      constructor(uri: Uri, rangeOrPosition: Range | Position);
+      uri: Uri;
+      range: Range;
+    }
+    export class TextEdit {
+      constructor(range: Range, newText: string);
+      range: Range;
+      newText: string;
+    }
+    export class WorkspaceEdit {
+      set(uri: Uri, edits: TextEdit[]): void;
+    }
+    export class CodeActionKind {
+      static readonly QuickFix: CodeActionKind;
+    }
+    export class CodeAction {
+      constructor(title: string, kind?: CodeActionKind);
+      title: string;
+      kind?: CodeActionKind;
+      edit?: WorkspaceEdit;
+    }
+    export interface CodeActionContext {
+      diagnostics: Diagnostic[];
+    }
+    export interface ReferenceContext {
+      includeDeclaration: boolean;
+    }
+    export class SemanticTokensLegend {
+      constructor(tokenTypes: string[], tokenModifiers: string[]);
+    }
+    export class SemanticTokens {
+      constructor(data: Uint32Array);
+      readonly data: Uint32Array;
+    }
+    export interface HoverProvider {
+      provideHover(
+        document: TextDocument,
+        position: Position,
+        token: CancellationToken,
+      ): ProviderResult<Hover>;
+    }
+    export interface CompletionItemProvider {
+      provideCompletionItems(
+        document: TextDocument,
+        position: Position,
+        token: CancellationToken,
+      ): ProviderResult<CompletionItem[]>;
+    }
+    export interface DefinitionProvider {
+      provideDefinition(
+        document: TextDocument,
+        position: Position,
+        token: CancellationToken,
+      ): ProviderResult<Location | Location[]>;
+    }
+    export interface ReferenceProvider {
+      provideReferences(
+        document: TextDocument,
+        position: Position,
+        context: ReferenceContext,
+        token: CancellationToken,
+      ): ProviderResult<Location[]>;
+    }
+    export interface RenameProvider {
+      provideRenameEdits(
+        document: TextDocument,
+        position: Position,
+        newName: string,
+        token: CancellationToken,
+      ): ProviderResult<WorkspaceEdit>;
+    }
+    export interface DocumentSemanticTokensProvider {
+      provideDocumentSemanticTokens(
+        document: TextDocument,
+        token: CancellationToken,
+      ): ProviderResult<SemanticTokens>;
+    }
+    export interface CodeActionProvider {
+      provideCodeActions(
+        document: TextDocument,
+        range: Range,
+        context: CodeActionContext,
+        token: CancellationToken,
+      ): ProviderResult<CodeAction[]>;
     }
     export interface Diagnostic {
       range: Range;
@@ -73,6 +218,9 @@ declare global {
     export interface OutputChannel extends Disposable {
       appendLine(value: string): void;
     }
+    export interface ConfigurationChangeEvent {
+      affectsConfiguration(section: string): boolean;
+    }
     export namespace workspace {
       const textDocuments: TextDocument[];
       function getConfiguration(section?: string): WorkspaceConfiguration;
@@ -81,13 +229,54 @@ declare global {
         listener: (event: TextDocumentChangeEvent) => void,
       ): Disposable;
       function onDidCloseTextDocument(listener: (doc: TextDocument) => void): Disposable;
+      function onDidSaveTextDocument(listener: (doc: TextDocument) => void): Disposable;
+      function onDidChangeConfiguration(
+        listener: (event: ConfigurationChangeEvent) => void,
+      ): Disposable;
     }
     export namespace window {
       function createOutputChannel(name: string): OutputChannel;
       function showErrorMessage(message: string): void;
     }
+    export namespace commands {
+      function registerCommand(
+        command: string,
+        callback: (...args: unknown[]) => unknown,
+      ): Disposable;
+    }
     export namespace languages {
       function createDiagnosticCollection(name: string): DiagnosticCollection;
+      function registerHoverProvider(
+        selector: DocumentSelector,
+        provider: HoverProvider,
+      ): Disposable;
+      function registerCompletionItemProvider(
+        selector: DocumentSelector,
+        provider: CompletionItemProvider,
+        ...triggerCharacters: string[]
+      ): Disposable;
+      function registerDefinitionProvider(
+        selector: DocumentSelector,
+        provider: DefinitionProvider,
+      ): Disposable;
+      function registerReferenceProvider(
+        selector: DocumentSelector,
+        provider: ReferenceProvider,
+      ): Disposable;
+      function registerRenameProvider(
+        selector: DocumentSelector,
+        provider: RenameProvider,
+      ): Disposable;
+      function registerDocumentSemanticTokensProvider(
+        selector: DocumentSelector,
+        provider: DocumentSemanticTokensProvider,
+        legend: SemanticTokensLegend,
+      ): Disposable;
+      function registerCodeActionProvider(
+        selector: DocumentSelector,
+        provider: CodeActionProvider,
+        metadata?: { providedCodeActionKinds?: CodeActionKind[] },
+      ): Disposable;
     }
   }
 
@@ -111,8 +300,7 @@ declare global {
 
   function require(id: 'vscode'): typeof vscode;
   function require(id: 'child_process'): typeof child_process;
-  // Node globals (lib es2022 has no DOM/node types); removed with the rest
-  // of this block in slice 2b.
+  // Node globals (lib es2022 has no DOM/node types).
   function setTimeout(callback: () => void, ms: number): unknown;
   function clearTimeout(handle: unknown): void;
 }
@@ -120,7 +308,7 @@ declare global {
 const vscodeApi = require('vscode');
 const childProcessApi = require('child_process');
 
-type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
 interface RpcMessage {
   id?: number | string | null;
@@ -167,9 +355,45 @@ function utf8Length(text: string): number {
   return bytes;
 }
 
-function isRecord(value: Json): value is { [key: string]: Json } {
+export function isRecord(value: Json): value is { [key: string]: Json } {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
+
+/**
+ * Semantic-token legend the client declares in `initialize` and registers
+ * with the semantic-tokens provider. Must match the server's advertised
+ * legend exactly; single source of truth is `TOKEN_TYPES`/`TOKEN_MODIFIERS`
+ * in `compiler/src/ide/tokens.rs`. `test/lsp-capabilities.cjs` asserts the
+ * live `initialize` result carries this same legend, so drift fails loudly.
+ */
+export const CAN_SEMANTIC_TOKEN_TYPES: string[] = [
+  'namespace',
+  'type',
+  'class',
+  'interface',
+  'enum',
+  'struct',
+  'parameter',
+  'variable',
+  'property',
+  'enumMember',
+  'event',
+  'function',
+  'method',
+  'keyword',
+  'comment',
+  'string',
+  'number',
+  'operator',
+];
+
+/** Modifier legend; source of truth as above (bit order matters). */
+export const CAN_SEMANTIC_TOKEN_MODIFIERS: string[] = [
+  'declaration',
+  'documentation',
+  'defaultLibrary',
+  'readonly',
+];
 
 /** True for a wire position `vscode.Position` accepts (else it throws). */
 function isValidPosition(value: unknown): value is LspPosition {
@@ -235,6 +459,8 @@ export class CanLanguageClient {
   private nextId = 1;
   private readonly pending = new Map<number, (result: Json) => void>();
   private diagnostics: vscode.DiagnosticCollection | null = null;
+  /** Raw `initialize` result (server capabilities + serverInfo), once known. */
+  private capabilities: Json = null;
   private started = false;
   /** Child has exited or failed; the instance is spent, never reused. */
   private finished = false;
@@ -307,13 +533,43 @@ export class CanLanguageClient {
       rootUri: null,
       capabilities: {
         textDocument: {
+          synchronization: { didSave: true },
           publishDiagnostics: { versionSupport: true },
-          synchronization: { didSave: false },
+          hover: { contentFormat: ['markdown', 'plaintext'] },
+          completion: { completionItem: { documentationFormat: ['markdown', 'plaintext'] } },
+          definition: { linkSupport: false },
+          references: {},
+          rename: { prepareSupport: false },
+          semanticTokens: {
+            formats: ['relative'],
+            requests: { full: true },
+            tokenTypes: [...CAN_SEMANTIC_TOKEN_TYPES],
+            tokenModifiers: [...CAN_SEMANTIC_TOKEN_MODIFIERS],
+          },
+          codeAction: {
+            codeActionLiteralSupport: { codeActionKind: { valueSet: ['quickfix'] } },
+          },
         },
       },
-    }).then(() => {
+    }).then((result) => {
+      this.capabilities = result;
       this.sendNotification('initialized', {});
     });
+  }
+
+  /** Raw `initialize` result (`{ capabilities, serverInfo }`); null before. */
+  serverCapabilities(): Json {
+    return this.capabilities;
+  }
+
+  /**
+   * Send a data request (hover, completion, definition, references, rename,
+   * semantic tokens, code actions) to the server. Rejects when the server
+   * is not running; resolves null when the child died mid-flight (callers
+   * treat null as "no result").
+   */
+  request(method: string, params: Json): Promise<Json> {
+    return this.sendRequest(method, params);
   }
 
   /**
@@ -435,6 +691,15 @@ export class CanLanguageClient {
         version: document.version,
       },
       contentChanges: [{ text: document.getText() }],
+    });
+  }
+
+  didSave(document: vscode.TextDocument): void {
+    if (!this.isRunning()) {
+      return;
+    }
+    this.sendNotification('textDocument/didSave', {
+      textDocument: { uri: document.uri.toString() },
     });
   }
 

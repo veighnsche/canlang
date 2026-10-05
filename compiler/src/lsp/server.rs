@@ -1203,8 +1203,17 @@ fn hex_val(byte: u8) -> Option<u8> {
 }
 
 /// Serve LSP over stdio with the production analysis backend.
+///
+/// Shutdown is graceful on every std-visible signal: stdin EOF returns
+/// the lifecycle exit code after flushing pending output, a mid-message
+/// client disconnect (`UnexpectedEof`) does the same, and the
+/// `shutdown`/`exit` handshake exits through [`Server::exited`]. Truly
+/// catching Ctrl-C (SIGINT) needs a signal handler, which stable `std`
+/// cannot install dependency-free — so SIGINT keeps its default
+/// terminate disposition; editors shutting down cleanly close stdin or
+/// send `exit`, both of which flush and exit below.
 pub fn run_stdio() -> i32 {
-    use std::io::{BufReader, BufWriter};
+    use std::io::{BufReader, BufWriter, Write};
 
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
@@ -1212,10 +1221,24 @@ pub fn run_stdio() -> i32 {
     let mut writer = BufWriter::new(stdout.lock());
     let mut server = Server::new(RealAnalysis::from_process());
 
+    // Flush best-effort, then report the lifecycle exit code.
+    macro_rules! shutdown {
+        () => {{
+            let _ = writer.flush();
+            return server.exit_code();
+        }};
+    }
+
     loop {
         let body = match t::read_message(&mut reader) {
             Ok(Some(body)) => body,
-            Ok(None) => return server.exit_code(),
+            // Clean EOF: the client went away; flush and report.
+            Ok(None) => shutdown!(),
+            Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
+                // EOF inside headers/body: a torn disconnect, not a
+                // transient framing slip — shut down, don't spin.
+                shutdown!()
+            }
             Err(_) => {
                 // Framing errors carry no request id to answer; drop the
                 // connection state and keep serving further messages.
@@ -1229,6 +1252,7 @@ pub fn run_stdio() -> i32 {
         };
         for response in responses {
             if t::write_message(&mut writer, response.as_bytes()).is_err() {
+                // The client is gone; nothing left to flush to.
                 return server.exit_code();
             }
         }
@@ -1238,7 +1262,7 @@ pub fn run_stdio() -> i32 {
             }
         }
         if server.exited() {
-            return server.exit_code();
+            shutdown!()
         }
     }
 }

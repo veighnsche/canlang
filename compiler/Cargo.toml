@@ -12,3 +12,11 @@ path = "src/lib.rs"
 [[bin]]
 name = "can"
 path = "src/main.rs"
+
+# B5/J1 release profile: small stripped single-binary CLI. `panic` stays
+# `unwind` (the default): `main` catches panics into E7005/exit 2.
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1

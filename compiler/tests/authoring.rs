@@ -238,12 +238,11 @@ fn cli_explain_json_shape_and_unknown_code() {
     assert!(result.stderr.contains("E1001"));
     assert!(result.stderr.contains("E7004"));
 
-    // E7005 (slice-2a formatter stub) retired when `can fmt` shipped: it
-    // resolves as unknown, like any other unallocated code.
+    // E7005 was a retired slice-2a formatter stub; B5/J1 reclaims it as
+    // the internal-error code (see `can explain E7005`).
     let result = dispatch(&argv(&["explain", "E7005"]));
-    assert_eq!(result.code, exit::TOOL_FAILURE);
-    assert!(result.stderr.contains("E7003"));
-    assert!(result.stderr.contains("E7005"));
+    assert_eq!(result.code, exit::OK);
+    assert!(result.stdout.contains("internal-error"));
 }
 
 #[test]
