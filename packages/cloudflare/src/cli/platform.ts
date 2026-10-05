@@ -41,9 +41,12 @@
  * testkit depends on this package, so no static edge) and reports zero
  * executed rows until the lane-01 test-module loader lands. `build`
  * validates the artifact + asserts release lockstep. `deploy` runs the
- * compat gate, renders the plan, and writes `<stem>.deploy-plan.json` +
- * `<stem>.wrangler.toml` only under `--yes`;
- * `--preview` prints and writes nothing. Nothing here spawns wrangler.
+ * compat gate, builds the portable worker bundle (P-B), renders the plan,
+ * and writes `<stem>.deploy/` + `<stem>.deploy-plan.json` +
+ * `<stem>.wrangler.toml` only under `--yes`, then attempts the live
+ * wrangler apply and reports `applied` honestly; `--preview` prints and
+ * writes nothing, bare deploy refuses. No path spawns wrangler without
+ * `--yes`.
  */
 import { randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -54,6 +57,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONTRACTS_VERSION } from "@canlang/contracts";
 import type {
+  ActivationVerdict,
   CompatibilityDescriptor,
   EnvironmentSelection,
   InstalledSnapshot,
@@ -69,9 +73,18 @@ import {
   checkCompilerVersionMatch,
   installedFromTree,
 } from "../deploy/compat.js";
-import { buildDeployPlan } from "../deploy/plan.js";
+import { buildDeployPlan, type DeployBundleRef } from "../deploy/plan.js";
 import { renderDeployPlan } from "../deploy/render.js";
 import { diffPlans, formatPreview, loadPreviousPlan, requireYes } from "../deploy/review.js";
+import {
+  DEPLOY_DIR_SUFFIX,
+  WORKER_MAIN_MISSING,
+  buildDeployBundle,
+  deployBundleMain,
+  writeDeployBundle,
+  type DeployBundle,
+} from "../deploy/bundle.js";
+import { manualApplyCommand, runWranglerDeploy } from "../upgrade/apply.js";
 import {
   PINNED_COMPATIBILITY_DATE,
   assertDistReady,
@@ -455,7 +468,10 @@ async function runActivate(artifactPath: string, env: string | null): Promise<vo
 /* B5-J3: test/build/deploy local paths.                             */
 /* ------------------------------------------------------------------ */
 
-/** Entry script path stamped into deploy plans (repo convention). */
+/**
+ * Legacy entry script path (pre-bundle fallback while the P-A serving entry
+ * is unbuilt; P-B plans stamp the bundle main instead — see `plan.ts`).
+ */
 const DEPLOY_MAIN = "./dist/worker/entry.js";
 
 function distRootDir(): string {
@@ -598,10 +614,13 @@ async function runBuild(artifactPath: string): Promise<void> {
 }
 
 /**
- * `deploy`: compat gate first (fail closed), then render + review. Bare
- * deploy and `--preview` write nothing; `--yes` writes the plan files.
- * A compiler/runtime release mismatch refuses `--yes`. Nothing here
- * spawns wrangler (live apply is a follow-up).
+ * `deploy`: compat gate first (fail closed), then the portable worker
+ * bundle (P-B), then render + review. Bare deploy and `--preview` write
+ * nothing; `--yes` writes the bundle dir + plan files and then attempts
+ * the live wrangler apply, reporting `applied` honestly (failed applies
+ * name the by-hand equivalent — the written files ARE the manual path).
+ * A compiler/runtime release mismatch refuses `--yes`. No path spawns
+ * wrangler without `--yes`.
  */
 async function runDeploy(
   artifactPath: string,
@@ -643,15 +662,61 @@ async function runDeploy(
       compat.reasons.map((reason) => `${reason.code}: ${reason.detail}`).join("; "),
     );
   }
+  // Bare deploy refuses before any bundling work (same outcome as before,
+  // without the wasted build); --preview and --yes proceed.
+  if (!preview) {
+    try {
+      requireYes(yes, "deploy");
+    } catch (error) {
+      fail("deploy", "confirm-required", error instanceof Error ? error.message : String(error));
+    }
+  }
   const compiler = checkCompilerVersionMatch(descriptor, installed);
   const defaults = resolveLocalDefaults({ artifactPath });
-  void loaded.artifact;
+  // P-B bundle: built in memory here (preview validates + reports the real
+  // sha without writing; --yes writes below). The staged verdict is the
+  // honest `activate()` verdict over deploy-time inputs: gates 1-2 run
+  // for real, gates 3-4 report `activation-incomplete` (no store or
+  // producer gates are importable from the dist CLI — the same honest
+  // scope the `activate` command documents). An inactive verdict deploys
+  // the refusal worker through the same main (by design, never a silent
+  // serve), and preview/--yes report it loudly so the deployer sees it.
+  // Until the P-A serving entry is built, fall back to the legacy main
+  // with a loud warning.
+  const repoRoot = dirname(distRootDir());
+  const verdict = await activate({
+    artifact: loaded.artifact,
+    descriptor,
+    environment,
+    installed,
+  });
+  let bundleRef: DeployBundleRef | null = null;
+  let deployBundle: DeployBundle | null = null;
+  try {
+    const bundle = buildDeployBundle(loaded.artifact, { repoRoot, verdict });
+    bundleRef = {
+      main: deployBundleMain(stem),
+      moduleCount: bundle.moduleCount,
+      sha256: bundle.sha256,
+    };
+    deployBundle = bundle;
+  } catch (error) {
+    if (error instanceof Error && (error as { code?: unknown }).code === WORKER_MAIN_MISSING) {
+      process.stderr.write(
+        `warning: deploy bundle unavailable (${error.message}); ` +
+          `falling back to legacy main ${DEPLOY_MAIN}\n`,
+      );
+    } else {
+      fail("deploy", "bundle-failed", error instanceof Error ? error.message : String(error));
+    }
+  }
   let plan;
   try {
     plan = buildDeployPlan(descriptor, environment, {
       workerName: defaults.workerName,
       main: DEPLOY_MAIN,
       compatibilityDate: PINNED_COMPATIBILITY_DATE,
+      ...(bundleRef === null ? {} : { bundle: bundleRef }),
     });
   } catch (error) {
     fail("deploy", "unresolved-binding", error instanceof Error ? error.message : String(error));
@@ -668,6 +733,7 @@ async function runDeploy(
   const rendered = renderDeployPlan(plan);
   if (preview) {
     process.stderr.write(formatPreview(plan, diff));
+    process.stderr.write(`${formatVerdictLine(verdict)}\n`);
     if (!compiler.match) {
       process.stderr.write(`warning: ${compiler.detail} (--yes will refuse)\n`);
     }
@@ -679,15 +745,11 @@ async function runDeploy(
       changed: diff.changed,
       diff: diff.lines,
       plan,
+      verdict,
       compilerMatch: compiler.match,
       compilerDetail: compiler.match ? null : compiler.detail,
     });
     return;
-  }
-  try {
-    requireYes(yes, "deploy");
-  } catch (error) {
-    fail("deploy", "confirm-required", error instanceof Error ? error.message : String(error));
   }
   if (!compiler.match) {
     fail(
@@ -696,9 +758,39 @@ async function runDeploy(
       `${compiler.detail} (release lockstep: rebuild with the pinned toolchain)`,
     );
   }
+  let bundleFiles: string[] = [];
+  if (deployBundle !== null) {
+    const written = writeDeployBundle(deployBundle, join(dir, `${stem}${DEPLOY_DIR_SUFFIX}`));
+    bundleFiles = written.files;
+  }
   writeFileSync(planPath, rendered.json, "utf8");
   writeFileSync(tomlPath, rendered.toml, "utf8");
-  process.stderr.write(`${formatPreview(plan, diff)}wrote ${planPath}\nwrote ${tomlPath}\n`);
+  const configPath = resolve(tomlPath);
+  const manual = manualApplyCommand(configPath);
+  let applied = false;
+  let applyStatus: number | null = null;
+  let applyDetail = "";
+  try {
+    const result = runWranglerDeploy({ yes: true, configPath, workingDir: dir });
+    applied = result.applied;
+    applyStatus = result.status;
+    applyDetail = tailText(applied ? result.stdout : result.stderr, 2000);
+    if (applied) {
+      process.stderr.write("deploy apply: wrangler deploy exited 0 (applied)\n");
+    } else {
+      process.stderr.write(
+        `deploy apply FAILED (wrangler exited ${String(result.status)}); ` +
+          `nothing was applied — apply by hand: ${manual}\n${applyDetail}\n`,
+      );
+    }
+  } catch (error) {
+    applyDetail = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`deploy apply FAILED: ${applyDetail}\n`);
+  }
+  process.stderr.write(
+    `${formatPreview(plan, diff)}${formatVerdictLine(verdict)}\nwrote ${planPath}\nwrote ${tomlPath}\n` +
+      (bundleFiles.length > 0 ? `wrote ${bundleFiles.length} bundle file(s) under ${dir}\n` : ""),
+  );
   emit({
     ok: true,
     command: "deploy",
@@ -706,9 +798,29 @@ async function runDeploy(
     wrote: true,
     changed: diff.changed,
     diff: diff.lines,
-    files: [planPath, tomlPath],
+    files: [planPath, tomlPath, ...bundleFiles],
     plan,
+    verdict,
+    applied,
+    applyStatus,
+    applyDetail,
+    manualApply: manual,
   });
+}
+
+/** One loud verdict line: the deployer always sees what the worker will serve. */
+function formatVerdictLine(verdict: ActivationVerdict): string {
+  if (verdict.active) return "verdict: active (worker will serve)";
+  const codes = verdict.reasons.map((reason) => reason.code).join(", ");
+  return (
+    `verdict: INACTIVE — the deployed worker will serve the refusal worker ` +
+    `until activation passes (${verdict.reasons.length} reason(s): ${codes})`
+  );
+}
+
+/** Last `max` chars of `text` (wrangler output tail for the envelope). */
+function tailText(text: string, max: number): string {
+  return text.length > max ? text.slice(text.length - max) : text;
 }
 
 async function main(): Promise<void> {
