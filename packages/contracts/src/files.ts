@@ -12,7 +12,20 @@
 
 import type { DatetimeValue } from './values.js';
 
-/** Opaque immutable finalized file identity. Grants nothing by itself. */
+/**
+ * This contract's version. Added by T13a alongside
+ * `SERVICES_CONTRACT_VERSION`; T13a attachment backing
+ * (`FinalizedFileRef`) is versioned by it.
+ */
+export const FILES_CONTRACT_VERSION = 1;
+
+/**
+ * Opaque immutable finalized file identity. Grants nothing by itself.
+ *
+ * T13a: element type of `EmailSendInput.attachments` (`services.ts`);
+ * the committed outbox freezes attachment versions with the recipient
+ * (DESIGN section 8). T27 image finalization is out of this slice.
+ */
 export type FinalizedFileRef = string;
 
 /** Opaque upload-intent identity minted by the runtime. */
