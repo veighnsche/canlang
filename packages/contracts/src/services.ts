@@ -15,6 +15,13 @@
 import type { FinalizedFileRef } from './files.js';
 import type { DatetimeValue, WireMoney } from './values.js';
 
+/**
+ * This contract's version. Added by T13a (the T12 inventory noted
+ * `services.ts` had no contract version stamp); value shapes below are
+ * versioned by it, capability contracts carry their own `STD_*_VERSION`.
+ */
+export const SERVICES_CONTRACT_VERSION = 1;
+
 /** Closed delivery receipt summary (DESIGN section 8). */
 export interface DeliveryResult {
   id: string;
@@ -156,7 +163,15 @@ export interface VerifiedIngressEnvelope {
   deliveryId: string | null;
 }
 
-/** `std.EmailV1` send inputs (DESIGN section 8). */
+/**
+ * `std.EmailV1` send inputs (DESIGN section 8).
+ *
+ * T13a/B9 record: `attachments` stays REQUIRED (no `?`, no default).
+ * DESIGN spells `attachments:file[]=[]`, and all 40 corpus `Mail.send`
+ * sends plus all 13 recipes supply only `{to, subject, body}` — T14a
+ * must rule default-empty vs required. T13a preserves required and
+ * encodes no default; flagged for T14a, not silently relaxed.
+ */
 export interface EmailSendInput {
   to: string;
   subject: string;
@@ -464,3 +479,141 @@ export interface WorkflowNodeMapping {
   /** Declared output node ids; only these nodes' images are collected. */
   outputs: string[];
 }
+
+/* -- T13a canonical common-interface schemas (L4 producer slice). -- */
+
+/**
+ * T13a scope: `std.EmailV1` send plus the accepted common value shapes
+ * (`DeliveryResult`, `DeliveryError`, `OperationOutcome`, `PaymentState`)
+ * and contract-only `std.ErrorsV1` / `std.PaymentsV1` (B10, below). Each
+ * operation below is one durable send effect: `send Target.op {…}`
+ * persists work and returns a `delivery(Target.op)` association observed
+ * per `work.ts` (`ReceiptObservation`, `T13A_DELIVERY_OBSERVABLES`);
+ * completions arrive as typed `Target.completed` envelopes
+ * (`CapabilityCompletion<R>`). Preserved blockers, NOT decided here:
+ * B1 (`std` resolution mechanism), B11 (bound `DeliveryResult`
+ * normalization) and B12 (in-corpus binding semantics) belong to
+ * T13-consume/T28. T13b rich relations (images/judgment/mailbox/
+ * knowledge) are out of this slice: nothing below declares them.
+ */
+
+/** `std.EmailV1` contract version; equals `STD_EMAIL_V1_CONTRACT.version`. */
+export const STD_EMAIL_V1_VERSION = 1;
+
+/** `std.ErrorsV1` contract version; equals `STD_ERRORS_V1_CONTRACT.version`. */
+export const STD_ERRORS_V1_VERSION = 1;
+
+/** `std.PaymentsV1` contract version; equals `STD_PAYMENTS_V1_CONTRACT.version`. */
+export const STD_PAYMENTS_V1_VERSION = 1;
+
+/**
+ * Canonical `std.EmailV1` contract (DESIGN section 8: `send(to:email,
+ * subject:text, body:text, attachments:file[]=[]) -> EmailAccepted`).
+ * Adapter-backed (`EmailV1Adapter`; `SERVICES_CATALOG` advertises `send`).
+ * `reconcile` is a port op (`MailSender.reconcile`), deliberately NOT a
+ * contract op here: it reuses the original delivery id and is never sent
+ * from source. No declared events.
+ */
+export const STD_EMAIL_V1_CONTRACT: CapabilityContract = {
+  name: 'std.EmailV1',
+  version: STD_EMAIL_V1_VERSION,
+  operations: [
+    {
+      name: 'send',
+      inputs: {
+        to: 'email',
+        subject: 'text',
+        body: 'text',
+        attachments: 'file[]',
+      },
+      result: 'EmailAccepted',
+    },
+  ],
+  events: [],
+};
+
+/**
+ * Canonical `std.ErrorsV1` contract (DESIGN section 8: `report(event:
+ * ErrorReport) -> ErrorAccepted`; cf. draft `send Catch.report
+ * {event=event}`, CanDo.can:115). B10 CONTRACT-ONLY export: accepted
+ * contract shape, no adapter exists — for T13a/T14a checking (runtime
+ * via controlled fixtures, adapters later). Do NOT add to
+ * `SERVICES_CATALOG`; no events.
+ */
+export const STD_ERRORS_V1_CONTRACT: CapabilityContract = {
+  name: 'std.ErrorsV1',
+  version: STD_ERRORS_V1_VERSION,
+  operations: [
+    {
+      name: 'report',
+      inputs: {
+        event: 'ErrorReport',
+      },
+      result: 'ErrorAccepted',
+    },
+  ],
+  events: [],
+};
+
+/**
+ * Canonical `std.PaymentsV1` contract (DESIGN section 8: `collect`,
+ * `refund`, `cancel`, `reconcile`, all `-> PaymentState`; verified
+ * `changed` event carries the same state). B10 CONTRACT-ONLY export:
+ * accepted contract shapes, no adapter exists — for T13a/T14a checking
+ * (runtime via controlled fixtures, adapters later). Do NOT add to
+ * `SERVICES_CATALOG`. The `changed` fields flatten `PaymentState` (the
+ * draft consumes `event` directly as `PaymentState`, CanInvoice.can:469).
+ */
+export const STD_PAYMENTS_V1_CONTRACT: CapabilityContract = {
+  name: 'std.PaymentsV1',
+  version: STD_PAYMENTS_V1_VERSION,
+  operations: [
+    {
+      name: 'collect',
+      inputs: {
+        customer: 'text',
+        amount: 'money',
+        reference: 'text',
+        consent: 'text?',
+      },
+      result: 'PaymentState',
+    },
+    {
+      name: 'refund',
+      inputs: {
+        payment: 'text',
+        amount: 'money',
+        reference: 'text',
+      },
+      result: 'PaymentState',
+    },
+    {
+      name: 'cancel',
+      inputs: {
+        reference: 'text',
+      },
+      result: 'PaymentState',
+    },
+    {
+      name: 'reconcile',
+      inputs: {
+        reference: 'text',
+      },
+      result: 'PaymentState',
+    },
+  ],
+  events: [
+    {
+      name: 'changed',
+      fields: {
+        reference: 'text',
+        revision: 'int',
+        provider_reference: 'text?',
+        amount: 'money',
+        status: 'enum(pending,unknown,succeeded,failed)',
+        checkout_url: 'url?',
+        failure: 'enum(transient,action_required,permanent,cancelled)?',
+      },
+    },
+  ],
+};
