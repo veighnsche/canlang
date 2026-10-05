@@ -813,8 +813,8 @@ function buildInterimFetch(
     // locales from Accept-Language, app default locale, default theme,
     // exact path, partial from the HX-Request header (as pages.ts
     // derives it via `isPartialRequest`), empty CSRF while anonymous,
-    // identity as principal+invocation, bound query runner. The join
-    // deletes it.
+    // identity as principal+invocation, throwing query runner (the join
+    // binds the real RowQueryRunner). The join deletes it.
     const context: PresentationContext = {
       preferredLocales: parseAcceptLanguage(req.headers.get("accept-language")),
       appDefaultLocale: app.appDefaultLocale,

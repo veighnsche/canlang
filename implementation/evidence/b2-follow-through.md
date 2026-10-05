@@ -68,6 +68,19 @@ done here. Six workstreams, four subagents + coordinator fixes.
 - Proven: exit 0, zero stderr bytes, 3 modules / 6 callables /
   2 pages / 3 suites, member paths valid, node --check clean.
 
+## CI + review fixes (post-review commit)
+
+- b1-gate failed on stale `"1 passed"` grep (2 join tests now) → `"2 passed"`.
+- workspace/b2-gate failed: B2d's journey tests relatively imported
+  interfaces SOURCE, dragging pre-existing producer strictness gaps
+  into the lane-07 check. Fixed by architecture: interfaces imports
+  → DIST, identity via new test-only devDependency, root `build`
+  extended (identity+ui → interfaces). Verified hermetically
+  (dists wiped, full CI sequence green).
+- Review findings all addressed: B2 specs throw on absent producers
+  (gate can't green on unsupported rows); admit write-side pinned;
+  dispatch pin labeled spelling-only; mirror comment corrected.
+
 ## Gates (all observed on-branch)
 
 - cargo: 331/331 (strict TeamTasks + ExpenseFlow joins), fmt + clippy clean.

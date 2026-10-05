@@ -195,28 +195,14 @@ function insertBatch(revision: number, id: string, data: Readonly<Record<string,
 // ---------------------------------------------------------------------------
 
 describe("b2 D1 rollback and fence conflict", () => {
-  it("observes fence/rollback over real D1, or reports unsupported", async () => {
+  it("observes fence/rollback over real D1", async () => {
     const producer = await loadProducer();
     const builder = createReport({ digest: "b2-d1-fence", sourceRevision: "b2-d1-fence" });
 
     if (producer === null) {
-      const journeyRows: TableRowResult[] = [0, 1, 2, 3, 4].map((rowIndex) =>
-        unsupportedRow(rowIndex, ABSENT_DETAIL),
-      );
-      builder.addCase({ kind: "table", operation: "b2.d1.fence", rows: journeyRows });
-      builder.addCase({ kind: "table", operation: "b2.d1.blocked", rows: blockedRows() });
-      const report = builder.build();
-      expect(report.summary.total).toBe(journeyRows.length + 3);
-      expect(report.summary.passed).toBe(0);
-      expect(report.summary.failed).toBe(0);
-      expect(report.summary.setupFailed).toBe(0);
-      expect(report.summary.unsupported).toBe(report.summary.total);
-      for (const row of journeyRows) {
-        expect(row.outcome).toBe("unsupported");
-        expect(row.detail).toContain(ABSENT_SENTENCE);
-        expect(row.detail).toContain("emulator");
-      }
-      return;
+      // Strict: producers live in-repo, so absence is a broken checkout,
+      // not a skippable state. The gate must never green on unsupported rows.
+      throw new Error("b2-d1-fence: producer modules failed to load (partial checkout?)");
     }
 
     const dev = await startLocalDev({

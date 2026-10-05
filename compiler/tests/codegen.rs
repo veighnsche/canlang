@@ -2508,6 +2508,75 @@ fn construct_page_preferences_preamble_reads_bindings() {
     assert!(diags.is_empty());
 }
 
+/// Admit write side: admit() returns authoring preference defaults inside
+/// bindings, matching the preamble read (`bindings.preferences.<App>`).
+/// A write-side regression crashes prefs pages at runtime. Oracle: F2.
+#[test]
+fn construct_page_admit_returns_preference_defaults() {
+    let mut ir = fixture_ir();
+    let span = sp(0, 1);
+    let next = ir.items.len() as u32;
+    ir.items.push(IrItem {
+        id: SymbolId(next),
+        canonical: "demo.Preferences".to_string(),
+        name: "Preferences".to_string(),
+        module: ModuleId(0),
+        span,
+        exported: false,
+        kind: IrItemKind::Preferences {
+            fields: vec![SymbolId(next + 1)],
+            validate: None,
+        },
+    });
+    ir.items.push(IrItem {
+        id: SymbolId(next + 1),
+        canonical: "demo.Preferences.view".to_string(),
+        name: "view".to_string(),
+        module: ModuleId(0),
+        span,
+        exported: false,
+        kind: IrItemKind::Field {
+            owner: SymbolId(next),
+            ty: IrType::Known(ResolvedType::Scalar(Scalar::Text)),
+            default: Some(IrDefault::Literal(text_lit("all"))),
+            server: None,
+            modifiers: IrModifiers::default(),
+            label: None,
+        },
+    });
+    let mut emitter = Emitter::new(&ir);
+    let mut out = canlang_compiler::codegen::js::JsWriter::new();
+    let page = IrPage {
+        owner: "demo".to_string(),
+        path: "/prefs".to_string(),
+        title: IrMessage {
+            source: "Prefs".to_string(),
+            variants: vec![],
+            params: vec![],
+        },
+        description: None,
+        order: None,
+        group: None,
+        nav_none: false,
+        admit: vec![],
+        render: vec![],
+        fn_name: "prefsPage".to_string(),
+        descriptor_name: "prefsPageDescriptor".to_string(),
+        span,
+    };
+    emitter.lower_page(&page, &mut out);
+    let module = out.finish("test.mjs".to_string());
+    assert!(
+        module.js.contains(
+            "admit:async(c,routeBindings={})=>{return {preferences:{demo:{view:\"all\"}},};}"
+        ),
+        "admit returns prefs:\\n{}",
+        module.js
+    );
+    let (diags, _, _, _) = emitter.finish();
+    assert!(diags.is_empty());
+}
+
 /// Fixtures/recipes: model, user, file and delivery recipe shapes.
 /// Oracles: `CanCheck.mjs` `exampleFixtures` (heartbeat model recipe,
 /// worker user recipe, attempt delivery recipe).

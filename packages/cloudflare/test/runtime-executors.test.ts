@@ -456,6 +456,8 @@ describe("commitWithDispatchRows / withDispatchProducer (dispatch executor)", ()
         archivedAt: null,
       }),
     });
+    // Spelling pin (change-detector for accidental edits), not a
+    // cross-package drift check: this package cannot import @canlang/work.
     expect(WORK_DISPATCH_MODEL as string).toBe("work.dispatch");
   });
 

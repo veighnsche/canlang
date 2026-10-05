@@ -20,10 +20,10 @@ import type {
   ResolvedIdentity,
   StoragePort,
 } from "@canlang/contracts";
-// `@canlang/identity` is not linked under this package (workspace links
-// only; no installs in this packet), so the test reaches its built front
-// door relatively. Test-only: `src/` stays boundary-clean.
-import { deriveCsrfToken, resolveIdentity } from "../../identity/dist/identity/src/index.js";
+// `@canlang/identity` resolves via workspace link to its built dist (root
+// `build` builds it before typecheck/test). Test-only: `src/` stays
+// boundary-clean.
+import { deriveCsrfToken, resolveIdentity } from "@canlang/identity";
 import {
   INTERIM_DDL,
   assembleWorker,
@@ -32,13 +32,16 @@ import {
   type AssemblyDeps,
   type InterimFilesBinding,
 } from "../src/worker/assembly.js";
+// Cross-package journey tests import interfaces DIST (never src): src imports
+// would drag pre-existing producer strictness gaps into this lane-07 check
+// program. Root `build` builds interfaces dist first (see package.json).
 import {
   createFileJourneyKernel,
   type FileJourneyBindings,
-} from "../../interfaces/src/uploads/kernel.js";
-import { receiverFromIdentity } from "../../interfaces/src/uploads/principals.js";
-import { handleUploadRequest } from "../../interfaces/src/uploads/routes.js";
-import { createTestUploadDeps, testRequest } from "../../interfaces/src/testing.js";
+} from "../../interfaces/dist/interfaces/src/uploads/kernel.js";
+import { receiverFromIdentity } from "../../interfaces/dist/interfaces/src/uploads/principals.js";
+import { handleUploadRequest } from "../../interfaces/dist/interfaces/src/uploads/routes.js";
+import { createTestUploadDeps, testRequest } from "../../interfaces/dist/interfaces/src/testing.js";
 import {
   TestOnlyCounterFileIds,
   TestOnlyCounterIntentIds,

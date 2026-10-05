@@ -12,7 +12,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "tsc -b packages/contracts packages/cloudflare packages/testkit",
+    "build": "tsc -b packages/contracts packages/cloudflare packages/testkit && bun run --filter @canlang/identity --filter @canlang/ui build && bun run --filter @canlang/interfaces build",
     "build:joins": "bun run --filter @canlang/values build",
     "typecheck": "tsc -p tsconfig.check.json",
     "typecheck:e2e": "tsc -p tests/e2e/tsconfig.json",

@@ -248,28 +248,14 @@ function blockedRows(): TableRowResult[] {
 // ---------------------------------------------------------------------------
 
 describe("b2 role and session revocation", () => {
-  it("observes revocation entry points over the L6 store, or reports unsupported", async () => {
+  it("observes revocation entry points over the L6 store", async () => {
     const producer = await loadProducer();
     const builder = createReport({ digest: "b2-revocation", sourceRevision: "b2-revocation" });
 
     if (producer === null) {
-      const journeyRows: TableRowResult[] = [0, 1, 2, 3, 4].map((rowIndex) =>
-        unsupportedRow(rowIndex, ABSENT_DETAIL),
-      );
-      builder.addCase({ kind: "table", operation: "b2.revocation.journey", rows: journeyRows });
-      builder.addCase({ kind: "table", operation: "b2.revocation.blocked", rows: blockedRows() });
-      const report = builder.build();
-      expect(report.summary.total).toBe(journeyRows.length + 2);
-      expect(report.summary.passed).toBe(0);
-      expect(report.summary.failed).toBe(0);
-      expect(report.summary.setupFailed).toBe(0);
-      expect(report.summary.unsupported).toBe(report.summary.total);
-      for (const row of journeyRows) {
-        expect(row.outcome).toBe("unsupported");
-        expect(row.detail).toContain(ABSENT_SENTENCE);
-        expect(row.detail).toContain("local");
-      }
-      return;
+      // Strict: producers live in-repo, so absence is a broken checkout,
+      // not a skippable state. The gate must never green on unsupported rows.
+      throw new Error("b2-revocation: producer modules failed to load (partial checkout?)");
     }
 
     const clock = producer.createClock(CLOCK_START);

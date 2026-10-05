@@ -79,30 +79,14 @@ function blockedRows(): TableRowResult[] {
 }
 
 describe("b2 DO-local behavior", () => {
-  it("pins the DO producer surface and reports the missing seam as unsupported", async () => {
+  it("pins the DO producer surface over the real producer", async () => {
     const producer = await loadProducer();
     const builder = createReport({ digest: "b2-do-local", sourceRevision: "b2-do-local" });
 
     if (producer === null) {
-      const surfaceRows: TableRowResult[] = [unsupportedRow(0, ABSENT_DETAIL)];
-      builder.addCase({ kind: "table", operation: "b2.do.surface", rows: surfaceRows });
-      builder.addCase({ kind: "table", operation: "b2.do.blocked", rows: blockedRows() });
-      const report = builder.build();
-      expect(report.summary.total).toBe(5);
-      expect(report.summary.passed).toBe(0);
-      expect(report.summary.failed).toBe(0);
-      expect(report.summary.setupFailed).toBe(0);
-      expect(report.summary.unsupported).toBe(5);
-      for (const table of report.cases) {
-        if (table.kind !== "table") {
-          continue;
-        }
-        for (const row of table.rows) {
-          expect(row.outcome).toBe("unsupported");
-          expect(row.detail).toContain("local");
-        }
-      }
-      return;
+      // Strict: producers live in-repo, so absence is a broken checkout,
+      // not a skippable state. The gate must never green on unsupported rows.
+      throw new Error("b2-do-local: producer modules failed to load (partial checkout?)");
     }
 
     // Real surface row: the producer module loads with the exact factory

@@ -69,7 +69,7 @@ jobs:
         run: |
           set -o pipefail
           cargo test --test b1_join 2>&1 | tee /tmp/b1_join.log
-          grep -q "1 passed" /tmp/b1_join.log || { echo "FAIL: b1_join did not pass (skipped or failed)"; exit 1; }
+          grep -q "2 passed" /tmp/b1_join.log || { echo "FAIL: b1_join did not pass both joins (skipped or failed)"; exit 1; }
           echo "proves: b1_join passed against the real catalog (not skipped)"
         working-directory: compiler
       - name: Build can

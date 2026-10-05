@@ -377,34 +377,14 @@ function blockedRows(): TableRowResult[] {
 // ---------------------------------------------------------------------------
 
 describe("b2 delivery journey", () => {
-  it("observes failed/unknown delivery + retry + reconcile over playback, or reports unsupported", async () => {
+  it("observes failed/unknown delivery + retry + reconcile over playback", async () => {
     const producer = await loadProducer();
     const builder = createReport({ digest: "b2-delivery-mail", sourceRevision: "b2-delivery-mail" });
 
     if (producer === null) {
-      const journeyRows: TableRowResult[] = B2_MAIL_JOURNEY.map((_row, rowIndex) =>
-        unsupportedRow(rowIndex, ABSENT_DETAIL),
-      );
-      const journeyCase: TableCaseResult = { kind: "table", operation: "b2.delivery.mail", rows: journeyRows };
-      const blockedCase: TableCaseResult = {
-        kind: "table",
-        operation: "b2.delivery.blocked",
-        rows: blockedRows(),
-      };
-      builder.addCase(journeyCase);
-      builder.addCase(blockedCase);
-      const report = builder.build();
-      expect(report.summary.total).toBe(journeyRows.length + 4);
-      expect(report.summary.passed).toBe(0);
-      expect(report.summary.failed).toBe(0);
-      expect(report.summary.setupFailed).toBe(0);
-      expect(report.summary.unsupported).toBe(report.summary.total);
-      for (const row of journeyRows) {
-        expect(row.outcome).toBe("unsupported");
-        expect(row.detail).toContain(ABSENT_SENTENCE);
-        expect(row.detail).toContain("local");
-      }
-      return;
+      // Strict: producers live in-repo, so absence is a broken checkout,
+      // not a skippable state. The gate must never green on unsupported rows.
+      throw new Error("b2-delivery-mail: producer modules failed to load (partial checkout?)");
     }
 
     const handler = createPlaybackHandler(producer.tables);
