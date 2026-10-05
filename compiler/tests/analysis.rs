@@ -809,6 +809,30 @@ fn draft_outcome_table() {
     // without Git: a file-copy revert/rebuild toggle reproduces
     // the pinned baseline all-52 2104 exactly (identical family
     // histogram), and the restored tree reproduces 2075.
+    // T35/R24 re-pin 2026-10-05 (payload id/version vs reserved
+    // metadata in example headers: declared payload leaves shadow
+    // same-spelled reserved metadata by resolved provenance): 1
+    // file net-decrease (CanDesk), 51 unchanged, zero
+    // net-increase; table total -1 (5047 -> 5046). Whole-corpus
+    // (all-52) differential 2075 -> 2072 (-3): removed E5008 x3 =
+    // Desk:139 `event.value.id` (declared `IncomingMail.id`,
+    // CanDesk.can:17, via the same-file `Inbox.received` event) +
+    // Propose:254 `event.result.version` and :289
+    // `event.value.version` (declared
+    // `ReservationOfferOutcome.version`, CanRent.can:110, via
+    // `Rooms.accept_offer.completed` and `Rooms.offer_changed`).
+    // Added 0: every other family is bit-identical. Retained
+    // E5008 x2 = Report:110/:113 `run.parent` (bucket-a flip:
+    // stored containment identity of `Run in Definition`,
+    // correctly rejected — pinned by
+    // t35r24_report_parent_stays_rejected). Per-file nets equal
+    // whole-corpus nets per file except Propose (0 table vs -2
+    // whole-corpus): single-file the `Rooms` owner is an
+    // unresolvable external so the envelope stays opaque and the
+    // conservative E5008s stand (verified on both binaries); Desk
+    // resolves single-file (same-file owner). Differential
+    // isolated without Git: /tmp dumps retained
+    // (t35r24-base-corpus.json, t35r24-new-corpus.json).
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 48),
         ("draft/CanApprove.can", 47),
@@ -822,7 +846,7 @@ fn draft_outcome_table() {
         ("draft/CanCreative.can", 71),
         ("draft/CanCustomer.can", 59),
         ("draft/CanDecide.can", 27),
-        ("draft/CanDesk.can", 86),
+        ("draft/CanDesk.can", 85),
         ("draft/CanDiscover.can", 85),
         ("draft/CanDo.can", 45),
         ("draft/CanEnrich.can", 19),

@@ -41,7 +41,9 @@ use super::resolve::{
     has_error, is_expression,
 };
 use super::types::{ResolvedType, Scalar, TypeTable};
-use super::{NodeKey, attribute_parts, file_text, is_name, kids, name_text};
+use super::{
+    NodeKey, attribute_parts, attribute_value, file_text, is_name, kids, name_text, path_segments,
+};
 use crate::diagnostic::Diagnostic;
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::lexer::TokenKind;
@@ -208,6 +210,11 @@ enum OpCtx {
         params: Vec<SymbolId>,
         trusted: bool,
         has_result: bool,
+        /// Resolved trusted-event envelope for `on=` handlers
+        /// (T35/R24): declared events carry their event record;
+        /// `Cap.op.completed` carries the delivery envelope with
+        /// the op's declared result. `None` keeps the opaque base.
+        event: Option<ResolvedType>,
     },
     Crud {
         model: SymbolId,
@@ -339,11 +346,13 @@ impl<'a> Checker<'a> {
             return;
         };
         let has_result = matches!(self.types.symbol_results.get(&id), Some(Some(_)));
+        let event = scenario_event_envelope(self.tables, self.types, text, module, node);
         let ctx = OpCtx::Scenario {
             id,
             params,
             trusted,
             has_result,
+            event,
         };
         for child in kids(node) {
             if child.kind == SyntaxKind::Examples && !has_error(child) {
@@ -1006,9 +1015,18 @@ impl<'a> Checker<'a> {
             },
             _ => {}
         }
-        let base = self.selector_base_type(root);
+        let base = self.selector_base_type(ctx, root);
         let mut current = base;
         for (index, segment) in sel.path.iter().enumerate() {
+            // Declared payload leaves first: a field the resolved
+            // (non-stored) provenance declares shadows same-spelled
+            // reserved metadata (T35/R24; T08 ordering precedent).
+            // Stored records never resolve here, so identity/audit
+            // protection below still fires for them.
+            if let Some(next) = self.payload_leaf(&current, segment) {
+                current = Some(next);
+                continue;
+            }
             if is_reserved_name(segment) {
                 self.diags.push(Diagnostic::error(
                     "E5008",
@@ -1028,6 +1046,24 @@ impl<'a> Checker<'a> {
                 continue;
             };
             let inner = nullable_inner(&ty).cloned().unwrap_or(ty);
+            // Completion envelopes navigate their declared leaves
+            // (T35/R24); unknown leaves fail like unknown fields.
+            if let ResolvedType::Object(fields) = &inner {
+                match fields.iter().find(|(name, _)| name == segment) {
+                    Some((_, ty)) => {
+                        current = Some(ty.clone());
+                        continue;
+                    }
+                    None => {
+                        self.diags.push(Diagnostic::error(
+                            "E5002",
+                            format!("unknown field '{segment}' on event envelope"),
+                            seg_span(index),
+                        ));
+                        return CheckedSelector::failed(span);
+                    }
+                }
+            }
             let ResolvedType::Record { symbol, .. } = inner else {
                 // Opaque/unknown/error bases cannot be navigated
                 // statically; the runner owns those values.
@@ -1197,8 +1233,40 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// Declared payload leaf of the current provenance, if it
+    /// resolves to one (T35/R24): a declared field of a value
+    /// nominal (contract/event/preferences — never carriers of
+    /// reserved record metadata) or envelope object, mirroring
+    /// the expression-lookup rule (declared fields first;
+    /// reserved metadata only on stored models). Models return
+    /// `None` so identity/audit protection below still fires.
+    fn payload_leaf(&self, current: &Option<ResolvedType>, segment: &str) -> Option<ResolvedType> {
+        let inner = match current.as_ref()? {
+            ResolvedType::Nullable(inner) => inner.as_ref(),
+            other => other,
+        };
+        match inner {
+            ResolvedType::Record { symbol, .. } => {
+                match &self.tables.symbols[symbol.0 as usize].kind {
+                    SymbolKind::Contract { .. }
+                    | SymbolKind::Event { .. }
+                    | SymbolKind::Preferences { .. } => {
+                        let field = self.model_field_named(*symbol, segment)?;
+                        self.types.symbol_types.get(&field).cloned()
+                    }
+                    _ => None,
+                }
+            }
+            ResolvedType::Object(fields) => fields
+                .iter()
+                .find(|(name, _)| name == segment)
+                .map(|(_, ty)| ty.clone()),
+            _ => None,
+        }
+    }
+
     /// Base type a selector root navigates from, if statically known.
-    fn selector_base_type(&self, root: &SelRoot) -> Option<ResolvedType> {
+    fn selector_base_type(&self, ctx: &OpCtx, root: &SelRoot) -> Option<ResolvedType> {
         match root {
             SelRoot::Param { param, .. } => self.types.symbol_types.get(param).cloned(),
             SelRoot::Binding(Some(id)) => match &self.tables.symbols[id.0 as usize].kind {
@@ -1229,7 +1297,11 @@ impl<'a> Checker<'a> {
                 symbol: *parent,
                 stored: true,
             }),
-            SelRoot::Request | SelRoot::Event | SelRoot::Opaque => None,
+            SelRoot::Event => match ctx {
+                OpCtx::Scenario { event, .. } => event.clone(),
+                OpCtx::Crud { .. } => None,
+            },
+            SelRoot::Request | SelRoot::Opaque => None,
         }
     }
 
@@ -2309,6 +2381,83 @@ fn prod_symbol_kind(tables: &ResolveTables, module: ModuleId, word: &str) -> Opt
         Some(Kind::Role)
     } else {
         Some(Kind::Other)
+    }
+}
+
+/// Resolved trusted-event envelope for a scenario's `on=`
+/// source (T35/R24): declared events (one or two segments,
+/// mirroring the types pass `on_event_payload`) carry their
+/// event record; `Cap.op.completed` carries the delivery
+/// envelope with the op's declared result (`result:R?` per
+/// DESIGN §8.1, member types mirroring `Delivery` lookup).
+/// Anything else (queues, scenario completions, unresolvable
+/// sources) stays opaque.
+fn scenario_event_envelope(
+    tables: &ResolveTables,
+    types: &TypeTable,
+    text: &str,
+    module: ModuleId,
+    node: &SyntaxNode,
+) -> Option<ResolvedType> {
+    let on = attribute_value(node, "on", text)?;
+    if on.kind != SyntaxKind::Path {
+        return None;
+    }
+    let segments = path_segments(on, text);
+    match segments.len() {
+        1 => {
+            let id = prod_symbol(tables, module, segments[0])?;
+            match &tables.symbols[id.0 as usize].kind {
+                SymbolKind::Event { .. } => Some(ResolvedType::Record {
+                    symbol: id,
+                    stored: false,
+                }),
+                _ => None,
+            }
+        }
+        2 => {
+            let head = prod_symbol(tables, module, segments[0])?;
+            match &tables.symbols[head.0 as usize].kind {
+                SymbolKind::Capability { events, .. } => {
+                    let event = events
+                        .iter()
+                        .copied()
+                        .find(|e| tables.symbols[e.0 as usize].name == segments[1])?;
+                    Some(ResolvedType::Record {
+                        symbol: event,
+                        stored: false,
+                    })
+                }
+                _ => None,
+            }
+        }
+        3 if segments[2] == "completed" => {
+            let head = prod_symbol(tables, module, segments[0])?;
+            let SymbolKind::Capability { ops, .. } = &tables.symbols[head.0 as usize].kind else {
+                return None;
+            };
+            let op = ops
+                .iter()
+                .copied()
+                .find(|o| tables.symbols[o.0 as usize].name == segments[1])?;
+            let result = match types.symbol_results.get(&op).cloned() {
+                Some(Some(ty)) => ResolvedType::Nullable(Box::new(ty)),
+                Some(None) | None => ResolvedType::Null,
+            };
+            Some(ResolvedType::Object(vec![
+                (
+                    "delivery_id".to_string(),
+                    ResolvedType::Scalar(Scalar::Text),
+                ),
+                (
+                    "status".to_string(),
+                    ResolvedType::Opaque("delivery status"),
+                ),
+                ("result".to_string(), result),
+                ("error".to_string(), ResolvedType::Opaque("delivery error")),
+            ]))
+        }
+        _ => None,
     }
 }
 
