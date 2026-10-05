@@ -267,7 +267,8 @@ triggering CRUD path stays forbidden.
 
 ## What the gate still needs (evidence checklist)
 
-1. T30 completion: provenance-correct hook payload typing (C6 `{opaque}`
+1. [COMPLETE — see "T30-completion input (gate evidence)" below]
+   T30 completion: provenance-correct hook payload typing (C6 `{opaque}`
    cluster resolved) so the gate judges secondary-write rules, not payload
    opacity.
 2. [COMPLETE — see "Hook-body enumeration (gate evidence)" below]
@@ -281,7 +282,8 @@ triggering CRUD path stays forbidden.
    (T31 depends on applicable T28/T29; T28 alone is insufficient).
 5. T23 example-contract input (R29): whether hook-behavior examples may
    observe through input bindings or must reload stored state.
-6. Durable-transaction evidence plan: per T31 acceptance, memory evidence
+6. [COMPLETE — see "Durable-transaction evidence plan (gate evidence)" below]
+   Durable-transaction evidence plan: per T31 acceptance, memory evidence
    cannot prove durable transaction behavior. Memory stores lack the
    properties the gate must verify — no D1 batch/commit boundary, no
    Durable Object fencing, no crash-recovery path, no concurrent-transaction
@@ -501,4 +503,171 @@ each=Signup` is a committed fanout handler, not a CRUD hook.)
   item-2 COMPLETE marker above; DESIGN.md/GRAMMAR.md/DECISIONS.md,
   drafts, code, tools/jev.py, tasks.md/monitor.md/inbox untouched (read
   or coordinator-owned); no JEV run; no Git.
+- Release: this file is RELEASED to the coordinator for gate scheduling.
+
+## T30-completion input (gate evidence)
+
+Status: **PROPOSED / PREP — adopts NOTHING.** Checklist item 1 evidence
+only; all alternatives stay unranked and every **JEV-PENDING** above is
+preserved. Landed-record transcription from tasks.md T30 evidence plus
+read-only code cites; no builds, no JEV, no Git.
+
+### Landed T30 facts (tasks.md T30 evidence: T30 COMPLETE)
+
+- Writer 01a10d37-ce26 released `types.rs` (spelling arm removed,
+  resolution dispatch, path-head/context rules) + 16 `b4` tests
+  (rename-invariance, verified-ref, snapshot/pending/hook controls) +
+  table (16 down / 0 up).
+- Coordinator stash-differential: 192 removed (E3009 -42, E3001 -137,
+  E2001 -13); 11 added ALL proven genuine leaf findings in
+  newly-reached `set event.*` targets (enum/datetime/opaque/secret
+  negatives); residual E3009 x2 are legitimate immutable controls;
+  suite 27 green.
+
+### Read-only code verification (this survey)
+
+- Binding-based dispatch, never head spelling:
+  `path_head_is_context_event` matches
+  `Binding::Context(ContextVar::Event)` via the resolve tables
+  (`compiler/src/analysis/types.rs:1323-1332`), called at
+  `:1285-1286`. No spelling-conditioned mutation arm remains on that
+  path.
+- Resolution dispatch (`event_mutation_target`, `:1342-1377`):
+  `event.after` adjusts the pending record; `event.before` is
+  read-only; a path resolving to a stored model record (verified
+  declared reference such as `event.check`, or a live row reached
+  through payload members) mutates on its own provenance; the whole
+  payload, opaque members and value data are E3009.
+- Hook-payload side typing (C6 repair, `hook_payload_side`,
+  `:1440-1447`, applied at `:9502` and `:10058` with
+  receiver-must-resolve-to-context-event guards): in a create/update
+  hook, `event.after`/`event.before` carry the hooked model's record
+  instead of `{opaque}`. On create `before` is null; on delete `after`
+  stays opaque; all other members stay opaque (`None`).
+- Tests: `t30_*` cases in `compiler/tests/b4_check.rs` (rename
+  invariance, verified-reference acceptance, snapshot/pending/delete
+  controls, after/before typing).
+
+### Settled vs open for the gate
+
+- CONFIRM (settled): renaming `event` changes no validity — the T30
+  acceptance criterion, coordinator-verified. Ordinary parameters
+  (CanEvent L73) and verified declared references (CanAffiliate
+  partner/settlement, CanCheck:128 `event.check`) are not snapshots.
+- CONFIRM (settled): the C6 root cause — incomplete `Check.create`
+  after/before payload typing — is repaired at the type rule:
+  create/update hook bodies now read and `parent=event.after`-check
+  against the real record. The gate's bar items 1-5 all concern
+  create/update hooks (43 of 44 enumerated bodies), so no alternative
+  is judged through payload opacity.
+- QUALIFY: the Check:99-100 per-site diagnostic state was not re-run
+  in this read-only survey (no build); resolution there is inferred
+  from the landed rule plus the coordinator's corpus E3001 -137
+  differential, not re-observed line by line.
+- OPEN (residue, gate-scoped): delete-hook `after` stays opaque by
+  the landed rule. It touches only the already-flagged Onboard:51
+  delete-hook parent-row gap, which no alternative addresses — it does
+  not confound any A/B/C/D bar item.
+- ABSENT: no remaining payload-typing work blocks the gate.
+  Left-over `{opaque}` leaves (deployment-bound recipes, undeclared
+  members, delete-hook `after`) are genuine by the T30 differential,
+  not clusters.
+
+## Durable-transaction evidence plan (gate evidence)
+
+Status: **PROPOSED / PREP — adopts NOTHING.** Checklist item 6 evidence
+only; a PLAN, not proof. All alternatives stay unranked and every
+**JEV-PENDING** above is preserved. Grounded in a read-only survey of
+the state engine plus T16/T17/T24 runtime status in tasks.md; no
+builds, no JEV, no Git.
+
+### Surveyed substrate inventory (read-only)
+
+- Fenced single-shot commit: `TransactionPort::commit(batch)` over one
+  store, no retry (`packages/state/src/ports/transact.ts`); stale
+  fences surface as retryable `busy` via `storageToStateError`.
+- One atomic batch shape: `CommitBatch { expectedRevision, writes,
+  history, receipt, outbox, schedules, uniqueClaims, ... }`
+  (`packages/contracts/src/state.ts:281-298`).
+- D1 adapter: every commit is ONE `db.batch()` led by a `fence_log`
+  INSERT (`expected+1`), so a stale `expectedRevision` fails
+  atomically with nothing applied
+  (`packages/state/src/storage/d1.ts` header).
+- DO adapter: same fence semantics through synchronous `storage.sql`
+  inside `storage.transactionSync`, which rolls back on throw
+  (`packages/state/src/storage/durable-object.ts` header).
+- Memory adapter: header-marked TEST-ONLY, never a production
+  backend; mirrors fence/constraint/query semantics for unit tests
+  (`packages/state/src/storage/memory.ts` header).
+- Hook execution today: `runHooks` runs matching hooks in written
+  order with clone-in/clone-out candidates
+  (`packages/state/src/mutation/pipeline.ts:300-327`); no
+  staged-secondary-write, cascade, or cross-row staging machinery was
+  found in this survey — that is post-gate T31 work.
+- Runtime status in tasks.md: T16, T17, T18, T24 all OPEN with
+  "Evidence: pending" — no generated-invocation join, no canonical
+  data-plane migration, no durable dispatch exists yet. This plan is
+  therefore conditional on T16/T17 landing, which T31 already
+  requires; it says where each alternative's proof must run, not that
+  the substrate is ready.
+
+### Per-alternative proof map (which proof runs where)
+
+- Alternative A (staged same-transaction): atomic rollback —
+  trigger + staged set committed as ONE `CommitBatch` on D1
+  (`db.batch`) AND DO (`transactionSync`); a failing staged invariant
+  must void the trigger with zero partial rows. Version conflict —
+  two concurrent committers against D1/DO; the loser gets a fence
+  conflict (`busy`), never a silent overwrite. Revision invalidation
+  — every staged write enrolls its target's read revision; an
+  intervening commit to any staged target aborts the whole batch on
+  D1/DO.
+- Alternative B (after-only + committed handlers): trigger-only fence
+  proof on D1/DO (single-row batch) PLUS handler retry/recovery proof
+  on the T24 dispatch substrate (outbox intents, receipts, redelivery
+  identity). The orphaned-parent gap (trigger committed, handler
+  failed) must be demonstrated and recovered on T24 machinery —
+  never hand-waved. Handler re-read guards may be unit-proven; their
+  durability may not.
+- Alternative C (declared allowlist): everything in A, run on the
+  same D1/DO substrates, PLUS allowlist enforcement proven
+  statically: undeclared staged writes rejected by checker tests
+  (substrate-independent), and the staged set auditable from the hook
+  signature in review evidence.
+- Alternative D (bounded cascade): everything in A extended over the
+  cascade on D1/DO, PLUS the depth bound proven at runtime (bound
+  trip fails the operation on D1/DO, not in memory) and cascade
+  order/conflict-interleaving tests on D1/DO. Static cycle rejection
+  proven by checker tests.
+- Crash-recovery (A/C/D atomic claims, B handler claims): kill/restart
+  mid-commit against local D1 (workerd/miniflare) and DO SQLite;
+  `fence_log` must show no partial batch, and B-handlers must resume
+  from receipts/outbox. No crash claim may rest on the memory store.
+- Concurrent-transaction interleaving: two live committers racing one
+  row on D1/DO adapters; exactly one fence INSERT wins. The memory
+  store is single-threaded and proves no interleaving.
+- Cross-authority partial failure: T24 outbox/dispatch substrate
+  only. Single-owner batch atomicity never implies cross-store
+  atomicity (T24 acceptance already forbids inferring it).
+
+### What memory-store tests may and may not claim
+
+- MAY claim: deterministic unit semantics — batch shape, staged-write
+  ordering, fence/conflict error mapping, replay-shape and receipt
+  identity, static negatives (recursion/deletion/snapshot bans),
+  guard logic.
+- MAY NOT claim: durability, atomicity under crash, fencing under
+  real concurrency, interleaving outcomes, cross-authority behavior,
+  or anything the item-6 checklist text names as a D1/DO property.
+  Any T31 proof citing memory-store results for those properties is
+  miscategorized evidence, not a pass.
+
+### Handoff
+
+- Writer: L3 T31a-gate-inputs. Single file appended
+  (`implementation/challenge-audit-run/evidence/hook-decision.md` only);
+  existing alternatives/fairness/enumeration/checklist text untouched
+  except the item-1 and item-6 markers above; DESIGN.md/GRAMMAR.md/
+  DECISIONS.md, drafts, code, tools/jev.py, tasks.md/monitor.md/inbox
+  untouched (read or coordinator-owned); no JEV run; no Git.
 - Release: this file is RELEASED to the coordinator for gate scheduling.
