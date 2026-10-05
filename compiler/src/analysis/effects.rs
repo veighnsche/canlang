@@ -410,7 +410,13 @@ pub struct FieldData {
     pub label: Option<NodeKey>,
     /// Trailing `@{desc="..."}` literal text, when authored.
     pub description: Option<String>,
-    /// Whether the field-only required-array `!` marker is present.
+    /// T09 array-omission marker: true exactly when the field-only
+    /// required-array `!` spelling is present (`field_type = type ["!"]`,
+    /// GRAMMAR L177; only `T[]!` is valid, GRAMMAR L192). Set from the
+    /// spelling alone, never from nullability: a nullable array is always
+    /// ordinary (omitted `T[]?` yields null). Maps to the frozen T09-TS
+    /// `ArrayOmission` (`true` = `"required"`, `false` = `"ordinary"`,
+    /// omit-to-`[]`); IR and descriptors thread it unchanged.
     pub required_array: bool,
 }
 
@@ -4026,6 +4032,8 @@ fn field_shape(text: &str, field: &SyntaxNode) -> FieldShape {
         return shape;
     };
     let mut i = type_at + 1;
+    // T09: the omission marker comes from the `!` spelling alone, never
+    // from nullability (a `?` never sets it).
     if parts.get(i).is_some_and(|n| is_punct(n, text, "!")) {
         shape.required_array = true;
         i += 1;

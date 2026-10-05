@@ -769,8 +769,30 @@ impl<'a> Emitter<'a> {
     /// Field schema object for a resolved type: base `type` plus `array`,
     /// `nullable` or `requiredArray` only for actual differences, `cases`
     /// for enums, `operation` for delivery fields.
+    ///
+    /// T09: the omission marker defaults to ordinary here. This entry
+    /// point serves positions that never carry the field-only `!`
+    /// (results, derived fields, parameters), so arrays emit a bare
+    /// `array:true`; stored-field emission passes its own marker via
+    /// [`Emitter::field_schema_marked`].
     pub fn field_schema(&mut self, ty: &ResolvedType, span: Span) -> String {
-        format!("{{{}}}", self.field_schema_object(ty, span))
+        self.field_schema_marked(ty, false, span)
+    }
+
+    /// Field schema object with an explicit T09 omission marker: a
+    /// non-null array emits `requiredArray:true` exactly when
+    /// `required_array` (the `!` spelling) is set; an ordinary array
+    /// emits a bare `array:true` (omitted values evaluate to an
+    /// equal-empty array). Nullable arrays always emit `nullable:true`
+    /// without `requiredArray` (nullability wins; GRAMMAR L192 forbids
+    /// `!` beside `?`, so the marker never arrives set there).
+    pub fn field_schema_marked(
+        &mut self,
+        ty: &ResolvedType,
+        required_array: bool,
+        span: Span,
+    ) -> String {
+        format!("{{{}}}", self.field_schema_object(ty, required_array, span))
     }
 
     /// Base schema members for an array element (scalar, record or enum).
@@ -801,8 +823,15 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// Inner schema members without the nullable wrapper.
-    fn field_schema_object(&mut self, ty: &ResolvedType, span: Span) -> String {
+    /// Inner schema members without the nullable wrapper. T09:
+    /// `required_array` is the field-only `!` marker (never
+    /// nullability); only non-null arrays consult it.
+    fn field_schema_object(
+        &mut self,
+        ty: &ResolvedType,
+        required_array: bool,
+        span: Span,
+    ) -> String {
         match ty {
             ResolvedType::Scalar(scalar) => format!("type:{}", js_string(scalar.as_str())),
             ResolvedType::Record { symbol, .. } => format!(
@@ -820,21 +849,27 @@ impl<'a> Emitter<'a> {
             ResolvedType::Array { element, .. } => {
                 let element = element.as_ref().clone();
                 let base = self.array_element_schema(&element, span);
-                format!("{base},array:true,requiredArray:true")
+                if required_array {
+                    format!("{base},array:true,requiredArray:true")
+                } else {
+                    format!("{base},array:true")
+                }
             }
             ResolvedType::Delivery { op } => format!(
                 "type:\"delivery\",operation:{}",
                 js_string(&self.ir.items[op.0 as usize].canonical.clone())
             ),
             ResolvedType::Nullable(inner) => match inner.as_ref() {
-                // Nullable arrays omit `requiredArray` (only for actual
-                // non-null arrays).
+                // Nullable arrays omit `requiredArray`: nullability wins
+                // (an omitted `T[]?` yields null), and GRAMMAR L192
+                // forbids `!` beside `?`, so the marker never applies
+                // here even if one arrives set.
                 ResolvedType::Array { element, .. } => {
                     let base = self.array_element_schema(element, span);
                     format!("{base},array:true,nullable:true")
                 }
                 _ => {
-                    let mut inner_schema = self.field_schema_object(inner, span);
+                    let mut inner_schema = self.field_schema_object(inner, false, span);
                     inner_schema.push_str(",nullable:true");
                     inner_schema
                 }
@@ -1616,14 +1651,17 @@ impl<'a> Emitter<'a> {
 
     /// Lower a full field schema: base schema plus `default` and
     /// `server` slots (PR5 populates them; see [`IrDefault`], [`IrServer`]).
+    /// T09: `required_array` is the field-only `!` marker (never
+    /// nullability); only non-null arrays consult it.
     pub fn lower_field_full(
         &mut self,
         ty: &ResolvedType,
+        required_array: bool,
         default: Option<&IrDefault>,
         server: Option<&IrServer>,
         span: Span,
     ) -> String {
-        let mut members = self.field_schema_object(ty, span);
+        let mut members = self.field_schema_object(ty, required_array, span);
         if let Some(default) = default {
             members.push_str(&format!(",default:{}", self.lower_default(default)));
         }
@@ -2701,8 +2739,10 @@ impl<'a> Emitter<'a> {
                 } if *m == model => (ty.clone(), label.clone()),
                 _ => continue,
             };
+            // Derived fields never carry the field-only `!` (T09):
+            // their arrays are ordinary.
             let mut members = match ty {
-                IrType::Known(resolved) => self.field_schema_object(&resolved, item.span),
+                IrType::Known(resolved) => self.field_schema_object(&resolved, false, item.span),
                 IrType::Unknown => "type:\"unknown\"".to_string(),
             };
             members.push_str(&format!(
@@ -2799,9 +2839,10 @@ impl<'a> Emitter<'a> {
 
     /// Emit one `name:{schema}` field entry with full slots.
     fn emit_one_field_schema(&mut self, field: &crate::codegen::ir::IrItem) -> String {
-        let (ty, default, server, modifiers, label) = match &field.kind {
+        let (ty, required_array, default, server, modifiers, label) = match &field.kind {
             IrItemKind::Field {
                 ty,
+                required_array,
                 default,
                 server,
                 modifiers,
@@ -2809,15 +2850,18 @@ impl<'a> Emitter<'a> {
                 ..
             } => (
                 Some(ty.clone()),
+                *required_array,
                 default.clone(),
                 server.clone(),
                 Some(modifiers.clone()),
                 label.clone(),
             ),
-            _ => (None, None, None, None, None),
+            _ => (None, false, None, None, None, None),
         };
         let mut members = match ty {
-            Some(IrType::Known(resolved)) => self.field_schema_object(&resolved, field.span),
+            Some(IrType::Known(resolved)) => {
+                self.field_schema_object(&resolved, required_array, field.span)
+            }
             _ => "type:\"unknown\"".to_string(),
         };
         if let Some(modifiers) = modifiers {
@@ -3128,9 +3172,13 @@ impl<'a> Emitter<'a> {
             } = &param.kind
             {
                 // Unknown types already carry an `E6006` from the IR
-                // build; the placeholder stays silent here.
+                // build; the placeholder stays silent here. Parameters
+                // never carry the field-only `!` (GRAMMAR L183), so
+                // their arrays are ordinary (T09).
                 let mut members = match ty {
-                    IrType::Known(resolved) => self.field_schema_object(resolved, param.span),
+                    IrType::Known(resolved) => {
+                        self.field_schema_object(resolved, false, param.span)
+                    }
                     IrType::Unknown => "type:\"unknown\"".to_string(),
                 };
                 if let Some(default) = default {
@@ -3268,6 +3316,13 @@ impl<'a> Emitter<'a> {
                         };
                         let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
                         match self.mcp_field_for_type(ty, !*read) {
+                            // T09 omission agreement: a defaulted input
+                            // fills its default and a nullable input
+                            // fills null when omitted; only a
+                            // non-nullable input without a default is
+                            // caller-required. (Array inputs never reach
+                            // here: they have no MCP mapping, so the
+                            // operation is omitted instead.)
                             Some(field) => inputs.push(JsOperationField {
                                 name: param.name.clone(),
                                 field,
