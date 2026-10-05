@@ -824,3 +824,511 @@ note).
   drafts, code, tools/jev.py, tasks.md/monitor.md/inbox untouched
   (read or coordinator-owned); no JEV run; no Git.
 - Release: this file is RELEASED to the coordinator for gate scheduling.
+
+## R27/T18 rule input (gate evidence)
+
+Status: **PROPOSED / PREP — adopts NOTHING.** Checklist item 3 evidence
+only; all alternatives stay unranked and every **JEV-PENDING** above is
+preserved. Read-only transcription of what R27 and T18 actually say;
+no builds, no JEV, no Git.
+
+### Verdict for item 3
+
+**QUALIFIED**: R27 half CONFIRMED (a T01 ledger root exists; text
+transcribed verbatim below with
+`implementation/challenge-audit-run/evidence/root-causes.md:524-541`
+refs). Adopted-T18-rule half ABSENT: T18 is OPEN with
+"Evidence: pending" (`implementation/challenge-audit-run/tasks.md:182`),
+so no adopted default/server/update/hook rule exists for the gate to
+apply. The gate may judge alternatives against R27's recorded
+rule-shape plus the settled DESIGN/T04a sentences below, but the
+"adopted T18 rule" the checklist names does not exist yet. Every
+alternative's Server-owned-fields **JEV-PENDING** is therefore
+preserved, not resolved. (Checklist marker above left for the
+coordinator: this writer's reservation is append-only.)
+
+### What was searched (absence record for an adopted rule)
+
+- `R27` in `implementation/CHALLENGE-AUDIT-PLAN.md` → zero hits. In
+  `implementation/challenge-audit-run` → this file (transcription +
+  per-alternative rows), `evidence/app-intent.md:124` (CanCheck
+  disposition), `evidence/root-causes.md:524-541` (ledger entry) +
+  `:632` (routing `R27 T18+T31`), `tasks.md:273` (T31a gate-needs
+  line). No adopted rule text anywhere in the hit set.
+- `T18` in the plan → scope rows `:101` (L2 values/creation),
+  `:121/:126/:133` (critical path), `:172/:174` (dependents),
+  `:196` (port map), `:282/:354` (backlog mentions), `:468`
+  (L2/L1/L3 join), `:476` (task text, quoted below); in tasks.md →
+  `:177-182` (OPEN, Evidence pending) plus dependent/prerequisite
+  mentions. No landed rule, no JEV, no evidence.
+- `server=|server-owned|serverOnly` in `DESIGN.md`/`DECISIONS.md` →
+  `DESIGN.md:129/:131/:332/:403/:435`,
+  `DECISIONS.md:177/:619/:728`. Settled sentences quoted below; none
+  names hook bodies.
+- Result: R27 exists as a bucket-**b** T01 root owned by T18+T31
+  (root-causes.md:533/:632), not as an adopted rule. Nothing found
+  was invented; nothing absent is treated as present.
+
+### Rule 1 — R27 ledger entry (verbatim, root-causes.md:524-541)
+
+> ### R27 — inconsistent server-owned enforcement, `armed` (E3001)
+> - Sites: `CanCheck.can:58`
+>   `set check {enabled=true,...,armed=now,...}` in `resume` —
+>   `server-owned field 'armed' cannot be set`; contrast L99
+>   `set event.after {armed=now,...}` in the `Check.create` hook,
+>   which draws no such diagnostic.
+> - Intent: re-anchor the deadline when resuming a paused check.
+> - Root: server-owned enforcement differs between the ordinary-update
+>   path and the hook path; one rule must cover creation defaults,
+>   server initialization, updates, and hooks.
+> - Bucket: **b**. Owner: L2/L3 with L1 emission, T18 + T31.
+> - Opposing: `server=now` may mean runtime-stamped and never
+>   author-settable, in which case resume needs a supported re-anchor
+>   mechanism rather than a direct write (then the hook side is the
+>   hole to close).
+> - Confidence medium. Flip: an adopted default/server/update/hook
+>   rule assigning `armed` writes to exactly one mechanism.
+> - Positive: actual creation/null/parent/actor/time/replay cases
+>   agree on one rule. Negative: update omission vs explicit null,
+>   protected fields, and replay-once behavior stay enforced.
+
+Map to A-D (symmetric; supports/constrains/kills none
+differentially): the "one rule must cover ... updates, and hooks"
+sentence constrains all four alternatives equally — each
+alternative's Server-owned-fields row already inherits the identical
+**JEV-PENDING** (this file). If the gate adopts the opposing reading
+(runtime-stamped, hook side is the hole), the CanCheck:99/:109
+`set event.after {armed}` carve-out closes under EVERY alternative
+and `resume` needs a re-anchor mechanism under EVERY alternative. If
+the gate adopts the flip the other way (hooks may write
+server-owned fields the ordinary path rejects), L99/L109 stand as
+written under EVERY alternative. R27's subject is settled-core
+`set event.after`, not secondary writes, so it cannot discriminate
+staging (A) from after-only (B) from allowlist (C) from cascade
+(D).
+
+### Rule 2 — T18 task text (verbatim; OPEN, no adopted content)
+
+- Plan (`implementation/CHALLENGE-AUDIT-PLAN.md:476`): "**T18 Execute
+  defaults and server initialization correctly.** Accountable lead:
+  L2; L3 owns runtime execution and L1 emission. Depends on
+  T09/T16/T17. Preserve context/order, update omission and protected
+  fields. Done when actual creation/null/parent/actor/time/replay
+  cases agree."
+- tasks.md (`implementation/challenge-audit-run/tasks.md:177-182`):
+  same lead/depends; Acceptance: "Create/default/null/parent/
+  actor/time evaluation order, update omission/protected fields and
+  replay once agree in actual generated execution, not
+  descriptor-only tests."; Evidence: pending.
+- Join context (plan `:468`): "L2 defines and verifies exact
+  values/input meaning once. L1 performs Rust and emission changes
+  for T09-T11, and L3 performs canonical runtime execution for T18.
+  Completion requires their joined evidence."
+
+Map to A-D: contributes no adopted content, so it supports,
+constrains, and kills none. The "update omission and protected
+fields" phrase is the closest stated hook-adjacent constraint, but
+it names no hook or secondary-write behavior. T18's own
+prerequisites T16/T17 are themselves OPEN (item-6 survey, this
+file), so the adopted rule is at least two landings away.
+
+### Rule 3 — DESIGN settled sentences (verbatim; read-only here)
+
+- `DESIGN.md:129`: "`name:T server=expr` supplies the server value on
+  creation and excludes it from client inputs. `secret` fields
+  always require server initialization."
+- `DESIGN.md:131` (relevant clause): "Nullable, defaulted and
+  server-owned fields retain their existing creation behavior;
+  partial updates still distinguish an omitted change from explicit
+  null."
+- `DESIGN.md:332` (relevant clause, CRUD admission): "Prepare
+  defaults and server-owned fields without staging this write,
+  evaluate the predicate, then stage only on acceptance."
+- `DESIGN.md:518` (relevant clauses, hook contract): "can reject or
+  adjust it, and cannot introduce new client parameters." /
+  "`set event.after {fields}` adjusts the pending create/update
+  record without recursively invoking CRUD" / "They cannot call
+  back into the triggering CRUD."
+
+Map to A-D: the server/default sentences govern creation and
+ordinary CRUD admission; none names hook bodies, so all four
+alternatives inherit them identically (supports/kills none). One
+neutrally stated asymmetric proof obligation: under A/C/D the gate
+must say when defaults/server prep (DESIGN:332) runs for each
+staged secondary write; under B there are no staged writes, so
+that sentence adds no hook-side obligation — but B's committed
+handlers are ordinary-path operations where it applies in full.
+The no-new-client-parameters and no-callback sentences are the
+settled ancestors of every alternative's recursion/negative bans
+(bar item 5, this file); no alternative proposes new parameters.
+
+### Rule 4 — T04a frozen descriptor vocabulary (execution-contract.md:68-73)
+
+Verbatim (`implementation/challenge-audit-run/evidence/
+execution-contract.md:68-73`, T04a FROZEN per tasks.md:414):
+"`CanonicalFieldDef`: required, serverOnly (caller-supplied values
+rejected), ordinary-vs-required array marker ... and default
+vocabulary." / "`CanonicalFieldDefault`: `literal` | `parent` ...
+| `server` | `derived`. `server`/`derived` exclude the field from
+writable inputs; T18 owns their execution."
+
+Map to A-D: ordinary-path admission only (caller inputs), silent on
+hook bodies — consistent with R27's observed asymmetry (ordinary
+path rejects, hook path unchecked) without resolving it. Symmetric
+across A-D; kills none. The T04b remainder explicitly lists
+"hook / invariant / lock descriptor joins" as not done
+(execution-contract.md:146-147; tasks.md:83), so no descriptor rule
+covers hook-side `server` writes yet.
+
+### Site census grounding (R27's two sides)
+
+- Declaration: `draft/CanCheck.can:15`
+  `armed:datetime server=now` (and `token:secret
+  server=random_secret()`; no `token` write appears in the
+  CanCheck:96-121 hook bodies — direct read).
+- Hook side: `armed` writes occur only at `draft/CanCheck.can:99`
+  (`initial`) and `:109` (`configured`) — enumeration survey (this
+  file) corroborated by direct read of CanCheck:96-121.
+- Ordinary side: `draft/CanCheck.can:58` (`resume`) and `:80`
+  (`ping` handler) — non-hook operations (this file).
+- **UNVERIFIED** (no build in this read-only survey): R27 records
+  L58 rejected vs L99 accepted pre-T30; T30 landed after with a
+  corpus E3001 -137 differential (item-1 record, this file). Whether
+  L58 still rejects today needs a coordinator-owned checker re-run;
+  the gate must not assume the recorded diagnostic state is
+  current.
+
+### Per-alternative inheritance (fair; no ranking)
+
+- A: inherits R27's question on its settled-core `set event.after`
+  plus the DESIGN:332 prep-timing proof obligation for each staged
+  write. Nothing in Rules 1-4 bars staging.
+- B: inherits the identical R27 question on its (narrower)
+  settled-core `set event.after`; DESIGN:332 applies to its
+  committed handlers as ordinary operations. Nothing in Rules 1-4
+  mandates the after-only split.
+- C: identical to A for allowlisted writes; Rules 1-4 say nothing
+  about allowlists, so none supports or bars the declared boundary.
+- D: identical to A; Rules 1-4 say nothing about cascades.
+- Net: item 3 contributes zero differential evidence among A-D. All
+  four keep their Server-owned-fields **JEV-PENDING**.
+
+### Commands run (read-only)
+
+1. `R27` search in CHALLENGE-AUDIT-PLAN.md (zero hits) and
+   challenge-audit-run (4 files, refs above).
+2. `T18` search in plan + tasks.md + evidence (refs above).
+3. `server=|server-owned|serverOnly` search in DESIGN.md/DECISIONS.md
+   (5 + 3 hits, refs above).
+4. Direct reads: root-causes.md:524-541, tasks.md:177-182,
+   plan:464-476, execution-contract.md:51-73 + :144-150,
+   CanCheck.can:1-30 + :50-121, DESIGN.md:125-135.
+
+### Handoff
+
+- Writer: L3 T31a-item3. This section appended only; prior
+  alternatives/fairness/checklist/enumeration/records untouched
+  (checklist item-3 marker left for the coordinator per the
+  append-only reservation). DESIGN.md/GRAMMAR.md/DECISIONS.md,
+  drafts, code, tools/jev.py, tasks.md/monitor.md/inbox untouched
+  (read or coordinator-owned); no JEV run; no Git.
+- Release: this file is RELEASED to the coordinator for gate scheduling.
+
+## T23 example-contract input (gate evidence)
+
+Status: **PROPOSED / PREP — adopts NOTHING.** Checklist item 5 evidence
+only; all alternatives stay unranked and every **JEV-PENDING** above is
+preserved. Read-only survey of T23 status, the R29 flip, and concrete
+draft example inputs; no builds, no JEV, no Git.
+
+### Verdict for item 5
+
+**QUALIFIED gap with usable inputs**: (a) T23-executed inputs are
+ABSENT — T23, T22, T21 are all OPEN with "Evidence: pending", so no
+compiled example has ever executed and no observation below was ever
+observed passing/failing; (b) concrete draft-source example inputs
+EXIST — 2 discriminating blocks plus 8 control/contract/analogy
+inputs, all with file:line refs and per-alternative maps below;
+(c) the R29 contract flip is OPEN — T04a §5 settles committed-state
+observations but does not name input-alias observations or
+committed-handler scope. The gate may use the draft inputs as
+proof-test candidates, but every discrimination map is derived from
+draft text + contract text, not from execution. (Checklist marker
+above left for the coordinator: this writer's reservation is
+append-only.)
+
+### Absence record (T23-executed inputs — what exists, what is missing)
+
+- EXISTS (plan/task text, no execution):
+  `implementation/challenge-audit-run/tasks.md:212-217` — T23 OPEN,
+  "Prerequisites: matching T22a/b/c and T04 emitted-example
+  contract", "Done only when the full promised calls/callers/prior
+  commits/independent observations/rejection/no-change assertions
+  execute and deliberately broken expectations fail", "Evidence:
+  pending". T22 (`tasks.md:205-210`) and T21 (`tasks.md:198-203`)
+  are likewise OPEN with "Evidence: pending".
+- EXISTS (agreed contract slice): T04a FROZEN
+  (`tasks.md:414`), including §5 emitted-example rules
+  (`evidence/execution-contract.md:92-110`, quoted below).
+- MISSING: T04b remainder — "hook / invariant / lock descriptor
+  joins", "file/progress/receipt observation extensions"
+  (execution-contract.md:144-150; tasks.md:83). The contract half a
+  hook-behavior example needs is explicitly remaindered.
+- MISSING: any executed compiled table/sequence anywhere (T23a
+  follows T22a, which needs T15a/T16/T17 — T16/T17 OPEN per the
+  item-6 survey, this file). Consequence: all maps below are
+  draft-text derivations. Any T31 proof test built from these
+  inputs is T23a-scope work.
+
+### Contract half: R29 + T04a §5 (verbatim)
+
+R29 (`evidence/root-causes.md:562-579`):
+> ### R29 — example input-vs-observation attribution (E5002)
+> - Site: `CanLeave.can:136` examples header for `decide`:
+>   `as,request.parent.parent.user,... -> request.state,...` —
+>   `unknown field 'parent' on Calendar` and `'request' is an input,
+>   not an observation`.
+> - Root: unclear attribution between input bindings and post-call
+>   observations (is observing through the input binding allowed, or
+>   must observations reload stored state?), plus a possible
+>   Calendar `parent` selector gap (T08-adjacent).
+> - Bucket: **c/b** unresolved — recorded as **c** pending T23
+>   semantics. Owner: L7 T23 with draft owner T36.
+> - Opposing: observations must read reloaded isolated stored state;
+>   input aliases may be stale or ambiguous, so rejecting them could
+>   be correct (bucket a reading).
+> - Confidence low. Flip: the adopted emitted-example contract
+>   explicitly allows or forbids input-alias observations.
+
+T04a §5 (`evidence/execution-contract.md:92-110`, frozen):
+> - Examples execute through production admission against compiled
+>   artifacts only; `ExampleReport.artifact` pins digest + source
+>   revision.
+> - Each row/sequence step runs in an isolated fixture scope with
+>   its own caller (`ResolvedCaller`); setup failures report
+>   `setup-failed` and can never satisfy an expected business
+>   rejection.
+> - Expected values are independently authored ... and compare with
+>   L2 exact-value semantics via wire encoding ...
+> - State observations (`ExampleStateObservation`) read committed
+>   state only, through authorized viewer-projection queries at the
+>   committed fence revision. Owner/authority reads never serve an
+>   example observation.
+> - Rejection rows expect an exact error code plus a no-change proof
+>   ...; later sequence steps keep earlier commits and add no new
+>   effects on rejection.
+> - Falsifiability: altering an expected value, removing a call, or
+>   suppressing a write must fail the relevant test.
+
+DESIGN fixture/execution sentences (`DESIGN.md:403`, relevant
+clauses): "Model fixtures describe typed **stored snapshots**, not
+client create requests" / "Snapshot construction does not invoke
+CRUD hooks or emit business events" / "the runner ... invokes the
+registered operation exactly once through its normal
+authorization/validation/commit path."
+
+Settled vs open: SETTLED — observations read committed state via
+viewer-projection queries at the committed fence revision; setup
+failures never satisfy rejections; falsifiability. OPEN
+(**JEV-PENDING**) — (i) the R29 flip itself: §5 never names input
+bindings, so whether `request.state`-style input-alias
+observations are allowed is undecided; (ii) whether committed
+handlers (B's secondaries) execute inside an example's observation
+scope — neither §5 nor DESIGN:403 names handlers, so under B it is
+undecided whether a trigger-commit observation sees handler
+effects.
+
+### Concrete input 1 — DISCRIMINATING: Plan-update examples (CanMaintain:81-90)
+
+Shape (attached to `crud Plan`, `draft/CanMaintain.can:80`; update
+invokes the `revise_plan` hook at `:98-105`, which does `set
+event.after {revision,asset_epoch}` + `create Cancellation
+{parent=event.after.parent,...}` + `emit CancellationStep` +
+`cancel`/`schedule`):
+
+> L81 `examples update seed=[test_worker,check] record=recurring`
+> L82 `as,changes.name -> recurring.revision,check.cancelled,check.result,inspection_pending(check),count(equipment.Cancellation)`
+> L83 `maintenance_manager,"Revised cooling check" -> 2,false,pending,false,1`
+> L84 `technician,"Revised cooling check" -> error(forbidden)`
+> L85 `examples update seed=[test_worker,technician_employee] record=recurring`
+> L86 `as,changes.active,changes.assignee,equipment.retired -> recurring.revision,count(equipment.Cancellation)`
+> L87 `maintenance_manager,true,inspection_technician,false -> 2,1`
+> L88 `maintenance_manager,true,other,false -> error(rule_failed)`
+> L89 `maintenance_manager,true,inspection_technician,true -> error(rule_failed)`
+> L90 `maintenance_manager,false,other,true -> 2,1`
+
+Seed grounding: the `Cancellation` fixtures (`superseded`,
+`retired_work`, L76-77) are NOT in either seed list, so the
+`count(equipment.Cancellation)` observation starts at 0 and the
+expected `1` is exactly the hook-created child — derived from the
+seed lists plus DESIGN:435 seed-closure loading, **UNVERIFIED** by
+execution.
+
+Map (discriminates all pairs except A/D): A — the staged child
+commits atomically with the trigger, so the committed-state
+observation sees `1` as written (modulo the `emit`/timer scope
+proofs, which no alternative addresses — this file). B — the child
+exists only after a later committed handler, so a trigger-commit
+observation sees `0` and the rows fail as written UNLESS the
+example scope runs handlers (open per (ii) above —
+**JEV-PENDING**). C-as-written — `parent=event.after.parent` is
+outside the `parent=event.after` allowlist, so the staged create
+is a check-time rejection and the rows fail as written; holds only
+if the gate extends the allowlist (the gate question the
+enumeration already flagged — this file). D — identical to A here
+(no `Cancellation` hooks exist — this file). The `error(...)`
+rows fail at admission before the hook runs, so they are
+identical under all four (controls).
+
+### Concrete input 2 — CONTROL (hook behavior, no discrimination): Suggestion examples (CanFeedback:58-72)
+
+Shape (attached to `crud Suggestion`, `draft/CanFeedback.can:57`;
+create/update invoke the settled-core hooks `contribution_limit`
+`:76-77` (require) and `review_edited` `:79-80` (`set
+event.after {hidden=true,...}`)):
+
+> L58 `examples create parent=product title="Air quality" ...`
+> L59 `as,parent.published -> count(product.Suggestion),count(...)`
+> L60-62 `members,true -> 1,0` / `members,false -> error(rule_failed)` / `public,true -> error(forbidden)`
+> L63 `examples create seed=[recent,...5] ...` L64-65 `members -> error(rule_failed)` (hook require: 6th suggestion in the hour)
+> L66 `examples update record=suggestion` L67 `as,changes.title,record.author -> suggestion.title,suggestion.hidden`
+> L68 `members,"More booths",self -> "More booths",true` (hook set observed: fixture `hidden=false` at L37, post-update `true`)
+> L70-72 `examples delete record=suggestion` → `true` (no Suggestion delete hook exists — hook-free control)
+
+Map: identical under A-D (settled core behaves the same in every
+alternative) — regression controls any adopted alternative must
+keep passing, not discriminators.
+
+### Concrete inputs 3-5 — CONTRACT (R29 flip; no hook triggered; identical relevance under all A-D)
+
+3. `draft/CanCheck.can:60-64` (`resume` examples): header L61
+   `as,check.enabled,check.state -> check.enabled,check.state,check.armed,check.due,check.revision`
+   observes the server-owned R27 field `check.armed` THROUGH the
+   input binding `check` (row L62 `...,now,now+5m,2`). This is the
+   R29 input-alias question instantiated on the R27 field: the R29
+   ruling directly decides whether hook-behavior examples may use
+   this observation style. Caveat: the L58 trigger row is R27's
+   ordinary-path rejection site — executability **UNVERIFIED**
+   (no build).
+4. `draft/CanLeave.can:135-138` (`decide` examples — the R29 site
+   itself): header L136 `as,request.parent.parent.user,request.reviewer,reviewer_worker.user,allowance_2099.days -> request.state,allowance_2099.remaining,request.sync`
+   with input-alias observations `request.state`, `request.sync`
+   (row L137 `... -> approved,0,pending`). `decide` triggers no
+   hook (no Request hooks in the 44-body census — this file).
+5. `draft/CanDiscover.can:277-280` (`review` examples): header L278
+   `as,test_worker.active,request.evidence.version -> result.evidence`
+   observes through the `request` input alias (rows L279-280).
+   Triggers no hook.
+
+### Analogy input — child-count observation shape (CanCheck:82-89, no CRUD hook)
+
+`ping` examples observe `count(heartbeat.Notice)` /
+`first(heartbeat.Notice)?.outcome` after a committed-event handler
+(`on=Pings.received`, L65). `ping` is not a CRUD hook, so this
+discriminates nothing directly — but under B, hook secondaries
+become exactly this kind of handler, making `ping` the closest
+draft precedent for B-style observation vocabulary (still
+unexecuted; T23 pending).
+
+### Hook-free CRUD controls (corpus census)
+
+Corpus-wide `examples create|update|delete` census (26 blocks):
+CanTrade:37, CanTable:41/46/51/54/59/63, CanApprove:87, CanCRM:48,
+CanBoard:41/46/52, CanMail:87/95, CanMaintain:81/85, CanOnboard:38/41,
+CanDesk:57, CanGrant:76, CanShift:97/100, CanFeedback:58/63/66/70,
+CanInvoice:274/280. Only CanMaintain (secondary-effect hooks) and
+CanFeedback (settled-core hooks) attach to hook-carrying models;
+the rest (Roster, Step, Table, Booking, Document, Prospect,
+Meeting, Delegate, Conversation, Application, Invoice/Line)
+attach to hook-free models — regression controls that discriminate
+nothing. CanCheck has no `crud` declaration at all (verified by
+the crud-decl census over the 16 hook files), so no CRUD-example
+path reaches the Check hooks.
+
+### Absence record (draft-source gaps — exact)
+
+- ZERO `examples` blocks attach to any of the 44 hook scenarios:
+  the examples-line census vs the scenario-line census over all 16
+  hook files shows hook bodies contain no `examples` line; the
+  nearest examples always attach to neighboring ordinary/handler
+  scenarios (e.g. Member:246 attaches to `term` at :232, not the
+  hook at :229; Leave:92 attaches to `preview` at :81, not the
+  hooks at :70-78; Discover:272 attaches to `review` at :267, not
+  the hook at :247; Check:138 attaches to `deadline` at :122, not
+  the hooks at :96-121).
+- ZERO examples on crud TemplateStep (cross-row hooks),
+  Availability (emit hooks), FollowUp/Account/Obligation (timer
+  hooks), Resource/Window/DayCalendar (snapshot hooks), Evidence
+  (send + cross-row hook), Employee, Membership, Template
+  (CanCreative), Contact, Asset.
+- `draft/shared/Locations.can` and `draft/shared/Employees.can`
+  contain zero `examples` lines at all (rg census) — no example
+  input reaches the 14 snapshot-hook bodies or the Employee emit
+  hook.
+
+### Per-alternative proof-input map (fair; no ranking)
+
+- A: input 1 proves atomic trigger+child as written (plus
+  `emit`/timer scope rulings still owed); input 2 holds as
+  controls. Needs T23a execution.
+- B: input 1 as written is B's hardest case (`count=1` at trigger
+  commit contradicts after-only unless handlers run in example
+  scope — **JEV-PENDING** per open point (ii)); B's proof
+  additionally needs the orphaned-parent recovery demo on T24
+  machinery (item-6 plan, this file). Input 2 holds.
+- C: input 1 fails C-as-written (trigger-parent parenting outside
+  the allowlist) — the gate must extend the allowlist or accept
+  B-remodel for this body; no other input changes that question.
+  Input 2 holds.
+- D: identical to A on every input above (no hooks on any
+  staged-create target — this file).
+- All: the R29 flip (inputs 3-5) governs what observation style
+  any hook proof test may use; no input recommends an alternative.
+
+### JEV-PENDING markers added by this section
+
+- (i) R29 flip: input-alias observations allowed or forbidden.
+- (ii) Committed-handler execution inside example observation
+  scope (decides input 1 under B).
+- (iii) `count=...`-starts-at-0 seed-closure reading
+  **UNVERIFIED** by execution (derived from seed lists +
+  DESIGN:435).
+- (iv) Resume-example (CanCheck:60-64) executability
+  **UNVERIFIED** (R27 ordinary-path rejection site; needs a
+  checker re-run).
+- (v) Every discrimination map is draft-text derivation, not
+  observed execution (T23a-scope work).
+
+### Commands run (read-only)
+
+1. `T23`/`T18` searches in plan + tasks.md + evidence (refs above).
+2. `emitted-example contract` search (4 hits: tasks.md:213/:215,
+   app-intent.md:352, root-causes.md:575).
+3. Full read of execution-contract.md §3/§5/§9
+   (frozen rules + T04b remainder).
+4. Direct reads: root-causes.md:562-579 (R29), tasks.md:198-217
+   (T21/T22/T23), CanMaintain:68-137, CanFeedback:37-82,
+   CanOnboard:22-61, CanShift:78-106, CanDiscover:240-280,
+   CanLeave:66-95 + :124-144, CanCheck:36-64 + :82-100 + :122-155,
+   CanMember:225-257, DESIGN.md:125-135 + hook-clause search.
+5. `examples create|update|delete` corpus census (26 blocks) +
+   `examples` vs `scenario` line censuses over the 16 hook files
+   (zero hook-attached examples) + crud-decl census (CanCheck has
+   none; shared files have zero examples lines).
+6. T23-owned file existence check (`ls`): testkit runner
+   (`loader.ts`, `table.ts`), `contracts/src/examples.ts`,
+   `compiler/src/analysis/examples.rs`,
+   `compiler/src/codegen/bdd.rs` all exist as files — but T21/T22/T23
+   evidence is pending, so existence proves scaffolding only, not
+   executed behavior.
+
+### Handoff
+
+- Writer: L3 T31a-item5. This section appended only; prior
+  alternatives/fairness/checklist/enumeration/records/item-3
+  section untouched (checklist item-5 marker left for the
+  coordinator per the append-only reservation).
+  DESIGN.md/GRAMMAR.md/DECISIONS.md, drafts, code, tools/jev.py,
+  tasks.md/monitor.md/inbox untouched (read or coordinator-owned);
+  no JEV run; no Git.
+- Release: this file is RELEASED to the coordinator for gate scheduling.
