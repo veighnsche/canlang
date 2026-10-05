@@ -1,0 +1,57 @@
+{
+  "source_bbox": [
+    211,
+    141,
+    1043,
+    1112
+  ],
+  "vector_bbox": [
+    211,
+    141,
+    1042,
+    1111
+  ],
+  "outer_row_edge_delta_px": {
+    "median": 1.0,
+    "p95": 4.0,
+    "max": 9,
+    "max_rows": [
+      [
+        1105,
+        9,
+        4
+      ],
+      [
+        1107,
+        9,
+        4
+      ],
+      [
+        1109,
+        9,
+        4
+      ],
+      [
+        1110,
+        9,
+        4
+      ]
+    ]
+  },
+  "triangle_interior_alpha": 0,
+  "icon": {
+    "size": [
+      512,
+      512
+    ],
+    "mode": "RGB",
+    "opaque": true,
+    "background": [
+      17,
+      17,
+      17
+    ]
+  },
+  "source_sha256": "21ec00a67cf1ea8052a54f7ae59b1ebd5e5bc7029721ca88b2e096cd32cd0be9",
+  "svg_sha256": "f71ee7d40af992263cbdd2fa236e74aaf6ccf9d36a27e399bb9ee26fd32ea803"
+}

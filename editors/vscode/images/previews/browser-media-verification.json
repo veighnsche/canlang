@@ -1,0 +1,26 @@
+[
+  {
+    "theme": "dark",
+    "background": "dark",
+    "computedFill": "rgb(245, 245, 245)",
+    "media": false
+  },
+  {
+    "theme": "dark",
+    "background": "white",
+    "computedFill": "rgb(245, 245, 245)",
+    "media": false
+  },
+  {
+    "theme": "light",
+    "background": "dark",
+    "computedFill": "rgb(20, 20, 20)",
+    "media": true
+  },
+  {
+    "theme": "light",
+    "background": "white",
+    "computedFill": "rgb(20, 20, 20)",
+    "media": true
+  }
+]
