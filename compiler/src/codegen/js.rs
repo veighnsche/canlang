@@ -293,19 +293,31 @@ fn is_ui_factory(factory: &str) -> bool {
         factory,
         "action"
             | "actions"
+            | "alert"
+            | "badge"
+            | "breadcrumbs"
+            | "button"
             | "card"
             | "content"
             | "copy"
             | "details"
+            | "divider"
             | "edit"
             | "form"
             | "history"
+            | "input"
+            | "join"
             | "list"
             | "metrics"
+            | "modal"
+            | "pagination"
+            | "slot"
+            | "stat"
             | "tab"
             | "table"
             | "tabs"
             | "text"
+            | "textarea"
             | "title"
     )
 }
@@ -1244,45 +1256,86 @@ impl<'a> Emitter<'a> {
     /// limit?, archived?})`: `records()` returns a promise and viewer read
     /// grants apply before filters and projection.
     fn lower_query(&mut self, query: &crate::codegen::ir::IrQuery, _span: Span) -> String {
-        self.stdlib.insert("records".to_string());
-        let mut opts = Vec::new();
-        if let Some(parent) = &query.parent {
-            opts.push(format!("parent:{}", self.lower_expr(parent)));
-        }
-        if let Some(pred) = &query.where_pred {
-            let body = self.lower_expr(pred);
-            if query.where_async {
-                opts.push(format!("where:async(row)=>{body}"));
-            } else {
-                opts.push(format!("where:(row)=>{body}"));
+        match &query.domain {
+            crate::codegen::ir::IrQueryDomain::Model(model) => {
+                self.stdlib.insert("records".to_string());
+                let mut opts = Vec::new();
+                if let Some(parent) = &query.parent {
+                    opts.push(format!("parent:{}", self.lower_expr(parent)));
+                }
+                if let Some(pred) = &query.where_pred {
+                    let body = self.lower_expr(pred);
+                    if query.where_async {
+                        opts.push(format!("where:async(row)=>{body}"));
+                    } else {
+                        opts.push(format!("where:(row)=>{body}"));
+                    }
+                }
+                if !query.order.is_empty() {
+                    let order = query
+                        .order
+                        .iter()
+                        .map(|o| {
+                            if o.descending {
+                                js_string(&format!("-{}", o.field))
+                            } else {
+                                js_string(&o.field)
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    opts.push(format!("order:[{order}]"));
+                }
+                if let Some(limit) = &query.limit {
+                    opts.push(format!("limit:{}", self.lower_expr(limit)));
+                }
+                if let Some(archived) = &query.archived {
+                    opts.push(format!("archived:{}", self.lower_expr(archived)));
+                }
+                let fetched = format!(
+                    "await records(c,{},{{{}}})",
+                    js_string(model),
+                    opts.join(",")
+                );
+                self.append_select(&fetched, true, query)
+            }
+            crate::codegen::ir::IrQueryDomain::Value { base, alias } => {
+                let base_text = self.lower_expr(base);
+                // The receiver needs parens exactly when its lowering is
+                // not already receiver-shaped (an awaited fetch, a call,
+                // or a compound expression).
+                let mut out = match &base.expr {
+                    IrExpr::Query(_) | IrExpr::Lambda { .. } => format!("({base_text})"),
+                    _ => parenthesize_operand(&base_text, &base.expr),
+                };
+                if let Some(pred) = &query.where_pred {
+                    let body = self.lower_expr(pred);
+                    out = format!("{out}.filter(({})=>{body})", sanitize_ident(alias));
+                }
+                self.append_select(&out, false, query)
             }
         }
-        if !query.order.is_empty() {
-            let order = query
-                .order
-                .iter()
-                .map(|o| {
-                    if o.descending {
-                        js_string(&format!("-{}", o.field))
-                    } else {
-                        js_string(&o.field)
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(",");
-            opts.push(format!("order:[{order}]"));
+    }
+
+    /// Append a `select` projection `.map` to a lowered domain fetch.
+    /// Model fetches are awaited, so the map wraps the awaited result.
+    fn append_select(
+        &mut self,
+        fetched: &str,
+        awaited: bool,
+        query: &crate::codegen::ir::IrQuery,
+    ) -> String {
+        let (Some(projection), Some(param)) = (query.select.as_ref(), query.select_param.as_ref())
+        else {
+            return fetched.to_string();
+        };
+        let body = self.lower_expr(projection);
+        let map = format!(".map(({})=>{body})", sanitize_ident(param));
+        if awaited {
+            format!("({fetched}){map}")
+        } else {
+            format!("{fetched}{map}")
         }
-        if let Some(limit) = &query.limit {
-            opts.push(format!("limit:{}", self.lower_expr(limit)));
-        }
-        if let Some(archived) = &query.archived {
-            opts.push(format!("archived:{}", self.lower_expr(archived)));
-        }
-        format!(
-            "await records(c,{},{{{}}})",
-            js_string(&query.model),
-            opts.join(",")
-        )
     }
 
     /// Lower a full field schema: base schema plus `default` and
@@ -1646,6 +1699,7 @@ impl<'a> Emitter<'a> {
     /// Lower one UI factory node: lowercase server factory, one props
     /// object (with `context`) plus a `children` array when non-empty,
     /// or `renderRow:(row,view)=>[children]` for row-scoped collections.
+    /// Gated nodes lower as `cond ? node : null`.
     pub fn lower_ui(&mut self, node: &IrUi) -> String {
         self.lower_ui_ctx(node, "c")
     }
@@ -1664,6 +1718,9 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr(&format!("unknown UI factory {}", node.factory));
         }
+        // Gated containers omit the whole node when unavailable; the
+        // gate reads the same scope the node renders in.
+        let gate = node.gate.as_ref().map(|g| self.lower_expr(g));
         self.ui.insert(node.factory.clone());
         let mut props = vec![format!("context:{ctx}")];
         for (key, value) in &node.props {
@@ -1702,7 +1759,53 @@ impl<'a> Emitter<'a> {
                 }
             }
         }
-        format!("{}({{{}}})", node.factory, props.join(","))
+        let call = format!("{}({{{}}})", node.factory, props.join(","));
+        match gate {
+            Some(cond) => format!("{cond} ? {call} : null"),
+            None => call,
+        }
+    }
+
+    /// Admit-bindings `preferences` member for one owning app: authoring
+    /// defaults as literal JS (`preferences:{"App":{key:value}}`), or ""
+    /// when the app declares no preferences with literal defaults.
+    /// Computed defaults are omitted (admit returns data, never
+    /// functions); pages that read an omitted key fail loud at render,
+    /// exactly as pages with no preferences declaration do.
+    fn admit_preferences_js(&mut self, owner: &str) -> String {
+        let mut defaults = Vec::new();
+        for item in &self.ir.items.clone() {
+            let module_name = self.ir.module(item.module).name.clone();
+            if module_name != owner {
+                continue;
+            }
+            let fields = match &item.kind {
+                IrItemKind::Preferences { fields, .. } => fields.clone(),
+                _ => continue,
+            };
+            for field_id in &fields {
+                let field = self.ir.items[field_id.0 as usize].clone();
+                if let IrItemKind::Field {
+                    default: Some(IrDefault::Literal(expr)),
+                    ..
+                } = &field.kind
+                {
+                    defaults.push((field.name.clone(), expr.clone()));
+                }
+            }
+        }
+        if defaults.is_empty() {
+            return String::new();
+        }
+        let mut entries = Vec::new();
+        for (name, expr) in &defaults {
+            entries.push(format!("{name}:{}", self.lower_expr(expr)));
+        }
+        format!(
+            "preferences:{{{app}:{{{entries}}}}},",
+            app = sanitize_ident(owner),
+            entries = entries.join(",")
+        )
     }
 
     /// Lower one page: descriptor const plus the named page function whose
@@ -1729,11 +1832,12 @@ impl<'a> Emitter<'a> {
         if page.nav_none {
             members.push("nav:\"none\"".to_string());
         }
+        let bindings = self.admit_preferences_js(&page.owner);
         let admit_body = if page.admit.is_empty() {
-            "async(c,routeBindings={})=>{return {};}".to_string()
+            format!("async(c,routeBindings={{}})=>{{return {{{bindings}}};}}")
         } else {
             let check_text = self.lower_admission(&page.admit);
-            format!("async(c,routeBindings={{}})=>{{{check_text};return {{}};}}")
+            format!("async(c,routeBindings={{}})=>{{{check_text};return {{{bindings}}};}}")
         };
         members.push(format!("admit:{admit_body}"));
         members.push(format!("render:{func}"));
@@ -1757,10 +1861,11 @@ impl<'a> Emitter<'a> {
             .map(|n| self.lower_ui(n))
             .collect::<Vec<_>>()
             .join(",");
-        // Pages reading `preferences` bind the module record first.
+        // Pages reading `preferences` bind the admit() record first: the
+        // checkpoint returns per-app prefs inside `bindings` (never pctx).
         let preamble = if page_uses_preferences(page) {
             format!(
-                "const preferences=c.preferences.{};",
+                "const preferences=bindings.preferences.{};",
                 sanitize_ident(&page.owner)
             )
         } else {
@@ -1783,7 +1888,9 @@ impl<'a> Emitter<'a> {
 
 /// Whether a UI subtree awaits (state-read calls in prop values).
 fn ui_uses_async(node: &IrUi) -> bool {
-    node.props.iter().any(|(_, v)| expr_uses_async(v)) || node.children.iter().any(ui_uses_async)
+    node.props.iter().any(|(_, v)| expr_uses_async(v))
+        || node.gate.as_ref().is_some_and(expr_uses_async)
+        || node.children.iter().any(ui_uses_async)
 }
 
 /// Whether a page body references the `preferences` record.
@@ -1798,10 +1905,16 @@ fn page_uses_preferences(page: &IrPage) -> bool {
             IrExpr::Array(items) => items.iter().any(expr_uses),
             IrExpr::Object(entries) => entries.iter().any(|(_, v)| expr_uses(v)),
             IrExpr::Query(query) => {
-                query.parent.as_ref().is_some_and(|p| expr_uses(p))
+                let domain_uses = match &query.domain {
+                    crate::codegen::ir::IrQueryDomain::Model(_) => false,
+                    crate::codegen::ir::IrQueryDomain::Value { base, .. } => expr_uses(base),
+                };
+                domain_uses
+                    || query.parent.as_ref().is_some_and(|p| expr_uses(p))
                     || query.where_pred.as_ref().is_some_and(|p| expr_uses(p))
                     || query.limit.as_ref().is_some_and(|p| expr_uses(p))
                     || query.archived.as_ref().is_some_and(|p| expr_uses(p))
+                    || query.select.as_ref().is_some_and(|p| expr_uses(p))
             }
             IrExpr::DeliveryRead { record, .. } => expr_uses(record),
             IrExpr::Message(message) => message.params.iter().any(|p| expr_uses(&p.value)),

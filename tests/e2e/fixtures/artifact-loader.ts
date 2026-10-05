@@ -11,8 +11,8 @@
  *   reads + validates the file and the same specs run unmodified.
  *
  * Validation enforces artifact.ts v1 compatibility exactly: additive-only,
- * `artifact_version` 1, unknown callable kinds or malformed `requires`
- * entries are precise errors, never silent support.
+ * `artifact_version` 1, unknown callable kinds, malformed `member` paths,
+ * or malformed `requires` entries are precise errors, never silent support.
  *
  * Producer dist bundling: the worker runs REAL producer code — @canlang/ui
  * rendering, @canlang/identity auth/session logic, and @canlang/contracts
@@ -70,16 +70,38 @@ export function assertSupportedArtifact(artifact: CompileArtifact): void {
   if (artifact.modules.length === 0) {
     throw new Error("e2e loader: artifact has no modules; modules[0] must be the entrypoint");
   }
-  for (const callable of artifact.callables) {
+  for (const [index, callable] of artifact.callables.entries()) {
     if (!CALLABLE_KINDS.has(callable.kind)) {
       throw new Error(`e2e loader: unknown callable kind ${JSON.stringify(callable.kind)}`);
+    }
+    // Member-shape check mirrors the B1 runtime loader
+    // (packages/cloudflare/src/runtime/artifact.ts): the registry path must
+    // be present and well-formed, else the artifact predates the linkage
+    // contract and must be recompiled.
+    const member: unknown = callable.member;
+    if (
+      !Array.isArray(member) ||
+      member.length === 0 ||
+      !member.every((segment) => typeof segment === "string" && segment.length > 0)
+    ) {
+      throw new Error(
+        `e2e loader: callables[${index}].member for callable ${JSON.stringify(callable.id)} must be a ` +
+          `non-empty array of non-empty strings (registry path into canApp()); ` +
+          "recompile with the fixed `can compile`",
+      );
     }
   }
   for (const requirement of artifact.requires) {
     if (typeof requirement.capability !== "string" || requirement.capability.length === 0) {
       throw new Error("e2e loader: requires entry with empty capability");
     }
-    if (!Number.isInteger(requirement.min_version) || requirement.min_version < 1) {
+    // `>= 0`, not `>= 1`: the real producer (`can compile`, via
+    // `compute_requires` in compiler/src/codegen/artifact.rs) emits
+    // `{capability: "canlang.builtins", min_version: 0}`, and the contract
+    // (ArtifactRequirement.min_version) types it as a plain `number` with no
+    // minimum. Matches the B1 runtime loader
+    // (packages/cloudflare/src/runtime/artifact.ts), which accepts 0.
+    if (!Number.isInteger(requirement.min_version) || requirement.min_version < 0) {
       throw new Error(
         `e2e loader: requires entry ${JSON.stringify(requirement.capability)} has bad min_version`,
       );
