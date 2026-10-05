@@ -32,6 +32,15 @@
  * to the deny-closed interim adapter (join J2 pending) unless
  * `AssemblyDeps.mcp.permissions` is supplied. Without the factory,
  * `/mcp` answers the explicit interim 501 naming the join.
+ *
+ * T16b canonical routing (additive): generated artifacts (T15a
+ * descriptors present) invoke mutations through the canonical state
+ * path (`runtime/invoke.ts` `invokeMutationCanonical`) and refuse
+ * reads with precise `validation` errors; descriptor-less artifacts
+ * keep the interim direct bridge untouched. Assembly additionally
+ * gates on the T04a contract pins, `requires[]` fulfillment, and a
+ * descriptor preload for generated artifacts — all fail-loud before
+ * serving.
  */
 
 import type {
@@ -59,6 +68,12 @@ import type {
 } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
 import type { CallerInfo, HandlerContext } from "../runtime/context.js";
+import type {
+  CanonicalMembershipReader,
+  CanonicalMutationOpts,
+  ContractVersionSet,
+  RequiresProvidedVersions,
+} from "../runtime/invoke.js";
 import type {
   McpPermissions,
   OperationRegistry,
@@ -342,6 +357,30 @@ type CreateArtifactCatalog = (artifact: CompileArtifact) => SchemaCatalog;
 /** Sibling `createDenyClosedMcpPermissions()` (`src/runtime/mcp-registry.ts`; P2). */
 type CreateDenyClosedMcpPermissions = () => McpPermissions;
 
+/** Sibling `isGeneratedArtifact(artifact)` (`src/runtime/invoke.ts`; T16b). */
+type IsGeneratedArtifact = (artifact: CompileArtifact) => boolean;
+
+/** Sibling `invokeMutationCanonical(opts)` (`src/runtime/invoke.ts`; T16b). */
+type InvokeMutationCanonical = (opts: CanonicalMutationOpts) => Promise<MutationResult>;
+
+/** Sibling `loadCanonicalDescriptors(asm, artifact)` (`src/runtime/invoke.ts`; T16b). */
+type LoadCanonicalDescriptors = (
+  asm: AssembledModules,
+  artifact: CompileArtifact,
+) => Promise<unknown>;
+
+/** Sibling `loadContractVersions()` (`src/runtime/invoke.ts`; T16b). */
+type LoadContractVersions = () => Promise<ContractVersionSet>;
+
+/** Sibling `assertT04aContractPins(provided)` (`src/runtime/invoke.ts`; T16b). */
+type AssertT04aContractPins = (provided: ContractVersionSet) => void;
+
+/** Sibling `assertRequiresFulfilled(requires, provided)` (`src/runtime/invoke.ts`; T16b). */
+type AssertRequiresFulfilled = (
+  requires: ReadonlyArray<{ readonly capability: string; readonly min_version: number }>,
+  provided: RequiresProvidedVersions,
+) => void;
+
 /* ------------------------------------------------------------------ */
 /* Assembly inputs/outputs.                                            */
 /* ------------------------------------------------------------------ */
@@ -444,6 +483,23 @@ const KNOWN_CALLABLE_KINDS: ReadonlySet<string> = new Set([
   "migration",
 ]);
 
+/**
+ * T16b restated requires vocabulary (transcribes `compute_requires` in
+ * `compiler/src/codegen/artifact.rs`, `KNOWN_CAPABILITIES` in
+ * `src/deploy/installed.ts`, and `REQUIRES_CAPABILITY_MAP` in
+ * `src/deploy/activate.ts`): the six producer capability ids; the
+ * version-fulfillment twin lives in `src/runtime/invoke.ts`
+ * (`assertRequiresFulfilled`) and must stay in sync with this set.
+ */
+const T16B_KNOWN_REQUIRES_IDS: ReadonlySet<string> = new Set([
+  "canlang.builtins",
+  "state",
+  "values.decimal",
+  "values.int64",
+  "values.money",
+  "values.temporal",
+]);
+
 function assertArtifactCompatible(artifact: CompileArtifact): void {
   if (artifact.artifact_version !== SUPPORTED_ARTIFACT_VERSION) {
     throw new Error(
@@ -476,6 +532,16 @@ function assertArtifactCompatible(artifact: CompileArtifact): void {
     if (typeof requirement.min_version !== "number" || !Number.isFinite(requirement.min_version)) {
       throw new Error(
         `assembly: requires entry ${JSON.stringify(requirement.capability)} has non-numeric min_version`,
+      );
+    }
+    // T16b (T04a §7): unknown capability ids reject at assembly (never
+    // silently treated as supported); version fulfillment runs in
+    // `assertServingContracts` once the contracts copy loads.
+    if (!T16B_KNOWN_REQUIRES_IDS.has(requirement.capability)) {
+      throw new Error(
+        `assembly: artifact requires unknown capability ${JSON.stringify(requirement.capability)} ` +
+          `(min_version ${requirement.min_version}); known: ` +
+          `canlang.builtins, state, values.decimal, values.int64, values.money, values.temporal`,
       );
     }
   }
@@ -692,17 +758,117 @@ async function invokeOperationCore(
 }
 
 /**
+ * Canonical invoker options (T16b, additive 4th parameter — existing
+ * 3-argument callers keep the interim direct path for descriptor-less
+ * artifacts byte-identically).
+ */
+export interface CanonicalInvokerOpts {
+  /**
+   * Membership reader for canonical admission (the IdentityStore,
+   * validated structurally at the canonical boundary). REQUIRED for
+   * generated artifacts; ignored on the interim direct path.
+   */
+  readonly memberships?: CanonicalMembershipReader;
+  /** Serving-source label; defaults to `worker` (the MCP path passes `mcp`). */
+  readonly source?: string;
+  /** Admission clock; defaults to `Date.now`. */
+  readonly now?: () => number;
+}
+
+/**
+ * T16b read-envelope refusal for generated artifacts: reads execute
+ * through the query port (T17), and mutation operations require the
+ * mutation envelope — the interim direct projection would bypass
+ * admission, so it is closed here with precise `validation` errors
+ * (read text mirrors the canonical invoke read-guard).
+ */
+function generatedReadRefusal(artifact: CompileArtifact, operation: string): BusinessError {
+  const raw: unknown = (artifact as unknown as { operations?: unknown }).operations;
+  if (!Array.isArray(raw)) {
+    return {
+      code: "validation",
+      message: "Generated artifact operations are malformed.",
+      retryable: false,
+    };
+  }
+  for (const entry of raw) {
+    if (!isRecord(entry) || entry["name"] !== operation) continue;
+    if (entry["kind"] === "read") {
+      return {
+        code: "validation",
+        message:
+          `Read operation ${JSON.stringify(operation)} cannot run through invoke; ` +
+          "reads execute through the query port.",
+        retryable: false,
+      };
+    }
+    const kind: unknown = entry["kind"];
+    return {
+      code: "validation",
+      message:
+        typeof kind === "string" && kind !== ""
+          ? `Operation ${JSON.stringify(operation)} is a ${kind} operation; ` +
+            "mutations require the mutation envelope."
+          : `Operation ${JSON.stringify(operation)} carries no readable kind.`,
+      retryable: false,
+    };
+  }
+  return {
+    code: "validation",
+    message: `Unknown operation ${JSON.stringify(operation)}.`,
+    retryable: false,
+  };
+}
+
+/**
  * Build the `OperationInvoker` callable bridge. Exported as the join seam:
  * the interfaces join feeds it into `HttpDeps`; invoking an operation
  * while a sibling is not built fails loud naming the missing module.
+ *
+ * T16b routing: generated artifacts (T15a descriptors present) execute
+ * mutations through the canonical state path (admit -> execute ->
+ * receipt) and refuse reads with precise `validation` errors;
+ * descriptor-less artifacts keep the interim direct path below
+ * untouched (existing suites pin it; T17 retires it).
  */
 export function buildInvoker(
   artifact: CompileArtifact,
   asm: AssembledModules,
   store: StoragePort,
+  opts: CanonicalInvokerOpts = {},
 ): OperationInvoker {
   return {
     invokeMutation: async (envelope, identity): Promise<MutationOutcome> => {
+      const isGeneratedArtifact = await loadSiblingFn<IsGeneratedArtifact>(
+        "../runtime/invoke.js",
+        "runtime/invoke.ts",
+        "isGeneratedArtifact",
+      );
+      if (isGeneratedArtifact(artifact)) {
+        try {
+          const invokeCanonical = await loadSiblingFn<InvokeMutationCanonical>(
+            "../runtime/invoke.js",
+            "runtime/invoke.ts",
+            "invokeMutationCanonical",
+          );
+          const result = await invokeCanonical({
+            asm,
+            artifact,
+            operation: envelope.operation,
+            operationId: envelope.operation_id,
+            inputs: envelope.inputs,
+            identity,
+            app: interimAppInfo(artifact).appId,
+            source: opts.source ?? "worker",
+            store,
+            memberships: opts.memberships as CanonicalMembershipReader,
+            now: opts.now ?? Date.now,
+          });
+          return { result };
+        } catch (error) {
+          return { error: toBusinessError(error, envelope.operation_id) };
+        }
+      }
       // Interim envelope->args projection (the sibling join owns the
       // canonical one): business inputs plus the receipt identity, as a
       // single handler argument (invoke spreads an ARRAY).
@@ -721,6 +887,14 @@ export function buildInvoker(
       return { result: outcome.value as unknown as MutationResult };
     },
     invokeRead: async (envelope, identity): Promise<ReadOutcome> => {
+      const isGeneratedArtifact = await loadSiblingFn<IsGeneratedArtifact>(
+        "../runtime/invoke.js",
+        "runtime/invoke.ts",
+        "isGeneratedArtifact",
+      );
+      if (isGeneratedArtifact(artifact)) {
+        return { error: generatedReadRefusal(artifact, envelope.operation) };
+      }
       const outcome = await invokeOperationCore(asm, artifact, store, envelope.operation, identity, [
         { inputs: envelope.inputs },
       ]);
@@ -966,7 +1140,14 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
     registry,
     permissions,
     // THE same bridge HTTP consumes at the join: one invoker, both transports.
-    invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store),
+    // T16b: the MCP path threads canonical admission deps (the live
+    // identity store, the source label, the worker clock);
+    // descriptor-less artifacts ignore them on the interim direct path.
+    invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store, {
+      memberships: ctx.identityStore as CanonicalMembershipReader,
+      source: "mcp",
+      now,
+    }),
     catalog,
     files: {
       usesFiles: (_app: unknown): boolean => {
@@ -1108,6 +1289,35 @@ function buildInterimFetch(
 /* ------------------------------------------------------------------ */
 
 /**
+ * T16b serve-time contract gate (T04a §7): the loaded contracts copy
+ * must carry exactly the T04a v1 pins, and the artifact's `requires[]`
+ * must be fulfilled by this runtime — precise throws, never silent
+ * fallback. Runs for EVERY artifact (pins and requires are
+ * artifact-universal); fixtures with empty `requires[]` pass
+ * trivially.
+ */
+async function assertServingContracts(artifact: CompileArtifact): Promise<void> {
+  const loadVersions = await loadSiblingFn<LoadContractVersions>(
+    "../runtime/invoke.js",
+    "runtime/invoke.ts",
+    "loadContractVersions",
+  );
+  const assertPins = await loadSiblingFn<AssertT04aContractPins>(
+    "../runtime/invoke.js",
+    "runtime/invoke.ts",
+    "assertT04aContractPins",
+  );
+  const assertRequires = await loadSiblingFn<AssertRequiresFulfilled>(
+    "../runtime/invoke.js",
+    "runtime/invoke.ts",
+    "assertRequiresFulfilled",
+  );
+  const versions = await loadVersions();
+  assertPins(versions);
+  assertRequires(artifact.requires, { state: versions.state, values: versions.values });
+}
+
+/**
  * B3-I6 activation refusal: a worker assembled with a failed verdict
  * serves NOTHING. Every request — known routes, unknown paths, any
  * method — gets the same 500 `activation-refused` envelope naming the
@@ -1165,6 +1375,23 @@ export async function assembleWorker(
     return buildRefusalFetch(verdict);
   }
   assertArtifactCompatible(artifact);
+  await assertServingContracts(artifact);
+  const generatedArtifact = await loadSiblingFn<IsGeneratedArtifact>(
+    "../runtime/invoke.js",
+    "runtime/invoke.ts",
+    "isGeneratedArtifact",
+  );
+  if (generatedArtifact(artifact)) {
+    // Preload (and refuse) before serving: incompatible descriptors or
+    // untranscribable gates throw here, and the per-artifact load warms
+    // for every later invocation this worker serves.
+    const preload = await loadSiblingFn<LoadCanonicalDescriptors>(
+      "../runtime/invoke.js",
+      "runtime/invoke.ts",
+      "loadCanonicalDescriptors",
+    );
+    await preload(asm, artifact);
+  }
 
   const { descriptors } = await loadPageRegistry(artifact, asm);
 
