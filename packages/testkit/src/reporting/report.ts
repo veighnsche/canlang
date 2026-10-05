@@ -4,11 +4,48 @@ import {
   type ExampleCaseResult,
   type ExampleReport,
   type ExampleSummary,
+  type SequenceStepResult,
+  type TableRowResult,
 } from "@canlang/contracts";
 
 export interface ReportBuilder {
   addCase(result: ExampleCaseResult): void;
   build(): ExampleReport;
+}
+
+/**
+ * B3 I2: 1-based `.can` position a failure maps to. Mirrors the sourcemap
+ * `lookup` output shape (`@canlang/cloudflare` runtime).
+ */
+export interface FailureLocation {
+  readonly source: string;
+  /** 1-based source line. */
+  readonly line: number;
+  /** 1-based source column. */
+  readonly column: number;
+}
+
+/** Render a failure location as `source:line:column`. */
+export function formatFailureLocation(location: FailureLocation): string {
+  return `${location.source}:${location.line}:${location.column}`;
+}
+
+/** Row/step results eligible for a mapped failure location. */
+export type FailureEntry = TableRowResult | SequenceStepResult;
+
+/**
+ * B3 I2: return a copy of a failure entry with the mapped `.can` location
+ * appended to `detail`. Additive only: the contracts report types carry no
+ * location field, so the location rides the human/machine `detail` string;
+ * entries without a location pass through `addCase` untouched.
+ */
+export function withFailureLocation<T extends FailureEntry>(
+  entry: T,
+  location: FailureLocation,
+): T {
+  const suffix = ` (at ${formatFailureLocation(location)})`;
+  const detail = entry.detail === undefined ? `failure${suffix}` : `${entry.detail}${suffix}`;
+  return { ...entry, detail };
 }
 
 /**
