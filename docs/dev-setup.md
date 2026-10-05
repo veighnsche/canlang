@@ -1,5 +1,7 @@
 # Developer setup (fresh machine)
 
+Repository organization is tracked in the [living ideal file-tree plan](ideal-filetree-plan.md). After every merge, its handler reconciles changes since the checkpoint and updates the plan; its proposals remain deferred until separately authorized.
+
 Verified verbatim on macOS on 2026-10-04 from a clean clone (commit
 `173e4b6`, lane-07 status holds the evidence log; bun-workspace commands
 re-verified locally the same day during the npm-to-bun migration). Linux
