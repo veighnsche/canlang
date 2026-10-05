@@ -11,8 +11,8 @@ use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog}
 use canlang_compiler::analysis::{CheckedProgram, check_program};
 use canlang_compiler::diagnostic::Diagnostic;
 use canlang_compiler::docs::{
-    REFERENCE_MODEL_VERSION, ReferenceAvailability, ReferenceModel, extract_reference,
-    portable_source_id,
+    REFERENCE_MODEL_VERSION, ReferenceAvailability, ReferenceDescriptionValue, ReferenceModel,
+    extract_reference, portable_source_id,
 };
 use canlang_compiler::json::{self, Json};
 use canlang_compiler::source::{SourceDb, SourceId, Span};
@@ -918,8 +918,9 @@ fn operation_tables_become_labeled_row_examples() {
 
 // --- App-default locale (P-A) ----------------------------------------------------
 
-/// Composed app selecting the shop package; its own `source=` is the
-/// default even though it carries no body (the single-app case).
+/// Composed Dutch-source app selecting the shop package, with NO `context`
+/// default: the single-app case must resolve to the pinned `"en"`, proving
+/// `source=` is never read as the default (R-D07-05 conflation fix).
 const PA_APP_SRC: &str = "app Shop uses=[shop] source=\"nl\"\n";
 
 /// English package selected by the composed app (package bodies take
@@ -947,9 +948,14 @@ fn check_clean_multi(sources: &[(&str, &str)]) -> (SourceDb, Vec<SourceId>, Chec
     (db, ids, program)
 }
 
-/// (R4 P-A) The app default locale comes from the single app module — the
-/// composed `Shop` app's `source="nl"` — regardless of input order. The
-/// package-first order previously selected the package's `source="en"`.
+/// (R5) Source language is NOT the app default (R-D07-05 conflation
+/// fix): the composed `Shop` app declares `source="nl"` but no `context` /
+/// `locale default=`, so the single-app default is the pinned `"en"`
+/// (DESIGN:887) in both input orders. R4 P-A expected `"nl"` here by
+/// reading the app's source tag; that conflated authored wording
+/// (DESIGN:850) with viewer selection. No checked default is declared
+/// anywhere in this fixture, so both orders agree on the pinned default
+/// for the right reason.
 #[test]
 fn app_default_locale_follows_the_single_app_module() {
     for (first, second) in [
@@ -959,8 +965,8 @@ fn app_default_locale_follows_the_single_app_module() {
         let (db, ids, program) = check_clean_multi(&[first, second]);
         let model = extract_reference(&db, &ids, &program);
         assert_eq!(
-            model.app_default_locale, "nl",
-            "single-app default from the app module ({} first)",
+            model.app_default_locale, "en",
+            "absent checked default resolves to pinned en ({} first)",
             first.0
         );
         // Per-description owner language stays independent of the default.
@@ -977,6 +983,9 @@ fn app_default_locale_follows_the_single_app_module() {
 }
 
 /// Two packages with mixed `source=` tags (package-only fallback input).
+/// Packages admit no `context` (the parser accepts it only after an app
+/// header), so no checked default is publishable here: both orders must
+/// resolve to the pinned `"en"` regardless of the `source=` tags.
 const FALLBACK_PKG_A_SRC: &str = concat!(
     "package Alpha source=\"nl\"\n",
     " Given\n",
@@ -996,9 +1005,12 @@ const FALLBACK_PKG_B_SRC: &str = concat!(
     " Then\n",
 );
 
-/// Two implicit apps with mixed tags (multi-app fallback input).
+/// Implicit app with an explicit Dutch checked default (multi-app
+/// fallback input): its default wins when it is the first module.
 const FALLBACK_APP_A_SRC: &str = concat!(
     "app Alpha source=\"nl\"\n",
+    "context\n",
+    " locale default=\"nl\"\n",
     "Given\n",
     " Gadget { title:text }\n",
     " policy Gadget read=members\n",
@@ -1006,7 +1018,9 @@ const FALLBACK_APP_A_SRC: &str = concat!(
     "Then\n",
 );
 
-/// Second implicit app with the other tag.
+/// Second implicit app with NO `context` default: an unchanged default
+/// must be omitted (DESIGN:887), so Beta-first resolves to the pinned
+/// `"en"` — via absence, not via its `source="en"` tag.
 const FALLBACK_APP_B_SRC: &str = concat!(
     "app Beta source=\"en\"\n",
     "Given\n",
@@ -1016,18 +1030,22 @@ const FALLBACK_APP_B_SRC: &str = concat!(
     "Then\n",
 );
 
-/// (R4 P-A) Package-only and multi-app inputs keep the first-module
-/// fallback: the first analyzed module's tag wins in both orders. No
-/// invented policy beyond this documented order rule.
+/// (R5) First-module fallback reads CHECKED defaults, never source tags.
+/// Package-only inputs admit no publishable default (see above), so both
+/// orders resolve to the pinned `"en"`. Multi-app inputs read the first
+/// module's checked default: Alpha's explicit Dutch default wins when
+/// Alpha is first, Beta's absent default pins `"en"` when Beta is first.
+/// No invented policy beyond this documented order rule.
 #[test]
 fn app_default_locale_falls_back_to_first_module() {
-    for (name, sources) in [
+    for (name, sources, wants) in [
         (
             "package-only",
             [
                 ("alpha.can", FALLBACK_PKG_A_SRC),
                 ("beta.can", FALLBACK_PKG_B_SRC),
             ],
+            ["en", "en"],
         ),
         (
             "multi-app",
@@ -1035,11 +1053,12 @@ fn app_default_locale_falls_back_to_first_module() {
                 ("alpha.can", FALLBACK_APP_A_SRC),
                 ("beta.can", FALLBACK_APP_B_SRC),
             ],
+            ["nl", "en"],
         ),
     ] {
         for (first, second, want) in [
-            (sources[0], sources[1], "nl"),
-            (sources[1], sources[0], "en"),
+            (sources[0], sources[1], wants[0]),
+            (sources[1], sources[0], wants[1]),
         ] {
             let (db, ids, program) = check_clean_multi(&[first, second]);
             let model = extract_reference(&db, &ids, &program);
@@ -1049,6 +1068,116 @@ fn app_default_locale_falls_back_to_first_module() {
                 first.0
             );
         }
+    }
+}
+
+// --- Checked locale default (R5) -------------------------------------------------
+
+/// Composed English-source app with an explicit Dutch deployment default:
+/// the checked default (`nl`) must win over the app's own `source="en"`.
+const PA_APP_DEFAULT_SRC: &str = concat!(
+    "app Shop uses=[shop] source=\"en\"\n",
+    "context\n",
+    " locale default=\"nl\"\n",
+);
+
+/// English package with one Dutch-variant description (default leg) and
+/// one variant-less description (source leg) for the chain control.
+const PA_CHAIN_PKG_SRC: &str = concat!(
+    "package shop source=\"en\"\n",
+    " Given\n",
+    "  # Gadget prose. @{nl=\"Gadgettekst.\"}\n",
+    "  Gadget { title:text }\n",
+    "  # Widget prose.\n",
+    "  Widget { title:text }\n",
+    "  policy Gadget read=members\n",
+    "  policy Widget read=members\n",
+    " When\n",
+    " Then\n",
+);
+
+/// Description wording of one extracted declaration by name.
+fn described<'a>(model: &'a ReferenceModel, name: &str) -> &'a ReferenceDescriptionValue {
+    model
+        .owners
+        .iter()
+        .flat_map(|o| &o.declarations)
+        .find(|d| d.name == name)
+        .unwrap_or_else(|| panic!("{name} extracted"))
+        .description
+        .as_ref()
+        .unwrap_or_else(|| panic!("{name} described"))
+}
+
+/// (R5) English source plus an explicit Dutch checked default resolves to
+/// Dutch: the composed app's `locale default="nl"` wins over its own
+/// `source="en"`, regardless of input order. The mirror of the
+/// no-context correction above: source and default are independent facts.
+#[test]
+fn app_default_locale_prefers_the_checked_default_over_source() {
+    for (first, second) in [
+        (
+            ("shop-app.can", PA_APP_DEFAULT_SRC),
+            ("shop-pkg.can", PA_PKG_SRC),
+        ),
+        (
+            ("shop-pkg.can", PA_PKG_SRC),
+            ("shop-app.can", PA_APP_DEFAULT_SRC),
+        ),
+    ] {
+        let (db, ids, program) = check_clean_multi(&[first, second]);
+        let model = extract_reference(&db, &ids, &program);
+        assert_eq!(
+            model.app_default_locale, "nl",
+            "explicit Dutch default wins over English source ({} first)",
+            first.0
+        );
+        let gadget = described(&model, "Gadget");
+        assert_eq!(gadget.source, "Gadget prose.");
+        assert_eq!(gadget.source_lang, "en");
+        let tags: Vec<&str> = gadget.variants.iter().map(|v| v.tag.as_str()).collect();
+        assert_eq!(tags, vec!["nl"]);
+    }
+}
+
+/// (R5) Requested → default → source chain payload (DESIGN:891): under an
+/// explicit Dutch default over English sources, an unavailable requested
+/// locale resolves per description — the Dutch variant where authored
+/// (default leg), the English source where no Dutch variant exists
+/// (source leg). Resolution itself is the existing TS `resolveVariant`
+/// contract (requested → appDefault → source); this pins the Rust-side
+/// payload triple (default + source + variants) in both input orders.
+/// End-to-end rendering rides the `can docs --locale` probe.
+#[test]
+fn unavailable_requested_locale_falls_back_through_default_to_source() {
+    for (first, second) in [
+        (
+            ("shop-app.can", PA_APP_DEFAULT_SRC),
+            ("shop-pkg.can", PA_CHAIN_PKG_SRC),
+        ),
+        (
+            ("shop-pkg.can", PA_CHAIN_PKG_SRC),
+            ("shop-app.can", PA_APP_DEFAULT_SRC),
+        ),
+    ] {
+        let (db, ids, program) = check_clean_multi(&[first, second]);
+        let model = extract_reference(&db, &ids, &program);
+        assert_eq!(
+            model.app_default_locale, "nl",
+            "chain runs under the explicit Dutch default ({} first)",
+            first.0
+        );
+        // Default leg: Dutch variant over the English source.
+        let gadget = described(&model, "Gadget");
+        assert_eq!(gadget.source_lang, "en");
+        let tags: Vec<&str> = gadget.variants.iter().map(|v| v.tag.as_str()).collect();
+        assert_eq!(tags, vec!["nl"]);
+        assert_eq!(gadget.variants[0].text.as_deref(), Some("Gadgettekst."));
+        // Source leg: no variants, so the chain ends at the English source.
+        let widget = described(&model, "Widget");
+        assert_eq!(widget.source, "Widget prose.");
+        assert_eq!(widget.source_lang, "en");
+        assert!(widget.variants.is_empty());
     }
 }
 
@@ -1380,6 +1509,61 @@ fn operation_sequences_become_authored_source_examples() {
         .expect("close operation extracted");
     let row_labels: Vec<&str> = close.examples.iter().map(|e| e.label.as_str()).collect();
     assert_eq!(row_labels, vec!["row-1", "row-2"]);
+}
+
+// --- Mixed table + sequence order pin (R5) ----------------------------------------
+
+/// One scenario carrying BOTH a sequence-form block (first in source) and
+/// a table-form block (second): pins deterministic source-order merge.
+/// A shape-grouped merge would emit `row-1` before `seq-1`; the contract
+/// is `(file, span.start)` order with independent per-shape counters.
+const MIXED_SRC: &str = concat!(
+    "app Probe\n",
+    "Given\n",
+    " Expense { amount:int }\n",
+    " policy Expense read=members\n",
+    " fixture pending=Expense {amount=1}\n",
+    "When\n",
+    " scenario approve(expense:Expense) by=members\n",
+    "  do\n",
+    "   let x = 1\n",
+    "  examples\n",
+    "   do\n",
+    "    call approve {expense=pending} by=self\n",
+    "    expense.amount -> 1\n",
+    "  examples expense=pending\n",
+    "   as -> expense.amount\n",
+    "   members -> 1\n",
+    "Then\n",
+);
+
+/// (R5) Mixed table + sequence blocks on one operation merge in source
+/// order: the earlier sequence block yields `seq-1` first, the later
+/// table's data row yields `row-1` second. Per-shape counters (`seq-N`
+/// counts sequence blocks, `row-N` counts data rows across tables) stay
+/// independent while entries interleave by `(file, start)`.
+#[test]
+fn mixed_table_and_sequence_examples_merge_in_source_order() {
+    let (db, id, program) = check_clean("probe.can", MIXED_SRC);
+    assert_eq!(program.examples.tables.len(), 1);
+    assert_eq!(program.examples.sequences.len(), 1);
+    let model = extract_reference(&db, &[id], &program);
+    let approve = model.owners[0]
+        .operations
+        .iter()
+        .find(|o| o.id == "Probe.approve")
+        .expect("approve operation extracted");
+    let labels: Vec<&str> = approve.examples.iter().map(|e| e.label.as_str()).collect();
+    assert_eq!(labels, vec!["seq-1", "row-1"]);
+    let sequence = &approve.examples[0];
+    assert_eq!(
+        sequence.source,
+        "examples\n   do\n    call approve {expense=pending} by=self\n    expense.amount -> 1"
+    );
+    assert_eq!(sequence.expected, None);
+    let row = &approve.examples[1];
+    assert_eq!(row.source, "members");
+    assert_eq!(row.expected.as_deref(), Some("1"));
 }
 
 /// (R4 P-B) Dotted `#= shop.blurb` stays unresolved: the checker rejects it
