@@ -322,6 +322,10 @@ function readVendorTree(repoRoot: string, tree: VendorTree): Record<string, stri
         continue;
       }
       if (!entry.endsWith(".js")) continue;
+      // T16a-followup: colocated unit tests emit beside sources (node --test
+      // runs them from dist) but must never vendor — workerd has no
+      // node:test resolution. The deploy-bundle/cli suites pin this.
+      if (entry.endsWith(".test.js")) continue;
       const key = `${tree.prefix}/${relative(base, full).split(sep).join("/")}`;
       modules[key] = rewriteVendorImports(readFileSync(full, "utf8"), key);
     }
