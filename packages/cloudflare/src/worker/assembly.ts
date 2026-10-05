@@ -177,8 +177,10 @@ export interface McpFilesInfo {
  * Mirror of `McpDeps` (`packages/interfaces/src/ports.ts:221`). The P2
  * worker assembly constructs these per `/mcp` request; the interfaces
  * join replaces the mirror with the real import. Widenings are confined
- * to the two documented seams above (`identity.store`,
- * app-accepting-but-ignoring `registry`/`files`).
+ * to the three documented seams (`identity.store`,
+ * app-accepting-but-ignoring `registry`/`files`, and `brand`/
+ * `ownerLabels` narrowed to `string` — runtime-safe since
+ * `MessageValue = string | …`).
  */
 export interface McpDeps {
   readonly app: AppInfo;

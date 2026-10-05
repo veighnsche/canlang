@@ -8,10 +8,9 @@
  *
  * The fixture artifact below is HAND-WRITTEN JSON, honestly labeled: NOT
  * compiler output (`tool_version: "mcp-route-fixture/0"`). Its
- * `operations[]` entries follow the P1 shape (`/tmp/mcp-scope.md` §c-P1:
- * {name, kind, description, inputs}) which `CompileArtifact` does not
- * carry yet — hence the documented cast. The day P1 lands, the cast goes
- * away and this fixture must match P1's emitter field-for-field.
+ * `operations[]` entries follow the P1 shape (`compiler/tests/mcp_p1.rs`
+ * golden: {name, kind, description, inputs}); the documented cast carries
+ * the `unknown[]` fixture entries into the typed artifact.
  *
  * Cross-package imports are test-only (the worker boundary still forbids
  * them from `src/`): the REAL `createMcpHandler` from interfaces dist is
@@ -166,8 +165,8 @@ function fixtureArtifact(): CompileArtifact {
     pages: [],
     requires: [],
     tests: [],
-    // P1 field (`CompileArtifact.operations`, §c-P1): present at runtime
-    // once the sibling packet lands; until then this cast carries it.
+    // P1 field (`CompileArtifact.operations`): the `unknown[]` fixture
+    // entries ride the cast at the end of this literal.
     operations: fixtureOperations(),
   } as unknown as CompileArtifact;
 }
@@ -323,6 +322,43 @@ describe("worker POST /mcp", () => {
     const ordinary = mutSchema.anyOf[0];
     expect(ordinary === undefined ? [] : ordinary.required).toContain("operation_id");
     expect(ordinary === undefined ? [] : ordinary.required).toContain("title");
+  });
+
+  it("carries @{desc} field descriptions into tools/list inputSchema", async () => {
+    const ops: unknown[] = [
+      {
+        name: MUT_OP,
+        kind: "create",
+        description: "Create a todo.",
+        inputs: {
+          fields: [
+            {
+              name: "title",
+              field: { kind: "string" },
+              required: true,
+              description: "The todo title.",
+            },
+            { name: "done", field: { kind: "boolean" }, required: false },
+          ],
+        },
+      },
+    ];
+    const { fetch, grantToken } = await assembleMcpWorker({ ops, permissions: allowAllPermissions() });
+    const { status, body } = await mcpCall(fetch, "tools/list", {}, { grant: grantToken });
+    expect(status).toBe(200);
+    const tools = (
+      body.result as {
+        tools: Array<{
+          name: string;
+          inputSchema: { anyOf: Array<{ properties: Record<string, Record<string, unknown>> }> };
+        }>;
+      }
+    ).tools;
+    const tool = tools.find((t) => t.name === MUT_OP);
+    expect(tool).toBeDefined();
+    const ordinary = tool?.inputSchema.anyOf[0]?.properties;
+    expect(ordinary?.["title"]?.["description"]).toBe("The todo title.");
+    expect("description" in (ordinary?.["done"] ?? {})).toBe(false);
   });
 
   it("calls a read op through the worker invoker, threading the grant identity", async () => {

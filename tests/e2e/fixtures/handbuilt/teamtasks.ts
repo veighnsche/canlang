@@ -32,6 +32,9 @@
  *   both satisfy it.
  * - P1 also emits update/delete ops (uncaptioned `""` here); the fixture
  *   serves only the two ops the spec exercises (never claimed complete).
+ * - The fixture read op carries `"Tasks and completion."` (serving card);
+ *   real P4 emits `""` for policy-read ops (no caption source exists for
+ *   policies). No test pins the read description, so behavior is unaffected.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
