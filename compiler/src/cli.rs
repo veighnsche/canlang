@@ -912,6 +912,13 @@ fn run_docs_with_platform(
     }
     let mut db = SourceDb::new();
     let mut files = Vec::new();
+    // Portable registration: absolute operands under the project root (the
+    // process working directory, same root as the catalog `./` candidates)
+    // are stored project-relative; absolute operands outside stay truthful
+    // `external:...` identities. Relative operands pass through verbatim,
+    // so relative runs are byte-identical before/after. Reads still use the
+    // original spelling (refusal above already compared both spellings).
+    let root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     for path in operands {
         let text = match std::fs::read_to_string(path) {
             Ok(text) => text,
@@ -919,7 +926,7 @@ fn run_docs_with_platform(
                 return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
             }
         };
-        files.push(db.add(path.clone(), text));
+        files.push(db.add(crate::docs::portable_source_id(path, &root), text));
     }
     let owned = analyzer.analyze_owned(&db, tool_version());
     let mut result = owned.result;

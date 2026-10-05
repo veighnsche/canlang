@@ -49,7 +49,9 @@
 //!   the default reading locale. Per-description source languages still
 //!   travel on each description value.
 //! - `source_revision` is a content hash (lowercase hex SHA-256 over
-//!   path-sorted `(path, text)` pairs), never a wall-clock timestamp.
+//!   path-sorted `(portable_path, text)` pairs), never a wall-clock
+//!   timestamp. Paths are portable identities so absolute/relative
+//!   spellings of the same input hash identically.
 //! - `creation_required` reuses the existing MCP caller-required rule
 //!   (`js.rs`): no default, no `server=` owner (fields) and non-nullable.
 //!   Creation metadata stays distinct from value nullability.
@@ -68,6 +70,7 @@ use crate::analysis::{CheckedProgram, NodeKey};
 use crate::json::{self, Json};
 use crate::source::{SourceDb, SourceId, Span, sha256_hex};
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 /// Frozen reference-model version. Matches `REFERENCE_MODEL_VERSION` in
 /// `packages/contracts/src/reference.ts`; bump only with a contract revision.
@@ -87,7 +90,9 @@ const UNKNOWN_TYPE: &str = "unknown";
 /// Project-relative source span of one owning declaration.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReferenceSourceLocation {
-    /// Project-relative source path (the path registered in [`SourceDb`]).
+    /// Portable source identity (see [`portable_source_id`]): relative
+    /// paths verbatim, absolute paths under the project root relativized,
+    /// absolute paths outside marked `external:...`.
     pub source_id: String,
     /// Zero-based start offset in the source file.
     pub start: u32,
@@ -717,13 +722,16 @@ fn app_default_locale(program: &CheckedProgram) -> String {
         .unwrap_or_else(|| "en".to_string())
 }
 
-/// Content hash over path-sorted `(path, text)` pairs of the analyzed
-/// sources: deterministic file-order-independent revision identity.
+/// Content hash over path-sorted `(portable_path, text)` pairs of the
+/// analyzed sources: deterministic file-order-independent revision identity.
+/// Paths are portable identities (see [`portable_source_id`]) so absolute
+/// and relative spellings of the same input hash identically.
 fn source_revision(db: &SourceDb, files: &[SourceId]) -> String {
-    let mut pairs: Vec<(&str, &str)> = files
+    let root = docs_project_root();
+    let mut pairs: Vec<(String, &str)> = files
         .iter()
         .filter_map(|id| db.get(*id))
-        .map(|s| (s.path.as_str(), s.text.as_str()))
+        .map(|s| (portable_source_id(&s.path, &root), s.text.as_str()))
         .collect();
     pairs.sort();
     let mut bytes = Vec::new();
@@ -766,11 +774,65 @@ fn location(db: &SourceDb, key: &NodeKey) -> ReferenceSourceLocation {
     }
 }
 
-/// Project-relative source path for `file` (the registered path), or a
-/// synthetic `source-{n}` identity when the file is unknown to `db`.
+/// Portable source identity for `file` (the registered path normalized
+/// against the project root, see [`portable_source_id`]), or a synthetic
+/// `source-{n}` identity when the file is unknown to `db`.
 fn source_id(db: &SourceDb, file: SourceId) -> String {
-    db.get(file)
-        .map_or_else(|| format!("source-{}", file.0), |s| s.path.clone())
+    db.get(file).map_or_else(
+        || format!("source-{}", file.0),
+        |s| portable_source_id(&s.path, &docs_project_root()),
+    )
+}
+
+/// Project root for portable source identities: the process working
+/// directory — the same root that anchors the catalog `./` candidates
+/// ([`CatalogAnalyzer`](crate::cli::CatalogAnalyzer),
+/// [`load_catalog`](crate::analysis::catalog::load_catalog)) — or `.`
+/// when unreadable.
+fn docs_project_root() -> PathBuf {
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+/// Portable source identity for `path` against project `root`.
+///
+/// - Relative paths pass through verbatim (byte-identical for relative
+///   operands, including `..` spellings: they leak no absolute prefix).
+/// - Absolute paths under `root` become project-relative (`/`-separated).
+/// - Absolute paths outside `root` become `external:<absolute>`
+///   (truthful, stable, never silently relabeled as project-relative).
+///
+/// Canonicalization (when paths resolve) makes equivalent spellings agree
+/// (`./x` vs `x`, symlinks, redundant components — the same ownership rule
+/// as the `can docs --out` self-overwrite check); a lexical fallback keeps
+/// unresolvable absolutes deterministic.
+pub fn portable_source_id(path: &str, root: &Path) -> String {
+    let candidate = Path::new(path);
+    if candidate.is_relative() {
+        return path.to_string();
+    }
+    let canonical_root = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+    if let Ok(canonical_path) = std::fs::canonicalize(candidate) {
+        if let Ok(rel) = canonical_path.strip_prefix(&canonical_root) {
+            return rel_to_portable(rel);
+        }
+        return format!("external:{}", canonical_path.to_string_lossy());
+    }
+    if let Ok(rel) = candidate.strip_prefix(&canonical_root) {
+        return rel_to_portable(rel);
+    }
+    if let Ok(rel) = candidate.strip_prefix(root) {
+        return rel_to_portable(rel);
+    }
+    format!("external:{path}")
+}
+
+/// `/`-separated relative form of a stripped prefix (portable across
+/// platform separators; empty stays empty).
+fn rel_to_portable(rel: &Path) -> String {
+    rel.components()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 // --- JSON ------------------------------------------------------------------
