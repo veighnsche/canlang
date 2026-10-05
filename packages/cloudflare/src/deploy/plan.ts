@@ -5,12 +5,28 @@ import type {
   ScheduleRequirement,
 } from "@canlang/contracts";
 
+/**
+ * P-B deploy bundle reference: the self-contained worker the deploy wrote
+ * (`src/deploy/bundle.ts`). When present, the bundle IS the deploy `main`.
+ */
+export interface DeployBundleRef {
+  /** Bundle main, e.g. "./teamtasks.deploy/worker/main.js" (relative to the toml). */
+  main: string;
+  moduleCount: number;
+  sha256: string;
+}
+
 export interface DeployPlanOptions {
   workerName: string;
   /** Entry script path, e.g. "./dist/worker/entry.js". */
   main: string;
   /** Wrangler `compatibility_date`, supplied by deployment (not authored). */
   compatibilityDate: string;
+  /**
+   * P-B: when the deploy wrote a bundle, its ref — `wrangler.main` becomes
+   * the bundle main. Absent means the legacy `main` above (pre-bundle).
+   */
+  bundle?: DeployBundleRef;
 }
 
 /** Wrangler file config subset this lane generates. Secrets never appear here. */
@@ -35,6 +51,8 @@ export interface DeployPlan {
    * interval. Resolved selections join here when the contract lands.
    */
   schedules: readonly ScheduleRequirement[];
+  /** P-B: the bundle this plan deploys, or null for a legacy-main plan. */
+  bundle: DeployBundleRef | null;
 }
 
 function resolveId(
@@ -68,7 +86,8 @@ export function buildDeployPlan(
 ): DeployPlan {
   const wrangler: WranglerConfig = {
     name: options.workerName,
-    main: options.main,
+    // P-B: a supplied bundle IS the deploy main (replaces the legacy entry).
+    main: options.bundle?.main ?? options.main,
     compatibility_date: options.compatibilityDate,
     vars: { ...environment.vars },
     d1_databases: [],
@@ -123,5 +142,5 @@ export function buildDeployPlan(
     }
   }
 
-  return { wrangler, schedules: [...descriptor.schedules] };
+  return { wrangler, schedules: [...descriptor.schedules], bundle: options.bundle ?? null };
 }

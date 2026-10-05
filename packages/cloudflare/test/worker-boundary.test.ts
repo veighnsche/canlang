@@ -46,6 +46,40 @@ describe("worker bundle boundary", () => {
     }
   });
 
+  it("keeps the staged join modules type-only (dynamic imports only)", () => {
+    // env-assembly, grant-route, and mcp-permissions load producers via
+    // dynamic import() so the P-B bundler can stage/rewrite them; a static
+    // runtime import here would bypass the vendor seam. (The rest of
+    // src/runtime legitimately uses static relative imports and is covered
+    // by assertLinksResolve instead.)
+    const joinFiles = [
+      "src/runtime/env-assembly.ts",
+      "src/runtime/grant-route.ts",
+      "src/runtime/mcp-permissions.ts",
+    ];
+    for (const file of joinFiles) {
+      const lines = readSource(file).split("\n");
+      let seen = false;
+      for (const [index, line] of lines.entries()) {
+        const trimmed = line.trim();
+        const location = `${file}:${index + 1}`;
+        // Doc comments document the no-builtins rule; not code.
+        if (trimmed.startsWith("*") || trimmed.startsWith("//")) continue;
+        if (trimmed.startsWith("import ")) seen = true;
+        expect(
+          trimmed.startsWith("import ") && !trimmed.startsWith("import type "),
+          `${location} must use 'import type' (join modules load producers dynamically): ${trimmed}`,
+        ).toBe(false);
+        expect(
+          trimmed.startsWith("export ") && trimmed.includes(" from "),
+          `${location} must not re-export from another module: ${trimmed}`,
+        ).toBe(false);
+        expect(trimmed.includes("node:"), `${location} must not touch node: builtins`).toBe(false);
+      }
+      expect(seen, `${file} is missing from the tree (silent skip)`).toBe(true);
+    }
+  });
+
   it("keeps the Node entry free of worker imports", () => {
     const nodeFiles = [
       "src/index.ts",
