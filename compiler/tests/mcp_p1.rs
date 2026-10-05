@@ -22,10 +22,11 @@
 //!   fields, which are never caller-provided: create takes the fields,
 //!   update takes `record` plus optional fields, delete takes `record`.
 //! * The entrypoint `canApp()` registry carries the same descriptors.
-//! * Fail-closed omission: an operation with any input that has no MCP
-//!   mapping (here an `int[]` param) is absent from the descriptors with
-//!   zero diagnostics — never a skewed partial entry, never a blocked
-//!   compilation.
+//! * Array inputs map to their element kind plus the T09 ordinary-vs-required
+//!   marker (here `ids:int[]` → `integer` with `array:{required:false}`,
+//!   ordinary since params never carry `!`). An operation with any input
+//!   that still has no MCP mapping stays absent with zero diagnostics —
+//!   never a skewed partial entry, never a blocked compilation.
 
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -228,6 +229,7 @@ fn operations_descriptors_golden() {
             "Shop.Token.delete",
             "Shop.approve",
             "Shop.describe",
+            "Shop.restock",
         ],
         "every operation in declaration order"
     );
@@ -360,13 +362,47 @@ fn operations_descriptors_golden() {
     assert_ref_field(approve, "gadget", "Shop.Gadget", true, true);
     assert_scalar_field(approve, "note", "string", false);
 
-    // Fail-closed omission: the `int[]` input has no MCP mapping, so
-    // `restock` is absent (with zero diagnostics, asserted above) —
-    // never a skewed partial entry.
-    assert!(
-        ops.iter()
-            .all(|op| op.get("name").and_then(Json::as_str) != Some("Shop.restock")),
-        "unmappable operations are omitted: {names:?}"
+    // T15a re-pin (T04a §6 array mapping; coordinator-verified live via
+    // a `can compile` probe): `int[]` scenario params now map, so `restock`
+    // is present with zero diagnostics (asserted above). Parameters never
+    // carry the field-only `!`, so parameter arrays are always ordinary.
+    let restock = op_by_name(ops, "Shop.restock");
+    assert_eq!(
+        restock.get("kind").and_then(Json::as_str),
+        Some("scenario")
+    );
+    assert_eq!(
+        restock.get("description").and_then(Json::as_str),
+        Some("Restock many gadgets at once."),
+        "description is the verbatim `#` text"
+    );
+    let ids = field_by_name(restock, "ids");
+    assert_eq!(
+        ids.get("required").and_then(Json::as_bool),
+        Some(false),
+        "ordinary arrays omit to empty, never required"
+    );
+    let ids_schema = ids.get("field").expect("ids schema");
+    assert_eq!(
+        ids_schema.get("kind").and_then(Json::as_str),
+        Some("integer"),
+        "ids element kind"
+    );
+    assert_eq!(
+        ids.get("array")
+            .and_then(|a| a.get("required"))
+            .and_then(Json::as_bool),
+        Some(false),
+        "ordinary-array marker per T09: `int[]` has no `!`"
+    );
+    assert_eq!(
+        restock
+            .get("inputs")
+            .and_then(|i| i.get("fields"))
+            .and_then(Json::as_arr)
+            .map(|f| f.len()),
+        Some(1),
+        "restock takes only ids"
     );
 
     // `read=true` scenarios are reads with versionless refs.
