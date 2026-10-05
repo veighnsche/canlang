@@ -21,6 +21,17 @@
  * unknown paths/methods are `not_found`, and known routes are 501 naming
  * the exact unmet seam (files binding vs identity join) — never fake
  * bytes. Nothing here may be mistaken for the production dispatcher.
+ *
+ * P2 MCP route: `POST /mcp` IS served (not interim-501) once
+ * `AssemblyDeps.mcp.createHandler` is supplied — the real
+ * `createMcpHandler`, injected by the deploy join exactly as tests inject
+ * it from interfaces dist. The assembly builds the REAL `McpDeps`
+ * (registry + catalog from the artifact via `runtime/mcp-registry.ts`,
+ * the SAME `buildInvoker` bridge HTTP will use, grant identity from
+ * `deps.identityStore`) and delegates the request. Permissions default
+ * to the deny-closed interim adapter (join J2 pending) unless
+ * `AssemblyDeps.mcp.permissions` is supplied. Without the factory,
+ * `/mcp` answers the explicit interim 501 naming the join.
  */
 
 import type {
@@ -48,6 +59,11 @@ import type {
 } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
 import type { CallerInfo, HandlerContext } from "../runtime/context.js";
+import type {
+  McpPermissions,
+  OperationRegistry,
+  SchemaCatalog,
+} from "../runtime/mcp-registry.js";
 
 /* ------------------------------------------------------------------ */
 /* Structural mirrors. Each cites the verified owner; the named join   */
@@ -92,6 +108,111 @@ export type ReadOutcome = { result: ReadResult } | { error: BusinessError };
 export interface OperationInvoker {
   invokeMutation(envelope: MutationEnvelope, identity: ResolvedIdentity): Promise<MutationOutcome>;
   invokeRead(envelope: ReadEnvelope, identity: ResolvedIdentity): Promise<ReadOutcome>;
+}
+
+/**
+ * Real MCP mirrors (`src/runtime/mcp-registry.ts`; joined at P2). The
+ * registry, catalog, and permissions shapes live there as the single
+ * source of truth; re-exported so worker consumers keep one import site.
+ */
+export type { McpPermissions, OperationRegistry, SchemaCatalog };
+
+/** Mirror of `LogLevel` (`packages/interfaces/src/ports.ts:16`). */
+export type LogLevel = "debug" | "info" | "warn" | "error";
+
+/**
+ * Mirror of `Logger` (`packages/interfaces/src/ports.ts:20`). Replaced
+ * by the real import at the interfaces join.
+ */
+export interface Logger {
+  log(level: LogLevel, message: string, fields?: Record<string, unknown>): void;
+}
+
+/**
+ * Mirror of `InterfacesClock` (`packages/interfaces/src/ports.ts:10`;
+ * identical to the identity `Clock`). Replaced by the real import at
+ * the interfaces join.
+ */
+export interface InterfacesClock {
+  nowMs(): number;
+}
+
+/**
+ * Mirror of `MailPort` (`packages/identity/src/ports.ts:82`). The MCP
+ * path never sends mail; the assembly binds a fail-closed thrower.
+ */
+export interface MailPort {
+  sendMail(to: string, subject: string, body_text: string): Promise<void>;
+}
+
+/**
+ * Mirror of `IdentityDeps` (`packages/interfaces/src/ports.ts:101`).
+ * Replaced by the real import at the interfaces join. One honest
+ * widening: `store` is `unknown` (see `AssemblyDeps.identityStore`) —
+ * the deploy join binds the real `IdentityStore`.
+ */
+export interface IdentityDeps {
+  readonly store: unknown;
+  readonly mail: MailPort;
+  readonly clock: InterfacesClock;
+  readonly verifyBaseUrl: string;
+  readonly recoveryBaseUrl: string;
+  readonly inviteBaseUrl: string;
+  readonly sessionMaxAgeSeconds: number;
+}
+
+/**
+ * Mirror of `McpFilesInfo` (`packages/interfaces/src/ports.ts:216`).
+ * Replaced by the real import at the interfaces join. The `app`
+ * parameters are `unknown` for the same reason as
+ * `OperationRegistry.list` (single-app artifact; the real `AppInfo`
+ * cannot be named here).
+ */
+export interface McpFilesInfo {
+  usesFiles(app: unknown): boolean;
+  intentsUrl(app: unknown): string;
+}
+
+/**
+ * Mirror of `McpDeps` (`packages/interfaces/src/ports.ts:221`). The P2
+ * worker assembly constructs these per `/mcp` request; the interfaces
+ * join replaces the mirror with the real import. Widenings are confined
+ * to the three documented seams (`identity.store`,
+ * app-accepting-but-ignoring `registry`/`files`, and `brand`/
+ * `ownerLabels` narrowed to `string` — runtime-safe since
+ * `MessageValue = string | …`).
+ */
+export interface McpDeps {
+  readonly app: AppInfo;
+  readonly registry: OperationRegistry;
+  readonly permissions: McpPermissions;
+  readonly invoker: OperationInvoker;
+  readonly catalog: SchemaCatalog;
+  readonly files: McpFilesInfo;
+  readonly identity: IdentityDeps;
+  readonly logger: Logger;
+  readonly clock: InterfacesClock;
+}
+
+/**
+ * Mirror of `createMcpHandler`
+ * (`packages/interfaces/src/mcp/server.ts:397`): grant-authed MCP
+ * handler factory over assembled deps. Injected through
+ * `AssemblyDeps.mcp` because `@canlang/interfaces` is not a dependency
+ * of this package; the deploy join supplies the real factory (bundled
+ * for workerd), exactly as tests supply it from interfaces dist.
+ */
+export type McpHandlerFactory = (deps: McpDeps) => (request: Request) => Promise<Response>;
+
+/**
+ * MCP join inputs. `createHandler` absent -> `/mcp` answers the explicit
+ * interim 501 naming the interfaces join. `permissions` absent -> the
+ * deny-closed interim adapter (join J2 pending; see
+ * `createDenyClosedMcpPermissions`).
+ */
+export interface McpJoin {
+  readonly createHandler?: McpHandlerFactory;
+  readonly permissions?: McpPermissions;
 }
 
 /**
@@ -212,6 +333,15 @@ type CreateContext = (input: {
   readonly memberships?: string[];
 }) => HandlerContext | Promise<HandlerContext>;
 
+/** Sibling `createArtifactRegistry(artifact)` (`src/runtime/mcp-registry.ts`; P2). */
+type CreateArtifactRegistry = (artifact: CompileArtifact) => OperationRegistry;
+
+/** Sibling `createArtifactCatalog(artifact)` (`src/runtime/mcp-registry.ts`; P2). */
+type CreateArtifactCatalog = (artifact: CompileArtifact) => SchemaCatalog;
+
+/** Sibling `createDenyClosedMcpPermissions()` (`src/runtime/mcp-registry.ts`; P2). */
+type CreateDenyClosedMcpPermissions = () => McpPermissions;
+
 /* ------------------------------------------------------------------ */
 /* Assembly inputs/outputs.                                            */
 /* ------------------------------------------------------------------ */
@@ -242,6 +372,12 @@ export interface AssemblyDeps {
    * explicit interim 501 naming the join (never fake bytes).
    */
   files?: InterimFilesBinding;
+  /**
+   * P2 MCP join inputs. Absent until the interfaces join lands; while
+   * absent (or without `createHandler`), `/mcp` answers an explicit
+   * interim 501 naming the join.
+   */
+  mcp?: McpJoin;
 }
 
 /** Assembled worker: serving fetch plus registry counts. */
@@ -757,17 +893,131 @@ function interimAppInfo(artifact: CompileArtifact): AppInfo {
   return { appId, brand: appId, appDefaultLocale: "en", ownerLabels: new Map() };
 }
 
+/**
+ * Interim dispatch context: everything the dispatcher closes over. The
+ * MCP route needs the artifact join (artifact + modules + store +
+ * identity) while page GETs need only descriptors + app; one context
+ * carries both.
+ */
+interface InterimDispatchContext {
+  readonly app: AppInfo;
+  readonly now: () => number;
+  readonly files: InterimFilesBinding | undefined;
+  readonly artifact: CompileArtifact;
+  readonly asm: AssembledModules;
+  readonly store: StoragePort;
+  readonly identityStore: unknown;
+  readonly mcp: McpJoin | undefined;
+}
+
+/** Same-origin upload-intents path advertised in the MCP `_meta` block. */
+const INTERIM_MCP_INTENTS_URL = "/files/intents";
+
+/**
+ * P2 `/mcp` route: assemble the real `McpDeps` and delegate to the
+ * injected `createMcpHandler`. Every method on exactly `/mcp` delegates
+ * (the MCP handler owns method semantics); without the factory the
+ * route answers the explicit interim 501. Registry/catalog build
+ * failures (malformed P1 entries, unbuilt sibling) are contained here
+ * as a 500 naming the entry — pages keep serving.
+ */
+async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Promise<Response> {
+  const factory = ctx.mcp?.createHandler;
+  if (factory === undefined || typeof factory !== "function") {
+    return interimUnavailable(
+      "MCP actions need the interfaces join (AssemblyDeps.mcp.createHandler: the deployed createMcpHandler); " +
+        "the worker serves pages only until it lands",
+    );
+  }
+  let registry: OperationRegistry;
+  let catalog: SchemaCatalog;
+  let permissions: McpPermissions;
+  try {
+    const createArtifactRegistry = await loadSiblingFn<CreateArtifactRegistry>(
+      "../runtime/mcp-registry.js",
+      "runtime/mcp-registry.ts",
+      "createArtifactRegistry",
+    );
+    const createArtifactCatalog = await loadSiblingFn<CreateArtifactCatalog>(
+      "../runtime/mcp-registry.js",
+      "runtime/mcp-registry.ts",
+      "createArtifactCatalog",
+    );
+    registry = createArtifactRegistry(ctx.artifact);
+    catalog = createArtifactCatalog(ctx.artifact);
+    if (ctx.mcp?.permissions !== undefined) {
+      permissions = ctx.mcp.permissions;
+    } else {
+      const createDenyClosed = await loadSiblingFn<CreateDenyClosedMcpPermissions>(
+        "../runtime/mcp-registry.js",
+        "runtime/mcp-registry.ts",
+        "createDenyClosedMcpPermissions",
+      );
+      permissions = createDenyClosed();
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return jsonResponse({ code: "mcp-registry", message }, 500);
+  }
+  const usesFiles = ctx.files?.usesFiles ?? false;
+  const now = ctx.now;
+  const deps: McpDeps = {
+    app: ctx.app,
+    registry,
+    permissions,
+    // THE same bridge HTTP consumes at the join: one invoker, both transports.
+    invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store),
+    catalog,
+    files: {
+      usesFiles: (_app: unknown): boolean => {
+        void _app;
+        return usesFiles;
+      },
+      intentsUrl: (_app: unknown): string => {
+        void _app;
+        return INTERIM_MCP_INTENTS_URL;
+      },
+    },
+    identity: {
+      store: ctx.identityStore,
+      mail: {
+        sendMail: async (): Promise<void> => {
+          throw new Error("assembly: mail is unbound on the MCP path (no MCP flow sends mail)");
+        },
+      },
+      clock: { nowMs: () => now() },
+      // Unused on the MCP path (grant auth derives its challenge origin
+      // from the request URL); the HTTP/auth join binds real origins.
+      verifyBaseUrl: "",
+      recoveryBaseUrl: "",
+      inviteBaseUrl: "",
+      sessionMaxAgeSeconds: 0,
+    },
+    // No log sink join yet: incident + denial entries go to the worker
+    // console (fields are safe-envelope members only, per the MCP server).
+    logger: {
+      log: (level: LogLevel, message: string, fields?: Record<string, unknown>): void => {
+        if (fields === undefined) console.log(`[mcp] ${level} ${message}`);
+        else console.log(`[mcp] ${level} ${message}`, fields);
+      },
+    },
+    clock: { nowMs: () => now() },
+  };
+  return factory(deps)(req);
+}
+
 function buildInterimFetch(
   descriptors: readonly PageDescriptor[],
-  app: AppInfo,
-  now: () => number,
-  files: InterimFilesBinding | undefined,
+  ctx: InterimDispatchContext,
 ): (req: Request) => Promise<Response> {
   return async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
     const method = req.method.toUpperCase();
     const pathname = url.pathname;
 
+    if (pathname === "/mcp") {
+      return handleMcpRequest(req, ctx);
+    }
     if (pathname.startsWith("/api/operations/")) {
       return interimUnavailable(
         "operation invocation needs the interfaces join (handleOperationRequest) and the worker invoke/context siblings",
@@ -777,7 +1027,7 @@ function buildInterimFetch(
       return interimUnavailable("auth routes need the interfaces join (handleAuthRequest)");
     }
     if (pathname.startsWith("/files/")) {
-      return interimFilesResponse(pathname, method, files);
+      return interimFilesResponse(pathname, method, ctx.files);
     }
     if (method !== "GET" && method !== "HEAD") return notFoundResponse();
     if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -795,7 +1045,7 @@ function buildInterimFetch(
     }
     if (match === null) return notFoundResponse();
 
-    const identity = anonymousIdentity(now());
+    const identity = anonymousIdentity(ctx.now());
     let bindings: AdmittedBindings;
     try {
       bindings = await match.admit(identity, {});
@@ -818,7 +1068,7 @@ function buildInterimFetch(
     // binds the real RowQueryRunner). The join deletes it.
     const context: PresentationContext = {
       preferredLocales: parseAcceptLanguage(req.headers.get("accept-language")),
-      appDefaultLocale: app.appDefaultLocale,
+      appDefaultLocale: ctx.app.appDefaultLocale,
       theme: INTERIM_THEME,
       path: pathname,
       isPartial: isInterimPartialRequest(req),
@@ -919,7 +1169,16 @@ export async function assembleWorker(
   const { descriptors } = await loadPageRegistry(artifact, asm);
 
   const now = deps.now ?? Date.now;
-  const innerFetch = buildInterimFetch(descriptors, interimAppInfo(artifact), now, deps.files);
+  const innerFetch = buildInterimFetch(descriptors, {
+    app: interimAppInfo(artifact),
+    now,
+    files: deps.files,
+    artifact,
+    asm,
+    store: deps.store,
+    identityStore: deps.identityStore,
+    mcp: deps.mcp,
+  });
 
   // Real entry wiring (mirrors entry.ts; not a fork): dynamic import keeps
   // the worker boundary (static `import type` only).

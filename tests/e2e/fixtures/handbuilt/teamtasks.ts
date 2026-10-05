@@ -14,11 +14,32 @@
  *   no example artifacts, and producer linkage is by dist-bundling (see the
  *   loader), not by `requires`. L1 PR6 emission replaces this whole module
  *   for compiled runs.
+ * - `operations[]` IS present (the one exception to "no compiled ops"): the
+ *   two ops the fixture worker serves over `/mcp`, in the exact P1
+ *   `ArtifactOperation` shape, consumed by the REAL P2 adapters
+ *   (`createArtifactRegistry`/`createArtifactCatalog`) inside the worker.
+ *   The loader also stamps these entries into the `vendor/mcp/fixture-ops.js`
+ *   module so the worker and the artifact JSON share one source of truth.
+ *
+ * Shape parity vs real P1 output (MCP closeout P4 closed both earlier
+ * skews: generated CRUD op descriptions now inherit the crud `label=`
+ * caption when authored, and a `package.Model.read` op (no inputs) is
+ * emitted wherever `policy Model read=` exists). Remaining fixture-only
+ * choices, honestly labeled:
+ * - The create description here ("Add team work.", from the serving card
+ *   `card "Add team work"` TeamTasks.can:23) is fuller than P1's inherited
+ *   caption (`label={create=add}` → "Add"). The spec requires non-empty;
+ *   both satisfy it.
+ * - P1 also emits update/delete ops (uncaptioned `""` here); the fixture
+ *   serves only the two ops the spec exercises (never claimed complete).
+ * - The fixture read op carries `"Tasks and completion."` (serving card);
+ *   real P4 emits `""` for policy-read ops (no caption source exists for
+ *   policies). No test pins the read description, so behavior is unaffected.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import type { CompileArtifact } from "@canlang/contracts";
+import type { ArtifactOperation, CompileArtifact } from "@canlang/contracts";
 
 export const TEAMTASKS_WORKER_NAME = "e2e-teamtasks";
 export const TEAMTASKS_D1_BINDING = "DB";
@@ -49,6 +70,35 @@ export function buildTeamTasksWorkerSource(): string {
   return readFileSync(join(dir, "teamtasks-worker.mjs"), "utf8");
 }
 
+/**
+ * The fixture's served `/mcp` ops in the exact P1 `ArtifactOperation` shape
+ * (see the header for the documented skews vs real P1 output). `create`
+ * inputs flatten the `crud Todo ... fields=title,done,assignee` allowlist
+ * per the P1 rules (title required: no default, non-nullable; done/assignee
+ * optional: default/nullable); scalar mapping is P1-verbatim
+ * (text/member -> string, bool -> boolean).
+ */
+export const TEAMTASKS_OPERATIONS: ArtifactOperation[] = [
+  {
+    name: "TeamTasks.Todo.create",
+    kind: "create",
+    description: "Add team work.",
+    inputs: {
+      fields: [
+        { name: "title", field: { kind: "string" }, required: true },
+        { name: "done", field: { kind: "boolean" }, required: false },
+        { name: "assignee", field: { kind: "string" }, required: false },
+      ],
+    },
+  },
+  {
+    name: "TeamTasks.Todo.read",
+    kind: "read",
+    description: "Tasks and completion.",
+    inputs: { fields: [] },
+  },
+];
+
 export function teamTasksArtifact(): CompileArtifact {
   return {
     artifact_version: 1,
@@ -70,6 +120,10 @@ export function teamTasksArtifact(): CompileArtifact {
       },
     ],
     callables: [],
+    operations: TEAMTASKS_OPERATIONS.map((op) => ({
+      ...op,
+      inputs: { fields: op.inputs.fields.map((field) => ({ ...field })) },
+    })),
     pages: [{ owner: "teamtasks", path: "/", module: "worker.mjs", export: "default" }],
     requires: [],
     tests: [],
