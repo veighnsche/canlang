@@ -449,3 +449,305 @@ fn caninbox_tables_row_parity() {
     };
     assert_draft_parity("CanInbox.can", &catalog);
 }
+
+// --- T35/R24: payload id/version vs reserved metadata --------------------------
+// Example headers may observe DECLARED payload leaves (`id`, `version`,
+// ...) where the owner contract declares them; stored identity/audit
+// overrides stay rejected. Every verdict keys on resolved provenance
+// (the nominal + declared leaf), never on field-name spelling.
+
+const T35R24_SRC: &str = "app Probe\nGiven\n contract Outcome { source:text, version:int, state:enum(pending,done)=pending }\n contract Intake { id:text, body:text }\n capability BoxV1 version=1\n  fetch(source:text) -> Outcome\n  event arrived { value:Intake }\n  event changed { value:Outcome }\n Doc { title:text }\n Note in Doc { body:text }\n policy Doc read=members\n policy Note read=members\n fixture one=Doc { title=\"a\" }\n fixture note=Note { parent=one, body=\"n\" }\nWhen\n scenario fetched on=BoxV1.fetch.completed\n  do let seen=1\n  examples event={delivery_id=\"d\",status=succeeded,result={source=\"s\",version=1,state=pending},error=null}\n   event.result.version -> one.title\n   1 -> \"a\"\n scenario arrived_mail on=BoxV1.arrived\n  do let seen=1\n  examples event={value={id=\"m\",body=\"b\"}}\n   event.value.id -> one.title\n   \"m\" -> \"a\"\n scenario changed_mail on=BoxV1.changed\n  do let seen=1\n  examples event={value={source=\"s\",version=2,state=done}}\n   event.value.version -> one.title\n   2 -> \"a\"\n scenario touch(doc:Doc) by=members\n  do set doc {title=\"b\"}\n  examples seed=[one] doc=one\n   as,doc.id -> doc.title\n   members,\"x\" -> \"b\"\n  examples seed=[one] doc=one\n   as,doc.version -> doc.title\n   members,3 -> \"b\"\n  examples seed=[one] doc=one\n   as,doc.created -> doc.title\n   members,\"t\" -> \"b\"\n  examples seed=[one] doc=one\n   as,doc.parent -> doc.title\n   members,one -> \"b\"\n scenario annotate(item:Note) by=members\n  do set item {body=\"c\"}\n  examples seed=[note] item=note\n   as,item.parent -> item.body\n   members,one -> \"c\"\n  examples seed=[note] item=note\n   as,item.parent.title -> item.body\n   members,\"a\" -> \"c\"\nThen\n";
+
+/// CanPropose:254 shape: `event.result.version` is a declared leaf of
+/// the completion result nominal (`Outcome.version`) — observable.
+#[test]
+fn t35r24_completion_result_version_observable() {
+    let (_program, diags) = check_src(T35R24_SRC, None);
+    let (start, _) = span_of(T35R24_SRC, "event.result.version -> one.title", 1);
+    let offset = start + "event.result.".len() as u32;
+    assert!(
+        covering(&diags, "E5008", offset).is_empty(),
+        "declared result leaf observable: {diags:?}"
+    );
+    assert!(
+        covering(&diags, "E5002", offset).is_empty(),
+        "declared result leaf resolves (not silent): {diags:?}"
+    );
+}
+
+/// CanDesk:139 shape: `event.value.id` is a declared leaf of the
+/// event value nominal (`Intake.id`) — observable.
+#[test]
+fn t35r24_event_value_id_observable() {
+    let (_program, diags) = check_src(T35R24_SRC, None);
+    let (start, _) = span_of(T35R24_SRC, "event.value.id -> one.title", 1);
+    let offset = start + "event.value.".len() as u32;
+    assert!(
+        covering(&diags, "E5008", offset).is_empty(),
+        "declared value leaf observable: {diags:?}"
+    );
+    assert!(
+        covering(&diags, "E5002", offset).is_empty(),
+        "declared value leaf resolves (not silent): {diags:?}"
+    );
+}
+
+/// CanPropose:289 shape: `event.value.version` through a declared
+/// event value nominal (`Outcome.version`) — observable.
+#[test]
+fn t35r24_event_value_version_observable() {
+    let (_program, diags) = check_src(T35R24_SRC, None);
+    let (start, _) = span_of(T35R24_SRC, "event.value.version -> one.title", 1);
+    let offset = start + "event.value.".len() as u32;
+    assert!(
+        covering(&diags, "E5008", offset).is_empty(),
+        "declared value leaf observable: {diags:?}"
+    );
+    assert!(
+        covering(&diags, "E5002", offset).is_empty(),
+        "declared value leaf resolves (not silent): {diags:?}"
+    );
+}
+
+/// Stored identity override stays rejected: `doc.id` on a stored
+/// model is reserved metadata, not a payload leaf.
+#[test]
+fn t35r24_stored_id_rejected() {
+    let (_program, diags) = check_src(T35R24_SRC, None);
+    let (start, _) = span_of(T35R24_SRC, "as,doc.id -> doc.title", 1);
+    let offset = start + "as,doc.".len() as u32;
+    let hits = covering(&diags, "E5008", offset);
+    assert_eq!(hits.len(), 1, "stored id override rejected: {diags:?}");
+    assert!(
+        hits[0].message.contains("reserved metadata"),
+        "{}",
+        hits[0].message
+    );
+}
+
+/// Stored `version` override stays rejected: no declared field, only
+/// the reserved spelling on a stored model.
+#[test]
+fn t35r24_stored_version_rejected() {
+    let (_program, diags) = check_src(T35R24_SRC, None);
+    let (start, _) = span_of(T35R24_SRC, "as,doc.version -> doc.title", 1);
+    let offset = start + "as,doc.".len() as u32;
+    let hits = covering(&diags, "E5008", offset);
+    assert_eq!(hits.len(), 1, "stored version override rejected: {diags:?}");
+    assert!(
+        hits[0].message.contains("reserved metadata"),
+        "{}",
+        hits[0].message
+    );
+}
+
+/// Stored audit override stays rejected: `doc.created` is audit
+/// metadata on a stored model.
+#[test]
+fn t35r24_stored_created_rejected() {
+    let (_program, diags) = check_src(T35R24_SRC, None);
+    let (start, _) = span_of(T35R24_SRC, "as,doc.created -> doc.title", 1);
+    let offset = start + "as,doc.".len() as u32;
+    let hits = covering(&diags, "E5008", offset);
+    assert_eq!(hits.len(), 1, "stored audit override rejected: {diags:?}");
+    assert!(
+        hits[0].message.contains("reserved metadata"),
+        "{}",
+        hits[0].message
+    );
+}
+
+/// CanReport:110 shape (bucket-a retention): `item.parent` at the
+/// leaf of a contained model overrides stored containment identity.
+#[test]
+fn t35r24_contained_parent_rejected() {
+    let (_program, diags) = check_src(T35R24_SRC, None);
+    let (start, _) = span_of(T35R24_SRC, "as,item.parent -> item.body", 1);
+    let offset = start + "as,item.".len() as u32;
+    let hits = covering(&diags, "E5008", offset);
+    assert_eq!(
+        hits.len(),
+        1,
+        "contained parent override rejected: {diags:?}"
+    );
+    assert!(
+        hits[0].message.contains("server-owned"),
+        "{}",
+        hits[0].message
+    );
+}
+
+/// Control: `parent` mid-path still navigates into the containing
+/// record — only the leaf override is server-owned.
+#[test]
+fn t35r24_parent_midpath_navigates() {
+    let (_program, diags) = check_src(T35R24_SRC, None);
+    let (start, _) = span_of(T35R24_SRC, "as,item.parent.title -> item.body", 1);
+    let offset = start + "as,item.".len() as u32;
+    assert!(
+        covering(&diags, "E5008", offset).is_empty(),
+        "parent mid-path navigates: {diags:?}"
+    );
+    assert!(
+        covering(&diags, "E5002", offset).is_empty(),
+        "parent mid-path resolves: {diags:?}"
+    );
+}
+
+/// Same spelling, different provenance, different verdicts: `id` and
+/// `version` are observable as declared payload leaves but rejected
+/// as stored-model overrides.
+#[test]
+fn t35r24_provenance_key_payload_vs_stored() {
+    let (_program, diags) = check_src(T35R24_SRC, None);
+    for (header, prefix) in [
+        ("event.value.id -> one.title", "event.value."),
+        ("event.result.version -> one.title", "event.result."),
+        ("event.value.version -> one.title", "event.value."),
+    ] {
+        let (start, _) = span_of(T35R24_SRC, header, 1);
+        let offset = start + prefix.len() as u32;
+        assert!(
+            covering(&diags, "E5008", offset).is_empty(),
+            "payload {header} observable: {diags:?}"
+        );
+    }
+    for (header, prefix) in [
+        ("as,doc.id -> doc.title", "as,doc."),
+        ("as,doc.version -> doc.title", "as,doc."),
+    ] {
+        let (start, _) = span_of(T35R24_SRC, header, 1);
+        let offset = start + prefix.len() as u32;
+        assert_eq!(
+            covering(&diags, "E5008", offset).len(),
+            1,
+            "stored {header} rejected: {diags:?}"
+        );
+    }
+}
+
+/// Same spelling, different provenance, different verdicts: `parent`
+/// on a contained model is server-owned (`E5008`); on a
+/// non-contained model it names no member at all (`E5002`).
+#[test]
+fn t35r24_provenance_key_parent() {
+    let (_program, diags) = check_src(T35R24_SRC, None);
+    let (start, _) = span_of(T35R24_SRC, "as,item.parent -> item.body", 1);
+    let offset = start + "as,item.".len() as u32;
+    assert_eq!(
+        covering(&diags, "E5008", offset).len(),
+        1,
+        "contained parent is E5008: {diags:?}"
+    );
+    let (start, _) = span_of(T35R24_SRC, "as,doc.parent -> doc.title", 1);
+    let offset = start + "as,doc.".len() as u32;
+    assert!(
+        covering(&diags, "E5008", offset).is_empty(),
+        "non-contained parent is not E5008: {diags:?}"
+    );
+    let hits = covering(&diags, "E5002", offset);
+    assert_eq!(hits.len(), 1, "non-contained parent is E5002: {diags:?}");
+    assert!(
+        hits[0].message.contains("unknown field"),
+        "{}",
+        hits[0].message
+    );
+}
+
+/// Draft pin: CanDesk:139 `event.value.id` observes the declared
+/// `IncomingMail.id` payload leaf (same-file owner, resolves
+/// single-file too).
+#[test]
+fn t35r24_desk139_value_id_observable() {
+    let Some(catalog) = real_catalog() else {
+        eprintln!("SKIP t35r24_desk139_value_id_observable: no packages/values/dist/catalog.json");
+        return;
+    };
+    let (db, id, text) = load_draft("CanDesk.can");
+    let (_program, diags) = check_program(&db, &[id], Some(&catalog));
+    let (start, _) = span_of(&text, "event.value.id -> count(Unmatched)", 1);
+    let offset = start + "event.value.".len() as u32;
+    assert!(
+        covering(&diags, "E5008", offset).is_empty(),
+        "CanDesk:139 payload id observable: {diags:?}"
+    );
+    assert!(
+        covering(&diags, "E5002", offset).is_empty(),
+        "CanDesk:139 payload id resolves: {diags:?}"
+    );
+}
+
+/// Draft pins: CanPropose:254 `event.result.version` and :289
+/// `event.value.version` observe the declared
+/// `ReservationOfferOutcome.version` payload leaf. The owner lives
+/// in CanRent, so the pair must check together (whole-corpus mode).
+#[test]
+fn t35r24_propose_result_and_value_version_observable() {
+    let Some(catalog) = real_catalog() else {
+        eprintln!(
+            "SKIP t35r24_propose_result_and_value_version_observable: no packages/values/dist/catalog.json"
+        );
+        return;
+    };
+    let root = workspace_root();
+    let propose = std::fs::read_to_string(root.join("draft/CanPropose.can")).expect("propose");
+    let rent = std::fs::read_to_string(root.join("draft/CanRent.can")).expect("rent");
+    let mut db = SourceDb::new();
+    let propose_id = db.add("draft/CanPropose.can".to_string(), propose.clone());
+    let rent_id = db.add("draft/CanRent.can".to_string(), rent);
+    let (_program, diags) = check_program(&db, &[propose_id, rent_id], Some(&catalog));
+    let (start, _) = span_of(
+        &propose,
+        "current_offer.booking_version,event.result.version -> current_offer.handoff",
+        1,
+    );
+    let offset = start + "current_offer.booking_version,event.result.".len() as u32;
+    assert!(
+        covering(&diags, "E5008", offset).is_empty(),
+        "CanPropose:254 payload version observable: {diags:?}"
+    );
+    assert!(
+        covering(&diags, "E5002", offset).is_empty(),
+        "CanPropose:254 payload version resolves: {diags:?}"
+    );
+    let (start, _) = span_of(
+        &propose,
+        "event.value.kind,event.value.version,current_offer.booking_version ->",
+        1,
+    );
+    let offset = start + "event.value.kind,event.value.".len() as u32;
+    assert!(
+        covering(&diags, "E5008", offset).is_empty(),
+        "CanPropose:289 payload version observable: {diags:?}"
+    );
+    assert!(
+        covering(&diags, "E5002", offset).is_empty(),
+        "CanPropose:289 payload version resolves: {diags:?}"
+    );
+}
+
+/// Draft pins (bucket-a retention): CanReport:110/:113 `run.parent`
+/// override stored containment identity and stay `E5008`.
+#[test]
+fn t35r24_report_parent_stays_rejected() {
+    let Some(catalog) = real_catalog() else {
+        eprintln!("SKIP t35r24_report_parent_stays_rejected: no packages/values/dist/catalog.json");
+        return;
+    };
+    let (db, id, text) = load_draft("CanReport.can");
+    let (_program, diags) = check_program(&db, &[id], Some(&catalog));
+    for header in [
+        "as,run.parent,run.state -> result.quantity,result.state,result.complete",
+        "as,run.parent,run.state,run.checkpoint.complete,run.rows -> result.quantity,result.amount,result.state,result.complete",
+    ] {
+        let (start, _) = span_of(&text, header, 1);
+        let offset = start + "as,run.".len() as u32;
+        let hits = covering(&diags, "E5008", offset);
+        assert_eq!(hits.len(), 1, "stored {header} rejected: {diags:?}");
+        assert!(
+            hits[0].message.contains("server-owned"),
+            "{}",
+            hits[0].message
+        );
+    }
+}
