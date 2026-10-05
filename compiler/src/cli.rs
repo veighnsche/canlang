@@ -1,6 +1,6 @@
 //! Single dispatch for the `can` binary.
 //!
-//! `can compile|check|lint|fmt|explain|lsp|policy|run|test|build|deploy|activate|completions|help`,
+//! `can compile|check|lint|fmt|explain|lsp|policy|docs|run|test|build|deploy|activate|completions|help`,
 //! plus `--help`/`--version` and a global `--format=json|text`. Exit codes
 //! come from [`crate::exit`]: 0 clean, 10 errors reported, 2 tool failure
 //! (warnings alone exit 0; they never block). JSON goes to stdout,
@@ -9,8 +9,10 @@
 //! [`run`] is the one entry point (argv includes the program name at
 //! index 0, mirroring `std::env::args`). [`dispatch`] is the same logic
 //! returning captured output so tests never touch real stdio, except that
-//! `lsp` returns [`DispatchResult::run_lsp`] for [`run`] to serve and
-//! `run|test|build|deploy` spawn the lane-7 producer as a side effect.
+//! `lsp` returns [`DispatchResult::run_lsp`] for [`run`] to serve,
+//! `run|test|build|deploy|activate` spawn the lane-7 producer as a side
+//! effect, and `docs` pipes the reference model through the
+//! `can-platform docs` renderer (plus an `--out` file write when asked).
 //!
 //! Analysis status (PR7): `check` loads sources and runs the
 //! [`Analyzer`] hook, whose default implementation is [`CatalogAnalyzer`]
@@ -316,6 +318,13 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
             run_explain(&parsed.operands, parsed.format)
         }
         "policy" => run_policy(&parsed.operands, parsed.format, analyzer),
+        "docs" => run_docs(
+            &parsed.operands,
+            parsed.format,
+            parsed.locale,
+            parsed.out,
+            analyzer,
+        ),
         "completions" => {
             if parsed.format_set || parsed.catalog_set {
                 return DispatchResult::tool_error(
@@ -390,6 +399,7 @@ fn is_known_command(cmd: &str) -> bool {
             | "explain"
             | "lsp"
             | "policy"
+            | "docs"
             | "run"
             | "test"
             | "build"
@@ -422,6 +432,17 @@ struct ParsedArgs {
     /// `can lint --fix`: compute machine fixes and report them (JSON
     /// gains a sorted `fixes` array; text gains one `fix` line each).
     fix: bool,
+    /// `can docs --locale=TAG`: requested reference locale (selected by
+    /// the TS renderer; absent means the app default plus source fallback).
+    locale: Option<String>,
+    /// Whether `--locale` was passed explicitly (rejected for commands
+    /// that take none, rather than silently ignored).
+    locale_set: bool,
+    /// `can docs --out=PATH`: reference output file (absent means stdout).
+    out: Option<String>,
+    /// Whether `--out` was passed explicitly (rejected for commands
+    /// that take none, rather than silently ignored).
+    out_set: bool,
     help: bool,
     version: bool,
 }
@@ -436,6 +457,10 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
         catalog_set: false,
         fmt_check: false,
         fix: false,
+        locale: None,
+        locale_set: false,
+        out: None,
+        out_set: false,
         help: false,
         version: false,
     };
@@ -477,6 +502,26 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
                     .ok_or_else(|| "missing value for --catalog; want a PATH".to_string())?;
                 parsed.catalog = Some(value.clone());
                 parsed.catalog_set = true;
+            } else if let Some(value) = arg.strip_prefix("--locale=") {
+                parsed.locale = Some(value.to_string());
+                parsed.locale_set = true;
+            } else if arg == "--locale" {
+                i += 1;
+                let value = args
+                    .get(i)
+                    .ok_or_else(|| "missing value for --locale; want a BCP 47 tag".to_string())?;
+                parsed.locale = Some(value.clone());
+                parsed.locale_set = true;
+            } else if let Some(value) = arg.strip_prefix("--out=") {
+                parsed.out = Some(value.to_string());
+                parsed.out_set = true;
+            } else if arg == "--out" {
+                i += 1;
+                let value = args
+                    .get(i)
+                    .ok_or_else(|| "missing value for --out; want a PATH".to_string())?;
+                parsed.out = Some(value.clone());
+                parsed.out_set = true;
             } else {
                 return Err(format!("unknown flag '{arg}'; use can --help"));
             }
@@ -503,6 +548,18 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
     }
     if parsed.fix && parsed.subcommand.as_deref() != Some("lint") {
         return Err("--fix only applies to can lint".to_string());
+    }
+    if parsed.locale_set && parsed.subcommand.as_deref() != Some("docs") {
+        return Err("--locale only applies to can docs".to_string());
+    }
+    if parsed.out_set && parsed.subcommand.as_deref() != Some("docs") {
+        return Err("--out only applies to can docs".to_string());
+    }
+    if parsed.locale.as_deref().is_some_and(str::is_empty) {
+        return Err("can docs --locale needs a non-empty BCP 47 tag".to_string());
+    }
+    if parsed.out.as_deref().is_some_and(str::is_empty) {
+        return Err("can docs --out needs a non-empty PATH".to_string());
     }
     Ok(parsed)
 }
@@ -553,6 +610,7 @@ Commands:
   explain   Print a diagnostic catalog entry: can explain E1001
   lsp       Run the language server over stdio (Content-Length JSON-RPC)
   policy    Dump the declared policy surface (roles, policies, operation gates)
+  docs      Generate the localized internal declaration reference (Markdown)
   run       Thin lane-7 entry: exec can-platform run (passthrough)
   test      Thin lane-7 entry: exec can-platform test (passthrough)
   build     Thin lane-7 entry: exec can-platform build (passthrough)
@@ -562,15 +620,17 @@ Commands:
   help      Show help (global or `can help <COMMAND>`)
 
 Options:
-  --format=json|text   Machine or human output (check, compile, lint, explain, policy)
-  --catalog=PATH       Producer catalog (check, compile, lint, policy; else CAN_CATALOG,
+  --format=json|text   Machine or human output (check, compile, lint, explain, policy; docs diagnostics only)
+  --catalog=PATH       Producer catalog (check, compile, lint, policy, docs; else CAN_CATALOG,
                        ./can-catalog.json, ./packages/values/dist/catalog.json)
+  --locale=TAG         Reference locale (docs only; default is the app default + source fallback)
+  --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)
   -h, --help           Show help (global or `can <COMMAND> --help`)
   -V, --version        Show version
 
 Environment:
   CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)
-  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate)
+  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs)
 
 Exit codes: 0 clean, 10 errors reported, 2 tool failure.
 ",
@@ -595,6 +655,7 @@ fn command_help(cmd: &str) -> String {
         "policy" => format!(
             "can {cmd} — dump the declared policy surface (roles, model policies/invariants, operation gates)\n\nUsage: can {cmd} [--format=json|text] [--catalog=PATH] FILE.can...\n\nReads the checked program and prints the policy surface in source order.\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n"
         ),
+        "docs" => "can docs — generate the localized internal declaration reference\n\nUsage: can docs [--locale=TAG] [--out=PATH] [--format=json|text] [--catalog=PATH] FILE.can...\n\nAnalyzes sources, extracts the frozen reference model v1 and pipes it as JSON through stdin to the `can-platform docs` renderer (fixed args, no shell), which selects description variants through the shared TS locale resolver and writes Markdown. Without --out the Markdown goes to stdout; without --locale the renderer uses the app default locale plus source fallback. --format shapes diagnostics only, never the Markdown. Analysis errors report diagnostics (exit 10) with no reference output and no file write; a missing runtime/renderer or a failed render is tool error E7004. --out refuses `.can` paths and input files: authored sources are never overwritten. The reference never runs business handlers or examples.\n\nExit codes: 0 rendered, 10 errors reported, 2 tool failure.\n".to_string(),
         "run" | "test" | "build" | "deploy" | "activate" => format!(
             "can {cmd} — thin lane-7 entry (passthrough to can-platform)\n\nUsage: can {cmd} [ARGS...]\n\nExecs `can-platform {cmd}` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can {cmd} --help` asks the platform tool; use\n`can help {cmd}` or `can --help {cmd}` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n"
         ),
@@ -802,6 +863,257 @@ fn run_policy(
         stderr: String::new(),
         run_lsp: false,
     }
+}
+
+/// `can docs`: full analysis, then the frozen reference model v1 piped as
+/// JSON through stdin to the `can-platform docs` renderer (fixed argv, never
+/// a shell), which writes localized Markdown. Operand and input failures
+/// follow [`run_check_like`] (`E7001`/`E7002`, exit 2). `--out` pointing
+/// at a `.can` source or an input file is refused (`E7001`) before any
+/// analysis runs: authored sources are never overwritten. Analysis errors
+/// exit 10 with diagnostics (shaped by `--format`, which never affects the
+/// Markdown) and no reference output: no spawn, no file write. A missing
+/// runtime/renderer or a failed render is `E7004`/exit 2 carrying the
+/// producer's own detail; an unwritable `--out` is `E7007`. The reference
+/// never runs business handlers or examples.
+fn run_docs(
+    operands: &[String],
+    format: OutputFormat,
+    locale: Option<String>,
+    out: Option<String>,
+    analyzer: &dyn Analyzer,
+) -> DispatchResult {
+    let platform_bin = std::env::var("CAN_PLATFORM_BIN").ok();
+    run_docs_with_platform(operands, format, locale, out, analyzer, platform_bin)
+}
+
+/// [`run_docs`] with an explicit platform binary: the test seam for the
+/// renderer boundary (`None` searches `PATH`, mirroring `CAN_PLATFORM_BIN`
+/// unset). Unit tests point this at stub scripts; production [`dispatch`]
+/// always passes the environment value.
+fn run_docs_with_platform(
+    operands: &[String],
+    format: OutputFormat,
+    locale: Option<String>,
+    out: Option<String>,
+    analyzer: &dyn Analyzer,
+    platform_bin: Option<String>,
+) -> DispatchResult {
+    if operands.is_empty() {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can docs expects at least one FILE.can operand".to_string(),
+        );
+    }
+    if let Some(path) = &out
+        && let Some(reason) = docs_out_refusal(path, operands)
+    {
+        return DispatchResult::tool_error("E7001", reason);
+    }
+    let mut db = SourceDb::new();
+    let mut files = Vec::new();
+    for path in operands {
+        let text = match std::fs::read_to_string(path) {
+            Ok(text) => text,
+            Err(err) => {
+                return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
+            }
+        };
+        files.push(db.add(path.clone(), text));
+    }
+    let owned = analyzer.analyze_owned(&db, tool_version());
+    let mut result = owned.result;
+    result.finish();
+    if result.has_errors() {
+        return emit_diagnostics(&result, &db, format);
+    }
+    let Some(program) = owned.program else {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can docs needs a pipeline analyzer; this backend keeps no checked program (production dispatch always passes one)".to_string(),
+        );
+    };
+    let model = crate::docs::extract_reference(&db, &files, &program);
+    let payload = model.to_json_string();
+    let bin = match locate_platform_bin(platform_bin, "docs") {
+        Ok(bin) => bin,
+        Err(result) => return result,
+    };
+    let markdown = match render_via_platform(&bin, locale.as_deref(), &payload) {
+        Ok(markdown) => markdown,
+        Err(result) => return result,
+    };
+    if let Some(path) = &out {
+        if let Err(err) = write_file_atomic(Path::new(path), &markdown) {
+            return DispatchResult::tool_error("E7007", format!("cannot write '{path}': {err}"));
+        }
+        return DispatchResult::ok_stdout(String::new());
+    }
+    DispatchResult::ok_stdout(markdown)
+}
+
+/// Refusal reason when a `can docs --out` path would overwrite authored
+/// sources: `.can` paths (case-insensitive) and the analyzed input files
+/// themselves (by literal or canonical path). `None` means writable.
+fn docs_out_refusal(out: &str, operands: &[String]) -> Option<String> {
+    if Path::new(out)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("can"))
+    {
+        return Some(format!(
+            "can docs --out refuses '.can' paths (authored sources are never overwritten): '{out}'"
+        ));
+    }
+    if operands.iter().any(|input| input == out) {
+        return Some(format!(
+            "can docs --out refuses to overwrite an input file: '{out}'"
+        ));
+    }
+    // Same file through different spellings (`./a.md` vs `a.md`): compare
+    // canonical paths when both resolve; unresolvable paths (the `--out`
+    // target usually does not exist yet) keep the literal check above.
+    if let Ok(canonical_out) = std::fs::canonicalize(out) {
+        for input in operands {
+            if let Ok(canonical_in) = std::fs::canonicalize(input)
+                && canonical_in == canonical_out
+            {
+                return Some(format!(
+                    "can docs --out refuses to overwrite an input file: '{out}'"
+                ));
+            }
+        }
+    }
+    None
+}
+
+/// Pipe the reference-model JSON through stdin to `can-platform docs`
+/// (fixed argv, never a shell) and capture the rendered Markdown. The
+/// child writes Markdown to stdout on success; any spawn failure,
+/// nonzero exit, signal kill, non-UTF8 output or empty output is a
+/// truthful `E7004` carrying the producer's own detail — never partial
+/// Markdown presented as success.
+fn render_via_platform(
+    bin: &str,
+    locale: Option<&str>,
+    payload: &str,
+) -> Result<String, DispatchResult> {
+    let mut child_args = vec!["docs".to_string()];
+    if let Some(tag) = locale {
+        child_args.push(format!("--locale={tag}"));
+    }
+    let mut child = match std::process::Command::new(bin)
+        .args(&child_args)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(err) => {
+            return Err(DispatchResult::tool_error(
+                "E7004",
+                format!("failed to exec lane-7 producer '{bin}': {err}"),
+            ));
+        }
+    };
+    if let Some(mut stdin) = child.stdin.take() {
+        use std::io::Write;
+        if let Err(err) = stdin.write_all(payload.as_bytes()) {
+            return Err(DispatchResult::tool_error(
+                "E7004",
+                format!("failed to pipe the reference model to '{bin} docs': {err}"),
+            ));
+        }
+        // `stdin` drops here, closing the pipe so the renderer sees EOF.
+    }
+    let output = match child.wait_with_output() {
+        Ok(output) => output,
+        Err(err) => {
+            return Err(DispatchResult::tool_error(
+                "E7004",
+                format!("failed waiting for '{bin} docs': {err}"),
+            ));
+        }
+    };
+    if !output.status.success() {
+        let detail = stderr_tail(&output.stderr);
+        let status = match output.status.code() {
+            Some(code) => format!("exit {code}"),
+            None => "killed by signal".to_string(),
+        };
+        return Err(DispatchResult::tool_error(
+            "E7004",
+            format!("reference renderer '{bin} docs' failed ({status}): {detail}"),
+        ));
+    }
+    let markdown = match String::from_utf8(output.stdout) {
+        Ok(markdown) => markdown,
+        Err(_) => {
+            return Err(DispatchResult::tool_error(
+                "E7004",
+                format!("reference renderer '{bin} docs' wrote non-UTF8 output"),
+            ));
+        }
+    };
+    if markdown.is_empty() {
+        return Err(DispatchResult::tool_error(
+            "E7004",
+            format!("reference renderer '{bin} docs' produced no output"),
+        ));
+    }
+    Ok(markdown)
+}
+
+/// Last 2000 chars of child stderr (lossy, char-boundary safe) for
+/// renderer-failure detail; names the absence when there is nothing.
+fn stderr_tail(bytes: &[u8]) -> String {
+    const MAX: usize = 2000;
+    let text = String::from_utf8_lossy(bytes);
+    if text.is_empty() {
+        return "no detail on stderr".to_string();
+    }
+    if text.len() <= MAX {
+        return text.into_owned();
+    }
+    // Char-boundary floor: walk forward from the cut to a boundary.
+    let mut cut = text.len() - MAX;
+    while !text.is_char_boundary(cut) {
+        cut += 1;
+    }
+    format!("...{}", &text[cut..])
+}
+
+/// Locate the lane-7 `can-platform` producer: the explicit override
+/// (`CAN_PLATFORM_BIN` / tests) or a `PATH` search. Shared by the thin
+/// entries and the `can docs` renderer boundary; a missing producer is
+/// the same truthful `E7004` everywhere.
+fn locate_platform_bin(
+    platform_bin: Option<String>,
+    subcommand: &str,
+) -> Result<String, DispatchResult> {
+    let bin = match platform_bin {
+        Some(path) => path,
+        None => match find_on_path("can-platform") {
+            Some(path) => path,
+            None => {
+                return Err(DispatchResult::tool_error(
+                    "E7004",
+                    format!(
+                        "lane-7 producer 'can-platform' not found on PATH for `can {subcommand}`; install it or set CAN_PLATFORM_BIN (see can explain E7004)"
+                    ),
+                ));
+            }
+        },
+    };
+    if !Path::new(&bin).is_file() {
+        return Err(DispatchResult::tool_error(
+            "E7004",
+            format!(
+                "lane-7 producer '{bin}' is not a file for `can {subcommand}`; install it or fix CAN_PLATFORM_BIN (see can explain E7004)"
+            ),
+        ));
+    }
+    Ok(bin)
 }
 
 fn emit_diagnostics(
@@ -1166,28 +1478,10 @@ pub fn run_thin_entry(
     args: &[String],
     platform_bin: Option<String>,
 ) -> DispatchResult {
-    let bin = match platform_bin {
-        Some(path) => path,
-        None => match find_on_path("can-platform") {
-            Some(path) => path,
-            None => {
-                return DispatchResult::tool_error(
-                    "E7004",
-                    format!(
-                        "lane-7 producer 'can-platform' not found on PATH for `can {subcommand}`; install it or set CAN_PLATFORM_BIN (see can explain E7004)"
-                    ),
-                );
-            }
-        },
+    let bin = match locate_platform_bin(platform_bin, subcommand) {
+        Ok(bin) => bin,
+        Err(result) => return result,
     };
-    if !Path::new(&bin).is_file() {
-        return DispatchResult::tool_error(
-            "E7004",
-            format!(
-                "lane-7 producer '{bin}' is not a file for `can {subcommand}`; install it or fix CAN_PLATFORM_BIN (see can explain E7004)"
-            ),
-        );
-    }
     let mut child_args = Vec::with_capacity(args.len() + 1);
     child_args.push(subcommand.to_string());
     child_args.extend(args.iter().cloned());
@@ -1218,4 +1512,560 @@ fn find_on_path(name: &str) -> Option<String> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    //! `can docs` CLI wiring tests (D05b): help, flag scoping, `--out`
+    //! refusal, analysis-first failure (exit 10 with no spawn and no file
+    //! write), the stdin/fixed-argv renderer boundary against stub
+    //! platform binaries, and every failure mapping. Stub-spawn tests are
+    //! unix-only (shebang scripts); all fixtures are hermetic temp files
+    //! (no `PATH` or environment dependence).
+
+    use super::{
+        Analyzer, CatalogAnalyzer, OutputFormat, StubAnalyzer, dispatch_with, docs_out_refusal,
+        run_docs_with_platform, stderr_tail,
+    };
+    use crate::diagnostic::{Diagnostic, DiagnosticResult};
+    use crate::source::{SourceDb, SourceId, Span};
+    use std::path::PathBuf;
+
+    /// Clean shop source using no builtins (mirrors the `docs.rs`
+    /// determinism fixture shape).
+    const SHOP_SRC: &str =
+        "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\nThen\n";
+
+    /// Minimal catalog pinning the production analyzer (entries unused by
+    /// the fixture; the version passes through to the reference model).
+    const CATALOG_JSON: &str = r#"{
+  "language_version": "1.0",
+  "catalog_version": "2.5.0-test",
+  "entries": [
+    {"id": "count", "js": "count", "owner": "test", "kind": "builtin", "signature": "count(domain:C<T>)->int", "effects": "pure", "availability": "implemented"}
+  ]
+}"#;
+
+    fn argv(parts: &[&str]) -> Vec<String> {
+        parts.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// Unique scratch dir per test (pid + nanos + tag); removed on drop.
+    struct Scratch {
+        dir: PathBuf,
+    }
+
+    impl Scratch {
+        fn new(tag: &str) -> Self {
+            let nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos();
+            let dir = std::env::temp_dir()
+                .join(format!("can-docs-cli-{}-{nanos}-{tag}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            Self { dir }
+        }
+
+        fn write(&self, name: &str, text: &str) -> PathBuf {
+            let path = self.dir.join(name);
+            std::fs::write(&path, text).unwrap();
+            path
+        }
+
+        /// Production analyzer over an explicit temp catalog (hermetic:
+        /// no process environment or working directory is consulted).
+        fn analyzer(&self) -> CatalogAnalyzer {
+            let catalog = self.write("catalog.json", CATALOG_JSON);
+            CatalogAnalyzer::new(Some(catalog), None, self.dir.clone())
+        }
+    }
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    /// Analyzer reporting one synthetic error (no program): the
+    /// analysis-first failure path.
+    struct ErrorAnalyzer {
+        diagnostic: Diagnostic,
+    }
+
+    impl Analyzer for ErrorAnalyzer {
+        fn analyze(&self, db: &SourceDb, tool_version: &str) -> DiagnosticResult {
+            let mut result =
+                DiagnosticResult::new(tool_version, crate::LANGUAGE_VERSION, crate::SCHEMA_VERSION);
+            result.add_sources(db);
+            result.push(self.diagnostic.clone());
+            result.finish();
+            result
+        }
+    }
+
+    fn synthetic_error() -> ErrorAnalyzer {
+        ErrorAnalyzer {
+            diagnostic: Diagnostic::error(
+                "E1001",
+                "synthetic docs-test error".to_string(),
+                Span::new(SourceId(0), 0, 1),
+            ),
+        }
+    }
+
+    #[test]
+    fn docs_help_names_modes_and_refusal() {
+        let analyzer = StubAnalyzer;
+        let via_flag = dispatch_with(&argv(&["can", "docs", "--help"]), &analyzer);
+        assert_eq!(via_flag.code, 0);
+        assert!(via_flag.stderr.is_empty());
+        for needle in [
+            "can docs",
+            "--locale=TAG",
+            "--out=PATH",
+            "FILE.can",
+            "stdout",
+            "app default",
+            ".can",
+            "never overwritten",
+            "E7004",
+            "Exit codes",
+        ] {
+            assert!(
+                via_flag.stdout.contains(needle),
+                "docs help misses {needle:?}:\n{}",
+                via_flag.stdout
+            );
+        }
+        let via_alias = dispatch_with(&argv(&["can", "help", "docs"]), &analyzer);
+        assert_eq!(via_alias.code, 0);
+        assert_eq!(via_alias.stdout, via_flag.stdout);
+        let global = dispatch_with(&argv(&["can", "--help"]), &analyzer);
+        assert_eq!(global.code, 0);
+        assert!(global.stdout.contains("docs"), "global help misses docs");
+        assert!(global.stdout.contains("--locale=TAG"));
+        assert!(global.stdout.contains("--out=PATH"));
+    }
+
+    #[test]
+    fn docs_requires_operands() {
+        let result = dispatch_with(&argv(&["can", "docs"]), &StubAnalyzer);
+        assert_eq!(result.code, crate::exit::TOOL_FAILURE);
+        assert!(result.stdout.is_empty());
+        assert!(result.stderr.contains("E7001"), "{}", result.stderr);
+        assert!(result.stderr.contains("FILE.can"), "{}", result.stderr);
+    }
+
+    #[test]
+    fn locale_and_out_are_docs_only() {
+        let analyzer = StubAnalyzer;
+        // Rejected after another subcommand ...
+        for args in [
+            argv(&["can", "check", "--locale=nl", "f.can"]),
+            argv(&["can", "check", "--out=x.md", "f.can"]),
+            argv(&["can", "compile", "--locale", "nl", "f.can"]),
+        ] {
+            let result = dispatch_with(&args, &analyzer);
+            assert_eq!(result.code, crate::exit::TOOL_FAILURE, "{args:?}");
+            assert!(
+                result.stderr.contains("E7001"),
+                "{args:?}: {}",
+                result.stderr
+            );
+            assert!(
+                result.stderr.contains("only applies to can docs"),
+                "{args:?}: {}",
+                result.stderr
+            );
+        }
+        // ... and before another subcommand ...
+        let result = dispatch_with(&argv(&["can", "--locale=nl", "check", "f.can"]), &analyzer);
+        assert_eq!(result.code, crate::exit::TOOL_FAILURE);
+        assert!(result.stderr.contains("only applies to can docs"));
+        // ... but accepted before `docs` (reaching the operands check).
+        let result = dispatch_with(&argv(&["can", "--locale=nl", "docs"]), &analyzer);
+        assert_eq!(result.code, crate::exit::TOOL_FAILURE);
+        assert!(result.stderr.contains("expects at least one FILE.can"));
+        // Empty values are usage errors, never silent defaults.
+        for args in [
+            argv(&["can", "docs", "--locale=", "f.can"]),
+            argv(&["can", "docs", "--out=", "f.can"]),
+        ] {
+            let result = dispatch_with(&args, &analyzer);
+            assert_eq!(result.code, crate::exit::TOOL_FAILURE, "{args:?}");
+            assert!(result.stderr.contains("E7001"), "{}", result.stderr);
+        }
+    }
+
+    #[test]
+    fn out_refuses_can_sources_before_any_input_read() {
+        // Nonexistent input + `.can` out: refusal (E7001) wins over the
+        // unreadable-input error (E7002), proving the order.
+        for out in ["ref.can", "REF.CAN", "generated/reference.can"] {
+            let result = dispatch_with(
+                &argv(&["can", "docs", "does-not-exist.can", &format!("--out={out}")]),
+                &StubAnalyzer,
+            );
+            assert_eq!(result.code, crate::exit::TOOL_FAILURE, "out={out}");
+            assert!(result.stdout.is_empty());
+            assert!(result.stderr.contains("E7001"), "{}", result.stderr);
+            assert!(
+                result.stderr.contains("refuses '.can' paths"),
+                "{}",
+                result.stderr
+            );
+        }
+        // `.can` detection is extension-based, not substring-based.
+        assert!(docs_out_refusal("ref.md", &["a.can".to_string()]).is_none());
+        assert!(docs_out_refusal("canary.md", &["a.can".to_string()]).is_none());
+        assert!(docs_out_refusal("dir.can/ref.md", &["a.can".to_string()]).is_none());
+        assert!(docs_out_refusal("ref.can", &["a.can".to_string()]).is_some());
+    }
+
+    #[test]
+    fn out_refuses_to_overwrite_input_files() {
+        // Non-`.can` input: the extension refusal would (correctly) fire
+        // first on a `.can` path, hiding the self-overwrite branch.
+        let scratch = Scratch::new("overwrite");
+        let input = scratch.write("in.txt", SHOP_SRC);
+        let input_str = input.to_string_lossy().into_owned();
+        // Literal self-overwrite ...
+        let result = run_docs_with_platform(
+            std::slice::from_ref(&input_str),
+            OutputFormat::Text,
+            None,
+            Some(input_str.clone()),
+            &StubAnalyzer,
+            None,
+        );
+        assert_eq!(result.code, crate::exit::TOOL_FAILURE);
+        assert!(
+            result.stderr.contains("overwrite an input"),
+            "{}",
+            result.stderr
+        );
+        // ... and the same file through a redundant-component spelling.
+        let alias = format!("{}/./in.txt", scratch.dir.display());
+        // Only meaningful when the input resolves (it does: we wrote it).
+        let refusal = docs_out_refusal(&input_str, &[alias]);
+        assert!(
+            refusal.is_some_and(|reason| reason.contains("overwrite an input")),
+            "canonical self-overwrite must refuse"
+        );
+    }
+
+    #[test]
+    fn diagnostics_fail_with_no_spawn_and_no_file_write() {
+        let scratch = Scratch::new("diagnostics");
+        let input = scratch.write("bad.can", SHOP_SRC);
+        let out = scratch.dir.join("ref.md");
+        let out_str = out.to_string_lossy().into_owned();
+        // A garbage platform binary proves no spawn is attempted: the
+        // diagnostics path returns before the renderer boundary.
+        let result = run_docs_with_platform(
+            &[input.to_string_lossy().into_owned()],
+            OutputFormat::Text,
+            Some("nl".to_string()),
+            Some(out_str),
+            &synthetic_error(),
+            Some("/nonexistent/can-platform-docs-test".to_string()),
+        );
+        assert_eq!(result.code, crate::exit::DIAGNOSTICS);
+        assert!(result.stderr.is_empty());
+        assert!(result.stdout.contains("E1001"), "{}", result.stdout);
+        assert!(
+            !out.exists(),
+            "failed analysis must not write the --out file"
+        );
+    }
+
+    #[test]
+    fn format_json_shapes_diagnostics_not_markdown() {
+        let scratch = Scratch::new("format");
+        let input = scratch.write("bad.can", SHOP_SRC);
+        let operands = vec![input.to_string_lossy().into_owned()];
+        let result = run_docs_with_platform(
+            &operands,
+            OutputFormat::Json,
+            None,
+            None,
+            &synthetic_error(),
+            None,
+        );
+        assert_eq!(result.code, crate::exit::DIAGNOSTICS);
+        assert!(
+            result.stdout.trim_start().starts_with('{'),
+            "{}",
+            result.stdout
+        );
+        assert!(result.stdout.contains("E1001"), "{}", result.stdout);
+    }
+
+    #[test]
+    fn stub_backend_reports_needs_pipeline_before_spawn() {
+        let scratch = Scratch::new("pipeline");
+        let input = scratch.write("shop.can", SHOP_SRC);
+        let result = run_docs_with_platform(
+            &[input.to_string_lossy().into_owned()],
+            OutputFormat::Text,
+            None,
+            None,
+            &StubAnalyzer,
+            Some("/nonexistent/can-platform-docs-test".to_string()),
+        );
+        assert_eq!(result.code, crate::exit::TOOL_FAILURE);
+        assert!(result.stderr.contains("E7001"), "{}", result.stderr);
+        assert!(
+            result.stderr.contains("pipeline analyzer"),
+            "{}",
+            result.stderr
+        );
+    }
+
+    #[test]
+    fn missing_platform_binary_is_e7004() {
+        let scratch = Scratch::new("missing");
+        let input = scratch.write("shop.can", SHOP_SRC);
+        let operands = vec![input.to_string_lossy().into_owned()];
+        let analyzer = scratch.analyzer();
+        // Absent path ...
+        let result = run_docs_with_platform(
+            &operands,
+            OutputFormat::Text,
+            None,
+            None,
+            &analyzer,
+            Some(
+                scratch
+                    .dir
+                    .join("no-such-binary")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+        );
+        assert_eq!(result.code, crate::exit::TOOL_FAILURE);
+        assert!(result.stdout.is_empty());
+        assert!(result.stderr.contains("E7004"), "{}", result.stderr);
+        assert!(result.stderr.contains("not a file"), "{}", result.stderr);
+        // ... and a directory in place of the binary.
+        let result = run_docs_with_platform(
+            &operands,
+            OutputFormat::Text,
+            None,
+            None,
+            &analyzer,
+            Some(scratch.dir.to_string_lossy().into_owned()),
+        );
+        assert_eq!(result.code, crate::exit::TOOL_FAILURE);
+        assert!(result.stderr.contains("E7004"), "{}", result.stderr);
+    }
+
+    #[test]
+    fn stderr_tail_caps_and_names_absence() {
+        assert_eq!(stderr_tail(b""), "no detail on stderr");
+        assert_eq!(stderr_tail(b"boom"), "boom");
+        let long = "x".repeat(5000);
+        let tail = stderr_tail(long.as_bytes());
+        assert!(tail.starts_with("..."), "{tail:?}");
+        assert_eq!(tail.len(), 2003);
+        // Multibyte cut stays on a char boundary (never panics).
+        let wide = "é".repeat(1500);
+        let tail = stderr_tail(wide.as_bytes());
+        assert!(tail.starts_with("..."));
+        assert!(tail.contains("é"));
+    }
+
+    /// Write an executable stub platform binary (unix-only).
+    #[cfg(unix)]
+    fn stub_binary(scratch: &Scratch, name: &str, body: &str) -> String {
+        use std::os::unix::fs::PermissionsExt;
+        let path = scratch.write(name, &format!("#!/bin/sh\n{body}"));
+        let mut perms = std::fs::metadata(&path).unwrap().permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&path, perms).unwrap();
+        path.to_string_lossy().into_owned()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn renders_to_stdout_with_fixed_argv_and_stdin_payload() {
+        let scratch = Scratch::new("stdout");
+        let input = scratch.write("shop.can", SHOP_SRC);
+        let args_marker = scratch.dir.join("args.txt");
+        let stdin_marker = scratch.dir.join("stdin.json");
+        // Baked marker paths (no shared env vars: tests run in parallel).
+        let bin = stub_binary(
+            &scratch,
+            "platform-ok",
+            &format!(
+                "printf '%s' \"$*\" > '{}'\ncat > '{}'\nprintf '# Ref\\n'\n",
+                args_marker.display(),
+                stdin_marker.display()
+            ),
+        );
+        let result = run_docs_with_platform(
+            &[input.to_string_lossy().into_owned()],
+            OutputFormat::Text,
+            Some("nl".to_string()),
+            None,
+            &scratch.analyzer(),
+            Some(bin),
+        );
+        assert_eq!(result.code, crate::exit::OK, "stderr: {}", result.stderr);
+        assert_eq!(result.stdout, "# Ref\n");
+        // Fixed argv: exactly `docs --locale=nl` (no shell, no extras).
+        let args = std::fs::read_to_string(&args_marker).unwrap();
+        assert_eq!(args, "docs --locale=nl");
+        // Stdin carries the ReferenceModel v1 JSON payload.
+        let payload = std::fs::read_to_string(&stdin_marker).unwrap();
+        assert!(payload.starts_with(r#"{"version":1"#), "{payload:.120}");
+        assert!(payload.contains(r#""appDefaultLocale""#), "{payload:.200}");
+        assert!(payload.contains(r#""sourceRevision""#), "{payload:.200}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn renders_without_locale_omits_the_flag() {
+        let scratch = Scratch::new("default-locale");
+        let input = scratch.write("shop.can", SHOP_SRC);
+        let args_marker = scratch.dir.join("args.txt");
+        let bin = stub_binary(
+            &scratch,
+            "platform-default",
+            &format!(
+                "printf '%s' \"$*\" > '{}'\ncat > /dev/null\nprintf '# Ref\\n'\n",
+                args_marker.display()
+            ),
+        );
+        let result = run_docs_with_platform(
+            &[input.to_string_lossy().into_owned()],
+            // --format=json must not leak into the Markdown either.
+            OutputFormat::Json,
+            None,
+            None,
+            &scratch.analyzer(),
+            Some(bin),
+        );
+        assert_eq!(result.code, crate::exit::OK, "stderr: {}", result.stderr);
+        assert_eq!(result.stdout, "# Ref\n");
+        let args = std::fs::read_to_string(&args_marker).unwrap();
+        assert_eq!(args, "docs");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn renderer_failure_reports_producer_detail_as_e7004() {
+        let scratch = Scratch::new("render-fail");
+        let input = scratch.write("shop.can", SHOP_SRC);
+        let bin = stub_binary(
+            &scratch,
+            "platform-fail",
+            "cat > /dev/null\nprintf 'renderer boom detail' >&2\nexit 2\n",
+        );
+        let result = run_docs_with_platform(
+            &[input.to_string_lossy().into_owned()],
+            OutputFormat::Text,
+            None,
+            None,
+            &scratch.analyzer(),
+            Some(bin),
+        );
+        assert_eq!(result.code, crate::exit::TOOL_FAILURE);
+        assert!(result.stdout.is_empty(), "no partial Markdown on failure");
+        assert!(result.stderr.contains("E7004"), "{}", result.stderr);
+        assert!(result.stderr.contains("exit 2"), "{}", result.stderr);
+        assert!(
+            result.stderr.contains("renderer boom detail"),
+            "{}",
+            result.stderr
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn empty_and_non_utf8_output_are_e7004() {
+        let scratch = Scratch::new("bad-output");
+        let input = scratch.write("shop.can", SHOP_SRC);
+        let operands = vec![input.to_string_lossy().into_owned()];
+        let analyzer = scratch.analyzer();
+        let empty = stub_binary(&scratch, "platform-empty", "cat > /dev/null\n");
+        let result = run_docs_with_platform(
+            &operands,
+            OutputFormat::Text,
+            None,
+            None,
+            &analyzer,
+            Some(empty),
+        );
+        assert_eq!(result.code, crate::exit::TOOL_FAILURE);
+        assert!(
+            result.stderr.contains("produced no output"),
+            "{}",
+            result.stderr
+        );
+        let binary = stub_binary(
+            &scratch,
+            "platform-binary",
+            "cat > /dev/null\nprintf '\\377\\376'\n",
+        );
+        let result = run_docs_with_platform(
+            &operands,
+            OutputFormat::Text,
+            None,
+            None,
+            &analyzer,
+            Some(binary),
+        );
+        assert_eq!(result.code, crate::exit::TOOL_FAILURE);
+        assert!(result.stderr.contains("non-UTF8"), "{}", result.stderr);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn out_writes_the_file_and_stays_silent() {
+        let scratch = Scratch::new("out-file");
+        let input = scratch.write("shop.can", SHOP_SRC);
+        let out = scratch.dir.join("ref.md");
+        let bin = stub_binary(
+            &scratch,
+            "platform-out",
+            "cat > /dev/null\nprintf '# Ref\\n'\n",
+        );
+        let result = run_docs_with_platform(
+            &[input.to_string_lossy().into_owned()],
+            OutputFormat::Text,
+            None,
+            Some(out.to_string_lossy().into_owned()),
+            &scratch.analyzer(),
+            Some(bin),
+        );
+        assert_eq!(result.code, crate::exit::OK, "stderr: {}", result.stderr);
+        assert!(result.stdout.is_empty(), "file mode stays silent");
+        assert_eq!(std::fs::read_to_string(&out).unwrap(), "# Ref\n");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unwritable_out_is_e7007() {
+        let scratch = Scratch::new("unwritable");
+        let input = scratch.write("shop.can", SHOP_SRC);
+        let missing_dir = scratch.dir.join("no-such-dir").join("ref.md");
+        let bin = stub_binary(
+            &scratch,
+            "platform-e7007",
+            "cat > /dev/null\nprintf '# Ref\\n'\n",
+        );
+        let result = run_docs_with_platform(
+            &[input.to_string_lossy().into_owned()],
+            OutputFormat::Text,
+            None,
+            Some(missing_dir.to_string_lossy().into_owned()),
+            &scratch.analyzer(),
+            Some(bin),
+        );
+        assert_eq!(result.code, crate::exit::TOOL_FAILURE);
+        assert!(result.stdout.is_empty());
+        assert!(result.stderr.contains("E7007"), "{}", result.stderr);
+    }
 }
