@@ -14,11 +14,11 @@ Status: user-authorized immediate implementation in the SAME existing Muse sessi
   - Acceptance: frozen minimal reference/description/renderer contract; optional translations with no quota; localized MCP explicitly deferred; per-slice compatible reservations rather than blanket wait.
   - Evidence: Codex-owned; Muse records only its start acknowledgment in progress below.
 
-- [ ] **D02 — Add inline description parsing and checking**
+- [x] **D02 — Add inline description parsing and checking**
   - Owner: one Muse Rust writer per slice (serialized). Candidate exact paths: `compiler/src/syntax/parser.rs`, `compiler/src/syntax/cst.rs`, `compiler/src/analysis/resolve.rs`, `compiler/src/analysis/types.rs`, `compiler/src/analysis/effects.rs`, `compiler/tests/b4_parse.rs`, `compiler/tests/b4_check.rs`, `compiler/tests/analysis.rs` (table values only), `tools/can_parser.py` (mirror only if required).
   - Prerequisites: D01. D02a (parser/CST/b4_parse tests + conditional py mirror) runs while T30 owns checker files. D02b (resolve/types/effects joins + b4_check tests + table with attribution) waits for T30 release and runs BEFORE the next overlapping original checker dispatch. Parent stays open until both evidenced.
   - Acceptance: fields/parameters accept static inline descriptions and variants; defaults/bounds/labels delimit correctly; duplicate/dynamic/parameterized descriptions fail with located diagnostics; old annotations retain literal support.
-  - Evidence: D02a slice done (parent OPEN; D02b semantic join remains): writer 01a10d4a-9c23 released parser.rs (+138/-7, desc= via message-suffix reuse, attached-flag threading, all duplicate combinations located) + cst.rs (+8 DescriptionValue) + b4_parse.rs (+238, 16 tests: 5 pos + 11 rejection); can_parser.py untouched (mirror not required). Coordinator: b4_parse 20/0 green re-verified. Checker files untouched (T30 undisturbed).
+  - Evidence: D02a slice done: writer 01a10d4a-9c23 released parser.rs (+138/-7) + cst.rs (+8 DescriptionValue) + b4_parse.rs (+238, 16 tests); can_parser.py untouched. D02b slice done: writer 01a10d53-5ba1 released resolve.rs (+31 description resolution) + types.rs (+105 check_description_slot E3016) + effects.rs (+365 CheckedDescription seam matching frozen TS contract + message prepass) + b4_check.rs (+404, 20 tests). Coordinator: corpus 2500 with ZERO family moves, suite 27 green. D02 COMPLETE — seam frozen for D03/D04b/D06.
 
 - [ ] **D03 — Join compiler descriptions without artifact migration**
   - Owner: one Muse Rust writer; serialize shared analysis/IR/emission files. Exact paths: `compiler/src/analysis/effects.rs`, `compiler/src/codegen/ir.rs`, `compiler/src/codegen/js.rs`, `compiler/tests/codegen.rs`.
@@ -64,3 +64,5 @@ Status: user-authorized immediate implementation in the SAME existing Muse sessi
 - DONE D02a: writer 01a10d4a-9c23-7453-bde6-c6615aa49b1c RELEASED parser/cst/b4_parse (b4_parse 20/0 green re-verified). Parent D02 OPEN (see D02 evidence).
 - GREEN D04a/D05a runtime: renderer 29/29 + interfaces suite 318/0 re-verified by coordinator after lock release. D04a/D05a committed with D02a (see D04/D05 evidence).
 - DISPATCH batch D-b (T30 released, preemption fires): D02b writer (resolve/types/effects + b4_check tests + analysis.rs table with attribution; checked-description seam for D03/D04b/D06). T14a waits behind D02b. 1/3 active.
+- DONE D02b: writer 01a10d53-5ba1-7ff3-bd3b-35b0038c4f10 RELEASED resolve/types/effects + b4_check (analysis.rs untouched — table correctly unmoved). D02 ticked COMPLETE (see D02 evidence).
+- DISPATCH batch D-c (3-way disjoint wave): T11-checker (types/resolve/b4_check/table) + D03 (effects/ir/js/codegen-tests) + D04b (NEW docs.rs + lib.rs export + NEW tests/docs.rs). Queued: T14a→T14b, D06, D05b, D07/D08.
