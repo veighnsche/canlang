@@ -383,6 +383,7 @@ where authority is required.
 6. T28/T29 ownership input where reads cross package boundaries
    (policies reading `row.parent.*` on imported parents) — a fence
    scoped to one owner must say what an imported-parent read enrolls.
+   [QUALIFIED — ownership-input writer: see "T28-ownership input (gate evidence)" below.]
 7. Durable-fence evidence plan: per T32 acceptance, memory evidence
    cannot prove fence behavior. Memory stores lack the properties
    the gate must verify — no D1 batch/commit boundary, no revision
@@ -1337,3 +1338,256 @@ no Git.
   coordinator-owned); no JEV run; no Git.
 - Release: this file is RELEASED to the coordinator for gate
   scheduling.
+
+## T28-ownership input (gate evidence)
+
+Writer: L3 T32a-item6. Status: **PREP — adopts NOTHING.**
+Method: read-only reads of the T32a fence alternatives + fairness
+record + all prior appends in this file, the ADOPTED T28-A rule +
+JEV-outcome + standing obligations in
+`containment-decision.md`, the T28 COMPLETE evidence + T29 status in
+`tasks.md`, and the T28/T29/T32 task briefs in
+`CHALLENGE-AUDIT-PLAN.md`. Checklist item 6 only; all other
+checklist text, alternatives A–D, fairness record, and prior
+appends UNCHANGED. No JEV run; tools/jev.py untouched; no code, no
+normative-doc, no tasks/monitor/inbox edits. No T29 behavior
+invented: every owed clause below cites absence evidence.
+
+Verdict: **QUALIFIED — T28 half CONFIRMED (adopted rule + JEV +
+enumeration), T29 half ABSENT-with-reason (implementation not
+started; needs matching T15/T16/T17).** The fence rule for
+imported-parent reads is settled; its checker acceptance,
+descriptors, and D1/DO fence execution are owed.
+
+### §1 — what ADOPTED T28-A settles for reads crossing package boundaries
+
+T28 is COMPLETE with Alternative A adopted (tasks.md T28 evidence:
+unanimous JEV ADOPT A, 3/3; standing obligations: T29/T16/T17
+atomicity proof + split diagnostic; DECISIONS recording left for
+Codex review). The adopted rule (containment-decision.md:65-72):
+`Child in ImportedParent` has exactly local-containment semantics
+(team/storage inheritance, immutable `parent` binding, atomic
+subtree archive/delete, parent-scoped uniqueness,
+`parentRecord.Child` typed collection) whenever the parent arrives
+via a plain import whose owning package is included in the
+selected app; bound (`from=`) parents are rejected as containment
+targets with a diagnostic.
+
+What that settles for each imported-parent read — policies reading
+`row.parent.*` (Invoice `row.parent.locations`, Propose
+`row.parent.location`, containment-decision.md:53-55),
+`parent.parent` chains (Onboard default, Leave derives, Invoice
+deep policies), reverse-collection reads (`claim.parent.Expense`,
+containment-decision.md:344-353), and creation defaults reading
+`parent` — is the fence they enroll in:
+
+1. Plain = same deployment, same fence. Plain import = same
+   deployment, owner transaction rules apply
+   (containment-decision.md:76-78); storage owner = the parent's
+   owner, already the same included store
+   (containment-decision.md:79-82); a plain import includes the
+   whole owning executable package internally (DESIGN, via
+   containment-decision.md:24-27). An imported-parent read therefore
+   enrolls in the SAME owner checkpoint / revision fence as a local
+   read — no cross-owner fence, no cross-store read, no remote
+   boundary. Workflows hold verbatim including `parent.parent`
+   chains and `row.parent.*` policies
+   (containment-decision.md:86-87). This answers item 6's question
+   directly, and it covers the §1 census shape: most policy/crud
+   sites read an imported owner's predicate (`use employee` in 40
+   files, `use customer` in 20 — this file §1), and those reads
+   enroll at the caller's checkpoint (derive-guard row: callee fence
+   = caller's checkpoint).
+2. The DESIGN same-owner rule is satisfied by construction. Business
+   eligibility requiring atomic revocation must live at the same
+   owner as the decision (DESIGN L549, via this file's settled
+   context) — under T28-A the imported parent and its cross-package
+   children share one owner, one store, one atomic commit (spec
+   entailment, containment-decision.md:860-918), so
+   imported-parent reads need no relocation; they are same-owner
+   reads by rule.
+3. Authority split settled. Child CRUD is owned by the declaring
+   package; the parent package policy still governs parent rows;
+   the consumer cannot mutate the parent or extend its policy
+   (containment-decision.md:79-82). Reverse collections resolve
+   through the whole-app index, readable only where child read
+   policies grant (containment-decision.md:83-84). For reads: the
+   fence enrolls the read, but the grant decision stays with the
+   owning policy — parent-row reads are governed by owner-package
+   policy, reverse-collection reads by child grants. Combined with
+   the Grant adjudication above: the revocation fence must enroll
+   LIVE membership state (`Employee.active` / `can_work` /
+   `active_member`), never static role atoms alone — imported-parent
+   reads of membership state enroll live rows.
+4. Bound rejected: no bound-parent containment read exists to fence.
+   Bound (`from=`) parents stay rejected as containment targets
+   (JEV outcome, containment-decision.md:1108-1111). Corpus verdict:
+   zero bound parents anywhere — all 76 `from=` lines bind only
+   capability interfaces or value types, none binds
+   `Employee`/`Customer`/`Location`
+   (containment-decision.md:312-328) — so the bound-rejected clause
+   is untested by draft evidence in both directions
+   (containment-decision.md:330-336). Any future bound
+   reference-field read is an ordinary cross-owner reference read
+   under the DESIGN cross-owner rules (a reference identifies
+   another owner but implies no atomic read or write there;
+   cross-owner workflows use durable events and explicit pending
+   state — via containment-decision.md:989-993), NOT a same-fence
+   containment read.
+5. Retained B-opposing-case caveat (fairness, not waived). A's risk:
+   cross-package cascade/coupling and future deployment-split
+   breakage (containment-decision.md:211-212); the full opposing
+   case — a consumer's delete/archive cascade touching
+   owner-package rows' children, `unique ... fields=parent`
+   constraining owner-adjacent state, a future split silently
+   breaking atomicity promises, foreign-policy extension risk if
+   reverse collections leak readability, and whether
+   same-deployment inclusion is a sufficient atomicity boundary
+   plus what diagnostic fires on a later split
+   (containment-decision.md:95-102) — is retained for T29 review
+   per the JEV outcome (containment-decision.md:1111-1114). For
+   reads: the same-fence enrollment holds ONLY while the deployment
+   stays shared. A later split turns today's same-owner read into a
+   cross-owner read, and no split-time diagnostic exists in evidence
+   (storage item 5: split diagnostic ABSENT,
+   containment-decision.md:1007-1015). The gate must carry this as
+   an open hazard, not a settled promise.
+
+### §2 — what remains owed from unimplemented T29 (never invented)
+
+T29 (Implement imported containment) is NOT started: tasks.md T29
+"Evidence: pending". Its prerequisites are accepted T28 (now
+satisfied) plus matching T15/T16/T17 (tasks.md T29; plan T29 brief:
+preserve canonical Employee/Customer relationships; aliases/
+composition agree; invalid parent/team/lifetime/cycle cases fail in
+checking and applicable actual storage) — and T15, T16, T17 are all
+themselves pending. Owed, with absence evidence:
+
+a. Checker (L1): E2008 still rejects imported parents at 20/20
+   sites (containment enumeration). T29 must flip plain-import
+   acceptance while keeping bound rejection + diagnostic, and prove
+   alias/order/composition parity plus wrong-parent, cross-team
+   parent, missing/archive-state parent, and cycle failures
+   (containment bar item 5). T08 (readable selector resolution,
+   R07) is landed for path SHAPE only — it does not legalize the
+   containment target. Do not conflate the two.
+b. Descriptors (T15): canonical ownership descriptors for imported
+   containment (recursive schema/ownership/callable) — T15 pending,
+   no handbuilt alternates allowed.
+c. Runtime (T16/T17): generated-invocation join + canonical
+   data-plane migration, and the standing-obligation proof of
+   same-store atomic cross-package subtree commits on D1/DO, with
+   parent-policy governance and reverse-collection readability
+   enforced in execution. Engine today: delete archives one row,
+   no cascade code exists (`cascad` grep over state engine +
+   contracts: zero hits), and the generated path is still the B1
+   interim data plane (direct fenced commits, `history: []`,
+   `receipt: null`) — containment-decision.md:949-974. Even
+   single-package subtree atomicity is unexercised through
+   generated operations.
+d. Split diagnostic: ABSENT. No check keys on deployment topology;
+   E2008/E4040/E4051 do not cover it; the migration plan has no
+   store-sharing assertion (containment-decision.md:1007-1015).
+e. Normative recording: the DECISIONS entry for adopted A is left
+   for Codex review; DESIGN/GRAMMAR/DECISIONS untouched (JEV
+   outcome, containment-decision.md:1114-1115).
+
+Net for reads: enrollment is RULED (same fence) but UNPROVEN — no
+checker acceptance, no descriptors, no D1/DO fence execution
+across the import boundary. The durable-fence plan's cross-owner
+clause governs proof: enrollment proof must run on D1/DO across
+the owner boundary; a same-owner fence proof never covers a
+cross-owner read (this file, durable-fence plan). This input claims
+no T29 checker behavior, no E2008 flip, no atomicity proof, and no
+grant semantics.
+
+### §3 — per-alternative inheritance (settled half vs owed half)
+
+- A (single-checkpoint fenced reads + commit revalidation):
+  inherits settled — imported-parent reads enroll in the single
+  owner checkpoint + database-wide revision fence + commit-time
+  `by`/guard revalidation exactly as local reads; no second fence.
+  Owes: T29 checker + T16/T17 D1/DO proof that cross-package
+  parent/child rows actually share one fence (revision assertion
+  covers both; parent-policy reads revalidate at commit;
+  reverse-collection reads enroll). The L291 in-flight question
+  stays open and now spans the import boundary (an imported
+  membership revocation landing between checkpoint and commit voids
+  the commit — same rule, owed proof). Hazards combine: A's
+  database-wide contention (any membership-table write can void an
+  unrelated in-flight op) plus the T28 split hazard (a later split
+  silently breaks the single-checkpoint premise with no
+  diagnostic).
+- B (read-at-effect): inherits settled — per-effect fresh reads
+  execute inside the same owner transaction for plain-import
+  parents (no remote read to forbid); bound containment reads do
+  not exist to re-read. Owes: the same T29 checker/storage absence
+  as A, plus B's `let`-as-value question now includes
+  imported-parent `let` bindings (allowance-style
+  `let x=first(...)` guard+set shapes, §1f; cross-package defaults
+  such as Onboard's `parent.parent.user`,
+  containment-decision.md:382-386) — B must rule re-read vs rewrite
+  for those too. T06 gives B no carried values (admission facts
+  type `actor` only — T06 input above); unchanged.
+- C (version-pinned snapshots): inherits settled — pins cover
+  imported-parent records + authority pins (membership/role rows in
+  the owner package) under the same-store assertion; the
+  eventual-label question is unchanged, and no sampled
+  imported-parent read takes the eventual label (only T3
+  display/lookup reads are label candidates; every T1/T2
+  imported-predicate site authorizes — §1f). Owes: T29 plus the
+  narrowed-assertion implementability question on D1, now spanning
+  the package boundary — D1/DO execution must prove the pin
+  assertion covers cross-package records in one batch, or C
+  collapses into A with extra bookkeeping. The default for an
+  unlabeled imported-parent read (pinned-safe vs eventual) stays a
+  gate question.
+- D (bounded authority grants): inherits settled — grants minted by
+  imported-parent reads carry the same owner checkpoint; the
+  revocation list is per-owner = the same owner, so grant
+  non-transferability across fence scopes does not trigger for
+  plain imports. Owes: T29 plus all of D's machinery
+  (grant type, mint/consume rules, revocation-list storage +
+  retention, expiry semantics), entirely unimplemented. The
+  customer question sharpens against D: cross-package reads were
+  D's only hypothesized customer (40 `use employee` files,
+  Gallery←Creative `can_view`, CRM←Customer duplicates — §1f) —
+  but T28-A rules those same-deployment, same-owner reads, so D's
+  portability story has no customer even here. On a deployment
+  split, containment itself is rejected (bound forbidden), so a
+  grant cannot rescue the relation — D adds nothing over A/C for
+  ownership reads.
+
+### §4 — commands run + release
+
+Read-only inspection only (no builds, no Git, no JEV —
+tools/jev.py untouched):
+
+1. Full read of this file's alternatives + fairness record + all
+   prior appends (1339 lines pre-edit); full read of
+   containment-decision.md Alternative A rule
+   (L65-102), fairness record (L209-217), storage gate evidence
+   (L829-1088), and JEV outcome + standing obligations
+   (L1090-1117); tasks.md T28 COMPLETE evidence + T29 status
+   (L247-259); CHALLENGE-AUDIT-PLAN.md imported-containment brief
+   (L296-306), membership-reads brief (L332-342), and T28/T29/T32
+   task lines.
+2. `cp implementation/challenge-audit-run/evidence/read-decision.md
+   /tmp/read-decision.before.md` — pre-edit baseline (exit 0).
+3. Post-edit: `diff -u /tmp/read-decision.before.md
+   implementation/challenge-audit-run/evidence/read-decision.md` —
+   exactly two hunks (item-6 marker + this section), all other
+   text byte-identical (exit 1, the diff-found-changes code).
+4. Post-edit: `grep -n "T28-ownership input"
+   implementation/challenge-audit-run/evidence/read-decision.md` —
+   three hits (item-6 marker + section header + this step's own
+   quoted pattern); checklist markers for items 1-5, 7-8 unchanged
+   (exit 0).
+
+Checklist item 6 is QUALIFIED per the gate-needs text (T28 half
+CONFIRMED, T29 half ABSENT-with-reason); items 4 and 8 untouched
+(coordinator-owned). Prep status preserved: adopts NOTHING; no
+code, no normative-doc, no tasks/monitor/inbox edits.
+
+Release: implementation/challenge-audit-run/evidence/read-decision.md
+is RELEASED to the coordinator for JEV-gate scheduling.
