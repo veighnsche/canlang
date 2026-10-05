@@ -774,3 +774,302 @@ test('disambiguates colliding example labels', () => {
   assertDefinedOnce(out, found[0] as string);
   assertDefinedOnce(out, found[1] as string);
 });
+
+// --- global suffix-versus-bare uniqueness (R-D07-02 re-repair) -----------------
+//
+// Pinned triples: two identities sharing one readable base (so the first
+// gets `base-<8hex>`) plus a third lone identity whose bare base equals
+// that generated name pre-fix. Post-fix all three are unique: the lone
+// keeps its bare base, the colliding member extends to a longer prefix.
+// Spellings are pinned to the current content hash; a hash change must
+// re-pin them. Model-addition stability is NOT guaranteed (see renderer).
+// ---------------------------------------------------------------------------
+
+test('keeps owner suffixes globally unique against bare bases', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      { name: 'a_b', declarations: [], operations: [] },
+      { name: 'a__b', declarations: [], operations: [] },
+      { name: 'a_b_1ba46871', declarations: [], operations: [] },
+    ]),
+    { locale: 'en' },
+  );
+  const single = tocTarget(out, 'a_b');
+  const double = tocTarget(out, 'a__b');
+  const bare = tocTarget(out, 'a_b_1ba46871');
+  assert.equal(bare, 'owner-a-b-1ba46871');
+  assert.equal(single, 'owner-a-b-1ba4687192');
+  assert.equal(double, 'owner-a-b-749bc500');
+  assert.notEqual(single, bare);
+  assertDefinedOnce(out, single as string);
+  assertDefinedOnce(out, double as string);
+  assertDefinedOnce(out, bare as string);
+  const ids = anchorIds(out);
+  assert.equal(new Set(ids).size, ids.length, 'anchors are unique');
+  const defined = new Set(ids);
+  for (const target of linkTargets(out)) {
+    assert.ok(defined.has(target), `dangling link target: ${target}`);
+  }
+});
+
+test('keeps declaration suffixes globally unique against bare bases', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      {
+        name: 'Acme',
+        declarations: [
+          bareDeclaration('Acme', 'a_b'),
+          bareDeclaration('Acme', 'a__b'),
+          bareDeclaration('Acme', 'a_b_2da82145'),
+        ],
+        operations: [],
+      },
+    ]),
+    { locale: 'en' },
+  );
+  const single = tocTarget(out, 'Acme.a_b');
+  const double = tocTarget(out, 'Acme.a__b');
+  const bare = tocTarget(out, 'Acme.a_b_2da82145');
+  assert.equal(bare, 'decl-acme-a-b-2da82145');
+  assert.equal(single, 'decl-acme-a-b-2da82145f9');
+  assert.equal(double, 'decl-acme-a-b-ce8604c2');
+  assert.notEqual(single, bare);
+  assertDefinedOnce(out, single as string);
+  assertDefinedOnce(out, double as string);
+  assertDefinedOnce(out, bare as string);
+  const ids = anchorIds(out);
+  assert.equal(new Set(ids).size, ids.length, 'anchors are unique');
+  const defined = new Set(ids);
+  for (const target of linkTargets(out)) {
+    assert.ok(defined.has(target), `dangling link target: ${target}`);
+  }
+});
+
+test('keeps operation suffixes globally unique against bare bases', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      {
+        name: 'Acme',
+        declarations: [],
+        operations: [
+          bareOperation('Acme.a_b'),
+          bareOperation('Acme.a__b'),
+          bareOperation('Acme.a_b_2f9979ab'),
+        ],
+      },
+    ]),
+    { locale: 'en' },
+  );
+  const single = tocTarget(out, 'Acme.a_b');
+  const double = tocTarget(out, 'Acme.a__b');
+  const bare = tocTarget(out, 'Acme.a_b_2f9979ab');
+  assert.equal(bare, 'op-acme-a-b-2f9979ab');
+  assert.equal(single, 'op-acme-a-b-2f9979abc7');
+  assert.equal(double, 'op-acme-a-b-de04e89a');
+  assert.notEqual(single, bare);
+  assertDefinedOnce(out, single as string);
+  assertDefinedOnce(out, double as string);
+  assertDefinedOnce(out, bare as string);
+  const ids = anchorIds(out);
+  assert.equal(new Set(ids).size, ids.length, 'anchors are unique');
+  const defined = new Set(ids);
+  for (const target of linkTargets(out)) {
+    assert.ok(defined.has(target), `dangling link target: ${target}`);
+  }
+});
+
+test('keeps declaration-example suffixes globally unique against bare bases', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      {
+        name: 'Acme',
+        declarations: [
+          {
+            ...bareDeclaration('Acme', 'Widget'),
+            examples: [
+              { label: 'a_b', source: 'x' },
+              { label: 'a__b', source: 'y' },
+              { label: 'a_b_933e3f87', source: 'z' },
+            ],
+          },
+        ],
+        operations: [],
+      },
+    ]),
+    { locale: 'en' },
+  );
+  const found = anchorIds(out).filter((id) => id.startsWith('ex-acme-widget-a-b-'));
+  assert.equal(found.length, 3);
+  assert.ok(found.includes('ex-acme-widget-a-b-933e3f8776'));
+  assert.ok(found.includes('ex-acme-widget-a-b-1627f5c4'));
+  assert.ok(found.includes('ex-acme-widget-a-b-933e3f87'));
+  for (const id of found) {
+    assertDefinedOnce(out, id);
+  }
+  const ids = anchorIds(out);
+  assert.equal(new Set(ids).size, ids.length, 'anchors are unique');
+  const defined = new Set(ids);
+  for (const target of linkTargets(out)) {
+    assert.ok(defined.has(target), `dangling link target: ${target}`);
+  }
+});
+
+test('keeps operation-example suffixes globally unique against bare bases', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      {
+        name: 'Acme',
+        declarations: [],
+        operations: [
+          {
+            ...bareOperation('Acme.close'),
+            examples: [
+              { label: 'a_b', source: 'x' },
+              { label: 'a__b', source: 'y' },
+              { label: 'a_b_0a91a742', source: 'z' },
+            ],
+          },
+        ],
+      },
+    ]),
+    { locale: 'en' },
+  );
+  const found = anchorIds(out).filter((id) => id.startsWith('ex-acme-close-a-b-'));
+  assert.equal(found.length, 3);
+  assert.ok(found.includes('ex-acme-close-a-b-0a91a7427d'));
+  assert.ok(found.includes('ex-acme-close-a-b-f6e4a6af'));
+  assert.ok(found.includes('ex-acme-close-a-b-0a91a742'));
+  for (const id of found) {
+    assertDefinedOnce(out, id);
+  }
+  const ids = anchorIds(out);
+  assert.equal(new Set(ids).size, ids.length, 'anchors are unique');
+  const defined = new Set(ids);
+  for (const target of linkTargets(out)) {
+    assert.ok(defined.has(target), `dangling link target: ${target}`);
+  }
+});
+
+test('suffix-versus-bare anchors are stable across input permutations', () => {
+  const forward = modelWithOwners([
+    { name: 'a_b', declarations: [], operations: [] },
+    { name: 'a__b', declarations: [], operations: [] },
+    { name: 'a_b_1ba46871', declarations: [], operations: [] },
+    {
+      name: 'Acme',
+      declarations: [
+        bareDeclaration('Acme', 'a_b'),
+        bareDeclaration('Acme', 'a__b'),
+        bareDeclaration('Acme', 'a_b_2da82145'),
+        {
+          ...bareDeclaration('Acme', 'Widget'),
+          examples: [
+            { label: 'a_b', source: 'x' },
+            { label: 'a__b', source: 'y' },
+            { label: 'a_b_933e3f87', source: 'z' },
+          ],
+        },
+      ],
+      operations: [
+        bareOperation('Acme.a_b'),
+        bareOperation('Acme.a__b'),
+        bareOperation('Acme.a_b_2f9979ab'),
+        {
+          ...bareOperation('Acme.close'),
+          examples: [
+            { label: 'a_b', source: 'x' },
+            { label: 'a__b', source: 'y' },
+            { label: 'a_b_0a91a742', source: 'z' },
+          ],
+        },
+      ],
+    },
+  ]);
+  const reverse = modelWithOwners([
+    {
+      name: 'Acme',
+      declarations: [
+        {
+          ...bareDeclaration('Acme', 'Widget'),
+          examples: [
+            { label: 'a_b_933e3f87', source: 'z' },
+            { label: 'a__b', source: 'y' },
+            { label: 'a_b', source: 'x' },
+          ],
+        },
+        bareDeclaration('Acme', 'a_b_2da82145'),
+        bareDeclaration('Acme', 'a__b'),
+        bareDeclaration('Acme', 'a_b'),
+      ],
+      operations: [
+        {
+          ...bareOperation('Acme.close'),
+          examples: [
+            { label: 'a_b_0a91a742', source: 'z' },
+            { label: 'a__b', source: 'y' },
+            { label: 'a_b', source: 'x' },
+          ],
+        },
+        bareOperation('Acme.a_b_2f9979ab'),
+        bareOperation('Acme.a__b'),
+        bareOperation('Acme.a_b'),
+      ],
+    },
+    { name: 'a_b_1ba46871', declarations: [], operations: [] },
+    { name: 'a__b', declarations: [], operations: [] },
+    { name: 'a_b', declarations: [], operations: [] },
+  ]);
+  const outForward = renderReferenceMarkdown(forward, { locale: 'en' });
+  const outReverse = renderReferenceMarkdown(reverse, { locale: 'en' });
+  assert.deepEqual([...anchorIds(outForward)].sort(), [...anchorIds(outReverse)].sort());
+  assert.deepEqual(tocTargetPairs(outForward), tocTargetPairs(outReverse));
+});
+
+test('combined suffix-versus-bare model has unique anchors and no dangling links', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      { name: 'a_b', declarations: [], operations: [] },
+      { name: 'a__b', declarations: [], operations: [] },
+      { name: 'a_b_1ba46871', declarations: [], operations: [] },
+      {
+        name: 'Acme',
+        declarations: [
+          bareDeclaration('Acme', 'a_b'),
+          bareDeclaration('Acme', 'a__b'),
+          bareDeclaration('Acme', 'a_b_2da82145'),
+          {
+            ...bareDeclaration('Acme', 'Widget'),
+            examples: [
+              { label: 'a_b', source: 'x' },
+              { label: 'a__b', source: 'y' },
+              { label: 'a_b_933e3f87', source: 'z' },
+            ],
+          },
+        ],
+        operations: [
+          bareOperation('Acme.a_b'),
+          bareOperation('Acme.a__b'),
+          bareOperation('Acme.a_b_2f9979ab'),
+          {
+            ...bareOperation('Acme.close'),
+            examples: [
+              { label: 'a_b', source: 'x' },
+              { label: 'a__b', source: 'y' },
+              { label: 'a_b_0a91a742', source: 'z' },
+            ],
+          },
+        ],
+      },
+    ]),
+    { locale: 'en' },
+  );
+  const ids = anchorIds(out);
+  assert.ok(ids.length > 0);
+  assert.equal(new Set(ids).size, ids.length, 'anchors are unique');
+  const defined = new Set(ids);
+  const targets = linkTargets(out);
+  assert.ok(targets.length > 0);
+  for (const target of targets) {
+    assert.ok(defined.has(target), `dangling link target: ${target}`);
+  }
+});
