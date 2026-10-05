@@ -150,6 +150,29 @@ export type CanValue =
  */
 export type CanTypeId = string;
 
+/**
+ * T09 array-omission marker: an `ordinary` array (`T[]`) omits to `[]` on
+ * creation, while a `required` array (`T[]!`, the field-only marker of
+ * GRAMMAR L192) requires caller input. This mirrors `requiredArray` on the
+ * values `NormalizedType` and `array.required` on the T04a
+ * `CanonicalFieldDef` in `state.ts`; L1 emission must set the marker from
+ * the `!` spelling (never from nullability) so descriptors, fixtures and
+ * values conformance agree on one rule.
+ */
+export type ArrayOmission = "ordinary" | "required";
+
+/**
+ * T09 creation-default origin vocabulary. `literal` is an authored `=expr`
+ * value; `server` (`server=expr`, DESIGN L129) and `derived` (`derive`,
+ * GRAMMAR L85) are engine-resolved on creation and excluded from writable
+ * client inputs; `parent` is resolved off the loaded parent row (T04a
+ * `CanonicalFieldDefault`, DESIGN L133). This mirrors the T04a
+ * `CanonicalFieldDefault` kinds so L2 conformance and L1 emission name the
+ * same origins; values conformance emits `literal`/`server`/`derived`
+ * (the `parent` kind is supplied by L1 emission for the T18 engine).
+ */
+export type FieldDefaultOrigin = "literal" | "parent" | "server" | "derived";
+
 /** Plain JSON data. Exact scalars use canonical decimal strings, never numbers. */
 export type WireValue =
   | string

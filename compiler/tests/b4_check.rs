@@ -215,3 +215,187 @@ fn explain_e3019_round_trip() {
     let valid = check(info.example_valid, Some(&catalog));
     assert!(valid.is_empty(), "E3019 valid: {valid:?}");
 }
+
+// --- T08 selector unification: canonical parent/metadata/value leaves ---
+//
+// Policy/UI selectors navigate the same roots expression member
+// lookup accepts (contained-model `parent`, readable metadata,
+// singular value leaves); unknown leaves, reference interiors,
+// terminal descent, disclosure and metadata writes keep failing.
+
+/// (T08) Policy `fields=` accepts `parent`, readable metadata and
+/// money leaves on a contained model (CanApprove:18 shape).
+#[test]
+fn t08_parent_metadata_value_in_policy_fields() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n P { t:text }\n C in P { kind:enum(a,b)=a, total:money }\n policy C read=members fields=parent,kind,total.currency,created_by,created,updated_by,updated,archived_at,id,version\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "policy parent/metadata/value: {diags:?}");
+}
+
+/// (T08) UI `columns=`/`filter=` agree with policy on `parent`,
+/// metadata and money leaves (CanAffiliate:253 shape).
+#[test]
+fn t08_parent_metadata_value_in_ui() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n P { t:text }\n Sale in P { amount:money, reversed:bool=false }\n policy Sale read=members\nWhen\nThen\n page /t title=\"T\"\n  table Sale columns=parent,amount,reversed,created filter=reversed,amount.currency\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "ui parent/metadata/value: {diags:?}");
+}
+
+/// (T08) Nullable intermediates unwrap before the value leaf.
+#[test]
+fn t08_nullable_money_intermediate() {
+    let catalog = fixture();
+    let src =
+        "app T\nGiven\n M { tip:money? }\n policy M read=members fields=tip.currency\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "nullable money leaf: {diags:?}");
+}
+
+/// (T08) Stable `user.id` reads through a user-typed field.
+#[test]
+fn t08_user_id_member() {
+    let catalog = fixture();
+    let src =
+        "app T\nGiven\n M { owner:user }\n policy M read=members fields=owner.id\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "user.id leaf: {diags:?}");
+}
+
+/// (T08) `parent` is selectable in `lock fields=` (CanKnowledge:63).
+#[test]
+fn t08_parent_in_lock_fields() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n P { t:text }\n C in P { n:int }\n policy C read=members\n lock C fields=parent,n\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "lock parent: {diags:?}");
+}
+
+/// (T08) Opaque (deployment-bound, schema-unavailable) interiors
+/// defer silently in selectors exactly as in expressions
+/// (CanChat:28 `request.progress.*` shape).
+#[test]
+fn t08_opaque_interior_defers() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use zzz {Box} from=deployment.mail\n Given\n  M { request:delivery(Box.send)? }\n  policy M read=members fields=request.progress.state\n When\n Then\n  page /t title=\"T\"\n   table M columns=request.progress.state\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "opaque interior defers: {diags:?}");
+}
+
+/// (T08) A poisoned field base stays silent in selectors (cascade
+/// suppression): only the declaration `E2001` fires, no `E2013`.
+#[test]
+fn t08_error_base_suppresses_selector_cascade() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { envelope:Missing, queue:text }\n policy M read=members fields=envelope.received,queue\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2001"], "{diags:?}");
+}
+
+/// (T08) Delivery leaves resolve through import aliases
+/// (`use zzz {EmailV1 as Mail} from=...`).
+#[test]
+fn t08_import_alias_delivery_leaf() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use zzz {EmailV1 as Mail} from=deployment.mail\n Given\n  M { delivery:delivery(Mail.send)? }\n  policy M read=members fields=delivery.status\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "aliased delivery leaf: {diags:?}");
+}
+
+/// (T08) Unknown leaves still fail.
+#[test]
+fn t08_unknown_leaf_still_e2013() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { title:text }\n policy M read=members fields=bogus_leaf_xyz\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+}
+
+/// (T08) `parent` on a non-contained model still fails.
+#[test]
+fn t08_parent_without_containment_still_e2013() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { title:text }\n policy M read=members fields=parent\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+}
+
+/// (T08) Model-reference interiors still fail (CanEnrich:205
+/// `lookup.provider` shape): traversal grants nothing.
+#[test]
+fn t08_reference_interior_still_e2013() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n P { provider:text }\n M { lookup:P }\n policy M read=members fields=lookup.provider\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+}
+
+/// (T08) `parent` is terminal: descent into another record's fields
+/// still fails.
+#[test]
+fn t08_parent_interior_still_e2013() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n P { t:text }\n C in P { n:int }\n policy C read=members fields=parent.t\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+}
+
+/// (T08) Descent past a scalar value leaf still fails.
+#[test]
+fn t08_scalar_leaf_descent_still_e2013() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { amount:money }\n policy M read=members fields=amount.currency.code\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+}
+
+/// (T08) Account contact stays disclosure-gated: `owner.email`
+/// fails where `owner.id` reads.
+#[test]
+fn t08_user_email_disclosure_still_e2013() {
+    let catalog = fixture();
+    let src =
+        "app T\nGiven\n M { owner:user }\n policy M read=members fields=owner.email\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+}
+
+/// (T08) Reserved metadata stays rejected as a CRUD input (write
+/// context keeps the contract-only rule).
+#[test]
+fn t08_crud_metadata_input_still_e2013() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { title:text }\n policy M read=members\nWhen\n crud M by=members fields=title,created\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+}
+
+/// (T08) Reserved metadata stays unsettable.
+#[test]
+fn t08_metadata_write_still_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { title:text }\n policy M read=members\nWhen\n scenario s(m:M) by=members\n  do\n   set m {created=now}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+}
+
+/// (T08) A selector grant supplies no narrowing fact: the nullable
+/// field still needs its guard at use sites.
+#[test]
+fn t08_selector_grants_no_fact() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { nick:text?, nick2:text }\n policy M read=members fields=nick\nWhen\n scenario s(m:M) by=members\n  do\n   set m {nick2=m.nick}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+}
+
+/// (T08) Typed delivery leaves keep their B4 scope: `delivery.status`
+/// reads in policy `fields=` but not in UI `filter=`.
+#[test]
+fn t08_typed_delivery_leaf_scope_preserved() {
+    let catalog = fixture();
+    let src = "package p\n use p {Mail as Box} from=deployment.mail\n Given\n  export capability Mail version=1\n   send(to:text) -> Ack\n  contract Ack { ok:bool }\n  M { delivery:delivery(Box.send)?, state:text }\n  policy M read=members fields=delivery.status\n When\n Then\n  page /t title=\"T\"\n   table M columns=state filter=delivery.status\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+}

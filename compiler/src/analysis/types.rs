@@ -4075,7 +4075,10 @@ impl<'a> Typer<'a> {
                 if let Some(model) = target_model
                     && let Some(fields) = attribute_value(node, "fields", text)
                 {
-                    self.check_selectors(&cx, node, model, fields, "fields", false);
+                    // Policy grants are a read context: readable
+                    // metadata is selectable (T08/R07); grants confer
+                    // no flow fact and no write permission.
+                    self.check_selectors(&cx, node, model, fields, "fields", true);
                 }
             }
             SyntaxKind::Unique => {
@@ -4180,10 +4183,12 @@ impl<'a> Typer<'a> {
     }
 
     /// Validate `Selectors` paths against a model: every path must
-    /// navigate declared fields (reserved metadata only when
-    /// `allow_reserved`), descending through singular embedded values
-    /// only; descending markers belong to `order=` (`E2013`/`E3001`).
-    /// Returns the selected dotted paths.
+    /// navigate canonical member information (declared fields,
+    /// readable metadata in read contexts, contained-model `parent`,
+    /// singular embedded value leaves), descending through singular
+    /// embedded values only; descending markers belong to `order=`
+    /// (`E2013`/`E3001`). Accepted selectors confer no narrowing fact
+    /// and no permission. Returns the selected dotted paths.
     fn check_selectors(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -4221,19 +4226,6 @@ impl<'a> Typer<'a> {
             if segments.is_empty() {
                 continue;
             }
-            if segments.len() == 1 && is_reserved_name(segments[0]) {
-                if !allow_reserved {
-                    self.member_fail(
-                        node,
-                        tight_span(cx.text, path),
-                        format!("model {}", record_name(self.tables, cx.module, model)),
-                        segments[0].to_string(),
-                    );
-                } else {
-                    selected.push(segments[0].to_string());
-                }
-                continue;
-            }
             // Policy `fields=` and UI `columns=` additionally accept
             // delivery-observation leaves (DESIGN §7.1); every other
             // selector keeps the contract-only rule below.
@@ -4244,7 +4236,7 @@ impl<'a> Typer<'a> {
                 selected.push(segments.join("."));
                 continue;
             }
-            if self.navigate_selector(cx, node, model, path, &segments) {
+            if self.navigate_selector(cx, node, model, path, &segments, allow_reserved) {
                 selected.push(segments.join("."));
             }
         }
@@ -4292,9 +4284,37 @@ impl<'a> Typer<'a> {
         false
     }
 
-    /// Navigate one selector path from `model`: fields, then singular
-    /// embedded contract values (DESIGN §4). Reports `E2013` and
-    /// returns `false` on failure.
+    /// Push an `E2013` for a selector path that names no canonical
+    /// member.
+    fn selector_fail(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        model: SymbolId,
+        path: &SyntaxNode,
+        name: &str,
+    ) {
+        self.member_fail(
+            node,
+            tight_span(cx.text, path),
+            format!("model {}", record_name(self.tables, cx.module, model)),
+            name.to_string(),
+        );
+    }
+
+    /// Navigate one selector path from `model`: declared fields,
+    /// readable metadata (read contexts only), contained-model
+    /// `parent` and singular embedded value leaves — the same roots
+    /// expression member lookup accepts (T08 canonical agreement;
+    /// R07/R08). Interior components must be singular embedded typed
+    /// values, never references, arrays or authorities (DESIGN §4);
+    /// unknown leaves, invalid terminal descent, unauthorized
+    /// traversal and disclosure keep failing. Poisoned (`Error`) and
+    /// unknown (`Unknown`) bases stay silent (cascade suppression);
+    /// unavailable-schema (`Opaque`) bases defer silently, exactly as
+    /// in expressions, except the known delivery-observation leaves
+    /// stay terminal (B4). Reports `E2013` and returns `false` on
+    /// failure.
     fn navigate_selector(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -4302,55 +4322,139 @@ impl<'a> Typer<'a> {
         model: SymbolId,
         path: &SyntaxNode,
         segments: &[&str],
+        allow_reserved: bool,
     ) -> bool {
-        let Some(mut field) = self.model_field_named(model, segments[0]) else {
-            self.member_fail(
-                node,
-                tight_span(cx.text, path),
-                format!("model {}", record_name(self.tables, cx.module, model)),
-                segments[0].to_string(),
-            );
-            return false;
-        };
-        for segment in segments.iter().skip(1) {
-            let ty = self.decl_type(field);
-            let inner = match &ty {
-                ResolvedType::Nullable(inner) => inner.as_ref(),
-                other => other,
-            };
-            let ResolvedType::Record { symbol, .. } = inner else {
-                self.member_fail(
-                    node,
-                    tight_span(cx.text, path),
-                    format!("model {}", record_name(self.tables, cx.module, model)),
-                    segments.join("."),
-                );
+        // Declared fields first, exactly as expression lookup orders
+        // them (a declared field shadows same-spelled metadata).
+        let mut current = if let Some(field) = self.model_field_named(model, segments[0]) {
+            self.decl_type(field)
+        } else if segments[0] == "parent" {
+            // Contained-model `parent` (DESIGN §2/§4); terminal in
+            // selectors (a grant cannot name another record's fields).
+            let Some(parent) = contained_parent_of(self.tables, model) else {
+                self.selector_fail(cx, node, model, path, segments[0]);
                 return false;
             };
-            // Interior components must be singular embedded values,
-            // never references, arrays or authorities (DESIGN §4).
-            if !matches!(
-                self.tables.symbols[symbol.0 as usize].kind,
-                SymbolKind::Contract { .. }
-            ) {
-                self.member_fail(
-                    node,
-                    tight_span(cx.text, path),
-                    format!("model {}", record_name(self.tables, cx.module, model)),
-                    segments.join("."),
-                );
+            ResolvedType::Record {
+                symbol: parent,
+                stored: true,
+            }
+        } else if is_reserved_name(segments[0]) {
+            // Readable record metadata in read/grant contexts only;
+            // write contexts (CRUD inputs, locks, uniqueness) keep
+            // rejecting it, and metadata writes stay rejected.
+            if !allow_reserved {
+                self.selector_fail(cx, node, model, path, segments[0]);
                 return false;
             }
-            let Some(next) = self.record_field_named(*symbol, segment) else {
-                self.member_fail(
-                    node,
-                    tight_span(cx.text, path),
-                    format!("model {}", record_name(self.tables, cx.module, model)),
-                    segments.join("."),
-                );
+            let Some(ty) = reserved_member_type(segments[0]) else {
+                self.selector_fail(cx, node, model, path, segments[0]);
                 return false;
             };
-            field = next;
+            ty
+        } else {
+            self.selector_fail(cx, node, model, path, segments[0]);
+            return false;
+        };
+        let rest = &segments[1..];
+        for (i, segment) in rest.iter().enumerate() {
+            let last = i == rest.len() - 1;
+            let inner = match &current {
+                ResolvedType::Nullable(inner) => inner.as_ref().clone(),
+                other => other.clone(),
+            };
+            match &inner {
+                // Deferral, mirroring expression member lookup: an
+                // already-diagnosed base stays silent (cascade
+                // suppression) and an unavailable-schema base stays
+                // silent (supported-but-unavailable; T13 schemas will
+                // type it later).
+                ResolvedType::Error | ResolvedType::Unknown => return true,
+                ResolvedType::Opaque(payload) => {
+                    // Known delivery-observation leaves stay terminal
+                    // on deployment-bound deliveries (B4); every other
+                    // opaque member defers to the pending schema.
+                    if payload == &"external delivery target"
+                        && matches!(segment, &"id" | &"status" | &"error" | &"result")
+                        && !last
+                    {
+                        self.selector_fail(cx, node, model, path, &segments.join("."));
+                        return false;
+                    }
+                    return true;
+                }
+                ResolvedType::Record { symbol, .. } => {
+                    // Interior components must be singular embedded
+                    // values, never references, arrays or authorities
+                    // (DESIGN §4): only contracts navigate.
+                    if !matches!(
+                        self.tables.symbols[symbol.0 as usize].kind,
+                        SymbolKind::Contract { .. }
+                    ) {
+                        self.selector_fail(cx, node, model, path, &segments.join("."));
+                        return false;
+                    }
+                    let Some(next) = self.record_field_named(*symbol, segment) else {
+                        self.selector_fail(cx, node, model, path, &segments.join("."));
+                        return false;
+                    };
+                    current = self.decl_type(next);
+                }
+                // Singular embedded value leaves, exactly as
+                // expressions read them (R08; DESIGN §3/§4).
+                ResolvedType::Scalar(Scalar::Money) => match *segment {
+                    "minor" => current = ResolvedType::Scalar(Scalar::Int),
+                    "currency" => current = ResolvedType::Scalar(Scalar::Currency),
+                    _ => {
+                        self.selector_fail(cx, node, model, path, &segments.join("."));
+                        return false;
+                    }
+                },
+                ResolvedType::Scalar(Scalar::User) => match *segment {
+                    // Stable `user.id` is readable (DESIGN §3);
+                    // account contact stays disclosure-gated (only
+                    // `actor.email` reads, and selectors never have an
+                    // actor root).
+                    "id" => current = ResolvedType::Scalar(Scalar::Text),
+                    _ => {
+                        self.selector_fail(cx, node, model, path, &segments.join("."));
+                        return false;
+                    }
+                },
+                ResolvedType::Scalar(Scalar::Member) => match *segment {
+                    "id" => current = ResolvedType::Scalar(Scalar::Text),
+                    "user" => current = ResolvedType::Scalar(Scalar::User),
+                    "team" => current = ResolvedType::Team,
+                    _ => {
+                        self.selector_fail(cx, node, model, path, &segments.join("."));
+                        return false;
+                    }
+                },
+                ResolvedType::Team => match *segment {
+                    "id" => current = ResolvedType::Scalar(Scalar::Text),
+                    "timezone" => current = ResolvedType::Scalar(Scalar::Timezone),
+                    _ => {
+                        self.selector_fail(cx, node, model, path, &segments.join("."));
+                        return false;
+                    }
+                },
+                ResolvedType::OperationContext => match *segment {
+                    "id" | "source" => current = ResolvedType::Scalar(Scalar::Text),
+                    _ => {
+                        self.selector_fail(cx, node, model, path, &segments.join("."));
+                        return false;
+                    }
+                },
+                // Every other base rejects deeper navigation: unknown
+                // scalar leaves, arrays, delivery interiors past the
+                // B4 observation leaves (accepted above, never
+                // descended), unions, actions and operations
+                // (DESIGN §4).
+                _ => {
+                    self.selector_fail(cx, node, model, path, &segments.join("."));
+                    return false;
+                }
+            }
         }
         true
     }
@@ -6710,6 +6814,34 @@ fn is_reserved_name(name: &str) -> bool {
     )
 }
 
+/// Read-only type of reserved record metadata (DESIGN §2), shared
+/// by expression member lookup and selector navigation so both
+/// positions agree (T08 canonical member information).
+fn reserved_member_type(name: &str) -> Option<ResolvedType> {
+    match name {
+        "id" => Some(ResolvedType::Scalar(Scalar::Text)),
+        "version" => Some(ResolvedType::Scalar(Scalar::Int)),
+        "created" | "updated" => Some(ResolvedType::Scalar(Scalar::Datetime)),
+        "created_by" | "updated_by" => Some(ResolvedType::Scalar(Scalar::User)),
+        "archived_at" => Some(ResolvedType::Nullable(Box::new(ResolvedType::Scalar(
+            Scalar::Datetime,
+        )))),
+        _ => None,
+    }
+}
+
+/// Containing parent of a contained model, if any (shared by
+/// expression member lookup and selector navigation, T08).
+fn contained_parent_of(tables: &ResolveTables, symbol: SymbolId) -> Option<SymbolId> {
+    match &tables.symbols[symbol.0 as usize].kind {
+        SymbolKind::Model {
+            owner: ModelOwner::ChildOf(parent),
+            ..
+        } => Some(*parent),
+        _ => None,
+    }
+}
+
 /// Whether an effect node carries an `as NAME` binding.
 fn has_as_binding(node: &SyntaxNode, text: &str) -> bool {
     let parts = kids(node);
@@ -8987,33 +9119,21 @@ impl<'a> Typer<'a> {
             return Some(self.decl_type(field));
         }
         let is_model = matches!(record.kind, SymbolKind::Model { .. });
-        if is_model && stored {
-            let reserved = match name {
-                "id" => Some(ResolvedType::Scalar(Scalar::Text)),
-                "version" => Some(ResolvedType::Scalar(Scalar::Int)),
-                "created" | "updated" => Some(ResolvedType::Scalar(Scalar::Datetime)),
-                "created_by" | "updated_by" => Some(ResolvedType::Scalar(Scalar::User)),
-                "archived_at" => Some(ResolvedType::Nullable(Box::new(ResolvedType::Scalar(
-                    Scalar::Datetime,
-                )))),
-                _ => None,
-            };
-            if let Some(ty) = reserved {
-                return Some(ty);
-            }
+        if is_model
+            && stored
+            && let Some(ty) = reserved_member_type(name)
+        {
+            return Some(ty);
         }
         if is_model {
             // `row.parent` on a contained model is its required
             // containing record (DESIGN §2/§4); `parentRecord.Child`
             // is the typed child collection (default record ordering).
             if name == "parent"
-                && let SymbolKind::Model {
-                    owner: ModelOwner::ChildOf(parent),
-                    ..
-                } = &record.kind
+                && let Some(parent) = contained_parent_of(self.tables, symbol)
             {
                 return Some(ResolvedType::Record {
-                    symbol: *parent,
+                    symbol: parent,
                     stored: true,
                 });
             }
