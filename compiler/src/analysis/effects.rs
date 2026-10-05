@@ -129,6 +129,11 @@ pub struct ScenarioData {
     pub read: bool,
     /// Whether `scope=authority` was declared.
     pub scope_authority: bool,
+    /// Whether `expose=none` was declared (excluded from publication;
+    /// omission exposes the operation). The checker owns the closed
+    /// set; future publication surfaces (http/mcp) would widen this
+    /// to a word list like [`CrudData::expose`].
+    pub expose_none: bool,
     /// `label=` value node.
     pub label: Option<NodeKey>,
     /// Parameters in signature order.
@@ -403,6 +408,8 @@ pub struct FieldData {
     pub modifiers: Vec<ModifierData>,
     /// `label=` value node.
     pub label: Option<NodeKey>,
+    /// Trailing `@{desc="..."}` literal text, when authored.
+    pub description: Option<String>,
     /// Whether the field-only required-array `!` marker is present.
     pub required_array: bool,
 }
@@ -663,6 +670,8 @@ pub struct ParamData {
     pub default: Option<NodeKey>,
     /// `label=` value node.
     pub label: Option<NodeKey>,
+    /// Trailing `@{desc="..."}` literal text, when authored.
+    pub description: Option<String>,
 }
 
 /// Module data: pages, rule refs, migration refs, descriptions (G9).
@@ -1210,6 +1219,7 @@ impl<'a> Cx<'a> {
                 server: shape.server,
                 modifiers: shape.modifiers,
                 label: shape.label,
+                description: annotation_desc(text, child),
                 required_array: shape.required_array,
             });
         }
@@ -1262,6 +1272,7 @@ impl<'a> Cx<'a> {
                 type_node,
                 default: shape.default,
                 label: shape.label,
+                description: annotation_desc(text, child),
             });
         }
         out
@@ -1988,6 +1999,7 @@ impl<'a> Cx<'a> {
         let mut models = Vec::new();
         collect_subtree_models(self.tables, self.types, text, node, &mut models);
         self.scenario_models.insert(id, models);
+        let (expose_words, _) = selector_words(text, node, "expose");
         self.out.scenarios.insert(
             id,
             ScenarioData {
@@ -1999,6 +2011,7 @@ impl<'a> Cx<'a> {
                 on_node: on_value.map(NodeKey::of),
                 read: attribute_value(node, "read", text).is_some(),
                 scope_authority: attribute_value(node, "scope", text).is_some(),
+                expose_none: matches!(expose_words.as_slice(), [word] if word.as_str() == "none"),
                 label: attribute_value(node, "label", text).map(NodeKey::of),
                 params: self.signature_params(text, id, &params, node),
                 result: result_annotation(text, node).map(NodeKey::of),
@@ -3518,6 +3531,23 @@ fn rule_noun(kind: SyntaxKind) -> &'static str {
     }
 }
 
+/// Verbatim text of a trailing `@{desc="..."}` annotation on a field
+/// or parameter, when one is authored. The parser pins the closed
+/// `desc` key and literal-only values (`E1214`); this just decodes
+/// the string.
+fn annotation_desc(text: &str, node: &SyntaxNode) -> Option<String> {
+    node.children
+        .iter()
+        .filter(|c| c.kind == SyntaxKind::Annotation)
+        .find_map(|annotation| {
+            significant_children(annotation)
+                .iter()
+                .find(|n| n.kind == SyntaxKind::Literal)
+                .copied()
+                .and_then(|literal| literal_string(text, literal))
+        })
+}
+
 /// Decoded text of a string literal node (`Literal` over one `String`
 /// leaf, or the leaf itself).
 fn literal_string(text: &str, node: &SyntaxNode) -> Option<String> {
@@ -3982,7 +4012,7 @@ struct FieldShape {
 }
 
 /// Decode a `Field` node: `[Name, :, Type, [!], (= default | server = init),
-/// modifiers, (label = value)]`.
+/// modifiers, (label = value), (@{desc} annotation)?]`.
 fn field_shape(text: &str, field: &SyntaxNode) -> FieldShape {
     let mut shape = FieldShape {
         default: None,
@@ -4058,7 +4088,7 @@ struct ParamShape {
 }
 
 /// Decode a `Parameter` node: `[Name, :, Type, (= default)?, (label =
-/// value)?]`.
+/// value)?, (@{desc} annotation)?]`.
 fn param_shape(text: &str, param: &SyntaxNode) -> ParamShape {
     let mut shape = ParamShape {
         default: None,

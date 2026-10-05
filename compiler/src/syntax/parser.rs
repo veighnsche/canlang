@@ -1937,6 +1937,93 @@ impl<'a> Parser<'a> {
         Ok(SyntaxNode::enclosing(SyntaxKind::MessageValue, kids))
     }
 
+    /// Parse a trailing `@{desc="..."}` input annotation on a field or
+    /// parameter. The shape mirrors the `@{...}` message suffix
+    /// (contiguous `@{`, comma-separated `key=value` pairs) but the key
+    /// set is closed to `desc` and values are literal text only — never
+    /// locale variants, so message coverage stays out. Pairs sit flat
+    /// under the `Annotation` (no variant wrapper) for the same reason.
+    fn parse_annotation(&mut self, cursor: &mut Cursor<'a>) -> Result<SyntaxNode, Fail> {
+        let mut kids = Vec::new();
+        let at = cursor.expect_p(Punct::At)?;
+        let brace = cursor.expect_p(Punct::LBrace)?;
+        if brace.span.start != at.span.end {
+            return Err(Fail::new(
+                "E1214",
+                "annotation marker must be contiguous `@{`".to_string(),
+                brace.span,
+            ));
+        }
+        self.builder.leaf(&mut kids, &at);
+        self.builder.leaf(&mut kids, &brace);
+        if cursor.at_p(Punct::RBrace) {
+            return Err(Fail::new(
+                "E1214",
+                "annotation requires a `desc` entry".to_string(),
+                cursor.span_here(),
+            ));
+        }
+        let mut seen: Vec<String> = Vec::new();
+        while !cursor.at_p(Punct::RBrace) {
+            if cursor.done() {
+                return cursor.err("E1214", "expected `}` to close the annotation");
+            }
+            let key = cursor.next().expect("peeked annotation key");
+            if key.kind != TokenKind::Name {
+                return Err(Fail::new(
+                    "E1214",
+                    "annotation key must be an identifier".to_string(),
+                    key.span,
+                ));
+            }
+            let name = key.text(cursor.text).to_string();
+            if name != "desc" {
+                return Err(Fail::new(
+                    "E1214",
+                    format!("unknown annotation `{name}` (only `desc` is supported)"),
+                    key.span,
+                ));
+            }
+            if seen.contains(&name) {
+                return Err(Fail::new(
+                    "E1214",
+                    "duplicate annotation `desc`".to_string(),
+                    key.span,
+                ));
+            }
+            seen.push(name);
+            self.builder.leaf(&mut kids, &key);
+            let eq = cursor.expect_p(Punct::Eq)?;
+            self.builder.leaf(&mut kids, &eq);
+            let value_token = cursor.next().ok_or_else(|| {
+                Fail::new(
+                    "E1214",
+                    "annotation `desc` requires a double-quoted string literal".to_string(),
+                    cursor.eof,
+                )
+            })?;
+            if value_token.kind != TokenKind::String {
+                return Err(Fail::new(
+                    "E1214",
+                    "annotation `desc` requires a double-quoted string literal".to_string(),
+                    value_token.span,
+                ));
+            }
+            let mut literal = Vec::new();
+            self.builder.leaf(&mut literal, &value_token);
+            let literal = SyntaxNode::enclosing(SyntaxKind::Literal, literal);
+            self.builder.push_inner(&mut kids, literal);
+            if !cursor.at_p(Punct::Comma) {
+                break;
+            }
+            let comma = cursor.next().expect("peeked comma");
+            self.builder.leaf(&mut kids, &comma);
+        }
+        let close = cursor.expect_p(Punct::RBrace)?;
+        self.builder.leaf(&mut kids, &close);
+        Ok(SyntaxNode::enclosing(SyntaxKind::Annotation, kids))
+    }
+
     /// Parse a scalar caption: literal source STRING with optional
     /// descriptor suffix, or a static message path.
     fn parse_caption(&mut self, cursor: &mut Cursor<'a>) -> Result<SyntaxNode, Fail> {
@@ -2544,6 +2631,10 @@ impl<'a> Parser<'a> {
             self.builder.leaf(&mut kids, &eq);
             let label = self.parse_label(cursor, LabelShape::Field)?;
             self.builder.push_inner(&mut kids, label);
+        }
+        if cursor.at_p(Punct::At) {
+            let annotation = self.parse_annotation(cursor)?;
+            self.builder.push_inner(&mut kids, annotation);
         }
         if required && initialized {
             return Err(Fail::new(
@@ -4174,7 +4265,7 @@ impl<'a> Parser<'a> {
         // `each` is listed so `by=`/`on=` value expressions stop before
         // `each=`; it is intercepted below (proposal marker, not a hard
         // failure) rather than parsed by the generic attribute path.
-        let allowed = ["by", "on", "each", "read", "scope", "label"];
+        let allowed = ["by", "on", "each", "read", "scope", "label", "expose"];
         let mut seen: Vec<String> = Vec::new();
         let mut has_result = false;
         let mut label_span: Option<Span> = None;
@@ -4261,6 +4352,13 @@ impl<'a> Parser<'a> {
                     let value = SyntaxNode::enclosing(SyntaxKind::NameRef, value);
                     self.builder.push_inner(&mut attr, value);
                 }
+                "expose" => {
+                    // Closed publication allowlist, mirroring CRUD
+                    // `expose=` (`Selectors` shape; the closed set is a
+                    // checking rule, sole `none` today).
+                    let value = self.parse_selectors(cursor)?;
+                    self.builder.push_inner(&mut attr, value);
+                }
                 "on" => {
                     let is_periodic = cursor.at_name("every")
                         && cursor.peek2().is_some_and(|t| t.is_punct(Punct::LParen));
@@ -4316,11 +4414,12 @@ impl<'a> Parser<'a> {
             && (has_params
                 || has_result
                 || seen.contains(&"read".to_string())
-                || seen.contains(&"scope".to_string()))
+                || seen.contains(&"scope".to_string())
+                || seen.contains(&"expose".to_string()))
         {
             return Err(Fail::new(
                 "E1200",
-                "trusted handlers declare no client parameters, result or read attributes"
+                "trusted handlers declare no client parameters, result, read or expose attributes"
                     .to_string(),
                 head.span,
             ));

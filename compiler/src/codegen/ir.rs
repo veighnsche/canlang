@@ -202,6 +202,9 @@ pub enum IrItemKind {
         label: Option<IrMessage>,
         /// Attached `#` description (G9).
         description: Option<IrMessage>,
+        /// Whether `expose=none` excludes this operation from
+        /// publication (P4; mirrors the `CrudOp` allowlist rule).
+        expose_excluded: bool,
         /// Leading `require` guards in written order (G1).
         guards: Vec<IrStmt>,
         /// `do` body statements in written order (G1).
@@ -242,6 +245,8 @@ pub enum IrItemKind {
         modifiers: IrModifiers,
         /// Label caption, with case values for enum/bool captions (G3/G4).
         label: Option<IrFieldLabel>,
+        /// Trailing `@{desc}` text, when authored (P4).
+        description: Option<String>,
     },
     Param {
         owner: SymbolId,
@@ -251,6 +256,8 @@ pub enum IrItemKind {
         default: Option<IrDefault>,
         /// `label=` caption (G1/G6/G7).
         label: Option<IrMessage>,
+        /// Trailing `@{desc}` text, when authored (P4).
+        description: Option<String>,
     },
     DeriveField {
         model: SymbolId,
@@ -1737,7 +1744,8 @@ impl<'a> Cx<'a> {
                     result_node.is_some(),
                     &mut self.diags,
                 );
-                let (read, by, label, description, guards, effects) = self.decode_scenario(symbol);
+                let (read, by, label, description, expose_excluded, guards, effects) =
+                    self.decode_scenario(symbol);
                 IrItemKind::Scenario {
                     params: params.clone(),
                     trusted: *trusted,
@@ -1746,6 +1754,7 @@ impl<'a> Cx<'a> {
                     by,
                     label,
                     description,
+                    expose_excluded,
                     guards,
                     effects,
                 }
@@ -1776,7 +1785,8 @@ impl<'a> Cx<'a> {
                 }
             }
             SymbolKind::Field { owner, .. } => {
-                let (default, server, modifiers, label) = self.decode_field(symbol, *owner);
+                let (default, server, modifiers, label, description) =
+                    self.decode_field(symbol, *owner);
                 IrItemKind::Field {
                     owner: *owner,
                     ty: lookup_symbol_type(self.program, symbol, "declared type", &mut self.diags),
@@ -1784,16 +1794,18 @@ impl<'a> Cx<'a> {
                     server,
                     modifiers,
                     label,
+                    description,
                 }
             }
             SymbolKind::Param { owner, index, .. } => {
-                let (default, label) = self.decode_param(symbol, *owner);
+                let (default, label, description) = self.decode_param(symbol, *owner);
                 IrItemKind::Param {
                     owner: *owner,
                     index: *index,
                     ty: lookup_symbol_type(self.program, symbol, "declared type", &mut self.diags),
                     default,
                     label,
+                    description,
                 }
             }
             SymbolKind::DeriveField { model, .. } => {
@@ -1916,6 +1928,14 @@ impl<'a> Cx<'a> {
     /// Decode one message node (see [`Cx::decode_message_value`]).
     fn decode_message_node(&mut self, module: ModuleId, node: &SyntaxNode) -> Option<IrMessage> {
         match node.kind {
+            // A bare literal is a valid authored caption (checker
+            // accepts it), so it decodes to source-only text instead
+            // of silently dropping the label.
+            SyntaxKind::Literal => Some(IrMessage {
+                source: literal_string(self.db, node).unwrap_or_default(),
+                variants: Vec::new(),
+                params: Vec::new(),
+            }),
             SyntaxKind::MessageValue => {
                 let mut source = String::new();
                 let mut variants = Vec::new();
@@ -3970,6 +3990,7 @@ impl<'a> Cx<'a> {
 
     /// Decode a scenario row (G1): admission, guards, effects, captions.
     #[allow(clippy::type_complexity)]
+    #[allow(clippy::type_complexity)]
     fn decode_scenario(
         &mut self,
         symbol: &crate::analysis::resolve::Symbol,
@@ -3978,10 +3999,11 @@ impl<'a> Cx<'a> {
         Vec<IrGuard>,
         Option<IrMessage>,
         Option<IrMessage>,
+        bool,
         Vec<IrStmt>,
         Vec<IrStmt>,
     ) {
-        let empty = (false, Vec::new(), None, None, Vec::new(), Vec::new());
+        let empty = (false, Vec::new(), None, None, false, Vec::new(), Vec::new());
         let data = self.program.effects.scenarios.get(&symbol.id).cloned();
         let Some(data) = data else {
             self.gap(
@@ -4036,7 +4058,15 @@ impl<'a> Cx<'a> {
             .iter()
             .map(|effect| self.decode_effect(&scope, effect, &what))
             .collect();
-        (data.read, by, label, description, guards, effects)
+        (
+            data.read,
+            by,
+            label,
+            description,
+            data.expose_none,
+            guards,
+            effects,
+        )
     }
 
     /// Decode a generated CRUD operation row (G2).
@@ -4107,7 +4137,8 @@ impl<'a> Cx<'a> {
         )
     }
 
-    /// Decode a stored field row (G3/G4): default, server, modifiers, label.
+    /// Decode a stored field row (G3/G4): default, server, modifiers,
+    /// label, `@{desc}` text.
     #[allow(clippy::type_complexity)]
     fn decode_field(
         &mut self,
@@ -4118,8 +4149,9 @@ impl<'a> Cx<'a> {
         Option<IrServer>,
         IrModifiers,
         Option<IrFieldLabel>,
+        Option<String>,
     ) {
-        let empty = (None, None, IrModifiers::default(), None);
+        let empty = (None, None, IrModifiers::default(), None, None);
         let data = self
             .program
             .effects
@@ -4185,7 +4217,7 @@ impl<'a> Cx<'a> {
             .label
             .as_ref()
             .and_then(|key| self.decode_field_label(symbol.module, key));
-        (default, server, modifiers, label)
+        (default, server, modifiers, label, data.description.clone())
     }
 
     /// Whether `owner` is a child model (computed defaults take `{parent}`).
@@ -4199,15 +4231,16 @@ impl<'a> Cx<'a> {
         )
     }
 
-    /// Decode a signature parameter row (G1/G6/G7): default and label.
+    /// Decode a signature parameter row (G1/G6/G7): default, label,
+    /// `@{desc}` text.
     fn decode_param(
         &mut self,
         symbol: &crate::analysis::resolve::Symbol,
         owner: SymbolId,
-    ) -> (Option<IrDefault>, Option<IrMessage>) {
+    ) -> (Option<IrDefault>, Option<IrMessage>, Option<String>) {
         let data = self.param_data(owner, symbol.id);
         let Some(data) = data else {
-            return (None, None);
+            return (None, None, None);
         };
         let scope = Scope::module(symbol.module);
         let default = data.default.as_ref().map(|key| {
@@ -4225,7 +4258,7 @@ impl<'a> Cx<'a> {
             .label
             .as_ref()
             .and_then(|key| self.decode_message_value(symbol.module, key));
-        (default, label)
+        (default, label, data.description.clone())
     }
 
     /// `ParamData` for `param` of `owner` (scenario, capability op,

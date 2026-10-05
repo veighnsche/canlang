@@ -129,6 +129,7 @@ pub fn emit(
                 .collect(),
             modules: Vec::new(),
             callables: Vec::new(),
+            operations: Vec::new(),
             pages: Vec::new(),
             migrations: Vec::new(),
             requires: Vec::new(),
