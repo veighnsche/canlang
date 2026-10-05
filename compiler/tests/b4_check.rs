@@ -688,3 +688,69 @@ fn t08_typed_delivery_leaf_scope_preserved() {
     let diags = check(src, Some(&catalog));
     assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
 }
+
+/// (T09) Ordinary arrays omit to `[]`: a fixture may omit `tags:text[]`
+/// (R09: `reviewer_worker=Employee {...}` omitting `skills:text[]`).
+#[test]
+fn t09_ordinary_array_fixture_omission_accepted() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { title:text, tags:text[] }\n policy M read=members\n fixture f=M {title=\"x\"}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "ordinary array omission: {diags:?}");
+}
+
+/// (T09) Required arrays still require input: omitting `ids:text[]!`
+/// from a fixture is `E3015` naming only the required field.
+#[test]
+fn t09_required_array_fixture_omission_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { title:text, tags:text[], ids:text[]! }\n policy M read=members\n fixture f=M {title=\"x\"}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'ids'"),
+        "names the required array: {}",
+        diags[0].message
+    );
+}
+
+/// (T09) Genuinely-required scalars still require input: omitting
+/// `title:text` from a fixture is `E3015` even when an ordinary array
+/// is supplied.
+#[test]
+fn t09_required_scalar_fixture_omission_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { title:text, tags:text[] }\n policy M read=members\n fixture f=M {tags=[\"a\"]}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'title'"),
+        "names the required scalar: {}",
+        diags[0].message
+    );
+}
+
+/// (T09) Ordinary arrays omit in `create` too (the `E3001` path shares
+/// the same required-input rule).
+#[test]
+fn t09_ordinary_array_create_omission_accepted() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { title:text, tags:text[] }\n policy M read=members\nWhen\n scenario s(t:text) by=members\n  do\n   create M {title=t} as m\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "ordinary array create omission: {diags:?}");
+}
+
+/// (T09) Required arrays still require input in `create`: omitting
+/// `ids:text[]!` is `E3001`.
+#[test]
+fn t09_required_array_create_omission_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { title:text, tags:text[], ids:text[]! }\n policy M read=members\nWhen\n scenario s(t:text) by=members\n  do\n   create M {title=t} as m\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'ids'"),
+        "names the required array: {}",
+        diags[0].message
+    );
+}
