@@ -11,18 +11,36 @@
  * entries above keep serving descriptor-less artifacts byte-identically
  * (existing suites pin them; T17 retires the interim path).
  *
+ * T17b (this file): the cloudflare-side flip. Scenario handlers run with
+ * a canonical effects scope (`runScenarioSeam` installs it): stdlib
+ * writes stage through the canonical mutation pipeline into the
+ * scenario effects (one atomic fenced commit with the scenario receipt),
+ * and `records()` serves through `invokeRead` over the staged overlay.
+ * Assembly reads flip onto `invokeReadCanonical` (refusal stub retired);
+ * descriptor-less artifacts refuse at the router (interim direct path
+ * retired — the direct entries above stay as the scenario seam's
+ * handler-execution mechanism, not as a serving path).
+ *
  * `ctx` is the real `./context.js` shape, passed through untouched as
  * the first handler argument; this module never inspects it.
  */
 import type {
   CompileArtifact,
+  InvocationContext,
   Membership,
   MutationResult,
   OccurrenceId,
+  ProjectedRecord,
   ResolvedIdentity,
   StoragePort,
+  StoredRow,
 } from "@canlang/contracts";
-import type { HandlerContext } from "./context.js";
+import type {
+  CanonicalEffectsScope,
+  CanonicalReadQuery,
+  CanonicalStagedWrite,
+  HandlerContext,
+} from "./context.js";
 import { createContext } from "./context.js";
 import type { AssembledModules } from "./modules.js";
 import type { MappedPosition } from "./sourcemap.js";
@@ -417,9 +435,10 @@ export async function invokeCallableInOccurrence(
 /* `@canlang/state` dist below. No second interpreter, no alternate     */
 /* engine: this section loads T16a's registry/admission/invoke/pipeline */
 /* producers and supplies the two L7-owned seams (generated-policy      */
-/* mapping, scenario-handler execution). Artifacts predating generated  */
-/* descriptors (either key absent — every existing fixture) keep the    */
-/* interim direct path above byte-identically; T17 retires it.          */
+/* mapping, scenario-handler execution). T17b: descriptor-less          */
+/* artifacts (either key absent) REFUSE at the assembly router (the     */
+/* interim direct path is retired); the direct entries above stay as    */
+/* the scenario seam's handler-execution mechanism only.                */
 /*                                                                      */
 /* Admission authorization (T04a §3: "until T16 maps generated          */
 /* policy"): the descriptor intake carries no `by`, so L7 transcribes   */
@@ -442,12 +461,17 @@ export async function invokeCallableInOccurrence(
 /* Scenario execution: the emitted handler runs as the canonical        */
 /* `execute` seam with a live-store-wins context (caller from the       */
 /* admitted context, memberships re-read from the live reader — never   */
-/* from identity claims) and a commit-guarded store: direct              */
-/* `StoragePort` commits inside canonical execution would break the     */
-/* admission fence and triple-write on retry, so the guard fails loud   */
-/* naming the T17 stdlib migration instead of corrupting. Handler       */
-/* failures map to rejected receipts (same rule as the assembly's       */
-/* `toBusinessError`), so identical envelopes replay rejections.        */
+/* from identity claims), a commit-guarded store, and (T17b) the        */
+/* canonical effects scope: stdlib writes stage through the pipeline    */
+/* into the scenario effects and `records()` serves through            */
+/* `invokeRead` over the staged overlay; the ONE fenced commit carries  */
+/* the scenario receipt. Direct `StoragePort` commits inside canonical  */
+/* execution still fail loud (genuinely-unknown callers only — the      */
+/* migrated stdlib never touches `commit`). Handler failures map to    */
+/* rejected receipts (same rule as the assembly's `toBusinessError`),   */
+/* so identical envelopes replay rejections. T17b: reads serve through  */
+/* `invokeReadCanonical` (transcribed PolicyTable, ruled models refuse  */
+/* loud naming T04b) — the query-port refusal stub is retired.          */
 /*                                                                      */
 /* Version fulfillment (T04a §7): the seven contract pins are           */
 /* restated below and asserted EXACTLY against the loaded contracts     */
@@ -620,6 +644,149 @@ export function mapCrudPolicyToBy(opName: string, entry: unknown): CanonicalByPr
 }
 
 /* ------------------------------------------------------------------ */
+/* T17b read-policy transcription (PolicyTable grants).                 */
+/*                                                                      */
+/* Mirrors the CRUD by-transcription above, over the `policy.models`    */
+/* manifest map (`compiler/src/codegen/js.rs` `emit_policy_member`:     */
+/* `models: { Model: { read?: [ruleIds], invariants?: [...], locks?:    */
+/* [...] } }`). The emitted read rules are boolean FUNCTIONS (`(c,row)  */
+/* => ...` in the registry `read` map) — code, not admittable data,     */
+/* exactly like CRUD `when` — so they are NEVER transcribed:            */
+/*                                                                      */
+/* - Absent entry (or an entry with no `read` member, or an empty       */
+/*   `read` array): no read content — transcribe ONE public grant over  */
+/*   all declared model fields. Interim-exact: the interim `records()`  */
+/*   served full stored rows for these models, and operation admission  */
+/*   (`def.by`) still gates the read call itself.                        */
+/* - Present non-empty `read` array (well-formed rule ids): the model   */
+/*   is RULED — its reads refuse LOUD at serve time with `validation`   */
+/*   naming T04b (T04b carries generated policy; serving would run      */
+/*   unguarded). Per-read refusal, not whole-set: read rules gate only  */
+/*   reads, so CRUD/scenario serving stays up with precise per-read     */
+/*   errors (unlike CRUD gates, where the gate is the op's only guard). */
+/* - Malformed shapes (non-object entry, unknown members, malformed     */
+/*   `read` array): refuse LOUD at preload — the programmer-bug class,  */
+/*   mirroring the CRUD malformed handling.                             */
+/*                                                                      */
+/* Read-`by` posture (T17b decision, recorded): KEEP PUBLIC + GRANTS.   */
+/* Read defs keep `by: public` at the canonical gate (T16b preload      */
+/* behavior, unchanged — `invokeRead` honors `def.by` either way) and   */
+/* visibility for servable models comes from the transcribed grants.    */
+/* The rejected alternative (transcribe read gates into `def.by`) is    */
+/* unimplementable in the core scope — rule bodies are emitted code —   */
+/* and buys nothing: ruled reads refuse either way. Consequence,        */
+/* pinned: rule-less models serve full rows to every operation-admitted */
+/* caller, including callers the CRUD gates would deny; ruled models    */
+/* never serve (loud `validation`, never silent empty).                 */
+/*                                                                      */
+/* `secretFields` transcribes as `[]`: T15a descriptors carry no secret */
+/* marking in the core scope, so there is nothing to transcribe — and   */
+/* the engine omits secret-kind VALUES regardless of policy, so no      */
+/* secret leaks through the empty list. Grant fields are the model's    */
+/* declared field names (the pipeline rejects undeclared fields on      */
+/* write, so stored data never exceeds them); metadata always ships in  */
+/* the projected record envelope.                                       */
+/*                                                                      */
+/* Join-point note (T17b finding, T16c-owned): like the CRUD manifest   */
+/* above, this reads `canApp().policy` (the T16b join point). DESIGN    */
+/* §13 says `canApp()` never spreads `appDefinition`, and the compiler  */
+/* emits `policy` only into `appDefinition` — so on current compiler    */
+/* output the manifest reads absent here (public transcription). The    */
+/* transcription is correct under either source; aligning the join      */
+/* point (compiler emits into `canApp`, or the runtime reads            */
+/* `appDefinition`) is a cross-lane contract change for T16c, NOT done  */
+/* here. See the T17b release report.                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Read one `canApp().policy.models[model]` manifest entry off an
+ * assembled registry object. Absent `policy`/`models`/entry all read as
+ * `undefined` (no read content — sound, mirroring the CRUD reader);
+ * malformed shapes fail loud, never as an assumed gate.
+ */
+export function readModelPolicyEntry(registry: unknown, model: string): unknown {
+  if (!isUnknownRecord(registry)) {
+    throw new Error(
+      `t17b: model ${JSON.stringify(model)}: cannot read read policy ` +
+        `(canApp() registry is not an object)`,
+    );
+  }
+  const policy: unknown = registry["policy"];
+  if (policy === undefined || policy === null) return undefined;
+  if (!isUnknownRecord(policy)) {
+    throw new Error(
+      `t17b: model ${JSON.stringify(model)}: malformed read policy ` +
+        `(policy member is not an object)`,
+    );
+  }
+  const models: unknown = policy["models"];
+  if (models === undefined || models === null) return undefined;
+  if (!isUnknownRecord(models)) {
+    throw new Error(
+      `t17b: model ${JSON.stringify(model)}: malformed read policy ` +
+        `(policy.models is not an object)`,
+    );
+  }
+  return models[model];
+}
+
+/** One model's transcribed read posture: servable grants or ruled refusal. */
+export interface TranscribedReadPolicy {
+  /** True when the model carries read rules (serve-time `validation`, never served). */
+  readonly ruled: boolean;
+  /** The table-builder input; `null` when ruled (ruled models are omitted from the table). */
+  readonly input: CanonicalModelPolicyInput | null;
+}
+
+/**
+ * Transcribe one model manifest entry to its table-builder input.
+ * Absent entry / no `read` member / empty `read` array -> ONE public
+ * grant over `declaredFields`. A well-formed non-empty `read` array ->
+ * RULED (`ruled: true`, no input — the serve paths refuse loud naming
+ * T04b). Malformed shapes and unknown members throw LOUD at preload
+ * (the programmer-bug class, mirroring `mapCrudPolicyToBy`). Plain
+ * `Error` (caller-side refusal, mirroring the loader's engine-local
+ * policy channel).
+ */
+export function mapReadRulesToPolicy(
+  model: string,
+  entry: unknown,
+  declaredFields: ReadonlyArray<string>,
+): TranscribedReadPolicy {
+  const where = `t17b: model ${JSON.stringify(model)} cannot serve reads in the T17 core scope (T04b carries generated policy)`;
+  const servable = (inputs: CanonicalModelPolicyInput): TranscribedReadPolicy => ({
+    ruled: false,
+    input: inputs,
+  });
+  const publicInput = (): CanonicalModelPolicyInput => ({
+    model,
+    secretFields: [],
+    grants: [{ by: "public", fields: [...declaredFields] }],
+  });
+  if (entry === undefined || entry === null) return servable(publicInput());
+  if (!isUnknownRecord(entry)) {
+    throw new Error(`${where}: malformed policy entry (not an object).`);
+  }
+  for (const key of Object.keys(entry)) {
+    if (key !== "read" && key !== "invariants" && key !== "locks") {
+      throw new Error(`${where}: unknown policy member ${JSON.stringify(key)}.`);
+    }
+  }
+  const rules: unknown = entry["read"];
+  if (rules === undefined) return servable(publicInput());
+  if (
+    !Array.isArray(rules) ||
+    !rules.every((rule) => typeof rule === "string" && rule.length > 0)
+  ) {
+    throw new Error(
+      `${where}: malformed read rules (array of non-empty rule ids).`,
+    );
+  }
+  if (rules.length === 0) return servable(publicInput());
+  return { ruled: true, input: null };
+}
+
+/* ------------------------------------------------------------------ */
 /* Dynamic producers (state dist + contracts values).                   */
 /* ------------------------------------------------------------------ */
 
@@ -635,6 +802,12 @@ const STATE_INVOKE_SPECIFIER = "../../../state/dist/state/src/invocation/invoke.
 const STATE_CRUD_SPECIFIER = "../../../state/dist/state/src/mutation/crud.js";
 const STATE_MODELS_SPECIFIER = "../../../state/dist/state/src/mutation/models.js";
 const STATE_ERRORS_SPECIFIER = "../../../state/dist/state/src/errors.js";
+/** T17b: bound read port (`createReadInvoker`, the assembly read entry). */
+const STATE_TRANSACT_SPECIFIER = "../../../state/dist/state/src/ports/transact.js";
+/** T17b: policy-table builder (`buildPolicyTable`, validates transcriptions). */
+const STATE_GRANTS_SPECIFIER = "../../../state/dist/state/src/policy/grants.js";
+/** T17b: mutation pipeline (`runMutationWrites`, stages scenario writes). */
+const STATE_PIPELINE_SPECIFIER = "../../../state/dist/state/src/mutation/pipeline.js";
 
 /** Contracts values (a declared dependency — bare specifier, bundler-inlined). */
 const CONTRACTS_SPECIFIER = "@canlang/contracts";
@@ -653,13 +826,14 @@ interface StateRegistryProducer {
   };
 }
 
-/** Minimal admitted-call view the execute seams consume. */
+/**
+ * Admitted-call view the execute seams consume. T17b: the FULL
+ * `InvocationContext` (contracts-owned, no mirror drift) — the scenario
+ * seam stages stdlib writes under exactly this context, so history
+ * entries and receipts carry the admitted operation identity.
+ */
 export interface CanonicalSeamCall {
-  readonly context: {
-    readonly operationId: string;
-    readonly actor: { readonly userId: string } | null;
-    readonly team: { readonly teamId: string } | null;
-  };
+  readonly context: InvocationContext;
   readonly def: unknown;
   readonly inputs: Record<string, unknown>;
 }
@@ -680,6 +854,12 @@ export interface CanonicalExecutionEffects {
   readonly result: unknown;
 }
 
+/** T17b: structural view of one `invokeRead` served record set. */
+export interface CanonicalReadServed {
+  readonly records: ProjectedRecord[];
+  readonly revision: unknown;
+}
+
 /** Structural view of the canonical state invoke module. */
 interface StateInvokeProducer {
   invoke(input: {
@@ -697,6 +877,18 @@ interface StateInvokeProducer {
     readonly clock: { nowMs(): number };
     readonly execute: (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
   }): Promise<MutationResult>;
+  /** T17b: canonical generated-read entry (scenario `records()` calls it per read). */
+  invokeRead(input: {
+    readonly registry: ReadonlyMap<string, unknown>;
+    readonly envelope: {
+      readonly operation: string;
+      readonly inputs: Record<string, unknown>;
+    };
+    readonly identity: ResolvedIdentity;
+    readonly policy: unknown;
+    readonly store: StoragePort;
+    readonly memberships: CanonicalMembershipReader;
+  }): Promise<CanonicalReadServed>;
 }
 
 /** Structural view of the state CRUD executor module (T16a adapter). */
@@ -727,12 +919,95 @@ interface StateErrorsProducer {
   new (code: string, message: string): Error & { readonly code: string };
 }
 
+/** T17b: structural view of the state transaction-port module (bound read port). */
+interface StateTransactProducer {
+  createReadInvoker(input: {
+    readonly registry: ReadonlyMap<string, unknown>;
+    readonly policy: unknown;
+    readonly store: StoragePort;
+    readonly memberships: CanonicalMembershipReader;
+  }): (args: {
+    readonly envelope: {
+      readonly operation: string;
+      readonly inputs: Record<string, unknown>;
+    };
+    readonly identity: ResolvedIdentity;
+  }) => Promise<CanonicalReadServed>;
+}
+
+/** T17b: one transcribed model policy as handed to the table builder. */
+export interface CanonicalModelPolicyInput {
+  readonly model: string;
+  readonly secretFields: ReadonlyArray<string>;
+  readonly grants: ReadonlyArray<{
+    readonly by: CanonicalByPredicate;
+    readonly fields: ReadonlyArray<string>;
+  }>;
+}
+
+/**
+ * T17b: structural view of the state grants module. The transcription is
+ * validated by the REAL `buildPolicyTable` (never hand-rolled): malformed
+ * `by`, bad dot paths, or grants over secrets fail loud at preload.
+ */
+interface StateGrantsProducer {
+  buildPolicyTable(policies: ReadonlyArray<CanonicalModelPolicyInput>): unknown;
+}
+
+/** T17b: one pipeline write as handed to `runMutationWrites` (no `when`: stdlib carries none). */
+export interface CanonicalPipelineWrite {
+  readonly op: "create" | "update" | "remove";
+  readonly model: string;
+  readonly id: string;
+  readonly parent?: { readonly model: string; readonly id: string };
+  readonly data?: Record<string, unknown>;
+}
+
+/** T17b: structural view of one staged domain write (the overlay consumes kind/model/id/row). */
+export interface CanonicalStagedDomainWrite {
+  readonly kind: string;
+  readonly model: string;
+  readonly id?: string;
+  readonly row?: StoredRow;
+  /** T17b: the pipeline's pre-write version basis (update/remove only); collapse passes it through. */
+  readonly expectedVersion?: unknown;
+}
+
+/** T17b: structural view of one staged unique touch (the seam nets claims/releases per key). */
+export interface CanonicalUniqueTouch {
+  readonly model: string;
+  readonly keyName: string;
+  readonly keyValue: string;
+}
+
+/** T17b: structural view of the pipeline result (fenced-commit inputs plus receipt defaults). */
+export interface CanonicalPipelineResult {
+  readonly writes: ReadonlyArray<CanonicalStagedDomainWrite>;
+  readonly history: ReadonlyArray<unknown>;
+  readonly uniqueClaims: ReadonlyArray<CanonicalUniqueTouch>;
+  readonly uniqueReleases: ReadonlyArray<CanonicalUniqueTouch>;
+  readonly resolvedDefaults: Record<string, unknown>;
+}
+
+/** T17b: structural view of the state mutation-pipeline module. */
+interface StatePipelineProducer {
+  runMutationWrites(input: {
+    readonly table: unknown;
+    readonly writes: ReadonlyArray<CanonicalPipelineWrite>;
+    readonly context: InvocationContext;
+    readonly store: StoragePort;
+  }): Promise<CanonicalPipelineResult>;
+}
+
 interface CanonicalStateProducers {
   readonly registry: StateRegistryProducer;
   readonly invoke: StateInvokeProducer;
   readonly crud: StateCrudProducer;
   readonly models: StateModelsProducer;
   readonly errors: StateErrorsProducer;
+  readonly transact: StateTransactProducer;
+  readonly grants: StateGrantsProducer;
+  readonly pipeline: StatePipelineProducer;
 }
 
 async function loadProducerModule(specifier: string, what: string): Promise<Record<string, unknown>> {
@@ -765,19 +1040,23 @@ function requireProducerFn(
   return fn as (...args: never[]) => unknown;
 }
 
-/** Load and shape-check the five state producers (fail loud, never partial). */
+/** Load and shape-check the eight state producers (fail loud, never partial). */
 async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
   const registryMod = await loadProducerModule(STATE_REGISTRY_SPECIFIER, "state registry producer");
   const invokeMod = await loadProducerModule(STATE_INVOKE_SPECIFIER, "state invoke producer");
   const crudMod = await loadProducerModule(STATE_CRUD_SPECIFIER, "state CRUD producer");
   const modelsMod = await loadProducerModule(STATE_MODELS_SPECIFIER, "state models producer");
   const errorsMod = await loadProducerModule(STATE_ERRORS_SPECIFIER, "state errors producer");
+  const transactMod = await loadProducerModule(STATE_TRANSACT_SPECIFIER, "state transact producer");
+  const grantsMod = await loadProducerModule(STATE_GRANTS_SPECIFIER, "state grants producer");
+  const pipelineMod = await loadProducerModule(STATE_PIPELINE_SPECIFIER, "state pipeline producer");
   const loadArtifactDescriptors = requireProducerFn(
     registryMod,
     "loadArtifactDescriptors",
     "state registry producer",
   );
   const invoke = requireProducerFn(invokeMod, "invoke", "state invoke producer");
+  const invokeRead = requireProducerFn(invokeMod, "invokeRead", "state invoke producer");
   const generatedCrudExecute = requireProducerFn(
     crudMod,
     "generatedCrudExecute",
@@ -789,12 +1068,33 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
     "state models producer",
   );
   const StateError = requireProducerFn(errorsMod, "StateError", "state errors producer");
+  const createReadInvoker = requireProducerFn(
+    transactMod,
+    "createReadInvoker",
+    "state transact producer",
+  );
+  const buildPolicyTable = requireProducerFn(
+    grantsMod,
+    "buildPolicyTable",
+    "state grants producer",
+  );
+  const runMutationWrites = requireProducerFn(
+    pipelineMod,
+    "runMutationWrites",
+    "state pipeline producer",
+  );
   return {
     registry: { loadArtifactDescriptors: loadArtifactDescriptors as StateRegistryProducer["loadArtifactDescriptors"] },
-    invoke: { invoke: invoke as StateInvokeProducer["invoke"] },
+    invoke: {
+      invoke: invoke as StateInvokeProducer["invoke"],
+      invokeRead: invokeRead as StateInvokeProducer["invokeRead"],
+    },
     crud: { generatedCrudExecute: generatedCrudExecute as StateCrudProducer["generatedCrudExecute"] },
     models: { buildModelTableFromCanonical: buildModelTableFromCanonical as StateModelsProducer["buildModelTableFromCanonical"] },
     errors: StateError as unknown as StateErrorsProducer,
+    transact: { createReadInvoker: createReadInvoker as StateTransactProducer["createReadInvoker"] },
+    grants: { buildPolicyTable: buildPolicyTable as StateGrantsProducer["buildPolicyTable"] },
+    pipeline: { runMutationWrites: runMutationWrites as StatePipelineProducer["runMutationWrites"] },
   };
 }
 
@@ -954,17 +1254,18 @@ export function assertRequiresFulfilled(
 /* ------------------------------------------------------------------ */
 
 /**
- * Wrap `inner` so `commit` fails LOUD with the T17 pointer while every
- * other port method delegates untouched. A scenario handler that
- * commits directly inside canonical execution would break the
- * admission fence (its writes land at newer revisions than the
- * receipt commit expects) and triple-write across the retry loop, so
- * the guard refuses instead of corrupting — no partial effects are
- * ever committed. Reads (load/query/receipts/history) stay available:
- * read-only scenarios run the full admit -> handler -> receipt path
- * today. Delegation list mirrors `withDispatchProducer`
- * (`./executors.js`); any `StoragePort` member added later must be
- * added here too (tsc enforces the return type).
+ * Wrap `inner` so `commit` fails LOUD while every other port method
+ * delegates untouched. A scenario handler that commits directly inside
+ * canonical execution would break the admission fence (its writes land
+ * at newer revisions than the receipt commit expects) and triple-write
+ * across the retry loop, so the guard refuses instead of corrupting —
+ * no partial effects are ever committed. Reads
+ * (load/query/receipts/history) stay available. T17b: the guard stays
+ * for genuinely-unknown callers (direct `c.store.commit` calls); the
+ * migrated stdlib data plane never touches `commit` (it stages through
+ * the scope), so migrated calls never trip it. Delegation list mirrors
+ * `withDispatchProducer` (`./executors.js`); any `StoragePort` member
+ * added later must be added here too (tsc enforces the return type).
  */
 export function withCanonicalCommitGuard(store: StoragePort, operation: string): StoragePort {
   return {
@@ -972,10 +1273,13 @@ export function withCanonicalCommitGuard(store: StoragePort, operation: string):
     load: (model, id) => store.load(model, id),
     query: (spec) => store.query(spec),
     commit: () => {
+      // T17b: message updated (was: "after the T17 stdlib migration") —
+      // the migration LANDED, so the pointer now names the staged rule.
       throw new Error(
-        `t16b: operation ${JSON.stringify(operation)} attempted a direct state commit ` +
-          `inside canonical execution; emitted-handler writes run through the state engine ` +
-          `after the T17 stdlib migration (no partial effects were committed)`,
+        `t17: operation ${JSON.stringify(operation)} attempted a direct state commit ` +
+          `inside canonical execution; handler writes stage through the stdlib data plane ` +
+          `(create/set/deleteRecord) and commit once with the scenario receipt — direct ` +
+          `commits would break the admission fence (no partial effects were committed)`,
       );
     },
     readReceipt: (identity) => store.readReceipt(identity),
@@ -1105,10 +1409,18 @@ async function importPolicyRegistry(
   }
 }
 
-/** Loaded canonical set: admission-ready registry plus the model table. */
+/**
+ * Loaded canonical set: admission-ready registry plus the model table.
+ * T17b: plus the transcribed read policy (`policy`, built by the REAL
+ * `buildPolicyTable` — held opaquely, never hand-rolled) and the ruled
+ * model set (serve-time refusals — models are omitted from the table so
+ * even a missed check serves empty, never rows).
+ */
 export interface LoadedCanonicalDescriptors {
   readonly registry: ReadonlyMap<string, unknown>;
   readonly table: unknown;
+  readonly policy: unknown;
+  readonly ruledModels: ReadonlySet<string>;
   readonly producers: CanonicalStateProducers;
 }
 
@@ -1122,13 +1434,116 @@ export interface LoadedCanonicalDescriptors {
 const canonicalCache = new WeakMap<CompileArtifact, LoadedCanonicalDescriptors>();
 
 /**
+ * T17b: scan every assembled module for `canApp().policy.models` and
+ * merge per model (first occurrence wins; a CONTRADICTORY entry for
+ * the same model across modules refuses LOUD — fail closed on
+ * incoherent policy). Lenient shape, strict errors: modules without a
+ * `canApp()` factory (page/asset modules) are skipped, but an import
+ * failure, a throwing `canApp()`, or a malformed `policy.models` map
+ * throws — policy that cannot be established never degrades to
+ * public-by-omission. An empty scan (no registry-bearing modules)
+ * yields no entries: rule-less transcription (no policy content was
+ * found anywhere to transcribe).
+ */
+async function collectModelPolicyManifests(asm: AssembledModules): Promise<Map<string, unknown>> {
+  const merged = new Map<string, unknown>();
+  const fingerprints = new Map<string, string>();
+  for (const module of Object.keys(asm.moduleUrls)) {
+    const url: unknown = (asm.moduleUrls as Record<string, unknown>)[module];
+    if (typeof url !== "string" || url.length === 0) continue;
+    let mod: unknown;
+    try {
+      mod = await import(url);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `t17b: module ${JSON.stringify(module)} failed to import while establishing read policy (${reason})`,
+      );
+    }
+    if (!isUnknownRecord(mod) || typeof mod["canApp"] !== "function") continue;
+    let registry: unknown;
+    try {
+      registry = (mod["canApp"] as () => unknown)();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `t17b: module ${JSON.stringify(module)} canApp() threw while establishing read policy (${reason})`,
+      );
+    }
+    if (!isUnknownRecord(registry)) {
+      throw new Error(
+        `t17b: module ${JSON.stringify(module)} canApp() returned a non-object while establishing read policy`,
+      );
+    }
+    const policy: unknown = registry["policy"];
+    if (policy === undefined || policy === null) continue;
+    if (!isUnknownRecord(policy)) {
+      throw new Error(
+        `t17b: module ${JSON.stringify(module)} carries a malformed policy member (not an object)`,
+      );
+    }
+    const models: unknown = policy["models"];
+    if (models === undefined || models === null) continue;
+    if (!isUnknownRecord(models)) {
+      throw new Error(
+        `t17b: module ${JSON.stringify(module)} carries a malformed policy.models map (not an object)`,
+      );
+    }
+    for (const [model, entry] of Object.entries(models)) {
+      let fingerprint: string;
+      try {
+        fingerprint = JSON.stringify(entry) ?? "undefined";
+      } catch {
+        throw new Error(
+          `t17b: model ${JSON.stringify(model)} carries a non-serializable read policy entry`,
+        );
+      }
+      const seen = fingerprints.get(model);
+      if (seen === undefined) {
+        fingerprints.set(model, fingerprint);
+        merged.set(model, entry);
+      } else if (seen !== fingerprint) {
+        throw new Error(
+          `t17b: model ${JSON.stringify(model)} carries contradictory read policy across ` +
+            `assembled modules (refusing an incoherent set)`,
+        );
+      }
+    }
+  }
+  return merged;
+}
+
+/** T17b: declared data-field names off one loaded canonical model (validated shape, loud on skew). */
+function canonicalModelFields(model: unknown, where: string): ReadonlyArray<string> {
+  if (!isUnknownRecord(model)) {
+    throw new Error(`t17b: ${where} is not an object (loader/artifact skew?)`);
+  }
+  const fields: unknown = model["fields"];
+  if (!isUnknownRecord(fields)) {
+    throw new Error(`t17b: ${where} carries no fields map (loader/artifact skew?)`);
+  }
+  return Object.keys(fields);
+}
+
+/** T17b: canonical model name off one loaded canonical model (validated shape, loud on skew). */
+function canonicalModelName(model: unknown, index: number): string {
+  if (!isUnknownRecord(model) || typeof model["name"] !== "string" || model["name"] === "") {
+    throw new Error(
+      `t17b: loaded model #${index} carries no non-empty name (loader/artifact skew?)`,
+    );
+  }
+  return model["name"] as string;
+}
+
+/**
  * Load a generated artifact's canonical set: transcribe every CRUD
  * admission gate from its emitted policy manifest, verify every
  * scenario operation links an `operation` callable, load descriptors
  * through T16a's canonical loader (whole-set rejection — unknown
  * kinds, malformed or dangling members, untranscribable gates), and
- * build the model table. Reads need no callable (the query port
- * serves them in T17). Throws precise errors; never a partial set.
+ * build the model table. Reads need no callable (T17b: `invokeRead`
+ * serves them through the transcribed `policy` below). Throws precise
+ * errors; never a partial set.
  */
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
@@ -1162,15 +1577,39 @@ export async function loadCanonicalDescriptors(
       }
       // Scenarios admit `public` at the canonical gate — their emitted
       // handler still runs the full inlined gate (interim-exact).
-      // Reads admit but never execute here (the invoke read-guard
-      // routes them to the query port in T17).
+      // Reads admit `public` at the gate (T17b read-by posture: keep
+      // public + grants — visibility comes from the transcribed
+      // PolicyTable, and `invokeRead` serves them).
       return "public";
     },
   });
   const table = producers.models.buildModelTableFromCanonical(loaded.models, { refs: loaded.refs });
+  // T17b: transcribe the read policy over the LOADED models (validated
+  // names + declared fields — never the raw artifact). Ruled models are
+  // omitted from the table (fail-closed even under a missed check) and
+  // recorded for serve-time refusal; the builder validates every input.
+  const manifests = await collectModelPolicyManifests(asm);
+  const policyInputs: CanonicalModelPolicyInput[] = [];
+  const ruledModels = new Set<string>();
+  for (const [index, model] of loaded.models.entries()) {
+    const name = canonicalModelName(model, index);
+    const transcribed = mapReadRulesToPolicy(
+      name,
+      manifests.get(name),
+      canonicalModelFields(model, `loaded model ${JSON.stringify(name)}`),
+    );
+    if (transcribed.ruled) {
+      ruledModels.add(name);
+    } else if (transcribed.input !== null) {
+      policyInputs.push(transcribed.input);
+    }
+  }
+  const policy = producers.grants.buildPolicyTable(policyInputs);
   const canonical: LoadedCanonicalDescriptors = {
     registry: loaded.registry,
     table,
+    policy,
+    ruledModels,
     producers,
   };
   canonicalCache.set(artifact, canonical);
@@ -1276,18 +1715,358 @@ function seamDefKind(def: unknown, operation: string): string {
   return descriptor["kind"] as string;
 }
 
+/* ------------------------------------------------------------------ */
+/* T17b staged overlay + effects collector (scenario data plane).       */
+/*                                                                      */
+/* One scenario execution stages N stdlib writes through per-call       */
+/* pipeline runs. Each run layers over the STAGED OVERLAY (staged rows  */
+/* win, staged removes mask, everything else falls through to the       */
+/* store), so later calls see earlier ones (read-your-write) and        */
+/* `records()` serves staged rows with full engine grant projection.    */
+/* Per-call runs are sound because canonical tables carry no hooks,     */
+/* invariants, or locks (engine-local empty in the core scope —         */
+/* `buildModelTableFromCanonical`), so no intermediate run can          */
+/* spuriously fail a whole-batch check; uniques net at the seam         */
+/* (below) and resolved defaults key per write.                         */
+/* ------------------------------------------------------------------ */
+
+/** T17b: staged-row view one execution layers over the store (`null` masks a staged remove). */
+type StagedRowView = ReadonlyMap<string, StoredRow | null>;
+
+function stagedKey(model: string, id: string): string {
+  return `${model}\0${id}`;
+}
+
+/**
+ * T17b: layer `staged` over `store` for pipeline + read fetches. `load`
+ * prefers staged rows (staged removes read as `null`); `query` merges
+ * staged rows over the base result set (inserts appear, updates
+ * replace, removes drop, staged-archived rows honor the spec's
+ * archived rule) — merge order is irrelevant because the engine sorts
+ * in memory post-fetch. Whole-model fetches ONLY: specs carrying
+ * `where`/`limit` refuse LOUD (the overlay cannot filter staged rows;
+ * refusing instead of mis-serving) — the only consumers (pipeline
+ * scans, whole-model `invokeRead` fetches) never send them. `commit`
+ * refuses LOUD: the overlay is read-only; commits flow through the
+ * scenario receipt. Every other port method delegates untouched
+ * (delegation list mirrors the commit guard; tsc enforces it).
+ */
+export function withStagedOverlay(store: StoragePort, staged: StagedRowView): StoragePort {
+  return {
+    readRevision: () => store.readRevision(),
+    load: async (model, id) => {
+      const key = stagedKey(model as string, id as string);
+      const entry = staged.get(key);
+      if (entry !== undefined) return entry;
+      return store.load(model, id);
+    },
+    query: async (spec) => {
+      if (spec.where !== undefined || spec.limit !== undefined) {
+        throw new Error(
+          `t17b: staged overlay cannot serve filtered fetches (where/limit over staged rows ` +
+            `would mis-serve); whole-model fetches only`,
+        );
+      }
+      const base = await store.query(spec);
+      const merged = new Map<string, StoredRow>();
+      for (const row of base) {
+        merged.set(row.id as string, row);
+      }
+      const prefix = `${spec.model as string}\0`;
+      for (const [key, entry] of staged) {
+        if (!key.startsWith(prefix)) continue;
+        const id = key.slice(prefix.length);
+        if (entry === null) {
+          merged.delete(id);
+        } else if (spec.archived !== "include" && entry.archivedAt !== null) {
+          merged.delete(id);
+        } else {
+          merged.set(id, entry);
+        }
+      }
+      return [...merged.values()];
+    },
+    commit: () => {
+      throw new Error(
+        `t17b: staged overlay is read-only; scenario commits flow through the canonical ` +
+          `receipt (no partial effects were committed)`,
+      );
+    },
+    readReceipt: (identity) => store.readReceipt(identity),
+    outboxPending: () => store.outboxPending(),
+    scheduleGet: (key) => store.scheduleGet(key),
+    schedulesDue: (now, limit) => store.schedulesDue(now, limit),
+    historyFor: (model, recordId) => store.historyFor(model, recordId),
+    readInstalledSnapshot: (owner) => store.readInstalledSnapshot(owner),
+    readMigrationProgress: (migrationId) => store.readMigrationProgress(migrationId),
+    readStagedRows: (migrationId, cursor, limit) => store.readStagedRows(migrationId, cursor, limit),
+    stageMigrationRows: (input) => store.stageMigrationRows(input),
+    publishMigrationChunk: (input) => store.publishMigrationChunk(input),
+    flipInstalledSnapshot: (input) => store.flipInstalledSnapshot(input),
+    readMigrationOutcomes: (migrationId) => store.readMigrationOutcomes(migrationId),
+    recordMigrationFailure: (input) => store.recordMigrationFailure(input),
+    discardStagedRows: (input) => store.discardStagedRows(input),
+    readMigrationFailure: (migrationId) => store.readMigrationFailure(migrationId),
+  };
+}
+
+/** T17b: one staged unique touch in call order (the collector logs releases-then-claims per call). */
+export interface CanonicalStagedUniqueTouch {
+  readonly kind: "claim" | "release";
+  readonly touch: CanonicalUniqueTouch;
+}
+
+/**
+ * T17b: net staged unique touches per key (the pipeline's documented
+ * caller duty: "scenarios will stage net uniques" — stores apply
+ * releases first, so an unnetted create+remove pair would land a GHOST
+ * claim). The log arrives in TRUE call order (the collector appends
+ * each call's releases-then-claims); per unique key, every release is
+ * kept (idempotent frees) and only claims AFTER the last release are
+ * kept — a create+remove pair nets to a bare release (no-op), a
+ * remove+recreate pair keeps both (free then retake), a key move keeps
+ * its release+claim, and competing live claims all survive to conflict
+ * honestly at commit.
+ */
+export function netStagedUniques(
+  log: ReadonlyArray<CanonicalStagedUniqueTouch>,
+): { claims: CanonicalUniqueTouch[]; releases: CanonicalUniqueTouch[] } {
+  const byKey = new Map<string, CanonicalStagedUniqueTouch[]>();
+  for (const entry of log) {
+    const key = `${entry.touch.model}\0${entry.touch.keyName}\0${entry.touch.keyValue}`;
+    const sequence = byKey.get(key);
+    if (sequence === undefined) {
+      byKey.set(key, [entry]);
+    } else {
+      sequence.push(entry);
+    }
+  }
+  const netClaims: CanonicalUniqueTouch[] = [];
+  const netReleases: CanonicalUniqueTouch[] = [];
+  for (const sequence of byKey.values()) {
+    let lastRelease = -1;
+    for (const [index, entry] of sequence.entries()) {
+      if (entry.kind === "release") lastRelease = index;
+    }
+    for (const [index, entry] of sequence.entries()) {
+      if (entry.kind === "release") {
+        netReleases.push(entry.touch);
+      } else if (index > lastRelease) {
+        netClaims.push(entry.touch);
+      }
+    }
+  }
+  return { claims: netClaims, releases: netReleases };
+}
+
+/**
+ * T17b: collapse staged writes to ONE net write per row (call order in,
+ * row order out). Canonical invoke commits `effects.writes` verbatim
+ * and the store validates EVERY non-insert `expectedVersion` against
+ * PRE-batch state — so a merged create+set pair (`insert v1`, `update`
+ * basis v1) can never commit as two writes: the update's basis names a
+ * row the pre-batch store never held. The seam therefore folds each
+ * row's touch sequence (first touch fixes the pre-basis: insert means
+ * no pre-row, update/remove carries it in `expectedVersion`):
+ * insert+updates become one insert of the final row; updates become one
+ * update on the first basis with the final row; a trailing remove
+ * becomes one remove on the first basis (or NOTHING when the row was
+ * created in-scenario); remove+recreate keeps the committable pair
+ * (remove on the first basis + insert of the final row — the store
+ * applies sequentially, so this is the one legal two-write shape).
+ * History is NOT collapsed: every touch keeps its entry (the audit
+ * trail shows what the scenario did, keyed by the scenario identity).
+ * Legality is enforced at STAGE time (the pipeline refuses create over
+ * a staged row and update/remove of a staged remove through the
+ * overlay), so impossible sequences below throw wiring bugs, never
+ * silent folds.
+ */
+export function collapseStagedWrites(
+  writes: ReadonlyArray<CanonicalStagedDomainWrite>,
+): CanonicalStagedDomainWrite[] {
+  const byRow = new Map<string, CanonicalStagedDomainWrite[]>();
+  for (const write of writes) {
+    const id = write.kind === "insert" ? write.row?.id : write.id;
+    if (typeof write.model !== "string" || typeof id !== "string") {
+      throw new Error(`t17b: staged write lost its model/id (pipeline/dist skew?)`);
+    }
+    const key = `${write.model}\0${id}`;
+    const sequence = byRow.get(key);
+    if (sequence === undefined) {
+      byRow.set(key, [write]);
+    } else {
+      sequence.push(write);
+    }
+  }
+  const collapsed: CanonicalStagedDomainWrite[] = [];
+  for (const sequence of byRow.values()) {
+    const first = sequence[0];
+    if (first === undefined) {
+      throw new Error(`t17b: staged row sequence is empty (seam wiring bug).`);
+    }
+    const id = first.kind === "insert" ? first.row?.id : first.id;
+    if (typeof id !== "string") {
+      throw new Error(`t17b: staged write lost its model/id (pipeline/dist skew?)`);
+    }
+    const preExists = first.kind !== "insert";
+    let lastRemove = -1;
+    for (const [index, touch] of sequence.entries()) {
+      if (touch.kind === "remove") lastRemove = index;
+    }
+    if (lastRemove === sequence.length - 1) {
+      // Final state removed: one remove on the first basis, or nothing
+      // when the row was created in-scenario (net no-op).
+      if (preExists) {
+        if (first.expectedVersion === undefined) {
+          throw new Error(`t17b: staged ${first.kind} lost its expectedVersion (pipeline/dist skew?)`);
+        }
+        collapsed.push({
+          kind: "remove",
+          model: first.model,
+          id,
+          expectedVersion: first.expectedVersion,
+        });
+      }
+      continue;
+    }
+    const last = sequence[sequence.length - 1];
+    const finalRow = last?.row;
+    if (last === undefined || finalRow === undefined) {
+      throw new Error(`t17b: staged ${last?.kind ?? "?"} lost its row (pipeline/dist skew?)`);
+    }
+    if (lastRemove === -1) {
+      if (!preExists) {
+        collapsed.push({ kind: "insert", model: first.model, row: finalRow });
+      } else {
+        if (first.expectedVersion === undefined) {
+          throw new Error(`t17b: staged ${first.kind} lost its expectedVersion (pipeline/dist skew?)`);
+        }
+        collapsed.push({
+          kind: "update",
+          model: first.model,
+          id,
+          expectedVersion: first.expectedVersion,
+          row: finalRow,
+        });
+      }
+      continue;
+    }
+    // Remove+recreate: the store applies sequentially, so remove-on-basis
+    // + insert-final commits. Post-remove touches MUST start with an
+    // insert (stage-time pipeline refuses anything else over a staged
+    // remove); anything else is a skew.
+    const revived = sequence[lastRemove + 1];
+    if (revived?.kind !== "insert") {
+      throw new Error(`t17b: staged ${revived?.kind ?? "?"} after a staged remove (pipeline/dist skew?)`);
+    }
+    if (preExists) {
+      if (first.expectedVersion === undefined) {
+        throw new Error(`t17b: staged ${first.kind} lost its expectedVersion (pipeline/dist skew?)`);
+      }
+      collapsed.push({
+        kind: "remove",
+        model: first.model,
+        id,
+        expectedVersion: first.expectedVersion,
+      });
+    }
+    collapsed.push({ kind: "insert", model: first.model, row: finalRow });
+  }
+  return collapsed;
+}
+
+/** T17b: ruled-model serve-time refusal (loud `validation`, never silent empty). */
+function ruledReadRefusal(
+  StateError: StateErrorsProducer,
+  model: string,
+): Error & { readonly code: string } {
+  return new StateError(
+    "validation",
+    `t17b: model ${JSON.stringify(model)} carries read rules (emitted code, not admittable ` +
+      `data); its reads serve when T04b carries generated policy — refusing instead of running unguarded.`,
+  );
+}
+
+/** T17b: whole-model read operation for one served model (`<Model>.read`, or null when not a read). */
+function readModelForOperation(operation: string): string | null {
+  if (!operation.endsWith(".read") || operation.length === ".read".length) return null;
+  return operation.slice(0, -".read".length);
+}
+
+/**
+ * T17b: refuse unservable `records()` shapes LOUD with `validation`
+ * (T04a carries no filter vocabulary; T04b does). Client-side
+ * filtering would mis-serve: the engine evaluates `where` over
+ * projected values and FAILS limit overflow instead of truncating, so
+ * neither can be reproduced outside the engine.
+ */
+function assertServableReadQuery(
+  StateError: StateErrorsProducer,
+  query: CanonicalReadQuery,
+): void {
+  if (query.where !== undefined) {
+    throw new StateError(
+      "validation",
+      `t17b: records() with where= cannot serve in the T17 core scope (T04a carries no ` +
+        `filter vocabulary; T04b does) — refusing instead of mis-serving.`,
+    );
+  }
+  if (query.order !== undefined) {
+    throw new StateError(
+      "validation",
+      `t17b: records() with order= cannot serve in the T17 core scope (T04a carries no ` +
+        `filter vocabulary; T04b does) — refusing instead of mis-serving.`,
+    );
+  }
+  if (query.limit !== undefined) {
+    throw new StateError(
+      "validation",
+      `t17b: records() with limit= cannot serve in the T17 core scope (the engine fails ` +
+        `limit overflow instead of truncating, so a client slice would mis-serve; T04b carries ` +
+        `filter inputs) — refusing instead of mis-serving.`,
+    );
+  }
+  if (query.archived === "include") {
+    throw new StateError(
+      "validation",
+      `t17b: records() with archived 'include' cannot serve (canonical reads exclude ` +
+        `archived rows) — refusing instead of mis-serving.`,
+    );
+  }
+  if (query.authority === "owner") {
+    throw new StateError(
+      "validation",
+      `t17b: records() with authority 'owner' cannot serve (the owner bypass stays ` +
+        `engine-internal — T32 owns authority fences); reads serve viewer-projected.`,
+    );
+  }
+}
+
 /**
  * Scenario execute seam: run the emitted handler with a
  * live-store-wins context (caller from the ADMITTED context,
  * memberships re-read from the live reader — identity claims are
- * never trusted for authorization facts) and the commit-guarded
- * store. The admitted (normalized) inputs flow to the handler under
- * the interim projection shape (`{operation_id, inputs}`), so
- * handler contracts are unchanged. Handler failures map to REAL
- * `StateError`s (same rule as the assembly: BusinessError-shaped
- * values keep code+message, everything else is `rule_failed`), so
- * canonical invoke persists them as rejected receipts and identical
- * envelopes replay the rejection instead of re-executing.
+ * never trusted for authorization facts), the commit-guarded
+ * STAGING-AWARE store (raw loads/whole-model queries merge staged
+ * rows over live state, so handlers keep interim read-your-write;
+ * commits trip the guard), and (T17b) the canonical effects scope:
+ * stdlib writes stage through
+ * the pipeline into the collected effects and `records()` serves
+ * through `invokeRead` over the staged overlay. The admitted
+ * (normalized) inputs flow to the handler under the interim projection
+ * shape (`{operation_id, inputs}`), so handler contracts are
+ * unchanged. Handler failures map to REAL `StateError`s: uncaught
+ * engine failures attribute message-exactly and receipt with their
+ * TRUE codes (parity with the CRUD path); anything the handler throws
+ * itself becomes `rule_failed` with its message (the assembly's
+ * established unexpected-failure rule). Canonical invoke persists
+ * them as rejected receipts and identical envelopes replay the
+ * rejection instead of re-executing. Staged writes COLLAPSE per row
+ * into the returned effects (one net write per row — the store checks
+ * every basis against pre-batch state; uniques netted; resolved
+ * defaults keyed per write as `<callIndex>:<model>.<field>`); every
+ * touch keeps its history entry. The ONE fenced commit carries the
+ * scenario operation identity into history + receipt.
  */
 async function runScenarioSeam(
   loaded: LoadedCanonicalDescriptors,
@@ -1303,20 +2082,167 @@ async function runScenarioSeam(
       grants = membership.roles.map((grant) => grant.role);
     }
   }
+  const StateError = loaded.producers.errors;
+  // T17b engine-failure attribution: `invokeWith` stringifies handler
+  // failures (`message(error)`), so a propagated engine `StateError`
+  // would lose its code at the seam. The scope records every engine
+  // failure it raises (message -> error); on handler failure the seam
+  // rethrows the RECORDED error on message-exact match, so uncaught
+  // engine failures receipt with their TRUE codes (parity with the
+  // CRUD path, where execute throws straight to invoke). Anything the
+  // handler throws itself (no match) maps to `rule_failed` with its
+  // message — the assembly's established unexpected-failure rule.
+  // Edge: a handler that catches an engine failure and rethrows a NEW
+  // error with the byte-identical message receipts with the engine's
+  // code (indistinguishable from propagation — the receipt then says
+  // exactly what propagation would have said).
+  const engineFailures = new Map<string, Error & { readonly code: string }>();
+  const recordEngineFailure = (error: unknown): void => {
+    if (error instanceof StateError) {
+      engineFailures.set(error.message, error);
+    }
+  };
+  const staged: Map<string, StoredRow | null> = new Map();
+  const overlay = withStagedOverlay(opts.store, staged);
+  const stagedWrites: CanonicalStagedDomainWrite[] = [];
+  const stagedHistory: unknown[] = [];
+  const stagedTouches: CanonicalStagedUniqueTouch[] = [];
+  const resolvedDefaults: Record<string, unknown> = {};
+  let callIndex = 0;
+  const applyStagedWrite = (write: CanonicalStagedDomainWrite): StoredRow | null => {
+    if (typeof write.kind !== "string" || typeof write.model !== "string") {
+      throw new Error(`t17b: staged write lost its kind/model (pipeline/dist skew?)`);
+    }
+    if (write.kind === "insert" || write.kind === "update") {
+      const row: unknown = write.row;
+      if (!isUnknownRecord(row) || typeof row["id"] !== "string") {
+        throw new Error(`t17b: staged ${write.kind} lost its row (pipeline/dist skew?)`);
+      }
+      const stagedRow = row as unknown as StoredRow;
+      staged.set(stagedKey(write.model, row["id"] as string), stagedRow);
+      return stagedRow;
+    }
+    if (write.kind === "remove") {
+      if (typeof write.id !== "string") {
+        throw new Error(`t17b: staged remove lost its id (pipeline/dist skew?)`);
+      }
+      staged.set(stagedKey(write.model, write.id), null);
+      return null;
+    }
+    throw new Error(
+      `t17b: staged write kind ${JSON.stringify(write.kind)} is not a domain write (pipeline/dist skew?)`,
+    );
+  };
+  const scope: CanonicalEffectsScope = {
+    operation: opts.operation,
+    operationId: call.context.operationId,
+    stageWrite: async (write: CanonicalStagedWrite): Promise<StoredRow | null> => {
+      try {
+        if (write.op !== "create" && write.op !== "update" && write.op !== "remove") {
+          throw new Error(`t17b: stageWrite needs op create/update/remove (wiring bug).`);
+        }
+        if (typeof write.model !== "string" || write.model === "") {
+          throw new Error(`t17b: stageWrite needs a non-empty string model (wiring bug).`);
+        }
+        if (typeof write.id !== "string" || write.id === "") {
+          throw new Error(`t17b: stageWrite needs a non-empty string record id (wiring bug).`);
+        }
+        const result = await loaded.producers.pipeline.runMutationWrites({
+          table: loaded.table,
+          writes: [
+            {
+              op: write.op,
+              model: write.model,
+              id: write.id,
+              ...(write.parent === undefined ? {} : { parent: write.parent }),
+              ...(write.data === undefined ? {} : { data: write.data }),
+            },
+          ],
+          context: call.context,
+          store: overlay,
+        });
+        const first = result.writes[0];
+        if (first === undefined) {
+          throw new Error(`t17b: pipeline staged no write for one submitted write (pipeline/dist skew?)`);
+        }
+        stagedWrites.push(...result.writes);
+        stagedHistory.push(...result.history);
+        for (const touch of result.uniqueReleases) {
+          stagedTouches.push({ kind: "release", touch });
+        }
+        for (const touch of result.uniqueClaims) {
+          stagedTouches.push({ kind: "claim", touch });
+        }
+        const callTag = `${callIndex}:${write.model}`;
+        callIndex += 1;
+        for (const [field, value] of Object.entries(result.resolvedDefaults)) {
+          resolvedDefaults[`${callTag}.${field}`] = value;
+        }
+        let returned: StoredRow | null = null;
+        for (const stagedWrite of result.writes) {
+          returned = applyStagedWrite(stagedWrite);
+        }
+        return returned;
+      } catch (error) {
+        recordEngineFailure(error);
+        throw error;
+      }
+    },
+    readModel: async (
+      model: string,
+      query: CanonicalReadQuery,
+    ): Promise<ReadonlyArray<ProjectedRecord>> => {
+      try {
+        if (typeof model !== "string" || model === "") {
+          throw new Error(`t17b: readModel needs a non-empty string model (wiring bug).`);
+        }
+        assertServableReadQuery(StateError, query);
+        if (loaded.ruledModels.has(model)) {
+          throw ruledReadRefusal(StateError, model);
+        }
+        const served = await loaded.producers.invoke.invokeRead({
+          registry: loaded.registry,
+          envelope: { operation: `${model}.read`, inputs: {} },
+          identity: opts.identity,
+          policy: loaded.policy,
+          store: overlay,
+          memberships: opts.memberships,
+        });
+        if (!Array.isArray(served.records)) {
+          throw new Error(`t17b: invokeRead served no records array (invoke/dist skew?)`);
+        }
+        return served.records;
+      } catch (error) {
+        recordEngineFailure(error);
+        throw error;
+      }
+    },
+  };
   const ctx = createContext({
     caller:
       actorUserId === null
         ? { userId: "anonymous", roles: [] }
         : { userId: actorUserId, roles: grants },
-    store: withCanonicalCommitGuard(opts.store, opts.operation),
+    store: withCanonicalCommitGuard(overlay, opts.operation),
     clock: opts.now,
     memberships: grants,
+    canonical: scope,
   });
   const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [
     { operation_id: call.context.operationId, inputs: call.inputs },
   ]);
   if (!outcome.ok) {
-    const StateError = loaded.producers.errors;
+    // Attributed engine failure first: an uncaught engine `StateError`
+    // propagates verbatim, so its message matches the recorded one
+    // exactly and the ORIGINAL error (true code) receipts.
+    if (typeof outcome.error === "string") {
+      const recorded = engineFailures.get(outcome.error);
+      if (recorded !== undefined) throw recorded;
+    }
+    // BusinessError-shaped values keep code+message — defensive only:
+    // `invokeWith` stringifies handler failures today, so this branch
+    // cannot fire for direct handler throws (attribution above covers
+    // them); it stays for a future object-preserving invoke entry.
     if (isSeamBusinessErrorLike(outcome.error)) {
       throw new StateError(outcome.error.code, outcome.error.message);
     }
@@ -1326,14 +2252,15 @@ async function runScenarioSeam(
         : "The operation was rejected.";
     throw new StateError("rule_failed", message);
   }
+  const uniques = netStagedUniques(stagedTouches);
   return {
-    writes: [],
-    history: [],
+    writes: collapseStagedWrites(stagedWrites),
+    history: stagedHistory,
     outbox: [],
     schedules: [],
-    uniqueClaims: [],
-    uniqueReleases: [],
-    resolvedDefaults: {},
+    uniqueClaims: uniques.claims,
+    uniqueReleases: uniques.releases,
+    resolvedDefaults,
     result: outcome.value,
   };
 }
@@ -1378,4 +2305,61 @@ export async function invokeMutationCanonical(
       );
     },
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* T17b canonical read entry (assembly flip target).                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Canonical read invocation for ONE generated read operation:
+ * transport-verified identity in, served records + fence revision out.
+ * Ruled models refuse LOUD here (`validation` naming T04b — the
+ * refusal lives L7-side so the engine keeps its fail-closed
+ * policy-miss rule untouched); everything else binds the canonical
+ * read port (`createReadInvoker`) over the call's store + live
+ * memberships and delegates routing (unknown operations,
+ * mutation-envelope mismatches), admission (`def.by`), closed-shape
+ * validation, and viewer projection to `invokeRead`. Reads commit
+ * nothing and receipt nothing. Throws the canonical `StateError` on
+ * business outcomes and plain `Error` on wiring bugs — the assembly
+ * maps both through its established `toBusinessError` rule.
+ */
+export interface CanonicalReadOpts {
+  readonly asm: AssembledModules;
+  readonly artifact: CompileArtifact;
+  readonly operation: string;
+  readonly inputs: Record<string, unknown>;
+  /** Transport-verified identity (resolved from the credential per request). */
+  readonly identity: ResolvedIdentity;
+  readonly store: StoragePort;
+  readonly memberships: CanonicalMembershipReader;
+}
+
+export async function invokeReadCanonical(opts: CanonicalReadOpts): Promise<CanonicalReadServed> {
+  assertCanonicalStore(opts.store, opts.operation);
+  assertCanonicalMemberships(opts.memberships, opts.operation);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const model = readModelForOperation(opts.operation);
+  if (model !== null && loaded.ruledModels.has(model)) {
+    throw ruledReadRefusal(loaded.producers.errors, model);
+  }
+  // Bound per call (never cached): the store + memberships are
+  // request-scoped, while the registry + policy ride the artifact
+  // cache. `createReadInvoker` is a trivial closure, so per-call
+  // binding costs nothing and pins nothing across workers.
+  const reader = loaded.producers.transact.createReadInvoker({
+    registry: loaded.registry,
+    policy: loaded.policy,
+    store: opts.store,
+    memberships: opts.memberships,
+  });
+  const served = await reader({
+    envelope: { operation: opts.operation, inputs: opts.inputs },
+    identity: opts.identity,
+  });
+  if (!Array.isArray(served.records)) {
+    throw new Error(`t17b: invokeRead served no records array (invoke/dist skew?)`);
+  }
+  return served;
 }

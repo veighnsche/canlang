@@ -41,6 +41,16 @@
  * gates on the T04a contract pins, `requires[]` fulfillment, and a
  * descriptor preload for generated artifacts — all fail-loud before
  * serving.
+ *
+ * T17b flip + retirements (this file): generated reads route onto
+ * `runtime/invoke.ts` `invokeReadCanonical` (the query-port refusal
+ * stub is retired — reads serve with admission + grant projection);
+ * descriptor-less artifacts REFUSE on both envelopes (the interim
+ * direct bridge is retired: no descriptors means no admission
+ * registry, and synthesizing descriptors would invent gates — see the
+ * T17b release report for the refuse-vs-synthesize decision); and
+ * `INTERIM_DDL` is retired (the engine stores every model in its
+ * generic `records` table — per-model demo DDL is dead).
  */
 
 import type {
@@ -67,10 +77,11 @@ import type {
   UploadIntentRequest,
 } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
-import type { CallerInfo, HandlerContext } from "../runtime/context.js";
+import type { HandlerContext } from "../runtime/context.js";
 import type {
   CanonicalMembershipReader,
   CanonicalMutationOpts,
+  CanonicalReadOpts,
   ContractVersionSet,
   RequiresProvidedVersions,
 } from "../runtime/invoke.js";
@@ -320,34 +331,6 @@ export interface InterimFilesBinding {
  */
 export type { HandlerContext };
 
-/** Sibling `invokeCallable` outcome (`src/runtime/invoke.ts`; landed). */
-interface InvokeOutcome {
-  readonly ok: boolean;
-  readonly value?: unknown;
-  readonly error?: unknown;
-}
-
-/**
- * Sibling `invokeCallable(asm, artifact, id, ctx, args?)`
- * (`src/runtime/invoke.ts`; landed). `args` is an ARRAY (spread into
- * `fn(ctx, ...args)`); passing a projection object here throws a
- * TypeError inside invoke and surfaces as a misleading rule_failed.
- */
-type InvokeCallable = (
-  asm: AssembledModules,
-  artifact: CompileArtifact,
-  id: string,
-  ctx: HandlerContext,
-  args?: unknown[],
-) => Promise<InvokeOutcome>;
-
-/** Sibling `createContext({ caller, store, memberships? })` (`src/runtime/context.ts`; landed). */
-type CreateContext = (input: {
-  readonly caller: CallerInfo;
-  readonly store: StoragePort;
-  readonly memberships?: string[];
-}) => HandlerContext | Promise<HandlerContext>;
-
 /** Sibling `createArtifactRegistry(artifact)` (`src/runtime/mcp-registry.ts`; P2). */
 type CreateArtifactRegistry = (artifact: CompileArtifact) => OperationRegistry;
 
@@ -362,6 +345,9 @@ type IsGeneratedArtifact = (artifact: CompileArtifact) => boolean;
 
 /** Sibling `invokeMutationCanonical(opts)` (`src/runtime/invoke.ts`; T16b). */
 type InvokeMutationCanonical = (opts: CanonicalMutationOpts) => Promise<MutationResult>;
+
+/** Sibling `invokeReadCanonical(opts)` (`src/runtime/invoke.ts`; T17b). */
+type InvokeReadCanonical = (opts: CanonicalReadOpts) => Promise<ReadResult>;
 
 /** Sibling `loadCanonicalDescriptors(asm, artifact)` (`src/runtime/invoke.ts`; T16b). */
 type LoadCanonicalDescriptors = (
@@ -427,45 +413,16 @@ export interface AssembledWorker {
 }
 
 /* ------------------------------------------------------------------ */
-/* INTERIM_DDL (coordinator decision R2: interim path).                 */
+/* INTERIM_DDL: RETIRED in T17b (was: coordinator decision R2).         */
 /*                                                                     */
-/* Derived DDL is impossible today, verified by reading the sources:    */
-/* (1) `CompileArtifact` (`contracts/src/artifact.ts:92`) carries NO    */
-/* model descriptors — only sources/modules/callables/pages/requires.  */
-/* (2) `buildModelTable` (`state/src/mutation/models.ts:174`) builds   */
-/* an in-memory INTERIM enforcement table, not SQL.                    */
-/* (3) The real engine stores every model in ONE generic `records`     */
-/* table (model as a column, domain fields as JSON) created by         */
-/* `ensureSchema` (`state/src/storage/d1.ts:53` + `schema.ts`), so     */
-/* per-model DDL is not even the engine's shape.                       */
-/*                                                                     */
-/* Until L1 emits model descriptors, these hand-written statements     */
-/* cover EXACTLY the demo models and must not be extended. The         */
-/* deploy/migrate packet (D1 owner) applies them; `assembleWorker`     */
-/* cannot — `StoragePort` has no DDL surface.                          */
-/*                                                                     */
-/* What L1 must emit to replace this: per-model table descriptors      */
-/* derived from the Given model blocks (model name, columns, column    */
-/* types, nullability/defaults, refs, unique keys) plus a DDL renderer */
-/* (or versioned migration statements) the B1 assembly can derive      */
-/* `CREATE TABLE` from.                                                */
-/*                                                                     */
-/* Shape: one single-line statement per entry, no trailing semicolon — */
-/* the proven `db.exec` shape (`tests/e2e/.../teamtasks.ts:44`).       */
+/* The hand-written per-model demo DDL (`todo`, `note`) is deleted      */
+/* with its `env-assembly.ts` applier: the engine stores every model   */
+/* in ONE generic `records` table (model as a column, domain fields    */
+/* as JSON) created by `ensureSchema`, so per-model DDL was never the  */
+/* engine's shape and nothing reads those tables (`StoragePort` has    */
+/* no raw-SQL surface). When the D1 owner lands a real migrate step,   */
+/* that step owns schema — there is no interim DDL left to supersede.  */
 /* ------------------------------------------------------------------ */
-
-/** Todo columns mirror `TEAMTASKS_D1_SCHEMA` verbatim (title/done/assignee). */
-const INTERIM_TODO_DDL =
-  "CREATE TABLE IF NOT EXISTS todo (id TEXT PRIMARY KEY, title TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0, assignee TEXT NULL, version INTEGER NOT NULL DEFAULT 1, created INTEGER NOT NULL)";
-
-/**
- * Note follows the `examples/TeamTasks.can` source (`Note { title, content }`),
- * not Todo's columns: same bookkeeping (id/version/created), own fields.
- */
-const INTERIM_NOTE_DDL =
-  "CREATE TABLE IF NOT EXISTS note (id TEXT PRIMARY KEY, title TEXT NOT NULL, content TEXT NULL, version INTEGER NOT NULL DEFAULT 1, created INTEGER NOT NULL)";
-
-export const INTERIM_DDL: readonly string[] = [INTERIM_TODO_DDL, INTERIM_NOTE_DDL];
 
 /* ------------------------------------------------------------------ */
 /* Artifact compatibility (artifact.ts v1 contract).                    */
@@ -719,54 +676,15 @@ async function loadSiblingFn<T>(specifier: string, file: string, binding: string
 }
 
 /**
- * Map a resolved identity onto handler-context caller facts. Explicit,
- * never by accident: a null actor (DESIGN §4 unauthenticated public
- * request) becomes the labeled `"anonymous"` caller with no roles; a
- * present actor contributes its user id; memberships come from the
- * membership's role grants (absent membership = no roles). Guarded
- * operations stay fail-closed for anonymous callers because `hasRole`
- * tests these memberships.
- */
-function callerFor(identity: ResolvedIdentity): { caller: CallerInfo; memberships: string[] } {
-  const grants = identity.membership?.roles.map((grant) => grant.role) ?? [];
-  if (identity.actor === null) {
-    return { caller: { userId: "anonymous", roles: [] }, memberships: [] };
-  }
-  return { caller: { userId: identity.actor.user_id, roles: grants }, memberships: grants };
-}
-
-/**
- * Invoker core: `(id, identity, args) => createContext({ caller, store,
- * memberships })` + `invokeCallable`. The sibling `invoke`/`context`
- * modules load lazily per the worker-boundary rule; invoking an
- * operation while a sibling is not built fails loud naming the missing
- * module.
- */
-async function invokeOperationCore(
-  asm: AssembledModules,
-  artifact: CompileArtifact,
-  store: StoragePort,
-  id: string,
-  identity: ResolvedIdentity,
-  args: unknown[],
-): Promise<InvokeOutcome> {
-  const createContext = await loadSiblingFn<CreateContext>("../runtime/context.js", "runtime/context.ts", "createContext");
-  const invokeCallable = await loadSiblingFn<InvokeCallable>("../runtime/invoke.js", "runtime/invoke.ts", "invokeCallable");
-  const { caller, memberships } = callerFor(identity);
-  const ctx = await createContext({ caller, store, memberships });
-  return invokeCallable(asm, artifact, id, ctx, args);
-}
-
-/**
- * Canonical invoker options (T16b, additive 4th parameter — existing
- * 3-argument callers keep the interim direct path for descriptor-less
- * artifacts byte-identically).
+ * Canonical invoker options (T16b 4th parameter; T17b: the interim
+ * direct path is retired, so every artifact either routes canonical
+ * or refuses — there is no third path).
  */
 export interface CanonicalInvokerOpts {
   /**
    * Membership reader for canonical admission (the IdentityStore,
    * validated structurally at the canonical boundary). REQUIRED for
-   * generated artifacts; ignored on the interim direct path.
+   * generated artifacts; unused on the descriptor-less refusal path.
    */
   readonly memberships?: CanonicalMembershipReader;
   /** Serving-source label; defaults to `worker` (the MCP path passes `mcp`). */
@@ -776,46 +694,22 @@ export interface CanonicalInvokerOpts {
 }
 
 /**
- * T16b read-envelope refusal for generated artifacts: reads execute
- * through the query port (T17), and mutation operations require the
- * mutation envelope — the interim direct projection would bypass
- * admission, so it is closed here with precise `validation` errors
- * (read text mirrors the canonical invoke read-guard).
+ * T17b descriptor-less refusal (both envelopes): without T15a
+ * descriptors there is no admission registry — no operation defs to
+ * admit through, no input shapes to validate closed, no gates to
+ * transcribe. Synthesizing descriptors would invent all three (the
+ * rejected alternative — see the T17b release report), so the router
+ * refuses with a precise `validation` error instead. Per-call (not a
+ * `buildInvoker` throw) so transports render the established
+ * envelope; nothing is served, staged, or committed.
  */
-function generatedReadRefusal(artifact: CompileArtifact, operation: string): BusinessError {
-  const raw: unknown = (artifact as unknown as { operations?: unknown }).operations;
-  if (!Array.isArray(raw)) {
-    return {
-      code: "validation",
-      message: "Generated artifact operations are malformed.",
-      retryable: false,
-    };
-  }
-  for (const entry of raw) {
-    if (!isRecord(entry) || entry["name"] !== operation) continue;
-    if (entry["kind"] === "read") {
-      return {
-        code: "validation",
-        message:
-          `Read operation ${JSON.stringify(operation)} cannot run through invoke; ` +
-          "reads execute through the query port.",
-        retryable: false,
-      };
-    }
-    const kind: unknown = entry["kind"];
-    return {
-      code: "validation",
-      message:
-        typeof kind === "string" && kind !== ""
-          ? `Operation ${JSON.stringify(operation)} is a ${kind} operation; ` +
-            "mutations require the mutation envelope."
-          : `Operation ${JSON.stringify(operation)} carries no readable kind.`,
-      retryable: false,
-    };
-  }
+function descriptorLessRefusal(operation: string): BusinessError {
   return {
     code: "validation",
-    message: `Unknown operation ${JSON.stringify(operation)}.`,
+    message:
+      `Operation ${JSON.stringify(operation)} cannot run: descriptor-less artifacts were ` +
+      `retired in T17 (no operation descriptors, so no admission registry); recompile with ` +
+      `T15a descriptors to serve through the canonical path.`,
     retryable: false,
   };
 }
@@ -825,11 +719,11 @@ function generatedReadRefusal(artifact: CompileArtifact, operation: string): Bus
  * the interfaces join feeds it into `HttpDeps`; invoking an operation
  * while a sibling is not built fails loud naming the missing module.
  *
- * T16b routing: generated artifacts (T15a descriptors present) execute
+ * T17b routing: generated artifacts (T15a descriptors present) execute
  * mutations through the canonical state path (admit -> execute ->
- * receipt) and refuse reads with precise `validation` errors;
- * descriptor-less artifacts keep the interim direct path below
- * untouched (existing suites pin it; T17 retires it).
+ * receipt) and serve reads through the canonical read path (admit ->
+ * grant-project); descriptor-less artifacts REFUSE on both envelopes
+ * (the interim direct bridge is retired).
  */
 export function buildInvoker(
   artifact: CompileArtifact,
@@ -844,47 +738,34 @@ export function buildInvoker(
         "runtime/invoke.ts",
         "isGeneratedArtifact",
       );
-      if (isGeneratedArtifact(artifact)) {
-        try {
-          const invokeCanonical = await loadSiblingFn<InvokeMutationCanonical>(
-            "../runtime/invoke.js",
-            "runtime/invoke.ts",
-            "invokeMutationCanonical",
-          );
-          const result = await invokeCanonical({
-            asm,
-            artifact,
-            operation: envelope.operation,
-            operationId: envelope.operation_id,
-            inputs: envelope.inputs,
-            identity,
-            app: interimAppInfo(artifact).appId,
-            source: opts.source ?? "worker",
-            store,
-            memberships: opts.memberships as CanonicalMembershipReader,
-            now: opts.now ?? Date.now,
-          });
-          return { result };
-        } catch (error) {
-          return { error: toBusinessError(error, envelope.operation_id) };
-        }
+      if (!isGeneratedArtifact(artifact)) {
+        return {
+          error: { ...descriptorLessRefusal(envelope.operation), operation_id: envelope.operation_id },
+        };
       }
-      // Interim envelope->args projection (the sibling join owns the
-      // canonical one): business inputs plus the receipt identity, as a
-      // single handler argument (invoke spreads an ARRAY).
-      const outcome = await invokeOperationCore(asm, artifact, store, envelope.operation, identity, [
-        {
-          operation_id: envelope.operation_id,
+      try {
+        const invokeCanonical = await loadSiblingFn<InvokeMutationCanonical>(
+          "../runtime/invoke.js",
+          "runtime/invoke.ts",
+          "invokeMutationCanonical",
+        );
+        const result = await invokeCanonical({
+          asm,
+          artifact,
+          operation: envelope.operation,
+          operationId: envelope.operation_id,
           inputs: envelope.inputs,
-        },
-      ]);
-      if (!outcome.ok) {
-        return { error: toBusinessError(outcome.error, envelope.operation_id) };
+          identity,
+          app: interimAppInfo(artifact).appId,
+          source: opts.source ?? "worker",
+          store,
+          memberships: opts.memberships as CanonicalMembershipReader,
+          now: opts.now ?? Date.now,
+        });
+        return { result };
+      } catch (error) {
+        return { error: toBusinessError(error, envelope.operation_id) };
       }
-      if (!isRecord(outcome.value)) {
-        return { error: toBusinessError(outcome.value, envelope.operation_id) };
-      }
-      return { result: outcome.value as unknown as MutationResult };
     },
     invokeRead: async (envelope, identity): Promise<ReadOutcome> => {
       const isGeneratedArtifact = await loadSiblingFn<IsGeneratedArtifact>(
@@ -892,16 +773,28 @@ export function buildInvoker(
         "runtime/invoke.ts",
         "isGeneratedArtifact",
       );
-      if (isGeneratedArtifact(artifact)) {
-        return { error: generatedReadRefusal(artifact, envelope.operation) };
+      if (!isGeneratedArtifact(artifact)) {
+        return { error: descriptorLessRefusal(envelope.operation) };
       }
-      const outcome = await invokeOperationCore(asm, artifact, store, envelope.operation, identity, [
-        { inputs: envelope.inputs },
-      ]);
-      if (!outcome.ok) {
-        return { error: toBusinessError(outcome.error) };
+      try {
+        const invokeCanonical = await loadSiblingFn<InvokeReadCanonical>(
+          "../runtime/invoke.js",
+          "runtime/invoke.ts",
+          "invokeReadCanonical",
+        );
+        const result = await invokeCanonical({
+          asm,
+          artifact,
+          operation: envelope.operation,
+          inputs: envelope.inputs,
+          identity,
+          store,
+          memberships: opts.memberships as CanonicalMembershipReader,
+        });
+        return { result };
+      } catch (error) {
+        return { error: toBusinessError(error) };
       }
-      return { result: outcome.value };
     },
   };
 }
@@ -1141,8 +1034,8 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
     permissions,
     // THE same bridge HTTP consumes at the join: one invoker, both transports.
     // T16b: the MCP path threads canonical admission deps (the live
-    // identity store, the source label, the worker clock);
-    // descriptor-less artifacts ignore them on the interim direct path.
+    // identity store, the source label, the worker clock). T17b: the
+    // interim direct path is retired — descriptor-less artifacts refuse.
     invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store, {
       memberships: ctx.identityStore as CanonicalMembershipReader,
       source: "mcp",

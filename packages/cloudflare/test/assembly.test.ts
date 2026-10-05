@@ -10,12 +10,14 @@
  * test-only — the worker boundary still forbids them from `src/`).
  */
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import type {
   CompileArtifact,
+  MutationResult,
   OperationId,
   ResolvedIdentity,
   StoragePort,
@@ -23,14 +25,16 @@ import type {
 // `@canlang/identity` resolves via workspace link to its built dist (root
 // `build` builds it before typecheck/test). Test-only: `src/` stays
 // boundary-clean.
-import { deriveCsrfToken, resolveIdentity } from "@canlang/identity";
+import { deriveCsrfToken, resolveIdentity, sha256HexText } from "@canlang/identity";
+import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
+import { createTestMemoryStorage } from "../../state/dist/state/src/storage/memory.js";
 import {
-  INTERIM_DDL,
   assembleWorker,
   buildInvoker,
   type AssembledModules,
   type AssemblyDeps,
   type InterimFilesBinding,
+  type MutationOutcome,
 } from "../src/worker/assembly.js";
 // Cross-package journey tests import interfaces DIST (never src): src imports
 // would drag pre-existing producer strictness gaps into this lane-07 check
@@ -323,101 +327,207 @@ describe("assembleWorker", () => {
   });
 });
 
+/* ------------------------------------------------------------------ */
+/* T17c canonical invoker fixtures (buildInvoker pins only).           */
+/*                                                                     */
+/* T17 retired the interim direct bridge: descriptor-less artifacts    */
+/* now refuse with `validation` on both envelopes. These pins prove    */
+/* the SAME behaviors through canonical staging over a memory store    */
+/* with a memory identity store for live membership reads.             */
+/* ------------------------------------------------------------------ */
+
+/** Fresh canonical UUIDv7 operation_id with the time field at `atMs`. */
+function freshOperationId(atMs: number): string {
+  const timeHex = atMs.toString(16).padStart(12, "0");
+  const rand = randomBytes(10).toString("hex");
+  return `${timeHex.slice(0, 8)}-${timeHex.slice(8, 12)}-7${rand.slice(0, 3)}-8${rand.slice(4, 7)}-${rand.slice(7, 19)}`;
+}
+
+function canonicalModel(): unknown {
+  return {
+    name: "acme.Todo",
+    fields: [{ name: "title", required: true, serverOnly: false, field: { kind: "string" } }],
+    deleteMode: "remove",
+  };
+}
+
+/** Hand-written T15a-shaped artifact (NOT compiler output): descriptors + callables. */
+function scenarioArtifact(
+  module: string,
+  scenarios: ReadonlyArray<{ op: string; fn: string; params: ReadonlyArray<string> }>,
+): CompileArtifact {
+  return {
+    artifact_version: 1,
+    language_version: "t17c-fixture/0 (hand-written T15a shape; NOT compiler output)",
+    tool_version: "t17c-fixture/0",
+    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
+    modules: [],
+    callables: scenarios.map((s) => ({
+      id: s.op,
+      kind: "operation",
+      module,
+      export: `Shop_${s.fn}`,
+      member: ["Shop", s.fn],
+    })),
+    pages: [],
+    requires: [],
+    tests: [],
+    operations: scenarios.map((s) => ({
+      name: s.op,
+      kind: "scenario",
+      description: "",
+      inputs: {
+        fields: s.params.map((name) => ({ name, field: { kind: "string" }, required: true })),
+      },
+    })),
+    models: [canonicalModel()],
+  } as unknown as CompileArtifact;
+}
+
+function mustResult(outcome: MutationOutcome): MutationResult {
+  if ("result" in outcome) return outcome.result;
+  throw new Error(`want result, got ${JSON.stringify(outcome)}`);
+}
+
 describe("buildInvoker", () => {
-  it("success path threads identity facts and the projection array", async () => {
+  it("success path threads identity facts and the live membership projection", async () => {
+    // T17c (rule a): was the interim direct bridge (a fixed projection
+    // array built from identity claims); now the canonical scenario
+    // seam re-reads LIVE memberships. SAME behavior: the admitted
+    // caller id + role facts reach the handler. The outcome now wraps
+    // the handler value in the canonical `MutationResult`.
     const dir = tempDir();
     const url = writeModule(
       dir,
       "ops.mjs",
       `export function canApp() {
-        return { echo: async (c, input) => ({ echoed: input.operation_id, caller: c.caller.userId, member: c.memberships.includes("members") }) };
+        return { Shop: { echo: async (c, input) => ({ echoed: input.operation_id, caller: c.caller.userId, member: c.memberships.includes("members") }) } };
       }`,
     );
-    const artifact = fixtureArtifact(
-      [],
-      [{ id: "fixture.echo", kind: "operation", module: "ops.mjs", export: "echo", member: ["echo"] }],
+    const artifact = scenarioArtifact("ops.mjs", [{ op: "fixture.echo", fn: "echo", params: [] }]);
+    const now = Date.now();
+    const clock = createFrozenClock(now);
+    const idStore = createMemoryIdentityStore({ clock });
+    const team = await idStore.createTeam({});
+    const owner = await idStore.createUser({
+      email: "owner@t17c.test",
+      password_hash: "x",
+      email_verified: true,
+    });
+    await idStore.createMembership({
+      team_id: team.team_id,
+      user_id: owner.user_id,
+      is_owner: true,
+      roles: [],
+    });
+    const member = await idStore.createUser({
+      email: "member@t17c.test",
+      password_hash: "x",
+      email_verified: true,
+    });
+    await idStore.createMembership({
+      team_id: team.team_id,
+      user_id: member.user_id,
+      is_owner: false,
+      roles: [{ role: "members", granted_at: new Date(now).toISOString(), granted_by: owner.user_id }],
+    });
+    const token = `t17c-session-${randomBytes(8).toString("hex")}`;
+    await idStore.createSession({
+      user_id: member.user_id,
+      token_sha256: await sha256HexText(token),
+      expires_at: new Date(now + 3600_000).toISOString(),
+      last_team_id: team.team_id,
+    });
+    const identity = await resolveIdentity(
+      idStore,
+      { session_token: token },
+      { clock: { nowMs: () => now } },
     );
-    const invoker = buildInvoker(artifact, stubAsm(dir, { "ops.mjs": url }), stubStore());
-    const operationId = "0193c1f0-0000-7000-8000-000000000001" as OperationId;
-    const outcome = await invoker.invokeMutation(
-      { operation: "fixture.echo", operation_id: operationId, inputs: {} },
-      {
-        actor: { user_id: "u1", email: "u1@example.test", email_verified: true },
-        team: null,
-        membership: {
-          membership_id: "m1",
-          team_id: "t1",
-          user_id: "u1",
-          is_owner: false,
-          roles: [{ role: "members", granted_at: "2026-01-01T00:00:00.000Z", granted_by: "u0" }],
-          status: "active",
-          created_at: "2026-01-01T00:00:00.000Z",
-          updated_at: "2026-01-01T00:00:00.000Z",
-        },
-        binding: { kind: "none" },
-        admitted_at: "2026-01-01T00:00:00.000Z",
-      },
+    const { store } = createTestMemoryStorage();
+    const invoker = buildInvoker(artifact, stubAsm(dir, { "ops.mjs": url }), store, {
+      memberships: idStore,
+      now: () => now,
+    });
+    const operationId = freshOperationId(now);
+    const committed = mustResult(
+      await invoker.invokeMutation(
+        { operation: "fixture.echo", operation_id: operationId as OperationId, inputs: {} },
+        identity,
+      ),
     );
-    expect(outcome).toEqual({ result: { echoed: operationId, caller: "u1", member: true } });
+    expect(committed.status).toBe("committed");
+    expect(committed.result).toEqual({ echoed: operationId, caller: member.user_id, member: true });
   });
 
   it("anonymous caller maps to the labeled anonymous identity", async () => {
+    // T17c (rule a): SAME expectation byte-identically, now through the
+    // canonical scenario seam (null actor -> "anonymous" with empty
+    // roles/memberships) instead of the retired interim bridge. The
+    // empty memory identity store proves no membership is invented.
     const dir = tempDir();
     const url = writeModule(
       dir,
       "ops.mjs",
       `export function canApp() {
-        return { echo: async (c, input) => ({ caller: c.caller.userId, roles: c.caller.roles.length, member: c.memberships.length }) };
+        return { Shop: { echo: async (c, input) => ({ caller: c.caller.userId, roles: c.caller.roles.length, member: c.memberships.length }) } };
       }`,
     );
-    const artifact = fixtureArtifact(
-      [],
-      [{ id: "fixture.echo", kind: "operation", module: "ops.mjs", export: "echo", member: ["echo"] }],
+    const artifact = scenarioArtifact("ops.mjs", [{ op: "fixture.echo", fn: "echo", params: [] }]);
+    const now = Date.now();
+    const idStore = createMemoryIdentityStore({ clock: createFrozenClock(now) });
+    const { store } = createTestMemoryStorage();
+    const invoker = buildInvoker(artifact, stubAsm(dir, { "ops.mjs": url }), store, {
+      memberships: idStore,
+      now: () => now,
+    });
+    const committed = mustResult(
+      await invoker.invokeMutation(
+        {
+          operation: "fixture.echo",
+          operation_id: freshOperationId(now) as OperationId,
+          inputs: {},
+        },
+        anonymousIdentity(),
+      ),
     );
-    const invoker = buildInvoker(artifact, stubAsm(dir, { "ops.mjs": url }), stubStore());
-    const outcome = await invoker.invokeMutation(
-      {
-        operation: "fixture.echo",
-        operation_id: "0193c1f0-0000-7000-8000-000000000002" as OperationId,
-        inputs: {},
-      },
-      anonymousIdentity(),
-    );
-    expect(outcome).toEqual({ result: { caller: "anonymous", roles: 0, member: 0 } });
+    expect(committed.status).toBe("committed");
+    expect(committed.result).toEqual({ caller: "anonymous", roles: 0, member: 0 });
   });
 
-  it("unknown operation resolves a rule_failed error naming the callable", async () => {
+  it("unknown operation rejects validation naming the operation", async () => {
+    // T17c (rule a): was interim `rule_failed` naming the unknown
+    // callable; the canonical registry rejects unknown operations with
+    // `validation` naming the operation (engine text `Unknown
+    // operation "X".`). The artifact stays generated so the registry
+    // (not the descriptor-less refusal) answers.
     const dir = tempDir();
-    const artifact = fixtureArtifact([], []);
-    const invoker = buildInvoker(artifact, stubAsm(dir, {}), stubStore());
-    const operationId = "0193c1f0-0000-7000-8000-000000000000" as OperationId;
+    const url = writeModule(dir, "ops.mjs", `export function canApp() { return { Shop: {} }; }\n`);
+    const artifact = scenarioArtifact("ops.mjs", [{ op: "fixture.echo", fn: "echo", params: [] }]);
+    const now = Date.now();
+    const idStore = createMemoryIdentityStore({ clock: createFrozenClock(now) });
+    const { store } = createTestMemoryStorage();
+    const invoker = buildInvoker(artifact, stubAsm(dir, { "ops.mjs": url }), store, {
+      memberships: idStore,
+      now: () => now,
+    });
+    const operationId = freshOperationId(now);
     const outcome = await invoker.invokeMutation(
-      { operation: "fixture.demo", operation_id: operationId, inputs: {} },
+      { operation: "fixture.demo", operation_id: operationId as OperationId, inputs: {} },
       anonymousIdentity(),
     );
     expect(outcome).toMatchObject({
-      error: { code: "rule_failed", operation_id: operationId, retryable: false },
+      error: { code: "validation", operation_id: operationId, retryable: false },
     });
     expect((outcome as { error: { message: string } }).error.message).toContain(
-      'unknown callable "fixture.demo"',
+      'Unknown operation "fixture.demo"',
     );
   });
 });
 
-describe("INTERIM_DDL", () => {
-  it("covers exactly the demo models as single-line exec statements", () => {
-    expect(INTERIM_DDL).toHaveLength(2);
-    const [todo, note] = INTERIM_DDL;
-    expect(todo).toContain("CREATE TABLE IF NOT EXISTS todo");
-    expect(todo).toContain("title");
-    expect(note).toContain("CREATE TABLE IF NOT EXISTS note");
-    expect(note).toContain("content");
-    for (const statement of INTERIM_DDL) {
-      expect(statement).not.toContain("\n");
-      expect(statement.endsWith(";")).toBe(false);
-    }
-  });
-});
+// T17c: the INTERIM_DDL pin is DELETED with the artifact (rule b) — T17b
+// retired the hand-written per-model demo DDL (see the
+// `src/worker/assembly.ts` retirement note): the engine stores every
+// model in its generic `records` table, so there is no DDL left to pin.
 
 describe("interim files dispatch", () => {
   function spyFilesBinding(usesFiles: boolean): InterimFilesBinding & { calls: string[] } {

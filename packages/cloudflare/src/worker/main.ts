@@ -73,7 +73,9 @@ import type { WorkerApp, WorkerAppOptions } from "./entry.js";
  * - `DB` (D1 database): consumed by P-C's `buildProductionDeps(env)`
  *   (`runtime/env-assembly.ts`) via `createD1Storage(db)`
  *   (`packages/state/src/storage/d1.ts`). The store, the D1-backed
- *   identity store, and the INTERIM_DDL migrate step all hang off it.
+ *   identity store, and the engine schema ensures all hang off it
+ *   (T17c: the INTERIM_DDL migrate step was retired with `INTERIM_DDL`
+ *   — the engine stores every model in its generic `records` table).
  *
  * No other binding is needed today: P-C's `handleMcpGrant` takes the
  * already-built `identityStore`, not `env`. If P-C's deps constructor
@@ -103,8 +105,8 @@ export interface ProductionDeps {
 
 /**
  * P-C `buildProductionDeps` (`runtime/env-assembly.ts`): `env` (with
- * `DB`) -> production `{ store, identityStore }`, applying the
- * INTERIM_DDL migrate step.
+ * `DB`) -> production `{ store, identityStore }`, running the engine
+ * schema ensures (T17c: the INTERIM_DDL migrate step was retired).
  */
 export type BuildProductionDepsFn = (env: Record<string, unknown>) => Promise<ProductionDeps>;
 
