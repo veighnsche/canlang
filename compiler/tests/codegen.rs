@@ -17,7 +17,9 @@
 //! with each other or with §13, the test documents the drift and follows
 //! the normative text.
 
-use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
+use canlang_compiler::analysis::catalog::{
+    Catalog, CatalogRequest, StdOperation, load_catalog, std_operation,
+};
 use canlang_compiler::analysis::resolve::{ModuleId, ModuleKind, SymbolId};
 use canlang_compiler::analysis::types::{ResolvedType, Scalar};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
@@ -4951,5 +4953,626 @@ fn t15a_structural_literal_default() {
     assert_eq!(
         input.default.as_ref().map(|d| d.to_json()).as_deref(),
         Some("{\"kind\":\"literal\",\"value\":[\"a\",\"b\"]}")
+    );
+}
+
+// --- T15b provider-descriptor join -------------------------------------------
+
+/// T15b fake `std` operation with no T13c result nominal: drives the
+/// fail-closed fallback (nothing fabricated for unjoined shapes).
+static T15B_FAKE_OP: StdOperation = StdOperation {
+    name: "nope",
+    inputs: &[],
+    result: "Nope",
+};
+
+/// One synthetic T14c typed `std` receipt over a REAL consumed T13
+/// operation (never an invented schema).
+fn t15b_std_delivery(capability: &'static str, op: &str) -> ResolvedType {
+    ResolvedType::StdDelivery {
+        capability,
+        op: std_operation(capability, op).unwrap_or_else(|| panic!("T13 op {capability}.{op}")),
+    }
+}
+
+/// (T15b) `delivery_descriptor` joins the frozen capability version
+/// with the T13c result leaves in producer order, or fails closed on
+/// either miss (callers keep today's omit/`other` behavior).
+#[test]
+fn t15b_delivery_descriptor_helper() {
+    let send = std_operation("std.EmailV1", "send").expect("send schema");
+    let descriptor = js::delivery_descriptor("std.EmailV1", send).expect("joined descriptor");
+    assert_eq!(descriptor.capability, "std.EmailV1");
+    assert_eq!(descriptor.operation, "send");
+    assert_eq!(descriptor.version, 1);
+    assert_eq!(descriptor.result.name, "EmailAccepted");
+    assert_eq!(
+        descriptor.to_json(),
+        "{\"kind\":\"delivery\",\"capability\":\"std.EmailV1\",\"operation\":\"send\",\
+         \"version\":1,\"result\":{\"name\":\"EmailAccepted\",\
+         \"fields\":[{\"name\":\"reference\",\"type\":\"text\"}]}}"
+    );
+    assert!(
+        js::delivery_descriptor("std.NopeV1", send).is_none(),
+        "unknown capability stays unjoined"
+    );
+    assert!(
+        js::delivery_descriptor("std.EmailV1", &T15B_FAKE_OP).is_none(),
+        "unknown result nominal stays unjoined"
+    );
+}
+
+/// (T15b) Model tags for typed `std` receipts over a synthetic IR:
+/// Mail/Payments/Text/Images emit closed delivery descriptors with
+/// verbatim T13c leaves; bound-local deliveries keep `other`;
+/// unjoined shapes fall back exactly — total, diagnostic-free.
+#[test]
+fn t15b_std_delivery_model_tags() {
+    let span = sp(0, 1);
+    let mut items = vec![
+        IrItem {
+            id: SymbolId(0),
+            canonical: "demo.M".to_string(),
+            name: "M".to_string(),
+            module: ModuleId(0),
+            span,
+            exported: true,
+            kind: IrItemKind::Model {
+                // Symbol ids are item indices (index parity): the two
+                // header items occupy 0..2, fields follow from 2.
+                fields: (2..9).map(SymbolId).collect(),
+                owner: IrOwner::Team,
+                crud: None,
+                label: None,
+                grants: Vec::new(),
+                invariants: Vec::new(),
+                locks: Vec::new(),
+                uniques: Vec::new(),
+                retain: None,
+            },
+        },
+        IrItem {
+            id: SymbolId(1),
+            canonical: "demo.Svc.ping".to_string(),
+            name: "ping".to_string(),
+            module: ModuleId(0),
+            span,
+            exported: false,
+            kind: IrItemKind::CapabilityOp {
+                params: vec![],
+                result: IrType::Known(ResolvedType::Scalar(Scalar::Bool)),
+            },
+        },
+    ];
+    let send = std_operation("std.EmailV1", "send").expect("send schema");
+    let field_types: Vec<(&str, IrType)> = vec![
+        (
+            "f_mail",
+            IrType::Known(t15b_std_delivery("std.EmailV1", "send")),
+        ),
+        (
+            "f_pay",
+            IrType::Known(t15b_std_delivery("std.PaymentsV1", "collect")),
+        ),
+        (
+            "f_text",
+            IrType::Known(t15b_std_delivery("std.TextGenerationV1", "generate")),
+        ),
+        (
+            "f_img",
+            IrType::Known(t15b_std_delivery("std.ImagesV1", "submit")),
+        ),
+        (
+            "f_local",
+            IrType::Known(ResolvedType::Delivery { op: SymbolId(1) }),
+        ),
+        (
+            "f_bogus_result",
+            IrType::Known(ResolvedType::StdDelivery {
+                capability: "std.EmailV1",
+                op: &T15B_FAKE_OP,
+            }),
+        ),
+        (
+            "f_bogus_cap",
+            IrType::Known(ResolvedType::StdDelivery {
+                capability: "std.FakeV1",
+                op: send,
+            }),
+        ),
+    ];
+    for (index, (name, ty)) in field_types.into_iter().enumerate() {
+        items.push(t15a_field_item(2 + index as u32, name, ty));
+    }
+    let ir = IrProgram {
+        modules: vec![IrModule {
+            id: ModuleId(0),
+            name: "demo".to_string(),
+            kind: ModuleKind::Package,
+            file: SourceId(0),
+            span,
+            imports: Vec::new(),
+            uses: Vec::new(),
+            uses_resolved: Vec::new(),
+            pages: Vec::new(),
+            description: None,
+        }],
+        items,
+        catalog_version: String::new(),
+        referenced_builtins: Vec::new(),
+        read_rules: Vec::new(),
+        invariants: Vec::new(),
+        locks: Vec::new(),
+        retention: Vec::new(),
+        crud_when: Vec::new(),
+        preferences_valid: Vec::new(),
+        suites: Vec::new(),
+        migrations: Vec::new(),
+    };
+    let models = Emitter::new(&ir).collect_models();
+    assert_eq!(models.len(), 1, "one model emits");
+    let model = &models[0];
+    let tag = |name: &str| t15a_field(model, name).field.clone();
+    // Mail: closed descriptor with the single `EmailAccepted` leaf.
+    match tag("f_mail") {
+        js::JsModelFieldType::Delivery(descriptor) => {
+            assert_eq!(descriptor.capability, "std.EmailV1");
+            assert_eq!(descriptor.operation, "send");
+            assert_eq!(descriptor.version, 1);
+            assert_eq!(
+                descriptor.to_json(),
+                "{\"kind\":\"delivery\",\"capability\":\"std.EmailV1\",\"operation\":\"send\",\
+                 \"version\":1,\"result\":{\"name\":\"EmailAccepted\",\
+                 \"fields\":[{\"name\":\"reference\",\"type\":\"text\"}]}}"
+            );
+        }
+        other => panic!("mail tag: {other:?}"),
+    }
+    // Payments: all seven `PaymentState` leaves, verbatim, in order.
+    match tag("f_pay") {
+        js::JsModelFieldType::Delivery(descriptor) => {
+            assert_eq!(
+                descriptor.to_json(),
+                "{\"kind\":\"delivery\",\"capability\":\"std.PaymentsV1\",\
+                 \"operation\":\"collect\",\"version\":1,\
+                 \"result\":{\"name\":\"PaymentState\",\"fields\":[\
+                 {\"name\":\"reference\",\"type\":\"text\"},\
+                 {\"name\":\"revision\",\"type\":\"int\"},\
+                 {\"name\":\"provider_reference\",\"type\":\"text?\"},\
+                 {\"name\":\"amount\",\"type\":\"money\"},\
+                 {\"name\":\"status\",\"type\":\"enum(pending,unknown,succeeded,failed)\"},\
+                 {\"name\":\"checkout_url\",\"type\":\"url?\"},\
+                 {\"name\":\"failure\",\"type\":\"enum(transient,action_required,permanent,cancelled)?\"}\
+                 ]}}"
+            );
+        }
+        other => panic!("payments tag: {other:?}"),
+    }
+    // Text: all seven `TextRun` leaves, verbatim, in order.
+    match tag("f_text") {
+        js::JsModelFieldType::Delivery(descriptor) => {
+            assert_eq!(descriptor.result.name, "TextRun");
+            assert_eq!(
+                descriptor.to_json(),
+                "{\"kind\":\"delivery\",\"capability\":\"std.TextGenerationV1\",\
+                 \"operation\":\"generate\",\"version\":1,\
+                 \"result\":{\"name\":\"TextRun\",\"fields\":[\
+                 {\"name\":\"source\",\"type\":\"text\"},\
+                 {\"name\":\"revision\",\"type\":\"int\"},\
+                 {\"name\":\"sequence\",\"type\":\"int\"},\
+                 {\"name\":\"state\",\"type\":\"enum(queued,running,succeeded,failed,unknown,cancelled)\"},\
+                 {\"name\":\"content\",\"type\":\"text\"},\
+                 {\"name\":\"used_tokens\",\"type\":\"int?\"},\
+                 {\"name\":\"detail\",\"type\":\"text?\"}\
+                 ]}}"
+            );
+        }
+        other => panic!("text tag: {other:?}"),
+    }
+    // Images: SOURCE names only (T13c ImageRun-vs-wire precedent).
+    match tag("f_img") {
+        js::JsModelFieldType::Delivery(descriptor) => {
+            assert_eq!(descriptor.result.name, "ImageRun");
+            let json = descriptor.to_json();
+            assert_eq!(
+                json,
+                "{\"kind\":\"delivery\",\"capability\":\"std.ImagesV1\",\
+                 \"operation\":\"submit\",\"version\":1,\
+                 \"result\":{\"name\":\"ImageRun\",\"fields\":[\
+                 {\"name\":\"source\",\"type\":\"text\"},\
+                 {\"name\":\"revision\",\"type\":\"int\"},\
+                 {\"name\":\"sequence\",\"type\":\"int\"},\
+                 {\"name\":\"state\",\"type\":\"enum(queued,running,succeeded,failed,unknown,cancelled)\"},\
+                 {\"name\":\"outputs\",\"type\":\"GeneratedImage[]\"},\
+                 {\"name\":\"charged_jobs\",\"type\":\"int?\"},\
+                 {\"name\":\"detail\",\"type\":\"text?\"}\
+                 ]}}"
+            );
+            for wire in ["ImageRunProgress", "ImageFileOutput"] {
+                assert!(!json.contains(wire), "no wire alias {wire}: {json}");
+            }
+        }
+        other => panic!("images tag: {other:?}"),
+    }
+    // Bound-local deliveries keep the source-exact `other` tag.
+    match tag("f_local") {
+        js::JsModelFieldType::Other { type_id } => {
+            assert_eq!(type_id, "delivery:demo.Svc.ping")
+        }
+        other => panic!("local tag: {other:?}"),
+    }
+    // Unjoined shapes fall back exactly, never fabricated.
+    match tag("f_bogus_result") {
+        js::JsModelFieldType::Other { type_id } => {
+            assert_eq!(type_id, "delivery:std.EmailV1.nope")
+        }
+        other => panic!("bogus-result tag: {other:?}"),
+    }
+    match tag("f_bogus_cap") {
+        js::JsModelFieldType::Other { type_id } => {
+            assert_eq!(type_id, "delivery:std.FakeV1.send")
+        }
+        other => panic!("bogus-capability tag: {other:?}"),
+    }
+}
+
+/// (T15b) Operation inputs for typed `std` receipts, end to end: a
+/// scenario taking a nullable `delivery(Mail.send)` emits (not omits)
+/// with a closed delivery input beside its ordinary T15a input.
+/// The two `E6008`s are the pre-existing T14c fail-closed §13 schema
+/// posture for `std` delivery values (runtime schema lowering, out
+/// of this descriptor slice): pinned here so this slice proves it
+/// changes no diagnostic.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15b_operation_input_delivery_end_to_end() {
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  Notice { recipient:email }\n  policy Notice read=members\n When\n  crud Notice by=members fields=recipient\n  scenario retry(note:text, attempt:delivery(Mail.send)?) by=members\n   do\n    let x = 1\n Then\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
+    assert_eq!(
+        codes,
+        vec!["E6008", "E6008"],
+        "T14c posture only: {diags:?}"
+    );
+    for diag in &diags {
+        assert!(
+            diag.message.contains("delivery"),
+            "delivery-shaped E6008: {diag:?}"
+        );
+    }
+    let op = d03_operation(&artifact, "p.retry");
+    // Ordinary input renders exactly per T15a beside the delivery one.
+    let note = d03_input(op, "note");
+    assert_eq!(note.field.to_json(), "{\"kind\":\"string\"}");
+    assert!(note.required);
+    assert!(!note.nullable);
+    // The delivery input is closed, nullable and optional.
+    let attempt = d03_input(op, "attempt");
+    match &attempt.field {
+        js::JsMcpField::Delivery(descriptor) => {
+            assert_eq!(descriptor.capability, "std.EmailV1");
+            assert_eq!(descriptor.operation, "send");
+            assert_eq!(descriptor.version, 1);
+            assert_eq!(descriptor.result.name, "EmailAccepted");
+            assert_eq!(
+                descriptor.to_json(),
+                "{\"kind\":\"delivery\",\"capability\":\"std.EmailV1\",\"operation\":\"send\",\
+                 \"version\":1,\"result\":{\"name\":\"EmailAccepted\",\
+                 \"fields\":[{\"name\":\"reference\",\"type\":\"text\"}]}}"
+            );
+        }
+        other => panic!("attempt input: {other:?}"),
+    }
+    assert!(!attempt.required, "nullable delivery omits");
+    assert!(attempt.nullable, "nullable delivery accepts null");
+}
+
+/// (T15b) Stored `std` delivery fields, end to end: the model tag is
+/// the closed delivery descriptor with T15a nullability/requiredness
+/// beside it. Same pinned T14c `E6008` posture as the input test.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15b_model_delivery_end_to_end() {
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  Notice { recipient:email, delivery:delivery(Mail.send)? }\n  policy Notice read=members\n When\n  crud Notice by=members fields=recipient\n Then\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
+    assert_eq!(
+        codes,
+        vec!["E6008", "E6008"],
+        "T14c posture only: {diags:?}"
+    );
+    let model = t15a_model(&artifact, "p.Notice");
+    let recipient = t15a_field(model, "recipient");
+    assert_eq!(recipient.field.to_json(), "{\"kind\":\"string\"}");
+    assert!(recipient.required);
+    let delivery = t15a_field(model, "delivery");
+    match &delivery.field {
+        js::JsModelFieldType::Delivery(descriptor) => {
+            assert_eq!(descriptor.capability, "std.EmailV1");
+            assert_eq!(descriptor.result.name, "EmailAccepted");
+        }
+        other => panic!("delivery tag: {other:?}"),
+    }
+    assert!(!delivery.required, "nullable delivery omits");
+    assert!(delivery.nullable, "nullable delivery accepts null");
+    assert!(!delivery.server_only);
+}
+
+/// (T15b) Recipe value shape join (seam 5), end to end: checker-validated
+/// `std` fixtures lower as structured delivery recipes keyed by the
+/// qualified T13 send target — no `E6006`, no throwing shell — for both
+/// bound and unbound `std` imports. Values flow through the existing
+/// delivery lowering unchanged (join, not rebuild).
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15b_recipe_join_std() {
+    for import in [
+        "use std {EmailV1 as Mail} from=deployment.mail",
+        "use std {EmailV1 as Mail}",
+    ] {
+        let src = format!(
+            "app T uses=[p]\npackage p\n {import}\n Given\n  \
+             fixture attempt=Mail.send {{request={{to=\"a@b.test\",subject=\"Review\",body=\"Plan\"}}}}\n  \
+             fixture detached=Mail.send {{request={{to=\"a@b.test\",subject=\"Review\",body=\"Plan\"}},\
+             status=failed,error={{code=\"provider\",message=\"Delivery rejected\"}}}}\n \
+             When\n Then\n"
+        );
+        let (_program, artifact, diags) = d03_emit(&src);
+        assert!(diags.is_empty(), "{import}: clean join: {diags:?}");
+        assert_eq!(artifact.tests.len(), 2, "{import}: orphan suites");
+        let js: Vec<&str> = artifact
+            .tests
+            .iter()
+            .map(|t| t.module.js.as_str())
+            .collect();
+        let attempt = artifact
+            .tests
+            .iter()
+            .find(|t| t.scope == "p.attempt")
+            .unwrap_or_else(|| panic!("{import}: attempt suite"));
+        assert!(
+            attempt.module.js.contains("delivery:\"std.EmailV1.send\""),
+            "{import}: qualified target:\n{}",
+            attempt.module.js
+        );
+        assert!(
+            attempt
+                .module
+                .js
+                .contains("request:{to:\"a@b.test\",subject:\"Review\",body:\"Plan\"}"),
+            "{import}: request values:\n{}",
+            attempt.module.js
+        );
+        let detached = artifact
+            .tests
+            .iter()
+            .find(|t| t.scope == "p.detached")
+            .unwrap_or_else(|| panic!("{import}: detached suite"));
+        assert!(
+            detached.module.js.contains("status:\"failed\""),
+            "{import}: failed status:\n{}",
+            detached.module.js
+        );
+        assert!(
+            detached
+                .module
+                .js
+                .contains("error:{code:\"provider\",message:\"Delivery rejected\"}"),
+            "{import}: error values:\n{}",
+            detached.module.js
+        );
+        for (index, module) in js.iter().enumerate() {
+            assert!(
+                !module.contains("throw new Error"),
+                "{import}: module {index} is a real recipe:\n{module}"
+            );
+        }
+    }
+}
+
+/// (T15b) Recipe join negatives: unresolvable heads and wrong `std`
+/// operations keep the failing shell plus `E6006` — never joined,
+/// never fabricated.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15b_recipe_join_negatives_stay_shelled() {
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  fixture ghost=Nope.send {request={to=\"a@b.test\"}}\n  fixture wrongop=Mail.bogus {request={to=\"a@b.test\"}}\n When\n Then\n";
+    // Analysis level (pre-existing checker behavior): the unknown head
+    // is `E2001` and the wrong `std` operation is `E3015`.
+    let mut db = SourceDb::new();
+    let id = db.add("d03.can".to_string(), src.to_string());
+    let (catalog, path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    let mut analysis_codes: Vec<&str> = result.diagnostics.iter().map(|d| d.code).collect();
+    analysis_codes.sort_unstable();
+    assert_eq!(
+        analysis_codes,
+        vec!["E2001", "E3015"],
+        "unresolved head + wrong op: {:?}",
+        result.diagnostics
+    );
+    // Emission level: both keep the failing shell plus `E6006`.
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    let mut codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
+    codes.sort_unstable();
+    assert_eq!(codes, vec!["E6006", "E6006"], "two shells: {diags:?}");
+    assert_eq!(artifact.tests.len(), 2, "two shells");
+    for test in &artifact.tests {
+        assert!(
+            test.module.js.contains("throw new Error"),
+            "shell throws: {}",
+            test.scope
+        );
+        assert!(
+            test.module.js.contains("unresolved fixture target"),
+            "shell message: {}",
+            test.scope
+        );
+        assert!(
+            !test.module.js.contains("delivery:\"std."),
+            "no provider join: {}",
+            test.scope
+        );
+    }
+}
+
+/// (T15b) Envelope-wide closed kinds with deliveries: Mail, Payments,
+/// Text and Images fields all tag `delivery` with exactly the shared
+/// member set; nothing else in the kind vocabulary changes; source
+/// nominal names only.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15b_closed_kinds_with_delivery() {
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n use std {PaymentsV1 as Payments} from=deployment.payments\n use std {TextGenerationV1 as LLM} from=deployment.llm\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  Notice { mail:delivery(Mail.send)?, pay:delivery(Payments.collect)?, text:delivery(LLM.generate)?, img:delivery(Images.submit)? }\n  policy Notice read=members\n When\n Then\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    // Pre-existing T14c `E6008` posture only (two per delivery field:
+    // the §13 field-schema and structural type-id positions); every
+    // message matches a known T14c template, so this slice adds none.
+    assert_eq!(diags.len(), 8, "two E6008 per field: {diags:?}");
+    for diag in &diags {
+        assert_eq!(diag.code, "E6008");
+        assert!(
+            diag.message.contains("std delivery type id")
+                || diag.message.contains("std delivery values"),
+            "known T14c template: {diag:?}"
+        );
+    }
+    let json = artifact::to_json(&artifact);
+    let parsed = canlang_compiler::json::parse(&json).expect("envelope parses");
+    let models = parsed
+        .get("models")
+        .and_then(|v| v.as_arr())
+        .expect("models");
+    assert_eq!(models.len(), 1, "one model emits");
+    let fields = models[0]
+        .get("fields")
+        .and_then(|v| v.as_arr())
+        .expect("fields");
+    assert_eq!(fields.len(), 4, "four delivery fields");
+    let mut seen = Vec::new();
+    for field in fields {
+        let tag = field.get("field").expect("field tag");
+        assert_eq!(
+            tag.get("kind").and_then(|v| v.as_str()),
+            Some("delivery"),
+            "closed delivery kind: {field:?}"
+        );
+        let capability = tag
+            .get("capability")
+            .and_then(|v| v.as_str())
+            .expect("capability");
+        let operation = tag
+            .get("operation")
+            .and_then(|v| v.as_str())
+            .expect("operation");
+        seen.push(format!("{capability}.{operation}"));
+        assert_eq!(
+            tag.get("version").and_then(|v| v.as_i64()),
+            Some(1),
+            "version fenced: {field:?}"
+        );
+        let result = tag.get("result").expect("result nominal");
+        assert!(
+            result.get("name").and_then(|v| v.as_str()).is_some(),
+            "result name: {field:?}"
+        );
+        let leaves = result
+            .get("fields")
+            .and_then(|v| v.as_arr())
+            .expect("leaves");
+        assert!(!leaves.is_empty(), "nonempty leaves: {field:?}");
+        for leaf in leaves {
+            assert!(
+                leaf.get("name").and_then(|v| v.as_str()).is_some()
+                    && leaf.get("type").and_then(|v| v.as_str()).is_some(),
+                "leaf is exactly {{name,type}}: {leaf:?}"
+            );
+        }
+    }
+    seen.sort();
+    assert_eq!(
+        seen,
+        vec![
+            "std.EmailV1.send",
+            "std.ImagesV1.submit",
+            "std.PaymentsV1.collect",
+            "std.TextGenerationV1.generate",
+        ]
+    );
+    // Source nominal names only (T13c ImageRun-vs-wire precedent).
+    assert!(
+        json.contains("\"name\":\"ImageRun\""),
+        "source name: {json}"
+    );
+    for wire in ["ImageRunProgress", "ImageFileOutput"] {
+        assert!(!json.contains(wire), "no wire alias {wire}");
+    }
+    // No unknown-kind leakage anywhere in the envelope.
+    for marker in ["\"kind\":\"unknown\"", "\"kind\":\"action\""] {
+        assert!(!json.contains(marker), "no {marker} in envelope");
+    }
+}
+
+/// (T15b) No-regression pins on T15a emission inside a mixed program:
+/// ordinary model fields and operation inputs render byte-exact per
+/// T15a beside joined deliveries and a joined recipe.
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t15b_no_regress_t15a_mixed() {
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  Gadget { title:text, stock:int=0, tags:text[], delivery:delivery(Mail.send)? }\n  policy Gadget read=members\n  fixture attempt=Mail.send {request={to=\"a@b.test\",subject=\"Hi\",body=\"Yo\"}}\n When\n  crud Gadget by=members fields=title,stock,tags\n  scenario ping(note:text) by=members\n   do\n    let x = 1\n Then\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    // Only the stored delivery field's pre-existing T14c pair.
+    assert_eq!(diags.len(), 2, "field E6008 pair only: {diags:?}");
+    for diag in &diags {
+        assert_eq!(diag.code, "E6008");
+    }
+    assert!(
+        diags.iter().all(|d| d.code != "E6006"),
+        "recipe joined: {diags:?}"
+    );
+    // Ordinary model members, exactly per T15a.
+    let model = t15a_model(&artifact, "p.Gadget");
+    let title = t15a_field(model, "title");
+    assert_eq!(title.field.to_json(), "{\"kind\":\"string\"}");
+    assert!(title.required);
+    let stock = t15a_field(model, "stock");
+    assert_eq!(stock.field.to_json(), "{\"kind\":\"integer\"}");
+    assert!(!stock.required, "defaulted");
+    assert!(
+        stock
+            .default
+            .as_ref()
+            .is_some_and(|d| d.to_json().contains("\"literal\"")),
+        "literal default kept"
+    );
+    let tags = t15a_field(model, "tags");
+    assert_eq!(tags.array_required, Some(false), "ordinary marker");
+    assert!(!tags.required, "ordinary omits");
+    // Joined delivery beside them.
+    let delivery = t15a_field(model, "delivery");
+    assert!(
+        matches!(delivery.field, js::JsModelFieldType::Delivery(_)),
+        "delivery joined"
+    );
+    // Ordinary operation inputs, exactly per T15a.
+    let create = d03_operation(&artifact, "p.Gadget.create");
+    assert!(d03_input(create, "title").required);
+    assert_eq!(d03_input(create, "tags").array_required, Some(false));
+    let ping = d03_operation(&artifact, "p.ping");
+    assert_eq!(
+        d03_input(ping, "note").field.to_json(),
+        "{\"kind\":\"string\"}"
+    );
+    // Joined recipe beside them.
+    let attempt = artifact
+        .tests
+        .iter()
+        .find(|t| t.scope == "p.attempt")
+        .expect("attempt suite");
+    assert!(
+        attempt.module.js.contains("delivery:\"std.EmailV1.send\""),
+        "recipe joined:\n{}",
+        attempt.module.js
     );
 }
