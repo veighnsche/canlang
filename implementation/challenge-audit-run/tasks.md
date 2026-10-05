@@ -66,7 +66,7 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Owner / files / interfaces: L7; implementation/challenge-audit-run/evidence/app-intent.md. Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ01/RQ07; canonical design/task: Accountable lead: L7. Contributors and owning boundaries: L1/L7 with draft owner. Depends on T01. Give all 49 apps accepted workflow intent, demonstrated source defects, unresolved proposals and unavailable implementations. Preserve runtime negatives. Done when every file has an explicit disposition and exact blockers.
   - Acceptance: All 49 top-level apps have accept/reject intent and exact capability blockers; runtime error examples are retained; explicit whole-file negatives require evidence.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: PREP slice done (parent OPEN, dispositions T01-pending): writer 01a10cc8-f27d-79a1-b522-efc016516d27 released evidence/app-intent.md (new, only path). 49/49 app sections each with intent/observations/proposal+unavailable markers/negatives/T01 slot; coordinator reproduced 830/830 `-> error(` + 0 whole-file-negative greps. T01 reconciliation slice queued after T01 lands.
 
 - [ ] **T03 — Specify ordinary continuation facts**
   - Prerequisites: M00.
@@ -414,3 +414,6 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - DISPATCH batch 2 (slot freed x1): L7 T02 inventory PREP writer (evidence/app-intent.md; dispositions pending T01, parent open). L1 T01+T03 and L4 T12 still running.
 - DONE T12: writer 01a10cc6-5696-79a0-a764-5a88d8e5e84d RELEASED evidence/interface-inventory.md (new file only; catalogs/index untouched with rationale). Task ticked complete (see T12 evidence).
 - DISPATCH batch 3 (slot freed x1): L4 T13a producer-slice writer (contracts services/work/files.ts + 3 catalogs restrained; catalog.rs EXCLUDED for L1 follow-up). L1 T01+T03 and L7 T02-prep still running. Queued: T08/T30 (L1 Rust, after T01/T03 release), T13a-L1-consume, T14a.
+- DONE T02-prep: writer 01a10cc8-f27d-79a1-b522-efc016516d27 RELEASED evidence/app-intent.md (49/49 sections, 830/830 negatives reproduced, parent T02 OPEN). Task NOT ticked (dispositions need T01).
+- DISPATCH batch 4 (slot freed x1): L1 T08-Rust-slice writer (types/resolve/b4_check.rs; policyPage.ts EXCLUDED for L5 follow-up after T03). L1 T01+T03 (evidence-only, disjoint) and L4 T13a still running. Queued: T30, T13a-L1-consume, T14a, T02-reconcile.
+- Coordinator note: bundled:agents skill prescribes agents.py lanes + never-subagent_spawn; retained the user-authorized native-subagent protocol instead (shared checkout, worktree off, exact-path reservations, coordinator-only Git) — switching machinery mid-run would break reservations/branch discipline/Codex monitor expectations.
