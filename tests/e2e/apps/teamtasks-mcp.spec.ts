@@ -91,9 +91,8 @@ test.describe("teamtasks MCP leg", () => {
 
   test("mcp route requires grant auth (401, never 404)", async ({ bridge }) => {
     const mcp: McpClient = createMcpClient(bridge);
-    // No grant: the /mcp route must exist and answer the safe 401
-    // (`createMcpHandler` auth seam). Today the worker has no /mcp route
-    // and answers 404 — the expected failing-first gap.
+    // No grant: the /mcp route exists and answers the safe 401
+    // (`createMcpHandler` auth seam).
     const { status, body } = await mcp.initialize();
     expect(status).toBe(401);
     const envelope = body as { error?: { code?: unknown; message?: unknown } };
@@ -156,8 +155,8 @@ test.describe("teamtasks MCP leg", () => {
     const grant = await mintMcpGrant(bridge.url, alice.session_token, "teamtasks-mcp-e2e");
 
     // MCP leg: alice creates a task through tools/call. Success here means
-    // P2's route admitted the call through the same canonical invoker the
-    // HTTP leg uses — proven below by the shared durable effect.
+    // the call executed in the same worker and D1 table the HTTP leg
+    // uses — proven below by the shared durable effect.
     const called = await mcp.callTool(grant.token, TODO_CREATE, {
       operation_id: freshOperationId(),
       title: MCP_TASK_TITLE,

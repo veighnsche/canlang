@@ -44,6 +44,8 @@ export interface McpNamedField {
   readonly name: string;
   readonly field: McpSchemaField;
   readonly required: boolean;
+  /** Authored `@{desc="..."}` text, verbatim; absent when not authored (MCP P4). */
+  readonly description?: string;
 }
 
 /** Mirror of `McpInputSchema` (`ports.ts:169`). */
@@ -133,8 +135,15 @@ export interface ArtifactInputField {
   readonly name: string;
   readonly field: McpSchemaField;
   readonly required: boolean;
+  /** Authored `@{desc="..."}` text, verbatim; absent when not authored (MCP P4). */
+  readonly description?: string;
 }
 
+// NOTE (layer vocabulary skew, harmless): this set accepts `list`/`team`
+// while the compiler (`codegen/js.rs`) and the artifact loader
+// (`runtime/artifact.ts`) reject them. The compiler never emits those
+// kinds and MCP permissions gate every call, so the wider set admits
+// nothing reachable; kept for forward-compat with future emitters.
 const KNOWN_OP_KINDS: ReadonlySet<string> = new Set([
   "read",
   "list",
@@ -209,7 +218,16 @@ function checkInput(raw: unknown, where: string): McpNamedField {
     fail(`${where}.required`, "must be a boolean");
   }
   const field = checkField(raw["field"], `${where}.field`);
-  return { name, field, required: raw["required"] };
+  const description = raw["description"];
+  if (description !== undefined && typeof description !== "string") {
+    fail(`${where}.description`, "must be a string (authored `@{desc}` text)");
+  }
+  return {
+    name,
+    field,
+    required: raw["required"],
+    ...(description === undefined ? null : { description }),
+  };
 }
 
 function checkOperation(raw: unknown, index: number): OperationDescriptor {

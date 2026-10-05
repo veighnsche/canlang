@@ -14,8 +14,7 @@
  *   JSON body `{client_id: string}`.
  * - success: HTTP 200 `{token, grant_id, user_id, team_id}`. `token` is the
  *   raw Bearer [REDACTED] shown once — never stored or logged.
- * - failure: non-200; this module throws naming the status (today: 404, the
- *   endpoint does not exist yet — the expected failing-first gap).
+ * - failure: non-200; this module throws naming the status.
  */
 export interface McpGrantSeed {
   /** Raw grant Bearer [REDACTED] test memory only; never logged. */
