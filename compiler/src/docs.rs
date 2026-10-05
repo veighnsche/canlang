@@ -59,12 +59,15 @@
 //!   checker's production scope). Dotted references stay unresolved (the
 //!   checker rejects them; no new syntax). Unresolvable references leave
 //!   the declaration undescribed rather than carrying wrong wording.
-//! - `app_default_locale` is the single app module's `source=` tag when
-//!   exactly one analyzed module declares an app; otherwise (package-only
-//!   or multi-app inputs) it falls back to the first analyzed module's
-//!   tag, `"en"` when nothing was analyzed. No locale-default machinery:
-//!   pure module-kind selection over located facts. Per-description source
-//!   languages still travel on each description value.
+//! - `app_default_locale` is the selected app module's checked `context` /
+//!   `locale default=` tag: the single app module when exactly one
+//!   analyzed module declares an app, otherwise (package-only or
+//!   multi-app inputs) the first analyzed module's checked default.
+//!   An absent default resolves to the pinned `"en"` (DESIGN:887), never
+//!   to a `source=` tag: source language governs authored wording, the
+//!   default governs viewer selection. Pure selection over checked facts.
+//!   Per-description source languages still travel on each description
+//!   value, feeding the requested → default → source chain downstream.
 //! - `source_revision` is a content hash (lowercase hex SHA-256 over
 //!   path-sorted `(portable_path, text)` pairs), never a wall-clock
 //!   timestamp. Paths are portable identities normalized against one root
@@ -912,11 +915,15 @@ fn checked_description_value(
     }
 }
 
-/// Default reading locale: the single app module's `source=` tag when
-/// exactly one analyzed module declares an app (implicit or composed),
-/// else the first analyzed module's tag (package-only/multi-app fallback),
-/// or `"en"` when nothing was analyzed. Pure module-kind selection over
-/// located facts — no invented locale policy.
+/// Default reading locale: the selected app module's checked `context` /
+/// `locale default=` tag (DESIGN §9.1). Selection is unchanged: the single
+/// app module when exactly one analyzed module declares an app (implicit
+/// or composed), else the first analyzed module (package-only/multi-app
+/// fallback). An absent default — no `locale` declaration, or nothing
+/// analyzed — resolves to the pinned `"en"` (DESIGN:887), never to any
+/// module's `source=` tag: source language governs authored wording,
+/// the default governs viewer selection (DESIGN:850). Pure selection over
+/// checked facts — no invented locale policy.
 fn app_default_locale(program: &CheckedProgram) -> String {
     let mut apps = program
         .modules
@@ -928,7 +935,7 @@ fn app_default_locale(program: &CheckedProgram) -> String {
     };
     selected
         .and_then(|m| program.effects.modules.get(&m.id))
-        .map(|d| d.source_lang.clone())
+        .and_then(|d| d.locale_default.clone())
         .unwrap_or_else(|| "en".to_string())
 }
 
