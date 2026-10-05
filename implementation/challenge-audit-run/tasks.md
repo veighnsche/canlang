@@ -475,3 +475,4 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - DISPATCH batch 27 (slot freed x1): L3 T28-cascade-orphan writer (parent delete/archive intent for imported children, presence-or-absence by reading → containment-decision.md append; item 3). D02b still running. Queued: T11-checker, T14a→T14b, D03/D04b/D06 (after D02b).
 - DONE T28-cascade-orphan: writer 01a10d64-1800-74e0-abb1-3fa7220d9411 RELEASED containment-decision.md append (20/20 NO + near-misses, item-3 mark). Item 3 complete (see T28 evidence).
 - DONE D02b (see D checklist): checker files released. DISPATCH batch 28 (3-way disjoint wave): T11-checker + D03 + D04b (see D-c). Queued: T14a→T14b, D06, D05b.
+- DONE D03 + D06 (see D checklist; codegen 46/0 + ide 31/0 green after T11 self-stash). DISPATCH batch 29: L3 T28-facet-stance (owner facet/export posture → containment-decision.md; item 4). T11-checker + D04b still running. Queued: T14a→T14b (after T11), D05b (after D04b).
