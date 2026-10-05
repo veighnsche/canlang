@@ -4,6 +4,7 @@ audit-astra/**
 images/previews/**
 .vscode/**
 check-highlighting.cjs
+generate-file-icons.cjs
 test/**
 .empty-typeroot/**
 token-colors.json

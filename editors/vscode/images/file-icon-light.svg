@@ -1,0 +1,8 @@
+<!-- Generated from logo.svg by generate-file-icons.cjs. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 1024 1024">
+  <g transform="translate(128 0)">
+    <!-- The lower aperture has a small hidden outward trap to prevent red edge bleed. -->
+    <path fill="#EB0115" fill-rule="evenodd" d="M 512.817 115.139 L 851.700 310.303 L 702.265 396.045 L 851.700 497.301 L 851.700 624.689 L 574.061 765.142 L 667.152 829.652 L 512.817 908.045 L 172.300 696.549 L 172.300 306.220 Z M 434.833 379.979 L 644.186 507.917 L 434.833 635.855 Z"/>
+    <path class="inner" fill="#141414" fill-rule="evenodd" d="M 485.053 262.124 L 702.265 396.045 L 623.056 439.324 L 714.514 502.201 L 714.514 577.327 L 487.502 703.081 L 569.978 764.325 L 512.817 793.722 L 284.172 656.536 L 284.172 364.198 Z M 436.057 382.163 L 641.837 507.917 L 436.057 633.671 Z"/>
+  </g>
+</svg>

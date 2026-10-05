@@ -1,6 +1,6 @@
 # CanLang challenge audit recommendations and task list
 
-Status: proposed implementation plan and execution backlog, recorded October 5, 2026. The challenge audit and recommendation round were read-only. The user subsequently requested that the recommendations and task list be saved. Saving this document does not start implementation, adopt unsettled language rules, or authorize deployment.
+Status: proposed implementation plan and execution backlog, recorded October 5, 2026. The challenge audit and recommendation round were read-only. The user subsequently requested that the recommendations and task list be saved and divided into ordered parallel implementation lanes. Saving this document does not start implementation, adopt unsettled language rules, or authorize deployment.
 
 The next milestone should be faithful, executable applications from the authoritative draft corpus. This serves CanLang's primary goal of adoption through economical AI generation, reliable behavior and concise source. The compiler should accept coherent business intent, preserve meaningful safety boundaries, and produce applications whose permissions, workflows, interfaces and examples actually work. Diagnostic reduction is supporting evidence, not the completion criterion.
 
@@ -91,45 +91,127 @@ Keep semantic disposition separate from implementation availability. Accepted-bu
 
 No lower level should be reported as a higher one. Status-file test counts are historical evidence unless rerun. Handbuilt integration fixtures, memory doubles, local workerd/storage execution, controlled provider responses and live-provider evidence must remain distinguishable.
 
-## Execution waves and ownership
+## Parallel implementation lanes
 
-Reuse the existing seven implementation owners. The audit does not justify a replacement compiler or runtime.
+Use the existing seven implementation owners in parallel, with T36 handled by the existing draft owner. Each task has one accountable lead who coordinates contributions and completion evidence; contributors retain source ownership. This allocation launches no sessions and adopts no unsettled language rule.
 
-| Lane | Responsibility |
-| --- | --- |
-| L1 | Rust compiler, analysis, code generation and authoring tools |
-| L2 | Exact values, schemas, normalization, codecs and pure builtins |
-| L3 | Canonical admission, authorized queries, mutation, history, replay and storage |
-| L4 | Durable work, services, receipts, progress and file lifecycle |
-| L5 | Presentation catalog, form descriptors and rendering |
-| L6 | Identity, browser/MCP transport and verified invocation context |
-| L7 | Platform assembly, actual storage, executable examples and qualification |
-
-| Wave | Scope | Exit condition |
+| Lane | Accountable task sequence | First useful handoff |
 | --- | --- | --- |
-| A | Baseline, attribution and contracts | Traceable intent ledger and agreed acceptance cases |
-| B | Flow, selectors, authorization and value/input semantics | Valid focused cases pass and invalid controls remain |
-| C in parallel with B | Standard interfaces and generated execution bridge | A generated operation reaches canonical admission and persistence |
-| D | Forms, examples, receipts and accepted progress | Original business journeys execute through production paths |
-| E | Ownership/hook decisions and fanout adoption | Accepted contracts with corresponding execution proof |
-| F | Corpus qualification and proven corrections | Accurate per-app capability and release evidence |
+| L1 Compiler and semantic analysis | T01, T03, T05, T06, T08, T07, T30, T15, T14, T35 | Continuation contract, checked cases, source-derived descriptors |
+| L2 Values and creation semantics | T09, T10, T11, T18 | Required/default/null/array and exact-value conformance for L1/L3 |
+| L3 Canonical state and ownership | T04, T16, T17, T28, T29, T31, T32 | Agreed execution contract, then canonical admission/storage |
+| L4 Interfaces and durable work | T12, T13, T24, T25, T26, T27, T33, T34 | Common typed interfaces, then durable dispatch/receipts |
+| L5 Presentation | T20; contributes form descriptors/rendering to T19 | Contract-based renderer/context cases, then generated form |
+| L6 Identity and operation interfaces | T19; contributes verified context and transport across runtime tasks | Operation-input/HTTP/MCP join with equal-authority submission |
+| L7 Compiled examples and qualification | T02, T21, T22, T23, T37, T38, T39, T40, T41 | App blockers, compiled loader, core fixtures and examples |
+| Draft owner Adjudication | T36 | Proven individual corrections and explicit uncertainty |
+
+A lane's sequence is preferred next-ready order, not an extra dependency on every earlier task. Take another ready package when a producer is missing. Containment, hook, read and fanout decision preparation can start early; implementation and completion retain their gates. Unequal task counts are not effort estimates; L5/L6 contribute substantially to other lanes.
+
+L1 reserves bounded Rust patches for L2's T09-T11 and L4's T13 alongside its own queue. Analysis and codegen preparation may overlap on disjoint files. Shared-file mutations use the reservations below.
+
+## Implementation order and integration gates
+
+Parallelize ready producers and consumer preparation. Progress beyond a phase is based on the consumer's actual needs, not completion of every unrelated task.
+
+| Phase | Work ready in parallel | Gate |
+| --- | --- | --- |
+| 0 Contracts and attribution | L1 T01/T03; L3 T04a and T28/T31a/T32a preparation; L4 T12/T33 alternatives; L7 T02 inventory preparation; L5/L6 consumer cases | G0: baseline/ledger, pilot blockers and artifact/invocation/example contract agreed |
+| 1 Semantic producers | L1 T05/T08/T30 and ready T35 packets, then T06/T07; L2 T09-T11 with reserved L1 changes; L4 T13a then L1 T14a; L1 T15a when its inputs land | G1: relevant checked positives/negatives, actual emitted descriptors and versioned producer schemas |
+| 2 Canonical core execution | L3 T16 then T17/T18; L7 T21; L5/L6 T19a/T20a; L7 develops core T22a/T23a | G2: generated operations use verified context, canonical state, history/replay and applicable real storage |
+| 3 Parallel connected branches | Basic pilot: forms and compiled core examples to T37. Work: T24 -> T25 -> T26 -> T27. Ownership: accepted T28 -> T29; accepted T31a + T30/runtime -> T31; T32b | G3a: original basic app. G3b: atomic effects/receipts/progress. G3c: ownership/hook/revocation evidence |
+| 4 Original journeys and adoption | T38/T39 per app; Chat after progress/reads; Creative/Gallery after image finalization; accepted T33 then T34 and fanout app qualification | G4: each app's own required capabilities and original workflows proved |
+| 5 Corpus and release evidence | L7 T41 with all producers; T02/T36 updated | G5: advertised scope, corpus roots, mandatory gaps and upgrade evidence reconciled |
+
+The basic-app critical path is T04a -> T09/T15a -> T16 -> T17/T18 -> parallel T19a/T20a and T21/T22a/T23a -> T37, plus its actual static blockers from T02. It does not require every provider schema, file fixture or image adapter.
+
+The durable path begins independently at T12 -> T13a/T14a and joins runtime at T24 -> T25 -> T26. Images add T27. Ownership/hook preparation runs alongside both paths. Fanout implementation waits for its accepted contract and required owner/dispatch proof.
 
 ```mermaid
 flowchart TD
-    A[Baseline and intent ledger] --> B[Flow and semantic repairs]
-    A --> C[Canonical schemas and interfaces]
-    C --> D[Generated canonical execution]
-    B --> D
-    D --> E[Forms and compiled examples]
-    C --> F[Receipts and associated progress]
+    C[Contract T04a] --> A[Descriptors T09 T15a]
+    A --> R[Canonical core T16 T17 T18]
+    R --> U[Forms T19a T20a]
+    R --> B[Core examples T21 T22a T23a]
+    U --> P[Original basic app T37]
+    B --> P
+    S[Interfaces T12 T13a T14a] --> W[Dispatch T24]
+    R --> W
+    W --> O[Receipts T25]
+    O --> Q[Progress T26]
+    Q --> I[Finalized images T27]
+    D[Accepted ownership and hooks T28 T31a] --> H[Containment and hooks T29 T31]
+    R --> H
+    R --> M[Read and revocation proof T32b]
+    W --> M
+    P --> J[Per app qualification T38 T39 T40]
+    O --> J
+    Q --> J
+    I --> J
+    H --> J
+    M --> J
+    W --> F[Accepted fanout T33 T34]
     D --> F
-    D --> G[Ownership and fanout proof]
-    E --> H[Original workflow qualification]
-    F --> H
-    G --> H
+    F --> J
+    J --> Z[Corpus and release T41]
 ```
 
-Start interface production and execution integration alongside bounded checker repairs. Estimate packages once producer/consumer contracts and acceptance cases are concrete. Distinguish implementation effort from waiting on another owner.
+The graph summarizes paths. Images and fanout are conditional prerequisites for their consuming apps, not every app. The checklist and scoped handoffs carry the exact gates.
+
+### Scoped handoffs within existing tasks
+
+Suffixes identify verifiable slices of existing tasks, not extra parent tasks. A consumer may use a completed slice matching its requirements. Keep the parent checkbox open until its entire promised scope is done. Record source revision, interface version, tests, supported types and remaining work; required missing constructs cannot be advertised as supported.
+
+| Slice | Deliverable | Prerequisites and consumers |
+| --- | --- | --- |
+| T04a | First artifact/callable/invocation and emitted-example contract, including inputs, verified identity, independent expected values/observations and incompatibility | L1/L2/L3/L6/L7 agreement; enables T15a and preparation |
+| T04b | Remaining recursive/provider/hook contracts and compatibility | Actual producer definitions; completes broader T04 |
+| T13a and T14a | Common typed interfaces for the first bound journey, initially email/delivery/common outcomes as needed; closed checking/recipe validation | T12 and applicable T10; enables corresponding work and fixtures |
+| T13b and T14b | Generation/image/judgment/corpus and observable interfaces | Actual owner contracts; required only by consumers |
+| T15a | Real descriptors/registry and separate example artifacts for the complete pilot scope | T04a and relevant T09/T10/T11 plus T02 blockers |
+| T19a and T20a | Complete pilot form, HTTP/MCP, context/CSRF and submission | T15a/T16/T18 and the pilot's actual types |
+| T19b and T20b | Remaining rich inputs, preferences and presentation joins | T11 for decimal; T13/T14 for bound input; relevant file/contract semantics |
+| T22a | Valid isolated core model/user/grant fixtures | T15a/T16/T17, T18 for defaults/omissions, applicable T36 authority decisions |
+| T22b | Real finalized-file fixtures and attachment authority | Actual file lifecycle and relevant schemas |
+| T22c | Controlled checked provider/delivery/progress recipes | Matching T13/T14, provenance and fixture authority |
+| T23a | Core compiled tables/sequences with independent observations and setup/business error distinction | T22a and emitted-example contract; enables T37 |
+| T23b | File/provider/receipt/progress example extensions | Matching T22b/T22c and actual runtime capabilities |
+| T31a | Accepted secondary-hook write rule: provenance, permitted writes, order/reentry, versions, deletion and rollback | Verified intent and required decisions; T28 alone is insufficient |
+| T32a | Accepted bounded-read/snapshot/revalidation contract and effects | Prepare before runtime; no execution proof claimed |
+| T32b | Actual admission/policy/revocation/stale-state proof; dispatch/spending where used | T16/T17; T24 additionally required for dispatch/spending |
+| T38 app slices | Expense and separately Leave or Onboard | Each app's files/deliveries, containment/hooks and T02 blockers |
+| T40 app slices | Chat; Creative/Gallery; Shift/Volunteer | Chat needs progress/reads; images need T27; fanout apps need adopted T34 |
+
+Core T22a/T23a suffice only when the chosen original app has that scope. If it uses files, bound work, unusual fixture authority or other presentation, those gates are mandatory. Selecting a projection that omits business behavior does not qualify the unchanged app.
+
+### Producer handoffs
+
+| Producer | Handoff and consumers |
+| --- | --- |
+| L1 T01 | Evidence schema/entries to L7 T02 and draft T36 |
+| L3 T04 with L1/L2/L6/L7 | Versioned descriptor/invocation/emitted-example contract to codegen, runtime, UI/interfaces and loaders |
+| L2 T09-T11 | Semantic facts and independent conformance to L1/L3/L5/L6 |
+| Producers coordinated by L4 T13 | Canonical schemas/effects/events to L1 checking and runtime/discovery consumers |
+| L1 T15 | Actual descriptors, registry and separate example artifacts to L3/L5/L6/L7 |
+| L3 T16-T18 | Canonical admission/query/mutation/default/history/replay ports to work, identity and assembly |
+| L3/L4 T24 | Real atomic staging/dispatch to receipts, progress and recovery |
+| L5/L6 T19/T20 | Operation-derived form/transport/context to generated browser/MCP journeys |
+| L7 T22/T23 | Actual isolated compiled calls and expectations to T37-T40 |
+| Decision owners | Accepted containment/hook/read/fanout semantics and uncertainty to implementing owners |
+
+### Shared file reservations
+
+| Boundary | Writer and serialization |
+| --- | --- |
+| Compiler analysis | L1 reserves types.rs and affected resolve/examples files. Other lanes prepare semantic/test packets; same-file edits are serial |
+| Descriptor chain | One L1 slice writer reserves effects.rs, codegen/ir.rs, codegen/js.rs, codegen/artifact.rs and contracts/src/artifact.ts as needed; metadata traverses the full chain |
+| Contracts | Each producer owns its artifact/diagnostic, values, state, work/services/files, presentation or identity/wire contract. L7 owns deployment/examples and export/manifest assembly |
+| State engine | L3 reserves invocation/admission/registry and mutation/models/pipeline/crud plus effects/ports; other producers integrate through this owner |
+| Platform assembly | L7 reserves runtime invoke/stdlib/context/env-assembly/MCP registry and worker assembly/entry/main; consumes merged producer ports |
+| Manifests and CI | L7 owns root Node manifest/lock/config/shared CI; L1 owns Cargo/editor metadata; package owners own package manifests |
+| Drafts and shared design documents | Draft owner edits proven app corrections; relevant rule owner coordinates DESIGN/GRAMMAR/DECISIONS with affected consumers and an exact-file reservation |
+
+Every reservation records task/slice, exact paths, writer, current base, producer inputs, acceptance case and release/handoff condition in the owning status. Use merged compatible producers or an explicitly coordinated breaking transition. Test-only contract fixtures support preparation without establishing production completion. Reconcile the living file-tree plan after each eventual merge.
 
 ## Detailed recommendations for the top ten challenges
 
@@ -348,7 +430,7 @@ Use this gate for unresolved imported ownership, secondary hooks, authoritative 
 
 ## Execution backlog
 
-Task IDs preserve the conversation's 41-task backlog. Dependencies below clarify the prerequisites needed to demonstrate completion; investigation can start earlier. Conditional app blockers belong in the T02 ledger and must be satisfied before that app is qualified.
+T01-T41 remain the canonical parent tasks, each listed once under its accountable lane. Other lanes contribute through the producer handoffs above. A checkbox is complete only for the whole task; verified suffix milestones release matching consumers while the parent stays open. This document update starts no implementation sessions.
 
 Completed preparation:
 
@@ -357,103 +439,119 @@ Completed preparation:
 - [x] Identify existing coverage and remaining joins.
 - [x] Produce the recommendation plan.
 
-### Evidence and contracts
+### L1 Compiler and semantic analysis
 
-- [ ] **T01 Create the root cause ledger.** Owner: L1 with draft owner. Deliver sampled intent, root/consequence, bucket, opposing case, confidence, owner and proof. Done when audited sites are traceable without treating diagnostic codes as uniform defects.
+L1 controls Rust edits and supplies checked-source, descriptor and example-artifact handoffs. Reserve early patches for L2 semantics and L4 catalog consumption. Prepare independent cases together and serialize shared-file mutations; take a ready T15 or T14 slice when its producer lands.
 
-- [ ] **T02 Record per file intent and capability status.** Owner: L1/L7 with draft owner. Depends on T01. Give all 49 apps accepted workflow intent, demonstrated source defects, unresolved proposals and unavailable implementations. Preserve runtime negatives. Done when every file has an explicit disposition and exact blockers.
+- [ ] **T01 Create the root cause ledger.** Accountable lead: L1. Contributors and owning boundaries: L1 with draft owner. Deliver sampled intent, root/consequence, bucket, opposing case, confidence, owner and proof. Done when audited sites are traceable without treating diagnostic codes as uniform defects.
 
-- [ ] **T03 Specify ordinary continuation facts.** Owner: L1. Define null true/false facts, Boolean composition, branches, successful requirements, joins and invalidation. Done when sampled patterns follow one rule and existence supplies no permission.
+- [ ] **T03 Specify ordinary continuation facts.** Accountable lead: L1. Contributors and owning boundaries: L1. Define null true/false facts, Boolean composition, branches, successful requirements, joins and invalidation. Done when sampled patterns follow one rule and existence supplies no permission.
 
-- [ ] **T04 Agree the generated execution contract.** Owner: L1/L3/L7 with affected producer review. Specify model/operation schemas, callable identity, default/hook references, invocation ports and compatibility. Done when producers/consumers agree on a real acceptance case.
+- [ ] **T05 Implement ordinary nullable flow.** Accountable lead: L1. Contributors and owning boundaries: L1. Depends on T03. Extend ordered guards, false continuations, joins and invalidation. Done when Affiliate/Approve/Catch/Chat/Check/Contract positives pass and unguarded/invalidated controls fail.
 
-### Checker and value repairs
+- [ ] **T06 Complete actor facts in policies and CRUD.** Accountable lead: L1. Contributors and owning boundaries: L1. Depends on T05. Carry caller admission through composite policies and by-to-when. Done when admitted actor use passes while public, other-subject and preauthorization cases remain nullable.
 
-- [ ] **T05 Implement ordinary nullable flow.** Owner: L1. Depends on T03. Extend ordered guards, false continuations, joins and invalidation. Done when Affiliate/Approve/Catch/Chat/Check/Contract positives pass and unguarded/invalidated controls fail.
+- [ ] **T08 Unify readable selector resolution.** Accountable lead: L1. Contributors and owning boundaries: L1 with L3/L5 review. Resolve parent, safe metadata and value members canonically. Done when valid policy/UI paths agree and invalid leaves/descent/disclosure still fail.
 
-- [ ] **T06 Complete actor facts in policies and CRUD.** Owner: L1. Depends on T05. Carry caller admission through composite policies and by-to-when. Done when admitted actor use passes while public, other-subject and preauthorization cases remain nullable.
+- [ ] **T07 Propagate filtered row facts.** Accountable lead: L1. Contributors and owning boundaries: L1. Depends on T05. Bind facts to selected row/snapshot and collection children. Done when CRM/Rent patterns pass without alias/sibling/nested-row leakage.
 
-- [ ] **T07 Propagate filtered row facts.** Owner: L1. Depends on T05. Bind facts to selected row/snapshot and collection children. Done when CRM/Rent patterns pass without alias/sibling/nested-row leakage.
+- [ ] **T30 Replace spelling based event mutation checks.** Accountable lead: L1. Contributors and owning boundaries: L1 with L3/L4 review. Distinguish parameter/event/reference/snapshot/pending provenance. Done when renaming event changes no validity and immutable snapshot controls remain.
 
-- [ ] **T08 Unify readable selector resolution.** Owner: L1 with L3/L5 review. Resolve parent, safe metadata and value members canonically. Done when valid policy/UI paths agree and invalid leaves/descent/disclosure still fail.
+- [ ] **T15 Emit canonical model and operation descriptors.** Accountable lead: L1. T15a depends on T04a and relevant T09/T10/T11 facts for the complete pilot scope; full completion requires T04/T09/T10 and applicable exact/provider facts. Done when actual recursive schema/ownership/callable and separate example artifacts are consumed without alternate handbuilt descriptors.
 
-- [ ] **T09 Preserve creation metadata through the compiler.** Owner: L1/L2. Carry ordinary/required arrays, null/default/server/derived distinctions through analysis/effects/IR/descriptors. Done when omission semantics agree and contradictory emission expectations are corrected.
+- [ ] **T14 Type bound sends and fixture recipes.** Accountable lead: L1 with L4. Depends on applicable T10 and corresponding T13a/T13b. Deliver T14a and richer T14b against actual owner schemas. Done when requests/recipes validate and wrong associations/protected-handle fabrication fail across the promised scope.
 
-- [ ] **T10 Validate contextual structural literals.** Owner: L1/L2. Implement closed recursive construction under expected contracts. Done when qualification/research/alert/executed-party positives pass and shape/enum/reference/provenance negatives fail.
+- [ ] **T35 Repair smaller established compiler defects.** Accountable lead: L1. Contributors and owning boundaries: L1 with relevant producers. Handle named titles, ICU arguments, business request bindings, imported CRUD sequences, payload metadata names and query ordering as focused packets. Done per packet when valid/invalid boundaries and source behavior are proved.
 
-- [ ] **T11 Contextually type exact integral decimal literals.** Owner: L1/L2. Preserve exact expected-decimal literals without variable coercion. Done when defaults/bounds/inputs agree and ambiguity/range negatives remain.
+### L2 Values and creation semantics
 
-### Canonical interfaces
+L2 defines and verifies exact values/input meaning once. L1 performs Rust and emission changes for T09-T11, and L3 performs canonical runtime execution for T18. Completion requires their joined evidence.
 
-- [ ] **T12 Inventory standard and bound declarations.** Owner: L4 with L1/L2/L3. Map all imports to accepted owner contracts, versions and availability. Done when each unresolved interface has a producer or explicit decision question.
+- [ ] **T09 Preserve creation metadata through the compiler.** Accountable lead: L2; L1 owns Rust/effects/IR/emission patches. Carry ordinary/required arrays, null/default/server/derived distinctions through the full descriptor chain. Done when omission semantics and independent values conformance agree and contradictory emission expectations are corrected.
 
-- [ ] **T13 Export and consume versioned interface schemas.** Owner: owning producers and L1 consumer. Depends on T12. Supply request/result/error/effect/event/observable declarations. Done when aliases preserve identity and missing/private/incompatible members reject.
+- [ ] **T10 Validate contextual structural literals.** Accountable lead: L2; L1 owns Rust checking. Supply closed recursive semantics and conformance for expected contracts. Done when qualification/research/alert/executed-party positives pass and shape/enum/reference/provenance negatives fail.
 
-- [ ] **T14 Type bound sends and fixture recipes.** Owner: L1/L4. Depends on T10/T13. Replace opaque checking where an owner schema exists. Done when real requests/recipes validate and wrong associations/protected-handle fabrication fail.
+- [ ] **T11 Contextually type exact integral decimal literals.** Accountable lead: L2; L1 owns Rust expected-type behavior. Preserve exact expected-decimal literals without variable coercion. Done when defaults/bounds/inputs/wire values agree and ambiguity/range negatives remain.
 
-### Generated runtime
+- [ ] **T18 Execute defaults and server initialization correctly.** Accountable lead: L2; L3 owns runtime execution and L1 emission. Depends on T09/T16/T17. Preserve context/order, update omission and protected fields. Done when actual creation/null/parent/actor/time/replay cases agree.
 
-- [ ] **T15 Emit canonical model and operation descriptors.** Owner: L1. Depends on T04/T09/T10. Produce recursive input/schema/ownership/callable facts. Done when runtime producers consume actual emission rather than alternate handbuilt descriptors.
+### L3 Canonical state and ownership
 
-- [ ] **T16 Join generated invocation to state admission.** Owner: L3/L7 with L1/L6. Depends on T15. Connect verified context, validation, admission and projection. Done when generated denied/stale/rejected/replayed calls use canonical behavior.
+Deliver the core contract and runtime first. Ownership/hook/read decisions can proceed alongside that work. L7 owns assembly patches; all writes remain in the existing state engine.
 
-- [ ] **T17 Replace interim data plane operations.** Owner: L3/L7. Depends on T16. Migrate create/set/delete/query to existing state engine. Done when required history/replay and readable projection exist and migrated interim consumers are retired.
+- [ ] **T04 Agree the generated execution contract.** Accountable lead: L3. Contributors: L1/L2/L6/L7 and affected producers. Deliver T04a first, including emitted-example calls, independently authored expected values/observations and compatibility; then T04b's remaining joins. Done when actual producers/consumers agree on models/operations/defaults/hooks and verified invocation.
 
-- [ ] **T18 Execute defaults and server initialization correctly.** Owner: L1/L2/L3. Depends on T09/T16/T17. Preserve context/order, update omission and protected fields. Done when actual creation/null/parent/actor/time/replay cases agree.
+- [ ] **T16 Join generated invocation to state admission.** Accountable lead: L3 with L1/L6/L7. Depends on T15a for matching core scope, and later descriptors for richer scope. Connect verified context, validation, admission and projection. Done when generated denied/stale/rejected/replayed calls use canonical behavior across the promised scope.
 
-- [ ] **T19 Derive forms and MCP inputs from checked operations.** Owner: L1/L5/L6. Depends on T15/T16/T18. Resolve real descriptors and consistent interfaces. Done when writable fields, bound arguments, defaults, versions, exact values and files agree.
+- [ ] **T17 Replace interim data plane operations.** Accountable lead: L3 with L7 assembly. Depends on T16. Migrate create/set/delete/query to the existing state engine. Done when required history/replay and readable projection exist and migrated interim consumers are retired.
 
-- [ ] **T20 Complete presentation context and submission joins.** Owner: L5/L6/L7. Depends on T19. Connect preferences, full/partial context, metadata, CSRF and errors. Done when generated forms render and submit through the real dispatcher.
+- [ ] **T28 Settle imported containment semantics.** Accountable lead: L3 with L1/L7 and draft owner. Prepare early. Distinguish declaring identity, local/remote dependency, parent/storage/authority, reverse relationships and migration. Done when an accepted rule preserves workflows and handles cycles/lifecycle.
 
-### Compiled examples
+- [ ] **T29 Implement imported containment.** Accountable lead: L3; L1 owns resolution/checking. Depends on T28 and matching T15/T16/T17. Preserve canonical Employee/Customer relationships. Done when aliases/composition agree and invalid parent/team/lifetime/cycle cases fail in checking and applicable actual storage.
 
-- [ ] **T21 Enable the compiled e2e artifact path.** Owner: L7. Depends on T16/T17. Reuse validation/assembly for real compilation. Done when journeys assert compiled identity and run generated callables on actual local storage.
+- [ ] **T31 Implement permitted secondary hook writes.** Accountable lead: L3 with L1. Settle T31a's own accepted rule first; T28 alone is insufficient. Implementation depends on T16/T17/T30 and applicable T28/T29 ownership when imported references are used. Done when staged revision invalidation, atomic rollback, versions/history/replay and forbidden recursion/deletion are proved.
 
-- [ ] **T22 Implement compiled fixture provisioning.** Owner: L7 with L2/L3/L4/L6. Depends on T14/T15/T16/T17. Provision valid isolated model/user/file/delivery dependencies. Done when setup failures cannot satisfy business rejection expectations.
+- [ ] **T32 Define and implement authoritative predicate reads.** Accountable lead: L3 with L1/L4/L6. Prepare T32a's read/snapshot/revalidation contract early. T32b policy/admission proof needs T16/T17; dispatch/spending additionally needs T24. Done when all claimed contexts preserve revocation/stale-state boundaries and transitive effects.
 
-- [ ] **T23 Execute compiled tables and sequences.** Owner: L7 with L1/L3. Depends on T22. Wire actual calls, independent expected values and observations. Done when callers, prior commits, rejection/no-change assertions work and deliberately broken expectations fail.
+### L4 Interfaces and durable work
 
-### Durable work and progress
+Supply common interfaces early, then join dispatch, authorized receipts and accepted progress. Prepare fanout alternatives early; its implementation waits for accepted completeness and authority rules.
 
-- [ ] **T24 Join generated effects to durable dispatch.** Owner: L3/L4/L7. Depends on T13/T16/T17. Stage domain/history/replay/outbox/dispatch atomically. Done when rollback, guards, skipped outcomes, retry and recovery satisfy their contracts.
+- [ ] **T12 Inventory standard and bound declarations.** Accountable lead: L4. Contributors and owning boundaries: L4 with L1/L2/L3. Map all imports to accepted owner contracts, versions and availability. Done when each unresolved interface has a producer or explicit decision question.
 
-- [ ] **T25 Implement authorized selected receipt access.** Owner: L4/L3 with L1. Depends on T14/T24. Join locator, selected leaves, disclosure and revision fencing. Done when stale association and status-only access boundaries are demonstrated.
+- [ ] **T13 Export and consume versioned interface schemas.** Accountable lead: L4; each producer retains its definitions and L1 owns compiler consumption. Depends on T12. Deliver scoped T13a before richer T13b. Done when the full accepted inventory supplies canonical request/result/error/effect/event/observable declarations and invalid members/bindings reject.
 
-- [ ] **T26 Implement associated observable progress.** Owner: L4/L3 with L1. Depends on T13/T25. Use existing producer machinery for accepted relations. Done when correlation, duplicates, cancellation, late usage, restart, terminal immutability and notification behavior execute.
+- [ ] **T24 Join generated effects to durable dispatch.** Accountable lead: L4 with L3/L7. Depends on T16/T17 and the relevant effect/operation contracts; bound sends additionally require matching T13/T14 slices. Stage domain/history/replay/outbox/dispatch atomically. Done when the full promised rollback, guards, skipped outcomes, retry and recovery satisfy their contracts.
 
-- [ ] **T27 Prove generated image finalization.** Owner: L4/L3/L6. Depends on T26. Materialize receiving-app finalized files. Done when ownership, provenance, permissions, invalid output and replay use the real lifecycle.
+- [ ] **T25 Implement authorized selected receipt access.** Accountable lead: L4 with L1/L3. Depends on matching T14 operation/recipe checking and T24 dispatch. Join locator, selected leaves, disclosure and revision fencing. Done when stale association and status-only access boundaries are demonstrated across the promised scope.
 
-### Ownership and design gates
+- [ ] **T26 Implement associated observable progress.** Accountable lead: L4 with L1/L3. Depends on each relation's matching T13 declaration and T25 receipt support. Use existing producer machinery and qualify relations independently. Done when the full promised correlation, duplicates, cancellation, late usage, restart, terminal immutability and notification behavior execute.
 
-- [ ] **T28 Settle imported containment semantics.** Owner: L1/L3 with L7/draft review. Distinguish declaring identity, local/remote dependency, parent/storage/authority, reverse relationships and migration. Done when an accepted rule preserves workflows and handles cycles/lifecycle.
+- [ ] **T27 Prove generated image finalization.** Accountable lead: L4 with L3/L6. Depends on image-relevant T26 progress and the file lifecycle. Materialize receiving-app finalized files. Done when ownership, provenance, permissions, invalid output and replay use the real lifecycle.
 
-- [ ] **T29 Implement imported containment.** Owner: L1/L3. Depends on T28/T15/T16/T17. Preserve canonical Employee/Customer relationships. Done when aliases/composition agree and invalid parent/team/lifetime/cycle cases fail in checking and applicable storage.
+- [ ] **T33 Decide scoped durable fanout.** Accountable lead: L4 with L1/L3/L7. Prepare fair alternatives early. Final acceptance requires applicable T28 ownership and T24 dispatch evidence plus the design consultation protocol. Done when cohort/checkpoint/identity/concurrent-change/failure/supersession semantics are adopted or explicitly scoped with complete reasons.
 
-- [ ] **T30 Replace spelling based event mutation checks.** Owner: L1 with L3/L4 review. Distinguish parameter/event/reference/snapshot/pending provenance. Done when renaming event changes no validity and immutable snapshot controls remain.
+- [ ] **T34 Implement and qualify adopted fanout.** Accountable lead: L4 with L1/L3/L7. Depends on T24/T33 and applicable accepted T28 ownership; add T29/T32 when cohort or child authority uses those semantics. Done when sizes/crashes/duplicates/concurrent changes/rejected children/retry/supersession prove completeness. If scoped, record deferred reasons rather than implementation completion.
 
-- [ ] **T31 Implement permitted secondary hook writes.** Owner: L3 with L1. Depends on T16/T17/T28/T30. Settle and stage referenced-parent changes. Done when focused revision invalidation, atomic rollback, versions/history/replay and forbidden recursion/deletion are proved.
+### L5 Presentation
 
-- [ ] **T32 Define and implement authoritative predicate reads.** Owner: L1/L3/L6 with L4. Depends on T16/T17/T24. Specify effects/snapshots/revalidation. Done when membership reads work and revocation/stale-state failures cannot authorize new disclosure/spending/commit.
+Prepare renderer/context acceptance against agreed contracts and contribute form descriptors to T19. Demonstrate the actual generated form/dispatcher join while preserving the full catalog and shell.
 
-- [ ] **T33 Decide scoped durable fanout.** Owner: L3/L4 with L1/L7. Final acceptance depends on applicable ownership and dispatch evidence from T28/T24; alternatives can be explored earlier. Done when cohort/checkpoint/identity/concurrent-change/failure/supersession semantics have complete decision evidence.
+- [ ] **T20 Complete presentation context and submission joins.** Accountable lead: L5 with L6/L7. T20a follows matching T19a; T20b follows richer T19b and remaining context/preferences requirements. Done when full/partial rendering, metadata, CSRF, errors and actual generated forms use the real dispatcher.
 
-- [ ] **T34 Implement and qualify adopted fanout.** Owner: L1/L3/L4/L7. Depends on T24/T28/T33. Done when boundary sizes, crashes, duplicates, concurrent changes, rejected children, retries and supersession prove completeness. If T33 scopes the proposal, record T34 as deferred with reasons rather than implemented.
+### L6 Identity and operation interfaces
 
-### Remaining defects and original workflows
+Prepare verified-context and HTTP/MCP adapters early. Contribute to T04/T16/T20/T22/T32 and lead the shared operation-input join. Runtime-backed parity is the completion gate.
 
-- [ ] **T35 Repair smaller established compiler defects.** Owner: L1 with relevant producers. Handle named titles, ICU arguments, business request bindings, imported CRUD sequences, payload metadata names and query ordering as focused packets. Done per packet when valid/invalid boundaries and source behavior are proved.
+- [ ] **T19 Derive forms and MCP inputs from checked operations.** Accountable lead: L6 with L1/L2/L3/L5. T19a depends on T15a/T16/T18 and the pilot's types. T19b needs T11 for decimal, matching T13/T14 for bound inputs and applicable file/contract semantics. Done when the full promised input/descriptors/interfaces agree on writable fields, bound arguments, defaults, versions and provenance.
 
-- [ ] **T36 Adjudicate residual draft and design cases.** Owner: draft owner with relevant design/compiler owners. Depends on T01/T02 and applicable root repairs. Review collisions/cycles/trusted selectors/fixture parents/secrets/cardinality. Done when each case has a verdict and evidence; apply only demonstrated corrections.
+### L7 Compiled examples and qualification
 
-- [ ] **T37 Qualify a small original CRUD or work app.** Owner: L7 with relevant lanes. Depends on T05/T06/T08/T18/T20/T21/T23 and its T02 blockers. Done when original source proves generated operations, distinct users, denied read, persistence, stale update, replay, browser/MCP parity and real inline examples.
+Maintain app blockers and assembly, enable compiled loading, deliver core fixtures/examples, then extend file/provider coverage. Graduate each original app when its own gates clear.
 
-- [ ] **T38 Qualify Expense and Leave or Onboard.** Owner: L7 with L3/L4/L6. Depends on T29/T31/T37 plus applicable attachment/delivery and T02 blockers. Done when original workflows prove imported relationships, approval, finalized attachments, defaults and revision invalidation.
+- [ ] **T02 Record per file intent and capability status.** Accountable lead: L7. Contributors and owning boundaries: L1/L7 with draft owner. Depends on T01. Give all 49 apps accepted workflow intent, demonstrated source defects, unresolved proposals and unavailable implementations. Preserve runtime negatives. Done when every file has an explicit disposition and exact blockers.
 
-- [ ] **T39 Qualify receipt and external recovery workflows.** Owner: L7/L4/L3. Depends on T23/T25/T37 and each app's blockers. Graduate Approve or Grant, Mail and Sync. Done when selected isolation, uncertain outcomes, reconciliation and conflict-preserving recovery execute.
+- [ ] **T21 Enable the compiled e2e artifact path.** Accountable lead: L7. Contributors and owning boundaries: L7. Depends on T16/T17. Reuse validation/assembly for real compilation. Done when journeys assert compiled identity and run generated callables on actual local storage.
 
-- [ ] **T40 Qualify complex bounded workflows.** Owner: L7 with relevant producers. Depends on T26/T27/T32/T37 and app blockers; Shift/Volunteer also require T34. Done when Chat, Creative/Gallery and adopted fanout workflows prove accounting, revocation, cancellation, finalized output, approval and completeness.
+- [ ] **T22 Implement compiled fixture provisioning.** Accountable lead: L7 with L2/L3/L4/L6. T22a core fixtures require T15a/T16/T17, T18 for defaults/omissions and applicable T36 authority decisions. T22b adds actual finalized files; T22c needs matching T13/T14 provider/delivery schemas. Done only when all promised isolated fixture classes validate and setup failures cannot satisfy business expectations.
 
-- [ ] **T41 Reconcile corpus and release evidence.** Owner: all affected owners coordinated by L7. Depends on T02, relevant repairs and applicable T37-T40 qualification. Recheck 52 sources, reattribute remaining roots and publish evidence/capability status. Done when every advertised supported workflow is faithful and executable, required unavailable features block appropriately, and unresolved/deferred scope is explicitly owned. Partial release evidence does not mean the entire backlog is complete.
+- [ ] **T23 Execute compiled tables and sequences.** Accountable lead: L7 with L1/L3. T23a follows T22a and the emitted-example contract; T23b follows matching T22b/T22c and actual capabilities. Done only when the full promised calls/callers/prior commits/independent observations/rejection/no-change assertions execute and deliberately broken expectations fail.
+
+- [ ] **T37 Qualify a small original CRUD or work app.** Accountable lead: L7 with relevant lanes. Depends on applicable T05/T06/T08/T18/T19a/T20a/T21/T22a/T23a and every actual T02 blocker. Provider/file extensions are mandatory only if used. Done when unchanged source proves generated operations, distinct users, denied read, persistence, stale update, replay, browser/MCP parity and real examples.
+
+- [ ] **T38 Qualify Expense and Leave or Onboard.** Accountable lead: L7 with L3/L4/L6. After T37, qualify app slices independently: matching T29 containment, T31 hooks where used, T22b attachments/T24/T25 delivery where used, and T02 blockers. Done when all promised original workflows prove authority, finalized evidence, defaults and revision invalidation.
+
+- [ ] **T39 Qualify receipt and external recovery workflows.** Accountable lead: L7 with L3/L4. Depends on T37, each app's matching T23/T25 evidence and its blockers. Graduate Approve or Grant, Mail and Sync independently. Done when all promised selected isolation, uncertain outcomes, reconciliation and conflict-preserving recovery execute.
+
+- [ ] **T40 Qualify complex bounded workflows.** Accountable lead: L7 with relevant producers. After T37, Chat needs matching T26/T32 and its blockers; Creative/Gallery additionally need T27; Shift/Volunteer need adopted T34 and their authority/fixture gates. Record app results independently. Done only when every promised supported workflow proves its accounting/revocation/cancellation/finalized-output/approval/completeness behavior.
+
+- [ ] **T41 Reconcile corpus and release evidence.** Accountable lead: L7 with all producers. Depends on T02, relevant completed repairs and qualification required by advertised scope. Recheck 52 sources and reattribute remaining roots. Done when supported workflows are faithful/executable, unavailable mandatory features still block and deferred/undecided scope is precisely owned. Partial release evidence does not complete the entire backlog.
+
+### Draft owner Adjudication
+
+Review intent and uncertainties early. Apply only proven corrections through the existing draft owner, after applicable root repairs and accepted decisions.
+
+- [ ] **T36 Adjudicate residual draft and design cases.** Accountable lead: existing draft owner with relevant design/compiler producers. Depends on T01/T02 and applicable root repairs. Review collisions/cycles/trusted selectors/fixture parents/secrets/cardinality. Done when each case has an evidence-based verdict and only demonstrated corrections are applied.
 
 ## Completion duties for every package
 
@@ -465,7 +563,7 @@ Reserve shared files and define producer/consumer handoffs before parallel edits
 
 After every merge, the handler reconciles [the living file-tree plan](/Users/vince/Projects/canlang/docs/ideal-filetree-plan.md:3144) against all accumulated changes since its checkpoint. Advance the checkpoint only after complete review. Do not perform recursive bookkeeping or treat that plan as authority for a broad refactor.
 
-Start T01-T04 and T12 as the first parallel batch, with appropriate file ownership. Ownership/event/fanout design work can begin early, while implementations remain behind their decision and execution gates.
+Start L1 T01/T03, L3 T04a and L4 T12 as the first producer batch. L7 prepares T02 inventory while L5/L6 prepare contract-based cases. Prepare ownership/hook/read/fanout alternatives early and honor their accepted-rule gates. After G0, take each lane's next ready slice without imposing unrelated rich-provider prerequisites on a complete basic pilot.
 
 ## Workflow qualification and release measures
 
@@ -538,4 +636,4 @@ for path in [
 
 Planning reads covered requirements/design/grammar/decisions, implementation plans/contracts/diagnostics and lane status, the living file-tree plan, compiler analysis/B4/codegen tests, values schema/conformance, state admission/mutation descriptors and hooks, current runtime invoke/stdlib, services catalogs/work observation, testkit/e2e loaders, relevant B2 evidence and existing JEV records. Missing-path and truncated reads were identified; narrower reads supplied the material observations.
 
-This document's save round reads repository/skill guidance, writes only this planning document, validates its structure/links/task dependencies, and opens it for review. It does not change compiler behavior, draft intent, normative language rules or runtime support.
+The documentation rounds read repository/skill guidance and producer ownership, write only this planning document, validate structure/links/task coverage/dependencies, and request it be opened for review. The lane allocation received independent dependency and ownership review. It does not change compiler behavior, draft intent, normative language rules or runtime support.
