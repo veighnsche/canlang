@@ -24,6 +24,12 @@ import {
   type QueryAggregateInput,
   type ViewerRecordsInput,
 } from '../query/index.js';
+// T32b eventual surface lives on the engine module directly (the query
+// barrel is owned elsewhere; this port must not widen it).
+import {
+  queryEventualRecords as engineQueryEventualRecords,
+  type EventualRecordsResult,
+} from '../query/engine.js';
 import type { MembershipReader } from '../policy/roles.js';
 
 /** Engine dependencies bound once at port creation. */
@@ -57,6 +63,15 @@ export interface ReadPort {
   queryRecords(args: ReadViewerRecordsArgs): Promise<AuthorizedRecordsResult>;
   queryRecords(args: ReadOwnerRecordsArgs): Promise<AuthorityRowsResult>;
   queryAggregate(args: ReadAggregateArgs): Promise<AggregateQueryResult>;
+  /**
+   * T32b display-only eventual read: same authorized pipeline, enrolled
+   * in NO fence. The marked wrapper can never feed authorization or a
+   * spend (`requireAuthorizingRead` refuses it). Fenced reads pass
+   * `fence` through `queryRecords`/`queryAggregate` args instead.
+   */
+  queryEventualRecords(
+    args: ReadViewerRecordsArgs | ReadOwnerRecordsArgs,
+  ): Promise<EventualRecordsResult>;
   readReceipt(identity: ReceiptIdentity): Promise<Receipt | null>;
   readRevision(): Promise<Revision>;
 }
@@ -84,6 +99,12 @@ export function createReadPort(input: ReadPortInput): ReadPort {
   return {
     queryRecords: bindQueryRecords(bound),
     queryAggregate: (args) => engineQueryAggregate({ ...args, ...bound }),
+    queryEventualRecords: (args) => {
+      if (args.authority === 'viewer') {
+        return engineQueryEventualRecords({ ...args, ...bound, authority: 'viewer' });
+      }
+      return engineQueryEventualRecords({ ...args, ...bound, authority: 'owner' });
+    },
     readReceipt: (identity) => input.store.readReceipt(identity),
     readRevision: () => input.store.readRevision(),
   };

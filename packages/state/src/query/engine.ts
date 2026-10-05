@@ -25,6 +25,7 @@ import type {
 } from '../../../contracts/src/state.js';
 import type { StoragePort } from '../storage/port.js';
 import { StateError } from '../errors.js';
+import type { FenceScope } from '../invocation/admission.js';
 import { evaluateBy, type MembershipReader } from '../policy/roles.js';
 import {
   collectPredicateFields,
@@ -58,6 +59,17 @@ export interface BaseQueryInput {
   readonly context: QueryCallerContext;
   readonly memberships: MembershipReader;
   readonly store: StoragePort;
+  /**
+   * T32b: the operation's enrollment scope. When present, the query joins
+   * the scope's owner checkpoint (conflicting when the checkpoint already
+   * moved) and enrolls its membership + model reads; when absent, the
+   * query still reports the pre-scan fence revision, and the
+   * database-wide revision assertion at commit covers the read. There is
+   * no `eventual` member here by design: eventual reads serve ONLY
+   * through `queryEventualRecords`, whose marked wrapper can never feed
+   * authorization.
+   */
+  readonly fence?: FenceScope;
 }
 
 /** Viewer query input: grant-checked, projected records. */
@@ -621,6 +633,10 @@ function toProjectedRecord(row: StoredRow): ProjectedRecord {
 async function runAuthorizedQuery(
   input: BaseQueryInput,
   extraViewerPaths?: ReadonlyArray<string>,
+  // T32b: internal eventual flag — set ONLY by `queryEventualRecords`.
+  // Eventual reads enroll nothing; their marked wrapper (not this flag)
+  // is what authorization boundaries refuse.
+  eventual = false,
 ): Promise<AuthorizedSet> {
   if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 0)) {
     throw new StateError('validation', `Invalid query limit: ${JSON.stringify(input.limit)}.`);
@@ -641,8 +657,29 @@ async function runAuthorizedQuery(
     validatePredicateShape(input.where);
   }
 
+  if (eventual && input.fence !== undefined) {
+    throw new StateError(
+      'validation',
+      'Eventual reads cannot enroll in a fence; they are display-only.',
+    );
+  }
+
   // Fence revision FIRST: every row below is read at or after this checkpoint.
   const revision = await input.store.readRevision();
+
+  // T32b: join the operation's owner checkpoint. A read whose checkpoint
+  // already moved cannot enroll — it conflicts rather than silently
+  // reading at a newer revision than the operation's other reads.
+  if (input.fence !== undefined && input.fence.revision !== revision) {
+    throw new StateError(
+      'conflict',
+      `Fence checkpoint moved before this read (enrolled at revision ${input.fence.revision}, ` +
+        `now at ${revision}); re-fence the operation.`,
+    );
+  }
+  if (input.fence !== undefined && !eventual) {
+    input.fence.enroll({ kind: 'query', model: input.model, authority: input.authority });
+  }
 
   // Viewer authorization: resolve the caller membership once, evaluate each
   // grant's row-independent `by` once, then fail closed on every viewer path
@@ -656,6 +693,18 @@ async function runAuthorizedQuery(
       input.context.actorUserId !== null && input.context.teamId !== null
         ? await input.memberships.findMembership(input.context.teamId, input.context.actorUserId)
         : null;
+    if (
+      input.fence !== undefined &&
+      !eventual &&
+      input.context.actorUserId !== null &&
+      input.context.teamId !== null
+    ) {
+      input.fence.enroll({
+        kind: 'membership',
+        teamId: input.context.teamId,
+        userId: input.context.actorUserId,
+      });
+    }
     const byCtx: ByContext = {
       actorUserId: input.context.actorUserId,
       teamId: input.context.teamId,
@@ -834,4 +883,52 @@ export async function queryAggregate(input: QueryAggregateInput): Promise<Aggreg
         ? avgValues(field, values)
         : minMaxValues(input.spec.op, field, values);
   return { result: { op: input.spec.op, value }, revision: set.revision };
+}
+
+/* -- T32b display-only eventual reads (adopted Alternative A). -- */
+
+/**
+ * A display-only, stale-tolerant read result. Eventual reads pin nothing,
+ * enroll nothing, and keep the reread/stale-marking contract (the inner
+ * result still reports its fence revision, so callers can reread and mark
+ * stale). The `eventual: true` marker plus this distinct wrapper shape
+ * bar the result from authorization and spends: `requireAuthorizingRead`
+ * (invocation/admission.ts) refuses it at every authorization boundary,
+ * including the fenced commit's offered readings.
+ */
+export interface EventualRecordsResult {
+  readonly eventual: true;
+  readonly result: AuthorizedRecordsResult | AuthorityRowsResult;
+}
+
+/**
+ * Serve one display-only eventual read: same authorized pipeline as
+ * `queryRecords` (viewer projection, secret carving, limit overflow),
+ * enrolled in NO fence. Cross-owner browsing, pickers, and progress
+ * views serve here; anything that authorizes or spends serves through
+ * `queryRecords` at the operation's checkpoint instead.
+ */
+export function queryEventualRecords(
+  input: ViewerRecordsInput,
+): Promise<EventualRecordsResult & { result: AuthorizedRecordsResult }>;
+export function queryEventualRecords(
+  input: OwnerRecordsInput,
+): Promise<EventualRecordsResult & { result: AuthorityRowsResult }>;
+export function queryEventualRecords(
+  input: QueryRecordsInput,
+): Promise<EventualRecordsResult & { result: AuthorizedRecordsResult | AuthorityRowsResult }>;
+export async function queryEventualRecords(
+  input: QueryRecordsInput,
+): Promise<EventualRecordsResult & { result: AuthorizedRecordsResult | AuthorityRowsResult }> {
+  if (input.fence !== undefined) {
+    throw new StateError(
+      'validation',
+      'Eventual reads cannot enroll in a fence; they are display-only.',
+    );
+  }
+  const set = await runAuthorizedQuery(input, undefined, true);
+  if (input.authority === 'owner') {
+    return { eventual: true, result: { rows: set.rows, revision: set.revision } };
+  }
+  return { eventual: true, result: { records: set.rows.map(toProjectedRecord), revision: set.revision } };
 }

@@ -58,6 +58,31 @@ export interface DispatchAttempt {
   frozenInputs: unknown;
   /** Current owner state snapshot for the guard. */
   stateSnapshot: unknown;
+  /**
+   * T32b claim-time fence. Optional: attempts without one keep the exact
+   * pre-T32b behavior. Transitive (hook/handler-triggered) dispatches
+   * carry their OWN fresh checkpoint here — never the triggering read's
+   * snapshot — plus a claim-time authority revalidation so no cached
+   * snapshot authorizes the spend.
+   */
+  fence?: DispatchFence;
+}
+
+/**
+ * T32b claim-time fence for one dispatch attempt. `checkpoint` is the
+ * dispatch's own owner checkpoint (transitive effects open a fresh one
+ * via the state's `openTransitiveScope`; the revision/owner pair names
+ * it). `triggerRevision` names the triggering read's checkpoint when
+ * this dispatch is transitive: presenting the trigger's own revision
+ * back is inheriting its snapshot and is refused. `revalidateAuthority`
+ * re-reads live authority at claim time (after the guard passes, before
+ * the claim issues): a revocation landing between trigger and handler
+ * denies the transitive effect.
+ */
+export interface DispatchFence {
+  readonly checkpoint: { readonly revision: number; readonly owner: string };
+  readonly triggerRevision?: { readonly revision: number };
+  readonly revalidateAuthority?: () => boolean;
 }
 
 export type DispatchOutcome =
@@ -72,18 +97,43 @@ export type DispatchOutcome =
    *   produce guard verdicts, since `skipped` means undispatched work.
    */
   | { status: 'refused-state'; outboxId: OutboxId; state: OutboxItemState }
+  /**
+   * T32b: transitive dispatch inherited its trigger's checkpoint instead
+   * of opening a fresh scope — refused before supersession or guard.
+   */
+  | { status: 'refused-inherited-scope'; outboxId: OutboxId }
+  /**
+   * T32b: live authority revalidation failed at claim time (revoked
+   * between trigger and handler) — the guard verdict never authorizes
+   * the spend on its own.
+   */
+  | { status: 'refused-revoked'; outboxId: OutboxId }
   /** Claim issued for one provider-call attempt. */
   | { status: 'claimed'; claim: DispatchClaim };
 
 /**
- * Attempt one dispatch, evaluating supersession -> guard -> claim in order.
- * Later checks never run once an earlier one refuses: superseded intents
- * never evaluate the guard, and uncommitted intents touch nothing.
+ * Attempt one dispatch, evaluating inherited-scope -> supersession ->
+ * guard -> revocation -> claim in order. Later checks never run once an
+ * earlier one refuses: superseded intents never evaluate the guard,
+ * uncommitted intents touch nothing, and a revoked authority never mints
+ * a claim even when the guard passes (no cached snapshot authorizes a
+ * spend — the claim-time revalidation is the authorization).
  */
 export function attemptDispatch(deps: DispatchDeps, attempt: DispatchAttempt): DispatchOutcome {
   const item = attempt.intent.item;
   if (attempt.intent.commit === null) {
     return { status: 'refused-uncommitted', outboxId: item.id };
+  }
+  // T32b: a transitive dispatch presenting its trigger's own checkpoint
+  // revision inherited the triggering snapshot instead of opening a fresh
+  // scope — structurally refused before supersession or guard.
+  const fence = attempt.fence;
+  if (
+    fence !== undefined &&
+    fence.triggerRevision !== undefined &&
+    fence.triggerRevision.revision === fence.checkpoint.revision
+  ) {
+    return { status: 'refused-inherited-scope', outboxId: item.id };
   }
   if (deps.supersessions.isSuperseded(item.id)) {
     return { status: 'superseded', outboxId: item.id };
@@ -97,6 +147,12 @@ export function attemptDispatch(deps: DispatchDeps, attempt: DispatchAttempt): D
     if (result !== true) {
       return { status: 'skipped', verdict: { outboxId: item.id, result: false } };
     }
+  }
+  // T32b: claim-time authority revalidation — revocation landing between
+  // trigger and handler denies the transitive effect. The guard verdict
+  // above never authorizes the claim on its own.
+  if (fence?.revalidateAuthority !== undefined && fence.revalidateAuthority() !== true) {
+    return { status: 'refused-revoked', outboxId: item.id };
   }
   return {
     status: 'claimed',
