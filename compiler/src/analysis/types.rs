@@ -46,7 +46,10 @@ use crate::diagnostic::{Diagnostic, Related};
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{Punct, SyntaxKind, SyntaxNode, TokenKind};
 
-use super::catalog::{Availability, Catalog, Effects, SigOverload, SigType};
+use super::catalog::{
+    Availability, Catalog, Effects, STD_CAPABILITIES, SigOverload, SigType, StdCapability,
+    StdOperation,
+};
 use super::resolve::{
     ActorKind, Binding, ContextVar, CrudOp, FixtureTarget, ModelOwner, ModuleId, ResolveTables,
     ScopedName, SymbolId, SymbolKind, TypeRef, UnresolvedMember, has_error, is_expression,
@@ -390,6 +393,90 @@ pub fn check_types(
     typer.types.symbol_types = std::mem::take(&mut typer.decl);
     typer.types.symbol_results = std::mem::take(&mut typer.results);
     typer.types
+}
+
+/// T14a resolution of a deployment-bound `Cap.op` target against the
+/// consumed T13a owner schemas.
+enum StdTarget {
+    /// A consumed T13a operation (`display` is the author spelling,
+    /// e.g. `Mail.send`).
+    Known {
+        op: &'static StdOperation,
+        display: String,
+    },
+    /// A T13a-known capability with an operation outside its owner
+    /// schema: a wrong association, verified wrong (never opaque).
+    WrongOp { capability: String, op: String },
+    /// No consumed T13a schema covers this target: T13b scope,
+    /// unknown providers and unresolvable spellings keep their
+    /// opaque treatment.
+    NoSchema,
+}
+
+/// Consumed T13a capability by `std` member name (T14a scope gate):
+/// `None` for T13b/unknown members, which keep failing as before
+/// (the T14b remainder).
+fn t13a_capability(member: &str) -> Option<&'static StdCapability> {
+    let qualified = format!("std.{member}");
+    STD_CAPABILITIES.iter().find(|cap| cap.name == qualified)
+}
+
+/// Whether a consumed T13a input is array-typed (nullable arrays
+/// included).
+fn std_input_is_array(declared: &str) -> bool {
+    declared
+        .strip_suffix('?')
+        .unwrap_or(declared)
+        .ends_with("[]")
+}
+
+/// Whether a consumed T13a input must be present in a `send` (T14a):
+/// every input except array-typed ones. B9: arrays (notably
+/// `attachments`) omit to empty per DESIGN §8 `attachments:file[]=[]`
+/// ("empty attachments preserve the ordinary mail call"), the
+/// unanimous corpus omission (40/40 sends, 13/13 recipes) and T09
+/// ordinary-array semantics; the producer's required wire key is the
+/// normalized shape, not the source binding. Nullable scalars
+/// (notably `consent`) stay required-with-explicit-null per the
+/// producer contract (`consent: string | null`, required key) and
+/// local-send parity (`check_op_bindings`).
+fn std_send_requires_input(declared: &str) -> bool {
+    !std_input_is_array(declared)
+}
+
+/// Whether a consumed T13a input must be present in a recipe
+/// `request=`: mirrors local recipes (`check_fixture_request`),
+/// where nullable inputs omit alongside arrays.
+fn std_recipe_requires_input(declared: &str) -> bool {
+    !std_input_is_array(declared) && !declared.ends_with('?')
+}
+
+/// Map a consumed T13a schema type name to its checkable type.
+/// `None` is nominal-only (e.g. `ErrorReport`): presence-checked,
+/// shape unchecked — the consumed schema carries the name without
+/// fields, so the value shape is walked for effects, never guessed.
+fn std_schema_type(declared: &str) -> Option<ResolvedType> {
+    if let Some(inner) = declared.strip_suffix('?') {
+        return std_schema_type(inner).map(|ty| ResolvedType::Nullable(Box::new(ty)));
+    }
+    if let Some(element) = declared.strip_suffix("[]") {
+        return std_schema_type(element).map(|ty| ResolvedType::Array {
+            element: Box::new(ty),
+            ordered: true,
+            nonempty: false,
+        });
+    }
+    if let Some(cases) = declared
+        .strip_prefix("enum(")
+        .and_then(|rest| rest.strip_suffix(')'))
+    {
+        let cases = cases.split(',').map(str::to_string).collect::<Vec<_>>();
+        if cases.is_empty() || cases.iter().any(|c| c.is_empty()) {
+            return None;
+        }
+        return Some(ResolvedType::Enum { cases, owner: None });
+    }
+    scalar_named(declared).map(ResolvedType::Scalar)
 }
 
 impl<'a> Typer<'a> {
@@ -2268,23 +2355,50 @@ impl<'a> Typer<'a> {
                 }
             }
             ResolvedType::Opaque(_) => {
-                // A deployment-bound (external) target has no signature
-                // to check the bindings against: the receipt is silently
-                // opaque without this diagnostic.
-                if let Some(name) = self.external_target_name(cx, target) {
-                    self.diags.push(Diagnostic::error(
-                        "E3019",
-                        format!(
-                            "cannot verify send to '{name}': deployment-bound capability signatures are opaque; the delivery receipt is unchecked"
-                        ),
-                        tight_span(cx.text, target),
-                    ));
+                // T14a: a `send` to a T13a-known `std` operation checks
+                // its bindings against the consumed owner schema; an
+                // unknown op of a known capability is a wrong
+                // association (`E3010`); anything without a consumed
+                // schema stays `E3019`.
+                match self.resolve_std_send_target(cx, target) {
+                    StdTarget::Known { op, display } => {
+                        self.check_std_send_bindings(cx, node, op, &display, object);
+                        self.sends
+                            .insert(NodeKey::of(node), ResolvedType::Opaque("std send receipt"));
+                    }
+                    StdTarget::WrongOp { capability, op } => {
+                        self.diags.push(Diagnostic::error(
+                            "E3010",
+                            format!(
+                                "'{capability}' has no sendable operation '{op}'; the delivery association names an operation outside the owner schema"
+                            ),
+                            tight_span(cx.text, target),
+                        ));
+                        if let Some(object) = object {
+                            self.walk_object_values(cx, object);
+                        }
+                    }
+                    StdTarget::NoSchema => {
+                        // A deployment-bound (external) target has no
+                        // signature to check the bindings against: the
+                        // receipt is silently opaque without this
+                        // diagnostic.
+                        if let Some(name) = self.external_target_name(cx, target) {
+                            self.diags.push(Diagnostic::error(
+                                "E3019",
+                                format!(
+                                    "cannot verify send to '{name}': deployment-bound capability signatures are opaque; the delivery receipt is unchecked"
+                                ),
+                                tight_span(cx.text, target),
+                            ));
+                        }
+                        if let Some(object) = object {
+                            self.walk_object_values(cx, object);
+                        }
+                        self.sends
+                            .insert(NodeKey::of(node), ResolvedType::Opaque("unresolved send"));
+                    }
                 }
-                if let Some(object) = object {
-                    self.walk_object_values(cx, object);
-                }
-                self.sends
-                    .insert(NodeKey::of(node), ResolvedType::Opaque("unresolved send"));
             }
             ResolvedType::Error | ResolvedType::Unknown => {
                 if let Some(object) = object {
@@ -2336,6 +2450,273 @@ impl<'a> Typer<'a> {
                 .find(|n| is_expression(n.kind))
                 .and_then(|n| self.external_target_name(cx, n)),
             _ => None,
+        }
+    }
+
+    /// Resolve a `send` target rooted at a deployment-bound import
+    /// against the consumed T13a owner schemas (T14a).
+    fn resolve_std_send_target(&self, cx: &Ctx<'_, '_>, target: &SyntaxNode) -> StdTarget {
+        let Some((provider, member, op, display)) = self.external_op_spelling(cx, target) else {
+            return StdTarget::NoSchema;
+        };
+        if provider != "std" {
+            return StdTarget::NoSchema;
+        }
+        let Some(cap) = t13a_capability(&member) else {
+            return StdTarget::NoSchema;
+        };
+        match cap.operations.iter().find(|operation| operation.name == op) {
+            Some(op) => StdTarget::Known { op, display },
+            None => StdTarget::WrongOp {
+                capability: cap.name.to_string(),
+                op,
+            },
+        }
+    }
+
+    /// Dotted external `Cap.op` target as (provider, member, op) plus
+    /// the author display spelling, when the target is a single-level
+    /// member access rooted at a deployment-bound import. Deeper
+    /// chains are not send targets and stay on the opaque path.
+    fn external_op_spelling(
+        &self,
+        cx: &Ctx<'_, '_>,
+        target: &SyntaxNode,
+    ) -> Option<(String, String, String, String)> {
+        match target.kind {
+            SyntaxKind::Member => {
+                let parts = kids(target);
+                if parts.len() != 3 || parts[0].kind != SyntaxKind::NameRef {
+                    return None;
+                }
+                let Binding::External { provider, name } = self
+                    .tables
+                    .node_binding
+                    .get(&NodeKey::of(parts[0]))
+                    .cloned()?
+                else {
+                    return None;
+                };
+                let op = name_text(parts[2], cx.text)?.to_string();
+                let head = nameref_word(parts[0], cx.text)?;
+                let display = format!("{head}.{op}");
+                Some((provider, name, op, display))
+            }
+            SyntaxKind::Group => kids(target)
+                .iter()
+                .find(|n| is_expression(n.kind))
+                .and_then(|n| self.external_op_spelling(cx, n)),
+            _ => None,
+        }
+    }
+
+    /// Check `send` bindings against a consumed T13a operation schema
+    /// (T14a): unknown inputs and missing required inputs are `E3010`,
+    /// value mismatches are `E3001` — the same codes as local
+    /// operations (`check_op_bindings`). Requiredness follows
+    /// `std_send_requires_input` (B9); nominal-typed values are
+    /// presence-checked only (see `std_schema_type`).
+    fn check_std_send_bindings(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        op: &'static StdOperation,
+        display: &str,
+        object: Option<&SyntaxNode>,
+    ) {
+        let mut seen: Vec<String> = Vec::new();
+        if let Some(object) = object {
+            for (key, key_node, value) in object_entries(object, cx.text) {
+                let found = op.inputs.iter().find(|input| input.0 == key);
+                let Some(&(_, declared)) = found else {
+                    self.diags.push(Diagnostic::error(
+                        "E3010",
+                        format!("'{display}' has no input '{key}'"),
+                        tight_span(cx.text, key_node),
+                    ));
+                    self.entry_value(cx, key_node, value, None);
+                    continue;
+                };
+                seen.push(key.to_string());
+                let Some(expected) = std_schema_type(declared) else {
+                    self.entry_value(cx, key_node, value, None);
+                    continue;
+                };
+                let (actual, value_span) =
+                    self.entry_value(cx, key_node, value, Some(expected.clone()));
+                if !actual.is_error() && !self.types_compatible(&actual, &expected) {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        format!(
+                            "'{key}': expected {}, found {}",
+                            self.show(cx.module, &expected),
+                            self.show(cx.module, &actual)
+                        ),
+                        value_span,
+                    ));
+                }
+            }
+        }
+        for (name, declared) in op.inputs {
+            if seen.iter().any(|s| s == name) || !std_send_requires_input(declared) {
+                continue;
+            }
+            self.diags.push(Diagnostic::error(
+                "E3010",
+                format!("missing required input '{name}' to '{display}'"),
+                tight_span(cx.text, object.unwrap_or(node)),
+            ));
+        }
+    }
+
+    /// Resolve a fixture recipe head over a deployment-bound import
+    /// against the consumed T13a owner schemas (T14a). Only
+    /// two-segment `Alias.op` heads resolve; bare aliases name no
+    /// operation and stay on the opaque path.
+    fn resolve_std_recipe_head(
+        &self,
+        module: ModuleId,
+        head: &SyntaxNode,
+        text: &str,
+    ) -> StdTarget {
+        let segments = path_segments(head, text);
+        if segments.len() != 2 {
+            return StdTarget::NoSchema;
+        }
+        let scopes = &self.tables.module_scopes[module.0 as usize];
+        let Some(ScopedName::External { provider, name }) = scopes.prod.get(segments[0]) else {
+            return StdTarget::NoSchema;
+        };
+        if provider != "std" {
+            return StdTarget::NoSchema;
+        }
+        let Some(cap) = t13a_capability(name) else {
+            return StdTarget::NoSchema;
+        };
+        match cap
+            .operations
+            .iter()
+            .find(|operation| operation.name == segments[1])
+        {
+            Some(op) => StdTarget::Known {
+                op,
+                display: segments.join("."),
+            },
+            None => StdTarget::WrongOp {
+                capability: cap.name.to_string(),
+                op: segments[1].to_string(),
+            },
+        }
+    }
+
+    /// Check a delivery recipe over a consumed T13a operation (T14a):
+    /// the same four attributes and envelope consistency as local
+    /// operation recipes (`E3015`), with `request=` validated against
+    /// the owner schema inputs.
+    fn check_std_recipe(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        object: &SyntaxNode,
+        op: &'static StdOperation,
+        display: &str,
+    ) {
+        let mut request = None;
+        let mut status = None;
+        let mut result = None;
+        let mut error = None;
+        for (key, key_node, value) in object_entries(object, cx.text) {
+            match key {
+                "request" => request = Some((key_node, value)),
+                "status" => status = Some((key_node, value)),
+                "result" => result = Some((key_node, value)),
+                "error" => error = Some((key_node, value)),
+                _ => {
+                    self.diags.push(Diagnostic::error(
+                        "E3015",
+                        format!(
+                            "unknown delivery recipe attribute '{key}'; only request=, status=, result= and error= are accepted"
+                        ),
+                        tight_span(cx.text, key_node),
+                    ));
+                    self.entry_value(cx, key_node, value, None);
+                }
+            }
+        }
+        match request {
+            Some((_, Some(request))) if request.kind == SyntaxKind::Object => {
+                self.check_std_recipe_request(cx, op, display, request);
+            }
+            Some((key_node, _)) => {
+                self.diags.push(Diagnostic::error(
+                    "E3015",
+                    "delivery recipes need a complete request={...}".to_string(),
+                    tight_span(cx.text, key_node),
+                ));
+            }
+            None => {
+                self.diags.push(Diagnostic::error(
+                    "E3015",
+                    "delivery recipes need a complete request={...}".to_string(),
+                    tight_span(cx.text, object),
+                ));
+            }
+        }
+        self.check_fixture_envelope(cx, object, status, result, error);
+    }
+
+    /// Check a T13a delivery recipe `request=` against the owner
+    /// schema inputs (T14a): unknown inputs, value mismatches and
+    /// missing required inputs are `E3015`, mirroring local
+    /// `check_fixture_request`. Requiredness follows
+    /// `std_recipe_requires_input`; nominal-typed values are
+    /// presence-checked only (see `std_schema_type`).
+    fn check_std_recipe_request(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        op: &'static StdOperation,
+        display: &str,
+        request: &SyntaxNode,
+    ) {
+        let mut seen: Vec<String> = Vec::new();
+        for (key, key_node, value) in object_entries(request, cx.text) {
+            let found = op.inputs.iter().find(|input| input.0 == key);
+            let Some(&(_, declared)) = found else {
+                self.diags.push(Diagnostic::error(
+                    "E3015",
+                    format!("unknown request input '{key}' for {display}"),
+                    tight_span(cx.text, key_node),
+                ));
+                self.entry_value(cx, key_node, value, None);
+                continue;
+            };
+            seen.push(key.to_string());
+            let Some(expected) = std_schema_type(declared) else {
+                self.entry_value(cx, key_node, value, None);
+                continue;
+            };
+            let (actual, value_span) =
+                self.entry_value(cx, key_node, value, Some(expected.clone()));
+            if !actual.is_error() && !self.types_compatible(&actual, &expected) {
+                self.diags.push(Diagnostic::error(
+                    "E3015",
+                    format!(
+                        "'{key}': expected {}, found {}",
+                        self.show(cx.module, &expected),
+                        self.show(cx.module, &actual)
+                    ),
+                    value_span,
+                ));
+            }
+        }
+        for (name, declared) in op.inputs {
+            if seen.iter().any(|s| s == name) || !std_recipe_requires_input(declared) {
+                continue;
+            }
+            self.diags.push(Diagnostic::error(
+                "E3015",
+                format!("request is missing required input '{name}'"),
+                tight_span(cx.text, request),
+            ));
         }
     }
 
@@ -6314,6 +6695,28 @@ impl<'a> Typer<'a> {
                 // opaque without this diagnostic. Genuinely unbound
                 // heads stay silent here (their `E2001` covers them).
                 if let Some(h) = head {
+                    // T14a: a recipe over a T13a-known `std`
+                    // operation validates against the consumed owner
+                    // schema; an unknown op of a known capability is
+                    // a wrong association (`E3015`).
+                    match self.resolve_std_recipe_head(module, h, text) {
+                        StdTarget::Known { op, display } => {
+                            self.check_std_recipe(&cx, object, op, &display);
+                            return;
+                        }
+                        StdTarget::WrongOp { capability, op } => {
+                            self.diags.push(Diagnostic::error(
+                                "E3015",
+                                format!(
+                                    "'{capability}' has no sendable operation '{op}'; the delivery recipe names an operation outside the owner schema"
+                                ),
+                                tight_span(text, h),
+                            ));
+                            self.walk_object_values(&cx, object);
+                            return;
+                        }
+                        StdTarget::NoSchema => {}
+                    }
                     let segments = path_segments(h, text);
                     if let Some(first) = segments.first()
                         && let Some(ScopedName::External { .. }) = self.tables.module_scopes
@@ -8862,7 +9265,26 @@ impl<'a> Typer<'a> {
                 ));
                 ResolvedType::Error
             }
-            Some(super::resolve::ScopedName::External { .. }) => {
+            Some(super::resolve::ScopedName::External { provider, name }) => {
+                // T14a: a `delivery()` over an unknown operation of a
+                // T13a-known capability is a wrong association
+                // (`E3010`); known and schema-less targets keep their
+                // opaque treatment.
+                if provider == "std"
+                    && segments.len() == 2
+                    && let Some(cap) = t13a_capability(&name)
+                    && !cap.operations.iter().any(|o| o.name == segments[1])
+                {
+                    self.diags.push(Diagnostic::error(
+                        "E3010",
+                        format!(
+                            "'{}' has no sendable operation '{}'; delivery() names a sendable bound operation",
+                            cap.name, segments[1]
+                        ),
+                        tight_span(text, path),
+                    ));
+                    return ResolvedType::Error;
+                }
                 ResolvedType::Opaque("external delivery target")
             }
             None => {

@@ -1965,3 +1965,307 @@ fn t11_int_bound_rejects_decimal() {
     let diags = check(src, Some(&catalog));
     assert_eq!(codes(&diags), vec!["E3012"], "{diags:?}");
 }
+
+// --- T14a bound-send/request/recipe validation against T13a owner schemas ---
+//
+// `send` bindings and delivery-recipe `request=` over T13a-known `std`
+// operations (EmailV1.send, ErrorsV1.report, PaymentsV1.*) validate
+// against the consumed owner schemas: unknown inputs, value
+// mismatches and missing required inputs fail with the same codes as
+// local operations. Unknown operations of known capabilities are
+// wrong associations (verified wrong, never opaque). T13b/unknown
+// targets keep their opaque treatment (the T14b remainder).
+
+/// (T14a) A complete `Mail.send` checks clean with `attachments`
+/// omitted (B9: default-empty per DESIGN §8 `=[]`; CanApprove:268
+/// shape).
+#[test]
+fn t14a_std_send_mail_clean() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"Review\",body=\"Plan\"} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "Mail.send bindings: {diags:?}");
+}
+
+/// (T14a) Supplied `attachments` must be file-typed (CanDesk:43
+/// shape).
+#[test]
+fn t14a_std_send_mail_with_attachments() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { doc:file }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"Wi-Fi\",body=\"Checking\",attachments=[m.doc]} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "file attachments: {diags:?}");
+}
+
+/// (T14a) `Payments.collect` validates money/text inputs with an
+/// explicit-null consent (CanInvoice:367 shape).
+#[test]
+fn t14a_std_send_payments_collect() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {PaymentsV1 as Payments} from=deployment.payments\n Given\n  M { total:money, ref:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Payments.collect {customer=\"c\",amount=m.total,reference=m.ref,consent=null} as delivery\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "collect bindings: {diags:?}");
+}
+
+/// (T14a) Nominal-typed values (`event: ErrorReport`) are
+/// presence-checked with their shape unchecked: the consumed schema
+/// is nominal-only there (CanDo:115 shape).
+#[test]
+fn t14a_std_send_errors_report_passthrough() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {ErrorsV1 as Catch} from=deployment.errors\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Catch.report {event=\"boom\"} as delivery\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "report passthrough: {diags:?}");
+}
+
+/// (T14a) A `Mail.send` recipe validates its `request=` against the
+/// owner inputs (CanApprove:44 shape).
+#[test]
+fn t14a_std_recipe_mail_clean() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  fixture attempt=Mail.send {request={to=\"a@b.test\",subject=\"Review\",body=\"Plan\"}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "Mail.send recipe: {diags:?}");
+}
+
+/// (T14a) A failed envelope over a validated recipe stays consistent
+/// and claims its bare status case (CanApprove:46 shape: no E2001
+/// for `failed`).
+#[test]
+fn t14a_std_recipe_failed_envelope() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  fixture d=Mail.send {request={to=\"a@b.test\",subject=\"Review\",body=\"Plan\"},status=failed,error={code=\"provider\",message=\"Delivery rejected\"}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "failed envelope: {diags:?}");
+}
+
+/// (T14a) A `Payments.reconcile` recipe validates its single required
+/// input (CanInvoice:170 shape).
+#[test]
+fn t14a_std_recipe_payments_reconcile() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {PaymentsV1 as Payments} from=deployment.payments\n Given\n  fixture r=Payments.reconcile {request={reference=\"r\"}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "reconcile recipe: {diags:?}");
+}
+
+/// (T14a) `delivery()` over a known T13a operation keeps its silent
+/// opaque treatment (no new diagnostic).
+#[test]
+fn t14a_std_delivery_known_silent() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { delivery:delivery(Mail.send)? }\n  policy M read=members fields=delivery.status\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "known delivery(): {diags:?}");
+}
+
+/// (T14a) Unknown send bindings fail `E3010` like local operations.
+#[test]
+fn t14a_std_send_unknown_input() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\",bogus=1} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'Mail.send' has no input 'bogus'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14a) Missing required send bindings fail `E3010` per input.
+#[test]
+fn t14a_std_send_missing_required() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\"} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3010", "E3010"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("missing required input 'subject'"),
+        "{}",
+        diags[0].message
+    );
+    assert!(
+        diags[1].message.contains("missing required input 'body'"),
+        "{}",
+        diags[1].message
+    );
+}
+
+/// (T14a) Mistyped send bindings fail `E3001` like local operations.
+#[test]
+fn t14a_std_send_type_mismatch() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=42,subject=\"s\",body=\"b\"} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'to': expected email, found int"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14a) A `send` to an operation outside the owner schema is a
+/// wrong association (`E3010`), verified wrong rather than opaque:
+/// no `E3019` follows (`reconcile` is a port op, never source-sent).
+#[test]
+fn t14a_std_send_wrong_op() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.reconcile {to=\"a@b.test\"} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'std.EmailV1' has no sendable operation 'reconcile'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14a) Protected-handle fabrication fails: `attachments` elements
+/// must be file-typed, never raw text.
+#[test]
+fn t14a_std_send_attachments_text_rejected() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\",attachments=[\"x\"]} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("array of file"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14a) Nullable `consent` is a required key with explicit null
+/// (producer `consent: string | null`): omission fails `E3010`.
+#[test]
+fn t14a_std_send_consent_omitted() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {PaymentsV1 as Payments} from=deployment.payments\n Given\n  M { total:money, ref:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Payments.collect {customer=\"c\",amount=m.total,reference=m.ref} as delivery\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("missing required input 'consent'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14a) Unknown recipe request inputs fail `E3015` like local
+/// operation recipes.
+#[test]
+fn t14a_std_recipe_unknown_input() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  fixture attempt=Mail.send {request={to=\"a@b.test\",subject=\"s\",body=\"b\",bogus=1}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("unknown request input 'bogus' for Mail.send"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14a) Missing required recipe request inputs fail `E3015`.
+#[test]
+fn t14a_std_recipe_missing_required() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  fixture attempt=Mail.send {request={to=\"a@b.test\",subject=\"s\"}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("request is missing required input 'body'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14a) Mistyped recipe request values fail `E3015`.
+#[test]
+fn t14a_std_recipe_type_mismatch() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  fixture attempt=Mail.send {request={to=42,subject=\"s\",body=\"b\"}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'to': expected email, found int"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14a) A recipe over an operation outside the owner schema is a
+/// wrong association (`E3015`): no `E3019` follows.
+#[test]
+fn t14a_std_recipe_wrong_op() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  fixture r=Mail.reconcile {request={to=\"a@b.test\"}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'std.EmailV1' has no sendable operation 'reconcile'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14a) A `delivery()` over an operation outside the owner schema
+/// is a wrong association (`E3010`).
+#[test]
+fn t14a_std_delivery_wrong_op() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { delivery:delivery(Mail.reconcile)? }\n  policy M read=members\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'std.EmailV1' has no sendable operation 'reconcile'"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14a) T13b scope is untouched: an `LLM.generate` send stays
+/// `E3019` (the T14b remainder).
+#[test]
+fn t14a_t13b_send_stays_e3019() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send LLM.generate {value=\"hi\"} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
+}
+
+/// (T14a) T13b scope is untouched: an `LLM.generate` recipe stays
+/// `E3019` (the T14b remainder).
+#[test]
+fn t14a_t13b_recipe_stays_e3019() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  fixture r=LLM.generate {request={value=\"hi\"}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
+}
+
+/// (T14a) Unknown `std` members stay opaque: no schema is guessed.
+#[test]
+fn t14a_std_unknown_member_stays_e3019() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {Bogus} from=deployment.bogus\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Bogus.op {value=\"hi\"} as attempt\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
+}
