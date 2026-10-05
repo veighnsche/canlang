@@ -36,7 +36,7 @@
 //! comparison, `E1208` mixed `??` with `and`/`or`, `E1209` invalid route,
 //! `E1210` invalid examples shape or arity, `E1211` invalid file/section
 //! structure, `E1212` invalid `export`, `E1213` invalid type syntax,
-//! `E1214` invalid label or message-descriptor shape, `E1215` invalid
+//! `E1214` invalid label, message-descriptor or input-annotation shape, `E1215` invalid
 //! expression or excessive nesting, `E1216` invalid statement or effect.
 //!
 //! Deliberate oracle deviations (normative GRAMMAR.md wins): duplicate
