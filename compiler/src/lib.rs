@@ -9,6 +9,7 @@ pub mod analysis;
 pub mod cli;
 pub mod codegen;
 pub mod diagnostic;
+pub mod docs;
 pub mod explain;
 pub mod format;
 pub mod ide;
