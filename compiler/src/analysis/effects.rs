@@ -114,6 +114,26 @@ pub struct EffectTables {
     pub checked_descriptions: HashMap<NodeKey, CheckedDescription>,
 }
 
+impl EffectTables {
+    /// D03 lowering: source-language text of the checked description
+    /// owning `owner`, when the field/parameter declaration carries one.
+    ///
+    /// Inline `desc=`, legacy `@{desc}`, attached `#` and shared message
+    /// references all feed this one slot (see [`CheckedDescription`]);
+    /// this projection is the existing MCP source-string path — IR and
+    /// operation descriptors render exactly this text, with no locale
+    /// resolution. Variants, the owning source language and the authored
+    /// location stay in the seam for the reference extractor (D04b) and
+    /// IDE hover (D06); localized MCP is explicitly deferred, so no
+    /// variant is selected here. Absence (`None`) is undescribed;
+    /// `Some("")` is authored-empty text and stays present downstream.
+    pub fn description_source(&self, owner: &NodeKey) -> Option<&str> {
+        self.checked_descriptions
+            .get(owner)
+            .map(|checked| checked.source.as_str())
+    }
+}
+
 /// Scenario body: guards plus effects with labels and parameters (G1).
 #[derive(Debug, Clone)]
 pub struct ScenarioData {

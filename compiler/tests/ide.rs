@@ -128,6 +128,110 @@ fn hover_builtin_with_catalog() {
     assert!(bare.hover_at(offset).is_none());
 }
 
+// --- D06: hover reads the one checked description slot ---
+
+#[test]
+fn hover_field_description_spellings() {
+    let text = "app Shop\nGiven\n Gadget {\n  # Attached wording.\n  attached:text,\n  inline:text desc=\"Inline wording.\",\n  legacy:text @{desc=\"Legacy wording.\"},\n  empty:text desc=\"\",\n  bare:int\n }\n policy Gadget read=members\nWhen\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    for (needle, wording) in [
+        ("attached:text", "Attached wording."),
+        ("inline:text", "Inline wording."),
+        ("legacy:text", "Legacy wording."),
+    ] {
+        let offset = text.find(needle).unwrap() as u32 + 1;
+        let hover = snapshot.hover_at(offset).expect("hover on described field");
+        let name = needle.split(':').next().unwrap();
+        assert_eq!(
+            hover.markdown,
+            format!("**Shop.Gadget.{name}** — field\n\ndeclared: `text`\n\n{wording}")
+        );
+    }
+    // Authored-empty and undescribed fields show no description section.
+    for (needle, ty) in [("empty:text", "text"), ("bare:int", "int")] {
+        let offset = text.find(needle).unwrap() as u32 + 1;
+        let hover = snapshot.hover_at(offset).expect("hover on field");
+        let name = needle.split(':').next().unwrap();
+        assert_eq!(
+            hover.markdown,
+            format!("**Shop.Gadget.{name}** — field\n\ndeclared: `{ty}`")
+        );
+    }
+}
+
+#[test]
+fn hover_description_static_reference_resolves_wording() {
+    let text = "app Shop\nGiven\n message shared_msg = \"Shared wording.\"@{nl=\"Gedeelde tekst.\"}\n Gadget {\n  #= shared_msg\n  attached:text,\n  inline:text desc=shared_msg\n }\n policy Gadget read=members\nWhen\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    for needle in ["attached:text", "inline:text"] {
+        let offset = text.find(needle).unwrap() as u32 + 1;
+        let hover = snapshot.hover_at(offset).expect("hover on described field");
+        let name = needle.split(':').next().unwrap();
+        assert_eq!(
+            hover.markdown,
+            format!("**Shop.Gadget.{name}** — field\n\ndeclared: `text`\n\nShared wording.")
+        );
+        assert!(
+            !hover.markdown.contains("see "),
+            "resolved wording, never a pointer: {}",
+            hover.markdown
+        );
+    }
+}
+
+#[test]
+fn hover_description_shows_source_language_only() {
+    let text = "app Shop\nGiven\n Gadget { name:text desc=\"Source wording.\"@{nl=\"Brontekst.\"} }\n policy Gadget read=members\nWhen\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    let offset = text.find("name:text").unwrap() as u32 + 1;
+    let hover = snapshot.hover_at(offset).expect("hover on described field");
+    assert_eq!(
+        hover.markdown,
+        "**Shop.Gadget.name** — field\n\ndeclared: `text`\n\nSource wording."
+    );
+    assert!(
+        !hover.markdown.contains("Brontekst"),
+        "no locale selection in hover: {}",
+        hover.markdown
+    );
+}
+
+#[test]
+fn hover_param_description_from_slot() {
+    let text = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\n scenario approve(note:text desc=\"Param wording.\") by=members\n  do\n   let x = 1\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    let offset = text.find("note:text").unwrap() as u32 + 1;
+    let hover = snapshot.hover_at(offset).expect("hover on described param");
+    assert_eq!(
+        hover.markdown,
+        "**Shop.approve.note** — parameter\n\ndeclared: `text`\n\nParam wording."
+    );
+}
+
 // --- definition ---
 
 #[test]

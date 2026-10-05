@@ -251,7 +251,9 @@ pub enum IrItemKind {
         modifiers: IrModifiers,
         /// Label caption, with case values for enum/bool captions (G3/G4).
         label: Option<IrFieldLabel>,
-        /// Trailing `@{desc}` text, when authored (P4).
+        /// Checked description source text, when authored (D03: the one
+        /// slot inline/attached/shared/legacy spellings feed; MCP
+        /// renders this source string, variants stay in analysis).
         description: Option<String>,
     },
     Param {
@@ -262,7 +264,9 @@ pub enum IrItemKind {
         default: Option<IrDefault>,
         /// `label=` caption (G1/G6/G7).
         label: Option<IrMessage>,
-        /// Trailing `@{desc}` text, when authored (P4).
+        /// Checked description source text, when authored (D03: the one
+        /// slot inline/attached/shared/legacy spellings feed; MCP
+        /// renders this source string, variants stay in analysis).
         description: Option<String>,
     },
     DeriveField {
@@ -4145,7 +4149,7 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode a stored field row (G3/G4): T09 omission marker,
-    /// default, server, modifiers, label, `@{desc}` text.
+    /// default, server, modifiers, label, checked description source.
     #[allow(clippy::type_complexity)]
     fn decode_field(
         &mut self,
@@ -4225,13 +4229,24 @@ impl<'a> Cx<'a> {
             .label
             .as_ref()
             .and_then(|key| self.decode_field_label(symbol.module, key));
+        // D03: the checked description slot (inline/attached/shared/
+        // legacy spellings feed one value) projects its source text
+        // into the existing MCP source-string path. The legacy
+        // annotation text is only a best-effort fallback: on clean
+        // programs the checked slot already subsumes it.
+        let description = self
+            .program
+            .effects
+            .description_source(&data.node)
+            .map(str::to_string)
+            .or(data.description.clone());
         (
             data.required_array,
             default,
             server,
             modifiers,
             label,
-            data.description.clone(),
+            description,
         )
     }
 
@@ -4247,7 +4262,7 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode a signature parameter row (G1/G6/G7): default, label,
-    /// `@{desc}` text.
+    /// checked description source.
     fn decode_param(
         &mut self,
         symbol: &crate::analysis::resolve::Symbol,
@@ -4273,7 +4288,15 @@ impl<'a> Cx<'a> {
             .label
             .as_ref()
             .and_then(|key| self.decode_message_value(symbol.module, key));
-        (default, label, data.description.clone())
+        // D03: checked-first like `decode_field` above; the legacy
+        // annotation text survives only as a best-effort fallback.
+        let description = self
+            .program
+            .effects
+            .description_source(&data.node)
+            .map(str::to_string)
+            .or(data.description.clone());
+        (default, label, description)
     }
 
     /// `ParamData` for `param` of `owner` (scenario, capability op,

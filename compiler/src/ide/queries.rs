@@ -857,8 +857,16 @@ impl<'a> Snapshot<'a> {
         body
     }
 
-    /// Attached `#` description prose for the declaration named at
-    /// `span`, when the CST carries one.
+    /// Hover description for the declaration named at `span`.
+    ///
+    /// The checked description slot wins: inline `desc=`, attached `#`,
+    /// the legacy `@{desc}` spelling and static message references all
+    /// resolve to actual source-language wording there (source language
+    /// only; no locale selection). When the slot is absent — an
+    /// undescribed declaration, a declaration kind outside the slot, or
+    /// a description the checker rejected — fall back to slicing
+    /// attached `#` prose from the CST, which keeps shared `see path`
+    /// display unchanged outside the slot.
     fn description_of(&self, span: Span) -> Option<String> {
         let chain = chain_at(&self.tree, span.start);
         // The declaration node is the parent of the matched `Name` leaf;
@@ -867,6 +875,17 @@ impl<'a> Snapshot<'a> {
             .iter()
             .rposition(|n| n.kind == SyntaxKind::Name && n.span == span)?;
         let decl = chain.get(name_pos.checked_sub(1)?)?;
+        // D06: the one checked slot carries actual source wording for
+        // every spelling, with static references already resolved to
+        // their message text. Authored-empty text displays as absent,
+        // like blank attached prose below.
+        if let Some(source) = self.program.effects.description_source(&NodeKey::of(decl)) {
+            return if source.trim().is_empty() {
+                None
+            } else {
+                Some(source.to_string())
+            };
+        }
         let parent = name_pos
             .checked_sub(2)
             .and_then(|i| chain.get(i))

@@ -190,7 +190,9 @@ pub struct JsOperationField {
     pub field: JsMcpField,
     /// Whether the caller must supply the member.
     pub required: bool,
-    /// Trailing `@{desc}` text, when authored (P4).
+    /// Checked description source text, when authored (D03: the one
+    /// slot inline/attached/shared/legacy spellings feed; variants
+    /// never leave the source — localized MCP is deferred).
     pub description: Option<String>,
 }
 
@@ -3259,6 +3261,11 @@ impl<'a> Emitter<'a> {
     /// closed schema that rejects valid calls; absence simply leaves the
     /// operation off the MCP tool list while HTTP/browser invocation is
     /// unaffected.
+    ///
+    /// Input descriptions are the checked description source text (D03):
+    /// inline/attached/shared/legacy spellings feed one slot and MCP
+    /// renders its source string on this same path; variants stay out
+    /// of the descriptors (localized MCP is deferred).
     fn collect_operations(&self) -> Vec<JsOperation> {
         let mut operations = Vec::new();
         for item in &self.ir.items {

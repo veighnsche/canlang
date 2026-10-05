@@ -3587,3 +3587,181 @@ fn sourcemap_emitted_fixture_plain_snippet() {
         "mappings: {json}"
     );
 }
+
+// --- D03: checked descriptions lower to MCP source strings -------------------
+//
+// Inline `desc=`, legacy `@{desc}`, attached `#` and shared message
+// references feed one checked slot per field/parameter (D02b); the IR
+// projects its source text into the existing MCP source-string path
+// with no artifact migration. Variants never leave the source in
+// this delivery (localized MCP is deferred); undescribed and legacy
+// shapes stay byte-compatible. TEST-ONLY: see module docs.
+
+/// Analyze + emit one inline D03 source under the hermetic golden
+/// catalog (pins `requires`, so clean lowerings stay `E6007`-free).
+fn d03_emit(
+    src: &str,
+) -> (
+    CheckedProgram,
+    CompileArtifact,
+    Vec<canlang_compiler::diagnostic::Diagnostic>,
+) {
+    let mut db = SourceDb::new();
+    let id = db.add("d03.can".to_string(), src.to_string());
+    let (catalog, path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    (program, artifact, diags)
+}
+
+/// MCP operation descriptor by canonical name.
+fn d03_operation<'a>(artifact: &'a CompileArtifact, name: &str) -> &'a js::JsOperation {
+    artifact
+        .operations
+        .iter()
+        .find(|op| op.name == name)
+        .unwrap_or_else(|| {
+            panic!(
+                "operation {name} missing: {:?}",
+                artifact
+                    .operations
+                    .iter()
+                    .map(|op| &op.name)
+                    .collect::<Vec<_>>()
+            )
+        })
+}
+
+/// MCP input description by input name within one operation.
+fn d03_input<'a>(op: &'a js::JsOperation, name: &str) -> &'a js::JsOperationField {
+    op.inputs
+        .iter()
+        .find(|input| input.name == name)
+        .unwrap_or_else(|| {
+            panic!(
+                "input {name} missing in {}: {:?}",
+                op.name,
+                op.inputs
+                    .iter()
+                    .map(|input| &input.name)
+                    .collect::<Vec<_>>()
+            )
+        })
+}
+
+/// (D03) Inline `desc=` on a scenario parameter reaches the MCP
+/// operation input as its source string.
+#[test]
+fn d03_inline_param_desc_reaches_mcp_source() {
+    let src = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\n scenario approve(note:text desc=\"Optional note.\") by=members\n  do\n   let x = 1\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(diags.is_empty(), "clean lowering: {diags:?}");
+    let op = d03_operation(&artifact, "Shop.approve");
+    assert_eq!(
+        d03_input(op, "note").description.as_deref(),
+        Some("Optional note.")
+    );
+}
+
+/// (D03) Inline variants emit source-only into MCP: the descriptor
+/// carries the source text, the translation appears nowhere in the
+/// operations JSON, and the seam still retains the variant.
+#[test]
+fn d03_inline_field_variants_emit_source_only() {
+    let src = "app Shop\nGiven\n Gadget { name:text desc=\"The name shown to customers.\"@{nl=\"De naam die klanten zien.\"} }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=name\nThen\n";
+    let (program, artifact, diags) = d03_emit(src);
+    assert!(diags.is_empty(), "clean lowering: {diags:?}");
+    let op = d03_operation(&artifact, "Shop.Gadget.create");
+    assert_eq!(
+        d03_input(op, "name").description.as_deref(),
+        Some("The name shown to customers.")
+    );
+    let json = js::operations_json(&artifact.operations);
+    assert!(
+        !json.contains("De naam die klanten zien."),
+        "no variant leak: {json}"
+    );
+    let retained = program
+        .effects
+        .checked_descriptions
+        .values()
+        .find(|d| d.source == "The name shown to customers.")
+        .expect("seam retains the checked value");
+    assert_eq!(retained.variants.len(), 1);
+    assert_eq!(retained.source_lang, "en");
+}
+
+/// (D03) A shared `desc= message` reference resolves to the message's
+/// source wording in the MCP input; variants stay out.
+#[test]
+fn d03_message_reference_resolves_to_source() {
+    let src = "app Shop\nGiven\n message title_msg = \"Display title.\"@{nl=\"Titel.\"}\n Gadget { title:text desc=title_msg }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(diags.is_empty(), "clean lowering: {diags:?}");
+    let op = d03_operation(&artifact, "Shop.Gadget.create");
+    assert_eq!(
+        d03_input(op, "title").description.as_deref(),
+        Some("Display title.")
+    );
+    let json = js::operations_json(&artifact.operations);
+    assert!(!json.contains("Titel."), "no variant leak: {json}");
+}
+
+/// (D03) Attached `#` and legacy `@{desc}` feed the same slot: both
+/// reach MCP inputs, and the legacy member renders byte-identical to
+/// the established `@{desc}` shape.
+#[test]
+fn d03_attached_and_legacy_feed_same_slot() {
+    let src = "app Shop\nGiven\n Gadget {\n  # Display title.\n  title:text,\n  stock:int @{desc=\"Units in stock.\"}\n }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title,stock\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(diags.is_empty(), "clean lowering: {diags:?}");
+    let op = d03_operation(&artifact, "Shop.Gadget.create");
+    assert_eq!(
+        d03_input(op, "title").description.as_deref(),
+        Some("Display title.")
+    );
+    let stock = d03_input(op, "stock");
+    assert_eq!(stock.description.as_deref(), Some("Units in stock."));
+    assert!(
+        stock
+            .to_json()
+            .contains("\"description\":\"Units in stock.\""),
+        "legacy member shape: {}",
+        stock.to_json()
+    );
+}
+
+/// (D03) Undescribed inputs omit the member (byte-compatible shape):
+/// no `description` key is rendered for absent slots.
+#[test]
+fn d03_undescribed_inputs_omit_member() {
+    let src = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(diags.is_empty(), "clean lowering: {diags:?}");
+    let op = d03_operation(&artifact, "Shop.Gadget.create");
+    let title = d03_input(op, "title");
+    assert!(title.description.is_none());
+    assert!(
+        !title.to_json().contains("description"),
+        "omitted member: {}",
+        title.to_json()
+    );
+}
+
+/// (D03) Authored-empty `desc=""` stays present (absence-vs-empty
+/// distinct): the member renders with an empty string.
+#[test]
+fn d03_empty_desc_stays_present() {
+    let src = "app Shop\nGiven\n Gadget { nick:text desc=\"\" }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=nick\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(diags.is_empty(), "clean lowering: {diags:?}");
+    let op = d03_operation(&artifact, "Shop.Gadget.create");
+    let nick = d03_input(op, "nick");
+    assert_eq!(nick.description.as_deref(), Some(""));
+    assert!(
+        nick.to_json().contains("\"description\":\"\""),
+        "present empty: {}",
+        nick.to_json()
+    );
+}
