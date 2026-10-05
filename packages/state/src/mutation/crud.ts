@@ -395,8 +395,8 @@ function generatedRecordInput(def: GeneratedOperationDef): Extract<
  * Core-scope limits: generated creates set no parent linkage (descriptors
  * carry no parent input — parent-defaulted fields read as missing on
  * parentless creates per the pipeline rule); read/scenario kinds are
- * executor mismatches (reads serve through the query port in T17,
- * scenarios through emitted handlers).
+ * executor mismatches (reads serve through `invokeRead` plus the query
+ * port, scenarios through emitted handlers).
  */
 export function generatedCrudExecute(
   input: GeneratedCrudExecuteInput,

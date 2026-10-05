@@ -11,6 +11,8 @@
  */
 
 import type {
+  CanonicalInputDef,
+  CanonicalOperationKind,
   InvocationContext,
   ModelName,
   Receipt,
@@ -65,7 +67,7 @@ export function receiptIdentityFor(context: InvocationContext): ReceiptIdentity 
  */
 const CANONICAL_VERSION_RE = /^[1-9][0-9]{0,14}$/;
 
-interface PendingRef {
+export interface PendingRef {
   param: string;
   model: ModelName;
   id: RecordId;
@@ -73,76 +75,59 @@ interface PendingRef {
 }
 
 /**
- * Closed-shape validation against the interim descriptor. Unknown members,
- * missing required inputs, malformed record refs, and non-canonical versions
- * aggregate into one `validation` rejection with field-level paths.
+ * T17a: the interim input descriptor translated 1:1 onto a synthetic
+ * generated def so interim calls validate through the canonical generated
+ * validator below. Record inputs map to same-named ref inputs (model,
+ * versioned, and required carried verbatim, descriptor-input order following
+ * the interim def's entry order); scalar inputs map to presence-only scalar
+ * inputs (the canonical validator treats every non-ref kind uniformly, so
+ * the `string` spelling is arbitrary); the interim kinds map to their
+ * canonical twins. The synthetic def carries NO input array markers:
+ * hand-built interim defs hold none, so no omission-fill and no array-shape
+ * check can fire — exactly the retired interim validator's behavior.
+ */
+function toSyntheticGeneratedDef(def: InterimOperationDef): GeneratedOperationDef {
+  const kind: CanonicalOperationKind =
+    def.kind === 'crud.create'
+      ? 'create'
+      : def.kind === 'crud.update'
+        ? 'update'
+        : def.kind === 'crud.delete'
+          ? 'delete'
+          : def.kind;
+  const inputs: CanonicalInputDef[] = Object.entries(def.inputs).map(([name, param]) =>
+    param.type === 'record'
+      ? {
+          name,
+          kind: 'ref',
+          model: param.model,
+          versioned: param.versioned,
+          required: param.required,
+        }
+      : { name, kind: 'string', required: param.required },
+  );
+  return {
+    generated: true,
+    name: def.name,
+    kind,
+    descriptor: { name: def.name, kind, inputs },
+    by: def.by,
+    inputArrays: {},
+  };
+}
+
+/**
+ * Closed-shape validation against an interim descriptor. T17a RETIRED the
+ * interim validation body: interim defs translate onto a synthetic
+ * generated def and run through the canonical generated validator, so
+ * there is exactly one closed-shape implementation. Same codes, paths,
+ * messages, and field order as the removed body (equivalence pinned by the
+ * T17a retirement tests; the interim suites exercise every path). Only the
+ * pending refs are returned — interim execution keeps the caller's inputs
+ * object (see `validateCallInputs`).
  */
 function validateInputs(def: InterimOperationDef, inputs: ClosedInputs): PendingRef[] {
-  const fields: FieldError[] = [];
-  for (const key of Object.keys(inputs)) {
-    if (!Object.hasOwn(def.inputs, key)) {
-      fields.push({ path: `/${key}`, code: 'unknown_input', message: `Unknown input "${key}".` });
-    }
-  }
-  const refs: PendingRef[] = [];
-  for (const [param, paramDef] of Object.entries(def.inputs)) {
-    if (!Object.hasOwn(inputs, param)) {
-      if (paramDef.required) {
-        fields.push({
-          path: `/${param}`,
-          code: 'required',
-          message: `Missing required input "${param}".`,
-        });
-      }
-      continue;
-    }
-    if (paramDef.type !== 'record') continue;
-    const value = inputs[param] as Record<string, unknown> | null;
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-      fields.push({
-        path: `/${param}`,
-        code: 'invalid_ref',
-        message: `Input "${param}" must be a record reference with an id.`,
-      });
-      continue;
-    }
-    const id = value['id'];
-    if (typeof id !== 'string' || id === '') {
-      fields.push({
-        path: `/${param}`,
-        code: 'invalid_ref',
-        message: `Input "${param}" must be a record reference with an id.`,
-      });
-      continue;
-    }
-    const hasVersion = Object.hasOwn(value, 'version');
-    if (paramDef.versioned && !hasVersion) {
-      fields.push({
-        path: `/${param}`,
-        code: 'version_required',
-        message: `Input "${param}" requires an expected version.`,
-      });
-      continue;
-    }
-    let expectedVersion: RecordVersion | null = null;
-    if (hasVersion) {
-      const version = value['version'];
-      if (typeof version !== 'string' || !CANONICAL_VERSION_RE.test(version)) {
-        fields.push({
-          path: `/${param}`,
-          code: 'invalid_version',
-          message: `Input "${param}" carries a malformed record version.`,
-        });
-        continue;
-      }
-      expectedVersion = Number(version) as RecordVersion;
-    }
-    refs.push({ param, model: paramDef.model, id: id as RecordId, expectedVersion });
-  }
-  if (fields.length > 0) {
-    throw new StateError('validation', 'Invalid operation inputs.', null, { fields });
-  }
-  return refs;
+  return validateGeneratedInputs(toSyntheticGeneratedDef(def), inputs).refs;
 }
 
 /**
@@ -254,6 +239,31 @@ function validateGeneratedInputs(
   return { refs, normalized };
 }
 
+/** Validated call inputs: pending record refs plus the execution inputs. */
+export interface ValidatedCallInputs {
+  readonly refs: ReadonlyArray<PendingRef>;
+  readonly normalized: Record<string, unknown>;
+}
+
+/**
+ * T17a: one closed-shape validation entry for both def families. Generated
+ * defs validate against the canonical descriptor (the normalized copy, with
+ * ordinary-array fills, flows to execution); interim defs validate through
+ * the same canonical validator via a synthetic def and keep the caller's
+ * inputs object (no copy — exactly the pre-T17a interim contract). Used by
+ * `admit` for mutations and by `invokeRead` for generated reads, so reads
+ * and writes share one closed-shape implementation.
+ */
+export function validateCallInputs(
+  def: InterimOperationDef | GeneratedOperationDef,
+  inputs: ClosedInputs,
+): ValidatedCallInputs {
+  if (isGeneratedOperationDef(def)) {
+    return validateGeneratedInputs(def, inputs);
+  }
+  return { refs: validateInputs(def, inputs), normalized: inputs };
+}
+
 /**
  * Admit one invocation. Trusted calls skip the `by` check on their verified
  * source authority; every other kind runs it. System/test kinds admit
@@ -308,20 +318,15 @@ export async function admit(input: {
     }
   }
 
-  // T16a: generated defs validate against the canonical descriptor (with
-  // ordinary-array normalization); interim defs keep their exact validator.
-  // The normalized copy flows to execution; the receipt hash above already
-  // covered the raw supplied inputs.
-  let pending: PendingRef[];
-  let admittedInputs: Record<string, unknown>;
-  if (isGeneratedOperationDef(def)) {
-    const validated = validateGeneratedInputs(def, inputs);
-    pending = validated.refs;
-    admittedInputs = validated.normalized;
-  } else {
-    pending = validateInputs(def, inputs);
-    admittedInputs = inputs;
-  }
+  // T17a: one validation entry — generated defs validate against the
+  // canonical descriptor (the normalized copy, with ordinary-array fills,
+  // flows to execution); interim defs run through the same canonical
+  // validator via a synthetic def and keep the caller's inputs object.
+  // Either way the receipt hash above already covered the raw supplied
+  // inputs. Interim behavior is unchanged (same codes/paths/messages).
+  const validated = validateCallInputs(def, inputs);
+  const pending = validated.refs;
+  const admittedInputs = validated.normalized;
 
   const recordRefs: Array<PendingRef & { row: StoredRow }> = [];
   for (const ref of pending) {
