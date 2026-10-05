@@ -745,55 +745,78 @@ fn draft_outcome_table() {
     // added sites confirmed present in single-file runs; no harness
     // gap). E3010 unchanged: no wrong associations, unknown inputs
     // or missing required inputs in any corpus T13b send/recipe.
+    // T14c re-pin 2026-10-05 (typed external deliveries: `std` send
+    // receipts and `delivery(std...)` declarations carry their
+    // operation identity): 19 files net-decrease, 33 unchanged
+    // (CanShift +1/-1 nets 0), zero net-increase; table total -101
+    // (5175 -> 5074). Whole-corpus (all-52) differential 2205 ->
+    // 2104 (-101): removed 126 = E3001 x108 (same-target receipt
+    // compat now passes; `?` no longer swallowed on `std` delivery
+    // decls so nullable fields are genuinely optional; precise
+    // upstream wrong-leaf E2013s replace vague downstream
+    // mismatches via error poisoning; `.id` reads prove text) +
+    // E3015 x18 (nullable-delivery requiredness fix in fixtures).
+    // Added 25 = E2013 x18 (9 wrong-leaf `progress` rejections
+    // naming the receipt identity + 9 over-long
+    // `request.progress.*` selector paths failing on the shared
+    // delivery-interior arm) + E3008 x7 (non-nullable
+    // `delivery(Mail.send)` fields: Book/Contract/Event/Maintain/
+    // Rent/Shift/Success). Every other family is bit-identical
+    // (E3019/E2005 stay 0; the T14b opaque-mismatch class still
+    // fires: zero removals at send-input keys, 262 `found {opaque}`
+    // E3001s persist). Per-file nets equal whole-corpus nets per
+    // file (no harness gap). Differential isolated without Git: a
+    // constructors-only toggle reproduces the pinned baseline
+    // 52/52 plus all-52 2205 exactly.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 48),
-        ("draft/CanApprove.can", 52),
+        ("draft/CanApprove.can", 47),
         ("draft/CanBoard.can", 3),
-        ("draft/CanBook.can", 162),
+        ("draft/CanBook.can", 161),
         ("draft/CanCRM.can", 146),
         ("draft/CanCatch.can", 57),
-        ("draft/CanChat.can", 64),
+        ("draft/CanChat.can", 58),
         ("draft/CanCheck.can", 38),
-        ("draft/CanContract.can", 26),
-        ("draft/CanCreative.can", 86),
+        ("draft/CanContract.can", 25),
+        ("draft/CanCreative.can", 71),
         ("draft/CanCustomer.can", 59),
         ("draft/CanDecide.can", 27),
-        ("draft/CanDesk.can", 94),
+        ("draft/CanDesk.can", 86),
         ("draft/CanDiscover.can", 85),
         ("draft/CanDo.can", 45),
         ("draft/CanEnrich.can", 19),
-        ("draft/CanEvent.can", 317),
+        ("draft/CanEvent.can", 316),
         ("draft/CanExpense.can", 95),
         ("draft/CanFeedback.can", 14),
         ("draft/CanField.can", 115),
         ("draft/CanGallery.can", 23),
-        ("draft/CanGrant.can", 57),
-        ("draft/CanHire.can", 131),
-        ("draft/CanInbox.can", 108),
-        ("draft/CanInvoice.can", 394),
+        ("draft/CanGrant.can", 51),
+        ("draft/CanHire.can", 126),
+        ("draft/CanInbox.can", 100),
+        ("draft/CanInvoice.can", 379),
         ("draft/CanKnowledge.can", 50),
         ("draft/CanLearn.can", 50),
         ("draft/CanLeave.can", 79),
-        ("draft/CanLoyalty.can", 73),
-        ("draft/CanMail.can", 159),
-        ("draft/CanMaintain.can", 124),
+        ("draft/CanLoyalty.can", 71),
+        ("draft/CanMail.can", 149),
+        ("draft/CanMaintain.can", 123),
         ("draft/CanMember.can", 338),
         ("draft/CanOnboard.can", 55),
-        ("draft/CanPropose.can", 138),
+        ("draft/CanPropose.can", 135),
         ("draft/CanPurchase.can", 148),
-        ("draft/CanReception.can", 195),
+        ("draft/CanReception.can", 190),
         ("draft/CanRefer.can", 79),
-        ("draft/CanRent.can", 656),
+        ("draft/CanRent.can", 653),
         ("draft/CanReport.can", 46),
         ("draft/CanShift.can", 191),
         ("draft/CanStats.can", 35),
         ("draft/CanStock.can", 60),
-        ("draft/CanSuccess.can", 51),
+        ("draft/CanSuccess.can", 50),
         ("draft/CanSync.can", 19),
         ("draft/CanTable.can", 33),
         ("draft/CanTime.can", 126),
         ("draft/CanTrade.can", 18),
-        ("draft/CanVolunteer.can", 81),
+        ("draft/CanVolunteer.can", 76),
         ("draft/CanWorkbench.can", 87),
         ("draft/shared/Employees.can", 8),
         ("draft/shared/Locations.can", 5),

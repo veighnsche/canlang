@@ -657,6 +657,11 @@ fn display_type(program: &CheckedProgram, module: ModuleId, ty: &ResolvedType) -
             format!("invocation({})", ops.join(","))
         }
         ResolvedType::Delivery { op } => format!("delivery({})", name(*op)),
+        // T14c: typed external receipts name their consumed `std`
+        // target (mirrors `ResolvedType::display`).
+        ResolvedType::StdDelivery { capability, op } => {
+            format!("delivery({capability}.{})", op.name)
+        }
         ResolvedType::Array { element, .. } => {
             format!("array of {}", display_type(program, module, element))
         }
