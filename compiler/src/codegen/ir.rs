@@ -237,6 +237,12 @@ pub enum IrItemKind {
     Field {
         owner: SymbolId,
         ty: IrType,
+        /// T09 array-omission marker from the effects `FieldData`
+        /// (`!` spelling, never nullability): true emits
+        /// `requiredArray:true` (omission rejects), false emits a bare
+        /// `array:true` (omitted ordinary arrays evaluate to an
+        /// equal-empty array). Maps to the frozen T09-TS `ArrayOmission`.
+        required_array: bool,
         /// Creation default, when one is authored (G3/G4).
         default: Option<IrDefault>,
         /// Server initializer, when one is authored (G3/G4).
@@ -1785,11 +1791,12 @@ impl<'a> Cx<'a> {
                 }
             }
             SymbolKind::Field { owner, .. } => {
-                let (default, server, modifiers, label, description) =
+                let (required_array, default, server, modifiers, label, description) =
                     self.decode_field(symbol, *owner);
                 IrItemKind::Field {
                     owner: *owner,
                     ty: lookup_symbol_type(self.program, symbol, "declared type", &mut self.diags),
+                    required_array,
                     default,
                     server,
                     modifiers,
@@ -4137,21 +4144,22 @@ impl<'a> Cx<'a> {
         )
     }
 
-    /// Decode a stored field row (G3/G4): default, server, modifiers,
-    /// label, `@{desc}` text.
+    /// Decode a stored field row (G3/G4): T09 omission marker,
+    /// default, server, modifiers, label, `@{desc}` text.
     #[allow(clippy::type_complexity)]
     fn decode_field(
         &mut self,
         symbol: &crate::analysis::resolve::Symbol,
         owner: SymbolId,
     ) -> (
+        bool,
         Option<IrDefault>,
         Option<IrServer>,
         IrModifiers,
         Option<IrFieldLabel>,
         Option<String>,
     ) {
-        let empty = (None, None, IrModifiers::default(), None, None);
+        let empty = (false, None, None, IrModifiers::default(), None, None);
         let data = self
             .program
             .effects
@@ -4217,7 +4225,14 @@ impl<'a> Cx<'a> {
             .label
             .as_ref()
             .and_then(|key| self.decode_field_label(symbol.module, key));
-        (default, server, modifiers, label, data.description.clone())
+        (
+            data.required_array,
+            default,
+            server,
+            modifiers,
+            label,
+            data.description.clone(),
+        )
     }
 
     /// Whether `owner` is a child model (computed defaults take `{parent}`).
