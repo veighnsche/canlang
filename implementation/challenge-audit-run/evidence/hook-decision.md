@@ -278,7 +278,8 @@ triggering CRUD path stays forbidden.
    delete attempt).
 3. R27 input from T18: the adopted default/server/update/hook rule for
    server-owned fields — every alternative inherits its **JEV-PENDING**.
-4. T28/T29 ownership input where staged writes touch imported references
+4. [QUALIFIED — see "T28-ownership input (gate evidence)" below]
+   T28/T29 ownership input where staged writes touch imported references
    (T31 depends on applicable T28/T29; T28 alone is insufficient).
 5. T23 example-contract input (R29): whether hook-behavior examples may
    observe through input bindings or must reload stored state.
@@ -670,4 +671,156 @@ builds, no JEV, no Git.
   except the item-1 and item-6 markers above; DESIGN.md/GRAMMAR.md/
   DECISIONS.md, drafts, code, tools/jev.py, tasks.md/monitor.md/inbox
   untouched (read or coordinator-owned); no JEV run; no Git.
+- Release: this file is RELEASED to the coordinator for gate scheduling.
+
+## T28-ownership input (gate evidence)
+
+Status: **PROPOSED / PREP — adopts NOTHING.** Checklist item 4 evidence
+only; all alternatives stay unranked and every **JEV-PENDING** above is
+preserved. Transcription of the ADOPTED T28 Alternative A rule (the
+settled half) plus the owed-T29 boundary (the absent half) from
+tasks.md; read-only survey, no builds, no JEV, no Git.
+
+### Settled half (CONFIRMED): the ADOPTED T28-A rule
+
+Gate outcome (containment-decision.md "JEV outcome", tasks.md T28
+evidence: T28 COMPLETE): unanimous ADOPT of Alternative A,
+`plain_import_containment`, 3/3 consultations, model jev-1.13.0. For
+staged hook writes touching imported references, the adopted rule
+settles:
+
+- Declaring identity: the child keeps its declaring package identity
+  (e.g. `expense.Expense`); only the parent type is imported
+  (containment-decision.md Alternative A; JEV outcome: "Declaring
+  identity stays with the child package").
+- Plain = same deployment: a parent arriving via a plain (non-bound)
+  import is included in the selected app, so owner transaction rules
+  apply — parent and cross-package children sit at the same storage
+  owner in the same store, inside one atomic owner commit at spec
+  level (Alternative A local/remote clause; DESIGN.md:81/:95/:338
+  via the storage-atomicity survey; JEV outcome: "plain import =
+  same deployment with owner transaction rules").
+- Authority unchanged: child CRUD owned by the declaring package;
+  parent package policy still governs parent rows; the consumer
+  cannot mutate the parent or extend its policy (Alternative A
+  parent/storage/authority clause — existing package rule).
+- Bound rejected: a bound (`from=deployment...`) parent is rejected
+  as a containment target with a diagnostic; authors use a reference
+  field instead (Alternative A rule; JEV outcome: "bound (`from=`)
+  parents stay rejected"). Zero draft sites use bound parents
+  (containment item-2 evidence: 20/20 plain, 76-`from=` census), so
+  the rejection clause is untested by draft evidence in both
+  directions — stated as rule, not as observed intent.
+- Reverse/cycle/lifecycle shape (spec-level): `parentRecord.Child`
+  typed collection through the whole-app index, readable only where
+  child policies grant; containment-cycle detection runs over the
+  whole-app index (cross-package cycles are errors); subtree
+  archive/delete spans the shared store atomically (Alternative A
+  clauses).
+- Retained caveat (B opposing case, NOT waived): cross-package
+  subtree coupling — a consumer's delete/archive cascade touches
+  owner-adjacent children and a future deployment split silently
+  breaks the atomicity promise (Alternative A opposing case; JEV
+  outcome standing obligations: "B's coupling objection is the
+  retained opposing case for T29 review").
+
+### Owed half (ABSENT-with-reason): T29 implementation
+
+T29 has NOT started: tasks.md T29 reads "Evidence: pending", depends
+on accepted T28 plus matching T15/T16/T17, and T16/T17 are themselves
+OPEN with "Evidence: pending". Nothing below is implemented
+behavior; no T29 claim may be treated as landed. Precisely owed:
+
+- Atomicity proof (engine): same-store atomic cross-package subtree
+  commits. Spec says YES (one owner, one store, one fenced batch;
+  containment storage-atomicity survey CONFIRMED), but the engine is
+  UNPROVEN — delete archives one row, not a subtree
+  (`mutation/crud.ts`, `mutation/pipeline.ts`); zero `cascad*` hits
+  in state engine/contracts; generated operations still commit
+  through the B1 interim path (`runtime/stdlib.ts`,
+  `runtime/invoke.ts`). Standing obligation per the JEV outcome and
+  tasks.md T28 evidence: T29/T16/T17 must prove it.
+- Split diagnostic (checker/deploy): what fires when A/D packages
+  split into separate deployments. Specified failure
+  (reject-before-commit or orphan-by-topology, DESIGN.md:549/:547/
+  :89) but ABSENT enforcement — E2008 rejects imported containment
+  wholesale today, E4040/E4051 key on bound-vs-local and scope, not
+  topology, and the migration plan asserts no store-sharing
+  (storage-atomicity survey). Standing obligation per the JEV
+  outcome: "a deployment-split diagnostic is owed".
+- Applicability mapping: this survey states the rule conditionally
+  (IF a staged write touches an imported reference, THEN the above
+  halves apply) and does not re-adjudicate which of the 44
+  enumerated hook bodies touch imported references — that mapping is
+  T29/T31-implementation scope, not gate evidence.
+
+### How each hook alternative inherits the halves
+
+- Alternative A (staged same-transaction): inherits the settled half
+  for any staged write naming an imported containment relationship —
+  same-deployment placement, declaring-package CRUD ownership, no
+  parent-mutation authority, bound targets rejected. Inherits the
+  owed half in full: A may not claim staged trigger+children
+  atomicity over imported subtrees until T29 proves it on D1/DO, nor
+  split safety until the diagnostic lands. A's failure-coupling
+  opposing case now composes with the retained T28 coupling caveat:
+  a staged write into an imported subtree can fail the user's
+  trigger across a package boundary.
+- Alternative B (after-only + committed handlers): stages nothing,
+  so the settled half applies only to committed-handler references
+  (handlers creating children under imported parents or reading
+  `row.parent.*`) — same placement/authority/bound-rejection rule.
+  B avoids the owed staged-atomicity proof on the trigger path but
+  does NOT escape T29: handler-side containment writes still need
+  T29 checking/storage behavior, and the orphaned-parent gap must be
+  analyzed with imported parents in view. B's 36-body remodel burden
+  is unchanged by T28.
+- Alternative C (declared allowlist): identical to A for allowlisted
+  parented-children/pending-bound timers that touch imported refs —
+  same settled placement/authority, same owed atomicity + split
+  proofs. The allowlist is a staging gate, not a T29 substitute: an
+  allowlisted write under an imported parent still needs the engine
+  proof. C's as-written `parent=event.after` vs
+  `parent=event.after.parent` boundary question is orthogonal to T28
+  and stays **JEV-PENDING**.
+- Alternative D (bounded cascade): identical to A, extended over any
+  cascaded hook that touches imported refs; owed proofs grow with
+  the cascade (same D1/DO scope as the durable-transaction plan).
+  D ≡ A on current drafts (no hooks on staged targets), so T28 adds
+  no new cascade evidence today.
+
+### Verdict for item 4
+
+**QUALIFIED**: T28 half CONFIRMED (adopted rule transcribed with
+cites above); T29 half ABSENT-with-reason (implementation not
+started, prerequisites T15/T16/T17 open). The gate may judge hook
+alternatives against the settled placement/authority/bound-rejection
+rule, but no alternative may claim proven staged-or-handler
+containment execution over imported references — that proof is
+T29/T16/T17 work, and T28 alone remains insufficient per the T31
+brief (plan T31 task; tasks.md T31 prerequisites; this file's scope
+note).
+
+### Commands run (read-only)
+
+1. Full `read_file` of `hook-decision.md` (alternatives, fairness,
+   checklist, enumeration, T30 record, durable plan).
+2. Full `read_file` of `containment-decision.md` (alternatives A–D,
+   fairness, all gate evidence, JEV outcome adopting A).
+3. `read_file` of tasks.md T28 COMPLETE evidence + T29/T31 status
+   (T29 "Evidence: pending"; T16/T17 OPEN).
+4. `search` for T31a/T31 dependency lines in
+   CHALLENGE-AUDIT-PLAN.md (T28 alone is insufficient; T31 depends
+   on applicable T28/T29).
+5. Post-edit verification greps (markers, section list) — exits
+   recorded in the return report, not here.
+
+### Handoff
+
+- Writer: L3 T31a-item4. Single file appended
+  (`implementation/challenge-audit-run/evidence/hook-decision.md` only);
+  existing alternatives/fairness/enumeration/checklist text untouched
+  except the item-4 marker above; DESIGN.md/GRAMMAR.md/DECISIONS.md,
+  drafts, code, tools/jev.py, tasks.md/monitor.md/inbox untouched
+  (read or coordinator-owned); no JEV run; no Git.
 - Release: this file is RELEASED to the coordinator for gate scheduling.
