@@ -92,12 +92,31 @@
 //! B1 disposition: `std` becomes resolvable as a compiler-known provider
 //! module fed by these T13 schemas — not a draft package, not via the
 //! stdlib values facade. Bound `use std {M} from=deployment.b` members
-//! keep their opaque-external binding in `resolve.rs`; the T14a checker
-//! slice resolves `std.M.op` send targets and `delivery(std.M.op)`
+//! keep their opaque-external binding in `resolve.rs`; the T14 checker
+//! slices resolve `std.M.op` send targets and `delivery(std.M.op)`
 //! observables through [`std_operation`] / [`delivery_observable`].
-//! Unknown `std.M.op` (all T13b scope: images, judgment, mailbox,
-//! knowledge) keeps failing `E3019`; this slice adds no such member.
-//! B11/B12 are preserved for T28, not decided here.
+//! T13a added no T13b member; the T13b tables below now cover the rich
+//! relations except the scoped-out Handbook interface. B11/B12 are
+//! preserved for T28, not decided here.
+//!
+//! ## T13b standard-capability schemas (frozen L4 producer slice)
+//!
+//! [`STD_T13B_CAPABILITIES`] and [`T13B_DELIVERY_OBSERVABLES`] transcribe
+//! the frozen T13b canonical contracts (`STD_TEXT_GENERATION_V1_CONTRACT`,
+//! `STD_IMAGES_V1_CONTRACT`, `STD_MAILBOX_V1_CONTRACT` in
+//! `packages/contracts/src/services.ts`, `T13B_DELIVERY_OBSERVABLES` in
+//! `packages/contracts/src/work.ts`) with their version stamps
+//! (`STD_TEXT_GENERATION_V1_VERSION`, `STD_IMAGES_V1_VERSION`,
+//! `STD_MAILBOX_V1_VERSION`, all `1`; `SERVICES_CONTRACT_VERSION` /
+//! `WORK_CONTRACT_VERSION` / `FILES_CONTRACT_VERSION` stay `1`). Same
+//! frozen-source rule as T13a: these tables resolve even when the
+//! lane-02 catalog is missing (`E6002`).
+//!
+//! B8 split: `KnowledgeRequest` / `IndexState` land as value-only nominal
+//! types; the `corpus Handbook` executable/member interface (`answer` /
+//! `cancel` / `reconcile` / `refresh` / `status` / `available`) is scoped
+//! out — no schemas exist, lookups return `None`, and `E3019` keeps
+//! firing for it. B1/B11/B12 stay preserved.
 
 use crate::diagnostic::Diagnostic;
 use crate::json::{self, Json};
@@ -1160,9 +1179,9 @@ impl Catalog {
 // truth; every stamp and shape here must equal them verbatim. T13a adds
 // exactly three `std` capabilities (EmailV1 send-only, ErrorsV1 report,
 // PaymentsV1 collect/refund/cancel/reconcile) plus six delivery
-// observables. T13b members (generation, images, judgment, mailbox,
-// knowledge) have no schemas and no entries: lookups return `None` so
-// the T14a checker keeps reporting `E3019` for them.
+// observables. The T13b tables below add the three rich-relation
+// capabilities plus ten delivery observables; only the scoped-out
+// Handbook executable interface keeps returning `None` (`E3019`).
 
 /// `SERVICES_CONTRACT_VERSION` in `services.ts`: versions the T13a value
 /// shapes (`DeliveryResult`, `DeliveryError`, `OperationOutcome`,
@@ -1403,17 +1422,22 @@ fn qualify_std_capability(name: &str) -> Option<String> {
     Some(format!("std.{name}"))
 }
 
-/// Look up one T13a capability by qualified (`std.EmailV1`) or bare
-/// (`EmailV1`) member name. Returns `None` for every T13b member and
-/// every non-`std` provider: the caller keeps reporting `E3019`/`E2005`.
+/// Look up one `std` capability by qualified (`std.EmailV1`) or bare
+/// (`EmailV1`) member name across the T13a and T13b tables. Returns
+/// `None` for the scoped-out Handbook executable interface and every
+/// non-`std` provider: the caller keeps reporting `E3019`/`E2005`.
 pub fn std_capability(name: &str) -> Option<&'static StdCapability> {
     let qualified = qualify_std_capability(name)?;
-    STD_CAPABILITIES.iter().find(|cap| cap.name == qualified)
+    STD_CAPABILITIES
+        .iter()
+        .chain(STD_T13B_CAPABILITIES.iter())
+        .find(|cap| cap.name == qualified)
 }
 
-/// Look up one T13a send operation by capability (qualified or bare, as
-/// in [`std_capability`]) and operation name. `None` means no versioned
-/// schema exists and the send stays `E3019`.
+/// Look up one `std` send operation by capability (qualified or bare, as
+/// in [`std_capability`]) and operation name, across the T13a and T13b
+/// tables. `None` means no versioned schema exists and the send stays
+/// `E3019`.
 pub fn std_operation(capability: &str, op: &str) -> Option<&'static StdOperation> {
     std_capability(capability)?
         .operations
@@ -1421,12 +1445,14 @@ pub fn std_operation(capability: &str, op: &str) -> Option<&'static StdOperation
         .find(|operation| operation.name == op)
 }
 
-/// Look up one T13a delivery observable by qualified send target
-/// (`std.EmailV1.send`). `None` means the target has no observable
-/// declaration and the association stays unverifiable (`E3019`).
+/// Look up one delivery observable by qualified send target
+/// (`std.EmailV1.send`), across the T13a and T13B tables. `None` means
+/// the target has no observable declaration and the association stays
+/// unverifiable (`E3019`).
 pub fn delivery_observable(target: &str) -> Option<&'static DeliveryObservable> {
     T13A_DELIVERY_OBSERVABLES
         .iter()
+        .chain(T13B_DELIVERY_OBSERVABLES.iter())
         .find(|observable| observable.target == target)
 }
 
@@ -1434,6 +1460,426 @@ pub fn delivery_observable(target: &str) -> Option<&'static DeliveryObservable> 
 /// [`T13A_NOMINAL_TYPES`]).
 pub fn is_t13a_nominal(name: &str) -> bool {
     T13A_NOMINAL_TYPES.contains(&name)
+}
+
+// -- T13b standard-capability schemas (L1 consume slice). --
+//
+// The tables below transcribe the frozen T13b canonical contracts
+// (`STD_TEXT_GENERATION_V1_CONTRACT`, `STD_IMAGES_V1_CONTRACT`,
+// `STD_MAILBOX_V1_CONTRACT` in `packages/contracts/src/services.ts`,
+// `T13B_DELIVERY_OBSERVABLES` in `packages/contracts/src/work.ts`). The
+// TS files are the source of truth; every stamp and shape here must
+// equal them verbatim. T13b adds exactly three `std` capabilities
+// (TextGenerationV1 generate/cancel/reconcile, ImagesV1
+// inspect/validate/submit/cancel/reconcile, MailboxV1 reply/reconcile
+// plus the `received` event) plus ten delivery observables. The B8
+// scoped-out `corpus Handbook` executable/member interface has no
+// schemas and no entries: lookups return `None` so the checker keeps
+// reporting `E3019` for it.
+
+/// `STD_TEXT_GENERATION_V1_VERSION`: equals
+/// `STD_TEXT_GENERATION_V1_CONTRACT.version`.
+pub const STD_TEXT_GENERATION_V1_VERSION: u32 = 1;
+
+/// `STD_IMAGES_V1_VERSION`: equals `STD_IMAGES_V1_CONTRACT.version`.
+pub const STD_IMAGES_V1_VERSION: u32 = 1;
+
+/// `STD_MAILBOX_V1_VERSION`: equals `STD_MAILBOX_V1_CONTRACT.version`.
+pub const STD_MAILBOX_V1_VERSION: u32 = 1;
+
+/// Canonical `std.TextGenerationV1` contract
+/// (`STD_TEXT_GENERATION_V1_CONTRACT`). B2 new-contract: the draft
+/// shapes are app-level correlation/progress/accounting, not the
+/// provider `ai.ChatV1` wire (the T24 join maps `TextRequest` onto
+/// `ModelChatInput`). `generate` carries the frozen request by value;
+/// `cancel`/`reconcile` address the run by its frozen `(source,
+/// revision)` identity (B3). B10-precedent contract-only export: no
+/// `SERVICES_CATALOG` entry. No declared events (`.progressed` is
+/// generic delivery lifecycle, not per-contract).
+pub const STD_TEXT_GENERATION_V1: StdCapability = StdCapability {
+    name: "std.TextGenerationV1",
+    version: STD_TEXT_GENERATION_V1_VERSION,
+    operations: &[
+        StdOperation {
+            name: "generate",
+            inputs: &[("value", "TextRequest")],
+            result: "TextRun",
+        },
+        StdOperation {
+            name: "cancel",
+            inputs: &[("source", "text"), ("revision", "int")],
+            result: "TextRun",
+        },
+        StdOperation {
+            name: "reconcile",
+            inputs: &[("source", "text"), ("revision", "int")],
+            result: "TextRun",
+        },
+    ],
+    events: &[],
+};
+
+/// Canonical `std.ImagesV1` contract (`STD_IMAGES_V1_CONTRACT`). B4/B5
+/// new-contract: `inspect` reads allowed input destinations without
+/// generating; `validate` freezes a definition snapshot for publish
+/// gating; `submit`/`cancel`/`reconcile` follow the generation
+/// lifecycle with `(source, revision)` addressing (B3). Result name
+/// `ImageRun` is the SOURCE name denoting the std delivery-progress
+/// relation (TS `ImageRunProgress`), not the provider-owned wire
+/// `ImageRun`. B10-precedent contract-only export. No declared events.
+pub const STD_IMAGES_V1: StdCapability = StdCapability {
+    name: "std.ImagesV1",
+    version: STD_IMAGES_V1_VERSION,
+    operations: &[
+        StdOperation {
+            name: "inspect",
+            inputs: &[("graph", "file")],
+            result: "WorkflowInspection",
+        },
+        StdOperation {
+            name: "validate",
+            inputs: &[("value", "WorkflowDefinition")],
+            result: "WorkflowValidation",
+        },
+        StdOperation {
+            name: "submit",
+            inputs: &[("value", "ImageRequest")],
+            result: "ImageRun",
+        },
+        StdOperation {
+            name: "cancel",
+            inputs: &[("source", "text"), ("revision", "int")],
+            result: "ImageRun",
+        },
+        StdOperation {
+            name: "reconcile",
+            inputs: &[("source", "text"), ("revision", "int")],
+            result: "ImageRun",
+        },
+    ],
+    events: &[],
+};
+
+/// Canonical `std.MailboxV1` contract (`STD_MAILBOX_V1_CONTRACT`). B6
+/// new-contract (contract-only): `reply` sends the frozen reviewed
+/// reply by value; `reconcile` re-checks the original provider
+/// identity by `{source}` ONLY (no revision). The `received` event is
+/// a verified-ingress event (Payments `changed` precedent): its single
+/// `value` field carries the whole `IncomingEmail`.
+pub const STD_MAILBOX_V1: StdCapability = StdCapability {
+    name: "std.MailboxV1",
+    version: STD_MAILBOX_V1_VERSION,
+    operations: &[
+        StdOperation {
+            name: "reply",
+            inputs: &[("value", "MailReply")],
+            result: "MailReplyOutcome",
+        },
+        StdOperation {
+            name: "reconcile",
+            inputs: &[("source", "text")],
+            result: "MailReplyOutcome",
+        },
+    ],
+    events: &[StdEventDecl {
+        name: "received",
+        fields: &[("value", "IncomingEmail")],
+    }],
+};
+
+/// The complete T13b capability set: exactly the three frozen T13b
+/// contracts. Nothing else is a T13b `std` capability; the B8
+/// scoped-out Handbook interface is absent.
+pub const STD_T13B_CAPABILITIES: &[StdCapability] =
+    &[STD_TEXT_GENERATION_V1, STD_IMAGES_V1, STD_MAILBOX_V1];
+
+/// The ten T13b delivery observables (`T13B_DELIVERY_OBSERVABLES`): one
+/// per T13b send target, each with the closed leaf set
+/// (`id`, `status`, `result`, `error`). The declared typed result per
+/// target lives on its capability operation (`generate`/`cancel`/
+/// `reconcile` -> `TextRun`; `inspect` -> `WorkflowInspection`;
+/// `validate` -> `WorkflowValidation`; `submit`/`cancel`/`reconcile`
+/// -> `ImageRun`; `reply`/`reconcile` -> `MailReplyOutcome`).
+/// `.progress` needs no separate payload type: it is the latest
+/// observed result snapshot. In-corpus targets (`Judge.evaluate`,
+/// `Writer.draft`, `Handbook.*`) need no entries here: their
+/// observables derive from source declarations (B12/T28), not from L4
+/// canonical contracts.
+pub const T13B_DELIVERY_OBSERVABLES: &[DeliveryObservable] = &[
+    DeliveryObservable {
+        target: "std.TextGenerationV1.generate",
+        version: STD_TEXT_GENERATION_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.TextGenerationV1.cancel",
+        version: STD_TEXT_GENERATION_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.TextGenerationV1.reconcile",
+        version: STD_TEXT_GENERATION_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.ImagesV1.inspect",
+        version: STD_IMAGES_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.ImagesV1.validate",
+        version: STD_IMAGES_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.ImagesV1.submit",
+        version: STD_IMAGES_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.ImagesV1.cancel",
+        version: STD_IMAGES_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.ImagesV1.reconcile",
+        version: STD_IMAGES_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.MailboxV1.reply",
+        version: STD_MAILBOX_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.MailboxV1.reconcile",
+        version: STD_MAILBOX_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+];
+
+/// T13b accepted nominal types: the `std` value shapes imported by
+/// drafts (inventory section B) plus the T13b operation result source
+/// names (`TextRun`, `WorkflowInspection`, `WorkflowValidation`,
+/// `ImageRun`, `MailReplyOutcome` — all already draft-imported).
+/// Source names only: `ImageRun`/`GeneratedImage` denote the std
+/// delivery-progress relations (TS `ImageRunProgress`/
+/// `ImageFileOutput`, excluded as TS-only mapping names), and the B7
+/// `JudgmentSpec` plus B8 `KnowledgeRequest`/`IndexState` are
+/// value-only shapes with no `std` send ops (hence no observables).
+/// Excluded by the T13a precedent (non-imported declared shapes stay
+/// out, as `EmailSendInput`/`ErrorReport` did): the nested
+/// `WorkflowField`, the TS aliases (`TextMessageRole`,
+/// `RunProgressState`, `MailReplyState`), and the scoped-out Handbook
+/// members. Nominal-only: the checker accepts these names, it makes no
+/// structural claim from this list.
+pub const T13B_NOMINAL_TYPES: &[&str] = &[
+    "TextMessage",
+    "TextRequest",
+    "TextRun",
+    "WorkflowInput",
+    "WorkflowDefinition",
+    "WorkflowInspection",
+    "WorkflowValidation",
+    "ImageRequest",
+    "ImageRun",
+    "GeneratedImage",
+    "IncomingEmail",
+    "MailReply",
+    "MailReplyOutcome",
+    "JudgmentSpec",
+    "KnowledgeRequest",
+    "IndexState",
+];
+
+/// Whether `name` is a T13b accepted nominal type (see
+/// [`T13B_NOMINAL_TYPES`]).
+pub fn is_t13b_nominal(name: &str) -> bool {
+    T13B_NOMINAL_TYPES.contains(&name)
+}
+
+#[cfg(test)]
+mod t13b_tests {
+    use super::*;
+
+    #[test]
+    fn version_stamps_match_frozen_producers() {
+        assert_eq!(STD_TEXT_GENERATION_V1_VERSION, 1);
+        assert_eq!(STD_IMAGES_V1_VERSION, 1);
+        assert_eq!(STD_MAILBOX_V1_VERSION, 1);
+        assert_eq!(STD_TEXT_GENERATION_V1.version, STD_TEXT_GENERATION_V1_VERSION);
+        assert_eq!(STD_IMAGES_V1.version, STD_IMAGES_V1_VERSION);
+        assert_eq!(STD_MAILBOX_V1.version, STD_MAILBOX_V1_VERSION);
+        // The T13b producer slice adds no contract-version bump.
+        assert_eq!(SERVICES_CONTRACT_VERSION, 1);
+        assert_eq!(WORK_CONTRACT_VERSION, 1);
+        assert_eq!(FILES_CONTRACT_VERSION, 1);
+    }
+
+    #[test]
+    fn capability_set_is_exactly_the_three_frozen_t13b_contracts() {
+        assert_eq!(STD_T13B_CAPABILITIES.len(), 3);
+        let names: Vec<&str> = STD_T13B_CAPABILITIES.iter().map(|cap| cap.name).collect();
+        assert_eq!(
+            names,
+            vec!["std.TextGenerationV1", "std.ImagesV1", "std.MailboxV1"]
+        );
+        // T13a set untouched by this slice.
+        assert_eq!(STD_CAPABILITIES.len(), 3);
+    }
+
+    #[test]
+    fn text_generation_ops_are_exact() {
+        let cap = std_capability("TextGenerationV1").expect("TextGenerationV1 schema");
+        let ops: Vec<&str> = cap.operations.iter().map(|op| op.name).collect();
+        assert_eq!(ops, vec!["generate", "cancel", "reconcile"]);
+        let generate =
+            std_operation("std.TextGenerationV1", "generate").expect("generate schema");
+        assert_eq!(generate.inputs, &[("value", "TextRequest")]);
+        assert_eq!(generate.result, "TextRun");
+        for op in ["cancel", "reconcile"] {
+            let schema =
+                std_operation("std.TextGenerationV1", op).expect("TextGeneration op schema");
+            assert_eq!(
+                schema.inputs,
+                &[("source", "text"), ("revision", "int")],
+                "op {op}"
+            );
+            assert_eq!(schema.result, "TextRun", "op {op}");
+        }
+        assert!(cap.events.is_empty());
+    }
+
+    #[test]
+    fn images_ops_are_exact() {
+        let cap = std_capability("std.ImagesV1").expect("ImagesV1 schema");
+        let ops: Vec<&str> = cap.operations.iter().map(|op| op.name).collect();
+        assert_eq!(
+            ops,
+            vec!["inspect", "validate", "submit", "cancel", "reconcile"]
+        );
+        let inspect = std_operation("ImagesV1", "inspect").expect("inspect schema");
+        assert_eq!(inspect.inputs, &[("graph", "file")]);
+        assert_eq!(inspect.result, "WorkflowInspection");
+        let validate = std_operation("ImagesV1", "validate").expect("validate schema");
+        assert_eq!(validate.inputs, &[("value", "WorkflowDefinition")]);
+        assert_eq!(validate.result, "WorkflowValidation");
+        let submit = std_operation("std.ImagesV1", "submit").expect("submit schema");
+        assert_eq!(submit.inputs, &[("value", "ImageRequest")]);
+        // SOURCE result name: the std delivery-progress relation.
+        assert_eq!(submit.result, "ImageRun");
+        for op in ["cancel", "reconcile"] {
+            let schema = std_operation("std.ImagesV1", op).expect("Images op schema");
+            assert_eq!(
+                schema.inputs,
+                &[("source", "text"), ("revision", "int")],
+                "op {op}"
+            );
+            assert_eq!(schema.result, "ImageRun", "op {op}");
+        }
+        assert!(cap.events.is_empty());
+    }
+
+    #[test]
+    fn mailbox_ops_and_received_event_are_exact() {
+        let cap = std_capability("MailboxV1").expect("MailboxV1 schema");
+        let ops: Vec<&str> = cap.operations.iter().map(|op| op.name).collect();
+        assert_eq!(ops, vec!["reply", "reconcile"]);
+        let reply = std_operation("std.MailboxV1", "reply").expect("reply schema");
+        assert_eq!(reply.inputs, &[("value", "MailReply")]);
+        assert_eq!(reply.result, "MailReplyOutcome");
+        let reconcile = std_operation("std.MailboxV1", "reconcile").expect("reconcile schema");
+        // Mailbox reconcile is source-addressed ONLY: no revision.
+        assert_eq!(reconcile.inputs, &[("source", "text")]);
+        assert_eq!(reconcile.result, "MailReplyOutcome");
+        assert_eq!(cap.events.len(), 1);
+        assert_eq!(cap.events[0].name, "received");
+        assert_eq!(cap.events[0].fields, &[("value", "IncomingEmail")]);
+    }
+
+    #[test]
+    fn delivery_observables_cover_exactly_the_ten_send_targets() {
+        let targets: Vec<&str> = T13B_DELIVERY_OBSERVABLES
+            .iter()
+            .map(|observable| observable.target)
+            .collect();
+        assert_eq!(
+            targets,
+            vec![
+                "std.TextGenerationV1.generate",
+                "std.TextGenerationV1.cancel",
+                "std.TextGenerationV1.reconcile",
+                "std.ImagesV1.inspect",
+                "std.ImagesV1.validate",
+                "std.ImagesV1.submit",
+                "std.ImagesV1.cancel",
+                "std.ImagesV1.reconcile",
+                "std.MailboxV1.reply",
+                "std.MailboxV1.reconcile",
+            ]
+        );
+        for observable in T13B_DELIVERY_OBSERVABLES {
+            assert_eq!(observable.version, 1, "target {}", observable.target);
+            assert_eq!(observable.leaves, &["id", "status", "result", "error"]);
+            // Every observable target resolves to a real operation schema.
+            let (cap, op) = observable
+                .target
+                .rsplit_once('.')
+                .expect("qualified target");
+            assert!(std_operation(cap, op).is_some(), "target {}", observable.target);
+            assert!(
+                delivery_observable(observable.target).is_some(),
+                "target {}",
+                observable.target
+            );
+        }
+    }
+
+    #[test]
+    fn nominal_types_are_the_accepted_t13b_set() {
+        assert_eq!(
+            T13B_NOMINAL_TYPES,
+            &[
+                "TextMessage",
+                "TextRequest",
+                "TextRun",
+                "WorkflowInput",
+                "WorkflowDefinition",
+                "WorkflowInspection",
+                "WorkflowValidation",
+                "ImageRequest",
+                "ImageRun",
+                "GeneratedImage",
+                "IncomingEmail",
+                "MailReply",
+                "MailReplyOutcome",
+                "JudgmentSpec",
+                "KnowledgeRequest",
+                "IndexState",
+            ]
+        );
+        assert!(is_t13b_nominal("TextRun"));
+        assert!(is_t13b_nominal("JudgmentSpec"));
+        assert!(is_t13b_nominal("KnowledgeRequest"));
+        assert!(is_t13b_nominal("IndexState"));
+        // Capabilities are not nominal types.
+        assert!(!is_t13b_nominal("TextGenerationV1"));
+        assert!(!is_t13b_nominal("ImagesV1"));
+        assert!(!is_t13b_nominal("MailboxV1"));
+        // TS-only mapping names and nested/alias shapes stay out.
+        assert!(!is_t13b_nominal("ImageRunProgress"));
+        assert!(!is_t13b_nominal("ImageFileOutput"));
+        assert!(!is_t13b_nominal("WorkflowField"));
+        // Scoped-out Handbook members stay out.
+        assert!(!is_t13b_nominal("Handbook"));
+        // T13a/T13b nominal sets are disjoint.
+        for name in T13A_NOMINAL_TYPES {
+            assert!(!is_t13b_nominal(name), "name {name}");
+        }
+        for name in T13B_NOMINAL_TYPES {
+            assert!(!is_t13a_nominal(name), "name {name}");
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1571,32 +2017,14 @@ mod t13a_tests {
     }
 
     #[test]
-    fn t13b_members_have_no_schemas_e3019_preserved() {
-        // Every T13b-scope `std` member (inventory section B): no schema
-        // exists, so every lookup is `None` and the checker must keep
-        // reporting `E3019`. This test fails closed: adding a T13b entry
-        // here is the T13b slice's job, never a silent relax.
-        for member in [
-            "TextGenerationV1",
-            "TextMessage",
-            "TextRequest",
-            "TextRun",
-            "ImagesV1",
-            "ImageRun",
-            "GeneratedImage",
-            "ImageRequest",
-            "WorkflowInput",
-            "WorkflowDefinition",
-            "WorkflowInspection",
-            "WorkflowValidation",
-            "MailboxV1",
-            "IncomingEmail",
-            "MailReply",
-            "MailReplyOutcome",
-            "JudgmentSpec",
-            "KnowledgeRequest",
-            "IndexState",
-        ] {
+    fn handbook_interface_has_no_schemas_e3019_preserved() {
+        // B8 scope-out: the `corpus Handbook` executable/member interface
+        // (`answer`/`cancel`/`reconcile`/`refresh`/`status`/`available`,
+        // `Run`/`Answer` members) has no canonical schemas, so every
+        // lookup is `None` and the checker must keep reporting `E3019`.
+        // This test fails closed: adding a Handbook entry is a
+        // corpus-interface decision's job, never a silent relax.
+        for member in ["Handbook", "Run", "Answer"] {
             assert_eq!(std_capability(member), None, "member {member}");
             assert_eq!(
                 std_capability(&format!("std.{member}")),
@@ -1604,22 +2032,27 @@ mod t13a_tests {
                 "member std.{member}"
             );
         }
-        for (cap, op) in [
-            ("ImagesV1", "submit"),
-            ("ImagesV1", "inspect"),
-            ("ImagesV1", "validate"),
-            ("ImagesV1", "cancel"),
-            ("ImagesV1", "reconcile"),
-            ("TextGenerationV1", "generate"),
-            ("TextGenerationV1", "cancel"),
-            ("MailboxV1", "reply"),
+        for op in [
+            "answer",
+            "cancel",
+            "reconcile",
+            "refresh",
+            "status",
+            "available",
         ] {
-            assert_eq!(std_operation(cap, op), None, "send {cap}.{op}");
+            assert_eq!(std_operation("Handbook", op), None, "send Handbook.{op}");
+            assert_eq!(
+                std_operation("std.Handbook", op),
+                None,
+                "send std.Handbook.{op}"
+            );
         }
         for target in [
-            "std.ImagesV1.submit",
-            "std.TextGenerationV1.generate",
-            "std.MailboxV1.reply",
+            "std.Handbook.answer",
+            "Handbook.answer",
+            "std.Handbook.reconcile",
+            "std.Handbook.refresh",
+            "std.Handbook.status",
         ] {
             assert_eq!(delivery_observable(target), None, "target {target}");
         }
