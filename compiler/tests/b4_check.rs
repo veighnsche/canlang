@@ -960,3 +960,167 @@ fn t06_bounded_read_stays_gated() {
     let diags = check(src, Some(&catalog));
     assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
 }
+
+/// (T10) Fixture contract literal: a nested value validates
+/// closed-recursively (Qualification shape) — nested contract, bare
+/// enum case, omitted nullable/default/ordinary-array members and a
+/// model reference all check clean.
+#[test]
+fn t10_fixture_nested_literal_accepted() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Inner { a:text }\n contract Q { name:text, inner:Inner, s:enum(x,y), n:int?, d:int=3, tags:text[], m:M? }\n M { t:text }\n Holder { value:Q }\n policy M read=members\n policy Holder read=members\n fixture m0=M {t=\"x\"}\n fixture h0=Holder {value={name=\"n\",inner={a=\"a\"},s=x,m=m0}}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "nested fixture literal: {diags:?}");
+}
+
+/// (T10) `create` with a nested contract literal checks clean
+/// (scenario parameters supply model references).
+#[test]
+fn t10_create_nested_literal_accepted() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Inner { a:text }\n contract Q { name:text, inner:Inner, s:enum(x,y) }\n Holder { value:Q }\n policy Holder read=members\nWhen\n scenario s() by=members\n  do\n   create Holder {value={name=\"n\",inner={a=\"a\"},s=y}} as h\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "nested create literal: {diags:?}");
+}
+
+/// (T10) `set` with a nullable contract literal checks clean
+/// (executed-party snapshot shape).
+#[test]
+fn t10_set_nullable_literal_accepted() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Snap { title:text, owner:text }\n M { snap:Snap? }\n policy M read=members\nWhen\n scenario s(m:M) by=members\n  do\n   set m {snap={title=\"t\",owner=\"o\"}}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "nullable set literal: {diags:?}");
+}
+
+/// (T10) A `send` request carrying a nested contract literal checks
+/// clean, including the nested bare enum case (alert shape).
+#[test]
+fn t10_send_request_literal_accepted() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Alert { source:text, kind:enum(info,urgent) }\n contract Ack { ok:bool }\n capability Mail version=1\n  notify(value:Alert) -> Ack\nWhen\n scenario s() by=members\n  do\n   send Mail.notify {value={source=\"s\",kind=urgent}} as attempt\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "nested send literal: {diags:?}");
+}
+
+/// (T10) A delivery recipe whose request carries a nested contract
+/// literal checks clean (Catch/Check alert fixture shape).
+#[test]
+fn t10_recipe_request_literal_accepted() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Alert { source:text, kind:enum(info,urgent) }\n contract Ack { ok:bool }\n capability Mail version=1\n  notify(value:Alert) -> Ack\n fixture attempt=Mail.notify {request={value={source=\"s\",kind=info}}}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "nested recipe literal: {diags:?}");
+}
+
+/// (T10 C2) `examples event={...}` inherits the handler's event type:
+/// nested bare cases claim instead of erroring `E2001`.
+#[test]
+fn t10_examples_event_claims_nested_cases() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { s:enum(a,b)=a }\n policy M read=members\n contract V { n:int, s:enum(a,b) }\n event Due { item:M, value:V }\nWhen\n scenario h on=Due\n  require event.item.s==a\n  do\n   let x = 1\n  examples event={value={n=1,s=a}}\n   event.value.n -> event.value.n\n   1 -> 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "examples event claims cases: {diags:?}");
+}
+
+/// (T10) Arrays of contracts validate element-wise, including under a
+/// nullable array expectation.
+#[test]
+fn t10_nested_array_of_contracts_accepted() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Line { sku:text, n:int }\n contract Q { name:text, lines:Line[]?, s:enum(x,y) }\n Holder { value:Q }\n policy Holder read=members\n fixture h0=Holder {value={name=\"n\",lines=[{sku=\"a\",n=1},{sku=\"b\",n=2}],s=x}}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "array of contract literals: {diags:?}");
+}
+
+/// (T10) A supplied server-initialized field inside a literal
+/// validates strictly (fixtures are stored snapshots; the values
+/// `create` mode agrees) and is never required when omitted.
+#[test]
+fn t10_literal_supplied_server_field_accepted() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Q { name:text, stamp:datetime server=now }\n Holder { value:Q }\n policy Holder read=members\n fixture h0=Holder {value={name=\"n\"}}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "omitted server literal field: {diags:?}");
+}
+
+/// (T10) Unknown keys inside a literal are `E2013` (closed shapes).
+#[test]
+fn t10_unknown_nested_key_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Q { name:text }\n Holder { value:Q }\n policy Holder read=members\n fixture h0=Holder {value={name=\"n\",bogus=1}}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+}
+
+/// (T10) A missing required nested field is `E3001` naming the field.
+#[test]
+fn t10_missing_nested_required_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Inner { a:text }\n contract Q { name:text, inner:Inner }\n Holder { value:Q }\n policy Holder read=members\n fixture h0=Holder {value={name=\"n\"}}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'inner'"),
+        "names the missing field: {}",
+        diags[0].message
+    );
+}
+
+/// (T10) A nested name outside the enum domain stays `E2001` (no
+/// claiming, no coercion).
+#[test]
+fn t10_wrong_nested_enum_case_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Q { name:text, s:enum(x,y) }\n Holder { value:Q }\n policy Holder read=members\n fixture h0=Holder {value={name=\"n\",s=nope}}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2001"], "{diags:?}");
+}
+
+/// (T10) A mistyped nested scalar is `E3001` (no broad coercion).
+#[test]
+fn t10_wrong_nested_scalar_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Q { name:text, n:int }\n Holder { value:Q }\n policy Holder read=members\n fixture h0=Holder {value={name=\"n\",n=\"s\"}}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+}
+
+/// (T10) Explicit null for a non-nullable nested field is `E3001`.
+#[test]
+fn t10_null_for_nonnull_nested_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n contract Q { name:text }\n Holder { value:Q }\n policy Holder read=members\n fixture h0=Holder {value={name=null}}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+}
+
+/// (T10) A bare literal never forges a model reference: `E3015`
+/// keeps identity by reference only.
+#[test]
+fn t10_literal_for_model_ref_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n Holder { m:M }\n policy M read=members\n policy Holder read=members\n fixture h0=Holder {m={t=\"x\"}}\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
+}
+
+/// (T10) A bare literal never forges a delivery handle: `E3015`
+/// keeps protected provenance unfabricable.
+#[test]
+fn t10_literal_for_delivery_rejected() {
+    let catalog = fixture();
+    let src = "package p\n use p {Mail as Box} from=deployment.mail\n Given\n  export capability Mail version=1\n   send(to:text) -> Ack\n  contract Ack { ok:bool }\n  M { h:delivery(Box.send)? }\n  policy M read=members\n  fixture f=M {h={id=\"x\",operation=\"s\"}}\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
+}
+
+/// (T10/R18) Cross-enum comparison stays rejected: distinct enum
+/// types never compare (T36 owns any nominal mapping).
+#[test]
+fn t10_cross_enum_comparison_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { a:enum(x,y), b:enum(x,y,z) }\n policy M read=members\nWhen\n scenario s(m:M) by=members\n  require m.a==m.b\n  do\n   let x = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3002"], "{diags:?}");
+}

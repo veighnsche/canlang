@@ -2697,9 +2697,9 @@ impl<'a> Typer<'a> {
         let mut env = NarrowEnv::default();
         // A validated declared event types the handler payload:
         // `event` carries the event's record instead of `{opaque}`.
-        if let Some(on) = attribute_value(node, "on", text)
-            && let Some(event) = self.on_event_payload(module, text, on)
-        {
+        let on_event = attribute_value(node, "on", text)
+            .and_then(|on| self.on_event_payload(module, text, on));
+        if let Some(event) = on_event {
             env.insert(
                 NarrowKey {
                     decl: DeclKey::CtxEvent,
@@ -2785,7 +2785,7 @@ impl<'a> Typer<'a> {
         self.current_read = prev_read;
         for child in kids(node) {
             if child.kind == SyntaxKind::Examples && !has_error(child) {
-                self.check_example_headers(file, text, module, child);
+                self.check_example_headers(file, text, module, child, on_event);
             }
         }
     }
@@ -3463,12 +3463,16 @@ impl<'a> Typer<'a> {
 
     /// Check `examples` header bindings lightly: names resolve and enum
     /// cases claim, but only position-independent facts (`E6001`) apply.
+    /// `on_event` carries the handler's validated event payload (T10 C2):
+    /// an `event={...}` literal checks against the event record so nested
+    /// bare cases claim their enum types; still diagnostic-free here.
     fn check_example_headers(
         &mut self,
         file: SourceId,
         text: &str,
         module: ModuleId,
         node: &SyntaxNode,
+        on_event: Option<SymbolId>,
     ) {
         let narrow = NarrowEnv::default();
         let cx = Ctx {
@@ -3481,9 +3485,16 @@ impl<'a> Typer<'a> {
         };
         for child in kids(node) {
             if child.kind == SyntaxKind::Attribute
-                && let Some((_, value)) = attribute_parts(child)
+                && let Some((key, value)) = attribute_parts(child)
             {
-                self.expr(&cx, value, None);
+                let expect = match on_event {
+                    Some(event) if is_name(key, text, "event") => Some(ResolvedType::Record {
+                        symbol: event,
+                        stored: false,
+                    }),
+                    _ => None,
+                };
+                self.expr(&cx, value, expect);
             }
         }
     }
@@ -5246,7 +5257,7 @@ impl<'a> Typer<'a> {
         }
         for child in kids(node) {
             if child.kind == SyntaxKind::Examples && !has_error(child) {
-                self.check_example_headers(file, text, module, child);
+                self.check_example_headers(file, text, module, child, None);
             }
         }
     }
@@ -11233,8 +11244,14 @@ impl<'a> Typer<'a> {
             .filter(|n| is_expression(n.kind))
             .copied()
             .collect();
+        // T10: nullable-unwrap like the empty-literal arm below so
+        // `Contract[]?` elements inherit their expected type too.
         let element_expect = match expect {
             Some(ResolvedType::Array { element, .. }) => Some((**element).clone()),
+            Some(ResolvedType::Nullable(inner)) => match inner.as_ref() {
+                ResolvedType::Array { element, .. } => Some((**element).clone()),
+                _ => None,
+            },
             _ => None,
         };
         if elements.is_empty() {
@@ -11309,6 +11326,20 @@ impl<'a> Typer<'a> {
         expect: Option<&ResolvedType>,
         check_entries: bool,
     ) -> ResolvedType {
+        // T10: a bare literal against a known contract/event type
+        // validates closed-recursively and inhabits the expected
+        // record; every other expectation keeps the open object.
+        if let Some(expected) = expect {
+            let (inner, _) = strip_nullable(expected);
+            if let ResolvedType::Record { symbol, .. } = inner
+                && matches!(
+                    self.tables.symbols[symbol.0 as usize].kind,
+                    SymbolKind::Contract { .. } | SymbolKind::Event { .. }
+                )
+            {
+                return self.type_structural_literal(cx, node, expected, symbol, check_entries);
+            }
+        }
         let mut fields = Vec::new();
         let mut bad = false;
         for entry in node
@@ -11357,6 +11388,123 @@ impl<'a> Typer<'a> {
             // still usable for member lookup of its good fields.
         }
         ResolvedType::Object(fields)
+    }
+
+    /// Type a bare object literal against a known contract/event
+    /// record (T10 closed recursive semantics): entries check against
+    /// the declared fields with per-field expectations (nested
+    /// literals, arrays and bare enum cases inherit theirs), unknown
+    /// keys are `E2013`, value mismatches and missing required fields
+    /// `E3001`, and the literal inhabits the expected record so the
+    /// outer position checks clean. Models never take literals
+    /// (references are identity, never embedded copies); unions and
+    /// opaque expectations keep the open-object path. Supplied
+    /// server-initialized fields validate strictly but are never
+    /// required (fixtures are stored snapshots, DESIGN L403; the
+    /// values `create` mode agrees).
+    fn type_structural_literal(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        expected: &ResolvedType,
+        symbol: SymbolId,
+        check_entries: bool,
+    ) -> ResolvedType {
+        let fields = self.tables.symbols[symbol.0 as usize].fields_of().to_vec();
+        let mut seen: HashSet<String> = HashSet::new();
+        for entry in node
+            .children
+            .iter()
+            .filter(|c| c.kind == SyntaxKind::ObjectEntry)
+        {
+            if has_error(entry) {
+                continue;
+            }
+            let entry_parts = kids(entry);
+            let Some(name_node) = entry_parts.first().filter(|n| n.kind == SyntaxKind::Name) else {
+                continue;
+            };
+            let Some(key) = name_text(name_node, cx.text) else {
+                continue;
+            };
+            seen.insert(key.to_string());
+            let field = fields
+                .iter()
+                .find_map(|f| (self.tables.symbols[f.0 as usize].name == key).then_some(*f));
+            let Some(field) = field else {
+                // Closed: unknown keys fail (one error per broken
+                // entry; the value's own unbound `E2001` is then
+                // suppressed).
+                if cx.strict {
+                    let record = &self.tables.symbols[symbol.0 as usize];
+                    let kind = match record.kind {
+                        SymbolKind::Contract { .. } => "contract",
+                        SymbolKind::Event { .. } => "event",
+                        _ => "record",
+                    };
+                    self.member_fail(
+                        entry,
+                        name_node.span,
+                        format!("{kind} {}", record_name(self.tables, cx.module, symbol)),
+                        key.to_string(),
+                    );
+                }
+                if let Some(value) = entry_parts.iter().find(|n| is_expression(n.kind)) {
+                    let ty = self.expr(cx, value, None);
+                    if ty.is_error() && self.is_claimable_name(value) {
+                        self.types.resolved_cases.insert(NodeKey::of(value));
+                    }
+                } else if self.is_shorthand_unbound(name_node) {
+                    self.types.resolved_cases.insert(NodeKey::of(name_node));
+                }
+                continue;
+            };
+            if matches!(
+                self.tables.symbols[field.0 as usize].kind,
+                SymbolKind::DeriveField { .. }
+            ) && cx.strict
+            {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    format!("derived field '{key}' is computed and cannot be supplied"),
+                    tight_span(cx.text, entry),
+                ));
+            }
+            let field_expect = self.decl_type(field);
+            let value_node = entry_parts.iter().find(|n| is_expression(n.kind)).copied();
+            let value_ty = match value_node {
+                Some(value) => self.expr(cx, value, Some(field_expect.clone())),
+                None => self.type_shorthand(cx, entry, name_node, key, Some(field_expect.clone())),
+            };
+            if check_entries {
+                self.assign_ok(
+                    cx,
+                    tight_span(cx.text, entry),
+                    &value_ty,
+                    &field_expect,
+                    &format!("'{key}'"),
+                );
+            }
+        }
+        if check_entries {
+            for field in &fields {
+                let name = self.tables.symbols[field.0 as usize].name.clone();
+                if seen.contains(&name) {
+                    continue;
+                }
+                if self.field_is_required(*field) && cx.strict {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        format!(
+                            "missing required field '{name}' of {}",
+                            record_name(self.tables, cx.module, symbol)
+                        ),
+                        tight_span(cx.text, node),
+                    ));
+                }
+            }
+        }
+        expected.clone()
     }
 
     /// Type an object shorthand (`{field}` = `{field=field}`): the
