@@ -44,11 +44,11 @@ Status: user-authorized immediate implementation in the SAME existing Muse sessi
   - Acceptance: inline, attached, legacy and static-reference descriptions display actual source wording; no editor locale feature or localized MCP acceptance gate.
   - Evidence: writer 01a10d6e-20c6 released queries.rs (+21/-2 description_of checked-slot-first + CST fallback, empty-as-absent) + ide.rs (+104, 4 hover tests). Coordinator: ide 31/0 green re-verified. D06 COMPLETE.
 
-- [ ] **D07 — Integrate and independently verify the reference**
+- [x] **D07 — Integrate and independently verify the reference**
   - Owner: Muse integration/handoff, then Codex independent review (Muse does not tick review/closure).
   - Prerequisites: D02-D06 released with actual evidence; zero writers/reservations/heavy commands before review.
   - Acceptance: `.can` source to English/Dutch/fallback reference and source-language IDE/MCP; legacy/undescribed MCP shapes preserved; retained negative controls; relevant suites and required checks pass. Localized MCP and authored-guide claims remain explicitly deferred.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: writer 01a10d90-1184 released NEW evidence/integration.md (215 lines: 1469-test suite matrix all exit 0; e2e en/nl/regional/fallback/--out/refusals/exit-10-no-write/missing-runtime; IDE hover + MCP source-string compat with legacy bytes; retained negatives; deferred-five verified absent) + 1-line postbuild chmod fix (FRESH-CLONE-EXEC, proven pre-edit). Coordinator: postbuild fix corroborated via true clean rebuild (+x, nl e2e exit 0; note: stale tsbuildinfo must also be cleared — writer's rm-rf-dist shorthand omits it). Reported (not fixed, outside reservation): ROOT-BUILD-SKIPS-POSTBUILD — root tsc -b path still emits 644; needs lane-07 root-wiring follow-up (routed to Codex, not D08). D07 COMPLETE.
 
 - [ ] **D08 — Reconcile docs and close owned follow-up**
   - Owner: Muse normative/usage documentation after accepted behavior, then Codex cleanup/monitor closure (Muse does not tick closure). Candidate paths (reserve under one reservation at dispatch): `DESIGN.md`, `GRAMMAR.md`, `DECISIONS.md`, relevant install/authoring documentation and CLI help. No broad corpus edits. Reconcile the living file-tree plan after any merge under AGENTS.md.
@@ -78,3 +78,5 @@ Status: user-authorized immediate implementation in the SAME existing Muse sessi
 - DISPATCH batch D-g (slot freed x1): D05c writer (completions x3 + exe.rs ALL_COMMANDS + cloudflare package.json dep + interfaces main/rootDir fix + explain.rs E7004 text; out-of-box e2e). T14a + T32a-item7 still running. Queued: D07 (after D05c + D02-D06 released), D08 (after D07).
 - DONE D05c: writer 01a10d80-dbf5-7bf1-b553-369e7908ee1c RELEASED completions/exe/explain/package.jsons/bun.lock (tsconfig verified-untouched; out-of-box e2e proven, corroborated). D05 ticked COMPLETE (see D05 evidence).
 - DISPATCH batch D-h (slots freed x2): D07 integration-verify writer (full D matrix + NEW evidence/integration.md + postbuild-chmod fix-if-needed) + T14b (see challenge batch 38). Zero writers running otherwise. Queued: D08 (after D07).
+- DONE D07: writer 01a10d90-1184-7110-a50d-f8950907b317 RELEASED evidence/integration.md + postbuild fix (matrix 1469/0, e2e + negatives + deferred-absence all evidenced; fix corroborated). D07 ticked COMPLETE (see D07 evidence). Follow-up: ROOT-BUILD-SKIPS-POSTBUILD routed to Codex/lane-07.
+- DISPATCH batch D-i (slot freed x1): D08 docs-reconcile writer (DESIGN.md + GRAMMAR.md + DECISIONS.md + docs/install.md + docs/dev-setup.md; consistency-only). T14b still running. Queued: D handoff (after D08 + T14b-independent; D review/closure stays Codex).
