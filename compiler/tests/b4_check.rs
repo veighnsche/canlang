@@ -3276,6 +3276,133 @@ fn t35r23_bound_import_gets_no_alias() {
     assert_eq!((diags[0].primary.start, diags[0].primary.end), (start, end));
 }
 
+/// (T35/R25) CanEvent:63 shape: select branches hold literal words
+/// in the source and the `nl` variant; only the leading argument
+/// binds, so the message checks clean (pre-fix: `E3016` on `Event`,
+/// `Toegangsbewijs`, `Planning`, `Toegang`, `Wijziging`).
+#[test]
+fn t35r25_select_literal_bodies_clean() {
+    let src = "app T\nGiven\n message notice_title(kind:text) = \"{kind,select,confirmation{Event ticket confirmed}change{Event schedule or venue changed}cancellation{Event admission cancelled}other{Event ticket update}}\"@{nl=\"{kind,select,confirmation{Toegangsbewijs evenement bevestigd}change{Planning of locatie evenement gewijzigd}cancellation{Toegang tot evenement geannuleerd}other{Wijziging toegangsbewijs evenement}}\"}\nWhen\nThen\n";
+    let diags = check(src, None);
+    assert!(diags.is_empty(), "select literals clean: {diags:?}");
+}
+
+/// (T35/R25) Plural with literal bodies, exact `=N` cases and `#`
+/// binds only the count parameter.
+#[test]
+fn t35r25_plural_literal_bodies_clean() {
+    let src = "app T\nGiven\n message seats(n:int) = \"{n, plural, =0 {No seats left} one {# seat left} other {# seats left}}\"@{}\nWhen\nThen\n";
+    let diags = check(src, None);
+    assert!(diags.is_empty(), "plural literals clean: {diags:?}");
+}
+
+/// (T35/R25) Nested select-inside-plural resolves every real parameter
+/// across branch levels.
+#[test]
+fn t35r25_nested_select_plural_clean() {
+    let src = "app T\nGiven\n message invite(g:text, n:int) = \"{g, select, male {{n, plural, one {he has # task} other {he has # tasks}}} other {they have tasks}}\"@{}\nWhen\nThen\n";
+    let diags = check(src, None);
+    assert!(diags.is_empty(), "nested select/plural clean: {diags:?}");
+}
+
+/// (T35/R25) Simple typed forms (`number`/`date` with styles) keep
+/// binding their leading argument.
+#[test]
+fn t35r25_typed_simple_forms_clean() {
+    let src = "app T\nGiven\n message stats(n:int, d:date) = \"{n,number,integer} items on {d,date,short}\"@{}\nWhen\nThen\n";
+    let diags = check(src, None);
+    assert!(diags.is_empty(), "typed simple forms clean: {diags:?}");
+}
+
+/// (T35/R25) Opposing, both ways: a genuinely unknown top-level
+/// placeholder still fails `E3016`.
+#[test]
+fn t35r25_unknown_top_level_still_rejected() {
+    let src = "app T\nGiven\n message t(kind:text) = \"{kind} {bogus}\"@{}\nWhen\nThen\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E3016"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'{bogus}' names no message parameter"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T35/R25) Opposing, both ways: an unknown placeholder nested inside
+/// a select branch body still fails `E3016` (branch-aware parsing must
+/// not swallow nested references).
+#[test]
+fn t35r25_unknown_nested_in_branch_still_rejected() {
+    let src = "app T\nGiven\n message t(kind:text) = \"{kind,select,confirmation{Event {bogus} confirmed}other{Event update}}\"@{}\nWhen\nThen\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E3016"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'{bogus}' names no message parameter"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T35/R25) Opposing, both ways: an unknown select argument itself
+/// still fails `E3016`.
+#[test]
+fn t35r25_unknown_selector_arg_still_rejected() {
+    let src = "app T\nGiven\n message t(kind:text) = \"{bogus,select,other{Event update}}\"@{}\nWhen\nThen\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E3016"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'{bogus}' names no message parameter"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T35/R25) Opposing, both ways: an unknown placeholder in a locale
+/// variant still fails `E3016`.
+#[test]
+fn t35r25_unknown_in_variant_still_rejected() {
+    let src =
+        "app T\nGiven\n message t(kind:text) = \"{kind}\"@{nl=\"{kind} {bogus}\"}\nWhen\nThen\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E3016"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'{bogus}' names no message parameter"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T35/R25) Opposing, both ways: a structurally malformed complex
+/// head fails `E5007` at the profile stage (examples.rs, untouched)
+/// while the slot scan falls back to the flat scan, so the unknown
+/// name inside still fails `E3016` too.
+#[test]
+fn t35r25_malformed_head_fallback_still_rejected() {
+    let src = "app T\nGiven\n message t(kind:text) = \"{kind,select,confirmation Event {bogus}}\"@{}\nWhen\nThen\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E3016", "E5007"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("'{bogus}' names no message parameter"),
+        "{}",
+        diags[0].message
+    );
+    assert!(
+        diags[1].message.contains("expected '{' to open the branch"),
+        "{}",
+        diags[1].message
+    );
+}
+
 /// (T35/R23) Absent stays unavailable: an exported model with no
 /// `crud` declaration at all offers no operations to import.
 #[test]
