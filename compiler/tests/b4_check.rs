@@ -3142,3 +3142,152 @@ fn t14d_nullable_leaf_into_required_input_rejects() {
         diags[0].message
     );
 }
+
+// --- T35/R23: imported CRUD sequences resolve to the canonical
+// owner's exported operations ------------------------------------------
+// Owner contract first: every verdict keys on the owning package's
+// `crud` declaration (exported model + enabled op), never on
+// call-site spelling. Positives mirror the corpus sites
+// (CanMail:143 Contact.update, CanMail:152 Contact.delete,
+// CanWorkbench:128 Task.update); negatives pin disabled, absent,
+// private and bound boundaries.
+
+/// (T35/R23) CanMail:143 shape: `call Contact.update` on a
+/// plain-imported model resolves to the owner's enabled operation and
+/// checks fully clean.
+#[test]
+fn t35r23_imported_update_resolves() {
+    let src = "package stock\n Given\n  export Widget { title:text }\n  policy Widget read=members\n  export fixture w=Widget {title=\"a\"}\n When\n  crud Widget by=members fields=title\n Then\npackage shop\n use stock {Widget,w}\n Given\n When\n  scenario go() by=members\n   do\n    let x = 1\n   examples seed=[w]\n    do\n     call go {} by=self\n     call Widget.update {record=w,changes={title=\"b\"}} by=self\n     w.title -> \"b\"\n Then\n";
+    let diags = check(src, None);
+    assert!(
+        diags.is_empty(),
+        "enabled imported update resolves: {diags:?}"
+    );
+}
+
+/// (T35/R23) CanMail:152 shape: `call Contact.delete` on a
+/// plain-imported model resolves to the owner's enabled operation.
+#[test]
+fn t35r23_imported_delete_resolves() {
+    let src = "package stock\n Given\n  export Widget { title:text }\n  policy Widget read=members\n  export fixture w=Widget {title=\"a\"}\n When\n  crud Widget by=members fields=title\n Then\npackage shop\n use stock {Widget,w}\n Given\n When\n  scenario go() by=members\n   do\n    let x = 1\n   examples seed=[w]\n    do\n     call go {} by=self\n     call Widget.delete {record=w} by=self\n     w.title -> \"a\"\n Then\n";
+    let diags = check(src, None);
+    assert!(
+        diags.is_empty(),
+        "enabled imported delete resolves: {diags:?}"
+    );
+}
+
+/// (T35/R23) Same class, third operation: an enabled imported
+/// `create` resolves with its required model fields checked.
+#[test]
+fn t35r23_imported_create_resolves() {
+    let src = "package stock\n Given\n  export Widget { title:text }\n  policy Widget read=members\n  export fixture w=Widget {title=\"a\"}\n When\n  crud Widget by=members fields=title\n Then\npackage shop\n use stock {Widget,w}\n Given\n When\n  scenario go() by=members\n   do\n    let x = 1\n   examples seed=[w]\n    do\n     call go {} by=self\n     call Widget.create {title=\"b\"} by=self\n     w.title -> \"a\"\n Then\n";
+    let diags = check(src, None);
+    assert!(
+        diags.is_empty(),
+        "enabled imported create resolves: {diags:?}"
+    );
+}
+
+/// (T35/R23) Disabled stays unavailable: the owner declares
+/// `update=none`, so the imported `call Gadget.update` still fails
+/// `E5006` at the call site.
+#[test]
+fn t35r23_disabled_update_stays_rejected() {
+    let src = "package stock\n Given\n  export Gadget { title:text }\n  policy Gadget read=members\n  export fixture g=Gadget {title=\"a\"}\n When\n  crud Gadget by=members fields=title update=none\n Then\npackage shop\n use stock {Gadget,g}\n Given\n When\n  scenario go() by=members\n   do\n    let x = 1\n   examples seed=[g]\n    do\n     call go {} by=self\n     call Gadget.update {record=g,changes={title=\"b\"}} by=self\n     g.title -> \"a\"\n Then\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E5006"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'Gadget.update' is not enabled"),
+        "{}",
+        diags[0].message
+    );
+    let (start, end) = span_of(src, "Gadget.update", 1);
+    assert_eq!((diags[0].primary.start, diags[0].primary.end), (start, end));
+}
+
+/// (T35/R23) Disabled stays unavailable: the owner declares
+/// `delete=none` (the mailroom `Delegate` posture), so the imported
+/// `call Gadget.delete` still fails `E5006`.
+#[test]
+fn t35r23_disabled_delete_stays_rejected() {
+    let src = "package stock\n Given\n  export Gadget { title:text }\n  policy Gadget read=members\n  export fixture g=Gadget {title=\"a\"}\n When\n  crud Gadget by=members fields=title delete=none\n Then\npackage shop\n use stock {Gadget,g}\n Given\n When\n  scenario go() by=members\n   do\n    let x = 1\n   examples seed=[g]\n    do\n     call go {} by=self\n     call Gadget.delete {record=g} by=self\n     g.title -> \"a\"\n Then\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E5006"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'Gadget.delete' is not enabled"),
+        "{}",
+        diags[0].message
+    );
+    let (start, end) = span_of(src, "Gadget.delete", 1);
+    assert_eq!((diags[0].primary.start, diags[0].primary.end), (start, end));
+}
+
+/// (T35/R23) Boundary pin: same call shape, different owner posture.
+/// `Open.update` (enabled) resolves while `Shut.update`
+/// (`update=none`) fails — the verdict follows the owner contract.
+#[test]
+fn t35r23_boundary_same_shape_owner_posture() {
+    let src = "package stock\n Given\n  export Open { title:text }\n  export Shut { title:text }\n  policy Open read=members\n  policy Shut read=members\n  export fixture o=Open {title=\"a\"}\n  export fixture s=Shut {title=\"a\"}\n When\n  crud Open by=members fields=title\n  crud Shut by=members fields=title update=none\n Then\npackage shop\n use stock {Open,Shut,o,s}\n Given\n When\n  scenario go() by=members\n   do\n    let x = 1\n   examples seed=[o,s]\n    do\n     call go {} by=self\n     call Open.update {record=o,changes={title=\"b\"}} by=self\n     call Shut.update {record=s,changes={title=\"b\"}} by=self\n     o.title -> \"b\"\n Then\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E5006"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'Shut.update' is not enabled"),
+        "{}",
+        diags[0].message
+    );
+    let (start, end) = span_of(src, "Shut.update", 1);
+    assert_eq!((diags[0].primary.start, diags[0].primary.end), (start, end));
+}
+
+/// (T35/R23) Private stays unavailable: the model is not exported, so
+/// the import fails `E2003` and the call never resolves to an
+/// operation (no `E5006`, no silent acceptance).
+#[test]
+fn t35r23_private_model_stays_unavailable() {
+    let src = "package stock\n Given\n  Gadget { title:text }\n  policy Gadget read=members\n  export fixture g=Gadget {title=\"a\"}\n When\n  crud Gadget by=members fields=title\n Then\npackage shop\n use stock {Gadget,g}\n Given\n When\n  scenario go() by=members\n   do\n    let x = 1\n   examples seed=[g]\n    do\n     call go {} by=self\n     call Gadget.update {record=g,changes={title=\"b\"}} by=self\n     g.title -> \"a\"\n Then\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E2003"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("import member 'Gadget' of 'stock' is not exported"),
+        "{}",
+        diags[0].message
+    );
+    let (start, end) = span_of(src, "Gadget", 5);
+    assert_eq!((diags[0].primary.start, diags[0].primary.end), (start, end));
+}
+
+/// (T35/R23) Bound imports are remote (T28 posture): a `from=` import
+/// of an enabled model gets no local alias, so the sequence call
+/// keeps today's `E5006`.
+#[test]
+fn t35r23_bound_import_gets_no_alias() {
+    let src = "package stock\n Given\n  export Widget { title:text }\n  policy Widget read=members\n  export fixture w=Widget {title=\"a\"}\n When\n  crud Widget by=members fields=title\n Then\npackage shop\n use stock {Widget,w} from=deployment.stock\n Given\n When\n  scenario go() by=members\n   do\n    let x = 1\n   examples seed=[w]\n    do\n     call go {} by=self\n     call Widget.update {record=w,changes={title=\"b\"}} by=self\n     w.title -> \"b\"\n Then\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E5006"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'Widget.update' is not enabled"),
+        "{}",
+        diags[0].message
+    );
+    let (start, end) = span_of(src, "Widget.update", 1);
+    assert_eq!((diags[0].primary.start, diags[0].primary.end), (start, end));
+}
+
+/// (T35/R23) Absent stays unavailable: an exported model with no
+/// `crud` declaration at all offers no operations to import.
+#[test]
+fn t35r23_no_crud_declaration_stays_rejected() {
+    let src = "package stock\n Given\n  export Bare { title:text }\n  policy Bare read=members\n  export fixture b=Bare {title=\"a\"}\n When\n  scenario idle() by=members\n   do\n    let x = 1\n Then\npackage shop\n use stock {Bare,b}\n Given\n When\n  scenario go() by=members\n   do\n    let x = 1\n   examples seed=[b]\n    do\n     call go {} by=self\n     call Bare.update {record=b,changes={title=\"b\"}} by=self\n     b.title -> \"a\"\n Then\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E5006"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'Bare.update' is not enabled"),
+        "{}",
+        diags[0].message
+    );
+    let (start, end) = span_of(src, "Bare.update", 1);
+    assert_eq!((diags[0].primary.start, diags[0].primary.end), (start, end));
+}
