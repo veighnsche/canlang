@@ -1,6 +1,7 @@
 {
   "name": "@canlang/testkit",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "CanLang inline-BDD runner: executes compiled example artifacts through production admission with per-row isolation (lane 07).",
   "type": "module",
   "main": "./dist/index.js",

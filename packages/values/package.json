@@ -1,6 +1,7 @@
 {
   "name": "@canlang/values",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "CanLang exact values, schemas, codecs and pure builtins (internal package, lane 02)",
   "type": "module",
   "main": "./dist/values/src/index.js",

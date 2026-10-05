@@ -1,6 +1,7 @@
 {
   "name": "@canlang/state",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "CanLang authoritative state engine: canonical invocation, queries, mutations, fenced storage (internal package, lane 03)",
   "type": "module",
   "main": "./dist/state/src/index.js",
