@@ -1,0 +1,74 @@
+[
+  {
+    "theme": "dark",
+    "background": "dark",
+    "inline_vs_external_image_pixels_different": 0,
+    "rsvg_vs_chrome_pixels_different": 3043,
+    "rsvg_vs_chrome_mean_channel_delta": 0.11604690551757812,
+    "rsvg_vs_chrome_fraction_pixels_identical": 0.9883918762207031,
+    "hole_center_rsvg": [
+      17,
+      17,
+      17
+    ],
+    "hole_center_chrome": [
+      17,
+      17,
+      17
+    ]
+  },
+  {
+    "theme": "dark",
+    "background": "white",
+    "inline_vs_external_image_pixels_different": 0,
+    "rsvg_vs_chrome_pixels_different": 2868,
+    "rsvg_vs_chrome_mean_channel_delta": 0.1405309041341146,
+    "rsvg_vs_chrome_fraction_pixels_identical": 0.9890594482421875,
+    "hole_center_rsvg": [
+      255,
+      255,
+      255
+    ],
+    "hole_center_chrome": [
+      255,
+      255,
+      255
+    ]
+  },
+  {
+    "theme": "light",
+    "background": "dark",
+    "inline_vs_external_image_pixels_different": 0,
+    "rsvg_vs_chrome_pixels_different": 2973,
+    "rsvg_vs_chrome_mean_channel_delta": 0.06732432047526042,
+    "rsvg_vs_chrome_fraction_pixels_identical": 0.9886589050292969,
+    "hole_center_rsvg": [
+      17,
+      17,
+      17
+    ],
+    "hole_center_chrome": [
+      17,
+      17,
+      17
+    ]
+  },
+  {
+    "theme": "light",
+    "background": "white",
+    "inline_vs_external_image_pixels_different": 0,
+    "rsvg_vs_chrome_pixels_different": 3080,
+    "rsvg_vs_chrome_mean_channel_delta": 0.13759231567382812,
+    "rsvg_vs_chrome_fraction_pixels_identical": 0.988250732421875,
+    "hole_center_rsvg": [
+      255,
+      255,
+      255
+    ],
+    "hole_center_chrome": [
+      255,
+      255,
+      255
+    ]
+  }
+]

@@ -1,0 +1,58 @@
+{
+  "commands": [
+    "vsce ls",
+    "vsce package --out ../../output/editor/canlang-draft-highlighting-0.1.9.vsix"
+  ],
+  "tool_note": "Used existing cached @vscode/vsce CLI without installing or publishing.",
+  "output": "../../output/editor/canlang-draft-highlighting-0.1.9.vsix",
+  "checks": {
+    "inventory_succeeded": true,
+    "package_succeeded": true,
+    "prepublish_compile_succeeded": true,
+    "zip_integrity_passed": true,
+    "previews_absent_from_inventory": true,
+    "previews_absent_from_vsix": true,
+    "icon_and_logo_included": true,
+    "asset_bytes_match_repository": true,
+    "icon_is_512_square": true,
+    "icon_is_opaque": true
+  },
+  "sha256": {
+    "icon.png": "8ff61ff5a63ffd5ed9c2aeb8d54bc3f0b0fa3f0d87fec18b5fc9642db9ccab35",
+    "logo.svg": "f71ee7d40af992263cbdd2fa236e74aaf6ccf9d36a27e399bb9ee26fd32ea803"
+  },
+  "inventory": [
+    "README.md",
+    "package.json",
+    "out/client.js",
+    "out/extension.js",
+    "images/icon-dark.png",
+    "images/icon.png",
+    "images/logo.svg",
+    "syntaxes/can.tmLanguage.json"
+  ],
+  "zip_contents": [
+    "extension.vsixmanifest",
+    "[Content_Types].xml",
+    "extension/readme.md",
+    "extension/package.json",
+    "extension/syntaxes/can.tmLanguage.json",
+    "extension/out/client.js",
+    "extension/out/extension.js",
+    "extension/images/icon-dark.png",
+    "extension/images/icon.png",
+    "extension/images/logo.svg"
+  ],
+  "warnings": [
+    "LICENSE, LICENSE.md, or LICENSE.txt not found"
+  ],
+  "icon": {
+    "width": 512,
+    "height": 512,
+    "mode": "RGB",
+    "alpha_extrema": [
+      255,
+      255
+    ]
+  }
+}
