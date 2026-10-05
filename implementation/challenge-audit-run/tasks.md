@@ -61,12 +61,12 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Acceptance: Fresh sampled sites cite full context and intended expression, root/consequence, one a-e bucket, opposite case, confidence/flip evidence; record command and result, binary/catalog/source identities.
   - Evidence: writer 01a10cc6-5416-7f51-b29b-fbeb15824638 released evidence/root-causes.md (638 lines, only path + T03 companion). Repro revalidated exact: exit 10, complete=true, omitted=0, 4524 diagnostics; binary/catalog/bundle hashes match plan baseline (coordinator re-verified binary+catalog sha256). 30 roots R01-R30 each with intent/root-vs-consequence/bucket/opposing/confidence+flip/positive+negative; 7 consequence chains C1-C7; family coverage incl deferred E5001/E5004; R30 multi-root method note. Heavy lock acquired+released, no stale lock.
 
-- [ ] **T02 — Record per file intent and capability status**
+- [x] **T02 — Record per file intent and capability status**
   - Prerequisites: T01; inventory preparation can start at M00.
   - Owner / files / interfaces: L7; implementation/challenge-audit-run/evidence/app-intent.md. Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ01/RQ07; canonical design/task: Accountable lead: L7. Contributors and owning boundaries: L1/L7 with draft owner. Depends on T01. Give all 49 apps accepted workflow intent, demonstrated source defects, unresolved proposals and unavailable implementations. Preserve runtime negatives. Done when every file has an explicit disposition and exact blockers.
   - Acceptance: All 49 top-level apps have accept/reject intent and exact capability blockers; runtime error examples are retained; explicit whole-file negatives require evidence.
-  - Evidence: PREP slice done (parent OPEN, dispositions T01-pending): writer 01a10cc8-f27d-79a1-b522-efc016516d27 released evidence/app-intent.md (new, only path). 49/49 app sections each with intent/observations/proposal+unavailable markers/negatives/T01 slot; coordinator reproduced 830/830 `-> error(` + 0 whole-file-negative greps. T01 reconciliation slice queued after T01 lands.
+  - Evidence: PREP writer 01a10cc8-f27d-79a1-b522-efc016516d27 (scaffold, 830/830 negatives, 0 whole-file negatives — coordinator reproduced) + RECONCILE writer 01a10ccd-be76-7fa1-a7bd-24d8e0b2ab46 RELEASED: 49/49 dispositions cite exact T01 roots/buckets/owners/flips (coordinator verified 0 remaining PENDING, 30/30 distinct R-roots cited, 49 negatives-retained lines); unsampled apps honestly UNADJUDICATED with exact blockers, no invented negatives.
 
 - [x] **T03 — Specify ordinary continuation facts**
   - Prerequisites: M00.
@@ -143,7 +143,7 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Owner / files / interfaces: L4, producer-owned schemas; L1 consumes; packages/contracts/src/services.ts, packages/contracts/src/work.ts, packages/contracts/src/files.ts, packages/services/src/catalog.ts, packages/work/src/catalog.ts, packages/files/src/catalog.ts, compiler/src/analysis/catalog.rs (L1 writes). Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ03/RQ05; canonical design/task: Accountable lead: L4; each producer retains its definitions and L1 owns compiler consumption. Depends on T12. Deliver scoped T13a before richer T13b. Done when the full accepted inventory supplies canonical request/result/error/effect/event/observable declarations and invalid members/bindings reject.
   - Acceptance: Canonical requests/results/errors/effects/events/observable relations reach consumers; T13a common delivery then T13b rich relations; invalid members and binding/provenance reject per actual schema.
-  - Evidence: T13a PRODUCER slice done (parent OPEN; T13b + L1-consume remain): writer 01a10ccb-5fb9-7902-9a5d-78a1c91622b3 released 3 contracts files (+212/-2, tsc exit 0 re-verified by coordinator). SERVICES/WORK/FILES_CONTRACT_VERSION=1 + STD_EMAIL/ERRORS/PAYMENTS_V1 contracts v1; EmailV1 send-only (reconcile port-op excluded with rationale); Errors/Payments contract-only per B10 (no catalog adds); B9 recorded (attachments required, flagged T14a); B1/B11/B12 preserved; T13b untouched. Catalogs + catalog.rs untouched.
+  - Evidence: T13a PRODUCER slice done (writer 01a10ccb) + CONSUME slice done (parent OPEN; T13b remains; prior text: L1-consume pending): writer 01a10ccb-5fb9-7902-9a5d-78a1c91622b3 released 3 contracts files (+212/-2, tsc exit 0 re-verified by coordinator). SERVICES/WORK/FILES_CONTRACT_VERSION=1 + STD_EMAIL/ERRORS/PAYMENTS_V1 contracts v1; EmailV1 send-only (reconcile port-op excluded with rationale); Errors/Payments contract-only per B10 (no catalog adds); B9 recorded (attachments required, flagged T14a); B1/B11/B12 preserved; T13b untouched. Catalogs untouched. CONSUME: writer 01a10cd0-1865-7701-9e14-c3f793777d04 RELEASED compiler/src/analysis/catalog.rs (+500/-0 additive-only verified). B1 explicit (compiler-known std module fed by T13 schemas); E3019 preserved for all T13b scope via None lookups; unit tests mirror frozen producers. Coordinator cargo check DEFERRED to T08 release (shared crate, lock discipline).
 
 - [ ] **T14 — Type bound sends and fixture recipes**
   - Prerequisites: matching T13a/T13b and applicable T10.
@@ -341,12 +341,12 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Acceptance: Recheck all 52 sources with current source-built compiler; reattribute roots, positive/negative guarantees and real runtime evidence; version supported scope and precise deferred/undecided gaps; no blanket suppression/count edits or false full-backlog completion.
   - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
 
-- [ ] **G0 — Verify integration gate**
+- [x] **G0 — Verify integration gate**
   - Prerequisites: T01/T02 relevant pilot inventory, T03, T04a, T12.
   - Owner / files / interfaces: Muse coordinator with producer/consumer leads; checklist evidence and bounded gate record.
   - Changes / traceability: RQ01-RQ09; join actual compatible producer revisions and check the saved plan gate.
   - Acceptance: Root ledger and original pilot blockers agree with frozen artifact/invoke/examples and continuation contracts.
-  - Evidence: pending.
+  - Evidence: Coordinator-verified (no writer): T02 cites 30/30 T01 roots with buckets/owners/flips; T03 one-rule covers R01-R06+R28 with §10/§11 controls; T12 resolves R11/R12 (E2005/E3019) to inventory + B1-B12; all 30 roots singly owned (R30 anti-double-count); T04a frozen e22b59f. Inputs FROZEN for consumers at 64f1458/9422d80.
 
 - [ ] **G1 — Verify integration gate**
   - Prerequisites: Relevant T05-T11/T13/T14/T15 slices.
@@ -422,3 +422,7 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - DONE T13a-producer: writer 01a10ccb-5fb9-7902-9a5d-78a1c91622b3 RELEASED 3 contracts files (catalogs/catalog.rs untouched per brief). Parent T13 OPEN (T13b + consume remain; see T13 evidence).
 - CORRECTION: T05 prereq is T03 only (no L2 case requests — earlier queue note wrong). Checker-file serialization chain: T08 → T05 → T10 → T30 → T14a all share types/resolve/b4_check.rs. T14a additionally needs T13a-consume + applicable T10.
 - DISPATCH batch 6 (slot freed x1): L1 T13a-consume writer (WRITE ONLY compiler/src/analysis/catalog.rs — disjoint from T08's files). L1 T08-Rust and L7 T02-reconcile still running. Queued: T05 (after T08), T10, T30, T14a. G0 freeze when T02 ticks.
+- DONE T02: writer 01a10ccd-be76-7fa1-a7bd-24d8e0b2ab46 RELEASED evidence/app-intent.md (49/49 reconciled, 30/30 roots cited, negatives preserved). Task ticked complete (see T02 evidence).
+- DONE T13a-consume: writer 01a10cd0-1865-7701-9e14-c3f793777d04 RELEASED compiler/src/analysis/catalog.rs (+500/-0 additive, B1 explicit, E3019 preserved). Parent T13 OPEN (T13b remains; see T13 evidence).
+- G0 FROZEN: coordinator agreement check passed (T01/T02/T03/T04a/T12 joins verified; see G0 evidence). G0 ticked.
+- DISPATCH batch 7 (slots freed x2): L5 T08-policyPage writer (packages/ui/src/policyPage.ts — L5 writes, T03 landed) + L2 T09-TS-slice writer (values schema/array.ts + contracts values.ts; Rust emission is a later L1 slice). L1 T08-Rust still running. Queued: T05→T10→T30→T14a checker chain, T09-Rust, T13b, JEV-prep alternatives.
