@@ -495,3 +495,5 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - DONE T32a-item6: writer 01a10d85-957f-7f61-8660-0d9c5e67f621 RELEASED read-decision.md append (T28-A same-owner fence + T29-owed boundary, item-6 QUALIFIED mark). Item 6 QUALIFIED (see T32 evidence).
 - HOLD batch 37: 2/3 active (T14a + D05c); third slot idle — T14b needs T14a; D07 needs D05c; D08 needs D07; T33/T04b/T15a blocked on facts; remaining JEV gates need T18/T23/T24/T32-decision inputs. No busywork dispatch.
 - DONE T14a: writer 01a10d79-5916-7263-9f00-5be6b0d1a0b8 RELEASED types.rs + b4_check + table (64 E3019s gone, 22 T13b preserved, 22 tests; differential independently reproduced). Parent T14 OPEN for T14b (see T14 evidence).
+- DONE D05c (see D checklist): completions/exe/explain/wiring released, e2e corroborated. D05 ticked COMPLETE.
+- DISPATCH batch 38 (slots freed x2): L1 T14b writer (T13b-op validation + B1/B11 nominals as reachable: types/resolve/b4_check + table) + D07 integration-verify writer (see D-h). Zero writers running otherwise. Queued: D08 (after D07), T04b/T15a (need deeper facts), T33 (needs T24/T32), JEV gates (need T18/T23/T24 inputs).

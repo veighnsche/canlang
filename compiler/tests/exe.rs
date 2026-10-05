@@ -28,8 +28,8 @@ fn stderr_text(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
 }
 
-/// All 14 subcommands the global help must document.
-const ALL_COMMANDS: [&str; 14] = [
+/// All 15 subcommands the global help must document.
+const ALL_COMMANDS: [&str; 15] = [
     "compile",
     "check",
     "lint",
@@ -37,6 +37,7 @@ const ALL_COMMANDS: [&str; 14] = [
     "explain",
     "lsp",
     "policy",
+    "docs",
     "run",
     "test",
     "build",
@@ -181,6 +182,103 @@ fn forced_internal_error_is_e7005_exit_2_without_trace() {
     for leak in ["panicked", "stack backtrace", "thread 'main'"] {
         assert!(!stderr.contains(leak), "trace leak {leak:?}: {stderr:?}");
     }
+}
+
+/// D05c `docs` goldens: help text, `--out` refusal, and the exit-10
+/// no-write path. None of these spawn the platform renderer, so they
+/// stay hermetic (no `CAN_PLATFORM_BIN`, no catalog, no network).
+#[test]
+fn docs_help_golden_names_flags_and_exits() {
+    let output = run(&["docs", "--help"]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr_text(&output));
+    assert!(output.stderr.is_empty());
+    let help = stdout_text(&output);
+    for token in [
+        "can docs",
+        "--locale=TAG",
+        "--out=PATH",
+        "--format=json|text",
+        "--catalog=PATH",
+        "can-platform docs",
+        "never overwritten",
+        "Exit codes",
+        "0 rendered",
+        "10 errors reported",
+    ] {
+        assert!(help.contains(token), "docs help missing {token}: {help}");
+    }
+}
+
+fn docs_tmpdir(tag: &str) -> PathBuf {
+    let dir =
+        std::env::temp_dir().join(format!("can-docs-exe-{tag}-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("tmpdir");
+    dir
+}
+
+#[test]
+fn docs_out_refuses_can_sources_before_any_work() {
+    // Refusal precedes every read and the analysis itself: inputs need
+    // not exist, and no file is created anywhere.
+    let dir = docs_tmpdir("refuse");
+    let out = dir.join("refused.can");
+    let output = run(&[
+        "docs",
+        "--out",
+        &out.to_string_lossy(),
+        &dir.join("does-not-exist.can").to_string_lossy(),
+    ]);
+    assert_eq!(output.status.code(), Some(2), "{}", stderr_text(&output));
+    assert!(output.stdout.is_empty());
+    let stderr = stderr_text(&output);
+    assert!(stderr.contains("E7001"), "{stderr}");
+    assert!(stderr.contains("refuses"), "{stderr}");
+    assert!(!out.exists(), "refused --out must not be created");
+    // Same refusal through the input-overwrite path (literal match).
+    let input = dir.join("input.can");
+    std::fs::write(&input, "app T\nGiven\nWhen\nThen\n").expect("write input");
+    let output = run(&[
+        "docs",
+        &format!("--out={}", input.to_string_lossy()),
+        &input.to_string_lossy(),
+    ]);
+    assert_eq!(output.status.code(), Some(2), "{}", stderr_text(&output));
+    let stderr = stderr_text(&output);
+    assert!(stderr.contains("E7001"), "{stderr}");
+    assert!(stderr.contains("refuses"), "{stderr}");
+    assert_eq!(
+        std::fs::read_to_string(&input).expect("reread input"),
+        "app T\nGiven\nWhen\nThen\n",
+        "refused --out must leave the input untouched"
+    );
+    std::fs::remove_dir_all(&dir).expect("tmpdir cleanup");
+}
+
+#[test]
+fn docs_broken_source_exits_10_without_writing() {
+    let dir = docs_tmpdir("exit10");
+    let input = dir.join("broken.can");
+    std::fs::write(&input, "this is not {.can syntax !!!\n").expect("write broken fixture");
+    let out = dir.join("reference.md");
+    let output = run(&[
+        "docs",
+        "--out",
+        &out.to_string_lossy(),
+        &input.to_string_lossy(),
+    ]);
+    assert_eq!(
+        output.status.code(),
+        Some(10),
+        "stdout: {}\nstderr: {}",
+        stdout_text(&output),
+        stderr_text(&output)
+    );
+    assert!(!out.exists(), "--out must not be written on analysis failure");
+    assert!(
+        !stdout_text(&output).is_empty(),
+        "exit 10 still reports diagnostics on stdout"
+    );
+    std::fs::remove_dir_all(&dir).expect("tmpdir cleanup");
 }
 
 fn fixture(name: &str) -> PathBuf {

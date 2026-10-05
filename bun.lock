@@ -23,6 +23,7 @@
       },
       "dependencies": {
         "@canlang/contracts": "0.1.0",
+        "@canlang/interfaces": "0.1.0",
         "miniflare": "4.20260730.0",
       },
       "devDependencies": {
@@ -64,6 +65,7 @@
         "@canlang/contracts": "0.1.0",
         "@canlang/identity": "0.1.0",
         "@canlang/ui": "0.1.0",
+        "@canlang/values": "0.1.0",
         "@modelcontextprotocol/sdk": "1.32.0",
       },
       "devDependencies": {
