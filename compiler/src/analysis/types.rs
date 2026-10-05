@@ -2633,9 +2633,12 @@ impl<'a> Typer<'a> {
     }
 
     /// Whether a field is a required `create` input: no default, no
-    /// server initializer, and a non-nullable declared type. Derived
-    /// fields are computed, never inputs (mirroring `field_is_required`
-    /// for constructs).
+    /// server initializer, and a non-nullable declared type. Ordinary
+    /// arrays (`T[]`, marker unset) omit to `[]`, so only required
+    /// arrays (`T[]!`, marker set) are required inputs (T09: the `!`
+    /// spelling in [`Typer::shapes` is the sole marker, mirroring
+    /// `field_is_required` for constructs and `FieldData.required_array`
+    /// in effects).
     fn field_is_required_input(&self, field: SymbolId) -> bool {
         if matches!(
             self.tables.symbols[field.0 as usize].kind,
@@ -2643,12 +2646,19 @@ impl<'a> Typer<'a> {
         ) {
             return false;
         }
-        let (has_default, has_server, _) = self
+        let (has_default, has_server, required_array) = self
             .shapes
             .get(&field)
             .copied()
             .unwrap_or((false, false, false));
-        !has_default && !has_server && !matches!(self.decl_type(field), ResolvedType::Nullable(_))
+        if has_default || has_server {
+            return false;
+        }
+        match self.decl_type(field) {
+            ResolvedType::Nullable(_) => false,
+            ResolvedType::Array { .. } => required_array,
+            _ => true,
+        }
     }
 
     // --- Phase 2: scenarios and rules ----------------------------------
