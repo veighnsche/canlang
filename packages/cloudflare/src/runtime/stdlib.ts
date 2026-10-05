@@ -2,15 +2,37 @@
  * B1 interim data-plane stdlib: the c-first functions emitted
  * `async op(c, …)` handlers call. NAMED INTERIM home per coordinator R5.
  *
- * INTERIM B1 binding — handoff to L3. What L3 must formalize:
- * - Route create/set/deleteRecord/records through the state engine
- *   (`crudExecute` / `runMutationWrites` / `queryRecords`) with a real
- *   `ModelTable`, `PolicyTable`, and `InvocationContext` instead of the
- *   direct fenced `StoragePort` commits/queries below.
- * - Thread operation identity (name/id) so writes carry receipts and
- *   history entries (B1 commits `history: []`, `receipt: null`).
- * - Add grant-checked viewer reads (B1 `records()` returns full stored
- *   rows, truthfully labeled `authority: 'owner'` by default).
+ * T17b migration (this file): `create`/`set`/`deleteRecord`/`records`
+ * route through the canonical engine via the context's canonical scope
+ * (`c.canonical`, installed by the scenario seam in `./invoke.js`) —
+ * admission happened once for the scenario; each write stages through
+ * the canonical mutation pipeline (`runMutationWrites`: real
+ * `ModelTable`, provisional map, uniques, history) into the scenario
+ * effects, and the ONE fenced commit carries the scenario operation
+ * identity into history entries and the receipt. `records()` serves
+ * through `invokeRead` (admission + viewer grant projection by the
+ * engine, over the staged overlay so handler reads see handler writes).
+ * The direct fenced `StoragePort` commits/queries are RETIRED: without
+ * a scope every data-plane call fails loud (there is no serving path
+ * outside canonical execution anymore).
+ *
+ * Error contract for handler authors: pipeline failures surface as the
+ * engine's `StateError`s (`validation`/`not_found`/`conflict`/
+ * `rule_failed`) WITH their codes — catch them by `error.code` to
+ * branch or recover, or let them propagate: the seam attributes
+ * uncaught engine failures message-exactly, so they receipt with
+ * their TRUE codes (parity with the CRUD path). Do NOT rethrow
+ * shaped `{ code, message }` objects to preserve codes — handler
+ * failures stringify at the invoke boundary, so a shaped object
+ * would arrive as `"[object Object]"` and destroy its own message.
+ * Anything the handler throws itself becomes `rule_failed` with its
+ * message (the assembly's established unexpected-failure rule).
+ * Unservable `records()` shapes (`where`/`order`/`limit`, `archived:
+ * 'include'`, `authority: 'owner'`) refuse LOUD with `validation`
+ * (T04a carries no filter vocabulary; T04b does) instead of
+ * mis-serving.
+ *
+ * REMAINING B1 handoff (still open after T17b):
  * - Implement the 7 stubs (send/emit/schedule/cancel/check/delivery/
  *   secretEqual) against the effects pipeline, schedule store, and
  *   secrets bindings.
@@ -22,25 +44,19 @@
  *   emitted `@canlang/stdlib` specifier here, so only the names below
  *   resolve; every other builtin fails loud at import until the union.
  *
- * The 7 implemented functions delegate to `c.store` via the real
- * `@canlang/state` commit/query protocol (`CommitBatch`, `DomainWrite`,
- * `QuerySpec`) or evaluate pure local semantics (`require`, `hasRole`,
- * `count`); the 7 stubs throw `unsupported(<name>)` — never silent,
- * never fake data.
+ * `require`, `hasRole`, and `count` keep their B1 local semantics
+ * byte-identically; the 7 stubs throw `unsupported(<name>)` — never
+ * silent, never fake data.
  */
 import type {
-  CommitBatch,
-  ModelName,
   OrderTerm,
+  ProjectedRecord,
   QueryPredicate,
-  QuerySpec,
   ReadAuthority,
-  RecordId,
   RecordParent,
-  RecordVersion,
   StoredRow,
 } from '@canlang/contracts';
-import type { HandlerContext } from './context.js';
+import type { CanonicalEffectsScope, HandlerContext } from './context.js';
 
 /** Input for {@link create}: explicit id plus data (crud interim convention). */
 export interface CreateInput {
@@ -56,59 +72,80 @@ export interface RecordsQuery {
   readonly limit?: number;
   readonly archived?: 'exclude' | 'include';
   /**
-   * Read authority label. Defaults to `'owner'` (full stored rows — the
-   * only truthful label until L3 adds grant-checked projection).
+   * Read authority label. T17b: served through `invokeRead`, which is
+   * viewer-only in the core scope (the engine projects by grants; the
+   * owner bypass stays engine-internal — T32 owns authority fences). An
+   * absent label serves viewer; an explicit `'owner'` refuses LOUD.
    */
   readonly authority?: ReadAuthority;
 }
 
-/** Empty commit tail: no history/receipt/outbox/schedules/uniques in B1. */
-function commitBatch(expectedRevision: CommitBatch['expectedRevision'], writes: CommitBatch['writes']): CommitBatch {
-  return {
-    expectedRevision,
-    writes,
-    history: [],
-    receipt: null,
-    outbox: [],
-    schedules: [],
-    uniqueClaims: [],
-    uniqueReleases: [],
-  };
+/**
+ * T17b: require the canonical scope. The direct-commit paths are retired,
+ * so a missing scope is a loud programmer error naming the retirement —
+ * never a silent direct commit and never fake data.
+ */
+function requireScope(c: HandlerContext, name: string): CanonicalEffectsScope {
+  const scope: unknown = c.canonical;
+  if (scope === undefined || scope === null) {
+    throw new Error(
+      `t17: stdlib ${name}() needs a canonical execution scope; direct data-plane ` +
+        `commits were retired in T17 (no serving path runs outside canonical execution)`,
+    );
+  }
+  return scope as CanonicalEffectsScope;
+}
+
+/** T17b: handler-arg wire check (wiring bugs fail fast; the engine validates the domain). */
+function requireModelId(model: unknown, id: unknown, name: string): { model: string; id: string } {
+  if (typeof model !== 'string' || model === '') {
+    throw new Error(`t17: stdlib ${name}() needs a non-empty string model.`);
+  }
+  if (typeof id !== 'string' || id === '') {
+    throw new Error(`t17: stdlib ${name}() needs a non-empty string record id.`);
+  }
+  return { model, id };
 }
 
 /**
- * Insert one record (version 1) via a fenced `StoragePort` commit.
- * Timestamps come from `c.clock()`; attribution from `c.caller.userId`.
+ * Insert one record via the canonical mutation pipeline. The write stages
+ * into the scenario effects (version 1, timestamps from the frozen
+ * admission clock, attribution from the admitted caller) and commits once
+ * with the scenario receipt — history carries the scenario operation
+ * identity. Domain failures (`validation` on unknown model/field,
+ * missing required, bad parent; `validation` on duplicate id) surface as
+ * the engine's `StateError`s (see the file header for the catch contract).
  */
 export async function create(
   c: HandlerContext,
   model: string,
   input: CreateInput,
 ): Promise<StoredRow> {
-  const now = c.clock();
-  const row: StoredRow = {
-    id: input.id as RecordId,
-    version: 1 as RecordVersion,
-    created: now,
-    updated: now,
-    createdBy: c.caller.userId,
-    updatedBy: c.caller.userId,
-    archivedAt: null,
+  const scope = requireScope(c, 'create');
+  const target = requireModelId(model, input.id, 'create');
+  if (typeof input.data !== 'object' || input.data === null || Array.isArray(input.data)) {
+    throw new Error('t17: stdlib create() needs a data object.');
+  }
+  const staged = await scope.stageWrite({
+    op: 'create',
+    model: target.model,
+    id: target.id,
     ...(input.parent === undefined ? {} : { parent: input.parent }),
     data: input.data,
-  };
-  await c.store.commit(
-    commitBatch(await c.store.readRevision(), [
-      { kind: 'insert', model: model as ModelName, row },
-    ]),
-  );
-  return row;
+  });
+  if (staged === null) {
+    throw new Error('t17: stdlib create() staged no row (seam wiring bug).');
+  }
+  return staged;
 }
 
 /**
- * Patch one existing record via a fenced `StoragePort` commit (shallow data
- * merge, version + 1). Throws when the record does not exist; version
- * conflicts surface as the store's own fence/constraint error.
+ * Patch one existing record via the canonical mutation pipeline (shallow
+ * data merge, version + 1, read-your-write over staged + stored rows).
+ * Throws the engine's `not_found` when the record does not exist.
+ * Concurrent scenarios converge through the revision fence + retry (the
+ * loser re-executes against the winner's rows); nothing is silently
+ * overwritten.
  */
 export async function set(
   c: HandlerContext,
@@ -116,76 +153,62 @@ export async function set(
   id: string,
   patch: Record<string, unknown>,
 ): Promise<StoredRow> {
-  const current = await c.store.load(model as ModelName, id as RecordId);
-  if (current === null) {
-    throw new Error(`set(${model}/${id}): record not found.`);
+  const scope = requireScope(c, 'set');
+  const target = requireModelId(model, id, 'set');
+  const staged = await scope.stageWrite({
+    op: 'update',
+    model: target.model,
+    id: target.id,
+    data: patch,
+  });
+  if (staged === null) {
+    throw new Error('t17: stdlib set() staged no row (seam wiring bug).');
   }
-  const row: StoredRow = {
-    ...current,
-    version: ((current.version as number) + 1) as RecordVersion,
-    updated: c.clock(),
-    updatedBy: c.caller.userId,
-    data: { ...current.data, ...patch },
-  };
-  await c.store.commit(
-    commitBatch(await c.store.readRevision(), [
-      {
-        kind: 'update',
-        model: model as ModelName,
-        id: id as RecordId,
-        expectedVersion: current.version,
-        row,
-      },
-    ]),
-  );
-  return row;
+  return staged;
 }
 
 /**
- * Hard-remove one record via a fenced `StoragePort` commit. Throws when the
- * record does not exist. Archive-mode deletes are L3 work (delete modes
- * live in the model table B1 does not have).
+ * Delete one record via the canonical mutation pipeline, honoring the
+ * model table's delete mode (`archive` stamps `archivedAt` and keeps the
+ * row; `remove` hard-removes it; `none` refuses). Throws the engine's
+ * `not_found` when the record does not exist.
  */
 export async function deleteRecord(
   c: HandlerContext,
   model: string,
   id: string,
 ): Promise<void> {
-  const current = await c.store.load(model as ModelName, id as RecordId);
-  if (current === null) {
-    throw new Error(`deleteRecord(${model}/${id}): record not found.`);
-  }
-  await c.store.commit(
-    commitBatch(await c.store.readRevision(), [
-      {
-        kind: 'remove',
-        model: model as ModelName,
-        id: id as RecordId,
-        expectedVersion: current.version,
-      },
-    ]),
-  );
+  const scope = requireScope(c, 'deleteRecord');
+  const target = requireModelId(model, id, 'deleteRecord');
+  await scope.stageWrite({ op: 'remove', model: target.model, id: target.id });
 }
 
 /**
- * Query stored rows via `StoragePort.query`, passing the spec through.
- * Returns full stored rows (`authority: 'owner'` default); grant-checked
- * viewer projection is L3 work through `queryRecords`.
+ * Serve one whole-model viewer read through `invokeRead` (admission +
+ * engine grant projection, over the staged overlay so handler reads see
+ * handler writes). Returns projected records (denied leaves omitted,
+ * never null). Unservable shapes refuse LOUD with `validation`:
+ * `where`/`order`/`limit` (T04a carries no filter vocabulary — T04b
+ * does; the engine fails limit overflow instead of truncating, so a
+ * client slice would mis-serve), `archived: 'include'` (reads exclude),
+ * and `authority: 'owner'` (engine-internal bypass).
  */
-export function records(
+export async function records(
   c: HandlerContext,
   model: string,
   query: RecordsQuery = {},
-): Promise<ReadonlyArray<StoredRow>> {
-  const spec: QuerySpec = {
-    model: model as ModelName,
-    authority: query.authority ?? 'owner',
+): Promise<ReadonlyArray<ProjectedRecord>> {
+  const scope = requireScope(c, 'records');
+  if (typeof model !== 'string' || model === '') {
+    throw new Error('t17: stdlib records() needs a non-empty string model.');
+  }
+  return scope.readModel(model, {
     ...(query.where === undefined ? {} : { where: query.where }),
     ...(query.order === undefined ? {} : { order: query.order }),
     ...(query.limit === undefined ? {} : { limit: query.limit }),
     ...(query.archived === undefined ? {} : { archived: query.archived }),
-  };
-  return c.store.query(spec);
+    ...(query.authority === undefined ? {} : { authority: query.authority }),
+  });
 }
 
 /** Stub helper: every unimplemented data-plane name throws loudly. */

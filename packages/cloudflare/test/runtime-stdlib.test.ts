@@ -1,46 +1,44 @@
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { afterEach, describe, expect, it } from "vitest";
 import type {
   CommitBatch,
   CommitResult,
+  CompileArtifact,
   ModelName,
+  MutationResult,
+  OperationId,
   QuerySpec,
   RecordId,
+  ResolvedIdentity,
   Revision,
   StoragePort,
   StoredRow,
 } from "@canlang/contracts";
+import { resolveIdentity, sha256HexText } from "@canlang/identity";
+import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
+import { createTestMemoryStorage } from "../../state/dist/state/src/storage/memory.js";
 import { createContext, type HandlerContext } from "../src/runtime/context.js";
 import {
   cancel,
   check,
   count,
-  create,
-  deleteRecord,
   delivery,
   emit,
   hasRole,
-  records,
   require as guardRequire,
   schedule,
   secretEqual,
   send,
-  set,
 } from "../src/runtime/stdlib.js";
-
-const NOW = 1700000000000;
-
-function row(id: string, version: number, data: Record<string, unknown>): StoredRow {
-  return {
-    id: id as RecordId,
-    version: version as StoredRow["version"],
-    created: NOW - 1000,
-    updated: NOW - 1000,
-    createdBy: "seed",
-    updatedBy: "seed",
-    archivedAt: null,
-    data,
-  };
-}
+import {
+  buildInvoker,
+  type AssembledModules,
+  type MutationOutcome,
+} from "../src/worker/assembly.js";
 
 interface Fake {
   port: StoragePort;
@@ -103,144 +101,448 @@ function contextFor(fake: Fake): HandlerContext {
   return createContext({
     caller: { userId: "u1", roles: ["member"] },
     store: fake.port,
-    clock: () => NOW,
+    clock: () => 1700000000000,
   });
 }
 
+/* ------------------------------------------------------------------ */
+/* T17c canonical fixtures: stdlib behavior through staging.           */
+/*                                                                     */
+/* T17 retired the direct-commit/query stdlib paths (`requireScope`    */
+/* throws without a canonical scope), so these pins drive the SAME     */
+/* behaviors through scenario handlers over a memory store: each       */
+/* scenario exercises one stdlib path, the pipeline stages it, and     */
+/* the ONE fenced commit carries the scenario receipt. Fixture         */
+/* handlers import the COMPILED stdlib via an absolute dist file URL   */
+/* (the T17b flip-test precedent stages fixtures under the compiled   */
+/* test dir with a relative `../stdlib.js`; vitest stages these in    */
+/* the OS temp dir, so the URL is absolute). The compiled stdlib       */
+/* carries no runtime imports, so the fixture graph resolves with      */
+/* zero vendor surface.                                                */
+/* ------------------------------------------------------------------ */
+
+const STDLIB_URL = pathToFileURL(
+  join(dirname(fileURLToPath(import.meta.url)), "../dist/runtime/stdlib.js"),
+).href;
+
+const tempDirs: string[] = [];
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function tempDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), "canlang-stdlib-t17c-"));
+  tempDirs.push(dir);
+  return dir;
+}
+
+function writeModule(dir: string, name: string, source: string): string {
+  const path = join(dir, name);
+  writeFileSync(path, source);
+  return pathToFileURL(path).href;
+}
+
+/** Fresh canonical UUIDv7 operation_id with the time field at `atMs`. */
+function freshOperationId(atMs: number): string {
+  const timeHex = atMs.toString(16).padStart(12, "0");
+  const rand = randomBytes(10).toString("hex");
+  return `${timeHex.slice(0, 8)}-${timeHex.slice(8, 12)}-7${rand.slice(0, 3)}-8${rand.slice(4, 7)}-${rand.slice(7, 19)}`;
+}
+
+const OPS_SOURCE = `import { create, set, deleteRecord, records } from ${JSON.stringify(STDLIB_URL)};
+export function canApp() {
+  return {
+    Shop: {
+      mkCreate: async (c, input) => {
+        return create(c, "acme.Todo", { id: input.inputs.key, data: { title: input.inputs.title } });
+      },
+      mkParent: async (c, input) => {
+        await create(c, "acme.Todo", { id: input.inputs.parent, data: { title: "parent" } });
+        return create(c, "acme.Todo", {
+          id: input.inputs.child,
+          data: { title: "child" },
+          parent: { model: "acme.Todo", id: input.inputs.parent },
+        });
+      },
+      mkSet: async (c, input) => {
+        await create(c, "acme.Todo", { id: input.inputs.key, data: { title: "old", done: false } });
+        return set(c, "acme.Todo", input.inputs.key, { done: true });
+      },
+      setMissing: async (c, input) => {
+        await set(c, "acme.Todo", input.inputs.key, { done: true });
+        return { never: true };
+      },
+      mkRemove: async (c, input) => {
+        await create(c, "acme.Todo", { id: input.inputs.key, data: { title: "gone" } });
+        await deleteRecord(c, "acme.Todo", input.inputs.key);
+        const seen = await records(c, "acme.Todo");
+        const stored = await c.store.load("acme.Todo", input.inputs.key);
+        return { visible: seen.length, stored: stored === null ? null : stored.id };
+      },
+      removeMissing: async (c, input) => {
+        await deleteRecord(c, "acme.Todo", input.inputs.key);
+        return { never: true };
+      },
+      mkRecords: async (c) => {
+        await create(c, "acme.Todo", { id: "t1", data: { title: "a" } });
+        await create(c, "acme.Todo", { id: "t2", data: { title: "b" } });
+        return records(c, "acme.Todo");
+      },
+      mkRecordsBare: async (c) => {
+        await create(c, "acme.Todo", { id: "t1", data: { title: "a" } });
+        return records(c, "acme.Todo");
+      },
+    },
+  };
+}
+`;
+
+function todoModel(): unknown {
+  return {
+    name: "acme.Todo",
+    fields: [
+      { name: "title", required: true, serverOnly: false, field: { kind: "string" } },
+      { name: "done", required: false, serverOnly: false, field: { kind: "boolean" } },
+    ],
+    deleteMode: "remove",
+  };
+}
+
+const SCENARIOS: ReadonlyArray<{ op: string; fn: string; params: ReadonlyArray<string> }> = [
+  { op: "acme.Shop.mkCreate", fn: "mkCreate", params: ["key", "title"] },
+  { op: "acme.Shop.mkParent", fn: "mkParent", params: ["parent", "child"] },
+  { op: "acme.Shop.mkSet", fn: "mkSet", params: ["key"] },
+  { op: "acme.Shop.setMissing", fn: "setMissing", params: ["key"] },
+  { op: "acme.Shop.mkRemove", fn: "mkRemove", params: ["key"] },
+  { op: "acme.Shop.removeMissing", fn: "removeMissing", params: ["key"] },
+  { op: "acme.Shop.mkRecords", fn: "mkRecords", params: [] },
+  { op: "acme.Shop.mkRecordsBare", fn: "mkRecordsBare", params: [] },
+];
+
+/** Hand-written T15a-shaped artifact (NOT compiler output): descriptors + callables. */
+function shopArtifact(module: string): CompileArtifact {
+  return {
+    artifact_version: 1,
+    language_version: "t17c-fixture/0 (hand-written T15a shape; NOT compiler output)",
+    tool_version: "t17c-fixture/0",
+    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
+    modules: [],
+    callables: SCENARIOS.map((s) => ({
+      id: s.op,
+      kind: "operation",
+      module,
+      export: `Shop_${s.fn}`,
+      member: ["Shop", s.fn],
+    })),
+    pages: [],
+    requires: [],
+    tests: [],
+    // Fresh inputs per artifact (no shared mutable structure across loads).
+    // The read descriptor serves `records()` (readModel invokes
+    // `acme.Todo.read`); reads need no callable.
+    operations: [
+      { name: "acme.Todo.read", kind: "read", description: "", inputs: { fields: [] } },
+      ...SCENARIOS.map((s) => ({
+        name: s.op,
+        kind: "scenario",
+        description: "",
+        inputs: {
+          fields: s.params.map((name) => ({ name, field: { kind: "string" }, required: true })),
+        },
+      })),
+    ],
+    models: [todoModel()],
+  } as unknown as CompileArtifact;
+}
+
+interface CanonicalSetup {
+  readonly now: number;
+  readonly store: StoragePort;
+  readonly userId: string;
+  readonly teamId: string;
+  readonly identity: ResolvedIdentity;
+  readonly invoker: ReturnType<typeof buildInvoker>;
+}
+
+async function canonicalSetup(): Promise<CanonicalSetup> {
+  const dir = tempDir();
+  const url = writeModule(dir, "ops.mjs", OPS_SOURCE);
+  const asm: AssembledModules = { dir, entryUrl: "fixture-entry", moduleUrls: { "ops.mjs": url } };
+  const artifact = shopArtifact("ops.mjs");
+  const { store } = createTestMemoryStorage();
+  const now = Date.now();
+  const clock = createFrozenClock(now);
+  const idStore = createMemoryIdentityStore({ clock });
+  const team = await idStore.createTeam({});
+  const user = await idStore.createUser({
+    email: "member@t17c.test",
+    password_hash: "x",
+    email_verified: true,
+  });
+  await idStore.createMembership({
+    team_id: team.team_id,
+    user_id: user.user_id,
+    is_owner: true,
+    roles: [],
+  });
+  const token = `t17c-session-${randomBytes(8).toString("hex")}`;
+  await idStore.createSession({
+    user_id: user.user_id,
+    token_sha256: await sha256HexText(token),
+    expires_at: new Date(now + 3600_000).toISOString(),
+    last_team_id: team.team_id,
+  });
+  const identity = await resolveIdentity(
+    idStore,
+    { session_token: token },
+    { clock: { nowMs: () => now } },
+  );
+  const invoker = buildInvoker(artifact, asm, store, { memberships: idStore, now: () => now });
+  return { now, store, userId: user.user_id, teamId: team.team_id, identity, invoker };
+}
+
+function mustResult(outcome: MutationOutcome): MutationResult {
+  if ("result" in outcome) return outcome.result;
+  throw new Error(`want result, got ${JSON.stringify(outcome)}`);
+}
+
+function mustError(outcome: MutationOutcome): { code: string; message: string } {
+  if ("error" in outcome) return outcome.error;
+  throw new Error(`want error, got ${JSON.stringify(outcome)}`);
+}
+
 describe("create", () => {
-  it("commits an insert write fenced at the store revision", async () => {
-    const fake = fakeStore();
-    const committed = await create(contextFor(fake), "Todo", {
+  it("stages an insert through the pipeline and commits it once with the scenario receipt", async () => {
+    // T17c (rule a): retired the direct-commit batch pin (per-call
+    // batches/fences are gone); the SAME insert behavior now stages
+    // through the canonical pipeline and commits once with the scenario
+    // receipt. Row shape, version 1, frozen-clock timestamps, and
+    // admitted attribution are pinned on the staged row AND the
+    // committed row, plus the single revision.
+    const s = await canonicalSetup();
+    const operationId = freshOperationId(s.now);
+    const committed = mustResult(
+      await s.invoker.invokeMutation(
+        {
+          operation: "acme.Shop.mkCreate",
+          operation_id: operationId as OperationId,
+          inputs: { key: "t1", title: "write tests" },
+        },
+        s.identity,
+      ),
+    );
+    expect(committed.status).toBe("committed");
+    expect(committed.operation_id).toBe(operationId);
+    expect(committed.result).toEqual({
       id: "t1",
+      version: 1,
+      created: s.now,
+      updated: s.now,
+      createdBy: s.userId,
+      updatedBy: s.userId,
+      archivedAt: null,
+      parent: null,
       data: { title: "write tests" },
     });
-    expect(fake.revisions).toBe(1);
-    expect(fake.batches.length).toBe(1);
-    const batch = fake.batches[0]!;
-    expect(batch.expectedRevision).toBe(7 as Revision);
-    expect(batch.receipt).toBe(null);
-    expect(batch.history).toEqual([]);
-    expect(batch.writes.length).toBe(1);
-    const write = batch.writes[0]!;
-    expect(write).toEqual({
-      kind: "insert",
-      model: "Todo",
-      row: {
-        id: "t1",
-        version: 1,
-        created: NOW,
-        updated: NOW,
-        createdBy: "u1",
-        updatedBy: "u1",
-        archivedAt: null,
-        data: { title: "write tests" },
-      },
-    });
-    expect(committed).toEqual((write as { row: StoredRow }).row);
+    expect(await s.store.load("acme.Todo" as ModelName, "t1" as RecordId)).toEqual(
+      committed.result,
+    );
+    expect(await s.store.readRevision()).toBe(1);
   });
 
-  it("passes a parent link through to the inserted row", async () => {
-    const fake = fakeStore();
-    await create(contextFor(fake), "Todo", {
-      id: "t2",
-      data: {},
-      parent: { model: "Todo" as ModelName, id: "t1" as RecordId },
+  it("passes a parent link through to the staged row", async () => {
+    // T17c (rule a): SAME parent-linkage behavior through staging (was
+    // asserted on the direct insert batch row).
+    const s = await canonicalSetup();
+    const committed = mustResult(
+      await s.invoker.invokeMutation(
+        {
+          operation: "acme.Shop.mkParent",
+          operation_id: freshOperationId(s.now) as OperationId,
+          inputs: { parent: "t1", child: "t2" },
+        },
+        s.identity,
+      ),
+    );
+    expect(committed.status).toBe("committed");
+    expect((committed.result as { parent: unknown }).parent).toEqual({
+      model: "acme.Todo",
+      id: "t1",
     });
-    const write = fake.batches[0]!.writes[0]!;
-    expect(write).toMatchObject({
-      kind: "insert",
-      row: { parent: { model: "Todo", id: "t1" } },
-    });
+    const stored = await s.store.load("acme.Todo" as ModelName, "t2" as RecordId);
+    expect(stored?.parent).toEqual({ model: "acme.Todo", id: "t1" });
   });
 });
 
 describe("set", () => {
-  it("loads, merges the patch, and commits an update at the stored version", async () => {
-    const fake = fakeStore([row("t1", 3, { title: "old", done: false })]);
-    const updated = await set(contextFor(fake), "Todo", "t1", { done: true });
-    expect(fake.loads).toEqual([{ model: "Todo", id: "t1" }]);
-    const batch = fake.batches[0]!;
-    expect(batch.expectedRevision).toBe(7 as Revision);
-    expect(batch.writes.length).toBe(1);
-    expect(batch.writes[0]).toEqual({
-      kind: "update",
-      model: "Todo",
+  it("merges the patch over the staged row and commits the update at version + 1", async () => {
+    // T17c (rule a): was load + merge + commit at stored version 3->4
+    // via direct calls; now create (v1) + set merge through the
+    // pipeline with read-your-write over the staged overlay, committed
+    // once (v2). SAME merge, bump, and attribution behavior.
+    const s = await canonicalSetup();
+    const committed = mustResult(
+      await s.invoker.invokeMutation(
+        {
+          operation: "acme.Shop.mkSet",
+          operation_id: freshOperationId(s.now) as OperationId,
+          inputs: { key: "t1" },
+        },
+        s.identity,
+      ),
+    );
+    expect(committed.status).toBe("committed");
+    expect(committed.result).toEqual({
       id: "t1",
-      expectedVersion: 3,
-      row: {
-        id: "t1",
-        version: 4,
-        created: NOW - 1000,
-        updated: NOW,
-        createdBy: "seed",
-        updatedBy: "u1",
-        archivedAt: null,
-        data: { title: "old", done: true },
-      },
+      version: 2,
+      created: s.now,
+      updated: s.now,
+      createdBy: s.userId,
+      updatedBy: s.userId,
+      archivedAt: null,
+      parent: null,
+      data: { title: "old", done: true },
     });
-    expect(updated.version).toBe(4 as StoredRow["version"]);
+    const stored = await s.store.load("acme.Todo" as ModelName, "t1" as RecordId);
+    expect(stored?.version).toBe(2 as StoredRow["version"]);
+    expect(stored?.data).toEqual({ title: "old", done: true });
+    expect(await s.store.readRevision()).toBe(1);
   });
 
-  it("throws when the record does not exist", async () => {
-    const fake = fakeStore();
-    await expect(set(contextFor(fake), "Todo", "missing", {})).rejects.toThrow(
-      /record not found/,
+  it("rejects a patch on a missing record with the engine not_found", async () => {
+    // T17c (rule a): was a direct-call throw matching /record not
+    // found/ with no commit; the pipeline stages nothing and the seam
+    // attributes the propagated engine failure message-exactly, so the
+    // rejection carries the TRUE `not_found` code (engine text "Record
+    // not found."). Bookkeeping only: the rejected receipt commits a
+    // receipt-only revision; no rows, no history.
+    const s = await canonicalSetup();
+    const err = mustError(
+      await s.invoker.invokeMutation(
+        {
+          operation: "acme.Shop.setMissing",
+          operation_id: freshOperationId(s.now) as OperationId,
+          inputs: { key: "missing" },
+        },
+        s.identity,
+      ),
     );
-    expect(fake.batches).toEqual([]);
+    expect(err.code).toBe("not_found");
+    expect(err.message).toContain("Record not found");
+    expect(await s.store.readRevision()).toBe(1);
+    expect(await s.store.load("acme.Todo" as ModelName, "missing" as RecordId)).toBeNull();
   });
 });
 
 describe("deleteRecord", () => {
-  it("commits a version-fenced remove write", async () => {
-    const fake = fakeStore([row("t1", 2, {})]);
-    await deleteRecord(contextFor(fake), "Todo", "t1");
-    expect(fake.loads).toEqual([{ model: "Todo", id: "t1" }]);
-    expect(fake.batches[0]).toEqual({
-      expectedRevision: 7,
-      writes: [{ kind: "remove", model: "Todo", id: "t1", expectedVersion: 2 }],
-      history: [],
-      receipt: null,
-      outbox: [],
-      schedules: [],
-      uniqueClaims: [],
-      uniqueReleases: [],
-    });
+  it("stages a remove honoring the model delete mode and commits it once", async () => {
+    // T17c (rule a): was a version-fenced direct remove batch; now the
+    // remove stages through the pipeline (deleteMode `remove`
+    // hard-removes) with read-your-write masking in-scenario, committed
+    // once. SAME removal behavior, observed staged AND committed.
+    const s = await canonicalSetup();
+    const committed = mustResult(
+      await s.invoker.invokeMutation(
+        {
+          operation: "acme.Shop.mkRemove",
+          operation_id: freshOperationId(s.now) as OperationId,
+          inputs: { key: "t1" },
+        },
+        s.identity,
+      ),
+    );
+    expect(committed.status).toBe("committed");
+    expect(committed.result).toEqual({ visible: 0, stored: null });
+    expect(await s.store.load("acme.Todo" as ModelName, "t1" as RecordId)).toBeNull();
+    expect(await s.store.readRevision()).toBe(1);
   });
 
-  it("throws when the record does not exist", async () => {
-    const fake = fakeStore();
-    await expect(deleteRecord(contextFor(fake), "Todo", "missing")).rejects.toThrow(
-      /record not found/,
+  it("rejects a remove on a missing record with the engine not_found", async () => {
+    // T17c (rule a): was a direct-call throw matching /record not
+    // found/ with no commit; the rejection now carries the TRUE
+    // `not_found` code with a receipt-only revision (see setMissing).
+    const s = await canonicalSetup();
+    const err = mustError(
+      await s.invoker.invokeMutation(
+        {
+          operation: "acme.Shop.removeMissing",
+          operation_id: freshOperationId(s.now) as OperationId,
+          inputs: { key: "missing" },
+        },
+        s.identity,
+      ),
     );
-    expect(fake.batches).toEqual([]);
+    expect(err.code).toBe("not_found");
+    expect(err.message).toContain("Record not found");
+    expect(await s.store.readRevision()).toBe(1);
+    expect(await s.store.load("acme.Todo" as ModelName, "missing" as RecordId)).toBeNull();
   });
 });
 
 describe("records", () => {
-  it("passes the query spec through to the store", async () => {
-    const fake = fakeStore([row("t1", 1, { title: "a" }), row("t2", 1, { title: "b" })]);
-    const out = await records(contextFor(fake), "Todo", {
-      where: { op: "eq", field: "done", value: false },
-      order: [{ field: "created", direction: "asc" }],
-      limit: 10,
-      archived: "exclude",
-    });
-    expect(out.length).toBe(2);
-    expect(fake.specs.length).toBe(1);
-    expect(fake.specs[0]).toEqual({
-      model: "Todo",
-      authority: "owner",
-      where: { op: "eq", field: "done", value: false },
-      order: [{ field: "created", direction: "asc" }],
-      limit: 10,
-      archived: "exclude",
-    });
+  it("serves the whole model through invokeRead over the staged overlay", async () => {
+    // T17c (rule a): was direct store passthrough of where/order/limit
+    // (unservable shapes that now refuse LOUD with `validation` —
+    // pinned in the T17b flip suite, not duplicated here); the SAME
+    // whole-model read now serves through `invokeRead` over the staged
+    // overlay, so handler reads see handler writes, viewer-projected.
+    const s = await canonicalSetup();
+    const committed = mustResult(
+      await s.invoker.invokeMutation(
+        {
+          operation: "acme.Shop.mkRecords",
+          operation_id: freshOperationId(s.now) as OperationId,
+          inputs: {},
+        },
+        s.identity,
+      ),
+    );
+    expect(committed.status).toBe("committed");
+    const seen = (committed.result as ReadonlyArray<{ id: string; data: unknown }>)
+      .map((r) => ({ id: r.id, data: r.data }))
+      .sort((a, b) => (a.id < b.id ? -1 : 1));
+    expect(seen).toEqual([
+      { id: "t1", data: { title: "a" } },
+      { id: "t2", data: { title: "b" } },
+    ]);
+    // Staged AND committed: the store holds both rows at one revision.
+    expect(await s.store.load("acme.Todo" as ModelName, "t1" as RecordId)).not.toBeNull();
+    expect(await s.store.load("acme.Todo" as ModelName, "t2" as RecordId)).not.toBeNull();
+    expect(await s.store.readRevision()).toBe(1);
   });
 
-  it("defaults to a bare owner-authority spec", async () => {
-    const fake = fakeStore();
-    await records(contextFor(fake), "Todo");
-    expect(fake.specs[0]).toEqual({ model: "Todo", authority: "owner" });
+  it("defaults to the bare whole-model viewer read with the full projected envelope", async () => {
+    // T17c (rule a): was a bare owner-authority store spec; the owner
+    // bypass stays engine-internal (an explicit `authority: 'owner'`
+    // now refuses LOUD — flip-pinned), and the bare read serves
+    // viewer-projected. The full `ProjectedRecord` envelope is pinned.
+    const s = await canonicalSetup();
+    const committed = mustResult(
+      await s.invoker.invokeMutation(
+        {
+          operation: "acme.Shop.mkRecordsBare",
+          operation_id: freshOperationId(s.now) as OperationId,
+          inputs: {},
+        },
+        s.identity,
+      ),
+    );
+    expect(committed.status).toBe("committed");
+    expect(committed.result).toEqual([
+      {
+        id: "t1",
+        version: 1,
+        created: s.now,
+        updated: s.now,
+        createdBy: s.userId,
+        updatedBy: s.userId,
+        archivedAt: null,
+        parent: null,
+        data: { title: "a" },
+      },
+    ]);
   });
 });
 

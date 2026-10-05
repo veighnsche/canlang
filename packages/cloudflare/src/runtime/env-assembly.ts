@@ -14,23 +14,19 @@
  * precedent). Static shape validation fails loud naming the missing
  * producer — never a silent half-constructed deps object.
  *
- * DEPLOY-JOIN SEAM (P-B, loud): the state-D1, identity, and worker
- * sibling specifiers below resolve inside the checkout; the deploy
- * bundler must inline/scope those modules into the worker bundle (the
- * same treatment M2 gives the MCP bundle). If a specifier stops
- * resolving, construction throws naming the exact seam.
+ * DEPLOY-JOIN SEAM (P-B, loud): the state-D1 and identity specifiers
+ * below resolve inside the checkout; the deploy bundler must
+ * inline/scope those modules into the worker bundle (the same
+ * treatment M2 gives the MCP bundle). If a specifier stops resolving,
+ * construction throws naming the exact seam.
  *
- * DDL OWNERSHIP (loud): `INTERIM_DDL` application is UNOWNED — verified
- * by reading the tree: `src/deploy/*` only renders `d1_databases`
- * bindings, `upgrade/apply.ts` has no live backend, and `assembly.ts`
- * only *declares* the statements ("the deploy/migrate packet applies
- * them") with no applier. The equivalent minimal ensure step therefore
- * runs HERE (`applyInterimDdl`), idempotently, alongside the state
- * engine schema (`ensureSchema`) and the identity schema
- * (`ensureIdentitySchema`). When the D1 owner lands a real migrate
- * step, that step supersedes `applyInterimDdl` (same statements,
- * same idempotent shape) — until then this constructor is the only
- * applier and says so.
+ * DDL OWNERSHIP (T17b: interim DDL RETIRED): the hand-written demo
+ * `INTERIM_DDL` (`todo`, `note`) and its applier are deleted with the
+ * `assembly.ts` declaration. The engine stores every model in its
+ * generic `records` table created by `ensureSchema` (below) — the
+ * per-model tables were never the engine's shape and nothing reads
+ * them. When the D1 owner lands a real migrate step, that step owns
+ * schema outright; there is no interim DDL left to supersede.
  *
  * Types mirror `packages/identity/src/ports.ts` VERBATIM (same rule as
  * `runtime/mcp-registry.ts`): `@canlang/identity` is not a runtime
@@ -226,9 +222,6 @@ const STATE_D1_SPECIFIER = "../../../state/dist/state/src/storage/d1.js";
 /** Identity package root (resolves via the workspace link + exports map). */
 const IDENTITY_SPECIFIER = "@canlang/identity";
 
-/** Worker sibling holding `INTERIM_DDL` (dist-adjacent, assembly precedent). */
-const ASSEMBLY_SPECIFIER = "../worker/assembly.js";
-
 /** Structural view of the state D1 module (b2 precedent: mirrors only). */
 interface StateD1Producer {
   ensureSchema(db: unknown): Promise<void>;
@@ -305,34 +298,6 @@ async function loadIdentityD1(): Promise<IdentityD1Producer> {
   return mod as unknown as IdentityD1Producer;
 }
 
-/**
- * The INTERIM demo-model DDL (`assembly.ts` `INTERIM_DDL`). Loaded from
- * the worker sibling — never restated here, so the statements cannot
- * skew between the declarer and this applier.
- */
-async function loadInterimDdl(): Promise<readonly string[]> {
-  let mod: unknown;
-  try {
-    mod = await import(ASSEMBLY_SPECIFIER);
-  } catch {
-    throw new Error(
-      `mcp-deploy: worker sibling ${ASSEMBLY_SPECIFIER} (INTERIM_DDL declarer) is not assembled; ` +
-        `the interim demo tables cannot be ensured — refusing to serve a half-migrated database`,
-    );
-  }
-  const ddl: unknown = isRecord(mod) ? mod["INTERIM_DDL"] : undefined;
-  if (
-    !Array.isArray(ddl) ||
-    ddl.length === 0 ||
-    !ddl.every((entry) => typeof entry === "string" && entry.length > 0)
-  ) {
-    throw new Error(
-      `mcp-deploy: worker sibling ${ASSEMBLY_SPECIFIER} has no non-empty INTERIM_DDL string array (stale assembly?)`,
-    );
-  }
-  return ddl as readonly string[];
-}
-
 /* ------------------------------------------------------------------ */
 /* Constructor (PINNED contract: P-A dynamic-imports this shape).       */
 /* ------------------------------------------------------------------ */
@@ -344,9 +309,10 @@ async function loadInterimDdl(): Promise<readonly string[]> {
  *   engine tables: records, fence log, outbox).
  * - `identityStore`: the D1-backed `IdentityStore` after
  *   `ensureIdentitySchema` (identity_* tables).
- * - INTERIM demo tables (`todo`, `note`): applied HERE because DDL
- *   application is unowned elsewhere (see header) — idempotent
- *   `IF NOT EXISTS`, safe to re-run.
+ *
+ * T17b: the INTERIM demo-table step is retired with `INTERIM_DDL`
+ * (see header) — the two idempotent engine ensures above are the
+ * whole constructor.
  *
  * Every ensure step is idempotent, so P-A may construct once per
  * isolate (preferred) or per request (correct, wasteful). A missing
@@ -372,11 +338,6 @@ export async function buildProductionDeps(
   const identity = await loadIdentityD1();
   await state.ensureSchema(db);
   await identity.ensureIdentitySchema(db);
-  // DDL ownership (loud): unowned elsewhere, applied here. See header.
-  const interimDdl = await loadInterimDdl();
-  for (const statement of interimDdl) {
-    await db.exec(statement);
-  }
   return {
     store: state.createD1Storage(db),
     identityStore: identity.createD1IdentityStore(db),

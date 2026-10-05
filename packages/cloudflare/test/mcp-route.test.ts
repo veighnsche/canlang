@@ -29,12 +29,14 @@ import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import type {
   CompileArtifact,
+  ModelName,
   MutationEnvelope,
   OperationId,
   ResolvedIdentity,
   StoragePort,
 } from "@canlang/contracts";
 import { resolveIdentity } from "@canlang/identity";
+import { createTestMemoryStorage } from "../../state/dist/state/src/storage/memory.js";
 // Cross-package journey imports: interfaces DIST (never src), per the
 // assembly.test.ts precedent. Root `build` builds interfaces dist first.
 import { createMcpHandler } from "../../interfaces/dist/interfaces/src/mcp/server.js";
@@ -171,6 +173,26 @@ function fixtureArtifact(): CompileArtifact {
   } as unknown as CompileArtifact;
 }
 
+/**
+ * T17c: T15a model descriptors (hand-written; NOT compiler output),
+ * attached ONLY under the `canonical` assemble flag. The interim
+ * bridge served descriptor-less artifacts; the canonical path needs
+ * the model table, so converted pins opt in while every other test
+ * keeps its descriptor-less fixture byte-identically.
+ */
+function fixtureModels(): unknown[] {
+  return [
+    {
+      name: "acme.Todo",
+      fields: [
+        { name: "title", required: true, serverOnly: false, field: { kind: "string" } },
+        { name: "done", required: false, serverOnly: false, field: { kind: "boolean" } },
+      ],
+      deleteMode: "remove",
+    },
+  ];
+}
+
 const OPS_SOURCE = `export function canApp() {
   return {
     todoRead: async (c, input) => ({ rows: [{ id: "t1", title: "fixture" }], caller: c.caller.userId, inputs: input.inputs }),
@@ -178,11 +200,16 @@ const OPS_SOURCE = `export function canApp() {
   };
 }
 `;
+// T17c: CRUD operations SKIP their handlers on the canonical path (the
+// pipeline executes), so the echoes above never run for converted pins
+// — the module still must export canApp() for policy transcription
+// (absent policy admits public).
 
 async function assembleMcpWorker(opts: {
   ops?: unknown[];
   permissions?: AssemblyDeps["mcp"] extends { permissions?: infer P } | undefined ? P : never;
   withFactory?: boolean;
+  canonical?: boolean;
 }): Promise<{
   fetch: (req: Request) => Promise<Response>;
   grantToken: string;
@@ -198,10 +225,17 @@ async function assembleMcpWorker(opts: {
   if (opts.ops !== undefined) {
     (artifact as unknown as { operations: unknown[] }).operations = opts.ops;
   }
+  // T17c: canonical pins get model descriptors (generated artifact) plus
+  // a real memory store — the canonical path needs both; everything
+  // else keeps the stub store + descriptor-less shape.
+  const store = opts.canonical === true ? createTestMemoryStorage().store : stubStore();
+  if (opts.canonical === true) {
+    (artifact as unknown as { models: unknown[] }).models = fixtureModels();
+  }
   const identity = await createIdentityFixture({});
   const { token: grantToken } = await createGrantFixture(identity);
   const deps: AssemblyDeps = {
-    store: stubStore(),
+    store,
     identityStore: identity.store,
     ...(opts.withFactory === false
       ? {}
@@ -362,7 +396,24 @@ describe("worker POST /mcp", () => {
   });
 
   it("calls a read op through the worker invoker, threading the grant identity", async () => {
-    const { fetch, grantToken } = await assembleMcpWorker({ permissions: allowAllPermissions() });
+    // T17c (rule a): was the interim direct bridge (handler echo with
+    // the caller id); now the canonical read path (admit ->
+    // grant-project), which serves rows instead of echoing. SAME
+    // behavior proven end to end: a row created AS the grant user via
+    // tools/call serves back carrying that user's id in `createdBy`
+    // (not anonymous), and the row really committed.
+    const { fetch, grantToken, store, identityStore } = await assembleMcpWorker({
+      permissions: allowAllPermissions(),
+      canonical: true,
+    });
+    const created = await mcpCall(
+      fetch,
+      "tools/call",
+      { name: MUT_OP, arguments: { operation_id: freshOperationId(), title: "fixture" } },
+      { grant: grantToken },
+    );
+    expect(created.status).toBe(200);
+    expect((created.body.result as ToolResultBody).isError).toBeUndefined();
     const { status, body } = await mcpCall(
       fetch,
       "tools/call",
@@ -373,16 +424,33 @@ describe("worker POST /mcp", () => {
     expect(body.error).toBeUndefined();
     const result = body.result as ToolResultBody;
     expect(result.isError).toBeUndefined();
-    const payload = JSON.parse(result.content[0]?.text ?? "null") as Record<string, unknown>;
-    expect(payload["rows"]).toEqual([{ id: "t1", title: "fixture" }]);
-    // The grant identity (not anonymous) reached the operation callable.
-    expect(typeof payload["caller"]).toBe("string");
-    expect(payload["caller"]).not.toBe("anonymous");
-    expect(result.structuredContent).toMatchObject({ rows: [{ id: "t1", title: "fixture" }] });
+    const payload = JSON.parse(result.content[0]?.text ?? "null") as {
+      records: Array<{ id: string; data: Record<string, unknown>; createdBy: string }>;
+    };
+    expect(payload.records.length).toBe(1);
+    expect(payload.records[0]?.data).toEqual({ title: "fixture" });
+    // The grant identity (not anonymous) reached the canonical path.
+    const grantIdentity: ResolvedIdentity = await resolveIdentity(identityStore, {
+      mcp_grant_token: grantToken,
+    });
+    const grantUserId = grantIdentity.actor?.user_id;
+    expect(typeof grantUserId).toBe("string");
+    expect(payload.records[0]?.createdBy).toBe(grantUserId);
+    expect(result.structuredContent).toMatchObject({ records: [{ data: { title: "fixture" } }] });
+    expect(
+      await store.query({ model: "acme.Todo" as ModelName, authority: "owner" }),
+    ).toHaveLength(1);
   });
 
   it("calls a mutation op with operation_id framing", async () => {
-    const { fetch, grantToken } = await assembleMcpWorker({ permissions: allowAllPermissions() });
+    // T17c (rule a): was the interim echo (framing proved, nothing
+    // committed); now a canonical CRUD create: framing is still
+    // validated at the MCP boundary, and the envelope COMMITS (row id
+    // === operation_id by the create convention).
+    const { fetch, grantToken, store } = await assembleMcpWorker({
+      permissions: allowAllPermissions(),
+      canonical: true,
+    });
     const operationId = freshOperationId();
     const { status, body } = await mcpCall(
       fetch,
@@ -394,38 +462,70 @@ describe("worker POST /mcp", () => {
     expect(body.error).toBeUndefined();
     const result = body.result as ToolResultBody;
     expect(result.isError).toBeUndefined();
-    const payload = JSON.parse(result.content[0]?.text ?? "null") as Record<string, unknown>;
-    expect(payload).toMatchObject({ status: "committed", operation_id: operationId, title: "buy milk" });
+    const payload = JSON.parse(result.content[0]?.text ?? "null") as {
+      status: string;
+      operation_id: string;
+      result: { id: string; version: number; data: Record<string, unknown> };
+    };
+    expect(payload.status).toBe("committed");
+    expect(payload.operation_id).toBe(operationId);
+    expect(payload.result.id).toBe(operationId);
+    expect(payload.result.version).toBe(1);
+    expect(payload.result.data).toEqual({ title: "buy milk" });
+    expect(
+      await store.query({ model: "acme.Todo" as ModelName, authority: "owner" }),
+    ).toHaveLength(1);
   });
 
   it("executes tools/call via the SAME invoker as HTTP (buildInvoker parity)", async () => {
+    // T17c (rule a): was the interim bridge with ONE shared envelope;
+    // canonical envelopes are idempotent (the same envelope would
+    // replay), so the two transports use DISTINCT ids over the SAME
+    // store + artifact: both commit through the one `buildInvoker`
+    // bridge with equal row data.
     const { fetch, grantToken, store, asm, artifact, identityStore } = await assembleMcpWorker({
       permissions: allowAllPermissions(),
+      canonical: true,
     });
-    const operationId = freshOperationId();
+    const mcpOperationId = freshOperationId();
     const { body } = await mcpCall(
       fetch,
       "tools/call",
-      { name: MUT_OP, arguments: { operation_id: operationId, title: "parity" } },
+      { name: MUT_OP, arguments: { operation_id: mcpOperationId, title: "parity" } },
       { grant: grantToken },
     );
     const mcpResult = body.result as ToolResultBody;
     expect(mcpResult.isError).toBeUndefined();
-    const mcpPayload = JSON.parse(mcpResult.content[0]?.text ?? "null") as Record<string, unknown>;
+    const mcpPayload = JSON.parse(mcpResult.content[0]?.text ?? "null") as {
+      status: string;
+      operation_id: string;
+      result: { id: string; data: Record<string, unknown> };
+    };
+    expect(mcpPayload.status).toBe("committed");
+    expect(mcpPayload.result.id).toBe(mcpOperationId);
 
     // Direct invocation through the same bridge `HttpDeps` will consume
-    // at the HTTP join: same envelope, same resolved grant identity.
-    const invoker = buildInvoker(artifact, asm, store);
+    // at the HTTP join: same artifact + store, same resolved grant
+    // identity, distinct idempotent envelope.
+    const invoker = buildInvoker(artifact, asm, store, { memberships: identityStore });
     const grantIdentity: ResolvedIdentity = await resolveIdentity(identityStore, {
       mcp_grant_token: grantToken,
     });
+    const httpOperationId = freshOperationId();
     const envelope: MutationEnvelope = {
       operation: MUT_OP,
-      operation_id: operationId as OperationId,
+      operation_id: httpOperationId as OperationId,
       inputs: { title: "parity" },
     };
     const direct = await invoker.invokeMutation(envelope, grantIdentity);
-    expect(direct).toEqual({ result: mcpPayload });
+    if (!("result" in direct)) {
+      throw new Error(`want result, got ${JSON.stringify(direct)}`);
+    }
+    expect(direct.result.status).toBe("committed");
+    const directRow = direct.result.result as { id: string; data: Record<string, unknown> };
+    expect(directRow.id).toBe(httpOperationId);
+    expect(directRow.data).toEqual({ title: "parity" });
+    expect(mcpPayload.result.data).toEqual(directRow.data);
   });
 
   it("401s without a grant and on a bogus token", async () => {

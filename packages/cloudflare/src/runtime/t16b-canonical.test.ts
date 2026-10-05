@@ -10,6 +10,15 @@
  * instead of duplicating. Descriptor-less artifacts keep the interim
  * direct path byte-identically (existing suites pin it).
  *
+ * T17b pin updates (attributed inline): generated reads now SERVE
+ * through `invokeReadCanonical` (the read-envelope refusal became a
+ * serving pin; the mutation-envelope read-guard pin is unchanged),
+ * the commit-guard message names the landed staged rule (the guard
+ * still trips for direct commits), and descriptor-less artifacts now
+ * REFUSE on both envelopes (the byte-identity pin became a refusal
+ * pin). Every other pin is unchanged — what changed and why is
+ * stated at each site; nothing was silently weakened.
+ *
  * No-bypass proof strategy: canonical-only result shapes
  * (`MutationResult` with status/operation_id, impossible on the
  * direct path) + receipts in the store + single-execution counts +
@@ -454,7 +463,10 @@ describe("T16b policy transcription (CRUD gates)", () => {
 });
 
 describe("T16b commit guard (scenario seam store)", () => {
-  it("delegates reads and refuses commits LOUD with the T17 pointer", async () => {
+  // T17b: message updated (was /T17 stdlib migration/ — the migration
+  // LANDED, so the guard now names the staged rule). The guard still
+  // refuses direct commits; only the pointer text changed.
+  it("delegates reads and refuses commits LOUD with the staged rule", async () => {
     const { store } = createTestMemoryStorage();
     const guarded = withCanonicalCommitGuard(store, "acme.Shop.restock");
     assert.equal(await guarded.readRevision(), 0);
@@ -475,7 +487,7 @@ describe("T16b commit guard (scenario seam store)", () => {
           uniqueClaims: [],
           uniqueReleases: [],
         }),
-      /T17 stdlib migration/,
+      /stage through the stdlib data plane/,
     );
   });
 });
@@ -878,7 +890,15 @@ describe("T16b canonical negatives (codes + unchanged state)", () => {
 });
 
 describe("T16b read-envelope closure (query port owns reads in T17)", () => {
-  it("refuses reads and envelope mismatches with precise validation", async () => {
+  // T17b: the read-envelope refusal became a SERVING pin — generated
+  // reads route onto `invokeReadCanonical` (the T16b refusal stub is
+  // retired). What changed: `readViaRead` now serves projected
+  // records (committing nothing) instead of refusing. Unchanged: the
+  // mutation-envelope read-guard pin (/query port/ — engine behavior,
+  // still enforced by `invoke`), and the envelope-mismatch pins
+  // (/mutation envelope/, /Unknown operation/ — now served by
+  // delegation to `invokeRead`, same codes and texts).
+  it("serves reads and still rejects envelope mismatches with precise validation", async () => {
     const dir = tempDir();
     const url = writeModule(dir, "ops.mjs", OPS_MODULE);
     const asm = stubAsm(dir, { "ops.mjs": url });
@@ -899,12 +919,36 @@ describe("T16b read-envelope closure (query port owns reads in T17)", () => {
     assert.ok("error" in readViaMutation, "read via invoke must reject");
     assert.equal(readViaMutation.error.code, "validation");
     assert.match(readViaMutation.error.message, /query port/);
-    // Read envelope on generated artifacts: reads point at the query
-    // port, mutations demand the mutation envelope, unknown is unknown.
+    // One committed row, then the read envelope SERVES it (projected
+    // records at the fence revision, committing nothing).
+    const created = await invoker.invokeMutation(
+      mutationEnvelope("acme.Todo.create", freshOperationId(seed.now), { title: "readable" }),
+      identity,
+    );
+    assert.ok("result" in created, `want result, got ${JSON.stringify(created)}`);
+    const id = ((created.result as MutationResult).result as { id: string }).id;
+    const revisionAfterCommit = await store.readRevision();
     const readViaRead = await invoker.invokeRead({ operation: "acme.Todo.read", inputs: {} }, identity);
-    assert.ok("error" in readViaRead, "read envelope must refuse generated reads");
-    assert.equal(readViaRead.error.code, "validation");
-    assert.match(readViaRead.error.message, /query port/);
+    assert.ok("result" in readViaRead, `want served reads, got ${JSON.stringify(readViaRead)}`);
+    assert.deepEqual(readViaRead.result, {
+      records: [
+        {
+          id,
+          version: 1,
+          created: seed.now,
+          updated: seed.now,
+          createdBy: seed.memberId,
+          updatedBy: seed.memberId,
+          archivedAt: null,
+          parent: null,
+          data: { title: "readable" },
+        },
+      ],
+      revision: revisionAfterCommit,
+    });
+    assert.equal(await store.readRevision(), revisionAfterCommit);
+    // Envelope mismatches still reject precisely (served by delegation
+    // to `invokeRead`: same codes, same texts as the retired stub).
     const createViaRead = await invoker.invokeRead(
       { operation: "acme.Todo.create", inputs: { title: "x" } },
       identity,
@@ -916,12 +960,16 @@ describe("T16b read-envelope closure (query port owns reads in T17)", () => {
     assert.ok("error" in unknownViaRead, "unknown op via read envelope must reject");
     assert.equal(unknownViaRead.error.code, "validation");
     assert.match(unknownViaRead.error.message, /Unknown operation/);
-    assert.equal(await store.readRevision(), revisionBefore);
-    assert.equal((await todoRows(store)).length, 0);
+    assert.equal(await store.readRevision(), revisionAfterCommit);
+    assert.equal(revisionBefore, 0);
   });
 });
 
 describe("T16b committing scenario (guard fails loud, rejection replays)", () => {
+  // T17b: message updated at both asserts below (was /T17 stdlib
+  // migration/ — the migration LANDED, so the guard now names the
+  // staged rule). Behavior unchanged: direct commits still trip the
+  // guard, still receipt as rejections, still replay.
   it("receipts the guard trip as a rejection; domain state never mutates", async () => {
     const dir = tempDir();
     const url = writeModule(dir, "ops.mjs", COMMIT_MODULE);
@@ -948,7 +996,7 @@ describe("T16b committing scenario (guard fails loud, rejection replays)", () =>
     const first = await invoker.invokeMutation(envelope, identity);
     assert.ok("error" in first, "committing handler must fail");
     assert.equal(first.error.code, "rule_failed");
-    assert.match(first.error.message, /T17 stdlib migration/);
+    assert.match(first.error.message, /stage through the stdlib data plane/);
     // Rejected receipt persisted (revision +1 for bookkeeping only);
     // the identical envelope replays the rejection without re-running.
     assert.equal(await store.readRevision(), revisionBefore + 1);
@@ -956,7 +1004,7 @@ describe("T16b committing scenario (guard fails loud, rejection replays)", () =>
     const second = await invoker.invokeMutation(envelope, identity);
     assert.ok("error" in second, "rejection must replay");
     assert.equal(second.error.code, "rule_failed");
-    assert.match(second.error.message, /T17 stdlib migration/);
+    assert.match(second.error.message, /stage through the stdlib data plane/);
     assert.equal(await store.readRevision(), revisionBefore + 1);
     const registry = (await import(url)) as { canApp(): { calls: unknown[] } };
     assert.equal(registry.canApp().calls.length, 1);
@@ -1063,7 +1111,14 @@ describe("T16b no-bypass proof (generated implies canonical)", () => {
     assert.match(outcome.error.message, /needs a MembershipReader/);
   });
 
-  it("descriptor-less artifacts keep the interim direct path byte-identically", async () => {
+  // T17b: the byte-identity pin became a REFUSAL pin — the interim
+  // direct path is retired, so descriptor-less artifacts refuse on
+  // both envelopes (nothing served, staged, or committed) instead of
+  // serving raw handler values. What changed and why: no descriptors
+  // means no admission registry, and synthesizing descriptors would
+  // invent gates — see the T17b release report. The `directOnlyStore`
+  // stays (the refusal path never touches the store at all).
+  it("descriptor-less artifacts refuse on both envelopes (interim path retired)", async () => {
     const dir = tempDir();
     const url = writeModule(dir, "ops.mjs", LEGACY_MODULE);
     const asm = stubAsm(dir, { "ops.mjs": url });
@@ -1073,13 +1128,19 @@ describe("T16b no-bypass proof (generated implies canonical)", () => {
     const invoker = buildInvoker(artifact, asm, directOnlyStore);
     const operationId = freshOperationId(seed.now);
     const identity = await identityFor(seed, seed.memberToken);
-    const outcome = await invoker.invokeMutation(
+    const mutation = await invoker.invokeMutation(
       mutationEnvelope("fixture.echo", operationId, {}),
       identity,
     );
-    // Raw handler value (no MutationResult envelope, no receipt): the
-    // interim projection the existing suites pin.
-    assert.deepEqual(outcome, { result: { echoed: operationId, caller: seed.memberId } });
+    assert.ok("error" in mutation, "descriptor-less mutation must refuse");
+    assert.equal(mutation.error.code, "validation");
+    assert.match(mutation.error.message, /descriptor-less artifacts were retired in T17/);
+    assert.equal(mutation.error.operation_id, operationId);
+    const read = await invoker.invokeRead({ operation: "fixture.echo", inputs: {} }, identity);
+    assert.ok("error" in read, "descriptor-less read must refuse");
+    assert.equal(read.error.code, "validation");
+    assert.match(read.error.message, /descriptor-less artifacts were retired in T17/);
+    void url;
   });
 });
 

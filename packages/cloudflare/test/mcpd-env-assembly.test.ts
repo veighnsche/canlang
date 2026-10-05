@@ -8,9 +8,10 @@
  *
  * - `buildProductionDeps(env)` builds a working `StoragePort` from
  *   `env.DB` plus the D1-backed `IdentityStore`, applying the state
- *   schema, the identity schema, and the INTERIM todo/note DDL
- *   (DDL application is unowned elsewhere — verified — so the
- *   equivalent minimal ensure step runs in the constructor).
+ *   schema and the identity schema (T17c: the INTERIM todo/note DDL
+ *   step was retired with `INTERIM_DDL` — the engine stores every
+ *   model in its generic `records` table, so the two engine ensures
+ *   are the whole constructor).
  * - A real grant minted through `handleMcpGrant` over that D1 store
  *   yields a NON-EMPTY `tools/list` plus a successful `tools/call`
  *   through the ASSEMBLED worker with production member permissions
@@ -146,6 +147,16 @@ function fixtureArtifact(): CompileArtifact {
         },
       },
     ],
+    // T17c: T15a model descriptors (hand-written; NOT compiler output).
+    // The interim bridge served descriptor-less artifacts; the canonical
+    // path needs the model table, so the shared fixture carries it.
+    models: [
+      {
+        name: "acme.Todo",
+        fields: [{ name: "title", required: true, serverOnly: false, field: { kind: "string" } }],
+        deleteMode: "remove",
+      },
+    ],
   } as unknown as CompileArtifact;
 }
 
@@ -156,6 +167,10 @@ const OPS_SOURCE = `export function canApp() {
   };
 }
 `;
+// T17c: CRUD operations SKIP their handlers on the canonical path (the
+// pipeline executes), so the echoes above never run — the module still
+// must export canApp() for policy transcription (absent policy admits
+// public).
 
 function stubAsm(): AssembledModules {
   const dir = tempDir();
@@ -283,14 +298,20 @@ describe("buildProductionDeps", () => {
     const team = await deps.identityStore.createTeam({});
     expect((await deps.identityStore.findTeamById(team.team_id))?.team_id).toBe(team.team_id);
 
-    // Every ensure step landed: state engine tables, identity tables,
-    // and the INTERIM demo tables (unowned elsewhere — applied here).
+    // Every ensure step landed: the state engine tables and the
+    // identity tables. T17c (rule b): the INTERIM demo tables (`todo`,
+    // `note`) were retired with `INTERIM_DDL` — the engine stores every
+    // model in its generic `records` table — so their presence pin is
+    // replaced by a generic-records expectation plus absence pins.
     const tables = await db
       .prepare("SELECT name AS name FROM sqlite_master WHERE type = 'table'")
       .all<{ name: string }>();
     const names = new Set(tables.results.map((row) => row.name));
-    for (const expected of ["records", "fence_log", "identity_users", "identity_mcp_grants", "todo", "note"]) {
+    for (const expected of ["records", "fence_log", "identity_users", "identity_mcp_grants"]) {
       expect(names.has(expected), `table ${expected} exists`).toBe(true);
+    }
+    for (const retired of ["todo", "note"]) {
+      expect(names.has(retired), `retired table ${retired} is gone`).toBe(false);
     }
 
     // Idempotent: a second construction re-runs every ensure safely.
@@ -328,10 +349,14 @@ describe("production grant through the assembled worker", () => {
     expect(tools.length).toBeGreaterThan(0);
     expect(tools.map((tool) => tool.name).sort()).toEqual([MUT_OP, READ_OP].sort());
 
+    // T17c (rule a): was the interim bridge echo; now a canonical
+    // CRUD create over the production D1 store (row id ===
+    // operation_id by the create convention).
+    const operationId = freshOperationId();
     const call = await mcpCall(
       fetch,
       "tools/call",
-      { name: MUT_OP, arguments: { operation_id: freshOperationId(), title: "via-grant" } },
+      { name: MUT_OP, arguments: { operation_id: operationId, title: "via-grant" } },
       { grant: grant.token },
     );
     expect(call.status).toBe(200);
@@ -342,6 +367,15 @@ describe("production grant through the assembled worker", () => {
     };
     expect(payload.isError).not.toBe(true);
     expect(JSON.stringify(payload)).toContain("via-grant");
+    const committed = JSON.parse(payload.content[0]?.text ?? "null") as {
+      status: string;
+      operation_id: string;
+      result: { id: string; data: Record<string, unknown> };
+    };
+    expect(committed.status).toBe("committed");
+    expect(committed.operation_id).toBe(operationId);
+    expect(committed.result.id).toBe(operationId);
+    expect(committed.result.data).toEqual({ title: "via-grant" });
   });
 
   it("401s unknown and revoked grants with the safe error shape", async () => {
