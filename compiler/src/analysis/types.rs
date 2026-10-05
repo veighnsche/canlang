@@ -47,8 +47,7 @@ use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{Punct, SyntaxKind, SyntaxNode, TokenKind};
 
 use super::catalog::{
-    Availability, Catalog, Effects, STD_CAPABILITIES, SigOverload, SigType, StdCapability,
-    StdOperation,
+    Availability, Catalog, Effects, SigOverload, SigType, StdOperation, std_capability,
 };
 use super::resolve::{
     ActorKind, Binding, ContextVar, CrudOp, FixtureTarget, ModelOwner, ModuleId, ResolveTables,
@@ -395,33 +394,27 @@ pub fn check_types(
     typer.types
 }
 
-/// T14a resolution of a deployment-bound `Cap.op` target against the
-/// consumed T13a owner schemas.
+/// T14 resolution of a deployment-bound `Cap.op` target against the
+/// consumed T13 owner schemas (T13a common plus T13b rich relations;
+/// T14b lifted the T14a scope gate to the full
+/// [`std_capability`](super::catalog::std_capability) table).
 enum StdTarget {
-    /// A consumed T13a operation (`display` is the author spelling,
+    /// A consumed T13 operation (`display` is the author spelling,
     /// e.g. `Mail.send`).
     Known {
         op: &'static StdOperation,
         display: String,
     },
-    /// A T13a-known capability with an operation outside its owner
+    /// A T13-known capability with an operation outside its owner
     /// schema: a wrong association, verified wrong (never opaque).
     WrongOp { capability: String, op: String },
-    /// No consumed T13a schema covers this target: T13b scope,
-    /// unknown providers and unresolvable spellings keep their
-    /// opaque treatment.
+    /// No consumed T13 schema covers this target: the scoped-out
+    /// Handbook interface, unknown members/providers and
+    /// unresolvable spellings keep their opaque treatment.
     NoSchema,
 }
 
-/// Consumed T13a capability by `std` member name (T14a scope gate):
-/// `None` for T13b/unknown members, which keep failing as before
-/// (the T14b remainder).
-fn t13a_capability(member: &str) -> Option<&'static StdCapability> {
-    let qualified = format!("std.{member}");
-    STD_CAPABILITIES.iter().find(|cap| cap.name == qualified)
-}
-
-/// Whether a consumed T13a input is array-typed (nullable arrays
+/// Whether a consumed T13 input is array-typed (nullable arrays
 /// included).
 fn std_input_is_array(declared: &str) -> bool {
     declared
@@ -430,7 +423,7 @@ fn std_input_is_array(declared: &str) -> bool {
         .ends_with("[]")
 }
 
-/// Whether a consumed T13a input must be present in a `send` (T14a):
+/// Whether a consumed T13 input must be present in a `send` (T14):
 /// every input except array-typed ones. B9: arrays (notably
 /// `attachments`) omit to empty per DESIGN §8 `attachments:file[]=[]`
 /// ("empty attachments preserve the ordinary mail call"), the
@@ -444,14 +437,14 @@ fn std_send_requires_input(declared: &str) -> bool {
     !std_input_is_array(declared)
 }
 
-/// Whether a consumed T13a input must be present in a recipe
+/// Whether a consumed T13 input must be present in a recipe
 /// `request=`: mirrors local recipes (`check_fixture_request`),
 /// where nullable inputs omit alongside arrays.
 fn std_recipe_requires_input(declared: &str) -> bool {
     !std_input_is_array(declared) && !declared.ends_with('?')
 }
 
-/// Map a consumed T13a schema type name to its checkable type.
+/// Map a consumed T13 schema type name to its checkable type.
 /// `None` is nominal-only (e.g. `ErrorReport`): presence-checked,
 /// shape unchecked — the consumed schema carries the name without
 /// fields, so the value shape is walked for effects, never guessed.
@@ -2355,7 +2348,7 @@ impl<'a> Typer<'a> {
                 }
             }
             ResolvedType::Opaque(_) => {
-                // T14a: a `send` to a T13a-known `std` operation checks
+                // T14: a `send` to a T13-known `std` operation checks
                 // its bindings against the consumed owner schema; an
                 // unknown op of a known capability is a wrong
                 // association (`E3010`); anything without a consumed
@@ -2454,7 +2447,7 @@ impl<'a> Typer<'a> {
     }
 
     /// Resolve a `send` target rooted at a deployment-bound import
-    /// against the consumed T13a owner schemas (T14a).
+    /// against the consumed T13 owner schemas (T14).
     fn resolve_std_send_target(&self, cx: &Ctx<'_, '_>, target: &SyntaxNode) -> StdTarget {
         let Some((provider, member, op, display)) = self.external_op_spelling(cx, target) else {
             return StdTarget::NoSchema;
@@ -2462,7 +2455,7 @@ impl<'a> Typer<'a> {
         if provider != "std" {
             return StdTarget::NoSchema;
         }
-        let Some(cap) = t13a_capability(&member) else {
+        let Some(cap) = std_capability(&member) else {
             return StdTarget::NoSchema;
         };
         match cap.operations.iter().find(|operation| operation.name == op) {
@@ -2510,8 +2503,8 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// Check `send` bindings against a consumed T13a operation schema
-    /// (T14a): unknown inputs and missing required inputs are `E3010`,
+    /// Check `send` bindings against a consumed T13 operation schema
+    /// (T14): unknown inputs and missing required inputs are `E3010`,
     /// value mismatches are `E3001` — the same codes as local
     /// operations (`check_op_bindings`). Requiredness follows
     /// `std_send_requires_input` (B9); nominal-typed values are
@@ -2570,7 +2563,7 @@ impl<'a> Typer<'a> {
     }
 
     /// Resolve a fixture recipe head over a deployment-bound import
-    /// against the consumed T13a owner schemas (T14a). Only
+    /// against the consumed T13 owner schemas (T14). Only
     /// two-segment `Alias.op` heads resolve; bare aliases name no
     /// operation and stay on the opaque path.
     fn resolve_std_recipe_head(
@@ -2590,7 +2583,7 @@ impl<'a> Typer<'a> {
         if provider != "std" {
             return StdTarget::NoSchema;
         }
-        let Some(cap) = t13a_capability(name) else {
+        let Some(cap) = std_capability(name) else {
             return StdTarget::NoSchema;
         };
         match cap
@@ -2609,7 +2602,7 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// Check a delivery recipe over a consumed T13a operation (T14a):
+    /// Check a delivery recipe over a consumed T13 operation (T14):
     /// the same four attributes and envelope consistency as local
     /// operation recipes (`E3015`), with `request=` validated against
     /// the owner schema inputs.
@@ -2664,7 +2657,7 @@ impl<'a> Typer<'a> {
         self.check_fixture_envelope(cx, object, status, result, error);
     }
 
-    /// Check a T13a delivery recipe `request=` against the owner
+    /// Check a T13 delivery recipe `request=` against the owner
     /// schema inputs (T14a): unknown inputs, value mismatches and
     /// missing required inputs are `E3015`, mirroring local
     /// `check_fixture_request`. Requiredness follows
@@ -6695,7 +6688,7 @@ impl<'a> Typer<'a> {
                 // opaque without this diagnostic. Genuinely unbound
                 // heads stay silent here (their `E2001` covers them).
                 if let Some(h) = head {
-                    // T14a: a recipe over a T13a-known `std`
+                    // T14: a recipe over a T13-known `std`
                     // operation validates against the consumed owner
                     // schema; an unknown op of a known capability is
                     // a wrong association (`E3015`).
@@ -9266,13 +9259,13 @@ impl<'a> Typer<'a> {
                 ResolvedType::Error
             }
             Some(super::resolve::ScopedName::External { provider, name }) => {
-                // T14a: a `delivery()` over an unknown operation of a
-                // T13a-known capability is a wrong association
+                // T14: a `delivery()` over an unknown operation of a
+                // T13-known capability is a wrong association
                 // (`E3010`); known and schema-less targets keep their
                 // opaque treatment.
                 if provider == "std"
                     && segments.len() == 2
-                    && let Some(cap) = t13a_capability(&name)
+                    && let Some(cap) = std_capability(&name)
                     && !cap.operations.iter().any(|o| o.name == segments[1])
                 {
                     self.diags.push(Diagnostic::error(
