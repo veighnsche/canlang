@@ -54,12 +54,12 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Acceptance: actual contributor/MAX, one active coordinator, matching native goal, cleanly separated new ownership and exact reservations; historical draft work remains unchanged. Native unfinished unrelated goal is reported, not overwritten.
   - Evidence: session 01a106e7-49b5-7543-b54f-eb6ad9540769; new goal goal-01a10cc5-cd99-7ce2-9706-0d1eab1dec92 (prior goal-01a106e7 complete 100%, no unrelated unfinished goal). Branch codex/challenge-audit-implementation from c681d86 (no force/reset); draft submodule clean 2d67312; modified CHALLENGE-AUDIT-PLAN.md + run docs preserved. Transfer verified: 27/27 old writers released, zero active, no child heavy commands. New-task scope supersedes old no-compiler restriction per explicit user authorization; historical draft checklist untouched. H034 main-sync hold does not apply: user-directed work isolated on owned branch, main untouched.
 
-- [ ] **T01 — Create the root cause ledger**
+- [x] **T01 — Create the root cause ledger**
   - Prerequisites: M00.
   - Owner / files / interfaces: L1; implementation/challenge-audit-run/evidence/root-causes.md. Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ01/RQ02; canonical design/task: Accountable lead: L1. Contributors and owning boundaries: L1 with draft owner. Deliver sampled intent, root/consequence, bucket, opposing case, confidence, owner and proof. Done when audited sites are traceable without treating diagnostic codes as uniform defects.
   - Acceptance: Fresh sampled sites cite full context and intended expression, root/consequence, one a-e bucket, opposite case, confidence/flip evidence; record command and result, binary/catalog/source identities.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: writer 01a10cc6-5416-7f51-b29b-fbeb15824638 released evidence/root-causes.md (638 lines, only path + T03 companion). Repro revalidated exact: exit 10, complete=true, omitted=0, 4524 diagnostics; binary/catalog/bundle hashes match plan baseline (coordinator re-verified binary+catalog sha256). 30 roots R01-R30 each with intent/root-vs-consequence/bucket/opposing/confidence+flip/positive+negative; 7 consequence chains C1-C7; family coverage incl deferred E5001/E5004; R30 multi-root method note. Heavy lock acquired+released, no stale lock.
 
 - [ ] **T02 — Record per file intent and capability status**
   - Prerequisites: T01; inventory preparation can start at M00.
@@ -68,12 +68,12 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Acceptance: All 49 top-level apps have accept/reject intent and exact capability blockers; runtime error examples are retained; explicit whole-file negatives require evidence.
   - Evidence: PREP slice done (parent OPEN, dispositions T01-pending): writer 01a10cc8-f27d-79a1-b522-efc016516d27 released evidence/app-intent.md (new, only path). 49/49 app sections each with intent/observations/proposal+unavailable markers/negatives/T01 slot; coordinator reproduced 830/830 `-> error(` + 0 whole-file-negative greps. T01 reconciliation slice queued after T01 lands.
 
-- [ ] **T03 — Specify ordinary continuation facts**
+- [x] **T03 — Specify ordinary continuation facts**
   - Prerequisites: M00.
   - Owner / files / interfaces: L1; implementation/challenge-audit-run/evidence/continuation-contract.md; DESIGN.md, GRAMMAR.md, DECISIONS.md only after exact reservation. Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ02; canonical design/task: Accountable lead: L1. Contributors and owning boundaries: L1. Define null true/false facts, Boolean composition, branches, successful requirements, joins and invalidation. Done when sampled patterns follow one rule and existence supplies no permission.
   - Acceptance: One sound contract covers true/false null tests, NOT/AND/OR, successful require, joins and invalidation; presence grants no permission; opposing rule defense and costs retained.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: writer 01a10cc6-5416-7f51-b29b-fbeb15824638 released evidence/continuation-contract.md (262 lines, PROPOSED, adopts nothing). One-sentence contract + 15 sections: null facts, short-circuit composition, branches/joins/loops, require-carries-facts, declaration+path keying, immutable/mutable distinction, invalidation, presence-grants-nothing, 6 sampled patterns clean, 8 invalid controls IC1-IC8, retained small-narrowing defense + costs, proposed-but-unapplied DESIGN/GRAMMAR/DECISIONS deltas. Normative docs untouched.
 
 - [ ] **T04 — Agree the generated execution contract**
   - Prerequisites: M00; T04a frozen before matching producers.
@@ -417,3 +417,5 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - DONE T02-prep: writer 01a10cc8-f27d-79a1-b522-efc016516d27 RELEASED evidence/app-intent.md (49/49 sections, 830/830 negatives reproduced, parent T02 OPEN). Task NOT ticked (dispositions need T01).
 - DISPATCH batch 4 (slot freed x1): L1 T08-Rust-slice writer (types/resolve/b4_check.rs; policyPage.ts EXCLUDED for L5 follow-up after T03). L1 T01+T03 (evidence-only, disjoint) and L4 T13a still running. Queued: T30, T13a-L1-consume, T14a, T02-reconcile.
 - Coordinator note: bundled:agents skill prescribes agents.py lanes + never-subagent_spawn; retained the user-authorized native-subagent protocol instead (shared checkout, worktree off, exact-path reservations, coordinator-only Git) — switching machinery mid-run would break reservations/branch discipline/Codex monitor expectations.
+- DONE T01+T03: writer 01a10cc6-5416-7f51-b29b-fbeb15824638 RELEASED evidence/root-causes.md + evidence/continuation-contract.md (only paths; hashes re-verified; lock released). Both tasks ticked complete (see T01/T03 evidence).
+- DISPATCH batch 5 (slot freed x1): L7 T02-reconcile writer (fills 49 T01 slots from landed ledger; WRITE ONLY app-intent.md). L4 T13a and L1 T08-Rust still running. T30 BLOCKED on T08 release (same Rust files — serialized). Queued: T30, T05 (needs L2 case requests), T09-reservations, T13a-L1-consume, T14a. G0 freeze when T02 ticks.
