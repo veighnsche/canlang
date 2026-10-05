@@ -117,6 +117,15 @@
 //! `cancel` / `reconcile` / `refresh` / `status` / `available`) is scoped
 //! out — no schemas exist, lookups return `None`, and `E3019` keeps
 //! firing for it. B1/B11/B12 stay preserved.
+//!
+//! ## T13c nominal leaf schemas (producer-lane transcription)
+//!
+//! [`T13A_NOMINAL_LEAVES`] and [`T13B_NOMINAL_LEAVES`] transcribe every
+//! accepted T13a/T13b nominal interface's fields verbatim from the frozen
+//! `packages/contracts/src/services.ts` producers, keyed by nominal name
+//! for the T14d join. No checker consumes these tables yet (`types.rs`
+//! makes no calls here). The B8 Handbook interface stays absent: its
+//! lookups return `None` and `E3019` is preserved.
 
 use crate::diagnostic::Diagnostic;
 use crate::json::{self, Json};
@@ -1698,6 +1707,323 @@ pub fn is_t13b_nominal(name: &str) -> bool {
     T13B_NOMINAL_TYPES.contains(&name)
 }
 
+// -- T13c nominal leaf schemas (producer-lane transcription). --
+//
+// The tables below transcribe every accepted T13a/T13b nominal
+// interface's fields verbatim (name, kind, optionality) from the frozen
+// L4 producers in `packages/contracts/src/services.ts`. `work.ts` and
+// `files.ts` carry no T13a/T13b nominal interfaces (delivery-observable
+// decls and file/provenance shapes only), so every entry cites
+// `services.ts`. The TS files are the source of truth; the T14d join
+// consumes these tables later. No checker calls them yet.
+//
+// Kind mapping (existing vocabulary only, nothing coined):
+// - TS `string` -> `text`, except where the frozen T13a capability
+//   contract refines the same leaf (`PaymentState.amount` -> `money`,
+//   `PaymentState.checkout_url` -> `url?`, per the flattened
+//   `STD_PAYMENTS_V1_CONTRACT` `changed` fields).
+// - TS `number` -> `int`: every `number` leaf in the 22 nominals is a
+//   revision, sequence, count, dimension or token budget.
+// - TS `boolean` -> `bool`.
+// - TS `| null` and TS `?` both -> the `?` suffix (the existing
+//   vocabulary has one omissibility marker).
+// - TS `X[]` -> the `[]` suffix on the mapped element
+//   (`FinalizedFileRef` -> `file`, per the frozen `EmailV1.send`
+//   `attachments: 'file[]`' declaration).
+// - TS string-literal unions (inline or via alias) -> `enum(...)` in
+//   producer declaration order (the `changed.status` precedent).
+// - Nested interfaces, lane-2 types (`WireMoney` is refined to `money`
+//   only via the producer contract above; `CanDuration`,
+//   `DatetimeValue`) and named shapes stay NAMED REFS, never expanded.
+// - Source-name rule: `ImageRun` transcribes TS `ImageRunProgress` and
+//   `GeneratedImage` transcribes TS `ImageFileOutput` (the producer's
+//   own source/TS mapping; the provider-owned wire `ImageRun` /
+//   `GeneratedImage` interfaces are NOT transcribed). Refs between
+//   nominals use source names (`GeneratedImage[]`), never the TS-only
+//   mapping names.
+
+/// One T13c nominal leaf schema: the accepted nominal name plus its
+/// closed field set as (field name, declared kind) pairs in producer
+/// order. Kind strings use the same vocabulary as [`StdOperation`]
+/// inputs and [`StdEventDecl`] fields.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StdNominal {
+    /// Accepted nominal name, e.g. `PaymentState`.
+    pub name: &'static str,
+    /// Field name to declared kind, in producer order.
+    pub fields: &'static [(&'static str, &'static str)],
+}
+
+/// The six T13a nominal leaf schemas, in [`T13A_NOMINAL_TYPES`] order.
+/// Per-entry cites name the frozen `services.ts` producer interface.
+pub const T13A_NOMINAL_LEAVES: &[StdNominal] = &[
+    // `DeliveryResult` (services.ts:26); `status` inlines `DeliveryStatus`
+    // (services.ts:32) in producer order.
+    StdNominal {
+        name: "DeliveryResult",
+        fields: &[
+            ("id", "text"),
+            ("status", "enum(pending,succeeded,failed,unknown,skipped)"),
+        ],
+    },
+    // `DeliveryError` (services.ts:44).
+    StdNominal {
+        name: "DeliveryError",
+        fields: &[("code", "text"), ("message", "text")],
+    },
+    // `OperationOutcome` (services.ts:189); `state` union in producer
+    // order; `reference?`/`detail?` are omissible (`?`).
+    StdNominal {
+        name: "OperationOutcome",
+        fields: &[
+            ("source", "text"),
+            ("revision", "int"),
+            (
+                "state",
+                "enum(pending,confirmed,unavailable,failed,unknown,released)",
+            ),
+            ("reference", "text?"),
+            ("detail", "text?"),
+        ],
+    },
+    // `PaymentState` (services.ts:209); `amount`/`checkout_url` refined
+    // per the frozen `STD_PAYMENTS_V1_CONTRACT` `changed` fields
+    // (services.ts:605-618); unions in producer order.
+    StdNominal {
+        name: "PaymentState",
+        fields: &[
+            ("reference", "text"),
+            ("revision", "int"),
+            ("provider_reference", "text?"),
+            ("amount", "money"),
+            ("status", "enum(pending,unknown,succeeded,failed)"),
+            ("checkout_url", "url?"),
+            (
+                "failure",
+                "enum(transient,action_required,permanent,cancelled)?",
+            ),
+        ],
+    },
+    // `EmailAccepted` (services.ts:184).
+    StdNominal {
+        name: "EmailAccepted",
+        fields: &[("reference", "text")],
+    },
+    // `ErrorAccepted` (services.ts:262).
+    StdNominal {
+        name: "ErrorAccepted",
+        fields: &[("reference", "text")],
+    },
+];
+
+/// The sixteen T13b nominal leaf schemas, in [`T13B_NOMINAL_TYPES`]
+/// order. Per-entry cites name the frozen `services.ts` producer
+/// interface.
+pub const T13B_NOMINAL_LEAVES: &[StdNominal] = &[
+    // `TextMessage` (services.ts:754); `role` inlines `TextMessageRole`
+    // (services.ts:747) in producer order.
+    StdNominal {
+        name: "TextMessage",
+        fields: &[
+            ("role", "enum(system,user,assistant)"),
+            ("content", "text"),
+            ("attachments", "file[]"),
+        ],
+    },
+    // `TextRequest` (services.ts:768); `messages` is a named-ref array,
+    // `max_duration` a lane-2 named ref.
+    StdNominal {
+        name: "TextRequest",
+        fields: &[
+            ("source", "text"),
+            ("revision", "int"),
+            ("profile", "text"),
+            ("policy_revision", "text"),
+            ("messages", "TextMessage[]"),
+            ("max_input_tokens", "int"),
+            ("max_output_tokens", "int"),
+            ("max_duration", "CanDuration"),
+        ],
+    },
+    // `TextRun` (services.ts:806); `state` inlines `RunProgressState`
+    // (services.ts:790) in producer order.
+    StdNominal {
+        name: "TextRun",
+        fields: &[
+            ("source", "text"),
+            ("revision", "int"),
+            ("sequence", "int"),
+            (
+                "state",
+                "enum(queued,running,succeeded,failed,unknown,cancelled)",
+            ),
+            ("content", "text"),
+            ("used_tokens", "int?"),
+            ("detail", "text?"),
+        ],
+    },
+    // `WorkflowInput` (services.ts:821).
+    StdNominal {
+        name: "WorkflowInput",
+        fields: &[("node", "text"), ("key", "text")],
+    },
+    // `WorkflowDefinition` (services.ts:831); bound fields stay named
+    // refs to `WorkflowInput`.
+    StdNominal {
+        name: "WorkflowDefinition",
+        fields: &[
+            ("graph", "file"),
+            ("prompt", "WorkflowInput"),
+            ("negative", "WorkflowInput"),
+            ("width", "WorkflowInput"),
+            ("height", "WorkflowInput"),
+        ],
+    },
+    // `WorkflowInspection` (services.ts:857); `WorkflowField` stays a
+    // named ref (nested, not an accepted nominal).
+    StdNominal {
+        name: "WorkflowInspection",
+        fields: &[("fields", "WorkflowField[]")],
+    },
+    // `WorkflowValidation` (services.ts:867).
+    StdNominal {
+        name: "WorkflowValidation",
+        fields: &[("valid", "bool"), ("digest", "text?"), ("detail", "text?")],
+    },
+    // `ImageRequest` (services.ts:881); `workflow` stays a named ref.
+    StdNominal {
+        name: "ImageRequest",
+        fields: &[
+            ("source", "text"),
+            ("revision", "int"),
+            ("workflow", "WorkflowDefinition"),
+            ("validation", "text"),
+            ("prompt", "text"),
+            ("negative", "text"),
+            ("width", "int"),
+            ("height", "int"),
+            ("max_outputs", "int"),
+            ("max_duration", "CanDuration"),
+        ],
+    },
+    // Source `ImageRun` transcribes TS `ImageRunProgress`
+    // (services.ts:919) per the producer's source/TS mapping
+    // (services.ts:1091-1106); `state` inlines `RunProgressState`
+    // (services.ts:790); outputs use the source name `GeneratedImage`.
+    // The provider-owned wire `ImageRun` (services.ts:450) is NOT
+    // transcribed.
+    StdNominal {
+        name: "ImageRun",
+        fields: &[
+            ("source", "text"),
+            ("revision", "int"),
+            ("sequence", "int"),
+            (
+                "state",
+                "enum(queued,running,succeeded,failed,unknown,cancelled)",
+            ),
+            ("outputs", "GeneratedImage[]"),
+            ("charged_jobs", "int?"),
+            ("detail", "text?"),
+        ],
+    },
+    // Source `GeneratedImage` transcribes TS `ImageFileOutput`
+    // (services.ts:902). The provider-owned wire `GeneratedImage`
+    // (services.ts:427, byte outputs) is NOT transcribed.
+    StdNominal {
+        name: "GeneratedImage",
+        fields: &[("position", "int"), ("image", "file")],
+    },
+    // `IncomingEmail` (services.ts:938); `received` is a lane-2 named
+    // ref; every `string` leaf is verbatim `text` (no producer
+    // refinement exists for these leaves).
+    StdNominal {
+        name: "IncomingEmail",
+        fields: &[
+            ("mailbox", "text"),
+            ("source", "text"),
+            ("thread", "text"),
+            ("sender", "text"),
+            ("reply_to", "text?"),
+            ("subject", "text"),
+            ("body", "text"),
+            ("body_complete", "bool"),
+            ("attachments", "file[]"),
+            ("attachment_count", "int"),
+            ("attachments_complete", "bool"),
+            ("received", "DatetimeValue"),
+        ],
+    },
+    // `MailReply` (services.ts:961); `to` is verbatim `text`: the
+    // producer interface declares `string` and no frozen contract
+    // refines this leaf (unlike `EmailV1.send`'s `to: 'email'`).
+    StdNominal {
+        name: "MailReply",
+        fields: &[
+            ("source", "text"),
+            ("mailbox", "text"),
+            ("message", "text"),
+            ("to", "text"),
+            ("subject", "text"),
+            ("body", "text"),
+            ("attachments", "file[]"),
+        ],
+    },
+    // `MailReplyOutcome` (services.ts:987); `state` inlines
+    // `MailReplyState` (services.ts:978) in producer order.
+    StdNominal {
+        name: "MailReplyOutcome",
+        fields: &[
+            ("source", "text"),
+            ("state", "enum(accepted,not_sent,unknown)"),
+            ("reference", "text?"),
+            ("detail", "text?"),
+        ],
+    },
+    // `JudgmentSpec` (services.ts:1005).
+    StdNominal {
+        name: "JudgmentSpec",
+        fields: &[("revision", "int")],
+    },
+    // `KnowledgeRequest` (services.ts:1017).
+    StdNominal {
+        name: "KnowledgeRequest",
+        fields: &[
+            ("source", "text"),
+            ("revision", "int"),
+            ("question", "text"),
+            ("profile", "text"),
+            ("policy_revision", "text"),
+            ("max_input_tokens", "int"),
+            ("max_output_tokens", "int"),
+            ("max_duration", "CanDuration"),
+        ],
+    },
+    // `IndexState` (services.ts:1039); `state` stays open `text` per
+    // the producer (no observed vocab); `checked` is a nullable
+    // lane-2 named ref.
+    StdNominal {
+        name: "IndexState",
+        fields: &[
+            ("state", "text"),
+            ("checked", "DatetimeValue?"),
+            ("detail", "text?"),
+        ],
+    },
+];
+
+/// Look up one nominal leaf schema by accepted nominal name (bare, as
+/// in [`T13A_NOMINAL_TYPES`] / [`T13B_NOMINAL_TYPES`]), across the T13a
+/// and T13b leaf tables. Returns `None` for the scoped-out Handbook
+/// interface, TS-only mapping names, nested non-nominal shapes and
+/// every unknown name: the caller keeps reporting `E3019`.
+pub fn nominal_schema(name: &str) -> Option<&'static StdNominal> {
+    T13A_NOMINAL_LEAVES
+        .iter()
+        .chain(T13B_NOMINAL_LEAVES.iter())
+        .find(|nominal| nominal.name == name)
+}
+
 #[cfg(test)]
 mod t13b_tests {
     use super::*;
@@ -2060,5 +2386,317 @@ mod t13a_tests {
         assert_eq!(std_capability("invoice.BillingV1"), None);
         assert_eq!(std_capability(""), None);
         assert_eq!(std_capability("std."), None);
+    }
+}
+
+#[cfg(test)]
+mod t13c_tests {
+    use super::*;
+
+    #[test]
+    fn leaf_key_sets_equal_accepted_nominal_sets() {
+        assert_eq!(T13A_NOMINAL_LEAVES.len(), 6);
+        assert_eq!(T13B_NOMINAL_LEAVES.len(), 16);
+        let mut a_keys: Vec<&str> = T13A_NOMINAL_LEAVES.iter().map(|n| n.name).collect();
+        a_keys.sort_unstable();
+        let mut a_nominals: Vec<&str> = T13A_NOMINAL_TYPES.to_vec();
+        a_nominals.sort_unstable();
+        assert_eq!(a_keys, a_nominals);
+        let mut b_keys: Vec<&str> = T13B_NOMINAL_LEAVES.iter().map(|n| n.name).collect();
+        b_keys.sort_unstable();
+        let mut b_nominals: Vec<&str> = T13B_NOMINAL_TYPES.to_vec();
+        b_nominals.sort_unstable();
+        assert_eq!(b_keys, b_nominals);
+        // Every accepted nominal resolves through the unified lookup.
+        for name in T13A_NOMINAL_TYPES.iter().chain(T13B_NOMINAL_TYPES.iter()) {
+            assert!(nominal_schema(name).is_some(), "name {name}");
+        }
+    }
+
+    #[test]
+    fn t13a_common_leaves_are_exact() {
+        // `DeliveryResult` (services.ts:26; `DeliveryStatus` services.ts:32).
+        assert_eq!(
+            nominal_schema("DeliveryResult").expect("DeliveryResult schema").fields,
+            &[
+                ("id", "text"),
+                ("status", "enum(pending,succeeded,failed,unknown,skipped)"),
+            ]
+        );
+        // `DeliveryError` (services.ts:44).
+        assert_eq!(
+            nominal_schema("DeliveryError").expect("DeliveryError schema").fields,
+            &[("code", "text"), ("message", "text")]
+        );
+        // `OperationOutcome` (services.ts:189).
+        assert_eq!(
+            nominal_schema("OperationOutcome").expect("OperationOutcome schema").fields,
+            &[
+                ("source", "text"),
+                ("revision", "int"),
+                (
+                    "state",
+                    "enum(pending,confirmed,unavailable,failed,unknown,released)",
+                ),
+                ("reference", "text?"),
+                ("detail", "text?"),
+            ]
+        );
+    }
+
+    #[test]
+    fn t13a_payment_state_matches_producer_and_changed() {
+        // `PaymentState` (services.ts:209) mirrors the frozen
+        // `STD_PAYMENTS_V1_CONTRACT` `changed` fields (services.ts:605-618).
+        let schema = nominal_schema("PaymentState").expect("PaymentState schema");
+        assert_eq!(
+            schema.fields,
+            &[
+                ("reference", "text"),
+                ("revision", "int"),
+                ("provider_reference", "text?"),
+                ("amount", "money"),
+                ("status", "enum(pending,unknown,succeeded,failed)"),
+                ("checkout_url", "url?"),
+                (
+                    "failure",
+                    "enum(transient,action_required,permanent,cancelled)?",
+                ),
+            ]
+        );
+        let changed = STD_PAYMENTS_V1
+            .events
+            .iter()
+            .find(|event| event.name == "changed")
+            .expect("changed event");
+        assert_eq!(schema.fields, changed.fields);
+    }
+
+    #[test]
+    fn t13a_acceptance_leaves_are_exact() {
+        // `EmailAccepted` (services.ts:184).
+        assert_eq!(
+            nominal_schema("EmailAccepted").expect("EmailAccepted schema").fields,
+            &[("reference", "text")]
+        );
+        // `ErrorAccepted` (services.ts:262).
+        assert_eq!(
+            nominal_schema("ErrorAccepted").expect("ErrorAccepted schema").fields,
+            &[("reference", "text")]
+        );
+    }
+
+    #[test]
+    fn t13b_text_leaves_are_exact() {
+        // `TextMessage` (services.ts:754; `TextMessageRole` services.ts:747).
+        assert_eq!(
+            nominal_schema("TextMessage").expect("TextMessage schema").fields,
+            &[
+                ("role", "enum(system,user,assistant)"),
+                ("content", "text"),
+                ("attachments", "file[]"),
+            ]
+        );
+        // `TextRequest` (services.ts:768).
+        assert_eq!(
+            nominal_schema("TextRequest").expect("TextRequest schema").fields,
+            &[
+                ("source", "text"),
+                ("revision", "int"),
+                ("profile", "text"),
+                ("policy_revision", "text"),
+                ("messages", "TextMessage[]"),
+                ("max_input_tokens", "int"),
+                ("max_output_tokens", "int"),
+                ("max_duration", "CanDuration"),
+            ]
+        );
+        // `TextRun` (services.ts:806; `RunProgressState` services.ts:790).
+        assert_eq!(
+            nominal_schema("TextRun").expect("TextRun schema").fields,
+            &[
+                ("source", "text"),
+                ("revision", "int"),
+                ("sequence", "int"),
+                (
+                    "state",
+                    "enum(queued,running,succeeded,failed,unknown,cancelled)",
+                ),
+                ("content", "text"),
+                ("used_tokens", "int?"),
+                ("detail", "text?"),
+            ]
+        );
+    }
+
+    #[test]
+    fn t13b_workflow_and_image_leaves_are_exact() {
+        // `WorkflowInput` (services.ts:821).
+        assert_eq!(
+            nominal_schema("WorkflowInput").expect("WorkflowInput schema").fields,
+            &[("node", "text"), ("key", "text")]
+        );
+        // `WorkflowDefinition` (services.ts:831).
+        assert_eq!(
+            nominal_schema("WorkflowDefinition").expect("WorkflowDefinition schema").fields,
+            &[
+                ("graph", "file"),
+                ("prompt", "WorkflowInput"),
+                ("negative", "WorkflowInput"),
+                ("width", "WorkflowInput"),
+                ("height", "WorkflowInput"),
+            ]
+        );
+        // `WorkflowInspection` (services.ts:857).
+        assert_eq!(
+            nominal_schema("WorkflowInspection").expect("WorkflowInspection schema").fields,
+            &[("fields", "WorkflowField[]")]
+        );
+        // `WorkflowValidation` (services.ts:867).
+        assert_eq!(
+            nominal_schema("WorkflowValidation").expect("WorkflowValidation schema").fields,
+            &[("valid", "bool"), ("digest", "text?"), ("detail", "text?"),]
+        );
+        // `ImageRequest` (services.ts:881).
+        assert_eq!(
+            nominal_schema("ImageRequest").expect("ImageRequest schema").fields,
+            &[
+                ("source", "text"),
+                ("revision", "int"),
+                ("workflow", "WorkflowDefinition"),
+                ("validation", "text"),
+                ("prompt", "text"),
+                ("negative", "text"),
+                ("width", "int"),
+                ("height", "int"),
+                ("max_outputs", "int"),
+                ("max_duration", "CanDuration"),
+            ]
+        );
+        // Source `ImageRun` = TS `ImageRunProgress` (services.ts:919).
+        assert_eq!(
+            nominal_schema("ImageRun").expect("ImageRun schema").fields,
+            &[
+                ("source", "text"),
+                ("revision", "int"),
+                ("sequence", "int"),
+                (
+                    "state",
+                    "enum(queued,running,succeeded,failed,unknown,cancelled)",
+                ),
+                ("outputs", "GeneratedImage[]"),
+                ("charged_jobs", "int?"),
+                ("detail", "text?"),
+            ]
+        );
+        // Source `GeneratedImage` = TS `ImageFileOutput` (services.ts:902).
+        assert_eq!(
+            nominal_schema("GeneratedImage").expect("GeneratedImage schema").fields,
+            &[("position", "int"), ("image", "file")]
+        );
+    }
+
+    #[test]
+    fn t13b_mailbox_judgment_knowledge_leaves_are_exact() {
+        // `IncomingEmail` (services.ts:938).
+        assert_eq!(
+            nominal_schema("IncomingEmail").expect("IncomingEmail schema").fields,
+            &[
+                ("mailbox", "text"),
+                ("source", "text"),
+                ("thread", "text"),
+                ("sender", "text"),
+                ("reply_to", "text?"),
+                ("subject", "text"),
+                ("body", "text"),
+                ("body_complete", "bool"),
+                ("attachments", "file[]"),
+                ("attachment_count", "int"),
+                ("attachments_complete", "bool"),
+                ("received", "DatetimeValue"),
+            ]
+        );
+        // `MailReply` (services.ts:961).
+        assert_eq!(
+            nominal_schema("MailReply").expect("MailReply schema").fields,
+            &[
+                ("source", "text"),
+                ("mailbox", "text"),
+                ("message", "text"),
+                ("to", "text"),
+                ("subject", "text"),
+                ("body", "text"),
+                ("attachments", "file[]"),
+            ]
+        );
+        // `MailReplyOutcome` (services.ts:987; `MailReplyState`
+        // services.ts:978).
+        assert_eq!(
+            nominal_schema("MailReplyOutcome").expect("MailReplyOutcome schema").fields,
+            &[
+                ("source", "text"),
+                ("state", "enum(accepted,not_sent,unknown)"),
+                ("reference", "text?"),
+                ("detail", "text?"),
+            ]
+        );
+        // `JudgmentSpec` (services.ts:1005).
+        assert_eq!(
+            nominal_schema("JudgmentSpec").expect("JudgmentSpec schema").fields,
+            &[("revision", "int")]
+        );
+        // `KnowledgeRequest` (services.ts:1017).
+        assert_eq!(
+            nominal_schema("KnowledgeRequest").expect("KnowledgeRequest schema").fields,
+            &[
+                ("source", "text"),
+                ("revision", "int"),
+                ("question", "text"),
+                ("profile", "text"),
+                ("policy_revision", "text"),
+                ("max_input_tokens", "int"),
+                ("max_output_tokens", "int"),
+                ("max_duration", "CanDuration"),
+            ]
+        );
+        // `IndexState` (services.ts:1039).
+        assert_eq!(
+            nominal_schema("IndexState").expect("IndexState schema").fields,
+            &[
+                ("state", "text"),
+                ("checked", "DatetimeValue?"),
+                ("detail", "text?"),
+            ]
+        );
+    }
+
+    #[test]
+    fn handbook_ts_only_and_unknown_names_have_no_leaf_schemas() {
+        // B8 scope-out: the Handbook executable/member interface has no
+        // schemas, so lookups stay `None` and `E3019` is preserved.
+        for member in ["Handbook", "Run", "Answer"] {
+            assert_eq!(nominal_schema(member), None, "member {member}");
+        }
+        for op in [
+            "answer",
+            "cancel",
+            "reconcile",
+            "refresh",
+            "status",
+            "available",
+        ] {
+            assert_eq!(nominal_schema(op), None, "op {op}");
+        }
+        // TS-only mapping names never resolve (source names do).
+        assert_eq!(nominal_schema("ImageRunProgress"), None);
+        assert_eq!(nominal_schema("ImageFileOutput"), None);
+        // Nested non-nominal shapes stay refs, not tables.
+        assert_eq!(nominal_schema("WorkflowField"), None);
+        // Provider-owned wire names outside the accepted sets stay out.
+        assert_eq!(nominal_schema("EmailSendInput"), None);
+        assert_eq!(nominal_schema("ErrorReport"), None);
+        // Nominals are bare names only; qualified/empty lookups miss.
+        assert_eq!(nominal_schema("std.PaymentState"), None);
+        assert_eq!(nominal_schema(""), None);
     }
 }
