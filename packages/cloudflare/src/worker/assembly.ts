@@ -24,6 +24,7 @@
  */
 
 import type {
+  ActivationVerdict,
   AdmittedBindings,
   ArtifactPage,
   BusinessError,
@@ -857,12 +858,40 @@ function buildInterimFetch(
 /* ------------------------------------------------------------------ */
 
 /**
+ * B3-I6 activation refusal: a worker assembled with a failed verdict
+ * serves NOTHING. Every request — known routes, unknown paths, any
+ * method — gets the same 500 `activation-refused` envelope naming the
+ * FIRST reason (deterministic; the deployer reads the full verdict off
+ * the activation path, not here). Deliberately distinct from the
+ * interim 501 (`assembly-interim`: unmet join, retry-after-join) and
+ * from 404 routing: a refused worker is a deployment state, not a
+ * missing page or an unlanded seam.
+ */
+function buildRefusalFetch(verdict: Extract<ActivationVerdict, { active: false }>): AssembledWorker {
+  const first = verdict.reasons[0];
+  const body =
+    first === undefined
+      ? { code: "activation-refused", reason: "unknown", detail: "activation refused (no reason given)" }
+      : { code: "activation-refused", reason: first.code, detail: first.detail };
+  return {
+    fetch: async (): Promise<Response> => jsonResponse(body, 500),
+    pageCount: 0,
+    opCount: 0,
+  };
+}
+
+/**
  * Assemble a serving worker from a compiled artifact and its assembled
  * modules. Builds the `PageRegistry` (every page module imported, its
  * `export` binding verified for owner/path/render-shape, fail loud on the
  * first bad descriptor) and the `OperationInvoker` (`(id, caller, args)`
  * core: `createContext({ caller, store })` + `invokeCallable`), then wraps
  * the interim dispatcher in the real `createWorkerApp` entry wiring.
+ *
+ * `verdict` is the B3-I6 activation gate: unless it is active, assembly
+ * short-circuits to the refusal worker (no page module is imported).
+ * Programmer bugs (bad deps) still throw before the gate so a broken
+ * assembly can never hide behind a refusal.
  *
  * `requiredBindings` is `[]`: this signature is env-less (the store is
  * already injected), so there are no bindings to validate here — binding
@@ -872,6 +901,7 @@ export async function assembleWorker(
   artifact: CompileArtifact,
   asm: AssembledModules,
   deps: AssemblyDeps,
+  verdict: ActivationVerdict,
 ): Promise<AssembledWorker> {
   if (!isRecord(deps.store)) {
     throw new Error("assembly: deps.store is required (a StoragePort)");
@@ -880,6 +910,9 @@ export async function assembleWorker(
     throw new Error(
       "assembly: deps.identityStore is required (reserved for HttpDeps.identity.store at the identity join)",
     );
+  }
+  if (!verdict.active) {
+    return buildRefusalFetch(verdict);
   }
   assertArtifactCompatible(artifact);
 

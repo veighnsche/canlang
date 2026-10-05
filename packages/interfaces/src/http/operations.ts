@@ -25,8 +25,8 @@
  * body (the natural location for a flat HTML form's hidden field); both must
  * still verify against the session token.
  */
-import type { BusinessError, ClosedInputs, MutationEnvelope } from '@canlang/contracts';
-import { IdentityError } from '@canlang/identity';
+import type { BusinessError, ClosedInputs, MutationEnvelope, ResolvedIdentity } from '@canlang/contracts';
+import { IdentityError, deriveCsrfToken } from '@canlang/identity';
 import type { HttpDeps } from '../ports.js';
 import { buildBusinessError, fromUnknown, toHttpResponse } from '../errors/envelope.js';
 import { logBusinessError, logInternalError } from '../errors/logging.js';
@@ -39,7 +39,10 @@ import {
   jsonErrorResponse,
   resolveRequestIdentity,
 } from './context.js';
+import { formBindingFor, renderFormError, wantsHtmlRerender } from './formErrors.js';
+import { isPartialRequest } from './fragments.js';
 import { parseFormBody, parseJsonBody } from './limits.js';
+import { buildPresentationContext } from './presentation.js';
 
 /**
  * Operation-name shape: 2-3 dot-separated segments (e.g. `shop.Order.create`,
@@ -56,6 +59,67 @@ function deny(deps: HttpDeps, error: BusinessError, operation: string): Response
   logBusinessError(deps.logger, error, { route: 'operation', operation });
   const { status, body } = toHttpResponse(error);
   return jsonErrorResponse(body, status);
+}
+
+/** Best-effort redisplay state captured once the body parses to a record. */
+interface SeenDrafts {
+  readonly inputs: ClosedInputs;
+  readonly operationId: string;
+}
+
+/**
+ * B3-I5 content negotiation: deny with a re-rendered form when the request
+ * asks for HTML (explicit `text/html` Accept or `HX-Request`) and a form
+ * binding is registered for the operation; bare JSON otherwise. The JSON
+ * path is byte-identical to the pre-negotiation behavior. A failing
+ * re-render journals an incident and falls back to JSON, never a 500.
+ */
+async function denyOrRerender(
+  deps: HttpDeps,
+  request: Request,
+  operation: string,
+  error: BusinessError,
+  seen: SeenDrafts | null,
+  authed: { identity: ResolvedIdentity; sessionToken: string } | null,
+): Promise<Response> {
+  const binding = seen === null || authed === null || !wantsHtmlRerender(request)
+    ? undefined
+    : formBindingFor(operation);
+  if (binding === undefined || seen === null || authed === null) {
+    return deny(deps, error, operation);
+  }
+  logBusinessError(deps.logger, error, { route: 'operation', operation });
+  try {
+    const fragment = isPartialRequest(request);
+    const context = buildPresentationContext({
+      request,
+      pathname: new URL(request.url).pathname,
+      isPartial: fragment,
+      appDefaultLocale: deps.app.appDefaultLocale,
+      csrfToken: await deriveCsrfToken(authed.sessionToken),
+      principal: authed.identity,
+      query: () => Promise.reject(buildBusinessError('not_found', 'Row queries are unavailable during error re-render.')),
+    });
+    const rendered = await renderFormError({
+      error,
+      draftInputs: seen.inputs,
+      operationId: seen.operationId,
+      binding,
+      context,
+      fragment,
+    });
+    return new Response(rendered.html, {
+      status: rendered.status,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        vary: 'Accept, HX-Request',
+      },
+    });
+  } catch (err) {
+    logInternalError(deps.logger, err, { route: 'operation-form', operation });
+    const { status, body } = toHttpResponse(error);
+    return jsonErrorResponse(body, status);
+  }
 }
 
 /**
@@ -93,6 +157,8 @@ export async function handleOperationRequest(
   if (!OPERATION_NAME_PATTERN.test(operation)) {
     return deny(deps, buildBusinessError('not_found', 'Unknown operation.'), operation);
   }
+  let authed: { identity: ResolvedIdentity; sessionToken: string } | null = null;
+  let seen: SeenDrafts | null = null;
   try {
     const { identity, sessionToken } = await resolveRequestIdentity(
       deps.identity.store,
@@ -102,6 +168,7 @@ export async function handleOperationRequest(
     if (sessionToken === null) {
       return deny(deps, buildBusinessError('forbidden', 'Authentication required.'), operation);
     }
+    authed = { identity, sessionToken };
 
     const mediaType = (request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
     let body: unknown;
@@ -120,13 +187,27 @@ export async function handleOperationRequest(
     if ('operation' in record && record['operation'] !== operation) {
       return deny(deps, buildBusinessError('validation', 'Body operation does not match the route.'), operation);
     }
+    // Capture redisplay state best-effort: later denials re-render the form
+    // when the request asks for HTML; `_csrf` is transport, never a draft.
+    const seenId = record['operation_id'];
+    const seenInputs = record['inputs'];
+    const seenObj: ClosedInputs =
+      typeof seenInputs === 'object' && seenInputs !== null && !Array.isArray(seenInputs)
+        ? (seenInputs as ClosedInputs)
+        : {};
+    const { [CSRF_FIELD]: _seenCsrf, ...seenRest } = seenObj;
+    void _seenCsrf;
+    seen = {
+      operationId: typeof seenId === 'string' ? seenId : '',
+      inputs: seenRest,
+    };
     const operationId = record['operation_id'];
     const rawInputs = record['inputs'];
     if (typeof operationId !== 'string') {
-      return deny(deps, buildBusinessError('validation', 'Missing operation_id.'), operation);
+      return denyOrRerender(deps, request, operation, buildBusinessError('validation', 'Missing operation_id.'), seen, authed);
     }
     if (typeof rawInputs !== 'object' || rawInputs === null || Array.isArray(rawInputs)) {
-      return deny(deps, buildBusinessError('validation', 'Invalid inputs.'), operation);
+      return denyOrRerender(deps, request, operation, buildBusinessError('validation', 'Invalid inputs.'), seen, authed);
     }
     const inputs = rawInputs as ClosedInputs;
 
@@ -139,23 +220,23 @@ export async function handleOperationRequest(
 
     const idError = validateOperationId(operationId, deps.clock);
     if (idError !== null) {
-      return deny(deps, idError, operation);
+      return denyOrRerender(deps, request, operation, idError, seen, authed);
     }
     const shape = deps.catalog.shapeFor(operation);
     if (shape === null) {
-      return deny(deps, buildBusinessError('not_found', 'Unknown operation.'), operation);
+      return denyOrRerender(deps, request, operation, buildBusinessError('not_found', 'Unknown operation.'), seen, authed);
     }
     const { [CSRF_FIELD]: _csrf, ...businessInputs } = inputs;
     void _csrf;
     const closedError = checkClosedInputs(businessInputs, shape);
     if (closedError !== null) {
-      return deny(deps, closedError, operation);
+      return denyOrRerender(deps, request, operation, closedError, seen, authed);
     }
 
     const envelope: MutationEnvelope = { operation, operation_id: operationId, inputs: businessInputs };
     const outcome = await deps.invoker.invokeMutation(envelope, identity);
     if ('error' in outcome) {
-      return deny(deps, outcome.error, operation);
+      return denyOrRerender(deps, request, operation, outcome.error, seen, authed);
     }
     return new Response(JSON.stringify(outcome.result), {
       status: 200,
@@ -163,11 +244,16 @@ export async function handleOperationRequest(
     });
   } catch (err) {
     if (err instanceof IdentityError) {
-      return deny(deps, caughtToBusinessError(err), operation);
+      return denyOrRerender(deps, request, operation, caughtToBusinessError(err), seen, authed);
     }
     const incidentId = logInternalError(deps.logger, err, { route: 'operation', operation });
     void incidentId;
     const error = fromUnknown(err);
+    // An unexpected failure behind an HTML POST still re-renders (generic
+    // banner); without HTML headers this stays the JSON envelope below.
+    if (seen !== null && authed !== null && wantsHtmlRerender(request) && formBindingFor(operation) !== undefined) {
+      return denyOrRerender(deps, request, operation, error, seen, authed);
+    }
     const { status, body } = toHttpResponse(error);
     return jsonErrorResponse(body, status);
   }

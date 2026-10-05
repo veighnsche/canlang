@@ -19,10 +19,13 @@ import type { D1Database } from '@cloudflare/workers-types';
 import type {
   CommitBatch,
   CommitResult,
+  DiscardStagedRows,
   FlipInstalledSnapshot,
   FlipResult,
   HistoryEntry,
   InstalledSnapshot,
+  MigrationFailure,
+  MigrationFailureLeg,
   MigrationOutcome,
   MigrationProgress,
   ModelName,
@@ -36,6 +39,7 @@ import type {
   Receipt,
   ReceiptIdentity,
   RecordId,
+  RecordMigrationFailure,
   RecordParent,
   RecordVersion,
   Revision,
@@ -45,14 +49,28 @@ import type {
   StagedRowCursor,
   StoredRow,
 } from '../../../contracts/src/state.js';
-import { FenceConflictError, StorageConstraintError } from './port.js';
+import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
-import { FENCE_ROW_ID, SCHEMA_STATEMENTS } from './schema.js';
+import {
+  ALTER_OUTBOX_HANDLER_CONTRACT,
+  FENCE_ROW_ID,
+  SCHEMA_STATEMENTS,
+  isDuplicateColumnError,
+} from './schema.js';
 
 /** Run each schema statement sequentially; idempotent, safe to re-run. */
 export async function ensureSchema(db: D1Database): Promise<void> {
   for (const statement of SCHEMA_STATEMENTS) {
     await db.exec(statement);
+  }
+  // B3: backfill the outbox contract column on pre-B3 databases; fresh
+  // databases (and re-runs) already have it, so duplicate-column is fine.
+  try {
+    await db.exec(ALTER_OUTBOX_HANDLER_CONTRACT);
+  } catch (error) {
+    if (!isDuplicateColumnError(error)) {
+      throw error;
+    }
   }
 }
 
@@ -371,10 +389,12 @@ interface OutboxRow {
   readonly arguments: string;
   readonly occurrence_index: number;
   readonly dispatch_guard: string | null;
+  readonly handler_contract: string | null;
 }
 
 const OUTBOX_COLUMNS =
-  'intent_id, operation, operation_id, target, arguments, occurrence_index, dispatch_guard';
+  'intent_id, operation, operation_id, target, arguments, occurrence_index, dispatch_guard, ' +
+  'handler_contract';
 
 function toOutboxIntent(row: OutboxRow): OutboxIntent {
   return {
@@ -386,6 +406,8 @@ function toOutboxIntent(row: OutboxRow): OutboxIntent {
     occurrenceIndex: row.occurrence_index,
     // NULL guard stays absent (never explicit undefined: exactOptionalPropertyTypes).
     ...(row.dispatch_guard === null ? {} : { dispatchGuard: row.dispatch_guard }),
+    // B3: NULL contract stays absent (pre-B3 rows attest at the boundary).
+    ...(row.handler_contract === null ? {} : { handlerContract: row.handler_contract }),
   };
 }
 
@@ -531,6 +553,36 @@ function toMigrationOutcome(row: OutcomeRow): MigrationOutcome {
     kind: row.kind as MigrationOutcome['kind'],
     intentId: row.intent_id,
     handlerContract: row.handler_contract,
+  };
+}
+
+/** B3: raw `migration_failures` row as D1 returns it. */
+interface FailureRow {
+  readonly migration_id: string;
+  readonly leg: string;
+  readonly prior_phase: string;
+  readonly staged_cursor: string | null;
+  readonly publish_cursor: string | null;
+  readonly error: string;
+  readonly at: number;
+  readonly revision: number;
+}
+
+const FAILURE_COLUMNS =
+  'migration_id, leg, prior_phase, staged_cursor, publish_cursor, error, at, revision';
+
+function toMigrationFailure(row: FailureRow): MigrationFailure {
+  return {
+    migrationId: row.migration_id,
+    leg: row.leg as MigrationFailureLeg,
+    priorPhase: row.prior_phase as MigrationFailure['priorPhase'],
+    stagedCursor:
+      row.staged_cursor === null ? null : (JSON.parse(row.staged_cursor) as StagedRowCursor),
+    publishCursor:
+      row.publish_cursor === null ? null : (JSON.parse(row.publish_cursor) as StagedRowCursor),
+    error: row.error,
+    at: row.at,
+    revision: row.revision as Revision,
   };
 }
 
@@ -772,8 +824,8 @@ export function createD1Storage(db: D1Database): StoragePort {
           db
             .prepare(
               'INSERT INTO outbox(intent_id, operation, operation_id, target, arguments, ' +
-                'occurrence_index, dispatch_guard, status, created_at) ' +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
+                'occurrence_index, dispatch_guard, handler_contract, status, created_at) ' +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
             )
             .bind(
               intent.intentId,
@@ -783,6 +835,7 @@ export function createD1Storage(db: D1Database): StoragePort {
               JSON.stringify(intent.arguments),
               intent.occurrenceIndex,
               intent.dispatchGuard ?? null,
+              intent.handlerContract ?? null,
               at,
             ),
         );
@@ -1245,6 +1298,102 @@ export function createD1Storage(db: D1Database): StoragePort {
         .bind(migrationId)
         .all<OutcomeRow>();
       return result.results.map(toMigrationOutcome);
+    },
+
+    async recordMigrationFailure(input: RecordMigrationFailure): Promise<CommitResult> {
+      // B3: ONE fenced batch: failed mark plus the durable failure row.
+      // Marking an active migration failed is a caller error.
+      checkRecoveryInput(input.migrationId, input.leg);
+      if (typeof input.error !== 'string' || input.error === '') {
+        throw new Error('recordMigrationFailure: error must be a non-empty string.');
+      }
+      const current = await db
+        .prepare(`SELECT ${PROGRESS_COLUMNS} FROM migration_progress WHERE migration_id = ?`)
+        .bind(input.migrationId)
+        .first<ProgressRow>();
+      if (current !== null && current.phase === 'active') {
+        throw new Error('recordMigrationFailure: migration is already active.');
+      }
+      await checkMigrationExpected(db, input.expectedRevision);
+      const next = (input.expectedRevision as number) + 1;
+      const at = Date.now();
+      try {
+        await db.batch([
+          db
+            .prepare('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)')
+            .bind(next, at, `migration:failed:${input.migrationId}`),
+          db.prepare('UPDATE fence SET revision = ? WHERE id = ?').bind(next, FENCE_ROW_ID),
+          db
+            .prepare(
+              'INSERT OR REPLACE INTO migration_progress(migration_id, phase, staged_cursor, ' +
+                'publish_cursor, updated_revision) VALUES (?, ?, ?, ?, ?)',
+            )
+            .bind(
+              input.migrationId,
+              'failed',
+              input.stagedCursor === null ? null : JSON.stringify(input.stagedCursor),
+              input.publishCursor === null ? null : JSON.stringify(input.publishCursor),
+              next,
+            ),
+          db
+            .prepare(
+              'INSERT OR REPLACE INTO migration_failures(migration_id, leg, prior_phase, ' +
+                'staged_cursor, publish_cursor, error, at, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            )
+            .bind(
+              input.migrationId,
+              input.leg,
+              input.priorPhase,
+              input.stagedCursor === null ? null : JSON.stringify(input.stagedCursor),
+              input.publishCursor === null ? null : JSON.stringify(input.publishCursor),
+              input.error,
+              input.at,
+              next,
+            ),
+        ]);
+      } catch (error) {
+        throw await toCommitError(db, input.expectedRevision, error);
+      }
+      return { revision: next as Revision };
+    },
+
+    async discardStagedRows(input: DiscardStagedRows): Promise<CommitResult> {
+      // B3: ONE fenced batch: staged rows plus the progress row go; the
+      // failure record stays. Active progress refuses (no rollback past
+      // the flip).
+      checkRecoveryInput(input.migrationId);
+      const current = await db
+        .prepare(`SELECT ${PROGRESS_COLUMNS} FROM migration_progress WHERE migration_id = ?`)
+        .bind(input.migrationId)
+        .first<ProgressRow>();
+      if (current !== null && current.phase === 'active') {
+        throw new Error('discardStagedRows: migration is already active.');
+      }
+      await checkMigrationExpected(db, input.expectedRevision);
+      const next = (input.expectedRevision as number) + 1;
+      const at = Date.now();
+      try {
+        await db.batch([
+          db
+            .prepare('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)')
+            .bind(next, at, `migration:discard:${input.migrationId}`),
+          db.prepare('UPDATE fence SET revision = ? WHERE id = ?').bind(next, FENCE_ROW_ID),
+          db.prepare('DELETE FROM migration_staging WHERE migration_id = ?').bind(input.migrationId),
+          db.prepare('DELETE FROM migration_progress WHERE migration_id = ?').bind(input.migrationId),
+        ]);
+      } catch (error) {
+        throw await toCommitError(db, input.expectedRevision, error);
+      }
+      return { revision: next as Revision };
+    },
+
+    async readMigrationFailure(migrationId: string): Promise<MigrationFailure | null> {
+      // B3: null when the migration never failed.
+      const row = await db
+        .prepare(`SELECT ${FAILURE_COLUMNS} FROM migration_failures WHERE migration_id = ?`)
+        .bind(migrationId)
+        .first<FailureRow>();
+      return row === null ? null : toMigrationFailure(row);
     },
   };
 }

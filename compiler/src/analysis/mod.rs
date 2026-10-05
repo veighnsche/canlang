@@ -29,6 +29,7 @@ pub mod catalog;
 pub mod check;
 pub mod effects;
 pub mod examples;
+pub mod migrate_check;
 pub mod resolve;
 pub mod types;
 

@@ -181,3 +181,32 @@ export interface UpgradeState {
     recoverable: boolean;
   };
 }
+
+/**
+ * Activation gate failure codes (B3-I6, additive). Gate 1 reuses the
+ * compatibility codes verbatim (including the known-vs-installed
+ * `unknown-capability`/`missing-capability` split); the remaining codes
+ * are activation-only.
+ */
+export type ActivationFailureCode =
+  | CompatibilityFailureCode
+  | "digest-mismatch"
+  | "blocked-work"
+  | "activation-check-failed"
+  | "activation-incomplete";
+
+/** One activation gate failure. `detail` never carries secrets. */
+export interface ActivationFailure {
+  code: ActivationFailureCode;
+  detail: string;
+}
+
+/**
+ * Activation verdict: whether the artifact may serve. `active: true`
+ * carries no payload (the checks that passed are not individually
+ * interesting); `active: false` carries every gate failure in
+ * deterministic gate order (compat, requires, digest, inventory).
+ */
+export type ActivationVerdict =
+  | { active: true }
+  | { active: false; reasons: readonly ActivationFailure[] };
