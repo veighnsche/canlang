@@ -9,6 +9,7 @@
 
 import {
   CSRF_FIELD,
+  PRESESSION_FIELD,
   TEAM_FIELD,
 } from "../../contracts/src/presentation.js";
 import type {
@@ -296,8 +297,9 @@ function sanitizeAppPath(value: string | undefined, fallback: string): string {
 
 /**
  * Canonical login screen: full document with a centered sign-in card. The
- * form POSTs to the dispatcher-supplied signIn route with CSRF; lane 05
- * renders only and never implements an account flow.
+ * form POSTs to the dispatcher-supplied signIn route with CSRF plus the
+ * dispatcher-supplied pre-session token; lane 05 renders only and never
+ * implements an account flow.
  */
 export async function renderLogin(props: LoginProps): Promise<string> {
   const context = props.context;
@@ -308,6 +310,10 @@ export async function renderLogin(props: LoginProps): Promise<string> {
   const action = escapeAttr(sanitizeAppPath(props.action, "#"));
   const csrfField = escapeAttr(CSRF_FIELD);
   const csrfToken = escapeAttr(context.csrfToken);
+  const preSession =
+    props.preSessionToken === undefined
+      ? ""
+      : `<input type="hidden" name="${escapeAttr(PRESESSION_FIELD)}" value="${escapeAttr(props.preSessionToken)}">`;
   const next = escapeAttr(sanitizeAppPath(props.next, "/"));
   const usernameId = escapeAttr(`${props.idPrefix}-username`);
   const passwordId = escapeAttr(`${props.idPrefix}-password`);
@@ -339,6 +345,7 @@ export async function renderLogin(props: LoginProps): Promise<string> {
     error +
     `<form method="POST" action="${action}">` +
     `<input type="hidden" name="${csrfField}" value="${csrfToken}">` +
+    preSession +
     `<fieldset><label for="${usernameId}" class="label">${usernameLabel}</label>` +
     `<input id="${usernameId}" name="username" type="text" autocomplete="username" required autofocus class="input"></fieldset>` +
     `<fieldset><label for="${passwordId}" class="label">${passwordLabel}</label>` +

@@ -1,13 +1,14 @@
 /**
  * S4 auth-endpoint tests: the register/verify/login/logout cycle, recovery,
- * team selection, rate limits, CSRF, and interim GET descriptors — all over
- * HTTP against the real identity memory store.
+ * team selection, rate limits, CSRF, pre-session login tokens, and interim
+ * GET descriptors — all over HTTP against the real identity memory store.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveCsrfToken } from '@canlang/identity';
 import { handleAuthRequest } from '../src/http/auth.js';
 import { createTestDeps, testRequest } from '../src/testing.js';
+import type { TestDeps } from '../src/testing.js';
 
 const PASSWORD = 's3cure-password';
 
@@ -47,11 +48,22 @@ function cookieFor(sessionToken: string): string {
   return `can_session=${encodeURIComponent(sessionToken)}`;
 }
 
-test('register -> verify -> login -> logout cycle over HTTP (no CSRF on unauthenticated endpoints)', async () => {
+/** Mint a login token through the real descriptor GET (single-use). */
+async function loginToken(t: TestDeps): Promise<string> {
+  const res = await handleAuthRequest(t.deps, get('/auth/login'));
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('cache-control'), 'no-store');
+  const body = (await res.json()) as { preSessionToken?: unknown };
+  assert.equal(typeof body.preSessionToken, 'string');
+  assert.ok((body.preSessionToken as string).length > 0, 'expected a minted pre-session token');
+  return body.preSessionToken as string;
+}
+
+test('register -> verify -> login -> logout cycle over HTTP (login via pre-session token)', async () => {
   const t = await createTestDeps();
   const email = 'cycle@test.example';
 
-  // Unauthenticated by nature: no CSRF headers anywhere below until logout.
+  // Register/verify carry no token (they plant no session); login mints one.
   let res = await handleAuthRequest(t.deps, post('/auth/register', { email, password: PASSWORD }));
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true });
@@ -66,7 +78,10 @@ test('register -> verify -> login -> logout cycle over HTTP (no CSRF on unauthen
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true });
 
-  res = await handleAuthRequest(t.deps, post('/auth/login', { email, password: PASSWORD }));
+  res = await handleAuthRequest(
+    t.deps,
+    post('/auth/login', { email, password: PASSWORD, _presession: await loginToken(t) }),
+  );
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true });
   const sessionToken = sessionTokenFromSetCookie(res.headers.get('set-cookie'));
@@ -97,12 +112,77 @@ test('logout without a session is idempotent; CSRF also accepted via _csrf field
   assert.equal(viaField.status, 200);
 });
 
+test('login POST without a pre-session token is rejected even with correct credentials', async () => {
+  // Login-CSRF guard: a cross-site forgery cannot read the minted token, so
+  // a tokenless POST must fail closed before credentials are even checked.
+  const t = await createTestDeps();
+  const res = await handleAuthRequest(
+    t.deps,
+    post('/auth/login', { email: t.identity.email, password: PASSWORD }),
+  );
+  assert.equal(res.status, 403);
+  assert.equal((await res.json() as { code: string }).code, 'forbidden');
+});
+
+test('login token is single-use: a failed attempt spends it, replay is rejected', async () => {
+  const t = await createTestDeps();
+  const token = await loginToken(t);
+  // Wrong password: the token is consumed, credentials fail.
+  const failed = await handleAuthRequest(
+    t.deps,
+    post('/auth/login', { email: t.identity.email, password: 'wrong-password-1', _presession: token }),
+  );
+  assert.equal(failed.status, 403);
+  assert.equal((await failed.json() as { message: string }).message, 'Invalid email or password.');
+  // Replay with correct credentials: the token is spent.
+  const replay = await handleAuthRequest(
+    t.deps,
+    post('/auth/login', { email: t.identity.email, password: PASSWORD, _presession: token }),
+  );
+  assert.equal(replay.status, 403);
+  assert.equal((await replay.json() as { message: string }).message, 'Invalid or expired login token.');
+  // A fresh token works.
+  const ok = await handleAuthRequest(
+    t.deps,
+    post('/auth/login', { email: t.identity.email, password: PASSWORD, _presession: await loginToken(t) }),
+  );
+  assert.equal(ok.status, 200);
+});
+
+test('tampered pre-session token is rejected before credentials are checked', async () => {
+  const t = await createTestDeps();
+  const token = `${await loginToken(t)}-tampered`;
+  const res = await handleAuthRequest(
+    t.deps,
+    post('/auth/login', { email: t.identity.email, password: PASSWORD, _presession: token }),
+  );
+  assert.equal(res.status, 403);
+  assert.equal((await res.json() as { message: string }).message, 'Invalid or expired login token.');
+});
+
+test('login descriptor mints are throttled separately from login attempts', async () => {
+  const t = await createTestDeps();
+  for (let i = 0; i < 10; i++) {
+    const res = await handleAuthRequest(t.deps, get('/auth/login'));
+    assert.equal(res.status, 200, `mint ${i + 1}`);
+  }
+  const limited = await handleAuthRequest(t.deps, get('/auth/login'));
+  assert.equal(limited.status, 429);
+  assert.equal((await limited.json() as { code: string }).code, 'limit');
+});
+
 test('login rate-limit trips after 10 attempts with Retry-After', async () => {
   const t = await createTestDeps();
   for (let i = 0; i < 10; i++) {
+    // Fresh token per attempt: the 403s below are credential failures, and
+    // the 10 descriptor mints stay inside the separate mint budget.
     const res = await handleAuthRequest(
       t.deps,
-      post('/auth/login', { email: 'nobody@test.example', password: 'wrong-password-1' }),
+      post('/auth/login', {
+        email: 'nobody@test.example',
+        password: 'wrong-password-1',
+        _presession: await loginToken(t),
+      }),
     );
     assert.equal(res.status, 403, `attempt ${i + 1}`);
   }
@@ -142,7 +222,10 @@ test('recovery confirm rotates credentials and kills old sessions', async () => 
   );
   assert.equal(verified.status, 200);
 
-  let res = await handleAuthRequest(t.deps, post('/auth/login', { email, password: PASSWORD }));
+  let res = await handleAuthRequest(
+    t.deps,
+    post('/auth/login', { email, password: PASSWORD, _presession: await loginToken(t) }),
+  );
   assert.equal(res.status, 200);
   const sessionToken = sessionTokenFromSetCookie(res.headers.get('set-cookie'));
   const cookie = cookieFor(sessionToken);
@@ -161,9 +244,15 @@ test('recovery confirm rotates credentials and kills old sessions', async () => 
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true });
 
-  res = await handleAuthRequest(t.deps, post('/auth/login', { email, password: PASSWORD }));
+  res = await handleAuthRequest(
+    t.deps,
+    post('/auth/login', { email, password: PASSWORD, _presession: await loginToken(t) }),
+  );
   assert.equal(res.status, 403);
-  res = await handleAuthRequest(t.deps, post('/auth/login', { email, password: 'brand-new-password-9' }));
+  res = await handleAuthRequest(
+    t.deps,
+    post('/auth/login', { email, password: 'brand-new-password-9', _presession: await loginToken(t) }),
+  );
   assert.equal(res.status, 200);
 
   res = await handleAuthRequest(t.deps, post('/auth/select-team', { team: t.identity.teamId }, { cookie, csrf }));
@@ -224,11 +313,26 @@ test('GET auth routes return interim form descriptors; verify GET never consumes
       fields: Array<{ name: string }>;
       postTo: string;
       csrfField: string;
+      preSessionToken?: unknown;
     };
     assert.equal(d.form, form);
     assert.equal(d.postTo, postTo);
     assert.equal(d.csrfField, '_csrf');
     assert.ok(d.fields.some((f) => f.name === field), path);
+    // Only the login descriptor mints a token; every mint is unique.
+    if (form === 'login') {
+      assert.equal(typeof d.preSessionToken, 'string');
+      assert.ok((d.preSessionToken as string).length > 0);
+      const again = (await (await handleAuthRequest(t.deps, get(path))).json()) as {
+        preSessionToken?: unknown;
+      };
+      assert.ok(
+        typeof again.preSessionToken === 'string' && again.preSessionToken !== d.preSessionToken,
+        'each login descriptor mints a fresh token',
+      );
+    } else {
+      assert.equal(d.preSessionToken, undefined);
+    }
   }
 
   // The ?token= landing page is side-effect-free: the same token still verifies after.
@@ -325,7 +429,10 @@ test('login Set-Cookie carries HttpOnly, SameSite, Max-Age, and Secure when enab
   const msg = t.identity.mail.messages.find((m) => m.to === email);
   assert.ok(msg);
   await handleAuthRequest(t.deps, post('/auth/verify', { token: tokenFromMail(msg.body_text) }));
-  const res = await handleAuthRequest(t.deps, post('/auth/login', { email, password: PASSWORD }));
+  const res = await handleAuthRequest(
+    t.deps,
+    post('/auth/login', { email, password: PASSWORD, _presession: await loginToken(t) }),
+  );
   assert.equal(res.status, 200);
   const setCookie = res.headers.get('set-cookie') ?? '';
   assert.ok(setCookie.includes('HttpOnly'), setCookie);
