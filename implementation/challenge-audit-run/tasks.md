@@ -88,6 +88,7 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Changes / traceability: RQ02; canonical design/task: Accountable lead: L1. Contributors and owning boundaries: L1. Depends on T03. Extend ordered guards, false continuations, joins and invalidation. Done when Affiliate/Approve/Catch/Chat/Check/Contract positives pass and unguarded/invalidated controls fail.
   - Acceptance: Original Affiliate/Approve/Catch/Chat/Check/Contract guarded cases pass; unguarded, read-before-guard, OR-null, alias-write, join and zero-iteration controls fail appropriately.
   - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Coordinator note: checker-file path is compiler/tests/b4_check.rs (NOT compiler/src/analysis/b4_check.rs — earlier briefs misstated; T08 writer corrected per tasks.md). Future L1 briefs must use the tests/ path.
 
 - [ ] **T06 — Complete actor facts in policies and CRUD**
   - Prerequisites: T05.
@@ -108,14 +109,14 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Owner / files / interfaces: L1; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs, packages/ui/src/policyPage.ts (L5 writes). Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ02; canonical design/task: Accountable lead: L1. Contributors and owning boundaries: L1 with L3/L5 review. Resolve parent, safe metadata and value members canonically. Done when valid policy/UI paths agree and invalid leaves/descent/disclosure still fail.
   - Acceptance: Canonical parent/safe metadata/money selectors agree across policy/UI; unknown leaf, invalid descent, disclosure and metadata-write controls retained; selector checking provides no flow or permission fact.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: Rust slice done (writer 01a10ccc, types.rs +203/-83, tests/b4_check.rs +184; resolve.rs needed no change): unified navigate_selector, read-context metadata, 18 boundary tests (9 pos/9 neg). L5 policyPage slice done (writer 01a10cd4-c565, +314/-0, tsc 0; fail-closed guards for every R07/R08 negative; ok-carries fact:null/permission:null/writable:false). Coordinator: cargo check 0; family recount 4524→4364 with E2013 403→243 as the ONLY moved family (all others bit-identical) = pure intended acceptance. Parent OPEN: draft_outcome_table re-pin slice queued (analysis.rs).
 
 - [ ] **T09 — Preserve creation metadata through the compiler**
   - Prerequisites: T04a for emitted contract; semantic preparation ready at M00.
   - Owner / files / interfaces: L2 with exclusive L1 Rust writer; packages/values/src/schema.ts, packages/values/src/array.ts, packages/contracts/src/values.ts; compiler/src/analysis/effects.rs, compiler/src/codegen/ir.rs, compiler/src/codegen/js.rs, compiler/src/codegen/artifact.rs, packages/contracts/src/artifact.ts, compiler/tests/codegen.rs. Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ02/RQ03; canonical design/task: Accountable lead: L2; L1 owns Rust/effects/IR/emission patches. Carry ordinary/required arrays, null/default/server/derived distinctions through the full descriptor chain. Done when omission semantics and independent values conformance agree and contradictory emission expectations are corrected.
   - Acceptance: ordinary/required arrays, nullable/default/server/derived fields preserve omission semantics in analysis, effects, IR, descriptors and actual creation; contradictory old [] expectations repaired with independent conformance.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: TS slice done (parent OPEN; Rust emission remains): writer 01a10cd4-c68b released values.ts (+23/-0 ArrayOmission/FieldDefaultOrigin), array.ts (+45/-1 EMPTY_ARRAY/applyArrayOmission), schema.ts (+181/-14 marker-driven omission, ENGINE_RESOLVED sentinel, server/derived threaded). Old nullability-conflated requiredness removed = the R09 repair. values+contracts tsc 0 (coordinator re-verified).
 
 - [ ] **T10 — Validate contextual structural literals**
   - Prerequisites: M00; expected owner contracts available.
@@ -426,3 +427,8 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - DONE T13a-consume: writer 01a10cd0-1865-7701-9e14-c3f793777d04 RELEASED compiler/src/analysis/catalog.rs (+500/-0 additive, B1 explicit, E3019 preserved). Parent T13 OPEN (T13b remains; see T13 evidence).
 - G0 FROZEN: coordinator agreement check passed (T01/T02/T03/T04a/T12 joins verified; see G0 evidence). G0 ticked.
 - DISPATCH batch 7 (slots freed x2): L5 T08-policyPage writer (packages/ui/src/policyPage.ts — L5 writes, T03 landed) + L2 T09-TS-slice writer (values schema/array.ts + contracts values.ts; Rust emission is a later L1 slice). L1 T08-Rust still running. Queued: T05→T10→T30→T14a checker chain, T09-Rust, T13b, JEV-prep alternatives.
+- DONE T08-policyPage: writer 01a10cd4-c565-7a70-862f-8c455cd9b96a RELEASED packages/ui/src/policyPage.ts (+314/-0, tsc 0 re-verified). Parent T08 OPEN (see T08 evidence).
+- DONE T08-Rust: writer 01a10ccc-6e1b-7743-8ec4-8c55c2bfc389 RELEASED types.rs + tests/b4_check.rs (resolve.rs untouched, needed no change). PATH CORRECTION: brief said src/analysis/b4_check.rs (nonexistent); writer correctly used compiler/tests/b4_check.rs per tasks.md — all future L1 briefs use tests/ path. Parent T08 OPEN (table re-pin queued; see T08 evidence).
+- DONE T09-TS: writer 01a10cd4-c68b-7451-b9bf-a9d71ea814cc RELEASED 3 TS files (R09 repair verified, tsc 0). Parent T09 OPEN (Rust emission remains; see T09 evidence).
+- VERIFY: cargo check 0; full suite 28 pass + draft_outcome_table FAILS with pure-reduction delta (28 files, zero increases); coordinator family recount proves E2013-only move (403→243, all other families bit-identical) = intended T08 acceptance. Table re-pin is legitimate expectation repair with attribution, queued as T08-table slice. Precedent: each behavior-changing checker slice re-pins the table with per-family attribution.
+- DISPATCH batch 8 (slots freed x3): L1 T08-table writer (WRITE ONLY compiler/tests/analysis.rs table values) + L3 T28-prep writer (WRITE ONLY evidence/containment-decision.md NEW; alternatives + JEV-pending markers, NO JEV calls, NO normative edits) + L1 T09-Rust writer (effects/ir/js/artifact.rs + contracts/artifact.ts + tests/codegen.rs; emission per frozen T09-TS interface). Zero writers running otherwise. Queued: T05 (after green table), T10, T30, T14a, T13b, T31a/T32a/T33-prep.
