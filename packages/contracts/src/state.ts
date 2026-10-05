@@ -673,3 +673,152 @@ export interface DiscardStagedRows {
   readonly expectedRevision: Revision;
   readonly migrationId: string;
 }
+
+/* -- T04a: agreed generated-execution intake (frozen slice). -- */
+
+/**
+ * T04a execution-contract version. Frozen by the challenge-audit T04a slice:
+ * L1 emission, L3 intake, L2 values, L6 identity/wire and L7 example
+ * execution agree on this version's descriptor/invoke/observation rules.
+ * Additive-only growth; T04b extends without changing these rules. Recorded
+ * with producer/consumer agreement in
+ * `implementation/challenge-audit-run/evidence/execution-contract.md`.
+ */
+export const EXECUTION_CONTRACT_VERSION = 1;
+
+/**
+ * T04a pinned producer versions. Every join in this slice (L1 emission, L3
+ * intake, L7 activation/loading) requires exactly these contract versions;
+ * anything else is an incompatible artifact, never a silent fallback.
+ */
+export const T04A_PINNED_VERSIONS = {
+  execution: EXECUTION_CONTRACT_VERSION,
+  artifact: 1,
+  state: STATE_CONTRACT_VERSION,
+  values: 1,
+  identity: 1,
+  wire: 1,
+  examples: 1,
+} as const;
+
+/**
+ * T04a user-invocable operation kinds. Mirrors `ArtifactOperationKind`
+ * (L1-owned `artifact.ts`); the two spellings must stay identical.
+ */
+export type CanonicalOperationKind = 'read' | 'create' | 'update' | 'delete' | 'scenario';
+
+/**
+ * T04a scalar input kinds. Mirrors the non-`ref` members of
+ * `ArtifactOperationField` (L1-owned); L1 emission and L3 intake share this
+ * closed set. Richer kinds (date, duration, unions, nested contracts) are
+ * T04b.
+ */
+export type CanonicalScalarKind =
+  | 'string'
+  | 'integer'
+  | 'decimal'
+  | 'money'
+  | 'datetime'
+  | 'boolean'
+  | 'file'
+  | 'enum';
+
+/**
+ * T04a default-input vocabulary (T09 distinctions carried into descriptors).
+ * `literal` is a JSON literal evaluated at admission; `parent` resolves a
+ * dot path off the loaded parent row (create only); `server` and `derived`
+ * exclude the field from writable inputs and are resolved by the engine
+ * (T18 execution), never by the caller.
+ */
+export type CanonicalFieldDefault =
+  | { readonly kind: 'literal'; readonly value: unknown }
+  | { readonly kind: 'parent'; readonly path: string }
+  | { readonly kind: 'server' }
+  | { readonly kind: 'derived' };
+
+/**
+ * T04a canonical operation input. `ref` inputs carry identity plus an
+ * expected admitted version on mutations (L6 `MutationRef`); `versioned`
+ * marks that requirement. `enumValues` is present exactly when
+ * `kind === 'enum'`, in declaration order. `default` records the
+ * source-declared default; admission still rejects unknown members and
+ * missing required inputs (closed shape).
+ */
+export type CanonicalInputDef =
+  | {
+      readonly name: string;
+      readonly kind: 'ref';
+      readonly model: ModelName;
+      readonly versioned: boolean;
+      readonly required: boolean;
+      readonly default?: CanonicalFieldDefault;
+    }
+  | {
+      readonly name: string;
+      readonly kind: CanonicalScalarKind;
+      readonly required: boolean;
+      readonly enumValues?: ReadonlyArray<string>;
+      readonly default?: CanonicalFieldDefault;
+    };
+
+/**
+ * T04a canonical operation descriptor: the agreed L1 -> L3 intake that the
+ * T16 join consumes in place of `InterimOperationDef`. Authorization
+ * predicates stay engine-local until T16 maps generated policy; this
+ * descriptor carries identity plus the closed input schema only.
+ */
+export interface CanonicalOperationDescriptor {
+  readonly name: OperationName;
+  readonly kind: CanonicalOperationKind;
+  readonly inputs: ReadonlyArray<CanonicalInputDef>;
+}
+
+/**
+ * T04a canonical model field. `serverOnly` fields reject caller-supplied
+ * values; `array` records ordinary (omit-to-empty) versus required (omission
+ * rejects) arrays per T09. Absent `array` means a singular field.
+ */
+export interface CanonicalFieldDef {
+  readonly required: boolean;
+  readonly serverOnly: boolean;
+  readonly array?: { readonly required: boolean };
+  readonly default?: CanonicalFieldDefault;
+}
+
+/**
+ * T04a canonical model descriptor: the agreed L1 -> L3 intake that the
+ * T16/T17 joins consume in place of `InterimModelDef` for the pilot scope.
+ * References, hooks, invariants and locks stay engine-local interim shapes
+ * until T04b extends this contract.
+ */
+export interface CanonicalModelDescriptor {
+  readonly name: ModelName;
+  readonly fields: Readonly<Record<string, CanonicalFieldDef>>;
+  readonly deleteMode: DeleteMode;
+  readonly uniqueKeys?: ReadonlyArray<string>;
+}
+
+/**
+ * T04a descriptor set: the versioned unit L1 emits (via artifact structures)
+ * and L3 loads into its registry at the T16 join. Empty arrays are valid;
+ * unknown operation kinds or input kinds reject the whole set.
+ */
+export interface ExecutionDescriptorSet {
+  readonly contractVersion: typeof EXECUTION_CONTRACT_VERSION;
+  readonly operations: ReadonlyArray<CanonicalOperationDescriptor>;
+  readonly models: ReadonlyArray<CanonicalModelDescriptor>;
+}
+
+/**
+ * T04a emitted-example state observation: examples observe committed state
+ * only, through authorized queries at the committed fence revision. `query`
+ * runs under the example caller's own authority (viewer projection); owner
+ * reads never serve an example observation. Expected values compare with L2
+ * exact-value semantics (wire encoding, never JS Number coercion); any
+ * mismatch fails the row. Rejection rows additionally prove no-change via
+ * the runner's snapshot comparison.
+ */
+export interface ExampleStateObservation {
+  readonly query: QuerySpec;
+  readonly revision: Revision;
+}
