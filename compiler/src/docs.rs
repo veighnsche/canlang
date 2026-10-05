@@ -18,9 +18,10 @@
 //!   [`TypeTable`](crate::analysis::types::TypeTable); defaults, bounds
 //!   and type spellings as trimmed source slices.
 //! - Labeled declaration examples from fixture recipes targeting the
-//!   declaration; operation row examples from table-form `examples` blocks
-//!   attached to user scenarios (row text sliced from the CST); catalog
-//!   identity from `CheckedProgram::catalog_version`.
+//!   declaration; operation examples from table-form `examples` blocks
+//!   (row text sliced from the CST) and sequence-form `examples`/`do`
+//!   blocks (whole-block source spans) attached to user scenarios;
+//!   catalog identity from `CheckedProgram::catalog_version`.
 //!
 //! The extractor performs no new semantic inference pass: it slices,
 //! looks up, sorts and maps facts analysis already located. Rows that
@@ -37,14 +38,18 @@
 //!   inputs would need synthesizing rather than locating.
 //! - Declaration examples are fixtures targeting the declaration (the only
 //!   labeled, declaration-attached example-surface facts); operation table
-//!   rows never leak into them. Operation-owned examples are one entry per
-//!   data row of every table-form `examples` block attached to the
-//!   operation, in source order (positional `row-N` labels: tables are
-//!   unlabeled in source). Row text is sliced from the existing parser's
-//!   CST (a read-only re-parse: the same parser, not a second one), split
-//!   at the authored `->` into input cells plus expectation. Sequence-form
-//!   `examples`/`do` blocks have no row/expected shape and stay
-//!   unextracted rather than inventing one.
+//!   rows and sequences never leak into them. Operation-owned examples are
+//!   one entry per data row of every table-form `examples` block plus one
+//!   entry per sequence-form `examples`/`do` block attached to the
+//!   operation, merged in source order. Tables are unlabeled in source, so
+//!   labels are positional per shape (`row-N` counts data rows across
+//!   tables, `seq-N` counts sequence blocks). Row text is sliced from the
+//!   existing parser's CST (a read-only re-parse: the same parser, not a
+//!   second one), split at the authored `->` into input cells plus
+//!   expectation. Sequences carry several calls/assertions rather than one
+//!   row expectation, so each sequence keeps its complete authored source
+//!   block (calls, assertions and `error(code)` spellings) verbatim in
+//!   `source` with no single expectation invented and no execution status.
 //! - Availability is always `unknown`: analysis publishes no verified
 //!   owner/catalog fact for reference-level availability, and v1 never
 //!   invents one. The `available` shape exists for contract conformance.
@@ -62,8 +67,9 @@
 //!   languages still travel on each description value.
 //! - `source_revision` is a content hash (lowercase hex SHA-256 over
 //!   path-sorted `(portable_path, text)` pairs), never a wall-clock
-//!   timestamp. Paths are portable identities so absolute/relative
-//!   spellings of the same input hash identically.
+//!   timestamp. Paths are portable identities normalized against one root
+//!   (see [`portable_source_id`]) so every spelling of the same input —
+//!   relative, `./`-prefixed, redundant or absolute — hashes identically.
 //! - `creation_required` reuses the existing MCP caller-required rule
 //!   (`js.rs`): no default, no `server=` owner (fields) and non-nullable.
 //!   Creation metadata stays distinct from value nullability.
@@ -76,6 +82,7 @@
 //! analysis (source) order.
 
 use crate::analysis::effects::{CheckedDescription, FieldData, ModifierData, ParamData};
+use crate::analysis::examples::{BehaviorTable, ExampleSequence};
 use crate::analysis::resolve::{FixtureTarget, ModuleId, ModuleKind, Symbol, SymbolId, SymbolKind};
 use crate::analysis::types::ResolvedType;
 use crate::analysis::{CheckedProgram, NodeKey};
@@ -103,9 +110,8 @@ const UNKNOWN_TYPE: &str = "unknown";
 /// Project-relative source span of one owning declaration.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReferenceSourceLocation {
-    /// Portable source identity (see [`portable_source_id`]): relative
-    /// paths verbatim, absolute paths under the project root relativized,
-    /// absolute paths outside marked `external:...`.
+    /// Portable source identity (see [`portable_source_id`]): paths under
+    /// the project root relativized, paths outside marked `external:...`.
     pub source_id: String,
     /// Zero-based start offset in the source file.
     pub start: u32,
@@ -206,8 +212,9 @@ pub struct ReferenceOperation {
     /// Declared result.
     pub result: ReferenceOperationResult,
     /// Operation-owned authored examples: one entry per data row of every
-    /// attached table-form `examples` block, in source order. Always
-    /// emitted (empty when the operation has no tables).
+    /// attached table-form `examples` block plus one entry per attached
+    /// sequence-form `examples`/`do` block, merged in source order.
+    /// Always emitted (empty when the operation has neither).
     pub examples: Vec<ReferenceExample>,
     /// Operation declaration location.
     pub location: ReferenceSourceLocation,
@@ -221,8 +228,11 @@ pub struct ReferenceExample {
     pub label: String,
     /// Example source text from the owning declaration.
     pub source: String,
-    /// Expected result text, when the source states one (`None` in v1:
-    /// fixtures state setup, not expectations).
+    /// Expected result text, when the source states one (`None` for
+    /// fixtures, which state setup rather than expectations, and for
+    /// sequences, whose whole authored block — calls, assertions and
+    /// `error(code)` spellings — is preserved verbatim in `source`
+    /// instead of inventing one single expectation).
     pub expected: Option<String>,
 }
 
@@ -651,49 +661,94 @@ fn declaration_examples(
     examples
 }
 
+/// One operation-attachable authored example block, in merge order.
+enum OpExampleItem<'a> {
+    /// Table-form block (one entry per data row).
+    Table(&'a BehaviorTable),
+    /// Sequence-form block (one entry per whole block).
+    Sequence(&'a ExampleSequence),
+}
+
 /// Operation-owned authored examples keyed by scenario symbol: one entry
-/// per data row of every table-form `examples` block attached to the
-/// operation. Tables arrive in source order and rows keep block order, so
-/// per-operation `row-N` labels are positional, unique and deterministic.
-/// Blocks detached from any operation (CRUD-attached tables have no
-/// reference home: generated CRUD operations are excluded from v1) and
-/// rows that fail to slice are omitted, never panicked on.
+/// per data row of every table-form `examples` block plus one entry per
+/// sequence-form `examples`/`do` block attached to the operation, merged
+/// in `(file, span.start)` source order. Labels are positional per shape
+/// (`row-N` counts data rows across tables, `seq-N` counts sequence
+/// blocks), unique and deterministic; table labels are unchanged when no
+/// sequences exist. Blocks detached from any operation (CRUD-attached
+/// tables have no reference home: generated CRUD operations are excluded
+/// from v1), rows that fail to slice and blocks that fail to slice are
+/// omitted, never panicked on.
 fn operation_example_map(
     db: &SourceDb,
     program: &CheckedProgram,
     trees: &HashMap<SourceId, SyntaxNode>,
 ) -> HashMap<SymbolId, Vec<ReferenceExample>> {
-    let mut counters: HashMap<SymbolId, usize> = HashMap::new();
-    let mut map: HashMap<SymbolId, Vec<ReferenceExample>> = HashMap::new();
+    let mut items: Vec<((u32, u32), OpExampleItem<'_>)> = Vec::new();
     for table in &program.examples.tables {
-        let Some(operation) = table.operation else {
-            continue;
-        };
-        let (Some(tree), Some(text)) = (
-            trees.get(&table.node.file),
-            db.get(table.node.file).map(|s| s.text.as_str()),
-        ) else {
-            continue;
-        };
-        let Some(block) = tree.descendants().find(|n| NodeKey::of(n) == table.node) else {
-            continue;
-        };
-        let rows: Vec<&SyntaxNode> = block
-            .children
-            .iter()
-            .filter(|n| n.kind == SyntaxKind::ExampleRow)
-            .collect();
-        for row in rows.into_iter().skip(1) {
-            let (Some(source), expected) = split_example_row(text, row) else {
-                continue;
-            };
-            let count = counters.entry(operation).or_insert(0);
-            *count += 1;
-            map.entry(operation).or_default().push(ReferenceExample {
-                label: format!("row-{}", *count),
-                source,
-                expected,
-            });
+        items.push((
+            (table.span.file.0, table.span.start),
+            OpExampleItem::Table(table),
+        ));
+    }
+    for sequence in &program.examples.sequences {
+        items.push((
+            (sequence.span.file.0, sequence.span.start),
+            OpExampleItem::Sequence(sequence),
+        ));
+    }
+    items.sort_by_key(|(key, _)| *key);
+    let mut row_counters: HashMap<SymbolId, usize> = HashMap::new();
+    let mut seq_counters: HashMap<SymbolId, usize> = HashMap::new();
+    let mut map: HashMap<SymbolId, Vec<ReferenceExample>> = HashMap::new();
+    for (_, item) in items {
+        match item {
+            OpExampleItem::Table(table) => {
+                let Some(operation) = table.operation else {
+                    continue;
+                };
+                let (Some(tree), Some(text)) = (
+                    trees.get(&table.node.file),
+                    db.get(table.node.file).map(|s| s.text.as_str()),
+                ) else {
+                    continue;
+                };
+                let Some(block) = tree.descendants().find(|n| NodeKey::of(n) == table.node) else {
+                    continue;
+                };
+                let rows: Vec<&SyntaxNode> = block
+                    .children
+                    .iter()
+                    .filter(|n| n.kind == SyntaxKind::ExampleRow)
+                    .collect();
+                for row in rows.into_iter().skip(1) {
+                    let (Some(source), expected) = split_example_row(text, row) else {
+                        continue;
+                    };
+                    let count = row_counters.entry(operation).or_insert(0);
+                    *count += 1;
+                    map.entry(operation).or_default().push(ReferenceExample {
+                        label: format!("row-{}", *count),
+                        source,
+                        expected,
+                    });
+                }
+            }
+            OpExampleItem::Sequence(sequence) => {
+                let Some(operation) = sequence.operation else {
+                    continue;
+                };
+                let Some(source) = slice_span(db, &sequence.span).filter(|s| !s.is_empty()) else {
+                    continue;
+                };
+                let count = seq_counters.entry(operation).or_insert(0);
+                *count += 1;
+                map.entry(operation).or_default().push(ReferenceExample {
+                    label: format!("seq-{}", *count),
+                    source,
+                    expected: None,
+                });
+            }
         }
     }
     map
@@ -948,37 +1003,73 @@ fn docs_project_root() -> PathBuf {
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
-/// Portable source identity for `path` against project `root`.
+/// Portable source identity for `path` against project `root`: the single
+/// root-aware route for every operand spelling.
 ///
-/// - Relative paths pass through verbatim (byte-identical for relative
-///   operands, including `..` spellings: they leak no absolute prefix).
-/// - Absolute paths under `root` become project-relative (`/`-separated).
-/// - Absolute paths outside `root` become `external:<absolute>`
-///   (truthful, stable, never silently relabeled as project-relative).
+/// Relative and absolute operands normalize against the SAME root before
+/// source links or revision hashing, so `x`, `./x`, redundant spellings
+/// (`a/./b`, `a/b/../c`), symlink spellings and the absolute spelling of
+/// one input yield byte-identical identities:
 ///
-/// Canonicalization (when paths resolve) makes equivalent spellings agree
-/// (`./x` vs `x`, symlinks, redundant components — the same ownership rule
-/// as the `can docs --out` self-overwrite check); a lexical fallback keeps
-/// unresolvable absolutes deterministic.
+/// - Paths at or under `root` become project-relative (`/`-separated).
+/// - Paths outside `root` become `external:<absolute>` (truthful, stable,
+///   never silently relabeled as project-relative). The marker records
+///   where the input lives on this machine; it is not a portability claim
+///   about other checkouts.
+///
+/// Resolution order: relative operands join onto `root` first, then the
+/// filesystem route canonicalizes (resolving `.`, `..` and symlinks,
+/// including relative symlinks); a lexical route (`.`/`..` normalization
+/// against `root`) keeps unresolvable spellings deterministic. The same
+/// external file agrees through relative and absolute spellings on both
+/// routes.
 pub fn portable_source_id(path: &str, root: &Path) -> String {
     let candidate = Path::new(path);
-    if candidate.is_relative() {
-        return path.to_string();
-    }
+    let joined: PathBuf = if candidate.is_absolute() {
+        candidate.to_path_buf()
+    } else {
+        root.join(candidate)
+    };
     let canonical_root = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
-    if let Ok(canonical_path) = std::fs::canonicalize(candidate) {
+    if let Ok(canonical_path) = std::fs::canonicalize(&joined) {
         if let Ok(rel) = canonical_path.strip_prefix(&canonical_root) {
             return rel_to_portable(rel);
         }
         return format!("external:{}", canonical_path.to_string_lossy());
     }
-    if let Ok(rel) = candidate.strip_prefix(&canonical_root) {
+    let normalized = lexical_normalize(&joined);
+    if let Ok(rel) = normalized.strip_prefix(&canonical_root) {
         return rel_to_portable(rel);
     }
-    if let Ok(rel) = candidate.strip_prefix(root) {
+    let lexical_root = lexical_normalize(root);
+    if let Ok(rel) = normalized.strip_prefix(&lexical_root) {
         return rel_to_portable(rel);
     }
-    format!("external:{path}")
+    format!("external:{}", normalized.to_string_lossy())
+}
+
+/// Lexical `.`/`..` normalization without filesystem access: `CurDir`
+/// drops, `ParentDir` pops one kept component (leading `..` beyond the
+/// start is kept literally), everything else passes through.
+fn lexical_normalize(path: &Path) -> PathBuf {
+    use std::path::Component::{CurDir, ParentDir};
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        if component == CurDir {
+            continue;
+        }
+        if component == ParentDir {
+            if !out.pop() {
+                out.push("..");
+            }
+            continue;
+        }
+        out.push(component.as_os_str());
+    }
+    if out.as_os_str().is_empty() {
+        out.push(".");
+    }
+    out
 }
 
 /// `/`-separated relative form of a stripped prefix (portable across
