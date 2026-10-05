@@ -82,13 +82,13 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Acceptance: T04a versioned descriptor/invoke/example contract agreed by L1/L2/L3/L6/L7; independent expected values/observations; T04b recursive/provider/hook joins and compatibility required for parent completion.
   - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
 
-- [ ] **T05 — Implement ordinary nullable flow**
+- [x] **T05 — Implement ordinary nullable flow**
   - Prerequisites: T03.
   - Owner / files / interfaces: L1; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs. Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ02; canonical design/task: Accountable lead: L1. Contributors and owning boundaries: L1. Depends on T03. Extend ordered guards, false continuations, joins and invalidation. Done when Affiliate/Approve/Catch/Chat/Check/Contract positives pass and unguarded/invalidated controls fail.
   - Acceptance: Original Affiliate/Approve/Catch/Chat/Check/Contract guarded cases pass; unguarded, read-before-guard, OR-null, alias-write, join and zero-iteration controls fail appropriately.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
-  - Coordinator note: checker-file path is compiler/tests/b4_check.rs (NOT compiler/src/analysis/b4_check.rs — earlier briefs misstated; T08 writer corrected per tasks.md). Future L1 briefs must use the tests/ path.
+  - Evidence: writer 01a10ce5-67ac released types.rs + tests/b4_check.rs (+289, §10 six + IC1-IC8 + presence/alias/shadow tests) + analysis.rs table (46 decreases, 0 increases); resolve.rs untouched. Coordinator independent proof: corpus 4364→3081 (E3003 -845, E3001 -270, E2001 -89, E3002 -77, E3005 -27, E3006 -2; all else identical except +27 E2013); stash-differential isolated 80 added as pure unmasking (sampled CanMail/CanStock/CanSync/CanRent sites all genuine: model-nullable fields, IC7, semantically-correct send-invalidation); §10 spans hold 15 residuals ALL in separate known roots (R10/R11/R12/R17), zero continuation residues; suite 27 targets green re-verified.
+  - Coordinator note: checker-file path is compiler/tests/b4_check.rs. Precedent: flow/consequence slices may unmask downstream findings ONLY with site-level proof each is genuine (T08 zero-increase rule stays for non-flow slices).
 
 - [ ] **T06 — Complete actor facts in policies and CRUD**
   - Prerequisites: T05.
@@ -447,3 +447,6 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - DISPATCH batch 14 (slot freed x1): L1 T13b-consume writer (WRITE ONLY compiler/src/analysis/catalog.rs — disjoint from T05's files; transcribe TextGeneration/Images/Mailbox contracts + judgment/knowledge value shapes + 10 observables; E3019 preserved for scoped-out Handbook interface). L1 T05 still running. Queued: T09-checker (after T05), T06, T10, T30, T14a (T14b after T13b-consume).
 - DONE T13b-consume: writer 01a10ced-4c2a-7e81-aa29-2f602b703702 RELEASED compiler/src/analysis/catalog.rs (catalog tests green re-verified). T13 ticked COMPLETE (see T13 evidence).
 - HOLD batch 15: 1/3 active (T05); two slots idle — checker chain (T09-checker/T06/T10/T30/T14a) needs T05 release; T11-TS held (exact-value contract not standalone-agreed; R16 bucket-c). No busywork dispatch.
+- DONE T05: writer 01a10ce5-67ac-7933-9b27-05a6aca88717 RELEASED checker + table (attribution independently proven incl. 80-site unmasking audit). T05 ticked COMPLETE (see T05 evidence + unmasking precedent).
+- Git skill note: user task text authorizes "Save coherent exact-path commits" — exact-path commits continue; no push/merge/PR without independent review.
+- DISPATCH batch 16 (slots freed x3, 1 used): L1 T09-checker writer (types.rs field_is_required_input + tests/b4_check.rs + analysis.rs table with attribution; ordinary-array exemption). 2 slots idle — checker chain strictly serial (T06→T10→T30→T14a queue behind T09-checker); T04b/T15a+ still need deeper facts.
