@@ -3792,7 +3792,7 @@ impl<'a> Resolver<'a> {
             let actor = if node.children.iter().any(|c| {
                 c.kind == SyntaxKind::Attribute
                     && attribute_parts(c)
-                        .is_some_and(|(k, v)| is_name(k, text, "by") && proves_auth(v, text))
+                        .is_some_and(|(k, v)| is_name(k, text, "by") && self.proves_auth(v, text))
             }) {
                 ActorKind::NonNull
             } else {
@@ -4150,59 +4150,152 @@ fn as_binding(node: &SyntaxNode, text: &str) -> Option<(String, Span)> {
     None
 }
 
-/// Whether a `by` expression proves member/role authorization (and so
-/// narrows `actor` to non-null): bare non-public predicates, declared
-/// roles and their `and`-combinations; `or` needs both sides, `not`
-/// inverts, anything else proves nothing.
-fn proves_auth(node: &SyntaxNode, text: &str) -> bool {
-    match node.kind {
-        SyntaxKind::NameRef => {
-            let word = kids(node)
+impl<'a> Resolver<'a> {
+    /// Whether a `by` expression proves member/role authorization
+    /// when TRUE (and so narrows `actor` to non-null): bare
+    /// non-public predicates and their `and`-combinations; `or`
+    /// needs both sides, `not` flips to the false polarity. A call
+    /// admits only when it tests a declared role on the literal
+    /// caller (T06 no-leak, mirroring the checker's
+    /// `auth_proves_actor`); anything else proves nothing.
+    fn proves_auth(&self, node: &SyntaxNode, text: &str) -> bool {
+        match node.kind {
+            SyntaxKind::NameRef => {
+                let word = kids(node)
+                    .iter()
+                    .find_map(|n| name_text(n, text))
+                    .unwrap_or("");
+                matches!(word, "members" | "owner" | "authenticated")
+            }
+            SyntaxKind::Call => self.role_call_on_caller(node, text),
+            SyntaxKind::Member => false,
+            SyntaxKind::Group => kids(node)
+                .iter()
+                .filter(|c| c.kind != SyntaxKind::Punct)
+                .any(|c| self.proves_auth(c, text)),
+            SyntaxKind::Binary => {
+                let parts = kids(node);
+                if parts.len() != 3 {
+                    return false;
+                }
+                let op = super::op_text(node, text).unwrap_or("");
+                match op {
+                    "and" => self.proves_auth(parts[0], text) || self.proves_auth(parts[2], text),
+                    "or" => self.proves_auth(parts[0], text) && self.proves_auth(parts[2], text),
+                    _ => false,
+                }
+            }
+            SyntaxKind::Unary => {
+                let parts = kids(node);
+                let is_not = parts.first().is_some_and(|n| is_name(n, text, "not"));
+                parts
+                    .iter()
+                    .find(|n| is_expression(n.kind))
+                    .is_some_and(|operand| is_not && self.proves_auth_when_false(operand, text))
+            }
+            _ => false,
+        }
+    }
+
+    /// Whether a `by` expression proves an authenticated caller when
+    /// FALSE (T06, mirroring the checker): only a failing `public`
+    /// test admits; `not` flips to the true polarity, `and`-false
+    /// needs both sides, `or`-false needs either.
+    fn proves_auth_when_false(&self, node: &SyntaxNode, text: &str) -> bool {
+        match node.kind {
+            SyntaxKind::NameRef => kids(node)
                 .iter()
                 .find_map(|n| name_text(n, text))
-                .unwrap_or("");
-            matches!(word, "members" | "owner" | "authenticated")
-        }
-        SyntaxKind::Member | SyntaxKind::Call => {
-            let parts = kids(node);
-            let head = parts.first().and_then(|n| {
-                if n.kind == SyntaxKind::NameRef {
-                    kids(n).iter().find_map(|m| name_text(m, text))
-                } else {
-                    None
-                }
-            });
-            match head {
-                Some("members" | "owner" | "authenticated" | "public") => false,
-                Some(_) => node.kind == SyntaxKind::Call,
-                None => false,
-            }
-        }
-        SyntaxKind::Group => kids(node)
-            .iter()
-            .filter(|c| c.kind != SyntaxKind::Punct)
-            .any(|c| proves_auth(c, text)),
-        SyntaxKind::Binary => {
-            let parts = kids(node);
-            if parts.len() != 3 {
-                return false;
-            }
-            let op = super::op_text(node, text).unwrap_or("");
-            match op {
-                "and" => proves_auth(parts[0], text) || proves_auth(parts[2], text),
-                "or" => proves_auth(parts[0], text) && proves_auth(parts[2], text),
-                _ => false,
-            }
-        }
-        SyntaxKind::Unary => {
-            let parts = kids(node);
-            let is_not = parts.first().is_some_and(|n| is_name(n, text, "not"));
-            parts
+                .is_some_and(|word| word == "public"),
+            SyntaxKind::Group => kids(node)
                 .iter()
-                .find(|n| is_expression(n.kind))
-                .is_some_and(|operand| is_not && !proves_auth(operand, text))
+                .filter(|c| c.kind != SyntaxKind::Punct)
+                .any(|c| self.proves_auth_when_false(c, text)),
+            SyntaxKind::Binary => {
+                let parts = kids(node);
+                if parts.len() != 3 {
+                    return false;
+                }
+                let op = super::op_text(node, text).unwrap_or("");
+                match op {
+                    "and" => {
+                        self.proves_auth_when_false(parts[0], text)
+                            && self.proves_auth_when_false(parts[2], text)
+                    }
+                    "or" => {
+                        self.proves_auth_when_false(parts[0], text)
+                            || self.proves_auth_when_false(parts[2], text)
+                    }
+                    _ => false,
+                }
+            }
+            SyntaxKind::Unary => {
+                let parts = kids(node);
+                let is_not = parts.first().is_some_and(|n| is_name(n, text, "not"));
+                parts
+                    .iter()
+                    .find(|n| is_expression(n.kind))
+                    .is_some_and(|operand| is_not && self.proves_auth(operand, text))
+            }
+            _ => false,
         }
-        _ => false,
+    }
+
+    /// Whether `node` is a declared role tested on the literal
+    /// caller (T06, mirroring the checker): `r(actor)` where `r`
+    /// resolves to a `Role` symbol and the single unnamed subject
+    /// resolves to the `actor` contextual fact. The `by=` subtree
+    /// is already walked at the call site, so both bindings are
+    /// available.
+    fn role_call_on_caller(&self, node: &SyntaxNode, text: &str) -> bool {
+        let parts = kids(node);
+        let Some(callee) = parts.iter().find(|n| is_expression(n.kind)) else {
+            return false;
+        };
+        if Self::ungrouped(callee).kind != SyntaxKind::NameRef {
+            return false;
+        }
+        let is_role = matches!(
+            self.tables.node_binding.get(&NodeKey::of(Self::ungrouped(callee))),
+            Some(Binding::Symbol(id))
+                if matches!(self.tables.symbols[id.0 as usize].kind, SymbolKind::Role)
+        );
+        if !is_role {
+            return false;
+        }
+        let mut args = parts.iter().filter(|n| n.kind == SyntaxKind::Argument);
+        let (Some(arg), None) = (args.next(), args.next()) else {
+            return false;
+        };
+        let arg_parts = kids(arg);
+        if arg_parts.len() >= 3
+            && arg_parts[0].kind == SyntaxKind::Name
+            && is_punct(arg_parts[1], text, "=")
+        {
+            return false;
+        }
+        let Some(value) = arg_parts.iter().find(|n| is_expression(n.kind)) else {
+            return false;
+        };
+        let value = Self::ungrouped(value);
+        value.kind == SyntaxKind::NameRef
+            && matches!(
+                self.tables.node_binding.get(&NodeKey::of(value)),
+                Some(Binding::Context(ContextVar::Actor(_)))
+            )
+    }
+
+    /// Unwrap `Group` nodes to the inner expression.
+    fn ungrouped(mut node: &SyntaxNode) -> &SyntaxNode {
+        loop {
+            if node.kind == SyntaxKind::Group
+                && let Some(inner) = kids(node).iter().find(|n| is_expression(n.kind))
+            {
+                node = inner;
+            } else {
+                return node;
+            }
+        }
     }
 }
 

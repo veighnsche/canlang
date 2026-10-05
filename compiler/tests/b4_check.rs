@@ -30,6 +30,20 @@ const FIXTURE_JSON: &str = r#"{
 }"#;
 
 fn fixture() -> Catalog {
+    fixture_with(FIXTURE_JSON)
+}
+
+/// Catalog with a state-reading builtin (T06 layer-2 stay: bounded
+/// reads remain gated until the T32 read contract is adopted).
+const READ_JSON: &str = r#"{
+  "language_version": "1.0",
+  "catalog_version": "test-only-b4-read",
+  "entries": [
+    {"id": "needy", "js": "needy", "owner": "test", "kind": "builtin", "signature": "needy(person:user)->bool", "effects": "state-read", "availability": "implemented"}
+  ]
+}"#;
+
+fn fixture_with(json: &str) -> Catalog {
     let dir = std::env::temp_dir().join(format!(
         "can-b4-{}-{}",
         std::process::id(),
@@ -37,7 +51,7 @@ fn fixture() -> Catalog {
     ));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("catalog.json");
-    std::fs::write(&path, FIXTURE_JSON).unwrap();
+    std::fs::write(&path, json).unwrap();
     let mut db = SourceDb::new();
     let id = db.add("dummy.can".to_string(), String::new());
     let request = CatalogRequest {
@@ -753,4 +767,196 @@ fn t09_required_array_create_omission_rejected() {
         "names the required array: {}",
         diags[0].message
     );
+}
+
+/// (T06) An admitting `and` conjunct carries caller admission to its
+/// right sibling: `read=r and ok(actor)` checks (CanCatch shape).
+#[test]
+fn t06_composite_policy_and_admits() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n role r\n M { t:text }\n derive ok(person:user):bool = person.id != \"\"\n policy M read=r and ok(actor)\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "composite read= admits: {diags:?}");
+}
+
+/// (T06) An `or` of admitting predicates admits `where=`: either arm
+/// proves an authenticated caller (CanBoard/Customer shape).
+#[test]
+fn t06_composite_policy_or_admits_where() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n role r\n role s\n M { t:text }\n derive ok(person:user):bool = person.id != \"\"\n policy M read=r or s where=ok(actor)\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "or-of-roles admits where=: {diags:?}");
+}
+
+/// (T06) Nested composites admit: each `and` arm proves admission,
+/// so the `or` of arms admits `where=` (CanApprove shape).
+#[test]
+fn t06_composite_policy_nested_admits_where() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n role r\n M { owner:user }\n derive ok(person:user):bool = person.id != \"\"\n policy M read=(members and row.owner==actor) or (r and row.owner==actor) where=ok(actor)\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "nested composite admits: {diags:?}");
+}
+
+/// (T06) CRUD `by=` admission carries into `when=`: the guard runs
+/// only for admitted callers (CanDo/CanTrade shape).
+#[test]
+fn t06_crud_by_to_when_admits() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n role r\n M { t:text }\n derive ok(person:user):bool = person.id != \"\"\n policy M read=members\nWhen\n crud M by=r fields=t when=ok(actor)\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "CRUD by-to-when admits: {diags:?}");
+}
+
+/// (T06) An admitting guard conjunct admits the rest of the chain:
+/// `require authenticated and ok(actor)` checks (Customer shape).
+#[test]
+fn t06_require_chain_admits() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n derive ok(person:user):bool = person.id != \"\"\n policy M read=members\nWhen\n scenario s() by=public\n  require authenticated and ok(actor)\n  do\n   let x = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "require chain admits: {diags:?}");
+}
+
+/// (T06) A successful admitting `require` carries admission forward:
+/// `actor` is non-null in the body after `require members`.
+#[test]
+fn t06_require_carries_admission() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario s() by=public\n  require members\n  do\n   let v = actor.email_verified\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "post-require admission: {diags:?}");
+}
+
+/// (T06) An admitting `if` condition admits its then-branch only.
+#[test]
+fn t06_if_branch_admits() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario s() by=public\n  do\n   if members\n    let v = actor.email_verified\n   else\n    let w = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "if-branch admission: {diags:?}");
+}
+
+/// (T06) `by=r(actor)` tests the caller: the body is admitted (no
+/// `E3003`), while the `by=` subject itself still needs a proof it
+/// cannot supply (`E3001`) and the call form stays redundant
+/// (`E4020` is the pre-existing effects-pass rule, out of T06 scope).
+#[test]
+fn t06_role_call_on_caller_admits_body() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n role r\n M { t:text }\n policy M read=members\nWhen\n scenario s() by=r(actor)\n  do\n   let v = actor.email_verified\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001", "E4020"], "{diags:?}");
+}
+
+/// (T06) `by=r or q` admits: either arm proves an authenticated
+/// caller (Inbox scenario shape).
+#[test]
+fn t06_by_or_of_roles_admits() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n role r\n role q\n M { t:text }\n policy M read=members\nWhen\n scenario s() by=r or q\n  do\n   let v = actor.email_verified\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "by= or-of-roles admits: {diags:?}");
+}
+
+/// (T06) `by=not public` admits: a non-public request is
+/// authenticated (pins the false-polarity rule).
+#[test]
+fn t06_by_not_public_admits() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario s() by=not public\n  do\n   let v = actor.email_verified\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "by=not public admits: {diags:?}");
+}
+
+/// (T06 no-leak) A role test on another subject never narrows the
+/// caller: `by=r(owner)` leaves `actor` nullable.
+#[test]
+fn t06_no_leak_by_role_on_other_subject() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n role r\n M { t:text }\n policy M read=members\nWhen\n scenario s(owner:user) by=r(owner)\n  require actor.email_verified\n  do\n   let x = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T06 no-leak) A role test on another subject in a guard never
+/// narrows the caller either (contract §9).
+#[test]
+fn t06_no_leak_require_role_on_other_subject() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n role r\n M { t:text }\n policy M read=members\nWhen\n scenario s(owner:user) by=public\n  require r(owner)\n  do\n   let v = actor.email_verified\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T06 no-leak) A non-predicate call never admits, even on the
+/// caller: `read=maybe(actor)` leaves `where=` actor nullable
+/// (Chat `can_use` shape).
+#[test]
+fn t06_no_leak_derive_call_never_admits() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n derive maybe(person:user?):bool = person!=null\n derive ok(person:user):bool = person.id != \"\"\n policy M read=maybe(actor) where=ok(actor)\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+}
+
+/// (T06) Public actor stays nullable: an unguarded non-null use in a
+/// `by=public` guard is `E3001`.
+#[test]
+fn t06_public_guard_use_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n derive ok(person:user):bool = person.id != \"\"\n policy M read=members\nWhen\n scenario s() by=public\n  require ok(actor)\n  do\n   let x = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+}
+
+/// (T06) `public` in an `or` admits nothing: `by=public or r` leaves
+/// `actor` nullable (the public arm admits unauthenticated calls).
+#[test]
+fn t06_or_with_public_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n role r\n M { t:text }\n policy M read=members\nWhen\n scenario s() by=public or r\n  do\n   let v = actor.email_verified\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T06) CRUD `by=public` admits nothing into `when=`.
+#[test]
+fn t06_crud_public_when_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n derive ok(person:user):bool = person.id != \"\"\n policy M read=members\nWhen\n crud M by=public fields=t when=ok(actor)\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+}
+
+/// (T06) Preauthorization stays nullable: a parameter default cannot
+/// use the operation's admission, even under an admitting `by=`
+/// (DESIGN signature rule).
+#[test]
+fn t06_preauthorization_default_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n role r\n M { t:text }\n policy M read=members\nWhen\n scenario s(x:text = actor.id) by=r\n  do\n   let y = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T06) Trusted handlers keep `actor=null`: payload reads pass but
+/// the caller stays absent (payload users never become callers).
+#[test]
+fn t06_trusted_actor_stays_null() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { s:enum(a,b)=a }\n policy M read=members\n event Due { item:M }\nWhen\n scenario h on=Due\n  require event.item.s==a\n  require actor.email_verified\n  do\n   let x = 1\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T06 layer-2 stay) A state-reading call remains gated from pure
+/// positions until the T32 read contract is adopted (R26 layer 2).
+#[test]
+fn t06_bounded_read_stays_gated() {
+    let catalog = fixture_with(READ_JSON);
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\n derive f(p:user):bool = p.id != \"\" and needy(p)\nWhen\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
 }

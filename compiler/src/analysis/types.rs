@@ -2822,12 +2822,16 @@ impl<'a> Typer<'a> {
     }
 
     /// Whether a `by=`/`read=` authorization expression proves an
-    /// authenticated actor (DESIGN §3: authenticated/member/role
-    /// authorization narrows `actor` to non-null). Mirrors the
-    /// resolver's `proves_auth` boolean structure (`and` needs one
-    /// side, `or` needs both, `not` inverts) and additionally
-    /// accepts bare role references, which the resolver leaves
-    /// nullable.
+    /// authenticated caller when TRUE (DESIGN §3: authenticated/
+    /// member/role authorization narrows `actor` to non-null).
+    /// Mirrors the resolver's `proves_auth` boolean structure
+    /// (`and` needs one side, `or` needs both, `not` flips to the
+    /// false polarity) and additionally accepts bare role
+    /// references, which the resolver leaves nullable. A call
+    /// admits only when it tests a declared role on the literal
+    /// caller (T06 no-leak: `r(actor)` admits; `r(owner)`,
+    /// derive/builtin calls, and member paths prove nothing about
+    /// the caller).
     fn auth_proves_actor(&self, node: &SyntaxNode, text: &str) -> bool {
         match node.kind {
             SyntaxKind::NameRef => {
@@ -2847,21 +2851,8 @@ impl<'a> Typer<'a> {
                         )
                 )
             }
-            SyntaxKind::Member | SyntaxKind::Call => {
-                let parts = kids(node);
-                let head = parts.first().and_then(|n| {
-                    if n.kind == SyntaxKind::NameRef {
-                        kids(n).iter().find_map(|m| name_text(m, text))
-                    } else {
-                        None
-                    }
-                });
-                match head {
-                    Some("members" | "owner" | "authenticated" | "public") => false,
-                    Some(_) => node.kind == SyntaxKind::Call,
-                    None => false,
-                }
-            }
+            SyntaxKind::Call => self.role_call_on_caller(node, text),
+            SyntaxKind::Member => false,
             SyntaxKind::Group => kids(node)
                 .iter()
                 .filter(|c| c.kind != SyntaxKind::Punct)
@@ -2890,10 +2881,103 @@ impl<'a> Typer<'a> {
                 parts
                     .iter()
                     .find(|n| is_expression(n.kind))
-                    .is_some_and(|operand| is_not && !self.auth_proves_actor(operand, text))
+                    .is_some_and(|operand| {
+                        is_not && self.auth_proves_actor_when_false(operand, text)
+                    })
             }
             _ => false,
         }
+    }
+
+    /// Whether an authorization expression proves an authenticated
+    /// caller when FALSE (T06): only a failing `public` test (a
+    /// non-public request is authenticated) admits; a failing role,
+    /// membership, `authenticated`, or role-call test leaves the
+    /// caller possibly-public. `not` flips to the true polarity;
+    /// `and`-false needs both sides (either may have failed) while
+    /// `or`-false needs either (both failed).
+    fn auth_proves_actor_when_false(&self, node: &SyntaxNode, text: &str) -> bool {
+        match node.kind {
+            SyntaxKind::NameRef => kids(node)
+                .iter()
+                .find_map(|n| name_text(n, text))
+                .is_some_and(|word| word == "public"),
+            SyntaxKind::Group => kids(node)
+                .iter()
+                .filter(|c| c.kind != SyntaxKind::Punct)
+                .any(|c| self.auth_proves_actor_when_false(c, text)),
+            SyntaxKind::Binary => {
+                let parts = kids(node);
+                if parts.len() != 3 {
+                    return false;
+                }
+                let op = op_text(node, text).unwrap_or("");
+                match op {
+                    "and" => {
+                        self.auth_proves_actor_when_false(parts[0], text)
+                            && self.auth_proves_actor_when_false(parts[2], text)
+                    }
+                    "or" => {
+                        self.auth_proves_actor_when_false(parts[0], text)
+                            || self.auth_proves_actor_when_false(parts[2], text)
+                    }
+                    _ => false,
+                }
+            }
+            SyntaxKind::Unary => {
+                let parts = kids(node);
+                let is_not = parts.first().is_some_and(|n| is_name(n, text, "not"));
+                parts
+                    .iter()
+                    .find(|n| is_expression(n.kind))
+                    .is_some_and(|operand| is_not && self.auth_proves_actor(operand, text))
+            }
+            _ => false,
+        }
+    }
+
+    /// Whether `node` is a declared role tested on the literal
+    /// caller: `r(actor)` where `r` resolves to a `Role` symbol and
+    /// the single unnamed subject resolves to the `actor` contextual
+    /// fact (T06: bare `r` is the canonical caller spelling; the
+    /// call form admits exactly when its subject is the caller, and
+    /// never for another subject or a non-role callee).
+    fn role_call_on_caller(&self, node: &SyntaxNode, text: &str) -> bool {
+        let parts = kids(node);
+        let Some(callee) = parts.iter().find(|n| is_expression(n.kind)) else {
+            return false;
+        };
+        if unwrap_groups(callee).kind != SyntaxKind::NameRef {
+            return false;
+        }
+        let is_role = matches!(
+            self.tables.node_binding.get(&NodeKey::of(unwrap_groups(callee))),
+            Some(Binding::Symbol(id))
+                if matches!(self.tables.symbols[id.0 as usize].kind, SymbolKind::Role)
+        );
+        if !is_role {
+            return false;
+        }
+        let mut args = parts.iter().filter(|n| n.kind == SyntaxKind::Argument);
+        let (Some(arg), None) = (args.next(), args.next()) else {
+            return false;
+        };
+        let arg_parts = kids(arg);
+        if arg_parts.len() >= 3
+            && arg_parts[0].kind == SyntaxKind::Name
+            && is_punct(arg_parts[1], text, "=")
+        {
+            return false;
+        }
+        let Some(value) = arg_parts.iter().find(|n| is_expression(n.kind)) else {
+            return false;
+        };
+        let value = unwrap_groups(value);
+        value.kind == SyntaxKind::NameRef
+            && matches!(
+                self.tables.node_binding.get(&NodeKey::of(value)),
+                Some(Binding::Context(ContextVar::Actor(_)))
+            )
     }
 
     /// Check `read=`/`scope=` on a scenario: `read=true` selects a
@@ -5098,9 +5182,30 @@ impl<'a> Typer<'a> {
             }
         }
         if let Some(when) = attribute_value(node, "when", text) {
-            let ty = self.expr(&cx, when, None);
-            self.expect_bool(&cx, tight_span(text, when), &ty, "`when=`");
-            self.check_when_pure(&cx, when);
+            // `by=` authorization narrows `actor` in `when=` (T06),
+            // exactly as policy `read=` does for `where=`: the guard
+            // runs only for admitted callers.
+            let mut narrowed = NarrowEnv::default();
+            if self.auth_proves_actor(by, text) {
+                narrowed.insert(
+                    NarrowKey {
+                        decl: DeclKey::CtxActor,
+                        path: Vec::new(),
+                    },
+                    ResolvedType::Scalar(Scalar::User),
+                );
+            }
+            let when_cx = Ctx {
+                module,
+                file,
+                text,
+                narrow: &narrowed,
+                strict: true,
+                server_default: false,
+            };
+            let ty = self.expr(&when_cx, when, None);
+            self.expect_bool(&when_cx, tight_span(text, when), &ty, "`when=`");
+            self.check_when_pure(&when_cx, when);
         }
         for key in ["create", "update"] {
             if let Some(mode) = attribute_value(node, key, text) {
@@ -10732,6 +10837,28 @@ impl<'a> Typer<'a> {
         env: &mut NarrowEnv,
     ) {
         let current = unwrap_groups(node);
+        // T06 caller admission: a condition that proves an
+        // authenticated caller carries a non-null `actor` typing
+        // fact for exactly the continuations in which it holds
+        // (true- or false-continuation per polarity). Keyed and
+        // invalidated like any continuation fact (T03 §§6-8); a
+        // typing fact only, granting no permission and no currency
+        // (T03 §9). A role test on another subject never narrows
+        // the caller.
+        let admits = if else_branch {
+            self.auth_proves_actor_when_false(current, cx.text)
+        } else {
+            self.auth_proves_actor(current, cx.text)
+        };
+        if admits {
+            env.insert(
+                NarrowKey {
+                    decl: DeclKey::CtxActor,
+                    path: Vec::new(),
+                },
+                ResolvedType::Scalar(Scalar::User),
+            );
+        }
         if current.kind == SyntaxKind::Unary {
             let is_not = kids(current).iter().any(|n| match n.kind {
                 SyntaxKind::Punct => n.token().is_some_and(|t| t.text(cx.text) == "not"),
