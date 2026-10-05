@@ -1124,3 +1124,191 @@ fn t10_cross_enum_comparison_rejected() {
     let diags = check(src, Some(&catalog));
     assert_eq!(codes(&diags), vec!["E3002"], "{diags:?}");
 }
+
+/// (T30) An ordinary parameter merely named `event` mutates as any
+/// stored record (R15 CanEvent:73: provenance from resolution, never
+/// the parameter name).
+#[test]
+fn t30_param_named_event_mutable() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario s(event:M) by=members\n  do\n   set event {t=\"x\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "param named event mutates: {diags:?}");
+}
+
+/// (T30) Rename invariance: the same valid and invalid writes check
+/// identically whether the parameter is named `event` or `booking`.
+#[test]
+fn t30_param_rename_invariance() {
+    let catalog = fixture();
+    let valid_event = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario s(event:M) by=members\n  do\n   set event {t=\"x\"}\nThen\n";
+    let valid_booking = valid_event
+        .replace("event:M", "booking:M")
+        .replace("set event {", "set booking {");
+    let diags_event = check(valid_event, Some(&catalog));
+    let diags_booking = check(&valid_booking, Some(&catalog));
+    assert!(diags_event.is_empty(), "event spelling: {diags_event:?}");
+    assert!(
+        diags_booking.is_empty(),
+        "booking spelling: {diags_booking:?}"
+    );
+    let invalid_event = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario s(event:M) by=members\n  do\n   set event {bogus=1}\nThen\n";
+    let invalid_booking = invalid_event
+        .replace("event:M", "booking:M")
+        .replace("set event {", "set booking {");
+    let diags_event = check(invalid_event, Some(&catalog));
+    let diags_booking = check(&invalid_booking, Some(&catalog));
+    assert_eq!(codes(&diags_event), vec!["E2013"], "{diags_event:?}");
+    assert_eq!(
+        codes(&diags_booking),
+        codes(&diags_event),
+        "{diags_booking:?}"
+    );
+}
+
+/// (T30) A verified declared reference mutates its stored row
+/// (R15 CanCheck:128 `set event.check`).
+#[test]
+fn t30_verified_reference_write_accepted() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\n event Due { item:M, n:int }\nWhen\n scenario h on=Due\n  do\n   set event.item {t=\"x\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "verified reference writes: {diags:?}");
+}
+
+/// (T30) Payload value data stays read-only: `set` through an
+/// int-typed event member is `E3009`.
+#[test]
+fn t30_reference_value_data_readonly() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\n event Due { item:M, n:int }\nWhen\n scenario h on=Due\n  do\n   set event.n {t=\"x\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3009"], "{diags:?}");
+}
+
+/// (T30) The hook snapshot itself stays immutable: `set event.before`
+/// in an update hook is `E3009`.
+#[test]
+fn t30_snapshot_before_readonly() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text, n:int=0 }\n policy M read=members\nWhen\n scenario fix on=M.update\n  do\n   set event.before {t=\"x\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3009"], "{diags:?}");
+}
+
+/// (T30) Pending-source deletion stays rejected: `delete event.after`
+/// and `delete event.before` are `E3009`.
+#[test]
+fn t30_pending_delete_rejected() {
+    let catalog = fixture();
+    let src_after = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario fix on=M.create\n  do\n   delete event.after\nThen\n";
+    let diags = check(src_after, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3009"], "{diags:?}");
+    let src_before = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario fix on=M.update\n  do\n   delete event.before\nThen\n";
+    let diags = check(src_before, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3009"], "{diags:?}");
+}
+
+/// (T30) `event.after` outside a create/update hook stays `E3009`
+/// (even though the payload has no `after` member to misread).
+#[test]
+fn t30_after_outside_hook_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\n event Due { item:M }\nWhen\n scenario h on=Due\n  do\n   set event.after {t=\"x\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3009"], "{diags:?}");
+}
+
+/// (T30) A delete hook can reject but cannot adjust: `set
+/// event.after` there is `E3009`.
+#[test]
+fn t30_delete_hook_cannot_adjust() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario fix on=M.delete\n  do\n   set event.after {t=\"x\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3009"], "{diags:?}");
+}
+
+/// (T30/C6) Hook reads carry the pending record's type: computed set
+/// values, `parent=event.after` and member reads check clean (an
+/// `{opaque}` payload would draw `E3001` on each).
+#[test]
+fn t30_hook_after_typed() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text, n:int=0, flag:bool=true }\n Child in M { u:int=0 }\n policy M read=members\n policy Child read=members\nWhen\n scenario fix on=M.create\n  do\n   set event.after {n=event.after.n+1}\n   create Child {parent=event.after,u=event.after.n} as c\n   let ok = event.after.flag\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "typed hook reads: {diags:?}");
+}
+
+/// (T30/C6) Update-hook snapshot reads carry the record's type.
+#[test]
+fn t30_hook_before_typed() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text, n:int=0 }\n policy M read=members\nWhen\n scenario fix on=M.update\n  do\n   set event.after {n=event.before.n+1}\n   let same = event.before.t==event.after.t\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "typed snapshot reads: {diags:?}");
+}
+
+/// (T30) Deleting through a verified reference matches its let-alias
+/// exactly (direct path introduces no new permission).
+#[test]
+fn t30_delete_via_reference_matches_alias() {
+    let catalog = fixture();
+    let direct = "app T\nGiven\n M { t:text }\n policy M read=members\n event Due { item:M }\nWhen\n scenario h on=Due\n  do\n   delete event.item\nThen\n";
+    let diags = check(direct, Some(&catalog));
+    assert!(diags.is_empty(), "direct reference delete: {diags:?}");
+    let aliased = "app T\nGiven\n M { t:text }\n policy M read=members\n event Due { item:M }\nWhen\n scenario h on=Due\n  do\n   let x = event.item\n   delete x\nThen\n";
+    let diags = check(aliased, Some(&catalog));
+    assert!(diags.is_empty(), "aliased reference delete: {diags:?}");
+}
+
+/// (T30) A live row reached through the snapshot mutates on its own
+/// provenance (R15 CanOnboard:51 `set event.before.parent`).
+#[test]
+fn t30_before_parent_row_mutable() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n P { n:int=0 }\n C in P { u:int=0 }\n policy P read=members\n policy C read=members\nWhen\n scenario fix on=C.update\n  do\n   set event.before.parent {n=event.before.parent.n+1}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "row through snapshot mutates: {diags:?}");
+}
+
+/// (T30) A nullable event path stays rejected (R15 CanEvent:254: no
+/// `?.` in `set` targets, so the unguarded target fails closed).
+#[test]
+fn t30_nullable_event_path_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\n event Due { item:M, opt:M? }\nWhen\n scenario h on=Due\n  do\n   set event.opt {t=\"x\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3009"], "{diags:?}");
+}
+
+/// (T30) The whole handler payload stays read-only: bare `set event`
+/// in a handler is `E3009`.
+#[test]
+fn t30_whole_payload_readonly() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\n event Due { item:M }\nWhen\n scenario h on=Due\n  do\n   set event {t=\"x\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3009"], "{diags:?}");
+}
+
+/// (T30) Opaque handler payloads fail closed: `set` into a committed
+/// change-event member is `E3009`, never silently accepted.
+#[test]
+fn t30_opaque_payload_fail_closed() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario h on=M.created\n  do\n   set event.snapshot {t=\"x\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3009"], "{diags:?}");
+}
+
+/// (T30) `set` on a parameter named `event` drops that parameter's
+/// member-path facts (resolution-based invalidation, T03 §8): the
+/// pre-`set` non-null fact no longer reaches the later member read.
+#[test]
+fn t30_set_param_event_drops_param_facts() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n P { t:text }\n M { ref:P?, u:int=0 }\n policy P read=members\n policy M read=members\nWhen\n scenario s(event:M) by=members\n  require event.ref!=null\n  do\n   set event {u=1}\n   let v = event.ref.t\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}

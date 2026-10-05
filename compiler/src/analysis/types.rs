@@ -859,7 +859,11 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// Resolved declaration behind a `set` target's head name.
+    /// Resolved declaration behind a `set` target's head name
+    /// (T30: from resolution, never from the `event` spelling — an
+    /// ordinary parameter/let named `event` invalidates its own
+    /// declaration, while only the handler context `event`
+    /// invalidates `CtxEvent`).
     fn set_target_decl(&self, text: &str, stmt: &SyntaxNode) -> Option<DeclKey> {
         let target = kids(stmt)
             .iter()
@@ -867,9 +871,6 @@ impl<'a> Typer<'a> {
             .copied()?;
         let segments = path_segments(target, text);
         let head = (*segments.first()?).to_string();
-        if head == "event" {
-            return Some(DeclKey::CtxEvent);
-        }
         let scope = self.tables.expr_scope.get(&NodeKey::of(target)).copied()?;
         self.tables
             .resolve_name(scope, &head, self.catalog)
@@ -1266,6 +1267,9 @@ impl<'a> Typer<'a> {
     /// Resolve a `set`/`delete` path target to its model plus
     /// whether it is a hook's pending record (`set event.after`).
     /// Returns `None` after diagnosing (or when already diagnosed).
+    /// The handler-context branch is chosen by RESOLUTION (T30): an
+    /// ordinary parameter/let merely named `event` takes the general
+    /// path exactly as any other spelling would.
     fn mutation_target_model(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -1274,8 +1278,8 @@ impl<'a> Typer<'a> {
     ) -> Option<(SymbolId, bool)> {
         if target.kind == SyntaxKind::Path {
             let segments = path_segments(target, cx.text);
-            if segments.first() == Some(&"event") {
-                return self.hook_record_target(cx, target, what, &segments);
+            if self.path_head_is_context_event(target, &segments) {
+                return self.event_mutation_target(cx, target, what, &segments);
             }
         }
         // Record the target type: effects reads it back for member-path
@@ -1309,29 +1313,97 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// Resolve an `event.*` mutation target: `set event.after`
-    /// adjusts the pending create/update record (DESIGN §6);
-    /// `event.before`/`event.input` are read-only and the pending
-    /// record cannot be deleted.
-    fn hook_record_target(
+    /// Whether a path target's head resolves to the handler
+    /// context `event` (T30 provenance: the `ContextVar::Event`
+    /// binding, never the head spelling).
+    fn path_head_is_context_event(&self, target: &SyntaxNode, segments: &[&str]) -> bool {
+        let Some(head) = segments.first() else {
+            return false;
+        };
+        let scope = self.tables.expr_scope.get(&NodeKey::of(target)).copied();
+        matches!(
+            scope.and_then(|s| self.tables.resolve_name(s, head, self.catalog)),
+            Some(Binding::Context(ContextVar::Event))
+        )
+    }
+
+    /// Resolve a handler-context `event`-headed `set`/`delete`
+    /// target by resolved provenance (T30): `event.after` adjusts
+    /// the pending create/update record; a path resolving to a
+    /// stored model record (a verified declared reference such as
+    /// `event.check`, or a live row reached through payload members)
+    /// mutates that row exactly as a let-aliased path would; the
+    /// snapshot itself (`event.before`), the whole payload, opaque
+    /// members and value data are read-only (`E3009`).
+    fn event_mutation_target(
         &mut self,
         cx: &Ctx<'_, '_>,
         target: &SyntaxNode,
         what: &str,
         segments: &[&str],
     ) -> Option<(SymbolId, bool)> {
-        if segments != ["event", "after"] {
-            self.diags.push(Diagnostic::error(
-                "E3009",
-                format!(
-                    "{} target '{}' is read-only; only event.after adjusts the pending record",
-                    what,
-                    segments.join(".")
-                ),
-                tight_span(cx.text, target),
-            ));
-            return None;
+        if segments.len() == 2 && segments[1] == "after" {
+            return self.hook_record_target(cx, target, what);
         }
+        // The snapshot itself is immutable (DESIGN §6) even though it
+        // types as the hooked record; rows reachable THROUGH payload
+        // members resolve on their own provenance below.
+        if segments.len() == 2 && segments[1] == "before" {
+            return self.event_target_readonly(cx, target, what, segments);
+        }
+        // Record the target type: effects reads it back for member-path
+        // resolution (`E4001` ownership, `E4051` write evidence). The
+        // call below types on the fly without recording.
+        let ty = self.type_path_value(cx, target);
+        let ty = self.record(target, ty);
+        match ty {
+            ResolvedType::Record {
+                symbol,
+                stored: true,
+            } if matches!(
+                self.tables.symbols[symbol.0 as usize].kind,
+                SymbolKind::Model { .. }
+            ) =>
+            {
+                Some((symbol, false))
+            }
+            ResolvedType::Error => None,
+            _ => self.event_target_readonly(cx, target, what, segments),
+        }
+    }
+
+    /// `E3009` for a read-only event target: the payload, a snapshot,
+    /// an opaque member, or value data. Only `event.after` adjusts
+    /// the pending record.
+    fn event_target_readonly(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        target: &SyntaxNode,
+        what: &str,
+        segments: &[&str],
+    ) -> Option<(SymbolId, bool)> {
+        self.diags.push(Diagnostic::error(
+            "E3009",
+            format!(
+                "{} target '{}' is read-only; only event.after adjusts the pending record",
+                what,
+                segments.join(".")
+            ),
+            tight_span(cx.text, target),
+        ));
+        None
+    }
+
+    /// Resolve an `event.after` mutation target: `set event.after`
+    /// adjusts the pending create/update record (DESIGN §6); the
+    /// pending record cannot be deleted, and a delete hook can
+    /// reject but cannot adjust its target.
+    fn hook_record_target(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        target: &SyntaxNode,
+        what: &str,
+    ) -> Option<(SymbolId, bool)> {
         if what == "delete" {
             self.diags.push(Diagnostic::error(
                 "E3009",
@@ -1358,6 +1430,34 @@ impl<'a> Typer<'a> {
                 ));
                 None
             }
+        }
+    }
+
+    /// Generated hook-payload side type (T30/C6, DESIGN §6): in a
+    /// pre-commit hook, `event.after`/`event.before` carry the hooked
+    /// model's record instead of `{opaque}`, so hook reads and
+    /// `parent=event.after` check against the real record. On create
+    /// `before` is null; on delete `after` is unknown (an archived
+    /// record has it, a removed record nulls it), so it stays
+    /// opaque. `None` outside hooks and for all other members.
+    fn hook_payload_side(&self, name: &str) -> Option<ResolvedType> {
+        let (model, op) = self.current_hook?;
+        match name {
+            "after" => match op {
+                CrudOp::Create | CrudOp::Update => Some(ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                }),
+                CrudOp::Delete => None,
+            },
+            "before" => match op {
+                CrudOp::Create => Some(ResolvedType::Null),
+                CrudOp::Update | CrudOp::Delete => Some(ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                }),
+            },
+            _ => None,
         }
     }
 
@@ -9259,6 +9359,18 @@ impl<'a> Typer<'a> {
                 _ => {}
             }
         }
+        // Hook payload sides (T30/C6): `event.after`/`event.before`
+        // in a pre-commit hook carry the hooked model's record. The
+        // receiver must resolve to the handler context `event`, never
+        // merely spell it.
+        if (name == "after" || name == "before")
+            && let Some(side) = self.hook_payload_side(name)
+            && receiver.kind == SyntaxKind::NameRef
+            && let Some(Binding::Context(ContextVar::Event)) =
+                self.tables.node_binding.get(&NodeKey::of(receiver))
+        {
+            return side;
+        }
         let base = self.expr(cx, receiver, None);
         self.member_on(cx, node, name_node, name, &base, safe)
     }
@@ -9761,6 +9873,7 @@ impl<'a> Typer<'a> {
         let head_decl = binding
             .as_ref()
             .map(|binding| decl_key_of_binding(binding, segments[0]));
+        let head_is_context_event = matches!(binding, Some(Binding::Context(ContextVar::Event)));
         let mut current = match binding {
             Some(Binding::Symbol(id)) => {
                 // A bare model in a path target is its record, not its
@@ -9802,23 +9915,32 @@ impl<'a> Typer<'a> {
         }
         let mut prefix: Vec<String> = Vec::new();
         for (i, segment) in segments.iter().enumerate().skip(1) {
-            if let ResolvedType::Nullable(_) = &current {
-                if cx.strict {
-                    self.diags.push(Diagnostic::error(
-                        "E3003",
-                        format!(
-                            "receiver is {}; path targets cannot use `?.` here",
-                            self.show(cx.module, &current)
-                        ),
-                        tight_span(cx.text, node),
-                    ));
+            // Hook payload sides (T30/C6): `event.after`/`event.before`
+            // in a pre-commit hook carry the hooked model's record.
+            if i == 1
+                && head_is_context_event
+                && let Some(side) = self.hook_payload_side(segment)
+            {
+                current = side;
+            } else {
+                if let ResolvedType::Nullable(_) = &current {
+                    if cx.strict {
+                        self.diags.push(Diagnostic::error(
+                            "E3003",
+                            format!(
+                                "receiver is {}; path targets cannot use `?.` here",
+                                self.show(cx.module, &current)
+                            ),
+                            tight_span(cx.text, node),
+                        ));
+                    }
+                    return ResolvedType::Error;
                 }
-                return ResolvedType::Error;
-            }
-            let span = segment_span(node, i);
-            match self.member_lookup_on_span(cx, node, span, segment, &current) {
-                Some(ty) => current = ty,
-                None => return ResolvedType::Error,
+                let span = segment_span(node, i);
+                match self.member_lookup_on_span(cx, node, span, segment, &current) {
+                    Some(ty) => current = ty,
+                    None => return ResolvedType::Error,
+                }
             }
             // Facts on intermediate prefixes apply step by step.
             prefix.push((*segment).to_string());
