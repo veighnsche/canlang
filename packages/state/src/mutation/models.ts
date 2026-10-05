@@ -12,8 +12,10 @@ import type {
   CanonicalModelDescriptor,
   DeleteMode,
   ModelName,
+  OperationName,
   QueryPredicate,
   RecordId,
+  RecordParent,
   StoredRow,
 } from '../../../contracts/src/state.js';
 import { validatePredicateShape } from '../policy/grants.js';
@@ -76,12 +78,72 @@ export interface InterimRefDef {
   readonly model: ModelName;
 }
 
-/** Hook run context: provisional-before row, caller intent, attribution. */
+/**
+ * T31 (Rule A): one hook-staged secondary write. Create/set ONLY — staged
+ * deletes are barred (pending-source deletion is a forbidden shape and Rule
+ * A stages no other-model delete either), and staged writes carry no `when`
+ * precondition. The pipeline processes staged writes through the identical
+ * per-write path (defaults, required, when/locks/refs, uniques,
+ * provisionalize, history) minus CRUD hooks (flat, no cascade), in staging
+ * order, immediately after the triggering write provisionalizes.
+ */
+export type InterimHookStagedWrite =
+  | {
+      readonly op: 'create';
+      readonly model: ModelName;
+      readonly id: RecordId;
+      readonly parent?: RecordParent;
+      readonly data?: Record<string, unknown>;
+    }
+  | {
+      readonly op: 'update';
+      readonly model: ModelName;
+      readonly id: RecordId;
+      readonly data?: Record<string, unknown>;
+    };
+
+/**
+ * T31 (Rule A): one hook-staged timer replace. Validated like the S6
+ * schedule seam (bounded non-empty key, finite `at` >= 0, non-empty event,
+ * JSON-safe payload object); cancels carry a key only.
+ */
+export interface InterimHookSchedule {
+  readonly key: string;
+  readonly at: number;
+  readonly event: OperationName;
+  readonly payload: Record<string, unknown>;
+}
+
+/**
+ * Hook run context: provisional-before row, caller intent, attribution.
+ *
+ * T31 (Rule A): `before` is a deep-frozen snapshot — hook mutation attempts
+ * throw instead of corrupting the pipeline's lock/ref/unique/history reads.
+ * Create/update hooks may `stage` secondary writes and `schedule`/`cancel`
+ * timers; all three throw `validation` on remove-op hooks (delete hooks
+ * reject by throwing, never stage). Staging to the triggering model is
+ * barred (same-model bar: triggering-path recursion AND same-model-via-
+ * different-op, pending-source deletion included).
+ */
 export interface InterimHookContext {
   readonly before: StoredRow | null;
   readonly op: InterimHookOp;
   readonly actor: string;
   readonly now: number;
+  /** The hooked (triggering) model; staged writes naming it are rejected. */
+  readonly triggerModel: ModelName;
+  /**
+   * T31: the triggering record id — the pending row's identity, so
+   * create/update hooks can parent staged children to it (`before` is null
+   * on create, so the id is the only pending handle there).
+   */
+  readonly triggerId: RecordId;
+  /** Stage one secondary write for atomic commit with the trigger. */
+  readonly stage: (write: InterimHookStagedWrite) => void;
+  /** Stage one timer replace for atomic commit with the trigger. */
+  readonly schedule: (op: InterimHookSchedule) => void;
+  /** Stage one timer cancel for atomic commit with the trigger. */
+  readonly cancel: (key: string) => void;
 }
 
 /**
