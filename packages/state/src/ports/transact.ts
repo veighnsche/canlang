@@ -10,18 +10,24 @@
 
 import type {
   AdmissionKind,
+  AuthorizedRecordsResult,
   CommitBatch,
   CommitResult,
   Revision,
   StoragePort,
 } from '../../../contracts/src/state.js';
 import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
-import type { MutationEnvelope, MutationResult } from '../../../contracts/src/wire.js';
+import type {
+  MutationEnvelope,
+  MutationResult,
+  ReadEnvelope,
+} from '../../../contracts/src/wire.js';
 import { storageToStateError } from '../errors.js';
-import { invoke, type ExecuteHandler } from '../invocation/invoke.js';
+import { invoke, invokeRead, type ExecuteHandler } from '../invocation/invoke.js';
 import type { OperationRegistry } from '../invocation/registry.js';
 import type { ClockPort } from '../invocation/context.js';
 import type { MembershipReader } from '../policy/roles.js';
+import type { PolicyTable } from '../policy/grants.js';
 
 /**
  * Single-shot fenced commit surface. The `expectedRevision` intersection
@@ -84,5 +90,45 @@ export function createInvoker(input: InvokerInput): BoundInvoker {
       ...(args.kind !== undefined ? { kind: args.kind } : {}),
       ...(args.trustedSource !== undefined ? { trustedSource: args.trustedSource } : {}),
       execute: args.execute,
+    });
+}
+
+/** Engine dependencies bound once at read-invoker creation. */
+export interface ReadInvokerInput {
+  readonly registry: OperationRegistry;
+  readonly policy: PolicyTable;
+  readonly store: StoragePort;
+  readonly memberships: MembershipReader;
+}
+
+/** Per-call read args: envelope, identity, and admission kind. */
+export interface ReadInvokeArgs {
+  readonly envelope: ReadEnvelope;
+  readonly identity: ResolvedIdentity;
+  readonly kind?: AdmissionKind;
+  readonly trustedSource?: string;
+}
+
+/** Bound read port: canonical generated-read serving with dependencies fixed. */
+export type BoundReadInvoker = (args: ReadInvokeArgs) => Promise<AuthorizedRecordsResult>;
+
+/**
+ * T17a: create the bound read port for L7 callers. T17b routes assembly
+ * `invokeRead` here, retiring the interim direct `records()` path (direct
+ * store queries with owner rows and no admission). Reads admit through the
+ * registry def and serve viewer-projected records at the fence revision;
+ * they commit nothing and receipt nothing.
+ */
+export function createReadInvoker(input: ReadInvokerInput): BoundReadInvoker {
+  return (args) =>
+    invokeRead({
+      registry: input.registry,
+      policy: input.policy,
+      store: input.store,
+      memberships: input.memberships,
+      envelope: args.envelope,
+      identity: args.identity,
+      ...(args.kind !== undefined ? { kind: args.kind } : {}),
+      ...(args.trustedSource !== undefined ? { trustedSource: args.trustedSource } : {}),
     });
 }
