@@ -80,3 +80,13 @@ jobs:
         run: |
           mkdir -p /tmp/empty-typeroot
           bunx -p typescript@5.6.3 tsc --noEmit --strict --target es2022 --lib es2022 --typeRoots /tmp/empty-typeroot editors/vscode/src/extension.ts editors/vscode/src/client.ts
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build can (debug, for LSP round-trip)
+        run: cargo build --locked
+        working-directory: compiler
+      - name: LSP capability round-trip (real binary)
+        # Guards the server contract the extension client consumes.
+        run: node test/lsp-capabilities.cjs
+        working-directory: editors/vscode
+        env:
+          CAN_BIN: ${{ github.workspace }}/compiler/target/debug/can
