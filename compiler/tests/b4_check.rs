@@ -2624,3 +2624,134 @@ fn t14b_handbook_send_stays_e3019() {
         diags[0].message
     );
 }
+
+// --- T14c typed external deliveries ---
+//
+// A `send` to a T13-known `std` operation carries a typed receipt
+// (`StdDelivery`): the closed `id`/`status`/`result`/`error` leaves
+// resolve, `result` types against the consumed owner result shape
+// (opaque while every T13 result name is nominal-only -- a T13c
+// transcription need, never guessed), wrong leaves fail `E2013`
+// naming the receipt identity, and cross-target associations fail
+// (`E3001` assignment, `E3002` comparison). Unknown/unconsumed
+// receipt positions (the scoped-out Handbook interface, unknown
+// members/providers) stay silently opaque.
+
+/// (T14c) A typed `std` receipt exposes its closed observation
+/// leaves: `id`/`status`/`error` reads check clean.
+#[test]
+fn t14c_std_receipt_known_leaves_accept() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\"} as attempt\n    let i = attempt.id\n    let st = attempt.status\n    let e = attempt.error\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "typed receipt leaves: {diags:?}");
+}
+
+/// (T14c) `attempt.result` reads clean against the consumed result
+/// shape (opaque while T13 result names are nominal-only) and stays
+/// null-tolerant like a local delivery result.
+#[test]
+fn t14c_std_receipt_result_accepts() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\"} as attempt\n    let r = attempt.result\n    let done = attempt.result == null\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "typed receipt result: {diags:?}");
+}
+
+/// (T14c) A leaf outside the closed observation set is a wrong
+/// association (`E2013`) naming the receipt identity.
+#[test]
+fn t14c_std_receipt_wrong_leaf_rejects() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\"} as attempt\n    let x = attempt.bogus\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("unknown member 'bogus' on delivery(std.EmailV1.send)"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14c) Same-target receipts compare: no over-rejection from the
+/// new identity.
+#[test]
+fn t14c_std_receipt_same_target_compares() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\"} as first\n    send Mail.send {to=\"c@d.test\",subject=\"t\",body=\"u\"} as second\n    let same = first == second\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "same-target compare: {diags:?}");
+}
+
+/// (T14c) Cross-target receipts never compare (`E3002`): the
+/// wrong-association promise for `std` receipts.
+#[test]
+fn t14c_std_receipt_cross_target_compare_rejects() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n use std {PaymentsV1 as Payments} from=deployment.payments\n Given\n  M { total:money, ref:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Mail.send {to=\"a@b.test\",subject=\"s\",body=\"b\"} as mail\n    send Payments.collect {customer=\"c\",amount=m.total,reference=m.ref,consent=null} as pay\n    let same = mail == pay\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3002"], "{diags:?}");
+    assert!(
+        diags[0].message.contains(
+            "cannot compare delivery(std.EmailV1.send) with delivery(std.PaymentsV1.collect)"
+        ),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14c) A `delivery(std...)` position rejects a cross-target
+/// receipt (`E3001`): declared and send-side identities agree.
+#[test]
+fn t14c_std_delivery_cross_target_assign_rejects() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n use std {PaymentsV1 as Payments} from=deployment.payments\n Given\n  derive f(a:delivery(Payments.collect)?):delivery(Mail.send)? = a\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+    assert!(
+        diags[0].message.contains(
+            "derived function: expected delivery(std.EmailV1.send)?, found delivery(std.PaymentsV1.collect)?"
+        ),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T14c) A `delivery(std...)` position accepts a same-target
+/// receipt: no over-rejection from the new identity.
+#[test]
+fn t14c_std_delivery_same_target_assign_accepts() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  derive g(a:delivery(Mail.send)?):delivery(Mail.send)? = a\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "same-target assign: {diags:?}");
+}
+
+/// (T14c) Unconsumed receipt positions stay opaque: a Handbook
+/// receipt reads any leaf silently (only its `E3019` fires).
+#[test]
+fn t14c_std_unknown_receipt_stays_opaque() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {Handbook} from=deployment.knowledge\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Handbook.answer {value=\"hi\"} as attempt\n    let x = attempt.anything\n    let y = attempt.result.deeper\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
+}
+
+/// (T14c) `std` delivery fields obey the same nullable rule as
+/// bound-local ones (`E3008`).
+#[test]
+fn t14c_std_delivery_field_must_be_nullable() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  M { delivery:delivery(Mail.send) }\n  policy M read=members\n When\n Then\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3008"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("delivery fields must be nullable"),
+        "{}",
+        diags[0].message
+    );
+}

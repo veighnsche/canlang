@@ -911,6 +911,7 @@ pub fn scalar_family(ty: &ResolvedType) -> Option<ScalarFamily> {
         | ResolvedType::Action { .. }
         | ResolvedType::Invocation { .. }
         | ResolvedType::Delivery { .. }
+        | ResolvedType::StdDelivery { .. }
         | ResolvedType::Array { .. }
         | ResolvedType::Union(_)
         | ResolvedType::Object(_)
@@ -937,6 +938,7 @@ pub fn is_structural(ty: &ResolvedType) -> bool {
         | ResolvedType::Action { .. }
         | ResolvedType::Invocation { .. }
         | ResolvedType::Delivery { .. }
+        | ResolvedType::StdDelivery { .. }
         | ResolvedType::Union(_)
         | ResolvedType::Operation(_)
         | ResolvedType::Opaque(_) => false,
@@ -2448,10 +2450,11 @@ fn member_of(base: &str, field: &str, _ty: &ResolvedType, span: Span) -> IrExpr 
     }
 }
 
-/// Whether `ty` is a delivery handle (possibly nullable).
+/// Whether `ty` is a delivery handle (possibly nullable): bound
+/// local operations and T14c typed `std` receipts alike.
 fn is_delivery_ty(ty: &ResolvedType) -> bool {
     match ty {
-        ResolvedType::Delivery { .. } => true,
+        ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. } => true,
         ResolvedType::Nullable(inner) => is_delivery_ty(inner),
         _ => false,
     }
