@@ -4127,7 +4127,22 @@ impl<'a> Typer<'a> {
                 let Some(bound) = modifier_value(field, word) else {
                     return;
                 };
-                let bound_ty = self.expr(cx, bound, None);
+                // R16/T11: a numeric bound types against the field scalar,
+                // so an integral spelling inhabits decimal (length bounds
+                // keep `None`: `check_length_bound` owns that check, and an
+                // int literal already types int without an expectation).
+                let numeric_expect = match unwrapped {
+                    ResolvedType::Scalar(s)
+                        if matches!(
+                            s,
+                            Scalar::Int | Scalar::Decimal | Scalar::Money | Scalar::Duration
+                        ) =>
+                    {
+                        Some(ResolvedType::Scalar(*s))
+                    }
+                    _ => None,
+                };
+                let bound_ty = self.expr(cx, bound, numeric_expect);
                 match unwrapped {
                     ResolvedType::Scalar(s) if s.is_string_like() => {
                         self.check_length_bound(cx, name, which, bound, &bound_ty);
@@ -8910,7 +8925,7 @@ impl<'a> Typer<'a> {
             SyntaxKind::Member => self.type_member(cx, node),
             SyntaxKind::Call => self.type_call(cx, node),
             SyntaxKind::Binary => self.type_binary(cx, node),
-            SyntaxKind::Unary => self.type_unary(cx, node),
+            SyntaxKind::Unary => self.type_unary(cx, node, expect.as_ref()),
             SyntaxKind::Group => kids(node)
                 .iter()
                 .find(|n| is_expression(n.kind))
@@ -9066,6 +9081,26 @@ impl<'a> Typer<'a> {
         };
         match leaf {
             SyntaxKind::Integer => {
+                // R16/T11: an integral spelling inhabits a uniquely-decimal
+                // expectation exactly (DESIGN L165 precedent for validated
+                // strings below): bigint coef at scale 0, no Number routing
+                // and no int64 narrowing — decimals hold 38 digits (values
+                // `decimalFromInteger`). Only this literal arm (plus `-` and
+                // groups forwarding the expectation) inhabits decimal, so
+                // int-typed variables and computed values never coerce.
+                if expect.is_some_and(decimal_expectation) {
+                    if cx.strict
+                        && let Some(problem) = integral_decimal_range(slice)
+                    {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            format!("integer literal `{slice}` {problem}"),
+                            tight_span(cx.text, node),
+                        ));
+                        return ResolvedType::Error;
+                    }
+                    return ResolvedType::Scalar(Scalar::Decimal);
+                }
                 if cx.strict && slice.parse::<i64>().is_err() {
                     self.diags.push(Diagnostic::error(
                         "E3001",
@@ -10982,8 +11017,15 @@ impl<'a> Typer<'a> {
     }
 
     /// Type a `Unary` node: `-` over int/decimal/duration/money
-    /// (`E3002`), `not` over bool (`E3007`).
-    fn type_unary(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) -> ResolvedType {
+    /// (`E3002`), `not` over bool (`E3007`). `-` forwards a decimal
+    /// expectation to its operand (R16/T11), so a negative integral
+    /// spelling inhabits decimal exactly like a positive one.
+    fn type_unary(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        expect: Option<&ResolvedType>,
+    ) -> ResolvedType {
         let operand = kids(node).iter().find(|n| is_expression(n.kind)).copied();
         let Some(operand) = operand else {
             return ResolvedType::Error;
@@ -10998,13 +11040,27 @@ impl<'a> Typer<'a> {
                 _ => None,
             })
             .unwrap_or("");
+        // Only a uniquely-decimal expectation forwards (every other
+        // expectation keeps the historical `None`, so no other operand
+        // typing changes).
+        let operand_expect = if op == "-" && expect.is_some_and(decimal_expectation) {
+            expect
+        } else {
+            None
+        };
         // `-9223372036854775808` is `i64::MIN`: valid at the result
         // boundary (DESIGN §3), so the magnitude literal bypasses the
-        // overflow error a bare `9223372036854775808` reports.
+        // overflow error a bare `9223372036854775808` reports. Under a
+        // uniquely-decimal expectation the magnitude (19 digits, well
+        // within 38) inhabits decimal instead (R16/T11).
         let ty = if op == "-" && is_min_negation_operand(operand, cx.text) {
-            self.record(operand, ResolvedType::Scalar(Scalar::Int))
+            if operand_expect.is_some() {
+                self.record(operand, ResolvedType::Scalar(Scalar::Decimal))
+            } else {
+                self.record(operand, ResolvedType::Scalar(Scalar::Int))
+            }
         } else {
-            self.expr(cx, operand, None)
+            self.expr(cx, operand, operand_expect.cloned())
         };
         if ty.is_error() {
             return ResolvedType::Error;
@@ -14178,6 +14234,34 @@ fn is_min_negation_operand(node: &SyntaxNode, text: &str) -> bool {
         literal_leaf(node, text),
         Some((SyntaxKind::Integer, "9223372036854775808"))
     )
+}
+
+/// Whether `expected` is uniquely decimal (R16/T11): exactly
+/// `decimal`, modulo one nullable layer (mirrors the validated-string
+/// rule in `type_literal`). Unions, overload shapes and every other
+/// type never qualify, so overload positions never inhabit.
+fn decimal_expectation(expected: &ResolvedType) -> bool {
+    let unwrapped = match expected {
+        ResolvedType::Nullable(inner) => inner.as_ref(),
+        other => other,
+    };
+    matches!(unwrapped, ResolvedType::Scalar(Scalar::Decimal))
+}
+
+/// Check an integral spelling against the decimal
+/// 38-significant-digit bound (R16/T11): leading zeros don't count,
+/// all-zero counts 1 (mirrors values `significantDigits`). No int64
+/// narrowing — decimals hold 38 digits. Returns the problem, or `None`
+/// when the spelling fits.
+fn integral_decimal_range(slice: &str) -> Option<String> {
+    if slice.is_empty() || !slice.bytes().all(|b| b.is_ascii_digit()) {
+        return Some("is malformed".to_string());
+    }
+    let significant = slice.trim_start_matches('0').len().max(1);
+    if significant > 38 {
+        return Some(format!("has {significant} significant digits (max 38)"));
+    }
+    None
 }
 
 /// Check a decimal literal slice (`digits.digits`) against the
