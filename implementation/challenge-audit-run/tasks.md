@@ -104,12 +104,12 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Acceptance: CRM/Rent filtered rows and collection children inherit only their selected snapshot facts; alias, sibling and nested-row controls prove no leakage.
   - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
 
-- [ ] **T08 — Unify readable selector resolution**
+- [x] **T08 — Unify readable selector resolution**
   - Prerequisites: M00; L3/L5 review semantic member contract.
   - Owner / files / interfaces: L1; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs, packages/ui/src/policyPage.ts (L5 writes). Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ02; canonical design/task: Accountable lead: L1. Contributors and owning boundaries: L1 with L3/L5 review. Resolve parent, safe metadata and value members canonically. Done when valid policy/UI paths agree and invalid leaves/descent/disclosure still fail.
   - Acceptance: Canonical parent/safe metadata/money selectors agree across policy/UI; unknown leaf, invalid descent, disclosure and metadata-write controls retained; selector checking provides no flow or permission fact.
-  - Evidence: Rust slice done (writer 01a10ccc, types.rs +203/-83, tests/b4_check.rs +184; resolve.rs needed no change): unified navigate_selector, read-context metadata, 18 boundary tests (9 pos/9 neg). L5 policyPage slice done (writer 01a10cd4-c565, +314/-0, tsc 0; fail-closed guards for every R07/R08 negative; ok-carries fact:null/permission:null/writable:false). Coordinator: cargo check 0; family recount 4524→4364 with E2013 403→243 as the ONLY moved family (all others bit-identical) = pure intended acceptance. Parent OPEN: draft_outcome_table re-pin slice queued (analysis.rs).
+  - Evidence: Rust slice done (writer 01a10ccc, types.rs +203/-83, tests/b4_check.rs +184; resolve.rs needed no change): unified navigate_selector, read-context metadata, 18 boundary tests (9 pos/9 neg). L5 policyPage slice done (writer 01a10cd4-c565, +314/-0, tsc 0; fail-closed guards for every R07/R08 negative; ok-carries fact:null/permission:null/writable:false). Coordinator: cargo check 0; family recount 4524→4364 with E2013 403→243 as the ONLY moved family (all others bit-identical) = pure intended acceptance. Table slice done (writer 01a10cdf-074e, analysis.rs values-only 28 lines, 0 non-value changes): full suite green 171/0 (coordinator re-verified). Harness-gap note: table (per-file check() harness) moved -163 vs whole-corpus recount -160; gap is harness cascade noise — changed selector paths emit E2013 only, zero increases in both harnesses, whole-corpus proof is E2013-only. T08 COMPLETE.
 
 - [ ] **T09 — Preserve creation metadata through the compiler**
   - Prerequisites: T04a for emitted contract; semantic preparation ready at M00.
@@ -277,7 +277,7 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Owner / files / interfaces: L3 with L4/L6/L7; packages/state/src/ports/read.ts, packages/state/src/query/engine.ts, packages/state/src/invocation/admission.ts; packages/identity/src/authentication/revocation.ts (L6); packages/work/src/dispatch/index.ts (L4); implementation/challenge-audit-run/evidence/read-decision.md. Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ03/RQ05/RQ08; canonical design/task: Accountable lead: L3 with L1/L4/L6. Prepare T32a's read/snapshot/revalidation contract early. T32b policy/admission proof needs T16/T17; dispatch/spending additionally needs T24. Done when all claimed contexts preserve revocation/stale-state boundaries and transitive effects.
   - Acceptance: Authoritative bounded reads have accepted permission/revision/revocation fence, including stale reads and revocation between read and effect; no cached snapshot silently authorizes spend.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: T32a PREP slice done (parent OPEN; JEV gate + T32 implementation remain): writer 01a10ce3-1448 released evidence/read-decision.md (4 alternatives A-D, fairness record, 13 JEV-PENDING markers, zero adoption; JEV not run). Gate needs per checklist in file.
 
 - [ ] **T33 — Decide scoped durable fanout**
   - Prerequisites: Prepare alternatives early; final decision matching T28/T24 evidence and JEV.
@@ -436,3 +436,6 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - DISPATCH batch 9 (slot freed x1): L3 T31a-prep writer (WRITE ONLY evidence/hook-decision.md NEW; same prep pattern — alternatives + JEV-pending, NO JEV calls, NO normative/code edits). L1 T08-table and L1 T09-Rust still running. Queued: T05 (after green table), T10, T30, T14a, T13b, T32a/T33-prep.
 - DONE T31a-prep: writer 01a10ce1-1e1c-78e3-99d7-670b0b30d0ac RELEASED evidence/hook-decision.md (new, only path; 4 alternatives, fairness record, 13 JEV-PENDING, zero adoption; JEV not run). Parent T31 OPEN (see T31 evidence).
 - DISPATCH batch 10 (slot freed x1): L3 T32a-prep writer (WRITE ONLY evidence/read-decision.md NEW; read/snapshot/revalidation alternatives + JEV-pending, NO JEV calls, NO normative/code edits). L1 T08-table and L1 T09-Rust still running. Queued: T05 (after green table), T10, T30, T14a, T13b, T33-prep.
+- DONE T08-table: writer 01a10cdf-074e-7a03-ae35-caa9a857c279 RELEASED compiler/tests/analysis.rs (values-only; suite 171/0 green re-verified by coordinator). T08 ticked COMPLETE (see T08 evidence incl. harness-gap note).
+- DONE T32a-prep: writer 01a10ce3-1448-7eb1-a503-bcd05357ca54 RELEASED evidence/read-decision.md (new, only path; 4 alternatives, fairness, 13 JEV-PENDING, zero adoption). Parent T32 OPEN (see T32 evidence).
+- DISPATCH batch 11 (slots freed x2): L1 T05 writer (checker types/resolve/tests-b4_check + analysis.rs table values WITH attribution — table folded into slice per precedent) + L4 T33-prep writer (WRITE ONLY evidence/fanout-decision.md NEW; prep pattern, NO JEV calls). L1 T09-Rust still running. Queued: T10, T30, T14a, T13b.
