@@ -11,8 +11,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type {
+  ReferenceDeclaration,
   ReferenceDescriptionValue,
   ReferenceModel,
+  ReferenceOperation,
+  ReferenceOwner,
 } from '@canlang/contracts';
 import { REFERENCE_MODEL_VERSION } from '@canlang/contracts';
 import {
@@ -424,4 +427,255 @@ test('rejects an invalid requested locale with a truthful error', () => {
       }),
     /BCP 47|locale/i,
   );
+});
+
+// --- collision-free anchors (R-D07-02) ---------------------------------------
+
+function bareDeclaration(owner: string, name: string): ReferenceDeclaration {
+  return {
+    owner,
+    name,
+    kind: 'model',
+    fields: [],
+    examples: [],
+    location: { sourceId: 'app/todo.can', start: 0, end: 10 },
+  };
+}
+
+function bareOperation(id: string): ReferenceOperation {
+  return {
+    id,
+    inputs: [],
+    result: { type: 'text', nullable: false },
+    location: { sourceId: 'app/todo.can', start: 0, end: 10 },
+  };
+}
+
+function modelWithOwners(owners: readonly ReferenceOwner[]): ReferenceModel {
+  return {
+    version: REFERENCE_MODEL_VERSION,
+    sourceRevision: 'rev-001',
+    catalogVersion: 'catalog-7',
+    languageVersion: 'can-0.1.0',
+    appDefaultLocale: 'en',
+    owners,
+    availability: { status: 'unknown' },
+  };
+}
+
+/** Every `<a id="..."></a>` anchor defined in the output, in render order. */
+function anchorIds(out: string): string[] {
+  return [...out.matchAll(/<a id="([^"]+)"><\/a>/g)].map((m) => m[1] as string);
+}
+
+/** Every `](#...)` link target in the output, in render order. */
+function linkTargets(out: string): string[] {
+  return [...out.matchAll(/\]\(#([^)]+)\)/g)].map((m) => m[1] as string);
+}
+
+/** TOC link target for one code-span label (labels used here need no escaping). */
+function tocTarget(out: string, label: string): string | undefined {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return out.match(new RegExp(`\\[\`${escaped}\`\\]\\(#([^)]+)\\)`))?.[1];
+}
+
+/** Every TOC (label, target) pair, sorted by label then target. */
+function tocTargetPairs(out: string): Array<[string, string]> {
+  return [...out.matchAll(/\[(`[^`]*`)\]\(#([^)]+)\)/g)]
+    .map((m) => [m[1] as string, m[2] as string] as [string, string])
+    .sort((a, b) => (a[0] === b[0] ? (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0) : a[0] < b[0] ? -1 : 1));
+}
+
+function assertDefinedOnce(out: string, target: string): void {
+  assert.equal(out.split(`<a id="${target}"></a>`).length - 1, 1, `anchor defined once: ${target}`);
+}
+
+test('disambiguates a_b from a__b under one owner', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      {
+        name: 'Acme',
+        declarations: [bareDeclaration('Acme', 'a_b'), bareDeclaration('Acme', 'a__b')],
+        operations: [],
+      },
+    ]),
+    { locale: 'en' },
+  );
+  const single = tocTarget(out, 'Acme.a_b');
+  const double = tocTarget(out, 'Acme.a__b');
+  assert.ok(single !== undefined && double !== undefined);
+  assert.notEqual(single, double);
+  // Readable base kept; minimal content-derived hex suffix appended.
+  assert.match(single, /^decl-acme-a-b-[0-9a-f]{8,}$/);
+  assert.match(double, /^decl-acme-a-b-[0-9a-f]{8,}$/);
+  assertDefinedOnce(out, single);
+  assertDefinedOnce(out, double);
+});
+
+test('disambiguates a case pair under one owner', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      {
+        name: 'Acme',
+        declarations: [bareDeclaration('Acme', 'Widget'), bareDeclaration('Acme', 'widget')],
+        operations: [],
+      },
+    ]),
+    { locale: 'en' },
+  );
+  const upper = tocTarget(out, 'Acme.Widget');
+  const lower = tocTarget(out, 'Acme.widget');
+  assert.ok(upper !== undefined && lower !== undefined);
+  assert.notEqual(upper, lower);
+  assert.match(upper, /^decl-acme-widget-[0-9a-f]{8,}$/);
+  assert.match(lower, /^decl-acme-widget-[0-9a-f]{8,}$/);
+  assertDefinedOnce(out, upper);
+  assertDefinedOnce(out, lower);
+});
+
+test('disambiguates a Unicode pair sharing one readable base', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      {
+        name: 'Acme',
+        declarations: [bareDeclaration('Acme', 'café'), bareDeclaration('Acme', 'cafè')],
+        operations: [],
+      },
+    ]),
+    { locale: 'en' },
+  );
+  const acute = tocTarget(out, 'Acme.café');
+  const grave = tocTarget(out, 'Acme.cafè');
+  assert.ok(acute !== undefined && grave !== undefined);
+  assert.notEqual(acute, grave);
+  assert.match(acute, /^decl-acme-caf-[0-9a-f]{8,}$/);
+  assert.match(grave, /^decl-acme-caf-[0-9a-f]{8,}$/);
+  assertDefinedOnce(out, acute);
+  assertDefinedOnce(out, grave);
+});
+
+test('keeps the bare readable slug when no collision exists', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      { name: 'Acme', declarations: [bareDeclaration('Acme', 'a_b')], operations: [] },
+    ]),
+  );
+  assert.match(out, /<a id="decl-acme-a-b"><\/a>/);
+  assert.equal(tocTarget(out, 'Acme.a_b'), 'decl-acme-a-b');
+  const owners = renderReferenceMarkdown(
+    modelWithOwners([{ name: 'a_b', declarations: [], operations: [] }]),
+  );
+  assert.match(owners, /<a id="owner-a-b"><\/a>/);
+  assert.equal(tocTarget(owners, 'a_b'), 'owner-a-b');
+});
+
+test('disambiguates colliding owner anchors', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      { name: 'a_b', declarations: [], operations: [] },
+      { name: 'a__b', declarations: [], operations: [] },
+    ]),
+    { locale: 'en' },
+  );
+  const single = tocTarget(out, 'a_b');
+  const double = tocTarget(out, 'a__b');
+  assert.ok(single !== undefined && double !== undefined);
+  assert.notEqual(single, double);
+  assert.match(single, /^owner-a-b-[0-9a-f]{8,}$/);
+  assert.match(double, /^owner-a-b-[0-9a-f]{8,}$/);
+  assertDefinedOnce(out, single);
+  assertDefinedOnce(out, double);
+});
+
+test('disambiguates colliding operation anchors', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      {
+        name: 'Acme',
+        declarations: [],
+        operations: [bareOperation('Acme.a_b'), bareOperation('Acme.a__b')],
+      },
+    ]),
+    { locale: 'en' },
+  );
+  const single = tocTarget(out, 'Acme.a_b');
+  const double = tocTarget(out, 'Acme.a__b');
+  assert.ok(single !== undefined && double !== undefined);
+  assert.notEqual(single, double);
+  assert.match(single, /^op-acme-a-b-[0-9a-f]{8,}$/);
+  assert.match(double, /^op-acme-a-b-[0-9a-f]{8,}$/);
+  assertDefinedOnce(out, single);
+  assertDefinedOnce(out, double);
+});
+
+test('keeps same-name declarations distinct across owners without suffixes', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      { name: 'Alpha', declarations: [bareDeclaration('Alpha', 'Widget')], operations: [] },
+      { name: 'Beta', declarations: [bareDeclaration('Beta', 'Widget')], operations: [] },
+    ]),
+    { locale: 'en' },
+  );
+  assert.match(out, /<a id="decl-alpha-widget"><\/a>/);
+  assert.match(out, /<a id="decl-beta-widget"><\/a>/);
+  assert.equal(tocTarget(out, 'Alpha.Widget'), 'decl-alpha-widget');
+  assert.equal(tocTarget(out, 'Beta.Widget'), 'decl-beta-widget');
+});
+
+test('anchor mapping is stable across source-order permutations', () => {
+  const first = modelWithOwners([
+    {
+      name: 'Acme',
+      declarations: [
+        bareDeclaration('Acme', 'a_b'),
+        bareDeclaration('Acme', 'a__b'),
+        bareDeclaration('Acme', 'Widget'),
+      ],
+      operations: [bareOperation('Acme.a_b'), bareOperation('Acme.a__b')],
+    },
+    { name: 'Beta', declarations: [bareDeclaration('Beta', 'Widget')], operations: [] },
+  ]);
+  const second = modelWithOwners([
+    { name: 'Beta', declarations: [bareDeclaration('Beta', 'Widget')], operations: [] },
+    {
+      name: 'Acme',
+      declarations: [
+        bareDeclaration('Acme', 'a__b'),
+        bareDeclaration('Acme', 'Widget'),
+        bareDeclaration('Acme', 'a_b'),
+      ],
+      operations: [bareOperation('Acme.a__b'), bareOperation('Acme.a_b')],
+    },
+  ]);
+  const outFirst = renderReferenceMarkdown(first, { locale: 'en' });
+  const outSecond = renderReferenceMarkdown(second, { locale: 'en' });
+  assert.deepEqual([...anchorIds(outFirst)].sort(), [...anchorIds(outSecond)].sort());
+  assert.deepEqual(tocTargetPairs(outFirst), tocTargetPairs(outSecond));
+});
+
+test('every link resolves to a unique defined anchor under collisions', () => {
+  const out = renderReferenceMarkdown(
+    modelWithOwners([
+      {
+        name: 'a_b',
+        declarations: [bareDeclaration('a_b', 'Widget'), bareDeclaration('a_b', 'widget')],
+        operations: [bareOperation('a_b.Widget.read'), bareOperation('a_b.widget.read')],
+      },
+      {
+        name: 'a__b',
+        declarations: [bareDeclaration('a__b', 'café'), bareDeclaration('a__b', 'cafè')],
+        operations: [],
+      },
+    ]),
+    { locale: 'en' },
+  );
+  const ids = anchorIds(out);
+  assert.ok(ids.length > 0);
+  assert.equal(new Set(ids).size, ids.length, 'anchors are unique');
+  const defined = new Set(ids);
+  const targets = linkTargets(out);
+  assert.ok(targets.length > 0);
+  for (const target of targets) {
+    assert.ok(defined.has(target), `dangling link target: ${target}`);
+  }
 });

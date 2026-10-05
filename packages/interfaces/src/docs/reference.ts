@@ -177,7 +177,12 @@ function codeSpan(text: string): string {
   return `\`${escapeCodeSpan(text)}\``;
 }
 
-/** Stable anchor slug: lowercase alphanumerics joined by single hyphens. */
+/**
+ * Readable base slug: lowercase alphanumerics joined by single hyphens.
+ * Lossy on its own (`a_b`/`a__b`, case pairs and non-ASCII spellings can
+ * share one base), so final anchors add a content-derived suffix ONLY when
+ * distinct canonical identities collide on one base (see below).
+ */
 function slug(text: string): string {
   const slug = text
     .toLowerCase()
@@ -186,16 +191,183 @@ function slug(text: string): string {
   return slug.length === 0 ? "section" : slug;
 }
 
-function ownerAnchor(owner: string): string {
+/** FNV-1a 32-bit over UTF-16 code units: deterministic, platform-stable. */
+function fnv1a32(text: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+/** Independent second 32-bit lane (djb2-xor) for a wider digest. */
+function djb2a32(text: string): number {
+  let hash = 0x5381;
+  for (let i = 0; i < text.length; i++) {
+    hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+/**
+ * 16-hex-char content digest of one canonical identity. Case-, punctuation-
+ * and Unicode-sensitive: any two distinct JS strings hash differently with
+ * overwhelming probability, and the group assigner extends the suffix (then
+ * falls back to a lossless encoding) so distinct identities never share a
+ * final anchor.
+ */
+function identityDigest(canonical: string): string {
+  return (
+    fnv1a32(canonical).toString(16).padStart(8, "0") +
+    djb2a32(canonical).toString(16).padStart(8, "0")
+  );
+}
+
+/** Lossless anchor-safe encoding of one identity (injectivity fallback). */
+function losslessHex(canonical: string): string {
+  let out = "";
+  for (let i = 0; i < canonical.length; i++) {
+    out += canonical.charCodeAt(i).toString(16).padStart(4, "0");
+  }
+  return out.length === 0 ? "empty" : out;
+}
+
+function baseOwnerAnchor(owner: string): string {
   return `owner-${slug(owner)}`;
 }
 
-function declarationAnchor(owner: string, name: string): string {
+function baseDeclarationAnchor(owner: string, name: string): string {
   return `decl-${slug(owner)}-${slug(name)}`;
 }
 
-function operationAnchor(id: string): string {
+function baseOperationAnchor(id: string): string {
   return `op-${slug(id)}`;
+}
+
+/** Unambiguous hash input for one declaration identity (owner + name). */
+function declarationKey(owner: string, name: string): string {
+  return JSON.stringify([owner, name]);
+}
+
+/**
+ * Assigns final anchors to the distinct canonical identities sharing one
+ * readable base. A lone identity keeps the bare base (human-readable, no
+ * suffix); a colliding group gets `base-<content-hash>` with the shortest
+ * non-colliding digest prefix, extended only within the group. Processing
+ * order is canonical-sorted, so the result depends ONLY on identity content
+ * and never on model/source order. Suffix input is the exact canonical
+ * spelling, so case/punctuation/Unicode variants disambiguate.
+ */
+function assignAnchorGroup(base: string, canonicals: readonly string[]): Map<string, string> {
+  const assigned = new Map<string, string>();
+  if (canonicals.length <= 1) {
+    if (canonicals.length === 1) {
+      assigned.set(canonicals[0] as string, base);
+    }
+    return assigned;
+  }
+  const used = new Set<string>();
+  const digests = new Map<string, string>();
+  for (const canonical of canonicals) {
+    digests.set(canonical, identityDigest(canonical));
+  }
+  for (const canonical of [...canonicals].sort()) {
+    const digest = digests.get(canonical) as string;
+    let length = 8;
+    let candidate = `${base}-${digest.slice(0, length)}`;
+    while (used.has(candidate) && length < digest.length) {
+      length += 2;
+      candidate = `${base}-${digest.slice(0, length)}`;
+    }
+    if (used.has(candidate)) {
+      // Theoretical full-digest collision: lossless suffix is strictly injective.
+      candidate = `${base}-${digest}-${losslessHex(canonical)}`;
+    }
+    used.add(candidate);
+    assigned.set(canonical, candidate);
+  }
+  return assigned;
+}
+
+/** Precomputed collision-free anchors for every identity in one model. */
+interface AnchorResolver {
+  ownerAnchor(owner: string): string;
+  declarationAnchor(owner: string, name: string): string;
+  operationAnchor(id: string): string;
+}
+
+function pushDistinctIdentity(
+  groups: Map<string, string[]>,
+  seen: Set<string>,
+  base: string,
+  canonical: string,
+): void {
+  if (seen.has(canonical)) {
+    return;
+  }
+  seen.add(canonical);
+  const group = groups.get(base);
+  if (group === undefined) {
+    groups.set(base, [canonical]);
+  } else {
+    group.push(canonical);
+  }
+}
+
+function assignGroups(groups: Map<string, string[]>): Map<string, string> {
+  const assigned = new Map<string, string>();
+  for (const [base, canonicals] of groups) {
+    for (const [canonical, anchor] of assignAnchorGroup(base, canonicals)) {
+      assigned.set(canonical, anchor);
+    }
+  }
+  return assigned;
+}
+
+/**
+ * Builds the single anchor mapping for one render. Every TOC link and every
+ * section anchor resolves through this resolver, so links can never dangle:
+ * identical canonical identities always map to identical anchors.
+ */
+function createAnchorResolver(model: ReferenceModel): AnchorResolver {
+  const ownerGroups = new Map<string, string[]>();
+  const declarationGroups = new Map<string, string[]>();
+  const operationGroups = new Map<string, string[]>();
+  const seenOwners = new Set<string>();
+  const seenDeclarations = new Set<string>();
+  const seenOperations = new Set<string>();
+
+  for (const owner of model.owners) {
+    pushDistinctIdentity(ownerGroups, seenOwners, baseOwnerAnchor(owner.name), owner.name);
+    for (const declaration of owner.declarations) {
+      pushDistinctIdentity(
+        declarationGroups,
+        seenDeclarations,
+        baseDeclarationAnchor(declaration.owner, declaration.name),
+        declarationKey(declaration.owner, declaration.name),
+      );
+    }
+    for (const operation of owner.operations) {
+      pushDistinctIdentity(
+        operationGroups,
+        seenOperations,
+        baseOperationAnchor(operation.id),
+        operation.id,
+      );
+    }
+  }
+
+  const owners = assignGroups(ownerGroups);
+  const declarations = assignGroups(declarationGroups);
+  const operations = assignGroups(operationGroups);
+
+  return {
+    ownerAnchor: (owner) => owners.get(owner) ?? baseOwnerAnchor(owner),
+    declarationAnchor: (owner, name) =>
+      declarations.get(declarationKey(owner, name)) ?? baseDeclarationAnchor(owner, name),
+    operationAnchor: (id) => operations.get(id) ?? baseOperationAnchor(id),
+  };
 }
 
 /** Fenced code block with a fence longer than any backtick run inside. */
@@ -271,8 +443,9 @@ function renderDeclaration(
   declaration: ReferenceDeclaration,
   context: RenderContext,
   lines: string[],
+  anchors: AnchorResolver,
 ): void {
-  const anchor = declarationAnchor(declaration.owner, declaration.name);
+  const anchor = anchors.declarationAnchor(declaration.owner, declaration.name);
   lines.push(`<a id="${anchor}"></a>`, "");
   lines.push(`##### ${codeSpan(`${declaration.owner}.${declaration.name}`)} (${declaration.kind})`, "");
   lines.push(describeText(declaration.description, context), "");
@@ -324,8 +497,9 @@ function renderOperation(
   operation: ReferenceOperation,
   context: RenderContext,
   lines: string[],
+  anchors: AnchorResolver,
 ): void {
-  const anchor = operationAnchor(operation.id);
+  const anchor = anchors.operationAnchor(operation.id);
   lines.push(`<a id="${anchor}"></a>`, "");
   lines.push(`##### ${codeSpan(operation.id)}`, "");
   lines.push(describeText(operation.description, context), "");
@@ -364,18 +538,23 @@ function renderOperation(
   lines.push(describeText(operation.result.description, context), "");
 }
 
-function renderOwner(owner: ReferenceOwner, context: RenderContext, lines: string[]): void {
-  lines.push(`<a id="${ownerAnchor(owner.name)}"></a>`, "");
+function renderOwner(
+  owner: ReferenceOwner,
+  context: RenderContext,
+  lines: string[],
+  anchors: AnchorResolver,
+): void {
+  lines.push(`<a id="${anchors.ownerAnchor(owner.name)}"></a>`, "");
   lines.push(`### ${codeSpan(owner.name)}`, "");
   const declarationsLabel = heading("declarations", context.requested, context.appDefault);
   const operationsLabel = heading("operations", context.requested, context.appDefault);
   lines.push(`#### ${declarationsLabel}`, "");
   for (const declaration of owner.declarations) {
-    renderDeclaration(declaration, context, lines);
+    renderDeclaration(declaration, context, lines, anchors);
   }
   lines.push(`#### ${operationsLabel}`, "");
   for (const operation of owner.operations) {
-    renderOperation(operation, context, lines);
+    renderOperation(operation, context, lines, anchors);
   }
 }
 
@@ -419,22 +598,24 @@ export function renderReferenceMarkdown(
   lines.push(`- Requested locale: ${codeSpan(requested)}`);
   lines.push(`- App default locale: ${codeSpan(appDefault)}`, "");
 
+  const anchors = createAnchorResolver(model);
+
   const ownersLabel = heading("owners", requested, appDefault);
   lines.push(`## ${ownersLabel}`, "");
   for (const owner of model.owners) {
-    lines.push(`- [${codeSpan(owner.name)}](#${ownerAnchor(owner.name)})`);
+    lines.push(`- [${codeSpan(owner.name)}](#${anchors.ownerAnchor(owner.name)})`);
     for (const declaration of owner.declarations) {
-      const anchor = declarationAnchor(declaration.owner, declaration.name);
+      const anchor = anchors.declarationAnchor(declaration.owner, declaration.name);
       lines.push(`  - [${codeSpan(`${declaration.owner}.${declaration.name}`)}](#${anchor})`);
     }
     for (const operation of owner.operations) {
-      lines.push(`  - [${codeSpan(operation.id)}](#${operationAnchor(operation.id)})`);
+      lines.push(`  - [${codeSpan(operation.id)}](#${anchors.operationAnchor(operation.id)})`);
     }
   }
   lines.push("");
 
   for (const owner of model.owners) {
-    renderOwner(owner, context, lines);
+    renderOwner(owner, context, lines, anchors);
   }
   renderAvailability(model.availability, context, lines);
   return `${lines.join("\n").trimEnd()}\n`;
