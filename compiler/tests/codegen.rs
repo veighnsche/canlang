@@ -196,6 +196,7 @@ fn fixture_ir() -> IrProgram {
                     server: None,
                     modifiers: IrModifiers::default(),
                     label: None,
+                    description: None,
                 },
             },
             IrItem {
@@ -212,6 +213,7 @@ fn fixture_ir() -> IrProgram {
                     server: None,
                     modifiers: IrModifiers::default(),
                     label: None,
+                    description: None,
                 },
             },
             IrItem {
@@ -2543,6 +2545,7 @@ fn construct_page_admit_returns_preference_defaults() {
             server: None,
             modifiers: IrModifiers::default(),
             label: None,
+            description: None,
         },
     });
     let mut emitter = Emitter::new(&ir);
