@@ -90,12 +90,12 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Evidence: writer 01a10ce5-67ac released types.rs + tests/b4_check.rs (+289, §10 six + IC1-IC8 + presence/alias/shadow tests) + analysis.rs table (46 decreases, 0 increases); resolve.rs untouched. Coordinator independent proof: corpus 4364→3081 (E3003 -845, E3001 -270, E2001 -89, E3002 -77, E3005 -27, E3006 -2; all else identical except +27 E2013); stash-differential isolated 80 added as pure unmasking (sampled CanMail/CanStock/CanSync/CanRent sites all genuine: model-nullable fields, IC7, semantically-correct send-invalidation); §10 spans hold 15 residuals ALL in separate known roots (R10/R11/R12/R17), zero continuation residues; suite 27 targets green re-verified.
   - Coordinator note: checker-file path is compiler/tests/b4_check.rs. Precedent: flow/consequence slices may unmask downstream findings ONLY with site-level proof each is genuine (T08 zero-increase rule stays for non-flow slices).
 
-- [ ] **T06 — Complete actor facts in policies and CRUD**
+- [x] **T06 — Complete actor facts in policies and CRUD**
   - Prerequisites: T05.
   - Owner / files / interfaces: L1; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs. Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ02/RQ03; canonical design/task: Accountable lead: L1. Contributors and owning boundaries: L1. Depends on T05. Carry caller admission through composite policies and by-to-when. Done when admitted actor use passes while public, other-subject and preauthorization cases remain nullable.
   - Acceptance: Composite admitted actor and CRUD by-to-when facts pass; public/preauthorization/other-subject actor remains nullable; existence does not grant authority.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: writer 01a10d10-4e5d released types.rs + resolve.rs (two-polarity admission, role_call_on_caller no-leak, collect_narrow hook, by→when) + 19 b4 tests (10 admit/9 no-leak-reject) + table (7↓/0↑). Coordinator stash-differential: 0 added, 219 removed, ALL actor-shaped (E3001 -213, E3003 -6; rest bit-identical); suite 27 green. T06 COMPLETE.
 
 - [ ] **T07 — Propagate filtered row facts**
   - Prerequisites: T05.
@@ -452,3 +452,5 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - DISPATCH batch 16 (slots freed x3, 1 used): L1 T09-checker writer (types.rs field_is_required_input + tests/b4_check.rs + analysis.rs table with attribution; ordinary-array exemption). 2 slots idle — checker chain strictly serial (T06→T10→T30→T14a queue behind T09-checker); T04b/T15a+ still need deeper facts.
 - DONE T09-checker: writer 01a10d08-288e-7362-91f8-84175dd99e91 RELEASED checker + tests + table (gap verifiably closed). T09 ticked COMPLETE (see T09 evidence).
 - DISPATCH batch 17 (1 used, 2 idle): L1 T06 writer (actor facts in policies/CRUD per R26 + T03 machinery; types/resolve/tests-b4_check + table with attribution; unmasking only with site proof). Queued serially: T10→T30→T14a.
+- DONE T06: writer 01a10d10-4e5d-7ee0-8ba4-3089d6e84c42 RELEASED checker + tests + table (0 added/219 removed, all actor-shaped). T06 ticked COMPLETE (see T06 evidence).
+- DISPATCH batch 18 (1 used, 2 idle): L1 T10 writer for L2 (contextual structural literals per R10/R18; checker + values/schema.ts + contracts/values.ts + table with attribution; unmasking only with site proof). Queued serially: T30→T14a.
