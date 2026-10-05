@@ -69,6 +69,7 @@ Its help and version output work; `compile`, `lint`, and `fmt` are reserved comm
 
 ## Documentation
 
+- [Living ideal file-tree plan](docs/ideal-filetree-plan.md): deferred organization, complete inventory and decisions. After every merge, its handler reconciles accumulated changes and advances the reviewed source checkpoint; maintenance does not authorize implementation.
 - [Approved full UI vocabulary](design/UI-COMPONENTS.md): all 68 pinned daisyUI components, typed bindings and the shared right-sidebar shell. The former small subset was a design mistake; implementation and app migration must cover the full catalog.
 - [Frontend migration launch prompt](implementation/prompts/08-frontend-catalog-migration.md): copy into a human-launched Muse Code 1.3 Contributor session to migrate sources in a separate worktree, reviewing and merging each PR before continuing.
 - [Requirements](REQUIREMENTS.md): purpose, scope, and product goals.
