@@ -130,7 +130,7 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Owner / files / interfaces: L2 with exclusive L1 Rust writer; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs, packages/values/src/decimal.ts, packages/values/src/wire.ts. Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ02; canonical design/task: Accountable lead: L2; L1 owns Rust expected-type behavior. Preserve exact expected-decimal literals without variable coercion. Done when defaults/bounds/inputs/wire values agree and ambiguity/range negatives remain.
   - Acceptance: Contextual integral decimal literals remain exact across bounds/defaults/inputs/wire; variable coercion, ambiguity and range controls remain; no binary Number shortcut.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: DECISION+TS slice done (parent OPEN; L1 checker slice queued after D02b): writer 01a10d55-264c released decimal.ts (R16 ACCEPT: contextual, literal-only, exact — evidence CanAffiliate:23 + T10-unmasked quantity sites + DESIGN L165/L215/L219/L907; opposing + flip recorded) + decimalFromInteger (bigint-only, scale 0, out-of-range never silent) + wire.ts agreement (integral strings decode exact; numbers/bigints rejected). Coordinator verified decodeDecimal path + tsc 0. "Exact value contract agreed" prereq now satisfied by this record.
 
 - [x] **T12 — Inventory standard and bound declarations**
   - Prerequisites: M00.
@@ -461,3 +461,5 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - DONE T30: writer 01a10d37-ce26-75a2-b0b5-da5da400eb76 RELEASED checker + tests + table (11 unmasked proven genuine). T30 ticked COMPLETE (see T30 evidence).
 - DISPATCH batch 20: D02b preempts (checker resolve/types/effects + tests + table; see D checklist). T14a queued behind D02b; then T14b, T04b/T15a.
 - FAN-OUT batch 21 (user: compress wall time; 3/3): D02b (checker) + L2 T11-decision+TS (R16 decision + decimal/wire.ts; checker slice follows D02b) + L3 T28-enumeration (20 E2008 sites + bound-parent verdict → containment-decision.md). All disjoint. Queued: T11-checker, T14a→T14b after D02b.
+- DONE T11-decision+TS: writer 01a10d55-264c-7372-93d0-11a2c1deface RELEASED decimal.ts (R16 ACCEPT record + decimalFromInteger) + wire.ts (agreement comment). Parent T11 OPEN (checker slice queued after D02b; see T11 evidence).
+- DISPATCH batch 22 (slot freed x1): L3 T31a-enumeration writer (52-source hook-body enumeration + effect classification → hook-decision.md append). D02b + T28-enumeration still running. Queued: T11-checker, T14a→T14b (after D02b), T32a/T33-enumeration.

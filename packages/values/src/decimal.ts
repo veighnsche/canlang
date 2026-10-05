@@ -1,3 +1,37 @@
+/**
+ * R16 decision record (T11 values slice; checker behavior is a LATER slice
+ * after D02b releases — this file implements the values side only).
+ *
+ * Decision: ACCEPT integral literals where the expected type is uniquely
+ * decimal (contextual typing; literal spellings only; no variable coercion).
+ *
+ * Evidence: CanAffiliate:23 (`rate:decimal min=0 max=1`); T10-unmasked
+ * CanMember:279/558 and CanRent:296 (`quantity=1` inside DocumentLine
+ * literals); DocumentLine.quantity:decimal (CanInvoice:66);
+ * Line.quantity:decimal=1 (CanInvoice:104). DESIGN L165 precedent (a string
+ * literal may inhabit an expected validated string-like type after
+ * validation, never coercing a variable), L215 (operator-local int/decimal
+ * promotion, not a general cast), L219 (decimal literals stay checked
+ * representations), L907 (canonical decimal strings on wire).
+ *
+ * Rationale: an integral spelling has exactly one numeric value, so the
+ * narrow rule cannot misread intent; exactness is preserved end to end
+ * (bigint coef at scale 0, no Number routing, no int64 limit — decimals
+ * hold 38 digits); bounds/defaults/arguments/fixtures/wire all flow through
+ * the same exact parse (`parseDecimal`/`decimalFromInteger` here,
+ * `decodeDecimal` in wire.ts).
+ *
+ * Strongest opposing case: implicit numeric conversion can hide rounding,
+ * change overload selection, and blur exact representations (ledger R16).
+ *
+ * Flip condition: a real ambiguity (an integral literal accepted where
+ * int-vs-decimal changes overload choice or semantics) or an exactness
+ * loss caused by the narrow rule.
+ *
+ * Negatives held: variable coercion (int-typed values never become
+ * decimals), ambiguous overloads, and precision/range violations
+ * (out-of-range, never silent rounding) stay rejected.
+ */
 import type { DecimalValue, MoneyValue } from "../../contracts/src/values.js";
 import { ValueError } from "./errors.js";
 import { int64 } from "./int.js";
@@ -338,6 +372,21 @@ export function parseDecimal(text: string): Decimal {
     throw new ValueError("out-of-range", "decimal text exceeds 38 significant digits");
   }
   return new Decimal(coef, fracDigits.length);
+}
+
+/**
+ * R16/T11 canonical construction for integral spellings in decimal
+ * positions: the bigint is the exact coef at scale 0. Representation
+ * breaches are `out-of-range` via the Decimal constructor (never silent);
+ * no Number routing and no int64 narrowing (decimals hold 38 digits).
+ * Literal spellings only — this never coerces int-typed variables, which
+ * stay a checker-side rejection (later slice).
+ */
+export function decimalFromInteger(coef: bigint): Decimal {
+  if (typeof coef !== "bigint") {
+    throw new ValueError("invalid-construction", "decimalFromInteger needs a bigint");
+  }
+  return new Decimal(coef, 0);
 }
 
 /**
