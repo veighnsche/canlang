@@ -15,6 +15,13 @@
  * L4 runs; L3 carries the opaque name only and executes nothing).
  */
 
+/**
+ * This contract's version. Added by T13a alongside
+ * `SERVICES_CONTRACT_VERSION`; the delivery-observable schemas below
+ * carry their owning capability versions per entry.
+ */
+export const WORK_CONTRACT_VERSION = 1;
+
 /** Opaque stable identity minted by the runtime. Never caller-supplied. */
 export type OccurrenceId = string;
 
@@ -240,3 +247,40 @@ export interface PendingWorkInventory {
   /** Oldest uncertain item commit time, UTC epoch ms, if any. */
   oldestUncertainAt: number | null;
 }
+
+/* -- T13a canonical delivery-observable schemas (L4 producer slice). -- */
+
+/**
+ * One T13a delivery-observable declaration: a qualified send target
+ * observed as a `delivery(Target)` association. Status/result/error are
+ * read through the containing record and exact grants at the owner
+ * checkpoint (`ReceiptObservation`); a text id alone grants no lookup.
+ * T13b rich relations (images/judgment/mailbox/knowledge) are out of
+ * this slice and add no entries here.
+ */
+export interface DeliveryObservableDecl {
+  /** Qualified send target, e.g. `std.EmailV1.send`. */
+  target: string;
+  /** Owning capability contract version (the `STD_*_VERSION`). */
+  version: number;
+  /** Selectable association leaves; the closed T13a set. */
+  leaves: readonly ReceiptProperty[];
+}
+
+/**
+ * T13a common delivery observables: the six send targets of the T13a
+ * capability contracts (`services.ts`). Every entry observes the same
+ * closed leaf set (`id`, `status`, `result`, `error`); the declared
+ * typed result per target lives on its capability operation (`send` ->
+ * `EmailAccepted`, `report` -> `ErrorAccepted`, Payments ops ->
+ * `PaymentState`). Receipt summary shape is `DeliveryResult`
+ * (`services.ts`); observation mechanics stay in `@canlang/work`.
+ */
+export const T13A_DELIVERY_OBSERVABLES: readonly DeliveryObservableDecl[] = [
+  { target: 'std.EmailV1.send', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.ErrorsV1.report', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.PaymentsV1.collect', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.PaymentsV1.refund', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.PaymentsV1.cancel', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.PaymentsV1.reconcile', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+];
