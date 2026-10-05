@@ -15,6 +15,7 @@ pub mod ide;
 pub mod json;
 pub mod lint;
 pub mod lsp;
+pub mod policy;
 pub mod source;
 pub mod syntax;
 

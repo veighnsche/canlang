@@ -8,6 +8,10 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { IdentityError, deriveCsrfToken } from '@canlang/identity';
 import { buildBusinessError } from '../src/errors/envelope.js';
+import {
+  clearFormBindings,
+  registerFormBinding,
+} from '../src/http/formErrors.js';
 import { handleOperationRequest } from '../src/http/operations.js';
 import {
   parseCollectionQuery,
@@ -48,16 +52,50 @@ function opRequest(opts: {
   csrf?: string;
   body: string;
   contentType?: string;
+  accept?: string;
+  hxRequest?: boolean;
 }): Request {
   const headers: Record<string, string> = {};
   if (opts.contentType !== undefined) headers['content-type'] = opts.contentType;
   if (opts.csrf !== undefined) headers['x-csrf-token'] = opts.csrf;
+  if (opts.accept !== undefined) headers['accept'] = opts.accept;
+  if (opts.hxRequest === true) headers['hx-request'] = 'true';
   return testRequest('/operations/acme.order', {
     method: 'POST',
     headers,
     ...(opts.cookie === undefined ? {} : { cookie: opts.cookie }),
     body: opts.body,
   });
+}
+
+/** Register the B3-I5 re-render binding for OP; callers must clearFormBindings in finally. */
+function bindOrderForm(): void {
+  registerFormBinding({
+    operation: OP,
+    action: '/api/operations/acme.order',
+    mode: 'create',
+    fields: [
+      { path: 'qty', label: 'Qty', type: 'int', required: true },
+      { path: 'label', label: 'Label', type: 'text', required: false },
+    ],
+    submit: 'Save',
+    idPrefix: 'order-form',
+    timeZone: 'UTC',
+  });
+}
+
+async function setupFailing() {
+  const t = await createTestDeps({
+    shapes: SHAPES,
+    mutations: {
+      [OP]: () => ({
+        error: buildBusinessError('rule_failed', 'Too many ordered.', {
+          fields: [{ path: '/qty', code: 'rule_failed', message: 'Too many ordered.' }],
+        }),
+      }),
+    },
+  });
+  return { ...t, csrf: await deriveCsrfToken(t.identity.sessionToken) };
 }
 
 function jsonOpBody(extra: Record<string, unknown> = {}): string {
@@ -337,6 +375,158 @@ test('parseCollectionQuery: defaults, clamp, cursor, order, filters, validation'
     const outcome = parseCollectionQuery(new URL(`https://x.invalid/?limit=${raw}`));
     assert.ok('error' in outcome, raw);
     assert.equal(outcome.error.code, 'validation');
+  }
+});
+
+test('B3-I5: Accept text/html re-renders the failed POST as a full page with drafts', async () => {
+  const t = await setupFailing();
+  bindOrderForm();
+  try {
+    const operation_id = freshOperationId();
+    const res = await handleOperationRequest(
+      t.deps,
+      opRequest({
+        cookie: t.identity.cookie,
+        csrf: t.csrf,
+        contentType: 'application/json',
+        accept: 'text/html,application/xhtml+xml',
+        body: JSON.stringify({ operation_id, inputs: { qty: 9, label: 'keep me' } }),
+      }),
+      OP,
+    );
+    assert.equal(res.status, 422);
+    assert.ok((res.headers.get('content-type') ?? '').startsWith('text/html'));
+    assert.ok((res.headers.get('vary') ?? '').includes('Accept'));
+    const html = await res.text();
+    assert.ok(html.startsWith('<!DOCTYPE html>'), 'full-page branch');
+    assert.ok(html.includes('Too many ordered.'), 'inline field error');
+    assert.ok(html.includes('aria-invalid="true"'), 'qty flagged invalid');
+    assert.ok(html.includes('value="9"'), 'int draft preserved verbatim');
+    assert.ok(html.includes('value="keep me"'), 'text draft preserved verbatim');
+    assert.ok(html.includes(`value="${operation_id}"`), 'operation_id carried for retry');
+  } finally {
+    clearFormBindings();
+  }
+});
+
+test('B3-I5: HX-Request re-renders a bare fragment without the document shell', async () => {
+  const t = await setupFailing();
+  bindOrderForm();
+  try {
+    const res = await handleOperationRequest(
+      t.deps,
+      opRequest({
+        cookie: t.identity.cookie,
+        csrf: t.csrf,
+        contentType: 'application/json',
+        accept: 'application/json',
+        hxRequest: true,
+        body: jsonOpBody(),
+      }),
+      OP,
+    );
+    assert.equal(res.status, 422);
+    assert.ok((res.headers.get('content-type') ?? '').startsWith('text/html'));
+    const html = await res.text();
+    assert.ok(!html.includes('<html'), 'fragment branch: no document shell');
+    assert.ok(html.includes('id="order-form-form"'), 'stable swap target');
+    assert.ok(html.includes('Too many ordered.'), 'inline field error');
+  } finally {
+    clearFormBindings();
+  }
+});
+
+test('B3-I5: JSON stays the default without HTML headers, even with a binding', async () => {
+  const t = await setupFailing();
+  bindOrderForm();
+  try {
+    for (const accept of [undefined, 'application/json', '*/*']) {
+      const res = await handleOperationRequest(
+        t.deps,
+        opRequest({
+          cookie: t.identity.cookie,
+          csrf: t.csrf,
+          contentType: 'application/json',
+          ...(accept === undefined ? {} : { accept }),
+          body: jsonOpBody(),
+        }),
+        OP,
+      );
+      assert.equal(res.status, 422, `accept=${accept ?? '(absent)'}`);
+      assert.ok((res.headers.get('content-type') ?? '').startsWith('application/json'));
+      assert.equal((await res.json() as { code: string }).code, 'rule_failed');
+    }
+  } finally {
+    clearFormBindings();
+  }
+});
+
+test('B3-I5: text/html without a registered binding stays bare JSON', async () => {
+  const t = await setupFailing();
+  clearFormBindings();
+  const res = await handleOperationRequest(
+    t.deps,
+    opRequest({
+      cookie: t.identity.cookie,
+      csrf: t.csrf,
+      contentType: 'application/json',
+      accept: 'text/html',
+      body: jsonOpBody(),
+    }),
+    OP,
+  );
+  assert.equal(res.status, 422);
+  assert.ok((res.headers.get('content-type') ?? '').startsWith('application/json'));
+});
+
+test('B3-I5: ill-typed drafts degrade to empty inputs, never a 500', async () => {
+  const t = await setupFailing();
+  bindOrderForm();
+  try {
+    const res = await handleOperationRequest(
+      t.deps,
+      opRequest({
+        cookie: t.identity.cookie,
+        csrf: t.csrf,
+        contentType: 'application/json',
+        accept: 'text/html',
+        body: JSON.stringify({ operation_id: freshOperationId(), inputs: { qty: 'not-a-number', label: 'ok' } }),
+      }),
+      OP,
+    );
+    assert.equal(res.status, 422);
+    const html = await res.text();
+    assert.ok(html.includes('Too many ordered.'), 'inline error survives the bad draft');
+    assert.ok(!html.includes('not-a-number'), 'unrenderable draft dropped, not echoed');
+    assert.ok(html.includes('value="ok"'), 'renderable draft preserved');
+  } finally {
+    clearFormBindings();
+  }
+});
+
+test('B3-I5: framing failures re-render too when drafts exist', async () => {
+  const t = await setup();
+  bindOrderForm();
+  try {
+    const res = await handleOperationRequest(
+      t.deps,
+      opRequest({
+        cookie: t.identity.cookie,
+        csrf: t.csrf,
+        contentType: 'application/json',
+        accept: 'text/html',
+        body: JSON.stringify({ operation_id: freshOperationId(), inputs: { label: 'no-qty' } }),
+      }),
+      OP,
+    );
+    assert.equal(res.status, 400);
+    assert.ok((res.headers.get('content-type') ?? '').startsWith('text/html'));
+    const html = await res.text();
+    assert.ok(html.includes('Missing required input'), 'framing message in banner');
+    assert.ok(html.includes('aria-invalid="true"'), 'missing field flagged inline');
+    assert.ok(html.includes('value="no-qty"'), 'draft preserved');
+  } finally {
+    clearFormBindings();
   }
 });
 

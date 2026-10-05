@@ -40,9 +40,10 @@
 
 use crate::analysis::Catalog;
 use crate::analysis::CheckedProgram;
-use crate::diagnostic::Diagnostic;
+use crate::diagnostic::{Diagnostic, push_json_str};
 use crate::source::{SourceDb, SourceId, Span};
 use std::collections::HashSet;
+use std::fmt::Write as _;
 
 use super::rules::{self, Finding, RuleCtx};
 
@@ -332,6 +333,84 @@ pub fn apply_fixes(text: &str, sha256: &str, fixes: &[LintFix]) -> Result<String
         current.replace_range(start..end, &fix.replacement);
     }
     Ok(current)
+}
+
+/// Render one fix as compact single-line JSON with fixed key order:
+///
+/// `{"rule":..,"title":..,"file":N,"span":{"start":N,"end":N},"expected_sha256":..,"replacement":..}`
+///
+/// `file` is the numeric [`SourceId`] resolvable through the envelope's
+/// `sources` array. String escaping reuses
+/// [`push_json_str`](crate::diagnostic::push_json_str), matching the
+/// diagnostic envelope. This is the agent fix-JSON shape consumed by
+/// `can lint --fix --format=json` and (via the demo/test drivers) by
+/// downstream authoring-join work: keep the key order stable.
+pub fn fix_to_json(fix: &LintFix) -> String {
+    let mut out = String::new();
+    out.push_str("{\"rule\":");
+    push_json_str(&mut out, fix.rule);
+    out.push_str(",\"title\":");
+    push_json_str(&mut out, &fix.title);
+    let _ = write!(
+        out,
+        ",\"file\":{},\"span\":{{\"start\":{},\"end\":{}}},\"expected_sha256\":",
+        fix.file.0, fix.span.start, fix.span.end
+    );
+    push_json_str(&mut out, &fix.expected_sha256);
+    out.push_str(",\"replacement\":");
+    push_json_str(&mut out, &fix.replacement);
+    out.push('}');
+    out
+}
+
+/// Render fixes as a compact JSON array (`[]` when empty). Callers pass
+/// [`collect_fixes`] output, which is already in deterministic
+/// `(file, start, end, rule)` order; this function preserves slice order.
+pub fn fixes_to_json(fixes: &[LintFix]) -> String {
+    let mut out = String::from("[");
+    for (i, fix) in fixes.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        out.push_str(&fix_to_json(fix));
+    }
+    out.push(']');
+    out
+}
+
+/// Render a refusal as compact single-line JSON with fixed key order:
+///
+/// * stale: `{"status":"rejected","reason":"stale","expected":..,"found":..}`
+/// * span: `{"status":"rejected","reason":"span_invalid","start":N,"end":N,"len":N}`
+/// * overlap: `{"status":"rejected","reason":"overlap","first":{"start":N,"end":N},"second":{...}}`
+///
+/// Agents detect staleness from `"reason":"stale"` plus the two hashes;
+/// nothing here is silent.
+pub fn rejected_to_json(rejected: &FixRejected) -> String {
+    let mut out = String::new();
+    match rejected {
+        FixRejected::Stale { expected, found } => {
+            out.push_str("{\"status\":\"rejected\",\"reason\":\"stale\",\"expected\":");
+            push_json_str(&mut out, expected);
+            out.push_str(",\"found\":");
+            push_json_str(&mut out, found);
+            out.push('}');
+        }
+        FixRejected::SpanInvalid { start, end, len } => {
+            let _ = write!(
+                out,
+                "{{\"status\":\"rejected\",\"reason\":\"span_invalid\",\"start\":{start},\"end\":{end},\"len\":{len}}}"
+            );
+        }
+        FixRejected::Overlap { first, second } => {
+            let _ = write!(
+                out,
+                "{{\"status\":\"rejected\",\"reason\":\"overlap\",\"first\":{{\"start\":{},\"end\":{}}},\"second\":{{\"start\":{},\"end\":{}}}}}",
+                first.start, first.end, second.start, second.end
+            );
+        }
+    }
+    out
 }
 
 fn check_span(text: &str, span: Span) -> Result<(), FixRejected> {

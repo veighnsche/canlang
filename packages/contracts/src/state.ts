@@ -226,6 +226,13 @@ export interface OutboxIntent {
   /** Occurrence index for deterministic identity; dispatch guard name if any. */
   readonly occurrenceIndex: number;
   readonly dispatchGuard?: string;
+  /**
+   * B3: stored handler contract (e.g. `acme.cleanup`) for migration
+   * retention/invalidation evidence. OPTIONAL so pre-B3 literals and rows
+   * still compile/read; adapters round-trip it (NULL reads as absent) and
+   * the retention check trusts caller attestation only when it is absent.
+   */
+  readonly handlerContract?: string;
 }
 
 /**
@@ -428,6 +435,22 @@ export interface StoragePort {
   flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult>;
   /** S7: recorded migration outcomes (invalidate skips), in record order. */
   readMigrationOutcomes(migrationId: string): Promise<ReadonlyArray<MigrationOutcome>>;
+  /**
+   * B3: one fenced failure write: mark progress `failed` (preserving the
+   * leg's cursors) and record the durable `MigrationFailure` atomically.
+   * Fence loss throws FenceConflictError; marking an `active` migration
+   * failed is a caller error (no post-flip failure rewrite).
+   */
+  recordMigrationFailure(input: RecordMigrationFailure): Promise<CommitResult>;
+  /**
+   * B3: one fenced pre-flip discard: delete the migration's staged rows
+   * plus its progress row atomically (a retry restages from scratch; the
+   * failure record survives as audit). Refuses `active` progress (no
+   * destructive rollback past the flip).
+   */
+  discardStagedRows(input: DiscardStagedRows): Promise<CommitResult>;
+  /** B3: durable failure record, or null when the migration never failed. */
+  readMigrationFailure(migrationId: string): Promise<MigrationFailure | null>;
 }
 
 /* -- S7: owner-local migration execution intake (DESIGN §11). -- */
@@ -605,4 +628,48 @@ export interface FlipInstalledSnapshot {
 export interface FlipResult {
   readonly revision: Revision;
   readonly flipped: boolean;
+}
+
+/* -- B3: migration recovery + retained-work intake. -- */
+
+/**
+ * B3: which migration leg failed. `staging` covers the staging and
+ * validate legs (pre-flip: abort may discard staged rows); `activation`
+ * covers publish and flip (rows may have moved: forward-only retry, never
+ * a destructive rollback).
+ */
+export type MigrationFailureLeg = 'staging' | 'activation';
+
+/**
+ * B3: durable record of one migration failure (operator evidence for the
+ * abort/retry protocol). Cursors restore the exact resume position on
+ * retry; the record survives abort as audit.
+ */
+export interface MigrationFailure {
+  readonly migrationId: string;
+  readonly leg: MigrationFailureLeg;
+  readonly priorPhase: MigrationPhase;
+  readonly stagedCursor: StagedRowCursor | null;
+  readonly publishCursor: StagedRowCursor | null;
+  readonly error: string;
+  readonly at: number;
+  readonly revision: Revision;
+}
+
+/** B3: one fenced failure write (see `recordMigrationFailure`). */
+export interface RecordMigrationFailure {
+  readonly expectedRevision: Revision;
+  readonly migrationId: string;
+  readonly leg: MigrationFailureLeg;
+  readonly priorPhase: MigrationPhase;
+  readonly stagedCursor: StagedRowCursor | null;
+  readonly publishCursor: StagedRowCursor | null;
+  readonly error: string;
+  readonly at: number;
+}
+
+/** B3: one fenced pre-flip discard (see `discardStagedRows`). */
+export interface DiscardStagedRows {
+  readonly expectedRevision: Revision;
+  readonly migrationId: string;
 }

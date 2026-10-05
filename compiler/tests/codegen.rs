@@ -248,6 +248,7 @@ fn fixture_ir() -> IrProgram {
         crud_when: Vec::new(),
         preferences_valid: Vec::new(),
         suites: Vec::new(),
+        migrations: Vec::new(),
     }
 }
 
@@ -3432,4 +3433,65 @@ fn construct_value_query() {
         "(await records(c,\"demo.Widget\",{})).filter((row)=>row > 1n)"
     );
     assert!(diags.is_empty(), "clean: {diags:?}");
+}
+
+/// B3 I2 emitted-map fixture: a plain `.can` snippet (no forms, no
+/// policies) emits exact `mappings` bytes, and every decoded segment
+/// resolves to its source line/col. Pins the encoder output the TS
+/// `lookup` in `packages/cloudflare/src/runtime/sourcemap.ts` consumes.
+#[test]
+fn sourcemap_emitted_fixture_plain_snippet() {
+    use canlang_compiler::codegen::js::JsWriter;
+    let mut db = SourceDb::new();
+    // Plain snippet: three source lines, no forms/policies.
+    let text = "app Plain\nnote Note\nrule allow\n";
+    db.add("plain.can".into(), text.into());
+    let mut writer = JsWriter::new();
+    writer.push(
+        Span::new(SourceId(0), 0, 9),
+        Some("appDefinition".to_string()),
+        "const app=\"Plain\";",
+    );
+    writer.push(Span::new(SourceId(0), 10, 19), None, "const note=\"Note\";");
+    writer.push(
+        Span::new(SourceId(0), 20, 30),
+        None,
+        "const rule=\"allow\";",
+    );
+    let module = writer.finish("plain.mjs".to_string());
+    assert_eq!(module.js.matches('\n').count(), 3, "one newline per line");
+    let map = sourcemap::build("plain.mjs", &db, &module.lines);
+    assert_eq!(map.file, "plain.mjs");
+    assert_eq!(map.sources, vec!["plain.can".to_string()]);
+    assert_eq!(map.sources_content, vec![Some(text.to_string())]);
+    assert_eq!(map.names, vec!["appDefinition".to_string()]);
+    // Exact bytes: L1 [0,0,0,0]+name0 -> AAAAA; L2/L3 line+1 -> AACA.
+    assert_eq!(map.mappings, "AAAAA;AACA;AACA");
+    let lines = sourcemap::decode_mappings(&map.mappings).expect("decode");
+    assert_eq!(lines.len(), 3);
+    for (i, segments) in lines.iter().enumerate() {
+        assert_eq!(segments.len(), 1, "line {i}: one segment");
+    }
+    let expected: [(i64, i64); 3] = [(0, 0), (1, 0), (2, 0)];
+    for (i, (line, col)) in expected.iter().enumerate() {
+        let seg = &lines[i][0];
+        assert_eq!(seg.gen_col, 0, "line {i} gen col");
+        assert_eq!(seg.src, Some(0), "line {i} src");
+        assert_eq!(seg.src_line, Some(*line), "line {i} src line");
+        assert_eq!(seg.src_col, Some(*col), "line {i} src col");
+    }
+    assert_eq!(lines[0][0].name, Some(0));
+    assert_eq!(lines[1][0].name, None);
+    assert_eq!(lines[2][0].name, None);
+    // JSON shape matches the contracts `SourceMap` subset.
+    let json = sourcemap::to_json(&map);
+    assert!(json.contains("\"version\":3"), "version: {json}");
+    assert!(
+        json.contains("\"sources\":[\"plain.can\"]"),
+        "sources: {json}"
+    );
+    assert!(
+        json.contains("\"mappings\":\"AAAAA;AACA;AACA\""),
+        "mappings: {json}"
+    );
 }

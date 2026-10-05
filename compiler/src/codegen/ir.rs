@@ -39,6 +39,7 @@
 
 use crate::analysis::catalog::{Availability, Catalog, Effects};
 use crate::analysis::effects::EffectVerb;
+use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
     CrudOp, FixtureTarget, ModelOwner, ModuleId, ModuleKind, SymbolId, SymbolKind,
 };
@@ -46,7 +47,7 @@ use crate::analysis::types::{ResolvedType, Scalar};
 use crate::analysis::{CheckedProgram, NodeKey};
 use crate::codegen::bdd::BddSuite;
 use crate::diagnostic::Diagnostic;
-use crate::source::{SourceDb, SourceId, Span};
+use crate::source::{SourceDb, SourceId, Span, sha256_hex};
 use crate::syntax::{SyntaxKind, SyntaxNode};
 use std::collections::{HashMap, HashSet};
 
@@ -375,6 +376,103 @@ pub struct IrNamedFn {
     pub span: Span,
 }
 
+/// One lowered migration directive in interim-intake vocabulary
+/// (`packages/contracts/src/state.ts` `MigrationDirective`): model names
+/// are owner-qualified (`Owner.Model`), field names are model-local.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IrMigrationDirective {
+    /// Bare `rename owner` (the installed old name is deployment-bound:
+    /// `from` travels empty for L1 to fill from the installed snapshot).
+    RenameOwner {
+        /// Installed old owner name (empty until deployment binds it).
+        from: String,
+    },
+    /// Bare `drop owner`.
+    DropOwner,
+    /// `rename before.Model to Target`.
+    RenameModel {
+        /// Old model (`Owner.Model`).
+        from: String,
+        /// Desired model (`Owner.Model`).
+        to: String,
+    },
+    /// `rename before.Model.field to target`.
+    RenameField {
+        /// Old model (`Owner.Model`).
+        model: String,
+        /// Old field (model-local).
+        from: String,
+        /// Desired field (model-local).
+        to: String,
+    },
+    /// `drop before.Model`.
+    DropModel {
+        /// Dropped model (`Owner.Model`).
+        model: String,
+    },
+    /// `drop before.Model.field`.
+    DropField {
+        /// Old model (`Owner.Model`).
+        model: String,
+        /// Dropped field (model-local).
+        field: String,
+    },
+    /// `backfill Model` (desired namespace).
+    Backfill {
+        /// Desired model (`Owner.Model`).
+        model: String,
+    },
+    /// `invalidate before.handler`.
+    Invalidate {
+        /// Handler contract (`before.` stripped).
+        handler: String,
+    },
+}
+
+impl IrMigrationDirective {
+    /// Canonical encoding feeding the migration body digest (stable
+    /// across runs: source order, `|`-free shapes only).
+    fn canonical(&self) -> String {
+        match self {
+            IrMigrationDirective::RenameOwner { from } => format!("renameOwner:{from}"),
+            IrMigrationDirective::DropOwner => "dropOwner".to_string(),
+            IrMigrationDirective::RenameModel { from, to } => {
+                format!("renameModel:{from}->{to}")
+            }
+            IrMigrationDirective::RenameField { model, from, to } => {
+                format!("renameField:{model}.{from}->{to}")
+            }
+            IrMigrationDirective::DropModel { model } => format!("dropModel:{model}"),
+            IrMigrationDirective::DropField { model, field } => {
+                format!("dropField:{model}.{field}")
+            }
+            IrMigrationDirective::Backfill { model } => format!("backfill:{model}"),
+            IrMigrationDirective::Invalidate { handler } => format!("invalidate:{handler}"),
+        }
+    }
+}
+
+/// One lowered per-owner migration transition (B3-I1): the structural
+/// half of the interim `MigrationTransition` intake. Snapshot-identity
+/// completion (`toSnapshotId`, digests beyond the body) is
+/// deployment/L1-bound: the compiler proves structure and predecessor,
+/// never content hashes of schemas it cannot see.
+#[derive(Debug, Clone)]
+pub struct IrMigration {
+    /// Owner name as written (`migration Owner`).
+    pub owner: String,
+    /// Stable migration id (`{owner}@{from}`).
+    pub migration_id: String,
+    /// Decoded `from=` predecessor snapshot id.
+    pub from_snapshot: String,
+    /// Lowered directives in source order.
+    pub directives: Vec<IrMigrationDirective>,
+    /// Lowercase hex SHA-256 over the canonical directive encoding.
+    pub body_digest: String,
+    /// Declaration span.
+    pub span: Span,
+}
+
 /// Checked program in emission order: modules and items plus link metadata.
 #[derive(Debug, Clone)]
 pub struct IrProgram {
@@ -402,6 +500,10 @@ pub struct IrProgram {
     pub preferences_valid: Vec<IrNamedFn>,
     /// Test suites in operation declaration order, orphans last (G10).
     pub suites: Vec<BddSuite>,
+    /// Lowered migration transitions in source order (B3-I1). Only
+    /// migrations that pass [`migrate_check`](crate::analysis::migrate_check)
+    /// lower; invalid ones carry `E6009`/`E6010` and lower nothing.
+    pub migrations: Vec<IrMigration>,
 }
 
 impl IrProgram {
@@ -1387,7 +1489,7 @@ impl<'a> Cx<'a> {
         );
         let items = self.build_items();
         self.check_bound_capabilities();
-        self.check_migrations();
+        let migrations = self.build_migrations();
         let suites = self.build_suites(&items);
         let referenced_builtins = self.build_referenced_builtins();
         let program = IrProgram {
@@ -1402,6 +1504,7 @@ impl<'a> Cx<'a> {
             crud_when,
             preferences_valid,
             suites,
+            migrations,
         };
         (program, std::mem::take(&mut self.diags))
     }
@@ -4513,23 +4616,154 @@ impl<'a> Cx<'a> {
             .and_then(|data| data.availability)
     }
 
-    /// Migrations have no §13 member lowering: each is a loud `E6008`
-    /// (G9). Absent migrations emit nothing.
-    fn check_migrations(&mut self) {
-        for migration in &self.program.effects.migrations {
+    /// Lower checked migrations to interim-intake transitions (B3-I1).
+    /// Each migration passes
+    /// [`migrate_check`](crate::analysis::migrate_check) first
+    /// (directive consistency `E6009`, predecessor `E6010`); valid ones
+    /// lower with zero diagnostics, invalid ones lower nothing. Absent
+    /// migrations emit nothing. Never `E6008`: migrations have a §13
+    /// lowering now (the transition registry).
+    fn build_migrations(&mut self) -> Vec<IrMigration> {
+        let mut out = Vec::new();
+        let mut prior: Vec<(String, String)> = Vec::new();
+        for migration in self.program.effects.migrations.clone() {
+            let view = migration.module.map(|module| self.owner_model_view(module));
+            let issues = migrate_check::check_migration(&migration, view.as_deref(), &prior);
+            if let Some(from) = &migration.from
+                && !from.is_empty()
+            {
+                prior.push((migration.owner.clone(), from.clone()));
+            }
+            if !issues.is_empty() {
+                self.diags.extend(issues);
+                continue;
+            }
+            let Some(from) = migration.from.clone().filter(|f| !f.is_empty()) else {
+                continue;
+            };
             let span = Span::new(
                 migration.node.file,
                 migration.node.start,
                 migration.node.end,
             );
-            self.diags.push(Diagnostic::error(
-                "E6008",
-                format!(
-                    "cannot lower migration {}: migrations have no §13 lowering",
-                    migration.owner,
-                ),
+            let directives = migration
+                .directives
+                .iter()
+                .map(|directive| Self::lower_migration_directive(&migration.owner, directive))
+                .collect::<Vec<_>>();
+            let canonical = directives
+                .iter()
+                .map(IrMigrationDirective::canonical)
+                .collect::<Vec<_>>()
+                .join("\n");
+            out.push(IrMigration {
+                owner: migration.owner.clone(),
+                migration_id: format!("{}@{from}", migration.owner),
+                from_snapshot: from,
+                directives,
+                body_digest: sha256_hex(canonical.as_bytes()),
                 span,
-            ));
+            });
+        }
+        out
+    }
+
+    /// Declared models + fields of one owner module for migration
+    /// target-existence checks (desired namespace, local names).
+    fn owner_model_view(&self, module: ModuleId) -> Vec<OwnerModelView> {
+        let mut view = Vec::new();
+        for symbol in &self.program.symbols {
+            if symbol.module != module {
+                continue;
+            }
+            let SymbolKind::Model { fields, .. } = &symbol.kind else {
+                continue;
+            };
+            view.push(OwnerModelView {
+                name: symbol.name.clone(),
+                fields: fields
+                    .iter()
+                    .filter_map(|id| self.program.symbols.get(id.0 as usize))
+                    .map(|field| field.name.clone())
+                    .collect(),
+            });
+        }
+        view.sort_by(|a, b| a.name.cmp(&b.name));
+        view
+    }
+
+    /// Lower one checked directive (the checker proved the shapes, so
+    /// fallbacks below are unreachable-but-total, never silent).
+    fn lower_migration_directive(
+        owner: &str,
+        directive: &crate::analysis::effects::MigrationDirective,
+    ) -> IrMigrationDirective {
+        use crate::analysis::effects::MigrationDirective as Directive;
+        let qualified = |model: &str| format!("{owner}.{model}");
+        match directive {
+            Directive::Rename {
+                from,
+                to,
+                owner_only,
+                ..
+            } => {
+                if *owner_only {
+                    return IrMigrationDirective::RenameOwner {
+                        from: String::new(),
+                    };
+                }
+                let rest = from.strip_prefix("before.").unwrap_or(from.as_str());
+                let mut segments = rest.split('.');
+                let model = segments.next().unwrap_or("").to_string();
+                let field = segments.next().map(str::to_string);
+                let to = to.clone().unwrap_or_default();
+                match field {
+                    // Field targets spell `Model.field`; the intake
+                    // carries the field half only.
+                    Some(field) => IrMigrationDirective::RenameField {
+                        model: qualified(&model),
+                        from: field,
+                        to: to.split('.').next_back().unwrap_or("").to_string(),
+                    },
+                    None => IrMigrationDirective::RenameModel {
+                        from: qualified(&model),
+                        to: qualified(&to),
+                    },
+                }
+            }
+            Directive::Drop {
+                target, owner_only, ..
+            } => {
+                if *owner_only {
+                    return IrMigrationDirective::DropOwner;
+                }
+                let rest = target
+                    .as_deref()
+                    .unwrap_or("")
+                    .strip_prefix("before.")
+                    .unwrap_or("");
+                let mut segments = rest.split('.');
+                let model = segments.next().unwrap_or("").to_string();
+                let field = segments.next().map(str::to_string);
+                match field {
+                    Some(field) => IrMigrationDirective::DropField {
+                        model: qualified(&model),
+                        field,
+                    },
+                    None => IrMigrationDirective::DropModel {
+                        model: qualified(&model),
+                    },
+                }
+            }
+            Directive::Invalidate { handler, .. } => IrMigrationDirective::Invalidate {
+                handler: handler
+                    .strip_prefix("before.")
+                    .unwrap_or(handler.as_str())
+                    .to_string(),
+            },
+            Directive::Backfill { model, .. } => IrMigrationDirective::Backfill {
+                model: qualified(model),
+            },
         }
     }
 

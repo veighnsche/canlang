@@ -14,7 +14,7 @@
 
 use crate::analysis::catalog::{Availability, Catalog};
 use crate::codegen::bdd::BddModule;
-use crate::codegen::ir::{IrProgram, ReferencedBuiltin};
+use crate::codegen::ir::{IrMigrationDirective, IrProgram, ReferencedBuiltin};
 use crate::codegen::js::JsOutput;
 use crate::codegen::sourcemap::{self, SourceMap};
 use crate::diagnostic::{Diagnostic, push_json_str};
@@ -82,6 +82,93 @@ pub struct ArtifactCallable {
     pub member: Vec<String>,
 }
 
+/// One lowered migration directive in interim-intake vocabulary: `kind`
+/// plus exactly the fields that kind carries (`None` fields never
+/// render).
+#[derive(Debug, Clone)]
+pub struct ArtifactMigrationDirective {
+    /// Intake kind: renameOwner, dropOwner, renameModel, renameField,
+    /// dropModel, dropField, backfill or invalidate.
+    pub kind: String,
+    /// renameOwner old owner (empty until deployment binds it);
+    /// renameModel old model; renameField old field.
+    pub from: Option<String>,
+    /// renameModel desired model; renameField desired field.
+    pub to: Option<String>,
+    /// renameField/dropField old model; dropModel/backfill model.
+    pub model: Option<String>,
+    /// dropField dropped field.
+    pub field: Option<String>,
+    /// invalidate handler contract.
+    pub handler_contract: Option<String>,
+}
+
+/// One lowered per-owner migration transition for the registry.
+#[derive(Debug, Clone)]
+pub struct ArtifactMigration {
+    /// Stable migration id (`{owner}@{from}`).
+    pub id: String,
+    /// Owner name as written.
+    pub owner: String,
+    /// `from=` predecessor snapshot id.
+    pub from: String,
+    /// Lowercase hex SHA-256 over the canonical directive encoding.
+    pub body_digest: String,
+    /// Lowered directives in source order.
+    pub directives: Vec<ArtifactMigrationDirective>,
+}
+
+/// Map one lowered IR directive to its registry shape.
+fn artifact_directive(directive: &IrMigrationDirective) -> ArtifactMigrationDirective {
+    let (kind, from, to, model, field, handler_contract) = match directive {
+        IrMigrationDirective::RenameOwner { from } => {
+            ("renameOwner", Some(from.clone()), None, None, None, None)
+        }
+        IrMigrationDirective::DropOwner => ("dropOwner", None, None, None, None, None),
+        IrMigrationDirective::RenameModel { from, to } => (
+            "renameModel",
+            Some(from.clone()),
+            Some(to.clone()),
+            None,
+            None,
+            None,
+        ),
+        IrMigrationDirective::RenameField { model, from, to } => (
+            "renameField",
+            Some(from.clone()),
+            Some(to.clone()),
+            Some(model.clone()),
+            None,
+            None,
+        ),
+        IrMigrationDirective::DropModel { model } => {
+            ("dropModel", None, None, Some(model.clone()), None, None)
+        }
+        IrMigrationDirective::DropField { model, field } => (
+            "dropField",
+            None,
+            None,
+            Some(model.clone()),
+            Some(field.clone()),
+            None,
+        ),
+        IrMigrationDirective::Backfill { model } => {
+            ("backfill", None, None, Some(model.clone()), None, None)
+        }
+        IrMigrationDirective::Invalidate { handler } => {
+            ("invalidate", None, None, None, None, Some(handler.clone()))
+        }
+    };
+    ArtifactMigrationDirective {
+        kind: kind.to_string(),
+        from,
+        to,
+        model,
+        field,
+        handler_contract,
+    }
+}
+
 /// Separately emitted test artifact for inline behavior examples.
 #[derive(Debug, Clone)]
 pub struct ArtifactTestModule {
@@ -108,6 +195,8 @@ pub struct CompileArtifact {
     pub callables: Vec<ArtifactCallable>,
     /// Page descriptors in source order.
     pub pages: Vec<ArtifactPage>,
+    /// Lowered migration transitions in source order (B3-I1 registry).
+    pub migrations: Vec<ArtifactMigration>,
     /// Linked library/runtime requirements checked at build/activation.
     pub requires: Vec<ArtifactRequirement>,
     /// Test-only example artifacts, erased from production bundles.
@@ -188,6 +277,21 @@ pub fn assemble(
             fixtures: t.fixtures.clone(),
         })
         .collect();
+    let migrations = ir
+        .migrations
+        .iter()
+        .map(|migration| ArtifactMigration {
+            id: migration.migration_id.clone(),
+            owner: migration.owner.clone(),
+            from: migration.from_snapshot.clone(),
+            body_digest: migration.body_digest.clone(),
+            directives: migration
+                .directives
+                .iter()
+                .map(artifact_directive)
+                .collect(),
+        })
+        .collect();
     let artifact = CompileArtifact {
         language_version: crate::LANGUAGE_VERSION.to_string(),
         tool_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -195,6 +299,7 @@ pub fn assemble(
         modules,
         callables,
         pages,
+        migrations,
         requires,
         tests,
     };
@@ -430,6 +535,44 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
         out.push_str(",\"export\":");
         push_json_str(&mut out, &page.export);
         out.push('}');
+    }
+    out.push_str("],\"migrations\":[");
+    for (i, migration) in artifact.migrations.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        out.push_str("{\"id\":");
+        push_json_str(&mut out, &migration.id);
+        out.push_str(",\"owner\":");
+        push_json_str(&mut out, &migration.owner);
+        out.push_str(",\"from\":");
+        push_json_str(&mut out, &migration.from);
+        out.push_str(",\"body_digest\":");
+        push_json_str(&mut out, &migration.body_digest);
+        out.push_str(",\"directives\":[");
+        for (j, directive) in migration.directives.iter().enumerate() {
+            if j > 0 {
+                out.push(',');
+            }
+            out.push_str("{\"kind\":");
+            push_json_str(&mut out, &directive.kind);
+            for (key, value) in [
+                ("from", &directive.from),
+                ("to", &directive.to),
+                ("model", &directive.model),
+                ("field", &directive.field),
+                ("handlerContract", &directive.handler_contract),
+            ] {
+                if let Some(value) = value {
+                    out.push_str(",\"");
+                    out.push_str(key);
+                    out.push_str("\":");
+                    push_json_str(&mut out, value);
+                }
+            }
+            out.push('}');
+        }
+        out.push_str("]}");
     }
     out.push_str("],\"requires\":[");
     for (i, require) in artifact.requires.iter().enumerate() {

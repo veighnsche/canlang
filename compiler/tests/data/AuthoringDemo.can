@@ -1,0 +1,10 @@
+app Tasks   
+Given
+ Todo {title:text}
+When
+ scenario  complete(task:Todo)  ->  text  by=members
+  do
+   let  label = task?.title
+   set task { title = label }
+   return  label
+Then

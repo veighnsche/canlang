@@ -6,7 +6,7 @@
  * construct these directly from SQL failures.
  */
 
-import type { Revision } from '../../../contracts/src/state.js';
+import type { MigrationFailureLeg, Revision } from '../../../contracts/src/state.js';
 
 export type { StoragePort } from '../../../contracts/src/state.js';
 
@@ -53,4 +53,26 @@ export class StorageConstraintError extends Error {
     this.kind = kind;
     this.detail = detail;
   }
+}
+
+/**
+ * B3: shared shape check for the recovery intakes (all three adapters run
+ * it before fencing). Returns the checked id/leg, or throws a plain
+ * `Error` programmer bug — engine inputs are statically shaped, so a
+ * malformed one is never a data failure.
+ */
+export function checkRecoveryInput(
+  migrationId: unknown,
+  leg?: unknown,
+): { readonly migrationId: string; readonly leg?: MigrationFailureLeg } {
+  if (typeof migrationId !== 'string' || migrationId === '') {
+    throw new Error('migration recovery input needs a non-empty migrationId.');
+  }
+  if (leg === undefined) {
+    return { migrationId };
+  }
+  if (leg !== 'staging' && leg !== 'activation') {
+    throw new Error(`migration recovery leg must be staging or activation.`);
+  }
+  return { migrationId, leg };
 }
