@@ -1112,6 +1112,16 @@ impl<'a> Emitter<'a> {
                 );
                 self.throw_expr("delivery type id")
             }
+            // T14c: typed `std` receipts have no §13 type id either;
+            // fail closed exactly like bound deliveries.
+            ResolvedType::StdDelivery { .. } => {
+                self.unsupported(
+                    "type",
+                    "std delivery values have no §13 structural type id",
+                    span,
+                );
+                self.throw_expr("std delivery type id")
+            }
             ResolvedType::Array { element, .. } => {
                 format!("{}[]", self.canonical_type_id(element, span))
             }
@@ -4272,6 +4282,11 @@ impl<'a> Emitter<'a> {
                     .get(op.0 as usize)
                     .map(|row| format!("delivery:{}", row.canonical))
                     .unwrap_or_else(|| "delivery".to_string()),
+            },
+            // T14c: typed `std` receipts tag like bound deliveries
+            // (the T15b provider join owns any richer descriptor).
+            ResolvedType::StdDelivery { capability, op } => JsModelFieldType::Other {
+                type_id: format!("delivery:{capability}.{}", op.name),
             },
             ResolvedType::Action { .. } => JsModelFieldType::Other {
                 type_id: "action".to_string(),

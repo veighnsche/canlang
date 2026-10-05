@@ -233,6 +233,18 @@ pub enum ResolvedType {
     Invocation { targets: Vec<SymbolId> },
     /// `delivery(op)` value over one bound operation.
     Delivery { op: SymbolId },
+    /// `delivery(std.Cap.op)` value over one consumed T13 `std`
+    /// operation (T14c): a typed external send receipt carrying its
+    /// operation identity, so cross-target associations fail instead
+    /// of passing silently through [`ResolvedType::Opaque`].
+    /// `capability` is the qualified contract name (`std.EmailV1`);
+    /// `op` is the consumed operation schema (inputs plus the
+    /// declared result name). Unknown/unconsumed receipt positions
+    /// stay [`ResolvedType::Opaque`], never this.
+    StdDelivery {
+        capability: &'static str,
+        op: &'static StdOperation,
+    },
     /// `[T]` array or `C<T>` query/collection domain. `ordered` holds
     /// for every array value (authored order, `created,id`, or group
     /// encounter order). `nonempty` holds only for
@@ -319,6 +331,9 @@ impl ResolvedType {
             ResolvedType::Delivery { op } => {
                 format!("delivery({})", record_name(tables, module, *op))
             }
+            ResolvedType::StdDelivery { capability, op } => {
+                format!("delivery({capability}.{})", op.name)
+            }
             ResolvedType::Array { element, .. } => {
                 format!("array of {}", element.display(tables, module))
             }
@@ -400,10 +415,13 @@ pub fn check_types(
 /// [`std_capability`](super::catalog::std_capability) table).
 enum StdTarget {
     /// A consumed T13 operation (`display` is the author spelling,
-    /// e.g. `Mail.send`).
+    /// e.g. `Mail.send`; `capability` is the qualified contract
+    /// name, e.g. `std.EmailV1`, the receipt-identity half T14c
+    /// stores on [`ResolvedType::StdDelivery`]).
     Known {
         op: &'static StdOperation,
         display: String,
+        capability: &'static str,
     },
     /// A T13-known capability with an operation outside its owner
     /// schema: a wrong association, verified wrong (never opaque).
@@ -713,7 +731,10 @@ impl<'a> Typer<'a> {
         }
         // Delivery fields must be nullable (attempts only come from
         // `send` results; DESIGN §8.1).
-        if matches!(expected, ResolvedType::Delivery { .. }) {
+        if matches!(
+            expected,
+            ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. }
+        ) {
             self.diags.push(Diagnostic::error(
                 "E3008",
                 format!("field '{name}': delivery fields must be nullable"),
@@ -2354,10 +2375,19 @@ impl<'a> Typer<'a> {
                 // association (`E3010`); anything without a consumed
                 // schema stays `E3019`.
                 match self.resolve_std_send_target(cx, target) {
-                    StdTarget::Known { op, display } => {
+                    StdTarget::Known {
+                        op,
+                        display,
+                        capability,
+                    } => {
                         self.check_std_send_bindings(cx, node, op, &display, object);
-                        self.sends
-                            .insert(NodeKey::of(node), ResolvedType::Opaque("std send receipt"));
+                        // T14c: the receipt carries its operation
+                        // identity (cross-target associations fail;
+                        // unknown positions stay opaque below).
+                        self.sends.insert(
+                            NodeKey::of(node),
+                            ResolvedType::StdDelivery { capability, op },
+                        );
                     }
                     StdTarget::WrongOp { capability, op } => {
                         self.diags.push(Diagnostic::error(
@@ -2459,7 +2489,11 @@ impl<'a> Typer<'a> {
             return StdTarget::NoSchema;
         };
         match cap.operations.iter().find(|operation| operation.name == op) {
-            Some(op) => StdTarget::Known { op, display },
+            Some(op) => StdTarget::Known {
+                op,
+                display,
+                capability: cap.name,
+            },
             None => StdTarget::WrongOp {
                 capability: cap.name.to_string(),
                 op,
@@ -2594,6 +2628,7 @@ impl<'a> Typer<'a> {
             Some(op) => StdTarget::Known {
                 op,
                 display: segments.join("."),
+                capability: cap.name,
             },
             None => StdTarget::WrongOp {
                 capability: cap.name.to_string(),
@@ -5100,7 +5135,9 @@ impl<'a> Typer<'a> {
                     };
                     current = self.decl_type(next);
                 }
-                ResolvedType::Delivery { .. } | ResolvedType::Opaque(_) => {
+                ResolvedType::Delivery { .. }
+                | ResolvedType::StdDelivery { .. }
+                | ResolvedType::Opaque(_) => {
                     // Delivery-typed fields and deployment-bound
                     // (opaque) delivery targets alike: the same member
                     // chains resolve in expression position.
@@ -6693,7 +6730,7 @@ impl<'a> Typer<'a> {
                     // schema; an unknown op of a known capability is
                     // a wrong association (`E3015`).
                     match self.resolve_std_recipe_head(module, h, text) {
-                        StdTarget::Known { op, display } => {
+                        StdTarget::Known { op, display, .. } => {
                             self.check_std_recipe(&cx, object, op, &display);
                             return;
                         }
@@ -9259,24 +9296,34 @@ impl<'a> Typer<'a> {
                 ResolvedType::Error
             }
             Some(super::resolve::ScopedName::External { provider, name }) => {
-                // T14: a `delivery()` over an unknown operation of a
-                // T13-known capability is a wrong association
-                // (`E3010`); known and schema-less targets keep their
-                // opaque treatment.
+                // T14c: a `delivery()` over a T13-known `std`
+                // operation is a typed external receipt naming its
+                // target; an unknown operation of a known capability
+                // stays a wrong association (`E3010`, T14a); anything
+                // without a consumed schema stays opaque.
                 if provider == "std"
                     && segments.len() == 2
                     && let Some(cap) = std_capability(&name)
-                    && !cap.operations.iter().any(|o| o.name == segments[1])
                 {
-                    self.diags.push(Diagnostic::error(
-                        "E3010",
-                        format!(
-                            "'{}' has no sendable operation '{}'; delivery() names a sendable bound operation",
-                            cap.name, segments[1]
-                        ),
-                        tight_span(text, path),
-                    ));
-                    return ResolvedType::Error;
+                    match cap.operations.iter().find(|o| o.name == segments[1]) {
+                        Some(op) => {
+                            return ResolvedType::StdDelivery {
+                                capability: cap.name,
+                                op,
+                            };
+                        }
+                        None => {
+                            self.diags.push(Diagnostic::error(
+                                "E3010",
+                                format!(
+                                    "'{}' has no sendable operation '{}'; delivery() names a sendable bound operation",
+                                    cap.name, segments[1]
+                                ),
+                                tight_span(text, path),
+                            ));
+                            return ResolvedType::Error;
+                        }
+                    }
                 }
                 ResolvedType::Opaque("external delivery target")
             }
@@ -9443,6 +9490,19 @@ impl<'a> Typer<'a> {
                 a.iter().all(|t| b.contains(t))
             }
             (ResolvedType::Delivery { op: a }, ResolvedType::Delivery { op: b }) => a == b,
+            // T14c: same-target std receipts associate; cross-target
+            // ones (including local-vs-std, which falls to `_`) are
+            // wrong associations and incompatible.
+            (
+                ResolvedType::StdDelivery {
+                    capability: ac,
+                    op: ao,
+                },
+                ResolvedType::StdDelivery {
+                    capability: bc,
+                    op: bo,
+                },
+            ) => ac == bc && ao.name == bo.name,
             (ResolvedType::Array { element: a, .. }, ResolvedType::Array { element: b, .. }) => {
                 self.types_compatible(a, b)
             }
@@ -10091,6 +10151,33 @@ impl<'a> Typer<'a> {
                             name_node,
                             name,
                             &format!("delivery({})", record_name(self.tables, cx.module, op)),
+                        );
+                        None
+                    }
+                }
+            }
+            ResolvedType::StdDelivery { capability, op } => {
+                let (capability, op) = (*capability, *op);
+                match name {
+                    "id" => Some(ResolvedType::Scalar(Scalar::Text)),
+                    "status" => Some(ResolvedType::Opaque("delivery status")),
+                    "error" => Some(ResolvedType::Opaque("delivery error")),
+                    // T14c: `attempt.result` types against the
+                    // consumed owner result shape when the consume
+                    // layer carries one. Every T13 result name is
+                    // nominal-only today, so this stays opaque (a
+                    // T13c transcription need) rather than guessed.
+                    "result" => Some(match std_schema_type(op.result) {
+                        Some(ty) => ResolvedType::Nullable(Box::new(ty)),
+                        None => ResolvedType::Opaque("std delivery result"),
+                    }),
+                    _ => {
+                        self.unknown_member(
+                            cx,
+                            node,
+                            name_node,
+                            name,
+                            &format!("delivery({capability}.{})", op.name),
                         );
                         None
                     }
@@ -10982,6 +11069,18 @@ impl<'a> Typer<'a> {
             }
             (ResolvedType::Message(a), ResolvedType::Message(b)) => a == b,
             (ResolvedType::Delivery { op: a }, ResolvedType::Delivery { op: b }) => a == b,
+            // T14c: same-target std receipts compare; cross-target
+            // ones (including local-vs-std via `_`) never do.
+            (
+                ResolvedType::StdDelivery {
+                    capability: ac,
+                    op: ao,
+                },
+                ResolvedType::StdDelivery {
+                    capability: bc,
+                    op: bo,
+                },
+            ) => ac == bc && ao.name == bo.name,
             (ResolvedType::Team, ResolvedType::Team)
             | (ResolvedType::OperationContext, ResolvedType::OperationContext) => true,
             (ResolvedType::Union(a), ResolvedType::Union(b)) => a == b,
@@ -14424,6 +14523,18 @@ fn loose_equal(a: &ResolvedType, b: &ResolvedType) -> bool {
             a == b
         }
         (ResolvedType::Delivery { op: a }, ResolvedType::Delivery { op: b }) => a == b,
+        // T14c: same-target std receipts only; cross-target ones
+        // (including local-vs-std via `_`) are never loosely equal.
+        (
+            ResolvedType::StdDelivery {
+                capability: ac,
+                op: ao,
+            },
+            ResolvedType::StdDelivery {
+                capability: bc,
+                op: bo,
+            },
+        ) => ac == bc && ao.name == bo.name,
         (ResolvedType::Array { element: a, .. }, ResolvedType::Array { element: b, .. }) => {
             loose_equal(a, b)
         }
