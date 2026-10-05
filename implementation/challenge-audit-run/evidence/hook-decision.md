@@ -270,7 +270,8 @@ triggering CRUD path stays forbidden.
 1. T30 completion: provenance-correct hook payload typing (C6 `{opaque}`
    cluster resolved) so the gate judges secondary-write rules, not payload
    opacity.
-2. Full enumeration of hook bodies with secondary writes across all 52
+2. [COMPLETE — see "Hook-body enumeration (gate evidence)" below]
+   Full enumeration of hook bodies with secondary writes across all 52
    sources (only CanCheck `initial`/`configured` sampled here) with
    per-site effect classification (parented child / timer / cross-row /
    delete attempt).
@@ -299,4 +300,205 @@ triggering CRUD path stays forbidden.
   untouched (read-only); state/compiler code untouched (T31 is post-gate);
   tasks.md/monitor.md/inbox untouched (coordinator-owned); no JEV run;
   no Git.
+- Release: this file is RELEASED to the coordinator for gate scheduling.
+
+## Hook-body enumeration (gate evidence)
+
+Status: **PROPOSED / PREP — adopts NOTHING.** Checklist item 2 evidence
+only; all alternatives stay unranked and every **JEV-PENDING** above is
+preserved. Read-only `rg` inspection of the 52 `draft/**/*.can` sources;
+`.mjs` desired-output files excluded; no builds, no JEV, no Git.
+
+Method: a CRUD hook body is a `scenario <name> on=<Model>.create|update|delete`
+block. Committed/fanout handlers (`on=X.created/.updated/.deleted`,
+`each=`) are out of T31a scope (295 total `on=` scenarios corpus-wide;
+44 are CRUD hooks). Each body below was read to its boundary (next
+`scenario`/section start); `-A` window bleed into neighboring scenarios
+was excluded by direct reads. Settled core = `set event.after {...}`
+adjustment and/or `require` only; everything else is a secondary effect
+classified per site as parented-child / timer / cross-row /
+delete-attempt / other.
+
+### Totals
+
+- 44 CRUD hook bodies in 16 files (20 create, 23 update, 1 delete).
+- 36 bodies carry secondary effects; 8 are settled-core-only (listed at
+  the end); **0 delete attempts** anywhere (no `delete`/`archive`/
+  `destroy` statement inside any hook body).
+- Body-level effect classes (bodies multi-labeled): parented-child 17,
+  timer 10, cross-row 8, delete-attempt 0, other 7 (bound `send` 2,
+  `emit` 5).
+- Site-level: 20 parented `create`s + 1 `set` on a staged child; 15
+  static `schedule`/`cancel` ops + 1 timer fan-out loop; 8 cross-row
+  `set`s; 2 bound `send`s; 5 `emit`s.
+
+### Bodies with secondary effects (36)
+
+Parented-child creates (`parent=event.after`, inside C-as-written):
+
+- `draft/CanCheck.can:103` `configured` on=Check.update — L113 `create
+  Transition {parent=event.after...}` parented-child; L119 `create Notice
+  {parent=event.after...}` parented-child; L121 `set notice {...}`
+  parented-child write. Also L115 `schedule`/L117 `cancel` timer
+  (pending-bound); L120 `send Alerts.notify` other. Discriminates: B
+  remodels everything (atomicity loss); C keeps creates+timers, silent
+  on `send`; D identical to A here (no Transition/Notice hooks exist).
+- `draft/CanMaintain.can:106` `retire_asset` on=Asset.update — L110
+  `create Cancellation {parent=event.after...}` parented-child; L111
+  `emit CancellationStep` other. Discriminates: C keeps the create,
+  silent on `emit`; B remodels both.
+- `draft/shared/Locations.can:33,37` `snapshot_Location_create/update`
+  on=Location.create/update — L36/L40 `create LocationPolicy
+  {parent=location...}` (location=`event.after`) parented-child.
+- `draft/CanRent.can:338,342` `snapshot_Resource_create/update`
+  on=Resource.create/update — L341/L345 `create ResourcePolicy
+  {parent=resource...}` (resource=`event.after`) parented-child.
+  Discriminates: snapshot `sequence=count(...)+1` makes B-remodel
+  atomicity loss concrete (concurrent commits can duplicate sequence);
+  C keeps these four; D identical to A (no Policy hooks exist).
+
+Parented-child creates (`parent=event.after.parent`, OUTSIDE
+C-as-written allowlist, which names only `parent=event.after`):
+
+- `draft/CanMaintain.can:98` `revise_plan` on=Plan.update — L101 `create
+  Cancellation {parent=event.after.parent...}` parented-child*;
+  L102 `emit CancellationStep` other; L103 `cancel`/L105 `schedule`
+  timer (pending-bound). Discriminates: C-as-written excludes the L101
+  create (parented to the trigger's parent, not the trigger) — C needs
+  extension or this body pays B-remodel; A covers all; B remodels all.
+- `draft/shared/Locations.can:41,45,49,53,57,61` six child-snapshot
+  hooks (WeeklyHours/ClosedDate/DateHours × create/update) — each `create
+  LocationPolicy {parent=location...}` with location=`event.after.parent`
+  parented-child*.
+- `draft/CanRent.can:346,351,356,360` four child-snapshot hooks
+  (Window/DayCalendar × create/update) — each `create ResourcePolicy
+  {parent=resource...}` with resource=`event.after.parent`
+  parented-child*; Window hooks additionally L350/L355 `create
+  WindowEvidence {parent=event.after.parent...}` parented-child*.
+  Discriminates: the `event.after`/`event.after.parent` line splits the
+  snapshot family 4-inside/10-outside under C-as-written — the gate must
+  say whether C's allowlist extends to trigger-parent parenting (then C
+  keeps all 14 snapshots) or these 11 bodies remodel as B.
+
+Pure pending-bound timer hooks (8 bodies, zero-edit under A/C/D):
+
+- `draft/CanCheck.can:96` `initial` on=Check.create — L100 `schedule
+  event.after.id` timer.
+- `draft/CanContract.can:109` `arm` on=Obligation.create — L112
+  `schedule` timer.
+- `draft/CanContract.can:113` `rearm` on=Obligation.update — L115
+  `cancel` + L118 `schedule` timer.
+- `draft/CanSuccess.can:78` `arm` on=FollowUp.create — L81 `schedule`
+  timer.
+- `draft/CanSuccess.can:82` `reschedule` on=FollowUp.update — L84
+  `cancel` + L86 `schedule` timer.
+- `draft/CanSuccess.can:87` `account_created` on=Account.create — L92
+  `schedule` timer.
+- `draft/CanMaintain.can:92` `activate_plan` on=Plan.create — L96
+  `schedule` timer.
+- Plus `draft/CanSuccess.can:93` `account_changed` on=Account.update —
+  L95 `cancel` + L99 `schedule` timer (pending-bound) AND L100-103
+  `for` loop over `event.after.FollowUp` children with `cancel
+  followup.id` + `schedule followup.id` timer (child-bound, fanned-out).
+  Discriminates: the L100-103 loop is outside C-as-written (bound to
+  children, not the pending record) and directly implicates A's
+  **JEV-PENDING** staged-write fan-out bound; B remodels the whole body.
+
+Cross-row `set` hooks (all OUTSIDE C-as-written; A stages, B remodels):
+
+- `draft/CanOnboard.can:46` `template_step_created` on=TemplateStep.create
+  — L47 `set event.after.parent {revision=...+1}` cross-row (parent row).
+- `draft/CanOnboard.can:48` `template_step_changed` on=TemplateStep.update
+  — L49 same cross-row shape.
+- `draft/CanOnboard.can:50` `template_step_removed` on=TemplateStep.delete
+  — L51 `set event.before.parent {revision=...+1}` cross-row from a
+  DELETE hook. Discriminates: the only delete hook in the corpus; all
+  alternatives pin only delete-hook *target* adjustment, so parent-row
+  writes from delete hooks are unaddressed under A/B/C/D — gate gap.
+- `draft/CanLeave.can:72,74,76,78` `day_created/day_changed/
+  category_created/category_changed` — L73/L75/L77/L79 `set
+  event.after.parent {revision=...+1}` cross-row (parent row).
+  Discriminates: B-remodel moves the revision bump post-commit, changing
+  revision-visibility semantics the gate must rule on (bar item 3 fence
+  input).
+- `draft/CanDiscover.can:247` `analyse_new` on=Evidence.create — L251
+  `send Analysis.extract {...} as request` other; L253 `set evidence.run
+  {analysis_slots=...+1}` cross-row (L252 `set evidence {...}` is
+  settled-core: evidence=`event.after`). Discriminates: bound `send`
+  inside a hook body is unaddressed by all four alternatives (shared gap
+  with Check:120); the slot-counter bump has B-remodel race implications.
+
+Emit-only hooks (other; unaddressed by all four alternatives — gate gap:
+is `emit` staged with the trigger or post-commit?):
+
+- `draft/shared/Employees.can:22` `changed` on=Employee.update — L25
+  `emit EmployeeChanged` other.
+- `draft/CanShift.can:233` `availability_changed` on=Availability.update
+  — L234 `emit EligibilityReview` other.
+- `draft/CanShift.can:235` `availability_created` on=Availability.create
+  — L236 `emit EligibilityReview` other.
+
+### Settled-core-only hooks (8, no secondary effects)
+
+`draft/CanFeedback.can:76` `contribution_limit` (require only);
+`draft/CanFeedback.can:79` `review_edited` (`set event.after`);
+`draft/CanCreative.can:62` `template_edited` (`set event.after`);
+`draft/CanCustomer.can:77` `contact_email_changed` (`set event.after`);
+`draft/CanMember.can:229` `calendar_snapshot` (`set event.after`);
+`draft/CanLeave.can:70` `calendar_changed` (`set event.after`);
+`draft/CanOnboard.can:44` `template_changed` (`set event.after`);
+`draft/CanVolunteer.can:45` `venue_on_create` (require only). All eight
+hold verbatim under every alternative. (Out-of-scope boundary note:
+`draft/CanVolunteer.can:47` `refresh_reminders on=Opportunity.updated
+each=Signup` is a committed fanout handler, not a CRUD hook.)
+
+### Cross-cutting gate notes (adopt NOTHING)
+
+- D ≡ A on all current drafts: no CRUD hook exists on any staged-create
+  target model (Transition, Notice, Cancellation, LocationPolicy,
+  ResourcePolicy, WindowEvidence) — only `.created` committed handlers
+  for Revision/Notice. No sampled or enumerated workflow needs cascade.
+- R27 hook side stays 2 sites: `armed` hook writes occur only at
+  `draft/CanCheck.can:99` (`initial`) and `:109` (`configured`); L58/L80
+  `armed` writes are ordinary-path (non-hook) operations. Full
+  server-owned-field cross-check remains gate item 3 (T18 rule).
+- B-remodel burden is 36 bodies, not the 2 sampled in prep — including
+  14 snapshot hooks with `sequence=count()+1` atomicity stakes and 8
+  cross-row revision-bump/counter sets.
+- Gaps no alternative addresses (for the JEV gate): bound `send` in hook
+  bodies (Check:120, Discover:251), `emit` in hook bodies (5 sites),
+  delete-hook non-target writes (Onboard:51), child-bound timer fan-out
+  (Success:100-103).
+
+### Commands run (read-only)
+
+1. `ls draft/**/*.can draft/*.can | sort -u | wc -l` → 52 sources.
+2. `rg -n --glob '*.can' "on\s*=\s*[A-Za-z0-9_]+.(create|update|delete)\b"
+   draft/` → 44 CRUD hook declarations (16 files).
+3. `rg -n --glob '*.can' -A 12 "scenario \w+
+   on=[A-Za-z0-9_]+.(create|update|delete)\b" draft/` plus `-A 10` snapshot
+   pass and direct file reads of CanCheck:85-135 (body-boundary
+   verification for every hook).
+4. `rg -n --glob '*.can' "scenario \w+
+   on=[A-Za-z0-9_]+\.(create|update|delete)" draft/ -A 14 | rg
+   "delete|archive|destroy"` → zero in-body delete attempts (only the
+   `on=TemplateStep.delete` declaration line itself plus neighboring
+   non-hook `archived=include`/`on=X.deleted` bleed-through).
+5. `rg -n --glob '*.can' "scenario \w+
+   on=(Transition|Notice|Cancellation|LocationPolicy|ResourcePolicy|
+   WindowEvidence|...)\.(create|update|delete)" draft/` → no CRUD hooks
+   on staged targets (D ≡ A).
+6. `rg -n --glob '*.can' "armed" draft/` → hook-side R27 sites are
+   CanCheck:99/:109 only.
+7. `rg -c --glob '*.can' "scenario \w+ on=" draft/` → 295 total `on=`
+   scenarios (44 CRUD hooks; remainder committed/fanout handlers).
+
+### Handoff
+
+- Writer: L3 T31a-enumeration. Single file appended
+  (`implementation/challenge-audit-run/evidence/hook-decision.md` only);
+  existing alternatives/fairness/checklist text untouched except the
+  item-2 COMPLETE marker above; DESIGN.md/GRAMMAR.md/DECISIONS.md,
+  drafts, code, tools/jev.py, tasks.md/monitor.md/inbox untouched (read
+  or coordinator-owned); no JEV run; no Git.
 - Release: this file is RELEASED to the coordinator for gate scheduling.
