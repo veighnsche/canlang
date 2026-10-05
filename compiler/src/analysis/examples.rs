@@ -607,6 +607,7 @@ impl<'a> Checker<'a> {
                 continue;
             }
             bound.insert((*key).to_string(), *value);
+            self.elide_header_case(text, ctx, key, value);
         }
         let rows: Vec<&SyntaxNode> = kids(node)
             .into_iter()
@@ -737,6 +738,70 @@ impl<'a> Checker<'a> {
             }
         }
         seeds
+    }
+
+    /// Retract the earlier `E2001` when a header binding value elides as
+    /// an enum case (G4).
+    ///
+    /// The types pass checks header values without an expectation, so a
+    /// bare case never gets claimed there and `emit_unresolved` (which
+    /// runs before this pass) misfires on it. This retracts exactly that
+    /// finding, mirroring `type_nameref` claiming case-for-case:
+    /// lexical bindings first (a bound name is never a case), otherwise
+    /// a bare case of the binding's uniquely expected enum type.
+    /// Anything else keeps its `E2001`, exactly as in fixture values.
+    fn elide_header_case(&mut self, text: &str, ctx: &OpCtx, key: &str, value: &SyntaxNode) {
+        let mut target = value;
+        while target.kind == SyntaxKind::Group {
+            let Some(inner) = kids(target).into_iter().find(|n| is_expression(n.kind)) else {
+                return;
+            };
+            target = inner;
+        }
+        if target.kind != SyntaxKind::NameRef {
+            return;
+        }
+        let Some(word) = nameref_word(text, target) else {
+            return;
+        };
+        let Some(expected) = self.header_expected_type(ctx, key) else {
+            return;
+        };
+        let Some(cases) = enum_cases(&expected) else {
+            return;
+        };
+        if !cases.iter().any(|c| c == word) {
+            return;
+        }
+        if self.tables.node_binding.contains_key(&NodeKey::of(target)) {
+            return;
+        }
+        let span = tight_span(text, target);
+        let plain = format!("unresolved name '{word}'");
+        let hinted = format!("{plain};");
+        self.diags.retain(|d| {
+            !(d.code == "E2001"
+                && d.primary == span
+                && (d.message == plain || d.message.starts_with(&hinted)))
+        });
+    }
+
+    /// Expected type of a header binding: a scenario parameter type or
+    /// a generated-create field type. Record, envelope and opaque
+    /// bindings carry no elidable expectation.
+    fn header_expected_type(&self, ctx: &OpCtx, key: &str) -> Option<ResolvedType> {
+        match ctx {
+            OpCtx::Scenario { params, .. } => params
+                .iter()
+                .find(|p| self.tables.symbols[p.0 as usize].name == key)
+                .and_then(|p| self.types.symbol_types.get(p).cloned()),
+            OpCtx::Crud { model, op } => match op {
+                CrudOp::Create => self
+                    .model_field_named(*model, key)
+                    .and_then(|f| self.types.symbol_types.get(&f).cloned()),
+                CrudOp::Update | CrudOp::Delete => None,
+            },
+        }
     }
 
     // --- Table selectors -------------------------------------------------
@@ -2719,6 +2784,16 @@ fn is_reserved_name(name: &str) -> bool {
 fn nullable_inner(ty: &ResolvedType) -> Option<&ResolvedType> {
     match ty {
         ResolvedType::Nullable(inner) => Some(inner),
+        _ => None,
+    }
+}
+
+/// Cases of a uniquely expected enum type, through nullability.
+/// Mirrors the types pass `enum_expectation` for header elision.
+fn enum_cases(ty: &ResolvedType) -> Option<&[String]> {
+    match ty {
+        ResolvedType::Nullable(inner) => enum_cases(inner),
+        ResolvedType::Enum { cases, .. } => Some(cases),
         _ => None,
     }
 }
