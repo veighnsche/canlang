@@ -66,5 +66,15 @@ bunx vitest run packages/testkit/test/isolation.test.ts
   install already works here.
 - Stale `dist/` after switching branches: `rm -rf packages/*/dist` and
   rebuild (`tsc -b` incremental state can wedge across rebases).
+  When wiping a package's `dist/` by hand, also remove its
+  `tsconfig.tsbuildinfo`: composite `tsc` emits nothing without clearing
+  that git-ignored state file.
+- Fresh-clone `can docs` failing with `E7004`/`Permission denied` on
+  `can-platform`: `tsc` emits `dist/cli/platform.js` without `+x`; the
+  `postbuild` chmod in `packages/cloudflare/package.json` repairs it
+  under `bun run build`. Known gap (ROOT-BUILD-SKIPS-POSTBUILD): the
+  root `tsc -b` path does not trigger `postbuild`, so a clone built
+  only via the root script still gets a non-executable bin until the
+  lane-07 root-wiring follow-up lands.
 - `wrangler` remote commands need `CLOUDFLARE_API_TOKEN`; nothing in this
   repo runs them without asking.
